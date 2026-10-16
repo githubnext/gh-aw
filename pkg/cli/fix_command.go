@@ -20,16 +20,17 @@ var fixLog = logger.New("cli:fix_command")
 
 // FixConfig contains configuration for the fix command
 type FixConfig struct {
-	WorkflowIDs        []string
-	Write              bool
-	Verbose            bool
-	WorkflowDir        string   // Custom workflow directory
-	DisabledCodemodIDs []string // Codemod IDs to skip
+	WorkflowIDs                []string
+	Write                      bool
+	Verbose                    bool
+	WorkflowDir                string   // Custom workflow directory
+	DisabledCodemodIDs         []string // Codemod IDs to skip
+	SkipInstructionFileUpdates bool
 }
 
 // RunFix runs the fix command with the given configuration
 func RunFix(config FixConfig) error {
-	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs)
+	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs, config.SkipInstructionFileUpdates)
 }
 
 // NewFixCommand creates the fix command
@@ -78,7 +79,7 @@ all steps and additionally:
 				return listAvailableCodemods()
 			}
 
-			return runFixCommand(args, write, verbose, dir, disabledCodemods)
+			return runFixCommand(args, write, verbose, dir, disabledCodemods, false)
 		},
 	}
 
@@ -115,7 +116,7 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error { //nolint:largefunc // Existing command orchestration remains centralized.
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, skipInstructionFileUpdates bool) error { //nolint:largefunc // Existing command orchestration remains centralized.
 	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s, disabledCodemodIDs=%v", workflowIDs, write, verbose, workflowDir, disabledCodemodIDs)
 
 	// Set up workflow directory (using default if not specified)
@@ -195,18 +196,19 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		}
 	}
 
-	// Update prompt and skill files (similar to init command)
-	// This ensures the latest templates are always used
-	fixLog.Print("Updating prompt and skill files")
+	if !skipInstructionFileUpdates {
+		// Update prompt and skill files (similar to init command)
+		// This ensures the latest templates are always used
+		fixLog.Print("Updating prompt and skill files")
 
-	// Update dispatcher skill
-	if err := ensureAgenticWorkflowsDispatcher(verbose, false, write); err != nil {
-		fixLog.Printf("Failed to update dispatcher skill: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update dispatcher skill: %v", err)))
-	}
-	if err := ensureAgenticWorkflowsAgent(verbose, write); err != nil {
-		fixLog.Printf("Failed to update agentic workflows custom agent: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflows custom agent: %v", err)))
+		if err := ensureAgenticWorkflowsDispatcher(verbose, false, write); err != nil {
+			fixLog.Printf("Failed to update dispatcher skill: %v", err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update dispatcher skill: %v", err)))
+		}
+		if err := ensureAgenticWorkflowsAgent(verbose, write); err != nil {
+			fixLog.Printf("Failed to update agentic workflows custom agent: %v", err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflows custom agent: %v", err)))
+		}
 	}
 
 	// Delete old template files from pkg/cli/templates/ (only with --write)
@@ -219,7 +221,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 	}
 
 	// Delete old agent files if write flag is set
-	if write {
+	if write && !skipInstructionFileUpdates {
 		fixLog.Print("Deleting old agent files")
 		if err := deleteLegacyAgentFiles(verbose); err != nil {
 			fixLog.Printf("Failed to delete old agent files: %v", err)

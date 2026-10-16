@@ -8,10 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -42,7 +44,7 @@ func NewUpgradeCommand(validateEngine func(string) error) *cobra.Command {
 		Long: `Upgrade the repository to the latest version of agentic workflows.
 
 This command:
-  1. Updates the dispatcher agent file to the latest template (like 'init' command)
+  1. Updates the dispatcher skill and applicable Copilot files to the latest templates (like 'init' command)
   2. Applies automatic codemods to fix deprecated fields in all workflows (like 'fix --write')
   3. Updates GitHub Actions versions in .github/aw/actions-lock.json (unless --no-actions is set)
   4. Compiles all workflows to generate lock files (like 'compile' command)
@@ -50,6 +52,8 @@ This command:
 Flag behavior:
 - Upgrade runs codemods, action version updates, and workflow compilation by default; use --no-fix to skip all three steps
 - --no-actions and --no-compile are only applied when --no-fix is not set
+- Copilot agent and setup files are created only when workflows use Copilot (including the default engine), or updated when they already exist
+- --no-agent, --no-mcp, and --no-skill skip updating the custom agent, Copilot setup steps, and dispatcher skill, respectively
 
 DEPENDENCY HEALTH AUDIT:
 Use --audit to check dependency health without performing upgrades. This includes:
@@ -94,6 +98,9 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			yes, _ := cmd.Flags().GetBool("yes")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
 			noCompile, _ := cmd.Flags().GetBool("no-compile")
+			noAgent, _ := cmd.Flags().GetBool("no-agent")
+			noMCP, _ := cmd.Flags().GetBool("no-mcp")
+			noSkill, _ := cmd.Flags().GetBool("no-skill")
 			auditFlag, _ := cmd.Flags().GetBool("audit")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
 			disabledCodemods, _ := cmd.Flags().GetStringSlice("disable-codemod")
@@ -141,6 +148,9 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				noFix:                noFix,
 				noCompile:            noCompile,
 				noActions:            noActions,
+				noAgent:              noAgent,
+				noMCP:                noMCP,
+				noSkill:              noSkill,
 				disabledCodemodIDs:   disabledCodemods,
 				skipExtensionUpgrade: skipExtensionUpgrade,
 				approve:              approveUpgrade,
@@ -185,6 +195,9 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().Bool("no-fix", false, "Skip codemods, action version updates, and workflow compilation (only update agent files)")
 	cmd.Flags().Bool("no-actions", false, "Skip updating GitHub Actions versions (ignored when --no-fix is set)")
 	cmd.Flags().Bool("no-compile", false, "Skip recompiling workflows (do not modify lock files; ignored when --no-fix is set)")
+	cmd.Flags().Bool("no-agent", false, "Skip updating the agentic-workflows custom agent")
+	cmd.Flags().Bool("no-mcp", false, "Skip updating GitHub Copilot Agent MCP server setup steps")
+	cmd.Flags().Bool("no-skill", false, "Skip updating the agentic-workflows dispatcher skill")
 	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
@@ -235,6 +248,9 @@ type upgradeOptions struct {
 	noFix                bool
 	noCompile            bool
 	noActions            bool
+	noAgent              bool
+	noMCP                bool
+	noSkill              bool
 	disabledCodemodIDs   []string
 	skipExtensionUpgrade bool
 	approve              bool
@@ -277,11 +293,16 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		}
 	}
 
+	workflowDir, err := resolveUpgradeWorkflowDir(opts.workflowDir)
+	if err != nil {
+		return err
+	}
+
 	// Step 1: Update dispatcher skill and related Copilot artifacts (like init command)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updating dispatcher skill..."))
 	upgradeLog.Print("Updating dispatcher skill")
 
-	if err := updateCopilotArtifacts(opts.ctx, opts.verbose); err != nil {
+	if err := updateCopilotArtifacts(opts, workflowDir); err != nil {
 		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
 		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
@@ -296,11 +317,12 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		upgradeLog.Print("Applying codemods to all workflows")
 
 		fixConfig := FixConfig{
-			WorkflowIDs:        nil, // nil means all workflows
-			Write:              true,
-			Verbose:            opts.verbose,
-			WorkflowDir:        opts.workflowDir,
-			DisabledCodemodIDs: opts.disabledCodemodIDs,
+			WorkflowIDs:                nil, // nil means all workflows
+			Write:                      true,
+			Verbose:                    opts.verbose,
+			WorkflowDir:                workflowDir,
+			DisabledCodemodIDs:         opts.disabledCodemodIDs,
+			SkipInstructionFileUpdates: true,
 		}
 
 		if err := RunFix(fixConfig); err != nil {
@@ -414,30 +436,92 @@ func runUpgradeCommand(opts upgradeOptions) error {
 }
 
 // updateCopilotArtifacts updates the dispatcher skill and related Copilot setup artifacts.
-func updateCopilotArtifacts(ctx context.Context, verbose bool) error {
+func updateCopilotArtifacts(opts upgradeOptions, workflowDir string) error {
 	// Update dispatcher skill
-	if err := ensureAgenticWorkflowsDispatcher(verbose, false, true); err != nil {
+	if err := ensureAgenticWorkflowsDispatcher(opts.verbose, opts.noSkill, true); err != nil {
 		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
 		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
-	if err := ensureAgenticWorkflowsAgent(verbose, true); err != nil {
-		upgradeLog.Printf("Failed to update Agentic Workflows custom agent: %v", err)
-		return fmt.Errorf("failed to update Agentic Workflows custom agent: %w", err)
-	}
-	if err := deleteLegacyAgentFiles(verbose); err != nil {
-		upgradeLog.Printf("Failed to delete legacy agent files: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to delete legacy agent files: %v", err)))
+
+	usesCopilot := upgradeUsesCopilot(opts, workflowDir)
+	if !opts.noAgent {
+		gitRoot, err := gitutil.FindGitRoot()
+		if err != nil {
+			return err
+		}
+		agentPath := filepath.Join(gitRoot, ".github", "agents", "agentic-workflows.md")
+		if _, err := os.Stat(agentPath); usesCopilot || err == nil {
+			if err := ensureAgenticWorkflowsAgent(opts.verbose, true); err != nil {
+				upgradeLog.Printf("Failed to update Agentic Workflows custom agent: %v", err)
+				return fmt.Errorf("failed to update Agentic Workflows custom agent: %w", err)
+			}
+			if err := deleteLegacyAgentFiles(opts.verbose); err != nil {
+				upgradeLog.Printf("Failed to delete legacy agent files: %v", err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to delete legacy agent files: %v", err)))
+			}
+		}
 	}
 
 	// Upgrade copilot-setup-steps.yml version
-	actionMode := workflow.DetectActionMode(GetVersion())
-	if err := upgradeCopilotSetupSteps(ctx, verbose, actionMode, GetVersion()); err != nil {
-		upgradeLog.Printf("Failed to upgrade copilot-setup-steps.yml: %v", err)
-		// Don't fail the upgrade if copilot-setup-steps upgrade fails - this is non-critical
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to upgrade copilot-setup-steps.yml: %v", err)))
+	if !opts.noMCP {
+		setupPath := filepath.Join(workflowDir, "copilot-setup-steps.yml")
+		if _, err := os.Stat(setupPath); usesCopilot || err == nil {
+			actionMode := workflow.DetectActionMode(GetVersion())
+			if err := upgradeCopilotSetupStepsInDir(opts.ctx, opts.verbose, actionMode, GetVersion(), workflowDir); err != nil {
+				upgradeLog.Printf("Failed to upgrade copilot-setup-steps.yml: %v", err)
+				// Don't fail the upgrade if copilot-setup-steps upgrade fails - this is non-critical
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to upgrade copilot-setup-steps.yml: %v", err)))
+			}
+		}
 	}
 
 	return nil
+}
+
+func resolveUpgradeWorkflowDir(workflowDir string) (string, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return "", err
+	}
+	if workflowDir == "" {
+		workflowDir = constants.GetWorkflowDir()
+	}
+	if !filepath.IsAbs(workflowDir) {
+		workflowDir = filepath.Join(gitRoot, workflowDir)
+	}
+	return filepath.Clean(workflowDir), nil
+}
+
+func upgradeUsesCopilot(opts upgradeOptions, workflowDir string) bool {
+	if opts.engineOverride != "" {
+		return strings.EqualFold(opts.engineOverride, "copilot")
+	}
+	mdFiles, err := getMarkdownWorkflowFiles(workflowDir)
+	if err != nil {
+		upgradeLog.Printf("Could not scan workflow engines: %v", err)
+		return false
+	}
+	mdFiles, err = filterMarkdownFilesWithFrontmatter(mdFiles)
+	if err != nil {
+		upgradeLog.Printf("Could not filter workflow engines: %v", err)
+		return false
+	}
+	for _, file := range mdFiles {
+		content, err := os.ReadFile(file)
+		if err != nil {
+			upgradeLog.Printf("Could not read workflow engine from %s: %v", file, err)
+			continue
+		}
+		engineConfig, err := workflow.NewCompiler().ResolveEffectiveEngineConfig(string(content), file)
+		if err != nil {
+			upgradeLog.Printf("Could not resolve workflow engine from %s: %v", file, err)
+			continue
+		}
+		if engineConfig != nil && strings.EqualFold(engineConfig.ID, "copilot") {
+			return true
+		}
+	}
+	return false
 }
 
 // relaunchWithSameArgs re-executes the current binary with the original command-line

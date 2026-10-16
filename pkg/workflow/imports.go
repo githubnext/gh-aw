@@ -446,6 +446,9 @@ func mergeSafeOutputConfig(result *SafeOutputsConfig, config, topRawSafeOutputs 
 		importsLog.Print("Imported safe-output config extracted no fields, skipping merge")
 		return result, nil
 	}
+	if importedConfig.CreateIssuesDisabled {
+		result.CreateIssuesDisabled = true
+	}
 
 	// Merge each safe output type (only set if nil in result).
 	// Types with custom merge semantics are handled below.

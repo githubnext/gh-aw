@@ -378,18 +378,22 @@ func validateCopilotSetupStepsTriggers(doc map[string]any) error {
 
 // ensureCopilotSetupSteps creates or updates .github/workflows/copilot-setup-steps.yml
 func ensureCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string) error {
-	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, false)
+	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, false, constants.GetWorkflowDir())
 }
 
 // upgradeCopilotSetupSteps upgrades the version in existing copilot-setup-steps.yml
 func upgradeCopilotSetupSteps(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string) error {
-	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, true)
+	return upgradeCopilotSetupStepsInDir(ctx, verbose, actionMode, version, constants.GetWorkflowDir())
+}
+
+func upgradeCopilotSetupStepsInDir(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version, workflowsDir string) error {
+	return ensureCopilotSetupStepsWithUpgrade(ctx, verbose, actionMode, version, true, workflowsDir)
 }
 
 // ensureCopilotSetupStepsWithUpgrade creates .github/workflows/copilot-setup-steps.yml
 // If the file already exists, it renders console instructions instead of editing
 // When upgradeVersion is true and called from upgrade command, this is a special case
-func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool) error {
+func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actionMode workflow.ActionMode, version string, upgradeVersion bool, workflowsDir string) error {
 	copilotSetupLog.Printf("Creating copilot-setup-steps.yml with action mode: %s, version: %s, upgradeVersion: %v", actionMode, version, upgradeVersion)
 
 	// Create a SHA resolver for release/action mode to enable SHA-pinned action references
@@ -400,7 +404,6 @@ func ensureCopilotSetupStepsWithUpgrade(ctx context.Context, verbose bool, actio
 		resolver = workflow.NewActionResolver(cache)
 	}
 
-	workflowsDir := constants.GetWorkflowDir()
 	setupStepsPath := filepath.Join(workflowsDir, "copilot-setup-steps.yml")
 	if err := fileutil.EnsureParentDir(setupStepsPath, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create workflows directory: %w", err)
