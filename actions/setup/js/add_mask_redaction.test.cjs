@@ -3,90 +3,10 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues, redactMaskedValues, transformJSONStrings, unescapeWorkflowCommandValue } = require("./add_mask_redaction.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues, transformJSONStrings, unescapeWorkflowCommandValue } = require("./add_mask_redaction.cjs");
+const { redactMaskedValues } = require("./mask_value_matcher.cjs");
 
 describe("add_mask_redaction", () => {
-  describe("transformJSONStrings", () => {
-    it("passes complete quoted tokens and plain spans to separate callbacks", () => {
-      const strings = vi.fn(token => `[${token}]`);
-      const plain = vi.fn(text => `{${text}}`);
-      expect(transformJSONStrings('head "one" between "two" tail', strings, plain)).toBe('{head }["one"]{ between }["two"]{ tail}');
-      expect(strings.mock.calls.map(([token]) => token)).toEqual(['"one"', '"two"']);
-      expect(plain.mock.calls.map(([text]) => text)).toEqual(["head ", " between ", " tail"]);
-    });
-
-    it("visits adjacent and empty tokens without separators or trailing text", () => {
-      const strings = vi.fn(token => token);
-      const content = '"""one""two"""';
-      expect(transformJSONStrings(content, strings)).toBe(content);
-      expect(strings.mock.calls.map(([token]) => token)).toEqual(['""', '"one"', '"two"', '""']);
-    });
-
-    it.each(['"unterminated', '"ends\\', '"ends\\u', '"ends\\u123', 'plain "unterminated', '"safe" "ends\\'])("preserves truncated input and never transforms incomplete strings (%j)", content => {
-      const strings = vi.fn(token => token);
-      const plain = vi.fn(text => text);
-      expect(transformJSONStrings(content, strings, plain)).toBe(content);
-      expect(strings.mock.calls.map(([token]) => token)).toEqual(content.startsWith('"safe"') ? ['"safe"'] : []);
-      expect(plain.mock.calls.map(([text]) => text).join("")).toBe(content.startsWith('"safe"') ? content.slice(6) : content);
-    });
-
-    it.each(['"bad\t ', '"bad\\q ', '"bad\\u12gg '])("recovers valid tokens after invalid unterminated prefixes without losing bytes (%j)", prefix => {
-      const strings = vi.fn(token => token);
-      const plain = vi.fn(text => text);
-      expect(transformJSONStrings(prefix + '"\\u006fpaque" tail', strings, plain)).toBe(prefix + '"\\u006fpaque" tail');
-      expect(strings.mock.calls.map(([token]) => token)).toEqual(['"\\u006fpaque"']);
-      expect(plain.mock.calls.map(([text]) => text).join("")).toBe(prefix + " tail");
-    });
-
-    it("preserves bytes even when malformed terminated input makes quote pairing ambiguous", () => {
-      const strings = vi.fn(token => token);
-      const content = '"bad\t" "\\u006fpaque"';
-      expect(transformJSONStrings(content, strings)).toBe(content);
-      expect(strings.mock.calls.map(([token]) => token)).toEqual(['" "']);
-    });
-
-    it.each([1024, 2048])("bounds character inspections after %i malformed escaped quotes", count => {
-      const prefix = '"' + '\\"'.repeat(count) + "\\q ";
-      const content = prefix + '"\\u006fpaque" tail';
-      const strings = vi.fn(token => token);
-      const plain = vi.fn(text => text);
-      const original = String.prototype.charCodeAt;
-      let inspections = 0;
-      const spy = vi.spyOn(String.prototype, "charCodeAt").mockImplementation(function (index) {
-        inspections++;
-        return original.call(this, index);
-      });
-      let result;
-      try {
-        result = transformJSONStrings(content, strings, plain);
-      } finally {
-        spy.mockRestore();
-      }
-      expect(inspections).toBeLessThanOrEqual(content.length);
-      expect(result).toBe(content);
-      expect(strings.mock.calls.map(([token]) => token)).toEqual(['"\\u006fpaque"']);
-      expect(plain.mock.calls.map(([text]) => text).join("")).toBe(prefix + " tail");
-    });
-
-    it.each(["string", "plain"])("propagates %s callback failures without adding source text", callback => {
-      const error = new Error("synthetic callback failure");
-      const fail = () => {
-        throw error;
-      };
-      expect(() => transformJSONStrings('plain "value"', callback === "string" ? fail : token => token, callback === "plain" ? fail : text => text)).toThrow(error);
-    });
-
-    it.each(["", "ordinary", 'quote"slash\\', "\u0000\b\f\n\r\t\u001f", "\ud800\udfff", "\\u006fpaque", '\\"'.repeat(32)])("only transforms a complete token at every possible truncation boundary (%j)", value => {
-      const encoded = JSON.stringify(value);
-      for (let length = 0; length <= encoded.length; length++) {
-        const strings = vi.fn(token => `[${token}]`);
-        const content = `prefix ${encoded.slice(0, length)}`;
-        expect(transformJSONStrings(content, strings)).toBe(length === encoded.length ? `prefix [${encoded}]` : content);
-        expect(strings.mock.calls.map(([token]) => token)).toEqual(length === encoded.length ? [encoded] : []);
-      }
-    });
-  });
-
   describe("seeded parser fuzz tests", () => {
     const seeds = [1, 42, 2026, 0xdeadbeef, 0xffffffff];
     const alphabet = ["a", "z", "0", '"', "\\", "/", "\b", "\f", "\n", "\r", "\t", "\u0000", "\u001f", "\u2028", "\u2029", "\ud800", "\udfff", "\ud83d\ude80"];
@@ -268,80 +188,6 @@ describe("add_mask_redaction", () => {
 
     it("returns an empty array for empty content", () => {
       expect(collectAddMaskedValues("")).toEqual([]);
-    });
-  });
-
-  describe("redactMaskedValues", () => {
-    it("preserves per-value replacement markers across adjacent and overlapping matches", () => {
-      const replacement = value => (value === "configured" ? "***REDACTED***" : "***");
-      expect(redactMaskedValues("configuredruntimeconfiguredconfigured runtime", ["configured", "runtime", "figure"], replacement)).toBe("***REDACTED***" + "***" + "***REDACTED***".repeat(2) + " ***");
-      expect(redactMaskedValues("ababa", ["aba"])).toBe("***ba");
-      expect(redactMaskedValues("ababa", ["aba"], replacement)).toBe("***");
-    });
-
-    it("replaces every occurrence with ***", () => {
-      expect(redactMaskedValues("token=abc and abc again", ["abc"])).toBe("token=*** and *** again");
-    });
-
-    it("handles regex metacharacters in masked values", () => {
-      expect(redactMaskedValues("value a.c here", ["a.c"])).toBe("value *** here");
-      expect(redactMaskedValues("value abc here", ["a.c"])).toBe("value abc here");
-    });
-
-    it("returns the text unchanged when there are no masked values", () => {
-      expect(redactMaskedValues("plain", [])).toBe("plain");
-    });
-
-    it("redacts masks exceeding the regular expression size limit", () => {
-      const mask = "x".repeat(200000);
-      expect(redactMaskedValues(`before ${mask} after ${mask}`, [mask])).toBe("before *** after ***");
-      expect(redactMaskedValues("unrelated output", [mask])).toBe("unrelated output");
-    });
-
-    it("preserves leftmost matching and supplied mask priority for overlaps", () => {
-      expect(redactMaskedValues("abc ab", ["abc", "ab"])).toBe("*** ***");
-      expect(redactMaskedValues("abc", ["ab", "abc"])).toBe("***c");
-      expect(redactMaskedValues("zabc", ["abc", "za"])).toBe("***bc");
-    });
-
-    it("does not rescan replacements or create matches across removed values", () => {
-      expect(redactMaskedValues("secret *", ["secret", "*"])).toBe("*** ***");
-      expect(redactMaskedValues("axb", ["x", "ab"])).toBe("a***b");
-    });
-
-    it("matches ordered regex semantics while refreshing overlapping cached candidates", () => {
-      const values = ["ab", "aba", "ba", "b", "a", "", "ab"];
-      for (let offset = 0; offset < values.length; offset++) {
-        const masks = [...values.slice(offset), ...values.slice(0, offset)];
-        const pattern = new RegExp(masks.filter(Boolean).join("|"), "g");
-        for (let length = 0; length <= 6; length++) {
-          for (let bits = 0; bits < 2 ** length; bits++) {
-            const text = Array.from({ length }, (_, index) => (bits & (1 << index) ? "a" : "b")).join("");
-            expect(redactMaskedValues(text, masks)).toBe(text.replace(pattern, "***"));
-          }
-        }
-      }
-    });
-
-    it("does not re-search later masks for every frequent match", () => {
-      const masks = Array.from({ length: 500 }, (_, index) => `mask-${index.toString().padStart(4, "0")}`);
-      const repeats = 2000;
-      const suffix = masks.join(" ");
-      const text = "hot".repeat(repeats) + " ".repeat(2 * 1024 * 1024) + suffix;
-      const indexOf = String.prototype.indexOf;
-      let searches = 0;
-      const spy = vi.spyOn(String.prototype, "indexOf").mockImplementation(function (value, from) {
-        if (this === text) searches++;
-        return indexOf.call(this, value, from);
-      });
-      let result;
-      try {
-        result = redactMaskedValues(text, [...masks, "hot"]);
-      } finally {
-        spy.mockRestore();
-      }
-      expect(result).toBe("***".repeat(repeats) + " ".repeat(2 * 1024 * 1024) + masks.map(() => "***").join(" "));
-      expect(searches).toBeLessThanOrEqual(masks.length * 2 + repeats + 1);
     });
   });
 

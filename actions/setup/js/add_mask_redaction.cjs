@@ -14,8 +14,8 @@
 /** Matches an `::add-mask::` workflow command and captures its payload. */
 const ADD_MASK_COMMAND_RE = /::add-mask::(.*)$/;
 
-/** Replacement used for masked values, matching the runner's own rendering. */
-const MASK_REPLACEMENT = "***";
+const { MASK_REPLACEMENT, redactMaskedValues, maskedValueMatches, overlappingMatchGroups } = require("./mask_value_matcher.cjs");
+const { transformJSONStrings } = require("./json_string_scanner.cjs");
 
 /**
  * Decode a GitHub Actions workflow command payload.
@@ -68,127 +68,6 @@ function collectAddMaskedValues(logContent) {
 }
 
 /**
- * Yield non-overlapping matches, breaking equal-position ties by mask order.
- * @param {string} text
- * @param {string[]} maskedValues
- * @param {(match: {start: number, end: number, value: string}) => boolean} [allowed]
- * @param {boolean} [overlapping]
- * @yields {{start: number, end: number, value: string}}
- */
-function* maskedValueMatches(text, maskedValues, allowed = () => true, overlapping = false) {
-  const pending = [];
-  for (let order = 0; order < maskedValues.length; order++) {
-    const value = maskedValues[order];
-    if (!value) continue;
-    const index = text.indexOf(value);
-    if (index !== -1) pending.push({ value, index, order });
-  }
-  const precedes = (a, b) => a.index < b.index || (a.index === b.index && a.order < b.order);
-  const siftDown = start => {
-    let parent = start;
-    while (parent * 2 + 1 < pending.length) {
-      let child = parent * 2 + 1;
-      if (child + 1 < pending.length && precedes(pending[child + 1], pending[child])) child++;
-      if (!precedes(pending[child], pending[parent])) break;
-      [pending[parent], pending[child]] = [pending[child], pending[parent]];
-      parent = child;
-    }
-  };
-  for (let i = Math.floor(pending.length / 2) - 1; i >= 0; i--) siftDown(i);
-  let cursor = 0;
-  while (pending.length && cursor < text.length) {
-    const next = pending[0];
-    let searchStart = cursor;
-    if (next.index >= cursor) {
-      const match = { start: next.index, end: next.index + next.value.length, value: next.value };
-      if (allowed(match)) {
-        yield match;
-        cursor = overlapping ? match.start + 1 : match.end;
-        searchStart = cursor;
-      } else {
-        searchStart = next.index + 1;
-      }
-    }
-    // Only refresh consumed or overlapping occurrences; later candidates stay cached.
-    next.index = text.indexOf(next.value, searchStart);
-    if (next.index === -1) {
-      const last = pending.pop();
-      if (pending.length) pending[0] = last;
-    }
-    siftDown(0);
-  }
-}
-
-/**
- * @param {Iterable<{start: number, end: number, value: string, ambiguous?: boolean}>} matches
- */
-function* overlappingMatchGroups(matches) {
-  let group;
-  for (const match of matches) {
-    if (group && match.start < group.end) {
-      group.end = Math.max(group.end, match.end);
-      if (match.value.length > group.value.length) group.value = match.value;
-      group.ambiguous ||= match.ambiguous;
-    } else {
-      if (group) yield group;
-      group = { ...match };
-    }
-  }
-  if (group) yield group;
-}
-
-/**
- * Coalesce overlapping credentials before choosing their replacement marker.
- * @param {string} text
- * @param {string[]} maskedValues - Longest credentials first
- * @param {(value: string) => string} replacementForValue
- * @returns {string}
- */
-function redactOverlappingMaskedValues(text, maskedValues, replacementForValue) {
-  const parts = [];
-  let cursor = 0;
-  for (const match of overlappingMatchGroups(maskedValueMatches(text, maskedValues, undefined, true))) {
-    parts.push(text.slice(cursor, match.start), replacementForValue(match.value));
-    cursor = match.end;
-  }
-  parts.push(text.slice(cursor));
-  return parts.join("");
-}
-
-/**
- * Replace all occurrences of the masked values, defaulting to `***`.
- *
- * @param {string} text
- * @param {string[]} maskedValues
- * @param {(value: string) => string} [replacementForValue] - Explicit markers coalesce overlapping credentials
- * @returns {string}
- */
-function redactMaskedValues(text, maskedValues, replacementForValue) {
-  if (!text || !maskedValues || maskedValues.length === 0) return text;
-  if (replacementForValue)
-    return redactOverlappingMaskedValues(
-      text,
-      [...maskedValues].sort((a, b) => b.length - a.length),
-      replacementForValue
-    );
-  const parts = [];
-  let cursor = 0;
-  let replacements = 0;
-  for (const match of maskedValueMatches(text, maskedValues)) {
-    if (match.start > cursor) {
-      if (replacements) parts.push(MASK_REPLACEMENT.repeat(replacements));
-      replacements = 0;
-      parts.push(text.slice(cursor, match.start));
-    }
-    replacements++;
-    cursor = match.end;
-  }
-  if (replacements) parts.push(MASK_REPLACEMENT.repeat(replacements));
-  parts.push(text.slice(cursor));
-  return parts.join("");
-}
-
-/**
  * Remove `::add-mask::` command lines and redact every masked value from the text.
  *
  * @param {string} text - Text about to be rendered into generated content
@@ -203,64 +82,6 @@ function applyAddMaskRedaction(text, maskedValues, replacementForValue) {
     .filter(line => !isAddMaskCommandLine(line))
     .join("\n");
   return redactMaskedValues(withoutCommands, maskedValues, replacementForValue);
-}
-
-/**
- * Visit quoted JSON tokens without a repeated regex alternation, which can
- * exhaust the RegExp stack on multi-megabyte log records.
- * Malformed prefixes are preserved as text; their quote pairing is ambiguous.
- * @param {string} text
- * @param {(token: string) => string} transformString
- * @param {(text: string) => string} [transformText]
- * @returns {string}
- */
-function transformJSONStrings(text, transformString, transformText = value => value) {
-  const parts = [];
-  let cursor = 0;
-  while (cursor < text.length) {
-    const start = text.indexOf('"', cursor);
-    if (start === -1) {
-      parts.push(transformText(text.slice(cursor)));
-      break;
-    }
-    let end = start + 1;
-    let invalidString = false;
-    while (end < text.length && text[end] !== '"') {
-      if (text.charCodeAt(end) < 0x20) {
-        invalidString = true;
-        break;
-      }
-      if (text[end] === "\\") {
-        end++;
-        const escaped = text[end];
-        if (escaped === "u") {
-          if (!/^[0-9a-fA-F]{4}$/.test(text.slice(end + 1, end + 5))) {
-            invalidString = true;
-            break;
-          }
-          end += 4;
-        } else if (!escaped || !'"\\/bfnrt'.includes(escaped)) {
-          invalidString = true;
-          break;
-        }
-      }
-      end++;
-    }
-    if (invalidString) {
-      // Do not rescan escaped quotes in the rejected prefix.
-      parts.push(transformText(text.slice(cursor, end)));
-      cursor = end;
-      continue;
-    }
-    if (end >= text.length) {
-      parts.push(transformText(text.slice(cursor)));
-      break;
-    }
-    parts.push(transformText(text.slice(cursor, start)));
-    parts.push(transformString(text.slice(start, end + 1)));
-    cursor = end + 1;
-  }
-  return parts.join("");
 }
 
 /**

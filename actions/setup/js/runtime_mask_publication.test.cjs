@@ -139,6 +139,17 @@ describe("runtime mask publication boundary", () => {
     expect(JSON.parse(fs.readFileSync(source, "utf8"))).toEqual({ type: "add_comment", body: "***\n***\n***\n***" });
   });
 
+  it("redacts runtime masks from malformed mixed records without changing unrelated paths", async () => {
+    write("agent-stdio.log", "::add-mask::opaque\n");
+    const record = '"bad\t" "\\u006fpaque" C:\\temp\\file.txt';
+    const source = write("mcp-logs/rpc.jsonl", record);
+    await redactSources();
+    expect(core.setFailed).not.toHaveBeenCalled();
+    const redacted = fs.readFileSync(source, "utf8").trim();
+    expect(redacted).not.toContain("opaque");
+    expect(JSON.parse(redacted)).toBe('"bad\t" "***" C:\\temp\\file.txt');
+  });
+
   it("keeps review messages executable after short-mask redaction across live, fallback, and collected outputs", async () => {
     const originalGithub = global.github;
     const originalContext = global.context;
