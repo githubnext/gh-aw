@@ -79,6 +79,14 @@ describe("Pi managed delegation", () => {
     expect(args).not.toContain(path.join(dir, "gh-aw/actions/pi_subagent_extension.cjs"));
   });
 
+  it("passes the parent's runtime workflow skill list to bare children", () => {
+    vi.stubEnv("GH_AW_PI_SUBAGENT_ARGS", '["--print","--mode","json","--no-session","--no-approve","--no-skills"]');
+    const skillPath = path.join(dir, "skills/reporting/SKILL.md");
+    fs.writeFileSync(path.join(dir, "workflow-skill-args"), `--skill\n${skillPath}\n`);
+    const args = subagentArgs(agent, "/trusted/system.txt");
+    expect(args.slice(0, 8)).toEqual(["--print", "--mode", "json", "--no-session", "--no-approve", "--no-skills", "--skill", skillPath]);
+  });
+
   it("returns the child's answer and records alias and concrete model attribution", async () => {
     const launch = launcher();
     const result = await runPiSubagent(agent, "Which Python version?", { cwd: dir }, undefined, launch);

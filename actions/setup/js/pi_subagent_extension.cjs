@@ -8,6 +8,7 @@ const { randomUUID } = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeProviderErrorMessage } = require("./pi_provider_error.cjs");
+const { readWorkflowSkillArgs } = require("./pi_workflow_skills.cjs");
 
 function getErrorCode(error) {
   if (!error || typeof error !== "object" || !("code" in error)) return "";
@@ -23,7 +24,7 @@ function subagentArgs(agent, promptPath) {
     throw new Error("Cannot parse Pi sub-agent arguments", { cause: error });
   }
   if (!Array.isArray(inherited) || inherited.some(arg => typeof arg !== "string")) throw new Error("Invalid Pi sub-agent arguments");
-  const args = [...inherited, "--no-extensions", "--model", agent.model];
+  const args = [...inherited, ...readWorkflowSkillArgs(), "--no-extensions", "--model", agent.model];
   const actionsDir = process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "gh-aw/actions") : __dirname;
   for (const file of ["pi_provider.cjs", "pi_steering_extension.cjs", "pi_tool_policy.cjs"]) args.push("--extension", path.join(actionsDir, file));
   for (const builtin of ["mcp", "codemode", "tool-search"]) args.push("--extension", `builtin:${builtin}`);

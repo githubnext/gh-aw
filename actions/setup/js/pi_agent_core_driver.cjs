@@ -35,7 +35,7 @@ function jsonEvent(event) {
 async function main(options = {}) {
   const sdk = options.sdk || (await loadPiSDK());
   const emit = options.emit || (event => process.stdout.write(JSON.stringify(event) + "\n"));
-  const { agentDir, settings, config, routingSelection } = preparePiRuntime();
+  const { agentDir, settings, config, routingSelection, skillPaths } = preparePiRuntime();
   if (routingSelection) {
     process.env.GH_AW_PI_MODEL = `aw-gateway/${routingSelection.wire_model}`;
     process.env.GH_AW_PI_NATIVE_PROVIDER = "aw-gateway";
@@ -63,6 +63,7 @@ async function main(options = {}) {
     settingsManager,
     noContextFiles: bare,
     noSkills: bare,
+    additionalSkillPaths: skillPaths,
     noPromptTemplates: bare,
     noExtensions: bare,
     noThemes: true,
