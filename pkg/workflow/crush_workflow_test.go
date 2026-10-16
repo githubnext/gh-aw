@@ -53,7 +53,8 @@ process.exitCode = Number(process.env.CRUSH_TEST_EXIT || 0);
 `), 0o600))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
-	cmd := exec.CommandContext(ctx, node, harness, node, fixture, "run", "--quiet")
+	args := append([]string{harness, node, fixture}, loadCrushSample(t).Behaviors.Execution.Args...)
+	cmd := exec.CommandContext(ctx, node, args...)
 	cmd.Env = append([]string{
 		"PATH=" + filepath.Dir(node), "HOME=" + directory,
 		"GITHUB_WORKSPACE=" + directory, "GH_AW_PROMPT=" + prompt,
@@ -65,6 +66,7 @@ process.exitCode = Number(process.env.CRUSH_TEST_EXIT || 0);
 func TestCrushSampleProviderExecution(t *testing.T) {
 	def := loadCrushSample(t)
 	require.Equal(t, "0.98.1", def.Version)
+	assert.Contains(t, def.Behaviors.Execution.Args, "--verbose")
 	engine, err := NewBehaviorDefinedEngine(def)
 	require.NoError(t, err)
 	assert.True(t, engine.GetCapabilities().MCP)
@@ -96,6 +98,13 @@ func TestCrushSampleProviderExecution(t *testing.T) {
 			output, err := cmd.CombinedOutput()
 			require.NoError(t, err, "%s", output)
 			assert.NotContains(t, string(output), "fixture-not-a-secret")
+			assert.NotContains(t, string(output), "--help $(not-a-command)")
+			assert.Contains(t, string(output), "LLM endpoint discovery complete")
+			assert.Contains(t, string(output), "configuration ready (provider type: "+test.providerType+"; MCP servers: 1)")
+			assert.Contains(t, string(output), "prompt loaded (")
+			assert.Contains(t, string(output), "starting Crush CLI")
+			assert.Contains(t, string(output), "Crush CLI finished after ")
+			assert.Contains(t, string(output), "(exit: 0; signal: none)")
 			var captured struct {
 				Args   []string `json:"args"`
 				Config struct {
@@ -119,7 +128,7 @@ func TestCrushSampleProviderExecution(t *testing.T) {
 			assert.Equal(t, true, captured.Config.Options["disable_metrics"])
 			_, model, ok := strings.Cut(test.model, "/")
 			require.True(t, ok)
-			assert.Equal(t, []string{"run", "--quiet", "--model", "awf-proxy/" + model, "--help $(not-a-command)\nfixture prompt"}, captured.Args)
+			assert.Equal(t, []string{"run", "--quiet", "--verbose", "--model", "awf-proxy/" + model, "--help $(not-a-command)\nfixture prompt"}, captured.Args)
 			info, err := os.Stat(filepath.Join(directory, ".crush.json"))
 			require.NoError(t, err)
 			assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
@@ -154,6 +163,7 @@ func TestCrushHarnessReportsChildFailure(t *testing.T) {
 		"GH_AW_LLM_PROVIDER=openai", "OPENAI_BASE_URL=http://127.0.0.1:1/v1", "CRUSH_TEST_EXIT=7")
 	output, err := cmd.CombinedOutput()
 	require.Error(t, err)
+	assert.Contains(t, string(output), "(exit: 7; signal: none)")
 	assert.Contains(t, string(output), "Crush execution failed with exit code 7")
 }
 

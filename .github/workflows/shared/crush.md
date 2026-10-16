@@ -76,6 +76,7 @@ engine:
       args:
         - run
         - --quiet
+        - --verbose
       step-name: Execute Crush CLI
       model-env-var: CRUSH_MODEL
       mcp-config-env-var: GH_AW_MCP_CONFIG
@@ -140,6 +141,7 @@ engine:
       const log = message => process.stderr.write(`[crush-harness] ${message}\n`);
       const fail = (result, action) => {
         if (result.error) throw result.error;
+        if (result.signal) throw new Error(`${action} terminated by signal ${result.signal}`);
         if (result.status !== 0) throw new Error(`${action} failed with exit code ${result.status ?? "unknown"}`);
       };
 
@@ -170,6 +172,7 @@ engine:
       };
 
       const main = async () => {
+        log("preparing non-interactive execution");
         const selectedModel = process.env.CRUSH_MODEL;
         if (!selectedModel || !selectedModel.includes("/")) {
           throw new Error("CRUSH_MODEL must use provider/model format");
@@ -208,6 +211,7 @@ engine:
         if (!baseUrl) {
           throw new Error("Crush requires AWF endpoint discovery or OPENAI_BASE_URL");
         }
+        log("LLM endpoint discovery complete");
 
         const workspace = process.env.GITHUB_WORKSPACE;
         if (!workspace) throw new Error("GITHUB_WORKSPACE is required");
@@ -245,20 +249,23 @@ engine:
           large: { provider: "awf-proxy", model },
         };
         writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+        log(`configuration ready (provider type: ${providerType}; MCP servers: ${Object.keys(config.mcp || {}).length})`);
 
         const promptPath = process.env.GH_AW_PROMPT;
         if (!promptPath) throw new Error("GH_AW_PROMPT is required");
         const prompt = readFileSync(promptPath, "utf8");
+        log(`prompt loaded (${Buffer.byteLength(prompt, "utf8")} bytes)`);
         const executable = resolveCommand(command);
         log(`resolved ${command} to ${executable}`);
-        fail(
-          spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
-            cwd: workspace,
-            env: process.env,
-            stdio: "inherit",
-          }),
-          "Crush execution"
-        );
+        log("starting Crush CLI");
+        const startedAt = Date.now();
+        const result = spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
+          cwd: workspace,
+          env: process.env,
+          stdio: "inherit",
+        });
+        log(`Crush CLI finished after ${Date.now() - startedAt}ms (exit: ${result.status ?? "none"}; signal: ${result.signal ?? "none"})`);
+        fail(result, "Crush execution");
       };
 
       main().catch(error => {
@@ -335,4 +342,7 @@ servers are excluded from the native MCP config. `run --quiet` emits plain
 text, so unified sessions preserve the answer without inventing tool calls,
 turn counts, model/session identifiers, or token usage. Saved canonical events
 and explicit historical terminal records retain their observed fields.
+Native verbose logging and harness startup/exit milestones are written to
+stderr for timeout diagnosis. The harness logs prompt size, never prompt contents,
+configuration contents, or credential values.
 -->
