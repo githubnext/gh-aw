@@ -14,6 +14,7 @@ describe("Claude normalization from sampled runs", () => {
   it("exposes message identity, model, terminal status and reasoning usage without native envelopes", () => {
     const events = unified(normalization);
     expect(events.find(event => event.type === "assistant.message").data).toEqual({
+      sourceEngine: "claude",
       content: "  Inspect the example.\n",
       messageId: "normalization-message",
       contentIndex: 0,
@@ -107,7 +108,7 @@ describe("Claude message and stream boundaries", () => {
 
   it("preserves user message attribution without exposing prompts in the summary", () => {
     const events = unified([{ type: "user", session_id: "session", parent_tool_use_id: "parent", message: { id: "prompt", content: "PRIVATE_PROMPT" } }]);
-    expect(events[0].data).toEqual({ content: "PRIVATE_PROMPT", messageId: "prompt", contentIndex: 0, sessionId: "session", parentToolUseId: "parent" });
+    expect(events[0].data).toEqual({ sourceEngine: "claude", content: "PRIVATE_PROMPT", messageId: "prompt", contentIndex: 0, sessionId: "session", parentToolUseId: "parent" });
     expect(generatePlainTextSummary(events)).not.toContain("PRIVATE_PROMPT");
     expect(createSessionValidator("unified").event(events[0])).toBe(true);
   });
