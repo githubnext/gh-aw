@@ -172,6 +172,14 @@ func TestAutoInjectCreateIssue(t *testing.T) {
 			expectedAutoInjected: true,
 		},
 		{
+			name:       "create-issue explicitly disabled - no injection",
+			workflowID: "my-workflow",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssuesDisabled: true,
+			},
+			expectInjection: false,
+		},
+		{
 			name:       "create-issue already configured - no injection",
 			workflowID: "my-workflow",
 			safeOutputs: &SafeOutputsConfig{
@@ -434,4 +442,93 @@ imports:
 		"AutoInjectedCreateIssue should be true when auto-injected")
 	assert.Equal(t, "main", workflowData.SafeOutputs.CreateIssues.Labels[0],
 		"Label should be the workflow ID (basename without extension)")
+}
+
+func TestCreateIssueOptOut(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		outputs string
+	}{
+		{"implicit builtins", ""},
+		{"explicit builtins and staged mode", `
+  staged: true
+  noop: {}
+  missing-tool: {}
+  missing-data: {}
+  report-incomplete: {}`},
+		{"other output", `
+  upload-artifact: {}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			workflowFile := filepath.Join(tmpDir, "opt-out.md")
+			content := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+safe-outputs:
+  create-issue: false` + tc.outputs + `
+---
+Do not create an issue.
+`
+			require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+			compiler := NewCompiler(WithVersion("1.0.0"))
+			data, err := compiler.ParseWorkflowFile(workflowFile)
+			require.NoError(t, err)
+			require.NotNil(t, data.SafeOutputs)
+			assert.Nil(t, data.SafeOutputs.CreateIssues)
+			assert.False(t, data.SafeOutputs.AutoInjectedCreateIssue)
+			assert.NotNil(t, data.SafeOutputs.NoOp)
+			assert.NotNil(t, data.SafeOutputs.MissingTool)
+			assert.NotNil(t, data.SafeOutputs.MissingData)
+			assert.NotNil(t, data.SafeOutputs.ReportIncomplete)
+			if tc.name == "other output" {
+				assert.NotNil(t, data.SafeOutputs.UploadArtifact)
+			}
+
+			require.NoError(t, compiler.CompileWorkflow(workflowFile))
+			lock, err := os.ReadFile(filepath.Join(tmpDir, "opt-out.lock.yml"))
+			require.NoError(t, err)
+			lockContent := string(lock)
+			assert.NotContains(t, lockContent, `"create_issue"`)
+			assert.NotContains(t, lockContent, "safe_outputs_auto_create_issue.md")
+			for _, tool := range []string{"noop", "missing_tool", "missing_data", "report_incomplete"} {
+				assert.Contains(t, lockContent, `"`+tool+`"`)
+			}
+		})
+	}
+}
+
+func TestCreateIssueOptOutImports(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		mainOutputs   string
+		importOutputs string
+		expectIssue   bool
+	}{
+		{"imported opt-out", "", "false", false},
+		{"main opt-out overrides import", "safe-outputs:\n  create-issue: false\n", "{}", false},
+		{"main config overrides imported opt-out", "safe-outputs:\n  create-issue: {}\n", "false", true},
+		{"main null overrides imported opt-out", "safe-outputs:\n  create-issue:\n", "false", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			shared := "---\nsafe-outputs:\n  create-issue: " + tc.importOutputs + "\n---\n"
+			require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "shared.md"), []byte(shared), 0644))
+			main := "---\non: workflow_dispatch\nimports:\n  - ./shared.md\n" + tc.mainOutputs + "---\nTest workflow.\n"
+			mainFile := filepath.Join(tmpDir, "main.md")
+			require.NoError(t, os.WriteFile(mainFile, []byte(main), 0644))
+
+			data, err := NewCompiler(WithVersion("1.0.0")).ParseWorkflowFile(mainFile)
+			require.NoError(t, err)
+			require.NotNil(t, data.SafeOutputs)
+			assert.Equal(t, tc.expectIssue, data.SafeOutputs.CreateIssues != nil)
+			assert.False(t, data.SafeOutputs.AutoInjectedCreateIssue)
+			assert.NotNil(t, data.SafeOutputs.NoOp)
+			assert.NotNil(t, data.SafeOutputs.MissingTool)
+			assert.NotNil(t, data.SafeOutputs.MissingData)
+			assert.NotNil(t, data.SafeOutputs.ReportIncomplete)
+		})
+	}
 }

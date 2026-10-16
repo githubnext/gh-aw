@@ -6738,6 +6738,10 @@
             {
               "type": "null",
               "description": "Enable issue creation with default configuration"
+            },
+            {
+              "const": false,
+              "description": "Disable issue creation, including the automatically injected tool and prompt"
             }
           ],
           "description": "Enable AI agents to create GitHub issues from workflow output. Supports title prefixes, automatic labeling, assignees, and cross-repository creation. Does not require 'issues: write' permission."
