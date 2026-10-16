@@ -83,8 +83,10 @@ async function retryGatewayStartup(probe, retryConfig, deadline, label, shouldRe
         throw err;
       }
       delayMs = Math.min(delayMs * retryConfig.backoffMultiplier, retryConfig.maxDelayMs);
-      const sleepMs = Math.min(delayMs, deadline - nowMs());
-      core.warning(`${label}: retrying after attempt ${attempt} in ${sleepMs}ms`);
+      const sleepMs = Math.min(Math.ceil(delayMs), deadline - nowMs());
+      if (attempt === 1 || (attempt & (attempt - 1)) === 0) {
+        core.warning(`${label}: retrying after attempt ${attempt} in ${sleepMs}ms`);
+      }
       await sleep(sleepMs);
     }
   }
@@ -114,7 +116,7 @@ const MCP_GATEWAY_HEALTH_RETRY_ENV = Object.freeze({
 /** Default MCP backend startup timeout the retry budget must outlast. */
 const MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS = 120_000;
 
-/** Upper bound on configurable health-check attempts, to keep the wait finite. */
+/** Upper bound on explicit and automatically sized health-check attempts. */
 const MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT = 10_000;
 
 /**
@@ -131,24 +133,25 @@ const MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS = 25_000;
  * @param {number} defaultValue
  * @param {NodeJS.ProcessEnv} env
  * @param {{ integer?: boolean }} [options]
- * @returns {number}
+ * @returns {{ value: number, wasExplicit: boolean }}
  */
 function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
   const raw = env[envName];
   if (raw === undefined || !raw.trim()) {
-    return defaultValue;
+    return { value: defaultValue, wasExplicit: false };
   }
   const parsed = Number(raw.trim());
   const isValid = Number.isFinite(parsed) && parsed > 0 && (!options.integer || Number.isSafeInteger(parsed));
   if (!isValid) {
     core.warning(`Ignoring invalid ${envName}='${raw}': expected a positive ${options.integer ? "integer" : "number"}, using ${defaultValue}`);
-    return defaultValue;
+    return { value: defaultValue, wasExplicit: false };
   }
-  return parsed;
+  return { value: parsed, wasExplicit: true };
 }
 
 /**
- * Computes the cumulative startup retry delay before exhausting its attempts.
+ * Computes a lower bound on the cumulative startup retry delay before exhausting
+ * its attempts. Actual sleeps round up to avoid Node truncating fractional delays.
  * The retry loop applies the backoff multiplier before its first sleep,
  * so the first retry waits initialDelayMs * backoffMultiplier.
  *
@@ -156,13 +159,20 @@ function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
  * @returns {number}
  */
 function computeHealthRetryBudgetMs(config) {
-  let delayMs = config.initialDelayMs;
-  let budgetMs = 0;
-  for (let retry = 1; retry < config.maxTotalAttempts; retry += 1) {
-    delayMs = Math.min(delayMs * config.backoffMultiplier, config.maxDelayMs);
-    budgetMs += delayMs;
+  const retries = config.maxTotalAttempts - 1;
+  if (retries <= 0) {
+    return 0;
   }
-  return budgetMs;
+  if (config.backoffMultiplier === 1) {
+    return Math.min(config.initialDelayMs, config.maxDelayMs) * retries;
+  }
+
+  // Sum the exponential ramp and capped tail without iterating over potentially
+  // millions of attempts. expm1 preserves precision for multipliers close to 1.
+  const logMultiplier = Math.log(config.backoffMultiplier);
+  const rampRetries = Math.min(retries, Math.max(0, Math.ceil(Math.log(config.maxDelayMs / config.initialDelayMs) / logMultiplier) - 1));
+  const rampBudgetMs = rampRetries === 0 ? 0 : (config.initialDelayMs * config.backoffMultiplier * Math.expm1(rampRetries * logMultiplier)) / (config.backoffMultiplier - 1);
+  return rampBudgetMs + (retries - rampRetries) * config.maxDelayMs;
 }
 
 /**
@@ -173,11 +183,13 @@ function computeHealthRetryBudgetMs(config) {
  * @returns {{ maxTotalAttempts: number, initialDelayMs: number, maxDelayMs: number, backoffMultiplier: number, backendStartupTimeoutMs: number, retryBudgetMs: number }}
  */
 function resolveGatewayHealthRetryConfig(env = process.env) {
-  let maxTotalAttempts = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxTotalAttempts, env, { integer: true });
-  const initialDelayMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.initialDelayMs, env, { integer: true });
-  let maxDelayMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxDelayMs, env, { integer: true });
-  let backoffMultiplier = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.backoffMultiplier, env);
-  const backendStartupTimeoutMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs, MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS, env, { integer: true });
+  const maxAttemptsOverride = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxTotalAttempts, env, { integer: true });
+  let maxTotalAttempts = maxAttemptsOverride.value;
+  const hasExplicitAttempts = maxAttemptsOverride.wasExplicit;
+  const initialDelayMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.initialDelayMs, env, { integer: true }).value;
+  let maxDelayMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.maxDelayMs, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxDelayMs, env, { integer: true }).value;
+  let backoffMultiplier = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier, MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.backoffMultiplier, env).value;
+  const backendStartupTimeoutMs = readPositiveEnvNumber(MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs, MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS, env, { integer: true }).value;
 
   if (maxTotalAttempts > MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT) {
     core.warning(`${MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts}=${maxTotalAttempts} exceeds the supported maximum, using ${MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT}`);
@@ -199,9 +211,25 @@ function resolveGatewayHealthRetryConfig(env = process.env) {
   }
 
   const config = { maxTotalAttempts, initialDelayMs, maxDelayMs, backoffMultiplier, backendStartupTimeoutMs };
-  const retryBudgetMs = computeHealthRetryBudgetMs(config);
-
   const requiredBudgetMs = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+  let retryBudgetMs = computeHealthRetryBudgetMs(config);
+  if (!hasExplicitAttempts && retryBudgetMs < requiredBudgetMs) {
+    const firstDelayMs = Math.min(initialDelayMs * backoffMultiplier, maxDelayMs);
+    let lower = maxTotalAttempts;
+    // Bound automatic sizing to prevent very frequent polling from exploding.
+    let upper = MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT;
+    while (lower < upper) {
+      const middle = lower + Math.floor((upper - lower) / 2);
+      if (computeHealthRetryBudgetMs({ ...config, maxTotalAttempts: middle }) < requiredBudgetMs) {
+        lower = middle + 1;
+      } else {
+        upper = middle;
+      }
+    }
+    config.maxTotalAttempts = lower;
+    retryBudgetMs = computeHealthRetryBudgetMs(config);
+  }
+
   if (retryBudgetMs < requiredBudgetMs) {
     core.warning(
       `MCP gateway health retry budget is ${Math.round(retryBudgetMs / 1000)}s, which is below the ${Math.round(requiredBudgetMs / 1000)}s needed for the ${Math.round(backendStartupTimeoutMs / 1000)}s backend startup timeout plus cleanup and registration; the health check may give up before the gateway is ready`
@@ -1113,7 +1141,8 @@ async function main() {
       },
       healthRetryConfig,
       startupDeadline,
-      "MCP gateway health check"
+      "MCP gateway health check",
+      () => isProcessAlive(gatewayPid)
     );
     succeeded = true;
   } catch {

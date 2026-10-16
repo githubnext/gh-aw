@@ -9,6 +9,7 @@ import "embed"
 //go:embed js/steering_helpers.cjs js/jsonl_helpers.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
+//go:embed js/workflow_job_durations.cjs
 //go:embed js/mcp_configuration.cjs js/symlink_guard.cjs
 //go:embed js/mcp_rate_limit.cjs
 //go:embed js/parse_claude_log.cjs js/parse_codex_log.cjs js/parse_copilot_log.cjs js/parse_gemini_log.cjs
@@ -24,6 +25,8 @@ import "embed"
 //go:embed js/log_parser_bootstrap.cjs js/log_parser_format.cjs js/log_parser_shared.cjs
 //go:embed js/log_parser_step_summary_builder.cjs js/markdown_unfencing.cjs
 //go:embed js/add_mask_redaction.cjs js/redact_secrets.cjs js/safe_outputs_config_redact.cjs js/safe_output_manifest.cjs
+//go:embed js/mask_value_matcher.cjs js/json_string_scanner.cjs
+//go:embed js/safe_output_redaction.cjs js/safe_outputs_tools.json
 //go:embed js/otlp_header_helpers.cjs
 //go:embed js/work_queue_claim_scope.cjs js/work_queue_codec.cjs js/work_queue_resource_scope.cjs
 //go:embed js/work_queue_host.cjs

@@ -46,6 +46,7 @@ const RUNTIME_TYPES = new Set([
   "execution.result",
   "detection.result",
   "workflow.info",
+  "workflow.job_result",
   "github_api.rate_limit",
   "guardrail.daily_aic",
   "otel.span",
@@ -107,6 +108,8 @@ function eventDetail(event) {
     );
   }
   switch (event.type) {
+    case "workflow.job_result":
+      return fields(data, ["jobId", "result", "durationMs"]);
     case "session.format":
       return `version=${inline(data.version)}`;
     case "session.init":

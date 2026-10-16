@@ -405,6 +405,9 @@ func (c *Compiler) finalizeBuiltJobs(data *WorkflowData) error {
 	c.ensureOTLPOIDCJobPermissions(data)
 	c.ensureDriveMemoryJobPermissions(data)
 	c.annotateGeneratedJobs(data)
+	if err := c.finalizeConclusionJobInventory(); err != nil {
+		return err
+	}
 
 	if err := c.validateSafeOutputStepTokenReferences(data); err != nil {
 		return err
