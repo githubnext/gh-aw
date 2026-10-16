@@ -718,3 +718,197 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 - **Published**: 2026-10-14
 - **Categories**: cs.LG, cs.AI
 - **Relevant**: No
+
+### [LIBERO-PeRM: Benchmarking Personalized Robotic Manipulation](https://arxiv.org/abs/2610.22372v1)
+- **ID**: 2610.22372v1
+- **Published**: 2026-10-15
+- **Categories**: cs.RO, cs.AI, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Add independent constraint-adherence scoring and conflict-policy tests alongside nominal workflow success.
+- **Area**: evaluation semantics
+
+### [FDE-Gym: The Last Mile of AI Delivery](https://arxiv.org/abs/2610.22350v1)
+- **ID**: 2610.22350v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI, cs.CL, cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Create gh-aw evaluation fixtures that test clarification, constraint discovery, incident avoidance, and operational value.
+- **Area**: agent evaluation
+
+### [MLExpert: Towards a Generalist Agentic Model for Autonomous Machine Learning Engineering](https://arxiv.org/abs/2610.22344v1)
+- **ID**: 2610.22344v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI, cs.CL, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Segment workflow traces at tool-result boundaries and attribute progress or regressions to the intervening decision window.
+- **Area**: trajectory evaluation
+
+### [3DCodeVerse: Exploring 3D Worlds as Code](https://arxiv.org/abs/2610.22341v1)
+- **ID**: 2610.22341v1
+- **Published**: 2026-10-15
+- **Categories**: cs.CV, cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Define self-contained workflow fixtures containing assets, environment declarations, and machine-readable verification records.
+- **Area**: artifact verification
+
+### [KnowGPO: Knowledge-Grouped Policy Optimization for Search Agents](https://arxiv.org/abs/2610.22331v1)
+- **ID**: 2610.22331v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Track compact evidence milestones and prioritize or summarize history according to task-relevant knowledge gain.
+- **Area**: token optimization
+
+### [Learning Self-Orchestration in Decentralized Agent Swarms](https://arxiv.org/abs/2610.22322v1)
+- **ID**: 2610.22322v1
+- **Published**: 2026-10-15
+- **Categories**: cs.MA, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Select sub-agents dynamically using capability and availability signals, then record contribution-level outcome credit.
+- **Area**: sub-agent orchestration
+
+### [A team of Gemini 4 Argon agents beats Minecraft](https://arxiv.org/abs/2610.22319v1)
+- **ID**: 2610.22319v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add durable checkpoints and structured shared-memory handoffs for long-running sub-agent workflows.
+- **Area**: durable multi-agent execution
+
+### [Learning to Steer LLM Agents and Multi-Agent Systems](https://arxiv.org/abs/2610.22316v1)
+- **ID**: 2610.22316v1
+- **Published**: 2026-10-15
+- **Categories**: cs.LG, cs.AI, cs.MA
+- **Relevant**: Yes
+- **Opportunity**: Introduce a low-cost drift detector that conditionally invokes a stronger engine or supervisory sub-agent with corrective context.
+- **Area**: runtime steering
+
+### [CAT-alyzing Honesty: Continuous Adversarial Training for Transferable LLM Honesty](https://arxiv.org/abs/2610.22292v1)
+- **ID**: 2610.22292v1
+- **Published**: 2026-10-15
+- **Categories**: cs.LG, cs.CL, cs.CY
+- **Relevant**: Yes
+- **Opportunity**: Evaluate accurate reporting of uncertainty, incomplete inspection, and failed actions instead of unsupported success.
+- **Area**: trustworthy completion
+
+### [Improving Environment-Agnostic Coding Agents: The Role of Scaffolding](https://arxiv.org/abs/2610.22289v1)
+- **ID**: 2610.22289v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add a reusable difficulty-reporting and automatic-continuation protocol with cross-environment and token-cost evaluation.
+- **Area**: prompts and continuation
+
+### [Learning Rational Strategies for Temporal Objectives in Multi-Agent Systems](https://arxiv.org/abs/2610.22287v1)
+- **ID**: 2610.22287v1
+- **Published**: 2026-10-15
+- **Categories**: cs.LG, cs.LO, cs.MA
+- **Relevant**: No
+
+### [LEASH: Uncertainty-Aware Weak-to-Strong Escalation and Oversight for Computer-Use Agents](https://arxiv.org/abs/2610.22280v1)
+- **ID**: 2610.22280v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Support uncertainty-triggered engine escalation plus lightweight post-handoff shadow checks and intervention policies.
+- **Area**: engine routing and oversight
+
+### [Librarian Agents: Training LLMs to Curate Long-Context Workspaces that Anticipate Future Queries](https://arxiv.org/abs/2610.22273v1)
+- **ID**: 2610.22273v1
+- **Published**: 2026-10-15
+- **Categories**: cs.LG, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add a curator workflow that builds navigable, source-linked memory artifacts and refreshes them as content changes.
+- **Area**: agent memory
+
+### [X-RIC: An Agentic RAN-Intelligent Controller Benchmark for Enhancing Reinforcement Learning](https://arxiv.org/abs/2610.22269v1)
+- **ID**: 2610.22269v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI, cs.AR
+- **Relevant**: No
+
+### [Disagreement-Guided Weak-to-Strong Routing](https://arxiv.org/abs/2610.22245v1)
+- **ID**: 2610.22245v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Route to stronger engines when sampled cheap-engine outputs exhibit corrected disagreement.
+- **Area**: engine routing and token cost
+
+### [Language Is a Security Surface for Agent Guards](https://arxiv.org/abs/2610.22244v1)
+- **ID**: 2610.22244v1
+- **Published**: 2026-10-15
+- **Categories**: cs.CR, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add multilingual and long-instruction variants to guard evaluation, measuring over-blocking and under-blocking separately.
+- **Area**: safe-output security
+
+### [Shortcut Sensitivity in Agent-Safety Evaluations](https://arxiv.org/abs/2610.22243v1)
+- **ID**: 2610.22243v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI, cs.CR, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Require domain-held-out evaluation and paired semantics-preserving perturbation tests for workflow safety guards.
+- **Area**: security evaluation
+
+### [OS-Helix: Unifying GUI Interaction and Code Execution in Native Computer-Using Agents](https://arxiv.org/abs/2610.22234v1)
+- **ID**: 2610.22234v1
+- **Published**: 2026-10-15
+- **Categories**: cs.LG, cs.AI, cs.CV
+- **Relevant**: Yes
+- **Opportunity**: Add modality-neutral final-state evaluators and diagnostics for tool/action imbalance.
+- **Area**: engine routing
+
+### [Architecting for Hardware Diversity: Meta's End-to-End Co-Design for High-Performance AI Training on AMD GPUs](https://arxiv.org/abs/2610.22230v1)
+- **ID**: 2610.22230v1
+- **Published**: 2026-10-15
+- **Categories**: cs.DC, cs.AR, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Introduce environment-capability profiles and validation-guided adaptation prompts for platform-specific implementations.
+- **Area**: engine portability
+
+### [FutureLift: Lifting Trajectory Proposals into Bidirectional Future Graphs for Motion Forecasting](https://arxiv.org/abs/2610.22215v1)
+- **ID**: 2610.22215v1
+- **Published**: 2026-10-15
+- **Categories**: cs.CV, cs.LG
+- **Relevant**: No
+
+### [Beyond Downstream QA: Rethinking How We Evaluate Agent Memory](https://arxiv.org/abs/2610.22209v1)
+- **ID**: 2610.22209v1
+- **Published**: 2026-10-15
+- **Categories**: cs.CL, cs.AI, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Test cache-memory and repo-memory storage state separately from retrieval and downstream generation.
+- **Area**: memory evaluation
+
+### [Decentralized LLM Workflows via Sequential Auctions](https://arxiv.org/abs/2610.22201v1)
+- **ID**: 2610.22201v1
+- **Published**: 2026-10-15
+- **Categories**: cs.GT, cs.AI, cs.MA
+- **Relevant**: Yes
+- **Opportunity**: Prototype cost-aware sub-agent dispatch using capability bids with safeguards and anti-gaming checks.
+- **Area**: sub-agent routing
+
+### [HTN-Orchestrate: A Hierarchical Task Network Framework for Multi-Agent Orchestration](https://arxiv.org/abs/2610.22195v1)
+- **ID**: 2610.22195v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add hierarchical task graphs with dependencies, structured result states, deferred decomposition, and evidence-preserving replanning.
+- **Area**: sub-agent orchestration
+
+### [AutoSFT: An Agentic System for Automated Data Research in Supervised Fine-Tuning](https://arxiv.org/abs/2610.22194v1)
+- **ID**: 2610.22194v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Keep verbose execution outside planner context, gather bounded analyses, and synthesize only identified coverage gaps.
+- **Area**: token optimization
+
+### [Terminal-RSI: Recursive Self-Improving Terminal Agents via Recursive Self-Rewrite and Policy-Refine](https://arxiv.org/abs/2610.22192v1)
+- **ID**: 2610.22192v1
+- **Published**: 2026-10-15
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Preserve verifier-backed successful steps across retries and track partial progress separately from terminal success.
+- **Area**: retry evaluation

@@ -1539,6 +1539,181 @@
       "published": "2026-10-14",
       "relevant": false,
       "analyzed_at": "2026-10-15-08-44-46"
+    },
+    {
+      "id": "2610.22372v1",
+      "title": "LIBERO-PeRM: Benchmarking Personalized Robotic Manipulation",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22350v1",
+      "title": "FDE-Gym: The Last Mile of AI Delivery",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22344v1",
+      "title": "MLExpert: Towards a Generalist Agentic Model for Autonomous Machine Learning Engineering",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22341v1",
+      "title": "3DCodeVerse: Exploring 3D Worlds as Code",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22331v1",
+      "title": "KnowGPO: Knowledge-Grouped Policy Optimization for Search Agents",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22322v1",
+      "title": "Learning Self-Orchestration in Decentralized Agent Swarms",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22319v1",
+      "title": "A team of Gemini 4 Argon agents beats Minecraft",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22316v1",
+      "title": "Learning to Steer LLM Agents and Multi-Agent Systems",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22292v1",
+      "title": "CAT-alyzing Honesty: Continuous Adversarial Training for Transferable LLM Honesty",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22289v1",
+      "title": "Improving Environment-Agnostic Coding Agents: The Role of Scaffolding",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22287v1",
+      "title": "Learning Rational Strategies for Temporal Objectives in Multi-Agent Systems",
+      "published": "2026-10-15",
+      "relevant": false,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22280v1",
+      "title": "LEASH: Uncertainty-Aware Weak-to-Strong Escalation and Oversight for Computer-Use Agents",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22273v1",
+      "title": "Librarian Agents: Training LLMs to Curate Long-Context Workspaces that Anticipate Future Queries",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22269v1",
+      "title": "X-RIC: An Agentic RAN-Intelligent Controller Benchmark for Enhancing Reinforcement Learning",
+      "published": "2026-10-15",
+      "relevant": false,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22245v1",
+      "title": "Disagreement-Guided Weak-to-Strong Routing",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22244v1",
+      "title": "Language Is a Security Surface for Agent Guards",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22243v1",
+      "title": "Shortcut Sensitivity in Agent-Safety Evaluations",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22234v1",
+      "title": "OS-Helix: Unifying GUI Interaction and Code Execution in Native Computer-Using Agents",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22230v1",
+      "title": "Architecting for Hardware Diversity: Meta's End-to-End Co-Design for High-Performance AI Training on AMD GPUs",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22215v1",
+      "title": "FutureLift: Lifting Trajectory Proposals into Bidirectional Future Graphs for Motion Forecasting",
+      "published": "2026-10-15",
+      "relevant": false,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22209v1",
+      "title": "Beyond Downstream QA: Rethinking How We Evaluate Agent Memory",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22201v1",
+      "title": "Decentralized LLM Workflows via Sequential Auctions",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22195v1",
+      "title": "HTN-Orchestrate: A Hierarchical Task Network Framework for Multi-Agent Orchestration",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22194v1",
+      "title": "AutoSFT: An Agentic System for Automated Data Research in Supervised Fine-Tuning",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.22192v1",
+      "title": "Terminal-RSI: Recursive Self-Improving Terminal Agents via Recursive Self-Rewrite and Policy-Refine",
+      "published": "2026-10-15",
+      "relevant": true,
+      "analyzed_at": "2026-10-16-08-42-43"
     }
   ]
 }
