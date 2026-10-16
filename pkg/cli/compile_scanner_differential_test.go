@@ -214,7 +214,9 @@ func TestDevelopmentCompileScannerBaselineBeforeEmission(t *testing.T) {
 	source := filepath.Join(t.TempDir(), "differential.md")
 	lock := strings.TrimSuffix(source, ".md") + ".lock.yml"
 	require.NoError(t, os.WriteFile(source, []byte(`---
-on: workflow_dispatch
+on:
+  schedule: daily
+  workflow_dispatch:
 engine: copilot
 safe-outputs:
   noop:
@@ -249,7 +251,7 @@ Say Done.
 	runBatchShellcheckOnLockFilesAndResources = func(context.Context, []string, []workflow.ShellScriptResource, bool, bool) error { return nil }
 	stdout, _ := captureOutput(t, func() error {
 		_, err := CompileWorkflows(context.Background(), CompileConfig{
-			MarkdownFiles: []string{source}, DryRun: true, Zizmor: true,
+			MarkdownFiles: []string{source}, DryRun: true, Strict: true, Zizmor: true,
 			JSONOutput: true, activeModels: &activeModelInventory{},
 		})
 		require.NoError(t, err)
@@ -265,6 +267,52 @@ Say Done.
 	assert.Equal(t, "pre_compile_lock_files", report.WarningBaseline)
 	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, report.Scanners["zizmor"].Differential)
 	assert.Equal(t, "passed", report.Scanners["zizmor"].Status)
+}
+
+func TestCollectDryRunBaselineInputsSetsWorkflowIdentifierPerFile(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	require.NoError(t, initTestGitRepo(root))
+	dir := filepath.Join(root, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+	var sources, locks []string
+	for _, name := range []string{"first", "second"} {
+		source := filepath.Join(dir, name+".md")
+		lock := filepath.Join(dir, name+".lock.yml")
+		content := `---
+on:
+  schedule: daily
+mcp-scripts:
+  inspect:
+    description: Inspect repository state
+    run: echo "baseline"
+---
+Check the workflow.
+`
+		require.NoError(t, os.WriteFile(source, []byte(content), 0600))
+		require.NoError(t, os.WriteFile(lock, []byte("jobs: {}\n"), 0600))
+		sources = append(sources, source)
+		locks = append(locks, lock)
+	}
+
+	compiler := workflow.NewCompiler()
+	gotLocks, resources, err := collectDryRunBaselineInputs(sources,
+		&CompileConfig{DryRun: true, Strict: true, Shellcheck: true}, compiler)
+	require.NoError(t, err)
+	assert.Equal(t, locks, gotLocks)
+	require.Len(t, resources, 2)
+	for i, resource := range resources {
+		assert.Equal(t, strings.TrimSuffix(filepath.Base(sources[i]), ".md"), resource.Source)
+		assert.Contains(t, resource.Script, `echo "baseline"`)
+	}
+
+	expectedCompiler := workflow.NewCompiler(
+		workflow.WithWorkflowIdentifier(".github/workflows/second.md"))
+	expected, err := expectedCompiler.ParseWorkflowFile(sources[1])
+	require.NoError(t, err)
+	actual, err := compiler.ParseWorkflowFile(sources[1])
+	require.NoError(t, err)
+	assert.Equal(t, expected.On, actual.On, "the batch must not retain the first workflow's schedule seed")
 }
 
 func TestPrepareDryRunScannerBaselineRejectsMalformedShellcheckLock(t *testing.T) {

@@ -2681,6 +2681,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "0"
@@ -2820,6 +2821,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "1"
@@ -2959,6 +2961,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "10"
@@ -3098,6 +3101,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "11"
@@ -3237,6 +3241,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "12"
@@ -3376,6 +3381,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "13"
@@ -3515,6 +3521,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "14"
@@ -3654,6 +3661,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "15"
@@ -3793,6 +3801,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "2"
@@ -3932,6 +3941,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "3"
@@ -4071,6 +4081,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "4"
@@ -4210,6 +4221,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "5"
@@ -4349,6 +4361,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "6"
@@ -4488,6 +4501,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "7"
@@ -4627,6 +4641,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "8"
@@ -4766,6 +4781,7 @@ jobs:
         id: claim_adapter_context
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_CLAIM_ADAPTER_TYPE: "persist_eslint_memory"
           GH_AW_CLAIM_ADAPTER_CONFIG: "{\"mode\":\"script\",\"effect-type\":\"git_tree\",\"target-repo\":\"github/gh-aw\",\"field-map\":{\"files\":\"files\"},\"git-tree\":{\"base-revision\":\"46b68a61c366a01d86dc319b8e689d09a48bad04\",\"branch-prefix\":\"memory/eslint-refiner-runs\"}}"
           GH_AW_CLAIM_ADAPTER_INDEX: "9"

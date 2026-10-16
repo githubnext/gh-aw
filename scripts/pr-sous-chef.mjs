@@ -294,28 +294,49 @@ function inspect(repo, pr, runs, api = gh, now = Date.now()) {
 const prFields = "number,updatedAt,author,isDraft,state,labels";
 
 export function fetchCandidate(repo, number, api = gh, now) {
-  // gh pr view's union fragments are rewritten incorrectly by the GitHub CLI proxy.
-  const candidate = api(["api", `repos/${repo}/pulls/${number}`]);
-  if (candidate?.number !== Number(number) || !candidate.updated_at || !candidate.head?.sha || !candidate.head.ref || !candidate.base?.ref) throw new Error(`PR #${number}: could not refresh PR metadata`);
+  // The proxy can mistake REST PR labels for the response collection and return [].
+  // Use an explicit repository-scoped query, without gh pr view's union fragments.
+  const [owner, name] = repo.split("/");
+  const response = api([
+    "api",
+    "graphql",
+    "-f",
+    `query=query($owner:String!,$name:String!,$number:Int!){
+      repository(owner:$owner,name:$name){pullRequest(number:$number){
+        number title url state isDraft headRefOid headRefName baseRefName
+        createdAt updatedAt changedFiles mergeStateStatus author{login} authorAssociation
+        labels(first:100){pageInfo{hasNextPage} nodes{name}}
+      }}}`,
+    "-f",
+    `owner=${owner}`,
+    "-f",
+    `name=${name}`,
+    "-F",
+    `number=${number}`,
+  ]);
+  if (response?.errors?.length) throw new Error(`PR #${number}: ${JSON.stringify(response.errors)}`);
+  const candidate = response?.data?.repository?.pullRequest;
+  if (
+    candidate?.number !== Number(number) ||
+    !candidate.updatedAt ||
+    !candidate.headRefOid ||
+    !candidate.headRefName ||
+    !candidate.baseRefName ||
+    !["OPEN", "CLOSED", "MERGED"].includes(candidate.state) ||
+    typeof candidate.isDraft !== "boolean" ||
+    !Array.isArray(candidate.labels?.nodes) ||
+    !candidate.labels.nodes.every(label => typeof label?.name === "string") ||
+    candidate.labels?.pageInfo?.hasNextPage !== false
+  )
+    throw new Error(`PR #${number}: could not refresh PR metadata`);
   const metadata = {
-    number: candidate.number,
-    title: candidate.title,
-    url: candidate.html_url,
-    state: candidate.state.toUpperCase(),
-    isDraft: candidate.draft,
-    headRefOid: candidate.head.sha,
-    headRefName: candidate.head.ref,
-    baseRefName: candidate.base.ref,
-    createdAt: candidate.created_at,
-    updatedAt: candidate.updated_at,
-    changedFiles: candidate.changed_files,
-    author: candidate.user ? { login: candidate.user.login } : null,
-    labels: candidate.labels ?? [],
-    mergeStateStatus: candidate.mergeable_state === "dirty" ? "CONFLICTING" : (candidate.mergeable_state ?? "unknown").toUpperCase(),
+    ...candidate,
+    labels: candidate.labels.nodes,
+    mergeStateStatus: candidate.mergeStateStatus === "DIRTY" ? "CONFLICTING" : candidate.mergeStateStatus,
   };
   if (now !== undefined && metadataSkip(metadata, now)) return metadata;
-  const checkRuns = api(["api", `repos/${repo}/commits/${candidate.head.sha}/check-runs?per_page=100&filter=latest`, "--paginate", "--slurp"]).flatMap(page => page.check_runs);
-  const statuses = api(["api", `repos/${repo}/commits/${candidate.head.sha}/status?per_page=100`, "--paginate", "--slurp"]).flatMap(page => page.statuses);
+  const checkRuns = api(["api", `repos/${repo}/commits/${candidate.headRefOid}/check-runs?per_page=100&filter=latest`, "--paginate", "--slurp"]).flatMap(page => page.check_runs);
+  const statuses = api(["api", `repos/${repo}/commits/${candidate.headRefOid}/status?per_page=100`, "--paginate", "--slurp"]).flatMap(page => page.statuses);
   return {
     ...metadata,
     statusCheckRollup: [
