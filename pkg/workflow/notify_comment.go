@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -49,6 +50,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 	conclusionPerms := computeConclusionJobPermissions(data)
+	displayNames, err := json.Marshal(buildFailedJobsDisplayNames(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize job display names for session durations: %w", err)
+	}
 	return &Job{
 		Name:        "conclusion",
 		If:          RenderCondition(c.buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
@@ -59,6 +64,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     buildConclusionJobOutputs(data),
+		Env:         map[string]string{"GH_AW_JOB_DISPLAY_NAMES": fmt.Sprintf("%q", string(displayNames))},
 	}, nil
 }
 
@@ -113,7 +119,7 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 		})...)
 	}
 	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
-	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), c.getActionPin)...)
+	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -126,6 +132,10 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 // conclusion mechanism.
 func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	// Session job durations are read from the current run attempt's Actions jobs.
+	if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
+		conclusionPerms.Set(PermissionActions, PermissionRead)
+	}
 	if isWorkQueueParticipant(data) {
 		conclusionPerms = NewPermissions()
 		conclusionPerms.Set(PermissionContents, PermissionRead)
@@ -288,13 +298,13 @@ func buildUsageArtifactInputDownloadSteps(prefix string, hasEvals bool, experime
 // can include safe-output item counts in the activity summary without requiring a separate artifact download.
 func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, experimentArtifactName string, hasDetection bool, pinAction func(string) string) []string {
 	steps := buildUsageArtifactInputDownloadSteps(prefix, hasEvals, experimentArtifactName, pinAction)
-	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, true, pinAction)...)
+	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, true, false, pinAction)...)
 }
 
-func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail bool, pinAction func(string) string) []string {
+func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
 	steps := buildUsageArtifactCollectionStep(hasDetection)
-	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, pinAction)...)
+	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations, pinAction)...)
 	usageArtifactUploadAction := pinAction("actions/upload-artifact")
 	usageArtifactUploadWithLines := []string{
 		"        with:\n",
@@ -374,7 +384,7 @@ func buildUsageArtifactCollectionStep(hasDetection bool) []string {
 	return collectionStep
 }
 
-func buildUsageActivityGenerationStep(hasDailyAICGuardrail bool, pinAction func(string) string) []string {
+func buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string) []string {
 	steps := []string{
 		"      - name: Generate usage activity summary and unified session\n",
 		"        if: always()\n",
@@ -382,6 +392,9 @@ func buildUsageActivityGenerationStep(hasDailyAICGuardrail bool, pinAction func(
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
 		"        env:\n",
 		"          GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}\n",
+	}
+	if reuseJobDurations {
+		steps = append(steps, "          GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}\n")
 	}
 	if hasDailyAICGuardrail {
 		steps = append(steps,

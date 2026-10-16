@@ -38,6 +38,7 @@ describe("generate_usage_artifacts.cjs", () => {
     process.env.GH_AW_SECRET_NAMES = "ASSEMBLY_TEST";
     process.env.SECRET_ASSEMBLY_TEST = "assembly-secret-fixture";
     process.env.GH_AW_JOB_RESULTS = JSON.stringify({ agent: { result: "failure", outputs: { private: "PRIVATE_JOB_OUTPUT" } } });
+    process.env.GH_AW_JOB_DURATIONS = JSON.stringify({ agent: 1234 });
     fs.writeFileSync(path.join(tempDirectory, "agent-session.jsonl"), JSON.stringify({ type: "assistant.message", data: { content: "Finished assembly-secret-fixture" } }) + "\n");
 
     const core = {
@@ -72,7 +73,7 @@ describe("generate_usage_artifacts.cjs", () => {
     expect(summary).toBe(`\n${generateCopilotCliStyleSummary(events)}\n`);
     expect(summary).toContain("### Conversation");
     expect(summary).toContain("detection.result jobResult=success conclusion=success");
-    expect(summary).toContain("workflow.job_result jobId=agent result=failure");
+    expect(summary).toContain("workflow.job_result jobId=agent result=failure durationMs=1234");
     expect(summary).not.toContain("PRIVATE_JOB_OUTPUT");
     expect(summary).not.toContain("assembly-secret-fixture");
     expect(summary.match(/<summary>Unified session<\/summary>/g)).toHaveLength(1);

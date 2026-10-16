@@ -67,6 +67,21 @@ describe("Unified conclusion session", () => {
     expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
   });
 
+  it.each([0, 1234])("persists observed job duration %s in milliseconds", durationMs => {
+    process.env.GH_AW_JOB_RESULTS = '{"agent":{"result":"failure"},"detection":{"result":"skipped"}}';
+    writeUnifiedSession({ rootDir: root, jobDurations: { agent: durationMs, detection: 0 } });
+    const events = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(events.filter(event => event.type === "workflow.job_result").map(event => event.data)).toEqual([
+      { jobId: "agent", result: "failure", durationMs },
+      { jobId: "detection", result: "skipped" },
+    ]);
+  });
+
+  it.each([-1, 0.5, NaN, Infinity])("omits invalid duration %s without losing the job outcome", durationMs => {
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults: '{"agent":{"result":"success"}}', jobDurations: { agent: durationMs } });
+    expect(events.find(event => event.type === "workflow.job_result").data).toEqual({ jobId: "agent", result: "success" });
+  });
+
   it.each([undefined, "", "{}"])("does not fabricate job outcomes without dependency evidence: %s", jobResults => {
     const warn = vi.fn();
     delete process.env.GH_AW_JOB_RESULTS;

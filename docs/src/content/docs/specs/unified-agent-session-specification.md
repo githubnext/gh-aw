@@ -639,7 +639,7 @@ source for opaque fields.
 | `grader.manifest`, `grader.result` | Essential deterministic grader definitions/results, without scripts; grading does not invent event time. |
 | `eval.result` | Evals JSONL observations, preserving answers, IDs, and observed timestamps. |
 | `usage.report`, `execution.result`, `detection.result`, `workflow.info` | Existing accounting, execution evidence, detection verdicts, and run metadata. `workflow.info` retains available `cliVersion` (gh-aw), `awfVersion`, `mcpgVersion`, `engineId`, `agentVersion`, observed `model`, `requestedModel`, compact `modelRouting`, and `triggerType` from `aw_info.json`. `requestedModel` prefers `requested_model` and falls back to `model` for earlier metadata. Unavailable values are not inferred. |
-| `workflow.job_result` | Conclusion's GitHub Actions dependency snapshot from `needs`, passed through `GH_AW_JOB_RESULTS`. Each record contains the stable `jobId` and its observed `result`: `success`, `failure`, `cancelled`, or `skipped`. Outputs and other dependency fields are excluded. Records have workflow component, conclusion phase, and `usage/aw_session.jsonl` provenance, with deterministic job-ID order and no invented timestamp. |
+| `workflow.job_result` | Conclusion's GitHub Actions dependency snapshot from `needs`, passed through `GH_AW_JOB_RESULTS`. Each record contains the stable `jobId` and its observed `result`: `success`, `failure`, `cancelled`, or `skipped`. Optional `durationMs` is the completed Actions job's `completed_at - started_at` in milliseconds, excluding queue time. Outputs and other dependency fields are excluded. Records have workflow component, conclusion phase, and `usage/aw_session.jsonl` provenance, with deterministic job-ID order and no invented timestamp. |
 | `model_routing.outcome` | The harness's observed routing status, wire model, effective endpoint, selected endpoint, effort, applied effort, and failure code from `agent/awf-routing-outcome.json`; free-form detail is excluded. |
 | `model.inventory` | AWF's runtime model list from `sandbox/firewall/models.json` and persisted `/reflect` inventory, selecting the first valid copy from `agent/awf-reflect.json`, then `sandbox/firewall/awf-reflect.json`. Agent and threat-detection inventories retain their source path and phase separately. Payloads contain provider names, full model ID lists, routing model IDs and supported endpoints, and the observed `modelsFetchComplete` flag when supplied. Endpoint routing metadata takes precedence over the top-level fallback. Credentials, headers, URLs, and unrecognized fields are excluded. Missing inventory does not imply unavailable models; malformed sources emit collection warnings rather than empty inventory events. JSON parse failures produce one warning per source. |
 | `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
@@ -656,6 +656,14 @@ including historical reconstruction without this context, produces no job-result
 records. Malformed metadata emits collection warnings without copying its
 contents; valid adjacent job results remain available. These native Actions
 results are distinct from agent execution exit codes and detection verdicts.
+Duration collection reuses the conclusion failed-job reporter's existing outcome
+listing through its `job_durations` step output. When no listing was produced,
+the collector reads the current run attempt's paginated Actions jobs, using
+`actions: read`. Only a unique exact match against the compiler's static job
+display-name inventory supplies timing. Skipped jobs, dynamic or ambiguous
+names, matrix/reusable-workflow groups, and missing or invalid timestamps omit
+duration rather than reporting zero; a measured zero remains valid. API failures
+emit a warning without discarding dependency outcomes.
 
 **T-UAS-072 — Skill evidence and conflicts.** When an activation skill inventory
 is present, the merger MUST include its deterministic installed-skill names,
@@ -2022,7 +2030,7 @@ Native IDs can collide, timestamps can be out of order, and a trace can contain 
 
 ### Version 1.10.0 — Draft (2026-10-16)
 
-- Added `workflow.job_result` dependency outcomes to the unified artifact and publication views without job outputs or inferred final workflow status.
+- Added `workflow.job_result` dependency outcomes and observed job durations to the unified artifact and publication views without job outputs or inferred final workflow status.
 - Retained serialization-format version 1.
 
 ### Version 1.9.0 — Draft (2026-10-15)

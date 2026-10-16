@@ -108,7 +108,7 @@ function eventDetail(event) {
   }
   switch (event.type) {
     case "workflow.job_result":
-      return fields(data, ["jobId", "result"]);
+      return fields(data, ["jobId", "result", "durationMs"]);
     case "session.format":
       return `version=${inline(data.version)}`;
     case "session.init":

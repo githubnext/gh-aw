@@ -357,6 +357,7 @@ export interface WorkflowJobResultData {
   /** @pattern ^[A-Za-z_][A-Za-z0-9_-]*$ */
   jobId: string;
   result: "success" | "failure" | "cancelled" | "skipped";
+  durationMs?: SessionCount;
 }
 
 export interface DailyAICDecisionData {

@@ -101,10 +101,13 @@ describe("Generated session schemas", () => {
 
   it("validates dependency job results with required IDs and native Actions outcomes", () => {
     for (const result of ["success", "failure", "cancelled", "skipped"]) {
-      expect(validateSession(jsonl([header, unified({ type: "workflow.job_result", data: { jobId: "custom-job", result } })]))).toBe(2);
+      expect(validateSession(jsonl([header, unified({ type: "workflow.job_result", data: { jobId: "custom-job", result, durationMs: 0 } })]))).toBe(2);
     }
     for (const data of [{}, { jobId: "agent" }, { result: "success" }, { jobId: "", result: "success" }, { jobId: "bad id", result: "success" }, { jobId: "agent", result: "timed_out" }, { jobId: "agent", result: "success", outputs: {} }]) {
       expect(() => validateSession(jsonl([header, unified({ type: "workflow.job_result", data })]))).toThrow("Invalid session event");
+    }
+    for (const durationMs of [-1, 0.5, "100"]) {
+      expect(() => validateSession(jsonl([header, unified({ type: "workflow.job_result", data: { jobId: "agent", result: "success", durationMs } })]))).toThrow("Invalid session event");
     }
   });
 

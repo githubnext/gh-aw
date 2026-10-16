@@ -1109,7 +1109,7 @@
     },
     "WorkflowJobResultData": {
       "type": "object",
-      "properties": { "jobId": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$" }, "result": { "type": "string", "enum": ["success", "failure", "cancelled", "skipped"] } },
+      "properties": { "jobId": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$" }, "result": { "type": "string", "enum": ["success", "failure", "cancelled", "skipped"] }, "durationMs": { "$ref": "#/definitions/SessionCount" } },
       "required": ["jobId", "result"],
       "additionalProperties": false,
       "description": "Conclusion's dependency snapshot, not the still-running conclusion job."

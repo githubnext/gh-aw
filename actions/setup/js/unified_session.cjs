@@ -137,10 +137,10 @@ function parseEngineSession(content, engine) {
 /**
  * Collect only known runtime directories; never follow artifact symlinks.
  * Replicated firewall files use logs > audit > legacy precedence, including empty files.
- * @param {{rootDir?: string, engine?: string, warn?: (message: string) => void, dailyAIC?: NodeJS.ProcessEnv, jobResults?: string}} [options]
+ * @param {{rootDir?: string, engine?: string, warn?: (message: string) => void, dailyAIC?: NodeJS.ProcessEnv, jobResults?: string, jobDurations?: Record<string, number>}} [options]
  * @returns {{events: import("./types/unified_session").UnifiedSession, maskedValues: string[]}}
  */
-function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env, jobResults = process.env.GH_AW_JOB_RESULTS } = {}) {
+function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env, jobResults = process.env.GH_AW_JOB_RESULTS, jobDurations = {} } = {}) {
   let currentRunId = dailyAIC.GITHUB_RUN_ID;
   let currentRunAttempt = dailyAIC.GITHUB_RUN_ATTEMPT;
   /** @type {SessionSource[]} */
@@ -642,7 +642,8 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
             report(file, "invalid_job_result", undefined);
             continue;
           }
-          events.push({ type: "workflow.job_result", data: { jobId, result: job.result } });
+          const durationMs = jobDurations[jobId];
+          events.push({ type: "workflow.job_result", data: { jobId, result: job.result, ...(job.result !== "skipped" && Number.isSafeInteger(durationMs) && durationMs >= 0 ? { durationMs } : {}) } });
         }
         if (events.length) sources.push({ component: "workflow", phase: "conclusion", path: "usage/aw_session.jsonl", events });
       }
@@ -676,7 +677,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
 }
 
 /**
- * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void}} [options]
+ * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, jobDurations?: Record<string, number>}} [options]
  * @returns {SessionEvent[]}
  */
 function writeUnifiedSession(options = {}) {
@@ -691,9 +692,10 @@ function writeUnifiedSession(options = {}) {
   }
 }
 
-/** @param {{rootDir?: string, engine?: string, outputPath?: string}} [options] @returns {Promise<void>} */
+/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>}} [options] @returns {Promise<void>} */
 async function main(options = {}) {
-  writeUnifiedSession(options);
+  const jobDurations = options.jobDurations ?? (await require("./workflow_job_durations.cjs").collectJobDurations({ warn: message => global.core.warning(message) }));
+  writeUnifiedSession({ ...options, jobDurations });
   const { publishUnifiedSessionSummary } = require("./unified_session_render.cjs");
   await publishUnifiedSessionSummary(options.outputPath ?? path.join(options.rootDir ?? "/tmp/gh-aw", "usage/aw_session.jsonl"));
 }
