@@ -93,15 +93,9 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId,
         }
         const text = (partial.get(file) || "") + content.subarray(0, bytesRead).toString("utf8");
         offsets.set(file, offset + bytesRead);
-        const lines = text.split("\n");
-        partial.set(file, final ? "" : lines.pop() || "");
-        for (const line of lines) {
-          let event;
-          try {
-            event = iterateJsonl([line], { strict: true }).next().value;
-          } catch {
-            continue; // Native logs can contain incomplete or non-JSON records.
-          }
+        const end = final ? text.length : text.lastIndexOf("\n") + 1;
+        partial.set(file, text.slice(end));
+        for (const event of iterateJsonl(text.slice(0, end))) {
           const context = copilotSessionContext(event);
           if (context.agentId !== undefined || context.parentToolUseId || (context.sessionId !== undefined && context.sessionId !== ownedSessionId)) continue;
           const model = modelID(event.type === "session.model_change" && event.data?.source === "startup" ? event.data.newModel : event.type === "assistant.message" ? event.data?.model : "");

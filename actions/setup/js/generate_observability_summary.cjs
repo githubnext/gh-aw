@@ -38,16 +38,8 @@ function countBlockedRequests() {
     } catch (err) {
       throw new Error(`Failed to read file ${path}: ${String(err)}`, { cause: err });
     }
-    const lines = fileContent.split("\n");
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line) continue;
-      try {
-        const entry = iterateJsonl([line], { strict: true }).next().value;
-        if (entry && entry.type === "DIFC_FILTERED") total++;
-      } catch {
-        // Malformed line — ignored.
-      }
+    for (const entry of iterateJsonl(fileContent)) {
+      if (entry && entry.type === "DIFC_FILTERED") total++;
     }
   }
 

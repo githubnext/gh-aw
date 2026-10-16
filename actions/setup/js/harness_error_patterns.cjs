@@ -270,16 +270,7 @@ function parseAICreditsExceededProxyRejection(output) {
   // array/object of structured log lines) is treated as "no output" rather than coerced, since
   // `String(someObject)` would produce a meaningless "[object Object]"-style value.
   const safeOutput = typeof output === "string" ? output : "";
-  for (const line of safeOutput.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed[0] !== "{") continue;
-    /** @type {unknown} */
-    let parsed;
-    try {
-      parsed = iterateJsonl([trimmed], { strict: true }).next().value;
-    } catch {
-      continue;
-    }
+  for (const parsed of iterateJsonl(safeOutput, { lineFilter: line => line.startsWith("{") })) {
     if (!parsed || typeof parsed !== "object") continue;
     // prettier-ignore
     const record = /** @type {Record<string, unknown>} */ (parsed);

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * push_experiment_state
  *
@@ -144,20 +144,7 @@ function mergeExperimentStateJSONL(remoteContent, localContent) {
   const merged = [];
   const seen = new Set();
   for (const content of [remoteContent, localContent]) {
-    for (const line of content.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
-      let entry;
-      try {
-        entry = iterateJsonl([trimmed], { strict: true }).next().value;
-      } catch {
-        // Skip lines that cannot be parsed as JSON. This makes the merge resilient
-        // to partial writes or corruption in either side of the conflict.
-        core.warning(`mergeExperimentStateJSONL: skipping unparseable line during conflict merge`);
-        continue;
-      }
+    for (const entry of iterateJsonl(content, { onError: () => core.warning("mergeExperimentStateJSONL: skipping unparseable line during conflict merge") })) {
       const key = stableJSONStringify(entry);
       if (!seen.has(key)) {
         seen.add(key);
@@ -226,21 +213,17 @@ function mergeAppendOnlyJSONL(remoteContent, localContent) {
   const merged = [];
   const seen = new Set();
   for (const content of [remoteContent, localContent]) {
-    for (const line of content.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
+    for (const event of iterateJsonlEvents(content)) {
+      if (event.type === "invalid" && event.reason === "blank") continue;
       let outputLine;
       let key;
-      try {
-        const entry = iterateJsonl([trimmed], { strict: true }).next().value;
-        outputLine = JSON.stringify(entry);
-        key = `json:${stableJSONStringify(entry)}`;
-      } catch {
+      if (event.type === "json") {
+        outputLine = JSON.stringify(event.value);
+        key = `json:${stableJSONStringify(event.value)}`;
+      } else {
         core.warning(`mergeAppendOnlyJSONL: preserving unparseable line during merge`);
-        outputLine = trimmed;
-        key = `raw:${trimmed}`;
+        outputLine = event.rawLine.trim();
+        key = `raw:${outputLine}`;
       }
       if (!seen.has(key)) {
         seen.add(key);

@@ -1,7 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * run_evals — BinEval binary evaluation harness.
  *
@@ -29,8 +28,9 @@ const { iterateJsonl } = require("./jsonl_helpers.cjs");
  * only handles prompt construction and result parsing.
  */
 
-("use strict");
+"use strict";
 
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -271,7 +271,7 @@ Evaluate each question solely based on the agent output shown above.
 function extractAllPositionalAnswers(logContent) {
   /** @type {string[]} */
   const answers = [];
-  for (const line of logContent.split("\n")) {
+  for (const line of iterateLines(logContent)) {
     const match = line.trim().match(/^Q(\d+):\s+(YES|NO)\b/i);
     if (match) {
       const idx = parseInt(match[1], 10) - 1; // Convert 1-indexed to 0-indexed
@@ -314,7 +314,7 @@ function extractAnswerByID(logContent, id) {
  */
 function extractAssistantTextFromJsonlLog(logContent) {
   const texts = [];
-  for (const line of logContent.split("\n")) {
+  for (const line of iterateLines(logContent)) {
     const trimmed = line.trim();
     // Find the first '{' which starts the JSON object.  Some runner environments
     // prefix log lines with a timestamp (e.g. "2026-07-16T07:21:45Z {...}");

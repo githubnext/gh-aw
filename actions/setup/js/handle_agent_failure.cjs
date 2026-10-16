@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -363,11 +363,11 @@ function readModelEndpointMismatch() {
     /** @type {any[]} */
     let events;
     try {
-      events = fs
-        .readFileSync(file, "utf8")
-        .split(/\r?\n/)
-        .filter(line => line.trim())
-        .map(line => iterateJsonl([line], { strict: true }).next().value);
+      events = [];
+      for (const event of iterateJsonlEvents(fs.readFileSync(file, "utf8"))) {
+        if (event.type === "json") events.push(event.value);
+        else if (event.reason !== "blank") throw event.error;
+      }
     } catch (error) {
       const missing = error && typeof error === "object" && "code" in error && error.code === "ENOENT";
       if (process.env.GH_AW_UNIFIED_SESSION || !missing) throw error;
@@ -1638,14 +1638,11 @@ function loadToolDenialsExceededEvents() {
       const eventsPath = path.join(COPILOT_SESSION_STATE_DIR, entry.name, "events.jsonl");
       if (!fs.existsSync(eventsPath)) continue;
       const content = fs.readFileSync(eventsPath, "utf8");
-      const lines = content.split("\n");
       /** @type {Array<string>} */
       const recentToolCalls = [];
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line) continue;
+      for (const parsed of iterateJsonl(content)) {
+        if (!parsed) continue;
         try {
-          const parsed = iterateJsonl([line], { strict: true }).next().value;
           if (parsed.type === "tool.execution_start" && parsed.data && typeof parsed.data === "object") {
             const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
             if (toolName) {

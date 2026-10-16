@@ -1,6 +1,5 @@
 // @ts-check
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * Copilot Harness with Retry Logic
  *
@@ -48,8 +47,9 @@ const { iterateJsonl } = require("./jsonl_helpers.cjs");
  * Example: node copilot_harness.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-("use strict");
+"use strict";
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -753,17 +753,12 @@ function extractTokenCountFromOutput(output) {
 
 /** @param {string} output @returns {boolean} */
 function isCopilotContentFilterError(output) {
-  return output.split(/\r?\n/).some(line => {
-    let event;
-    try {
-      event = iterateJsonl([line], { strict: true }).next().value;
-    } catch {
-      return false;
-    }
-    if (event?.type !== "assistant.message") return false;
+  for (const event of iterateJsonl(output)) {
+    if (event?.type !== "assistant.message") continue;
     const context = copilotSessionContext(event);
-    return context.agentId === undefined && !context.parentToolUseId && getCopilotMessageRefusal(event.data)?.reason === "content_filter";
-  });
+    if (context.agentId === undefined && !context.parentToolUseId && getCopilotMessageRefusal(event.data)?.reason === "content_filter") return true;
+  }
+  return false;
 }
 
 /**

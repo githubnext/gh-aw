@@ -112,29 +112,32 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
     const evidence = readCompletionEvidence(rootDir, relativePath);
     let count = 0;
     let malformed = 0;
-    for (const line of (evidence.content || "").split("\n").filter(line => line.trim())) {
-      try {
-        const entry = iterateJsonl([line], { strict: true }).next().value;
-        if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
-      } catch {
+    for (const event of iterateJsonlEvents(evidence.content || "")) {
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
         malformed++;
+        continue;
       }
+      const entry = event.value;
+      if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
     }
     summary.push(`Safe-output ${label} calls observed: ${evidence.status === "recorded" ? `${count}${malformed ? ` (partial evidence: ${malformed} malformed record${malformed === 1 ? "" : "s"})` : ""}` : `unknown (${evidence.status})`}`);
   }
   const output = readCompletionEvidence(rootDir, "safeoutputs.jsonl");
-  const lines = (output.content || "").split("\n").filter(line => line.trim());
+  let recordCount = 0;
   let malformed = 0;
-  for (const line of lines) {
-    try {
-      const item = iterateJsonl([line], { strict: true }).next().value;
-      if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
-    } catch {
+  for (const event of iterateJsonlEvents(output.content || "")) {
+    if (event.type === "invalid" && event.reason === "blank") continue;
+    recordCount++;
+    if (event.type === "invalid") {
       malformed++;
+      continue;
     }
+    const item = event.value;
+    if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
   }
   summary.push(
-    `Safe-output persistence: ${output.status === "recorded" ? `${lines.length ? "nonempty" : "empty"} (${lines.length} record${lines.length === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
+    `Safe-output persistence: ${output.status === "recorded" ? `${recordCount ? "nonempty" : "empty"} (${recordCount} record${recordCount === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
   );
   return summary;
 }

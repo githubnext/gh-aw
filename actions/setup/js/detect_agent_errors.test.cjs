@@ -304,6 +304,18 @@ describe("detect_agent_errors.cjs", () => {
       expect(detectErrors(errorOutput).modelNotSupportedError).toBe(true);
     });
 
+    it("skips corrupt records and stops decoding after the first custom-tools rejection", () => {
+      const first = JSON.stringify({ type: "turn.failed", error: { message: "Invalid value: 'custom'", param: "tools" } });
+      const output = `[INFO] startup\r\n{"broken"\nnull\r\n${first}\r\n{"later":true}`;
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        expect(isUnsupportedModelToolsError(output)).toBe(true);
+        expect(parse.mock.calls.map(([text]) => text)).toEqual(['{"broken"', "null", first]);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
     it("classifies the raw Codex rejection when the error fields are reordered", () => {
       const errorOutput = String.raw`{"type":"turn.failed","error":{"message":"{\"error\":{\"param\":\"tools\",\"message\":\"Invalid value: 'custom'\"}}"}}`;
       expect(isUnsupportedModelToolsError(errorOutput)).toBe(true);

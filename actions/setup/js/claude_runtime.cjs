@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { countPermissionDeniedIssues, extractDeniedCommands } = require("./permission_denied_helpers.cjs");
@@ -12,55 +12,53 @@ const CLAUDE_RESUME_PROMPT = "Continue the interrupted task using the existing s
 /** @param {string} output @returns {Array<Record<string, any>>} */
 function claudeRecords(output) {
   const records = [];
-  for (const line of output.split(/\r?\n/)) {
-    try {
-      const record = iterateJsonl([line], { strict: true }).next().value;
-      if (record && typeof record === "object" && !Array.isArray(record)) records.push(record);
-    } catch {
-      // stderr diagnostics are not part of the JSONL event stream.
-      continue;
-    }
+  for (const record of iterateJsonl(output)) {
+    if (record && typeof record === "object" && !Array.isArray(record)) records.push(record);
   }
   return records;
 }
 
 /** @param {string} output @returns {string} */
 function claudeFailureEvidence(output) {
-  return output
-    .split(/\r?\n/)
-    .filter(line => {
-      try {
-        const record = iterateJsonl([line], { strict: true }).next().value;
-        if (record.type === "user") return false;
-        if (record.type === "assistant") return record.is_api_error_message === true || record.error != null;
-        if (record.type === "system" && record.error == null) return false;
-        return record.type === "result" || record.type === "system" || record.error != null;
-      } catch {
-        return true;
-      }
-    })
-    .map(line => {
-      try {
-        const record = iterateJsonl([line], { strict: true }).next().value;
-        if (record.type !== "result") return line;
-        const { result, permission_denials, ...metadata } = record;
-        if (record.is_error === true) metadata.result = result;
-        return JSON.stringify(metadata);
-      } catch {
-        return line;
-      }
-    })
-    .join("\n");
+  const lines = [];
+  for (const event of iterateJsonlEvents(output)) {
+    const line = event.rawLine.replace(/\r?\n$/, "");
+    if (event.type === "invalid" || event.value === null) {
+      lines.push(line);
+      continue;
+    }
+    const record = event.value;
+    if (record.type === "user") continue;
+    if (record.type === "assistant") {
+      if (record.is_api_error_message !== true && record.error == null) continue;
+    } else if (record.type === "system" && record.error == null) continue;
+    else if (record.type !== "result" && record.type !== "system" && record.error == null) continue;
+    if (record.type === "result") {
+      const { result, permission_denials, ...metadata } = record;
+      if (record.is_error === true) metadata.result = result;
+      lines.push(JSON.stringify(metadata));
+    } else {
+      lines.push(line);
+    }
+  }
+  if (output.endsWith("\n")) lines.push("");
+  return lines.join("\n");
 }
 
 /** @param {string} output @returns {boolean} */
 function hasClaudeSessionProgress(output) {
-  return claudeRecords(output).some(record => record.type === "assistant" && record.error == null && record.is_api_error_message !== true);
+  for (const record of iterateJsonl(output)) {
+    if (record?.type === "assistant" && record.error == null && record.is_api_error_message !== true) return true;
+  }
+  return false;
 }
 
 /** @param {string} output @returns {string | undefined} */
 function claudeSessionId(output) {
-  return claudeRecords(output).find(record => !record.parent_tool_use_id && typeof record.session_id === "string" && record.session_id.length > 0)?.session_id;
+  for (const record of iterateJsonl(output)) {
+    if (record && !record.parent_tool_use_id && typeof record.session_id === "string" && record.session_id.length > 0) return record.session_id;
+  }
+  return undefined;
 }
 
 /** @param {string} output @returns {{count: number, commands: string[]}} */

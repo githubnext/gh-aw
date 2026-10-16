@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlContent, iterateJsonl, readJsonlFile } = require("./jsonl_helpers.cjs");
+const { parseJsonlContent, iterateJsonl, iterateLines, readJsonlFile } = require("./jsonl_helpers.cjs");
 const childProcess = require("child_process");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
@@ -1970,7 +1970,6 @@ function readAgentRuntimeMetrics(engineId = "") {
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
-    const lines = content.split("\n");
     const codexRecords = engineId.toLowerCase() === "codex" ? collectCodexMixedRecords(content) : null;
 
     const applyRuntimeEntry = parsed => {
@@ -2010,7 +2009,7 @@ function readAgentRuntimeMetrics(engineId = "") {
       }
     };
 
-    for (const rawLine of lines) {
+    for (const rawLine of iterateLines(content)) {
       const line = rawLine.trim();
       if (!line) {
         continue;

@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const { isSessionEvent } = require("./agent_session.cjs");
 const { collectUnifiedSession, parseEngineSession } = require("./unified_session.cjs");
@@ -46,19 +46,15 @@ function sessionCLI(args) {
   }
   if (mode === "markdown" || mode === "normalize") {
     const content = readSessionInput(inputPath);
-    const events = content
-      .split(/\r?\n/)
-      .filter(line => line.trim())
-      .map((line, index) => {
-        let event;
-        try {
-          event = iterateJsonl([line], { strict: true }).next().value;
-        } catch (error) {
-          throw new Error(`Invalid session JSONL at record ${index + 1}`, { cause: error });
-        }
-        if (!isSessionEvent(event)) throw new Error(`Invalid session event at record ${index + 1}`);
-        return event;
-      });
+    const events = [];
+    for (const entry of iterateJsonlEvents(content)) {
+      if (entry.type === "invalid") {
+        if (entry.reason === "blank") continue;
+        throw new Error(`Invalid session JSONL at record ${events.length + 1}`, { cause: entry.error });
+      }
+      if (!isSessionEvent(entry.value)) throw new Error(`Invalid session event at record ${events.length + 1}`);
+      events.push(entry.value);
+    }
     validateSessionFileHeader(events);
     if (mode === "normalize") {
       const normalized = normalizeEngineSessionEvents(events, engine ?? "custom", event => ({ ...normalizeUnifiedSessionEvent(event), provenance: event.provenance }));

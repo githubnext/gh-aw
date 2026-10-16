@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * pick_experiment
  *
@@ -206,12 +206,12 @@ function loadState(stateFile) {
 
     /** @type {ExperimentState & {runs: ExperimentRunRecord[]}} */
     const state = { counts: {}, runs: [] };
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
+    for (const event of iterateJsonlEvents(raw)) {
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
+        throw event.error;
       }
-      const entry = iterateJsonl([trimmed], { strict: true }).next().value;
+      const entry = event.value;
       if (entry && typeof entry.counts === "object") {
         state.counts = entry.counts;
         state.runs = Array.isArray(entry.runs) ? entry.runs.slice(-MAX_RUN_HISTORY) : [];

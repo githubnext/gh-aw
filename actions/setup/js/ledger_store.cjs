@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -567,22 +567,21 @@ class Ledger {
         diagnostics.push({ code: "invalid-envelope", file });
         continue;
       }
-      const lines = content.split("\n");
       const offsets = [];
       for (let pos = 0; pos < raw.length; pos++) {
         if (pos === 0 || raw[pos - 1] === 10) offsets.push(pos);
       }
-      if (lines.at(-1) !== "") diagnostics.push({ code: "truncated-record", file, line: lines.length });
-      for (let index = 0; index < lines.length - 1; index++) {
-        const text = lines[index];
-        const position = { file, line: index + 1 };
-        let record;
-        try {
-          record = iterateJsonl([text], { strict: true }).next().value;
-        } catch {
+      if (content && !content.endsWith("\n")) diagnostics.push({ code: "truncated-record", file, line: offsets.length });
+      for (const event of iterateJsonlEvents(content)) {
+        if (!event.rawLine.endsWith("\n")) continue;
+        const index = event.lineNumber - 1;
+        const text = event.rawLine.slice(0, -1);
+        const position = { file, line: event.lineNumber };
+        if (event.type === "invalid") {
           diagnostics.push({ code: "invalid-json", ...position });
           continue;
         }
+        const record = event.value;
         try {
           if (record && typeof record === "object" && Object.hasOwn(record, "version") && record.version !== 1) {
             diagnostics.push({ code: "unsupported-version", ...position });

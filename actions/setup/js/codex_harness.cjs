@@ -1,6 +1,5 @@
 // @ts-check
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 /**
  * OpenAI Codex CLI Harness with Retry Logic
  *
@@ -31,8 +30,9 @@ const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
  * Example: node codex_harness.cjs codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-("use strict");
+"use strict";
 
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { DEFAULT_MCP_CALL_WATCHDOG_MS, MCP_CALL_TRANSPORT_GRACE_MS } = require("./constants.cjs");
@@ -319,15 +319,10 @@ function isInvalidRequestError(output) {
  * @returns {string | null}
  */
 function extractInvalidRequestErrorCode(output) {
-  for (const line of iterateLines(output)) {
-    try {
-      const event = iterateJsonl([line], { strict: true }).next().value;
-      if (event?.type !== "turn.failed" || !event.error) continue;
-      const match = JSON.stringify(event.error).match(INVALID_REQUEST_ERROR_PATTERN);
-      if (match) return match[0].toLowerCase();
-    } catch {
-      // Ignore non-JSON diagnostic lines.
-    }
+  for (const event of iterateJsonl(output)) {
+    if (event?.type !== "turn.failed" || !event.error) continue;
+    const match = JSON.stringify(event.error).match(INVALID_REQUEST_ERROR_PATTERN);
+    if (match) return match[0].toLowerCase();
   }
   return null;
 }
@@ -342,16 +337,12 @@ function extractInvalidRequestErrorCode(output) {
  * @returns {boolean}
  */
 function isUnsupportedModelToolsError(output) {
-  return output.split(/\r?\n/).some(line => {
-    try {
-      const event = iterateJsonl([line], { strict: true }).next().value;
-      if (event?.type !== "turn.failed" || !event.error) return false;
-      const details = extractNestedProviderErrorDetails(event.error);
-      return !!details && details.param === "tools" && details.code === "unknown_parameter";
-    } catch {
-      return false;
-    }
-  });
+  for (const event of iterateJsonl(output)) {
+    if (event?.type !== "turn.failed" || !event.error) continue;
+    const details = extractNestedProviderErrorDetails(event.error);
+    if (details?.param === "tools" && details.code === "unknown_parameter") return true;
+  }
+  return false;
 }
 
 /**
