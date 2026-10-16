@@ -9,6 +9,14 @@ Git storage. Lightweight issue checklists and sub-issue queues use
 outputs. This reference describes the native version-3 protocol. Git is the only
 backend, and `tools.work-queue` has no `storage` field.
 
+The workflow runtime and operator use the Git executable for ledger reads,
+checkpoint verification and compare-and-swap publication, not GitHub's REST or
+GraphQL Git APIs. They fetch only the queue branch and its complete history into
+an isolated bare object store, independently of the source checkout. Git uses
+the selected queue credential through ephemeral authentication; it does not
+reuse persisted checkout credentials. Agents and snapshot MCP servers remain
+credential-free.
+
 The native queue enforces fair scheduling, immutable task dependency graphs,
 and worker effects authorized by individual Claims. Its only source of
 authority is `work-queue.jsonl`, a transaction log that records events in causal
@@ -310,8 +318,8 @@ Unrelated pools do not add deployment writes or block their progress.
 
 Short per-Work/per-Issue coordination spans fresh checked reads and native
 writes without holding agents. Projection journals persist native creation
-intent and verified receipts; bindings are batched through
-`createCommitOnBranch` with `expectedHeadOid`. Publication conflicts refresh
+intent and verified receipts; bindings are batched in Git commits with an exact
+expected-head lease and a checked single parent. Publication conflicts refresh
 and replay the ledger; uncertain acknowledgements recover stable requests.
 Maintenance does not change Claims, fairness, reservations, or recovery reserve.
 
@@ -333,19 +341,13 @@ GitHub does not provide documented creation deduplication, and marker text or an
 empty discovery result is not proof of noncreation. Automatic crash recovery
 that can safely clear these fences is not implemented.
 
-Hooks batch up to 25 owned targets. Checked GraphQL reads combine immutable-head
-ledger/journal reads, label discovery, and scoped Issue preflight; an explicitly
-truncated blob uses an OID-checked REST fallback. Writes are paced and exhausted
-rate limits stop subsequent live requests. Hook metrics count authentication,
-coordination, native writes, journals, and retries within the projection phase;
-shared activation work and GitHub App token minting are additional requests.
-Local full-hook mocks also count ordinary queue publication and both hooks.
-For 25 unchanged existing Issues, the authenticated projection currently uses
-seven requests: five reads and two batched coordination mutations, with no Issue
-writes. An ordinary checked queue read/publication takes two requests instead
-of the previous five/nine-call REST paths.
-Mutation primary cost remains unmeasured; baseline Issue-operation estimates
-must not be mistaken for this end-to-end total.
+Hooks batch up to 25 owned targets. Ledger and journal reads use immutable Git
+objects; journal writes use the same Git CAS boundary as queue publication.
+GraphQL remains for scoped Issue preflight, label discovery, native repository
+identity and projection coordination. Native writes are paced and exhausted
+API rate limits stop subsequent native requests. Hook API metrics exclude Git
+transport and do not represent its elapsed time. Shared activation evidence
+and GitHub App token minting are additional hosted requests.
 
 Upgrade every Go/JavaScript reader, compiler, runtime setup action, and operator
 deployment before installing `projectors` or enabling new backing-Issue records.
@@ -362,14 +364,33 @@ namespaces. `DEBUG=work-queue:store,work-queue:dispatch` selects components;
 patterns support `*`, with comma or whitespace separators.
 `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1` enables all queue events,
 including when a GitHub Actions run is re-run with debug logging.
+Each emitted event ends with `+Nms`, the monotonic elapsed time since the previous
+emitted event in the same namespace within that process. The first event uses
+`+0ms`; suppressed events do not reset the interval. Always-visible queue
+diagnostics and failures use the same timing.
 
 Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
 `reconciler`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
 publication attempts, conflicts, recovery, capacity and packing limits,
 native launch and binding, independent verification, and durable settlement.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+Blocked control and launch-processing failures are always visible, even without
+`DEBUG`. Diagnostics, receipts, the step summary, and the Actions failure annotation
+include a fixed human-readable explanation and recovery action alongside the
+stable error category. GitHub enforces API access using the trusted job's Actions
+permissions and selected credential; the ledger does not infer token permissions
+from repository-role metadata. An actual GitHub access denial explains which
+job permissions to check while the agent job remains read-only. Credential
+identity, Claim ownership, and immutable worker-revision checks remain in place.
+Raw provider errors and secret values are
+never printed.
+
+A failure after a grant retains the durable request and commit IDs in the control
+receipt, together with each original reservation's blocked launch status.
+Unknown launch or release outcomes remain unknown; failure alone does not prove
+that no worker launched.
 Payloads, identifiers, repository names, paths, URLs, tokens, raw API responses,
-error messages, and stack traces are not logged. Debug events do not grant
+raw error messages, and stack traces are not logged. Debug events do not grant
 authority or replace durable queue receipts.
 
 ## Workflow roles and intent tools
@@ -475,9 +496,9 @@ for file purposes and redaction limits.
 
 ## Performance regression tests
 
-The offline performance suite exercises the trusted control adapter, checked
-publication, deployment synchronization, reconciliation, and native worker
-binding with an in-memory GitHub API:
+The offline suite exercises real disposable Git repositories as well as the
+trusted control adapter, deployment synchronization, reconciliation and native
+worker binding with injected API fixtures:
 
 ```bash
 npm --prefix actions/setup/js run test:work-queue-performance
@@ -485,23 +506,19 @@ npm --prefix actions/setup/js run test:work-queue-performance
 
 Fixtures contain at least 200 KiB of checkpoint data, 15–27 Work items,
 100–300 retained requests, one or three worker profiles, and 8–64 Git ancestry
-commits. Assertions cover API-call budgets, bounded history verification,
-full-batch retries without writes or duplicate launches, and both REST and
-GraphQL publication. JSON metrics include per-method counts and measured local
-execution time. Simulated network cost assumes 250 ms per read and 500 ms per
-mutation; it is not measured GitHub elapsed time.
+commits. Real-Git assertions require zero ledger API calls for nested
+checkpoints, detached reads, stable-request recovery, journal publication and
+CAS conflicts. Damaged checkpoints and unavailable ancestry fail closed.
+Injected object-transport fixtures also retain historical API/cache budgets;
+their simulated network costs are not production Git measurements.
+The local stress simulator explicitly registers its Git-backed adapter for both
+parent and worker RPC clients, keeping ledger operations on disposable local
+repositories rather than the production GitHub transport.
 
-Compiled controls construct a separate queue client from the protected publisher
-token, not the worker-dispatch credential. Within one control invocation, this
-permits reuse of immutable checkpoint-history proofs under registered, unchanged
-static authentication while retaining fresh repository/ref probes and checked
-publication. Both publication transports have full-step regression budgets for
-this compiled-token path.
-
-Arbitrary injected-client and custom-auth cases without an explicit publisher
-token remain uncached negative controls. They must report
-`within_single_traversal_budget: false`; caching is not enabled by inspecting an
-unknown client's `auth()` result.
+Compiled controls keep the protected queue publisher credential separate from
+the worker-dispatch credential. Git reads recheck remote access even when local
+immutable objects are reused; an unknown or rotating client does not require
+an API ancestry walk.
 
 Optional live-data tests use a privately captured ledger and the exact queue
 head's Git objects already fetched into the current checkout:
@@ -531,7 +548,7 @@ initialize Policy over an invalid log.
 
 | Command | Purpose |
 | --- | --- |
-| `replay`, `stats` | Inspect state reconstructed from the log, typed dependency nodes, individual Claims, and native reservations. |
+| `replay`, `stats` | Inspect state reconstructed from the log, typed dependency nodes, individual Claims, and native reservations. `replay --run-id ID` uses an exact Actions activation snapshot; `replay --file PATH` uses a downloaded snapshot without network access. |
 | `state [--graph GRAPH] [--pool POOL] [--state STATE] [--search TEXT]` | Display an ASCII tree of graphs, Work, and Claims using metadata only. `--offset` and `--limit` paginate at most 256 rows/64 KiB. |
 | `inspect --work-id ID` or `inspect --claim-id ID` | Show full copyable IDs, dependency cross-references, current and historical ownership, original assignment membership, and separate delivery and native-run barriers. |
 | `tui` (alias `interactive`) | Browse the queue with a keyboard, search, multi-select, and view details for the focused item. Review cancellation and future priority changes before publishing. |
@@ -556,6 +573,41 @@ the same logical publication across retries. Each command's `--help`
 describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
+
+After an accepted worker dispatch, trusted controls verify the exact first run
+attempt, retrying transient reads and pending run-title correlation within the
+pool's reconciliation attempt and deadline limits. They never repeat the dispatch
+POST. If native verification succeeds but binding publication fails, the
+uncertainty marker retains the verified run evidence as a discovery hint, not a
+durable binding. The hint remains available after queue compaction. Unverified
+responses never become native evidence. Reconciliation must still verify the
+exact repository, workflow, revision, principal, attempt and dispatch token before
+binding; uncertainty alone never releases the reservation.
+
+### Replay an Actions snapshot
+
+Reproduce ledger validation and scheduling with the current CLI against a
+captured activation artifact:
+
+```bash
+gh aw work-queue --repo github/gh-aw replay --run-id 38645334879 \
+  --pool default --max-claims 3 --max-dispatches 3 --json
+```
+
+`--run-id` searches the exact run's retained `activation` artifacts and selects
+the snapshot matching its current attempt, repository, workflow, and run identity.
+Expired artifacts are skipped; multiple matching snapshots, no match, or invalid
+artifacts fail explicitly. Candidate downloads and snapshot reads each have an
+aggregate 162 MiB limit. `--file PATH` accepts an already downloaded snapshot instead.
+
+Artifact replay is read-only and does not treat captured data as publication
+authority. JSON output contains metadata and counts, not Work payloads.
+Optional `--pool` evaluates the fair scheduler at the snapshot's capture time;
+`--max-claims` and `--max-dispatches` bound that prediction. It does not refresh
+external dependencies, reconcile live reservations, validate a live dispatch
+credential, create tags, launch workers, or replay effects. Credential-preflight
+fixes require runtime regression tests or a reviewed live dispatcher run;
+successful ledger replay alone does not prove those fixes or worker completion.
 
 To activate the ESLint factory through its trusted queue dispatcher:
 

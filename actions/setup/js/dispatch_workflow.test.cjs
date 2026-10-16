@@ -9,6 +9,9 @@ import { replayTransactions } from "./work_queue_replay.cjs";
 import { main as writeSnapshot } from "./write_work_queue_snapshot.cjs";
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
+
+const { registerQueueLedgerClient } = createRequire(import.meta.url)("./work_queue_git_transport.cjs");
 
 const temporaryDirectory = prefix => fs.mkdtempSync(path.join(fs.realpathSync(process.cwd()), `.gh-aw-${prefix}-`));
 
@@ -106,6 +109,7 @@ describe("dispatch_workflow handler factory", () => {
             },
           },
         };
+        registerQueueLedgerClient(publisher, publisher);
         const login = kind === "github_token" ? "github-actions[bot]" : kind === "github_app" ? "approved-worker[bot]" : "approved-pat-owner";
         const identity = async () => {
           identities++;
@@ -131,6 +135,10 @@ describe("dispatch_workflow handler factory", () => {
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
               getWorkflowRun: async () => {
+                throw new Error("Launch verification must read immutable attempt 1, not the latest run");
+              },
+              getWorkflowRunAttempt: async parameters => {
+                expect(parameters).toMatchObject({ owner: "owner", repo: "repo", run_id: "42", attempt_number: 1 });
                 const dispatch = [...replayTransactions(native.log()).dispatches.values()][0];
                 return { status: 200, data: { ...fixture.nativeRun(), display_title: `gh-aw work-queue ${dispatch.dispatch_id}` } };
               },

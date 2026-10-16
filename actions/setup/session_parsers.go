@@ -23,7 +23,7 @@ import "embed"
 //go:embed js/pi_session.cjs js/pi_session_redaction.cjs js/session_artifact.cjs
 //go:embed js/log_parser_bootstrap.cjs js/log_parser_format.cjs js/log_parser_shared.cjs
 //go:embed js/log_parser_step_summary_builder.cjs js/markdown_unfencing.cjs
-//go:embed js/add_mask_redaction.cjs js/redact_secrets.cjs js/safe_output_manifest.cjs
+//go:embed js/add_mask_redaction.cjs js/redact_secrets.cjs js/safe_outputs_config_redact.cjs js/safe_output_manifest.cjs
 //go:embed js/otlp_header_helpers.cjs
 //go:embed js/work_queue_claim_scope.cjs js/work_queue_codec.cjs js/work_queue_resource_scope.cjs
 //go:embed js/work_queue_host.cjs
@@ -33,6 +33,7 @@ import "embed"
 //go:embed js/work_queue_issue_contract.cjs
 //go:embed js/work_queue_binding.cjs js/work_queue_policy.cjs js/work_queue_store.cjs
 //go:embed js/work_queue_auth_cache.cjs
+//go:embed js/work_queue_git_transport.cjs js/git_auth_env.cjs
 //go:embed js/work_queue_policy_config.cjs
 //go:embed js/work_queue_checked_transport.cjs
 //go:embed js/work_queue_summary_renderer.cjs

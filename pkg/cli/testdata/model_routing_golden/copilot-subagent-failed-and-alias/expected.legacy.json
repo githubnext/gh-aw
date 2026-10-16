@@ -65,6 +65,7 @@
     "subagent_costs": [
       {
         "agent_name": "file-summarizer",
+        "display_names": ["file-summarizer"],
         "agent_type": "subagent",
         "instance_count": 4,
         "completed_count": 1,
@@ -80,6 +81,7 @@
       },
       {
         "agent_name": "quick-checker",
+        "display_names": ["quick-checker"],
         "agent_type": "subagent",
         "instance_count": 1,
         "completed_count": 1,
@@ -207,6 +209,7 @@
     "agent_usage": [
       {
         "agent_name": "file-summarizer",
+        "display_names": ["file-summarizer"],
         "agent_type": "subagent",
         "source_engine": "copilot",
         "instance_count": 4,
@@ -268,6 +271,7 @@
       },
       {
         "agent_name": "quick-checker",
+        "display_names": ["quick-checker"],
         "agent_type": "subagent",
         "source_engine": "copilot",
         "instance_count": 1,

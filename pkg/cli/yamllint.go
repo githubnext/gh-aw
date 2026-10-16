@@ -85,12 +85,25 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
 		}
+		return fmt.Errorf("yamllint output could not be parsed: %w", parseErr)
 	}
 
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			return classifyYamllintExit(exitErr.ExitCode(), strict, totalIssues, yamllintFileDescription(lockFiles))
+			classifiedErr := classifyYamllintExit(exitErr.ExitCode(), strict, totalIssues, yamllintFileDescription(lockFiles))
+			if exitErr.ExitCode() == 1 || exitErr.ExitCode() == 2 {
+				var findings []scanfindings.Finding
+				for line := range strings.SplitSeq(strings.TrimSpace(stdout.String()), "\n") {
+					finding, parseErr := parseYamllintLine(line)
+					if parseErr != nil {
+						return fmt.Errorf("yamllint output could not be parsed: %w", parseErr)
+					}
+					findings = append(findings, finding)
+				}
+				return withScannerFindings(classifiedErr, findings)
+			}
+			return classifiedErr
 		}
 		return fmt.Errorf("yamllint failed: %w", err)
 	}

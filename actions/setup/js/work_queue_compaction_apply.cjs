@@ -9,6 +9,7 @@ const { compactTransactions, replayTransactions } = require("./work_queue_replay
 const { readWorkQueueLog } = require("./work_queue_store.cjs");
 const { actorFromContext, validateTrustedContext } = require("./work_queue_policy.cjs");
 const { authenticatePublisher } = require("./work_queue_native.cjs");
+const { queueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 const MAX_ATTEMPTS = 3;
 const PLAN_MAX_BYTES = 16 * 1024;
@@ -41,6 +42,7 @@ function isRetryablePublicationError(error) {
   if (!error || typeof error !== "object") return false;
   const status = "status" in error ? error.status : undefined;
   const message = error instanceof Error ? error.message : "";
+  if ("code" in error && error.code === "git_transport_failed") return true;
   return status === 409 || (status === 422 && /not a fast.forward|reference update failed/i.test(message)) || status === 408 || status === 429 || (typeof status === "number" && status >= 500 && status < 600);
 }
 
@@ -67,22 +69,23 @@ async function main(options = {}) {
     const candidate = compactTransactions(current.transactions, current.sha, actor);
     replayTransactions(candidate);
     const content = candidate.map(commit => canonical(commit)).join("\n") + "\n";
+    const ledger = queueLedgerClient(githubClient, owner, repo, plan.branch);
     try {
-      const blob = await githubClient.rest.git.createBlob({ owner, repo, content, encoding: "utf-8" });
-      const tree = await githubClient.rest.git.createTree({
+      const blob = await ledger.rest.git.createBlob({ owner, repo, content, encoding: "utf-8" });
+      const tree = await ledger.rest.git.createTree({
         owner,
         repo,
         base_tree: current.treeSha,
         tree: [{ path: current.logPath, mode: "100644", type: "blob", sha: blob.data.sha }],
       });
-      const commit = await githubClient.rest.git.createCommit({
+      const commit = await ledger.rest.git.createCommit({
         owner,
         repo,
         message: "Checkpoint work queue",
         tree: tree.data.sha,
         parents: [current.sha],
       });
-      await githubClient.rest.git.updateRef({ owner, repo, ref: `heads/${plan.branch}`, sha: commit.data.sha, force: false });
+      await ledger.rest.git.updateRef({ owner, repo, ref: `heads/${plan.branch}`, sha: commit.data.sha, force: false });
       core.setOutput("result", "applied");
       core.info("Work queue checkpoint committed");
       return { status: "applied" };

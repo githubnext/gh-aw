@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.8.1"
+version: "1.9.0"
 status: Draft
-publication_date: "2026-10-12"
+publication_date: "2026-10-15"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.8.1<br>
+**Version**: 1.9.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-12<br>
+**Publication Date**: 2026-10-15<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.8.1 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.9.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -1048,6 +1048,27 @@ actuals include only sub-agent requests, not main-agent or router traffic.
 `agent-session.jsonl` is used only for older runs without a unified-session
 artifact. `agent-stdio.log` is not a source of sub-agent rows.
 
+**T-UAS-073 — Sub-agent rows by definition.** Audit `agent_usage` and
+`subagent_costs` rows MUST be keyed by the agent definition recorded in
+`agentName`, with `agent_type` remaining the role (`main` or `subagent`). An
+audit row MUST combine all instances of one definition in a run, summing
+instance and outcome counts, requests, tokens, and credits; effort is the shared
+value or `mixed`. Models and `subagent_model_requests` rows MUST be resolved
+from each instance's own evidence before rows are combined by definition.
+`gh aw logs` MUST combine rows across runs by definition and
+effort. `display_names` MUST list the sorted, distinct `agentDisplayName` values
+from each instance's `subagent.started`, `subagent.completed`, and
+`subagent.failed` events and per-agent metrics, matched by instance ID, and MUST
+NOT use `subagent.selected`. When an instance has no `agentName`, its row MUST be
+named by its display name without `display_names`. Served models MUST come only
+from runner- or proxy-written evidence (the session's sub-agent records and
+per-agent metrics, and AWF `token-usage.jsonl`), never from the agent-writable
+`awf-routing-outcome.json`. They MUST omit provider prefixes, MUST NOT list alias
+names such as `small`, and MUST NOT drop a concrete model ID because a declared
+sub-agent pins it, including as the selected variant of an experiment. A dated
+model ID that served requests MUST be kept as served evidence when it resolves
+to its undated identity.
+
 Subagent attribution is scoped to the final retry session; earlier source
 records cannot contribute even when merged timestamps interleave them.
 Malformed preferred artifacts produce diagnostics while the reader continues
@@ -1145,8 +1166,8 @@ repeated anonymous text does not establish snapshot coverage.
 | `tool_execution_start` / `tool_execution_end` | Independent start/completion using `toolCallId`, tool name/arguments, `result`, and `isError`; keep orphan ends and dangling starts. |
 | `toolcall_start` / `toolcall_delta` / `toolcall_end` message updates | One `tool.execution_start`, reconciled with partial argument text and finalized arguments. An orphan argument delta remains a partial `tool.execution_update`; boundary-only updates and repeated snapshots do not introduce message wrappers. |
 | `tool_execution_update` | `tool.execution_update` with canonical `input`, partial `output`, correlation IDs, and `partial: true`, not a Pi-specific message. |
-| Distinct `turn_end.message.usage` | Sum supplied `input`/`output`; map supplied `cacheRead`/`cacheWrite` to cache-read/cache-creation fields. Preserve other usage/cost data when exposed. |
-| Finalized message `errorMessage` or top-level `error` | `session.error` and `session.result.errors`, even when content is empty; repeated message snapshots retain one diagnostic observation. |
+| Distinct `turn_end.message.usage` | Sum supplied `input`/`output`; map supplied `cacheRead`/`cacheWrite` to cache-read/cache-creation fields and `reasoning` to reasoning-output tokens. Reasoning is a subset of output, not additional total tokens. Include reported auxiliary inference usage once, preserving reported zero counts. |
+| Finalized message `errorMessage`, top-level `error`, or RPC `extension_error` | `session.error` and `session.result.errors`, even when content is empty or no session header was emitted; repeated message snapshots retain one diagnostic observation. |
 | Recognized `agent_end` or other terminal accounting | Reconcile any supplied session snapshot; do not add it again to per-turn totals. |
 | `agent_start`, `agent_settled`, retry, compaction, queue, entry, and reasoning-effort observations | Engine-independent `session.*` lifecycle extensions retaining the supplied payload. |
 
@@ -1171,7 +1192,7 @@ from model/usage metadata. Unknown `pi.*` extensions remain opaque. The session
 download command applies this normalization to published JSONL only when trusted
 run metadata identifies Pi; it does not rewrite stored Actions artifacts.
 
-The adapter can discover a reported model from a finalized turn without inventing an earlier model observation. Presentation aliases such as `bash` → `Bash` do not change canonical tool names. Sources lacking duration or cost do not supply zero duration or zero cost.
+The adapter can discover a reported model from a finalized turn without inventing an earlier model observation. When Pi reports `responseModel`, canonical message and error observations use that served model; the canonical trace retains the requested `model` and native thinking levels as message metadata. Child request observations also preserve reported reasoning-output tokens without adding them to parent usage. Presentation aliases such as `bash` → `Bash` do not change canonical tool names. Sources lacking duration or cost do not supply zero duration or zero cost.
 
 ### 7.6 Custom engines
 
@@ -1187,7 +1208,11 @@ framing, not an arbitrary raw-log fallback. They retain observed assistant text
 and tool evidence, omit prompts and recognized wrapper diagnostics, and leave
 unavailable native tool arguments, results, and accounting absent.
 Catalogued canonical-producing adapters own their complete mixed stdout before
-generic record extraction. Exact quiet output does not supply initialization,
+generic record extraction. Cursor and Crush retain a compatibility probe for
+older definitions that return legacy entries; a canonical-producing definition,
+including one returning an empty trace, remains authoritative. Generic message
+preflight must not bypass its native tool-event mappings or restore rejected
+records. Exact quiet output does not supply initialization,
 tool executions, terminal success, or accounting merely because text exists.
 Attributable startup errors remain `session.error`, not assistant answers.
 
@@ -1264,7 +1289,9 @@ without duplicate answers or tool executions. Native canonical extensions remain
 opaque.
 
 Historical `text` output supplies only the captured final answer, not a full
-conversation. Its blank lines and final newlines remain exact. CLI version
+conversation. Its blank lines and final newlines remain exact. Supplied message
+`sourceEngine` attribution survives unified-session compaction; absent attribution
+is not inferred, and plaintext alone does not fabricate a `session.init`. CLI version
 verification and infrastructure output are not assistant messages; prose does
 not establish tools, turn counts, outcomes, or token accounting. The sampled
 historical runs verify this text path, whereas stream-json mappings are
@@ -1494,6 +1521,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-068 | Goose stream messages/deltas, tool requests/results, cumulative completion usage, source-second timestamps, malformed records, error-only and partial sessions | Exact supported content and IDs, observed outcomes only, no duplicated snapshots or invented partial results, explicit diagnostics. |
 | T-UAS-070 | Firewall token usage with supplied or absent purpose/path/initiator; `usage.report` alias | Supplied routing metadata survives projection; consumers treat absent purpose as unknown, not agent. |
 | T-UAS-071 | Firewall token usage with supplied, absent, or malformed `steering`; AI-credit, token, and time steering event-log entries | Type and threshold survive projection, malformed notices are dropped, steering events keep threshold and request ID, and absent notices remain unrecorded rather than undelivered. |
+| T-UAS-073 | Copilot built-in and declared sub-agents with distinct display names, provider-qualified SDK model IDs, declared concrete and alias models, and sessions without `agentName` | Rows keyed by `agentName` with sorted `display_names`, one audit row per definition and one logs row per definition and effort, bare served model IDs without aliases, unchanged counts and credits, and display-name rows when `agentName` is absent. |
 
 ### 9.3 Engine and integration fixture matrix
 
@@ -1644,8 +1672,14 @@ observation, so their entries omit it.
 ### 9.6 Mechanical contract checks (Informative)
 
 `scripts/session_schemas.test.cjs`, relative to `actions/setup/js/`, checks
-byte-identical regeneration, independent schema compilation, all eight current
-parser labels, raw engine mappings, and collected runtime payload families.
+byte-identical regeneration, independent schema compilation, native passthrough
+labels, raw engine mappings, and collected runtime payload families. A separate
+fixture matrix exercises all 13 non-Pi engine routes through canonical artifact
+precedence, unified schema validation, and CLI reconstruction. Existing sanitized
+CI fixtures cover observed formats; Cursor and Crush cases use synthetic
+canonical input, not native-format or latest-release verification. Their older
+plaintext definitions emit a null model in initialization, which the canonical
+schema rejects; adapter corrections are required rather than relaxing the schema.
 Negative cases include invalid known payloads that would otherwise match the
 open native union, unsafe/fractional token counts, legacy event names, absent
 provenance, wrong file headers, invalid paths, ordering errors, duplicate execution
@@ -1976,6 +2010,12 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 1.9.0 — Draft (2026-10-15)
+
+- Keyed audit and logs sub-agent rows by agent definition with `display_names` (T-UAS-073).
+- Restricted sub-agent served models to runner- and proxy-written evidence, without provider prefixes or aliases, and kept concrete model IDs pinned by declared sub-agents.
+- Retained serialization-format version 1.
 
 ### Version 1.8.1 — Draft (2026-10-12)
 

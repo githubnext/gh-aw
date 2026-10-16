@@ -101,6 +101,9 @@ func renderLogsCompactToWriter(writer io.Writer, data LogsData) error {
 		return w.err
 	}
 	renderCompactLogsRuns(w, data.Runs)
+	if err := renderFailureReportToWriter(w, data.FailureClusters, data.FailureInvestigation, "", false); err != nil {
+		return err
+	}
 	renderCompactLogsErrors(w, data, false)
 	renderCompactLogsInsights(w, data, false)
 	renderCompactLogsFirewall(w, data)
@@ -313,6 +316,9 @@ func renderLogsCompactVerboseToWriter(writer io.Writer, data LogsData) error {
 		return w.err
 	}
 	renderCompactLogsVerboseRuns(w, data.Runs)
+	if err := renderFailureReportToWriter(w, data.FailureClusters, data.FailureInvestigation, "", true); err != nil {
+		return err
+	}
 	renderCompactLogsErrors(w, data, true)
 	renderCompactLogsInsights(w, data, true)
 	renderCompactLogsVerboseFirewall(w, data)

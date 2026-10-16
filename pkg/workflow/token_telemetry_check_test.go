@@ -31,8 +31,16 @@ func TestSmokeTokenTelemetryCheckIsEngineAware(t *testing.T) {
 				}
 			}
 			unsupported := `contains(fromJSON('["kiro","cursor"]'), needs.activation.outputs.engine_id)`
-			if strings.Count(check, "!"+unsupported) != 2 || strings.Count(check, "&& "+unsupported) != 1 {
+			if strings.Count(check, "!"+unsupported) != 3 {
 				t.Error("proxy assertions must run only for supported engines; unsupported engines must receive a notice")
+			}
+			download := extractWorkflowStepByName(t, check, "Download agent artifact")
+			if !strings.Contains(download, "!"+unsupported) {
+				t.Error("unsupported engines must not download an unused agent artifact")
+			}
+			notice := extractWorkflowStepByName(t, check, "Report engines without proxy token telemetry")
+			if !strings.Contains(notice, "if: "+unsupported) || strings.Contains(notice, "steps.download-agent.outcome") {
+				t.Error("unsupported-engine notice must not depend on the skipped artifact download")
 			}
 			if strings.Contains(check, "continue-on-error: true") {
 				t.Error("agent artifact download must not silently fail")

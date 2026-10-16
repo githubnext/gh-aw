@@ -367,6 +367,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	// Setup step
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
+		"        id: detection_setup\n",
 		fmt.Sprintf("        if: %s\n", detectionStepCondition),
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",

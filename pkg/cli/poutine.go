@@ -145,6 +145,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
 		}
+		return fmt.Errorf("poutine output could not be parsed: %w", parseErr)
 	}
 
 	// Check if the error is due to findings or actual failure
@@ -158,7 +159,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 			if exitCode == 1 {
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
-					return fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode. Example: rerun after resolving all reported findings", totalWarnings)
+					return withPoutineFindings(fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode. Example: rerun after resolving all reported findings", totalWarnings), stdout.String())
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -170,7 +171,18 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 		return fmt.Errorf("poutine failed: %w", err)
 	}
 
+	if strict && totalWarnings > 0 {
+		return withPoutineFindings(fmt.Errorf("strict mode: poutine found %d security warnings/errors", totalWarnings), stdout.String())
+	}
 	return nil
+}
+
+func withPoutineFindings(err error, stdout string) error {
+	var output poutineOutput
+	if parseErr := json.Unmarshal([]byte(stdout), &output); parseErr != nil {
+		return fmt.Errorf("poutine output could not be parsed: %w", parseErr)
+	}
+	return withScannerFindings(err, poutineFindingsToShared(output.Findings, output.Rules, "", nil))
 }
 
 // buildPoutineCommand uses a compatible local binary when available, falling

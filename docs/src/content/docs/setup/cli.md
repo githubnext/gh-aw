@@ -30,6 +30,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 
 | Command | Description | When to use |
 |---------|-------------|-------------|
+| [`gh aw skill`](#skill) | Print the bundled agentic-workflows skill | Loading instructions into an agent without adding repository files |
 | [`gh aw work-queue`](#work-queue) | Experimental Git-backed DAG work queue | Managing queue policy, scheduling, and operator recovery |
 
 ## Installation
@@ -100,6 +101,22 @@ For invalid nested command paths, `gh aw` now fails explicitly instead of fallin
 
 For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
+Commands that create pull requests print the full pull request URL to stderr immediately after creation, including in non-verbose and quiet modes, so terminals can display it as a clickable link. The URL remains visible if subsequent local branch cleanup fails.
+
+### Pull request auto-merge
+
+`--auto-merge` enables GitHub-native auto-merge on the created pull request. Without this flag, command behavior is unchanged.
+
+| Commands | Options |
+|----------|---------|
+| `init`, `add`, `update`, `upgrade` | `--auto-merge` requires `--pr` or its equivalent `--create-pull-request` |
+| `add-wizard` | `--pr` / `--create-pull-request` forces pull request delivery instead of asking for confirmation; `--auto-merge` requires one of these flags |
+| `deploy`, `pr transfer` | Always create a pull request, but `--auto-merge` still requires the compatibility flag `--pr` or `--create-pull-request` |
+
+The repository must allow auto-merge and at least one merge method, and the authenticated token must have permission to enable it through the GitHub API. The CLI uses the GraphQL `enablePullRequestAutoMerge` mutation, choosing the repository's `viewerDefaultMergeMethod` when allowed, otherwise an allowed merge method. It does not immediately merge through `gh pr merge`, force a merge, or bypass required checks or reviews.
+
+If auto-merge is disabled, no merge method is allowed, API permissions are insufficient, or GitHub otherwise rejects the request, the command reports the error and pull request URL; the created pull request remains open. In organization mode, `update`, `upgrade`, and `deploy` enable auto-merge independently for each repository and report per-repository failures without preventing attempts for other repositories.
+
 ## Commands
 
 Commands are organized by workflow lifecycle: creating, building, testing, monitoring, and managing workflows.
@@ -108,9 +125,21 @@ To choose between the setup commands: [`add-wizard`](#add-wizard) is guided and 
 
 ### Getting Workflows
 
+#### `skill`
+
+Print the bundled `/agentic-workflows` `SKILL.md` content to standard output without initializing a repository or creating files:
+
+```bash wrap
+gh aw skill
+```
+
+The command works outside a Git repository, requires no authentication or network access, and uses the file list bundled with the installed CLI version. The skill includes public raw-URL fallback instructions for GitHub API downloads blocked by HTTP 403 or cross-organization SAML authorization.
+
 #### `init`
 
 Initialize repository for agentic workflows. Configures `.gitattributes`, creates the dispatcher skill file (`.github/skills/agentic-workflows/SKILL.md`), and performs non-interactive setup. With the Copilot engine (`--engine copilot`), it also creates the Agentic Workflows custom agent (`.github/agents/agentic-workflows.md`) and enables MCP server integration by default (use `--no-mcp`/`--no-agent` to skip these Copilot-specific artifacts). Use `--no-skill` to skip dispatcher skill creation. Non-Copilot engines skip Copilot-specific artifacts; see [Initializing for non-Copilot engines](#initializing-for-non-copilot-engines).
+
+Initialization can use a token SAML-authorized for a different organization: if the public skill file-list API returns HTTP 403, `init` fetches the list from `raw.githubusercontent.com` without authentication. If that also fails, it warns and uses the bundled list. Creating a pull request still requires authorization for the target repository.
 
 ```bash wrap
 gh aw init                              # Initialize repository with defaults (non-interactive)
@@ -122,9 +151,10 @@ gh aw init --codespaces                 # Configure Codespaces for current repo 
 gh aw init --codespaces=repo1,repo2     # Configure Codespaces with additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
+gh aw init --pr --auto-merge            # Initialize, open a PR, and enable auto-merge
 ```
 
-**Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request`
+**Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge))
 
 ##### Initializing for non-Copilot engines
 
@@ -147,14 +177,17 @@ Add a workflow with interactive guided setup. Checks requirements, adds the mark
 
 Before the final pull request confirmation, the wizard optionally offers to add repository support files for using coding agents to author, debug, update, and audit agentic workflows. The prompt is skipped when those support files are already configured. Declining adds only the selected workflow files.
 
+`--pr` / `--create-pull-request` forces pull request delivery but does not make the wizard non-interactive. With `--auto-merge`, GitHub-native auto-merge is enabled; the wizard's review and merge-confirmation loop still runs before post-merge secret setup, bootstrap, and status steps.
+
 ```bash wrap
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
 gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
 gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary URL (JSON workflow)
 gh aw add-wizard githubnext/agentics/ci-doctor --no-secret  # Skip secret prompt
+gh aw add-wizard githubnext/agentics/ci-doctor --pr --auto-merge  # Force PR delivery and enable auto-merge
 ```
 
-**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--gh-aw-ref`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`
+**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--gh-aw-ref`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`, `--create-pull-request` / `--pr` (force PR delivery), `--auto-merge` (requires explicit PR flag; see [auto-merge requirements](#pull-request-auto-merge))
 
 When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token (a separate token from the default `GITHUB_TOKEN`, because the agent needs elevated Copilot API access that the ephemeral workflow token does not carry). When `COPILOT_GITHUB_TOKEN` already exists, using it is the default; because GitHub does not expose stored secret values, the user asserts that it is a suitable fine-grained PAT with Copilot Requests permission. The alternative replacement path opens a preconfigured fine-grained PAT creation page, validates the pasted token, and updates the repository secret.
 
@@ -171,11 +204,12 @@ gh aw add ./my-workflow.md                       # Add a local workflow file
 gh aw add ./*.md                                 # Add multiple local workflow files
 gh aw add githubnext/agentics/ci-doctor --dir .github/workflows/shared  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
+gh aw add githubnext/agentics/ci-doctor --pr --auto-merge             # Create PR and enable auto-merge
 gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)
 gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
-**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--gh-aw-ref`, `--name/-n`, `--no-stop-after`, `--stop-after`
+**Options:** `--dir/-d`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--gh-aw-ref`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
 
@@ -355,7 +389,7 @@ Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `-
 
 **Options:** `--action-mode`, `--action-tag`, `--actionlint`, `--actions-repo`, `--allow-action-refs`, `--allow-experimental`, `--approve`, `--dependabot`, `--dry-run`, `--dir/-d`, `--engine/-e`, `--environment`, `--fail-fast`, `--fix`, `--force/-f`, `--force-refresh-action-pins`, `--force-refresh-container-pins`, `--gh-aw-ref`, `--ghes`, `--grant`, `--grype`, `--json/-j`, `--logical-repo/-l`, `--models`, `--no-check-update`, `--no-emit`, `--poutine`, `--purge`, `--refresh-stop-time`, `--require-self-hosted-runners`, `--runner-guard`, `--schedule-seed`, `--shellcheck`, `--show-all`, `--staged`, `--stats`, `--strict`, `--syft`, `--trial`, `--validate`, `--validate-images`, `--watch/-w`, `--yamllint`, `--zizmor`
 
-**`--dry-run` flag:** Compile with strict source validation, staged safe outputs, shellcheck, model checks, and warnings as errors. Docker-based image validation and scanners are opt-in. Without Docker, required run-step linting uses native shellcheck. Missing required checks or model inventory block compilation. Compiler-managed GitHub mutations are disabled, including push jobs, memory/cache persistence, work-queue operations, reusable safe-output calls, reactions, comments/issues, label removal, and issue locking. Emitted locks remove `OTEL_*` and `GH_AW_OTLP_*` variables from workflow, job, step, container, and service environment mappings and disable automatic OTLP configuration and authentication. The runtime records `dry_run` in `aw_info.json` and warns that custom scripts/jobs, agent shell commands, external MCP servers, and custom credentials remain unverified. Explicitly disabling a required check is rejected; `--no-emit`, `--watch`, `--approve`, and `--allow-action-refs` are incompatible. This flag does not upload or execute workflows and is distinct from `--action-mode dev`. The compile MCP input is `dry_run`; `validate_images: true` opts into required image validation. See [Development Testing Mode](/gh-aw/reference/compilation-process/#development-testing-mode).
+**`--dry-run` flag:** Compile with strict source validation, staged safe outputs, shellcheck, and model checks. Scanner findings are compared against the existing on-disk locks before compilation: only added medium-or-higher or unclassified findings fail. Low-severity findings and zizmor's `secrets-outside-env` rule do not fail the dry-run gate. Docker-based image validation and scanners are opt-in. Without Docker, required run-step linting uses native shellcheck. Missing required checks or model inventory block compilation. Compiler-managed GitHub mutations are disabled, including push jobs, memory/cache persistence, work-queue operations, reusable safe-output calls, reactions, comments/issues, label removal, and issue locking. Emitted locks remove `OTEL_*` and `GH_AW_OTLP_*` variables from workflow, job, step, container, and service environment mappings and disable automatic OTLP configuration and authentication. The runtime records `dry_run` in `aw_info.json` and warns that custom scripts/jobs, agent shell commands, external MCP servers, and custom credentials remain unverified. Explicitly disabling a required check is rejected; `--no-emit`, `--watch`, `--approve`, and `--allow-action-refs` are incompatible. This flag does not upload or execute workflows and is distinct from `--action-mode dev`. The compile MCP input is `dry_run`; `validate_images: true` opts into required image validation. See [Development Testing Mode](/gh-aw/reference/compilation-process/#development-testing-mode).
 
 Dry-run locks also omit daily credit accounting, retain existing per-run caps or promote configured/imported daily limits, and add manual dispatch restricted to maintainer/admin actors without bot exemptions. `DEBUG=workflow:compiler_development,cli:compile_development` reports mutations without configuration values.
 
@@ -371,7 +405,7 @@ Dry-run locks also omit daily credit accounting, retain existing per-run caps or
 
 **JSON Output (`--json`):** Emits an array of `ValidationResult` objects. Each result includes a `labels` field listing all repository labels referenced in safe-outputs (`create-issue.labels`, `create-discussion.labels`, `create-pull-request.labels`, `add-labels.allowed`). Use `--json --no-emit` to collect label references without writing compiled files.
 
-With `--dry-run`, workflow warnings invalidate only the affected workflow. Add `--allow-experimental` to accept built-in experimental-feature notices while keeping them visible; all other warnings, validation errors, and scanner failures remain fatal. The JSON dry-run summary records `accepted_experimental_warnings`. Compiler/scanner diagnostics that cannot be attributed to one workflow appear as separate results with `scope: "batch"`; their `workflow` field identifies the diagnostic source rather than a workflow path. Any invalid result fails development compilation, even when individual workflows remain valid.
+With `--dry-run`, actionable workflow warnings invalidate only the affected workflow. Low-severity and built-in experimental-feature notices are nonblocking and remain visible; `--allow-experimental` additionally records explicit acknowledgement in `accepted_experimental_warnings`. Validation errors, unclassified compiler warnings, and scanner execution/parsing failures remain fatal. The JSON summary reports each scanner's baseline, existing, added, and ignored finding counts. Compiler/scanner diagnostics that cannot be attributed to one workflow appear as separate results with `scope: "batch"`; their `workflow` field identifies the diagnostic source rather than a workflow path. Any invalid result fails development compilation, even when individual workflows remain valid.
 
 **Dependabot Integration (`--dependabot`):** Generates dependency manifests and `.github/dependabot.yml` by analyzing runtime tools across all workflows. See [Dependabot Support reference](/gh-aw/reference/dependabot/).
 
@@ -739,12 +773,23 @@ gh aw health issue-monster         # Detailed metrics for specific workflow
 gh aw health --days 30             # Summary for last 30 days
 gh aw health --threshold 90        # Warn if below 90% success rate
 gh aw health --json                # Output in JSON format
+gh aw health --start-date -24h      # Evidence from the last 24 hours
+gh aw health --start-date 2026-10-14T04:49:11Z  # Evidence since a release timestamp
+gh aw health --start-date 2026-10-14 --end-date 2026-10-15  # Bounded window
 gh aw health issue-monster --days 90  # 90-day metrics for workflow
 ```
 
-**Options:** `--days`, `--threshold`, `--repo/-r`, `--json/-j`
+**Options:** `--days`, `--start-date`, `--end-date`, `--logs-dir`, `--threshold`, `--repo/-r`, `--json/-j`
 
 The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an error.
+
+`--start-date` and `--end-date` filter run creation times inclusively. Both accept `YYYY-MM-DD` dates, RFC3339 timestamps with time zones, and relative times such as `-24h`, `-1d`, or `-1w`. Dates use UTC; an end date includes that entire day. The end defaults to the current time. Without an explicit start, `--days` counts backward from the end. An explicit start replaces the default seven-day horizon and cannot be combined with an explicit `--days`.
+
+For release-scoped evidence, pass the release's publication timestamp as `--start-date`; this filters by time, not compiler version. Text output and JSON `collection.start_date` / `collection.end_date` show the resolved UTC window. Health still samples current workflow revisions toward five completed first-attempt runs per scope, subject to API limits; it does not enumerate every run or reconstruct historical branch heads. A narrow window can leave insufficient evidence.
+
+Runs with `skipped` or `action_required` conclusions are excluded from health metrics, revision evidence, and failure clusters. Waiting and failed runs are excluded only when the Jobs API confirms their run attempt has no jobs, including runs whose approval expired. Job-backed waiting runs remain pending revision evidence. Successful job-presence lookups are reused per run ID and attempt within the collection, including across overlapping search windows. Collection continues past ignored runs to find executed runs within the requested window and API limits. An unavailable or malformed Jobs API response is reported as an error, not treated as evidence that no jobs ran.
+
+Filtered runs do not consume the minimum sample. Health searches backward for five completed first-attempt runs per current-revision scope, stopping at the requested time boundary or API budget rather than a fixed page count. It narrows the search window to continue beyond GitHub's 1,000-run search limit, overlapping boundary timestamps and deduplicating runs. If timestamp ties prevent further progress, the report explicitly marks collection as partial.
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
@@ -857,10 +902,12 @@ gh aw update ci-doctor --major --force    # Allow major version updates
 gh aw update --no-release-bump            # Update workflows; only force-update core actions/*
 gh aw update --repo owner/repo            # Update workflows in another repository
 gh aw update --create-pull-request        # Update and open a pull request
+gh aw update --pr --auto-merge             # Update, open a PR, and enable auto-merge
+gh aw update --org my-org --pr --auto-merge --yes  # Enable auto-merge per repository
 gh aw update --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--approve`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
+**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--approve`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
 
 Org mode (`--org`) previews or creates workflow update pull requests across every repository in an organization. Use `--repos` to limit matches, `--create-issue` to open an issue in each repository with pending updates, and `--yes/-y` to auto-accept per-repository confirmations in CI.
 
@@ -874,10 +921,12 @@ Roll out one or more workflows to a target repository through a pull request. Th
 gh aw deploy githubnext/agentics/ci-doctor --repo owner/repo
 gh aw deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
 gh aw deploy ./my-workflow.md --repo owner/repo
+gh aw deploy ./my-workflow.md --repo owner/repo --pr --auto-merge  # Enable auto-merge on the deployment PR
 gh aw deploy githubnext/agentics/ci-doctor --org my-org --repos '*-service' --yes  # Deploy across an org
+gh aw deploy ./my-workflow.md --org my-org --pr --auto-merge --yes  # Enable auto-merge per repository
 ```
 
-**Options:** `--repo/-r` (required unless `--org`), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--no-security-scanner`, `--cool-down`, `--org`, `--repos`, `--yes/-y`
+**Options:** `--repo/-r` (required unless `--org`), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--no-security-scanner`, `--cool-down`, `--org`, `--repos`, `--yes/-y`, `--create-pull-request` / `--pr` (compatibility flags; PR creation is always enabled), `--auto-merge` (requires explicit PR flag; see [auto-merge requirements](#pull-request-auto-merge))
 
 Org mode (`--org`) deploys workflows across every repository in an organization instead of a single `--repo` target. Use `--repos` to limit org mode to repositories matching one or more glob patterns, and `--yes/-y` to auto-accept org-mode deploy confirmations (required in CI).
 
@@ -891,6 +940,8 @@ Upgrade repository with latest agent files and apply codemods to all workflows.
 gh aw upgrade                              # Upgrade repository agent files and all workflows
 gh aw upgrade --no-fix                     # Update agent files only (skip codemods, actions, and compilation)
 gh aw upgrade --create-pull-request        # Upgrade and open a pull request
+gh aw upgrade --pr --auto-merge             # Upgrade, open a PR, and enable auto-merge
+gh aw upgrade --org my-org --pr --auto-merge --yes  # Enable auto-merge per repository
 gh aw upgrade --engine claude              # Override AI engine for compilation
 gh aw upgrade --repo owner/repo            # Upgrade workflows in another repository
 gh aw upgrade --audit                      # Run dependency health audit
@@ -898,7 +949,7 @@ gh aw upgrade --audit --json               # Dependency audit in JSON format
 gh aw upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--engine/-e`, `--repo/-r`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+**Options:** `--dir/-d`, `--engine/-e`, `--repo/-r`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
 
 Org mode (`--org`) previews or creates upgrade pull requests across every repository in an organization. Use `--repos` to limit org mode to repositories matching one or more glob patterns, `--create-issue` to open an issue in each org repository with agentic workflows (requires `--org`), and `--yes/-y` to auto-accept org-mode upgrade confirmations (required in CI).
 
@@ -978,9 +1029,10 @@ Transfer pull request to another repository, preserving changes, title, and desc
 
 ```bash wrap
 gh aw pr transfer <pr-url> --repo target-owner/target-repo
+gh aw pr transfer <pr-url> --repo target-owner/target-repo --pr --auto-merge
 ```
 
-**Options:** `--repo/-r`
+**Options:** `--repo/-r`, `--create-pull-request` / `--pr` (compatibility flags; PR creation is always enabled), `--auto-merge` (requires explicit PR flag; see [auto-merge requirements](#pull-request-auto-merge))
 
 #### `mcp-server`
 

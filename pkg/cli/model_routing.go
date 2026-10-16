@@ -51,6 +51,7 @@ type ModelRoutingDeviation struct {
 
 type ModelRoutingAgentCost struct {
 	AgentName       string   `json:"agent_name"`
+	DisplayNames    []string `json:"display_names,omitempty"`
 	AgentType       string   `json:"agent_type"`
 	InstanceCount   int      `json:"instance_count"`
 	CompletedCount  int      `json:"completed_count,omitempty"`
@@ -298,7 +299,7 @@ func analyzeModelRouting(runDir string) *ModelRoutingSummary {
 			models = appendUnique(models, entry.Model)
 		}
 
-		agentSummary := &TokenUsageSummary{AgentUsage: resolveAgentUsageModels(agents, newModelIdentityResolver(runDir), models...)}
+		agentSummary := &TokenUsageSummary{AgentUsage: mergeAgentUsageByDefinition(resolveAgentUsageModels(agents, newModelIdentityResolver(runDir), models...))}
 		matchPiAgentUsageCredits(agentSummary, proxyEntries, newModelIdentityResolver(runDir))
 		applyAgentUsageToModelRouting(summary, agentSummary.AgentUsage)
 	}
@@ -387,8 +388,10 @@ func applyAgentUsageToModelRouting(summary *ModelRoutingSummary, agents []AgentU
 		}
 		models := append([]string(nil), agent.ServedModels...)
 		slices.Sort(models)
+		displayNames := append([]string(nil), agent.DisplayNames...)
+		slices.Sort(displayNames)
 		summary.SubagentCosts = append(summary.SubagentCosts, ModelRoutingAgentCost{
-			AgentName: agent.AgentName, AgentType: agent.AgentType, InstanceCount: agent.InstanceCount,
+			AgentName: agent.AgentName, DisplayNames: displayNames, AgentType: agent.AgentType, InstanceCount: agent.InstanceCount,
 			CompletedCount: agent.CompletedCount, FailedCount: agent.FailedCount,
 			IncompleteCount: agent.IncompleteCount, Effort: agent.Effort, Models: models, ModelRoutingCost: cost,
 		})
@@ -694,6 +697,7 @@ func addModelRoutingSubagentTotals(totals map[string]ModelRoutingAgentCost, agen
 		total.FailedCount += agent.FailedCount
 		total.IncompleteCount += agent.IncompleteCount
 		total.Models = appendUniqueStrings(total.Models, agent.Models...)
+		total.DisplayNames = appendUniqueStrings(total.DisplayNames, agent.DisplayNames...)
 		addModelRoutingCost(&total.ModelRoutingCost, agent.ModelRoutingCost)
 		totals[key] = total
 	}
@@ -702,6 +706,7 @@ func addModelRoutingSubagentTotals(totals map[string]ModelRoutingAgentCost, agen
 func appendModelRoutingSubagentCosts(summary *ModelRoutingLogsSummary, totals map[string]ModelRoutingAgentCost) {
 	for _, cost := range totals {
 		slices.Sort(cost.Models)
+		slices.Sort(cost.DisplayNames)
 		summary.SubagentCosts = append(summary.SubagentCosts, cost)
 	}
 	slices.SortFunc(summary.SubagentCosts, func(a, b ModelRoutingAgentCost) int {

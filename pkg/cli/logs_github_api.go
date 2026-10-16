@@ -225,6 +225,10 @@ func parseWorkflowRunAPIResponse(data []byte) (WorkflowRun, error) {
 	if err := json.Unmarshal(data, &response); err != nil {
 		return WorkflowRun{}, fmt.Errorf("failed to parse workflow run API response: %w", err)
 	}
+	return response.workflowRun(), nil
+}
+
+func (response workflowRunAPIResponse) workflowRun() WorkflowRun {
 	return WorkflowRun{
 		DatabaseID:   response.ID,
 		Number:       response.RunNumber,
@@ -243,7 +247,7 @@ func parseWorkflowRunAPIResponse(data []byte) (WorkflowRun, error) {
 		Attempt:      response.RunAttempt,
 		Repository:   response.Repository.FullName,
 		Actor:        response.Actor.Login,
-	}, nil
+	}
 }
 
 func applyWorkflowRunMetadata(run *WorkflowRun, metadata WorkflowRun) bool {

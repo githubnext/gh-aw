@@ -72,7 +72,7 @@ func validatePiSubagentModel(name string, value any, provider string) error {
 			return fmt.Errorf("pi sub-agent %q model supports only the effort parameter", name)
 		}
 		switch value {
-		case "none", "minimal", "low", "medium", "high", "xhigh":
+		case "none", "minimal", "low", "medium", "high", "xhigh", "max":
 		default:
 			return fmt.Errorf("pi sub-agent %q has unsupported thinking effort %q", name, value)
 		}

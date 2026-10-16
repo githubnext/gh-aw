@@ -107,6 +107,11 @@ async function fetchNativeRunAttempt(githubClient, repository, runId, attempt = 
   return run;
 }
 
+function isTransientVerificationError(error) {
+  const status = error?.status ?? error?.response?.status;
+  return status === 404 || (status >= 500 && status <= 599) || ["ETIMEDOUT", "ECONNRESET"].includes(error?.code) || error?.message === "run_correlation_mismatch";
+}
+
 function validateNativeRun(run, expected) {
   log.debug("run.validate.start");
   const runId = nativeId(run?.id, "run ID");
@@ -279,6 +284,7 @@ module.exports = {
   dispatchResponse,
   fetchNativeRun,
   fetchNativeRunAttempt,
+  isTransientVerificationError,
   validateNativeRun,
   dispatchTag,
   postQueueDispatch,

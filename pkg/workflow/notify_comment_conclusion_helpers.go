@@ -518,7 +518,7 @@ func (c *Compiler) buildAgentFailureStep(data *WorkflowData, mainJobName, messag
 	envVars = append(envVars, buildAgentFailureReportingPolicyVars(data)...)
 	envVars = append(envVars, buildAgentFailureCacheMemoryVars(data, mainJobName)...)
 	return c.buildGitHubScriptStepWithoutDownload(data, GitHubScriptStepConfig{
-		StepName:      "Handle agent failure",
+		StepName:      constants.AgentFailureStepName,
 		StepID:        "handle_agent_failure",
 		MainJobName:   mainJobName,
 		CustomEnvVars: envVars,

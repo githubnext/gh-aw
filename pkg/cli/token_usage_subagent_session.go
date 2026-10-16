@@ -693,6 +693,9 @@ func (models *subagentSessionModels) observeSubagentRequest(event sessionSubagen
 		return err
 	}
 	models.recordSubagentRequest(identity, row.AgentName, model, usage, incomplete, timestamp)
+	if data.AgentName != "" {
+		models.agentUsage[identity].definitionName = data.AgentName
+	}
 	return nil
 }
 
@@ -814,6 +817,9 @@ func (models *subagentSessionModels) observeAgentMetric(agentID string, metric s
 	}
 	agentUsage.AgentName = name
 	agentUsage.AgentType = role
+	if role == "subagent" {
+		agentUsage.observeIdentity(metric.AgentName, metric.AgentDisplayName)
+	}
 	agentUsage.SourceEngine = models.sourceEngine
 	agentUsage.InstanceCount = max(agentUsage.InstanceCount, 1)
 	agentUsage.AIC = float64(metric.TotalNanoAiu) / 1e9
@@ -924,6 +930,7 @@ func (models *subagentSessionModels) observeLifecycle(event sessionSubagentEvent
 	agentUsage.AgentName = row.AgentName
 	agentUsage.AgentType = "subagent"
 	agentUsage.SourceEngine = models.sourceEngine
+	agentUsage.observeIdentity(data.AgentName, lifecycleDisplayName(event.Type, data.AgentDisplayName))
 	if event.Type == "subagent.started" {
 		row.RequestedModel = data.Model
 		row.ResolvedModel = data.ResolvedModel
@@ -956,6 +963,25 @@ func (models *subagentSessionModels) observeLifecycle(event sessionSubagentEvent
 		observeLifecycleOutcome(row, agentUsage, event, data)
 	}
 	return nil
+}
+
+// lifecycleDisplayName returns the display name chosen for an instance; only
+// started, completed, and failed events carry it.
+func lifecycleDisplayName(eventType, displayName string) string {
+	switch eventType {
+	case "subagent.started", "subagent.completed", "subagent.failed":
+		return displayName
+	}
+	return ""
+}
+
+// observeIdentity records the agent definition (agentName) and the display
+// name chosen for this instance, so rows can be keyed by definition.
+func (usage *AgentUsageBreakdown) observeIdentity(definition, displayName string) {
+	if definition != "" {
+		usage.definitionName = definition
+	}
+	usage.instanceDisplayNames = appendUnique(usage.instanceDisplayNames, displayName)
 }
 
 func observeLifecycleOutcome(row *SubagentModelRequest, agentUsage *AgentUsageBreakdown, event sessionSubagentEvent, data sessionSubagentData) {
@@ -1314,27 +1340,80 @@ func sortedSubagentRequests(grouped map[subagentModelKey]SubagentModelRequest, c
 	return requests
 }
 
+// agentRows returns one row per agent display name and definition. Model and
+// request attribution use these rows so that each instance keeps its own
+// evidence; mergeAgentUsageByDefinition builds the public rows afterwards.
 func (models *subagentSessionModels) agentRows() []AgentUsageBreakdown {
 	grouped := make(map[string]*AgentUsageBreakdown)
 	for agentID, usage := range models.agentUsage {
 		if usage.AgentName == "" {
 			usage.AgentName = "subagent"
 		}
-		key := usage.AgentType + "\x00" + usage.AgentName
+		definition := ""
+		if usage.AgentType == "subagent" {
+			definition = usage.definitionName
+		}
+		key := usage.AgentType + "\x00" + usage.AgentName + "\x00" + definition
 		row := grouped[key]
 		if row == nil {
-			row = &AgentUsageBreakdown{AgentName: usage.AgentName, AgentType: usage.AgentType, SourceEngine: usage.SourceEngine}
+			row = &AgentUsageBreakdown{AgentName: usage.AgentName, AgentType: usage.AgentType, SourceEngine: usage.SourceEngine, definitionName: definition}
 			grouped[key] = row
+		}
+		if definition != "" {
+			for _, displayName := range usage.instanceDisplayNames {
+				row.instanceDisplayNames = appendUnique(row.instanceDisplayNames, displayName)
+			}
 		}
 		mergeAgentUsageBreakdown(row, usage, models.agents[agentID])
 	}
 	result := make([]AgentUsageBreakdown, 0, len(grouped))
 	for _, row := range grouped {
+		result = append(result, *row)
+	}
+	return sortAgentUsageRows(result)
+}
+
+// mergeAgentUsageByDefinition merges attributed agent rows into the public rows,
+// one per agent definition. Rows without a definition keep their name.
+func mergeAgentUsageByDefinition(agents []AgentUsageBreakdown) []AgentUsageBreakdown {
+	grouped := make(map[string]*AgentUsageBreakdown)
+	order := make([]string, 0, len(agents))
+	for i := range agents {
+		agent := &agents[i]
+		name := agent.AgentName
+		if agent.definitionName != "" {
+			name = agent.definitionName
+		}
+		key := agent.AgentType + "\x00" + name
+		row := grouped[key]
+		if row == nil {
+			row = &AgentUsageBreakdown{AgentName: name, AgentType: agent.AgentType, SourceEngine: agent.SourceEngine, definitionName: agent.definitionName}
+			grouped[key] = row
+			order = append(order, key)
+		}
+		for _, displayName := range agent.instanceDisplayNames {
+			row.DisplayNames = appendUnique(row.DisplayNames, displayName)
+		}
+		mergeAgentUsageTotals(row, agent)
+		for _, model := range agent.ServedModels {
+			row.ServedModels = appendUnique(row.ServedModels, model)
+		}
+	}
+	result := make([]AgentUsageBreakdown, 0, len(grouped))
+	for _, key := range order {
+		result = append(result, *grouped[key])
+	}
+	return sortAgentUsageRows(result)
+}
+
+func sortAgentUsageRows(result []AgentUsageBreakdown) []AgentUsageBreakdown {
+	for i := range result {
+		row := &result[i]
+		slices.Sort(row.DisplayNames)
 		slices.Sort(row.RequestedModels)
 		slices.Sort(row.ResolvedModels)
 		slices.Sort(row.ServedModels)
 		slices.SortFunc(row.Models, func(a, b AgentModelUsage) int { return strings.Compare(a.Model, b.Model) })
-		result = append(result, *row)
 	}
 	slices.SortFunc(result, func(a, b AgentUsageBreakdown) int {
 		if a.AgentType != b.AgentType {
@@ -1351,6 +1430,21 @@ func (models *subagentSessionModels) agentRows() []AgentUsageBreakdown {
 }
 
 func mergeAgentUsageBreakdown(row, usage *AgentUsageBreakdown, request *SubagentModelRequest) {
+	mergeAgentUsageTotals(row, usage)
+	for _, model := range usage.Models {
+		if model.Requests > 0 {
+			row.ServedModels = appendUnique(row.ServedModels, model.Model)
+		}
+	}
+	if request != nil {
+		row.RequestedModels = appendUnique(row.RequestedModels, request.RequestedModel)
+		row.ResolvedModels = appendUnique(row.ResolvedModels, request.ResolvedModel)
+		row.ServedModels = appendUnique(row.ServedModels, request.EffectiveModel)
+		row.Effort = combineSubagentEffort(row.Effort, request.Effort)
+	}
+}
+
+func mergeAgentUsageTotals(row, usage *AgentUsageBreakdown) {
 	row.InstanceCount += usage.InstanceCount
 	if row.SourceEngine == "" {
 		row.SourceEngine = usage.SourceEngine
@@ -1376,15 +1470,6 @@ func mergeAgentUsageBreakdown(row, usage *AgentUsageBreakdown, request *Subagent
 	}
 	for _, model := range usage.Models {
 		row.Models = appendAgentModelUsage(row.Models, model)
-		if model.Requests > 0 {
-			row.ServedModels = appendUnique(row.ServedModels, model.Model)
-		}
-	}
-	if request != nil {
-		row.RequestedModels = appendUnique(row.RequestedModels, request.RequestedModel)
-		row.ResolvedModels = appendUnique(row.ResolvedModels, request.ResolvedModel)
-		row.ServedModels = appendUnique(row.ServedModels, request.EffectiveModel)
-		row.Effort = combineSubagentEffort(row.Effort, request.Effort)
 	}
 }
 
@@ -1400,8 +1485,12 @@ func appendAgentModelUsage(models []AgentModelUsage, next AgentModelUsage) []Age
 		models[i].CacheWriteTokens += next.CacheWriteTokens
 		models[i].ReasoningTokens += next.ReasoningTokens
 		models[i].AIC += next.AIC
+		for _, model := range next.requestModels {
+			models[i].requestModels = appendUnique(models[i].requestModels, model)
+		}
 		return models
 	}
+	next.requestModels = slices.Clone(next.requestModels)
 	return append(models, next)
 }
 

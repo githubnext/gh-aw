@@ -50,7 +50,10 @@ close button to return to the page. Keyboard controls inside demos keep their
 normal behavior. The presentation icon is hidden below the desktop menu breakpoint
 (50rem), and resizing to mobile exits the slideshow.
 Supported browsers slide the full frame left or right with CSS View Transitions;
-reduced-motion preferences disable these animations.
+headings, text, list items, and demo blocks fade and rise into place in reading
+order. Each entrance sequence finishes within one second, including the frame
+transition, and replays when revisiting a slide. Decorative backgrounds stay
+stationary. Reduced-motion preferences disable both animations.
 The rounded, compact toolbar floats at the bottom center without reserving
 footer space. It rests at 65% opacity and becomes opaque on hover, keyboard
 focus, or while its drawing palette is open.

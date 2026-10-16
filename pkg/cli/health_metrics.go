@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -14,21 +15,27 @@ var healthMetricsLog = logger.New("cli:health_metrics")
 
 // WorkflowHealth represents health metrics for a single workflow
 type WorkflowHealth struct {
-	WorkflowName           string        `json:"workflow_name" console:"header:Workflow"`
-	TotalRuns              int           `json:"total_runs" console:"-"`
-	SuccessCount           int           `json:"success_count" console:"-"`
-	FailureCount           int           `json:"failure_count" console:"-"`
-	DriverExitCount        int           `json:"driver_exit_count" console:"-"`
-	AgentLogicFailureCount int           `json:"agent_logic_failure_count" console:"-"`
-	SuccessRate            float64       `json:"success_rate" console:"-"`
-	DisplayRate            string        `json:"-" console:"header:Success Rate"`
-	Trend                  string        `json:"trend" console:"header:Trend"`
-	AvgDuration            time.Duration `json:"avg_duration" console:"-"`
-	DisplayDur             string        `json:"-" console:"header:Avg Duration"`
-	TotalTokens            int           `json:"total_tokens" console:"-"`
-	AvgTokens              int           `json:"avg_tokens" console:"-"`
-	DisplayTokens          string        `json:"-" console:"header:Avg Tokens"`
-	BelowThresh            bool          `json:"below_threshold" console:"-"`
+	WorkflowPath           string                 `json:"workflow_path,omitempty" console:"-"`
+	Revisions              []HealthRevisionStatus `json:"revisions,omitempty" console:"-"`
+	Status                 string                 `json:"status,omitempty" console:"header:Status"`
+	Collection             *HealthCollection      `json:"collection,omitempty" console:"-"`
+	FailureClusters        []FailureCluster       `json:"failure_clusters,omitempty" console:"-"`
+	FailureInvestigation   *FailureInvestigation  `json:"failure_investigation,omitempty" console:"-"`
+	WorkflowName           string                 `json:"workflow_name" console:"header:Workflow"`
+	TotalRuns              int                    `json:"total_runs" console:"-"`
+	SuccessCount           int                    `json:"success_count" console:"-"`
+	FailureCount           int                    `json:"failure_count" console:"-"`
+	DriverExitCount        int                    `json:"driver_exit_count" console:"-"`
+	AgentLogicFailureCount int                    `json:"agent_logic_failure_count" console:"-"`
+	SuccessRate            float64                `json:"success_rate" console:"-"`
+	DisplayRate            string                 `json:"-" console:"header:Success Rate"`
+	Trend                  string                 `json:"trend" console:"header:Trend"`
+	AvgDuration            time.Duration          `json:"avg_duration" console:"-"`
+	DisplayDur             string                 `json:"-" console:"header:Avg Duration"`
+	TotalTokens            int                    `json:"total_tokens" console:"-"`
+	AvgTokens              int                    `json:"avg_tokens" console:"-"`
+	DisplayTokens          string                 `json:"-" console:"header:Avg Tokens"`
+	BelowThresh            bool                   `json:"below_threshold" console:"-"`
 	// IntentionalFailure is true when the workflow is tagged with intentional-failure: true.
 	// These workflows are excluded from fleet-health and prod-main success-rate rollups.
 	IntentionalFailure bool `json:"intentional_failure,omitempty" console:"-"`
@@ -36,11 +43,15 @@ type WorkflowHealth struct {
 
 // HealthSummary represents aggregated health metrics across all workflows
 type HealthSummary struct {
-	Period           string           `json:"period"`
-	TotalWorkflows   int              `json:"total_workflows"`
-	HealthyWorkflows int              `json:"healthy_workflows"`
-	Workflows        []WorkflowHealth `json:"workflows"`
-	BelowThreshold   int              `json:"below_threshold"`
+	InsufficientWorkflows int                   `json:"insufficient_evidence_workflows"`
+	Collection            *HealthCollection     `json:"collection,omitempty"`
+	FailureClusters       []FailureCluster      `json:"failure_clusters,omitempty"`
+	FailureInvestigation  *FailureInvestigation `json:"failure_investigation,omitempty"`
+	Period                string                `json:"period"`
+	TotalWorkflows        int                   `json:"total_workflows"`
+	HealthyWorkflows      int                   `json:"healthy_workflows"`
+	Workflows             []WorkflowHealth      `json:"workflows"`
+	BelowThreshold        int                   `json:"below_threshold"`
 }
 
 // TrendDirection represents the trend of a workflow's health
@@ -68,6 +79,7 @@ func (t TrendDirection) String() string {
 
 // CalculateWorkflowHealth calculates health metrics for a workflow from its runs
 func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold float64) WorkflowHealth {
+	runs = slices.DeleteFunc(slices.Clone(runs), isIgnoredHealthRun)
 	healthMetricsLog.Printf("Calculating health for workflow: %s, runs: %d", workflowName, len(runs))
 
 	if len(runs) == 0 {
@@ -80,68 +92,46 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 		}
 	}
 
-	// Accumulate success/failure counts and numerical metrics.
-	successCount := 0
-	failureCount := 0
-	driverExitCount := 0
-	agentLogicFailureCount := 0
+	health := accumulateWorkflowHealth(runs)
+	health.WorkflowName = workflowName
+	health.SuccessRate = safePercent(health.SuccessCount, health.TotalRuns)
+	health.Trend = calculateTrend(runs).String()
+	health.DisplayRate = fmt.Sprintf("%.0f%%  (%d/%d)", health.SuccessRate, health.SuccessCount, health.TotalRuns)
+	health.DisplayDur = timeutil.FormatDuration(health.AvgDuration)
+	health.DisplayTokens = console.FormatTokens(health.AvgTokens)
+	health.BelowThresh = health.SuccessRate < threshold
+	healthMetricsLog.Printf("Health calculated: workflow=%s, successRate=%.2f%%, trend=%s", workflowName, health.SuccessRate, health.Trend)
+	return health
+}
+
+func isIgnoredHealthRun(run WorkflowRun) bool {
+	return isNonDispatchedConclusion(run.Conclusion)
+}
+
+func accumulateWorkflowHealth(runs []WorkflowRun) WorkflowHealth {
+	health := WorkflowHealth{TotalRuns: len(runs)}
 	var durationStats, tokenStats stats.StatVar
-	var totalTokens int
 
 	for _, run := range runs {
 		if run.Conclusion == "success" {
-			successCount++
+			health.SuccessCount++
 		} else if isFailureConclusion(run.Conclusion) {
-			failureCount++
+			health.FailureCount++
 			if isDriverExitFailure(run) {
-				driverExitCount++
+				health.DriverExitCount++
 			} else if run.TurnsAvailable || run.Turns > 0 {
 				// Only count as agent-logic when we have reliable turn data.
 				// Runs without artifact logs (TurnsAvailable=false, Turns=0) are left unclassified.
-				agentLogicFailureCount++
+				health.AgentLogicFailureCount++
 			}
 		}
-		totalTokens += run.TokenUsage
+		health.TotalTokens += run.TokenUsage
 		durationStats.Add(float64(run.Duration))
 		tokenStats.Add(float64(run.TokenUsage))
 	}
 
-	totalRuns := len(runs)
-	successRate := safePercent(successCount, totalRuns)
-
-	avgDuration := time.Duration(durationStats.Mean())
-	avgTokens := int(tokenStats.Mean())
-
-	// Calculate trend
-	trend := calculateTrend(runs)
-
-	// Format display values
-	displayRate := fmt.Sprintf("%.0f%%  (%d/%d)", successRate, successCount, totalRuns)
-	displayDur := timeutil.FormatDuration(avgDuration)
-	displayTokens := console.FormatTokens(avgTokens)
-
-	belowThreshold := successRate < threshold
-
-	health := WorkflowHealth{
-		WorkflowName:           workflowName,
-		TotalRuns:              totalRuns,
-		SuccessCount:           successCount,
-		FailureCount:           failureCount,
-		DriverExitCount:        driverExitCount,
-		AgentLogicFailureCount: agentLogicFailureCount,
-		SuccessRate:            successRate,
-		DisplayRate:            displayRate,
-		Trend:                  trend.String(),
-		AvgDuration:            avgDuration,
-		DisplayDur:             displayDur,
-		TotalTokens:            totalTokens,
-		AvgTokens:              avgTokens,
-		DisplayTokens:          displayTokens,
-		BelowThresh:            belowThreshold,
-	}
-
-	healthMetricsLog.Printf("Health calculated: workflow=%s, successRate=%.2f%%, trend=%s", workflowName, successRate, trend.String())
-
+	health.AvgDuration = time.Duration(durationStats.Mean())
+	health.AvgTokens = int(tokenStats.Mean())
 	return health
 }
 
@@ -205,6 +195,9 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 			// Exclude from rollup counts — these workflows are expected to fail.
 			continue
 		}
+		if isHealthEvidenceInsufficient(wh.Status) {
+			continue
+		}
 		if wh.SuccessRate >= threshold {
 			healthyCount++
 		}
@@ -220,17 +213,13 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 		Workflows:        workflowHealths,
 		BelowThreshold:   belowThresholdCount,
 	}
+	for _, wh := range workflowHealths {
+		if isHealthEvidenceInsufficient(wh.Status) {
+			summary.InsufficientWorkflows++
+		}
+	}
 
 	healthMetricsLog.Printf("Health summary: total=%d, healthy=%d, below_threshold=%d", len(workflowHealths), healthyCount, belowThresholdCount)
 
 	return summary
-}
-
-// GroupRunsByWorkflow groups workflow runs by workflow name
-func GroupRunsByWorkflow(runs []WorkflowRun) map[string][]WorkflowRun {
-	grouped := make(map[string][]WorkflowRun)
-	for _, run := range runs {
-		grouped[run.WorkflowName] = append(grouped[run.WorkflowName], run)
-	}
-	return grouped
 }

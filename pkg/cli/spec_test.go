@@ -324,20 +324,6 @@ func TestSpec_PublicAPI_ResolveArtifactFilter(t *testing.T) {
 	})
 }
 
-// TestSpec_PublicAPI_GroupRunsByWorkflow validates that a flat slice of runs is grouped by workflow name.
-// Spec: "Groups a flat slice of runs by workflow name"
-func TestSpec_PublicAPI_GroupRunsByWorkflow(t *testing.T) {
-	runs := []cli.WorkflowRun{
-		{WorkflowName: "workflow-a"},
-		{WorkflowName: "workflow-b"},
-		{WorkflowName: "workflow-a"},
-	}
-	grouped := cli.GroupRunsByWorkflow(runs)
-	assert.Len(t, grouped, 2, "should produce two groups for two distinct workflow names")
-	assert.Len(t, grouped["workflow-a"], 2, "workflow-a group should contain two runs")
-	assert.Len(t, grouped["workflow-b"], 1, "workflow-b group should contain one run")
-}
-
 // TestSpec_PublicAPI_UpdateFieldInFrontmatter validates the documented frontmatter field update.
 // Spec: "Sets a field in frontmatter YAML"
 func TestSpec_PublicAPI_UpdateFieldInFrontmatter(t *testing.T) {

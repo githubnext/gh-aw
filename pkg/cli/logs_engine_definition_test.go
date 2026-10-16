@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -112,7 +113,24 @@ func TestDeclaredEngineSessionParserBundle(t *testing.T) {
 			output, err := runSessionParser(context.Background(), "reconstruct", root, id)
 			require.NoError(t, err)
 			require.NoError(t, validateSessionJSONL(output))
-			require.Contains(t, string(output), `"sourceEngine":"`+id+`"`)
+			events := make(map[string][]json.RawMessage)
+			for line := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
+				var event struct {
+					Type string          `json:"type"`
+					Data json.RawMessage `json:"data"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(line), &event))
+				events[event.Type] = append(events[event.Type], event.Data)
+			}
+			require.Empty(t, events["session.init"])
+			require.Len(t, events["assistant.message"], 1)
+			if id == "cursor" {
+				require.JSONEq(t, `{"content":"Assistant: Real answer\nSecond line\n","sourceEngine":"cursor"}`, string(events["assistant.message"][0]))
+			} else {
+				require.JSONEq(t, `{"content":"Assistant: Real answer\nSecond line"}`, string(events["assistant.message"][0]))
+			}
+			require.Len(t, events["session.result"], 1)
+			require.JSONEq(t, `{"numTurns":1}`, string(events["session.result"][0]))
 			require.Contains(t, string(output), `"type":"assistant.message"`)
 			session := filepath.Join(root, "aw_session.jsonl")
 			require.NoError(t, os.WriteFile(session, output, 0600))

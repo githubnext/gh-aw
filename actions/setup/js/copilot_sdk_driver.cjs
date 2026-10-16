@@ -29,7 +29,7 @@
 const fs = require("fs");
 const { runWithCopilotSDK, extractPromptFromArgs, isCopilotSDKBareMode, resolveCopilotSDKWorkingDirectory } = require("./copilot_sdk_session.cjs");
 const { parsePermissionConfigFromServerArgs } = require("./copilot_sdk_permissions.cjs");
-const { parseCopilotSDKToolConfig } = require("./copilot_sdk_tool_config.cjs");
+const { parseCopilotSDKToolConfig, loadCopilotSDKMCPServers } = require("./copilot_sdk_tool_config.cjs");
 const { parseMultiProviderJson, qualifyModelForMultiProvider } = require("./copilot_sdk_multi_provider.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { resolveRoutingReasoningEffort } = require("./copilot_routing_effort.cjs");
@@ -122,6 +122,7 @@ async function main() {
   // One structured contract controls visibility, registration, and permission
   // enforcement. Missing or invalid contracts fail before session creation.
   const toolConfig = parseCopilotSDKToolConfig(process.env.GH_AW_COPILOT_SDK_TOOL_CONFIG);
+  const mcpServers = loadCopilotSDKMCPServers(toolConfig);
   const permissionConfig = toolConfig.permissions;
   log(`permission config: ${permissionConfig.allowedTools.length} compiler-owned allow-tool entries`);
 
@@ -138,6 +139,7 @@ async function main() {
     models: sdkModels,
     permissionConfig,
     toolConfig,
+    mcpServers,
     workingDirectory: resolveCopilotSDKWorkingDirectory(),
     bare: isCopilotSDKBareMode(process.env.GH_AW_COPILOT_SDK_SERVER_ARGS, log),
   });

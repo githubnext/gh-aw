@@ -42,6 +42,8 @@ func renderCrossRunReportMarkdownToWriter(w io.Writer, report *CrossRunAuditRepo
 	renderMarkdownDomainInventoryToWriter(w, report)
 	renderMarkdownDrain3InsightsToWriter(w, report.Drain3Insights)
 	renderMarkdownClusterAnalysisToWriter(w, report.ClusterAnalysis)
+	renderMarkdownFailureInvestigationToWriter(w, report.FailureInvestigation)
+	renderMarkdownFailureClustersToWriter(w, report.FailureClusters)
 	renderMarkdownPerRunBreakdownToWriter(w, report.PerRunBreakdown)
 }
 
@@ -58,7 +60,7 @@ func renderMarkdownModelRoutingToWriter(w io.Writer, routing *ModelRoutingLogsSu
 			writeModelRoutingReportLine(w, "| Sub-agent | Effort | Requests | Total AIC |\n|---|---|---:|---:|\n")
 			for _, agent := range routing.SubagentCosts {
 				writeModelRoutingReportLine(w, "| %s | %s | %d | %.3f |\n",
-					modelRoutingMarkdownCell(agent.AgentName), modelRoutingMarkdownCell(agent.Effort),
+					modelRoutingMarkdownCell(agentNameWithDisplayNames(agent.AgentName, agent.DisplayNames)), modelRoutingMarkdownCell(agent.Effort),
 					agent.Requests, agent.AIC)
 			}
 			writeModelRoutingReportLine(w, "\n")
@@ -266,6 +268,9 @@ func renderCrossRunReportPretty(report *CrossRunAuditReport) {
 	renderPrettyDomainInventory(report)
 	renderPrettyDrain3Insights(report.Drain3Insights)
 	renderPrettyClusterAnalysis(report.ClusterAnalysis)
+	if err := renderFailureReportToWriter(os.Stderr, report.FailureClusters, report.FailureInvestigation, "", false); err != nil {
+		console.PrintErrorMessage("Cannot render failure clusters: " + err.Error())
+	}
 	renderPrettyPerRunBreakdown(report.PerRunBreakdown)
 	renderPrettyFinalStatus(report)
 }

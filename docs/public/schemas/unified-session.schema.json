@@ -24,6 +24,7 @@
                 "type": { "$ref": "#/definitions/JsonValue", "description": "Native update subtype distinguishes historical Pi text and thinking controls." },
                 "usageSnapshot": { "$ref": "#/definitions/JsonValue", "description": "Observed native usage, not an additive accounting contribution." },
                 "content": { "$ref": "#/definitions/JsonValue" },
+                "sourceEngine": { "type": "string" },
                 "delta": { "$ref": "#/definitions/JsonValue" },
                 "partial": { "$ref": "#/definitions/JsonValue" },
                 "messageId": { "$ref": "#/definitions/JsonValue" },
@@ -52,6 +53,7 @@
               "additionalProperties": false,
               "properties": {
                 "content": { "$ref": "#/definitions/JsonValue" },
+                "sourceEngine": { "type": "string" },
                 "delta": { "$ref": "#/definitions/JsonValue" },
                 "partial": { "type": "boolean", "description": "True for an observed streaming fragment, not a finalized refusal." },
                 "messageId": { "$ref": "#/definitions/JsonValue" },
@@ -314,6 +316,7 @@
                 "output": { "$ref": "#/definitions/JsonValue" },
                 "result": { "$ref": "#/definitions/JsonValue" },
                 "error": { "$ref": "#/definitions/JsonValue" },
+                "fileEdits": { "$ref": "#/definitions/JsonValue" },
                 "durationMs": { "$ref": "#/definitions/SessionMetric" },
                 "exitCode": { "type": ["number", "null"] },
                 "status": { "type": "string" },
@@ -986,6 +989,7 @@
       "type": "object",
       "properties": {
         "content": { "$ref": "#/definitions/JsonValue" },
+        "sourceEngine": { "type": "string" },
         "delta": { "$ref": "#/definitions/JsonValue" },
         "partial": { "$ref": "#/definitions/JsonValue" },
         "messageId": { "$ref": "#/definitions/JsonValue" },

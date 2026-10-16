@@ -31,7 +31,7 @@ func loadGooseSample(t *testing.T) *EngineDefinition {
 
 func TestGooseSampleExecution(t *testing.T) {
 	def := loadGooseSample(t)
-	require.Equal(t, "1.53.0", def.Version)
+	require.Equal(t, "1.54.0", def.Version)
 	engine, err := NewBehaviorDefinedEngine(def)
 	require.NoError(t, err)
 	assert.True(t, engine.GetCapabilities().MCP)
@@ -42,7 +42,7 @@ func TestGooseSampleExecution(t *testing.T) {
 		EngineConfig: &EngineConfig{ID: "goose", Version: def.Version, MaxTurns: "30"},
 	}, "/tmp/gh-aw/agent-stdio.log")
 	execution := strings.Join(steps[len(steps)-1], "\n")
-	assert.Contains(t, execution, "GH_AW_ENGINE_VERSION: 1.53.0")
+	assert.Contains(t, execution, "GH_AW_ENGINE_VERSION: 1.54.0")
 	assert.Contains(t, execution, "GH_AW_MAX_TURNS: 30")
 	assert.Contains(t, execution, "GOOSE_MODEL: copilot/auto")
 	assert.Contains(t, execution, "GH_AW_LLM_PROVIDER: github")
@@ -110,12 +110,13 @@ exports.resolveOpenAICompatibleEndpointFromReflect = () => ({provider: "github",
 	config := filepath.Join(dir, "mcp.json")
 	require.NoError(t, os.WriteFile(config, []byte(`{"mcpServers":{
 		"github":{"url":"http://awmg-mcpg:8080/mcp/github","headers":{"Authorization":"Bearer test-only"},"tools":["pull_request_read"]},
+		"probe":{"url":"http://awmg-mcpg:8080/mcp/probe","tools":["echo"]},
 		"local":{"command":"node","args":["a b","quote'","$(not-a-command)"],"env":{"TEST":"a b"}}
 	}}`), 0o600))
 	binary := filepath.Join(dir, "test-goose")
 	fixture := `#!/usr/bin/env node
 const fs = require("fs");
-if (process.argv.includes("--version")) { console.log("1.53.0"); process.exit(0); }
+if (process.argv.includes("--version")) { console.log("1.54.0"); process.exit(0); }
 const configPath = process.env.GOOSE_ADDITIONAL_CONFIG_FILES;
 fs.writeFileSync(process.env.TEST_OUTPUT, JSON.stringify({
 	args: process.argv.slice(2),
@@ -172,6 +173,9 @@ process.exit(Number(process.env.TEST_EXIT || 0));
 		assert.Equal(t, "http://awmg-mcpg:8080/mcp/github", http["uri"])
 		assert.Equal(t, map[string]any{"Authorization": "Bearer test-only"}, http["headers"])
 		assert.Equal(t, []any{"pull_request_read"}, http["available_tools"])
+		probe := extensions["probe"].(map[string]any)
+		assert.Equal(t, []any{"echo"}, probe["available_tools"])
+		assert.NotContains(t, probe["available_tools"], "excluded", "the runtime probe's excluded tool must not be available")
 		local := extensions["local"].(map[string]any)
 		assert.Equal(t, "stdio", local["type"])
 		assert.Equal(t, []any{"a b", "quote'", "$(not-a-command)"}, local["args"])

@@ -92,16 +92,19 @@ func TestCalculateWorkflowHealthOnDispatchedRuns(t *testing.T) {
 }
 
 // TestFetchWorkflowRunsPaginatesPastFilteredBatches verifies that a batch made
-// entirely of non-dispatched runs does not terminate pagination: the cursor is
-// advanced from the raw batch so older dispatched runs are still collected.
+// entirely of non-dispatched runs does not terminate pagination: numbered pages
+// advance within the same search window so older dispatched runs are collected.
 func TestFetchWorkflowRunsPaginatesPastFilteredBatches(t *testing.T) {
 	original := healthListWorkflowRuns
 	t.Cleanup(func() { healthListWorkflowRuns = original })
 
-	now := time.Now()
-	var calls []string
-	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
-		calls = append(calls, opts.BeforeDate)
+	now := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	var calls []int
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, collection *HealthCollection) ([]WorkflowRun, int, error) {
+		calls = append(calls, page)
+		if opts.BeforeDate != "" {
+			t.Fatalf("BeforeDate = %q, want unchanged search window before the search-result limit", opts.BeforeDate)
+		}
 		if opts.OldestFetchedCreatedAt == nil {
 			t.Fatal("fetchWorkflowRuns must request the oldest raw run timestamp for pagination")
 		}
@@ -126,8 +129,11 @@ func TestFetchWorkflowRunsPaginatesPastFilteredBatches(t *testing.T) {
 	if len(calls) != 2 {
 		t.Fatalf("len(calls) = %d, want 2 batches", len(calls))
 	}
-	if calls[1] == "" {
-		t.Error("second batch must carry a BeforeDate cursor derived from the raw batch")
+	if calls[0] != 1 || calls[1] != 2 {
+		t.Errorf("pages = %v, want [1 2]", calls)
+	}
+	if runs[0].Conclusion != "success" || !runs[0].CreatedAt.Equal(now.Add(-2*time.Hour)) {
+		t.Errorf("run = %+v, want the older successful run", runs[0])
 	}
 }
 
@@ -138,7 +144,7 @@ func TestFetchWorkflowRunsStopsWhenSourceExhausted(t *testing.T) {
 	t.Cleanup(func() { healthListWorkflowRuns = original })
 
 	callCount := 0
-	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, collection *HealthCollection) ([]WorkflowRun, int, error) {
 		callCount++
 		return nil, 0, nil
 	}

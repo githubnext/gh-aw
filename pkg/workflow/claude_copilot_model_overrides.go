@@ -7,7 +7,10 @@ import (
 	"sync"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var claudeCopilotModelOverridesLog = logger.New("workflow:claude_copilot_model_overrides")
 
 // claudeSettingsEnvVar carries Claude Code --settings JSON to claude_harness.cjs.
 // The external threat-detect binary builds its own Claude Code arguments and
@@ -53,6 +56,7 @@ func claudeCopilotModelOverrides() map[string]string {
 		}
 		overrides[strings.ReplaceAll(id, ".", "-")] = id
 	}
+	claudeCopilotModelOverridesLog.Printf("Built %d Claude model override(s) out of %d Copilot Claude model id(s)", len(overrides), len(copilotClaudeModelIDs))
 	return overrides
 }
 
@@ -100,13 +104,15 @@ func claudeArgsSettingsValue(args []string) (string, bool) {
 // builds its own Claude Code arguments and does not receive engine.args.
 func claudeDetectionSettings(workflowData *WorkflowData) string {
 	if shouldApplyClaudeCopilotModelOverrides(workflowData) {
+		claudeCopilotModelOverridesLog.Print("Applying Claude Copilot modelOverrides settings for detection run")
 		return claudeCopilotModelOverridesSettings()
 	}
 	if !claudeUsesCopilotInference(workflowData) || workflowData.EngineConfig == nil ||
 		!isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData) {
 		return ""
 	}
-	settings, _ := claudeArgsSettingsValue(workflowData.EngineConfig.Args)
+	settings, found := claudeArgsSettingsValue(workflowData.EngineConfig.Args)
+	claudeCopilotModelOverridesLog.Printf("Using workflow-provided --settings for detection run: found=%t", found)
 	return settings
 }
 
@@ -121,5 +127,7 @@ func shouldApplyClaudeCopilotModelOverrides(workflowData *WorkflowData) bool {
 	if !claudeUsesCopilotInference(workflowData) {
 		return false
 	}
-	return workflowData.EngineConfig == nil || !claudeArgsHaveSettings(workflowData.EngineConfig.Args)
+	apply := workflowData.EngineConfig == nil || !claudeArgsHaveSettings(workflowData.EngineConfig.Args)
+	claudeCopilotModelOverridesLog.Printf("shouldApplyClaudeCopilotModelOverrides: copilot_inference=true apply=%t", apply)
+	return apply
 }

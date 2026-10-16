@@ -118,6 +118,7 @@ func runGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 
 	totalFindings := 0
+	var findings []scanfindings.Finding
 	var scanErrors []string
 
 	for _, img := range images {
@@ -144,6 +145,7 @@ func runGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 			continue
 		}
 		totalFindings += count
+		findings = append(findings, grantFindingsToShared(displayName, output)...)
 	}
 
 	if len(scanErrors) > 0 {
@@ -156,7 +158,7 @@ func runGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 
 	if strict && totalFindings > 0 {
-		return fmt.Errorf("strict mode: grant found %d license policy finding(s) in container images", totalFindings)
+		return withScannerFindings(fmt.Errorf("strict mode: grant found %d license policy finding(s) in container images", totalFindings), findings)
 	}
 
 	return nil

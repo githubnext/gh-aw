@@ -108,6 +108,15 @@ cd actions/setup/js
 npx vitest run setup_sh_file_lists.test.cjs
 ```
 
+### MCP gateway step summaries
+
+Gateway summaries share a 1000 KiB UTF-8 byte budget, including any existing
+content in the step summary file, below GitHub Actions' 1024 KiB limit.
+Oversized sections become bounded, collapsed diagnostic previews with an explicit
+truncation notice. Each section receives a share of the remaining budget so large
+logs do not crowd out rate-limit, steering, or filtering diagnostics. Complete
+redacted gateway logs remain under `mcp-logs/` in the existing agent artifact.
+
 ## Testing Locally
 
 You can test this action locally using the provided test script:

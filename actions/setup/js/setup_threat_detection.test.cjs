@@ -1,16 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 const TMP_ROOT = "/tmp/gh-aw";
 const THREAT_DIR = path.join(TMP_ROOT, "threat-detection");
 const TEMPLATE_DIR = "/tmp/gh-aw-test-prompts";
 
 describe("setup_threat_detection", () => {
+  let testRoot;
   beforeEach(() => {
     vi.resetModules();
-    fs.rmSync(TMP_ROOT, { recursive: true, force: true });
-    fs.rmSync(TEMPLATE_DIR, { recursive: true, force: true });
+    testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "setup-threat-detection-"));
+    // Redirect the runtime's fixed paths into a per-test directory, including CJS fs calls.
+    for (const method of ["existsSync", "statSync", "readFileSync", "writeFileSync", "mkdirSync", "readdirSync", "rmSync"]) {
+      const original = fs[method].bind(fs);
+      vi.spyOn(fs, method).mockImplementation((file, ...args) => {
+        if (typeof file === "string" && (file === TMP_ROOT || file.startsWith(TMP_ROOT + "/") || file === TEMPLATE_DIR || file.startsWith(TEMPLATE_DIR + "/"))) {
+          file = path.join(testRoot, file.slice("/tmp/".length));
+        }
+        return original(file, ...args);
+      });
+    }
     fs.mkdirSync(TEMPLATE_DIR, { recursive: true });
 
     fs.writeFileSync(
@@ -27,14 +38,15 @@ describe("setup_threat_detection", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(TMP_ROOT, { recursive: true, force: true });
-    fs.rmSync(TEMPLATE_DIR, { recursive: true, force: true });
+    vi.restoreAllMocks();
+    fs.rmSync(testRoot, { recursive: true, force: true });
     delete process.env.GH_AW_PROMPTS_DIR;
     delete process.env.WORKFLOW_NAME;
     delete process.env.WORKFLOW_DESCRIPTION;
     delete process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR;
     delete process.env.HAS_PATCH;
     delete process.env.GH_AW_DETECTION_SKIP_PROMPT_SUMMARY;
+    delete process.env.RUN_DETECTION;
   });
 
   function setupCoreMocks() {
@@ -47,6 +59,7 @@ describe("setup_threat_detection", () => {
       warning: vi.fn(),
       error: vi.fn(),
       setFailed: vi.fn(),
+      setOutput: vi.fn(),
       exportVariable: vi.fn(),
       summary,
     };
@@ -61,6 +74,10 @@ describe("setup_threat_detection", () => {
     expect(global.core.setFailed).not.toHaveBeenCalled();
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Missing workflow prompt context"));
     expect(global.core.exportVariable).toHaveBeenCalledWith("GH_AW_PROMPT", "/tmp/gh-aw/aw-prompts/prompt.txt");
+    expect(global.core.setOutput.mock.calls).toEqual([
+      ["ready", "false"],
+      ["ready", "true"],
+    ]);
 
     const generatedPromptPath = "/tmp/gh-aw/aw-prompts/prompt.txt";
     expect(fs.existsSync(generatedPromptPath)).toBe(true);
@@ -151,6 +168,47 @@ describe("setup_threat_detection", () => {
     await module.main();
 
     expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Patch/bundle file(s) expected but not found"));
+  });
+
+  it.each([
+    ["missing template", () => fs.rmSync(path.join(TEMPLATE_DIR, "threat_detection.md"))],
+    ["missing agent output", () => fs.rmSync(path.join(THREAT_DIR, "agent_output.json"))],
+    ["missing patch", () => (process.env.HAS_PATCH = "true")],
+  ])("does not authorize detector execution with a stale activation prompt after %s", async (_name, removeInput) => {
+    setupCoreMocks();
+    process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "true";
+    const promptPath = path.join(TMP_ROOT, "aw-prompts/prompt.txt");
+    fs.mkdirSync(path.dirname(promptPath), { recursive: true });
+    fs.writeFileSync(promptPath, "Original smoke task, not threat analysis");
+    removeInput();
+
+    const module = await import("./setup_threat_detection.cjs");
+    await module.main();
+
+    expect(global.core.setOutput.mock.calls).toEqual([["ready", "false"]]);
+    expect(global.core.exportVariable).not.toHaveBeenCalled();
+    expect(fs.readFileSync(promptPath, "utf8")).toBe("Original smoke task, not threat analysis");
+    expect(fs.existsSync(path.join(THREAT_DIR, "detection_result.json"))).toBe(false);
+  });
+
+  it.each([
+    ["true", "warning"],
+    ["false", "failure"],
+  ])("keeps missing detection unavailable with continue-on-error=%s", async (continueOnError, conclusion) => {
+    setupCoreMocks();
+    process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = continueOnError;
+    process.env.RUN_DETECTION = "true";
+    fs.rmSync(path.join(THREAT_DIR, "agent_output.json"));
+
+    const setup = await import("./setup_threat_detection.cjs");
+    await setup.main();
+    const parser = await import("./parse_threat_detection_results.cjs");
+    await parser.main();
+
+    expect(global.core.setOutput).not.toHaveBeenCalledWith("ready", "true");
+    expect(global.core.setOutput).toHaveBeenCalledWith("conclusion", conclusion);
+    expect(global.core.setOutput).toHaveBeenCalledWith("success", "false");
+    expect(global.core.setOutput).not.toHaveBeenCalledWith("success", "true");
   });
 
   it("removes the leading framework system block from the analyzed prompt file", async () => {

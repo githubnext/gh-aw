@@ -18,6 +18,43 @@
         "run": {
           "type": "object",
           "properties": {
+            "failure_signals": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "job": {
+                    "type": "string"
+                  },
+                  "step": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "failure_cluster_ids": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
             "run_id": {
               "type": "integer"
             },
@@ -1152,6 +1189,15 @@
                               "agent_name": {
                                 "type": "string"
                               },
+                              "display_names": {
+                                "type": [
+                                  "null",
+                                  "array"
+                                ],
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "agent_type": {
                                 "type": "string"
                               },
@@ -1287,6 +1333,15 @@
                         "properties": {
                           "agent_name": {
                             "type": "string"
+                          },
+                          "display_names": {
+                            "type": [
+                              "null",
+                              "array"
+                            ],
+                            "items": {
+                              "type": "string"
+                            }
                           },
                           "agent_type": {
                             "type": "string"
@@ -1523,6 +1578,15 @@
                                   "agent_name": {
                                     "type": "string"
                                   },
+                                  "display_names": {
+                                    "type": [
+                                      "null",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
                                   "agent_type": {
                                     "type": "string"
                                   },
@@ -1652,6 +1716,15 @@
                                 "properties": {
                                   "agent_name": {
                                     "type": "string"
+                                  },
+                                  "display_names": {
+                                    "type": [
+                                      "null",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "type": "string"
+                                    }
                                   },
                                   "agent_type": {
                                     "type": "string"
@@ -2242,6 +2315,15 @@
                       "agent_name": {
                         "type": "string"
                       },
+                      "display_names": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
                       "agent_type": {
                         "type": "string"
                       },
@@ -2772,6 +2854,15 @@
                     "properties": {
                       "agent_name": {
                         "type": "string"
+                      },
+                      "display_names": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
                       },
                       "agent_type": {
                         "type": "string"
@@ -3436,6 +3527,15 @@
                                   "agent_name": {
                                     "type": "string"
                                   },
+                                  "display_names": {
+                                    "type": [
+                                      "null",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
                                   "agent_type": {
                                     "type": "string"
                                   },
@@ -3571,6 +3671,15 @@
                             "properties": {
                               "agent_name": {
                                 "type": "string"
+                              },
+                              "display_names": {
+                                "type": [
+                                  "null",
+                                  "array"
+                                ],
+                                "items": {
+                                  "type": "string"
+                                }
                               },
                               "agent_type": {
                                 "type": "string"
@@ -3807,6 +3916,15 @@
                                       "agent_name": {
                                         "type": "string"
                                       },
+                                      "display_names": {
+                                        "type": [
+                                          "null",
+                                          "array"
+                                        ],
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
                                       "agent_type": {
                                         "type": "string"
                                       },
@@ -3936,6 +4054,15 @@
                                     "properties": {
                                       "agent_name": {
                                         "type": "string"
+                                      },
+                                      "display_names": {
+                                        "type": [
+                                          "null",
+                                          "array"
+                                        ],
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       },
                                       "agent_type": {
                                         "type": "string"
@@ -5350,6 +5477,15 @@
                           "agent_name": {
                             "type": "string"
                           },
+                          "display_names": {
+                            "type": [
+                              "null",
+                              "array"
+                            ],
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "agent_type": {
                             "type": "string"
                           },
@@ -5872,6 +6008,15 @@
                           "agent_name": {
                             "type": "string"
                           },
+                          "display_names": {
+                            "type": [
+                              "null",
+                              "array"
+                            ],
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "agent_type": {
                             "type": "string"
                           },
@@ -6308,6 +6453,9 @@
                       },
                       "file": {
                         "type": "string"
+                      },
+                      "severity": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -6335,6 +6483,9 @@
                         "type": "integer"
                       },
                       "file": {
+                        "type": "string"
+                      },
+                      "severity": {
                         "type": "string"
                       }
                     },

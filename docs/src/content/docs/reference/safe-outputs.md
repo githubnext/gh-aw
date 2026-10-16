@@ -2151,6 +2151,10 @@ safe-outputs:
   create-pull-request:
 ```
 
+### Bundle History Recovery (`allow-full-history-fetch:`)
+
+Configured independently under `create-pull-request` and `push-to-pull-request-branch`, defaulting to `false`. Missing local bundle prerequisites fail with checkout provisioning guidance instead of downloading history. Setting this literal boolean to `true` explicitly permits potentially unbounded history downloads for that handler. It does not enable object downloads for optional validation baselines. See [bundle prerequisites and history downloads](/gh-aw/reference/safe-outputs-pull-requests/#bundle-prerequisites-and-history-downloads).
+
 ### Custom Runner Image
 
 Specify a custom runner for safe output jobs (default: `ubuntu-slim`):

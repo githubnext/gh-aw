@@ -24,7 +24,7 @@ const maxRetries = 5
 var branchPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)
 var repoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
-// Branch operates through GitHub Git APIs without a local checkout or Git executable.
+// Branch uses an isolated Git object store for the ledger, independently of the checkout.
 type Branch struct {
 	Remote              string
 	Name                string
@@ -34,6 +34,8 @@ type Branch struct {
 	PolicyProposal      *Policy // Host-approved first-submit proposal; never replaces installed Policy.
 	deliveryFailures    map[string]string
 	client              *api.RESTClient
+	ledger              *queueGit
+	ledgerRequestFn     func(context.Context, string, string, any, any) error
 }
 
 func (b Branch) validate() error {
@@ -116,9 +118,17 @@ type branchSnapshot struct {
 }
 
 func (b Branch) read(ctx context.Context) ([]QueueCommit, branchSnapshot, error) {
-	head, err := b.resolveHeadRef(ctx, b.Name)
+	var ref gitReference
+	err := b.ledgerRequest(ctx, http.MethodGet, "git/ref/heads/"+b.Name, nil, &ref)
+	head := ref.Object.SHA
+	if err == nil && (ref.Ref != "refs/heads/"+b.Name || !revisionPattern.MatchString(head) || strings.Trim(head, "0") == "") {
+		err = errInvalidHeadReference
+	}
 	if err != nil {
 		if hasStatus(err, http.StatusNotFound) {
+			if b.ledger != nil {
+				return nil, branchSnapshot{}, nil
+			}
 			// A missing repository or missing read permission is not an empty queue.
 			var repository any
 			err = b.client.DoWithContext(ctx, http.MethodGet, "repos/"+b.Remote, nil, &repository)
@@ -139,7 +149,7 @@ func (b Branch) readAt(ctx context.Context, head string, verify, recover bool) (
 			SHA string `json:"sha"`
 		} `json:"tree"`
 	}
-	if err := b.request(ctx, http.MethodGet, "git/commits/"+snapshot.head, nil, &commit); err != nil {
+	if err := b.ledgerRequest(ctx, http.MethodGet, "git/commits/"+snapshot.head, nil, &commit); err != nil {
 		return nil, snapshot, err
 	}
 	snapshot.tree = commit.Tree.SHA
@@ -233,7 +243,7 @@ func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []b
 			SHA  string `json:"sha"`
 		} `json:"tree"`
 	}
-	if err := b.request(ctx, http.MethodGet, "git/trees/"+treeSHA, nil, &tree); err != nil {
+	if err := b.ledgerRequest(ctx, http.MethodGet, "git/trees/"+treeSHA, nil, &tree); err != nil {
 		return nil, nil, err
 	}
 	if tree.Truncated {
@@ -250,7 +260,7 @@ func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []b
 			Encoding string `json:"encoding"`
 			Content  string `json:"content"`
 		}
-		if err := b.request(ctx, http.MethodGet, "git/blobs/"+entry.SHA, nil, &blob); err != nil {
+		if err := b.ledgerRequest(ctx, http.MethodGet, "git/blobs/"+entry.SHA, nil, &blob); err != nil {
 			return nil, nil, err
 		}
 		if blob.Encoding != "base64" {
@@ -276,10 +286,11 @@ func (b Branch) readLog(ctx context.Context, treeSHA string) ([]QueueCommit, []b
 }
 
 func (b Branch) Read(ctx context.Context) ([]QueueCommit, error) {
-	b, err := b.withClient()
+	b, cleanup, err := b.withLedger(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer cleanup()
 	transactions, snapshot, err := b.read(ctx)
 	if err == nil && snapshot.head == "" {
 		return nil, queueError("queue_missing", "queue branch %s does not exist", b.Name)
@@ -306,23 +317,23 @@ func (b Branch) publish(ctx context.Context, snapshot branchSnapshot, next []Que
 	var tree struct {
 		SHA string `json:"sha"`
 	}
-	if err := b.request(ctx, http.MethodPost, "git/trees", treeBody, &tree); err != nil {
+	if err := b.ledgerRequest(ctx, http.MethodPost, "git/trees", treeBody, &tree); err != nil {
 		return false, err
 	}
 	var commit struct {
 		SHA string `json:"sha"`
 	}
-	if err := b.request(ctx, http.MethodPost, "git/commits", map[string]any{
+	if err := b.ledgerRequest(ctx, http.MethodPost, "git/commits", map[string]any{
 		"message": "Update work queue", "tree": tree.SHA, "parents": parents,
 	}, &commit); err != nil {
 		return false, err
 	}
 	if snapshot.head == "" {
-		err = b.request(ctx, http.MethodPost, "git/refs", map[string]any{
+		err = b.ledgerRequest(ctx, http.MethodPost, "git/refs", map[string]any{
 			"ref": "refs/heads/" + b.Name, "sha": commit.SHA,
 		}, new(any))
 	} else {
-		err = b.request(ctx, http.MethodPatch, "git/refs/heads/"+b.Name, map[string]any{
+		err = b.ledgerRequest(ctx, http.MethodPatch, "git/refs/heads/"+b.Name, map[string]any{
 			"sha": commit.SHA, "force": false,
 		}, new(any))
 	}
@@ -442,6 +453,11 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 	if err != nil {
 		return Publication{}, err
 	}
+	b, cleanup, err := b.withLedger(ctx)
+	if err != nil {
+		return Publication{}, err
+	}
+	defer cleanup()
 	var last []QueueCommit
 	var pendingErr error
 	for attempt := range maxRetries {

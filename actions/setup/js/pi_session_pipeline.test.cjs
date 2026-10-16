@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { success, failure, childObservations } from "./fixtures/pi_ci_stream.cjs";
+import { success, failure, childObservations, release130 } from "./fixtures/pi_ci_stream.cjs";
 import { parsePiLog } from "./parse_pi_log.cjs";
 import { runLogParser } from "./log_parser_bootstrap.cjs";
 import { writeUnifiedSession } from "./unified_session.cjs";
@@ -44,6 +44,7 @@ describe("Pi native-to-unified artifact pipeline", () => {
   it.each([
     ["success with child observations", [...success, ...childObservations]],
     ["provider failure", failure],
+    ["v1.3.0 release contract", release130],
   ])("publishes %s once with authoritative content, scope and provenance", async (_, records) => {
     const raw = records.map(record => JSON.stringify(record)).join("\n") + "\n";
     fs.writeFileSync(process.env.GH_AW_AGENT_OUTPUT, raw);

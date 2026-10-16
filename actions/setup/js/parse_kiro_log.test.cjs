@@ -7,6 +7,15 @@ const header = "kiro-cli 2.16.1\n";
 const byType = (result, type) => result.logEntries.filter(event => event.type === type);
 
 describe("Kiro headless plaintext conversation parser", () => {
+  it.each(["2.27.1", "2.31.1"])("keeps the %s V2 banner version in canonical events (synthetic)", version => {
+    const raw = `kiro-cli ${version}\n[kiro-harness] Kiro CLI execution started\n[tool] Running: printf example\n[tool] status: Completed\nExample complete.`;
+    const result = parseKiroLog(raw);
+    expect(byType(result, "session.init")[0].data).toEqual({ sourceEngine: "kiro", agentVersion: version });
+    expect(byType(result, "tool.execution_complete")[0].data).toEqual({ toolName: "shell", status: "Completed" });
+    expect(byType(result, "assistant.message")[0].data.content).toBe("Example complete.");
+    expect(byType(result, "session.result")).toEqual([]);
+  });
+
   it("preserves observed multiline assistant turns, shell arguments, output, and build exit 2", () => {
     const result = parseKiroLog(
       header +

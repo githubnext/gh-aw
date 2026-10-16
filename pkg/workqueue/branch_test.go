@@ -25,6 +25,7 @@ type queueAPI struct {
 	bases                map[string]string
 	commits              map[string]gitQueueCommit
 	refWrites            int
+	ledgerCalls          int
 	conflicts            int
 	ambiguous            bool
 	concurrent           func()
@@ -126,7 +127,9 @@ func newQueueAPI(t *testing.T) (Branch, *queueAPI) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Branch{Remote: testRepository, Name: DefaultBranch, client: client}, mock
+	branch := Branch{Remote: testRepository, Name: DefaultBranch, client: client}
+	branch.ledgerRequestFn = branch.request
+	return branch, mock
 }
 
 func (mock *queueAPI) serve(t *testing.T, w http.ResponseWriter, r *http.Request) {
@@ -137,6 +140,9 @@ func (mock *queueAPI) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 		r.URL.Path = repositoryPath + r.URL.Path[len(repositoryPath):]
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/repos/"+testRepository+"/")
+	if strings.HasPrefix(path, "git/") && path != "git/ref/heads/main" {
+		mock.ledgerCalls++
+	}
 	w.Header().Set("Content-Type", "application/json")
 	respond := func(value any) { _ = json.NewEncoder(w).Encode(value) }
 	fail := func(code int) {
