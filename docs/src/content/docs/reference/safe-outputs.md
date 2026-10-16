@@ -419,6 +419,8 @@ safe-outputs:
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; use `target: "*"` for any, or number for specific items. When combined with `create-issue`, `create-discussion`, or `create-pull-request`, includes "Related Items" section.
 
+For machine-readable state such as an incremental review's baseline commit, use [`safe-outputs.data`](#structured-data-data). HTML comments in the agent-provided body are stripped; structured data is published as visible fenced JSON.
+
 Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
 `max-links` accepts a positive integer and defaults to 50. It counts every `http://` or `https://` URL occurrence in agent-provided content, including repeated URLs. Generated footer and metadata links do not count toward this limit. Both tool invocation and comment posting enforce the configured limit; the final body still must satisfy length and mention limits. Raise `max-links` for trusted link-heavy reports.
@@ -2008,6 +2010,9 @@ Validation rules:
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.
 
 HTML/XML comments (`<!-- ... -->`) are removed from sanitized body fields.
+
+#### Structured Data (`data:`)
+
 If you need a machine-readable channel that survives sanitization, configure `safe-outputs.data` in frontmatter:
 
 ```yaml wrap
@@ -2022,18 +2027,32 @@ safe-outputs:
 
 Inline object schemas are validated at compile-time (Go) and runtime (JavaScript). Expression-based schemas are resolved and validated at runtime in JavaScript.
 
-For safe outputs that support `body`, the validator preserves output `data` and appends it to the body as fenced JSON. For `create-issue`, the JSON is enclosed in a collapsed `<details>` element with a "Structured data" summary:
+For safe outputs that support `body`, the validator preserves output `data` and appends it to the body as fenced JSON. For `create-issue`, the JSON is enclosed in a collapsed `<details>` element with a "Structured data" summary. For `add-comment`, the JSON is visible under a "Structured data:" label, not hidden metadata.
+
+For example, an incremental review can declare a baseline SHA:
+
+```yaml wrap
+safe-outputs:
+  data:
+    reviewed_sha: string
+  add-comment:
+```
+
+The agent supplies the baseline in the output item's `data` field, not as an HTML comment in `body`:
 
 ```json
 {
   "type": "add_comment",
   "body": "Review complete. All criteria pass.",
   "data": {
-    "verdict": "APPROVE",
-    "criteria_passed": 5
+    "reviewed_sha": "0123456789abcdef0123456789abcdef01234567"
   }
 }
 ```
+
+On a later run, including an `issue_comment`-triggered run, read the PR's comment history and parse the fenced JSON following "Structured data:" in the latest matching review comment. Filter by the expected comment author and [workflow marker](#searching-for-workflow-created-items). Validate the recovered SHA against the target PR before using it as a baseline. The state persists in the posted comment; `data` does not automatically restore it or provide a separate cross-run store. Do not put secrets in `data`.
+
+#### Sanitization Options
 
 You can configure sanitization options:
 

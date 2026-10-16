@@ -2574,6 +2574,61 @@ describe("add_comment", () => {
   });
 
   describe("sanitization preserves markers", () => {
+    describe("structured review state", () => {
+      afterEach(async () => {
+        vi.unstubAllEnvs();
+        const { resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+        resetValidationConfigCache();
+      });
+
+      it.each([true, false])("should publish recoverable baseline data on issue_comment events with footer=%s", async footer => {
+        const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+        vi.stubEnv(
+          "GH_AW_VALIDATION_CONFIG",
+          JSON.stringify({
+            add_comment: {
+              defaultMax: 1,
+              dataSchema: { reviewed_sha: "string" },
+              fields: {
+                body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
+              },
+            },
+          })
+        );
+        resetValidationConfigCache();
+
+        mockContext.eventName = "issue_comment";
+        mockContext.payload = { issue: { number: 8535, pull_request: {} } };
+        const data = { reviewed_sha: "0123456789abcdef0123456789abcdef01234567" };
+        const validation = validateItem(
+          {
+            type: "add_comment",
+            body: `Review complete.\n\n<!-- gh-aw-state: ${JSON.stringify(data)} -->`,
+            data,
+          },
+          "add_comment",
+          1
+        );
+        expect(validation.isValid).toBe(true);
+        expect(validation.normalizedItem.data).toEqual(data);
+
+        const createComment = vi.fn(mockGithub.rest.issues.createComment);
+        mockGithub.rest.issues.createComment = createComment;
+        const addCommentScript = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+        const handler = await eval(`(async () => { ${addCommentScript}; return await main(${JSON.stringify({ footer })}); })()`);
+        const result = await handler(validation.normalizedItem, {});
+
+        expect(result.success).toBe(true);
+        expect(createComment).toHaveBeenCalledOnce();
+        const request = createComment.mock.calls[0][0];
+        expect(request.issue_number).toBe(8535);
+        expect(request.body).toContain("Review complete.");
+        expect(request.body).not.toContain("<!-- gh-aw-state:");
+        const serializedData = request.body.match(/Structured data:\n```json\n([\s\S]*?)\n```/)?.[1];
+        expect(JSON.parse(serializedData || "")).toEqual(data);
+      });
+    });
+
     describe("PR comment tracker attribution", () => {
       afterEach(() => {
         vi.unstubAllEnvs();
