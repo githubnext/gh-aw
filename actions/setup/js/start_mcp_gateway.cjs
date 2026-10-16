@@ -114,7 +114,7 @@ const MCP_GATEWAY_HEALTH_RETRY_ENV = Object.freeze({
 /** Default MCP backend startup timeout the retry budget must outlast. */
 const MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS = 120_000;
 
-/** Upper bound on configurable health-check attempts, to keep the wait finite. */
+/** Upper bound on explicit health-check attempts; automatic sizing uses the startup deadline. */
 const MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT = 10_000;
 
 /**
@@ -156,13 +156,20 @@ function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
  * @returns {number}
  */
 function computeHealthRetryBudgetMs(config) {
-  let delayMs = config.initialDelayMs;
-  let budgetMs = 0;
-  for (let retry = 1; retry < config.maxTotalAttempts; retry += 1) {
-    delayMs = Math.min(delayMs * config.backoffMultiplier, config.maxDelayMs);
-    budgetMs += delayMs;
+  const retries = config.maxTotalAttempts - 1;
+  if (retries <= 0) {
+    return 0;
   }
-  return budgetMs;
+  if (config.backoffMultiplier === 1) {
+    return Math.min(config.initialDelayMs, config.maxDelayMs) * retries;
+  }
+
+  // Sum the exponential ramp and capped tail without iterating over potentially
+  // millions of attempts. expm1 preserves precision for multipliers close to 1.
+  const logMultiplier = Math.log(config.backoffMultiplier);
+  const rampRetries = Math.min(retries, Math.max(0, Math.ceil(Math.log(config.maxDelayMs / config.initialDelayMs) / logMultiplier) - 1));
+  const rampBudgetMs = rampRetries === 0 ? 0 : (config.initialDelayMs * config.backoffMultiplier * Math.expm1(rampRetries * logMultiplier)) / (config.backoffMultiplier - 1);
+  return rampBudgetMs + (retries - rampRetries) * config.maxDelayMs;
 }
 
 /**
@@ -199,9 +206,27 @@ function resolveGatewayHealthRetryConfig(env = process.env) {
   }
 
   const config = { maxTotalAttempts, initialDelayMs, maxDelayMs, backoffMultiplier, backendStartupTimeoutMs };
-  const retryBudgetMs = computeHealthRetryBudgetMs(config);
-
   const requiredBudgetMs = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+  const explicitAttempts = Number(env[MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]);
+  const hasExplicitAttempts = Number.isSafeInteger(explicitAttempts) && explicitAttempts > 0;
+  let retryBudgetMs = computeHealthRetryBudgetMs(config);
+  if (!hasExplicitAttempts && retryBudgetMs < requiredBudgetMs) {
+    // Delays never shrink, so the first retry delay gives a finite upper bound.
+    const firstDelayMs = Math.min(initialDelayMs * backoffMultiplier, maxDelayMs);
+    let lower = maxTotalAttempts;
+    let upper = Math.min(Number.MAX_SAFE_INTEGER, Math.ceil(requiredBudgetMs / firstDelayMs) + 1);
+    while (lower < upper) {
+      const middle = lower + Math.floor((upper - lower) / 2);
+      if (computeHealthRetryBudgetMs({ ...config, maxTotalAttempts: middle }) < requiredBudgetMs) {
+        lower = middle + 1;
+      } else {
+        upper = middle;
+      }
+    }
+    config.maxTotalAttempts = lower;
+    retryBudgetMs = computeHealthRetryBudgetMs(config);
+  }
+
   if (retryBudgetMs < requiredBudgetMs) {
     core.warning(
       `MCP gateway health retry budget is ${Math.round(retryBudgetMs / 1000)}s, which is below the ${Math.round(requiredBudgetMs / 1000)}s needed for the ${Math.round(backendStartupTimeoutMs / 1000)}s backend startup timeout plus cleanup and registration; the health check may give up before the gateway is ready`
