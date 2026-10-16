@@ -1,30 +1,29 @@
 {
-  "last_run_date": "2026-10-15",
+  "last_run_date": "2026-10-16",
   "last_window": {
-    "start": "2026-10-14T08:00:00Z",
-    "end": "2026-10-15T08:00:00Z"
+    "start": "2026-10-15T07:57:52Z",
+    "end": "2026-10-16T07:57:52Z"
   },
   "observed_window": {
-    "coverage": "partial; 371 local run records, 283 detailed summaries; additional logs fetch stopped at storage limit",
-    "run_records": 371,
-    "detailed_summaries": 283
+    "coverage": "partial; 263 cached runs from 2026-10-15T23:35:43Z through 2026-10-16T07:56:29Z; count-limit continuation not available",
+    "run_records": 263,
+    "detailed_summaries": 263
   },
   "key_themes": [
-    "shared MCP gateway failure and reviewed repair",
-    "failure-report saturation under issue cap",
-    "Issue Arborist linking resumed",
-    "Release succeeded after separate tag failures"
+    "ESLint work queue handoff failures and merged prospective repair",
+    "shared log redaction step failures",
+    "triage guardrail followed by later success"
   ],
   "carry_forward_questions": [
-    "Do later scheduled runs confirm the gateway repair across workflows?",
-    "Does Issue Arborist continue linking successfully?",
-    "What caused the two Release push_tag failures?"
+    "Do post-merge ESLint runs confirm Claim adapter and launch verification repairs?",
+    "What caused the shared log redaction failures across three workflows?",
+    "What occurred in the uncovered first 15h38m of the requested window?"
   ],
   "representative_runs": [
-    38647400879,
-    38648224390,
-    38677344534,
-    38686267247,
-    38680824229
+    38845844758,
+    38840691314,
+    38830731349,
+    38845385623,
+    38831888632
   ]
 }
