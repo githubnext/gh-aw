@@ -453,9 +453,9 @@ echo "greeting=Hello from shell" >> "$GITHUB_OUTPUT"
       const toolFactoryContent = fs.readFileSync(path.join(__dirname, "mcp_scripts_tool_factory.cjs"), "utf-8");
       fs.writeFileSync(toolFactoryPath, toolFactoryContent);
 
-      // Copy mcp_scripts_validation.cjs
-      const validationPath = path.join(tempDir, "mcp_scripts_validation.cjs");
-      const validationContent = fs.readFileSync(path.join(__dirname, "mcp_scripts_validation.cjs"), "utf-8");
+      // Copy schema-validation.cjs
+      const validationPath = path.join(tempDir, "schema-validation.cjs");
+      const validationContent = fs.readFileSync(path.join(__dirname, "schema-validation.cjs"), "utf-8");
       fs.writeFileSync(validationPath, validationContent);
 
       // Copy mcp_scripts_bootstrap.cjs
@@ -644,8 +644,8 @@ process.stdin.on('end', () => {
       const toolFactoryContent = fs.readFileSync(path.join(__dirname, "mcp_scripts_tool_factory.cjs"), "utf-8");
       fs.writeFileSync(toolFactoryPath, toolFactoryContent);
 
-      const validationPath = path.join(tempDir, "mcp_scripts_validation.cjs");
-      const validationContent = fs.readFileSync(path.join(__dirname, "mcp_scripts_validation.cjs"), "utf-8");
+      const validationPath = path.join(tempDir, "schema-validation.cjs");
+      const validationContent = fs.readFileSync(path.join(__dirname, "schema-validation.cjs"), "utf-8");
       fs.writeFileSync(validationPath, validationContent);
 
       const bootstrapPath = path.join(tempDir, "mcp_scripts_bootstrap.cjs");
@@ -778,8 +778,8 @@ process.stdin.on('end', () => {
       const toolFactoryContent = fs.readFileSync(path.join(__dirname, "mcp_scripts_tool_factory.cjs"), "utf-8");
       fs.writeFileSync(toolFactoryPath, toolFactoryContent);
 
-      const validationPath = path.join(tempDir, "mcp_scripts_validation.cjs");
-      const validationContent = fs.readFileSync(path.join(__dirname, "mcp_scripts_validation.cjs"), "utf-8");
+      const validationPath = path.join(tempDir, "schema-validation.cjs");
+      const validationContent = fs.readFileSync(path.join(__dirname, "schema-validation.cjs"), "utf-8");
       fs.writeFileSync(validationPath, validationContent);
 
       const bootstrapPath = path.join(tempDir, "mcp_scripts_bootstrap.cjs");

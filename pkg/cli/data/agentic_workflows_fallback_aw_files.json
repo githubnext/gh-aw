@@ -17,6 +17,7 @@
   "create-shared-agentic-workflow.md",
   "debug-agentic-workflow.md",
   "debug-model-engine-misconfiguration.md",
+  "debug-playbook.md",
   "debug-security-review.md",
   "dependabot.md",
   "deployment-status.md",

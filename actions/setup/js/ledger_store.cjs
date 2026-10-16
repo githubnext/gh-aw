@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { TextDecoder } = require("node:util");
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("./schema-validation.cjs");
 const { validateSchemaContract } = require("./memory_schema_contract.cjs");
 
 const MAX_FILES = 1024;
