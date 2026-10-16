@@ -4387,6 +4387,9 @@
                       },
                       "impact": {
                         "type": "string"
+                      },
+                      "playbook_url": {
+                        "type": "string"
                       }
                     },
                     "required": [

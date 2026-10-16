@@ -479,6 +479,11 @@ async function writeSafeOutputSummaries(results, messages) {
   summaryContent += `Status: **${status.status}**\n\n`;
   summaryContent += `Applied: **${status.itemsApplied}** · Skipped: **${status.itemsSkipped}** · Warnings: **${status.itemsWarnings}** · Failed: **${status.itemsFailed}** · Cancelled: **${status.itemsCancelled}** · Deferred: **${status.itemsDeferred}**\n\n`;
   summaryContent += generateOutcomeOverview(results);
+  if (status.itemsFailed > 0 || status.itemsSkipped > 0 || status.itemsWarnings > 0) {
+    const playbookUrl = "https://github.com/github/gh-aw/blob/main/.github/aw/debug-playbook.md#completion-and-safe-output-errors";
+    core.info(`Debug playbook: ${playbookUrl}`);
+    summaryContent += `[Debug playbook](${playbookUrl})\n\n`;
+  }
 
   // Generate summary for each result
   for (const result of results) {
