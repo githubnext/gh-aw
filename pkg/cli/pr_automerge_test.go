@@ -12,12 +12,13 @@ import (
 
 func TestEnablePRAutoMerge(t *testing.T) {
 	tests := []struct {
-		name        string
-		response    string
-		queryErr    error
-		mutationErr error
-		wantMethod  string
-		wantError   string
+		name             string
+		response         string
+		queryErr         error
+		mutationErr      error
+		mutationResponse string
+		wantMethod       string
+		wantError        string
 	}{
 		{name: "default squash", response: autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42"), wantMethod: "SQUASH"},
 		{name: "default merge", response: autoMergeRepoJSON(true, "MERGE", true, true, true, "PR_42"), wantMethod: "MERGE"},
@@ -31,8 +32,12 @@ func TestEnablePRAutoMerge(t *testing.T) {
 		{name: "cancelled", queryErr: context.Canceled, wantError: "context canceled"},
 		{name: "unsupported API", queryErr: errors.New("Field 'autoMergeAllowed' doesn't exist"), wantError: "autoMergeAllowed"},
 		{name: "malformed response", response: "{", wantError: "could not parse"},
-		{name: "null repository", response: `{"data":{"repository":null}}`, wantError: "disabled or unavailable"},
+		{name: "null repository", response: `{"data":{"repository":null}}`, wantError: "did not return repository auto-merge configuration"},
+		{name: "query GraphQL error", response: `{"errors":[{"message":"schema access denied"}]}`, wantError: "schema access denied"},
 		{name: "mutation failure", response: autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42"), mutationErr: errors.New("required branch rules unavailable"), wantMethod: "SQUASH", wantError: "required branch rules unavailable"},
+		{name: "mutation GraphQL error", response: autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42"), mutationResponse: `{"errors":[{"message":"auto-merge disabled for repository"}]}`, wantMethod: "SQUASH", wantError: "auto-merge disabled for repository"},
+		{name: "mutation missing payload", response: autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42"), mutationResponse: `{"data":{"enablePullRequestAutoMerge":null}}`, wantMethod: "SQUASH", wantError: "did not confirm"},
+		{name: "mutation unexpected PR", response: autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42"), mutationResponse: `{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_43"}}}}`, wantMethod: "SQUASH", wantError: "unexpected pull request"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -61,7 +66,11 @@ func TestEnablePRAutoMerge(t *testing.T) {
 				if strings.Contains(joined, "--admin") || strings.Contains(joined, "mergePullRequest(") {
 					t.Fatalf("must not merge directly or bypass checks: %s", joined)
 				}
-				return []byte(`{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_42"}}}}`), tt.mutationErr
+				mutationResponse := tt.mutationResponse
+				if mutationResponse == "" {
+					mutationResponse = `{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_42"}}}}`
+				}
+				return []byte(mutationResponse), tt.mutationErr
 			}
 			prURL := "https://github.example.com/owner/repo/pull/42"
 			err := enablePRAutoMerge(context.Background(), prURL)

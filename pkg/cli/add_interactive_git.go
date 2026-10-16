@@ -17,6 +17,10 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+var ensureInteractivePullRequestMerged = func(c *AddInteractiveConfig, prNumber int, prURL string) error {
+	return c.ensurePullRequestMerged(prNumber, prURL)
+}
+
 func isAlreadyMergedGHError(err error) bool {
 	if err == nil {
 		return false
@@ -36,8 +40,8 @@ const (
 
 // createWorkflowChangesAndConfigureSecret writes the workflows, optionally creates and merges a PR, and adds the secret.
 func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx context.Context, workflowFiles []string, initFiles []addInitializedFile, secretName, secretValue string, createPR bool) error {
-	if c.AutoMerge && !createPR {
-		return errors.New("--auto-merge requires selecting pull request delivery")
+	if err := requireAutoMergePR(c.AutoMerge, createPR); err != nil {
+		return err
 	}
 	addInteractiveLog.Print("Applying changes")
 
@@ -75,14 +79,17 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	c.addResult = result
 	if err != nil {
-		return fmt.Errorf("failed to add workflow: %w", err)
+		if result == nil || result.PRURL == "" {
+			return fmt.Errorf("failed to add workflow: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Auto-merge could not be enabled; continuing with the manual pull request flow: %v", err)))
 	}
 
 	if !createPR {
 		return nil
 	}
 
-	if err := c.ensurePullRequestMerged(result.PRNumber, result.PRURL); err != nil {
+	if err := ensureInteractivePullRequestMerged(c, result.PRNumber, result.PRURL); err != nil {
 		return err
 	}
 

@@ -106,8 +106,8 @@ The command will:
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
 			createPR, _ := cmd.Flags().GetBool("create-pull-request")
 			prAlias, _ := cmd.Flags().GetBool("pr")
-			if autoMerge && !createPR && !prAlias {
-				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			if err := requireAutoMergePR(autoMerge, createPR || prAlias); err != nil {
+				return err
 			}
 
 			if err := transferPRWithAutoMerge(cmd.Context(), prURL, targetRepo, verbose, autoMerge); err != nil {
@@ -768,21 +768,31 @@ func transferPRWithAutoMerge(ctx context.Context, prURL, targetRepo string, verb
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying changes to target repository..."))
 	}
 
-	branchName, err := applyPatchToRepo(patchFile, prInfo, targetOwner, targetRepoName, verbose)
+	return applyPatchAndCreateTransferPR(ctx, patchFile, prInfo, targetOwner, targetRepoName, verbose, autoMerge)
+}
+
+var applyPatchForTransfer = applyPatchToRepo
+var createTransferPRForTransfer = createTransferPRWithAutoMerge
+var switchTransferBranch = switchBranch
+
+func applyPatchAndCreateTransferPR(ctx context.Context, patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose, autoMerge bool) error {
+	currentBranch, err := getCurrentBranch()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get current branch before transfer: %w", err)
 	}
 
-	// Create PR in target repository
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating new PR in target repository..."))
+	branchName, operationErr := applyPatchForTransfer(patchFile, prInfo, targetOwner, targetRepo, verbose)
+	if operationErr == nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Creating new PR in target repository..."))
+		}
+		operationErr = createTransferPRForTransfer(ctx, targetOwner, targetRepo, prInfo, branchName, verbose, autoMerge)
 	}
 
-	if err := createTransferPRWithAutoMerge(ctx, targetOwner, targetRepoName, prInfo, branchName, verbose, autoMerge); err != nil {
-		return err
+	if restoreErr := switchTransferBranch(currentBranch, verbose); restoreErr != nil {
+		return errors.Join(operationErr, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, restoreErr))
 	}
-
-	return nil
+	return operationErr
 }
 
 var createPRRunGHContextWithHost = workflow.RunGHContextWithHost

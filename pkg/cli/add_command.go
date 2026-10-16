@@ -133,8 +133,8 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
 			createPR, _ := cmd.Flags().GetBool("create-pull-request")
 			prAlias, _ := cmd.Flags().GetBool("pr")
-			if autoMerge && !createPR && !prAlias {
-				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			if err := requireAutoMergePR(autoMerge, createPR || prAlias); err != nil {
+				return err
 			}
 			return runAddCommand(cmd, args, validateEngine)
 		},

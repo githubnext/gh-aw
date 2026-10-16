@@ -41,8 +41,8 @@ type InitOptions struct {
 
 // InitRepository initializes the repository for agentic workflows
 func InitRepository(opts InitOptions) error {
-	if opts.AutoMerge && !opts.CreatePR {
-		return errors.New("--auto-merge requires --pr or --create-pull-request")
+	if err := requireAutoMergePR(opts.AutoMerge, opts.CreatePR); err != nil {
+		return err
 	}
 	initLog.Print("Starting repository initialization for agentic workflows")
 
@@ -219,7 +219,7 @@ func InitRepository(opts InitOptions) error {
 			"- Configuring .gitattributes\n" +
 			"- Creating GitHub Copilot custom instructions\n" +
 			"- Setting up workflow prompts and skills"
-		if _, err := CreatePRWithChanges(ctx, "init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose, opts.AutoMerge); err != nil {
+		if _, err := createPRWithChanges(ctx, "init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose, opts.AutoMerge); err != nil {
 			return err
 		}
 	}

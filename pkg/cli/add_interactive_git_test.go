@@ -19,7 +19,7 @@ func TestAddInteractiveAutoMergeRejectsLocalDelivery(t *testing.T) {
 	t.Parallel()
 	config := &AddInteractiveConfig{AutoMerge: true}
 	err := config.createWorkflowChangesAndConfigureSecret(context.Background(), nil, nil, "", "", false)
-	require.ErrorContains(t, err, "--auto-merge requires selecting pull request delivery")
+	require.ErrorContains(t, err, "--auto-merge requires --pr or --create-pull-request")
 	assert.Nil(t, config.addResult)
 }
 
@@ -41,6 +41,15 @@ func TestAddInteractiveAutoMergePropagation(t *testing.T) {
 	}
 	enableErr := errors.New("auto-merge unavailable")
 	autoMergeCalls := 0
+	originalEnsureMerged := ensureInteractivePullRequestMerged
+	t.Cleanup(func() { ensureInteractivePullRequestMerged = originalEnsureMerged })
+	manualFlowCalled := false
+	ensureInteractivePullRequestMerged = func(_ *AddInteractiveConfig, prNumber int, gotURL string) error {
+		manualFlowCalled = true
+		assert.Equal(t, 42, prNumber)
+		assert.Equal(t, prURL, gotURL)
+		return nil
+	}
 	autoMergeRunGH = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		assert.True(t, created, "auto-merge must happen after PR creation")
 		autoMergeCalls++
@@ -57,10 +66,12 @@ func TestAddInteractiveAutoMergePropagation(t *testing.T) {
 			IsActionWorkflow: true,
 		}}},
 	}
-	err := config.createWorkflowChangesAndConfigureSecret(context.Background(), []string{"test-workflow.yml"}, nil, "", "", true)
-	require.ErrorIs(t, err, enableErr)
-	require.ErrorContains(t, err, prURL)
+	_, stderr := captureOutput(t, func() error {
+		return config.createWorkflowChangesAndConfigureSecret(context.Background(), []string{"test-workflow.yml"}, nil, "", "", true)
+	})
+	require.Contains(t, stderr, "Auto-merge could not be enabled")
 	assert.Equal(t, 1, autoMergeCalls)
+	assert.True(t, manualFlowCalled, "auto-merge failure should continue into the manual pull request flow")
 	require.NotNil(t, config.addResult)
 	assert.Equal(t, 42, config.addResult.PRNumber)
 	assert.Equal(t, prURL, config.addResult.PRURL)

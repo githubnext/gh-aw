@@ -401,8 +401,8 @@ func (c *AddInteractiveConfig) selectPullRequestDelivery(workflowFiles, initFile
 	if err != nil {
 		return false, err
 	}
-	if c.AutoMerge && !createPR {
-		return false, errors.New("--auto-merge requires selecting pull request delivery")
+	if err := requireAutoMergePR(c.AutoMerge, createPR); err != nil {
+		return false, err
 	}
 	return createPR, nil
 }

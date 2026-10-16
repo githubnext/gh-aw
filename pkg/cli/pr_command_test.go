@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTransferPRRejectsInvalidURL(t *testing.T) {
@@ -193,7 +195,7 @@ func TestCreatePRWithChangesPrintsURLBeforeCleanup(t *testing.T) {
 			}
 
 			_, stderr := captureOutput(t, func() error {
-				url, err := CreatePRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false, false)
+				url, err := CreatePRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false)
 				if url != prURL {
 					t.Errorf("PR URL = %q, want %q", url, prURL)
 				}
@@ -261,7 +263,16 @@ func TestCreatePRWithChangesAutoMerge(t *testing.T) {
 				}
 				return []byte(`{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_42"}}}}`), nil
 			}
-			url, err := CreatePRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false, tc.autoMerge)
+			originalSwitch := switchPRBranch
+			t.Cleanup(func() { switchPRBranch = originalSwitch })
+			cleanupErr := errors.New("branch cleanup failed")
+			if tc.autoFails && tc.cleanupFails {
+				switchPRBranch = func(branch string, verbose bool) error {
+					_ = originalSwitch(branch, verbose)
+					return cleanupErr
+				}
+			}
+			url, err := createPRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false, tc.autoMerge)
 			if tc.createFails {
 				if err == nil || url != "" || autoCalls != 0 {
 					t.Fatalf("failed creation = (%q, %v), auto calls %d", url, err, autoCalls)
@@ -276,6 +287,9 @@ func TestCreatePRWithChangesAutoMerge(t *testing.T) {
 					}
 					if tc.cleanupFails && !strings.Contains(err.Error(), "failed to switch back") {
 						t.Fatalf("error = %v, want both errors", err)
+					}
+					if tc.cleanupFails && !errors.Is(err, cleanupErr) {
+						t.Fatalf("error = %v, want wrapped branch cleanup error", err)
 					}
 				} else if err != nil {
 					t.Fatal(err)
@@ -294,6 +308,36 @@ func TestCreatePRWithChangesAutoMerge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplyPatchAndCreateTransferPRRestoresBranchAfterFailure(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+
+	originalApply, originalCreate, originalSwitch := applyPatchForTransfer, createTransferPRForTransfer, switchTransferBranch
+	t.Cleanup(func() {
+		applyPatchForTransfer, createTransferPRForTransfer, switchTransferBranch = originalApply, originalCreate, originalSwitch
+	})
+
+	applyPatchForTransfer = func(string, *PRInfo, string, string, bool) (string, error) {
+		runGit(t, repoDir, "checkout", "-b", "transfer-pr-test")
+		return "transfer-pr-test", nil
+	}
+	autoMergeErr := errors.New("auto-merge activation failed")
+	restoreErr := errors.New("branch restoration failed")
+	createTransferPRForTransfer = func(context.Context, string, string, *PRInfo, string, bool, bool) error {
+		return fmt.Errorf("pull request https://github.com/owner/repo/pull/42 remains open: %w", autoMergeErr)
+	}
+	switchTransferBranch = func(branch string, verbose bool) error {
+		_ = originalSwitch(branch, verbose)
+		return restoreErr
+	}
+
+	err := applyPatchAndCreateTransferPR(context.Background(), "patch", &PRInfo{}, "owner", "repo", false, true)
+	require.ErrorIs(t, err, autoMergeErr)
+	require.ErrorIs(t, err, restoreErr)
+	require.ErrorContains(t, err, "https://github.com/owner/repo/pull/42")
+	assert.Equal(t, "main", strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")))
 }
 
 func TestCreatePatchFromPRWritesOnlyDiff(t *testing.T) {

@@ -87,13 +87,22 @@ func configurePRAutoMerge(ctx context.Context, prURL string) error {
 	}
 	var response struct {
 		Data struct {
-			Repository prAutoMergeRepository `json:"repository"`
+			Repository *prAutoMergeRepository `json:"repository"`
 		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
 	}
 	if err := json.Unmarshal(output, &response); err != nil {
 		return fmt.Errorf("could not parse repository auto-merge configuration: %w", err)
 	}
-	repo := response.Data.Repository
+	if len(response.Errors) > 0 {
+		return fmt.Errorf("could not read repository auto-merge configuration: %s", response.Errors[0].Message)
+	}
+	if response.Data.Repository == nil {
+		return errors.New("GitHub did not return repository auto-merge configuration")
+	}
+	repo := *response.Data.Repository
 	if !repo.AutoMergeAllowed {
 		return errors.New("auto-merge is disabled or unavailable in this repository; enable it in repository settings")
 	}
@@ -110,10 +119,37 @@ func configurePRAutoMerge(ctx context.Context, prURL string) error {
 			pullRequest { id }
 		}
 	}`
-	if _, err := autoMergeRunGH(ctx, "Enabling pull request auto-merge...",
+	output, err = autoMergeRunGH(ctx, "Enabling pull request auto-merge...",
 		"api", "graphql", "--hostname", parsed.Host,
-		"-f", "query="+mutation, "-f", "prId="+repo.PullRequest.ID, "-f", "mergeMethod="+method); err != nil {
+		"-f", "query="+mutation, "-f", "prId="+repo.PullRequest.ID, "-f", "mergeMethod="+method)
+	if err != nil {
 		return fmt.Errorf("GitHub refused auto-merge; check repository settings, branch rules, and token permissions: %w", err)
+	}
+	var mutationResponse struct {
+		Data struct {
+			EnablePullRequestAutoMerge *struct {
+				PullRequest *struct {
+					ID string `json:"id"`
+				} `json:"pullRequest"`
+			} `json:"enablePullRequestAutoMerge"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(output, &mutationResponse); err != nil {
+		return fmt.Errorf("could not parse auto-merge response: %w", err)
+	}
+	if len(mutationResponse.Errors) > 0 {
+		return fmt.Errorf("GitHub refused auto-merge; check repository settings, branch rules, and token permissions: %s", mutationResponse.Errors[0].Message)
+	}
+	if mutationResponse.Data.EnablePullRequestAutoMerge == nil ||
+		mutationResponse.Data.EnablePullRequestAutoMerge.PullRequest == nil ||
+		mutationResponse.Data.EnablePullRequestAutoMerge.PullRequest.ID == "" {
+		return errors.New("GitHub did not confirm that auto-merge was enabled")
+	}
+	if mutationResponse.Data.EnablePullRequestAutoMerge.PullRequest.ID != repo.PullRequest.ID {
+		return errors.New("GitHub returned an unexpected pull request after enabling auto-merge")
 	}
 	return nil
 }

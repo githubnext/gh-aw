@@ -80,8 +80,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
-			if autoMerge && !createPR {
-				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
 			}
 			ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
 			resolvedGhAwRef, err := resolveAddGhAwRef(cmd.Context(), ghAwRef)

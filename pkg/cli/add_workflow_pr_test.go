@@ -14,14 +14,16 @@ import (
 
 func TestAddResolvedWorkflowsAutoMerge(t *testing.T) {
 	for _, tc := range []struct {
-		name       string
-		autoMerge  bool
-		failCreate bool
-		failEnable bool
+		name        string
+		autoMerge   bool
+		failCreate  bool
+		failEnable  bool
+		failRestore bool
 	}{
 		{name: "default"},
 		{name: "enabled", autoMerge: true},
 		{name: "enable failure preserves PR", autoMerge: true, failEnable: true},
+		{name: "enable and restore failure preserves both errors", autoMerge: true, failEnable: true, failRestore: true},
 		{name: "creation failure skips auto-merge", autoMerge: true, failCreate: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -30,15 +32,24 @@ func TestAddResolvedWorkflowsAutoMerge(t *testing.T) {
 			prependFakeGH(t, "exit 0\n")
 			originalCreatePR := createPRRunGHContextWithHost
 			originalAutoMerge := autoMergeRunGH
+			originalSwitch := switchAddWorkflowPRBranch
 			t.Cleanup(func() {
 				createPRRunGHContextWithHost = originalCreatePR
 				autoMergeRunGH = originalAutoMerge
+				switchAddWorkflowPRBranch = originalSwitch
 			})
 			const prURL = "https://github.com/octo/repo/pull/42"
 			created := false
 			createdBranch := ""
 			createErr := errors.New("PR creation failed")
 			enableErr := errors.New("auto-merge unavailable")
+			restoreErr := errors.New("branch restore failed")
+			if tc.failRestore {
+				switchAddWorkflowPRBranch = func(branch string, verbose bool) error {
+					_ = originalSwitch(branch, verbose)
+					return restoreErr
+				}
+			}
 			createPRRunGHContextWithHost = func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 				require.Equal(t, []string{"pr", "create"}, args[:2])
 				if tc.failCreate {
@@ -83,6 +94,9 @@ func TestAddResolvedWorkflowsAutoMerge(t *testing.T) {
 			case tc.failEnable:
 				require.ErrorIs(t, err, enableErr)
 				require.ErrorContains(t, err, prURL)
+				if tc.failRestore {
+					require.ErrorIs(t, err, restoreErr)
+				}
 				require.NotNil(t, result, "a created PR must remain available after auto-merge failure")
 				assert.Equal(t, 42, result.PRNumber)
 				assert.Equal(t, prURL, result.PRURL)

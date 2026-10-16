@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 )
 
 var addWorkflowPRLog = logger.New("cli:add_workflow_pr")
+var switchAddWorkflowPRBranch = switchBranch
 
 const (
 	ghAwDocumentationURL = "https://github.github.com/gh-aw/"
@@ -96,9 +98,12 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	}
 
 	// Ensure we switch back to original branch on exit
+	branchRestored := false
 	defer func() {
-		if switchErr := switchBranch(currentBranch, opts.Verbose); switchErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to branch %s: %v", currentBranch, switchErr)))
+		if !branchRestored {
+			if switchErr := switchAddWorkflowPRBranch(currentBranch, opts.Verbose); switchErr != nil && opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to branch %s: %v", currentBranch, switchErr)))
+			}
 		}
 	}()
 
@@ -207,15 +212,19 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 
 	addWorkflowPRLog.Printf("Successfully created PR #%d: %s", prNumber, prURL)
 
+	var autoMergeErr error
 	if opts.AutoMerge {
-		if err := enablePRAutoMerge(ctx, prURL); err != nil {
-			return prNumber, prURL, err
-		}
+		autoMergeErr = enablePRAutoMerge(ctx, prURL)
 	}
 
 	// Switch back to original branch
-	if err := switchBranch(currentBranch, opts.Verbose); err != nil {
-		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+	restoreErr := switchAddWorkflowPRBranch(currentBranch, opts.Verbose)
+	branchRestored = true
+	if restoreErr != nil {
+		return prNumber, prURL, errors.Join(autoMergeErr, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, restoreErr))
+	}
+	if autoMergeErr != nil {
+		return prNumber, prURL, autoMergeErr
 	}
 
 	return prNumber, prURL, nil

@@ -301,14 +301,13 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		"updating GitHub Actions versions, and recompiling all workflows." +
 		releaseLine + "\n" + xmlMarker
 
-	prURL, err := CreatePRWithChanges(ctx, "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+	prURL, err := createPRWithChanges(ctx, "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 		"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
-	if err != nil {
-		return err
-	}
-
 	if prURL != "" {
 		addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }

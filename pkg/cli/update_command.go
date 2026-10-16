@@ -99,8 +99,8 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
-			if autoMerge && !createPR {
-				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
 			}
 
 			if err := validateEngine(engineOverride); err != nil {
@@ -164,7 +164,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 
 			if createPR {
 				prBody := "This PR updates agentic workflows from their source repositories."
-				_, err := CreatePRWithChanges(cmd.Context(), "update-workflows", "chore: update workflows",
+				_, err := createPRWithChanges(cmd.Context(), "update-workflows", "chore: update workflows",
 					"Update workflows from source", prBody, verbose, opts.AutoMerge)
 				return err
 			}
@@ -356,13 +356,13 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 		prBody := "This PR updates agentic workflows from their source repositories." +
 			releaseLine + "\n" + xmlMarker
 
-		prURL, err := CreatePRWithChanges(ctx, "update-workflows", "chore: update workflows",
+		prURL, err := createPRWithChanges(ctx, "update-workflows", "chore: update workflows",
 			"Update workflows from source", prBody, verbose, opts.AutoMerge)
-		if err != nil {
-			return err
-		}
 		if prURL != "" {
 			addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
+		}
+		if err != nil {
+			return err
 		}
 		return nil
 	}

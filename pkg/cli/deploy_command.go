@@ -149,8 +149,8 @@ func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateE
 	autoMerge, _ := cmd.Flags().GetBool("auto-merge")
 	createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 	prFlagAlias, _ := cmd.Flags().GetBool("pr")
-	if autoMerge && !createPRFlag && !prFlagAlias {
-		return AddOptions{}, 0, errors.New("--auto-merge requires --pr or --create-pull-request")
+	if err := requireAutoMergePR(autoMerge, createPRFlag || prFlagAlias); err != nil {
+		return AddOptions{}, 0, err
 	}
 	appendText, _ := cmd.Flags().GetString("append")
 	verbose, _ := cmd.Flags().GetBool("verbose")
@@ -269,7 +269,7 @@ func runDeployCompilePass(ctx context.Context, addOpts AddOptions) error {
 
 func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool) error {
 	prTitle, prBody := buildDeployPRMetadata(resolvedWorkflows, targetRepo)
-	_, err := CreatePRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose, autoMerge)
+	_, err := createPRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose, autoMerge)
 	if err != nil {
 		return fmt.Errorf("failed to create deploy pull request: %w", err)
 	}

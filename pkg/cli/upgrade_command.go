@@ -105,8 +105,8 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
-			if autoMerge && !createPR {
-				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
 			}
 
 			if err := validateEngine(engineOverride); err != nil {
@@ -171,7 +171,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			if createPR {
 				prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
 					"updating GitHub Actions versions, and recompiling all workflows."
-				_, err := CreatePRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+				_, err := createPRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 					"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
 				return err
 			}

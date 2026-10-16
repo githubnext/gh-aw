@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -88,8 +87,8 @@ After running this command, you can:
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias // Support both --create-pull-request and --pr
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
-			if autoMerge && !createPR {
-				return errors.New("--auto-merge requires --pr or --create-pull-request")
+			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
 			}
 
 			if engineOverride != "" {

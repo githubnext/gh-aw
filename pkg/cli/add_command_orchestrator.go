@@ -28,8 +28,8 @@ type AddWorkflowsResult struct {
 // with optional repository installation and PR creation.
 // Returns AddWorkflowsResult containing PR number (if created) and other metadata.
 func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
-	if opts.AutoMerge && !opts.CreatePR {
-		return nil, errors.New("--auto-merge requires --pr or --create-pull-request")
+	if err := requireAutoMergePR(opts.AutoMerge, opts.CreatePR); err != nil {
+		return nil, err
 	}
 	if opts.Name != "" {
 		if err := validateAddedWorkflowName(opts.Name); err != nil {
@@ -50,8 +50,8 @@ func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*Ad
 // This allows callers to resolve workflows early (e.g., to show descriptions) and then add them later.
 // The opts.Quiet parameter suppresses detailed output (useful for interactive mode where output is already shown).
 func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolved *ResolvedWorkflows, opts AddOptions) (*AddWorkflowsResult, error) {
-	if opts.AutoMerge && !opts.CreatePR {
-		return nil, errors.New("--auto-merge requires --pr or --create-pull-request")
+	if err := requireAutoMergePR(opts.AutoMerge, opts.CreatePR); err != nil {
+		return nil, err
 	}
 	if opts.Name != "" {
 		if err := validateAddedWorkflowName(opts.Name); err != nil {
