@@ -149,6 +149,7 @@ const SAFE_OUTPUT_FIELDS = {
 
 /** @type {Fields} */
 const MESSAGE_FIELDS = {
+  sourceEngine: ["sourceEngine"],
   content: ["content"],
   delta: ["delta"],
   partial: ["partial"],
