@@ -36,6 +36,7 @@ const { detectForkPR } = require("./pr_helpers.cjs");
 const { parseAllowedBots, isAllowedBot, canonicalizeBotIdentifier } = require("./check_permissions_utils.cjs");
 const { ERR_API, ERR_PERMISSION } = require("./error_codes.cjs");
 const TRUSTED_CHECKOUT_PERMISSIONS = ["write", "maintain", "admin"];
+const TRUSTED_BOT_PR_ACTIONS = ["opened", "synchronize", "ready_for_review", "reopened"];
 // Centralized command/label routing uses the repository GITHUB_TOKEN, whose
 // GitHub-authenticated actor is fixed to this platform identity.
 const CENTRALIZED_ROUTER_ACTOR = "github-actions[bot]";
@@ -295,7 +296,7 @@ async function assertTrustedCheckoutRuntime(awContext, pullRequest) {
   // events require the collaborator check unless explicitly allow-listed below.
   if (
     (context.eventName === "pull_request" || context.eventName === "pull_request_target") &&
-    (context.payload.action === "opened" || context.payload.action === "synchronize" || context.payload.action === "ready_for_review" || context.payload.action === "reopened") &&
+    TRUSTED_BOT_PR_ACTIONS.includes(context.payload.action) &&
     senderType === "Bot" &&
     context.payload.sender?.login === actor &&
     context.payload.repository !== undefined &&
