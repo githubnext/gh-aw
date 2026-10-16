@@ -107,13 +107,15 @@ describe("unique agent execution observation", () => {
     ["could enable arbitrary code execution. Please rewrite the command without these expansion patterns.", "shell_expansion_guard_rejected"],
     ["Authentication failed (Request ID: example)", "authentication_failed"],
     ["max_ai_credits_exceeded=true", "max_ai_credits_exceeded"],
-    ["effective_tokens_limit_exceeded", "effective_tokens_limit_exceeded"],
-    ["permission_denied_limit_exceeded", "permission_denied_limit_exceeded"],
-    ["model_policy_violation", "model_policy_violation"],
     ["AWF API proxy blocking requests", "awf_api_proxy_blocking_requests"],
     ["This thread already has a goal. Use update_goal", "goal_already_active"],
   ])("retains the harness/compiler category for %s", (content, category) => {
     expect(collectAgentExecution({ content }).data.categories).toContain(category);
+  });
+
+  it.each(["effective_tokens_limit_exceeded", "permission_denied_limit_exceeded", "model_policy_violation"])("retains the proxy guard category for %s", guard => {
+    const content = JSON.stringify({ type: "session.error", code: guard, message: "Proxy guard rejection" });
+    expect(collectAgentExecution({ content }).data.categories).toContain(guard);
   });
 
   it("does not turn a post-result watchdog kill into a timeout", () => {
