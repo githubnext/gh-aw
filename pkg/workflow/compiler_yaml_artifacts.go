@@ -25,7 +25,7 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 // generateUnifiedArtifactUpload generates a single step that uploads all agent job artifacts
 // This consolidates multiple individual upload steps into one, improving workflow readability
 // and reliability. The step always runs (even on cancellation) and ignores missing files.
-// Workflows with custom safe-job artifacts additionally require successful secret redaction.
+// Uploads with custom safe-job artifacts or resolved AWF configuration require successful redaction.
 // prefix is prepended to the artifact name to avoid clashes in workflow_call context.
 func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []string, prefix string, requireSuccessfulRedaction bool) {
 	if len(paths) == 0 {
