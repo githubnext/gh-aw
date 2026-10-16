@@ -7,7 +7,7 @@ import "embed"
 //
 //go:embed js/session_cli.cjs js/unified_session.cjs js/unified_session_payload.cjs js/unified_session_render.cjs
 //go:embed js/steering_helpers.cjs js/jsonl_helpers.cjs
-//go:embed js/json_schema_validation.cjs js/memory_schema_contract.cjs
+//go:embed js/schema-validation.cjs js/json_schema_validation.cjs js/memory_schema_contract.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
 //go:embed js/workflow_job_durations.cjs
@@ -51,7 +51,7 @@ import "embed"
 //go:embed js/work_queue_indexes.cjs
 //go:embed js/mcp_server_core.cjs js/mcp_dependencies_manager.cjs js/mcp_enhanced_errors.cjs js/mcp_logger.cjs
 //go:embed js/mcp_handler_go.cjs js/mcp_handler_javascript.cjs js/mcp_handler_process.cjs
-//go:embed js/mcp_handler_python.cjs js/mcp_handler_shell.cjs js/mcp_scripts_validation.cjs
+//go:embed js/mcp_handler_python.cjs js/mcp_handler_shell.cjs
 //go:embed js/glob_pattern_helpers.cjs js/handler_auth.cjs js/invocation_context_helpers.cjs
 //go:embed js/read_buffer.cjs js/repo_helpers.cjs js/safe_output_helpers.cjs js/staged_preview.cjs
 //go:embed js/constants.cjs js/error_codes.cjs js/error_helpers.cjs js/model_costs.cjs js/models.json js/shim.cjs

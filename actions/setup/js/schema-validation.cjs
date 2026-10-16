@@ -1,9 +1,10 @@
 // @ts-check
 
 /**
- * MCP Scripts Validation Helpers
+ * Shared Schema Validation Helpers
  *
- * This module provides validation utilities for mcp-scripts MCP server.
+ * Shared argument and schema validation for MCP servers, safe outputs, ledgers,
+ * and JSON-schema consumers.
  */
 
 /**

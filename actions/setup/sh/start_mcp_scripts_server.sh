@@ -28,7 +28,7 @@ fi
 REQUIRED_DEPS=(
   "mcp_scripts_mcp_server_http.cjs"
   "mcp_http_transport.cjs"
-  "mcp_scripts_validation.cjs"
+  "schema-validation.cjs"
   "mcp_enhanced_errors.cjs"
   "mcp_logger.cjs"
   "mcp_scripts_bootstrap.cjs"
