@@ -195,6 +195,9 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 // instruction for the agent. This aligns create-issue with the other builtin safe outputs
 // (noop, missing-tool, missing-data) that are always available.
 func applyDefaultCreateIssue(workflowData *WorkflowData) {
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.CreateIssuesDisabled {
+		return
+	}
 	if workflowData.CommentMemoryConfig != nil || hasNonBuiltinSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
 	}

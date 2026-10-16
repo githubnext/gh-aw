@@ -90,6 +90,7 @@ description: Analyzes existing agentic workflows to identify shared skills, tool
 emoji: 🔍
 engine:
   id: copilot
+  copilot-sdk: true
 name: Workflow Skill Extractor
 timeout-minutes: 30
 tools:

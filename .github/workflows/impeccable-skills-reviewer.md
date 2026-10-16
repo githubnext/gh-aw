@@ -34,6 +34,7 @@ network:
 model: claude-sonnet-5
 engine:
   id: copilot
+  copilot-sdk: true
   max-continuations: 6
 imports:
   - uses: shared/pr-review-base.md

@@ -12,7 +12,9 @@ permissions:
   issues: read
   # Note: PR write operations handled via safe-outputs
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 imports:
   - shared/otlp.md

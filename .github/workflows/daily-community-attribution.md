@@ -19,6 +19,7 @@ permissions:
 model: claude-haiku-4.5
 engine:
   id: copilot
+  copilot-sdk: true
 timeout-minutes: 20
 
 network:

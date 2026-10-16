@@ -63,6 +63,11 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 		return fmt.Errorf("failed to change directory to checkout %s: %w", checkoutDir, err)
 	}
 
+	summary, err := newUpdatePRSummary(ctx, addOpts.WorkflowDir)
+	if err != nil {
+		return err
+	}
+
 	if err := runDeployUpdatePass(ctx, addOpts, coolDown); err != nil {
 		return err
 	}
@@ -75,7 +80,11 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 		return err
 	}
 
-	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge); err != nil {
+	details, err := summary.body(ctx, "deploy")
+	if err != nil {
+		return err
+	}
+	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge, details, addOpts.PRMessage); err != nil {
 		return err
 	}
 
@@ -96,6 +105,7 @@ func registerDeployFlags(cmd *cobra.Command) {
 	addEngineFlag(cmd)
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request (always enabled for deploy)")
+	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the deployment pull request (requires --pr or --create-pull-request)")
@@ -179,6 +189,7 @@ func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateE
 		Name:                   nameFlag,
 		Force:                  forceFlag,
 		AutoMerge:              autoMerge,
+		PRMessage:              cmd.Flag("pr-message").Value.String(),
 		AppendText:             appendText,
 		NoGitattributes:        noGitattributes,
 		WorkflowDir:            workflowDir,
@@ -267,8 +278,10 @@ func runDeployCompilePass(ctx context.Context, addOpts AddOptions) error {
 	return nil
 }
 
-func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool) error {
+func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool, details, prMessage string) error {
 	prTitle, prBody := buildDeployPRMetadata(resolvedWorkflows, targetRepo)
+	prBody = appendPRMessage(prBody, details)
+	prBody = appendPRMessage(prBody, prMessage)
 	_, err := createPRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose, autoMerge)
 	if err != nil {
 		return fmt.Errorf("failed to create deploy pull request: %w", err)
@@ -298,8 +311,16 @@ func buildDeployPRMetadata(workflows []string, targetRepo string) (string, strin
 	if len(workflows) > 1 {
 		workflowDescription = fmt.Sprintf("%d workflows", len(workflows))
 	}
-	body := fmt.Sprintf("Deploy %s to %s.\n\nThis PR was created by `gh aw deploy` after running update, add, and compile --purge in the target repository.", workflowDescription, targetRepo)
-	return deployCommitMessage, body
+	var body strings.Builder
+	body.WriteString("## Summary\n\nDeploy " + markdownText(workflowDescription) + " to " + markdownText(targetRepo) + ".\n\n")
+	body.WriteString("## Workflows requested\n\n")
+	for _, spec := range workflows {
+		if isLocalWorkflowPath(spec) {
+			spec = filepath.Base(spec)
+		}
+		body.WriteString("- " + summaryCode(spec) + "\n")
+	}
+	return deployCommitMessage, body.String()
 }
 
 func excludeExistingSourcedWorkflows(workflows []string, addOpts AddOptions) ([]string, []string, error) {

@@ -1,7 +1,7 @@
 // @ts-check
 
 const { detectErrors, buildOutputLines, isCAPIServerError } = require("./agent_error_patterns.cjs");
-const { detectNonRetryableHarnessGuard, isAuthenticationFailedError } = require("./harness_error_patterns.cjs");
+const { API_PROXY_GUARD_REJECTION_PATTERNS, detectNonRetryableHarnessGuard, isAuthenticationFailedError, selectNativeErrorDiagnostic, shouldSuppressGuardCategory } = require("./harness_error_patterns.cjs");
 const { crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { sessionContext } = require("./agent_session.cjs");
@@ -243,11 +243,15 @@ function agentErrorSummaryText(content, eventsOrSourceEngine = [], rawSourceEngi
  */
 function collectNativeErrorEvidence(errors) {
   const diagnostics = [];
+  const guardDiagnostics = [];
   const codes = new Set();
   const types = new Set();
   for (const error of errors) {
-    diagnostics.push(JSON.stringify(error));
-    const queue = [error];
+    const diagnostic = selectNativeErrorDiagnostic(error);
+    const diagnosticText = JSON.stringify(diagnostic) ?? "";
+    diagnostics.push(diagnosticText);
+    guardDiagnostics.push(diagnosticText);
+    const queue = [diagnostic];
     for (let visited = 0; visited < 16 && queue.length; visited++) {
       const value = queue.shift();
       if (typeof value === "string") {
@@ -274,10 +278,9 @@ function collectNativeErrorEvidence(errors) {
       for (const key of ["error", "message", "errorMessage"]) {
         if (value[key] !== undefined) queue.push(value[key]);
       }
-      if (value.metadata?.raw !== undefined) queue.push(value.metadata.raw);
     }
   }
-  return { diagnostics, codes, types };
+  return { diagnostics, guardDiagnostics, codes, types };
 }
 
 /**
@@ -290,7 +293,7 @@ function collectAgentExecution({ content = "", events = [], categories = [], exi
   const categorySet = new Set(categories);
   const { diagnostics, errors: rawErrors } = collectAgentErrorEvidence(content, events, rawSourceEngine);
   const errors = [...events.flatMap(recordErrors), ...rawErrors];
-  const { diagnostics: nativeDiagnostics, codes, types } = collectNativeErrorEvidence(errors);
+  const { diagnostics: nativeDiagnostics, guardDiagnostics, codes, types } = collectNativeErrorEvidence(errors);
   let observedExit = exitCode;
   for (const data of observations) {
     validateAgentExecution(data);
@@ -305,6 +308,7 @@ function collectAgentExecution({ content = "", events = [], categories = [], exi
     const terminal = line.match(/^\[(?:copilot|claude|codex)-harness\].*?\bdone: exitCode=(\d+)\b/);
     if (terminal && exitCode === undefined && !observations.some(data => data.exitCode !== undefined)) observedExit = Number(terminal[1]);
   }
+  guardDiagnostics.push(...diagnostics);
   diagnostics.push(...nativeDiagnostics);
   const text = diagnostics.join("\n");
   for (const diagnostic of diagnostics) {
@@ -322,6 +326,12 @@ function collectAgentExecution({ content = "", events = [], categories = [], exi
   if (guards.awfAPIProxyBlockingRequests) categorySet.add("awf_api_proxy_blocking_requests");
   if (guards.goalAlreadyActive) categorySet.add("goal_already_active");
   if (guards.apiProxyGuardRejection) categorySet.add(guards.apiProxyGuardRejection.guard);
+  // Observation accepts attributed diagnostic text; retry decisions require transport envelopes.
+  for (const diagnostic of guardDiagnostics) {
+    for (const { guard, pattern } of API_PROXY_GUARD_REJECTION_PATTERNS) {
+      if (pattern.test(diagnostic) && !shouldSuppressGuardCategory(guard, diagnostic)) categorySet.add(guard);
+    }
+  }
   const crashSignal = observedExit === undefined ? null : crashSignalNameForExitCode(observedExit);
   if (crashSignal) {
     categorySet.add("sandbox_runtime_crash");
