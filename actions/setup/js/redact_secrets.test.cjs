@@ -127,6 +127,48 @@ describe("redact_secrets.cjs", () => {
       }
     }),
     describe("file handling", () => {
+      it.each(["ordinary.json", "safeoutputs.jsonl"])("logs UTF-8 input and output byte sizes without payload data for %s", filename => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const secret = "synthetic-private-value";
+        const file = path.join(tempDir, filename);
+        const content = JSON.stringify({ type: "add_comment", body: "\u00e9 \ud83d\ude80 " + secret });
+        fs.writeFileSync(file, content);
+
+        expect(processFile(file, [secret])).toBeGreaterThan(0);
+
+        const output = fs.readFileSync(file, "utf8");
+        const format = filename === "safeoutputs.jsonl" ? "structured" : "text";
+        expect(Buffer.byteLength(content, "utf8")).toBeGreaterThan(content.length);
+        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction input: bytes=${Buffer.byteLength(content, "utf8")}`);
+        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction sizes: input_bytes=${Buffer.byteLength(content, "utf8")} output_bytes=${Buffer.byteLength(output, "utf8")} format=${format}`);
+        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(secret);
+        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("\u00e9");
+      });
+
+      it("logs equal byte sizes for unchanged artifacts", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "ordinary.log");
+        fs.writeFileSync(file, "public");
+
+        expect(processFile(file, [])).toBe(0);
+
+        expect(mockCore.info).toHaveBeenCalledWith("Secret redaction sizes: input_bytes=6 output_bytes=6 format=text");
+      });
+
+      it("logs input size before a fail-closed redaction error without reporting successful output", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "safeoutputs.jsonl");
+        const content = '{"body":"synthetic-private-value"';
+        fs.writeFileSync(file, content);
+
+        expect(processFile(file, ["synthetic-private-value"])).toBe(0);
+
+        expect(fs.existsSync(file)).toBe(false);
+        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction input: bytes=${Buffer.byteLength(content, "utf8")}`);
+        expect(mockCore.info.mock.calls.flat().some(message => message.startsWith("Secret redaction sizes:"))).toBe(false);
+        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("synthetic-private-value");
+      });
+
       it.each(["safeoutputs.jsonl", "agent_output.json"])("coalesces all credential sources in executable %s payloads", filename => {
         const { processFile } = require("./redact_secrets.cjs");
         const token = "ghs_" + "A".repeat(40);

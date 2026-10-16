@@ -593,6 +593,8 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
   let stage = "read";
   try {
     const content = fs.readFileSync(filePath, "utf8");
+    const inputBytes = Buffer.byteLength(content, "utf8");
+    core.info(`Secret redaction input: bytes=${inputBytes}`);
     stage = "redact";
     const structured = redactSafeOutputContent(
       filePath,
@@ -607,6 +609,7 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
         writeProcessedFile(filePath, structured, Boolean(redactionCount));
       }
       if (redactionCount) core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+      core.info(`Secret redaction sizes: input_bytes=${inputBytes} output_bytes=${Buffer.byteLength(structured, "utf8")} format=structured`);
       return redactionCount;
     }
     const encodedResult = path.extname(filePath).toLowerCase() === ".html" ? redactPiSessionHTML(content, text => redactArtifactContent(text, secretValues, maskedValues)) : { content, redactionCount: 0 };
@@ -621,6 +624,7 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
     if (totalRedactions > 0) {
       core.info(`Processed ${filePath}: ${totalRedactions} redaction(s)`);
     }
+    core.info(`Secret redaction sizes: input_bytes=${inputBytes} output_bytes=${Buffer.byteLength(redacted, "utf8")} format=text`);
     return totalRedactions;
   } catch (error) {
     if (isErrnoCode(error, "ENOENT") && !fs.existsSync(filePath)) {
