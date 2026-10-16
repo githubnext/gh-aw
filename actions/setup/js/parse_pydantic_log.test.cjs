@@ -85,6 +85,24 @@ describe("Pydantic AI CLAI 2 session frames", () => {
     expect(JSON.stringify(result)).not.toContain(frameKey);
   });
 
+  it.each(["data", "type"])("discards canonical records when an embedded mask redacts the %s envelope key", key => {
+    const observed = { type: "tool.execution_complete", data: { toolName: "read_file", output: `::add-mask::q%0A${key}%0Az` } };
+    const result = parsePydanticLog([frameHeader, frame(observed), frame(events[7])].join("\n"));
+    expect(result.logEntries).toEqual([]);
+    expect(result.partial).toBe(false);
+    expect(result.markdown).toContain("No recorded Pydantic AI session events.");
+    expect(result.markdown).not.toContain("The first line");
+    expect(result.markdown).not.toContain("add-mask");
+  });
+
+  it("preserves valid canonical records when redaction invalidates an adjacent event type", () => {
+    const observed = { type: "tool.execution_complete", data: { toolName: "read_file", output: "::add-mask::q%0Aassistant.reasoning%0Az" } };
+    const result = parsePydanticLog([frameHeader, frame(observed), frame(events[2]), frame(events[7])].join("\n"));
+    expect(result.logEntries).toEqual([{ ...observed, data: { ...observed.data, output: "" } }, events[7]]);
+    expect(result.logEntries.every(isSessionEvent)).toBe(true);
+    expect(result.partial).toBe(false);
+  });
+
   it("keeps partial failure observations without inventing results or metrics", () => {
     const observed = [events[3], { type: "assistant.message", data: { content: "Interrupted", partial: true } }, { type: "session.result", data: { status: "failure", sourceType: "pydantic-ai" } }];
     const result = parsePydanticLog([frameHeader, ...observed.map(frame)].join("\r\n"));

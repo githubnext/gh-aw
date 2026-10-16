@@ -26,18 +26,19 @@ function parseFramedSession(content) {
   const frameKey = lines.map(line => line.match(/^\x1eGH-AW-SESSION-KEY:([0-9a-f]{32})\x1e$/)?.[1]).find(Boolean);
   if (!frameKey) return undefined;
   const types = new Set(["session.init", "user.message", "assistant.message", "assistant.reasoning", "tool.execution_start", "tool.execution_complete", "session.result"]);
+  const isValidEnvelope = event => event && types.has(event.type) && event.data && typeof event.data === "object" && !Array.isArray(event.data);
   const records = [];
   for (const line of lines) {
     const frame = line.match(/^\x1eGH-AW-SESSION\/([0-9a-f]{32}) (\{.*\})$/);
     if (!frame || frame[1] !== frameKey) continue;
     try {
       const event = JSON.parse(frame[2]);
-      if (event && types.has(event.type) && event.data && typeof event.data === "object" && !Array.isArray(event.data)) records.push(event);
+      if (isValidEnvelope(event)) records.push(event);
     } catch {
       // A truncated record must not hide adjacent observed events.
     }
   }
-  return JSON.parse(redactArtifactMaskedValues(JSON.stringify(records), collectAddMaskedValues(content)));
+  return JSON.parse(redactArtifactMaskedValues(JSON.stringify(records), collectAddMaskedValues(content))).filter(isValidEnvelope);
 }
 
 /**
