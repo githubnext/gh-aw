@@ -18,7 +18,7 @@ var threatLog = logger.New("workflow:threat_detection")
 const detectionStepCondition = "always() && steps.detection_guard.outputs.run_detection == 'true'"
 
 // A successful setup step can still return early in warn mode without preparing a detector prompt.
-const detectionExecutionCondition = detectionStepCondition + " && steps.detection_setup.outcome == 'success' && steps.detection_setup.outputs.ready == 'true'"
+const detectionExecutionCondition = detectionStepCondition + " && steps.detection_mode.outcome != 'failure' && steps.detection_setup.outcome == 'success' && steps.detection_setup.outputs.ready == 'true'"
 
 // stepEnvIndent is the indentation prefix used for env var lines in rendered step YAML.
 const stepEnvIndent = "        "

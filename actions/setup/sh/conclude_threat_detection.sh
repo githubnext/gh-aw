@@ -35,6 +35,13 @@ report_detector_unavailable() {
 # to runs where detection was expected. A missing detector is a legitimate skip
 # only when the guard explicitly disabled detection and installation was skipped.
 THREAT_DETECT_INSTALL_OUTCOME="${THREAT_DETECT_INSTALL_OUTCOME:-}"
+if [ "${RUN_DETECTION:-}" = "true" ] && [ "${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}" = "false" ]; then
+  case "${DETECTION_AGENTIC_EXECUTION_OUTCOME:-}" in
+    failure|cancelled)
+      report_detector_unavailable "Detection execution did not complete successfully; blocking publication"
+      ;;
+  esac
+fi
 if [ "${RUN_DETECTION:-}" = "true" ] && [ -n "${THREAT_DETECT_INSTALL_OUTCOME}" ] && [ "${THREAT_DETECT_INSTALL_OUTCOME}" != "success" ]; then
   report_detector_unavailable "threat-detect installation did not complete verification (install outcome: ${THREAT_DETECT_INSTALL_OUTCOME})"
 fi

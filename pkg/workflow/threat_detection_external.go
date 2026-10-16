@@ -617,12 +617,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
 	}
 
-	continueOnError := true
-	var continueOnErrorExpr *string
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
-		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
-	}
+	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
 
 	executionCondition := detectionExecutionCondition + " && steps.threat_detect_install.outcome == 'success'"
 	if isArcDindTopology(threatDetectionData) {
@@ -795,12 +790,7 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 // additionally passed because only the external path installs a pinned binary.
 func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []string {
 	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
-	continueOnError := true
-	var continueOnErrorExpr *string
-	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
-		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
-	}
+	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
 
 	steps := []string{
 		"      - name: Conclude threat detection\n",
@@ -814,13 +804,6 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 		steps = append(steps, "        continue-on-error: true\n")
 	}
 
-	var coeEnvLine string
-	if continueOnErrorExpr != nil {
-		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %s\n", *continueOnErrorExpr)
-	} else {
-		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError))
-	}
-
 	steps = append(steps, []string{
 		"        env:\n",
 		"          RUN_DETECTION: ${{ steps.detection_guard.outputs.run_detection }}\n",
@@ -831,7 +814,7 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 		// The placeholder cannot set conclusion outputs itself, so the script emits the
 		// agent_failure conclusion from this outcome instead.
 		"          THREAT_DETECT_INSTALL_OUTCOME: ${{ steps.threat_detect_install.outcome }}\n",
-		coeEnvLine,
+		buildThreatDetectionContinueOnErrorEnvLine(continueOnError, continueOnErrorExpr),
 		"        run: |\n",
 		fmt.Sprintf("          bash \"${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh\" %s\n", shellEscapeArg(constants.ThreatDetectionResultPath)),
 	}...)

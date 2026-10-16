@@ -8,6 +8,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/typeutil"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 // buildDetectionJobSteps builds the threat detection steps to be run in the separate detection job.
@@ -49,6 +50,7 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string { //nolin
 
 	// Step 2: Detection guard - determines whether detection should run
 	steps = append(steps, c.buildDetectionGuardStep()...)
+	steps = append(steps, c.buildDetectionDefaultStep(data)...)
 
 	// Step 3: Clear MCP configuration files so the detection engine runs without MCP servers
 	steps = append(steps, c.buildClearMCPConfigStep()...)
@@ -265,17 +267,44 @@ func (c *Compiler) buildPrepareDetectionFilesStep() []string {
 }
 
 // resolveThreatDetectionContinueOnError determines the continue-on-error mode for
-// threat-detection steps (default: true — detection failures produce warnings). When
-// ContinueOnErrorExpr is set the value is resolved at runtime; compile-time we use true as
-// a safe default so the step-level continue-on-error is included (permissive).
-func resolveThreatDetectionContinueOnError(data *WorkflowData) (bool, *string) {
-	continueOnError := true
-	var continueOnErrorExpr *string
+// threat-detection steps. Explicit workflow/import settings override aw.json, which
+// overrides the runtime Actions variable. The built-in fallback remains true.
+func (c *Compiler) resolveThreatDetectionContinueOnError(data *WorkflowData) (bool, *string) {
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
-		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
+		td := data.SafeOutputs.ThreatDetection
+		if td.ContinueOnErrorExpr != nil || td.ContinueOnError != nil {
+			return td.IsContinueOnError(), td.ContinueOnErrorExpr
+		}
 	}
-	return continueOnError, continueOnErrorExpr
+	if config, err := c.loadRepoConfig(); err == nil && config != nil && config.DefaultDetectionContinueOnError != nil {
+		return *config.DefaultDetectionContinueOnError, nil
+	}
+	expr := "${{ steps.detection_mode.outputs.continue_on_error == 'true' }}"
+	return true, &expr
+}
+
+func (c *Compiler) buildDetectionDefaultStep(data *WorkflowData) []string {
+	td := data.SafeOutputs.ThreatDetection
+	if td.ContinueOnError != nil || td.ContinueOnErrorExpr != nil {
+		return nil
+	}
+	if config, err := c.loadRepoConfig(); err == nil && config != nil && config.DefaultDetectionContinueOnError != nil {
+		return nil
+	}
+	return []string{
+		"      - name: Resolve default detection enforcement\n",
+		"        id: detection_mode\n",
+		fmt.Sprintf("        if: %s\n", detectionStepCondition),
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR: ${{ vars.%s }}\n", compilerenv.DefaultDetectionContinueOnError),
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('" + SetupActionDestination + "/resolve_detection_continue_on_error.cjs');\n",
+		"            main();\n",
+	}
 }
 
 // buildDetectionConclusionStep creates the combined parse-and-conclude step for threat detection.
@@ -290,7 +319,7 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 	// Determine continue-on-error mode (default: true — detection failures produce warnings).
 	// When ContinueOnErrorExpr is set the value is resolved at runtime; compile-time we use
 	// true as a safe default so the step-level continue-on-error is included (permissive).
-	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
+	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
 	threatLog.Printf("Building detection conclusion step: continueOnError=%t, hasExpr=%t", continueOnError, continueOnErrorExpr != nil)
 
 	steps := []string{
@@ -362,7 +391,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	var steps []string
 
 	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
-	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
+	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
 
 	// Setup step
 	steps = append(steps, []string{
@@ -623,7 +652,7 @@ func (c *Compiler) buildInstallThreatDetectStep(data *WorkflowData) []string {
 	}
 
 	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
-	continueOnError, continueOnErrorExpr := resolveThreatDetectionContinueOnError(data)
+	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
 	threatLog.Printf("Installing threat-detect binary: version=%s, continueOnError=%t", version, continueOnError)
 
 	steps := []string{

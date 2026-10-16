@@ -241,7 +241,49 @@ AI detection produces a structured JSON response:
 }
 ```
 
-If any threat is detected (`true`), the workflow fails and safe outputs are blocked.
+If any threat is detected (`true`), blocking mode (`continue-on-error: false`) fails
+the detection job and blocks safe outputs. Warning mode (`true`, the built-in
+default) reports the finding without blocking publication.
+
+### Default enforcement mode
+
+Detection enforcement uses the following precedence, highest first:
+
+1. Explicit `safe-outputs.threat-detection.continue-on-error` in the workflow or resolved imports, including runtime expressions.
+2. Boolean `default_detection_continue_on_error` in `.github/workflows/aw.json`.
+3. Actions variable `GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR` at runtime.
+4. Built-in `true` (warning mode).
+
+```json title=".github/workflows/aw.json"
+{
+  "default_detection_continue_on_error": false
+}
+```
+
+`true` warns and continues; `false` blocks publication on findings, detector
+execution failures, or missing/invalid assessments. Intentionally skipped
+detection is unchanged. These settings select an **overridable default**, not a
+mandatory enterprise policy, and do not enable detection or override
+`threat-detection: false`, engine disabling, `report-as-issue`, model/budget
+settings, or compiler strict mode.
+
+The Actions variable accepts `true` or `false` (case-insensitive, surrounding
+whitespace ignored). Unset or empty uses warning mode. Any other nonempty value
+fails explicitly when it is the effective default; overridden variables are not
+validated. Repository variables override organization variables, which override
+enterprise variables, subject to GitHub Actions variable visibility.
+
+The variable is resolved once per detection job and shared by detector setup,
+execution, conclusion, and step failure handling. Existing downstream publication
+gates use the resulting detection job status. Changing the Actions variable does
+not require recompilation after support is present; older generated workflows
+need one recompile. Changes to `aw.json` or workflow/import settings require
+recompilation.
+
+`gh aw env get` and `gh aw env update` manage the variable with the string-valued
+defaults-file key `default_detection_continue_on_error`, for example
+`default_detection_continue_on_error: "false"`. Variable scope management is
+described in [Configuration Governance](../governance/).
 
 ## Custom Prompt Instructions
 

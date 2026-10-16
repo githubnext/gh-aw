@@ -17,6 +17,10 @@
     }
   },
   "properties": {
+    "default_detection_continue_on_error": {
+      "description": "Overridable detection enforcement default. True warns and continues; false blocks publication on threats or incomplete assessments. Explicit workflow/import continue-on-error wins. When omitted, uses vars.GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR at runtime, then true. Does not enable or disable detection.",
+      "type": "boolean"
+    },
     "work_queue": {
       "description": "Global scheduling and backing Issue/label overrides. AW supplies authorization and approved worker routes. Missing settings use one pool, concurrency 16, pending limit 4096 and three attempts with 30-second backoff.",
       "type": "object",

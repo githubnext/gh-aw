@@ -76,6 +76,9 @@ const (
 	// DefaultDetectionModel is the enterprise override for selecting the detection
 	// job model when threat-detection.engine.model is not set.
 	DefaultDetectionModel = "GH_AW_DEFAULT_DETECTION_MODEL"
+	// DefaultDetectionContinueOnError supplies the overridable runtime detection
+	// enforcement default when neither workflow nor aw.json configures it.
+	DefaultDetectionContinueOnError = "GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR"
 	// DefaultEvalsModel is the enterprise override for selecting the evals
 	// job model when evals.model is not set.
 	DefaultEvalsModel = "GH_AW_DEFAULT_EVALS_MODEL"

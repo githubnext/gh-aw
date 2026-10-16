@@ -32,6 +32,7 @@ default_model_copilot: "gpt-5-mini"
 default_model_claude: "claude-haiku-4-5"
 default_model_codex: "gpt-5.4-mini"
 default_detection_model: "gpt-5.5-mini"
+default_detection_continue_on_error: "false" # Overridable blocking-mode default
 default_utc: "-08:00" # UTC offset for rendered CLI timestamps
 ```
 
@@ -97,7 +98,15 @@ Examples using this runtime path include
 `GH_AW_DEFAULT_TIMEOUT_MINUTES`,
 `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES`,
 `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`,
+`GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR`,
 and `GH_AW_DEFAULT_MODEL_*`.
+
+For detection enforcement, explicit workflow/import `continue-on-error` takes
+precedence over the boolean `default_detection_continue_on_error` in `aw.json`,
+then the Actions variable, then the unchanged built-in `true` (warning mode).
+`false` selects blocking mode, not mandatory policy or detection enablement.
+The variable is evaluated at runtime; older generated workflows need one
+recompile to gain support. See [default enforcement mode](../threat-detection/#default-enforcement-mode).
 
 > [!IMPORTANT]
 > Some defaults are compile-time values.
@@ -127,7 +136,7 @@ jobs:
 
 Policy variables (`GH_AW_POLICY_*`) complement the
 `GH_AW_DEFAULT_*` values managed by `gh aw env`. Defaults
-control numeric and model settings; policy variables are
+control overridable numeric, model, and detection enforcement settings; policy variables are
 boolean capability gates that allow or deny specific
 runtime behaviors without recompiling workflows.
 

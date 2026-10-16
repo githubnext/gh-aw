@@ -23,6 +23,7 @@ In this enterprise controls reference, OTLP defaults are the scope-sensitive exc
 | `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default generated `agent` job `timeout-minutes` (60 minutes) | `jobs.agent.timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default generated `detection` job `timeout-minutes` (10 minutes) | `jobs.detection.timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
+| `GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR` | GitHub Actions `vars.*` at runtime | Overridable warning (`true`) or blocking (`false`) default; built-in fallback remains `true` | Neither workflow/import `continue-on-error` nor `aw.json` `default_detection_continue_on_error` is set |
 | `GH_AW_DEFAULT_UTC` | Compiler process environment | Default project home UTC offset for rendered CLI timestamps | `utc` is not set in `.github/workflows/aw.json` |
 | `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
 | `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
@@ -34,7 +35,7 @@ In this enterprise controls reference, OTLP defaults are the scope-sensitive exc
 Use `gh aw env get` and `gh aw env update` to manage `GH_AW_DEFAULT_*`
 variables in batch. These commands operate on GitHub Actions variables and support repo, org, or enterprise scope, so `default_otlp_endpoint` can still be managed as an enterprise variable. Set OTLP secrets separately with `gh secret set`; those secrets are limited to repository or organization scope. The defaults file uses
 `default_`-prefixed keys such as `default_max_ai_credits`, `default_max_turn_cache_misses`, `default_detection_max_ai_credits`, `default_max_daily_ai_credits`, `default_timeout_minutes`, `default_agent_job_timeout_minutes`, `default_detection_job_timeout_minutes`,
-`default_model_copilot`, `default_otlp_endpoint`, `default_artifact_retention_days`, and `default_utc`. `gh aw env update --scope ent` writes only the `GH_AW_DEFAULT_OTLP_ENDPOINT` variable, not an endpoint secret. To mask the endpoint value, set `GH_AW_DEFAULT_OTLP_ENDPOINT` with
+`default_model_copilot`, `default_detection_continue_on_error`, `default_otlp_endpoint`, `default_artifact_retention_days`, and `default_utc`. `gh aw env update --scope ent` writes only the `GH_AW_DEFAULT_OTLP_ENDPOINT` variable, not an endpoint secret. To mask the endpoint value, set `GH_AW_DEFAULT_OTLP_ENDPOINT` with
 `gh secret set` at repository or organization scope instead. `GH_AW_DEFAULT_OTLP_HEADERS` is always a secret and must also be set with `gh secret set` at repository or organization scope. If both endpoint values exist, clearing only one leaves the other effective through the fallback expression; clear both the endpoint secret and variable to disable OTLP export.
 
 `GH_AW_REQUIRE_SELF_HOSTED_RUNNERS` is a compile-time enforcement setting, not a `GH_AW_DEFAULT_*` default, and is not managed by `gh aw env`. The same policy can be enabled persistently with `require_self_hosted_runners: true` in `.github/workflows/aw.json`, or for a single invocation with `gh aw compile --require-self-hosted-runners`.
@@ -118,6 +119,15 @@ To set an organization- or enterprise-wide default, use the `GH_AW_DEFAULT_UTC` 
 When neither is configured, timestamp formatting is left unchanged and uses the runner's local time.
 
 ## Precedence
+
+Detection enforcement follows workflow/import `continue-on-error`, then the
+boolean `default_detection_continue_on_error` in `aw.json`, then the runtime
+Actions variable, then built-in `true`. This default does not force detection on
+or prevent workflow overrides. The variable accepts `true`/`false`, ignoring
+case and surrounding whitespace; empty/unset retains warning mode. Invalid
+effective values fail explicitly, but overridden variables are not validated.
+Older generated workflows need one recompile; subsequent variable changes apply
+at runtime. See [default enforcement mode](../threat-detection/#default-enforcement-mode).
 
 For model selection, precedence is:
 

@@ -536,7 +536,8 @@ Create an issue.
 			// continue-on-error appears AFTER the id: line, within the next 150 chars
 			stepContext := detectionSection[parseStepIdx:min(len(detectionSection), parseStepIdx+150)]
 
-			hasContinueOnErr := strings.Contains(stepContext, "continue-on-error: true")
+			hasContinueOnErr := strings.Contains(stepContext, "continue-on-error: true") ||
+				strings.Contains(stepContext, "continue-on-error: ${{ steps.detection_mode.outputs.continue_on_error == 'true' }}")
 			if tt.wantContinueOnErr && !hasContinueOnErr {
 				t.Error("Expected parse step to have continue-on-error: true in warn mode")
 			}

@@ -86,6 +86,42 @@ func TestDefaultsArtifactRetentionDays(t *testing.T) {
 	}
 }
 
+func TestDefaultsDetectionContinueOnError(t *testing.T) {
+	for _, value := range []string{"true", "false", "", " FALSE "} {
+		file, err := defaultsParseFile("defaults.yml", []byte(fmt.Sprintf("default_detection_continue_on_error: %q\n", value)))
+		require.NoError(t, err)
+		require.NoError(t, defaultsValidateFile(&file))
+		require.NotNil(t, file.DefaultDetectionContinueOnError)
+		assert.Equal(t, value, *file.DefaultDetectionContinueOnError)
+		data, err := yaml.Marshal(file)
+		require.NoError(t, err)
+		roundTrip, err := defaultsParseFile("defaults.yml", data)
+		require.NoError(t, err)
+		assert.Equal(t, file.DefaultDetectionContinueOnError, roundTrip.DefaultDetectionContinueOnError)
+		changes := defaultsBuildUpdateChanges(&file)
+		index := slices.IndexFunc(changes, func(change defaultsUpdateChange) bool {
+			return change.envName == "GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR"
+		})
+		require.NotEqual(t, -1, index)
+		assert.Equal(t, value, changes[index].value)
+		assert.False(t, changes[index].delete)
+	}
+	for _, value := range []string{"yes", "0", "null", "{}"} {
+		require.ErrorContains(t, defaultsValidateFile(&defaultsFile{DefaultDetectionContinueOnError: &value}), "default_detection_continue_on_error")
+	}
+	for _, source := range []string{"{}", "default_detection_continue_on_error: null"} {
+		file, err := defaultsParseFile("defaults.yml", []byte(source))
+		require.NoError(t, err)
+		require.NoError(t, defaultsValidateFile(&file))
+		assert.Nil(t, file.DefaultDetectionContinueOnError)
+		for _, change := range defaultsBuildUpdateChanges(&file) {
+			if change.envName == "GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR" {
+				assert.True(t, change.delete)
+			}
+		}
+	}
+}
+
 func TestResolveDefaultsTarget(t *testing.T) {
 	orig := defaultsGetCurrentRepoSlug
 	defaultsGetCurrentRepoSlug = func() (string, error) { return "octo-org/example", nil }

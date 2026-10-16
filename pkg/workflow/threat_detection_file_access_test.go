@@ -223,7 +223,7 @@ func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 			data: createTestWorkflowData(t, &ThreatDetectionConfig{}),
 			checkStep: func(t *testing.T, stepsString string) {
 				assert.Contains(t, stepsString, "GH_AW_DETECTION_CONTINUE_ON_ERROR:", "should include GH_AW_DETECTION_CONTINUE_ON_ERROR env var in setup step")
-				assert.Contains(t, stepsString, `GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"`, "default should be true")
+				assert.Contains(t, stepsString, `GH_AW_DETECTION_CONTINUE_ON_ERROR: ${{ steps.detection_mode.outputs.continue_on_error == 'true' }}`, "default should use the resolved runtime mode")
 			},
 		},
 		{

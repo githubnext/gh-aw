@@ -41,6 +41,7 @@ type defaultsFile struct {
 	DefaultAgentJobTimeoutMinutes     *string `yaml:"default_agent_job_timeout_minutes"`
 	DefaultDetectionJobTimeoutMinutes *string `yaml:"default_detection_job_timeout_minutes"`
 	DefaultDetectionModel             *string `yaml:"default_detection_model"`
+	DefaultDetectionContinueOnError   *string `yaml:"default_detection_continue_on_error"`
 	DefaultOTLPEndpoint               *string `yaml:"default_otlp_endpoint"`
 	DefaultUTC                        *string `yaml:"default_utc"`
 	DefaultModelCopilot               *string `yaml:"default_model_copilot"`
@@ -112,6 +113,7 @@ var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultAgentJobTimeoutMinutes, fieldName: "default_agent_job_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultAgentJobTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionJobTimeoutMinutes, fieldName: "default_detection_job_timeout_minutes", get: func(f *defaultsFile) **string { return &f.DefaultDetectionJobTimeoutMinutes }},
 	{envName: compilerenv.DefaultDetectionModel, fieldName: "default_detection_model", get: func(f *defaultsFile) **string { return &f.DefaultDetectionModel }},
+	{envName: compilerenv.DefaultDetectionContinueOnError, fieldName: "default_detection_continue_on_error", get: func(f *defaultsFile) **string { return &f.DefaultDetectionContinueOnError }},
 	{envName: compilerenv.DefaultOTLPEndpoint, fieldName: "default_otlp_endpoint", get: func(f *defaultsFile) **string { return &f.DefaultOTLPEndpoint }},
 	{envName: compilerenv.DefaultUTC, fieldName: "default_utc", get: func(f *defaultsFile) **string { return &f.DefaultUTC }},
 	{envName: compilerenv.DefaultModelCopilot, fieldName: "default_model_copilot", get: func(f *defaultsFile) **string { return &f.DefaultModelCopilot }},
@@ -160,7 +162,7 @@ Scope resolution:
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFile := "file.yml"
-			if len(args) == 1 {
+			if len(args) > 0 {
 				outputFile = args[0]
 			}
 			target, err := resolveDefaultsTarget(scope, repo, org, enterprise, "", false)
@@ -200,7 +202,7 @@ Scope and flag behavior:
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inputFile := "file.yml"
-			if len(args) == 1 {
+			if len(args) > 0 {
 				inputFile = args[0]
 			}
 			if err := validateDefaultsVisibility(scope, visibility, cmd.Flags().Changed("visibility")); err != nil {
@@ -305,7 +307,7 @@ func defaultsParseFile(inputFile string, data []byte) (defaultsFile, error) {
 func defaultsValidateFile(file *defaultsFile) error {
 	var validationErrors []string
 
-	if err := validateDefaultArtifactRetentionDays(file.DefaultArtifactRetentionDays); err != nil {
+	if err := errors.Join(validateDefaultArtifactRetentionDays(file.DefaultArtifactRetentionDays), validateDefaultDetectionContinueOnError(file.DefaultDetectionContinueOnError)); err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
 	validateNonZeroInt := func(field string, value *string) {
@@ -363,6 +365,18 @@ func defaultsValidateFile(file *defaultsFile) error {
 		return fmt.Errorf("invalid defaults file: %s", strings.Join(validationErrors, "; "))
 	}
 	return nil
+}
+
+func validateDefaultDetectionContinueOnError(value *string) error {
+	if value == nil {
+		return nil
+	}
+	switch strings.ToLower(strings.TrimSpace(*value)) {
+	case "", "true", "false":
+		return nil
+	default:
+		return errors.New("default_detection_continue_on_error must be \"true\" or \"false\" (or empty to use the built-in default)")
+	}
 }
 
 func validateDefaultArtifactRetentionDays(value *string) error {

@@ -178,6 +178,10 @@ type RepoConfig struct {
 	// ArtifactRetentionDays overrides retention for all workflow artifacts.
 	ArtifactRetentionDays *TemplatableInt32
 
+	// DefaultDetectionContinueOnError overrides the runtime Actions-variable
+	// default, but not explicit workflow or imported detection settings.
+	DefaultDetectionContinueOnError *bool
+
 	// UTC is the project's home UTC offset used for rendering local times in CLI output.
 	// The value must be a numeric UTC offset such as "+00:00" or "-08:00".
 	UTC string
@@ -273,19 +277,20 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
-		Strict                   bool                          `json:"strict,omitempty"`
-		GHES                     bool                          `json:"ghes,omitempty"`
-		RequireSelfHostedRunners bool                          `json:"require_self_hosted_runners,omitempty"`
-		LockFileLogo             *bool                         `json:"lock_file_logo,omitempty"`
-		ArtifactRetentionDays    *TemplatableInt32             `json:"artifact_retention_days,omitempty"`
-		HelpCommand              *bool                         `json:"help_command,omitempty"` // nil = use default (enabled)
-		UTC                      string                        `json:"utc,omitempty"`
-		AutoUpgrade              json.RawMessage               `json:"auto_upgrade,omitempty"`
-		Maintenance              json.RawMessage               `json:"maintenance,omitempty"`
-		ActionPins               map[string]string             `json:"action_pins,omitempty"`
-		ActionPinPrefixes        map[string]string             `json:"action_pin_prefixes,omitempty"`
-		ContainerPins            map[string]ContainerPinTarget `json:"container_pins,omitempty"`
-		WorkQueue                json.RawMessage               `json:"work_queue,omitempty"`
+		Strict                          bool                          `json:"strict,omitempty"`
+		GHES                            bool                          `json:"ghes,omitempty"`
+		RequireSelfHostedRunners        bool                          `json:"require_self_hosted_runners,omitempty"`
+		LockFileLogo                    *bool                         `json:"lock_file_logo,omitempty"`
+		ArtifactRetentionDays           *TemplatableInt32             `json:"artifact_retention_days,omitempty"`
+		DefaultDetectionContinueOnError *bool                         `json:"default_detection_continue_on_error,omitempty"`
+		HelpCommand                     *bool                         `json:"help_command,omitempty"` // nil = use default (enabled)
+		UTC                             string                        `json:"utc,omitempty"`
+		AutoUpgrade                     json.RawMessage               `json:"auto_upgrade,omitempty"`
+		Maintenance                     json.RawMessage               `json:"maintenance,omitempty"`
+		ActionPins                      map[string]string             `json:"action_pins,omitempty"`
+		ActionPinPrefixes               map[string]string             `json:"action_pin_prefixes,omitempty"`
+		ContainerPins                   map[string]ContainerPinTarget `json:"container_pins,omitempty"`
+		WorkQueue                       json.RawMessage               `json:"work_queue,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -299,6 +304,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners
 	r.LockFileLogo = raw.LockFileLogo
 	r.ArtifactRetentionDays = raw.ArtifactRetentionDays
+	r.DefaultDetectionContinueOnError = raw.DefaultDetectionContinueOnError
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
 	r.ActionPins = raw.ActionPins

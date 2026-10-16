@@ -636,6 +636,11 @@ async function main() {
 
     core.info("🔍 Detection is required. Proceeding to parse detection result...");
 
+    if (!continueOnError && (detectionExecutionOutcome === "failure" || detectionExecutionOutcome === "cancelled")) {
+      setDetectionFailure("agent_failure", `${ERR_SYSTEM}: Detection execution did not complete successfully; blocking publication.`);
+      return;
+    }
+
     // ── Step 2: Try the Codex structured result file first ───────────────────
     // When Codex runs with --output-schema and --output-last-message the final
     // model response is written directly to detection_result.json as clean JSON,
