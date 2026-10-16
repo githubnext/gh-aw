@@ -12541,6 +12541,19 @@
                   "type": "string",
                   "description": "GitHub Actions environment override for the detection job."
                 },
+                "ca-cert": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(/|$)"
+                    },
+                    {
+                      "const": false
+                    }
+                  ],
+                  "description": "Absolute host path to an additional CA certificate for the detection job's API proxy upstream TLS verification. Defaults to sandbox.agent.ca-cert when unset or empty and the detection engine matches the agent engine; set to false to disable inheritance. The file must exist on the detection runner before engine execution; use threat-detection.steps to create it. Requires AWF v0.28.10 or later.",
+                  "examples": ["/tmp/detection-ca.pem", false]
+                },
                 "artifact-base-url": {
                   "type": "string",
                   "format": "uri",
