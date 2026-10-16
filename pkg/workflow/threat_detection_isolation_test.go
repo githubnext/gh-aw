@@ -382,12 +382,13 @@ Test workflow`
 	if !strings.Contains(detectionSection, "install_threat_detect_binary.sh") {
 		t.Error("External detector path must emit 'install_threat_detect_binary.sh' install step")
 	}
-	// In warn mode (continue-on-error default: true), the install step itself must be
-	// continue-on-error so a transient download failure doesn't mark the detection job
-	// as failure when the workflow logic already tolerates a missing binary.
+	// The install step must use the same runtime default as the conclusion step.
 	installStepBlock := extractInstallThreatDetectStepBlock(t, detectionSection)
-	if !strings.Contains(installStepBlock, "continue-on-error: true") {
-		t.Error("Install threat-detect binary step must set continue-on-error: true in warn mode")
+	if !strings.Contains(installStepBlock, "continue-on-error: ${{ steps.detection_mode.outputs.continue_on_error == 'true' }}") {
+		t.Error("Install threat-detect binary step must use the resolved runtime default")
+	}
+	if !strings.Contains(detectionSection, "id: detection_mode") {
+		t.Error("Default detection mode must have a runtime resolver step")
 	}
 	if !strings.Contains(detectionSection, "steps.threat_detect_install.outcome == 'success'") {
 		t.Error("External detector execution must require a successful verified installation")

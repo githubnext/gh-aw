@@ -213,7 +213,7 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			// missing/incomplete detection log as parse_error in warn mode (exit 0).
 			if i == 0 {
 				steps = append(steps, prefixed+"\n")
-				steps = append(steps, fmt.Sprintf("        if: %s\n", detectionExecutionCondition))
+				steps = append(steps, fmt.Sprintf("        if: %s\n", c.buildDetectionExecutionCondition(data)))
 				steps = append(steps, "        continue-on-error: true\n")
 				continue
 			}

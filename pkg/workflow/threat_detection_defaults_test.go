@@ -64,7 +64,7 @@ func TestDetectionDefaultPrecedence(t *testing.T) {
 		} {
 			t.Run(fmt.Sprintf("%t/%s", external, tc.name), func(t *testing.T) {
 				dir := testutil.TempDir(t, "detection-default")
-				source := "---\non: workflow_dispatch\npermissions:\n  contents: read\nengine: claude\nstrict: false\n"
+				source := "---\non:\n  workflow_dispatch:\n    inputs:\n      warn:\n        type: boolean\n        default: true\npermissions:\n  contents: read\nengine: claude\nstrict: false\n"
 				if tc.imported != "" {
 					require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte("---\nsafe-outputs:\n  threat-detection:\n    continue-on-error: "+tc.imported+"\n---\n"), 0600))
 					source += "imports:\n  - shared.md\n"
@@ -87,6 +87,17 @@ func TestDetectionDefaultPrecedence(t *testing.T) {
 				assert.Contains(t, detection, "GH_AW_DETECTION_CONTINUE_ON_ERROR: "+tc.want)
 				assert.Equal(t, tc.runtime, strings.Contains(detection, "id: detection_mode"))
 				assert.Equal(t, tc.runtime, strings.Contains(detection, "vars.GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR"))
+				assert.Equal(t, tc.runtime, strings.Contains(detection, "steps.detection_mode.outcome != 'failure'"))
+				if !tc.runtime {
+					assert.NotContains(t, detection, "steps.detection_mode")
+				}
+				if actionlint, err := exec.LookPath("actionlint"); err == nil {
+					// Match gh aw lint's existing compatibility allowance for Actions concurrency queues.
+					output, err := exec.Command(actionlint, "-shellcheck=", "-pyflakes=", "-ignore", `unexpected key "queue" for "concurrency" section`, stringutil.MarkdownToLockFile(path)).CombinedOutput()
+					require.NoError(t, err, "%s", output)
+				} else {
+					t.Logf("actionlint unavailable; structural step-reference assertions still run: %v", err)
+				}
 				// All consumers must receive the same mode, not independent defaults.
 				for line := range strings.SplitSeq(detection, "\n") {
 					if strings.Contains(line, "GH_AW_DETECTION_CONTINUE_ON_ERROR:") {

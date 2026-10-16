@@ -619,7 +619,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 
 	continueOnError, continueOnErrorExpr, _ := c.resolveThreatDetectionContinueOnError(data)
 
-	executionCondition := detectionExecutionCondition + " && steps.threat_detect_install.outcome == 'success'"
+	executionCondition := c.buildDetectionExecutionCondition(data) + " && steps.threat_detect_install.outcome == 'success'"
 	if isArcDindTopology(threatDetectionData) {
 		executionCondition += " && steps.detection_staging_reset.outcome == 'success'"
 	}
