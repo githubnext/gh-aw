@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-describe("mcp_scripts_validation.cjs", () => {
+describe("validation.cjs", () => {
   function loadUpdateIssueToolSchema() {
     const toolsPath = fileURLToPath(new URL("./safe_outputs_tools.json", import.meta.url));
     try {
@@ -23,7 +23,7 @@ describe("mcp_scripts_validation.cjs", () => {
 
   describe("validateRequiredFields", () => {
     it("should return empty array when no required fields", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { foo: "bar" };
       const schema = { type: "object", properties: { foo: { type: "string" } } };
@@ -34,7 +34,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return empty array when all required fields are present", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "test", age: 25 };
       const schema = {
@@ -49,7 +49,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return missing field names when fields are undefined", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "test" };
       const schema = {
@@ -64,7 +64,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return missing field names when fields are null", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "test", age: null };
       const schema = {
@@ -79,7 +79,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return missing field names when string fields are empty", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "", age: 25 };
       const schema = {
@@ -94,7 +94,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return missing field names when string fields are whitespace only", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "   ", age: 25 };
       const schema = {
@@ -109,7 +109,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return multiple missing field names", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = {};
       const schema = {
@@ -124,7 +124,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should handle schema without required array", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "test" };
       const schema = {
@@ -138,7 +138,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should handle null schema", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "test" };
       const missing = validateRequiredFields(args, null);
@@ -147,7 +147,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should handle undefined schema", async () => {
-      const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
+      const { validateRequiredFields } = await import("./validation.cjs");
 
       const args = { name: "test" };
       const missing = validateRequiredFields(args, undefined);
@@ -158,7 +158,7 @@ describe("mcp_scripts_validation.cjs", () => {
 
   describe("validateStringInputLengths", () => {
     it("should return empty array when no string properties exceed limit", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
 
       const args = { name: "hello", count: 42 };
       const schema = {
@@ -175,7 +175,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return violation when string property exceeds 10 KB limit", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
 
       const oversizedValue = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
       const args = { message: oversizedValue };
@@ -193,7 +193,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should not flag a string at exactly the 10 KB limit", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
 
       const exactValue = "a".repeat(MAX_STRING_INPUT_BYTES);
       const args = { message: exactValue };
@@ -208,7 +208,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return multiple violations when multiple strings exceed the limit", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
 
       const oversizedValue = "x".repeat(MAX_STRING_INPUT_BYTES + 100);
       const args = { a: oversizedValue, b: oversizedValue };
@@ -227,7 +227,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should not flag non-string typed properties even if they contain string values", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
 
       const oversizedValue = "z".repeat(MAX_STRING_INPUT_BYTES + 1);
       const args = { count: oversizedValue };
@@ -242,7 +242,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should handle null or undefined schema gracefully", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
 
       const args = { message: "hello" };
 
@@ -251,7 +251,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should respect a custom maxBytes override", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
 
       const args = { label: "abcde" }; // 5 ASCII bytes
       const schema = {
@@ -270,7 +270,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should measure byte length correctly for multi-byte UTF-8 characters", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
 
       // Each emoji is 4 bytes in UTF-8
       const emojiString = "🚀".repeat(10); // 40 bytes
@@ -290,7 +290,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should not flag missing (undefined) string values", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
 
       const args = {};
       const schema = {
@@ -304,7 +304,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should enforce explicit maxLength for string fields", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
 
       // Exceeds explicit maxLength
       const valueExceedingExplicitMax = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
@@ -320,7 +320,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should still check string fields without maxLength when other fields have explicit maxLength", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
 
       const oversizedValue = "a".repeat(MAX_STRING_INPUT_BYTES + 1);
       const args = { body: oversizedValue, title: oversizedValue };
@@ -340,7 +340,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should enforce explicit maxLength using character count", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
 
       const args = { body: "🚀".repeat(3) };
       const schema = {
@@ -353,7 +353,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should allow update_issue body above 10KB when schema declares maxLength", async () => {
-      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./validation.cjs");
       const updateIssueSchema = loadUpdateIssueToolSchema();
 
       expect(updateIssueSchema.properties.body.maxLength).toBe(65536);
@@ -364,7 +364,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should enforce update_issue body schema maxLength boundary", async () => {
-      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringInputLengths } = await import("./validation.cjs");
       const updateIssueSchema = loadUpdateIssueToolSchema();
 
       const args = { body: "a".repeat(65537) };
@@ -376,7 +376,7 @@ describe("mcp_scripts_validation.cjs", () => {
 
   describe("validateStringMinLengths", () => {
     it("should return empty array when all string fields meet minLength", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { body: "This body is long enough to satisfy the constraint" };
       const schema = {
@@ -388,7 +388,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return violation when field is shorter than minLength", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { body: "." };
       const schema = {
@@ -404,7 +404,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should trim whitespace before comparing against minLength", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       // 25 spaces — trims to 0 chars, below minLength 20
       const args = { body: " ".repeat(25) };
@@ -419,7 +419,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should accept a value at exactly minLength", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { body: "12345678901234567890" }; // exactly 20 chars
       const schema = {
@@ -431,7 +431,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should skip absent fields", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = {};
       const schema = {
@@ -443,7 +443,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should skip fields with no minLength in schema", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { title: "short" };
       const schema = {
@@ -455,7 +455,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should skip non-string typed fields", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { count: 3 };
       const schema = {
@@ -467,7 +467,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should return violations for multiple short fields", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { title: "Hi", body: "." };
       const schema = {
@@ -486,7 +486,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should handle null/undefined inputSchema gracefully", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { body: "short" };
 
@@ -495,7 +495,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("should accept minLength of zero (always passes)", async () => {
-      const { validateStringMinLengths } = await import("./mcp_scripts_validation.cjs");
+      const { validateStringMinLengths } = await import("./validation.cjs");
 
       const args = { body: "" };
       const schema = {
@@ -509,7 +509,7 @@ describe("mcp_scripts_validation.cjs", () => {
 
   describe("validateArgumentsAgainstSchema", () => {
     it("enforces required fields in root anyOf branches", async () => {
-      const { validateArgumentsAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const { validateArgumentsAgainstSchema } = await import("./validation.cjs");
       const schema = {
         type: "object",
         properties: { issue_number: { type: "number" }, status: { type: "string" }, labels: { type: "array" } },
@@ -521,7 +521,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("validates nested array item objects and required fields", async () => {
-      const { validateArgumentsAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const { validateArgumentsAgainstSchema } = await import("./validation.cjs");
       const schema = {
         type: "object",
         properties: {
@@ -548,7 +548,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("validates oneOf/anyOf, enum, and additionalProperties recursively", async () => {
-      const { validateArgumentsAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const { validateArgumentsAgainstSchema } = await import("./validation.cjs");
       const schema = {
         type: "object",
         properties: {
@@ -582,7 +582,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("rejects inherited property names as undeclared schema properties", async () => {
-      const { validateValueAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const { validateValueAgainstSchema } = await import("./validation.cjs");
       const schema = { type: "object", properties: { subject: { type: "string" } }, additionalProperties: false };
 
       for (const key of ["__proto__", "constructor", "toString", "valueOf", "hasOwnProperty"]) {
@@ -592,7 +592,7 @@ describe("mcp_scripts_validation.cjs", () => {
     });
 
     it("requires required properties to be own properties", async () => {
-      const { validateValueAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const { validateValueAgainstSchema } = await import("./validation.cjs");
       const value = Object.create({ subject: "inherited" });
 
       expect(validateValueAgainstSchema(value, { type: "object", required: ["subject"] })).toMatchObject({
@@ -604,7 +604,7 @@ describe("mcp_scripts_validation.cjs", () => {
 
   describe("formatSchemaValidationError", () => {
     it("formats strict add_labels object-shape guidance", async () => {
-      const { formatSchemaValidationError } = await import("./mcp_scripts_validation.cjs");
+      const { formatSchemaValidationError } = await import("./validation.cjs");
       const message = formatSchemaValidationError("add_labels", { labels: ["bug"] }, { path: "labels[0]", message: "must be a object" });
       expect(message).toContain("Invalid arguments for add_labels:");
       expect(message).toContain("labels[0] must be an object (string shorthand is not supported).");

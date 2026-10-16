@@ -1,6 +1,6 @@
 // @ts-check
 
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("./validation.cjs");
 const { validateSchemaContract, MAX_SCHEMA_DEPTH } = require("./memory_schema_contract.cjs");
 
 /**

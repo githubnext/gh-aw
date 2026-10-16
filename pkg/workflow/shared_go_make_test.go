@@ -180,7 +180,7 @@ func TestSharedGoMakeToolConfig(t *testing.T) {
 					input, err := json.Marshal(map[string]any{"schema": tool.InputSchema, "value": test.value})
 					require.NoError(t, err)
 					cmd := exec.Command(node, "-e", `
-const { validateValueAgainstSchema } = require("../../actions/setup/js/mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("../../actions/setup/js/validation.cjs");
 const { schema, value } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
 process.stdout.write(JSON.stringify(validateValueAgainstSchema(value, schema)));
 `)

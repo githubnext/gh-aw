@@ -6,7 +6,7 @@ const path = require("node:path");
 const { Ledger, configuredLedgerLimits } = require("./ledger_store.cjs");
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { readLedgerConfig } = require("./push_ledger_changes.cjs");
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("./validation.cjs");
 const { materializeReplay } = require("./ledger_replay.cjs");
 const { replayBuiltin } = require("./ledger_builtin.cjs");
 

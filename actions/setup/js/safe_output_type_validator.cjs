@@ -13,7 +13,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("./validation.cjs");
 const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
 const { isBlankOptionalField, normalizeBlankOptionalFields } = require("./optional_field_normalizer.cjs");
 

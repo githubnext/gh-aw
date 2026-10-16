@@ -2,7 +2,7 @@
 "use strict";
 
 const { canonicalJSON } = require("./ledger_store.cjs");
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("./validation.cjs");
 
 const OPERATIONS = Object.freeze({
   log: ["append"],

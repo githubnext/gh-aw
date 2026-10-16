@@ -31,7 +31,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
-const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError, validateStringMinLengths, validateArgumentsAgainstSchema, formatSchemaValidationError } = require("./mcp_scripts_validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError, validateStringMinLengths, validateArgumentsAgainstSchema, formatSchemaValidationError } = require("./validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createDependencyInstallGate } = require("./mcp_dependencies_manager.cjs");

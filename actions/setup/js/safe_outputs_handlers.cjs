@@ -29,7 +29,7 @@ const { isProbingNoopMessage, validateCreatePullRequestIntent, validatePushToPul
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { validateValueAgainstSchema } = require("./validation.cjs");
 const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
 const { normalizeBlankOptionalFields } = require("./optional_field_normalizer.cjs");
 const { clearValidationMarker, formatJSONFiles, runCustomMemoryValidation, writeValidationMarker } = require("./memory_custom_validation.cjs");
