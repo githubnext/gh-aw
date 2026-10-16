@@ -177,7 +177,7 @@ func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, wo
 		fixLog.Printf("Processing file: %s", file)
 
 		fixed, appliedFixes, err := processWorkflowFileWithInfo(file, codemods, write, verbose)
-		if write && fixed && onApplied != nil {
+		if err == nil && write && fixed && onApplied != nil {
 			onApplied(file, appliedFixes)
 		}
 		if err != nil {
@@ -338,7 +338,7 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 		}
 
 		if err := scaffoldSerenaSharedWorkflowIfNeeded(filePath, appliedCodemods, currentContent, verbose); err != nil {
-			return true, appliedCodemods, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
+			return false, nil, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
 		}
 
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fileName))

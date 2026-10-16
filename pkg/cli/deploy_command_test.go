@@ -220,7 +220,7 @@ func TestCreateDeployPRAutoMergePropagation(t *testing.T) {
 				autoMergeCalls++
 				return nil, enableErr
 			}
-			err := createDeployPR(context.Background(), []string{"owner/source/workflow"}, "octo/repo", false, autoMerge)
+			err := createDeployPR(context.Background(), []string{"owner/source/workflow"}, "octo/repo", false, autoMerge, "")
 			if autoMerge {
 				require.ErrorIs(t, err, enableErr)
 				require.ErrorContains(t, err, "https://github.com/octo/repo/pull/42")
@@ -239,7 +239,7 @@ func TestBuildDeployPRMetadata_SingleWorkflow(t *testing.T) {
 	title, body := buildDeployPRMetadata([]string{"githubnext/agentics/ci-doctor"}, "owner/repo")
 	assert.Equal(t, deployCommitMessage, title)
 	assert.Contains(t, body, "Deploy ci-doctor to owner/repo.")
-	assert.Contains(t, body, "compile --purge")
+	assert.Contains(t, body, "- `githubnext/agentics/ci-doctor`")
 }
 
 func TestBuildDeployPRMetadata_MultipleWorkflows(t *testing.T) {

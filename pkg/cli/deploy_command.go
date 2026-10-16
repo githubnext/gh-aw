@@ -84,7 +84,7 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 	if err != nil {
 		return err
 	}
-	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge, details, addOpts.PRMessage); err != nil {
+	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge, appendPRMessage(details, addOpts.PRMessage)); err != nil {
 		return err
 	}
 
@@ -278,11 +278,9 @@ func runDeployCompilePass(ctx context.Context, addOpts AddOptions) error {
 	return nil
 }
 
-func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool, details ...string) error {
+func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool, details string) error {
 	prTitle, prBody := buildDeployPRMetadata(resolvedWorkflows, targetRepo)
-	for _, detail := range details {
-		prBody = appendPRMessage(prBody, detail)
-	}
+	prBody = appendPRMessage(prBody, details)
 	_, err := createPRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose, autoMerge)
 	if err != nil {
 		return fmt.Errorf("failed to create deploy pull request: %w", err)
@@ -314,11 +312,13 @@ func buildDeployPRMetadata(workflows []string, targetRepo string) (string, strin
 	}
 	var body strings.Builder
 	body.WriteString("## Summary\n\nDeploy " + markdownText(workflowDescription) + " to " + markdownText(targetRepo) + ".\n\n")
-	body.WriteString("This PR was created by `gh aw deploy` after running update, add, and compile --purge in the target repository.\n\n## Workflows requested\n\n")
+	body.WriteString("## Workflows requested\n\n")
 	for _, spec := range workflows {
-		body.WriteString("- `" + markdownText(spec) + "`\n")
+		if isLocalWorkflowPath(spec) {
+			spec = filepath.Base(spec)
+		}
+		body.WriteString("- " + summaryCode(spec) + "\n")
 	}
-	body.WriteString("\n## Deployment steps\n\n- Update existing sourced workflows and dependency pins.\n- Add the requested workflows that are not already managed by their source.\n- Recompile workflows and purge stale generated lock files.\n\n## Review and next steps\n\nReview workflow sources, permissions, network access, and generated lock files. After merging, verify required repository secrets and monitor the first workflow runs.\n")
 	return deployCommitMessage, body.String()
 }
 

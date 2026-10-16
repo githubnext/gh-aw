@@ -431,6 +431,11 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 	if err := validatePRBody(buildTransferPRBody(prInfo)); err != nil {
 		return err
 	}
+	bodyFile, err := writePRBodyFile(withPRFooter(buildTransferPRBody(prInfo)))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(bodyFile)
 	// Check if user has write access to target repository
 	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
 	if err != nil && verbose {
@@ -523,9 +528,6 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 		return fmt.Errorf("could not push branch; ensure required prerequisites are configured, then retry: %w", err)
 	}
 
-	// Create PR body with original info
-	prBody := withPRFooter(buildTransferPRBody(prInfo))
-
 	// Create the PR
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
 	var headRef string
@@ -538,7 +540,7 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 	output, err := workflow.RunGHContext(ctx, "Creating pull request...", "pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
-		"--body", prBody,
+		"--body-file", bodyFile,
 		"--head", headRef)
 	if err != nil {
 		return fmt.Errorf("could not create PR; ensure required prerequisites are configured, then retry: %w", err)
@@ -849,7 +851,12 @@ func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug stri
 	// Build gh pr create args. Explicitly specifying --repo ensures the PR is created in the
 	// current repo (not an upstream fork). Use GH_HOST env var instead of --hostname
 	// (which is only valid for gh api, not gh pr create).
-	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", withPRFooter(body), "--head", branchName}
+	bodyFile, err := writePRBodyFile(withPRFooter(body))
+	if err != nil {
+		return 0, "", err
+	}
+	defer os.Remove(bodyFile)
+	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body-file", bodyFile, "--head", branchName}
 	output, err := createPRRunGHContextWithHost(ctx, "Creating pull request...", remoteHost, prCreateArgs...)
 	if err != nil {
 		// Try to get stderr for better error reporting
@@ -863,14 +870,9 @@ func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug stri
 	prURL := strings.TrimSpace(string(output))
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request: "+prURL))
 
-	// Parse PR number from URL (e.g., https://github.com/owner/repo/pull/123)
-	prNumber := 0
-	parts := strings.Split(prURL, "/")
-	if len(parts) > 0 {
-		if num, parseErr := strconv.Atoi(parts[len(parts)-1]); parseErr == nil {
-			prNumber = num
-		}
+	prNumber, parseErr := strconv.Atoi(filepath.Base(prURL))
+	if parseErr != nil {
+		prNumber = 0
 	}
-
 	return prNumber, prURL, nil
 }

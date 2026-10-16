@@ -1488,6 +1488,22 @@ tools:
 	}
 }
 
+func TestFixCommandScaffoldFailureDoesNotReportAppliedCodemods(t *testing.T) {
+	t.Chdir(t.TempDir())
+	workflowDir := filepath.Join(".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(workflowDir, "shared"), []byte("not a directory"), 0600))
+	file := filepath.Join(workflowDir, "test.md")
+	content := "---\nengine: copilot\ntools:\n  serena: [\"typescript\"]\n---\n\n# Test\n"
+	require.NoError(t, os.WriteFile(file, []byte(content), 0600))
+	reported := false
+	err := runFixCommandWithResults([]string{"test"}, true, false, workflowDir, nil, func(string, []string) {
+		reported = true
+	})
+	require.Error(t, err)
+	assert.False(t, reported, "a failed scaffold must not report successfully applied fixes")
+}
+
 func TestRunFix_GuidedErrorReturnsExitCode2(t *testing.T) {
 	t.Parallel()
 	tmpDir := t.TempDir()
