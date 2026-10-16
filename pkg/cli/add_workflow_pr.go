@@ -307,7 +307,7 @@ func buildAddWorkflowPRBody(workflows []*ResolvedWorkflow, opts AddOptions) stri
 	body.WriteString(".\n")
 	body.WriteString("3. Monitor the first scheduled or manually dispatched run, then adjust the Markdown source and recompile if the workflow needs refinement.\n")
 
-	return body.String()
+	return appendPRMessage(body.String(), opts.PRMessage)
 }
 
 func workflowSourceMarkdown(resolved *ResolvedWorkflow) string {

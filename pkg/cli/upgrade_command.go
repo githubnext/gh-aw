@@ -90,6 +90,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			prMessage, _ := cmd.Flags().GetString("pr-message")
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
 			yes, _ := cmd.Flags().GetBool("yes")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
@@ -148,6 +149,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				yes:                  yes,
 				engineOverride:       engineOverride,
 				autoMerge:            autoMerge,
+				prMessage:            prMessage,
 			}
 
 			if targetRepo != "" {
@@ -162,6 +164,11 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				if err := PreflightCheckForCreatePR(verbose); err != nil {
 					return err
 				}
+				var err error
+				opts.summary, err = newUpdatePRSummary(cmd.Context(), opts.workflowDir)
+				if err != nil {
+					return err
+				}
 			}
 
 			if err := runUpgradeCommand(opts); err != nil {
@@ -169,9 +176,12 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			}
 
 			if createPR {
-				prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
-					"updating GitHub Actions versions, and recompiling all workflows."
-				_, err := createPRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+				prBody, err := opts.summary.body(cmd.Context(), "upgrade")
+				if err != nil {
+					return err
+				}
+				prBody = appendPRMessage(prBody, opts.prMessage)
+				_, err = createPRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 					"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
 				return err
 			}
@@ -189,6 +199,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
+	addPRMessageFlag(cmd)
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode upgrade confirmations (required in CI)")
@@ -242,6 +253,8 @@ type upgradeOptions struct {
 	yes                  bool
 	engineOverride       string
 	autoMerge            bool
+	prMessage            string
+	summary              *updatePRSummary
 }
 
 // runUpgradeCommand executes the upgrade process
@@ -250,6 +263,7 @@ type upgradeOptions struct {
 func runUpgradeCommand(opts upgradeOptions) error {
 	upgradeLog.Printf("Running upgrade command: verbose=%v, workflowDir=%s, noFix=%v, noCompile=%v, noActions=%v, disabledCodemodIDs=%v, skipExtensionUpgrade=%v",
 		opts.verbose, opts.workflowDir, opts.noFix, opts.noCompile, opts.noActions, opts.disabledCodemodIDs, opts.skipExtensionUpgrade)
+	opts.recordSkippedSummarySteps()
 
 	// Step 0b: Ensure gh-aw extension is on the latest version.
 	// If the extension was just upgraded, re-launch the freshly-installed binary
@@ -302,12 +316,17 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			WorkflowDir:        opts.workflowDir,
 			DisabledCodemodIDs: opts.disabledCodemodIDs,
 		}
+		if opts.summary != nil {
+			fixConfig.OnApplied = opts.summary.recordFix
+		}
 
 		if err := RunFix(fixConfig); err != nil {
+			opts.recordSummaryOutcome("Codemod step reported errors; only successfully written workflow fixes are listed.")
 			upgradeLog.Printf("Failed to apply codemods: %v", err)
 			// Don't fail the upgrade if fix fails - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to apply codemods: %v", err)))
 		}
+		opts.recordSummaryOutcome("Codemod step ran; applied fixes are listed above.")
 	} else {
 		upgradeLog.Print("Skipping codemods (--no-fix specified)")
 		if opts.verbose {
@@ -321,6 +340,7 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		upgradeLog.Print("Updating GitHub Actions versions")
 
 		if err := UpdateActions(opts.ctx, false, opts.verbose, false, 0); err != nil {
+			opts.recordSummaryOutcome("Action pin update reported an error; the summary shows only file changes actually produced.")
 			upgradeLog.Printf("Failed to update actions: %v", err)
 			// Don't fail the upgrade if action updates fail - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update actions: %v", err)))
@@ -334,6 +354,7 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			// deferred to Step 4.
 			upgradeLog.Print("Updating action references in workflow .md files")
 			if err := UpdateActionsInWorkflowFiles(opts.ctx, opts.workflowDir, opts.engineOverride, opts.verbose, false, true, 0, false); err != nil {
+				opts.recordSummaryOutcome("Workflow action reference update reported an error.")
 				msg := fmt.Sprintf("Failed to update action references in workflow files: %v", err)
 				upgradeLog.Print(msg)
 				// Non-critical: warn but don't fail the upgrade
@@ -362,9 +383,12 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		// Use the shared directory compile pipeline so post-processing, including
 		// maintenance workflow generation and implicit expiry reconciliation, runs.
 		if compileErr := compileWorkflowsForUpdate(opts.ctx, nil, opts.workflowDir, opts.engineOverride, opts.verbose, opts.approve); compileErr != nil {
+			opts.recordSummaryOutcome("Workflow compilation reported an error; generated artifacts may be incomplete.")
 			upgradeLog.Printf("Failed to compile workflows: %v", compileErr)
 			// Don't fail the upgrade if compilation fails - this is non-critical
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile workflows: %v", compileErr)))
+		} else {
+			opts.recordSummaryOutcome("Workflow compilation completed.")
 		}
 	} else {
 		if opts.noFix {
@@ -391,6 +415,7 @@ func runUpgradeCommand(opts upgradeOptions) error {
 		upgradeLog.Print("Updating container image digest pins")
 		newPins, err := UpdateContainerPins(opts.ctx, opts.workflowDir, opts.verbose)
 		if err != nil {
+			opts.recordSummaryOutcome("Container pin update reported an error; only pins actually written are listed.")
 			upgradeLog.Printf("Failed to update container pins: %v", err)
 			// Non-critical — Docker may not be available in all environments.
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update container pins: %v", err)))
@@ -401,6 +426,7 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			upgradeLog.Print("Recompiling workflows to embed new container digest pins")
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflows to embed container digest pins..."))
 			if recompileErr := recompileAllWorkflows(opts.ctx, opts.workflowDir, opts.engineOverride, opts.verbose, opts.approve); recompileErr != nil {
+				opts.recordSummaryOutcome("Recompilation after container pin updates reported an error.")
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile after container pin update: %v", recompileErr)))
 			}
 		}
@@ -411,6 +437,25 @@ func runUpgradeCommand(opts upgradeOptions) error {
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Upgrade complete"))
 
 	return nil
+}
+
+func (opts upgradeOptions) recordSummaryOutcome(outcome string) {
+	if opts.summary != nil {
+		opts.summary.outcomes = append(opts.summary.outcomes, outcome)
+	}
+}
+
+func (opts upgradeOptions) recordSkippedSummarySteps() {
+	if opts.noFix {
+		opts.recordSummaryOutcome("Codemods, action/container updates, and workflow compilation skipped (`--no-fix`).")
+		return
+	}
+	if opts.noActions {
+		opts.recordSummaryOutcome("Explicit action and container update steps skipped (`--no-actions`).")
+	}
+	if opts.noCompile {
+		opts.recordSummaryOutcome("Workflow compilation skipped (`--no-compile`).")
+	}
 }
 
 // updateCopilotArtifacts updates the dispatcher skill and related Copilot setup artifacts.

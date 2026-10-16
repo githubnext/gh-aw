@@ -58,6 +58,7 @@ func (c *AddInteractiveConfig) createWorkflowChangesAndConfigureSecret(ctx conte
 		AppendText:                       c.AppendText,
 		CreatePR:                         createPR,
 		AutoMerge:                        c.AutoMerge,
+		PRMessage:                        c.PRMessage,
 		NoGitattributes:                  c.NoGitattributes,
 		WorkflowDir:                      c.WorkflowDir,
 		NoStopAfter:                      c.NoStopAfter,

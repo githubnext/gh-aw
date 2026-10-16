@@ -25,11 +25,13 @@ type FixConfig struct {
 	Verbose            bool
 	WorkflowDir        string   // Custom workflow directory
 	DisabledCodemodIDs []string // Codemod IDs to skip
+	// OnApplied receives only fixes successfully written to a workflow.
+	OnApplied func(file string, fixes []string)
 }
 
 // RunFix runs the fix command with the given configuration
 func RunFix(config FixConfig) error {
-	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs)
+	return runFixCommandWithResults(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs, config.OnApplied)
 }
 
 // NewFixCommand creates the fix command
@@ -115,7 +117,11 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error { //nolint:largefunc // Existing command orchestration remains centralized.
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error {
+	return runFixCommandWithResults(workflowIDs, write, verbose, workflowDir, disabledCodemodIDs, nil)
+}
+
+func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, onApplied func(string, []string)) error { //nolint:largefunc // Existing command orchestration remains centralized.
 	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s, disabledCodemodIDs=%v", workflowIDs, write, verbose, workflowDir, disabledCodemodIDs)
 
 	// Set up workflow directory (using default if not specified)
@@ -171,6 +177,9 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 		fixLog.Printf("Processing file: %s", file)
 
 		fixed, appliedFixes, err := processWorkflowFileWithInfo(file, codemods, write, verbose)
+		if write && fixed && onApplied != nil {
+			onApplied(file, appliedFixes)
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("Error processing %s: %v", filepath.Base(file), err)))
 			var guidedErr *GuidedError
@@ -329,7 +338,7 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 		}
 
 		if err := scaffoldSerenaSharedWorkflowIfNeeded(filePath, appliedCodemods, currentContent, verbose); err != nil {
-			return false, nil, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
+			return true, appliedCodemods, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
 		}
 
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fileName))

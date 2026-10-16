@@ -209,7 +209,7 @@ func normalizeDisplayVersion(version string) string {
 
 // runUpgradeForTargetRepo checks out repo to a temporary directory, runs the
 // upgrade command inside it, and opens a pull request with the resulting changes.
-func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptions, createPR bool, verbose bool) error {
+func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptions, createPR bool, verbose bool) error { //nolint:largefunc // Checkout lifetime, upgrade, and PR creation share ordered cleanup.
 	gitRoot, err := gitutil.FindGitRoot()
 	if err != nil {
 		return fmt.Errorf("--repo/--org requires running inside a git repository: %w", err)
@@ -265,6 +265,12 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 	opts.skipExtensionUpgrade = true
 	opts.verbose = verbose
 	opts.workflowDir = ""
+	if createPR {
+		opts.summary, err = newUpdatePRSummary(ctx, opts.workflowDir)
+		if err != nil {
+			return err
+		}
+	}
 
 	if err := runUpgradeCommand(opts); err != nil {
 		return err
@@ -287,19 +293,16 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		return nil
 	}
 
-	releaseTag, releaseURL := getGhawReleaseInfo(ctx)
-	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, releaseTag)
+	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, normalizeDisplayVersion(GetVersion()))
 
 	// Close any stale upgrade PRs in the target repo before creating the new one.
 	closeExistingOrgPRsByMarker(ctx, repo, ghawUpgradeMarkerPrefix, verbose)
 
-	var releaseLine string
-	if releaseURL != "" {
-		releaseLine = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
+	prBody, err := opts.summary.body(ctx, "upgrade")
+	if err != nil {
+		return err
 	}
-	prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
-		"updating GitHub Actions versions, and recompiling all workflows." +
-		releaseLine + "\n" + xmlMarker
+	prBody = appendPRMessage(prBody, opts.prMessage) + "\n" + xmlMarker
 
 	prURL, err := createPRWithChanges(ctx, "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 		"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
