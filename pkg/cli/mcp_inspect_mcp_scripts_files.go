@@ -32,7 +32,7 @@ func writeMCPScriptsFiles(dir string, mcpScriptsConfig *workflow.MCPScriptsConfi
 		{"mcp_http_transport.cjs", workflow.GetMCPHTTPTransportScript()},
 		{"mcp_scripts_config_loader.cjs", workflow.GetMCPScriptsConfigLoaderScript()},
 		{"mcp_server_core.cjs", workflow.GetMCPServerCoreScript()},
-		{"validation.cjs", workflow.GetMCPScriptsValidationScript()},
+		{"schema-validation.cjs", workflow.GetMCPScriptsValidationScript()},
 		{"mcp_logger.cjs", workflow.GetMCPLoggerScript()},
 		{"mcp_handler_shell.cjs", workflow.GetMCPHandlerShellScript()},
 		{"mcp_handler_python.cjs", workflow.GetMCPHandlerPythonScript()},

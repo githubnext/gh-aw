@@ -24,7 +24,7 @@ require("./shim.cjs");
 
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError } = require("./validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError } = require("./schema-validation.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapMCPScriptsServer, cleanupConfigFile } = require("./mcp_scripts_bootstrap.cjs");

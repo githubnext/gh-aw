@@ -8,7 +8,7 @@ const { Ledger, canonicalJSON, configuredLedgerLimits } = require("./ledger_stor
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { pushRepoMemoryChangesWithRetry, configureRepoMemoryMergePolicy } = require("./push_repo_memory.cjs");
 const { finalId } = require("./ledger_transactions.cjs");
-const { validateValueAgainstSchema } = require("./validation.cjs");
+const { validateValueAgainstSchema } = require("./schema-validation.cjs");
 const { createReducer, validateOperation } = require("./ledger_builtin.cjs");
 
 const MAX_TRANSACTION_BYTES = 12 * 1024 * 1024;

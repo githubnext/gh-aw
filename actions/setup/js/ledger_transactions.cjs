@@ -2,7 +2,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
-const { validateValueAgainstSchema } = require("./validation.cjs");
+const { validateValueAgainstSchema } = require("./schema-validation.cjs");
 const { validateOperation } = require("./ledger_builtin.cjs");
 
 const TEMPORARY_ID = /^#?[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;

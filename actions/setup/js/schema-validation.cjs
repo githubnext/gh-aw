@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * Shared Validation Helpers
+ * Shared Schema Validation Helpers
  *
  * Shared argument and schema validation for MCP servers, safe outputs, ledgers,
  * and JSON-schema consumers.
