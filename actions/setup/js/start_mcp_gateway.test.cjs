@@ -283,22 +283,30 @@ describe("start_mcp_gateway health timeout", () => {
     expect(config.retryBudgetMs).toBeGreaterThanOrEqual(2147483000 + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS);
   });
 
-  it("keeps polling past the old retry budget until a slow backend becomes ready", async () => {
-    vi.useFakeTimers();
+  it.each([
+    { backendStartupTimeoutMs: 300_000, readyMs: 300_000, backoffMultiplier: "2" },
+    { backendStartupTimeoutMs: 1000, readyMs: 25_000, initialDelayMs: "1", backoffMultiplier: "1.00001" },
+  ])("keeps polling through backend startup and registration: %j", async ({ backendStartupTimeoutMs, readyMs, initialDelayMs, backoffMultiplier }) => {
+    vi.useFakeTimers({ loopLimit: 50_000 });
     vi.setSystemTime(0);
     vi.spyOn(global.core, "warning").mockImplementation(() => {});
-    const config = resolveGatewayHealthRetryConfig({ [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000" });
-    const probe = vi.fn(async () => {
-      if (Date.now() < 300_000) throw new Error("backend still starting");
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: String(backendStartupTimeoutMs),
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: initialDelayMs,
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: backoffMultiplier,
     });
-    const wait = retryGatewayStartup(probe, config, 325_000, "health");
+    const deadline = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+    const probe = vi.fn(async () => {
+      if (Date.now() < readyMs) throw new Error("backend still starting");
+    });
+    const wait = retryGatewayStartup(probe, config, deadline, "health");
 
     await vi.runAllTimersAsync();
     await wait;
 
     expect(probe.mock.calls.length).toBeGreaterThan(150);
-    expect(Date.now()).toBeGreaterThanOrEqual(300_000);
-    expect(Date.now()).toBeLessThan(325_000);
+    expect(Date.now()).toBeGreaterThanOrEqual(readyMs);
+    expect(Date.now()).toBeLessThan(deadline);
   });
 
   it("stops an unavailable gateway at the shared startup deadline", async () => {
@@ -366,7 +374,7 @@ describe("start_mcp_gateway health timeout", () => {
     { maxTotalAttempts: 500, initialDelayMs: 250, maxDelayMs: 1000, backoffMultiplier: 1 },
     { maxTotalAttempts: 500, initialDelayMs: 1, maxDelayMs: 1000, backoffMultiplier: 1.0000000000000002 },
     { maxTotalAttempts: 500, initialDelayMs: 250, maxDelayMs: 1000, backoffMultiplier: Number.MAX_VALUE },
-  ])("matches the retry loop's cumulative delay: %j", config => {
+  ])("matches the unrounded backoff schedule: %j", config => {
     let delayMs = config.initialDelayMs;
     let budgetMs = 0;
     for (let attempt = 1; attempt < config.maxTotalAttempts; attempt += 1) {

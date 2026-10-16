@@ -83,7 +83,7 @@ async function retryGatewayStartup(probe, retryConfig, deadline, label, shouldRe
         throw err;
       }
       delayMs = Math.min(delayMs * retryConfig.backoffMultiplier, retryConfig.maxDelayMs);
-      const sleepMs = Math.min(delayMs, deadline - nowMs());
+      const sleepMs = Math.min(Math.ceil(delayMs), deadline - nowMs());
       core.warning(`${label}: retrying after attempt ${attempt} in ${sleepMs}ms`);
       await sleep(sleepMs);
     }
@@ -148,7 +148,8 @@ function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
 }
 
 /**
- * Computes the cumulative startup retry delay before exhausting its attempts.
+ * Computes a lower bound on the cumulative startup retry delay before exhausting
+ * its attempts. Actual sleeps round up to avoid Node truncating fractional delays.
  * The retry loop applies the backoff multiplier before its first sleep,
  * so the first retry waits initialDelayMs * backoffMultiplier.
  *
