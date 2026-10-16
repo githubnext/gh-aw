@@ -22,7 +22,7 @@ tools:
     worker: true
     require-assignment: true
 imports:
-  - pydantic/pydantic-ai/src/pydantic_ai_harness/gh-aw/pydantic.md@319d72ccf220427e59b9f4e61f17d7be52c90d68
+  - pydantic/pydantic-ai/src/pydantic_ai_harness/gh-aw/pydantic.md@4f6799896fcb386cc5d0af7e84b4b17c17dd14c3
   - uses: shared/engine-conformance.md
     with:
       engine-id: pydantic-ai
