@@ -46,6 +46,8 @@ func TestParseFrontmatterConfigShorthands(t *testing.T) {
 			frontmatter := map[string]any{
 				"on":           trigger,
 				"excluded-env": []any{"OTEL_EXPORTER_OTLP_HEADERS"},
+				"tools":        map[string]any{"github": false},
+				"sandbox":      map[string]any{"agent": false},
 				"safe-outputs": map[string]any{
 					"noop": map[string]any{"max": max},
 					"data": map[string]any{"max": 1},
@@ -58,6 +60,11 @@ func TestParseFrontmatterConfigShorthands(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, map[string]any{"workflow_dispatch": nil}, config.On)
 			assert.Equal(t, []string{"OTEL_EXPORTER_OTLP_HEADERS"}, config.ExcludedEnv)
+			require.NotNil(t, config.Tools)
+			assert.Nil(t, config.Tools.GitHub)
+			require.NotNil(t, config.Sandbox)
+			require.NotNil(t, config.Sandbox.Agent)
+			assert.True(t, config.Sandbox.Agent.Disabled)
 			require.NotNil(t, config.SafeOutputs)
 			require.NotNil(t, config.SafeOutputs.NoOp)
 			require.NotNil(t, config.SafeOutputs.NoOp.Max)

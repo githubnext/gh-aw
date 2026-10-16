@@ -25,6 +25,7 @@ func TestCompileExcludedEnvWithFrontmatterShorthands(t *testing.T) {
 		{"integer max", "on:\n  workflow_dispatch:\nsafe-outputs: { noop: { max: 1 } }"},
 		{"string trigger", "on: workflow_dispatch"},
 		{"both shorthands", "on: workflow_dispatch\nsafe-outputs: { noop: { max: 1 } }"},
+		{"disabled github tool", "on: workflow_dispatch\ntools: { github: false }"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -164,6 +164,20 @@ func normalizeFrontmatterConfig(frontmatter map[string]any) (map[string]any, err
 	if trigger, ok := frontmatter["on"].(string); ok {
 		normalized["on"] = map[string]any{trigger: nil}
 	}
+	if tools, ok := frontmatter["tools"].(map[string]any); ok {
+		if enabled, ok := tools["github"].(bool); ok && !enabled {
+			tools = maps.Clone(tools)
+			tools["github"] = nil
+			normalized["tools"] = tools
+		}
+	}
+	if sandbox, ok := frontmatter["sandbox"].(map[string]any); ok {
+		if enabled, ok := sandbox["agent"].(bool); ok && !enabled {
+			sandbox = maps.Clone(sandbox)
+			sandbox["agent"] = map[string]any{"disabled": true}
+			normalized["sandbox"] = sandbox
+		}
+	}
 	if outputs, ok := frontmatter["safe-outputs"].(map[string]any); ok {
 		outputs = maps.Clone(outputs)
 		for name, value := range outputs {
