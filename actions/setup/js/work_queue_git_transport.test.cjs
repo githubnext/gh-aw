@@ -137,6 +137,17 @@ describe("Git-only work queue ledger", { timeout: 30000 }, () => {
     expect(f.calls).toEqual([]);
   });
 
+  it("preserves BOM-prefixed Git tree entry names", async () => {
+    const f = fixture();
+    const blob = f.git(["hash-object", "-w", "--stdin"], serializeTransactionLog(f.queue.transactions));
+    const queueTree = f.git(["mktree", "-z"], [`100644 blob ${blob}\t\uFEFFnotes.txt\0`, `100644 blob ${blob}\t\uFEFFwork-queue.jsonl\0`].join(""));
+    const head = f.git(["commit-tree", queueTree, "-p", f.head(), "-F", "-"], "BOM queue filename");
+    f.git(["update-ref", "refs/heads/work-queue", head]);
+    await expect(readWorkQueueLog(f.options)).rejects.toThrow(/exactly one regular canonical log/);
+    const result = await f.ledger.rest.git.getTree({ tree_sha: queueTree });
+    expect(result.data.tree.map(entry => entry.path)).toEqual(["\uFEFFnotes.txt", "\uFEFFwork-queue.jsonl"]);
+  });
+
   it("rechecks credentials before reusing immutable objects and confines proofs to their repository", async () => {
     const f = fixture();
     f.store(compactTransactions(f.queue.transactions, f.head(), f.queue.administrator, f.queue.at));

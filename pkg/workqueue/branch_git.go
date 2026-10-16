@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -26,6 +27,16 @@ import (
 type queueGit struct {
 	dir, remote, ref, head string
 	env                    []string
+	reuseValidated         bool
+}
+
+// LedgerSession reuses one isolated object store for a scoped series of ledger
+// operations. Each operation still resolves the remote queue ref before use.
+type LedgerSession struct {
+	mu      sync.Mutex
+	branch  Branch
+	cleanup func()
+	closed  bool
 }
 
 const queueGitCommandTimeout = 120 * time.Second
@@ -71,6 +82,80 @@ func (b Branch) withLedger(ctx context.Context) (Branch, func(), error) {
 	}
 	b.ledger = ledger
 	return b, func() { _ = os.RemoveAll(ledger.dir) }, nil
+}
+
+// OpenLedgerSession creates a scoped session with an isolated Git object store.
+func (b Branch) OpenLedgerSession(ctx context.Context) (*LedgerSession, error) {
+	b, cleanup, err := b.withLedger(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if b.ledgerRequestFn == nil && b.ledger != nil {
+		b.ledger.reuseValidated = true
+	}
+	return &LedgerSession{branch: b, cleanup: cleanup}, nil
+}
+
+func (b Branch) withClientLedgerSession(ctx context.Context) (Branch, *LedgerSession, error) {
+	b, err := b.withClient()
+	if err != nil {
+		return b, nil, err
+	}
+	session, err := b.OpenLedgerSession(ctx)
+	return b, session, err
+}
+
+func (b Branch) withAuthenticatedLedgerSession(ctx context.Context, role string) (Branch, Actor, *LedgerSession, error) {
+	b, err := b.withClient()
+	if err != nil {
+		return b, Actor{}, nil, err
+	}
+	actor, err := b.Authenticate(ctx, role)
+	if err != nil {
+		return b, Actor{}, nil, err
+	}
+	session, err := b.OpenLedgerSession(ctx)
+	return b, actor, session, err
+}
+
+// Read refreshes the queue head and reads its validated ledger.
+func (s *LedgerSession) Read(ctx context.Context) ([]QueueCommit, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return nil, errors.New("work queue ledger session is closed")
+	}
+	return s.branch.Read(ctx)
+}
+
+// Publish publishes a checked request using the session's object store.
+func (s *LedgerSession) Publish(ctx context.Context, actor Actor, request Request) (Publication, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return Publication{}, errors.New("work queue ledger session is closed")
+	}
+	return s.branch.Publish(ctx, actor, request)
+}
+
+// Compact compacts the current queue using the session's object store.
+func (s *LedgerSession) Compact(ctx context.Context) (Compaction, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return Compaction{}, errors.New("work queue ledger session is closed")
+	}
+	return s.branch.Compact(ctx)
+}
+
+// Close removes the session's temporary Git object store.
+func (s *LedgerSession) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.closed = true
+		s.cleanup()
+	}
 }
 
 func newQueueGit(ctx context.Context, remote, branch, token string) (*queueGit, error) {
@@ -161,37 +246,103 @@ func (b Branch) ledgerRequest(ctx context.Context, method, endpoint string, body
 }
 
 func (q *queueGit) resolve(ctx context.Context) (any, error) {
+	sha, err := q.advertisedHead(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if q.reuseValidated && sha == q.head {
+		if _, err := os.Stat(filepath.Join(q.dir, "shallow")); !os.IsNotExist(err) {
+			return nil, errors.New("queue Git history must not be shallow")
+		}
+		return gitReference{Ref: q.ref, Object: struct {
+			SHA string `json:"sha"`
+		}{q.head}}, nil
+	}
+	previousHead := q.head
+	if _, err := q.run(ctx, nil, "fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head",
+		q.remote, "+"+q.ref+":refs/heads/ledger"); err != nil {
+		return nil, err
+	}
+	output, err := q.run(ctx, nil, "rev-parse", "--verify", "refs/heads/ledger^{commit}")
+	if err != nil {
+		return nil, err
+	}
+	newHead := strings.TrimSpace(string(output))
+	if err := q.verifyFetchedHistory(ctx, previousHead, newHead); err != nil {
+		return nil, err
+	}
+	q.head = newHead
+	return gitReference{Ref: q.ref, Object: struct {
+		SHA string `json:"sha"`
+	}{q.head}}, nil
+}
+
+func (q *queueGit) advertisedHead(ctx context.Context) (string, error) {
 	output, err := q.run(ctx, nil, "ls-remote", "--exit-code", "--refs", q.remote, q.ref)
 	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) && exit.ExitCode() == 2 {
 			q.head = ""
-			return nil, &api.HTTPError{StatusCode: http.StatusNotFound, Message: "queue branch does not exist"}
+			return "", &api.HTTPError{StatusCode: http.StatusNotFound, Message: "queue branch does not exist"}
 		}
-		return nil, err
+		return "", err
 	}
-	sha, ref, ok := strings.Cut(strings.TrimSpace(string(output)), "\t")
-	if !ok || ref != q.ref || !revisionPattern.MatchString(sha) {
-		return nil, errInvalidHeadReference
+	var sha string
+	for line := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
+		if line == "" {
+			continue
+		}
+		value, ref, ok := strings.Cut(line, "\t")
+		if !ok {
+			return "", errInvalidHeadReference
+		}
+		if ref != q.ref {
+			continue
+		}
+		if sha != "" || !revisionPattern.MatchString(value) || strings.Trim(value, "0") == "" {
+			return "", errInvalidHeadReference
+		}
+		sha = value
 	}
-	if _, err := q.run(ctx, nil, "fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head",
-		q.remote, "+"+q.ref+":refs/heads/ledger"); err != nil {
-		return nil, err
+	if sha == "" {
+		q.head = ""
+		return "", &api.HTTPError{StatusCode: http.StatusNotFound, Message: "queue branch does not exist"}
 	}
+	if !revisionPattern.MatchString(sha) {
+		return "", errInvalidHeadReference
+	}
+	return sha, nil
+}
+
+func (q *queueGit) verifyFetchedHistory(ctx context.Context, previousHead, newHead string) error {
 	if _, err := os.Stat(filepath.Join(q.dir, "shallow")); !os.IsNotExist(err) {
-		return nil, errors.New("queue Git history must not be shallow")
+		return errors.New("queue Git history must not be shallow")
 	}
-	output, err = q.run(ctx, nil, "rev-parse", "--verify", "refs/heads/ledger^{commit}")
-	if err != nil {
-		return nil, err
+	if previousHead != "" {
+		if _, err := q.run(ctx, nil, "merge-base", "--is-ancestor", previousHead, newHead); err == nil {
+			var added []byte
+			added, err = q.run(ctx, nil, "rev-list", "--objects", "--missing=print", newHead, "^"+previousHead)
+			if err != nil {
+				return err
+			}
+			for line := range strings.SplitSeq(string(added), "\n") {
+				if strings.HasPrefix(line, "?") {
+					return errors.New("queue Git history must not contain missing objects")
+				}
+			}
+		} else {
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 1 {
+				return err
+			}
+			if _, err := q.run(ctx, nil, "fsck", "--connectivity-only", "--no-dangling", "--no-reflogs", newHead); err != nil {
+				return err
+			}
+		}
+	} else if _, err := q.run(ctx, nil, "fsck", "--connectivity-only", "--no-dangling", "--no-reflogs", newHead); err != nil {
+		return err
 	}
-	q.head = strings.TrimSpace(string(output))
-	if _, err := q.run(ctx, nil, "fsck", "--connectivity-only", "--no-dangling", "--no-reflogs", q.head); err != nil {
-		return nil, err
-	}
-	return gitReference{Ref: q.ref, Object: struct {
-		SHA string `json:"sha"`
-	}{q.head}}, nil
+	return nil
 }
 
 func (q *queueGit) commit(ctx context.Context, sha string) (string, []string, error) {
@@ -397,6 +548,10 @@ func (q *queueGit) push(ctx context.Context, body any) (any, error) {
 		// from rejected leases by fetching and replaying authoritative history.
 		return nil, err
 	}
+	if _, err := q.run(ctx, nil, "update-ref", "refs/heads/ledger", value.SHA); err != nil {
+		return nil, err
+	}
+	q.head = value.SHA
 	return map[string]any{}, nil
 }
 
@@ -411,12 +566,21 @@ func (q *queueGit) requireHostedDefault(ctx context.Context) error {
 	var defaultRef, revision string
 	for line := range strings.SplitSeq(strings.TrimSpace(string(output)), "\n") {
 		value, name, ok := strings.Cut(line, "\t")
-		if !ok || name != "HEAD" {
+		if !ok {
 			return errors.New("invalid remote Git HEAD advertisement")
 		}
+		if name != "HEAD" {
+			continue
+		}
 		if ref, symbolic := strings.CutPrefix(value, "ref: "); symbolic {
+			if defaultRef != "" {
+				return errors.New("invalid remote Git HEAD advertisement")
+			}
 			defaultRef = ref
 		} else {
+			if revision != "" {
+				return errors.New("invalid remote Git HEAD advertisement")
+			}
 			revision = value
 		}
 	}

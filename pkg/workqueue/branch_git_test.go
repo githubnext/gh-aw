@@ -107,6 +107,60 @@ func TestQueueGitRejectsIncompleteHistory(t *testing.T) {
 	}
 }
 
+func TestQueueGitResolveFiltersSuffixMatchingRefs(t *testing.T) {
+	b, _ := gitQueueBranch(t)
+	remote := &queueGit{dir: b.ledger.remote, env: b.ledger.env}
+	tree := queueGitRun(t, remote, nil, "mktree")
+	head := queueGitRun(t, remote, []byte("Suffix ref fixture\n"), "commit-tree", tree)
+	queueGitRun(t, remote, nil, "update-ref", "refs/tags/refs/heads/work-queue", head)
+	queueGitRun(t, remote, nil, "update-ref", "refs/heads/x/refs/heads/work-queue", head)
+
+	if _, err := b.Read(context.Background()); err == nil || !strings.Contains(err.Error(), "queue_missing") {
+		t.Fatalf("suffix-matching refs were treated as the queue: %v", err)
+	}
+
+	history := testGenesis(t, nil)
+	data, err := Serialize(history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob := queueGitRun(t, remote, data, "hash-object", "-w", "--stdin")
+	tree = queueGitRun(t, remote, []byte("100644 blob "+blob+"\t"+FileName+"\x00"), "mktree", "-z")
+	head = queueGitRun(t, remote, []byte("Exact queue ref fixture\n"), "commit-tree", tree)
+	queueGitRun(t, remote, nil, "update-ref", b.ledger.ref, head)
+	if commits, err := b.Read(context.Background()); err != nil || !sameJSON(commits, history) {
+		t.Fatalf("exact queue ref was hidden by suffix-matching refs: %v", err)
+	}
+}
+
+func TestLedgerSessionReusesStoreAndRefreshesQueueHead(t *testing.T) {
+	b, _ := gitQueueBranch(t)
+	session, err := b.OpenLedgerSession(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	store := session.branch.ledger.dir
+
+	initial := testGenesis(t, nil)
+	head := writeRawQueueGit(t, b, initial)
+	if commits, err := session.Read(context.Background()); err != nil || !sameJSON(commits, initial) {
+		t.Fatalf("initial session read: %v", err)
+	}
+	next := testSubmit(t, initial, "submit-work", testNode(t, initial, "session-work"))
+	writeRawQueueGit(t, b, next, head)
+	if commits, err := session.Read(context.Background()); err != nil || !sameJSON(commits, next) {
+		t.Fatalf("session did not refresh the remote head: %v", err)
+	}
+	if session.branch.ledger.dir != store {
+		t.Fatal("session replaced its isolated object store")
+	}
+	session.Close()
+	if _, err := session.Read(context.Background()); err == nil {
+		t.Fatal("closed ledger session remained usable")
+	}
+}
+
 func gitQueueBranch(t *testing.T) (Branch, *queueAPI) {
 	t.Helper()
 	remote := disposableQueueGit(t, "")
@@ -271,8 +325,9 @@ func TestQueueGitRootPublicationPreservesHostingDefault(t *testing.T) {
 	tree := queueGitRun(t, remote, nil, "mktree")
 	main := queueGitRun(t, remote, []byte("Hosting bootstrap\n"), "commit-tree", tree)
 	queueGitRun(t, remote, nil, "update-ref", "refs/heads/main", main)
+	queueGitRun(t, remote, nil, "update-ref", "refs/heads/foo/HEAD", main)
 	if _, err := b.publish(ctx, branchSnapshot{}, history); err != nil {
-		t.Fatalf("existing default branch did not permit queue initialization: %v", err)
+		t.Fatalf("suffix-matching ref prevented valid default branch publication: %v", err)
 	}
 	if head := queueGitRun(t, remote, nil, "symbolic-ref", "HEAD"); head != "refs/heads/main" {
 		t.Fatalf("queue initialization changed the hosting default: %s", head)

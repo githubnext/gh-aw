@@ -180,7 +180,7 @@ function createGitLedgerClient({ githubClient, owner, repo, branch, remote }) {
       const nul = bytes.indexOf(0, space + 1);
       if (space < offset || nul < space || nul + 1 + oidBytes > bytes.length || entries.length >= 16384) throw queueError("ledger_invalid", "queue Git tree is malformed or oversized");
       const mode = bytes.subarray(offset, space).toString("ascii").padStart(6, "0");
-      const name = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(space + 1, nul));
+      const name = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes.subarray(space + 1, nul));
       const sha = bytes.subarray(nul + 1, nul + 1 + oidBytes).toString("hex");
       entries.push({ mode, type: mode === "040000" ? "tree" : mode === "160000" ? "commit" : "blob", sha, path: name });
       offset = nul + 1 + oidBytes;
