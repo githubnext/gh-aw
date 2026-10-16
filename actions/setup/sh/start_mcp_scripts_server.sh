@@ -83,9 +83,9 @@ mkdir -p /tmp/gh-aw/mcp-scripts/logs
   echo ""
 } > /tmp/gh-aw/mcp-scripts/logs/server.log
 
-# Start the HTTP server in the background with DEBUG enabled
+# Start the HTTP server in the background
 echo "Starting mcp-scripts MCP HTTP server..."
-DEBUG="*" node mcp-server.cjs >> /tmp/gh-aw/mcp-scripts/logs/server.log 2>&1 &
+node mcp-server.cjs >> /tmp/gh-aw/mcp-scripts/logs/server.log 2>&1 &
 SERVER_PID=$!
 echo "Started mcp-scripts MCP server with PID $SERVER_PID"
 

@@ -336,7 +336,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		value     string
 		isLiteral bool
 	}{
-		{"DEBUG", "*", true},
+		{"DEBUG", "DEBUG", false},
 		{"DEFAULT_BRANCH", "DEFAULT_BRANCH", false},
 		{"GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_ALLOWED_EXTS", false},
 		{"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_BRANCH", false},
@@ -437,7 +437,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		value     string
 		isLiteral bool
 	}{
-		{"DEBUG", "*", true},                              // Literal value "*"
+		{"DEBUG", "DEBUG", false},
 		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},           // Variable reference (gh CLI auto-sets GH_TOKEN from GITHUB_TOKEN if needed)
 		{"GITHUB_ACTOR", "GITHUB_ACTOR", false},           // Variable reference for actor-based access control
 		{"GITHUB_REPOSITORY", "GITHUB_REPOSITORY", false}, // Variable reference for repository context
@@ -535,7 +535,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 
 		var valueStr string
 		if envVar.isLiteral {
-			// Literal value (e.g., DEBUG = "*")
+			// Literal value
 			valueStr = envVar.value
 		} else {
 			// Always use backslash-escaped shell variable references in JSON MCP config heredocs.

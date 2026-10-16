@@ -239,7 +239,7 @@ These variables configure the `gh aw` CLI tool. Set them in your local shell env
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `DEBUG` | disabled | npm-style namespace debug logging. `DEBUG=*` enables all output; `DEBUG=cli:*,workflow:*` selects specific namespaces. Exclusions are supported: `DEBUG=*,-workflow:test`. Also activated when `ACTIONS_RUNNER_DEBUG=true`. |
+| `DEBUG` | disabled | npm-style namespace debug logging. `DEBUG=*` enables all output; `DEBUG=cli:*,workflow:*` selects specific namespaces. Exclusions are supported: `DEBUG=*,-workflow:test`. Also activated when `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1`. |
 | `DEBUG_COLORS` | `1` (enabled) | Set to `0` to disable ANSI colors in debug output. Colors are automatically disabled when output is not a TTY. |
 | `ACCESSIBLE` | empty | Any non-empty value enables accessibility mode, which disables spinners and animations. Also enabled when `TERM=dumb` or `NO_COLOR` is set. |
 | `NO_COLOR` | empty | Any non-empty value disables colored output and enables accessibility mode. Follows the [no-color.org](https://no-color.org/) standard. |
@@ -249,6 +249,8 @@ These variables configure the `gh aw` CLI tool. Set them in your local shell env
 | `GH_AW_MCP_SERVER` | unset | When set, disables the automatic update check. Set automatically when `gh aw` runs as an MCP server subprocess — no manual configuration needed. |
 
 **Enabling debug logging:**
+
+Compiled workflows leave MCP debug logging disabled for normal runs. GitHub Actions debug mode (`runner.debug == '1'`, including **Re-run jobs** with **Enable debug logging**) automatically enables verbose MCP logs. An explicit workflow or job `DEBUG` value takes precedence and is forwarded to the gateway and built-in MCP servers.
 
 ```bash
 # All namespaces
