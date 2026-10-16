@@ -17,6 +17,7 @@ on:
     events: [pull_request_comment, pull_request_review_comment]
 engine:
   id: copilot
+  copilot-sdk: true
 model: copilot/gpt-5.4
 permissions:
   contents: read

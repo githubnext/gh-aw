@@ -142,6 +142,7 @@ type SafeOutputsConfig struct {
 	Actions                                map[string]*SafeOutputActionConfig `yaml:"actions,omitempty"`                   // Custom GitHub Actions mounted as safe output tools (resolved at compile time)
 	TimeoutMinutes                         int                                `yaml:"timeout-minutes,omitempty"`           // Timeout for the safe_outputs job in minutes. Defaults to 45.
 	AutoInjectedCreateIssue                bool                               `yaml:"-"`                                   // Internal: true when create-issues was automatically injected by the compiler (not user-configured)
+	CreateIssuesDisabled                   bool                               `yaml:"-"`                                   // Internal: true when create-issue is explicitly disabled, preventing auto-injection
 }
 
 // SafeOutputMessagesConfig holds custom message templates for safe-output footer and notification messages

@@ -15,6 +15,7 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
+  copilot-sdk: true
 tools:
   github:
     mode: gh-proxy
