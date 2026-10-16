@@ -92,7 +92,7 @@ type compileArgs struct {
 // --prior-manifest-file so the compiler uses tamper-proof manifests for safe update
 // enforcement.  An empty string disables this feature.
 // Returns an error if schema generation fails, which causes the server to stop registering tools.
-func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string) error { //nolint:largefunc
+func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheFile string, allowWriteTools bool) error { //nolint:largefunc
 	// Generate schema with elicitation defaults
 	compileSchema, err := generateSchemaWithDefaults[compileArgs](map[string]any{
 		"strict": true,
@@ -105,6 +105,7 @@ func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheF
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "compile",
 		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:    !allowWriteTools,
 			IdempotentHint:  true,
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
@@ -112,7 +113,9 @@ func registerCompileTool(server *mcp.Server, execCmd execCmdFunc, manifestCacheF
 		Description: `Compile Markdown workflows to GitHub Actions YAML with optional static analysis tools.
 
 ⚠️  IMPORTANT: Any change to .github/workflows/*.md files MUST be compiled using this tool.
-This tool generates .lock.yml files from .md workflow files. The .lock.yml files are what GitHub Actions
+Without --allow-write-tools, compilation uses --no-emit and does not modify files.
+Fixes, dry-run compilation, and external scanners require --allow-write-tools.
+When writes are enabled, this tool generates .lock.yml files from .md workflow files. The .lock.yml files are what GitHub Actions
 actually executes, so failing to compile after modifying a .md file means your changes won't take effect.
 
 Workflows use strict mode validation by default (unless frontmatter sets strict: false).
@@ -138,6 +141,10 @@ Returns JSON array with validation results for each workflow:
 
 		if err := validateMCPPositionalArgs("workflows", args.Workflows...); err != nil {
 			return nil, nil, err
+		}
+
+		if !allowWriteTools && (args.Fix || args.DryRun || args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint) {
+			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "read-only compilation does not support fixes, dry-run compilation, or external scanners; restart gh aw mcp-server with --allow-write-tools for trusted clients and workflow sources", nil)
 		}
 
 		if args.DryRun {
@@ -226,6 +233,9 @@ Returns JSON array with validation results for each workflow:
 		// Build command arguments
 		// Always validate workflows during compilation and use JSON output for MCP.
 		cmdArgs := []string{"compile", "--validate", "--json"}
+		if !allowWriteTools {
+			cmdArgs = append(cmdArgs, "--no-emit", "--no-check-update")
+		}
 
 		// Add fix flag if requested
 		if args.Fix {

@@ -24,7 +24,9 @@ args: [aw, mcp-server]
 
 ## Configuration Options
 
-Workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled by default, including dry-run calls. The operator can enable them at server startup for trusted clients and workflow sources:
+The `compile` tool uses `--no-emit` by default: it validates workflows without modifying files, including lock files, diagnostic YAML, action pins, import caches, or `.gitattributes`. Remote imports must already be cached; missing entries produce a validation error instead of downloading files. Fixes, dry-run compilation, and external scanners require write tools.
+
+Workflow-writing tools (`add`, `update`, and `fix`) are disabled by default. The operator can enable them and allow compilation to write files at server startup for trusted clients and workflow sources:
 
 ```bash wrap
 gh aw mcp-server --allow-write-tools

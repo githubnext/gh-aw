@@ -33,7 +33,7 @@ func TestCompileToolPreservesLocalActionlintWhenDockerUnavailable(t *testing.T) 
 			`[{"workflow":"test.md","valid":true,"errors":[],"warnings":[]}]`)
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExec, ""))
+	require.NoError(t, registerCompileTool(server, mockExec, "", true))
 	session := connectInMemory(t, server)
 
 	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{

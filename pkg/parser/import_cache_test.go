@@ -57,6 +57,27 @@ func TestImportCache(t *testing.T) {
 	})
 }
 
+func TestImportCacheReadOnly(t *testing.T) {
+	cache := NewImportCache(t.TempDir())
+	cache.SetReadOnly(true)
+	_, err := cache.Set("owner", "repo", "shared.md", "sha", []byte("new"))
+	require.ErrorContains(t, err, "read-only import cache")
+	require.NoDirExists(t, cache.GetCacheDir())
+
+	cache.SetReadOnly(false)
+	path, err := cache.Set("owner", "repo", "shared.md", "sha", []byte("original"))
+	require.NoError(t, err)
+	cache.SetReadOnly(true)
+	_, err = cache.Set("owner", "repo", "shared.md", "sha", []byte("replacement"))
+	require.ErrorContains(t, err, "read-only import cache")
+	gotPath, found := cache.Get("owner", "repo", "shared.md", "sha")
+	require.True(t, found)
+	require.Equal(t, path, gotPath)
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "original", string(content))
+}
+
 func TestImportCacheDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 

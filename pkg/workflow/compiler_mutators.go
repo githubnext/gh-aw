@@ -351,6 +351,7 @@ func (c *Compiler) getSharedImportCache() *parser.ImportCache {
 		c.importCache = parser.NewImportCache(cwd)
 		logTypes.Print("Initialized shared import cache for compiler")
 	}
+	c.importCache.SetReadOnly(c.noEmit)
 	return c.importCache
 }
 

@@ -22,7 +22,7 @@ func TestMCPWriteTools_DefaultServerDenies(t *testing.T) {
 	t.Parallel()
 	server := createMCPServer("must-not-run", "operator", false, false, "", nil)
 	session := connectInMemory(t, server)
-	for _, tool := range []string{"add", "update", "fix", "compile"} {
+	for _, tool := range []string{"add", "update", "fix"} {
 		_, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 			Name: tool, Arguments: map[string]any{
 				"workflows": []string{"owner/repo/workflow"}, "allow_write_tools": true,
@@ -49,7 +49,7 @@ func TestMCPWriteTools_HTTPServerDenies(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 	defer session.Close()
-	for _, tool := range []string{"add", "update", "fix", "compile"} {
+	for _, tool := range []string{"add", "update", "fix"} {
 		_, err := session.CallTool(ctx, &mcp.CallToolParams{
 			Name: tool, Arguments: map[string]any{"workflows": []string{"owner/repo/workflow"}},
 		})
@@ -90,7 +90,7 @@ func TestMCPWriteTools_StartupCapabilityAndActorChecks(t *testing.T) {
 			}
 			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
 			server.AddReceivingMiddleware(mcpWriteToolsMiddleware(tc.allowWrite, tc.actor, tc.validateActor))
-			require.NoError(t, registerMCPTools(server, execCmd, tc.actor, tc.validateActor, ""))
+			require.NoError(t, registerMCPTools(server, execCmd, tc.actor, tc.validateActor, "", tc.allowWrite))
 			session := connectInMemory(t, server)
 
 			for _, tool := range []string{"add", "update", "fix", "compile", "compile-dry-run"} {
@@ -106,9 +106,15 @@ func TestMCPWriteTools_StartupCapabilityAndActorChecks(t *testing.T) {
 					result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 						Name: name, Arguments: args,
 					})
-					if tc.wantError != "" {
-						require.ErrorContains(t, err, tc.wantError)
-						if tc.wantError == "workflow-writing tools disabled" {
+					wantError := tc.wantError
+					if !tc.allowWrite && tool == "compile" {
+						wantError = ""
+					} else if !tc.allowWrite && tool == "compile-dry-run" {
+						wantError = "read-only compilation"
+					}
+					if wantError != "" {
+						require.ErrorContains(t, err, wantError)
+						if wantError == "workflow-writing tools disabled" {
 							require.ErrorContains(t, err, "--allow-write-tools")
 						}
 						assert.Equal(t, before, invocations.Load(), "denial must precede subprocess creation")
@@ -171,4 +177,55 @@ func TestMCPServerCommand_WriteToolsRequireOptIn(t *testing.T) {
 	flag := NewMCPServerCommand().Flags().Lookup("allow-write-tools")
 	require.NotNil(t, flag)
 	assert.Equal(t, "false", flag.DefValue)
+}
+
+func TestMCPCompile_WriteCapability(t *testing.T) {
+	t.Parallel()
+	for _, allowWrite := range []bool{false, true} {
+		t.Run(fmt.Sprintf("allow-write=%t", allowWrite), func(t *testing.T) {
+			t.Parallel()
+			var gotArgs []string
+			execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+				gotArgs = append([]string(nil), args...)
+				return mockCommandWithOutput(`[]`, "")(ctx, args...)
+			}
+			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
+			require.NoError(t, registerMCPTools(server, execCmd, "", false, "", allowWrite))
+			session := connectInMemory(t, server)
+			tools, err := session.ListTools(context.Background(), nil)
+			require.NoError(t, err)
+			for _, tool := range tools.Tools {
+				if tool.Name == "compile" {
+					assert.Equal(t, !allowWrite, tool.Annotations.ReadOnlyHint)
+				}
+			}
+			result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+				Name: "compile", Arguments: map[string]any{"workflows": []string{"test"}},
+			})
+			require.NoError(t, err)
+			assert.False(t, result.IsError)
+			wantArgs := []string{"compile", "--validate", "--json"}
+			if !allowWrite {
+				wantArgs = append(wantArgs, "--no-emit", "--no-check-update")
+			}
+			wantArgs = append(wantArgs, "--strict", "--", "test")
+			assert.Equal(t, wantArgs, gotArgs)
+		})
+	}
+}
+
+func TestMCPCompile_ReadOnlyRejectsWritingOptions(t *testing.T) {
+	t.Parallel()
+	for _, option := range []string{"fix", "dry_run", "zizmor", "poutine", "actionlint", "runner-guard", "syft", "grype", "grant", "yamllint"} {
+		t.Run(option, func(t *testing.T) {
+			t.Parallel()
+			server := createMCPServer("must-not-run", "", false, false, "", nil)
+			session := connectInMemory(t, server)
+			_, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+				Name: "compile", Arguments: map[string]any{option: true},
+			})
+			require.ErrorContains(t, err, "read-only compilation")
+			require.ErrorContains(t, err, "--allow-write-tools")
+		})
+	}
 }

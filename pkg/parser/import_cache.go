@@ -56,7 +56,13 @@ func validatePathComponents(owner, repo, path, sha string) error {
 
 // ImportCache manages cached imported workflow files
 type ImportCache struct {
-	baseDir string // Base directory for cache (typically repo root)
+	baseDir  string // Base directory for cache (typically repo root)
+	readOnly bool
+}
+
+// SetReadOnly prevents downloads from changing the on-disk import cache.
+func (c *ImportCache) SetReadOnly(readOnly bool) {
+	c.readOnly = readOnly
 }
 
 // NewImportCache creates a new import cache instance
@@ -94,6 +100,10 @@ func (c *ImportCache) Get(owner, repo, path, sha string) (string, bool) {
 // Set stores a new cache entry by saving the content to the cache directory
 // sha parameter should be the resolved commit SHA
 func (c *ImportCache) Set(owner, repo, path, sha string, content []byte) (string, error) {
+	if c.readOnly {
+		return "", errors.New("cannot write to read-only import cache")
+	}
+
 	importCacheLog.Printf("Setting cache entry: %s/%s/%s@%s, size=%d bytes", owner, repo, path, sha, len(content))
 
 	// Validate file size (max 10MB)

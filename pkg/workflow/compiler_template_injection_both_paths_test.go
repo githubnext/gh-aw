@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,6 +14,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestValidateTemplateInjection_NoEmitPreservesDiagnostics(t *testing.T) {
+	t.Parallel()
+	for _, existing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("existing=%t", existing), func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.invalid.yml")
+			if existing {
+				require.NoError(t, os.WriteFile(path, []byte("original"), 0o644))
+			}
+			compiler := NewCompiler(WithNoEmit(true))
+			err := compiler.validateTemplateInjection("jobs:\n  test:\n    steps:\n      - run: echo ${{ github.event.issue.title }}\n",
+				filepath.Join(dir, "test.lock.yml"), filepath.Join(dir, "test.md"), nil)
+			require.Error(t, err)
+			if existing {
+				content, err := os.ReadFile(path)
+				require.NoError(t, err)
+				assert.Equal(t, "original", string(content))
+			} else {
+				require.NoFileExists(t, path)
+			}
+		})
+	}
+}
 
 // TestValidateTemplateInjection_BothPaths tests that validateTemplateInjection detects
 // unsafe expressions in run: blocks consistently regardless of whether schema validation

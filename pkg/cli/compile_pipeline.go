@@ -245,8 +245,10 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
 	// Post-processing
-	if err := runPostProcessing(ctx, compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
-		return workflowDataList, err
+	if !config.NoEmit {
+		if err := runPostProcessing(ctx, compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
+			return workflowDataList, err
+		}
 	}
 
 	developmentErr := enforceDevelopmentDiagnostics(config, compiler, stats, validationResults, strictGrantErr, batchToolErr)
@@ -491,8 +493,10 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	}
 
 	// Post-processing
-	if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
-		return workflowDataList, err
+	if !config.NoEmit {
+		if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
+			return workflowDataList, err
+		}
 	}
 
 	developmentErr := enforceDevelopmentDiagnostics(config, compiler, stats, validationResults, strictGrantErr, batchToolErr)

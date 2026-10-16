@@ -1065,7 +1065,7 @@ gh aw mcp-server --validate-actor     # Enable actor validation
 
 **Available Tools:** status, compile, logs, audit, checks, work-queue (read-only), mcp-inspect, add, update, fix
 
-Workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled by default. Enable them with `--allow-write-tools` only for trusted MCP clients and workflow sources.
+The `compile` tool validates without modifying files by default (`--no-emit`); remote imports must already be cached. Workflow-writing tools (`add`, `update`, and `fix`), emitted compilation, dry-run compilation, and external scanners require `--allow-write-tools`. Enable writes only for trusted MCP clients and workflow sources.
 
 When `--validate-actor` is enabled, logs and audit tools require write+ repository access via GitHub API (permissions cached for 1 hour). See [MCP Server Guide](/gh-aw/reference/gh-aw-as-mcp-server/).
 

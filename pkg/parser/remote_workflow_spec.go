@@ -33,6 +33,9 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 			return cachedPath, nil
 		}
 	}
+	if cache != nil && cache.readOnly {
+		return "", fmt.Errorf("remote import %s is not cached; populate the import cache with a trusted compile before using --no-emit", spec)
+	}
 
 	remoteLog.Printf("Fetching file from GitHub: %s/%s/%s@%s", owner, repo, filePath, ref)
 	var content []byte
