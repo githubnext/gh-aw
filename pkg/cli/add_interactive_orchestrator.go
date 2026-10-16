@@ -29,6 +29,8 @@ type AddInteractiveConfig struct {
 	NoStopAfter            bool
 	StopAfter              string
 	SkipWorkflowRun        bool
+	AutoMerge              bool
+	CreatePR               bool   // Force pull request delivery instead of prompting.
 	SkipSecret             bool   // Skip the API secret prompt (useful when secret is set at org level)
 	RepoOverride           string // owner/repo format, if user provides it
 	AppendText             string // Extra content to append to the workflow on installation
@@ -231,7 +233,7 @@ func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles 
 		return nil, nil, "", "", false, err
 	}
 
-	createPR, err = addConfirmChanges(c, workflowFiles, initializationPlan.files)
+	createPR, err = c.selectPullRequestDelivery(workflowFiles, initializationPlan.files)
 	if err != nil {
 		return nil, nil, "", "", false, err
 	}
@@ -390,6 +392,21 @@ func (c *AddInteractiveConfig) primaryWorkflowName() string {
 }
 
 // confirmChanges asks the user to confirm the changes
+func (c *AddInteractiveConfig) selectPullRequestDelivery(workflowFiles, initFiles []string) (bool, error) {
+	if c.CreatePR {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected delivery: create a pull request"))
+		return true, nil
+	}
+	createPR, err := addConfirmChanges(c, workflowFiles, initFiles)
+	if err != nil {
+		return false, err
+	}
+	if err := requireAutoMergePR(c.AutoMerge, createPR); err != nil {
+		return false, err
+	}
+	return createPR, nil
+}
+
 func (c *AddInteractiveConfig) confirmChanges(workflowFiles, initFiles []string) (bool, error) {
 	addInteractiveLog.Print("Confirming changes with user")
 

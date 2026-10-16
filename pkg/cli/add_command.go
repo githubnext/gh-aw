@@ -54,6 +54,7 @@ Note: For guided interactive setup, use the 'add-wizard' command instead.`
   ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/my-workflow.md           # Add workflow from any HTTPS URL
   ` + string(constants.CLIExtensionPrefix) + ` add https://example.com/workflow.json            # Import JSON workflow definition
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --create-pull-request --force
+  ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --pr --auto-merge  # Open a pull request and enable auto-merge
   ` + string(constants.CLIExtensionPrefix) + ` add ./my-workflow.md                             # Add local workflow
   ` + string(constants.CLIExtensionPrefix) + ` add ./*.md                                       # Add all local workflows
   ` + string(constants.CLIExtensionPrefix) + ` add githubnext/agentics/ci-doctor --dir .github/workflows/shared   # Add to .github/workflows/shared/`
@@ -68,6 +69,7 @@ type AddOptions struct {
 	Force                  bool
 	AppendText             string
 	CreatePR               bool
+	AutoMerge              bool
 	NoGitattributes        bool
 	FromWildcard           bool
 	WorkflowDir            string
@@ -128,6 +130,12 @@ func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			createPR, _ := cmd.Flags().GetBool("create-pull-request")
+			prAlias, _ := cmd.Flags().GetBool("pr")
+			if err := requireAutoMergePR(autoMerge, createPR || prAlias); err != nil {
+				return err
+			}
 			return runAddCommand(cmd, args, validateEngine)
 		},
 	}
@@ -141,6 +149,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	nameFlag, _ := cmd.Flags().GetString("name")
 	createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 	prFlagAlias, _ := cmd.Flags().GetBool("pr")
+	autoMerge, _ := cmd.Flags().GetBool("auto-merge")
 	forceFlag, _ := cmd.Flags().GetBool("force")
 	appendText, _ := cmd.Flags().GetString("append")
 	verbose, _ := cmd.Flags().GetBool("verbose")
@@ -170,6 +179,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		Force:                  forceFlag,
 		AppendText:             appendText,
 		CreatePR:               createPRFlag || prFlagAlias,
+		AutoMerge:              autoMerge,
 		NoGitattributes:        noGitattributes,
 		WorkflowDir:            workflowDir,
 		NoStopAfter:            noStopAfter,
@@ -227,6 +237,7 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	// Add PR flag to add command (--create-pull-request with --pr as alias)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 
 	// Add force flag to add command
