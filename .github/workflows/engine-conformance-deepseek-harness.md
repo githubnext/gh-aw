@@ -9,7 +9,8 @@ permissions:
 strict: true
 inlined-imports: true
 timeout-minutes: 10
-max-ai-credits: 5
+# Include headroom for the engine's initial context and subsequent tool turns.
+max-ai-credits: 50
 features:
   gh-aw-detection: false
 model: copilot/gpt-5.4

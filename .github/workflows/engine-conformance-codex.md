@@ -9,9 +9,12 @@ strict: true
 inlined-imports: true
 timeout-minutes: 10
 max-turns: 30
-max-ai-credits: 5
+# Include headroom for the engine's initial context and subsequent tool turns.
+max-ai-credits: 50
 features:
   gh-aw-detection: false
+# Make pricing available at compile time instead of relying on the CLI default.
+model: openai/gpt-6.1-sol
 engine:
   id: codex
   env:
