@@ -110,22 +110,27 @@ function parseAPIProxyGuardRejection(output) {
     try {
       record = JSON.parse(line);
     } catch {
-      if (!line.trimStart().startsWith("{")) diagnostics.push(line);
       continue;
     }
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
-    const isGuardRecord = API_PROXY_GUARD_REJECTION_PATTERNS.some(({ guard }) => record.type === guard || record.code === guard);
-    const isTransportError = record.type === "error" || record.type === "turn.failed" || record.type === "session.error" || record.is_api_error_message === true || (record.type === undefined && record.error);
+    const isApiErrorEnvelope = record.type === "assistant" && record.is_api_error_message === true;
+    const isNativeTransportError = record.type === "error" || record.type === "turn.failed" || record.type === "session.error";
+    const isGuardRecord = API_PROXY_GUARD_REJECTION_PATTERNS.some(({ guard }) => record.type === guard || ((isNativeTransportError || isApiErrorEnvelope) && record.code === guard));
+    const isFailedResult = record.type === "result" && record.is_error === true;
+    const isTransportError = isNativeTransportError || isApiErrorEnvelope || isFailedResult;
     if (isGuardRecord || isTransportError) {
       const diagnostic = record.type === "session.error" && record.data && typeof record.data === "object" ? record.data : record;
-      diagnostics.push(JSON.stringify({ type: diagnostic.type, code: diagnostic.code, error: diagnostic.error, message: diagnostic.message }));
+      diagnostics.push(
+        JSON.stringify({
+          type: diagnostic.type,
+          code: diagnostic.code,
+          error: diagnostic.error,
+          message: diagnostic.message,
+          ...(diagnostic.type === "result" && diagnostic.is_error === true ? { result: diagnostic.result, errors: diagnostic.errors } : {}),
+        })
+      );
     }
-    const candidates =
-      record.type === "unknown_model_ai_credits"
-        ? [record]
-        : record.type === "error" || record.type === "turn.failed" || record.is_api_error_message === true || (record.type === undefined && record.error)
-          ? [record.error, record.message]
-          : [];
+    const candidates = record.type === "unknown_model_ai_credits" ? [record] : isNativeTransportError || isApiErrorEnvelope ? [record.error, record.message] : [];
     // Only unwrap transport errors, never assistant messages or tool results.
     for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
       let candidate = candidates.shift();
@@ -230,9 +235,17 @@ function parseAICreditsExceededProxyRejection(output) {
     const nativeError = record.error;
     const nativeMessage = nativeError && typeof nativeError === "object" && "message" in nativeError ? nativeError.message : undefined;
     const isCodexApiError = (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && typeof nativeMessage === "string");
-    const isEngineFlaggedApiError = record.is_api_error_message === true || (record.type === undefined && typeof record.error === "string") || isCodexApiError;
+    const isClaudeFailedResult = record.type === "result" && record.is_error === true;
+    const isClaudeApiError = record.type === "assistant" && record.is_api_error_message === true;
+    const isEngineFlaggedApiError = isClaudeApiError || isCodexApiError || isClaudeFailedResult;
     if (!isEngineFlaggedApiError) continue;
-    const diagnostic = isCodexApiError ? (record.type === "error" ? record.message : nativeMessage) : JSON.stringify({ error: record.error, message: record.message });
+    const diagnostic = isCodexApiError
+      ? record.type === "error"
+        ? record.message
+        : nativeMessage
+      : isClaudeFailedResult
+        ? JSON.stringify({ result: record.result, errors: record.errors })
+        : JSON.stringify({ error: record.error, message: record.message });
     const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(typeof diagnostic === "string" ? diagnostic : "");
     if (!match) continue;
     const aiCredits = Number.parseFloat(match[1]);

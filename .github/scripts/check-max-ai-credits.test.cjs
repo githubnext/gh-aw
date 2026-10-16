@@ -86,6 +86,7 @@ for (const entry of [
   { type: "turn.failed", error: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
   { type: "turn.failed", error: { message: "403 Forbidden" } },
   { type: "turn.failed", error: { message: "403 Forbidden", metadata: "403 Maximum AI credits exceeded (1.028578 / 1)." } },
+  { error: "authentication_failed", message: "API Error: 403 Maximum AI credits exceeded (1.028578 / 1)." },
   { type: "tool_result", error: "403 Maximum AI credits exceeded (1.028578 / 1)." },
   { type: "assistant", error: "403 Maximum AI credits exceeded (1.028578 / 1)." },
 ]) {

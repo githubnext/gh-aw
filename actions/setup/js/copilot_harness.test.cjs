@@ -935,7 +935,7 @@ describe("copilot_harness.cjs", () => {
       });
 
       it("does not retry a failed attempt that hit an api-proxy guardrail", () => {
-        const output = "API Error: 403 Maximum consecutive cache misses exceeded (5 / 5).";
+        const output = JSON.stringify({ type: "error", message: "API Error: 403 Maximum consecutive cache misses exceeded (5 / 5)." });
         expect(shouldRetryFailedExecution({ exitCode: 1, hasOutput: true, output, attempt: 0, maxRetries: 3 })).toBe(false);
       });
 
@@ -3603,7 +3603,7 @@ process.exit(1);`,
         `const fs = require("fs");
 const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
 fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
-process.stdout.write(JSON.stringify({error: "authentication_failed", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}) + "\\n");
+process.stdout.write(JSON.stringify({type: "error", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}) + "\\n");
 process.exit(1);`,
         "utf8"
       );
