@@ -14,8 +14,11 @@ permissions:
   pull-requests: read
 
 
-engine: pi
-model: copilot/claude-opus-5.5
+engine:
+  id: pi
+  model-routing:
+    goal: cost
+    mode: auto
 network:
   allowed:
     - defaults
