@@ -185,8 +185,22 @@ Say Done.
 `), 0600))
 	original := runBatchShellcheckOnLockFilesAndResources
 	t.Cleanup(func() { runBatchShellcheckOnLockFilesAndResources = original })
-	runBatchShellcheckOnLockFilesAndResources = func(_ context.Context, paths []string, _ []workflow.ShellScriptResource, _, _ bool) error {
-		require.Equal(t, []string{filepath.Join(filepath.Dir(source), "coverage.lock.yml")}, paths)
+	lockFile := filepath.Join(filepath.Dir(source), "coverage.lock.yml")
+	scans := 0
+	runBatchShellcheckOnLockFilesAndResources = func(_ context.Context, paths []string, resources []workflow.ShellScriptResource, _, strict bool) error {
+		scans++
+		require.Empty(t, resources)
+		require.True(t, strict)
+		switch scans {
+		case 1:
+			require.Empty(t, paths)
+			require.NoFileExists(t, lockFile, "baseline must run before compilation emits a lock file")
+		case 2:
+			require.Equal(t, []string{lockFile}, paths)
+			require.FileExists(t, lockFile)
+		default:
+			t.Fatalf("unexpected ShellCheck scan %d", scans)
+		}
 		return nil
 	}
 
@@ -207,6 +221,7 @@ Say Done.
 	output, err := io.ReadAll(r)
 	require.NoError(t, err)
 	require.NoError(t, compileErr, string(output))
+	require.Equal(t, 2, scans, "both baseline and compiled inputs must be scanned")
 	var results []ValidationResult
 	require.NoError(t, json.Unmarshal(output, &results), string(output))
 	require.Len(t, results, 2)
