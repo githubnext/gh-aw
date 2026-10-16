@@ -134,6 +134,108 @@ describe("add_mask_redaction", () => {
     });
 
     describe("redactArtifactMaskedValues", () => {
+      describe("JSON string scanner boundaries", () => {
+        const encodedMask = '"\\u006fpaque"';
+        const validStrings = [
+          "",
+          "ordinary ASCII",
+          'quote"then opaque',
+          "backslash\\then opaque",
+          "slash/then opaque",
+          "backspace\bthen opaque",
+          "formfeed\fthen opaque",
+          "newline\nthen opaque",
+          "return\rthen opaque",
+          "tab\tthen opaque",
+          "\u0000opaque\u001f",
+          "caf\u00e9 opaque \u2603",
+          "\ud83d\ude80opaque",
+          "\ud800opaque\udfff",
+          "\u2028opaque\u2029",
+          '""opaque""',
+        ];
+
+        it.each(validStrings.map(value => [JSON.stringify(value), value]))("matches decoded-string masking for valid token %s", (encoded, value) => {
+          const expected = JSON.stringify(value.replaceAll("opaque", "***"));
+          expect(redactArtifactMaskedValues(encoded, ["opaque"])).toBe(expected);
+          expect(redactArtifactMaskedValues(`before ${encoded} after`, ["opaque"])).toBe(`before ${expected} after`);
+        });
+
+        it.each(Array.from({ length: 17 }, (_, count) => count))("recognizes closing quotes after %i pairs of escaped backslashes", count => {
+          const safe = JSON.stringify("\\".repeat(count));
+          const escapedQuote = JSON.stringify("\\".repeat(count) + '"opaque');
+          const content = `prefix ${safe} ${encodedMask} ${escapedQuote} suffix`;
+          const expected = `prefix ${safe} "***" ${JSON.stringify("\\".repeat(count) + '"***')} suffix`;
+          expect(redactArtifactMaskedValues(content, ["opaque"])).toBe(expected);
+        });
+
+        it.each(["\\u006fpaque", "op\\u0061que", "\\u006F\\u0070\\u0061\\u0071\\u0075\\u0065"])("decodes Unicode escapes at every mask position (%s)", encoded => {
+          expect(redactArtifactMaskedValues(`log "${encoded}"`, ["opaque"])).toBe('log "***"');
+        });
+
+        it.each(Array.from({ length: 32 }, (_, code) => code))("recovers after unescaped control character U+%i", code => {
+          const prefix = '"invalid' + String.fromCharCode(code) + " ";
+          expect(redactArtifactMaskedValues(prefix + encodedMask, ["opaque"])).toBe(prefix + '"***"');
+        });
+
+        it.each(["a", "c", "e", "v", "x", "0", "1", "'", "U", " ", "\t", "\r", "\n", "\u2028", "\u2029"])("recovers after illegal escaped character %j", escaped => {
+          const prefix = '"invalid\\' + escaped + " ";
+          expect(redactArtifactMaskedValues(prefix + encodedMask, ["opaque"])).toBe(prefix + '"***"');
+        });
+
+        it.each(["", "0", "00", "000", "gggg", "000g", "00g0", "0g00", "g000", "+000", "-000", " 000"])("recovers after malformed Unicode escape %j", digits => {
+          const prefix = '"invalid\\u' + digits + " ";
+          expect(redactArtifactMaskedValues(prefix + encodedMask, ["opaque"])).toBe(prefix + '"***"');
+        });
+
+        it.each(["", "plain", '"', '"unterminated', '"ends\\', '"ends\\u', '"ends\\u123', '"bad\\q', '""', '"" ""', '"safe"tail', '"safe" "unterminated'])("preserves unmatched or truncated input byte-for-byte (%j)", content => {
+          expect(redactArtifactMaskedValues(content, ["absent"])).toBe(content);
+        });
+
+        it.each(['"unterminated opaque', '"ends opaque\\', '"bad\\q opaque', 'opaque "safe" opaque', '"safe" opaque "unterminated'])("still applies raw masks outside recoverable tokens (%j)", content => {
+          expect(redactArtifactMaskedValues(content, ["opaque"])).toBe(content.replaceAll("opaque", "***"));
+        });
+
+        it("handles adjacent strings, empty strings, invalid prefixes, and trailing text together", () => {
+          const content = `start ""${encodedMask}""${encodedMask} "bad\\q ${encodedMask} trailing`;
+          const redactedToken = JSON.stringify("***");
+          expect(redactArtifactMaskedValues(content, ["opaque"])).toBe(`start ""${redactedToken}""${redactedToken} "bad\\q ${redactedToken} trailing`);
+        });
+
+        it("keeps literal escaped Unicode distinct from an actual encoded mask", () => {
+          const literal = JSON.stringify("\\u006fpaque");
+          expect(redactArtifactMaskedValues(`log ${literal} ${encodedMask}`, ["opaque"])).toBe(`log ${literal} "***"`);
+        });
+
+        it("keeps numeric-looking string tokens separate from original numeric tokens", () => {
+          const content = ' \t{"escaped":"\\u0031e400","quoted":"9007199254740993","ids":[1e400,9007199254740993,-0,1e+09]}\r\n';
+          const redacted = redactArtifactMaskedValues(content, ["1e400", "9007199254740993"]);
+          expect(JSON.parse(redacted)).toEqual({ escaped: "***", quoted: "***", ids: ["***", "***", 0, 1000000000] });
+          expect(redacted.startsWith(" \t")).toBe(true);
+          expect(redacted.endsWith("\r\n")).toBe(true);
+        });
+
+        it("matches a deterministic decoded-string oracle across generated escape combinations", () => {
+          const alphabet = ["a", '"', "\\", "/", "\b", "\f", "\n", "\r", "\t", "\u0000", "\u001f", "\u2028", "\ud800", "\ud83d\ude80"];
+          for (let index = 0; index < 256; index++) {
+            const left = alphabet[index % alphabet.length];
+            const right = alphabet[Math.floor(index / alphabet.length) % alphabet.length];
+            const value = left + right + "opaque" + right + left;
+            const encoded = JSON.stringify(value);
+            const expected = JSON.stringify(value.replaceAll("opaque", "***"));
+            expect(redactArtifactMaskedValues(`record ${encoded} end`, ["opaque"]), `generated record ${index}`).toBe(`record ${expected} end`);
+            const untouched = `record ${encoded} end`;
+            expect(redactArtifactMaskedValues(untouched, ["absent"]), `unchanged record ${index}`).toBe(untouched);
+          }
+        });
+
+        it("redacts thousands of adjacent tokens without losing delimiters or unchanged bytes", () => {
+          const safe = '"safe\\\\\\"value"';
+          const record = `prefix ${safe}:${encodedMask}:`;
+          expect(redactArtifactMaskedValues(record.repeat(4096) + "tail", ["opaque"])).toBe(`prefix ${safe}:"***":`.repeat(4096) + "tail");
+        });
+      });
+
       it.each(["json", "mixed"])("redacts multi-megabyte %s records without exhausting the regex stack", shape => {
         const mask = 'synthetic-"quoted"\\mask';
         const value = "x".repeat(10 * 1024 * 1024) + mask;
