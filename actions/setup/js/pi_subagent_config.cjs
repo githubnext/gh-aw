@@ -6,6 +6,7 @@ const path = require("node:path");
 const { resolveModelAlias, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 const { writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { verifyPiThinkingEffort } = require("./pi_runtime.cjs");
 
 /** @param {string} provider */
 function aliasProvider(provider) {
@@ -71,7 +72,8 @@ function preparePiSubagents(options) {
     const modelId = selected.base.includes("/") ? selected.base.slice(selected.base.indexOf("/") + 1) : selected.base;
     const effort = selected.params.get("effort") || params.get("effort");
     if ([...selected.params.keys(), ...params.keys()].some(key => key !== "effort")) throw new Error(`Pi sub-agent "${agent.name}" supports only the effort model parameter`);
-    if (effort && !["none", "minimal", "low", "medium", "high", "xhigh"].includes(effort)) throw new Error(`Pi sub-agent "${agent.name}" has unsupported thinking effort "${effort}"`);
+    if (effort && !["none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(effort)) throw new Error(`Pi sub-agent "${agent.name}" has unsupported thinking effort "${effort}"`);
+    verifyPiThinkingEffort(effort);
     logger(`sub-agent ${agent.name}: requested=${requested} resolved=${provider}/${modelId}`);
     return { ...agent, modelId, model: `${gateway ? "aw-gateway" : provider}/${modelId}`, ...(effort ? { thinking: effort === "none" ? "off" : effort } : {}) };
   });

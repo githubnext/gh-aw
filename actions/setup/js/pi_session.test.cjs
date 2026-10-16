@@ -73,9 +73,9 @@ describe("Pi CI stream regressions", () => {
     expect(byType(events, "session.result")).toEqual([]);
   });
 
-  // Official v1.1.0 agent/src/types.ts and coding-agent/src/core/agent-session.ts;
+  // Official v1.3.0 agent/src/types.ts and coding-agent/src/core/agent-session.ts;
   // synthetic observations, not a workflow run using the upgraded CLI.
-  it.each([true, false])("retains Pi 1.1.0 cancellation=%s and measured tool duration without fabricating a terminal result", aborted => {
+  it.each([true, false])("retains Pi 1.3.0 cancellation=%s and measured tool duration without fabricating a terminal result", aborted => {
     const records = [
       { type: "session", version: 3, id: "release-contract" },
       { type: "tool_execution_start", toolCallId: "measured", toolName: "bash", args: { command: "sanitized" } },
@@ -88,7 +88,7 @@ describe("Pi CI stream regressions", () => {
     expect(byType(compact, "session.result")).toEqual([]);
   });
 
-  // Synthetic persisted entries following v1.1.0 core/session-manager.ts,
+  // Synthetic persisted entries following v1.3.0 core/session-manager.ts,
   // not a downloaded persisted session (the sampled artifacts contain streams).
   it("maps persisted native message envelopes through the same canonical content and tool mapping", () => {
     const records = [

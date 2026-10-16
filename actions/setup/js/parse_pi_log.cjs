@@ -125,6 +125,7 @@ function isPiV3Schema(rawEntries) {
       e.type === "tool_execution_start" ||
       e.type === "tool_execution_end" ||
       e.type === "tool_execution_update" ||
+      e.type === "extension_error" ||
       e.type === "message_update" ||
       e.type === "message_start" ||
       e.type === "message_end" ||
