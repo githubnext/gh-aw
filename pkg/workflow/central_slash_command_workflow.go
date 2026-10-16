@@ -89,6 +89,7 @@ func GenerateCentralSlashCommandWorkflow(ctx context.Context, workflowDataList [
 		setupActionRef,
 		helpCommands,
 		helpCommandEnabled,
+		repoConfig.IsLockFileLogoEnabled(),
 	)
 	if err != nil {
 		return err
@@ -374,6 +375,7 @@ func buildCentralSlashCommandWorkflowYAML(
 	setupActionRef string,
 	helpCommands []helpCommandEntry,
 	helpCommandEnabled bool,
+	logo bool,
 ) (string, error) {
 	slashRoutesJSON, err := json.Marshal(slashRoutesByCommand)
 	if err != nil {
@@ -393,7 +395,7 @@ func buildCentralSlashCommandWorkflowYAML(
 		return "", fmt.Errorf("failed to marshal centralized slash-command metadata: %w", err)
 	}
 
-	header := GenerateWorkflowHeader("", "gh-aw", "")
+	header := GenerateWorkflowHeader("", "gh-aw", "", logo)
 
 	var b strings.Builder
 	b.WriteString("# gh-aw-commands: ")

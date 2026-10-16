@@ -34,11 +34,15 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	if c.skipHeader {
 		return nil
 	}
+	repoConfig, err := c.loadRepoConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load aw.json: %w", err)
+	}
 	c.generateLockMetadataHeader(yaml, data, frontmatterHash, bodyHash)
 	if err := c.generateManifestHeader(yaml, data, secrets, actions); err != nil {
 		return err
 	}
-	generateDescriptiveHeader(yaml, data)
+	generateDescriptiveHeader(yaml, data, !c.noLogo && repoConfig.IsLockFileLogoEnabled())
 	generateSourceHeader(yaml, data)
 	generateConfigHeader(yaml, data, secrets, actions)
 	generateApprovalHeader(yaml, data)
@@ -112,13 +116,13 @@ func (c *Compiler) generateManifestHeader(yaml *strings.Builder, data *WorkflowD
 	return nil
 }
 
-func generateDescriptiveHeader(yaml *strings.Builder, data *WorkflowData) {
+func generateDescriptiveHeader(yaml *strings.Builder, data *WorkflowData, logo bool) {
 	// Add workflow header with logo and instructions
 	sourceFile := "the corresponding .md file"
 	if data.Source != "" {
 		sourceFile = data.Source
 	}
-	header := GenerateWorkflowHeader(sourceFile, "gh-aw", "")
+	header := GenerateWorkflowHeader(sourceFile, "gh-aw", "", logo)
 	yaml.WriteString(header)
 
 	// Add description comment if provided

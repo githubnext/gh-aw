@@ -149,6 +149,7 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	compiler.SetDryRun(config.DryRun)
 	compiler.SetEnvironmentOverride(config.EnvironmentOverride)
 	compiler.SetRequireSelfHostedRunners(config.RequireSelfHostedRunners)
+	compiler.SetLockFileLogo(!config.NoLogo)
 
 	// Set trial mode if specified
 	if config.TrialMode {

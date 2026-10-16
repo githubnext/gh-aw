@@ -423,6 +423,7 @@ type compileCmdOptions struct {
 	purge                     bool
 	strict                    bool
 	requireSelfHostedRunners  bool
+	noLogo                    bool
 	trial                     bool
 	dependabot                bool
 	forceOverwrite            bool
@@ -468,6 +469,7 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 	dir, _ := cmd.Flags().GetString("dir")
 	workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
 	noEmit, _ := cmd.Flags().GetBool("no-emit")
+	noLogo, _ := cmd.Flags().GetBool("no-logo")
 	purge, _ := cmd.Flags().GetBool("purge")
 	strict, _ := cmd.Flags().GetBool("strict")
 	requireSelfHostedRunners, _ := cmd.Flags().GetBool("require-self-hosted-runners")
@@ -508,7 +510,7 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 		engineOverride:    engineOverride, actionMode: actionMode, actionTag: actionTag, actionsRepo: actionsRepo, ghAwRef: ghAwRef,
 		dir: dir, workflowsDir: workflowsDir, logicalRepo: logicalRepo, scheduleSeed: scheduleSeed, priorManifestFile: priorManifestFile,
 		environment: environment, dryRun: dryRun, allowExperimental: allowExperimental,
-		validate: validate, watch: watch, noEmit: noEmit, purge: purge, strict: strict, requireSelfHostedRunners: requireSelfHostedRunners, trial: trial, dependabot: dependabot,
+		validate: validate, watch: watch, noEmit: noEmit, noLogo: noLogo, purge: purge, strict: strict, requireSelfHostedRunners: requireSelfHostedRunners, trial: trial, dependabot: dependabot,
 		forceOverwrite: forceOverwrite, refreshStopTime: refreshStopTime, forceRefreshActionPins: forceRefreshActionPins, forceRefreshContainerPins: forceRefreshContainerPins, allowActionRefs: allowActionRefs,
 		zizmor: zizmor, poutine: poutine, actionlint: actionlint, runnerGuard: runnerGuard, syft: syft, grype: grype, grant: grant, yamllint: yamllint, shellcheck: shellcheck,
 		jsonOutput: jsonOutput, showAllErrors: showAllErrors, fix: fix, stats: stats, models: models, failFast: failFast, noCheckUpdate: noCheckUpdate,
@@ -551,7 +553,7 @@ func (o *compileCmdOptions) toCompileConfig(args []string) cli.CompileConfig {
 		ExplicitBoolFlags: o.explicitBoolFlags,
 		MarkdownFiles:     args, Verbose: o.verbose, EngineOverride: o.engineOverride, ActionMode: o.actionMode, ActionTag: o.actionTag,
 		ActionsRepo: o.actionsRepo, Validate: o.validate, Watch: o.watch, WorkflowDir: o.workflowDir(),
-		NoEmit: o.noEmit, Purge: o.purge, TrialMode: o.trial, TrialLogicalRepoSlug: o.logicalRepo, Strict: o.strict,
+		NoEmit: o.noEmit, NoLogo: o.noLogo, Purge: o.purge, TrialMode: o.trial, TrialLogicalRepoSlug: o.logicalRepo, Strict: o.strict,
 		RequireSelfHostedRunners: o.requireSelfHostedRunners,
 		EnvironmentOverride:      o.environment, DryRun: o.dryRun, AllowExperimental: o.allowExperimental,
 		Dependabot: o.dependabot, ForceOverwrite: o.forceOverwrite, RefreshStopTime: o.refreshStopTime, ForceRefreshActionPins: o.forceRefreshActionPins, ForceRefreshContainerPins: o.forceRefreshContainerPins,
@@ -808,6 +810,7 @@ func configureCompileBuildFlags() {
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
+	compileCmd.Flags().Bool("no-logo", false, "Omit the ASCII logo from generated workflow headers")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are provided)")
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, disallows write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	compileCmd.Flags().Bool("dry-run", false, "Compile with strict validation, shellcheck, and model checks; gate added medium-or-higher scanner findings against pre-compilation locks; ignore low severity and zizmor secrets-outside-env; Docker-based scanners are opt-in; report gate/scanner coverage; disable compiler-managed GitHub mutations, stage safe outputs, and record dry_run in aw_info.json; custom scripts and external MCP effects remain unverified; does not authorize execution, upload, or dispatch workflows")

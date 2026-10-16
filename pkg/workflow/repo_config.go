@@ -10,6 +10,7 @@
 //		  "ghes": true,               // enables GHES-compatible v3 artifact pins
 //		  "help_command": false,      // disables builtin centralized /help comment handler
 //		  "require_self_hosted_runners": true, // requires self-hosted runners for every generated job
+//		  "lock_file_logo": false,    // omits the ASCII logo from generated workflow headers
 //		  "utc": "-08:00", // project home UTC offset for rendered local times
 //		  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
 //		  "auto_upgrade": { "cron": "0 9 * * 1", "options": ["--pre-releases"] }, // or object form: configure schedule and upgrade options
@@ -170,6 +171,10 @@ type RepoConfig struct {
 	// self-hosted runner.
 	RequireSelfHostedRunners bool
 
+	// LockFileLogo controls the ASCII logo in generated workflow headers.
+	// When nil or true, the logo is enabled.
+	LockFileLogo *bool
+
 	// ArtifactRetentionDays overrides retention for all workflow artifacts.
 	ArtifactRetentionDays *TemplatableInt32
 
@@ -246,6 +251,11 @@ func (r *RepoConfig) IsAutoUpgradeEnabled() bool {
 	return *r.AutoUpgrade
 }
 
+// IsLockFileLogoEnabled reports whether generated workflow headers include the ASCII logo.
+func (r *RepoConfig) IsLockFileLogoEnabled() bool {
+	return r == nil || r.LockFileLogo == nil || *r.LockFileLogo
+}
+
 // UnmarshalJSON implements json.Unmarshaler to handle the polymorphic maintenance
 // and auto_upgrade fields. maintenance can be either the boolean false (disable)
 // or a configuration object; auto_upgrade can be a boolean or an object with an
@@ -257,6 +267,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 		Strict                   bool                          `json:"strict,omitempty"`
 		GHES                     bool                          `json:"ghes,omitempty"`
 		RequireSelfHostedRunners bool                          `json:"require_self_hosted_runners,omitempty"`
+		LockFileLogo             *bool                         `json:"lock_file_logo,omitempty"`
 		ArtifactRetentionDays    *TemplatableInt32             `json:"artifact_retention_days,omitempty"`
 		HelpCommand              *bool                         `json:"help_command,omitempty"` // nil = use default (enabled)
 		UTC                      string                        `json:"utc,omitempty"`
@@ -277,6 +288,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners
+	r.LockFileLogo = raw.LockFileLogo
 	r.ArtifactRetentionDays = raw.ArtifactRetentionDays
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)

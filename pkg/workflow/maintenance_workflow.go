@@ -332,6 +332,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		hasWorkQueue:        hasWorkQueue,
 		hasCacheMemory:      hasCacheMemory,
 		hasSteering:         hasSteering,
+		noLogo:              !repoConfig.IsLockFileLogoEnabled(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to finalize maintenance workflow YAML: %w", err)

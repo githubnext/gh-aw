@@ -23,9 +23,23 @@ func TestGenerateWorkQueueEventWorkflowSkipsRepoConfigWhenIssueMirroringIsUnused
 
 	err := generateWorkQueueEventWorkflowWrapper(context.Background(), []*workflow.WorkflowData{{
 		Tools: map[string]any{"work-queue": true},
-	}}, workflowDir, repoRoot, true)
+	}}, workflowDir, repoRoot, true, false)
 
 	require.NoError(t, err)
 	_, err = os.Stat(generatedPath)
 	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestRepoConfigWithNoLogo(t *testing.T) {
+	for _, logo := range []*bool{nil, new(true), new(false)} {
+		for _, noLogo := range []bool{false, true} {
+			config := &workflow.RepoConfig{LockFileLogo: logo, AutoUpgrade: new(true)}
+			result := repoConfigWithNoLogo(config, noLogo)
+			require.Equal(t, !noLogo && config.IsLockFileLogoEnabled(), result.IsLockFileLogoEnabled())
+			require.Equal(t, logo, config.LockFileLogo, "the original config must not be mutated")
+			require.True(t, result.IsAutoUpgradeEnabled(), "other settings must be preserved")
+		}
+	}
+	require.Nil(t, repoConfigWithNoLogo(nil, false))
+	require.False(t, repoConfigWithNoLogo(nil, true).IsLockFileLogoEnabled())
 }
