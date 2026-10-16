@@ -184,6 +184,12 @@ func collectDryRunBaselineInputs(files []string, config *CompileConfig, compiler
 		if err != nil {
 			continue // The ordinary compile pipeline reports source resolution errors.
 		}
+		relPath, err := getRepositoryRelativePath(resolved)
+		if err != nil {
+			compileDevelopmentLog.Printf("Warning: failed to get repository-relative path for %s: %v", resolved, err)
+			relPath = filepath.Base(resolved)
+		}
+		compiler.SetWorkflowIdentifier(relPath)
 		data, err := compiler.ParseWorkflowFile(resolved)
 		if err != nil {
 			var sharedErr *workflow.SharedWorkflowError
