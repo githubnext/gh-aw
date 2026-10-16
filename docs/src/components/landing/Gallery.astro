@@ -28,7 +28,7 @@ const workflows = [
     triggerIcon: 'zap',
     outcome: 'Investigates failing CI and opens an issue with the likely cause.',
     detail:
-      'It reads the failed job’s logs alongside the commit and pull request that triggered it, then files one issue with the root cause and next steps. Repeat failures update that issue instead of adding noise.',
+      'It reads the failed job’s logs alongside the commit and pull request that triggered it, then files one issue with the likely cause and next steps. Repeat failures update that issue instead of adding noise.',
     href: docs('ci-doctor'),
     prompt: prompt('to investigate failing CI runs: read the logs, find the likely cause, and open an issue with the diagnosis and next steps.'),
   },
