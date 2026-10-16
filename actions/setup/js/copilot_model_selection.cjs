@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -98,7 +98,7 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId,
         for (const line of lines) {
           let event;
           try {
-            event = parseJsonlLine(line);
+            event = iterateJsonl([line], { strict: true }).next().value;
           } catch {
             continue; // Native logs can contain incomplete or non-JSON records.
           }

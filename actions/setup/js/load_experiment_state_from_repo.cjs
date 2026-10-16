@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * load_experiment_state_from_repo
  *
@@ -44,7 +44,7 @@ function isExperimentStateContentValid(content) {
       if (!trimmed) {
         continue;
       }
-      const entry = parseJsonlLine(trimmed);
+      const entry = iterateJsonl([trimmed], { strict: true }).next().value;
       const isSnapshot = !!entry && typeof entry.counts === "object";
       const isRunRecord = !!entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments);
       if (!isSnapshot && !isRunRecord) {

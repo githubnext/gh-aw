@@ -103,7 +103,38 @@ Errors have sanitized messages and physical, one-based line numbers. Filter,
 callback, and I/O failures propagate. The length limit rejects oversized records
 after framing; memory remains proportional to the largest line.
 
-Strict protocols use `parseJsonlLine(line)` with their existing error handling.
+For redaction or diagnostics that must retain rejected input, use
+`iterateJsonlEvents(textOrLines)`, `readJsonlFileEvents(filePath)`, or
+`streamJsonlEvents(chunks)`. Each event has `type` (`"json"` or `"invalid"`),
+`rawLine` (including its original LF/CRLF terminator, if present), and `lineNumber`.
+JSON events also have `value`; invalid events have a sanitized `error` and a
+`reason` (`"syntax"`, `"too-long"`, or `"blank"`). Blank lines are emitted but do
+not invoke `onError`. No synthetic empty event follows a final newline.
+Without a filter, concatenating `rawLine` reproduces the original text exactly.
+Raw lines are untrusted and may contain secrets; redact them before logging.
+
+```javascript
+const { iterateJsonlEvents, readJsonlFileEvents } = require("./jsonl_helpers.cjs");
+
+for (const event of iterateJsonlEvents(text)) {
+  writeRedacted(event.type === "json" ? redactJson(event.value) : redactText(event.rawLine));
+  if (shouldStop()) break;
+}
+
+for (const event of readJsonlFileEvents(filePath)) {
+  if (isWanted(event)) {
+    consume(event);
+    break; // Stops decoding and closes the file immediately.
+  }
+}
+```
+
+The event iterators support `break`, `return`, and explicit iterator `.return()`;
+they do not decode later records, even in an already-read chunk. Async iterators
+also close their upstream source. Value-only iterators accept `{ strict: true }`
+to throw on any invalid record, including blank lines, instead of skipping it.
+Strict single-record protocols consume `iterateJsonl([line], { strict: true })`;
+there is no exported standalone record decoder.
 Custom repair or framing formats can use `iterateLines(text)`, `readLines(filePath)`,
 `streamLines(chunks)`, or `LineFramer.push(chunk)` / `finish()` without duplicating
 line buffering. `parseJsonlContent` remains an eager compatibility wrapper for

@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 /**
  * daily_aic_cache_helpers.cjs
  *
@@ -24,14 +24,7 @@ const AIC_SCAN_CACHE_ARTIFACT_NAME = "aic-usage-scan-v2";
  */
 function readScanCache(content, repository, workflowId, now = Date.now()) {
   const entries = new Map();
-  for (const line of iterateLines(content)) {
-    if (!line.trim()) continue;
-    let entry;
-    try {
-      entry = parseJsonlLine(line);
-    } catch {
-      continue;
-    }
+  for (const entry of iterateJsonl(content)) {
     if (
       entry?.version !== 2 ||
       entry.coverage_version !== 3 ||
@@ -116,7 +109,7 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
       continue;
     }
     try {
-      const entry = parseJsonlLine(line);
+      const entry = iterateJsonl([line], { strict: true }).next().value;
       if (typeof entry?.timestamp === "string") {
         const ts = Date.parse(entry.timestamp);
         if (Number.isFinite(ts) && ts < cutoffMs) {

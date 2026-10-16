@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 
@@ -197,7 +197,7 @@ function sumAICFromUsageJSONLFiles(filePaths, options = {}) {
       }
 
       try {
-        const parsed = parseJsonlLine(line);
+        const parsed = iterateJsonl([line], { strict: true }).next().value;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
           if (options.strict) throw new Error("Invalid daily AIC accounting record");
           continue;

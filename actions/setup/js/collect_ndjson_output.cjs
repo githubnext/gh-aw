@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { normalizeRuntimeMessage, readClaimScopeContext, currentClaimHandle, currentClaimAssignment } = require("./work_queue_claim_scope.cjs");
@@ -147,7 +147,7 @@ async function main() {
     }
     function parseJsonWithRepair(jsonStr) {
       try {
-        const parsed = parseJsonlLine(jsonStr);
+        const parsed = iterateJsonl([jsonStr], { strict: true }).next().value;
         // Sanitize the parsed object to prevent prototype pollution
         return sanitizePrototypePollution(parsed);
       } catch (originalError) {

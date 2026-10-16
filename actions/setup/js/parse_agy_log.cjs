@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { createEngineLogParser, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
 const { createSessionEvent, isSessionEvent, isTokenCount, isMetric, reconcileSessionUsage } = require("./agent_session.cjs");
 const { getMessageRefusal } = require("./provider_refusal.cjs");
@@ -61,19 +61,16 @@ function parseAgyLog(content) {
   let conversation;
   let anonymousSession = 0;
   let maxTurnsHit = false;
-  let index = -1;
-  for (const line of iterateLines(content)) {
-    index++;
-    if (!line.trim().startsWith("{")) continue;
+  for (const event of iterateJsonlEvents(content, { lineFilter: line => line.startsWith("{") })) {
+    if (event.type === "invalid" && event.reason === "blank") continue;
+    const index = event.lineNumber - 1;
     const contiguousMessageKey = lastMessageKey;
     lastMessageKey = undefined;
-    let raw;
-    try {
-      raw = parseJsonlLine(line);
-    } catch {
+    if (event.type === "invalid") {
       logEntries.push({ type: "session.collection_warning", data: { code: "malformed_jsonl", line: index + 1 } });
       continue;
     }
+    let raw = event.value;
     if (isSessionEvent(raw)) {
       logEntries.push(structuredClone(raw));
       if (raw.type === "session.error" && /max.?turns|turn limit|maximum.*turns/i.test(String(raw.data?.error ?? ""))) maxTurnsHit = true;

@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine, LineFramer } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, LineFramer } = require("./jsonl_helpers.cjs");
 const { spawn, spawnSync } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -158,7 +158,7 @@ const main = async () => {
           if (!value.trim()) return;
           let event;
           try {
-            event = parseJsonlLine(value);
+            event = iterateJsonl([value], { strict: true }).next().value;
           } catch {
             invalid = true;
             terminate("SIGTERM");

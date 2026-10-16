@@ -1,5 +1,5 @@
 // @ts-check
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 /**
  * Helpers that make rendered agent logs aware of GitHub Actions `::add-mask::`
@@ -156,9 +156,9 @@ function redactArtifactMaskedValues(content, maskedValues) {
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, nested]) => [redactMaskedValues(key, maskedValues), redactValue(nested)]));
     return value;
   };
-  const redactJson = text => {
+  const redactJson = (text, parsedValue) => {
     try {
-      let value = parseJsonlLine(text);
+      let value = parsedValue;
       // Skip quoted strings and match original numeric tokens at every depth so
       // rounding or exponent notation cannot hide a mask.
       const numericRedacted = text.replace(/"(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
@@ -173,14 +173,21 @@ function redactArtifactMaskedValues(content, maskedValues) {
       return undefined;
     }
   };
-  const json = redactJson(content);
-  if (json !== undefined) return json;
-  return content
-    .split("\n")
-    .filter(line => !isAddMaskCommandLine(line))
-    .map(line => {
-      const jsonLine = redactJson(line);
-      if (jsonLine !== undefined) return jsonLine;
+  // Preserve support for complete, possibly pretty-printed JSON documents.
+  try {
+    const json = redactJson(content, JSON.parse(content));
+    if (json !== undefined) return json;
+  } catch {
+    // Mixed logs and JSONL are handled record-by-record below.
+  }
+  const redactedLines = [];
+  for (const event of iterateJsonlEvents(content)) {
+    const line = event.rawLine;
+    if (isAddMaskCommandLine(line.replace(/\r?\n$/, ""))) continue;
+    const jsonLine = event.type === "json" ? redactJson(line, event.value) : undefined;
+    if (jsonLine !== undefined) {
+      redactedLines.push(jsonLine);
+    } else {
       // Mixed or malformed logs can still contain recoverable JSON strings.
       const decoded = line.replace(/"(?:[^"\\]|\\.)*"/g, encoded => {
         try {
@@ -191,9 +198,10 @@ function redactArtifactMaskedValues(content, maskedValues) {
           return encoded;
         }
       });
-      return redactMaskedValues(decoded, maskedValues);
-    })
-    .join("\n");
+      redactedLines.push(redactMaskedValues(decoded, maskedValues));
+    }
+  }
+  return redactedLines.join("");
 }
 
 module.exports = {

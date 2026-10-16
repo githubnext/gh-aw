@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -337,7 +337,7 @@ class Ledger {
     for (const line of iterateLines(content.slice(0, -1))) {
       let record;
       try {
-        record = parseJsonlLine(line);
+        record = iterateJsonl([line], { strict: true }).next().value;
       } catch {
         throw new TypeError("Ledger segment contains an invalid record");
       }
@@ -578,7 +578,7 @@ class Ledger {
         const position = { file, line: index + 1 };
         let record;
         try {
-          record = parseJsonlLine(text);
+          record = iterateJsonl([text], { strict: true }).next().value;
         } catch {
           diagnostics.push({ code: "invalid-json", ...position });
           continue;

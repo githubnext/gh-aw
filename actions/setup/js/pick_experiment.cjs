@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * pick_experiment
  *
@@ -211,7 +211,7 @@ function loadState(stateFile) {
       if (!trimmed) {
         continue;
       }
-      const entry = parseJsonlLine(trimmed);
+      const entry = iterateJsonl([trimmed], { strict: true }).next().value;
       if (entry && typeof entry.counts === "object") {
         state.counts = entry.counts;
         state.runs = Array.isArray(entry.runs) ? entry.runs.slice(-MAX_RUN_HISTORY) : [];

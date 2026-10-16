@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { execFileSync } from "node:child_process";
-import { parseJsonlContent, parseJsonlLine, iterateLines, readLines, streamLines, iterateJsonl, readJsonlFile, streamJsonl } from "./jsonl_helpers.cjs";
+import { parseJsonlContent, iterateLines, readLines, streamLines, iterateJsonl, readJsonlFile, streamJsonl, iterateJsonlEvents, readJsonlFileEvents, streamJsonlEvents } from "./jsonl_helpers.cjs";
 import { ReadBuffer } from "./read_buffer.cjs";
 
 async function collect(source) {
@@ -59,8 +59,8 @@ describe("jsonl_helpers", () => {
       expect(await collect(streamJsonl([Buffer.from(text)], options))).toEqual([{ ok: 1 }]);
       expect(errors.map(entry => entry[1])).toEqual([2, 3, 5]);
       expect(JSON.stringify(errors)).not.toContain("do-not-log");
-      expect(() => parseJsonlLine("noise")).toThrow(SyntaxError);
-      expect(() => parseJsonlLine('{"broken"')).toThrow(SyntaxError);
+      expect(() => [...iterateJsonl("noise", { strict: true })]).toThrow(SyntaxError);
+      expect(() => [...iterateJsonl('{"broken"', { strict: true })]).toThrow(SyntaxError);
     });
 
     it("supports filters and optional line limits without capping normal records", async () => {
@@ -76,6 +76,124 @@ describe("jsonl_helpers", () => {
       expect(await collect(streamJsonl([text], options))).toEqual([{ ok: 1 }]);
       expect(() => [...iterateJsonl("", { maxLineLength: 0 })]).toThrow(RangeError);
       await expect(collect(streamJsonl([], { maxLineLength: NaN }))).rejects.toThrow(RangeError);
+    });
+
+    it("exposes only iterator-based decoding, not a standalone line parser", () => {
+      const exports = Object.keys(require("./jsonl_helpers.cjs"));
+      expect(exports).not.toContain("parseJsonlLine");
+      expect(exports).not.toContain("parseJsonLine");
+    });
+
+    it.each(["", "\n", "\r\n", " \t", "{}", "{}\n", "{}\r\n", "\n{}\n\nnoise\r\nnull\nfalse\n0\n", '{"unterminated"'])("preserves every raw character and physical line in events for %j", async text => {
+      const events = [...iterateJsonlEvents(text)];
+      expect(events.map(event => event.rawLine).join("")).toBe(text);
+      expect(events.map(event => event.lineNumber)).toEqual(events.map((_, index) => index + 1));
+      const chunks = Array.from(Buffer.from(text), byte => Buffer.from([byte]));
+      expect(await collect(streamJsonlEvents(chunks))).toEqual(events);
+      expect([...iterateJsonlEvents(iterateLines(text, true))]).toEqual(events);
+    });
+
+    it("emits valid, corrupt, plain-text, and blank records without exposing input in errors", () => {
+      const errors = [];
+      const content = '\ufeff {"text":"你好 🚀"}\r\nnoise\n{"secret":"do-not-log",}\r\n \t\r\nnull\nfalse\n0';
+      const events = [...iterateJsonlEvents(content, { onError: (error, line) => errors.push([error.message, line]) })];
+      expect(events.map(event => event.type)).toEqual(["json", "invalid", "invalid", "invalid", "json", "json", "json"]);
+      expect(events.filter(event => event.type === "json").map(event => event.value)).toEqual([{ text: "你好 🚀" }, null, false, 0]);
+      expect(events.filter(event => event.type === "invalid").map(event => event.reason)).toEqual(["syntax", "syntax", "blank"]);
+      expect(events[2].rawLine).toBe('{"secret":"do-not-log",}\r\n');
+      expect(errors).toEqual([
+        ["Invalid JSONL record", 2],
+        ["Invalid JSONL record", 3],
+      ]);
+      for (const event of events) {
+        if (event.type === "invalid") expect(event.error.message).not.toContain("do-not-log");
+      }
+    });
+
+    it("filters before decoding and excludes line endings from the record limit", async () => {
+      const options = { maxLineLength: 7, lineFilter: line => !line.includes("skip") };
+      const text = '{"skip":true}\r\n{"a":1}\r\n{"long":1234}\n';
+      const events = [...iterateJsonlEvents(text, options)];
+      expect(events).toMatchObject([
+        { type: "json", lineNumber: 2, value: { a: 1 } },
+        { type: "invalid", lineNumber: 3, reason: "too-long" },
+      ]);
+      expect(await collect(streamJsonlEvents([text], options))).toEqual(events);
+    });
+
+    it.each(['{"first":1}\n', "invalid\n"])("short-circuits string and synchronous source events after %j", first => {
+      let closed = false;
+      let pulled = 0;
+      function* lines() {
+        try {
+          pulled++;
+          yield first;
+          pulled++;
+          yield '{"second":2}\n';
+        } finally {
+          closed = true;
+        }
+      }
+      const filter = vi.fn(() => true);
+      for (const event of iterateJsonlEvents(first + '{"second":2}\n', { lineFilter: filter })) {
+        expect(event.rawLine).toBe(first);
+        break;
+      }
+      expect(filter).toHaveBeenCalledTimes(1);
+      for (const event of iterateJsonlEvents(lines())) {
+        expect(event.rawLine).toBe(first);
+        break;
+      }
+      expect(pulled).toBe(1);
+      expect(closed).toBe(true);
+    });
+
+    it.each(['{"first":1}\r\n', "invalid\r\n"])("closes file and chunk event inputs on break or return after %j", async first => {
+      const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-jsonl-events-"));
+      const file = path.join(directory, "input.jsonl");
+      fs.writeFileSync(file, first + '{"second":"你好 🚀"}\n');
+      const close = vi.spyOn(fs, "closeSync");
+      try {
+        const iterator = readJsonlFileEvents(file);
+        expect(close).not.toHaveBeenCalled();
+        expect(iterator.next().value.rawLine).toBe(first);
+        iterator.return();
+        expect(close).toHaveBeenCalledTimes(1);
+        for (const event of readJsonlFileEvents(file)) {
+          expect(event.rawLine).toBe(first);
+          break;
+        }
+        expect(close).toHaveBeenCalledTimes(2);
+        expect([...readJsonlFileEvents(file)]).toEqual([...iterateJsonlEvents(fs.readFileSync(file, "utf8"))]);
+        for (const stop of ["break", "return"]) {
+          const readable = Readable.from([Buffer.from(first + '{"second":2}\n')]);
+          const filter = vi.fn(() => true);
+          const events = streamJsonlEvents(readable, { lineFilter: filter });
+          if (stop === "return") {
+            expect((await events.next()).value.rawLine).toBe(first);
+            await events.return();
+          } else {
+            for await (const event of events) {
+              expect(event.rawLine).toBe(first);
+              break;
+            }
+          }
+          expect(readable.destroyed).toBe(true);
+          expect(filter).toHaveBeenCalledTimes(1);
+        }
+      } finally {
+        close.mockRestore();
+        fs.rmSync(directory, { recursive: true, force: true });
+      }
+    });
+
+    it("closes strict iterator sources on invalid entries, including blanks", async () => {
+      for (const first of ["invalid\n", "\r\n"]) {
+        const readable = Readable.from([Buffer.from(first + "{}\n")]);
+        await expect(collect(streamJsonl(readable, { strict: true }))).rejects.toThrow(SyntaxError);
+        expect(readable.destroyed).toBe(true);
+        expect(() => [...iterateJsonl(first, { strict: true })]).toThrow(SyntaxError);
+      }
     });
 
     it("propagates source, predicate and error callback failures", async () => {

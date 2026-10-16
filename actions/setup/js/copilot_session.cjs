@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /** @typedef {import("./types/agent_session").SessionEvent} SessionEvent */
 /** @typedef {import("./types/agent_session").SessionUsage} SessionUsage */
 /** @typedef {import("./types/agent_session").SessionResultData} SessionResultData */
@@ -38,15 +38,10 @@ function hasCopilotConversation(events) {
  * @returns {boolean}
  */
 function hasMalformedJsonl(content) {
-  return content.split(/\r?\n/).some(line => {
-    if (!line.trim()) return false;
-    try {
-      parseJsonlLine(line);
-      return false;
-    } catch {
-      return true;
-    }
-  });
+  for (const event of iterateJsonlEvents(content)) {
+    if (event.type === "invalid" && event.reason !== "blank") return true;
+  }
+  return false;
 }
 
 /** @param {any} event @returns {ReturnType<typeof sessionContext>} */

@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const { sessionOutputText, sessionContext, sessionScopeKey, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collapseStreamedMessages, boundSummaryLines, escapeSummaryText, redactSessionForPublication } = require("./agent_session_render.cjs");
@@ -464,7 +464,7 @@ async function publishUnifiedSessionSummary(filePath) {
       .readFileSync(filePath, "utf8")
       .split("\n")
       .filter(line => line.trim())
-      .map(line => parseJsonlLine(line));
+      .map(line => iterateJsonl([line], { strict: true }).next().value);
   } catch (error) {
     throw new Error(`${ERR_SYSTEM}: Failed to read unified session for summary: ${getErrorMessage(error)}`, { cause: error });
   }

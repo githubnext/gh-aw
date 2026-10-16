@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const { detectErrors, buildOutputLines, isCAPIServerError } = require("./agent_error_patterns.cjs");
 const { API_PROXY_GUARD_REJECTION_PATTERNS, detectNonRetryableHarnessGuard, isAuthenticationFailedError, selectNativeErrorDiagnostic, shouldSuppressGuardCategory } = require("./harness_error_patterns.cjs");
 const { crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
@@ -167,7 +167,7 @@ function collectAgentErrorEvidence(content, events = [], rawSourceEngine) {
     if (conversationLines.has(conversationKey(line))) continue;
     let record;
     try {
-      record = parseJsonlLine(line);
+      record = iterateJsonl([line], { strict: true }).next().value;
     } catch {
       const runtimeLine = /^\[(?:(?:copilot|claude|codex)-harness|copilot-sdk-driver|sdk-driver|gh-aw\/pi-provider|ERROR)\]/.test(line) || /^\d{4}-\d{2}-\d{2}T\S+\s+ERROR\s+/.test(line);
       if (runtimeLine) transcriptBlock = false;

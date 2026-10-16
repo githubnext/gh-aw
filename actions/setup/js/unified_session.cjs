@@ -1,5 +1,5 @@
 // @ts-check
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -203,7 +203,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       lineNumber++;
       if (!raw.trim()) continue;
       try {
-        values.push(parseJsonlLine(raw));
+        values.push(iterateJsonl([raw], { strict: true }).next().value);
         lines.push(lineNumber);
       } catch {
         incompleteSources.add(file);

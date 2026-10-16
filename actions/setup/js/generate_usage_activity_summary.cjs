@@ -14,7 +14,7 @@
 //   working_set: cumulative input-token traffic relative to peak invocation input
 //   friction: precomputed cost of wasted work (AIC canonical) with attribution states
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
@@ -461,7 +461,7 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
 
           let entry;
           try {
-            entry = parseJsonlLine(line);
+            entry = iterateJsonl([line], { strict: true }).next().value;
           } catch {
             continue;
           }
@@ -771,7 +771,7 @@ function parseGatewayJSONL(activity, content) {
       continue;
     }
     try {
-      const entry = parseJsonlLine(line);
+      const entry = iterateJsonl([line], { strict: true }).next().value;
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -823,7 +823,7 @@ function parseRPCMessagesJSONL(activity, content) {
       continue;
     }
     try {
-      const entry = parseJsonlLine(line);
+      const entry = iterateJsonl([line], { strict: true }).next().value;
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -1011,7 +1011,7 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
 
     let entry;
     try {
-      entry = parseJsonlLine(line);
+      entry = iterateJsonl([line], { strict: true }).next().value;
     } catch {
       continue;
     }

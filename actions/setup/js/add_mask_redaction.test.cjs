@@ -214,6 +214,17 @@ describe("add_mask_redaction", () => {
         expect(redacted).toBe('{"data":"***"}\n{"broken":"***",\nplain ***\n{"data":"safe"}\n');
       });
 
+      it("preserves blank lines, mixed line endings and unterminated records while redacting events", () => {
+        const content = '::add-mask::opaque\r\n\r\n {"data":"safe"} \r\n{"data":"\\u006fpaque"}\r\n{"broken":"\\u006fpaque",\nplain opaque\r\n \t\r\nlast opaque';
+        expect(redactArtifactMaskedValues(content, ["opaque"])).toBe('\r\n {"data":"safe"} \r\n{"data":"***"}\r\n{"broken":"***",\nplain ***\r\n \t\r\nlast ***');
+      });
+
+      it("redacts multi-megabyte valid and invalid adjacent event lines", () => {
+        const padding = "x".repeat(3 * 1024 * 1024);
+        const content = `{"data":"${padding}\\u006fpaque"}\r\n{"broken":"${padding}\\u006fpaque",\nplain opaque`;
+        expect(redactArtifactMaskedValues(content, ["opaque"])).toBe(`{"data":"${padding}***"}\r\n{"broken":"${padding}***",\nplain ***`);
+      });
+
       it("preserves untouched formatting and empty or unmasked inputs", () => {
         const content = '  {\n    "empty": "", "zero": 0\n  }\n';
         expect(redactArtifactMaskedValues(content, ["absent"])).toBe(content);

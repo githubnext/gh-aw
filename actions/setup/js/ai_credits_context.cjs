@@ -1,5 +1,5 @@
 // @ts-check
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const fs = require("fs");
@@ -298,11 +298,9 @@ function iterateJSONLFiles(filePaths, defaultValue, contentGuard, accumulate, sh
         const content = fs.readFileSync(filePath, "utf8");
         if (!content.trim()) continue;
         if (contentGuard && !contentGuard(content)) continue;
-        for (const line of iterateLines(content)) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed[0] !== "{") continue;
+        for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
           try {
-            const nextResult = accumulate(result, parseJsonlLine(trimmed));
+            const nextResult = accumulate(result, entry);
             if (nextResult !== undefined) result = nextResult;
             if (shouldStop && shouldStop(result)) return result;
           } catch {

@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { countPermissionDeniedIssues, extractDeniedCommands } = require("./permission_denied_helpers.cjs");
@@ -14,7 +14,7 @@ function claudeRecords(output) {
   const records = [];
   for (const line of output.split(/\r?\n/)) {
     try {
-      const record = parseJsonlLine(line);
+      const record = iterateJsonl([line], { strict: true }).next().value;
       if (record && typeof record === "object" && !Array.isArray(record)) records.push(record);
     } catch {
       // stderr diagnostics are not part of the JSONL event stream.
@@ -30,7 +30,7 @@ function claudeFailureEvidence(output) {
     .split(/\r?\n/)
     .filter(line => {
       try {
-        const record = parseJsonlLine(line);
+        const record = iterateJsonl([line], { strict: true }).next().value;
         if (record.type === "user") return false;
         if (record.type === "assistant") return record.is_api_error_message === true || record.error != null;
         if (record.type === "system" && record.error == null) return false;
@@ -41,7 +41,7 @@ function claudeFailureEvidence(output) {
     })
     .map(line => {
       try {
-        const record = parseJsonlLine(line);
+        const record = iterateJsonl([line], { strict: true }).next().value;
         if (record.type !== "result") return line;
         const { result, permission_denials, ...metadata } = record;
         if (record.is_error === true) metadata.result = result;

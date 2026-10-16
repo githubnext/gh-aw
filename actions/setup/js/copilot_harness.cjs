@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * Copilot Harness with Retry Logic
  *
@@ -756,7 +756,7 @@ function isCopilotContentFilterError(output) {
   return output.split(/\r?\n/).some(line => {
     let event;
     try {
-      event = parseJsonlLine(line);
+      event = iterateJsonl([line], { strict: true }).next().value;
     } catch {
       return false;
     }

@@ -1,5 +1,5 @@
 // @ts-check
-const { parseJsonlLine } = require("../jsonl_helpers.cjs");
+const { iterateJsonl } = require("../jsonl_helpers.cjs");
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -47,7 +47,7 @@ function validateSession(content, kind = "unified", format = "jsonl") {
       }
       let event;
       try {
-        event = parseJsonlLine(line);
+        event = iterateJsonl([line], { strict: true }).next().value;
       } catch {
         throw new Error(`Invalid session JSONL at line ${index + 1}`);
       }

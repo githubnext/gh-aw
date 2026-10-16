@@ -1,6 +1,6 @@
 "use strict";
 
-const { parseJsonlLine, iterateLines, readJsonlFile } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, readJsonlFile } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { computeInferenceAIC } = require("./model_costs.cjs");
 
@@ -331,15 +331,10 @@ function getEffectiveModelLabel(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp
 
 function recordFallbackModelFromUsage(content, env = process.env, infoPath = `${env.GH_AW_TMP_DIR || "/tmp/gh-aw"}/aw_info.json`, logger = console.warn) {
   let model = "";
-  for (const line of iterateLines(content)) {
-    if (!line.includes('"model_fallback"')) continue;
-    let entry;
-    try {
-      entry = parseJsonlLine(line);
-    } catch (error) {
-      logger(`Skipping malformed AWF fallback usage record: ${getErrorMessage(error)}`);
-      continue;
-    }
+  for (const entry of iterateJsonl(content, {
+    lineFilter: line => line.includes('"model_fallback"'),
+    onError: error => logger(`Skipping malformed AWF fallback usage record: ${getErrorMessage(error)}`),
+  })) {
     if (typeof entry?._schema !== "string" || !entry._schema.startsWith("token-usage/") || !entry.model_fallback || Number(entry.status) >= 400) continue;
     const validated = validateModelIdentifier(entry.model || entry.model_fallback.model);
     if (validated) model = validated;

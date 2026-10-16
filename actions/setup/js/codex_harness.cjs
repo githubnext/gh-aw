@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 /**
  * OpenAI Codex CLI Harness with Retry Logic
  *
@@ -133,7 +133,7 @@ function createMCPCallWatchdog(timeoutMs, now = Date.now) {
     observe(line) {
       let event;
       try {
-        event = parseJsonlLine(line);
+        event = iterateJsonl([line], { strict: true }).next().value;
       } catch {
         return;
       }
@@ -321,7 +321,7 @@ function isInvalidRequestError(output) {
 function extractInvalidRequestErrorCode(output) {
   for (const line of iterateLines(output)) {
     try {
-      const event = parseJsonlLine(line);
+      const event = iterateJsonl([line], { strict: true }).next().value;
       if (event?.type !== "turn.failed" || !event.error) continue;
       const match = JSON.stringify(event.error).match(INVALID_REQUEST_ERROR_PATTERN);
       if (match) return match[0].toLowerCase();
@@ -344,7 +344,7 @@ function extractInvalidRequestErrorCode(output) {
 function isUnsupportedModelToolsError(output) {
   return output.split(/\r?\n/).some(line => {
     try {
-      const event = parseJsonlLine(line);
+      const event = iterateJsonl([line], { strict: true }).next().value;
       if (event?.type !== "turn.failed" || !event.error) return false;
       const details = extractNestedProviderErrorDetails(event.error);
       return !!details && details.param === "tools" && details.code === "unknown_parameter";
@@ -1015,7 +1015,7 @@ async function main() {
         onStdoutLine: line => {
           mcpWatchdog.observe(line);
           try {
-            const event = parseJsonlLine(line);
+            const event = iterateJsonl([line], { strict: true }).next().value;
             if (event.type === "thread.started" && typeof event.thread_id === "string") lastThreadId = event.thread_id;
             if (event.type === "turn.failed" || event.type === "error") {
               terminalErrors.push(line);

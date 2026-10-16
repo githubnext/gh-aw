@@ -2,7 +2,7 @@
 
 "use strict";
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const { BUILT_IN_PATTERNS } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues, redactMaskedValues } = require("./add_mask_redaction.cjs");
 
@@ -168,7 +168,7 @@ function parseAPIProxyGuardRejection(output) {
   for (const line of iterateLines(safeOutput)) {
     let record;
     try {
-      record = parseJsonlLine(line);
+      record = iterateJsonl([line], { strict: true }).next().value;
     } catch {
       continue;
     }
@@ -276,7 +276,7 @@ function parseAICreditsExceededProxyRejection(output) {
     /** @type {unknown} */
     let parsed;
     try {
-      parsed = parseJsonlLine(trimmed);
+      parsed = iterateJsonl([trimmed], { strict: true }).next().value;
     } catch {
       continue;
     }

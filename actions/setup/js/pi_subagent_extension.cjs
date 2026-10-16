@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine, LineFramer } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, LineFramer } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -98,7 +98,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         if (!line.trim()) return;
         let event;
         try {
-          event = parseJsonlLine(line);
+          event = iterateJsonl([line], { strict: true }).next().value;
         } catch {
           failure ||= "Pi sub-agent emitted an invalid JSON event";
           return;

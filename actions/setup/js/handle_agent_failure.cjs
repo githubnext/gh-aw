@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -341,14 +341,10 @@ function buildFailureMatchCategories(options) {
 
 function hasMCPTransportWedge(sessionContent) {
   if (!sessionContent.includes('"transport_wedge"')) return false;
-  return sessionContent.split(/\r?\n/).some(line => {
-    try {
-      const event = parseJsonlLine(line);
-      return isAgentExecutionEvent(event) && event.data.categories.includes("transport_wedge");
-    } catch {
-      return false;
-    }
-  });
+  for (const event of iterateJsonl(sessionContent)) {
+    if (isAgentExecutionEvent(event) && event.data.categories.includes("transport_wedge")) return true;
+  }
+  return false;
 }
 
 function getAgentStdioLogPath(agentOutputFile = process.env.GH_AW_AGENT_OUTPUT) {
@@ -371,7 +367,7 @@ function readModelEndpointMismatch() {
         .readFileSync(file, "utf8")
         .split(/\r?\n/)
         .filter(line => line.trim())
-        .map(line => parseJsonlLine(line));
+        .map(line => iterateJsonl([line], { strict: true }).next().value);
     } catch (error) {
       const missing = error && typeof error === "object" && "code" in error && error.code === "ENOENT";
       if (process.env.GH_AW_UNIFIED_SESSION || !missing) throw error;
@@ -1649,7 +1645,7 @@ function loadToolDenialsExceededEvents() {
         const line = rawLine.trim();
         if (!line) continue;
         try {
-          const parsed = parseJsonlLine(line);
+          const parsed = iterateJsonl([line], { strict: true }).next().value;
           if (parsed.type === "tool.execution_start" && parsed.data && typeof parsed.data === "object") {
             const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
             if (toolName) {
@@ -2833,7 +2829,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
 
       let entry;
       try {
-        entry = parseJsonlLine(trimmed);
+        entry = iterateJsonl([trimmed], { strict: true }).next().value;
       } catch {
         continue;
       }

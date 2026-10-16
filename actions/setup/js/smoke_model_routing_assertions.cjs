@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * Deterministic model-routing smoke assertions.
  *
@@ -566,7 +566,7 @@ function readJsonl(file, problems) {
   for (const [index, line] of lines.entries()) {
     if (!line.trim()) continue;
     try {
-      records.push(parseJsonlLine(line));
+      records.push(iterateJsonl([line], { strict: true }).next().value);
     } catch (error) {
       problems.push(`${file}:${index + 1} is not valid JSON: ${getErrorMessage(error)}`);
     }

@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const { isSessionEvent } = require("./agent_session.cjs");
 const { collectUnifiedSession, parseEngineSession } = require("./unified_session.cjs");
@@ -52,7 +52,7 @@ function sessionCLI(args) {
       .map((line, index) => {
         let event;
         try {
-          event = parseJsonlLine(line);
+          event = iterateJsonl([line], { strict: true }).next().value;
         } catch (error) {
           throw new Error(`Invalid session JSONL at record ${index + 1}`, { cause: error });
         }

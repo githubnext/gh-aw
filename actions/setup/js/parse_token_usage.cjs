@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -74,7 +74,7 @@ function readModelRoutingRecord(ghAwDir) {
     const previousPathRecords = new Set(seenOutcomeRecords);
     for (const line of lines) {
       try {
-        const record = parseJsonlLine(line);
+        const record = iterateJsonl([line], { strict: true }).next().value;
         if (typeof record?._schema !== "string" || !record._schema.startsWith("model-routing/")) continue;
         if (record.stage === "selection" || record.stage === "failure") {
           // Suppress mirrored copies from earlier paths, not repeated records within this log.
@@ -411,7 +411,7 @@ function findCopilotUsageCheckpoint(sessionStateDir = getGhAwPath("sandbox/agent
       sequence++;
       if (!line.trim()) continue;
       try {
-        const event = parseJsonlLine(line);
+        const event = iterateJsonl([line], { strict: true }).next().value;
         if (event?.type !== "session.usage_checkpoint") continue;
         const totalNanoAiu = Number(event?.data?.totalNanoAiu);
         if (!Number.isFinite(totalNanoAiu) || totalNanoAiu < 0) continue;

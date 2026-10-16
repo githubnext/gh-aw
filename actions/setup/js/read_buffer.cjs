@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine, LineFramer } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, LineFramer } = require("./jsonl_helpers.cjs");
 const { StringDecoder } = require("node:string_decoder");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
@@ -60,7 +60,7 @@ class ReadBuffer {
       }
       if (!line.trim()) continue;
       try {
-        return parseJsonlLine(line);
+        return iterateJsonl([line], { strict: true }).next().value;
       } catch (error) {
         throw new Error(`${ERR_PARSE}: Parse error: ${getErrorMessage(error)}`, { cause: error });
       }

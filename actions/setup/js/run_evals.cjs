@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * run_evals — BinEval binary evaluation harness.
  *
@@ -323,7 +323,7 @@ function extractAssistantTextFromJsonlLog(logContent) {
     if (jsonStart === -1) continue;
     let obj;
     try {
-      obj = parseJsonlLine(trimmed.slice(jsonStart));
+      obj = iterateJsonl([trimmed.slice(jsonStart)], { strict: true }).next().value;
     } catch {
       continue;
     }

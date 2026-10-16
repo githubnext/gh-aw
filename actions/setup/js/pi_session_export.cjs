@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
@@ -14,7 +14,7 @@ function sessionIDFromStream(stream) {
     if (!line.startsWith("{")) continue;
     let record;
     try {
-      record = parseJsonlLine(line);
+      record = iterateJsonl([line], { strict: true }).next().value;
     } catch {
       continue;
     }

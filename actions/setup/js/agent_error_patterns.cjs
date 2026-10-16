@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError, parseModelEndpointMismatch } = require("./harness_error_patterns.cjs");
 const STEP_TIMEOUT_TOLERANCE_MS = 30_000;
 
@@ -85,7 +85,7 @@ const MODEL_NOT_SUPPORTED_PATTERN =
 function isUnsupportedModelToolsError(output) {
   return output.split(/\r?\n/).some(line => {
     try {
-      const event = parseJsonlLine(line);
+      const event = iterateJsonl([line], { strict: true }).next().value;
       if (event?.type !== "turn.failed" || !event.error) return false;
 
       const candidates = [event.error];

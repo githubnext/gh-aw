@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * push_experiment_state
  *
@@ -151,7 +151,7 @@ function mergeExperimentStateJSONL(remoteContent, localContent) {
       }
       let entry;
       try {
-        entry = parseJsonlLine(trimmed);
+        entry = iterateJsonl([trimmed], { strict: true }).next().value;
       } catch {
         // Skip lines that cannot be parsed as JSON. This makes the merge resilient
         // to partial writes or corruption in either side of the conflict.
@@ -234,7 +234,7 @@ function mergeAppendOnlyJSONL(remoteContent, localContent) {
       let outputLine;
       let key;
       try {
-        const entry = parseJsonlLine(trimmed);
+        const entry = iterateJsonl([trimmed], { strict: true }).next().value;
         outputLine = JSON.stringify(entry);
         key = `json:${stableJSONStringify(entry)}`;
       } catch {

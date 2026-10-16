@@ -1,6 +1,6 @@
 "use strict";
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -500,7 +500,7 @@ function registerTests({ describe, it }) {
             .readFileSync(path.join(scope.claimArtifactPath(root, "h1"), "items.jsonl"), "utf8")
             .trim()
             .split("\n")
-            .map(line => parseJsonlLine(line));
+            .map(line => iterateJsonl([line], { strict: true }).next().value);
           assert.deepEqual({ dispatch_id: entries[0].dispatch_id, claim_id: entries[0].claim_id, work_id: entries[0].work_id, claim_handle: entries[0].claim_handle }, scope.claimIdentity("h1"));
         });
         await scope.withClaimExecution({ assignment: second, claim_handle: "h1" }, () => {

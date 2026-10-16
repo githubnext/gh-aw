@@ -29,7 +29,7 @@
 //   GITHUB_WORKSPACE          — git working directory for pre-staging (optional;
 //                               falls back to cwd)
 
-const { parseJsonlLine } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, streamLines } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const { spawn } = require("child_process");
@@ -501,7 +501,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
       continue;
     }
     try {
-      return parseJsonlLine(line);
+      return iterateJsonl([line], { strict: true }).next().value;
     } catch (err) {
       throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`, { cause: err });
     }
@@ -513,20 +513,9 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
  * @param {NodeJS.ReadableStream} stdout
  */
 async function* lineIterator(stdout) {
-  let buffer = "";
-  for await (const chunk of stdout) {
-    buffer += chunk.toString();
-    let newlineIdx;
-    while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
-      const line = buffer.slice(0, newlineIdx).trim();
-      buffer = buffer.slice(newlineIdx + 1);
-      if (line) {
-        yield line;
-      }
-    }
-  }
-  if (buffer.trim()) {
-    yield buffer.trim();
+  for await (const raw of streamLines(stdout)) {
+    const line = raw.trim();
+    if (line) yield line;
   }
 }
 

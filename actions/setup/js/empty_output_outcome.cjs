@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
@@ -114,7 +114,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
     let malformed = 0;
     for (const line of (evidence.content || "").split("\n").filter(line => line.trim())) {
       try {
-        const entry = parseJsonlLine(line);
+        const entry = iterateJsonl([line], { strict: true }).next().value;
         if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
       } catch {
         malformed++;
@@ -127,7 +127,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   let malformed = 0;
   for (const line of lines) {
     try {
-      const item = parseJsonlLine(line);
+      const item = iterateJsonl([line], { strict: true }).next().value;
       if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
     } catch {
       malformed++;
@@ -182,7 +182,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     if (fs.lstatSync(auditPath).isFile()) {
       for (const line of iterateLines(fs.readFileSync(auditPath, "utf8"))) {
         try {
-          const entry = parseJsonlLine(line);
+          const entry = iterateJsonl([line], { strict: true }).next().value;
           if (["parse_args_error", "unrecognized_args"].includes(entry?.event)) {
             safeoutputsCliError = true;
             reason = "safeoutputs_cli_error";
@@ -275,16 +275,12 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     break;
   }
   if (agentNotStarted) reason = "agent_startup_failure";
-  const safeStdio = stdio
-    .split("\n")
-    .map(line => {
-      try {
-        return redactJson(parseJsonlLine(line));
-      } catch {
-        return redact(line);
-      }
-    })
-    .join("\n");
+  const redactedLines = [];
+  for (const event of iterateJsonlEvents(stdio)) {
+    const ending = event.rawLine.endsWith("\r\n") ? "\r\n" : event.rawLine.endsWith("\n") ? "\n" : "";
+    redactedLines.push(event.type === "json" ? redactJson(event.value) + ending : redact(event.rawLine));
+  }
+  const safeStdio = redactedLines.join("");
   const rawSourceEngine = process.env.GH_AW_ENGINE_ID === "aider" || events.some(event => event.type === "workflow.info" && event.provenance.component === "workflow" && event.data.engineId === "aider") ? "aider" : undefined;
   const engineSummary = agentNotStarted ? "" : agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlContent, parseJsonlLine, readJsonlFile } = require("./jsonl_helpers.cjs");
+const { parseJsonlContent, iterateJsonl, readJsonlFile } = require("./jsonl_helpers.cjs");
 const childProcess = require("child_process");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
@@ -2039,7 +2039,7 @@ function readAgentRuntimeMetrics(engineId = "") {
       }
 
       try {
-        const parsed = parseJsonlLine(line.slice(jsonStart));
+        const parsed = iterateJsonl([line.slice(jsonStart)], { strict: true }).next().value;
         if (Array.isArray(parsed)) {
           for (const entry of parsed) {
             applyRuntimeEntry(entry);
