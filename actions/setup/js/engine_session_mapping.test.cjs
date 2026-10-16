@@ -147,7 +147,7 @@ describe("shared engine event mappings", () => {
     const events = normalizeEngineSessionEvents([record], "pi");
     expect(events[0].data.privateExtension).toBe("native evidence");
     const projected = unified(events);
-    expect(projected[0].data).toEqual({ sourceType: "message_update", type, contentIndex: 0, delta: "", content: false, usageSnapshot: { input: 0 } });
+    expect(projected[0].data).toEqual({ sourceEngine: "pi", sourceType: "message_update", type, contentIndex: 0, delta: "", content: false, usageSnapshot: { input: 0 } });
     expect(normalizeUnifiedSessionEvent(projected[0]).data).toEqual(projected[0].data);
     expect(projectSessionResult(events)).toBeUndefined();
     expect(record).toEqual(original);
