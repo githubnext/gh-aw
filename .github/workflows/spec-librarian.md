@@ -47,7 +47,9 @@ safe-outputs:
     run-success: ✅ Specification review complete! [{workflow_name}]({run_url}) has audited all package specs. Report delivered! 📋
 description: Daily review of all package README.md specifications to detect inconsistencies, staleness, and cross-package conflicts
 emoji: 📚
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Package Specification Librarian
 strict: true
 timeout-minutes: 25

@@ -14,6 +14,7 @@ permissions:
 tracker-id: weekly-blog-post-writer
 engine:
   id: copilot
+  copilot-sdk: true
   max-continuations: 2
 strict: true
 timeout-minutes: 30
