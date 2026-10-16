@@ -520,6 +520,7 @@ test-scripts: build
 	@echo "Running script tests..."
 	node --test scripts/agy-authentication.test.cjs
 	node --test scripts/check-npm-1es.test.mjs
+	node --test scripts/release-workflows.test.cjs
 	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-skill-file-paths_test.sh
