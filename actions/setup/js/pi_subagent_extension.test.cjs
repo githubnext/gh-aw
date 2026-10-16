@@ -178,6 +178,32 @@ describe("Pi managed delegation", () => {
     await expect(runPiSubagent(agent, "Read.", { cwd: dir }, undefined, launch)).rejects.toThrow();
   });
 
+  it.each([false, true])("terminates oversized pending records before child exit (fragmented=%s)", async fragmented => {
+    vi.useFakeTimers();
+    const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill: vi.fn() });
+    const pending = runPiSubagent(agent, "Read.", { cwd: dir }, undefined, () => child);
+    const rejected = expect(pending).rejects.toThrow("pending JSONL record limit (16777216 UTF-16 code units)");
+    const limit = 16 * 1024 * 1024;
+    if (fragmented) {
+      const fragment = "x".repeat(65536);
+      for (let written = 0; written < limit; written += fragment.length) child.stdout.write(fragment);
+      expect(child.kill).not.toHaveBeenCalled();
+      child.stdout.write("x");
+    } else child.stdout.write("x".repeat(limit + 1) + "\n");
+    expect(child.kill).toHaveBeenCalledExactlyOnceWith("SIGTERM");
+    // Later output must not revive the parser or replace the framing error.
+    child.stdout.write('\n{"type":"extension_error","error":"must not replace framing failure"}\n');
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(child.kill).toHaveBeenCalledWith("SIGKILL");
+    child.emit("close", 0, null);
+    await rejected;
+    const records = process.stdout.write.mock.calls.map(([line]) => JSON.parse(line));
+    expect(records.find(record => record.type === "gh_aw_subagent_result")).toMatchObject({
+      outcome: "failed",
+      error: "Pi sub-agent output exceeds the pending JSONL record limit (16777216 UTF-16 code units)",
+    });
+  });
+
   it("runs a real isolated child process with stdin instructions and preserved UTF-8", async () => {
     const executable = path.join(dir, "fake-pi");
     fs.writeFileSync(

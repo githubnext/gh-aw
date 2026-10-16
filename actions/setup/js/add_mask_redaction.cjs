@@ -322,7 +322,7 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, repl
     );
     if (numericRedacted !== text) {
       try {
-        value = JSON.parse(numericRedacted);
+        value = JSON.parse(numericRedacted.trim());
       } catch (error) {
         throw new Error("Unable to decode redacted JSON log record during secret redaction", { cause: error });
       }

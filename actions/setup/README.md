@@ -155,6 +155,17 @@ source.on("end", () => {
 `push` and `finish` return lazy event iterators. Consume each iterator completely
 before feeding more input; stopping an iterator is appropriate only when abandoning
 that stream. Invalid protocol events can be rejected using `event.error`.
+`JsonlParser`, `streamJsonlEvents`, and `streamJsonl` also accept an opt-in
+`maxPendingRecordLength` (positive safe integer). It counts raw UTF-16 code units,
+including LF/CRLF, per record, not total stream size or UTF-8 bytes. Framing checks
+the bound before retaining fragments or joining a complete record, even when a
+single chunk contains the whole record. Exceeding it releases pending fragments
+and throws a sanitized, terminal `RangeError`; abandon the parser and terminate
+the source rather than expecting an invalid event or calling `finish` afterward.
+The default remains unlimited, and `maxLineLength` retains its separate
+after-framing behavior. The Agy harness and Pi sub-agent runner explicitly use
+16,777,216 UTF-16 code units per raw record and terminate children on overflow,
+while allowing legitimate multi-megabyte records.
 Custom repair or framing formats can use `iterateLines(text)`, `readLines(filePath)`,
 `streamLines(chunks)`, or `LineFramer.push(chunk)` / `finish()` without duplicating
 line buffering. `parseJsonlContent` remains an eager compatibility wrapper for

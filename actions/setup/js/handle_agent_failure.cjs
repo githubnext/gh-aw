@@ -342,7 +342,14 @@ function buildFailureMatchCategories(options) {
 function hasMCPTransportWedge(sessionContent) {
   if (!sessionContent.includes('"transport_wedge"')) return false;
   for (const event of iterateJsonl(sessionContent)) {
-    if (isAgentExecutionEvent(event) && event.data.categories.includes("transport_wedge")) return true;
+    if (!event || typeof event !== "object" || event.type !== "agent.execution") continue;
+    try {
+      if (!isAgentExecutionEvent(event)) continue;
+    } catch {
+      // The shared guard throws on invalid execution data; keep scanning later records.
+      continue;
+    }
+    if (event.data.categories.includes("transport_wedge")) return true;
   }
   return false;
 }

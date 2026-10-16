@@ -49,7 +49,7 @@ function validateSession(content, kind = "unified", format = "jsonl") {
         throw new Error(`Invalid session JSONL at line ${index + 1}`);
       }
       const event = entry.value;
-      if (kind === "unified" && /[ \t\r]/.test(line.replace(/"(?:[^"\\]|\\.)*"/g, ""))) throw new Error(`Unified session JSONL must use compact JSON at line ${index + 1}`);
+      if (kind === "unified" && /\s/.test(line.replace(/"(?:[^"\\]|\\.)*"/g, ""))) throw new Error(`Unified session JSONL must use compact JSON at line ${index + 1}`);
       if (!validators.event(event)) throw new Error(`Invalid session event at line ${index + 1}: ${schemaDiagnostic(validators.event.errors)}`);
       events.push(event);
     }

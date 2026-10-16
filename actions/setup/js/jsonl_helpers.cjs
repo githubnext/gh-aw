@@ -13,6 +13,7 @@ const { StringDecoder } = require("node:string_decoder");
 
 /**
  * @typedef {JsonlOptions & {strict?: boolean}} JsonlValueOptions
+ * @typedef {JsonlOptions & {maxPendingRecordLength?: number}} JsonlStreamOptions
  * @typedef {{type: "json", value: any, rawLine: string, lineNumber: number} |
  * {type: "invalid", error: Error, reason: "blank"|"syntax"|"too-long", rawLine: string, lineNumber: number}} JsonlEvent
  */
@@ -49,31 +50,55 @@ function* iterateLines(content, includeNewline = false) {
  * repeatedly copying a growing multi-megabyte string.
  */
 class LineFramer {
-  /** @param {boolean} [includeNewline] */
-  constructor(includeNewline = false) {
+  /** @param {boolean} [includeNewline] @param {number} [maxPendingRecordLength] */
+  constructor(includeNewline = false, maxPendingRecordLength) {
     this.includeNewline = includeNewline;
+    this.maxPendingRecordLength = maxPendingRecordLength;
+    this.pendingLength = 0;
+    /** @type {RangeError|undefined} */
+    this.error = undefined;
     /** @type {string[]} */
     this.fragments = [];
   }
 
+  /** @param {number} length */
+  #checkLength(length) {
+    if (this.error) throw this.error;
+    if (this.maxPendingRecordLength !== undefined && length > this.maxPendingRecordLength) {
+      this.fragments = [];
+      this.pendingLength = 0;
+      this.error = new RangeError("JSONL record exceeds maxPendingRecordLength");
+      throw this.error;
+    }
+  }
+
   /** @param {string} chunk */
   *push(chunk) {
+    if (this.error) throw this.error;
     let start = 0;
     let end;
     while ((end = chunk.indexOf("\n", start)) !== -1) {
+      this.#checkLength(this.pendingLength + end + 1 - start);
       const part = chunk.slice(start, this.includeNewline ? end + 1 : end);
       const line = this.fragments.length ? this.fragments.join("") + part : part;
       this.fragments = [];
+      this.pendingLength = 0;
       start = end + 1;
       yield this.includeNewline ? line : line.replace(/\r$/, "");
     }
-    if (start < chunk.length) this.fragments.push(chunk.slice(start));
+    if (start < chunk.length) {
+      this.#checkLength(this.pendingLength + chunk.length - start);
+      this.fragments.push(chunk.slice(start));
+      this.pendingLength += chunk.length - start;
+    }
   }
 
   *finish() {
+    if (this.error) throw this.error;
     if (this.fragments.length) {
       const line = this.fragments.join("");
       this.fragments = [];
+      this.pendingLength = 0;
       yield this.includeNewline ? line : line.replace(/\r$/, "");
     }
   }
@@ -180,13 +205,19 @@ function parseEvent(rawLine, lineNumber, options) {
 /**
  * Incremental JSONL event parser for callback-driven byte/text streams. Keep one
  * instance per stream and consume each push iterator before the next one.
+ * maxPendingRecordLength optionally bounds raw UTF-16 code units, including
+ * LF/CRLF, before retaining/joining fragments. Exceeding it is a terminal
+ * RangeError, not an invalid event. The default remains unlimited.
  */
 class JsonlParser {
-  /** @param {JsonlOptions} [options] */
+  /** @param {JsonlStreamOptions} [options] */
   constructor(options = {}) {
     validateOptions(options);
+    if (options.maxPendingRecordLength !== undefined && (!Number.isSafeInteger(options.maxPendingRecordLength) || options.maxPendingRecordLength < 1)) {
+      throw new RangeError("maxPendingRecordLength must be a positive safe integer");
+    }
     this.options = options;
-    this.framer = new LineFramer(true);
+    this.framer = new LineFramer(true, options.maxPendingRecordLength);
     this.decoder = new StringDecoder("utf8");
     this.lineNumber = 0;
   }
@@ -244,7 +275,7 @@ function* readJsonlFileEvents(filePath, options = {}) {
 /**
  * Async, backpressured record events over UTF-8 byte or text chunks.
  * @param {AsyncIterable<Buffer|string>|Iterable<Buffer|string>} source
- * @param {JsonlOptions} [options]
+ * @param {JsonlStreamOptions} [options]
  * @returns {AsyncGenerator<JsonlEvent>}
  */
 async function* streamJsonlEvents(source, options = {}) {
@@ -284,7 +315,7 @@ function* readJsonlFile(filePath, options = {}) {
  * Async streaming JSONL parser for fs.createReadStream(), network responses,
  * and other chunk iterables. No reads occur until iteration starts.
  * @param {AsyncIterable<Buffer|string>|Iterable<Buffer|string>} source
- * @param {JsonlValueOptions} [options]
+ * @param {JsonlStreamOptions & {strict?: boolean}} [options]
  * @returns {AsyncGenerator<any>}
  */
 async function* streamJsonl(source, options = {}) {

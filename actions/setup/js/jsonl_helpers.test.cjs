@@ -42,6 +42,50 @@ describe("jsonl_helpers", () => {
       }
     });
 
+    it.each([{ chunks: ["12345"] }, { chunks: ["12", "34", "5"] }, { chunks: ["12345\n"] }, { chunks: ["12", "345\n"] }])("bounds pending framing before retaining or joining oversized input %j", ({ chunks }) => {
+      const parser = new JsonlParser({ maxPendingRecordLength: 4, lineFilter: () => false });
+      expect(() => {
+        for (const chunk of chunks) [...parser.push(chunk)];
+      }).toThrow("JSONL record exceeds maxPendingRecordLength");
+      expect(parser.framer.fragments).toEqual([]);
+      expect(parser.framer.pendingLength).toBe(0);
+      expect(() => [...parser.push("0\n")]).toThrow(RangeError);
+      expect(() => [...parser.finish()]).toThrow(RangeError);
+    });
+
+    it("counts raw UTF-16 units and line terminators, resetting for every record", () => {
+      const parser = new JsonlParser({ maxPendingRecordLength: 5 });
+      const events = [...parser.push('"🚀"\n'.repeat(20)), ...parser.push("{}\r"), ...parser.push("\n12345"), ...parser.finish()];
+      expect(events).toHaveLength(22);
+      expect(events[0]).toMatchObject({ type: "json", value: "🚀" });
+      expect(events[20]).toMatchObject({ type: "json", value: {} });
+      expect(events[21]).toMatchObject({ type: "json", value: 12345 });
+      expect(() => [...new JsonlParser({ maxPendingRecordLength: 4 }).push('"🚀"\n')]).toThrow(RangeError);
+      expect(() => [...new JsonlParser({ maxPendingRecordLength: 3 }).push("{}\r\n")]).toThrow(RangeError);
+    });
+
+    it("applies framing bounds to split UTF-8 and async streams", async () => {
+      const chunks = Array.from(Buffer.from('"🚀"\n'), byte => Buffer.from([byte]));
+      expect(await collect(streamJsonlEvents(chunks, { maxPendingRecordLength: 5 }))).toMatchObject([{ type: "json", value: "🚀" }]);
+      await expect(collect(streamJsonlEvents(chunks, { maxPendingRecordLength: 4 }))).rejects.toThrow("maxPendingRecordLength");
+      await expect(collect(streamJsonl(["123", "45"], { maxPendingRecordLength: 4 }))).rejects.toThrow("maxPendingRecordLength");
+    });
+
+    it.each([0, -1, NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1])("rejects invalid pending framing limits %j", maxPendingRecordLength => {
+      expect(() => new JsonlParser({ maxPendingRecordLength })).toThrow("maxPendingRecordLength must be a positive safe integer");
+    });
+
+    it("leaves default framing unlimited and maxLineLength checks after framing", () => {
+      const text = "x".repeat(4 * 1024 * 1024);
+      const parser = new JsonlParser({ maxLineLength: 10 });
+      expect([...parser.push('"' + text)]).toEqual([]);
+      expect([...parser.push('"\n')]).toMatchObject([{ type: "invalid", reason: "too-long" }]);
+      const unlimited = new JsonlParser();
+      expect([...unlimited.push('"' + text)]).toEqual([]);
+      expect([...unlimited.push('"')]).toEqual([]);
+      expect([...unlimited.finish()]).toMatchObject([{ type: "json", value: text }]);
+    });
+
     it("filters and transforms once per record without changing raw text", async () => {
       const raw = '  skip {"ignore":1}\r\n  log {"ok":2} \r\n  log {"bad":} \n';
       const filter = vi.fn(line => !line.startsWith("skip"));

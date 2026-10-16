@@ -530,6 +530,16 @@ describe("add_mask_redaction", () => {
         }
       });
 
+      it.each(["\u00a0", "\ufeff", "\f"])("preserves trimmed record framing while redacting numeric masks (%j)", whitespace => {
+        for (const terminator of ["\n", "\r\n", ""]) {
+          const content = `${whitespace}{"pin":123456,"text":"safe"}${whitespace}${terminator}`;
+          expect(redactArtifactMaskedValues(content, ["123456"])).toBe(`${whitespace}{"pin":"***","text":"safe"}${whitespace}${terminator}`);
+          expect(redactArtifactMaskedValues(content, ["123456"], undefined, () => "[MASK]")).toBe(`${whitespace}{"pin":"[MASK]","text":"safe"}${whitespace}${terminator}`);
+          expect(redactArtifactMaskedValues(content, ["123456"], value => ({ ...value, text: "sanitized" }))).toBe(`${whitespace}{"pin":"***","text":"sanitized"}${whitespace}${terminator}`);
+          expect(redactArtifactMaskedValues(content, ["ABSENT_RUNTIME_MASK"])).toBe(content);
+        }
+      });
+
       it("does not match normalized numeric representations or alter unmatched nested records", () => {
         const content = '  {"values":[-0,1e+09,9007199254740993,1e400],"escaped":"quote\\"12345","safe":false}\r\n';
         expect(redactArtifactMaskedValues(content, ["12345678", "1000000000", "9007199254740992", "Infinity"])).toBe(content);

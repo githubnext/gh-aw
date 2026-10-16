@@ -191,7 +191,8 @@ export const noAdHocJsonlParserRule = createRule({
               }
               if (ancestor.type === "FunctionDeclaration" || ancestor.type === "FunctionExpression" || ancestor.type === "ArrowFunctionExpression") break;
             }
-            if (inLineContext || fromLine(node.arguments[0])) context.report({ node, messageId: "restart" });
+            const parserConstruction = node.type === "NewExpression" && importedName(node.callee, helpers) === "JsonlParser";
+            if ((parserConstruction && inLineContext) || fromLine(node.arguments[0])) context.report({ node, messageId: "restart" });
           }
         }
       },

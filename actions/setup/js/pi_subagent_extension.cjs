@@ -9,6 +9,7 @@ const { randomUUID } = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeProviderErrorMessage } = require("./pi_provider_error.cjs");
+const maxPendingRecordLength = 16 * 1024 * 1024; // UTF-16 code units, including the record terminator.
 
 function getErrorCode(error) {
   if (!error || typeof error !== "object" || !("code" in error)) return "";
@@ -82,10 +83,11 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         reject(new Error("Pi sub-agent requires piped input and output"));
         return;
       }
-      const parser = new JsonlParser();
+      const parser = new JsonlParser({ maxPendingRecordLength });
       let stderr = "";
       let output = "";
       let failure = "";
+      let framingFailed = false;
       let killTimer;
       const terminate = () => {
         child.kill("SIGTERM");
@@ -118,9 +120,18 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
           process.stdout.write(JSON.stringify({ type: "gh_aw_subagent_event", timestamp: new Date().toISOString(), invocation_id: invocationId, agent: agent.name, event }) + "\n");
         }
       };
-      child.stdout.on("data", data => {
-        for (const event of parser.push(data)) consume(event);
-      });
+      const consumeEvents = events => {
+        if (framingFailed) return;
+        try {
+          for (const event of events) consume(event);
+        } catch (error) {
+          if (!(error instanceof RangeError) || error.message !== "JSONL record exceeds maxPendingRecordLength") throw error;
+          framingFailed = true;
+          failure = `Pi sub-agent output exceeds the pending JSONL record limit (${maxPendingRecordLength} UTF-16 code units)`;
+          terminate();
+        }
+      };
+      child.stdout.on("data", data => consumeEvents(parser.push(data)));
       child.stderr.on("data", data => {
         stderr = (stderr + data.toString()).slice(-16384);
       });
@@ -145,7 +156,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         clearTimeout(timeout);
         clearTimeout(killTimer);
         signal?.removeEventListener("abort", abort);
-        for (const event of parser.finish()) consume(event);
+        consumeEvents(parser.finish());
         if (code !== 0 || terminationSignal || failure || !output.trim()) {
           const error = sanitizeProviderErrorMessage(failure || stderr || `Pi sub-agent exited ${code ?? terminationSignal} without an answer`);
           emitResult("failed", error);

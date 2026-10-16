@@ -7800,6 +7800,25 @@ describe("handle_agent_failure", () => {
       expect(getAgentSessionPath("")).toBe("/tmp/gh-aw/agent-session.jsonl");
     });
 
+    it.each([
+      null,
+      42,
+      [],
+      { type: "agent.execution", data: {} },
+      { type: "agent.execution", data: null },
+      { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [] } },
+      { type: "agent.execution", data: { categories: "transport_wedge", errorCodes: [], errorTypes: [] } },
+      { type: "agent.execution", data: { categories: ["transport_wedge", null], errorCodes: [], errorTypes: [] } },
+      { type: "agent.execution", data: { categories: ["transport_wedge", "transport_wedge"], errorCodes: [], errorTypes: [] } },
+      { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [], errorTypes: [], exitCode: -1 } },
+    ])("ignores malformed records before later MCP watchdog evidence: %j", invalidEvent => {
+      const { hasMCPTransportWedge } = require("./handle_agent_failure.cjs");
+      const validEvent = { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [], errorTypes: [] } };
+      const invalidContent = JSON.stringify(invalidEvent);
+      expect(hasMCPTransportWedge(`${invalidContent}\n{"message":"transport_wedge"}`)).toBe(false);
+      expect(hasMCPTransportWedge(`${invalidContent}\nnot-json\n${JSON.stringify(validEvent)}`)).toBe(true);
+    });
+
     it("returns missing_safe_outputs category", () => {
       const categories = buildFailureMatchCategories({
         hasMissingSafeOutputs: true,
