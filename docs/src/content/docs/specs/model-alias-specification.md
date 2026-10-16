@@ -7,7 +7,7 @@ sidebar:
 
 # Model Alias Format Specification
 
-**Version**: 1.2.0  
+**Version**: 1.3.0\
 **Status**: Draft  
 **Publication Date**: 2026-05-03  
 **Editor**: GitHub Agentic Workflows Team  
@@ -357,6 +357,8 @@ Each list entry is either:
 
 Any of the above MAY carry URL-style parameters.
 
+The keys `providers`, `default-ai-credits-pricing`, `allowed`, and `blocked` are reserved: they keep their own meaning under `models:` and are never alias names. Every other key is an alias name subject to V-MAF-005.
+
 ### 7.2 Example
 
 ```yaml
@@ -416,7 +418,7 @@ Resolve(target, aliasMap, catalog):
         v.  If eBase is a provider-scoped name (no wildcards) → if present in catalog, return eBase + params
      c. If no entry in L resolved → continue to next step (as if target were a bare name)
   3. If base matches catalog entry exactly → return base + params
-  4. Resolution FAILS: emit a compile-time error naming the unresolved alias/model.
+  4. Resolution FAILS: stop before the engine starts, naming the unresolved alias/model (see Section 8.8).
 ```
 
 ### 8.4 Glob Matching
@@ -522,6 +524,19 @@ The runtime guard is an additional safety net and does NOT replace compile-time 
 ### 8.7 Empty-String Default Policy
 
 When `engine.model` is absent or empty, the implementation MUST use `""` (the empty string) as the target for resolution. If the `""` key is not present in the merged alias map, the implementation MUST pass through to the engine's own default model selection.
+
+### 8.8 Runtime Resolution and Provider-Prefixed Aliases
+
+Resolution runs at runtime, in the engine harness, before the harness launches the engine CLI. The compiler validates the alias map (Section 11) and passes the merged map to the runtime; it does not choose a concrete model. Every engine harness that supports aliases (Copilot, Claude, Codex, Pi main and sub-agent models, and Agy) MUST run the same "resolve configured model" step (`resolveEngineModel` in `actions/setup/js/resolve_model_alias.cjs`) against the AWF `/reflect` catalogue, with these rules:
+
+1. A configured model MAY carry a provider prefix (`copilot/opus`). When it does, the part after the prefix is looked up as the alias key, and only catalogue entries for that provider are considered. The harness's configured provider scopes an unprefixed alias in the same way.
+2. An alias, and any glob inside its entries, resolves to the newest live match (Section 8.4).
+3. An exact model id (not an alias key) MUST NOT be rewritten. Harnesses that check exact ids before launch fail with `model_unavailable` when the id is not listed; others pass it to the engine unchanged.
+4. Parameters such as `?effort=` carry through as in Section 8.5.
+5. `auto` keeps each engine's own meaning (a Copilot gateway sentinel on Pi and Codex, Claude's own selection on Claude).
+6. When an alias does not resolve, the step fails before the engine starts with cause `model_unavailable`. When the catalogue is incomplete (`models_fetch_complete` is not true, or the provider has no model list), the step refetches `/reflect` once; exact ids still pass through, and aliases fail with `catalog_unavailable`.
+
+The harness logs the configured and resolved model and writes a runner record to `agent/model-resolution.json`, projected into the unified session as `model.resolution`. Engines without the shared step (Gemini and declarative engines) receive the configured model unchanged, and the compiler warns when such an engine is given an alias.
 
 ---
 
@@ -784,7 +799,7 @@ This section maps normative sections of this specification to the implementation
 
 | Spec Section | Description | Implementation File(s) |
 |---|---|---|
-| §7 Alias Map Format | YAML `models:` key parsing; alias list ingestion | `pkg/workflow/model_aliases.go` (`buildAliasMap`), `pkg/workflow/claude_engine.go` |
+| §7 Alias Map Format | YAML `models:` key parsing; alias list ingestion; reserved keys | `pkg/workflow/model_aliases.go` (`extractMainModelAliases`), `pkg/parser/schemas/main_workflow_schema.json` |
 | §8 Fallback Resolution Algorithm | Recursive resolution, parameter merge, glob matching, semver ranking, cycle guard | `pkg/workflow/model_aliases.go` (`resolveModel`, `scatterSchedule`), `pkg/workflow/model_alias_validation.go` |
 | §8.6 Loop Detection | Compile-time DFS cycle detection (§8.6.1) and runtime visited-set guard (§8.6.2) | `pkg/workflow/model_alias_validation.go` (`detectCircularModelAliases`, `dfsCycleCheck`) |
 | §9 Builtin Aliases | Builtin alias map definition and embed | `pkg/workflow/model_aliases.go` (builtin alias initialization) |
@@ -796,7 +811,7 @@ This section maps normative sections of this specification to the implementation
 |---|---|---|
 | §11.1 Syntax Validation | V-MAF-001 through V-MAF-006 compile-time checks | `pkg/workflow/model_alias_validation.go`, `pkg/workflow/model_aliases.go` |
 | §11.2 Semantic Validation | V-MAF-010 cycle detection, V-MAF-011 unknown param warning, V-MAF-012 effort warning | `pkg/workflow/model_alias_validation.go` |
-| §11.3 Resolution Validation | V-MAF-020 empty catalog warning | `pkg/workflow/claude_engine.go`, `pkg/workflow/codex_tools.go` |
+| §11.3 Resolution Validation | V-MAF-020 alias with no live match. There is no compile-time catalogue check: the shared runtime step fails with `model_unavailable` (or `catalog_unavailable` when discovery is incomplete), and the compiler warns when an engine without that step is given an alias | `actions/setup/js/resolve_model_alias.cjs` (`resolveEngineModel`), `pkg/workflow/configured_model_validation.go` (`warnEngineCannotResolveModelAlias`) |
 
 ### Loop Detection Test Reference (§8.6 / V-MAF-010)
 
@@ -975,6 +990,12 @@ Model parameters are compile-time configuration values and are not derived from 
 ---
 
 ## Change Log
+
+### Version 1.3.0 (Draft)
+
+- **Added**: §8.8 runtime resolution: every alias-capable engine harness runs one shared step, provider-prefixed aliases (`copilot/opus`) are scoped to that provider, exact ids are never rewritten, and failures use `model_unavailable` / `catalog_unavailable`.
+- **Added**: Reserved `models:` keys (§7.1); workflow-defined aliases in the main workflow are merged last (§10.1).
+- **Fixed**: §14 mapping for V-MAF-020, which named `claude_engine.go` and a non-existent `codex_tools.go`.
 
 ### Version 1.2.0 (Draft)
 

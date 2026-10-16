@@ -550,6 +550,18 @@ You can also set the underlying `GH_AW_HARNESS_*` env vars directly via `engine.
 
 Threat detection runs default `max-retries` to **0** instead of inheriting the harness default of 3, since detection is a bounded scan of already-completed agent output rather than the primary task — a failed attempt should not silently retry the whole detection run and burn extra time and model spend. Set `engine.harness.max-retries` (or `safe-outputs.threat-detection.engine.harness.max-retries`) explicitly to opt back into retries for detection.
 
+### Model aliases
+
+`model:` accepts an exact model id, a built-in alias such as `opus` or `small`, or an alias defined under `models:` in the workflow, with an optional `provider/` prefix and `?effort=` parameters. Copilot, Claude, Codex, Pi (main and sub-agent models), and Agy resolve it with the same step before the engine starts, using the live model list from AWF `/reflect`:
+
+- An alias, and any glob inside it, resolves to the newest live match. `model: opus` and `model: copilot/opus` pick the same model on every one of these engines.
+- A provider prefix limits the lookup to that provider: `copilot/opus` considers only Copilot models. Without a prefix, the engine's configured provider is used.
+- Exact ids stay exact: gh-aw never rewrites a model id that is not an alias, so a typo cannot resolve to a different model. Pi checks exact ids before launch; Copilot, Claude, and Codex fail at the first model request. AWF's API proxy can still rewrite an unrecognized id on providers other than Copilot; set [`sandbox.agent.model-fallback: false`](/gh-aw/reference/sandbox/#model-fallback-sandboxagentmodel-fallback) to turn that off.
+- `?effort=` and other parameters carry through. `auto` keeps each engine's own meaning.
+- When an alias has no live match, the run stops before the engine starts with `model_unavailable`, and the failure issue reports an unavailable configured model. When AWF's model discovery is incomplete, gh-aw refetches `/reflect` once; exact ids then pass through unchanged, and aliases fail with `catalog_unavailable`.
+
+The harness logs the configured and resolved model and records them as a `model.resolution` event in `usage/aw_session.jsonl`, so audits show when an alias moved to a different model. Gemini and declarative engines do not resolve aliases yet: they receive the configured model unchanged, and the compiler warns when one of them is given an alias. Built-in aliases are listed in [Model Aliases](/gh-aw/reference/model-tables/).
+
 ### Ordered model fallback (`fallback-models`)
 
 All built-in engines accept an ordered list of alternative models. With AWF v0.28.31 or newer and a compatible API-proxy image, concrete same-provider chains compile to `apiProxy.fallbackModels`. AWF retries the failed inference request with the next model without restarting the agent or replaying its task, and applies the same model-policy and budget guards to each alternative. An explicit chain disables AWF's automatic middle-power model substitution so only configured alternatives are tried.
