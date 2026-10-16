@@ -138,7 +138,9 @@ describe("workflow native MCP permission alignment", () => {
       const gateway = resolve(directory, "gateway.json");
       const toolsOutput = resolve(directory, "tools.json");
       const configPath = resolve(directory, "config.json");
+      const githubEnv = resolve(directory, "github_env");
       writeFileSync(configPath, steps.find(step => step.env?.GH_AW_SAFE_OUTPUTS_CONFIG).env.GH_AW_SAFE_OUTPUTS_CONFIG);
+      writeFileSync(githubEnv, "");
       const registryResult = spawnSync(process.execPath, [resolve(import.meta.dirname, "generate_safe_outputs_tools.cjs")], {
         env: {
           PATH: process.env.PATH,
@@ -175,6 +177,10 @@ describe("workflow native MCP permission alignment", () => {
           MCP_GATEWAY_DOMAIN: "fixture.invalid",
           MCP_GATEWAY_PORT: "80",
           GH_AW_MCP_CLI_SERVERS: "[]",
+          GITHUB_ENV: githubEnv,
+          GITHUB_RUN_ID: "1",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_JOB: "test",
         },
         encoding: "utf8",
         timeout: 10000,
