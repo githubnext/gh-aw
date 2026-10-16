@@ -343,12 +343,15 @@ func (c *Compiler) ensureSharedActionCacheAndResolver() (*ActionCache, *ActionRe
 // This ensures all workflows compiled by this compiler instance share the same import cache
 func (c *Compiler) getSharedImportCache() *parser.ImportCache {
 	if c.importCache == nil {
-		// Initialize cache on first use
-		cwd, err := os.Getwd()
-		if err != nil {
-			cwd = "."
+		baseDir := c.gitRoot
+		if baseDir == "" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				cwd = "."
+			}
+			baseDir = cwd
 		}
-		c.importCache = parser.NewImportCache(cwd)
+		c.importCache = parser.NewImportCache(baseDir)
 		logTypes.Print("Initialized shared import cache for compiler")
 	}
 	c.importCache.SetReadOnly(c.noEmit)

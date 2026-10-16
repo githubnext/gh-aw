@@ -24,7 +24,7 @@ func TestMCPServer_ReadOnlyCompilePreservesFiles(t *testing.T) {
 	binaryPath := testutil.RequireGhAwBinary(t)
 	for _, existing := range []bool{false, true} {
 		for _, all := range []bool{false, true} {
-			for _, kind := range []string{"valid", "invalid", "oversized", "uncached-import", "cached-import"} {
+			for _, kind := range []string{"valid", "invalid", "oversized", "uncached-import", "cached-import", "cached-import-subdirectory"} {
 				name := fmt.Sprintf("existing=%t/all=%t/%s", existing, all, kind)
 				t.Run(name, func(t *testing.T) {
 					dir := t.TempDir()
@@ -39,10 +39,10 @@ func TestMCPServer_ReadOnlyCompilePreservesFiles(t *testing.T) {
 					case "oversized":
 						frontmatter += "inlined-imports: true\n"
 						body += strings.Repeat("x", 25000)
-					case "uncached-import", "cached-import":
+					case "uncached-import", "cached-import", "cached-import-subdirectory":
 						frontmatter += "imports:\n  - owner/repo/shared.md@0123456789012345678901234567890123456789\n"
 					}
-					if kind == "cached-import" {
+					if kind == "cached-import" || kind == "cached-import-subdirectory" {
 						cacheDir := filepath.Join(dir, ".github", "aw", "imports", "owner", "repo", "0123456789012345678901234567890123456789")
 						require.NoError(t, os.MkdirAll(cacheDir, 0o755))
 						require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "shared.md"), []byte("# Shared\n\nCached instructions.\n"), 0o600))
@@ -61,11 +61,16 @@ func TestMCPServer_ReadOnlyCompilePreservesFiles(t *testing.T) {
 							require.NoError(t, os.WriteFile(fullPath, []byte(content), 0o644))
 						}
 					}
+					serverDir := dir
+					if kind == "cached-import-subdirectory" {
+						serverDir = filepath.Join(dir, "src", "nested")
+						require.NoError(t, os.MkdirAll(serverDir, 0o755))
+					}
 					before := snapshotMCPCompileFiles(t, dir)
 					ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 					defer cancel()
 					serverCmd := exec.CommandContext(ctx, binaryPath, "mcp-server", "--cmd", binaryPath, "--validate-actor")
-					serverCmd.Dir = dir
+					serverCmd.Dir = serverDir
 					client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "test"}, nil)
 					session, err := client.Connect(ctx, &mcp.CommandTransport{Command: serverCmd}, nil)
 					require.NoError(t, err)
@@ -73,6 +78,12 @@ func TestMCPServer_ReadOnlyCompilePreservesFiles(t *testing.T) {
 					args := map[string]any{}
 					if !all {
 						args["workflows"] = []string{"test"}
+					}
+					if kind == "cached-import-subdirectory" {
+						args["workflows"] = []string{filepath.Join(workflowsDir, "test.md")}
+						if all {
+							args["workflows"] = []string{workflowsDir}
+						}
 					}
 					result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "compile", Arguments: args})
 					require.NoError(t, err)
@@ -83,7 +94,7 @@ func TestMCPServer_ReadOnlyCompilePreservesFiles(t *testing.T) {
 					var results []ValidationResult
 					require.NoError(t, json.Unmarshal([]byte(text.Text), &results), text.Text)
 					require.NotEmpty(t, results, text.Text)
-					require.Equal(t, kind == "valid" || kind == "cached-import", results[0].Valid, text.Text)
+					require.Equal(t, kind == "valid" || kind == "cached-import" || kind == "cached-import-subdirectory", results[0].Valid, text.Text)
 					switch kind {
 					case "invalid":
 						require.Contains(t, text.Text, "unknown-field")
