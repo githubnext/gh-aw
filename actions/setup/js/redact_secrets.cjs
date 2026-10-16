@@ -10,7 +10,8 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { redactSafeOutputContent } = require("./safe_output_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
 const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
@@ -499,6 +500,24 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
   try {
     const content = fs.readFileSync(filePath, "utf8");
     stage = "redact";
+    const structured = redactSafeOutputContent(
+      filePath,
+      content,
+      [...maskedValues, ...secretValues.filter(value => value && value.length >= 6)].sort((a, b) => b.length - a.length),
+      text => {
+        const custom = redactSecrets(redactBuiltInPatterns(text).content, secretValues);
+        return applyAddMaskRedaction(custom.content, maskedValues);
+      }
+    );
+    if (structured !== null) {
+      const redactionCount = structured === content ? 0 : 1;
+      if (redactionCount || prepareForCustomMasking) {
+        stage = "write";
+        writeProcessedFile(filePath, structured, Boolean(redactionCount));
+      }
+      if (redactionCount) core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+      return redactionCount;
+    }
     const encodedResult =
       path.extname(filePath).toLowerCase() === ".html"
         ? redactPiSessionHTML(content, text => {

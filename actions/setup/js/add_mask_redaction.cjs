@@ -202,10 +202,11 @@ function transformJSONStrings(text, transformString, transformText = value => va
  * byte-for-byte.
  * @param {string} content
  * @param {string[]} maskedValues
+ * @param {(value: any) => any} [redactJSONValue] - Structured protocol redactor for valid JSON records
  * @returns {string}
  */
-function redactArtifactMaskedValues(content, maskedValues) {
-  if (!content || !maskedValues.length) return content;
+function redactArtifactMaskedValues(content, maskedValues, redactJSONValue) {
+  if (!content || (!maskedValues.length && !redactJSONValue)) return content;
   const redactValue = value => {
     if (typeof value === "string") return applyAddMaskRedaction(value, maskedValues);
     if (Array.isArray(value)) return value.map(redactValue);
@@ -213,25 +214,32 @@ function redactArtifactMaskedValues(content, maskedValues) {
     return value;
   };
   const redactJson = text => {
+    let value;
     try {
-      let value = JSON.parse(text);
-      // Skip quoted strings and match original numeric tokens at every depth so
-      // rounding or exponent notation cannot hide a mask.
-      const numericRedacted = transformJSONStrings(
-        text,
-        token => token,
-        plain =>
-          plain.replace(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
-            const redacted = redactMaskedValues(token, maskedValues);
-            return redacted === token ? token : JSON.stringify(redacted);
-          })
-      );
-      if (numericRedacted !== text) value = JSON.parse(numericRedacted);
-      const redacted = JSON.stringify(redactValue(value));
-      return redacted === JSON.stringify(value) ? numericRedacted : text.match(/^\s*/)[0] + redacted + text.match(/\s*$/)[0];
+      value = JSON.parse(text);
     } catch {
       return undefined;
     }
+    // Skip quoted strings and match original numeric tokens at every depth so
+    // rounding or exponent notation cannot hide a mask.
+    const numericRedacted = transformJSONStrings(
+      text,
+      token => token,
+      plain =>
+        plain.replace(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
+          const redacted = redactMaskedValues(token, maskedValues);
+          return redacted === token ? token : JSON.stringify(redacted);
+        })
+    );
+    if (numericRedacted !== text) {
+      try {
+        value = JSON.parse(numericRedacted);
+      } catch (error) {
+        throw new Error("Unable to decode redacted JSON log record during secret redaction", { cause: error });
+      }
+    }
+    const redacted = JSON.stringify((redactJSONValue || redactValue)(value));
+    return redacted === JSON.stringify(value) ? numericRedacted : text.match(/^\s*/)[0] + redacted + text.match(/\s*$/)[0];
   };
   const json = redactJson(content);
   if (json !== undefined) return json;
