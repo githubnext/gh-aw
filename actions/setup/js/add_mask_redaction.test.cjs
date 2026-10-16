@@ -52,6 +52,144 @@ describe("add_mask_redaction", () => {
       };
       expect(() => transformJSONStrings('plain "value"', callback === "string" ? fail : token => token, callback === "plain" ? fail : text => text)).toThrow(error);
     });
+
+    it.each(["", "ordinary", 'quote"slash\\', "\u0000\b\f\n\r\t\u001f", "\ud800\udfff", "\\u006fpaque", '\\"'.repeat(32)])("only transforms a complete token at every possible truncation boundary (%j)", value => {
+      const encoded = JSON.stringify(value);
+      for (let length = 0; length <= encoded.length; length++) {
+        const strings = vi.fn(token => `[${token}]`);
+        const content = `prefix ${encoded.slice(0, length)}`;
+        expect(transformJSONStrings(content, strings)).toBe(length === encoded.length ? `prefix [${encoded}]` : content);
+        expect(strings.mock.calls.map(([token]) => token)).toEqual(length === encoded.length ? [encoded] : []);
+      }
+    });
+  });
+
+  describe("seeded parser fuzz tests", () => {
+    const seeds = [1, 42, 2026, 0xdeadbeef, 0xffffffff];
+    const alphabet = ["a", "z", "0", '"', "\\", "/", "\b", "\f", "\n", "\r", "\t", "\u0000", "\u001f", "\u2028", "\u2029", "\ud800", "\udfff", "\ud83d\ude80"];
+
+    function randomFor(seed) {
+      let state = seed;
+      return max => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return Math.floor((state / 0x100000000) * max);
+      };
+    }
+
+    function randomText(random) {
+      return Array.from({ length: random(24) }, () => alphabet[random(alphabet.length)]).join("");
+    }
+
+    function encodeString(value, random) {
+      let encoded = '"';
+      for (let index = 0; index < value.length; index++) {
+        const character = value[index];
+        encoded += random(2) ? `\\u${value.charCodeAt(index).toString(16).padStart(4, "0")}` : JSON.stringify(character).slice(1, -1);
+      }
+      return encoded + '"';
+    }
+
+    it.each(seeds)("matches an independent bounded token grammar after random insertions, deletions, and truncations (seed %i)", seed => {
+      const random = randomFor(seed);
+      const fragments = ['"', "\\", "\\u", "\\u0000", "\\u12gg", "\\q", '""', "\t", "\n", "\r", "plain", ":", ","];
+      // The regex oracle only sees short fuzz records, never the large production inputs.
+      const tokenPattern = /"(?:[^"\\\x00-\x1f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"/g;
+      for (let iteration = 0; iteration < 500; iteration++) {
+        let content = Array.from({ length: 1 + random(8) }, () => (random(2) ? encodeString(randomText(random), random) : fragments[random(fragments.length)])).join("");
+        const position = random(content.length + 1);
+        switch (random(3)) {
+          case 0:
+            content = content.slice(0, position) + String.fromCharCode(random(0x10000)) + content.slice(position);
+            break;
+          case 1:
+            content = content.slice(0, position) + content.slice(position + 1);
+            break;
+          case 2:
+            content = content.slice(0, position);
+            break;
+        }
+        const tokens = [];
+        const spans = [];
+        const result = transformJSONStrings(
+          content,
+          token => {
+            expect(typeof JSON.parse(token), `seed ${seed}, iteration ${iteration}`).toBe("string");
+            tokens.push(token);
+            spans.push(token);
+            return token;
+          },
+          plain => {
+            spans.push(plain);
+            return plain;
+          }
+        );
+        const context = `seed ${seed}, iteration ${iteration}, input ${JSON.stringify(content)}`;
+        expect(tokens, context).toEqual(Array.from(content.matchAll(tokenPattern), match => match[0]));
+        expect(spans.join(""), context).toBe(content);
+        expect(result, context).toBe(content);
+        expect(redactArtifactMaskedValues(content, ["ABSENT_RUNTIME_MASK"]), context).toBe(content);
+      }
+    });
+
+    it.each(seeds)("redacts randomly escaped masks in nested JSON, JSONL, and mixed records against a decoded oracle (seed %i)", seed => {
+      const random = randomFor(seed);
+      for (let iteration = 0; iteration < 300; iteration++) {
+        const mask = `MASK-${seed}-${iteration}-` + randomText(random);
+        const left = randomText(random);
+        const right = randomText(random);
+        const value = left + mask + right + mask;
+        const expected = value.replaceAll(mask, "***");
+        const key = `key-${mask}`;
+        const encodedValue = encodeString(value, random);
+        const encodedKey = encodeString(key, random);
+        const nested = `{${encodedKey}:[${encodedValue},{"value":${encodedValue}},null,true,false,42]}`;
+        const context = `seed ${seed}, iteration ${iteration}`;
+        const expectedNested = { "key-***": [expected, { value: expected }, null, true, false, 42] };
+        expect(JSON.parse(redactArtifactMaskedValues(nested, [mask])), context).toEqual(expectedNested);
+        const jsonl = ` \t${nested}\r\n${encodedValue}\n`;
+        const redactedLines = redactArtifactMaskedValues(jsonl, [mask]).trim().split("\n");
+        expect(
+          redactedLines.map(line => JSON.parse(line)),
+          context
+        ).toEqual([expectedNested, expected]);
+        const mixed = `output: ${encodedValue} end`;
+        expect(redactArtifactMaskedValues(mixed, [mask]), context).toBe(`output: ${JSON.stringify(expected)} end`);
+        expect(redactArtifactMaskedValues(nested, ["ABSENT_RUNTIME_MASK"]), context).toBe(nested);
+        expect(redactArtifactMaskedValues(jsonl, ["ABSENT_RUNTIME_MASK"]), context).toBe(jsonl);
+        expect(redactArtifactMaskedValues(mixed, ["ABSENT_RUNTIME_MASK"]), context).toBe(mixed);
+      }
+    });
+
+    it.each(seeds)("finds randomly encoded masks after ambiguous malformed quotes without rewriting unmatched records (seed %i)", seed => {
+      const random = randomFor(seed);
+      const prefixes = ['"bad\\q"', '"bad\\u12gg"', '"bad\\u123"', '"bad\t"', '"bad\u0000"'];
+      for (let iteration = 0; iteration < 300; iteration++) {
+        const prefix = prefixes[random(prefixes.length)];
+        const before = "a".repeat(random(16));
+        const after = "z".repeat(random(16));
+        const encodedMask = "\\u006f" + encodeString("paque", random).slice(1, -1);
+        const content = `${prefix} "${before}${encodedMask}${after}"`;
+        const context = `seed ${seed}, iteration ${iteration}, input ${JSON.stringify(content)}`;
+        expect(JSON.parse(redactArtifactMaskedValues(content, ["opaque"])), context).toBe(`${prefix} "${before}***${after}"`);
+        expect(redactArtifactMaskedValues(content, ["ABSENT_RUNTIME_MASK"]), context).toBe(content);
+      }
+    });
+
+    it.each(seeds)("preserves original numeric lexemes while masking generated high-precision tokens (seed %i)", seed => {
+      const random = randomFor(seed);
+      for (let iteration = 0; iteration < 300; iteration++) {
+        const integer = String(1 + random(9)) + Array.from({ length: 20 + random(20) }, () => String(random(10))).join("");
+        const fraction = random(2) ? "." + String(random(10000)) : "";
+        const exponent = random(2) ? `e${random(2) ? "+" : "-"}${random(1000)}` : "";
+        const token = (random(2) ? "-" : "") + integer + fraction + exponent;
+        const content = ` \t[${token},-0,1e+09,9007199254740993,1e400]\r\n`;
+        const context = `seed ${seed}, iteration ${iteration}, token ${token}`;
+        const redacted = redactArtifactMaskedValues(content, [token]);
+        expect(redacted, context).toBe(' \t["***",-0,1e+09,9007199254740993,1e400]\r\n');
+        expect(JSON.parse(redacted)[0], context).toBe("***");
+        expect(redactArtifactMaskedValues(content, ["ABSENT_RUNTIME_MASK"]), context).toBe(content);
+      }
+    });
   });
 
   describe("isAddMaskCommandLine", () => {
