@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -407,14 +408,10 @@ func TestUpdatePRSummaryLargeRepositoryFitsPRBody(t *testing.T) {
 	}
 	lock := ".github/aw/actions-lock.json"
 	for path, state := range summary.before {
-		for key, pin := range oldPins {
-			state.pins[key] = pin
-		}
+		maps.Copy(state.pins, oldPins)
 		summary.before[path] = state
 		next := after[path]
-		for key, pin := range newPins {
-			next.pins[key] = pin
-		}
+		maps.Copy(next.pins, newPins)
 		after[path] = next
 	}
 	summary.before[lock] = updatePRFile{hash: [32]byte{1}, pins: oldPins}
