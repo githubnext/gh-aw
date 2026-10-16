@@ -746,6 +746,7 @@ module.exports = {
   processFile,
   redactSecrets,
   redactBuiltInPatterns,
+  redactArtifactContent,
   redactStepSummaryContent,
   extractMCPGatewayTokens,
   readAWFResolvedConfig,

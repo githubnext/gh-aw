@@ -14,10 +14,40 @@ set +o histexpand
 #   CLI_PROXY_IMAGE     - Container image to use (e.g., ghcr.io/github/gh-aw-mcpg:v0.2.2)
 #   GH_TOKEN            - GitHub token passed to the proxy container
 #   GITHUB_SERVER_URL   - GitHub server URL for upstream routing
+#   GH_AW_SECRET_NAMES  - Optional comma-separated custom secret names to redact
+#   SECRET_*            - Additional supplied secret values to redact
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Buffer every startup diagnostic, including Docker errors, outside artifact roots.
+if ! DIAGNOSTIC_DIR="$(mktemp -d 2>/dev/null)"; then
+  echo "::error::CLI proxy diagnostics could not be captured safely"
+  exit 1
+fi
+exec 3>&1 4>&2
+publish_diagnostics() {
+  local status=$?
+  local sanitized
+  if sanitized="$(node "${SCRIPT_DIR}/redact_cli_proxy_diagnostics.cjs" "$DIAGNOSTIC_DIR/startup.log" 2>/dev/null)"; then
+    printf '%s\n' "$sanitized" >&3
+    if [ "$status" -ne 0 ]; then
+      echo "::error::CLI proxy startup failed (exit status $status)" >&4
+    fi
+  else
+    echo "::error::CLI proxy diagnostics withheld because secret redaction failed" >&4
+    status=1
+  fi
+  if ! rm -rf "$DIAGNOSTIC_DIR" 2>/dev/null; then
+    echo "::warning::CLI proxy diagnostic cleanup failed" >&4
+    status=1
+  fi
+  exit "$status"
+}
+trap publish_diagnostics EXIT
+exec >"$DIAGNOSTIC_DIR/startup.log" 2>&1
+
 # shellcheck source=proxy_env_lib.sh
 source "${SCRIPT_DIR}/proxy_env_lib.sh"
 
@@ -89,7 +119,8 @@ done
 
 if [ "$PROXY_READY" = "false" ]; then
   echo "::error::CLI proxy failed to start within 30s"
-  docker logs awmg-cli-proxy 2>&1 | tail -20 || true
+  # Redact the complete log before truncating it for publication.
+  docker logs awmg-cli-proxy 2>&1 || true
   docker rm -f awmg-cli-proxy 2>/dev/null || true
   exit 1
 fi
