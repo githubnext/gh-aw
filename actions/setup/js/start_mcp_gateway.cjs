@@ -114,7 +114,7 @@ const MCP_GATEWAY_HEALTH_RETRY_ENV = Object.freeze({
 /** Default MCP backend startup timeout the retry budget must outlast. */
 const MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS = 120_000;
 
-/** Upper bound on configurable health-check attempts, to keep the wait finite. */
+/** Upper bound on explicitly configured health-check attempts. */
 const MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT = 10_000;
 
 /**
@@ -156,13 +156,15 @@ function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
  * @returns {number}
  */
 function computeHealthRetryBudgetMs(config) {
-  let delayMs = config.initialDelayMs;
-  let budgetMs = 0;
-  for (let retry = 1; retry < config.maxTotalAttempts; retry += 1) {
-    delayMs = Math.min(delayMs * config.backoffMultiplier, config.maxDelayMs);
-    budgetMs += delayMs;
+  const retries = config.maxTotalAttempts - 1;
+  if (config.backoffMultiplier === 1) {
+    return retries * Math.min(config.initialDelayMs, config.maxDelayMs);
   }
-  return budgetMs;
+  const logMultiplier = Math.log(config.backoffMultiplier);
+  const uncappedRetries = Math.min(retries, Math.max(0, Math.ceil(Math.log(config.maxDelayMs / config.initialDelayMs) / logMultiplier) - 1));
+  // Sum the geometric backoff without iterating over potentially millions of retries.
+  const uncappedBudgetMs = uncappedRetries === 0 ? 0 : config.initialDelayMs * config.backoffMultiplier * (Math.expm1(uncappedRetries * logMultiplier) / Math.expm1(logMultiplier));
+  return uncappedBudgetMs + (retries - uncappedRetries) * config.maxDelayMs;
 }
 
 /**
@@ -199,9 +201,26 @@ function resolveGatewayHealthRetryConfig(env = process.env) {
   }
 
   const config = { maxTotalAttempts, initialDelayMs, maxDelayMs, backoffMultiplier, backendStartupTimeoutMs };
+  const requiredBudgetMs = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
+  const rawAttempts = env[MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]?.trim();
+  const explicitAttempts = rawAttempts && Number.isSafeInteger(Number(rawAttempts)) && Number(rawAttempts) > 0;
+  if (!explicitAttempts) {
+    // Every retry waits at least the first delay. Use that upper bound to find
+    // the smallest default attempt count that covers the backend startup window.
+    let lower = config.maxTotalAttempts;
+    let upper = Math.min(Number.MAX_SAFE_INTEGER, Math.max(lower, Math.ceil(requiredBudgetMs / Math.min(initialDelayMs * backoffMultiplier, maxDelayMs)) + 1));
+    while (lower < upper) {
+      const middle = lower + Math.floor((upper - lower) / 2);
+      if (computeHealthRetryBudgetMs({ ...config, maxTotalAttempts: middle }) < requiredBudgetMs) {
+        lower = middle + 1;
+      } else {
+        upper = middle;
+      }
+    }
+    config.maxTotalAttempts = lower;
+  }
   const retryBudgetMs = computeHealthRetryBudgetMs(config);
 
-  const requiredBudgetMs = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
   if (retryBudgetMs < requiredBudgetMs) {
     core.warning(
       `MCP gateway health retry budget is ${Math.round(retryBudgetMs / 1000)}s, which is below the ${Math.round(requiredBudgetMs / 1000)}s needed for the ${Math.round(backendStartupTimeoutMs / 1000)}s backend startup timeout plus cleanup and registration; the health check may give up before the gateway is ready`

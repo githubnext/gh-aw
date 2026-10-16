@@ -217,21 +217,24 @@ The JavaScript setup helpers bound child processes, archive operations, and setu
 
 ### MCP gateway readiness polling
 
-The MCP gateway startup step polls the gateway `/health` endpoint with exponential backoff until the gateway reports ready. Each retry parameter can be overridden; unset, zero, negative, or non-numeric values fall back to the default with a warning.
+The MCP gateway startup step polls the gateway `/health` endpoint with exponential backoff until the gateway reports ready. Each retry parameter can be overridden; unset or blank values use the default, and invalid values fall back to the default with a warning.
 
 | Variable | Default | Applies to |
 | --- | --- | --- |
-| `GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS` | `150` | Total health-check attempts, including the first one. |
+| `GH_AW_MCP_GATEWAY_HEALTH_MAX_ATTEMPTS` | At least `150`, sized to the startup timeout | Total health-check attempts, including the first one. Explicit overrides are capped at `10000`. |
 | `GH_AW_MCP_GATEWAY_HEALTH_INITIAL_DELAY_MS` | `250` | Delay the backoff starts from. |
 | `GH_AW_MCP_GATEWAY_HEALTH_MAX_DELAY_MS` | `1000` | Cap applied to every retry delay. |
 | `GH_AW_MCP_GATEWAY_HEALTH_BACKOFF_MULTIPLIER` | `2` | Multiplier applied to the delay before every retry. |
-| `GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS` | `120000` | MCP backend startup timeout the retry budget must outlast. |
+| `GH_AW_MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_MS` | `120000` | MCP backend startup timeout the retry budget must outlast. Set automatically from `tools.startup-timeout` when configured. |
 
 These values are cross-validated at startup:
 
 - A backoff multiplier below `1` is raised to `1` (constant delay).
 - A delay cap below the initial delay is raised to the initial delay.
-- The cumulative retry delay must cover the backend startup timeout plus 25 seconds for backend cleanup and final server registration; otherwise a warning is emitted that the health check may give up before the gateway is ready.
+- Without a valid explicit attempt override, the attempt count increases as needed so cumulative retry delays cover the backend startup timeout plus 25 seconds for backend cleanup and final server registration. For example, `tools.startup-timeout: 300` uses `327` attempts with the default delays. Derived counts can exceed `10000` for large timeouts.
+- Explicit attempt overrides remain in effect even when their retry budget is shorter; a warning explains when the health check may give up before the gateway is ready.
+
+Health probes and safe-output readiness share a deadline measured from gateway startup: the backend startup timeout plus 25 seconds. Requests and retry sleeps use only the remaining time. Increasing attempts never extends this deadline or the GitHub Actions job timeout.
 
 ## CLI Configuration Variables
 

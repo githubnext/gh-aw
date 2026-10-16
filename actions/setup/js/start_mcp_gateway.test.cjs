@@ -35,6 +35,7 @@ import {
   httpGet,
 } from "./start_mcp_gateway.cjs";
 import { writeMcpConfiguration } from "./mcp_configuration.cjs";
+import { applyGatewayRuntimeTimeouts } from "./tool_timeouts.cjs";
 
 describe("agenticworkflows backend ownership", () => {
   it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses the runner identity without widening private artifact modes (%s)", container => {
@@ -190,6 +191,18 @@ describe("start_mcp_gateway logging", () => {
 });
 
 describe("start_mcp_gateway health timeout", () => {
+  let originalCore;
+
+  beforeEach(() => {
+    originalCore = global.core;
+    global.core = { ...originalCore, warning: vi.fn() };
+  });
+
+  afterEach(() => {
+    global.core = originalCore;
+    vi.useRealTimers();
+  });
+
   it("allows cleanup and registration time after the backend startup timeout", () => {
     const config = resolveGatewayHealthRetryConfig({});
 
@@ -209,6 +222,123 @@ describe("start_mcp_gateway health timeout", () => {
 
     expect(config).toMatchObject({ maxTotalAttempts: 10, initialDelayMs: 100, maxDelayMs: 400, backoffMultiplier: 1.5, backendStartupTimeoutMs: 1000 });
     expect(config.retryBudgetMs).toBe(computeHealthRetryBudgetMs(config));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("health check may give up"));
+  });
+
+  it("sizes default retries for tools.startup-timeout instead of stopping after 150 attempts", async () => {
+    const env = { GH_AW_STARTUP_TIMEOUT: "300" };
+    applyGatewayRuntimeTimeouts({ gateway: {} }, env);
+    const config = resolveGatewayHealthRetryConfig(env);
+    expect(config.backendStartupTimeoutMs).toBe(300_000);
+    expect(config.maxTotalAttempts).toBe(327);
+    expect(config.retryBudgetMs).toBe(325_500);
+    expect(global.core.warning).not.toHaveBeenCalled();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const probe = vi.fn(async () => {
+      if (Date.now() < 300_000) throw new Error("backend still starting");
+    });
+    const wait = retryGatewayStartup(probe, config, 325_000, "health");
+    await vi.advanceTimersByTimeAsync(300_500);
+    await wait;
+    expect(Date.now()).toBe(300_500);
+    expect(probe.mock.calls.length).toBeGreaterThan(150);
+  });
+
+  it.each(["150", "330"])("preserves an explicit %s-attempt override for a longer startup timeout", attempts => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: attempts,
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000",
+    });
+    expect(config.maxTotalAttempts).toBe(Number(attempts));
+    expect(global.core.warning).toHaveBeenCalledTimes(attempts === "150" ? 1 : 0);
+  });
+
+  it.each([undefined, "", " ", "invalid", "0", "-1", "1.5", "Infinity"])("sizes fallback retries when the attempt override is %s", attempts => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: attempts,
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000",
+    });
+    expect(config.maxTotalAttempts).toBe(327);
+    expect(config.retryBudgetMs).toBeGreaterThanOrEqual(325_000);
+  });
+
+  it.each([
+    { initialDelayMs: "100", maxDelayMs: "400", backoffMultiplier: "1.5" },
+    { initialDelayMs: "250", maxDelayMs: "1000", backoffMultiplier: "0.5" },
+    { initialDelayMs: "2000", maxDelayMs: "500", backoffMultiplier: "2" },
+    { initialDelayMs: "1", maxDelayMs: "1000", backoffMultiplier: "1.000000001" },
+  ])("sizes attempts using the normalized retry delays: %j", overrides => {
+    const env = { [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000" };
+    for (const [key, value] of Object.entries(overrides)) env[MCP_GATEWAY_HEALTH_RETRY_ENV[key]] = value;
+    const config = resolveGatewayHealthRetryConfig(env);
+    expect(config.retryBudgetMs).toBeGreaterThanOrEqual(325_000);
+    expect(computeHealthRetryBudgetMs({ ...config, maxTotalAttempts: config.maxTotalAttempts - 1 })).toBeLessThan(325_000);
+  });
+
+  it("allows derived attempts beyond the explicit override cap for large supported timeouts", () => {
+    const env = { GH_AW_STARTUP_TIMEOUT: "2147483", [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: "1", [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "1" };
+    applyGatewayRuntimeTimeouts({ gateway: {} }, env);
+    const config = resolveGatewayHealthRetryConfig(env);
+    expect(config.maxTotalAttempts).toBe(2_147_508_001);
+    expect(config.retryBudgetMs).toBe(2_147_508_000);
+    expect(global.core.warning).not.toHaveBeenCalled();
+  });
+
+  it("keeps derived attempt counts safe even for oversized backend timeout overrides", () => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: String(Number.MAX_SAFE_INTEGER),
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.initialDelayMs]: "1",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backoffMultiplier]: "1",
+    });
+    expect(config.maxTotalAttempts).toBe(Number.MAX_SAFE_INTEGER);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("health check may give up"));
+  });
+
+  it.each(["invalid", "0", "-1", "Infinity", "1.5"])("warns and falls back for invalid backend timeout %s", backendStartupTimeoutMs => {
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: backendStartupTimeoutMs,
+    });
+    expect(config.backendStartupTimeoutMs).toBe(MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS);
+    expect(config.maxTotalAttempts).toBe(MCP_GATEWAY_HEALTH_RETRY_DEFAULTS.maxTotalAttempts);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Ignoring invalid"));
+  });
+
+  it.each([false, true])("stops persistent failures at the real deadline (slow requests: %s)", async slowRequests => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const config = resolveGatewayHealthRetryConfig({ [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000" });
+    const probe = vi.fn(async remainingMs => {
+      if (slowRequests) await new Promise(resolve => setTimeout(resolve, Math.min(2000, remainingMs)));
+      throw new Error("unavailable");
+    });
+    const wait = retryGatewayStartup(probe, config, 325_000, "health");
+    const rejection = expect(wait).rejects.toThrow(/unavailable|startup deadline exceeded/);
+    await vi.advanceTimersByTimeAsync(325_000);
+    await rejection;
+    expect(Date.now()).toBe(325_000);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(probe.mock.calls.length).toBeLessThan(config.maxTotalAttempts);
+  });
+
+  it("stops at an explicitly short attempt limit without extending it", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const config = resolveGatewayHealthRetryConfig({
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: "2",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000",
+    });
+    const probe = vi.fn(async () => {
+      throw new Error("unavailable");
+    });
+    const wait = retryGatewayStartup(probe, config, 325_000, "health");
+    const rejection = expect(wait).rejects.toThrow("unavailable");
+    await vi.advanceTimersByTimeAsync(500);
+    await rejection;
+    expect(probe).toHaveBeenCalledTimes(2);
+    expect(Date.now()).toBe(500);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("falls back to defaults for invalid overrides", () => {
@@ -250,6 +380,17 @@ describe("start_mcp_gateway health timeout", () => {
   it("computes the cumulative startup retry delay", () => {
     // The retry loop multiplies before its first sleep: 500ms, then 1000ms capped.
     expect(computeHealthRetryBudgetMs({ maxTotalAttempts: 3, initialDelayMs: 250, maxDelayMs: 1000, backoffMultiplier: 2 })).toBe(1500);
+  });
+
+  it.each([1, 1.000000001, 1.5, 2, 1e300])("matches the retry loop's cumulative delays with multiplier %s", backoffMultiplier => {
+    const config = { maxTotalAttempts: 330, initialDelayMs: 100, maxDelayMs: 1000, backoffMultiplier };
+    let delay = config.initialDelayMs;
+    let budget = 0;
+    for (let i = 1; i < config.maxTotalAttempts; i += 1) {
+      delay = Math.min(delay * backoffMultiplier, config.maxDelayMs);
+      budget += delay;
+    }
+    expect(computeHealthRetryBudgetMs(config)).toBeCloseTo(budget, 5);
   });
 });
 
