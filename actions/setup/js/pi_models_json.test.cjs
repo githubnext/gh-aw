@@ -710,7 +710,9 @@ describe("pi_models_json.cjs", () => {
       const error = await promise.catch(err => err);
       expect(error.name).toBe("ModelAliasResolutionError");
       expect(error.reason).toBe("model_unavailable");
-      expect(error.message).toMatch(/^The requested model is not supported: 'copilot\/claude-opus-5' is not available in the workflow's live model catalog\. For Copilot, availability also depends on the agentic-workflows integration/);
+      expect(error.message).toMatch(
+        /^Pi model "claude-opus-5" is not advertised by the configured copilot proxy endpoint; The requested model is not supported: 'copilot\/claude-opus-5' is not available in the workflow's live model catalog\. For Copilot, availability also depends on the agentic-workflows integration/
+      );
       expect(MODEL_NOT_SUPPORTED_PATTERN.test(`[gh-aw/pi-models-json] fatal: ${error.message}`)).toBe(true);
       expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
       expect(fs.existsSync(process.env.GH_AW_PI_MODEL_FILE)).toBe(false);

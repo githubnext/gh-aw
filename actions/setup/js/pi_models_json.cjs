@@ -231,7 +231,11 @@ function validatePiModelAvailability(options) {
     return;
   }
   logger(`warning: awf-reflect model availability check failed (provider=${endpoint.provider}, model=${modelId})`);
-  throw new ModelAliasResolutionError(configuredModel || modelId, "model_unavailable", { provider: canonicalModelProvider(endpoint.provider) });
+  const error = new ModelAliasResolutionError(configuredModel || modelId, "model_unavailable", { provider: canonicalModelProvider(endpoint.provider) });
+  // Keep the Pi startup phrase that `gh aw audit` classifies as model_unavailable,
+  // followed by the shared message that detect_agent_errors classifies as model not supported.
+  error.message = `Pi model "${modelId}" is not advertised by the configured ${endpoint.provider} proxy endpoint; ${error.message}`;
+  throw error;
 }
 
 /**
