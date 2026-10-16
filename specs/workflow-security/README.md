@@ -42,7 +42,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Git | `checkouts`, `cleanup`, `agentBegan`, `privilegedCheckout`, `operations`, `errors` | Per-repository auth, temporary setup credentials, verified cleanup/failure, available blobs/refs, sparse/shallow state, local operations, REST, and privileged push. |
 | Runtime repository-list checkout | [`RuntimeRepositoryCheckout.tla`](RuntimeRepositoryCheckout.tla) | Trusted policy, bounded whole-batch validation, visibility, entry authentication, agent/privileged finalization, job-local manifests, staged isolation, and failure reporting. |
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
-| Comment/review-triggered PR checkout | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Allow-listed Bot sender and exact comment/review-author identity, canonical App slug/bot actor equivalence, and same-repository head/base boundaries. |
+| PR checkout authorization | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Same-repository Bot branch-event authorization for supported PR actions plus the stricter allow-listed comment/review exception. |
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
 
 The `issue` effect creates at most one validated issue in the main public
@@ -231,18 +231,22 @@ installation-token grants, arbitrary independent tooling, or multi-entry merge
 semantics. Existing compiler and runtime tests supply those narrower conformance
 checks; the real-Git `.gitmodules` regression is not replaced by this abstraction.
 
-## Comment- and review-triggered pull request checkout
+## Pull request checkout authorization
 
 [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) exhaustively
-models `issue_comment`, `pull_request_review_comment`, and `pull_request_review`
-checkout authorization. The allow-listed App exception requires a Bot sender,
-exact equality between the webhook sender and the matching comment or review
-author, canonical equality between the runtime actor and sender, and matching
-workflow, PR-head, and PR-base repository identities. Every other case retains
-the write-or-higher collaborator permission check. The finite model includes
-App slug and `[bot]` spellings, non-Bot actors, mismatched comment/review authors,
-missing or mismatched repository identities, non-comment/review triggers, and a
-`Fault` control for bypassing each authorization guard. Runtime conformance vectors live in
+models `pull_request` and `pull_request_target` actions `opened`, `synchronize`,
+`ready_for_review`, and `reopened`, as well as `issue_comment`,
+`pull_request_review_comment`, and `pull_request_review`. The branch-event
+exception requires a Bot sender whose login exactly matches the runtime actor
+and matching positive runtime, PR-head, and PR-base repository identities. The
+comment/review exception separately requires an allow-listed Bot sender, exact
+equality between the webhook sender and matching comment or review author,
+canonical equality between the runtime actor and sender, and matching
+repository identities. Every other case retains the write-or-higher
+collaborator permission check. The finite model includes App slug and `[bot]`
+spellings, non-Bot actors, mismatched identities, missing or mismatched
+repository identities, unsupported actions and triggers, and a `Fault` control
+for bypassing each authorization guard. Runtime conformance vectors live in
 [`checkout_pr_branch.test.cjs`](../../actions/setup/js/checkout_pr_branch.test.cjs).
 
 Run the model with the same pinned TLA+ Tools installation:
@@ -255,9 +259,11 @@ java -cp /path/to/tla2tools.jar tlc2.TLC \
 
 For each negative control, copy the `.cfg` to a temporary file, set `Fault` to
 one of `"event-bypass"`, `"sender-type-bypass"`, `"author-bypass"` (which covers
-comment and review author mismatches),
-`"actor-bypass"`, `"allowlist-bypass"`, or `"repository-bypass"`, and confirm
-TLC reports `NoUnauthorizedBotBypass`.
+comment and review author mismatches), `"actor-bypass"`, `"allowlist-bypass"`,
+`"repository-bypass"`, `"branch-event-bypass"`, `"branch-action-bypass"`,
+`"branch-sender-type-bypass"`, `"branch-sender-bypass"`, or
+`"branch-repository-bypass"`, and confirm TLC reports
+`NoUnauthorizedBotBypass`.
 
 | Predicate | Required safety condition | Architecture / threat rule | Compiler/runtime evidence |
 |---|---|---|---|

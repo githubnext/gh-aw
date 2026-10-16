@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Agentic Workflows Security Architecture Specification
 
-**Version**: 1.1.2<br>
+**Version**: 1.1.3<br>
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/security-architecture-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -974,7 +974,7 @@ if: github.event.pull_request.head.repo.id == github.repository_id
 2. **Actor trust**: The triggering actor MUST satisfy `assertTrustedCheckoutRuntime()`, which enforces two properties with different scopes:
    - **Fork-runtime rejection** (`workflow_dispatch` PR replay ONLY): the runtime repository MUST NOT be a fork. This check MUST NOT be evaluated for other PR-capable triggers (`pull_request`, `pull_request_target`, `pull_request_review`, `pull_request_review_comment`, `issue_comment`), because a structurally forked base repository is a legitimate topology for those triggers and rejecting it produces a false positive (see the risk matrix below). The payload MUST contain `repository.fork` as the boolean `false`; missing or malformed fork metadata MUST fail closed rather than be treated as trusted.
    - **Permission floor** (all PR checkout paths except the two same-repository bot cases below): the actor MUST hold write-or-higher repository permission. For centralized command or label dispatches where the runtime actor is `github-actions[bot]`, the platform-set `sender.type` MUST be `Bot`, a command/label marker MUST be present, and the originating `aw_context.actor` MUST be a different identity with write-or-higher permission. Missing or inconsistent identity metadata MUST fail closed before permission lookup.
-   - **Same-repository bot branch events**: `pull_request` or `pull_request_target` `opened` or `synchronize` events MAY bypass the collaborator-permission lookup only when `sender.type == "Bot"`, `sender.login` matches the triggering actor, and the positive runtime repository ID, PR head repository ID, and PR base repository ID are equal. Missing or inconsistent identity or repository metadata, forked PRs, and all other event actions MUST NOT use this exception and MUST satisfy the permission floor.
+   - **Same-repository bot branch events**: `pull_request` or `pull_request_target` `opened`, `synchronize`, `ready_for_review`, or `reopened` events MAY bypass the collaborator-permission lookup only when `sender.type == "Bot"`, `sender.login` matches the triggering actor, and the positive runtime repository ID, PR head repository ID, and PR base repository ID are equal. Missing or inconsistent identity or repository metadata, forked PRs, and all other event actions MUST NOT use this exception and MUST satisfy the permission floor.
    - **Same-repository allow-listed bot comments and reviews**: `issue_comment`, `pull_request_review_comment`, and `pull_request_review` events MAY bypass the collaborator-permission lookup only when `sender.type == "Bot"`, `sender.login` exactly matches `comment.user.login` or `review.user.login` as appropriate, the sender login is canonically equivalent to the triggering actor (the App slug and its `[bot]` form are equivalent), the actor is explicitly listed in `on.bots`, and the positive runtime repository ID equals both the fetched PR head and base repository IDs. Missing or mismatched identities, an unlisted actor, missing or mismatched repository IDs, and fork PRs MUST NOT use this exception and MUST satisfy the permission floor. Failure to fetch or verify the PR details MUST fail closed.
 3. **Parse resilience** (`workflow_dispatch` PR contexts): Malformed `aw_context` JSON MUST be caught; the implementation MUST emit a warning and skip checkout rather than propagating the parse error.
 4. **Ref isolation**: The PR head MUST be fetched exclusively via `refs/pull/N/head` from the current repository's origin, using array-based execution (no shell interpolation).
@@ -2053,6 +2053,14 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 
 ## Change Log
 
+### Version 1.1.3 (RS-05a Same-Repository Bot PR Event Checkout)
+
+**Published**: October 16, 2026
+
+- Extends the same-repository bot branch-event exception to `ready_for_review` and `reopened` for `pull_request` and `pull_request_target`.
+- Preserves the Bot sender/runtime actor match and positive runtime, PR-head, and PR-base repository ID equality requirements; all other actions retain the collaborator permission floor.
+- Updates RS-05a conformance mapping and bounded TLA+ evidence.
+
 ### Version 1.1.2 (RS-05a Allow-Listed App Review Checkout)
 
 **Published**: October 12, 2026
@@ -2176,6 +2184,6 @@ The most recent full validation pass against this specification was completed on
 
 Sync check on **2026-08-25** found no new minor-version bump, reported security incident, or reference-implementation change requiring a full revalidation since the 2026-07-15 pass. This maintenance pass synchronized §9/§11 prose to the existing `pkg/workflow/threat_detection_config.go` parser and `pkg/workflow/threat_detection_inline_engine.go` runtime behavior; because it clarifies MUST-level runtime sequencing text, a targeted §9/§11 revalidation is scheduled with the Security Architecture maintainers by **2026-09-01**. The known Appendix G.10 partial-coverage gaps remain tracked there.
 
-On **2026-10-09**, RS-05a was targeted-revalidated against the allow-listed same-repository App comment implementation, unit tests, and Z3 safety model for Version 1.1.1. Version 1.1.2 extends that contract to `pull_request_review` and updates its conformance mapping and formal model; targeted revalidation of those additions is pending in `security-architecture-spec-validation.md` §7b. This does not replace the full revalidation pass required by the policy. The previous RS-05a branch-event revalidation was completed on 2026-10-01.
+On **2026-10-09**, RS-05a was targeted-revalidated against the allow-listed same-repository App comment implementation, unit tests, and Z3 safety model for Version 1.1.1. Version 1.1.2 extends that contract to `pull_request_review` and updates its conformance mapping and formal model; targeted revalidation of those additions is pending in `security-architecture-spec-validation.md` §7b. Version 1.1.3 extends the same-repository bot branch-event exception to `ready_for_review` and `reopened`; targeted revalidation of those additions is also pending in §7b. This does not replace the full revalidation pass required by the policy. The previous RS-05a branch-event revalidation was completed on 2026-10-01.
 
 *This specification is provided under the MIT License.*
