@@ -118,6 +118,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				GhAwRef:                             resolvedGhAwRef,
 				AutoMerge:                           autoMerge,
 				CreatePR:                            createPR,
+				PRMessage:                           cmd.Flag("pr-message").Value.String(),
 			})
 		},
 	}
@@ -154,6 +155,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	cmd.Flags().Bool("no-config", false, "Disable inferring GitHub App permissions/events from the package's workflows; use only permissions/events declared in aw.yml")
 	cmd.Flags().String("gh-aw-ref", "", "Pin compiled workflows to a branch, tag, or commit SHA of github/gh-aw; branch and tag names are resolved to an immutable full SHA")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request instead of prompting for delivery")
+	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")

@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -94,6 +93,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			prMessage, _ := cmd.Flags().GetString("pr-message")
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
 			yes, _ := cmd.Flags().GetBool("yes")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
@@ -158,6 +158,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				yes:                  yes,
 				engineOverride:       engineOverride,
 				autoMerge:            autoMerge,
+				prMessage:            prMessage,
 			}
 
 			if targetRepo != "" {
@@ -172,6 +173,11 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				if err := PreflightCheckForCreatePR(verbose); err != nil {
 					return err
 				}
+				var err error
+				opts.summary, err = newUpdatePRSummary(cmd.Context(), opts.workflowDir)
+				if err != nil {
+					return err
+				}
 			}
 
 			if err := runUpgradeCommand(opts); err != nil {
@@ -179,9 +185,12 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			}
 
 			if createPR {
-				prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
-					"updating GitHub Actions versions, and recompiling all workflows."
-				_, err := createPRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+				prBody, err := opts.summary.body(cmd.Context(), "upgrade")
+				if err != nil {
+					return err
+				}
+				prBody = appendPRMessage(prBody, opts.prMessage)
+				_, err = createPRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 					"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
 				return err
 			}
@@ -202,6 +211,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
+	addPRMessageFlag(cmd)
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode upgrade confirmations (required in CI)")
@@ -258,6 +268,8 @@ type upgradeOptions struct {
 	yes                  bool
 	engineOverride       string
 	autoMerge            bool
+	prMessage            string
+	summary              *updatePRSummary
 }
 
 // runUpgradeCommand executes the upgrade process
@@ -323,6 +335,9 @@ func runUpgradeCommand(opts upgradeOptions) error {
 			WorkflowDir:                workflowDir,
 			DisabledCodemodIDs:         opts.disabledCodemodIDs,
 			SkipInstructionFileUpdates: true,
+		}
+		if opts.summary != nil {
+			fixConfig.OnApplied = opts.summary.recordFix
 		}
 
 		if err := RunFix(fixConfig); err != nil {
@@ -563,10 +578,10 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
 	// the original slice backing array.
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
-	if slices.ContainsFunc(newArgs, containsControlCharacters) {
+	if !validUpgradeRelaunchArgs(newArgs) {
 		return errors.New("invalid relaunch arguments: argument contains invalid control characters. Example: compile .github/workflows/example.md")
 	}
-	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
+	upgradeLog.Printf("Re-launching with new binary: %s (argument count: %d)", exe, len(newArgs))
 
 	// Validate the executable path before re-launching it (defense-in-depth).
 	// exe is always derived from os.Executable() or the pre-rename installPath which is
@@ -595,4 +610,33 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 		return err
 	}
 	return nil
+}
+
+func validUpgradeRelaunchArgs(args []string) bool {
+	var messageValue, flagsEnded bool
+	whitespace := strings.NewReplacer("\n", "", "\r", "", "\t", "")
+	for _, arg := range args {
+		isMessage := messageValue
+		messageValue = false
+		if !isMessage && !flagsEnded {
+			if value, ok := strings.CutPrefix(arg, "--pr-message="); ok {
+				arg = value
+				isMessage = true
+			} else {
+				switch arg {
+				case "--":
+					flagsEnded = true
+				case "--pr-message":
+					messageValue = true
+				}
+			}
+		}
+		if isMessage {
+			arg = whitespace.Replace(arg)
+		}
+		if containsControlCharacters(arg) {
+			return false
+		}
+	}
+	return true
 }

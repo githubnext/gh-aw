@@ -26,11 +26,13 @@ type FixConfig struct {
 	WorkflowDir                string   // Custom workflow directory
 	DisabledCodemodIDs         []string // Codemod IDs to skip
 	SkipInstructionFileUpdates bool
+	// OnApplied receives fixes only after the workflow migration completes successfully.
+	OnApplied func(file string, fixes []string)
 }
 
 // RunFix runs the fix command with the given configuration
 func RunFix(config FixConfig) error {
-	return runFixCommand(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs, config.SkipInstructionFileUpdates)
+	return runFixCommandWithResults(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs, config.SkipInstructionFileUpdates, config.OnApplied)
 }
 
 // NewFixCommand creates the fix command
@@ -116,7 +118,11 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, skipInstructionFileUpdates bool) error { //nolint:largefunc // Existing command orchestration remains centralized.
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, skipInstructionFileUpdates bool) error {
+	return runFixCommandWithResults(workflowIDs, write, verbose, workflowDir, disabledCodemodIDs, skipInstructionFileUpdates, nil)
+}
+
+func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, skipInstructionFileUpdates bool, onApplied func(string, []string)) error { //nolint:largefunc // Existing command orchestration remains centralized.
 	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s, disabledCodemodIDs=%v", workflowIDs, write, verbose, workflowDir, disabledCodemodIDs)
 
 	// Set up workflow directory (using default if not specified)
@@ -184,6 +190,9 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 			continue
 		}
 
+		if write && fixed && onApplied != nil {
+			onApplied(file, appliedFixes)
+		}
 		totalFiles++
 		if fixed {
 			totalFixed++

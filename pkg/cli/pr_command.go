@@ -45,6 +45,7 @@ type PullRequest struct {
 	Mergeable   string    `json:"mergeable"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+	PRMessage   string    `json:"-"`
 }
 
 // PRInfo is kept as an alias for backward compatibility.
@@ -110,7 +111,7 @@ The command will:
 				return err
 			}
 
-			if err := transferPRWithAutoMerge(cmd.Context(), prURL, targetRepo, verbose, autoMerge); err != nil {
+			if err := transferPRWithMessage(cmd.Context(), prURL, targetRepo, verbose, autoMerge, cmd.Flag("pr-message").Value.String()); err != nil {
 				return err
 			}
 			return nil
@@ -120,6 +121,7 @@ The command will:
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request (always enabled for transfer)")
+	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	_ = cmd.Flags().MarkHidden("pr")
 
@@ -421,6 +423,14 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 }
 
 func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose, autoMerge bool) error { //nolint:largefunc
+	if err := validatePRBody(buildTransferPRBody(prInfo)); err != nil {
+		return err
+	}
+	bodyFile, err := writePRBodyFile(withPRFooter(buildTransferPRBody(prInfo)))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(bodyFile)
 	// Check if user has write access to target repository
 	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
 	if err != nil && verbose {
@@ -513,14 +523,6 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 		return fmt.Errorf("could not push branch; ensure required prerequisites are configured, then retry: %w", err)
 	}
 
-	// Create PR body with original info
-	prBody := prInfo.Body
-	if prBody != "" {
-		prBody += "\n\n---\n\n"
-	}
-	prBody += fmt.Sprintf("**Transferred from:** %s#%d\n", prInfo.SourceRepo, prInfo.Number)
-	prBody += "**Original Author:** @" + prInfo.AuthorLogin
-
 	// Create the PR
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
 	var headRef string
@@ -533,7 +535,7 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 	output, err := workflow.RunGHContext(ctx, "Creating pull request...", "pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
-		"--body", prBody,
+		"--body-file", bodyFile,
 		"--head", headRef)
 	if err != nil {
 		return fmt.Errorf("could not create PR; ensure required prerequisites are configured, then retry: %w", err)
@@ -555,6 +557,10 @@ func transferPR(prURL, targetRepo string, verbose bool) error { //nolint:largefu
 }
 
 func transferPRWithAutoMerge(ctx context.Context, prURL, targetRepo string, verbose, autoMerge bool) error { //nolint:largefunc
+	return transferPRWithMessage(ctx, prURL, targetRepo, verbose, autoMerge, "")
+}
+
+func transferPRWithMessage(ctx context.Context, prURL, targetRepo string, verbose, autoMerge bool, message string) error { //nolint:largefunc
 	prLog.Printf("Starting PR transfer: url=%s, targetRepo=%s", prURL, targetRepo)
 
 	if verbose {
@@ -742,6 +748,10 @@ func transferPRWithAutoMerge(ctx context.Context, prURL, targetRepo string, verb
 	if err != nil {
 		return err
 	}
+	prInfo.PRMessage = message
+	if err := validatePRBody(buildTransferPRBody(prInfo)); err != nil {
+		return err
+	}
 
 	if prInfo.State != "open" && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("PR is in '%s' state", prInfo.State)))
@@ -800,6 +810,9 @@ func createPR(ctx context.Context, branchName, title, body string, verbose bool)
 // createPRForRepo creates a pull request in repoSlug. When repoSlug is empty,
 // it resolves the current repository for compatibility with other PR callers.
 func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug string, verbose bool) (int, string, error) {
+	if err := validatePRBody(body); err != nil {
+		return 0, "", err
+	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating PR: "+title))
 	}
@@ -833,7 +846,12 @@ func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug stri
 	// Build gh pr create args. Explicitly specifying --repo ensures the PR is created in the
 	// current repo (not an upstream fork). Use GH_HOST env var instead of --hostname
 	// (which is only valid for gh api, not gh pr create).
-	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName}
+	bodyFile, err := writePRBodyFile(withPRFooter(body))
+	if err != nil {
+		return 0, "", err
+	}
+	defer os.Remove(bodyFile)
+	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body-file", bodyFile, "--head", branchName}
 	output, err := createPRRunGHContextWithHost(ctx, "Creating pull request...", remoteHost, prCreateArgs...)
 	if err != nil {
 		// Try to get stderr for better error reporting
@@ -847,14 +865,9 @@ func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug stri
 	prURL := strings.TrimSpace(string(output))
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request: "+prURL))
 
-	// Parse PR number from URL (e.g., https://github.com/owner/repo/pull/123)
-	prNumber := 0
-	parts := strings.Split(prURL, "/")
-	if len(parts) > 0 {
-		if num, parseErr := strconv.Atoi(parts[len(parts)-1]); parseErr == nil {
-			prNumber = num
-		}
+	prNumber, parseErr := strconv.Atoi(filepath.Base(prURL))
+	if parseErr != nil {
+		prNumber = 0
 	}
-
 	return prNumber, prURL, nil
 }
