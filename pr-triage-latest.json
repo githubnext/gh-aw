@@ -1,73 +1,31 @@
 {
-  "run_date": "2026-10-16T06:37:56Z",
-  "run_id": "38862104606",
+  "run_date": "2026-10-16T12:35:09Z",
+  "run_id": "38901216523",
   "source": "pr-triage",
-  "eligible_total": 3,
-  "cooldown_skipped": 0,
+  "eligible_total": 1,
+  "cooldown_skipped": 2,
   "open_copilot_prs": 3,
   "category_counts": {
-    "bug": 3
+    "bug": 1
   },
   "risk_counts": {
-    "medium": 2,
     "high": 1
   },
   "priority_counts": {
-    "high": 1,
-    "medium": 2
+    "medium": 1
   },
   "action_counts": {
     "auto_merge": 0,
-    "fast_track": 1,
+    "fast_track": 0,
     "batch_review": 0,
-    "defer": 2,
+    "defer": 1,
     "close": 0
   },
-  "batches": [
-    {
-      "id": "copilot-bugfixes-2026-10-16",
-      "prs": [
-        69162,
-        69046,
-        56568
-      ],
-      "reason": "Similar bug-fix workload with medium/high runtime risk and shared compatibility/release-safety concerns."
-    }
-  ],
+  "batches": [],
   "selected_candidates": [
     {
-      "number": 69162,
-      "title": "Compatibility: enforce Copilot CLI min version and allow aw_info.json writes under Cloud Hypervisor",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 84,
-      "score_breakdown": {
-        "impact": 42,
-        "urgency": 24,
-        "quality": 18
-      },
-      "action": "fast_track",
-      "review_state": "pass",
-      "ci_state": "passing"
-    },
-    {
-      "number": 69046,
-      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 40,
-      "score_breakdown": {
-        "impact": 22,
-        "urgency": 10,
-        "quality": 8
-      },
-      "action": "defer",
-      "review_state": "draft",
-      "ci_state": "passing"
-    },
-    {
       "number": 56568,
-      "title": "Signed-commit replay fallback safety fix",
+      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "category": "bug",
       "risk": "high",
       "priority_score": 52,
@@ -83,34 +41,8 @@
   ],
   "prs": [
     {
-      "number": 69162,
-      "title": "Compatibility: enforce Copilot CLI min version and allow aw_info.json writes under Cloud Hypervisor",
-      "state": "open",
-      "user": "Copilot",
-      "draft": false,
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 84,
-      "action": "fast_track",
-      "review_state": "pass",
-      "ci_state": "passing"
-    },
-    {
-      "number": 69046,
-      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
-      "state": "open",
-      "user": "Copilot",
-      "draft": true,
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 40,
-      "action": "defer",
-      "review_state": "draft",
-      "ci_state": "passing"
-    },
-    {
       "number": 56568,
-      "title": "Signed-commit replay fallback safety fix",
+      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "state": "open",
       "user": "Copilot",
       "draft": false,
@@ -122,6 +54,9 @@
       "ci_state": "unknown"
     }
   ],
-  "cooldown_skipped_prs": [],
-  "notes": "Three eligible Copilot-authored PRs remain after the one-hour cooldown. The CLI compatibility fix is ready for fast-track review; the other two are bugfixes in varying states of readiness and should remain deferred until they clear review or gain evidence."
+  "cooldown_skipped_prs": [
+    69162,
+    69046
+  ],
+  "notes": "Only one open Copilot-authored PR remained eligible after the one-hour cooldown. The remaining PR is a high-risk bug fix with request-changes review feedback and no fresh CI signal, so it should stay deferred until the review/CI state stabilizes."
 }
