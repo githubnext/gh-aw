@@ -94,3 +94,5 @@
 {"id":"compatibility_report_created","question":"Was a report created identifying compatibility gaps or was the cache updated with results?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-14T09:05:08.030Z","runid":"38538022779"}
 {"id":"repos_compiled","question":"Did the agent find popular repositories using gh-aw lock files and attempt to compile or upgrade them?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-15T08:58:17.725Z","runid":"38708600328"}
 {"id":"compatibility_report_created","question":"Was a report created identifying compatibility gaps or was the cache updated with results?","answer":"UNKNOWN","model":"evals","timestamp":"2026-10-15T08:58:17.725Z","runid":"38708600328"}
+{"id":"repos_compiled","question":"Did the agent find popular repositories using gh-aw lock files and attempt to compile or upgrade them?","answer":"NO","model":"evals","timestamp":"2026-10-16T08:55:45.024Z","runid":"38876282648"}
+{"id":"compatibility_report_created","question":"Was a report created identifying compatibility gaps or was the cache updated with results?","answer":"NO","model":"evals","timestamp":"2026-10-16T08:55:45.024Z","runid":"38876282648"}
