@@ -338,7 +338,6 @@ func ensureDefaultAgentWritePath(sandboxConfig *SandboxConfig, engineConfig *Eng
 	addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentWorkspaceWritePath)
 	if engineConfig != nil && engineConfig.ID == string(constants.CopilotEngine) {
 		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, defaultAgentLogsWritePath)
-		addAllowWritePathIfMissing(sandboxConfig.Agent.Config.Filesystem, constants.AwInfoPath)
 	}
 	if engineConfig != nil && engineConfig.ID == string(constants.CodexEngine) {
 		// Codex writes runtime state under CODEX_HOME.

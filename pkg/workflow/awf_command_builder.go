@@ -317,9 +317,6 @@ func cloudHypervisorAllowWriteHostMkdirTarget(guestPath string) (hostPath string
 	if guestPath == cloudHypervisorWorkspaceWritePath {
 		return "", false
 	}
-	if guestPath == constants.AwInfoPath {
-		return "", false
-	}
 	if rel, ok := strings.CutPrefix(guestPath, cloudHypervisorWorkspaceWritePath+"/"); ok {
 		return "${GITHUB_WORKSPACE}/" + rel, true
 	}

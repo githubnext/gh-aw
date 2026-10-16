@@ -149,7 +149,7 @@ func TestCloudHypervisorAWFCommandEmitsAwfHomeMkdirBeforeInvocation(t *testing.T
 				Runtime: AgentRuntimeCloudHypervisor,
 				Config: &SandboxRuntimeConfig{
 					Filesystem: &SRTFilesystemConfig{
-						AllowWrite: []string{"/workspace", "/workspace/.awf-home", "/tmp/gh-aw/agent", constants.AwInfoPath},
+						AllowWrite: []string{"/workspace", "/workspace/.awf-home", "/tmp/gh-aw/agent"},
 					},
 				},
 			}},
@@ -160,11 +160,6 @@ func TestCloudHypervisorAWFCommandEmitsAwfHomeMkdirBeforeInvocation(t *testing.T
 	// /workspace already exists (checked out by actions/checkout) and must not be mkdir'd.
 	assert.NotContains(t, command, `mkdir -p "${GITHUB_WORKSPACE}"`+"\n")
 	assert.Contains(t, command, `mkdir -p "${GITHUB_WORKSPACE}/.awf-home" "/tmp/gh-aw/agent"`)
-	assert.NotContains(t, buildCloudHypervisorFilesystemMkdirScript(config.WorkflowData), constants.AwInfoPath)
-	configJSON, err := BuildAWFConfigJSON(config)
-	require.NoError(t, err)
-	assert.Contains(t, configJSON, `"filesystem":{"allowWrite":["/workspace","/workspace/.awf-home","/tmp/gh-aw/agent","`+constants.AwInfoPath+`"]}`)
-	assert.Contains(t, command, constants.AwInfoPath)
 	assert.Contains(t, command, `if GH_AW_GIT_EXCLUDE="$(git -C "${GITHUB_WORKSPACE}" rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null)"; then`)
 	assert.Contains(t, command, `if ! grep -qxF -- '/.awf-home/' "$GH_AW_GIT_EXCLUDE"`)
 
@@ -361,7 +356,8 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 	assert.NotContains(t, jsonStr, "awmg-cli-proxy")
 	assert.Contains(t, jsonStr, `"agentTimeout":60`)
 	assert.Contains(t, jsonStr, `"cloudHypervisor":{"previewEnabled":true,"mountPolicy":"workspace-and-tool-cache","vcpuCount":2,"memoryMib":4096}`)
-	assert.Contains(t, jsonStr, `"allowWrite":["/tmp/gh-aw/agent","/tmp/gh-aw/sandbox/agent/logs","/tmp/gh-aw/aw_info.json","/workspace","/workspace/.awf-home"]`)
+	assert.Contains(t, jsonStr, `"allowWrite":["/tmp/gh-aw/agent","/tmp/gh-aw/sandbox/agent/logs","/workspace","/workspace/.awf-home"]`)
+	assert.NotContains(t, jsonStr, "/tmp/gh-aw/aw_info.json")
 }
 
 func TestCloudHypervisorValidationArcDindIncompatible(t *testing.T) {

@@ -15,9 +15,40 @@ function modelID(value) {
 
 function recordCopilotModelSelection(selection, env = process.env) {
   if (env.GH_AW_PHASE && env.GH_AW_PHASE !== "agent") return;
+  const file = path.join(env.GH_AW_TMP_DIR || "/tmp/gh-aw", "sandbox/agent/logs/copilot-model-selection.json");
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(selection));
+  } catch (error) {
+    throw new Error(`Cannot record Copilot model selection log: ${getErrorMessage(error)}`, { cause: error });
+  }
+}
+
+// Only the runner post-step updates workflow metadata; the harness writes a log.
+function persistCopilotModelSelection(env = process.env) {
+  if (env.GH_AW_PHASE && env.GH_AW_PHASE !== "agent") return;
+  const log = path.join(env.GH_AW_TMP_DIR || "/tmp/gh-aw", "sandbox/agent/logs/copilot-model-selection.json");
+  if (!fs.existsSync(log)) return;
   const file = path.join(env.GH_AW_TMP_DIR || "/tmp/gh-aw", "aw_info.json");
   try {
     const info = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+    if ((env.GH_AW_ENGINE_ID || info.engine_id) !== "copilot") return;
+    const stat = fs.lstatSync(log);
+    if (!stat.isFile() || stat.size > 16384) throw new Error("Invalid Copilot model selection log");
+    const record = JSON.parse(fs.readFileSync(log, "utf8"));
+    const selection = {
+      status: record?.status,
+      configured_model: typeof record?.configured_model === "string" ? validateModelIdentifier(splitModelIdentifier(record.configured_model).base) : "",
+      resolved_model: typeof record?.resolved_model === "string" ? modelID(record.resolved_model) : "",
+      effective_model: typeof record?.effective_model === "string" ? modelID(record.effective_model) : "",
+    };
+    if (!selection.configured_model || !["observed", "substituted", "unavailable"].includes(selection.status)) throw new Error("Invalid Copilot model selection");
+    if (selection.status === "unavailable") {
+      selection.resolved_model = "";
+      selection.effective_model = "";
+    } else if (!selection.resolved_model || !selection.effective_model) {
+      throw new Error("Invalid Copilot model selection models");
+    }
     info.requested_model ||= selection.configured_model;
     info.model = selection.effective_model;
     info.model_selection = selection;
@@ -125,4 +156,4 @@ function createCopilotModelObserver({ configuredModel, resolvedModel, sessionId,
   return { check };
 }
 
-module.exports = { createCopilotModelObserver, recordCopilotModelSelection };
+module.exports = { createCopilotModelObserver, recordCopilotModelSelection, persistCopilotModelSelection };
