@@ -18,8 +18,10 @@ import (
 
 const (
 	bareInlineSkillReportingHint = "Use the `reporting` skill when producing a report, issue, or PR comment to follow the formatting guidelines below."
-	bareInlineSkillReportingPath = "/tmp/gh-aw/pi-agent-dir/skills/reporting/SKILL.md"
 	bareInlineSkillAmbientName   = "ambient-helper"
+	// bareInlineSkillArgsFragment expands at run time to the --skill arguments pi_runtime.cjs
+	// derives from the inline skills activation extracted and staged.
+	bareInlineSkillArgsFragment = "$(cat /tmp/gh-aw/pi-agent-dir/workflow-skill-args 2>/dev/null)"
 )
 
 // bareInlineSkillReportingImport mirrors .github/workflows/shared/reporting.md: the skill-use
@@ -31,6 +33,10 @@ const bareInlineSkillReportingImport = "---\n# Report formatting guidelines expo
 	"- Use `###` (or lower) headers only.\n\n" +
 	"## end skill: `reporting`\n"
 
+// bareInlineSkillWrapperImport is a frontmatter-importable file whose body pulls in the
+// reporting skill through a nested runtime import.
+const bareInlineSkillWrapperImport = "---\n# Wrapper importing reporting at run time.\n---\n\n{{#runtime-import .github/workflows/shared/reporting.md}}\n"
+
 var bareInlineSkillPiFlags = []string{"--no-context-files", "--no-skills", "--no-prompt-templates", "--no-extensions", "--no-themes"}
 
 // setupBareInlineSkillRepo writes a repository fixture containing the reporting import and an
@@ -41,6 +47,7 @@ func setupBareInlineSkillRepo(t *testing.T, workflowName, workflowContent string
 	sharedDir := filepath.Join(root, ".github", "workflows", "shared")
 	require.NoError(t, os.MkdirAll(sharedDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "reporting.md"), []byte(bareInlineSkillReportingImport), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "wrapper.md"), []byte(bareInlineSkillWrapperImport), 0o644))
 	ambientDir := filepath.Join(root, ".pi", "skills", bareInlineSkillAmbientName)
 	require.NoError(t, os.MkdirAll(ambientDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(ambientDir, "SKILL.md"), []byte("---\ndescription: ambient\n---\nAmbient.\n"), 0o644))
@@ -60,6 +67,20 @@ func compileBareInlineSkillWorkflow(t *testing.T, workflowPath string) (string, 
 	data, err := NewCompiler().ParseWorkflowFile(workflowPath)
 	require.NoError(t, err)
 	return string(lock), data
+}
+
+// assertBareRuntimeSkillLoading checks that bare pi keeps every discovery-disabling flag and
+// loads workflow skills only through the runtime list derived from activation output.
+func assertBareRuntimeSkillLoading(t *testing.T, lock string) {
+	t.Helper()
+	args := compiledPiArgs(t, lock)
+	assert.Contains(t, args, strings.Join(bareInlineSkillPiFlags, " "), "bare pi should keep all five discovery-disabling flags")
+	assert.Contains(t, args, bareInlineSkillArgsFragment, "bare pi should load the workflow skills activation staged")
+	assert.Equal(t, 1, strings.Count(lock, bareInlineSkillArgsFragment), "the runtime skill list should be expanded once")
+	assert.NotContains(t, lock, "--skill", "no compile-time skill list should be emitted")
+	assert.Contains(t, lock, `"--no-themes"]`, "pi sub-agents should inherit bare mode and receive the runtime skill list")
+	assert.Contains(t, lock, `GH_AW_SKILL_DIR: ".pi/skills"`, "inline skills should be restored from the activation artifact")
+	assert.NotContains(t, lock, bareInlineSkillAmbientName, "ambient repository skills must not be loaded")
 }
 
 var piCommandArgsPattern = regexp.MustCompile(` pi (--print [^']*?) --append-system-prompt`)
@@ -150,24 +171,59 @@ description: Report formatting guidelines for gh-aw workflows
 			runtimeImportPath: ".github/workflows/bare-pi-skill.md",
 			sourceFile:        "bare-pi-skill.md",
 		},
+		{
+			name: "body-level runtime import",
+			workflow: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine:
+  id: pi
+  bare: true
+tools:
+  bash: false
+  cli-proxy: false
+---
+
+# Bare pi runtime-imported skill
+
+{{#runtime-import .github/workflows/shared/reporting.md}}
+
+Say hello.
+`,
+			runtimeImportPath: ".github/workflows/shared/reporting.md",
+			sourceFile:        "shared/reporting.md",
+		},
+		{
+			name: "runtime import nested in frontmatter import",
+			workflow: `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine:
+  id: pi
+  bare: true
+imports:
+  - shared/wrapper.md
+tools:
+  bash: false
+  cli-proxy: false
+---
+
+# Bare pi nested runtime-imported skill
+
+Say hello.
+`,
+			runtimeImportPath: ".github/workflows/shared/wrapper.md",
+			sourceFile:        "shared/reporting.md",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			workflowPath := setupBareInlineSkillRepo(t, "bare-pi-skill", tt.workflow)
-			lock, data := compileBareInlineSkillWorkflow(t, workflowPath)
-
-			args := compiledPiArgs(t, lock)
-			assert.Contains(t, args, strings.Join(bareInlineSkillPiFlags, " ")+" --skill "+bareInlineSkillReportingPath,
-				"bare pi should keep all five discovery-disabling flags and explicitly load the workflow skill")
-			assert.Equal(t, 1, strings.Count(args, "--skill "), "only the workflow skill should be loaded explicitly")
-			assert.Contains(t, lock, `"--no-themes","--skill","`+bareInlineSkillReportingPath+`"`, "pi sub-agents should inherit the explicit workflow skill")
-			assert.Contains(t, lock, `GH_AW_SKILL_DIR: ".pi/skills"`, "inline skills should be restored from the activation artifact")
-			assert.NotContains(t, lock, bareInlineSkillAmbientName, "ambient repository skills must not be loaded")
-
-			require.Len(t, data.InlineSkills, 1)
-			assert.Equal(t, "reporting", data.InlineSkills[0].Name)
-
+			lock, _ := compileBareInlineSkillWorkflow(t, workflowPath)
+			assertBareRuntimeSkillLoading(t, lock)
 			assertPromptContract(t, lock, tt.runtimeImportPath, filepath.Join(filepath.Dir(workflowPath), tt.sourceFile))
 		})
 	}
@@ -205,20 +261,58 @@ sandbox:
 
 Answer the question "what is 6 × 7?" in one word.
 `)
-	lock, data := compileBareInlineSkillWorkflow(t, workflowPath)
+	lock, _ := compileBareInlineSkillWorkflow(t, workflowPath)
 
 	args := compiledPiArgs(t, lock)
 	assert.Contains(t, args, "--exclude-tools bash", "bash must stay disabled")
-	assert.Contains(t, args, strings.Join(bareInlineSkillPiFlags, " ")+" --skill "+bareInlineSkillReportingPath,
-		"bare pi should explicitly load the reporting skill")
+	assertBareRuntimeSkillLoading(t, lock)
 	assert.Contains(t, args, `--model "aw-gateway/$(cat /tmp/gh-aw/pi-routing-model)"`, "model routing should be unchanged")
 	assert.Contains(t, lock, "GH_AW_MAX_TOOL_DENIALS: 3", "denial budget should be unchanged")
 	assert.Contains(t, lock, "claude-sonnet-5", "routing pool should be unchanged")
-	assert.NotContains(t, lock, bareInlineSkillAmbientName)
-	require.Len(t, data.InlineSkills, 1)
-	assert.Equal(t, "reporting", data.InlineSkills[0].Name)
-
 	assertPromptContract(t, lock, ".github/workflows/shared/reporting.md", filepath.Join(filepath.Dir(workflowPath), "shared", "reporting.md"))
+}
+
+// TestCompileBarePiDriversLoadWorkflowSkills covers bare pi with the SDK and RPC drivers, which
+// bypass the CLI command line: each driver loads the runtime skill list from preparePiRuntime
+// (additionalSkillPaths for the SDK resource loader, --skill arguments for the RPC child).
+func TestCompileBarePiDriversLoadWorkflowSkills(t *testing.T) {
+	for _, driver := range []string{"pi_agent_core_driver.cjs", "pi_rpc_driver.cjs"} {
+		t.Run(driver, func(t *testing.T) {
+			workflowPath := setupBareInlineSkillRepo(t, "bare-pi-driver-skill", `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine:
+  id: pi
+  bare: true
+  driver: `+driver+`
+imports:
+  - shared/reporting.md
+tools:
+  bash: false
+  cli-proxy: false
+---
+
+# Bare pi driver skill
+
+Say hello.
+`)
+			lock, _ := compileBareInlineSkillWorkflow(t, workflowPath)
+
+			assert.Contains(t, lock, `/`+driver, "the configured driver should run the main session")
+			assert.Contains(t, lock, "GH_AW_PI_BARE: true", "the driver should run the session in bare mode")
+			assert.Contains(t, lock, `"${RUNNER_TEMP}/gh-aw/actions/pi_runtime.cjs"`, "pi_runtime.cjs should derive the runtime skill list before the driver starts")
+			assert.NotContains(t, lock, bareInlineSkillArgsFragment, "drivers load the runtime skill list themselves")
+			assert.NotContains(t, lock, "--skill", "no compile-time skill list should be emitted")
+			assert.Contains(t, lock, `"--no-themes"]`, "pi sub-agents should inherit bare mode and receive the runtime skill list")
+			assert.Contains(t, lock, `GH_AW_SKILL_DIR: ".pi/skills"`, "inline skills should be restored from the activation artifact")
+			assert.NotContains(t, lock, bareInlineSkillAmbientName, "ambient repository skills must not be loaded")
+			if driver == "pi_rpc_driver.cjs" {
+				assert.Contains(t, lock, "GH_AW_PI_ARGS:", "the RPC driver should receive the bare arguments")
+			}
+			assertPromptContract(t, lock, ".github/workflows/shared/reporting.md", filepath.Join(filepath.Dir(workflowPath), "shared", "reporting.md"))
+		})
+	}
 }
 
 func TestCompileNonBarePiInlineSkillsUnchanged(t *testing.T) {
@@ -245,21 +339,16 @@ tools:
 
 Say hello.
 `)
-			lock, data := compileBareInlineSkillWorkflow(t, workflowPath)
-			require.Len(t, data.InlineSkills, 1, "the reporting skill should still be detected")
+			lock, _ := compileBareInlineSkillWorkflow(t, workflowPath)
 
 			args := compiledPiArgs(t, lock)
 			assert.Equal(t, "--print --mode json --no-session --no-approve --exclude-tools bash --model aw-gateway/auto", args,
 				"non-bare pi arguments should match the pre-fix baseline")
 			assert.NotContains(t, lock, "--skill", "non-bare pi should rely on normal discovery")
+			assert.NotContains(t, lock, "workflow-skill-args", "non-bare pi should not load the runtime skill list")
 			for _, flag := range bareInlineSkillPiFlags {
 				assert.NotContains(t, lock, flag)
 			}
-
-			withoutSkills := *data
-			withoutSkills.InlineSkills = nil
-			engine := NewPiEngine()
-			assert.Equal(t, engine.buildPiArgs(&withoutSkills), engine.buildPiArgs(data), "inline skills should not change non-bare arguments")
 
 			assertPromptContract(t, lock, ".github/workflows/shared/reporting.md", filepath.Join(filepath.Dir(workflowPath), "shared", "reporting.md"))
 		})
@@ -283,12 +372,11 @@ tools:
 
 Say hello.
 `)
-	lock, data := compileBareInlineSkillWorkflow(t, workflowPath)
-	assert.Empty(t, data.InlineSkills)
+	lock, _ := compileBareInlineSkillWorkflow(t, workflowPath)
 
 	args := compiledPiArgs(t, lock)
-	assert.Equal(t, "--print --mode json --no-session --no-approve --exclude-tools bash "+strings.Join(bareInlineSkillPiFlags, " ")+" --model aw-gateway/auto", args,
-		"bare pi arguments should match the pre-fix baseline")
+	assert.Equal(t, "--print --mode json --no-session --no-approve --exclude-tools bash "+strings.Join(bareInlineSkillPiFlags, " ")+" --model aw-gateway/auto "+bareInlineSkillArgsFragment, args,
+		"bare pi arguments should match the pre-fix baseline plus the runtime skill list, which is empty when activation stages no inline skills")
 	assert.NotContains(t, lock, "--skill")
 	assert.NotContains(t, lock, "reporting")
 	assert.NotContains(t, lock, bareInlineSkillAmbientName, "ambient repository skills must not be loaded")
@@ -324,27 +412,15 @@ tools:
 
 Say hello.
 `)
-			lock, data := compileBareInlineSkillWorkflow(t, workflowPath)
-			require.Len(t, data.InlineSkills, 1)
+			lock, _ := compileBareInlineSkillWorkflow(t, workflowPath)
 
 			assert.NotContains(t, lock, "--skill", "pi skill flags must not leak into other engines")
 			assert.NotContains(t, lock, "pi-agent-dir")
+			assert.NotContains(t, lock, "workflow-skill-args")
 			assert.NotContains(t, lock, "--no-skills")
 			assert.NotContains(t, lock, bareInlineSkillAmbientName)
 			assert.Contains(t, lock, `GH_AW_SKILL_DIR: "`+GetEngineSkillDir(engineID)+`"`, "existing skill restoration should be unchanged")
 
-			engine, err := NewEngineRegistry().GetEngine(engineID)
-			require.NoError(t, err)
-			withoutSkills := *data
-			withoutSkills.InlineSkills = nil
-			render := func(d *WorkflowData) string {
-				var rendered []string
-				for _, step := range engine.GetExecutionSteps(d, "/tmp/gh-aw/agent-stdio.log") {
-					rendered = append(rendered, strings.Join(step, "\n"))
-				}
-				return strings.Join(rendered, "\n")
-			}
-			assert.Equal(t, render(&withoutSkills), render(data), "inline skills should not change %s execution", engineID)
 			assert.True(t, slices.ContainsFunc(strings.Split(lock, "\n"), func(line string) bool {
 				return strings.Contains(line, "{{#runtime-import .github/workflows/shared/reporting.md}}")
 			}), "prompt should still runtime-import the reporting skill source")

@@ -115,7 +115,7 @@ For Copilot models using the Responses API, gh-aw disables grammar-based custom 
 | `engine.driver: pi_agent_core_driver.cjs` | Uses the full coding-agent SDK session layer, including tools, resources, compaction, and retries. |
 | `engine.driver: pi_rpc_driver.cjs` | Runs a headless RPC subprocess through Pi's RPC client. |
 
-In bare mode, ambient repository and user skills are not discovered. Inline skills declared by the workflow or its imports (`## skill:` blocks) are still available: gh-aw passes one explicit `--skill /tmp/gh-aw/pi-agent-dir/skills/<name>/SKILL.md` argument per skill, pointing at the copy staged from the activation artifact, so Pi lists them in its available skills. Workflows without inline skills get no `--skill` arguments.
+In bare mode, ambient repository and user skills are not discovered. Inline skills (`## skill:` blocks) that activation extracts from the workflow, its imports, or runtime imports remain available: before Pi starts, gh-aw reads the list of skills activation extracted and passes one explicit `--skill /tmp/gh-aw/pi-agent-dir/skills/<name>/SKILL.md` per skill to the CLI, sub-agents, and the SDK and RPC drivers. Workflows without inline skills get no `--skill` arguments.
 
 Project-local executable resources remain untrusted by default. Workflow-installed packages and activation-installed skills use the managed agent directory. Model catalog metadata preserves thinking, vision, token limits, pricing, and cache lifetimes through gateway routing. Workflow system instructions remain separate from user instructions so compaction does not summarize them away.
 

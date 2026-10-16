@@ -100,7 +100,6 @@ type WorkflowData struct {
 	MarkdownContent                string
 	SubAgentModels                 []parser.SubAgentModel // models declared by inline and imported sub-agents
 	SubAgents                      []parser.InlineSubAgent
-	InlineSkills                   []parser.InlineSkill
 	AI                             string        // "claude" or "codex" (for backwards compatibility)
 	Model                          string        // Top-level LLM model override (from frontmatter model: field or imports)
 	EngineConfig                   *EngineConfig // Extended engine configuration

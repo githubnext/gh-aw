@@ -35,6 +35,7 @@ const fs = require("fs");
 const path = require("path");
 const { collectInlineEndMarkers, unknownInlineEndMarkerError } = require("./inline_marker_helpers.cjs");
 const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
+const { INLINE_SKILL_MANIFEST } = require("./pi_workflow_skills.cjs");
 
 // Supported frontmatter fields for inline skills.
 // Any other field is stripped with a warning.
@@ -387,6 +388,18 @@ function writeInlineSkills(content, workspaceDir, skillsBaseDir, engineId) {
       throw new Error(`Failed to write file ${skillPath}: ${String(err)}`, { cause: err });
     }
     core.info(`[extractInlineSkills] Written skill: ${skillPath} (${skillContent.length} bytes)`);
+  }
+
+  if ((engineId || "").toLowerCase() === "pi") {
+    // Bare Pi runs load exactly these extracted skills (pi_workflow_skills.cjs), so record them
+    // in the activation artifact rather than trusting whatever else the skills directory holds.
+    const manifestPath = path.join(skillsDir, INLINE_SKILL_MANIFEST);
+    try {
+      fs.writeFileSync(manifestPath, JSON.stringify([...new Set(skills.map(skill => skill.name))]) + "\n", "utf8");
+    } catch (err) {
+      throw new Error(`Failed to write file ${manifestPath}: ${String(err)}`, { cause: err });
+    }
+    core.info(`[extractInlineSkills] Written inline skill manifest: ${manifestPath}`);
   }
 
   core.info(`[extractInlineSkills] Done — ${skills.length} file(s) written to ${skillsDir}`);

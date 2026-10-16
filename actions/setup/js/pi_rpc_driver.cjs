@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { loadPiSDK, resolvePiPackageFile, preparePiRuntime, nativePiProvider } = require("./pi_runtime.cjs");
+const { skillArgs } = require("./pi_workflow_skills.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** @param {string[]} args @returns {string[]} */
@@ -24,7 +25,7 @@ function rpcArgs(args) {
 async function main(options = {}) {
   const sdk = options.sdk || (await loadPiSDK());
   const emit = options.emit || (event => process.stdout.write(JSON.stringify(event) + "\n"));
-  const { agentDir, config, routingSelection } = preparePiRuntime();
+  const { agentDir, config, routingSelection, skillPaths } = preparePiRuntime();
   const cwd = process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || process.cwd();
   const promptPath = process.env.GH_AW_PI_USER_PROMPT || process.env.GH_AW_PROMPT;
   if (!promptPath) throw new Error("GH_AW_PROMPT is required");
@@ -44,6 +45,7 @@ async function main(options = {}) {
       else if (args[i].startsWith("--model=")) args.splice(i, 1);
     }
   }
+  args.push(...skillArgs(skillPaths));
   const actionsDir = process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "gh-aw/actions") : __dirname;
   for (const file of ["pi_provider.cjs", "pi_steering_extension.cjs", "pi_tool_policy.cjs", "pi_subagent_extension.cjs"]) args.push("--extension", path.join(actionsDir, file));
   for (const builtin of ["mcp", "codemode", "tool-search"]) args.push("--extension", `builtin:${builtin}`);

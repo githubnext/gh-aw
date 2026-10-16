@@ -374,7 +374,6 @@ func (e *PiEngine) buildPiArgs(workflowData *WorkflowData) []string {
 	}
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
 		piArgs = append(piArgs, "--no-context-files", "--no-skills", "--no-prompt-templates", "--no-extensions", "--no-themes")
-		piArgs = append(piArgs, piBareInlineSkillArgs(workflowData)...)
 	}
 	if workflowData.EngineConfig != nil {
 		piArgs = append(piArgs, filterPiArgs(workflowData.EngineConfig.Args, modelRouting)...)
@@ -382,29 +381,17 @@ func (e *PiEngine) buildPiArgs(workflowData *WorkflowData) []string {
 	return piArgs
 }
 
-// piBareInlineSkillArgs returns one explicit --skill argument per workflow-declared or
-// imported inline skill. Bare mode disables ambient skill discovery with --no-skills, but
-// pi still loads explicit --skill paths, so workflow-owned skills staged by
-// pi_runtime.cjs (stagePiArtifacts) into the managed agent directory remain available.
-// Skill names are validated by the inline-skill extractor ([a-z][a-z0-9_-]*) and are
-// emitted in declaration order, deduplicated, for deterministic output.
-func piBareInlineSkillArgs(workflowData *WorkflowData) []string {
-	var args []string
-	seen := make(map[string]struct{}, len(workflowData.InlineSkills))
-	for _, skill := range workflowData.InlineSkills {
-		if skill.Name == "" {
-			continue
-		}
-		if _, ok := seen[skill.Name]; ok {
-			continue
-		}
-		seen[skill.Name] = struct{}{}
-		args = append(args, "--skill", path.Join(constants.TmpPiAgentDir, "skills", skill.Name, "SKILL.md"))
+// piBareWorkflowSkillArgs returns the shell fragment that expands, at run time, to one
+// explicit --skill argument per workflow inline skill. Bare mode disables ambient skill
+// discovery with --no-skills, but pi still loads explicit --skill paths. pi_runtime.cjs
+// derives the list from the skills activation extracted and staged, validates every
+// path, and writes it one token per line before pi starts; sub-agents and the SDK and
+// RPC drivers use the same list.
+func piBareWorkflowSkillArgs(workflowData *WorkflowData) string {
+	if workflowData.EngineConfig == nil || !workflowData.EngineConfig.Bare {
+		return ""
 	}
-	if len(args) > 0 {
-		piLog.Printf("Pi bare mode: explicitly loading %d workflow inline skill(s)", len(args)/2)
-	}
-	return args
+	return fmt.Sprintf(` $(cat %s 2>/dev/null)`, path.Join(constants.TmpPiAgentDir, piWorkflowSkillArgsFile))
 }
 
 func (e *PiEngine) buildPiModelsJSONSetup(workflowData *WorkflowData, profile universalLLMBackendProfile, backend UniversalLLMBackend, piArgs []string, firewallEnabled, modelConfigured, driverConfigured bool) (string, []string) {
@@ -468,8 +455,8 @@ func (e *PiEngine) buildPiCommand(workflowData *WorkflowData, commandName string
 			modelArg = ` --model "aw-gateway/$(cat /tmp/gh-aw/pi-routing-model)"`
 		}
 		piCommand = fmt.Sprintf(
-			`cat /tmp/gh-aw/aw-prompts/user.txt | %s%s %s%s --append-system-prompt /tmp/gh-aw/aw-prompts/system.txt --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_tool_policy.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_subagent_extension.cjs" --extension builtin:mcp --extension builtin:codemode --extension builtin:tool-search 2>&1 | tee %s`,
-			routingEnv, commandName, shellJoinArgs(piArgs), modelArg, PiStreamingLogFile)
+			`cat /tmp/gh-aw/aw-prompts/user.txt | %s%s %s%s%s --append-system-prompt /tmp/gh-aw/aw-prompts/system.txt --extension "${RUNNER_TEMP}/gh-aw/actions/pi_provider.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_steering_extension.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_tool_policy.cjs" --extension "${RUNNER_TEMP}/gh-aw/actions/pi_subagent_extension.cjs" --extension builtin:mcp --extension builtin:codemode --extension builtin:tool-search 2>&1 | tee %s`,
+			routingEnv, commandName, shellJoinArgs(piArgs), piBareWorkflowSkillArgs(workflowData), modelArg, PiStreamingLogFile)
 	}
 	if !driverConfigured && piSessionSettings(workflowData).Export {
 		piCommand += fmt.Sprintf(` && %s "%s/pi_session_export.cjs"`, nodeRuntimeResolutionCommand, SetupActionDestinationShell)
@@ -617,6 +604,10 @@ func (e *PiEngine) buildPiExecutionStep(workflowData *WorkflowData, command stri
 const PiStreamingLogFile = "/tmp/gh-aw/pi-streaming.jsonl"
 
 const PiSessionDirectory = constants.TmpGhAwAgentDir + "pi-sessions"
+
+// piWorkflowSkillArgsFile is written by pi_runtime.cjs (pi_workflow_skills.cjs) inside the
+// managed agent directory with the bare-mode --skill arguments.
+const piWorkflowSkillArgsFile = "workflow-skill-args"
 
 // filterPiArgs removes redundant Pi CLI flags and prevents fixed model or thinking
 // options from overriding a routed selection.

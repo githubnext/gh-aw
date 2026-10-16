@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 const { parsePiConfig, preparePiRuntime, nativePiProvider, resolvePiPackageFile, verifyPiVersion } = await import("./pi_runtime.cjs");
+const { INLINE_SKILL_MANIFEST, readWorkflowSkillArgs } = await import("./pi_workflow_skills.cjs");
 let dir;
 
 beforeEach(() => {
@@ -29,20 +30,86 @@ describe("Pi runtime configuration", () => {
     expect(fs.readFileSync(path.join(dir, "agent/agents/reader.md"), "utf8")).toBe("Agent.");
     expect(fs.readFileSync(path.join(dir, "agent/skills/report/SKILL.md"), "utf8")).toBe("Skill.");
   });
-  it("stages activation-extracted inline skills at the path bare mode loads with --skill", () => {
-    vi.stubGlobal("core", { info: () => {}, warning: () => {}, error: () => {} });
-    const { writeInlineSkills } = require("./extract_inline_skills.cjs");
+  describe("bare workflow inline skills", () => {
     const hint = "Use the `reporting` skill when producing a report, issue, or PR comment.";
-    const prompt = writeInlineSkills(`${hint}\n\n## skill: \`reporting\`\n---\ndescription: Report formatting\n---\n\nUse ### headers.\n\n## end skill: \`reporting\`\n`, dir, path.join(dir, "activation"), "pi");
-    expect(prompt).toContain(hint);
-    expect(prompt).not.toContain("## skill:");
-    vi.stubEnv("GH_AW_PI_STAGING_DIR", path.join(dir, "activation/.pi"));
-    preparePiRuntime({});
-    // The compiler emits --skill <PI_CODING_AGENT_DIR>/skills/<name>/SKILL.md for each workflow inline skill.
-    const staged = fs.readFileSync(path.join(dir, "agent/skills/reporting/SKILL.md"), "utf8");
-    expect(staged).toContain("description: Report formatting");
-    expect(staged).toContain("Use ### headers.");
-    vi.unstubAllGlobals();
+    const reporting = `${hint}\n\n## skill: \`reporting\`\n---\ndescription: Report formatting\n---\n\nUse ### headers.\n\n## end skill: \`reporting\`\n`;
+    const reportingPath = () => path.join(dir, "agent/skills/reporting/SKILL.md");
+
+    /** Runs the activation pipeline (runtime imports, then inline-skill extraction) into the staging artifact. */
+    async function activate(content, engine = "pi") {
+      vi.stubGlobal("core", { info: () => {}, warning: () => {}, error: () => {}, debug: () => {} });
+      const { processRuntimeImports } = require("./runtime_import.cjs");
+      const { writeInlineSkills } = require("./extract_inline_skills.cjs");
+      const workspace = path.join(dir, "workspace");
+      const shared = path.join(workspace, ".github/workflows/shared");
+      fs.mkdirSync(shared, { recursive: true });
+      fs.writeFileSync(path.join(shared, "reporting.md"), reporting);
+      fs.writeFileSync(path.join(shared, "wrapper.md"), "{{#runtime-import .github/workflows/shared/reporting.md}}\n");
+      // Ambient repository skill: must never be loaded in bare mode.
+      fs.mkdirSync(path.join(workspace, ".pi/skills/ambient-helper"), { recursive: true });
+      fs.writeFileSync(path.join(workspace, ".pi/skills/ambient-helper/SKILL.md"), "Ambient.");
+      const expanded = await processRuntimeImports(content, workspace);
+      const prompt = writeInlineSkills(expanded, workspace, path.join(dir, "activation"), engine);
+      vi.unstubAllGlobals();
+      vi.stubEnv("GH_AW_PI_STAGING_DIR", path.join(dir, "activation/.pi"));
+      return prompt;
+    }
+
+    it.each([
+      ["directly declared", reporting],
+      ["body-level runtime import", "# Task\n\n{{#runtime-import .github/workflows/shared/reporting.md}}\n\nSay hello.\n"],
+      ["runtime import nested in an import", "# Task\n\n{{#runtime-import .github/workflows/shared/wrapper.md}}\n\nSay hello.\n"],
+    ])("loads exactly the skills activation extracted (%s)", async (_name, content) => {
+      const prompt = await activate(content);
+      expect(prompt).toContain(hint);
+      expect(prompt).not.toContain("## skill:");
+      vi.stubEnv("GH_AW_PI_BARE", "true");
+      const { skillPaths } = preparePiRuntime({});
+      expect(skillPaths).toEqual([reportingPath()]);
+      expect(fs.readFileSync(reportingPath(), "utf8")).toContain("Use ### headers.");
+      expect(fs.readFileSync(path.join(dir, "agent/workflow-skill-args"), "utf8")).toBe(`--skill\n${reportingPath()}\n`);
+      expect(readWorkflowSkillArgs()).toEqual(["--skill", reportingPath()]);
+      expect(fs.existsSync(path.join(dir, "agent/skills", INLINE_SKILL_MANIFEST))).toBe(false);
+    });
+
+    it("ignores staged skills activation did not extract and ambient repository skills", async () => {
+      await activate(reporting);
+      fs.mkdirSync(path.join(dir, "activation/.pi/skills/installed"), { recursive: true });
+      fs.writeFileSync(path.join(dir, "activation/.pi/skills/installed/SKILL.md"), "Other.");
+      vi.stubEnv("GH_AW_PI_BARE", "true");
+      const { skillPaths } = preparePiRuntime({});
+      expect(skillPaths).toEqual([reportingPath()]);
+      expect(fs.readFileSync(path.join(dir, "agent/workflow-skill-args"), "utf8")).not.toMatch(/installed|ambient/);
+    });
+
+    it("loads nothing explicitly outside bare mode or without inline skills", async () => {
+      await activate(reporting);
+      expect(preparePiRuntime({}).skillPaths).toEqual([]);
+      expect(fs.readFileSync(path.join(dir, "agent/workflow-skill-args"), "utf8")).toBe("");
+      fs.rmSync(path.join(dir, "activation"), { recursive: true });
+      vi.stubEnv("GH_AW_PI_BARE", "true");
+      expect(preparePiRuntime({}).skillPaths).toEqual([]);
+      expect(readWorkflowSkillArgs()).toEqual([]);
+    });
+
+    it("writes no Pi manifest for other engines", async () => {
+      await activate(reporting, "claude");
+      expect(fs.existsSync(path.join(dir, "activation/.claude/skills/reporting.md"))).toBe(true);
+      expect(fs.readdirSync(path.join(dir, "activation/.claude/skills"))).toEqual(["reporting.md"]);
+    });
+
+    it.each([['["../escape"]'], ['{"name":"reporting"}'], ["[1]"]])("rejects a malformed manifest: %s", manifest => {
+      fs.mkdirSync(path.join(dir, "staging/skills"), { recursive: true });
+      fs.writeFileSync(path.join(dir, "staging/skills", INLINE_SKILL_MANIFEST), manifest);
+      vi.stubEnv("GH_AW_PI_BARE", "true");
+      expect(() => preparePiRuntime({})).toThrow(/Invalid Pi inline skill/);
+    });
+
+    it("rejects tampered skill arguments", () => {
+      fs.mkdirSync(path.join(dir, "agent"), { recursive: true });
+      fs.writeFileSync(path.join(dir, "agent/workflow-skill-args"), "--skill\n/etc/passwd\n");
+      expect(() => readWorkflowSkillArgs()).toThrow("Invalid Pi workflow skill arguments");
+    });
   });
   it.each(["0.99.2", "1.0.0-beta.1", "unexpected"])("rejects an incompatible actual CLI version: %s", version => {
     expect(() => verifyPiVersion("pi", () => version)).toThrow("v1.0.0 or newer");
