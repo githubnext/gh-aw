@@ -204,7 +204,10 @@ class GuidanceTests(unittest.TestCase):
                 lines = [line for line in path.read_text().splitlines() if ANCHOR in line]
                 self.assertTrue(lines, f"{path} must route to {ANCHOR}")
                 line = lines[0]
-                self.assertIn(f"(../../aw/debug-agentic-workflow.md{ANCHOR})", line)
+                self.assertIn(
+                    "(https://github.com/github/gh-aw/blob/main/"
+                    f".github/aw/debug-agentic-workflow.md{ANCHOR})", line
+                )
                 for symptom in (
                     "AWF model/endpoint 400s",
                     "silent cross-family sub-agent failures",
