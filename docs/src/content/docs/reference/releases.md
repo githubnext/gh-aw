@@ -17,6 +17,8 @@ gh-aw follows a **weekly or bi-weekly minor release cadence**, similar to [VS Co
 
 Patch releases are reserved for urgent fixes between cycles. Major releases are used only for significant breaking changes.
 
+The matching `github/gh-aw-actions` release follows the same pre-release status: publication marks it as a pre-release, and promotion marks it as stable and latest. Both workflows require the `GH_AW_ACTIONS_TOKEN` repository secret with **Contents: write** permission on `github/gh-aw-actions`; the default `GITHUB_TOKEN` cannot update releases in another repository. The matching action release must exist before the release approval gate is approved. Synchronization failures fail the workflow; rerun the failed job after correcting the token or publishing the missing action release.
+
 > [!NOTE]
 > Version numbers increment on a time cadence, not on the scope of changes — a "minor" release may contain anything from small improvements to large new features.
 

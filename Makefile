@@ -519,6 +519,7 @@ bundle-js:
 test-scripts: build
 	@echo "Running script tests..."
 	node --test scripts/agy-authentication.test.cjs
+	node --test scripts/release-status.test.cjs
 	node --test scripts/check-npm-1es.test.mjs
 	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh

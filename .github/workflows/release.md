@@ -301,6 +301,7 @@ jobs:
             echo "   https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml"
             echo "2. Merge the PR created by the sync-actions workflow in **github/gh-aw-actions**"
             echo "3. Verify that tag **\`${RELEASE_TAG}\`** exists in github/gh-aw-actions"
+            echo "4. Publish the matching release as a **pre-release**, not latest, in github/gh-aw-actions"
             echo ""
             echo "Once the above steps are complete, approve the **gh-aw-actions-release** environment gate to continue the release."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -586,6 +587,15 @@ jobs:
     steps:
       - name: Await manual approval
         run: echo "Manual approval received. Continuing release."
+
+      - name: Synchronize gh-aw-actions pre-release status
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_ACTIONS_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          : "${GH_TOKEN:?GH_AW_ACTIONS_TOKEN must have contents:write access to github/gh-aw-actions}"
+          gh release edit "$RELEASE_TAG" --repo github/gh-aw-actions --prerelease=true --latest=false
 
   release:
     needs: ["pre_activation", "activation", "config", "sync_actions"]

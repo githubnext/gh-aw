@@ -44,6 +44,7 @@ jobs:
             }
 
       - name: Validate and promote release
+        id: promote_release
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           INPUT_VERSION: ${{ inputs.version }}
@@ -89,3 +90,13 @@ jobs:
             });
 
             core.info(`✅ "${version}" has been promoted to latest (prerelease: false, make_latest: true)`);
+            core.setOutput('release_tag', version);
+
+      - name: Synchronize gh-aw-actions stable release status
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_ACTIONS_TOKEN }}
+          RELEASE_TAG: ${{ steps.promote_release.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          : "${GH_TOKEN:?GH_AW_ACTIONS_TOKEN must have contents:write access to github/gh-aw-actions}"
+          gh release edit "$RELEASE_TAG" --repo github/gh-aw-actions --prerelease=false --latest=true
