@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -194,10 +195,61 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	// Inject custom secret masking steps if configured
 	if data.SecretMasking != nil && len(data.SecretMasking.Steps) > 0 {
 		secretMaskingLog.Printf("Injecting %d custom secret masking steps", len(data.SecretMasking.Steps))
-		for _, step := range data.SecretMasking.Steps {
-			c.generateCustomSecretMaskingStep(yaml, step, data)
+		for i, id := range customSecretMaskingStepIDs(data) {
+			if i >= 0 && i < len(data.SecretMasking.Steps) {
+				trackedStep := maps.Clone(data.SecretMasking.Steps[i])
+				trackedStep["id"] = id
+				c.generateCustomSecretMaskingStep(yaml, trackedStep, data)
+			}
 		}
 	}
+}
+
+// customSecretMaskingStepIDs preserves explicit IDs and assigns stable, non-conflicting
+// IDs to unnamed hooks so their actual outcomes can gate artifact uploads.
+func customSecretMaskingStepIDs(data *WorkflowData) []string {
+	if data.SecretMasking == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(data.SecretMasking.Steps))
+	used := map[string]struct{}{"redact_secrets": {}}
+	for _, step := range data.SecretMasking.Steps {
+		id := ""
+		if configuredID, ok := step["id"].(string); ok {
+			id = configuredID
+		}
+		ids = append(ids, id)
+		if id != "" {
+			used[id] = struct{}{}
+		}
+	}
+	for i, id := range ids {
+		if id != "" {
+			continue
+		}
+		base := fmt.Sprintf("redact_secrets_custom_%d", i)
+		candidate := base
+		for suffix := 1; ; suffix++ {
+			if _, exists := used[candidate]; !exists {
+				break
+			}
+			candidate = base + strings.Repeat("_", suffix)
+		}
+		ids[i] = candidate
+		used[candidate] = struct{}{}
+	}
+	return ids
+}
+
+func secretRedactionSuccessCondition(data *WorkflowData) string {
+	var condition strings.Builder
+	condition.WriteString("steps.redact_secrets.outcome == 'success'")
+	for _, id := range customSecretMaskingStepIDs(data) {
+		condition.WriteString(" && steps.")
+		condition.WriteString(id)
+		condition.WriteString(".outcome == 'success'")
+	}
+	return condition.String()
 }
 
 // generateCustomSecretMaskingStep generates a custom secret masking step from configuration

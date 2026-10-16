@@ -1776,7 +1776,7 @@ func TestCreateCodeScanningAlertUploadJobWorkflowCallDependsOnActivation(t *test
 func TestBuildSafeOutputItemsManifestUploadStep(t *testing.T) {
 	steps := buildSafeOutputItemsManifestUploadStep("", func(action string) string {
 		return action + "@test-pin"
-	}, false)
+	}, false, &WorkflowData{})
 
 	content := strings.Join(steps, "")
 
