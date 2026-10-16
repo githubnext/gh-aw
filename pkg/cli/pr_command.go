@@ -422,11 +422,6 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	return branchName, nil
 }
 
-// createTransferPR creates a new PR in the target repository
-func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose bool) error { //nolint:largefunc
-	return createTransferPRWithAutoMerge(context.Background(), targetOwner, targetRepo, prInfo, branchName, verbose, false)
-}
-
 func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose, autoMerge bool) error { //nolint:largefunc
 	if err := validatePRBody(buildTransferPRBody(prInfo)); err != nil {
 		return err

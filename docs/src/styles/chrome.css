@@ -40,6 +40,19 @@ body:has(.aw-hero) .sl-container {
   max-width: none;
 }
 
+/* Settle near section boundaries without trapping readers inside tall sections
+   or the footer. The presentation moves its deck out of main and scrolls itself. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(main [data-slideshow-slides]):not(:has(#landing-slideshow[open])) {
+    scroll-snap-type: y proximity;
+    scroll-padding-top: var(--sl-nav-height);
+  }
+
+  main [data-slideshow-slides] > section {
+    scroll-snap-align: start;
+  }
+}
+
 /* Docs pages: Starlight puts the title in its own .content-panel with a hairline
    under it, and centres the content column in the space left by the sidebars.
    Here the title and body read as one unit, and the column is centred between

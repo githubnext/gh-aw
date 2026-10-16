@@ -437,6 +437,7 @@ SAFE_OUTPUTS_FILES=(
   "firewall_blocked_domains.cjs"
   "render_template.cjs"
   "ai_credits_context.cjs"
+  "harness_error_patterns.cjs"
   "numeric_limits.cjs"
   "is_truthy.cjs"
   "template_branch.cjs"

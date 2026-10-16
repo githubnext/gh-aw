@@ -82,6 +82,12 @@ enrollment or allowlists. Agents cannot choose Policy
 or receive queue-write credentials. Worker routes must accept
 `work_queue_assignment` and be verifiable at their approved immutable revisions.
 
+Worker user prompts include the normalized version-3 `work_queue_assignment`
+as JSON inside `<work-queue-assignment>`, including its `claims`, `pool`, and
+`worker_profile`. Per-Claim `<work-claim>` blocks provide scoped finish guidance.
+Task payloads and predecessor results remain data; prompt context does not
+replace the runtime's authenticated Claim checks.
+
 GitHub enforces repository access rules; the queue requires no branch-protection
 setup or repository-rule inventory. Actual Git access denials remain errors.
 An installed Policy stays authoritative, and malformed or policyless existing

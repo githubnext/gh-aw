@@ -16,6 +16,7 @@ permissions:
 tracker-id: spec-extractor
 engine:
   id: copilot
+  copilot-sdk: true
   max-continuations: 3
 strict: true
 
