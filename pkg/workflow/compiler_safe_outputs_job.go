@@ -961,7 +961,7 @@ func (c *Compiler) appendFinalSafeOutputSteps(data *WorkflowData, steps []string
 			c.generateTrackedSecretRedactionStep(&redaction, strings.Join(steps, ""), data)
 			steps = append(steps, redaction.String())
 		}
-		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix, c.getActionPin, claimArtifacts)...)
+		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix, c.getActionPin, claimArtifacts, data)...)
 	}
 	if c.actionMode.IsDev() && usesPatchesAndCheckouts(data.SafeOutputs) {
 		steps = append(steps, c.generateRestoreActionsSetupStep())

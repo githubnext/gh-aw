@@ -269,10 +269,10 @@ func (c *Compiler) buildDispatchRepositoryAppTokenSteps(data *WorkflowData) []st
 
 // buildSafeOutputItemsManifestUploadStep builds the step that uploads the safe output
 // items manifest and temporary ID map as a separate artifact.
-func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string) string, claimArtifacts bool) []string {
+func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string) string, claimArtifacts bool, data *WorkflowData) []string {
 	condition := "always()"
 	if claimArtifacts {
-		condition += " && steps.redact_secrets.outcome == 'success'"
+		condition += " && " + secretRedactionSuccessCondition(data)
 	}
 	steps := []string{
 		"      - name: Upload Safe Outputs Items\n",
