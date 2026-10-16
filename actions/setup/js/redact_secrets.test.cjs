@@ -59,7 +59,7 @@ describe("redact_secrets.cjs", () => {
     assertRedacted(fs.readFileSync(file, "utf8"));
     const logContent = fs.readFileSync(log, "utf8");
     for (const value of [...passwords, ...encoded, ...headers]) expect(logContent).not.toContain(value);
-    expect(JSON.parse(logContent.split("\n")[2])).toBe("***");
+    expect(logContent.split("\n")[2]).toBe("***");
     expect(JSON.parse(fs.readFileSync(scalarFile, "utf8"))).toBe("***");
     expect(mockCore.setFailed).not.toHaveBeenCalled();
 
@@ -166,6 +166,24 @@ describe("redact_secrets.cjs", () => {
           expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(secret);
         }
       );
+
+      it("redacts invalid JSON as text while retaining encoded runtime-mask recovery", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "invalid-json.log");
+        const builtIn = "ghs_" + "A".repeat(40);
+        const content = `{"configured":"configured-secret","runtime":"opaque","builtIn":"${builtIn}", invalid}`;
+        fs.writeFileSync(file, content);
+
+        expect(processFile(file, ["configured-secret"], ["opaque"])).toBeGreaterThan(0);
+
+        expect(fs.readFileSync(file, "utf8")).toBe('{"configured":"***REDACTED***","runtime":"***","builtIn":"***REDACTED***", invalid}');
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+
+        fs.writeFileSync(file, '"bad\\q "\\u006fpaque"');
+        expect(processFile(file, [], ["opaque"])).toBeGreaterThan(0);
+        expect(fs.readFileSync(file, "utf8")).toBe('"bad\\q "***"');
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
 
       it.each(['synthetic"password', "synthetic\\password", "synthetic\tpassword", "synthetic\npassword"])("redacts decoded configured secrets alongside overlapping runtime masks in JSON and mixed records (%j)", secret => {
         const { processFile } = require("./redact_secrets.cjs");

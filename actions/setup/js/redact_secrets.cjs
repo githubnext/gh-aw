@@ -305,6 +305,30 @@ function redactSecrets(content, secretValues) {
 }
 
 /**
+ * @param {string} content
+ * @returns {boolean}
+ */
+function isValidJSONArtifact(content) {
+  try {
+    JSON.parse(content);
+    return true;
+  } catch {
+    const records = content.split(/\r?\n/).filter(line => line.trim());
+    return (
+      records.length > 0 &&
+      records.every(record => {
+        try {
+          JSON.parse(record);
+          return true;
+        } catch {
+          return false;
+        }
+      })
+    );
+  }
+}
+
+/**
  * Match all credential sources before any replacement or JSON serialization can
  * fragment a longer secret or change its spelling.
  * @param {string} content
@@ -347,7 +371,10 @@ function redactArtifactContent(content, secretValues, maskedValues) {
       prepared = redactMaskedValues(content, multilineValues, replacement);
     }
   }
-  const redacted = redactArtifactMaskedValues(prepared, values, undefined, replacement);
+  const textMode = !isValidJSONArtifact(prepared);
+  const hasEncodedEscape = /\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/.test(prepared);
+  const textRedacted = textMode && !hasEncodedEscape ? applyAddMaskRedaction(prepared, values, replacement) : prepared;
+  const redacted = redactArtifactMaskedValues(textRedacted, values, undefined, replacement);
   for (const [name, count] of builtInCounts) global.core?.info?.(`Redacted ${count} occurrence(s) of ${name}`);
   if (configuredCount) global.core?.info?.(`Redacted ${configuredCount} occurrence(s) of a secret`);
   return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
