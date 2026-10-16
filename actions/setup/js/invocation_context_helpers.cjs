@@ -161,34 +161,30 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
   const defaultRepo = `${workflowRepo.owner}/${workflowRepo.repo}`;
   const targetRepoSlug = `${targetRepo.owner}/${targetRepo.repo}`;
   const allowedRepos = parseAllowedRepos(process.env.GH_AW_ALLOWED_REPOS);
+  const useHandlerFallback = allowedRepos.size === 0;
+  const handlerConfig = parseJSONPayload(process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG);
 
   // Fall back to per-handler safe-output allowlists and target repositories when
   // a global allowlist is not provided. This prevents post-action context resolution
   // from rejecting a repository already allowed by the active safe-output handler.
-  if (allowedRepos.size === 0) {
-    const handlerConfigRaw = process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG;
-    if (typeof handlerConfigRaw === "string" && handlerConfigRaw.trim() !== "") {
-      try {
-        const handlerConfig = JSON.parse(handlerConfigRaw);
-        if (handlerConfig && typeof handlerConfig === "object" && !Array.isArray(handlerConfig)) {
-          for (const value of Object.values(handlerConfig)) {
-            if (!value || typeof value !== "object" || Array.isArray(value)) {
-              continue;
-            }
-            const parsed = parseAllowedRepos(value.allowed_repos);
-            for (const repo of parsed) {
-              allowedRepos.add(repo);
-            }
-            const handlerTargetRepo = typeof value["target-repo"] === "string" ? value["target-repo"].trim() : "";
-            // Dynamic handler routing must not grant wildcard invocation access.
-            if (parseRepoSlug(handlerTargetRepo) && !handlerTargetRepo.includes("*")) {
-              allowedRepos.add(handlerTargetRepo);
-            }
-          }
-        }
-      } catch (_error) {
-        // Best-effort only. If the handler config cannot be parsed, continue
-        // with the global allowlist (if any).
+  if (handlerConfig) {
+    for (const value of Object.values(handlerConfig)) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        continue;
+      }
+      const handlerTargetRepo = typeof value["target-repo"] === "string" ? value["target-repo"].trim() : "";
+      if (handlerTargetRepo.includes("*")) {
+        throw Object.assign(new Error(`${ERR_VALIDATION}: Wildcard handler target-repo values are not permitted in workflow_dispatch requests. Configure a concrete target-repo.`), { code: ERR_VALIDATION });
+      }
+      if (!useHandlerFallback) {
+        continue;
+      }
+      const parsed = parseAllowedRepos(value.allowed_repos);
+      for (const repo of parsed) {
+        allowedRepos.add(repo);
+      }
+      if (parseRepoSlug(handlerTargetRepo)) {
+        allowedRepos.add(handlerTargetRepo);
       }
     }
   }

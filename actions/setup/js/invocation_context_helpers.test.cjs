@@ -199,25 +199,31 @@ describe("invocation_context_helpers", () => {
       expect(() => resolveTargetRepo()).toThrow(/ERR_VALIDATION: Repository 'target-owner\/target-repo' is not in the allowed-repos list/);
     });
 
-    it.each(["*", "  *  ", "target-owner/*", "*/target-repo", "target-owner/target-*"])("does not promote handler target-repo %j into an invocation wildcard", targetRepo => {
+    it.each(["*", "  *  ", "target-owner/*", "*/target-repo", "target-owner/target-*"])("refuses the entire request when handler target-repo %j contains a wildcard", targetRepo => {
       vi.stubEnv("GH_AW_ALLOWED_REPOS", undefined);
       vi.stubEnv(
         "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
         JSON.stringify({
-          add_comment: { "target-repo": targetRepo },
           create_issue: { "target-repo": "issue-owner/issue-repo", allowed_repos: ["allowed-owner/allowed-repo"] },
+          add_comment: { "target-repo": targetRepo, allowed_repos: ["target-owner/*"] },
         })
       );
 
-      expect(() => resolveTargetRepo()).toThrow(/ERR_VALIDATION: Repository 'target-owner\/target-repo' is not in the allowed-repos list/);
-      expect(resolveTargetRepo("issue-owner/issue-repo").eventRepo).toEqual({ owner: "issue-owner", repo: "issue-repo" });
-      expect(resolveTargetRepo("allowed-owner/allowed-repo").eventRepo).toEqual({ owner: "allowed-owner", repo: "allowed-repo" });
-      expect(resolveTargetRepo("side-owner/side-repo").eventRepo).toEqual({ owner: "side-owner", repo: "side-repo" });
+      for (const requestedRepo of ["target-owner/target-repo", "issue-owner/issue-repo", "allowed-owner/allowed-repo", "side-owner/side-repo"]) {
+        expect(() => resolveTargetRepo(requestedRepo)).toThrow(/ERR_VALIDATION: Wildcard handler target-repo values are not permitted in workflow_dispatch requests/);
+      }
+    });
+
+    it("refuses wildcard handler targets even with a global allowlist", () => {
+      vi.stubEnv("GH_AW_ALLOWED_REPOS", "*");
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ add_comment: { "target-repo": "*" } }));
+
+      expect(() => resolveTargetRepo()).toThrow(/ERR_VALIDATION: Wildcard handler target-repo values are not permitted in workflow_dispatch requests/);
     });
 
     it.each(["global", "handler"])("preserves an explicit %s wildcard allowlist", allowlistSource => {
       vi.stubEnv("GH_AW_ALLOWED_REPOS", allowlistSource === "global" ? "target-owner/*" : undefined);
-      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ add_comment: { "target-repo": "*", ...(allowlistSource === "handler" ? { allowed_repos: ["target-owner/*"] } : {}) } }));
+      vi.stubEnv("GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG", JSON.stringify({ add_comment: { ...(allowlistSource === "handler" ? { allowed_repos: ["target-owner/*"] } : {}) } }));
 
       expect(resolveTargetRepo().eventRepo).toEqual({ owner: "target-owner", repo: "target-repo" });
       expect(() => resolveTargetRepo("other-owner/other-repo")).toThrow(/ERR_VALIDATION: Repository 'other-owner\/other-repo' is not in the allowed-repos list/);
