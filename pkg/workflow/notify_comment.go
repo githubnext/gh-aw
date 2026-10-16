@@ -380,10 +380,11 @@ func buildUsageActivityGenerationStep(hasDailyAICGuardrail bool, pinAction func(
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
+		"        env:\n",
+		"          GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}\n",
 	}
 	if hasDailyAICGuardrail {
 		steps = append(steps,
-			"        env:\n",
 			"          GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}\n",
 			"          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}\n",
 			"          GH_AW_DAILY_AI_CREDITS_TOTAL: ${{ needs.activation.outputs.daily_ai_credits_total }}\n",

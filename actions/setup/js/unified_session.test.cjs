@@ -40,6 +40,67 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it("persists dependency job outcomes without outputs or invented timing", () => {
+    process.env.GH_AW_JOB_RESULTS = JSON.stringify({
+      safe_outputs: { result: "failure", outputs: { token: "PRIVATE_OUTPUT" } },
+      activation: { result: "success", outputs: { activated: "true" } },
+      detection: { result: "cancelled" },
+      "custom-job": { result: "skipped", conclusion: "PRIVATE_CONCLUSION" },
+    });
+    const events = writeUnifiedSession({ rootDir: root });
+    const results = events.filter(event => event.type === "workflow.job_result");
+    expect(results).toEqual(
+      [
+        ["activation", "success"],
+        ["custom-job", "skipped"],
+        ["detection", "cancelled"],
+        ["safe_outputs", "failure"],
+      ].map(([jobId, result], index) => ({
+        type: "workflow.job_result",
+        data: { jobId, result },
+        provenance: { component: "workflow", phase: "conclusion", path: "usage/aw_session.jsonl", index },
+      }))
+    );
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("PRIVATE_");
+    expect(persisted.trim().split("\n").map(JSON.parse)).toEqual(events);
+    expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
+  });
+
+  it.each([undefined, "", "{}"])("does not fabricate job outcomes without dependency evidence: %s", jobResults => {
+    const warn = vi.fn();
+    delete process.env.GH_AW_JOB_RESULTS;
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults, warn });
+    expect(events.some(event => event.type === "workflow.job_result")).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(["invalid PRIVATE_JSON", "null", "[]", "42", '"PRIVATE_VALUE"'])("warns without exposing invalid dependency metadata: %s", jobResults => {
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults, warn });
+    expect(events.some(event => event.type === "workflow.job_result")).toBe(false);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: invalid_job_results in usage/aw_session.jsonl");
+    expect(events.find(event => event.type === "session.collection_warning").data.code).toBe("invalid_job_results");
+    expect(JSON.stringify(events)).not.toContain("PRIVATE_");
+  });
+
+  it.each([null, [], "PRIVATE_VALUE", {}, { result: "" }, { result: "timed_out" }, { result: 0 }])("skips invalid job results while retaining valid outcomes: %j", job => {
+    const warn = vi.fn();
+    const jobResults = JSON.stringify({ invalid: job, agent: { result: "failure" } });
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults, warn });
+    expect(events.filter(event => event.type === "workflow.job_result").map(event => event.data)).toEqual([{ jobId: "agent", result: "failure" }]);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: invalid_job_result in usage/aw_session.jsonl");
+    expect(JSON.stringify(events)).not.toContain("PRIVATE_");
+  });
+
+  it("rejects invalid job IDs without publishing them", () => {
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults: '{"PRIVATE ID":{"result":"success"}}', warn });
+    expect(events.some(event => event.type === "workflow.job_result")).toBe(false);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: invalid_job_result in usage/aw_session.jsonl");
+    expect(JSON.stringify(events)).not.toContain("PRIVATE ID");
+  });
+
   it.each(["agent", "detection"])("persists the complete AWF model inventory for the %s phase without credentials", phase => {
     const prefix = phase === "agent" ? "" : "threat-detection/";
     const models = Array.from({ length: 20 }, (_, index) => `model-${index}`);

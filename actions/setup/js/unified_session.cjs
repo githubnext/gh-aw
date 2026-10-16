@@ -137,10 +137,10 @@ function parseEngineSession(content, engine) {
 /**
  * Collect only known runtime directories; never follow artifact symlinks.
  * Replicated firewall files use logs > audit > legacy precedence, including empty files.
- * @param {{rootDir?: string, engine?: string, warn?: (message: string) => void, dailyAIC?: NodeJS.ProcessEnv}} [options]
+ * @param {{rootDir?: string, engine?: string, warn?: (message: string) => void, dailyAIC?: NodeJS.ProcessEnv, jobResults?: string}} [options]
  * @returns {{events: import("./types/unified_session").UnifiedSession, maskedValues: string[]}}
  */
-function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env } = {}) {
+function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env, jobResults = process.env.GH_AW_JOB_RESULTS } = {}) {
   let currentRunId = dailyAIC.GITHUB_RUN_ID;
   let currentRunAttempt = dailyAIC.GITHUB_RUN_ATTEMPT;
   /** @type {SessionSource[]} */
@@ -621,6 +621,32 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       if (raw !== undefined && raw !== "" && Number.isFinite(Number(raw)) && Number(raw) >= 0) data[field] = Number(raw);
     }
     sources.push({ component: "guardrail", phase: "activation", path: "usage/aw_session.jsonl", events: [{ type: "guardrail.daily_aic", data }] });
+  }
+  if (jobResults) {
+    const file = path.join(rootDir, "usage/aw_session.jsonl");
+    let needs;
+    try {
+      needs = JSON.parse(jobResults);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      report(file, "invalid_job_results", undefined);
+    }
+    if (needs !== undefined) {
+      if (!needs || typeof needs !== "object" || Array.isArray(needs)) {
+        report(file, "invalid_job_results", undefined);
+      } else {
+        /** @type {SessionEvent[]} */
+        const events = [];
+        for (const [jobId, job] of Object.entries(needs).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
+          if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(jobId) || !job || typeof job !== "object" || Array.isArray(job) || !["success", "failure", "cancelled", "skipped"].includes(job.result)) {
+            report(file, "invalid_job_result", undefined);
+            continue;
+          }
+          events.push({ type: "workflow.job_result", data: { jobId, result: job.result } });
+        }
+        if (events.length) sources.push({ component: "workflow", phase: "conclusion", path: "usage/aw_session.jsonl", events });
+      }
+    }
   }
   const persistedWarnings = sources.flatMap(source => source.events.filter(event => event.type === "session.collection_warning"));
   const coverageWarnings = [...warnings];

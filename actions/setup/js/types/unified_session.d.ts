@@ -352,6 +352,13 @@ export interface ExecutionResultData {
   finishedAt?: JsonValue;
 }
 
+/** Conclusion's dependency snapshot, not the still-running conclusion job. */
+export interface WorkflowJobResultData {
+  /** @pattern ^[A-Za-z_][A-Za-z0-9_-]*$ */
+  jobId: string;
+  result: "success" | "failure" | "cancelled" | "skipped";
+}
+
 export interface DailyAICDecisionData {
   status: "disabled" | "skipped" | "under_budget" | "exceeded" | "structural_error" | "transient_error";
   exceeded?: boolean;
@@ -453,6 +460,7 @@ export interface CollectionData {
 
 /** Known essential payloads. Unknown native extensions remain open. */
 export interface UnifiedSessionEventDataMap {
+  "workflow.job_result": WorkflowJobResultData;
   "model.inventory": ModelInventoryData;
   "skill.inventory": SkillInventoryData;
   "skill.conflict": SkillConflictData;

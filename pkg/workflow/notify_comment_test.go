@@ -13,6 +13,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestUsageActivityGenerationIncludesJobResults(t *testing.T) {
+	for _, hasGuardrail := range []bool{false, true} {
+		steps := strings.Join(buildUsageActivityGenerationStep(hasGuardrail, func(action string) string { return action }), "")
+		assert.Contains(t, steps, "GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}")
+		assert.Equal(t, 1, strings.Count(steps, "        env:\n"))
+		assert.Equal(t, hasGuardrail, strings.Contains(steps, "GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS:"))
+		assert.NotContains(t, steps[strings.Index(steps, "          script:"):], "${{ toJSON(needs) }}")
+	}
+}
+
 func TestConclusionJob(t *testing.T) {
 	tests := []struct {
 		name               string
