@@ -90,7 +90,7 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 	if opts.WorkflowName != "" {
 		endpoint = path.Join(healthRepositoryEndpoint(opts.RepoOverride), "actions/workflows", url.PathEscape(opts.WorkflowName), "runs")
 	}
-	endpoint += fmt.Sprintf("?per_page=%d&page=%d&created=%s", opts.Limit, page, url.QueryEscape(buildCreatedFilter(opts.StartDate, opts.EndDate, "")))
+	endpoint += fmt.Sprintf("?per_page=%d&page=%d&created=%s", opts.Limit, page, url.QueryEscape(buildCreatedFilter(opts.StartDate, opts.EndDate, opts.BeforeDate)))
 	out, err := healthAPI(collection, endpoint)
 	if err != nil {
 		return nil, 0, err
@@ -102,14 +102,66 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 		return nil, 0, fmt.Errorf("failed to parse health runs: %w", err)
 	}
 	var runs []WorkflowRun
+	var oldest time.Time
 	for _, response := range data.Runs {
-		if isNonDispatchedConclusion(response.Conclusion) {
-			continue
+		if oldest.IsZero() || response.CreatedAt.Before(oldest) {
+			oldest = response.CreatedAt
 		}
 		run := response.workflowRun()
+		if isIgnoredHealthRun(run) {
+			continue
+		}
+		if run.Status == "waiting" || isClusterFailureConclusion(run.Conclusion) {
+			hasJobs, err := healthRunHasJobs(run, collection)
+			if err != nil {
+				return nil, 0, err
+			}
+			if !hasJobs {
+				healthLog.Printf("Ignoring run %d with no jobs", run.DatabaseID)
+				continue
+			}
+		}
 		runs = append(runs, run)
 	}
+	if opts.OldestFetchedCreatedAt != nil {
+		*opts.OldestFetchedCreatedAt = oldest
+	}
 	return runs, len(data.Runs), nil
+}
+
+type healthRunAttempt struct {
+	id      int64
+	attempt int
+}
+
+func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, error) {
+	key := healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}
+	if hasJobs, checked := collection.jobPresence[key]; checked {
+		return hasJobs, nil
+	}
+	endpoint := fmt.Sprintf("%s/actions/runs/%d", healthRepositoryEndpoint(collection.repoOverride), run.DatabaseID)
+	if run.Attempt > 0 {
+		endpoint += fmt.Sprintf("/attempts/%d", run.Attempt)
+	}
+	out, err := healthAPI(collection, path.Join(endpoint, "jobs")+"?per_page=1")
+	if err != nil {
+		return false, fmt.Errorf("failed to check jobs for health run %d: %w", run.DatabaseID, err)
+	}
+	var data struct {
+		Jobs []json.RawMessage `json:"jobs"`
+	}
+	if err := json.Unmarshal(out, &data); err != nil {
+		return false, fmt.Errorf("failed to parse jobs for health run %d: %w", run.DatabaseID, err)
+	}
+	if data.Jobs == nil {
+		return false, fmt.Errorf("failed to parse jobs for health run %d: missing jobs array", run.DatabaseID)
+	}
+	if collection.jobPresence == nil {
+		collection.jobPresence = make(map[healthRunAttempt]bool)
+	}
+	hasJobs := len(data.Jobs) > 0
+	collection.jobPresence[key] = hasJobs
+	return hasJobs, nil
 }
 
 func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose bool, collections ...*HealthCollection) ([]WorkflowRun, error) {
@@ -148,7 +200,7 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		RepoOverride: repoOverride, Verbose: verbose, OldestFetchedCreatedAt: &oldest}
 	var sample []WorkflowRun
 	seen := make(map[int64]struct{})
-	for page := 1; page <= MaxIterations; page++ {
+	for page := 1; ; page++ {
 		batch, total, err := healthListWorkflowRuns(opts, page, collection)
 		if err != nil {
 			return sample, err
@@ -182,8 +234,11 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		if total < opts.Limit || healthWorkflowEvidenceEnough(sample, collection) {
 			return sample, nil
 		}
-		opts.BeforeDate = oldest.Format(time.RFC3339)
+		if page*opts.Limit >= healthMaximumRunSearchResults {
+			if !advanceHealthRunWindow(&opts, oldest, collection) {
+				return sample, nil
+			}
+			page = 0
+		}
 	}
-	collection.Partial, collection.Reason = true, "pagination_limit"
-	return sample, nil
 }
