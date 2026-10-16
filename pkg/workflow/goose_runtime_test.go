@@ -23,6 +23,7 @@ import (
 )
 
 func TestGooseReleaseRuntime(t *testing.T) {
+	// Native runtime coverage is opt-in; unit tests do not replace it or verify the supplied binary's checksum.
 	binary := os.Getenv("GH_AW_TEST_GOOSE_BINARY")
 	if binary == "" {
 		t.Skip("set GH_AW_TEST_GOOSE_BINARY to a verified Goose v" + loadGooseSample(t).Version + " binary")
@@ -137,13 +138,13 @@ func gooseRuntimeCompletion(t *testing.T, w http.ResponseWriter, r *http.Request
 	assert.Equal(t, "test-model", request.Model)
 	message := map[string]any{"role": "assistant", "content": "Done"}
 	finish := "stop"
+	found := false
+	for _, tool := range request.Tools {
+		function := tool["function"].(map[string]any)
+		found = found || function["name"] == "probe__echo"
+		assert.NotEqual(t, "probe__excluded", function["name"], "upstream extension leases must preserve the configured tool allowlist")
+	}
 	if turn == 1 {
-		found := false
-		for _, tool := range request.Tools {
-			function := tool["function"].(map[string]any)
-			found = found || function["name"] == "probe__echo"
-			assert.NotEqual(t, "probe__excluded", function["name"], "upstream extension leases must preserve the configured tool allowlist")
-		}
 		assert.True(t, found, "authenticated MCP tool must be advertised on the first model turn")
 		message = map[string]any{"role": "assistant", "content": nil, "tool_calls": []any{
 			map[string]any{"index": 0, "id": "probe-call", "type": "function", "function": map[string]string{"name": "probe__echo", "arguments": "{}"}},
@@ -171,6 +172,40 @@ func gooseRuntimeCompletion(t *testing.T, w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		t.Errorf("encode test completion: %v", err)
+	}
+}
+
+func TestGooseRuntimeCompletion(t *testing.T) {
+	for _, stream := range []bool{false, true} {
+		t.Run(fmt.Sprintf("stream=%t", stream), func(t *testing.T) {
+			for turn := int32(1); turn <= 2; turn++ {
+				body := fmt.Sprintf(`{"model":"test-model","stream":%t,"tools":[{"function":{"name":"probe__echo"}}]}`, stream)
+				request := httptest.NewRequest(http.MethodPost, "/chat/completions", strings.NewReader(body))
+				response := httptest.NewRecorder()
+				gooseRuntimeCompletion(t, response, request, turn)
+				require.Equal(t, http.StatusOK, response.Code)
+				data := response.Body.String()
+				if stream {
+					assert.Equal(t, "text/event-stream", response.Header().Get("Content-Type"))
+					require.Contains(t, data, "\n\ndata: [DONE]\n\n")
+					data = strings.TrimSuffix(strings.TrimPrefix(data, "data: "), "\n\ndata: [DONE]\n\n")
+				}
+				var completion struct {
+					Choices []struct {
+						FinishReason string `json:"finish_reason"`
+					} `json:"choices"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(data), &completion))
+				require.Len(t, completion.Choices, 1)
+				if turn == 1 {
+					assert.Equal(t, "tool_calls", completion.Choices[0].FinishReason)
+					assert.Contains(t, data, "probe__echo")
+				} else {
+					assert.Equal(t, "stop", completion.Choices[0].FinishReason)
+					assert.Contains(t, data, "Done")
+				}
+			}
+		})
 	}
 }
 

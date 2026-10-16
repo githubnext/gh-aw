@@ -110,6 +110,7 @@ exports.resolveOpenAICompatibleEndpointFromReflect = () => ({provider: "github",
 	config := filepath.Join(dir, "mcp.json")
 	require.NoError(t, os.WriteFile(config, []byte(`{"mcpServers":{
 		"github":{"url":"http://awmg-mcpg:8080/mcp/github","headers":{"Authorization":"Bearer test-only"},"tools":["pull_request_read"]},
+		"probe":{"url":"http://awmg-mcpg:8080/mcp/probe","tools":["echo"]},
 		"local":{"command":"node","args":["a b","quote'","$(not-a-command)"],"env":{"TEST":"a b"}}
 	}}`), 0o600))
 	binary := filepath.Join(dir, "test-goose")
@@ -172,6 +173,9 @@ process.exit(Number(process.env.TEST_EXIT || 0));
 		assert.Equal(t, "http://awmg-mcpg:8080/mcp/github", http["uri"])
 		assert.Equal(t, map[string]any{"Authorization": "Bearer test-only"}, http["headers"])
 		assert.Equal(t, []any{"pull_request_read"}, http["available_tools"])
+		probe := extensions["probe"].(map[string]any)
+		assert.Equal(t, []any{"echo"}, probe["available_tools"])
+		assert.NotContains(t, probe["available_tools"], "excluded", "the runtime probe's excluded tool must not be available")
 		local := extensions["local"].(map[string]any)
 		assert.Equal(t, "stdio", local["type"])
 		assert.Equal(t, []any{"a b", "quote'", "$(not-a-command)"}, local["args"])

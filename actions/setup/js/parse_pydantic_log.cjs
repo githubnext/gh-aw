@@ -3,7 +3,7 @@
 const { stripVTControlCharacters } = require("node:util");
 const { createEngineLogParser, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
 const { createSessionEvent, isTokenCount } = require("./agent_session.cjs");
-const { collectAddMaskedValues, redactMaskedValues, isAddMaskCommandLine } = require("./add_mask_redaction.cjs");
+const { collectAddMaskedValues, redactMaskedValues, redactArtifactMaskedValues, isAddMaskCommandLine } = require("./add_mask_redaction.cjs");
 
 const main = createEngineLogParser({ parserName: "Pydantic AI", parseFunction: parsePydanticLog, supportsDirectories: false });
 
@@ -16,13 +16,49 @@ const TOOL_ANNOTATION = /^▌ Called tool ([A-Za-z_][A-Za-z0-9_.:-]*)\.$/;
 const ROLE = /^(?:[▌│]\s*)?(user|human|prompt|system|developer|assistant)\s*:\s*(.*)$/i;
 
 /**
- * Parse the observed pai Rich stdout, not an arbitrary plaintext conversation.
+ * CLAI 2's upstream wrapper emits keyed canonical records, not terminal speech.
+ * Inspect framing before stripping terminal controls, which removes the RS byte.
+ * @param {string} content
+ * @returns {import("./types/agent_session").SessionEvent[] | undefined}
+ */
+function parseFramedSession(content) {
+  const lines = content.split(/\r?\n/);
+  const frameKey = lines.map(line => line.match(/^\x1eGH-AW-SESSION-KEY:([0-9a-f]{32})\x1e$/)?.[1]).find(Boolean);
+  if (!frameKey) return undefined;
+  const types = new Set(["session.init", "user.message", "assistant.message", "assistant.reasoning", "tool.execution_start", "tool.execution_complete", "session.result"]);
+  const isValidEnvelope = event => event && types.has(event.type) && event.data && typeof event.data === "object" && !Array.isArray(event.data);
+  const records = [];
+  for (const line of lines) {
+    const frame = line.match(/^\x1eGH-AW-SESSION\/([0-9a-f]{32}) (\{.*\})$/);
+    if (!frame || frame[1] !== frameKey) continue;
+    try {
+      const event = JSON.parse(frame[2]);
+      if (isValidEnvelope(event)) records.push(event);
+    } catch {
+      // A truncated record must not hide adjacent observed events.
+    }
+  }
+  return JSON.parse(redactArtifactMaskedValues(JSON.stringify(records), collectAddMaskedValues(content))).filter(isValidEnvelope);
+}
+
+/**
+ * Parse canonical CLAI 2 frames or the observed legacy pai Rich stdout.
  * A "Called tool" annotation establishes a name only: no call ID, arguments,
  * result, success, or turn count is inferred. Structured capture remains partial.
  * @param {string} content
  * @returns {{markdown: string, logEntries: import("./types/agent_session").SessionEvent[], mcpFailures: string[], maxTurnsHit: boolean, partial: boolean}}
  */
 function parsePydanticLog(content) {
+  const framed = parseFramedSession(content);
+  if (framed !== undefined) {
+    return {
+      markdown: framed.length ? generateCopilotCliStyleSummary(framed) : buildStepSummaryDetailsSection("Pydantic AI", "No recorded Pydantic AI session events. Raw content is omitted."),
+      logEntries: framed,
+      mcpFailures: [],
+      maxTurnsHit: false,
+      partial: framed.some(event => event.data.partial === true),
+    };
+  }
   /** @type {import("./types/agent_session").SessionEvent[]} */
   const logEntries = [];
   const lines = redactMaskedValues(stripVTControlCharacters(content), collectAddMaskedValues(content)).split(/\r\n|\r|\n/);
