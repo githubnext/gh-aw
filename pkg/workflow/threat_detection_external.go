@@ -137,6 +137,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 			Agent: &AgentSandboxConfig{
 				Type:   SandboxTypeAWF,
 				Images: maps.Clone(getSandboxAgentImages(data)),
+				CACert: resolveThreatDetectionCACert(data),
 			},
 		},
 	}
@@ -169,6 +170,13 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 	}
 
 	return detectionData
+}
+
+func resolveThreatDetectionCACert(data *WorkflowData) string {
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.CACert != "" {
+		return data.SafeOutputs.ThreatDetection.CACert
+	}
+	return extractAPIProxyCACert(data)
 }
 
 // buildThreatDetectionContainerImages translates AWF container pin redirects into

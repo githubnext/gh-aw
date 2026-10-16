@@ -102,6 +102,7 @@ safe-outputs:
 | `enabled` | boolean | Enable or disable detection (default: `true` when safe-outputs exist) |
 | `prompt` | string | Custom instructions appended to default detection prompt |
 | `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
+| `ca-cert` | string | Host path to an additional CA certificate for the detection API proxy. Inherits `sandbox.agent.ca-cert` when unset or empty. Requires AWF v0.28.10 or later. |
 | `runs-on` | string/array/object | Runner for the detection job (default: inherits from workflow `runs-on`) |
 | `artifact-base-url` | string | HTTPS base URL for a mirror of the pinned detector release assets. The compiler appends the pinned release tag and asset name; the embedded digest cannot be overridden. |
 | `steps` | array | Additional GitHub Actions steps to run **before** AI analysis (pre-steps) |
@@ -109,6 +110,24 @@ safe-outputs:
 | `max-ai-credits` | integer | AI Credits cap for the detection run, independent of the main agent budget. Defaults to `400` when unset, with runtime override via `vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`. Accepts plain integers; `-1` disables the detection budget. |
 | `continue-on-error` | boolean | When `true` (default), detection warnings/failures produce a caution notice instead of blocking safe outputs. |
 | `report-as-issue` | boolean | When `true` (default), detection warnings/failures create or update the `[aw] Detection Runs` tracking issue. Set to `false` to keep threat detection and its enforcement enabled while skipping the tracking issue; results remain visible in the GitHub Actions run logs. |
+
+### Private CA certificates
+
+The detection job inherits `sandbox.agent.ca-cert` for upstream API proxy TLS verification. A non-empty `safe-outputs.threat-detection.ca-cert` overrides the inherited path.
+
+Detection runs on a fresh runner, so the certificate file must also exist there before engine execution. Use detection pre-steps to write it:
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+  threat-detection:
+    ca-cert: /tmp/detection-ca.pem
+    steps:
+      - name: Write CA certificate
+        env:
+          CA_PEM: ${{ secrets.INTERNAL_CA_PEM }}
+        run: printf '%s\n' "$CA_PEM" > /tmp/detection-ca.pem
+```
 
 ### Use an artifact mirror
 

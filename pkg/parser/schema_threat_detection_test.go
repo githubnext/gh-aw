@@ -4,6 +4,34 @@ package parser
 
 import "testing"
 
+func TestMainWorkflowSchemaThreatDetectionCACert(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		value any
+		valid bool
+	}{
+		{name: "certificate path", value: "/tmp/detection-ca.pem", valid: true},
+		{name: "empty path", value: "", valid: true},
+		{name: "boolean rejected", value: true},
+		{name: "number rejected", value: 42},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on":     "push",
+				"engine": "claude",
+				"safe-outputs": map[string]any{
+					"create-issue":     nil,
+					"threat-detection": map[string]any{"ca-cert": tt.value},
+				},
+			}, "/tmp/gh-aw/threat-detection-ca-cert.md")
+			if (err == nil) != tt.valid {
+				t.Errorf("validation error = %v, want valid=%v", err, tt.valid)
+			}
+		})
+	}
+}
+
 func TestMainWorkflowSchemaThreatDetectionArtifactBaseURL(t *testing.T) {
 	t.Parallel()
 

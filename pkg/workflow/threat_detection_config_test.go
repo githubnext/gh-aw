@@ -353,6 +353,19 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 	}
 }
 
+func TestParseThreatDetectionConfigCACert(t *testing.T) {
+	for _, value := range []string{"/tmp/detection-ca.pem", " /tmp/detection-ca.pem \n", "", " \t"} {
+		t.Run(value, func(t *testing.T) {
+			config := NewCompiler().parseThreatDetectionConfig(map[string]any{
+				"threat-detection": map[string]any{"ca-cert": value},
+			})
+			if want := strings.TrimSpace(value); config.CACert != want {
+				t.Errorf("CA certificate = %q, want %q", config.CACert, want)
+			}
+		})
+	}
+}
+
 func TestIsContinueOnError(t *testing.T) {
 	tests := []struct {
 		name     string
