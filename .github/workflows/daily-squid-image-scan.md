@@ -1,5 +1,8 @@
 ---
 name: Daily Container Image Security Scan
+engine:
+  id: copilot
+  copilot-sdk: true
 description: Scan container images used by compiled workflows for vulnerabilities, updates, and rejected licenses
 emoji: "🛡️"
 on:

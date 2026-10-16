@@ -26,6 +26,7 @@ permissions:
 
 engine:
   id: copilot
+  copilot-sdk: true
   max-continuations: 3
 
 safe-outputs:

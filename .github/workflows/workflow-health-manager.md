@@ -7,7 +7,9 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   cli-proxy: true
   bash: [":*"]
