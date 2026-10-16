@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import kiroCI from "./fixtures/kiro_ci_sessions.cjs";
@@ -7,7 +8,10 @@ import { parseKiroLog } from "./parse_kiro_log.cjs";
 import { parseBehaviorLog } from "./engine_log_parser.cjs";
 import { runLogParser } from "./log_parser_bootstrap.cjs";
 import { writeUnifiedSession } from "./unified_session.cjs";
-import { MCP_GATEWAY_CONFIG_PATHS } from "./redact_secrets.cjs";
+
+// Match the native require cache used by the bootstrap's artifact redaction.
+const require = createRequire(import.meta.url);
+const { MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
 
 describe("Kiro canonical session artifact pipeline", () => {
   let root;
@@ -40,6 +44,21 @@ describe("Kiro canonical session artifact pipeline", () => {
     global.core = originalCore;
     MCP_GATEWAY_CONFIG_PATHS.splice(0, MCP_GATEWAY_CONFIG_PATHS.length, ...originalGatewayPaths);
     fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("uses the redirected gateway configuration when redacting pipeline artifacts (synthetic)", async () => {
+    const syntheticToken = "kiro-pipeline-synthetic-gateway-value";
+    fs.writeFileSync(path.join(root, "gateway.json"), JSON.stringify({ mcpServers: { synthetic: { headers: { Authorization: `Bearer ${syntheticToken}` } } } }));
+    fs.writeFileSync(process.env.GH_AW_AGENT_OUTPUT, `kiro-cli 2.27.1\n[kiro-harness] Kiro CLI execution started\nObserved ${syntheticToken}.`);
+
+    await runLogParser({ parserName: "Kiro", parseLog: parseKiroLog, rootDir: root });
+    const canonical = readEvents(path.join(root, "agent-session.jsonl"));
+    const unified = writeUnifiedSession({ rootDir: root, engine: "kiro", warn: vi.fn() });
+    for (const events of [canonical, unified]) {
+      expect(events.filter(event => event.type === "assistant.message").map(event => event.data.content)).toEqual(["Observed ***REDACTED***."]);
+      expect(JSON.stringify(events)).not.toContain(syntheticToken);
+    }
+    expect(global.core.setFailed).not.toHaveBeenCalled();
   });
 
   it("projects pinned V2 release events using the existing unified schema (synthetic)", async () => {
