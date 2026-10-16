@@ -53,6 +53,9 @@ func healthRevisionStatuses(runs []WorkflowRun, collection *HealthCollection) []
 	byScope := make(map[string]int)
 	seen := make(map[int64]struct{})
 	for _, run := range ordered {
+		if isIgnoredHealthRun(run) {
+			continue
+		}
 		if _, duplicate := seen[run.DatabaseID]; duplicate {
 			continue
 		}

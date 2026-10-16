@@ -40,8 +40,12 @@ func TestWorkCommandPolicyFromConfig(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ledger, pending := string(data), ""
-			head := strings.Repeat("b", 40)
+			ledger := string(data)
+			initial := ledger
+			if scenario == "absent" {
+				initial = ""
+			}
+			queue := newWorkQueueGitRemote(t, initial)
 			writes, configReads := 0, 0
 			original := http.DefaultTransport
 			t.Cleanup(func() { http.DefaultTransport = original })
@@ -63,18 +67,6 @@ func TestWorkCommandPolicyFromConfig(t *testing.T) {
 					result = map[string]any{"id": 1001}
 				case r.Method == http.MethodGet && r.URL.Path == "/repos/"+repository:
 					result = map[string]any{"full_name": repository, "default_branch": "main", "permissions": map[string]bool{"push": true, "admin": scenario != "not administrator"}}
-				case r.Method == http.MethodGet && path == "git/ref/heads/"+workqueue.DefaultBranch:
-					if scenario == "absent" {
-						status, result = http.StatusNotFound, map[string]string{"message": "Not Found"}
-					} else {
-						result = map[string]any{"ref": "refs/heads/" + workqueue.DefaultBranch, "object": map[string]string{"sha": head}}
-					}
-				case r.Method == http.MethodGet && strings.HasPrefix(path, "git/commits/"):
-					result = map[string]any{"tree": map[string]string{"sha": "queue-tree"}}
-				case r.Method == http.MethodGet && path == "git/trees/queue-tree":
-					result = map[string]any{"tree": []map[string]string{{"path": workqueue.FileName, "mode": "100644", "type": "blob", "sha": "queue-log"}}}
-				case r.Method == http.MethodGet && path == "git/blobs/queue-log":
-					result = map[string]string{"encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(ledger))}
 				case r.Method == http.MethodGet && path == "git/ref/heads/main":
 					result = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"sha": strings.Repeat("f", 40)}}
 				case r.Method == http.MethodGet && path == "contents/.github/workflows/aw.json":
@@ -95,22 +87,6 @@ func TestWorkCommandPolicyFromConfig(t *testing.T) {
 					result = file(".github/workflows/reviewer.lock.yml", "on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\n")
 				case r.Method == http.MethodGet && path == "actions/workflows/reviewer.lock.yml":
 					result = map[string]string{"path": ".github/workflows/reviewer.lock.yml", "state": "active"}
-				case r.Method == http.MethodPost && path == "git/trees":
-					var body struct {
-						Tree []struct {
-							Content string `json:"content"`
-						} `json:"tree"`
-					}
-					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-						return nil, err
-					}
-					pending = body.Tree[0].Content
-					result = map[string]string{"sha": "prospective-tree"}
-				case r.Method == http.MethodPost && path == "git/commits":
-					result = map[string]string{"sha": strings.Repeat("c", 40)}
-				case r.Method == http.MethodPatch && path == "git/refs/heads/"+workqueue.DefaultBranch:
-					ledger, head = pending, strings.Repeat("c", 40)
-					result = map[string]string{"ref": "refs/heads/" + workqueue.DefaultBranch}
 				default:
 					t.Errorf("unexpected configuration-update API %s %s", r.Method, r.URL.Path)
 					status, result = http.StatusNotFound, map[string]string{"message": "Not Found"}
@@ -128,9 +104,11 @@ func TestWorkCommandPolicyFromConfig(t *testing.T) {
 			cmd.SetErr(&output)
 			cmd.SetArgs([]string{"--repo", repository, "--json", "policy", "--from-config", "--epoch", "configured", "--request-id", "configured"})
 			err = cmd.Execute()
+			ledger = queue.read(t)
+			writes += queue.pushes(t)
 			expected := map[string]string{"absent": "queue_missing", "active": "policy_not_quiescent", "not administrator": "actor_unauthorized", "invalid settings": "work_queue.concurrency"}
 			if scenario != "drained" {
-				if err == nil || !strings.Contains(err.Error(), expected[scenario]) || writes != 0 || ledger != string(data) {
+				if err == nil || !strings.Contains(err.Error(), expected[scenario]) || writes != 0 || ledger != initial {
 					t.Fatalf("unsafe config update was accepted or changed authority: %v writes=%d", err, writes)
 				}
 				if (scenario == "absent" || scenario == "not administrator") && configReads != 0 {

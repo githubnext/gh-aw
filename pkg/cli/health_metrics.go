@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -78,6 +79,7 @@ func (t TrendDirection) String() string {
 
 // CalculateWorkflowHealth calculates health metrics for a workflow from its runs
 func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold float64) WorkflowHealth {
+	runs = slices.DeleteFunc(slices.Clone(runs), isIgnoredHealthRun)
 	healthMetricsLog.Printf("Calculating health for workflow: %s, runs: %d", workflowName, len(runs))
 
 	if len(runs) == 0 {
@@ -100,6 +102,10 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 	health.BelowThresh = health.SuccessRate < threshold
 	healthMetricsLog.Printf("Health calculated: workflow=%s, successRate=%.2f%%, trend=%s", workflowName, health.SuccessRate, health.Trend)
 	return health
+}
+
+func isIgnoredHealthRun(run WorkflowRun) bool {
+	return isNonDispatchedConclusion(run.Conclusion)
 }
 
 func accumulateWorkflowHealth(runs []WorkflowRun) WorkflowHealth {

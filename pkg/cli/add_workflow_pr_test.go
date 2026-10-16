@@ -3,11 +3,124 @@
 package cli
 
 import (
+	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAddResolvedWorkflowsAutoMerge(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		autoMerge   bool
+		failCreate  bool
+		failEnable  bool
+		failRestore bool
+	}{
+		{name: "default"},
+		{name: "enabled", autoMerge: true},
+		{name: "enable failure preserves PR", autoMerge: true, failEnable: true},
+		{name: "enable and restore failure preserves both errors", autoMerge: true, failEnable: true, failRestore: true},
+		{name: "creation failure skips auto-merge", autoMerge: true, failCreate: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := initPRTransferRepo(t)
+			chdirForTest(t, repoDir)
+			prependFakeGH(t, "exit 0\n")
+			originalCreatePR := createPRRunGHContextWithHost
+			originalAutoMerge := autoMergeRunGH
+			originalSwitch := switchAddWorkflowPRBranch
+			t.Cleanup(func() {
+				createPRRunGHContextWithHost = originalCreatePR
+				autoMergeRunGH = originalAutoMerge
+				switchAddWorkflowPRBranch = originalSwitch
+			})
+			const prURL = "https://github.com/octo/repo/pull/42"
+			created := false
+			createdBranch := ""
+			createErr := errors.New("PR creation failed")
+			enableErr := errors.New("auto-merge unavailable")
+			restoreErr := errors.New("branch restore failed")
+			if tc.failRestore {
+				switchAddWorkflowPRBranch = func(branch string, verbose bool) error {
+					_ = originalSwitch(branch, verbose)
+					return restoreErr
+				}
+			}
+			createPRRunGHContextWithHost = func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
+				require.Equal(t, []string{"pr", "create"}, args[:2])
+				if tc.failCreate {
+					return nil, createErr
+				}
+				created = true
+				createdBranch = strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current"))
+				return []byte(prURL), nil
+			}
+			autoMergeCalls := 0
+			autoMergeRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				assert.True(t, created, "auto-merge must happen after PR creation")
+				autoMergeCalls++
+				if tc.failEnable {
+					return nil, enableErr
+				}
+				if strings.Contains(strings.Join(args, " "), "enablePullRequestAutoMerge") {
+					return []byte(`{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_42"}}}}`), nil
+				}
+				assert.Contains(t, args, "owner=octo")
+				assert.Contains(t, args, "name=repo")
+				assert.Contains(t, args, "number=42")
+				return []byte(`{"data":{"repository":{"autoMergeAllowed":true,"viewerDefaultMergeMethod":"SQUASH","squashMergeAllowed":true,"pullRequest":{"id":"PR_42"}}}}`), nil
+			}
+			resolved := &ResolvedWorkflows{Workflows: []*ResolvedWorkflow{{
+				Spec:             &WorkflowSpec{WorkflowName: "test-workflow", WorkflowPath: "test-workflow.yml"},
+				Content:          []byte("name: Test\non: workflow_dispatch\njobs: {}\n"),
+				IsActionWorkflow: true,
+			}}}
+			result, err := AddResolvedWorkflows(context.Background(), []string{"test-workflow.yml"}, resolved, AddOptions{
+				CreatePR:        true,
+				AutoMerge:       tc.autoMerge,
+				RepoSlug:        "octo/repo",
+				NoGitattributes: true,
+				Quiet:           true,
+			})
+			switch {
+			case tc.failCreate:
+				require.ErrorIs(t, err, createErr)
+				assert.Nil(t, result)
+				assert.Zero(t, autoMergeCalls)
+			case tc.failEnable:
+				require.ErrorIs(t, err, enableErr)
+				require.ErrorContains(t, err, prURL)
+				if tc.failRestore {
+					require.ErrorIs(t, err, restoreErr)
+				}
+				require.NotNil(t, result, "a created PR must remain available after auto-merge failure")
+				assert.Equal(t, 42, result.PRNumber)
+				assert.Equal(t, prURL, result.PRURL)
+				assert.Equal(t, 1, autoMergeCalls)
+			default:
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				assert.Equal(t, 42, result.PRNumber)
+				assert.Equal(t, prURL, result.PRURL)
+				if tc.autoMerge {
+					assert.Equal(t, 2, autoMergeCalls)
+				} else {
+					assert.Zero(t, autoMergeCalls)
+				}
+			}
+			assert.Equal(t, "main", strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")), "original branch must be restored")
+			assert.Empty(t, strings.TrimSpace(gitOutput(t, repoDir, "status", "--porcelain")))
+			if created {
+				assert.Contains(t, gitOutput(t, repoDir, "show", createdBranch+":.github/workflows/test-workflow.yml"), "name: Test")
+				assert.Contains(t, gitOutput(t, repoDir, "show", "origin/"+createdBranch+":.github/workflows/test-workflow.yml"), "name: Test")
+			}
+		})
+	}
+}
 
 func TestSanitizeBranchName(t *testing.T) {
 	t.Parallel()

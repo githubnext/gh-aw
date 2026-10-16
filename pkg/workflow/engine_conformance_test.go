@@ -5,6 +5,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -414,7 +415,15 @@ func TestEngineConformanceCatalogCoverage(t *testing.T) {
 			require.Equal(t, true, source["strict"])
 			require.Equal(t, true, source["inlined-imports"])
 			require.EqualValues(t, 10, source["timeout-minutes"])
-			require.EqualValues(t, 5, source["max-ai-credits"])
+			budget := 5
+			switch id {
+			case "claude", "codex", "deepseek-harness":
+				budget = 50
+			}
+			require.EqualValues(t, budget, source["max-ai-credits"])
+			if id == "codex" {
+				require.Equal(t, "openai/gpt-6.1-sol", source["model"], "Codex must select a model whose pricing can be compiled into the firewall configuration")
+			}
 			on, ok := source["on"].(map[string]any)
 			require.True(t, ok)
 			require.Contains(t, on, "workflow_dispatch")
@@ -422,6 +431,11 @@ func TestEngineConformanceCatalogCoverage(t *testing.T) {
 			lock, err := os.ReadFile(strings.TrimSuffix(file, ".md") + ".lock.yml")
 			require.NoError(t, err)
 			compiled := string(lock)
+			require.Contains(t, compiled, fmt.Sprintf(`"maxAiCredits":%d,`, budget), "the firewall must enforce the authored credit limit")
+			if id == "codex" {
+				require.Contains(t, compiled, `"providers":{"openai":{"models":{"gpt-6.1-sol":{"cost":`, "the firewall must receive model-specific Codex pricing")
+				require.NotContains(t, compiled, `"defaultAiCreditsPricing"`, "conformance must not guess pricing for unknown models")
+			}
 			require.Contains(t, compiled, "work_queue_assignment:")
 			require.Contains(t, compiled, `GH_AW_WORK_QUEUE_ROLE: "worker"`)
 			for _, expected := range []string{

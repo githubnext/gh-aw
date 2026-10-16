@@ -2,6 +2,8 @@
 
 "use strict";
 
+const { readCopilotSDKMCPConfig } = require("./copilot_sdk_mcp_config.cjs");
+const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
 const { createCopilotSDKWebFetchTool } = require("./copilot_sdk_web_fetch.cjs");
 const { parseMaxToolCalls } = require("./copilot_sdk_tool_budget.cjs");
 
@@ -199,6 +201,63 @@ function parseCopilotSDKToolConfig(value) {
 }
 
 /**
+ * SDK sessions need explicit server registration; allowing MCP tools does not
+ * load the CLI's gateway configuration into the session. Only use the separate
+ * converter-owned catalog, never the user-managed GH_AW_MCP_CONFIG CLI catalog.
+ *
+ * @param {CopilotSDKToolConfig} config
+ * @param {string | undefined} [configPath]
+ * @returns {Record<string, import("@github/copilot-sdk").MCPServerConfig>}
+ */
+function loadCopilotSDKMCPServers(config, configPath) {
+  if (!config.capabilities.mcp) return {};
+  configPath ??= resolveCopilotSDKMCPConfigPath();
+  if (!configPath) throw new Error("Copilot SDK MCP configuration path is required when SDK MCP tools are enabled");
+
+  const source = readCopilotSDKMCPConfig(configPath);
+  let parsed;
+  try {
+    parsed = JSON.parse(source);
+  } catch {
+    throw new Error("Copilot SDK MCP configuration must be valid JSON");
+  }
+  if (!isRecord(parsed) || !isRecord(parsed.mcpServers)) {
+    throw new Error("Copilot SDK MCP configuration must contain an mcpServers object");
+  }
+
+  /** @type {Record<string, import("@github/copilot-sdk").MCPServerConfig>} */
+  const servers = {};
+  for (const [name, entry] of Object.entries(parsed.mcpServers)) {
+    if (!isRecord(entry) || (entry.type !== "http" && entry.type !== "sse") || typeof entry.url !== "string") {
+      throw new Error("Copilot SDK MCP configuration servers must use the generated HTTP gateway configuration");
+    }
+    /** @type {import("@github/copilot-sdk").MCPHTTPServerConfig} */
+    const server = { type: entry.type === "http" ? "http" : "sse", url: entry.url };
+    if (entry.tools !== undefined) {
+      if (!Array.isArray(entry.tools) || entry.tools.some(tool => typeof tool !== "string" || tool.trim() === "")) {
+        throw new Error("MCP server tools must be an array of non-empty strings");
+      }
+      server.tools = [...new Set(entry.tools.map(tool => tool.trim()))];
+    }
+    if (entry.timeout !== undefined) {
+      if (typeof entry.timeout !== "number" || !Number.isFinite(entry.timeout) || entry.timeout <= 0) {
+        throw new Error("MCP server timeout must be a positive number");
+      }
+      server.timeout = entry.timeout;
+    }
+    if (entry.headers !== undefined) {
+      if (!isRecord(entry.headers) || Object.values(entry.headers).some(value => typeof value !== "string")) {
+        throw new Error("MCP server headers must be an object of strings");
+      }
+      server.headers = Object.fromEntries(Object.entries(entry.headers).map(([key, value]) => [key, String(value)]));
+    }
+    // Preserve names such as __proto__ as own keys without invoking inherited setters.
+    Object.defineProperty(servers, name, { value: server, enumerable: true, configurable: true, writable: true });
+  }
+  return servers;
+}
+
+/**
  * @param {CopilotSDKToolConfig | null | undefined} config
  * @param {{
  *   ToolSet?: typeof import("@github/copilot-sdk").ToolSet,
@@ -245,6 +304,7 @@ function buildCopilotSDKSessionToolConfig(config, sdk, options = {}) {
 }
 
 module.exports = {
+  loadCopilotSDKMCPServers,
   COPILOT_SDK_TOOL_CONFIG_VERSION,
   COPILOT_SDK_NEUTRAL_BUILTIN_TOOLS,
   COPILOT_SDK_SHELL_BUILTIN_TOOLS,

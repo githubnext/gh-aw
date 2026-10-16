@@ -50,8 +50,12 @@ func TestWorkCommandDeployFromConfig(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ledger, pending := string(data), ""
-			head := strings.Repeat("b", 40)
+			ledger := string(data)
+			initial := ledger
+			if scenario == "absent" {
+				initial = ""
+			}
+			queue := newWorkQueueGitRemote(t, initial)
 			writes, sourceReads, artifactReads := 0, 0, 0
 			defaultRevision := strings.Repeat("f", 40)
 			contract := strings.Repeat("a", 64)
@@ -78,18 +82,6 @@ func TestWorkCommandDeployFromConfig(t *testing.T) {
 					result = map[string]any{"id": 1001}
 				case r.Method == http.MethodGet && r.URL.Path == "/repos/"+repository:
 					result = map[string]any{"full_name": repository, "default_branch": "main", "permissions": map[string]bool{"push": true, "admin": scenario != "not administrator"}}
-				case r.Method == http.MethodGet && path == "git/ref/heads/"+workqueue.DefaultBranch:
-					if scenario == "absent" {
-						status, result = http.StatusNotFound, map[string]string{"message": "Not Found"}
-					} else {
-						result = map[string]any{"ref": "refs/heads/" + workqueue.DefaultBranch, "object": map[string]string{"sha": head}}
-					}
-				case r.Method == http.MethodGet && strings.HasPrefix(path, "git/commits/"):
-					result = map[string]any{"tree": map[string]string{"sha": "queue-tree"}}
-				case r.Method == http.MethodGet && path == "git/trees/queue-tree":
-					result = map[string]any{"tree": []map[string]string{{"path": workqueue.FileName, "mode": "100644", "type": "blob", "sha": "queue-log"}}}
-				case r.Method == http.MethodGet && path == "git/blobs/queue-log":
-					result = map[string]string{"encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(ledger))}
 				case r.Method == http.MethodGet && path == "git/ref/heads/main":
 					result = map[string]any{"ref": "refs/heads/main", "object": map[string]string{"sha": defaultRevision}}
 				case r.Method == http.MethodGet && path == "contents/.github/workflows/worker.md":
@@ -118,22 +110,6 @@ func TestWorkCommandDeployFromConfig(t *testing.T) {
 						state = "disabled_manually"
 					}
 					result = map[string]string{"path": ".github/workflows/worker.lock.yml", "state": state}
-				case r.Method == http.MethodPost && path == "git/trees":
-					var body struct {
-						Tree []struct {
-							Content string `json:"content"`
-						} `json:"tree"`
-					}
-					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-						return nil, err
-					}
-					pending = body.Tree[0].Content
-					result = map[string]string{"sha": "deployment-tree"}
-				case r.Method == http.MethodPost && path == "git/commits":
-					result = map[string]string{"sha": strings.Repeat("c", 40)}
-				case r.Method == http.MethodPatch && path == "git/refs/heads/"+workqueue.DefaultBranch:
-					ledger, head = pending, strings.Repeat("c", 40)
-					result = map[string]string{"ref": "refs/heads/" + workqueue.DefaultBranch}
 				default:
 					t.Errorf("unexpected deployment API %s %s", r.Method, r.URL.Path)
 					status, result = http.StatusNotFound, map[string]string{"message": "Not Found"}
@@ -150,12 +126,15 @@ func TestWorkCommandDeployFromConfig(t *testing.T) {
 				cmd.SetOut(io.Discard)
 				cmd.SetErr(io.Discard)
 				cmd.SetArgs([]string{"--repo", repository, "deploy", "--from-config", "--request-id", "deployment"})
-				return cmd.Execute()
+				err := cmd.Execute()
+				ledger = queue.read(t)
+				writes = queue.pushes(t)
+				return err
 			}
 			err = run()
 			expectedError := map[string]string{"absent": "queue_missing", "legacy": "deployment_invalid", "not administrator": "actor_unauthorized"}[scenario]
 			if expectedError != "" {
-				if err == nil || !strings.Contains(err.Error(), expectedError) || writes != 0 || ledger != string(data) || sourceReads != 0 {
+				if err == nil || !strings.Contains(err.Error(), expectedError) || writes != 0 || ledger != initial || sourceReads != 0 {
 					t.Fatalf("invalid native deployment changed queue authority: %v writes=%d sources=%d", err, writes, sourceReads)
 				}
 				return
@@ -206,6 +185,7 @@ func TestWorkCommandDeployFromConfig(t *testing.T) {
 			if err := future.Execute(); err != nil {
 				t.Fatalf("native future admission did not use the deployed contract: %v", err)
 			}
+			ledger = queue.read(t)
 			futureCommits, err := workqueue.Parse([]byte(ledger))
 			if err != nil {
 				t.Fatal(err)
@@ -222,7 +202,10 @@ func TestWorkCommandDeployFromConfig(t *testing.T) {
 				cmd.SetIn(strings.NewReader(`{"task":"pinned work"}`))
 				cmd.SetArgs([]string{"--repo", repository, "submit-work", "--file", "-", "--graph-id", "pinned",
 					"--worker-profile", "worker", "--execution-ref", pin, "--request-id", requestID})
-				return cmd.Execute()
+				err := cmd.Execute()
+				ledger = queue.read(t)
+				writes = queue.pushes(t)
+				return err
 			}
 			if err := runPinned(profile.Ref, "pinned"); err != nil {
 				t.Fatalf("native admission rejected the immutable historical pin: %v", err)

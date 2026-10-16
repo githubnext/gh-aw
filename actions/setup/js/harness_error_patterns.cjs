@@ -104,6 +104,37 @@ const API_PROXY_GUARD_REJECTION_PATTERNS = [
 function parseAPIProxyGuardRejection(output) {
   const safeOutput = typeof output === "string" ? output : "";
   if (!safeOutput) return null;
+  for (const line of safeOutput.split(/\r?\n/)) {
+    let record;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!record || typeof record !== "object" || Array.isArray(record)) continue;
+    const candidates =
+      record.type === "unknown_model_ai_credits"
+        ? [record]
+        : record.type === "error" || record.type === "turn.failed" || record.is_api_error_message === true || (record.type === undefined && record.error)
+          ? [record.error, record.message]
+          : [];
+    // Only unwrap transport errors, never assistant messages or tool results.
+    for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
+      let candidate = candidates.shift();
+      if (typeof candidate === "string") {
+        try {
+          candidate = JSON.parse(candidate);
+        } catch {
+          continue;
+        }
+      }
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+      if (candidate.type === "unknown_model_ai_credits" || candidate.code === "unknown_model_ai_credits") {
+        return { guard: "unknown_model_ai_credits", counters: {} };
+      }
+      candidates.push(candidate.error, candidate.message);
+    }
+  }
   for (const { guard, pattern, counterRe, counterNames } of API_PROXY_GUARD_REJECTION_PATTERNS) {
     if (!pattern.test(safeOutput)) continue;
     // Endpoint incompatibility has its own diagnostic, even if wrapped as a policy violation.

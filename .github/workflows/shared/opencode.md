@@ -2,7 +2,7 @@
 engine:
   id: opencode
   detection-engine: copilot
-  version: "1.18.33"
+  version: "1.18.35"
   display-name: OpenCode
   description: OpenCode CLI with headless mode and multi-provider LLM support
   runtime-id: opencode
@@ -285,8 +285,17 @@ and LSP downloads are disabled. Global configuration, model cache, state, and
 session/auth data use isolated `/tmp/opencode-*` directories and are not cached
 across runs; pre-existing authentication stores are not loaded.
 
-The pinned CLI is `1.18.33` (published September 28, 2026), outside the three-day
-npm cooldown. `1.18.34` is still inside that window as of October 3, 2026.
+The pinned CLI is [`1.18.35`](https://github.com/anomalyco/opencode/releases/tag/v1.18.35)
+(npm publication October 6, 2026, 20:21:30 UTC), outside the three-day npm
+cooldown. On October 15, 2026, the latest upstream stable release is
+[`1.19.1`](https://github.com/anomalyco/opencode/releases/tag/v1.19.1), published
+that day and still inside the cooldown. Its session-sharing removal requires
+no harness change: sharing is already disabled. `1.19.0` is old enough, but
+neither `1.19.0` nor `1.19.1` was available from the registry used for this
+validation; `1.18.35` is the newest verified installable release. Tagged
+`1.19.x` source retains the headless JSON event, provider configuration, and
+remote MCP contracts used here; this is static compatibility evidence, not a
+runtime test of those releases.
 Installation runs the pinned package's lifecycle script to link its native
 binary. The provider SDKs are bundled; model catalog fetching is disabled.
 Custom models without explicit limits retain OpenCode's unknown-limit defaults;

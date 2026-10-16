@@ -7,7 +7,7 @@ package constants
 //
 // Example usage:
 //
-//	const DefaultCopilotVersion Version = "1.0.96"
+//	const DefaultCopilotVersion Version = "1.0.98"
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
@@ -39,7 +39,7 @@ const DefaultClaudeCodeVersion Version = "2.1.296"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.96"
+const DefaultCopilotVersion Version = "1.0.98"
 
 // CopilotSessionIDMinVersion is the minimum Copilot CLI version that supports
 // the exact session selector injected by the model-verification harness.
@@ -49,17 +49,17 @@ const CopilotSessionIDMinVersion Version = "1.0.35"
 const DefaultCopilotSDKVersion Version = "1.0.16"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.162.1"
+const DefaultCodexVersion Version = "0.163.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.62.0"
+const DefaultGeminiVersion Version = "0.64.0"
 
 const DefaultAgyVersion Version = "1.3.6"
 
 const AgyDefaultModel = "gemini-3.8-flash-medium"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "1.2.0"
+const DefaultPiVersion Version = "1.3.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v2.0.2"

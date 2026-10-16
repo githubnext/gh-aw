@@ -149,6 +149,7 @@ const SAFE_OUTPUT_FIELDS = {
 
 /** @type {Fields} */
 const MESSAGE_FIELDS = {
+  sourceEngine: ["sourceEngine"],
   content: ["content"],
   delta: ["delta"],
   partial: ["partial"],
@@ -234,6 +235,7 @@ const EVENT_FIELDS = {
     output: ["output"],
     result: ["result"],
     error: ["error"],
+    fileEdits: ["fileEdits"],
     durationMs: ["durationMs", "duration_ms"],
     exitCode: ["exitCode", "exit_code"],
     status: ["status"],

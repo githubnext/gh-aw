@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import kiroCI from "./fixtures/kiro_ci_sessions.cjs";
@@ -8,18 +9,24 @@ import { parseBehaviorLog } from "./engine_log_parser.cjs";
 import { runLogParser } from "./log_parser_bootstrap.cjs";
 import { writeUnifiedSession } from "./unified_session.cjs";
 
+// Match the native require cache used by the bootstrap's artifact redaction.
+const require = createRequire(import.meta.url);
+const { MCP_GATEWAY_CONFIG_PATHS } = require("./redact_secrets.cjs");
+
 describe("Kiro canonical session artifact pipeline", () => {
   let root;
   let originalEnv;
   let originalCore;
+  let originalGatewayPaths;
   const readEvents = file => fs.readFileSync(file, "utf8").trimEnd().split("\n").map(JSON.parse);
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-kiro-session-"));
     originalEnv = { ...process.env };
     originalCore = global.core;
-    process.env.GH_AW_AGENT_OUTPUT = path.join(root, "agent-stdio.log");
-    delete process.env.GH_AW_SAFE_OUTPUTS;
+    originalGatewayPaths = [...MCP_GATEWAY_CONFIG_PATHS];
+    MCP_GATEWAY_CONFIG_PATHS.splice(0, MCP_GATEWAY_CONFIG_PATHS.length, path.join(root, "gateway.json"));
+    process.env = { PATH: process.env.PATH, HOME: root, RUNNER_TEMP: root, GH_AW_AGENT_OUTPUT: path.join(root, "agent-stdio.log") };
     global.core = {
       info: vi.fn(),
       debug: vi.fn(),
@@ -35,7 +42,40 @@ describe("Kiro canonical session artifact pipeline", () => {
   afterEach(() => {
     process.env = originalEnv;
     global.core = originalCore;
+    MCP_GATEWAY_CONFIG_PATHS.splice(0, MCP_GATEWAY_CONFIG_PATHS.length, ...originalGatewayPaths);
     fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("uses the redirected gateway configuration when redacting pipeline artifacts (synthetic)", async () => {
+    const syntheticToken = "kiro-pipeline-synthetic-gateway-value";
+    fs.writeFileSync(path.join(root, "gateway.json"), JSON.stringify({ mcpServers: { synthetic: { headers: { Authorization: `Bearer ${syntheticToken}` } } } }));
+    fs.writeFileSync(process.env.GH_AW_AGENT_OUTPUT, `kiro-cli 2.27.1\n[kiro-harness] Kiro CLI execution started\nObserved ${syntheticToken}.`);
+
+    await runLogParser({ parserName: "Kiro", parseLog: parseKiroLog, rootDir: root });
+    const canonical = readEvents(path.join(root, "agent-session.jsonl"));
+    const unified = writeUnifiedSession({ rootDir: root, engine: "kiro", warn: vi.fn() });
+    for (const events of [canonical, unified]) {
+      expect(events.filter(event => event.type === "assistant.message").map(event => event.data.content)).toEqual(["Observed ***REDACTED***."]);
+      expect(JSON.stringify(events)).not.toContain(syntheticToken);
+    }
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("projects pinned V2 release events using the existing unified schema (synthetic)", async () => {
+    const raw = kiroCI.success.replace("kiro-cli 2.27.1", "kiro-cli 2.31.1");
+    fs.writeFileSync(process.env.GH_AW_AGENT_OUTPUT, raw);
+    fs.writeFileSync(path.join(root, "agent_execution_exit_code.txt"), "0");
+    await runLogParser({ parserName: "Kiro", parseLog: content => parseBehaviorLog(content, "kiro"), rootDir: root });
+    expect(readEvents(path.join(root, "agent-session.jsonl")).find(event => event.type === "session.init").data.agentVersion).toBe("2.31.1");
+    const unified = writeUnifiedSession({ rootDir: root, engine: "kiro", warn: vi.fn() });
+    const agent = unified.filter(event => event.provenance?.component === "agent" && event.type !== "agent.execution");
+    const expected = parseKiroLog(kiroCI.success).logEntries.map(event => ({
+      ...event,
+      data: event.type === "session.init" ? { sourceEngine: "kiro" } : event.data,
+    }));
+    expect(agent.map(({ type, data }) => ({ type, data }))).toEqual(expected.map(({ type, data }) => ({ type, data })));
+    expect(agent.some(event => event.type === "session.result")).toBe(false);
+    expect(global.core.setFailed).not.toHaveBeenCalled();
   });
 
   it.each(["success", "failure"])("persists the %s CI excerpt through the production bootstrap and authoritative merger", async fixture => {

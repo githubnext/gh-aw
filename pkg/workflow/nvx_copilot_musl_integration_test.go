@@ -50,6 +50,11 @@ func TestNVXStagedMuslCopilotInvokesAPIProxy(t *testing.T) {
 		filepath.Join(hostRoot, "actions", "nvx_assets.cjs"),
 		0o644,
 	))
+	require.NoError(t, copyFile(
+		filepath.Join("..", "..", "actions", "setup", "js", "copilot_sdk_mcp_config_path.cjs"),
+		filepath.Join(hostRoot, "actions", "copilot_sdk_mcp_config_path.cjs"),
+		0o644,
+	))
 
 	version := strings.TrimPrefix(string(constants.DefaultCopilotVersion), "v")
 	baseURL := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s", version)

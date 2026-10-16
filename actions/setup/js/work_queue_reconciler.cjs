@@ -103,7 +103,7 @@ async function discoverRuns(options, expected) {
 }
 
 function returnedRunHint(state, dispatchId) {
-  for (const commit of [...state.transactions].reverse()) {
+  for (const commit of [...(state.historicalTransactions || []), ...state.transactions].reverse()) {
     const operation = [...commit.operations].reverse().find(operation => operation.kind === "Dispatch" && operation.dispatch_id === dispatchId && operation.evidence?.run_id);
     if (operation) return operation.evidence.run_id;
   }

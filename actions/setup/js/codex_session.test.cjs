@@ -184,8 +184,7 @@ describe("Codex normalization contract", () => {
   // Protocol-shaped synthetic cases, not observations from the sampled runs:
   // openai/codex codex-rs/exec/src/exec_events.rs at rust-v0.162.1
   // (092d3acd6bec3e3a14bdc7e7a2810ab628ab759d); identical to rust-v0.160.0.
-  // The official codex-npm-0.162.1.tgz manifest confirms the stable npm version;
-  // the local corporate registry mirror was stale when inspected.
+  // The event contract is also unchanged in rust-v0.163.0.
   it("maps observed patches to orphan tool completions without inventing patch arguments", () => {
     const changes = [{ path: " example.txt ", kind: "update" }];
     const record = { type: "item.completed", id: "event-patch", timestamp: 0, item: { id: "patch", type: "file_change", changes, status: "failed" } };
@@ -630,6 +629,12 @@ describe("Codex normalization contract", () => {
     expect(completions[1].data).toMatchObject({ toolCallId: "orphan", success: false, output: 0 });
     expect(completions[1].data.toolName).toBeUndefined();
     expect(completions.some(event => event.data.toolCallId === "first")).toBe(false);
+    const unified = events.map(event => normalizeUnifiedSessionEvent(event, "agent"));
+    expect(ofType(unified, "tool.execution_start").map(event => event.data.toolCallId)).toEqual(["first", "second"]);
+    expect(ofType(unified, "tool.execution_complete").map(event => event.data.toolCallId)).toEqual(["second", "orphan"]);
+    expect(ofType(unified, "tool.execution_start")[1].data).toMatchObject({ toolName: "lookup", input: 0 });
+    expect(ofType(unified, "tool.execution_complete")[0].data).toMatchObject({ toolName: "lookup", output: false, success: true });
+    expect(ofType(unified, "session.result")[0].data).toMatchObject({ status: "failed", errors: [{ message: "stopped" }] });
   });
 
   it("keeps duplicate tool snapshots without reporting another execution", () => {

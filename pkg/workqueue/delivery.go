@@ -45,11 +45,12 @@ func deliveryVerificationExhausted(work *WorkState, recovery ReconciliationPolic
 // is interpreted as verified delivery or as proof that effects never began.
 func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (DeliveryRecovery, error) {
 	result := DeliveryRecovery{WorkID: workID}
-	b, err := b.withClient()
+	b, session, err := b.withClientLedgerSession(ctx)
 	if err != nil {
 		return result, err
 	}
-	recovered, err := b.readDeliveryRecovery(ctx, workID)
+	defer session.Close()
+	recovered, err := b.readDeliveryRecovery(ctx, session, workID)
 	if err != nil {
 		return result, err
 	}
@@ -66,10 +67,7 @@ func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (
 	contractSupported := validateDeliveryContract(work.Payload) == nil
 	claim := state.Claims[work.ClaimID]
 	dispatch := state.Dispatches[claim.DispatchID]
-	if dispatch.Run == nil {
-		return result, queueError("launch_unresolved", "no authenticated native binding exists")
-	}
-	_, beforeVerification, err := b.runForDispatch(ctx, state, dispatch, dispatch.Run.RunID)
+	beforeVerification, err := b.deliveryRunStatus(ctx, state, dispatch)
 	if err != nil {
 		return result, err
 	}
@@ -87,7 +85,7 @@ func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (
 			last = verification
 		}
 		if verifyErr == nil && contractSupported && verification.Verified && verification.Receipt != "" {
-			return b.publishVerifiedDelivery(ctx, recovered, requestID, verification, result)
+			return b.publishVerifiedDelivery(ctx, session, recovered, requestID, verification, result)
 		}
 		if ctx.Err() != nil {
 			return result, ctx.Err()
@@ -103,15 +101,23 @@ func (b Branch) RecoverDelivery(ctx context.Context, workID, requestID string) (
 			}
 		}
 	}
-	return b.recoverDeliveryFailure(ctx, recovered, requestID, beforeVerification.Kind == "terminal_run", last, result)
+	return b.recoverDeliveryFailure(ctx, session, recovered, requestID, beforeVerification.Kind == "terminal_run", last, result)
 }
 
-func (b Branch) readDeliveryRecovery(ctx context.Context, workID string) (deliveryRecoveryState, error) {
+func (b Branch) deliveryRunStatus(ctx context.Context, state Projection, dispatch *DispatchState) (Evidence, error) {
+	if dispatch.Run == nil {
+		return Evidence{}, queueError("launch_unresolved", "no authenticated native binding exists")
+	}
+	_, evidence, err := b.runForDispatch(ctx, state, dispatch, dispatch.Run.RunID)
+	return evidence, err
+}
+
+func (b Branch) readDeliveryRecovery(ctx context.Context, session *LedgerSession, workID string) (deliveryRecoveryState, error) {
 	actor, err := b.Authenticate(ctx, "reconciler")
 	if err != nil {
 		return deliveryRecoveryState{}, err
 	}
-	commits, err := b.Read(ctx)
+	commits, err := session.Read(ctx)
 	if err != nil {
 		return deliveryRecoveryState{}, err
 	}
@@ -126,7 +132,7 @@ func (b Branch) readDeliveryRecovery(ctx context.Context, workID string) (delive
 	return deliveryRecoveryState{actor: actor, state: state, work: work}, nil
 }
 
-func (b Branch) publishVerifiedDelivery(ctx context.Context, recovered deliveryRecoveryState, requestID string, verification DeliveryVerification, result DeliveryRecovery) (DeliveryRecovery, error) {
+func (b Branch) publishVerifiedDelivery(ctx context.Context, session *LedgerSession, recovered deliveryRecoveryState, requestID string, verification DeliveryVerification, result DeliveryRecovery) (DeliveryRecovery, error) {
 	state, work := recovered.state, recovered.work
 	claim := state.Claims[work.ClaimID]
 	dispatch := state.Dispatches[claim.DispatchID]
@@ -156,7 +162,7 @@ func (b Branch) publishVerifiedDelivery(ctx context.Context, recovered deliveryR
 	if err != nil {
 		return result, err
 	}
-	publication, err := b.Publish(ctx, recovered.actor, request)
+	publication, err := session.Publish(ctx, recovered.actor, request)
 	if err != nil {
 		result.Reason = "delivery_unresolved"
 		return result, err
@@ -165,7 +171,7 @@ func (b Branch) publishVerifiedDelivery(ctx context.Context, recovered deliveryR
 	return result, nil
 }
 
-func (b Branch) recoverDeliveryFailure(ctx context.Context, recovered deliveryRecoveryState, requestID string, previouslyTerminal bool, last DeliveryVerification, result DeliveryRecovery) (DeliveryRecovery, error) {
+func (b Branch) recoverDeliveryFailure(ctx context.Context, session *LedgerSession, recovered deliveryRecoveryState, requestID string, previouslyTerminal bool, last DeliveryVerification, result DeliveryRecovery) (DeliveryRecovery, error) {
 	state, work := recovered.state, recovered.work
 	recovery := state.Policy.Pools[work.Pool].Reconciliation
 	claim := state.Claims[work.ClaimID]
@@ -197,17 +203,17 @@ func (b Branch) recoverDeliveryFailure(ctx context.Context, recovered deliveryRe
 	if err != nil {
 		return result, err
 	}
-	b.deliveryFailures = map[string]string{}
+	session.branch.deliveryFailures = map[string]string{}
 	encoded, err := canonicalValue(operation)
 	if err != nil {
 		return result, err
 	}
-	b.deliveryFailures[requestID] = hashBytes(encoded)
+	session.branch.deliveryFailures[requestID] = hashBytes(encoded)
 	request, err := NewRequest(requestID, "delivery_failure", recovered.actor, OperationsParameters{Operations: []Operation{operation}})
 	if err != nil {
 		return result, err
 	}
-	publication, err := b.Publish(ctx, recovered.actor, request)
+	publication, err := session.Publish(ctx, recovered.actor, request)
 	if err != nil {
 		result.Reason = "delivery_unresolved"
 		return result, err

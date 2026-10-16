@@ -557,8 +557,9 @@ Checkpoint restoration MUST preserve the original Work operation positions,
 including the offset after the first Policy operation, and recover the same
 accepted submission through repeated checkpoints without another admission.
 
-Ref conflicts MUST NOT establish absence unless an independent native observation
-confirms the requested repository identity and `isEmpty = true`. In a branchless
+Ref conflicts MUST NOT establish absence. A successful authenticated Git ref
+advertisement that omits the queue ref establishes absence; a failed transport
+or denied repository MUST fail closed, not produce an empty queue. In a branchless
 repository, the runtime MAY prepare the default branch only after validating the
 first producer submission's Policy and Work. The default branch MUST differ from
 the queue branch. A lost preparation response MUST be resolved by reading that
@@ -781,6 +782,28 @@ The same exact algorithm and fixtures MUST be used for authoritative runtime sch
 ### 7.6 One causal transaction log, one atomic envelope
 
 Use **one `QueueCommit` JSON object per line of the existing `work-queue.jsonl`**. Every accepted mutation, not just scheduler decisions, uses this envelope. There is one causal chain and no separate scheduler chain, manifest, or authoritative state file. A version-3 checkpoint is a root QueueCommit containing deterministic replay state and a pointer to the prior Git commit; subsequent commits extend that checkpoint.
+
+Ledger reads, checkpoint proofs and checked publication MUST use Git objects
+and refs, without GitHub REST or GraphQL requests for ledger data. Fetch only
+the authoritative queue branch, with its complete ancestry, into an isolated
+object store; do not deepen or widen the source checkout. Missing objects,
+shallow history, replacement refs and malformed objects MUST NOT substitute for
+original history. Publication MUST extend the observed single Git parent and
+compare-and-swap the exact expected ref; a lease alone MUST NOT permit rewriting
+history. Lost acknowledgements still require stable-request recovery.
+
+Checkpoint verification MUST reconstruct each boundary from that Git history,
+checking its `prior_git_sha`, canonical history digest, prior causal tip and
+recomputed state digest, including earlier checkpoints. It MUST NOT depend on
+API pagination, API caches, Issue mirrors or native run queries. This changes
+transport, not the version-3 wire format or the checkpoint trust boundary.
+
+Hosted identity, approved worker configuration, native launch/termination and
+effect delivery remain separate evidence boundaries and MAY require APIs.
+Preparing a branchless repository's default branch is likewise a hosting
+operation, not ledger proof. Trusted publishers use the selected queue
+credential for Git; agents and snapshot MCP servers receive neither that
+credential nor permission to fetch or publish the queue.
 
 | Envelope field | Meaning |
 |---|---|
@@ -2394,7 +2417,7 @@ There is no timeout-based escape hatch.
 #### GitHub Actions outage
 
 An Actions/API/runner outage does not establish that queued or running workers
-have stopped. GitHub's Git APIs may also be unavailable; distinguish failure to
+have stopped. Git transport may also be unavailable; distinguish failure to
 launch/observe from failure to read or publish the queue.
 
 When the ledger remains writable, an administrator MAY publish

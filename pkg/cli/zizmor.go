@@ -18,7 +18,6 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/scanfindings"
-	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var zizmorLog = logger.New("cli:zizmor")
@@ -211,6 +210,29 @@ func buildZizmorCommand(lockFiles []string) (cmd *exec.Cmd, relPaths []string, d
 
 // runZizmorOnFiles runs the zizmor security scanner on one or more .lock.yml files
 func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runZizmorOnFilesWithOptions(lockFiles, verbose, strict, zizmorResultOptions{})
+}
+
+type zizmorResultOptions struct {
+	dryRun           bool
+	findings         *[]scanfindings.Finding
+	filteredWarnings *int
+}
+
+func filterZizmorFindings(findings []zizmorFinding, opts zizmorResultOptions) []zizmorFinding {
+	if !opts.dryRun {
+		return findings
+	}
+	filtered := make([]zizmorFinding, 0, len(findings))
+	for _, finding := range findings {
+		if finding.Ident != "secrets-outside-env" {
+			filtered = append(filtered, finding)
+		}
+	}
+	return filtered
+}
+
+func runZizmorOnFilesWithOptions(lockFiles []string, verbose bool, strict bool, opts zizmorResultOptions) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
@@ -222,17 +244,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		return err
 	}
 
-	// Always show that zizmor is running (regular verbosity)
-	if len(lockFiles) == 1 {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running zizmor security scanner on "+relPaths[0]))
-	} else {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running zizmor security scanner on %d files", len(lockFiles))))
-	}
-
-	// In verbose mode, also show the command that users can run directly
-	if verbose {
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+shellJoinArgs(dockerArgs)))
-	}
+	displayZizmorInvocation(relPaths, dockerArgs, verbose)
 
 	// Capture output
 	var stdout, stderr bytes.Buffer
@@ -243,7 +255,11 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	runErr := cmd.Run()
 
 	// Parse and reformat the output, get total warning count and high severity count
-	totalWarnings, highSeverityCount, parseErr := parseAndDisplayZizmorOutput(stdout.String(), stderr.String(), verbose)
+	var findings []scanfindings.Finding
+	filteredWarnings := 0
+	opts.findings = &findings
+	opts.filteredWarnings = &filteredWarnings
+	totalWarnings, highSeverityCount, parseErr := parseAndDisplayZizmorOutputWithOptions(stdout.String(), stderr.String(), verbose, opts)
 	if parseErr != nil {
 		zizmorLog.Printf("Failed to parse zizmor output: %v", parseErr)
 		// Fall back to showing raw output
@@ -253,6 +269,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
 		}
+		return fmt.Errorf("zizmor output could not be parsed: %w", parseErr)
 	}
 
 	fileDescription := "workflows"
@@ -260,7 +277,43 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		fileDescription = filepath.Base(lockFiles[0])
 	}
 
-	return interpretZizmorRunError(runErr, totalWarnings, highSeverityCount, fileDescription, strict)
+	err = interpretZizmorRunError(runErr, totalWarnings, highSeverityCount, fileDescription, strict)
+	if strict && totalWarnings > 0 && err == nil {
+		err = fmt.Errorf("strict mode: zizmor found %d security warnings/errors in %s", totalWarnings, fileDescription)
+	}
+	return finishZizmorScan(runErr, totalWarnings, filteredWarnings, err, findings)
+}
+
+func finishZizmorScan(runErr error, totalWarnings, filteredWarnings int, err error, findings []scanfindings.Finding) error {
+	var exitErr *exec.ExitError
+	if runErr == nil || errors.As(runErr, &exitErr) && exitErr.ExitCode() >= 10 && exitErr.ExitCode() <= 14 {
+		if totalWarnings == 0 {
+			if exitErr != nil {
+				return zizmorEmptyDiagnosticsError(exitErr.ExitCode(), filteredWarnings)
+			}
+			return nil
+		}
+		return withScannerFindings(err, findings)
+	}
+	return err
+}
+
+func zizmorEmptyDiagnosticsError(exitCode, filteredWarnings int) error {
+	if exitCode >= 10 && exitCode <= 14 && filteredWarnings == 0 {
+		return errors.New("zizmor reported findings without usable file diagnostics")
+	}
+	return nil
+}
+
+func displayZizmorInvocation(paths, args []string, verbose bool) {
+	message := fmt.Sprintf("Running zizmor security scanner on %d files", len(paths))
+	if len(paths) == 1 {
+		message = "Running zizmor security scanner on " + paths[0]
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(message))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run zizmor directly: "+shellJoinArgs(args)))
+	}
 }
 
 // runZizmorOnFile runs the zizmor security scanner on a single .lock.yml file
@@ -273,6 +326,10 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 // parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
 // Returns the total number of warnings found and the number of high/critical severity findings
 func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int, error) { //nolint:largefunc
+	return parseAndDisplayZizmorOutputWithOptions(stdout, stderr, verbose, zizmorResultOptions{})
+}
+
+func parseAndDisplayZizmorOutputWithOptions(stdout, stderr string, verbose bool, opts zizmorResultOptions) (int, int, error) { //nolint:largefunc
 	// Map findings to files for detailed display
 	fileFindings := make(map[string][]zizmorFinding)
 
@@ -299,29 +356,27 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int,
 	var findings []zizmorFinding
 	totalWarnings := 0
 	highSeverityCount := 0
-	if stdout != "" && strings.HasPrefix(strings.TrimSpace(stdout), "[") {
+	if strings.TrimSpace(stdout) != "" {
 		if err := json.Unmarshal([]byte(stdout), &findings); err != nil {
 			return 0, 0, fmt.Errorf("failed to parse zizmor JSON output: %w", err)
 		}
+		if opts.filteredWarnings != nil {
+			for _, finding := range findings {
+				if finding.Ident == "secrets-outside-env" {
+					*opts.filteredWarnings += len(zizmorFindingPaths(finding))
+				}
+			}
+		}
+		findings = filterZizmorFindings(findings, opts)
 
 		// Organize findings by file
 		for _, finding := range findings {
 			// Track which files this finding affects (avoid duplicates)
-			affectedFiles := make(map[string]struct {
-			})
-			for _, location := range finding.Locations {
-				filePath := location.Symbolic.Key.Local.GivenPath
-				if filePath == "" {
-					filePath = location.Symbolic.Key.Local.VerbatimPath
-				}
-				if filePath != "" && !setutil.Contains(affectedFiles, filePath) {
-					affectedFiles[filePath] = struct {
-					}{}
-					fileFindings[filePath] = append(fileFindings[filePath], finding)
-					totalWarnings++
-					if scanfindings.ParseSeverity(finding.Determinations.Severity).AtLeast(scanfindings.SeverityHigh) {
-						highSeverityCount++
-					}
+			for _, filePath := range zizmorFindingPaths(finding) {
+				fileFindings[filePath] = append(fileFindings[filePath], finding)
+				totalWarnings++
+				if scanfindings.ParseSeverity(finding.Determinations.Severity).AtLeast(scanfindings.SeverityHigh) {
+					highSeverityCount++
 				}
 			}
 		}
@@ -368,9 +423,39 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int,
 
 		// Display detailed findings using the shared finding representation
 		scanfindings.Render(os.Stderr, zizmorFindingsToShared(filePath, findings, fileLines))
+		if opts.findings != nil {
+			for _, finding := range findings {
+				// The last location identifies the affected expression/permission;
+				// preceding locations can merely identify its enclosing job.
+				if len(finding.Locations) > 0 {
+					finding.Locations = finding.Locations[len(finding.Locations)-1:]
+				}
+				*opts.findings = append(*opts.findings, zizmorFindingsToShared(filePath, []zizmorFinding{finding}, fileLines)...)
+			}
+		}
 	}
 
 	return totalWarnings, highSeverityCount, nil
+}
+
+func zizmorFindingPaths(finding zizmorFinding) []string {
+	seen := make(map[string]struct{})
+	var paths []string
+	for _, location := range finding.Locations {
+		filePath := location.Symbolic.Key.Local.GivenPath
+		if filePath == "" {
+			filePath = location.Symbolic.Key.Local.VerbatimPath
+		}
+		if filePath == "" {
+			continue
+		}
+		if _, exists := seen[filePath]; exists {
+			continue
+		}
+		seen[filePath] = struct{}{}
+		paths = append(paths, filePath)
+	}
+	return paths
 }
 
 // zizmorFindingsToShared maps zizmor's native findings onto the shared finding

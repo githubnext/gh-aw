@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,6 +43,9 @@ func TestNewDeployCommand_RegistersCoreFlags(t *testing.T) {
 		"name",
 		"engine",
 		"force",
+		"auto-merge",
+		"create-pull-request",
+		"pr",
 		"append",
 		"no-gitattributes",
 		"dir",
@@ -107,6 +111,8 @@ func TestRunDeployCommand_RoutesToOrgRunner(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("repos", "api-*"))
 	require.NoError(t, cmd.Flags().Set("yes", "true"))
 	require.NoError(t, cmd.Flags().Set("cool-down", "24h"))
+	require.NoError(t, cmd.Flags().Set("auto-merge", "true"))
+	require.NoError(t, cmd.Flags().Set("pr", "true"))
 
 	origRunDeployForOrg := runDeployForOrgFn
 	origRunDeploy := runDeployFn
@@ -123,6 +129,7 @@ func TestRunDeployCommand_RoutesToOrgRunner(t *testing.T) {
 		assert.Equal(t, []string{"githubnext/agentics/ci-doctor"}, workflows)
 		assert.True(t, yes)
 		assert.Equal(t, 24*time.Hour, coolDown)
+		assert.True(t, addOpts.AutoMerge)
 		return nil
 	}
 	runDeployFn = func(context.Context, string, []string, AddOptions, time.Duration) error {
@@ -133,6 +140,99 @@ func TestRunDeployCommand_RoutesToOrgRunner(t *testing.T) {
 	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
 	require.NoError(t, err)
 	assert.True(t, calledOrg)
+}
+
+func TestRunDeployCommandAutoMergeRequiresPR(t *testing.T) {
+	cmd := NewDeployCommand(validateEngineStub)
+	require.NoError(t, cmd.Flags().Set("auto-merge", "true"))
+	err := cmd.RunE(cmd, []string{"owner/source/workflow"})
+	require.ErrorContains(t, err, "--auto-merge requires --pr or --create-pull-request")
+}
+
+func TestRunDeployCommandAutoMergePropagation(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		prFlag    string
+		autoMerge bool
+	}{
+		{name: "default"},
+		{name: "short PR alias", prFlag: "pr", autoMerge: true},
+		{name: "long PR alias", prFlag: "create-pull-request", autoMerge: true},
+		{name: "PR alias without auto-merge", prFlag: "pr"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := NewDeployCommand(validateEngineStub)
+			require.NoError(t, cmd.Flags().Set("repo", "octo/repo"))
+			if tc.prFlag != "" {
+				require.NoError(t, cmd.Flags().Set(tc.prFlag, "true"))
+			}
+			if tc.autoMerge {
+				require.NoError(t, cmd.Flags().Set("auto-merge", "true"))
+			}
+			assert.Contains(t, cmd.Long, "one is required with --auto-merge")
+			flag := cmd.Flags().Lookup("auto-merge")
+			require.NotNil(t, flag)
+			assert.Equal(t, "false", flag.DefValue)
+
+			originalRunDeploy := runDeployFn
+			t.Cleanup(func() { runDeployFn = originalRunDeploy })
+			called := false
+			runDeployFn = func(_ context.Context, repo string, workflows []string, opts AddOptions, _ time.Duration) error {
+				called = true
+				assert.Equal(t, "octo/repo", repo)
+				assert.Equal(t, []string{"owner/source/workflow"}, workflows)
+				assert.Equal(t, tc.autoMerge, opts.AutoMerge)
+				assert.False(t, opts.CreatePR, "the internal add pass must not create a separate PR")
+				return nil
+			}
+			require.NoError(t, cmd.RunE(cmd, []string{"owner/source/workflow"}))
+			assert.True(t, called)
+		})
+	}
+}
+
+func TestCreateDeployPRAutoMergePropagation(t *testing.T) {
+	for _, autoMerge := range []bool{false, true} {
+		t.Run(map[bool]string{false: "default", true: "enabled"}[autoMerge], func(t *testing.T) {
+			repoDir := initPRTransferRepo(t)
+			chdirForTest(t, repoDir)
+			require.NoError(t, os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("deploy change\n"), 0o600))
+
+			originalCreatePR := createPRRunGHContextWithHost
+			originalAutoMerge := autoMergeRunGH
+			t.Cleanup(func() {
+				createPRRunGHContextWithHost = originalCreatePR
+				autoMergeRunGH = originalAutoMerge
+			})
+			created := false
+			createPRRunGHContextWithHost = func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
+				if args[0] == "repo" {
+					return []byte(`{"owner":{"login":"octo"},"name":"repo"}`), nil
+				}
+				assert.Contains(t, args, deployCommitMessage)
+				created = true
+				return []byte("https://github.com/octo/repo/pull/42"), nil
+			}
+			autoMergeCalls := 0
+			enableErr := errors.New("auto-merge unavailable")
+			autoMergeRunGH = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+				assert.True(t, created, "auto-merge must happen after PR creation")
+				autoMergeCalls++
+				return nil, enableErr
+			}
+			err := createDeployPR(context.Background(), []string{"owner/source/workflow"}, "octo/repo", false, autoMerge)
+			if autoMerge {
+				require.ErrorIs(t, err, enableErr)
+				require.ErrorContains(t, err, "https://github.com/octo/repo/pull/42")
+				assert.Equal(t, 1, autoMergeCalls)
+			} else {
+				require.NoError(t, err)
+				assert.Zero(t, autoMergeCalls)
+			}
+			assert.True(t, created)
+			assert.Equal(t, "main", strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")))
+		})
+	}
 }
 
 func TestBuildDeployPRMetadata_SingleWorkflow(t *testing.T) {

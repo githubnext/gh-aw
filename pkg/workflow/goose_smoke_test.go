@@ -39,7 +39,7 @@ func writeGooseSmokeFixtures(t *testing.T, dir string) {
 		"smoke-test-goose-123.txt":  "Smoke test passed for Goose at test timestamp\n",
 		"web-fetch.json":            `{"containsGitHub":true}`,
 		"gh-aw":                     "test build output",
-		"agent-stdio.log": `[goose-harness] verified Goose 1.53.0
+		"agent-stdio.log": `[goose-harness] verified Goose 1.54.0
 {"type":"message","message":{"role":"assistant","content":[{"type":"toolRequest","id":"tool-1","toolCall":{"status":"success","value":{"name":"github__pull_request_read"}}}]}}
 {"type":"message","message":{"role":"user","content":[{"type":"toolResponse","id":"tool-1","toolResult":{"status":"success","value":{"content":[]}}}]}}
 {"type":"message","message":{"id":"text-1","role":"assistant","content":[{"type":"text","text":"Done."}]}}
@@ -75,12 +75,12 @@ func TestGooseSmokeCheckerRequiresOperationalEvidence(t *testing.T) {
 		{name: "missing build binary", file: "gh-aw", wantError: "ENOENT"},
 		{name: "missing unified session", file: "agent-session.jsonl", wantError: "ENOENT"},
 		{name: "legacy session events", file: "agent-session.jsonl", content: `{"type":"assistant","message":{"content":[{"type":"text","text":"Done."}]}}`, wantError: "Goose session contains non-canonical events"},
-		{name: "failed MCP", file: "agent-stdio.log", content: `[goose-harness] verified Goose 1.53.0
+		{name: "failed MCP", file: "agent-stdio.log", content: `[goose-harness] verified Goose 1.54.0
 {"type":"message","message":{"content":[{"type":"toolRequest","id":"tool-1","toolCall":{"status":"success","value":{"name":"github__pull_request_read"}}},{"type":"toolResponse","id":"tool-1","toolResult":{"status":"success","value":{"isError":true,"content":[]}}}]}}
 {"type":"complete"}
 `, wantError: "No successful native GitHub MCP round-trip"},
-		{name: "missing completion", file: "agent-stdio.log", content: "[goose-harness] verified Goose 1.53.0\n", wantError: "Goose did not finish a structured run"},
-		{name: "disconnected extension", file: "agent-stdio.log", content: "[goose-harness] verified Goose 1.53.0\nFailed to start extension 'github'\n", wantError: "A Goose MCP extension failed to connect"},
+		{name: "missing completion", file: "agent-stdio.log", content: "[goose-harness] verified Goose 1.54.0\n", wantError: "Goose did not finish a structured run"},
+		{name: "disconnected extension", file: "agent-stdio.log", content: "[goose-harness] verified Goose 1.54.0\nFailed to start extension 'github'\n", wantError: "A Goose MCP extension failed to connect"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -139,12 +139,12 @@ func TestGooseSmokeRuntimeProbeTrimsNativeVersionOutput(t *testing.T) {
 	probe, _, ok = strings.Cut(probe, "\n   JS\n")
 	require.True(t, ok)
 	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "goose"), []byte("#!/bin/sh\nprintf ' 1.53.0\\n'\n"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "goose"), []byte("#!/bin/sh\nprintf ' 1.54.0\\n'\n"), 0o700))
 	config := filepath.Join(dir, "config.json")
 	require.NoError(t, os.WriteFile(config, []byte(`{"extensions":{"github":{"type":"streamable_http","uri":"http://awmg-mcpg:8080/mcp/github","headers":{"Authorization":"Bearer test-only"}}}}`), 0o600))
 	cmd := exec.Command("node", "-e", probe)
 	cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"GH_AW_ENGINE_VERSION=1.53.0", "GOOSE_PROVIDER=openai", "GOOSE_MODEL=gpt-5.4",
+		"GH_AW_ENGINE_VERSION=1.54.0", "GOOSE_PROVIDER=openai", "GOOSE_MODEL=gpt-5.4",
 		"OPENAI_HOST=http://test-proxy", "OPENAI_BASE_PATH=chat/completions",
 		"GH_AW_MAX_TURNS=30", "GOOSE_ADDITIONAL_CONFIG_FILES="+config)
 	output, err := cmd.CombinedOutput()

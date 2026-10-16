@@ -25,13 +25,18 @@ engine:
 strict: true
 imports:
   - shared/cursor.md
-  - shared/gh.md
   - shared/reporting-otlp.md
   - shared/otlp.md
   - shared/token-telemetry-check.md
   - shared/smoke-test-brevity.md
 network:
-  allowed: []
+  allowed:
+    - defaults
+    - github
+    - go
+runtimes:
+  go:
+    version: "1.26"
 safe-outputs:
   allowed-domains: [default-safe-outputs]
   add-comment:
@@ -61,7 +66,7 @@ sandbox:
 
 ## Test Requirements
 
-1. **GitHub MCP Testing**: Use GitHub MCP tools to fetch details of exactly 2 merged pull requests from ${{ github.repository }} (title and number only)
+1. **GitHub MCP Testing**: Use native GitHub MCP tools to fetch details of exactly 2 merged pull requests from ${{ github.repository }} (title and number only). Do not substitute `gh`, curl, or another CLI for this test. If native GitHub MCP tools are unavailable or fail, mark this test as FAIL.
 2. **File Writing Testing**: Create a test file `/tmp/gh-aw/agent/smoke-test-cursor-${{ github.run_id }}.txt` with content "Smoke test passed for Cursor at $(date)" (create the directory if it doesn't exist)
 3. **Bash Tool Testing**: Execute bash commands to verify file creation was successful (use `cat` to read the file back)
 4. **Build gh-aw**: Run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build` to verify the agent can successfully build the gh-aw project. If the command fails, mark this test as failed and report the failure.

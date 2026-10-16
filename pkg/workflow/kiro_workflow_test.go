@@ -248,8 +248,19 @@ func assertKiroMCPConfig(t *testing.T, workspace string) {
 
 func TestKiroHarness(t *testing.T) {
 	definition := loadKiroWorkflowDefinition(t)
-	if definition.Version != "2.27.1" {
-		t.Fatalf("expected verified Kiro release 2.27.1, got %q", definition.Version)
+	if definition.Version != "2.31.1" {
+		t.Fatalf("expected verified Kiro release 2.31.1, got %q", definition.Version)
+	}
+	engine, err := NewBehaviorDefinedEngine(&definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if engine.GetCapabilities().Plugins {
+		t.Fatal("Kiro V2 must not advertise V3-only Powers plugins")
+	}
+	wantArgs := []string{"chat", "--v2", "--no-interactive", "--trust-all-tools", "--require-mcp-startup"}
+	if strings.Join(definition.Behaviors.Execution.Args, "\n") != strings.Join(wantArgs, "\n") {
+		t.Fatalf("Kiro must explicitly preserve its V2 headless contract: %v", definition.Behaviors.Execution.Args)
 	}
 	scriptPath := filepath.Join(t.TempDir(), "kiro_harness.cjs")
 	if err := os.WriteFile(scriptPath, []byte(definition.Behaviors.HarnessScript), 0o600); err != nil {
@@ -284,10 +295,10 @@ const kiroHarnessTestDriver = `
 	const mcpSecret = "fixture-mcp-secret";
 	const arch = scenario === "arm64" ? "arm64" : scenario === "unsupported-arch" ? "riscv64" : "x64";
 	const checksum = arch === "arm64"
-	  ? "33ad5462c3111ba4ef527f1d58bda08a9d1997e0ae73841a7c2ca734ebcba2d0"
-	  : "3c0d7268a4bfb73f8e827822049978fa578e020b271afc1021c7532602d45d99";
+	  ? "cf3fc7681cca9677e18c0d22371fe60d7921ca73ea9d751d78f9cb470c0dce6d"
+	  : "22eef4c19c42782316b0e24cdd3399024760eec9056b4298751cb99f33795ace";
 	const env = {
-	  KIRO_API_KEY: apiKey, KIRO_MODEL: "kiro/auto", GH_AW_ENGINE_VERSION: "2.27.1",
+	  KIRO_API_KEY: apiKey, KIRO_MODEL: "kiro/auto", GH_AW_ENGINE_VERSION: "2.31.1",
 	  GH_AW_PROMPT: "/prompt.md", GITHUB_WORKSPACE: "/workspace",
 	  GH_AW_MCP_CONFIG: "/workspace/.kiro/settings/mcp.json", PATH: "/usr/bin",
 	};
@@ -338,7 +349,7 @@ const kiroHarnessTestDriver = `
 	  return {status: 0};
 	};
 	const mockProcess = {
-	  argv: ["node", scriptPath, "kiro-cli", "chat", "--no-interactive", "--trust-all-tools", "--require-mcp-startup"],
+	  argv: ["node", scriptPath, "kiro-cli", "chat", "--v2", "--no-interactive", "--trust-all-tools", "--require-mcp-startup"],
 	  env, arch, stderr: {write: text => logs.push(text)},
 	};
 	vm.runInNewContext(fs.readFileSync(scriptPath, "utf8"), {
@@ -364,7 +375,7 @@ const kiroHarnessTestDriver = `
 	for (const secret of [prompt, apiKey, mcpSecret, "Authorization"]) {
 	  assert.equal(output.includes(secret), false, "logs exposed " + secret);
 	}
-	assert.ok(output.includes("[kiro-harness] Starting Kiro CLI 2.27.1"));
+	assert.ok(output.includes("[kiro-harness] Starting Kiro CLI 2.31.1"));
 	assert.ok(output.includes("Cleaned up Kiro CLI installation; total duration="));
 	const failures = {
 	  "missing-key": [1, "KIRO_API_KEY is required"],
@@ -372,7 +383,7 @@ const kiroHarnessTestDriver = `
 	  "empty-prompt": [1, "non-empty instruction"],
 	  "invalid-model": [1, "kiro/model format"],
 	  "empty-model": [1, "must include a model name"],
-	  "version-mismatch": [1, "supports only engine.version 2.27.1"],
+	  "version-mismatch": [1, "supports only engine.version 2.31.1"],
 	  "unsupported-arch": [1, "Unsupported Kiro CLI architecture"],
 	  "invalid-mcp": [1, "GH_AW_MCP_CONFIG must contain valid JSON"],
 	  "missing-mcp-servers": [1, "must contain an mcpServers object"],
@@ -399,12 +410,12 @@ const kiroHarnessTestDriver = `
 	  assert.equal(calls.length, 4);
 	  assert.equal(calls[0].command, "curl");
 	  assert.ok(calls[0].args.at(-1).endsWith(
-	    "/2.27.1/kirocli-" + (arch === "arm64" ? "aarch64" : "x86_64") + "-linux.tar.gz"
+	    "/2.31.1/kirocli-" + (arch === "arm64" ? "aarch64" : "x86_64") + "-linux.tar.gz"
 	  ));
 	  assert.deepEqual(Array.from(calls[1].args), ["-xzf", "/tmp/kiro-fixture/kiro-cli.tar.gz", "-C", "/tmp/kiro-fixture"]);
 	  assert.deepEqual(Array.from(calls[2].args), ["--version"]);
 	  assert.deepEqual(Array.from(calls[3].args), [
-	    "chat", "--no-interactive", "--trust-all-tools", "--require-mcp-startup",
+	    "chat", "--v2", "--no-interactive", "--trust-all-tools", "--require-mcp-startup",
 	    "--model", "auto", "--", prompt,
 	  ]);
 	  assert.equal(calls[3].options.cwd, "/workspace");
