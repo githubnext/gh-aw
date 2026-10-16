@@ -78,7 +78,7 @@ In scope: views, metric definitions, reading rules for current and older session
 | Term | Meaning |
 | --- | --- |
 | Run | One accepted session file. Its identity is defined in [Section 4.1](#41-run-identity-and-time). |
-| Routed run | A run whose routing state ([Section 4.3](#43-routing-state)) is `selected`, `selection_failed`, or `harness_reported`. |
+| Routed run | A run whose routing state ([Section 4.3](#43-routing-state)) is `selected`, `selection_failed`, `harness_reported`, or `configured_unrecorded`. |
 | Pick | The router's selected model and effort for the main agent. |
 | Request record | A `firewall.model_routing` event with `stage: "request"`. AWF writes one for each routed request. |
 | Accounting record | A `firewall.token_usage` event, or a `usage.report` event when [Section 4.4](#44-request-attribution) selects it. |
@@ -98,7 +98,7 @@ The key words MUST, MUST NOT, SHOULD, and MAY are to be interpreted as described
 
 **MRA-001 — Format header.** The reader MUST read the first record. When it is a `session.format` header with `data.version` equal to `1`, the file is accepted. A file with a higher version MUST be counted as "unsupported format" and not read. A file without a header MUST be read as a legacy file and counted as such in the coverage panel.
 
-**MRA-002 — Coverage.** The reader MUST retain the file's `session.collection` event (`sources`, `absentComponents`, `warnings`, `untimedEvents`) and use it to distinguish a missing source from a present empty source, as the unified session specification requires (T-UAS-063). Collection warnings, such as `invalid_model_inventory`, MUST be counted per run.
+**MRA-002 — Coverage.** The reader MUST retain the file's `session.collection` event (`sources`, `absentComponents`, `warnings`, `untimedEvents`) and use it to distinguish a missing source from a present empty source, as the unified session specification requires (T-UAS-063). `session.collection.warnings` is only a count; warning codes, such as `invalid_model_inventory`, MUST be read from `session.collection_warning` events (`code`, `path`) and counted per run.
 
 **MRA-003 — Unknown event types.** The reader MUST ignore event types and fields it does not recognize, so that additive records from Section 6 do not break older readers.
 
@@ -179,16 +179,19 @@ Current collectors project essential fields in camelCase. Older session files ca
 
 ### 4.3 Routing state
 
-**MRA-060 — Routing state.** Each run has exactly one routing state, decided in this order using agent-phase events only:
+**MRA-060 — Routing state.** Each run has exactly one routing state, decided by the first matching row. Proxy records are read from the agent phase; `workflow.info` and `model.config` are read from whichever phase the collector assigned to them.
 
 | Order | Condition | State |
 | ---: | --- | --- |
-| 1 | `model.config.routing.enabled` is `false` ([G-1](#g-1-model-configuration)) | `unrouted` |
-| 2 | A `firewall.model_routing` record with `stage: "selection"` exists | `selected` |
-| 3 | A `firewall.model_routing` record with `stage: "failure"` exists and no selection record exists | `selection_failed` |
-| 4 | `workflow.info.modelRouting.status` is present | `harness_reported` (status shown as reported: `selected`, `failed`, `rejected`, `pending`, or `unavailable`) |
-| 5 | Agent-phase `firewall.token_usage` exists and no `firewall.model_routing` record exists | `unrouted_inferred` |
-| 6 | Otherwise | `unknown` |
+| 1 | A `firewall.model_routing` record with `stage: "selection"` exists | `selected` |
+| 2 | A `firewall.model_routing` record with `stage: "failure"` exists and no selection record exists | `selection_failed` |
+| 3 | `workflow.info.modelRouting.status` is present | `harness_reported` (status shown as reported: `selected`, `failed`, `rejected`, `pending`, or `unavailable`) |
+| 4 | `model.config.routing.enabled` is `false` ([G-1](#g-1-model-configuration)) | `unrouted` |
+| 5 | `model.config.routing.enabled` is `true` | `configured_unrecorded` |
+| 6 | Agent-phase `firewall.token_usage` exists and no `firewall.model_routing` record exists | `unrouted_inferred` |
+| 7 | Otherwise | `unknown` |
+
+Proxy evidence takes precedence over configuration (MRA-010). A run in rows 1–3 whose `model.config.routing.enabled` is `false` MUST be flagged "configuration conflict". `configured_unrecorded` means routing was configured but no routing evidence reached the session file; such runs count as routed for adoption and are excluded from decision, deviation, and cost-by-pick views.
 
 `unrouted_inferred` relies on AWF writing its classification record before any agent request when routing is enabled. Views MUST show `unrouted` and `unrouted_inferred` separately until [G-1](#g-1-model-configuration) makes the inference unnecessary. When several selection records exist, the last by timestamp is the run's selection and the earlier count is shown as re-selections.
 
@@ -207,7 +210,7 @@ Threat detection is identified by provenance phase `detection` (sources under `t
 | 1 | Detection | `provenance.phase` is `detection`. |
 | 2 | Evals | `provenance.phase` is `evals`. Shown separately; excluded from routing cost. |
 | 3 | Classifier | `purpose` is `routing_classification`. |
-| 4 | Sub-agent `{agentName}`, exact | The record's `requestId` equals a `subagent.request.requestId`. |
+| 4 | Sub-agent `{agentName}`, exact | The accounting record carries a proxy-recorded `agentName` ([G-10](#g-10-request-ownership)), or its `requestId` equals a `subagent.request.requestId`. |
 | 5 | Sub-agent `{agentName}`, correlated | No exact match, and the record matches one `subagent.request` by `model`, the token quartet (`inputTokens`, `outputTokens`, `cacheReadInputTokens`/`cacheReadTokens`, `cacheCreationInputTokens`/`cacheWriteTokens`), and order, as the audit correlator does today. Each `subagent.request` matches at most one record. |
 | 6 | Main agent | `purpose` is `agent`, or the record's `requestId` matches a request record and the run has no `subagent.*` events. |
 | 7 | Agent, unsplit | The record's `requestId` matches a request record and the run has `subagent.*` events, or `purpose` is `subagent` without a match. |
@@ -215,7 +218,7 @@ Threat detection is identified by provenance phase `detection` (sources under `t
 
 Sub-agent rows are keyed by `agentName` (T-UAS-073); when `agentName` is absent, the row uses `agentDisplayName`. The served model of a sub-agent row is the accounting record's `model`, never `model_routing.outcome`. The engine snapshot `session.result.agentMetrics[*].totalNanoAiu / 10^9` MAY be shown in a separate "engine-reported" column for sub-agents with no matched record; it is never added to proxy totals.
 
-**MRA-072 — Request join.** An accounting record joins its request record by `requestId`. The join supplies `routed`, `deviations`, `requestedModel`, `requestedEffort`, `selectedModel`, `selectedEffort`, and `outcome`. A request record without an accounting record (for example a request rejected with HTTP 403) has unknown cost.
+**MRA-072 — Request join.** An accounting record joins its request record by `requestId`. The join supplies `routed`, `deviations`, `requestedModel`, `requestedEffort`, `selectedModel`, `selectedEffort`, and `outcome`. A request record without an accounting record (for example a request with `outcome: "rejected"`) has unknown cost.
 
 ### 4.5 Deviation causes
 
@@ -223,7 +226,7 @@ Sub-agent rows are keyed by `agentName` (T-UAS-073); when `agentName` is absent,
 
 | Order | Cause | Rule |
 | ---: | --- | --- |
-| 1 | Sub-agent model fallback | The request is in a sub-agent bucket and the instance has `subagent.model_unavailable` (`declaredModel` → `model`), `subagent.failed.errorCode` `SUBAGENT_MODEL_UNAVAILABLE`, or `subagent.completed.firstDispatchedModel` different from `model`. |
+| 1 | Sub-agent model fallback | The request is in a sub-agent bucket and the instance has `subagent.model_unavailable` (`declaredModel` → `model`), `subagent.failed.errorCode` `SUBAGENT_MODEL_UNAVAILABLE`, or `subagent.completed.firstDispatchedModel` different from `model` after both are normalized by MRA-022. |
 | 2 | Sub-agent model | The request is in a sub-agent bucket. Split by `subagent.started.modelSelectionSource` (for example `agent_definition_default`, `custom-agent`). Expected: routing chooses only the main agent's model. |
 | 3 | Harness substitution | `workflow.info.modelSelection.status` is `substituted` and `requestedModel` equals `modelSelection.effectiveModel`. |
 | 4 | Effort change | `deviations` is exactly `["effort"]`. Shown as `requestedEffort` → `selectedEffort`. |
@@ -241,7 +244,7 @@ Every view accepts the filters workflow, repository, engine, routing state, goal
 | Metric | Definition | Source |
 | --- | --- | --- |
 | Runs | Accepted, identified runs in the filter. | `session.format`, `workflow.info` |
-| Routed runs | Runs whose state is `selected`, `selection_failed`, or `harness_reported`. | [Section 4.3](#43-routing-state) |
+| Routed runs | Runs whose state is `selected`, `selection_failed`, `harness_reported`, or `configured_unrecorded`, with `configured_unrecorded` as a separate series. | [Section 4.3](#43-routing-state) |
 | Unrouted runs | Runs whose state is `unrouted`, with `unrouted_inferred` as a separate series. | [Section 4.3](#43-routing-state) |
 | Unknown-state runs | Runs whose state is `unknown`. | [Section 4.3](#43-routing-state) |
 | Routed share | Routed runs ÷ (routed + unrouted + unrouted_inferred runs). Unknown-state runs are excluded and shown as coverage. | [Section 4.3](#43-routing-state) |
@@ -271,7 +274,11 @@ Every view accepts the filters workflow, repository, engine, routing state, goal
 
 ### 5.3 Cost
 
-All costs are AIC from `aic` on accounting records ([Section 4.4](#44-request-attribution)). A run's cost is "complete" when every accounting record in the relevant buckets has `aic`.
+All costs are AIC from `aic` on accounting records ([Section 4.4](#44-request-attribution)). A phase's cost for a run is "complete" only when all of the following hold; otherwise it is "partial" (MRA-031):
+
+1. `session.collection` lists that phase's accounting source (AWF `token-usage.jsonl` or the phase's `usage.report` file), so a missing source is not read as zero.
+2. Every accounting record in the relevant buckets has `aic`.
+3. Every request record in that phase joins an accounting record (MRA-072). A request record without one, including `outcome: "rejected"` records, has unknown cost ([Section 8](#8-open-questions), question 6).
 
 | Metric | Definition | Source |
 | --- | --- | --- |
@@ -322,7 +329,7 @@ When runs carry an `experiment.assignment` event whose variants differ in routin
 | Rejected requests | Request records with `outcome: "rejected"`, grouped by `requestedModel`; runs with `model_policy_violation` or `awf_api_proxy_blocking_requests` in `agent.execution.categories`. | Request record, `agent.execution` |
 | Failed and aborted requests | Request records with `outcome` `failed` or `aborted`, grouped by `requestedModel` and `requestedEffort`. | Request record |
 | Upstream errors | `firewall.event` events with `event: "UPSTREAM_ERROR_RESPONSE"`, grouped by `status` and, through `requestId` (MRA-072), by requested model and effort. Error code available only after [G-5](#g-5-upstream-errors). | `firewall.event` |
-| Unavailable models | Count of `subagent.model_unavailable` events (`declaredModel` → `model`), `subagent.failed` events with `errorCode` `SUBAGENT_MODEL_UNAVAILABLE`, runs with `model_not_supported_error` in `agent.execution.categories`, and picks absent from the run's agent-phase `model.inventory` when that inventory has `modelsFetchComplete: true`. | `subagent.*`, `agent.execution`, `model.inventory` |
+| Unavailable models | Count of `subagent.model_unavailable` events (`declaredModel` → `model`), `subagent.failed` events with `errorCode` `SUBAGENT_MODEL_UNAVAILABLE`, runs with `model_not_supported_error` in `agent.execution.categories`, and picks absent from the run's agent-phase `model.inventory`. The inventory test applies only when the inventory has `modelsFetchComplete: true` and the pick's provider endpoint has a non-empty `models` list; an empty list is unknown, because current files cannot distinguish an unconfigured endpoint from one with no models ([G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints)). | `subagent.*`, `agent.execution`, `model.inventory` |
 | Failure clustering | For each pick, failing runs ÷ runs with that pick, where failing means any of the rows above. For request-level failures, the same ratio per (`requestedModel`, `requestedEffort`). | Derived |
 
 ### 5.6 Outcomes
@@ -335,9 +342,9 @@ When runs carry an `experiment.assignment` event whose variants differ in routin
 | Detection verdict | `detection.result.conclusion`, with `promptInjection`, `secretLeak`, and `maliciousPatch` flags. | `detection.result` |
 | Safe outputs requested | Count of `safe_output.request` events by `type`. Advisory: requests are not results. | `safe_output.request` |
 | Safe outputs applied | Count of `safe_output.result` events by `type` and `status`. Unknown when `session.collection` lists no `safe-output-items.jsonl` source; zero when it lists the source with no events. | `safe_output.result`, `session.collection` |
-| Safe-output errors | Count of `safe_output.error` events by `type` and `errorCode`. | `safe_output.error` |
+| Safe-output errors | Count of safe-output errors by `type` and `errorCode`, reading each entry of `data.errors[]` when present and the event's top-level fields otherwise. | `safe_output.error` |
 | Apply rate | Applied ÷ requested per run, for runs where both sources are present. | Derived |
-| Operational value | `value` of the `grader.result` with `id: "operational-value"`, with its `unit` and `direction`. | `grader.result` |
+| Operational value | `value`, `unit`, and `direction` of the grader result with `id: "operational-value"`, read from the entries of `grader.result.data.results[]` and, for older files, from a top-level `grader.result` with that `id`. | `grader.result` |
 | Delayed outcome | Latest `result` per safe-output item (`accepted`, `rejected`, `pending`, and others). Available only after [G-4](#g-4-run-outcome). | `safe_output.outcome` |
 | Success rate by pick | Runs with agent job result `success` ÷ runs with a known agent job result, per pick, with a 95% Wilson interval. Also per label cell. | Derived |
 | Cost per success | Sum of complete agent-phase AIC ÷ runs with agent job result `success`, per pick. | Derived |
@@ -352,7 +359,7 @@ The drill-down shows one run, with its Actions link ([Section 4.1](#41-run-ident
 
 | Row | Source | Columns |
 | --- | --- | --- |
-| Classification attempt | `firewall.model_routing` (`stage: "classification"`) | `attempt`, `classifierModel`, `classifierEffort`, classifier AIC from the classifier bucket |
+| Classification attempt | `firewall.model_routing` (`stage: "classification"`) | `attempt`, `classifierModel`, `classifierEffort`. The classifier bucket's AIC is shown once for the run, not per attempt, until [G-3](#g-3-router-routing-table-and-classifier-identity) adds `requestId`. |
 | Selection | `firewall.model_routing` (`stage: "selection"`) | Objective, resolved mode, labels, pick, `selectedId`, `endpoint`, router, `latencyMs`, degraded state, ranked choices when present |
 | Request | Request record joined with its accounting record | Bucket, requested and selected model and effort, `routed`, `deviations`, `outcome`, tokens, `aic`, `durationMs`, steering notice |
 | Unmatched accounting | Accounting record without a request record | Bucket, model, tokens, `aic` |
@@ -363,7 +370,7 @@ The drill-down shows one run, with its Actions link ([Section 4.1](#41-run-ident
 
 **Run facts.** Untimed events are listed without an invented time: `agent.execution`, `workflow.job_result`, `model.inventory` (model count per provider and whether the pick is present), `model_endpoint.mismatch` (with `detail` and `fix`, bounded and redacted as the unified session specification requires), `model.resolution`, `model_routing.outcome` (labelled advisory), `safe_output.result` with links from `url`, and `grader.result`.
 
-**Coverage panel.** Sources, absent components, and warnings from `session.collection`; legacy flags from MRA-001 and MRA-021; and the per-bucket count of requests with unknown cost.
+**Coverage panel.** Sources and absent components from `session.collection`, warning codes from `session.collection_warning`; legacy flags from MRA-001 and MRA-021; and the per-bucket count of requests with unknown cost.
 
 ### 5.8 Availability on current data
 
@@ -373,7 +380,7 @@ The drill-down shows one run, with its Actions link ([Section 4.1](#41-run-ident
 | Decisions | Yes, without candidate pool | [G-2](#g-2-router-candidate-pool-and-predictions), [G-3](#g-3-router-routing-table-and-classifier-identity), [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints) |
 | Cost | Yes; sub-agent split mostly correlated or unsplit | [G-10](#g-10-request-ownership), [G-6](#g-6-baseline-price), [G-1](#g-1-model-configuration) |
 | Deviations | Yes; alias moves need `model.resolution` | [G-11](#g-11-request-fields-dropped-by-the-projection), #69487 |
-| Failures | Yes; upstream errors without codes | [G-5](#g-5-upstream-errors), [G-11](#g-11-request-fields-dropped-by-the-projection) |
+| Failures | Yes; upstream errors without codes, inventory-based unavailability only for non-empty endpoints | [G-5](#g-5-upstream-errors), [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints), [G-11](#g-11-request-fields-dropped-by-the-projection) |
 | Outcomes | Yes, conclusion-time outcomes only | [G-4](#g-4-run-outcome) |
 | Drill-down | Yes | — |
 
@@ -394,13 +401,13 @@ Each proposal follows the unified session specification's existing rules: the re
 | [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints) Inventory dropped | Confirmed; wider than reported | Collector fix to `model.inventory` | AWF (source), collector |
 | [G-8](#g-8-threat-detection-attribution) Detection attribution | No gap; identified by phase | None | — |
 | [G-9](#g-9-engine-harness) Engine harness | Confirmed (not in the problem list) | Extend `workflow.info` | gh-aw runner |
-| [G-10](#g-10-request-ownership) Request ownership | Confirmed (not in the problem list) | Populate `subagent.request.requestId` | Engine adapters, using the AWF request ID |
+| [G-10](#g-10-request-ownership) Request ownership | Confirmed (not in the problem list) | Extend `firewall.token_usage` and request records with caller identity | AWF api-proxy, from a harness-set header |
 | [G-11](#g-11-request-fields-dropped-by-the-projection) Dropped request fields | Confirmed (not in the problem list) | Extend `firewall.model_routing` projection | Collector |
 | [G-12](#g-12-run-attempt-workflow-file-and-server) Run identity | Confirmed (not in the problem list) | Extend `workflow.info` | gh-aw runner |
 
 ### G-1. Model configuration
 
-**Finding.** The configured `goal` and `mode` appear only on a selection record (`objective`), so runs that fail before selection have no goal or mode. `allowed-models`, `models.allowed`, `models.blocked`, and the per-run `max-ai-credits` budget appear in no session event. An unrouted run is recognizable only by the absence of routing records, which is indistinguishable from a missing source in older files (Section 4.3, order 5).
+**Finding.** The configured `goal` and `mode` appear only on a selection record (`objective`), so runs that fail before selection have no goal or mode. `allowed-models`, `models.allowed`, `models.blocked`, and the per-run `max-ai-credits` budget appear in no session event. An unrouted run is recognizable only by the absence of routing records, which is indistinguishable from a missing source in older files (Section 4.3, order 6).
 
 **Proposal.** A `model.config` event, emitted for every run (routed or not). The compiler passes the resolved configuration to the activation job's `generate_aw_info.cjs` step through `GH_AW_INFO_*` variables, the step writes it to `aw_info.json` as `model_config` after resolving the budget variable, and the collector projects it from the same `aw_info.json` copy and with the same provenance it uses for `workflow.info`.
 
@@ -449,9 +456,9 @@ Classifier cost stays on the accounting record; repeating it on the routing reco
 
 ### G-4. Run outcome
 
-**Finding.** At conclusion time the session already carries `workflow.job_result`, `agent.execution`, `execution.result`, `detection.result`, `safe_output.result`, `safe_output.error`, and `grader.result`, and `session.collection` distinguishes "no safe-output results" from "result source missing". What is missing is the later fate of what the run produced: whether a pull request merged, an issue was closed as completed, or a change was reverted. These are unknown when the run's session file is written. gh-aw's outcome collector already classifies safe-output items later (`actions/setup/js/evaluate_outcomes.cjs`, a deterministic pre-agent step), but its results never reach a session file.
+**Finding.** At conclusion time the session already carries `workflow.job_result`, `agent.execution`, `execution.result`, `detection.result`, `safe_output.result`, `safe_output.error`, and `grader.result`, and `session.collection` distinguishes "no safe-output results" from "result source missing". What is missing is the later fate of what the run produced: whether a pull request merged, an issue was closed as completed, or a change was reverted. These are unknown when the run's session file is written. gh-aw's outcome collector already classifies safe-output items later (`actions/setup/js/evaluate_outcomes.cjs`, a deterministic pre-agent step), but its results never reach a session file. It also evaluates each run once: run IDs are added to a seen-runs cache and skipped afterwards, so an item that was `pending` is never observed again.
 
-**Proposal.** A `safe_output.outcome` event. `evaluate_outcomes.cjs` writes an allowlisted JSONL file alongside its existing outputs, and the evaluating run's collector projects it with a new provenance component `outcome` and phase `workflow`, keeping it out of agent-phase scoping. Each event describes an item from an earlier run; the page joins it by subject repository and run ID and keeps the latest `evaluatedAt` per item. The event is an observation of that item's state at `evaluatedAt`, not an action of the evaluating run (T-UAS-062).
+**Proposal.** A `safe_output.outcome` event. `evaluate_outcomes.cjs` writes an allowlisted JSONL file alongside its existing outputs, and the evaluating run's collector projects it with a new provenance component `outcome` and phase `workflow`, keeping it out of agent-phase scoping. Each event describes an item from an earlier run; the page joins it by subject repository and run ID and keeps the latest `evaluatedAt` per item. The event is an observation of that item's state at `evaluatedAt`, not an action of the evaluating run (T-UAS-062). The evaluator also keeps a per-item cache instead of a per-run one and re-evaluates `pending` items until they reach a terminal result or a maximum age, emitting a new event each time.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -520,7 +527,15 @@ The event is absent when the baseline model has no known price or the run has no
 
 **Finding.** In every golden fixture, AWF records `purpose` only for classifier requests; main-agent and sub-agent requests have none. `subagent.request` declares a `requestId` field, but no adapter fills it (the Pi fixture's records have none), so per-agent cost depends on matching models, token counts, and order. AWF already returns its request ID to the client in the `x-request-id` response header.
 
-**Proposal.** Engine adapters and the Copilot SDK driver record the AWF `x-request-id` response header as `subagent.request.requestId` for each sub-agent request, and AWF sets `purpose: "agent"` or `"subagent"` when the harness identifies the caller. The join keeps credits and served models proxy-sourced while the definition name stays engine-reported, as T-UAS-073 allows.
+**Proposal.** AWF's api-proxy records the caller on each `firewall.token_usage` record and each request-stage `firewall.model_routing` record, and the collector projects the new fields:
+
+| Field | Meaning |
+| --- | --- |
+| `purpose` | `agent` or `subagent` when the caller is declared, in addition to the existing `routing_classification`. |
+| `agentName` | Sub-agent definition name, present only with `purpose: "subagent"`. |
+| `callerSource` | `awf` when AWF originated the request (the classifier), `caller_header` when taken from the header below, absent when unknown. |
+
+The caller is declared with an `x-awf-caller` request header (`main` or `subagent/{agentName}`), which AWF validates as identifier-shaped (`[A-Za-z0-9_.:/-]{1,128}`), records, and strips before forwarding upstream. gh-aw harness code sets it where it builds the client: the Copilot SDK driver and the Pi sub-agent extension, and any engine that supports per-agent request headers. Because the header originates inside the sandbox, it is a caller declaration rather than an authenticated identity: AWF records it outside the sandbox, at request time, bound to the request's actual model and cost, but the page labels these rows "caller-declared" and takes credits and served models only from the proxy record. Engines that cannot set the header stay in buckets 5–7. Adapters MAY also record the AWF `x-request-id` response header as `subagent.request.requestId` as a cross-check; a disagreement with the proxy-recorded caller is shown as a coverage warning, and the engine record alone never overrides the proxy record.
 
 ### G-11. Request fields dropped by the projection
 
@@ -539,7 +554,7 @@ The event is absent when the baseline model has no known price or the run has no
 1. Build the page on current data with the rules in Sections 3–5. Every view in [Section 5.8](#58-availability-on-current-data) works with the stated limits.
 2. Collector-only changes: G-2 step 1, G-7, G-11, and G-12.
 3. gh-aw runner changes: G-1, G-9, and G-6 (after G-1).
-4. AWF and router changes: G-2 step 2, G-3, G-5, and the AWF side of G-10; engine adapters for G-10.
+4. AWF and router changes: G-2 step 2, G-3, G-5, and the AWF side of G-10; harness headers for G-10.
 5. Outcome evaluator: G-4.
 
 Each step adds fields or event types only, so files produced before it continue to load (MRA-001, MRA-003, MRA-020).
@@ -551,6 +566,7 @@ Each step adds fields or event types only, so files produced before it continue 
 3. Should G-2's predictions be per label cell (as tables are generated) or adjusted by the router per request?
 4. Should `safe_output.outcome` events from the outcome collector be ingested from that workflow's session files only, or should every repository run its own evaluator?
 5. Does any engine other than Copilot need a harness value in G-9?
+6. Does AWF guarantee that a request record with `outcome: "rejected"` reached no provider and incurred no AIC? If so, the record itself can establish zero cost, and such requests no longer make a run's cost partial ([Section 5.3](#53-cost)).
 
 ## 9. References
 
