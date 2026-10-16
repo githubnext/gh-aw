@@ -9,6 +9,7 @@ import { readWorkQueueLog } from "./work_queue_store.cjs";
 
 const require = createRequire(import.meta.url);
 const { registerStaticQueueAuthentication } = require("./work_queue_auth_cache.cjs");
+const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 const head = process.env.GH_AW_WORK_QUEUE_PERF_LIVE_HEAD;
 
 function projectionDigest(state) {
@@ -65,6 +66,7 @@ function recordedClient(repository, registered) {
     },
   };
   if (registered) registerStaticQueueAuthentication(client, token);
+  registerQueueLedgerClient(client, client);
   return { client, calls };
 }
 

@@ -9,6 +9,14 @@ Git storage. Lightweight issue checklists and sub-issue queues use
 outputs. This reference describes the native version-3 protocol. Git is the only
 backend, and `tools.work-queue` has no `storage` field.
 
+The workflow runtime and operator use the Git executable for ledger reads,
+checkpoint verification and compare-and-swap publication, not GitHub's REST or
+GraphQL Git APIs. They fetch only the queue branch and its complete history into
+an isolated bare object store, independently of the source checkout. Git uses
+the selected queue credential through ephemeral authentication; it does not
+reuse persisted checkout credentials. Agents and snapshot MCP servers remain
+credential-free.
+
 The native queue enforces fair scheduling, immutable task dependency graphs,
 and worker effects authorized by individual Claims. Its only source of
 authority is `work-queue.jsonl`, a transaction log that records events in causal
@@ -310,8 +318,8 @@ Unrelated pools do not add deployment writes or block their progress.
 
 Short per-Work/per-Issue coordination spans fresh checked reads and native
 writes without holding agents. Projection journals persist native creation
-intent and verified receipts; bindings are batched through
-`createCommitOnBranch` with `expectedHeadOid`. Publication conflicts refresh
+intent and verified receipts; bindings are batched in Git commits with an exact
+expected-head lease and a checked single parent. Publication conflicts refresh
 and replay the ledger; uncertain acknowledgements recover stable requests.
 Maintenance does not change Claims, fairness, reservations, or recovery reserve.
 
@@ -333,19 +341,13 @@ GitHub does not provide documented creation deduplication, and marker text or an
 empty discovery result is not proof of noncreation. Automatic crash recovery
 that can safely clear these fences is not implemented.
 
-Hooks batch up to 25 owned targets. Checked GraphQL reads combine immutable-head
-ledger/journal reads, label discovery, and scoped Issue preflight; an explicitly
-truncated blob uses an OID-checked REST fallback. Writes are paced and exhausted
-rate limits stop subsequent live requests. Hook metrics count authentication,
-coordination, native writes, journals, and retries within the projection phase;
-shared activation work and GitHub App token minting are additional requests.
-Local full-hook mocks also count ordinary queue publication and both hooks.
-For 25 unchanged existing Issues, the authenticated projection currently uses
-seven requests: five reads and two batched coordination mutations, with no Issue
-writes. An ordinary checked queue read/publication takes two requests instead
-of the previous five/nine-call REST paths.
-Mutation primary cost remains unmeasured; baseline Issue-operation estimates
-must not be mistaken for this end-to-end total.
+Hooks batch up to 25 owned targets. Ledger and journal reads use immutable Git
+objects; journal writes use the same Git CAS boundary as queue publication.
+GraphQL remains for scoped Issue preflight, label discovery, native repository
+identity and projection coordination. Native writes are paced and exhausted
+API rate limits stop subsequent native requests. Hook API metrics exclude Git
+transport and do not represent its elapsed time. Shared activation evidence
+and GitHub App token minting are additional hosted requests.
 
 Upgrade every Go/JavaScript reader, compiler, runtime setup action, and operator
 deployment before installing `projectors` or enabling new backing-Issue records.
@@ -494,9 +496,9 @@ for file purposes and redaction limits.
 
 ## Performance regression tests
 
-The offline performance suite exercises the trusted control adapter, checked
-publication, deployment synchronization, reconciliation, and native worker
-binding with an in-memory GitHub API:
+The offline suite exercises real disposable Git repositories as well as the
+trusted control adapter, deployment synchronization, reconciliation and native
+worker binding with injected API fixtures:
 
 ```bash
 npm --prefix actions/setup/js run test:work-queue-performance
@@ -504,23 +506,16 @@ npm --prefix actions/setup/js run test:work-queue-performance
 
 Fixtures contain at least 200 KiB of checkpoint data, 15–27 Work items,
 100–300 retained requests, one or three worker profiles, and 8–64 Git ancestry
-commits. Assertions cover API-call budgets, bounded history verification,
-full-batch retries without writes or duplicate launches, and both REST and
-GraphQL publication. JSON metrics include per-method counts and measured local
-execution time. Simulated network cost assumes 250 ms per read and 500 ms per
-mutation; it is not measured GitHub elapsed time.
+commits. Real-Git assertions require zero ledger API calls for nested
+checkpoints, detached reads, stable-request recovery, journal publication and
+CAS conflicts. Damaged checkpoints and unavailable ancestry fail closed.
+Injected object-transport fixtures also retain historical API/cache budgets;
+their simulated network costs are not production Git measurements.
 
-Compiled controls construct a separate queue client from the protected publisher
-token, not the worker-dispatch credential. Within one control invocation, this
-permits reuse of immutable checkpoint-history proofs under registered, unchanged
-static authentication while retaining fresh repository/ref probes and checked
-publication. Both publication transports have full-step regression budgets for
-this compiled-token path.
-
-Arbitrary injected-client and custom-auth cases without an explicit publisher
-token remain uncached negative controls. They must report
-`within_single_traversal_budget: false`; caching is not enabled by inspecting an
-unknown client's `auth()` result.
+Compiled controls keep the protected queue publisher credential separate from
+the worker-dispatch credential. Git reads recheck remote access even when local
+immutable objects are reused; an unknown or rotating client does not require
+an API ancestry walk.
 
 Optional live-data tests use a privately captured ledger and the exact queue
 head's Git objects already fetched into the current checkout:
