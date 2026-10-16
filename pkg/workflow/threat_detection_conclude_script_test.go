@@ -24,9 +24,9 @@ func isolatedPath(t *testing.T, binDir string) string {
 // TestConcludeThreatDetectionScript_MissingBinaryWarnMode verifies that the
 // script's sole remaining shell-side special case — threat-detect missing
 // from PATH — warns and exits 0 when GH_AW_DETECTION_CONTINUE_ON_ERROR is not
-// exactly "false" (warn mode).
+// "false", ignoring case (warn mode).
 func TestConcludeThreatDetectionScript_MissingBinaryWarnMode(t *testing.T) {
-	for _, continueOnError := range []string{"true", "yes"} {
+	for _, continueOnError := range []string{"true", "True", "TRUE", "yes", "unset"} {
 		t.Run(continueOnError, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
@@ -38,9 +38,16 @@ func TestConcludeThreatDetectionScript_MissingBinaryWarnMode(t *testing.T) {
 			}
 
 			cmd := exec.Command("bash", scriptPath, resultFile)
-			cmd.Env = append(os.Environ(),
+			for _, env := range os.Environ() {
+				if !strings.HasPrefix(env, "GH_AW_DETECTION_CONTINUE_ON_ERROR=") {
+					cmd.Env = append(cmd.Env, env)
+				}
+			}
+			if continueOnError != "unset" {
+				cmd.Env = append(cmd.Env, "GH_AW_DETECTION_CONTINUE_ON_ERROR="+continueOnError)
+			}
+			cmd.Env = append(cmd.Env,
 				"RUN_DETECTION=true",
-				"GH_AW_DETECTION_CONTINUE_ON_ERROR="+continueOnError,
 				"GITHUB_OUTPUT="+outputFile,
 				"PATH="+isolatedPath(t, binDir),
 			)
@@ -67,7 +74,7 @@ func TestConcludeThreatDetectionScript_MissingBinaryWarnMode(t *testing.T) {
 
 // TestConcludeThreatDetectionScript_MissingBinaryStrictMode verifies the
 // guard hard-fails (exit 1) when GH_AW_DETECTION_CONTINUE_ON_ERROR is
-// exactly "false" (strict mode).
+// "false", ignoring case (strict mode).
 func TestConcludeThreatDetectionScript_MissingBinaryStrictMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
@@ -174,6 +181,94 @@ func TestConcludeThreatDetectionScript_PropagatesThreatDetectFailure(t *testing.
 	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
 	if out, err := cmd.CombinedOutput(); err == nil {
 		t.Fatalf("script should propagate threat-detect failure, output: %s", out)
+	}
+}
+
+func TestConcludeThreatDetectionScript_ExecutionOutcomeModeCase(t *testing.T) {
+	for _, mode := range []struct {
+		name   string
+		value  string
+		set    bool
+		strict bool
+	}{
+		{name: "false", value: "false", set: true, strict: true},
+		{name: "False", value: "False", set: true, strict: true},
+		{name: "FALSE", value: "FALSE", set: true, strict: true},
+		{name: "unset"},
+		{name: "empty", set: true},
+		{name: "true", value: "true", set: true},
+		{name: "True", value: "True", set: true},
+		{name: "TRUE", value: "TRUE", set: true},
+	} {
+		for _, outcome := range []string{"failure", "cancelled", "success"} {
+			for _, runDetection := range []string{"true", "false"} {
+				t.Run(mode.name+"/"+outcome+"/run="+runDetection, func(t *testing.T) {
+					dir := t.TempDir()
+					binDir := filepath.Join(dir, "bin")
+					if err := os.MkdirAll(binDir, 0755); err != nil {
+						t.Fatal(err)
+					}
+					resultFile := filepath.Join(dir, "detection_result.json")
+					if err := os.WriteFile(resultFile, []byte(`{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}`), 0644); err != nil {
+						t.Fatal(err)
+					}
+					callLog := filepath.Join(dir, "call.log")
+					outputFile := filepath.Join(dir, "github_output.txt")
+					stub := "#!/usr/bin/env bash\n" +
+						"echo \"$*\" >> \"$CALL_LOG\"\n" +
+						"if [[ \"$RUN_DETECTION\" == false ]]; then\n" +
+						"  echo 'conclusion=skipped' >> \"$GITHUB_OUTPUT\"\n" +
+						"else\n" +
+						"  echo 'conclusion=success' >> \"$GITHUB_OUTPUT\"\n" +
+						"fi\n" +
+						"echo 'success=true' >> \"$GITHUB_OUTPUT\"\n" +
+						"echo 'reason=' >> \"$GITHUB_OUTPUT\"\n"
+					if err := os.WriteFile(filepath.Join(binDir, "threat-detect"), []byte(stub), 0755); err != nil {
+						t.Fatal(err)
+					}
+					cmd := exec.Command("bash", filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh"), resultFile)
+					for _, env := range os.Environ() {
+						if !strings.HasPrefix(env, "GH_AW_DETECTION_CONTINUE_ON_ERROR=") {
+							cmd.Env = append(cmd.Env, env)
+						}
+					}
+					if mode.set {
+						cmd.Env = append(cmd.Env, "GH_AW_DETECTION_CONTINUE_ON_ERROR="+mode.value)
+					}
+					cmd.Env = append(cmd.Env,
+						"RUN_DETECTION="+runDetection,
+						"THREAT_DETECT_INSTALL_OUTCOME=success",
+						"DETECTION_AGENTIC_EXECUTION_OUTCOME="+outcome,
+						"GITHUB_OUTPUT="+outputFile,
+						"CALL_LOG="+callLog,
+						"PATH="+binDir+":"+os.Getenv("PATH"),
+					)
+					out, err := cmd.CombinedOutput()
+					wantBlocked := mode.strict && runDetection == "true" && outcome != "success"
+					if (err != nil) != wantBlocked {
+						t.Fatalf("blocked=%t, got error %v\nOutput: %s", wantBlocked, err, out)
+					}
+					output, err := os.ReadFile(outputFile)
+					if err != nil {
+						t.Fatal(err)
+					}
+					wantConclusion, wantSuccess, wantReason := "success", "true", ""
+					if wantBlocked {
+						wantConclusion, wantSuccess, wantReason = "failure", "false", "agent_failure"
+					} else if runDetection == "false" {
+						wantConclusion = "skipped"
+					}
+					for _, expected := range []string{"conclusion=" + wantConclusion + "\n", "success=" + wantSuccess + "\n", "reason=" + wantReason + "\n"} {
+						if !strings.Contains(string(output), expected) {
+							t.Fatalf("expected %q, got: %s", expected, output)
+						}
+					}
+					if _, err := os.Stat(callLog); os.IsNotExist(err) != wantBlocked {
+						t.Fatalf("detector invocation should be blocked=%t, got stat error %v", wantBlocked, err)
+					}
+				})
+			}
+		}
 	}
 }
 
@@ -393,6 +488,7 @@ func TestConcludeThreatDetectionScript_SkippedDetectionWithoutBinary(t *testing.
 		wantSuccess     string
 	}{
 		{name: "strict mode explicit skip", runDetection: "false", setRunDetection: true, installOutcome: "skipped", continueOnError: "false", wantConclusion: "conclusion=skipped", wantSuccess: "success=true"},
+		{name: "uppercase strict mode explicit skip", runDetection: "false", setRunDetection: true, installOutcome: "skipped", continueOnError: "FALSE", wantConclusion: "conclusion=skipped", wantSuccess: "success=true"},
 		{name: "warn mode explicit skip", runDetection: "false", setRunDetection: true, installOutcome: "skipped", continueOnError: "true", wantConclusion: "conclusion=skipped", wantSuccess: "success=true"},
 		{name: "unset guard output", installOutcome: "skipped", continueOnError: "false", wantErr: true, wantConclusion: "conclusion=failure", wantSuccess: "success=false"},
 		{name: "empty guard output", runDetection: "", setRunDetection: true, installOutcome: "skipped", continueOnError: "false", wantErr: true, wantConclusion: "conclusion=failure", wantSuccess: "success=false"},

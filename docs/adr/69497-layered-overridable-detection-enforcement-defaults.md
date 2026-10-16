@@ -1,18 +1,22 @@
 # ADR-69497: Layered, Overridable Defaults for Threat-Detection Enforcement Mode
 
 **Date**: 2026-10-16
-**Status**: Draft
-**Deciders**: pelikhan, [TODO: verify additional reviewers]
+**Status**: Accepted
+**Deciders**: pelikhan
 
 ---
 
 ### Context
 
-Threat detection runs in warning mode by default (`safe-outputs.threat-detection.continue-on-error: true`): detection failures produce warnings rather than blocking safe-output publication. Administrators at enterprise, organization, and repository scope want to choose warning or blocking mode as a default without editing every workflow. Before this change, the only control was the per-workflow (or imported) `continue-on-error` setting, resolved at compile time by a package-level helper in `pkg/workflow/threat_detection_steps.go`. Existing enterprise defaults (for example `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES`) already follow a pattern of runtime Actions variables plus `aw.json` repository config, so a new control has to fit that model, keep the built-in warning fallback, and not change whether detection is enabled.
+Threat detection runs in warning mode by default (`safe-outputs.threat-detection.continue-on-error: true`). Administrators at enterprise, organization, and repository scope need an overridable warning or blocking default without editing every workflow. Previously, enforcement was configured per workflow or import, including runtime expressions. Existing enterprise defaults already use Actions variables, and repository configuration uses `aw.json`. The new control must reuse those mechanisms, keep the built-in warning fallback, and leave detection enablement unchanged.
 
 ### Decision
 
-We will resolve the detection enforcement mode through a fixed precedence chain: (1) explicit workflow/import `continue-on-error` (literal or expression), then (2) the compile-time `aw.json` key `default_detection_continue_on_error`, then (3) the runtime GitHub Actions variable `GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR`, then (4) the built-in default `true`. When neither of the first two is set, the compiler emits a `detection_mode` step (`resolve_detection_continue_on_error.cjs`) that validates the variable and rejects values other than `true`/`false` (empty means warning mode). All detection steps then use the shared output `steps.detection_mode.outputs.continue_on_error` as their `continue-on-error` expression. In blocking mode, `conclude_threat_detection.sh` also blocks publication when detection execution failed or was cancelled, even if a clean-looking verdict exists. These are defaults that workflows can override, not mandatory policy.
+Detection enforcement uses a fixed precedence chain: (1) explicit workflow/import `continue-on-error` (literal or expression), then (2) the boolean compile-time `aw.json` key `default_detection_continue_on_error`, then (3) the runtime GitHub Actions variable `GH_AW_DEFAULT_DETECTION_CONTINUE_ON_ERROR`, then (4) built-in `true`. Existing import precedence is preserved.
+
+When neither explicit layer is set, the compiler emits a `detection_mode` step (`resolve_detection_continue_on_error.cjs`). It accepts case-insensitive `true`/`false` with surrounding whitespace ignored; unset or empty means warning mode, and other values fail explicitly. Overridden variables are not read or validated. The same compiler resolution determines whether to emit this step and which value every enforcement consumer receives, preventing precedence drift. Runtime defaults are resolved once and shared through `steps.detection_mode.outputs.continue_on_error`; explicit settings bypass this step.
+
+The external and inline detector paths use the effective value for setup, conclusion classification, and mode-dependent step failure handling. Blocking mode rejects threats and incomplete assessments, including failed or cancelled execution that left a clean-looking verdict. Existing downstream write gates remain tied to the detection job result. Expression-provided `False`/`FALSE` values are treated consistently as blocking. These controls are overridable defaults, not mandatory policy or a switch that enables detection.
 
 ### Alternatives Considered
 
@@ -32,14 +36,14 @@ Flip the fallback to `false` so that every workflow blocks by default. This is t
 
 #### Positive
 - Administrators can switch enterprise, organization, or repository defaults by changing one Actions variable, with no recompilation once workflows have been regenerated.
-- One resolution point (`detection_mode` output) keeps the external detector, inline detector, conclusion, and install steps consistent.
+- A shared compiler resolution and, when needed, one runtime `detection_mode` output keep external and inline enforcement consumers consistent.
 - Explicit workflow settings, including `false` and expressions, are still respected, which keeps backward compatibility.
 - Blocking mode now fails closed when detection execution fails or is cancelled.
 
 #### Negative
 - Workflows compiled before this change do not honor the variable until they are recompiled.
 - It adds an extra `actions/github-script` step to detection jobs that do not set the mode explicitly or through `aw.json`, which costs a little runtime and lock-file churn.
-- An invalid variable value fails the detection job at runtime, so a misconfiguration at org/enterprise scope can affect many repositories at once.
+- An invalid effective variable value fails the detection job at runtime, so a misconfiguration at org/enterprise scope can affect repositories that have no explicit override. Intentionally skipped detection does not validate this unused default.
 - Three configuration layers (workflow, `aw.json`, Actions variable) make it harder to work out which value is in effect.
 
 #### Neutral
@@ -49,4 +53,4 @@ Flip the fallback to `false` so that every workflow blocks by default. This is t
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+This record captures the user-approved configuration contract implemented in PR #69497. It does not assert additional reviewer approval.

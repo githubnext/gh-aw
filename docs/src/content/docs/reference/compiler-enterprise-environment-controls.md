@@ -127,7 +127,7 @@ or prevent workflow overrides. The variable accepts `true`/`false`, ignoring
 case and surrounding whitespace; empty/unset retains warning mode. Invalid
 effective values fail explicitly, but overridden variables are not validated.
 Older generated workflows need one recompile; subsequent variable changes apply
-at runtime. See [default enforcement mode](../threat-detection/#default-enforcement-mode).
+at runtime. See [default enforcement mode](/gh-aw/reference/threat-detection/#default-enforcement-mode).
 
 For model selection, precedence is:
 

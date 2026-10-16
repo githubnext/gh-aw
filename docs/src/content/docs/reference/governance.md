@@ -106,7 +106,7 @@ precedence over the boolean `default_detection_continue_on_error` in `aw.json`,
 then the Actions variable, then the unchanged built-in `true` (warning mode).
 `false` selects blocking mode, not mandatory policy or detection enablement.
 The variable is evaluated at runtime; older generated workflows need one
-recompile to gain support. See [default enforcement mode](../threat-detection/#default-enforcement-mode).
+recompile to gain support. See [default enforcement mode](/gh-aw/reference/threat-detection/#default-enforcement-mode).
 
 > [!IMPORTANT]
 > Some defaults are compile-time values.

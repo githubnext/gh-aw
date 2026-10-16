@@ -876,8 +876,8 @@ describe("main", () => {
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
-    it("should fail when detection log file does not exist (continue-on-error false)", async () => {
-      process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "false";
+    it.each(["false", "False", "FALSE"])("should fail when detection log file does not exist (continue-on-error %s)", async mode => {
+      process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = mode;
       mockExistsSync.mockReturnValue(false);
 
       await mod.main();
@@ -888,6 +888,44 @@ describe("main", () => {
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "failure");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
+    });
+
+    describe("execution outcomes with a clean structured verdict", () => {
+      beforeEach(() => {
+        const realFs = require("node:fs");
+        vi.spyOn(realFs, "existsSync").mockImplementation(file => String(file).endsWith("/detection_result.json"));
+        vi.spyOn(realFs, "readFileSync").mockReturnValue('{"prompt_injection":false,"secret_leak":false,"malicious_patch":false,"reasons":[]}');
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      for (const mode of ["false", "False", "FALSE", undefined, "", "true", "True", "TRUE"]) {
+        for (const outcome of ["failure", "cancelled", "success"]) {
+          for (const runDetection of ["true", "false"]) {
+            it(`handles mode=${mode ?? "unset"}, outcome=${outcome}, run=${runDetection}`, async () => {
+              if (mode !== undefined) process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = mode;
+              process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = outcome;
+              process.env.RUN_DETECTION = runDetection;
+
+              await mod.main();
+
+              const blocked = mode?.toLowerCase() === "false" && runDetection === "true" && outcome !== "success";
+              const conclusion = blocked ? "failure" : runDetection === "false" ? "skipped" : "success";
+              expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", conclusion);
+              expect(mockCore.setOutput).toHaveBeenCalledWith("success", blocked ? "false" : "true");
+              expect(mockCore.setOutput).toHaveBeenCalledWith("reason", blocked ? "agent_failure" : "");
+              if (blocked) {
+                expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("blocking publication"));
+                expect(mockCore.setOutput).not.toHaveBeenCalledWith("conclusion", "success");
+              } else {
+                expect(mockCore.setFailed).not.toHaveBeenCalled();
+              }
+            });
+          }
+        }
+      }
     });
 
     it("should fail when detection execution failed in warn mode", async () => {

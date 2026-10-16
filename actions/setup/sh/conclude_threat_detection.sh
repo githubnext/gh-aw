@@ -6,6 +6,8 @@ set -euo pipefail
 RESULT_FILE="${1:-/tmp/gh-aw/threat-detection/detection_result.json}"
 RESULT_DIR="$(dirname "${RESULT_FILE}")"
 DETECTION_LOG_FILE="${DETECTION_LOG_FILE:-${RESULT_DIR}/detection.log}"
+CONTINUE_ON_ERROR="${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}"
+CONTINUE_ON_ERROR="${CONTINUE_ON_ERROR,,}"
 
 # report_detector_unavailable emits the agent_failure conclusion outputs for a
 # detector that could never run, without invoking any binary. Warn mode exits 0
@@ -13,11 +15,10 @@ DETECTION_LOG_FILE="${DETECTION_LOG_FILE:-${RESULT_DIR}/detection.log}"
 # non-zero after recording the same outputs.
 report_detector_unavailable() {
   local message="$1"
-  local continue_on_error="${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}"
 
   echo "success=false" >> "${GITHUB_OUTPUT}"
   echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
-  if [ "${continue_on_error,,}" != "false" ]; then
+  if [ "${CONTINUE_ON_ERROR}" != "false" ]; then
     echo "::warning::${message}; continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR != false"
     echo "conclusion=warning" >> "${GITHUB_OUTPUT}"
     exit 0
@@ -35,7 +36,7 @@ report_detector_unavailable() {
 # to runs where detection was expected. A missing detector is a legitimate skip
 # only when the guard explicitly disabled detection and installation was skipped.
 THREAT_DETECT_INSTALL_OUTCOME="${THREAT_DETECT_INSTALL_OUTCOME:-}"
-if [ "${RUN_DETECTION:-}" = "true" ] && [ "${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}" = "false" ]; then
+if [ "${RUN_DETECTION:-}" = "true" ] && [ "${CONTINUE_ON_ERROR}" = "false" ]; then
   case "${DETECTION_AGENTIC_EXECUTION_OUTCOME:-}" in
     failure|cancelled)
       report_detector_unavailable "Detection execution did not complete successfully; blocking publication"

@@ -617,7 +617,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		threatLog.Printf("Detection engine %q did not generate execution steps; external detector will run with minimal env", engineID)
 	}
 
-	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
+	continueOnError, continueOnErrorExpr, _ := c.resolveThreatDetectionContinueOnError(data)
 
 	executionCondition := detectionExecutionCondition + " && steps.threat_detect_install.outcome == 'success'"
 	if isArcDindTopology(threatDetectionData) {
@@ -790,7 +790,7 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 // additionally passed because only the external path installs a pinned binary.
 func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []string {
 	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
-	continueOnError, continueOnErrorExpr := c.resolveThreatDetectionContinueOnError(data)
+	continueOnError, continueOnErrorExpr, _ := c.resolveThreatDetectionContinueOnError(data)
 
 	steps := []string{
 		"      - name: Conclude threat detection\n",

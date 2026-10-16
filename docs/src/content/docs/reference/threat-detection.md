@@ -283,7 +283,7 @@ recompilation.
 `gh aw env get` and `gh aw env update` manage the variable with the string-valued
 defaults-file key `default_detection_continue_on_error`, for example
 `default_detection_continue_on_error: "false"`. Variable scope management is
-described in [Configuration Governance](../governance/).
+described in [Configuration Governance](/gh-aw/reference/governance/).
 
 ## Custom Prompt Instructions
 
