@@ -347,6 +347,19 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       });
     });
 
+    it("decodes native JSONL records once and recovers from corrupt neighbors", () => {
+      const record = JSON.stringify({ type: "error", message: "403 Forbidden: Maximum AI credits exceeded (1200 / 1000)." });
+      writeAgentStdio(`${record}\r\n{"broken":}\r\nAuthentication failed with provider at http://api-proxy:10000 (HTTP 403).`);
+      const parse = vi.spyOn(JSON, "parse");
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "1200",
+        maxAICredits: "1000",
+        aiCreditsRateLimitError: true,
+        maxAICreditsExceeded: true,
+      });
+      expect(parse.mock.calls.filter(([text]) => text === record)).toHaveLength(1);
+    });
+
     it("sets exceeded flags but leaves credit amounts empty when no parenthetical is present", () => {
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
       fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Fatal: Maximum AI credits exceeded.", "utf8");

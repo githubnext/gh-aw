@@ -265,32 +265,41 @@ function parseAICreditsExceededProxyRejection(output) {
   // `String(someObject)` would produce a meaningless "[object Object]"-style value.
   const safeOutput = typeof output === "string" ? output : "";
   for (const parsed of iterateJsonl(safeOutput, { lineFilter: line => line.startsWith("{") })) {
-    if (!parsed || typeof parsed !== "object") continue;
-    // prettier-ignore
-    const record = /** @type {Record<string, unknown>} */ (parsed);
-    const nativeError = record.error;
-    const nativeMessage = nativeError && typeof nativeError === "object" && "message" in nativeError ? nativeError.message : undefined;
-    const isCodexApiError = (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && typeof nativeMessage === "string");
-    const isClaudeFailedResult = record.type === "result" && record.is_error === true;
-    const isClaudeApiError = record.type === "assistant" && record.is_api_error_message === true;
-    const isEngineFlaggedApiError = isClaudeApiError || isCodexApiError || isClaudeFailedResult;
-    if (!isEngineFlaggedApiError) continue;
-    const diagnostic = isCodexApiError
-      ? record.type === "error"
-        ? record.message
-        : nativeMessage
-      : isClaudeFailedResult
-        ? JSON.stringify({ result: record.result, errors: record.errors })
-        : JSON.stringify({ error: record.error, message: record.message });
-    const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(typeof diagnostic === "string" ? diagnostic : "");
-    if (!match) continue;
-    const aiCredits = Number.parseFloat(match[1]);
-    const maxAICredits = Number.parseFloat(match[2]);
-    if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0) continue;
-    if (aiCredits < maxAICredits) continue;
-    return { aiCredits, maxAICredits };
+    const rejection = parseAICreditsExceededProxyRejectionRecord(parsed);
+    if (rejection) return rejection;
   }
   return null;
+}
+
+/**
+ * Inspect an already decoded native error without reparsing its JSONL record.
+ * @param {unknown} parsed
+ * @returns {{aiCredits: number, maxAICredits: number}|null}
+ */
+function parseAICreditsExceededProxyRejectionRecord(parsed) {
+  if (!parsed || typeof parsed !== "object") return null;
+  // prettier-ignore
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  const nativeError = record.error;
+  const nativeMessage = nativeError && typeof nativeError === "object" && "message" in nativeError ? nativeError.message : undefined;
+  const isCodexApiError = (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && typeof nativeMessage === "string");
+  const isClaudeFailedResult = record.type === "result" && record.is_error === true;
+  const isClaudeApiError = record.type === "assistant" && record.is_api_error_message === true;
+  const isEngineFlaggedApiError = isClaudeApiError || isCodexApiError || isClaudeFailedResult;
+  if (!isEngineFlaggedApiError) return null;
+  const diagnostic = isCodexApiError
+    ? record.type === "error"
+      ? record.message
+      : nativeMessage
+    : isClaudeFailedResult
+      ? JSON.stringify({ result: record.result, errors: record.errors })
+      : JSON.stringify({ error: record.error, message: record.message });
+  const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(typeof diagnostic === "string" ? diagnostic : "");
+  if (!match) return null;
+  const aiCredits = Number.parseFloat(match[1]);
+  const maxAICredits = Number.parseFloat(match[2]);
+  if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0 || aiCredits < maxAICredits) return null;
+  return { aiCredits, maxAICredits };
 }
 
 /**
@@ -327,4 +336,5 @@ module.exports = {
   selectNativeErrorDiagnostic,
   shouldSuppressGuardCategory,
   parseAICreditsExceededProxyRejection,
+  parseAICreditsExceededProxyRejectionRecord,
 };
