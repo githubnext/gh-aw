@@ -405,7 +405,7 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		config.WorkflowData.NetworkPermissions.Firewall.Version = string(constants.AWFCloudHypervisorFilesystemAllowWriteMinVersion)
 		jsonStr, err = BuildAWFConfigJSON(config)
 		require.NoError(t, err)
-		assert.Contains(t, jsonStr, `"filesystem":{"allowWrite":["/workspace","/workspace/.awf-home","/tmp/gh-aw/agent","/tmp/gh-aw/aw_info.json"]}`)
+		assert.Contains(t, jsonStr, `"filesystem":{"allowWrite":["/workspace","/workspace/.awf-home","/tmp/gh-aw/agent"]}`)
 		require.NoError(t, validateAWFConfigJSON(jsonStr))
 	})
 
