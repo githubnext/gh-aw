@@ -296,9 +296,9 @@ type GitHubAllowedTools []GitHubToolName
 
 // ToStringSlice converts GitHubAllowedTools to []string
 func (g GitHubAllowedTools) ToStringSlice() []string {
-	result := make([]string, len(g))
-	for i, tool := range g {
-		result[i] = string(tool)
+	result := make([]string, 0, len(g))
+	for _, tool := range g {
+		result = append(result, string(tool))
 	}
 	return result
 }
@@ -311,9 +311,9 @@ type GitHubToolsets []GitHubToolset
 
 // ToStringSlice converts GitHubToolsets to []string
 func (g GitHubToolsets) ToStringSlice() []string {
-	result := make([]string, len(g))
-	for i, toolset := range g {
-		result[i] = string(toolset)
+	result := make([]string, 0, len(g))
+	for _, toolset := range g {
+		result = append(result, string(toolset))
 	}
 	return result
 }
@@ -492,6 +492,15 @@ func (p *PlaywrightToolConfig) IsCLIMode() bool {
 // Can be nil (all commands allowed) or an array of allowed commands
 type BashToolConfig struct {
 	AllowedCommands []string `yaml:"-"` // List of allowed bash commands
+}
+
+// UnmarshalJSON accepts the schema's array shorthand for restricted commands.
+func (b *BashToolConfig) UnmarshalJSON(data []byte) error {
+	if strings.HasPrefix(strings.TrimSpace(string(data)), "[") {
+		return json.Unmarshal(data, &b.AllowedCommands)
+	}
+	var config struct{}
+	return json.Unmarshal(data, &config)
 }
 
 // WebFetchToolConfig represents the configuration for the web-fetch tool

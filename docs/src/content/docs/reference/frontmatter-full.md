@@ -430,8 +430,9 @@ on:
     # the latest/top pull request).
     max-stack: 1
 
-    # When true, allows workflow to run on pull requests from forked repositories.
-    # Security consideration: fork PRs have limited permissions.
+    # Allow fork pull requests by repository pattern or explicit author association.
+    # By default, only same-repository PRs are allowed. This does not change GitHub's
+    # fork permissions or secret availability.
     # (optional)
     # Accepted formats:
 
@@ -443,6 +444,14 @@ on:
     # 'org/*', '*' for all forks)
     forks: []
       # Array items: Repository pattern with optional glob support
+
+    # Format 3: Allow fork PRs based on the author's relationship to the base
+    # repository
+    forks:
+      # Explicit list of allowed GitHub author associations. An empty list allows only
+      # same-repository PRs.
+      author-association: []
+        # Array of strings
 
     # Array of pull request type names that trigger the workflow. Filters workflow
     # execution to specific PR categories.

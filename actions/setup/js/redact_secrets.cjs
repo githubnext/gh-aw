@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 const { maskedValueMatches, overlappingMatchGroups } = require("./mask_value_matcher.cjs");
 const { redactSafeOutputContent } = require("./safe_output_redaction.cjs");
@@ -314,18 +315,12 @@ function isValidJSONArtifact(content) {
     JSON.parse(content);
     return true;
   } catch {
-    const records = content.split(/\r?\n/).filter(line => line.trim());
-    return (
-      records.length > 0 &&
-      records.every(record => {
-        try {
-          JSON.parse(record);
-          return true;
-        } catch {
-          return false;
-        }
-      })
-    );
+    let hasRecord = false;
+    for (const event of iterateJsonlEvents(content)) {
+      if (event.type === "json") hasRecord = true;
+      else if (event.reason !== "blank") return false;
+    }
+    return hasRecord;
   }
 }
 

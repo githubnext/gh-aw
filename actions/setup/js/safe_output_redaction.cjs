@@ -4,6 +4,7 @@ const path = require("path");
 const tools = require("./safe_outputs_tools.json");
 const { redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 const schemas = new Map(tools.map(tool => [tool.name, tool.inputSchema]));
 const controlKeys = new Set([
@@ -163,15 +164,24 @@ function redactSafeOutputContent(filePath, content, maskedValues, redactText) {
       )
     );
   };
-  const redactRecord = record => {
-    parse(record);
-    return redactArtifactMaskedValues(record, maskedValues, transform);
-  };
-  if (envelope) return redactRecord(content);
-  return content
-    .split("\n")
-    .map(line => (line.trim() ? redactRecord(line) : line))
-    .join("\n");
+  if (envelope) {
+    parse(content);
+    return redactArtifactMaskedValues(content, maskedValues, transform);
+  }
+  const redactedLines = [];
+  for (const event of iterateJsonlEvents(content)) {
+    if (event.type === "invalid") {
+      if (event.reason !== "blank") {
+        throw new Error(`${ERR_VALIDATION}: Invalid JSON safe-output record during secret redaction`, { cause: event.error });
+      }
+      redactedLines.push(event.rawLine);
+      continue;
+    }
+    const newline = event.rawLine.endsWith("\n") ? "\n" : "";
+    const line = newline ? event.rawLine.slice(0, -1) : event.rawLine;
+    redactedLines.push(redactArtifactMaskedValues(line, maskedValues, transform), newline);
+  }
+  return redactedLines.join("");
 }
 
 module.exports = { redactSafeOutputContent };
