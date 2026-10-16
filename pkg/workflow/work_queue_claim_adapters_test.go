@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -124,6 +125,20 @@ func TestWorkQueueCustomAdapterDeclarationAndPreparationIsolation(t *testing.T) 
 		require.Len(t, isolated.Outputs, 1)
 		require.Empty(t, isolated.Strategy)
 		require.Contains(t, strings.Join(isolated.Steps, ""), fmt.Sprintf("GH_AW_CLAIM_ADAPTER_INDEX: %q", strconv.Itoa(index)))
+		var compiled struct {
+			Steps []struct {
+				ID  string
+				Env map[string]string
+			}
+		}
+		require.NoError(t, yaml.Unmarshal([]byte("steps:\n"+strings.Join(isolated.Steps, "")), &compiled))
+		var preparationEnv map[string]string
+		for _, step := range compiled.Steps {
+			if step.ID == "claim_adapter_context" {
+				preparationEnv = step.Env
+			}
+		}
+		require.Equal(t, "${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}", preparationEnv["GH_AW_AGENT_OUTPUT"], "Claim adapter slot %d must load the downloaded assignment-level agent output", index)
 	}
 	data.SafeOutputs.Jobs["custom"].Permissions = map[string]string{"contents": "write"}
 	require.ErrorContains(t, validateWorkQueueConfiguration(data), "cannot obtain")
