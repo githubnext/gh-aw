@@ -46,3 +46,6 @@ metrics/daily/2026-10-13.json is partial with 0 workflows (collector could not a
 
 ## Run 2026-10-14T12:55Z
 metrics/latest.json still dated 2026-09-01 (~43 days stale; deferred run). No new evidence; no discussion/issue filed.
+
+## Run 2026-10-16T12:55Z
+metrics/latest.json now dated 2026-10-16 but collection_status=partial (0.81h coverage, null outputs/scores). Ranking still not possible; no discussion/issue filed.
