@@ -172,6 +172,7 @@ type generateAllSideRepoMaintenanceWorkflowsOptions struct {
 	hasExpires       bool
 	minExpiresDays   int
 	repoConfig       *RepoConfig
+	noLogo           bool
 }
 
 // generateAllSideRepoMaintenanceWorkflows detects SideRepoOps targets and
@@ -208,6 +209,7 @@ func generateSideRepoMaintenanceFiles(ctx context.Context, targets []SideRepoTar
 			hasExpires:     opts.hasExpires,
 			minExpiresDays: opts.minExpiresDays,
 			repoConfig:     opts.repoConfig,
+			noLogo:         opts.noLogo,
 			pinWarnings:    opts.pinWarnings,
 		})
 		if err != nil {
@@ -255,6 +257,7 @@ type generateSideRepoMaintenanceWorkflowOptions struct {
 	hasExpires     bool
 	minExpiresDays int
 	repoConfig     *RepoConfig
+	noLogo         bool
 }
 
 // generateSideRepoMaintenanceWorkflow generates a workflow_call-based maintenance
@@ -319,7 +322,7 @@ func newSideRepoMaintenanceRenderContext(ctx context.Context, opts generateSideR
 		minExpiresDays:  opts.minExpiresDays,
 		setupActionRef:  ResolveSetupActionReference(ctx, opts.actionMode, opts.version, opts.actionTag, opts.resolver),
 		formattedRunsOn: FormatRunsOn(nil, "ubuntu-latest"),
-		noLogo:          !opts.repoConfig.IsLockFileLogoEnabled(),
+		noLogo:          !shouldIncludeLockFileLogo(opts.repoConfig, opts.noLogo),
 	}
 	maintenanceLog.Printf("Building side-repo workflow content: repo=%s, actionMode=%s, hasExpires=%t", renderCtx.repoSlug, renderCtx.actionMode, renderCtx.hasExpires)
 	if opts.target.GitHubApp != nil && opts.target.GitHubToken == "" {

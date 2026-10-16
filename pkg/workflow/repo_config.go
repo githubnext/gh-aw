@@ -256,6 +256,15 @@ func (r *RepoConfig) IsLockFileLogoEnabled() bool {
 	return r == nil || r.LockFileLogo == nil || *r.LockFileLogo
 }
 
+func shouldIncludeLockFileLogo(repoConfig *RepoConfig, noLogo ...bool) bool {
+	for _, omitLogo := range noLogo {
+		if omitLogo {
+			return false
+		}
+	}
+	return repoConfig.IsLockFileLogoEnabled()
+}
+
 // UnmarshalJSON implements json.Unmarshaler to handle the polymorphic maintenance
 // and auto_upgrade fields. maintenance can be either the boolean false (disable)
 // or a configuration object; auto_upgrade can be a boolean or an object with an

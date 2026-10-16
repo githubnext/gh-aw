@@ -18,7 +18,7 @@ const workQueueEventWorkflowFilename = "agentic-workqueue.yml"
 // GenerateWorkQueueEventWorkflow generates the trusted Issue event handler when
 // at least one compiled workflow enables Issue mirroring. Otherwise it removes
 // any previously generated handler.
-func GenerateWorkQueueEventWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, repoConfig *RepoConfig) error {
+func GenerateWorkQueueEventWorkflow(ctx context.Context, workflowDataList []*WorkflowData, workflowDir string, repoConfig *RepoConfig, noLogo ...bool) error {
 	path := filepath.Join(workflowDir, workQueueEventWorkflowFilename)
 	if !WorkQueueIssueMirroringEnabled(workflowDataList) {
 		workQueueEventWorkflowLog.Print("No work queue Issue events are used; removing generated workflow")
@@ -37,7 +37,7 @@ func GenerateWorkQueueEventWorkflow(ctx context.Context, workflowDataList []*Wor
 	}
 	actionMode := DetectActionMode(GetVersion())
 	setupActionRef := ResolveSetupActionReference(ctx, actionMode, GetVersion(), "", resolver)
-	content, err := buildWorkQueueEventWorkflowYAML(actionMode, setupActionRef, resolver, repoConfig.IsLockFileLogoEnabled())
+	content, err := buildWorkQueueEventWorkflowYAML(actionMode, setupActionRef, resolver, shouldIncludeLockFileLogo(repoConfig, noLogo...))
 	if err != nil {
 		return err
 	}

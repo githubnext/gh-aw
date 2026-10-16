@@ -29,20 +29,16 @@ func collectDetectionPolicyForManifest(data *WorkflowData) *GHAWManifestDetectio
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
 // The gh-aw-metadata line is placed first for easy machine parsing.
-func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) error {
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string, repoConfig *RepoConfig) error {
 	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
 		return nil
-	}
-	repoConfig, err := c.loadRepoConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load aw.json: %w", err)
 	}
 	c.generateLockMetadataHeader(yaml, data, frontmatterHash, bodyHash)
 	if err := c.generateManifestHeader(yaml, data, secrets, actions); err != nil {
 		return err
 	}
-	generateDescriptiveHeader(yaml, data, !c.noLogo && repoConfig.IsLockFileLogoEnabled())
+	generateDescriptiveHeader(yaml, data, shouldIncludeLockFileLogo(repoConfig, c.noLogo))
 	generateSourceHeader(yaml, data)
 	generateConfigHeader(yaml, data, secrets, actions)
 	generateApprovalHeader(yaml, data)

@@ -62,6 +62,7 @@ type GenerateAutoUpdateWorkflowOptions struct {
 	UpgradeOptions []string
 	RepoConfig     *RepoConfig
 	PinWarnings    map[string]bool
+	NoLogo         bool
 }
 
 // GenerateAutoUpdateWorkflow generates or removes the agentic-auto-upgrade.yml workflow
@@ -125,7 +126,7 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error { 
 		getCLICmdPrefix(actionMode),
 		opts.CustomCron != "",
 		opts.UpgradeOptions,
-		opts.RepoConfig.IsLockFileLogoEnabled(),
+		shouldIncludeLockFileLogo(opts.RepoConfig, opts.NoLogo),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to finalize auto-update workflow YAML: %w", err)

@@ -100,8 +100,9 @@ func generateMaintenanceWorkflowWrapper(
 		Version:          compiler.GetVersion(),
 		ActionMode:       compiler.GetActionMode(),
 		ActionTag:        compiler.GetActionTag(),
-		RepoConfig:       repoConfigWithNoLogo(repoConfig, noLogo),
+		RepoConfig:       repoConfig,
 		RepoSlug:         compiler.GetRepositorySlug(),
+		NoLogo:           noLogo,
 	}); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
@@ -127,7 +128,7 @@ func generateWorkQueueEventWorkflowWrapper(ctx context.Context, workflowDataList
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to load repo config for work queue event workflow: %v", err)))
 		repoConfig = nil
 	}
-	if err := workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, repoConfigWithNoLogo(repoConfig, noLogo)); err != nil {
+	if err := workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, repoConfig, noLogo); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate work queue event workflow: %w", err)
 		}
@@ -158,7 +159,7 @@ func generateCentralSlashCommandWorkflowWrapper(
 		repoConfig = nil
 	}
 
-	if err := workflow.GenerateCentralSlashCommandWorkflow(ctx, workflowDataList, workflowsDir, repoConfigWithNoLogo(repoConfig, noLogo)); err != nil {
+	if err := workflow.GenerateCentralSlashCommandWorkflow(ctx, workflowDataList, workflowsDir, repoConfig, noLogo); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate centralized slash-command workflow: %w", err)
 		}
@@ -166,18 +167,6 @@ func generateCentralSlashCommandWorkflowWrapper(
 	}
 
 	return nil
-}
-
-func repoConfigWithNoLogo(repoConfig *workflow.RepoConfig, noLogo bool) *workflow.RepoConfig {
-	if !noLogo {
-		return repoConfig
-	}
-	config := workflow.RepoConfig{}
-	if repoConfig != nil {
-		config = *repoConfig
-	}
-	config.LockFileLogo = new(false)
-	return &config
 }
 
 // purgeOrphanedLockFiles removes orphaned .lock.yml files

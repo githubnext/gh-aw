@@ -59,9 +59,11 @@ func TestCompilerLockFileLogo(t *testing.T) {
 			if tt.logoOption != nil {
 				compiler.SetLockFileLogo(*tt.logoOption)
 			}
+			repoConfig, err := LoadRepoConfig(dir)
+			require.NoError(t, err)
 			data := &WorkflowData{Source: "test.md", Description: "Test workflow"}
 			var header strings.Builder
-			require.NoError(t, compiler.generateWorkflowHeader(&header, data, "frontmatter-hash", "body-hash", []string{"TEST_SECRET"}, []string{"actions/checkout@v6"}))
+			require.NoError(t, compiler.generateWorkflowHeader(&header, data, "frontmatter-hash", "body-hash", []string{"TEST_SECRET"}, []string{"actions/checkout@v6"}, repoConfig))
 
 			text := header.String()
 			require.Equal(t, tt.wantLogo, strings.Contains(text, workflowHeaderLogoBlock()))
@@ -75,7 +77,7 @@ func TestCompilerLockFileLogo(t *testing.T) {
 			baseline := NewCompiler()
 			baseline.gitRoot = t.TempDir()
 			var defaultHeader strings.Builder
-			require.NoError(t, baseline.generateWorkflowHeader(&defaultHeader, data, "frontmatter-hash", "body-hash", []string{"TEST_SECRET"}, []string{"actions/checkout@v6"}))
+			require.NoError(t, baseline.generateWorkflowHeader(&defaultHeader, data, "frontmatter-hash", "body-hash", []string{"TEST_SECRET"}, []string{"actions/checkout@v6"}, nil))
 			expected := defaultHeader.String()
 			if !tt.wantLogo {
 				expected = strings.Replace(expected, workflowHeaderLogoBlock(), "", 1)
@@ -97,7 +99,6 @@ func TestCompanionWorkflowLockFileLogo(t *testing.T) {
 		CheckoutConfigs:    []*CheckoutConfig{{Repository: "my-org/target-repo", Current: true}},
 		SafeOutputs:        &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{Expires: 48}},
 	}}
-	config := &RepoConfig{AutoUpgrade: new(true)}
 	paths := []string{
 		"agentics-maintenance.yml",
 		"agentics-maintenance-my-org-target-repo.yml",
@@ -106,30 +107,40 @@ func TestCompanionWorkflowLockFileLogo(t *testing.T) {
 		workQueueEventWorkflowFilename,
 	}
 	baseline := make(map[string]string)
-	for _, logo := range []bool{true, false} {
-		if !logo {
-			config.LockFileLogo = new(false)
-		}
-		require.NoError(t, GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
-			WorkflowDataList: data,
-			WorkflowDir:      dir,
-			ActionMode:       ActionModeDev,
-			RepoConfig:       config,
-		}))
-		require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, dir, config))
-		require.NoError(t, GenerateWorkQueueEventWorkflow(context.Background(), data, dir, config))
-		for _, path := range paths {
-			content, err := os.ReadFile(filepath.Join(dir, path))
-			require.NoError(t, err)
-			text := string(content)
-			require.Equal(t, logo, strings.Contains(text, workflowHeaderLogoBlock()), path)
-			require.Contains(t, text, "DO NOT EDIT.", path)
-			if logo {
-				baseline[path] = text
-			} else {
-				require.Equal(t, strings.Replace(baseline[path], workflowHeaderLogoBlock(), "", 1), text, path)
+	for _, tt := range []struct {
+		name     string
+		lockFile *bool
+		noLogo   bool
+		wantLogo bool
+	}{
+		{name: "default", wantLogo: true},
+		{name: "repository setting", lockFile: new(false)},
+		{name: "compile flag overrides repository setting", lockFile: new(true), noLogo: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &RepoConfig{AutoUpgrade: new(true), LockFileLogo: tt.lockFile}
+			require.NoError(t, GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+				WorkflowDataList: data,
+				WorkflowDir:      dir,
+				ActionMode:       ActionModeDev,
+				RepoConfig:       config,
+				NoLogo:           tt.noLogo,
+			}))
+			require.NoError(t, GenerateCentralSlashCommandWorkflow(context.Background(), data, dir, config, tt.noLogo))
+			require.NoError(t, GenerateWorkQueueEventWorkflow(context.Background(), data, dir, config, tt.noLogo))
+			for _, path := range paths {
+				content, err := os.ReadFile(filepath.Join(dir, path))
+				require.NoError(t, err)
+				text := string(content)
+				require.Equal(t, tt.wantLogo, strings.Contains(text, workflowHeaderLogoBlock()), path)
+				require.Contains(t, text, "DO NOT EDIT.", path)
+				if tt.wantLogo {
+					baseline[path] = text
+				} else {
+					require.Equal(t, strings.Replace(baseline[path], workflowHeaderLogoBlock(), "", 1), text, path)
+				}
 			}
-		}
+		})
 	}
 }
 
