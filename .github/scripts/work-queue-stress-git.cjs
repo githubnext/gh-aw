@@ -5,6 +5,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { createHash } = require("node:crypto");
+const { registerQueueLedgerClient } = require("../../actions/setup/js/work_queue_git_transport.cjs");
 
 const REPOSITORY = "local/queue";
 const PRINCIPAL = "1001";
@@ -17,7 +18,10 @@ const METHODS = {
 };
 
 function clientFor(call) {
-  return { rest: Object.fromEntries(Object.entries(METHODS).map(([group, names]) => [group, Object.fromEntries(names.map(name => [name, args => call(`${group}.${name}`, args)]))])) };
+  const client = { rest: Object.fromEntries(Object.entries(METHODS).map(([group, names]) => [group, Object.fromEntries(names.map(name => [name, args => call(`${group}.${name}`, args)]))])) };
+  // Both parent and worker RPC clients must keep ledger traffic on the local Git fixture.
+  registerQueueLedgerClient(client, client);
+  return client;
 }
 
 function apiError(status, message) {

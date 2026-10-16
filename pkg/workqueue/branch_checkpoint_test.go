@@ -83,6 +83,7 @@ const githubClient = { rest: {
     getBlob: async ({ file_sha }) => ({ data: { encoding: "base64", content: Buffer.from(input.logs[file_sha]).toString("base64") } })
   }
 } };
+require("../../actions/setup/js/work_queue_git_transport.cjs").registerQueueLedgerClient(githubClient, githubClient);
 readWorkQueueLog({ githubClient, owner: "owner", repo: "repo" })
   .then(result => {
     const state = serializeProjection(result.state);
