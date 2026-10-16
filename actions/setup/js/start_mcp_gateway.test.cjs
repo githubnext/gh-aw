@@ -225,7 +225,11 @@ describe("start_mcp_gateway health timeout", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("health check may give up"));
   });
 
-  it("sizes default retries for tools.startup-timeout instead of stopping after 150 attempts", async () => {
+  it.each([
+    [0, 300_500, 302],
+    [100, 301_000, 275],
+    [300, 300_100, 232],
+  ])("waits for tools.startup-timeout with %sms probe latency", async (probeLatencyMs, expectedResolvedAt, expectedAttempts) => {
     const env = { GH_AW_STARTUP_TIMEOUT: "300" };
     applyGatewayRuntimeTimeouts({ gateway: {} }, env);
     const config = resolveGatewayHealthRetryConfig(env);
@@ -236,14 +240,15 @@ describe("start_mcp_gateway health timeout", () => {
 
     vi.useFakeTimers();
     vi.setSystemTime(0);
-    const probe = vi.fn(async () => {
+    const probe = vi.fn(async remainingMs => {
+      if (probeLatencyMs) await new Promise(resolve => setTimeout(resolve, Math.min(probeLatencyMs, remainingMs)));
       if (Date.now() < 300_000) throw new Error("backend still starting");
     });
-    const wait = retryGatewayStartup(probe, config, 325_000, "health");
-    await vi.advanceTimersByTimeAsync(300_500);
-    await wait;
-    expect(Date.now()).toBe(300_500);
-    expect(probe.mock.calls.length).toBeGreaterThan(150);
+    const wait = retryGatewayStartup(probe, config, 325_000, "health").then(() => Date.now());
+    await vi.advanceTimersByTimeAsync(302_000);
+    expect(await wait).toBe(expectedResolvedAt);
+    expect(probe).toHaveBeenCalledTimes(expectedAttempts);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it.each(["150", "330"])("preserves an explicit %s-attempt override for a longer startup timeout", attempts => {
@@ -305,19 +310,23 @@ describe("start_mcp_gateway health timeout", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Ignoring invalid"));
   });
 
-  it.each([false, true])("stops persistent failures at the real deadline (slow requests: %s)", async slowRequests => {
+  it.each([0, 100, 300, 2000])("stops persistent failures at the real deadline with %sms probe latency", async probeLatencyMs => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     const config = resolveGatewayHealthRetryConfig({ [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000" });
     const probe = vi.fn(async remainingMs => {
-      if (slowRequests) await new Promise(resolve => setTimeout(resolve, Math.min(2000, remainingMs)));
+      if (probeLatencyMs) await new Promise(resolve => setTimeout(resolve, Math.min(probeLatencyMs, remainingMs)));
       throw new Error("unavailable");
     });
-    const wait = retryGatewayStartup(probe, config, 325_000, "health");
+    let rejectedAt;
+    const wait = retryGatewayStartup(probe, config, 325_000, "health").catch(err => {
+      rejectedAt = Date.now();
+      throw err;
+    });
     const rejection = expect(wait).rejects.toThrow(/unavailable|startup deadline exceeded/);
     await vi.advanceTimersByTimeAsync(325_000);
     await rejection;
-    expect(Date.now()).toBe(325_000);
+    expect(rejectedAt).toBe(325_000);
     expect(vi.getTimerCount()).toBe(0);
     expect(probe.mock.calls.length).toBeLessThan(config.maxTotalAttempts);
   });

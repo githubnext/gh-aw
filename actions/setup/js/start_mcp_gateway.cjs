@@ -207,6 +207,8 @@ function resolveGatewayHealthRetryConfig(env = process.env) {
   if (!explicitAttempts) {
     // Every retry waits at least the first delay. Use that upper bound to find
     // the smallest default attempt count that covers the backend startup window.
+    // Sleep-only time is a lower bound: probe latency reaches the shared deadline
+    // in fewer attempts, without exhausting this attempt limit early.
     let lower = config.maxTotalAttempts;
     let upper = Math.min(Number.MAX_SAFE_INTEGER, Math.max(lower, Math.ceil(requiredBudgetMs / Math.min(initialDelayMs * backoffMultiplier, maxDelayMs)) + 1));
     while (lower < upper) {
