@@ -128,15 +128,31 @@ for (const record of readJsonlFile(filePath, {
 Use the same option with `iterateJsonl(text)` or `streamJsonl(chunks)`.
 String inputs also short-circuit before line scanning when no match is possible.
 
+Pass `schema` to validate decoded records using the lightweight memory schema
+subset: `type`, `enum`, `required`, `properties`, `additionalProperties: false`,
+`items`, `oneOf`, and `anyOf`. Unsupported schemas fail before reading input.
+Schemas are prepared once per iterator or persistent parser; numeric enums also
+check raw numeric tokens for rounding, without constraining unrelated numbers.
+Schema failures are invalid events with reason `"schema"` and
+`validationError: { path, message }`. Value iterators skip them unless
+`strict: true` is set. Filters still omit records before validation.
+For example: `readJsonlFile(filePath, { schema: { type: "object" }, strict: true })`.
+
+Set `fatalUTF8: true` on byte-backed file, streaming, or persistent parsers to
+report malformed UTF-8 as invalid events with reason `"encoding"`, preserving
+physical line numbers. Set `jsonWhitespaceOnly: true` to reject non-JSON framing
+whitespace such as BOM and NBSP. Memory schema validation enables both options;
+the default tolerant log parsing behavior is unchanged.
+
 For redaction or diagnostics that must retain rejected input, use
 `iterateJsonlEvents(textOrLines)`, `readJsonlFileEvents(filePath)`, or
 `streamJsonlEvents(chunks)`. Each event has `type` (`"json"` or `"invalid"`),
 `rawLine` (including its original LF/CRLF terminator, if present), and `lineNumber`.
 JSON events also have `value`; invalid events have a sanitized `error` and a
-`reason` (`"syntax"`, `"too-long"`, or `"blank"`). Blank lines are emitted but do
+`reason` (`"syntax"`, `"too-long"`, `"blank"`, `"schema"`, or `"encoding"`). Blank lines are emitted but do
 not invoke `onError`. No synthetic empty event follows a final newline.
 Without a filter, concatenating `rawLine` reproduces the original text exactly.
-Raw lines are untrusted and may contain secrets; redact them before logging.
+Raw lines and schema paths are untrusted and may contain secrets; redact them before logging.
 
 ```javascript
 const { iterateJsonlEvents, readJsonlFileEvents } = require("./jsonl_helpers.cjs");

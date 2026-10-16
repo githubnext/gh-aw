@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const { StringDecoder } = require("node:string_decoder");
+const { prepareJsonSchema } = require("./json_schema_validation.cjs");
 
 /**
  * @typedef {object} JsonlOptions
@@ -10,13 +11,16 @@ const { StringDecoder } = require("node:string_decoder");
  * @property {(error: Error, lineNumber: number) => void} [onError] Reports rejected nonblank lines without exposing their contents.
  * @property {number} [maxLineLength] Optional limit in UTF-16 code units; unlimited by default.
  * @property {{field: string, value: string|number|boolean|null}} [fieldFilter] Match an own top-level field, prefiltering text before decoding.
+ * @property {Record<string, any>} [schema] Optional bounded JSON schema, validated once per input.
+ * @property {boolean} [fatalUTF8] Report malformed byte sequences as invalid events instead of replacing them.
+ * @property {boolean} [jsonWhitespaceOnly] Permit only JSON whitespace around records instead of String.trim() whitespace.
  */
 
 /**
  * @typedef {JsonlOptions & {strict?: boolean}} JsonlValueOptions
  * @typedef {JsonlOptions & {maxPendingRecordLength?: number}} JsonlStreamOptions
  * @typedef {{type: "json", value: any, rawLine: string, lineNumber: number} |
- * {type: "invalid", error: Error, reason: "blank"|"syntax"|"too-long", rawLine: string, lineNumber: number}} JsonlEvent
+ * {type: "invalid", error: Error, reason: "blank"|"syntax"|"too-long"|"schema"|"encoding", validationError?: {path: string, message: string}, rawLine: string, lineNumber: number}} JsonlEvent
  */
 
 /** @param {string} line */
@@ -109,23 +113,27 @@ class LineFramer {
  * Synchronous, bounded-read file iterator. Opens on first next(), closes on
  * completion, errors, and early return (including a consumer's break).
  * @param {string} filePath
- * @param {boolean} [includeNewline]
  */
-function* readLines(filePath, includeNewline = false) {
+function* readFileChunks(filePath) {
   const fd = fs.openSync(filePath, "r");
   try {
     const buffer = Buffer.allocUnsafe(64 * 1024);
-    const decoder = new StringDecoder("utf8");
-    const framer = new LineFramer(includeNewline);
     let count;
     while ((count = fs.readSync(fd, buffer, 0, buffer.length, null)) !== 0) {
-      yield* framer.push(decoder.write(buffer.subarray(0, count)));
+      yield buffer.subarray(0, count);
     }
-    yield* framer.push(decoder.end());
-    yield* framer.finish();
   } finally {
     fs.closeSync(fd);
   }
+}
+
+/** @param {string} filePath @param {boolean} [includeNewline] */
+function* readLines(filePath, includeNewline = false) {
+  const decoder = new StringDecoder("utf8");
+  const framer = new LineFramer(includeNewline);
+  for (const chunk of readFileChunks(filePath)) yield* framer.push(decoder.write(chunk));
+  yield* framer.push(decoder.end());
+  yield* framer.finish();
 }
 
 /**
@@ -177,11 +185,12 @@ function mayMatchField(text, filter) {
 /**
  * @param {string} rawLine
  * @param {number} lineNumber
- * @param {"blank"|"syntax"|"too-long"} reason
+ * @param {"blank"|"syntax"|"too-long"|"schema"|"encoding"} reason
  * @param {JsonlOptions} options
+ * @param {{path: string, message: string}} [validationError]
  * @returns {JsonlEvent}
  */
-function invalidEvent(rawLine, lineNumber, reason, options) {
+function invalidEvent(rawLine, lineNumber, reason, options, validationError) {
   /** @type {Error|undefined} */
   let error;
   /** @type {JsonlEvent} */
@@ -190,9 +199,15 @@ function invalidEvent(rawLine, lineNumber, reason, options) {
     rawLine,
     lineNumber,
     reason,
+    ...(validationError ? { validationError } : {}),
     // Plain-text logs must not pay for an error stack unless it is consumed.
     get error() {
-      return (error ??= reason === "too-long" ? new RangeError("JSONL record exceeds maxLineLength") : new SyntaxError(reason === "blank" ? "Blank JSONL record" : "Invalid JSONL record"));
+      return (error ??=
+        reason === "too-long"
+          ? new RangeError("JSONL record exceeds maxLineLength")
+          : reason === "schema"
+            ? new TypeError("JSONL record does not match schema")
+            : new SyntaxError(reason === "blank" ? "Blank JSONL record" : reason === "encoding" ? "JSONL record contains invalid UTF-8" : "Invalid JSONL record"));
     },
   };
   if (reason !== "blank" && options.onError) options.onError(event.error, lineNumber);
@@ -204,26 +219,34 @@ function invalidEvent(rawLine, lineNumber, reason, options) {
  * @param {number} lineNumber
  * @param {JsonlOptions} options
  * @param {ReturnType<typeof prepareFieldFilter>} fieldFilter
+ * @param {ReturnType<typeof prepareJsonSchema>|undefined} schemaValidator
  * @returns {JsonlEvent|undefined}
  */
-function parseEvent(rawLine, lineNumber, options, fieldFilter) {
-  let line = rawLine.trim();
-  if (!line) {
+function parseEvent(rawLine, lineNumber, options, fieldFilter, schemaValidator) {
+  let line = options.jsonWhitespaceOnly ? rawLine.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, "") : rawLine.trim();
+  if (!line || (options.jsonWhitespaceOnly && !line.trim())) {
     return invalidEvent(rawLine, lineNumber, "blank", options);
   }
   if (options.lineFilter && !options.lineFilter(line, lineNumber)) return;
-  if (options.lineTransform) line = options.lineTransform(line, lineNumber).trim();
+  if (options.lineTransform) {
+    line = options.lineTransform(line, lineNumber);
+    line = options.jsonWhitespaceOnly ? line.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, "") : line.trim();
+  }
   if (!mayMatchField(line, fieldFilter)) return;
   const length = rawLine.endsWith("\r\n") ? rawLine.length - 2 : rawLine.endsWith("\n") ? rawLine.length - 1 : rawLine.length;
   const tooLong = options.maxLineLength !== undefined && length > options.maxLineLength;
   if (!tooLong && isJsonCandidate(line)) {
+    let value;
     try {
-      const value = JSON.parse(line);
-      if (fieldFilter && (!value || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, fieldFilter.field) || value[fieldFilter.field] !== fieldFilter.value)) return;
-      return { type: "json", value, rawLine, lineNumber };
+      value = JSON.parse(line);
     } catch {
       // Report a sanitized error below, not JSON.parse's input-bearing message.
+      return invalidEvent(rawLine, lineNumber, "syntax", options);
     }
+    if (fieldFilter && (!value || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, fieldFilter.field) || value[fieldFilter.field] !== fieldFilter.value)) return;
+    const validationError = schemaValidator?.(value, line);
+    if (validationError) return invalidEvent(rawLine, lineNumber, "schema", options, validationError);
+    return { type: "json", value, rawLine, lineNumber };
   }
   return invalidEvent(rawLine, lineNumber, tooLong ? "too-long" : "syntax", options);
 }
@@ -244,27 +267,76 @@ class JsonlParser {
     }
     this.options = options;
     this.fieldFilter = prepareFieldFilter(options);
+    this.schemaValidator = options.schema === undefined ? undefined : prepareJsonSchema(options.schema);
     this.framer = new LineFramer(true, options.maxPendingRecordLength);
     this.decoder = new StringDecoder("utf8");
+    this.utf8Validator = options.fatalUTF8 ? new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }) : undefined;
+    this.invalidUTF8 = false;
     this.lineNumber = 0;
   }
 
   /** @param {Iterable<string>} lines @returns {Generator<JsonlEvent>} */
   *#events(lines) {
     for (const line of lines) {
-      const event = parseEvent(line, ++this.lineNumber, this.options, this.fieldFilter);
+      const event = this.invalidUTF8 ? invalidEvent(line, ++this.lineNumber, "encoding", this.options) : parseEvent(line, ++this.lineNumber, this.options, this.fieldFilter, this.schemaValidator);
       if (event) yield event;
     }
   }
 
   /** @param {Buffer|string} chunk @returns {Generator<JsonlEvent>} */
   *push(chunk) {
+    if (this.utf8Validator) {
+      if (typeof chunk === "string") {
+        if (!this.invalidUTF8) {
+          try {
+            this.utf8Validator.decode();
+          } catch {
+            this.invalidUTF8 = true;
+          }
+        }
+        this.utf8Validator = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+        for (const part of iterateLines(this.decoder.end() + chunk, true)) {
+          yield* this.#events(this.framer.push(part));
+          if (part.endsWith("\n")) this.invalidUTF8 = false;
+        }
+        return;
+      }
+      // Validate through each LF separately so failures retain physical positions.
+      const bytes = chunk;
+      let start = 0;
+      while (start < bytes.length) {
+        const newline = bytes.indexOf(0x0a, start);
+        const end = newline === -1 ? bytes.length : newline + 1;
+        const part = bytes.subarray(start, end);
+        if (!this.invalidUTF8) {
+          try {
+            this.utf8Validator.decode(part, { stream: true });
+          } catch {
+            this.invalidUTF8 = true;
+          }
+        }
+        yield* this.#events(this.framer.push(this.decoder.write(part)));
+        if (newline !== -1) {
+          if (this.invalidUTF8) this.utf8Validator = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+          this.invalidUTF8 = false;
+        }
+        start = end;
+      }
+      return;
+    }
     const text = typeof chunk === "string" ? this.decoder.end() + chunk : this.decoder.write(chunk);
     yield* this.#events(this.framer.push(text));
   }
 
   /** @returns {Generator<JsonlEvent>} */
   *finish() {
+    if (this.utf8Validator && !this.invalidUTF8) {
+      try {
+        this.utf8Validator.decode();
+      } catch {
+        this.invalidUTF8 = true;
+      }
+    }
     yield* this.#events(this.framer.push(this.decoder.end()));
     yield* this.#events(this.framer.finish());
   }
@@ -282,10 +354,11 @@ class JsonlParser {
 function* iterateJsonlEvents(source, options = {}) {
   validateOptions(options);
   const fieldFilter = prepareFieldFilter(options);
+  const schemaValidator = options.schema === undefined ? undefined : prepareJsonSchema(options.schema);
   if (typeof source === "string" && !options.lineTransform && !mayMatchField(source, fieldFilter)) return;
   let lineNumber = 0;
   for (const rawLine of typeof source === "string" ? iterateLines(source, true) : source) {
-    const event = parseEvent(rawLine, ++lineNumber, options, fieldFilter);
+    const event = parseEvent(rawLine, ++lineNumber, options, fieldFilter, schemaValidator);
     if (event) yield event;
   }
 }
@@ -298,6 +371,12 @@ function* iterateJsonlEvents(source, options = {}) {
  * @returns {Generator<JsonlEvent>}
  */
 function* readJsonlFileEvents(filePath, options = {}) {
+  if (options.fatalUTF8) {
+    const parser = new JsonlParser(options);
+    for (const chunk of readFileChunks(filePath)) yield* parser.push(chunk);
+    yield* parser.finish();
+    return;
+  }
   yield* iterateJsonlEvents(readLines(filePath, true), options);
 }
 
@@ -337,7 +416,10 @@ function* iterateJsonl(source, options = {}) {
  * @returns {Generator<any>}
  */
 function* readJsonlFile(filePath, options = {}) {
-  yield* iterateJsonl(readLines(filePath, true), options);
+  for (const event of readJsonlFileEvents(filePath, options)) {
+    if (event.type === "json") yield event.value;
+    else if (options.strict) throw event.error;
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import "embed"
 //
 //go:embed js/session_cli.cjs js/unified_session.cjs js/unified_session_payload.cjs js/unified_session_render.cjs
 //go:embed js/steering_helpers.cjs js/jsonl_helpers.cjs
+//go:embed js/json_schema_validation.cjs js/memory_schema_contract.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
 //go:embed js/workflow_job_durations.cjs
