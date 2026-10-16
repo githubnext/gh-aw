@@ -68,14 +68,14 @@ function collectAddMaskedValues(logContent) {
 }
 
 /**
- * Replace all occurrences of the masked values with `***`.
- *
+ * Yield non-overlapping matches, breaking equal-position ties by mask order.
  * @param {string} text
  * @param {string[]} maskedValues
- * @returns {string}
+ * @param {(match: {start: number, end: number, value: string}) => boolean} [allowed]
+ * @param {boolean} [overlapping]
+ * @yields {{start: number, end: number, value: string}}
  */
-function redactMaskedValues(text, maskedValues) {
-  if (!text || !maskedValues || maskedValues.length === 0) return text;
+function* maskedValueMatches(text, maskedValues, allowed = () => true, overlapping = false) {
   const pending = [];
   for (let order = 0; order < maskedValues.length; order++) {
     const value = maskedValues[order];
@@ -95,27 +95,93 @@ function redactMaskedValues(text, maskedValues) {
     }
   };
   for (let i = Math.floor(pending.length / 2) - 1; i >= 0; i--) siftDown(i);
-  const parts = [];
   let cursor = 0;
-  let replacements = 0;
   while (pending.length && cursor < text.length) {
     const next = pending[0];
+    let searchStart = cursor;
     if (next.index >= cursor) {
-      if (next.index > cursor) {
-        if (replacements) parts.push(MASK_REPLACEMENT.repeat(replacements));
-        replacements = 0;
-        parts.push(text.slice(cursor, next.index));
+      const match = { start: next.index, end: next.index + next.value.length, value: next.value };
+      if (allowed(match)) {
+        yield match;
+        cursor = overlapping ? match.start + 1 : match.end;
+        searchStart = cursor;
+      } else {
+        searchStart = next.index + 1;
       }
-      replacements++;
-      cursor = next.index + next.value.length;
     }
     // Only refresh consumed or overlapping occurrences; later candidates stay cached.
-    next.index = text.indexOf(next.value, cursor);
+    next.index = text.indexOf(next.value, searchStart);
     if (next.index === -1) {
       const last = pending.pop();
       if (pending.length) pending[0] = last;
     }
     siftDown(0);
+  }
+}
+
+/**
+ * @param {Iterable<{start: number, end: number, value: string, ambiguous?: boolean}>} matches
+ */
+function* overlappingMatchGroups(matches) {
+  let group;
+  for (const match of matches) {
+    if (group && match.start < group.end) {
+      group.end = Math.max(group.end, match.end);
+      if (match.value.length > group.value.length) group.value = match.value;
+      group.ambiguous ||= match.ambiguous;
+    } else {
+      if (group) yield group;
+      group = { ...match };
+    }
+  }
+  if (group) yield group;
+}
+
+/**
+ * Coalesce overlapping credentials before choosing their replacement marker.
+ * @param {string} text
+ * @param {string[]} maskedValues - Longest credentials first
+ * @param {(value: string) => string} replacementForValue
+ * @returns {string}
+ */
+function redactOverlappingMaskedValues(text, maskedValues, replacementForValue) {
+  const parts = [];
+  let cursor = 0;
+  for (const match of overlappingMatchGroups(maskedValueMatches(text, maskedValues, undefined, true))) {
+    parts.push(text.slice(cursor, match.start), replacementForValue(match.value));
+    cursor = match.end;
+  }
+  parts.push(text.slice(cursor));
+  return parts.join("");
+}
+
+/**
+ * Replace all occurrences of the masked values, defaulting to `***`.
+ *
+ * @param {string} text
+ * @param {string[]} maskedValues
+ * @param {(value: string) => string} [replacementForValue] - Explicit markers coalesce overlapping credentials
+ * @returns {string}
+ */
+function redactMaskedValues(text, maskedValues, replacementForValue) {
+  if (!text || !maskedValues || maskedValues.length === 0) return text;
+  if (replacementForValue)
+    return redactOverlappingMaskedValues(
+      text,
+      [...maskedValues].sort((a, b) => b.length - a.length),
+      replacementForValue
+    );
+  const parts = [];
+  let cursor = 0;
+  let replacements = 0;
+  for (const match of maskedValueMatches(text, maskedValues)) {
+    if (match.start > cursor) {
+      if (replacements) parts.push(MASK_REPLACEMENT.repeat(replacements));
+      replacements = 0;
+      parts.push(text.slice(cursor, match.start));
+    }
+    replacements++;
+    cursor = match.end;
   }
   if (replacements) parts.push(MASK_REPLACEMENT.repeat(replacements));
   parts.push(text.slice(cursor));
@@ -127,15 +193,16 @@ function redactMaskedValues(text, maskedValues) {
  *
  * @param {string} text - Text about to be rendered into generated content
  * @param {string[]} maskedValues - Values collected via {@link collectAddMaskedValues}
+ * @param {(value: string) => string} [replacementForValue]
  * @returns {string}
  */
-function applyAddMaskRedaction(text, maskedValues) {
+function applyAddMaskRedaction(text, maskedValues, replacementForValue) {
   if (!text) return text;
   const withoutCommands = text
     .split("\n")
     .filter(line => !isAddMaskCommandLine(line))
     .join("\n");
-  return redactMaskedValues(withoutCommands, maskedValues);
+  return redactMaskedValues(withoutCommands, maskedValues, replacementForValue);
 }
 
 /**
@@ -180,8 +247,9 @@ function transformJSONStrings(text, transformString, transformText = value => va
       end++;
     }
     if (invalidString) {
-      parts.push(transformText(text.slice(cursor, start + 1)));
-      cursor = start + 1;
+      // Do not rescan escaped quotes in the rejected prefix.
+      parts.push(transformText(text.slice(cursor, end)));
+      cursor = end;
       continue;
     }
     if (end >= text.length) {
@@ -196,6 +264,181 @@ function transformJSONStrings(text, transformString, transformText = value => va
 }
 
 /**
+ * Decode ambiguous escapes for matching only, mapping matches back to source
+ * spans so unrelated plain-text paths and literal escapes keep their bytes.
+ * @param {string} text
+ * @param {string[]} maskedValues
+ * @param {(value: string) => string} replacementForValue
+ * @returns {string}
+ */
+function redactAmbiguousMaskedValues(text, maskedValues, replacementForValue) {
+  const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+  const pattern = /\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g;
+  const unescaped = text.replace(pattern, (_, escape) => {
+    if (escape[0] === "u") return String.fromCharCode(parseInt(escape.slice(1), 16));
+    return escapes[escape];
+  });
+  let nextEscape = pattern.exec(text);
+  let offset = 0;
+  const sourceOffset = position => {
+    while (nextEscape && nextEscape.index - offset < position) {
+      offset += nextEscape[0].length - 1;
+      nextEscape = pattern.exec(text);
+    }
+    return position + offset;
+  };
+  const parts = [];
+  let cursor = 0;
+  for (const match of maskedValueMatches(unescaped, maskedValues)) {
+    const start = sourceOffset(match.start);
+    const end = sourceOffset(match.end);
+    parts.push(text.slice(cursor, start), replacementForValue(match.value));
+    cursor = end;
+  }
+  // Ambiguous records retain their JSON-string wrapper, but its decoded value
+  // now changes only at the source spans that actually matched a mask.
+  return cursor ? JSON.stringify(parts.join("") + text.slice(cursor)) : text;
+}
+
+/**
+ * @param {string} encoded
+ * @returns {string}
+ */
+function decodeJSONString(encoded) {
+  try {
+    return JSON.parse(encoded);
+  } catch (error) {
+    throw new Error("Unable to decode JSON log string during secret redaction", { cause: error });
+  }
+}
+
+/**
+ * Resolve raw and encoded matches together before a malformed record can be
+ * rewritten. Quoted-token interiors use decoded semantics; raw matches spanning
+ * token boundaries remain eligible so a shorter mask cannot fragment them.
+ * @param {string} text
+ * @param {string[]} maskedValues
+ * @param {(value: string) => string} replacementForValue
+ * @returns {string}
+ */
+function redactMixedMaskedValues(text, maskedValues, replacementForValue) {
+  maskedValues = [...maskedValues].sort((a, b) => b.length - a.length);
+  const tokens = [];
+  let scanned = 0;
+  transformJSONStrings(
+    text,
+    token => {
+      decodeJSONString(token);
+      tokens.push(scanned, scanned + token.length);
+      scanned += token.length;
+      return token;
+    },
+    plain => {
+      scanned += plain.length;
+      return plain;
+    }
+  );
+  const tokenAt = position => {
+    let low = 0;
+    let high = tokens.length / 2;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (tokens[mid * 2] <= position) low = mid + 1;
+      else high = mid;
+    }
+    return (low - 1) * 2;
+  };
+  const escapeStarts = [];
+  const escapeOffsets = [];
+  const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+  let offset = 0;
+  const unescaped = text.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (match, escape, index) => {
+    escapeStarts.push(index - offset);
+    offset += match.length - 1;
+    escapeOffsets.push(offset);
+    return escape[0] === "u" ? String.fromCharCode(parseInt(escape.slice(1), 16)) : escapes[escape];
+  });
+  const sourceOffset = position => {
+    let low = 0;
+    let high = escapeStarts.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (escapeStarts[mid] < position) low = mid + 1;
+      else high = mid;
+    }
+    return position + (low ? escapeOffsets[low - 1] : 0);
+  };
+  const toSource = match => ({ start: sourceOffset(match.start), end: sourceOffset(match.end), value: match.value });
+  const rawMatches = maskedValueMatches(
+    text,
+    maskedValues,
+    match => {
+      const token = tokenAt(match.start);
+      return token < 0 || match.end > tokens[token + 1];
+    },
+    true
+  );
+  const decodedMatches = maskedValueMatches(
+    unescaped,
+    maskedValues,
+    match => {
+      const source = toSource(match);
+      const token = tokenAt(source.start);
+      return token < 0 || source.end > tokens[token + 1] || (source.start > tokens[token] && source.end < tokens[token + 1]);
+    },
+    true
+  );
+  function* sourceMatches() {
+    let raw = rawMatches.next();
+    let decoded = decodedMatches.next();
+    let decodedSource = decoded.done ? undefined : toSource(decoded.value);
+    while (!raw.done || !decoded.done) {
+      const useRaw = !decodedSource || (!raw.done && (raw.value.start < decodedSource.start || (raw.value.start === decodedSource.start && raw.value.end >= decodedSource.end)));
+      const match = useRaw && !raw.done ? raw.value : decodedSource;
+      if (!match) throw new Error("Unable to select log spans during secret redaction");
+      const token = tokenAt(match.start);
+      const insideToken = token >= 0 && match.start > tokens[token] && match.end < tokens[token + 1];
+      const overlapsToken = (token >= 0 && match.start < tokens[token + 1]) || (token + 2 < tokens.length && tokens[token + 2] < match.end);
+      yield { ...match, ambiguous: !insideToken && (overlapsToken || text.slice(match.start, match.end) !== match.value) };
+      if (useRaw) raw = rawMatches.next();
+      else {
+        decoded = decodedMatches.next();
+        decodedSource = decoded.done ? undefined : toSource(decoded.value);
+      }
+    }
+  }
+  const parts = [];
+  let cursor = 0;
+  let ambiguous = false;
+  let repeated = "";
+  let repetitions = 0;
+  for (const match of overlappingMatchGroups(sourceMatches())) {
+    const token = tokenAt(match.start);
+    const insideToken = token >= 0 && match.start > tokens[token] && match.end < tokens[token + 1];
+    ambiguous ||= match.ambiguous;
+    const marker = replacementForValue(match.value);
+    const replacement = insideToken ? JSON.stringify(marker).slice(1, -1) : marker;
+    if (match.start > cursor || replacement !== repeated) {
+      if (repetitions) parts.push(repeated.repeat(repetitions));
+      repetitions = 0;
+      if (match.start > cursor) parts.push(text.slice(cursor, match.start));
+    }
+    repeated = replacement;
+    repetitions++;
+    cursor = match.end;
+  }
+  if (repetitions) parts.push(repeated.repeat(repetitions));
+  parts.push(text.slice(cursor));
+  const redacted = transformJSONStrings(parts.join(""), encoded => {
+    const value = decodeJSONString(encoded);
+    const withoutCommands = applyAddMaskRedaction(value, []);
+    return withoutCommands === value ? encoded : JSON.stringify(withoutCommands);
+  });
+  // A registered raw whole-line value removes all of the original syntax.
+  return ambiguous && !maskedValues.includes(text) ? JSON.stringify(redacted) : redacted;
+}
+
+/**
  * Sanitize artifact sources while runtime masks are still available in memory.
  * Decode JSON strings first so escaping cannot hide a registered value, redact
  * matching numeric tokens as JSON strings, and preserve untouched records
@@ -203,15 +446,23 @@ function transformJSONStrings(text, transformString, transformText = value => va
  * @param {string} content
  * @param {string[]} maskedValues
  * @param {(value: any) => any} [redactJSONValue] - Structured protocol redactor for valid JSON records
+ * @param {(value: string) => string} [replacementForValue] - Marker for each matched registered value
  * @returns {string}
  */
-function redactArtifactMaskedValues(content, maskedValues, redactJSONValue) {
+function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, replacementForValue) {
   if (!content || (!maskedValues.length && !redactJSONValue)) return content;
+  const preserveLexemes = !!replacementForValue && !redactJSONValue;
+  const replacement = replacementForValue || (() => MASK_REPLACEMENT);
   const redactValue = value => {
-    if (typeof value === "string") return applyAddMaskRedaction(value, maskedValues);
+    if (typeof value === "string") return applyAddMaskRedaction(value, maskedValues, replacementForValue);
     if (Array.isArray(value)) return value.map(redactValue);
-    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, nested]) => [redactMaskedValues(key, maskedValues), redactValue(nested)]));
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, nested]) => [redactMaskedValues(key, maskedValues, replacementForValue), redactValue(nested)]));
     return value;
+  };
+  const redactString = (encoded, isKey = false) => {
+    const value = decodeJSONString(encoded);
+    const redacted = isKey ? redactMaskedValues(value, maskedValues, replacementForValue) : redactValue(value);
+    return redacted === value ? encoded : JSON.stringify(redacted);
   };
   const redactJson = text => {
     let value;
@@ -227,7 +478,7 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue) {
       token => token,
       plain =>
         plain.replace(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
-          const redacted = redactMaskedValues(token, maskedValues);
+          const redacted = redactMaskedValues(token, maskedValues, replacementForValue);
           return redacted === token ? token : JSON.stringify(redacted);
         })
     );
@@ -237,6 +488,22 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue) {
       } catch (error) {
         throw new Error("Unable to decode redacted JSON log record during secret redaction", { cause: error });
       }
+    }
+    if (preserveLexemes) {
+      let cursor = 0;
+      return transformJSONStrings(
+        numericRedacted,
+        token => {
+          cursor += token.length;
+          let next = cursor;
+          while (next < numericRedacted.length && " \t\r\n".includes(numericRedacted[next])) next++;
+          return redactString(token, numericRedacted[next] === ":");
+        },
+        plain => {
+          cursor += plain.length;
+          return plain;
+        }
+      );
     }
     const redacted = JSON.stringify((redactJSONValue || redactValue)(value));
     return redacted === JSON.stringify(value) ? numericRedacted : text.match(/^\s*/)[0] + redacted + text.match(/\s*$/)[0];
@@ -249,28 +516,11 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue) {
     .map(line => {
       const jsonLine = redactJson(line);
       if (jsonLine !== undefined) return jsonLine;
+      if (preserveLexemes) return redactMixedMaskedValues(line, maskedValues, replacement);
       // Mixed or malformed logs can still contain recoverable JSON strings.
-      const decoded = transformJSONStrings(line, encoded => {
-        let value;
-        try {
-          value = JSON.parse(encoded);
-        } catch (error) {
-          throw new Error("Unable to decode JSON log string during secret redaction", { cause: error });
-        }
-        const redacted = redactValue(value);
-        return redacted === value ? encoded : JSON.stringify(redacted);
-      });
-      const redacted = redactMaskedValues(decoded, maskedValues);
-      // Malformed quotes have no unique pairing. Decode remaining escapes once
-      // conservatively so an alternate pairing cannot hide an encoded mask.
-      const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
-      const unescaped = redacted.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => {
-        if (escape[0] === "u") return String.fromCharCode(parseInt(escape.slice(1), 16));
-        return escapes[escape];
-      });
-      const conservative = applyAddMaskRedaction(unescaped, maskedValues);
-      // Only re-encode an ambiguous record when the extra decoding finds a mask.
-      return conservative === unescaped ? redacted : JSON.stringify(conservative);
+      const decoded = transformJSONStrings(line, redactString);
+      const redacted = redactMaskedValues(decoded, maskedValues, replacementForValue);
+      return redactAmbiguousMaskedValues(redacted, maskedValues, replacement);
     })
     .join("\n");
 }

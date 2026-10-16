@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { applyAddMaskRedaction, collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, redactArtifactMaskedValues, redactMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactSafeOutputContent } = require("./safe_output_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
 const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
@@ -305,6 +305,55 @@ function redactSecrets(content, secretValues) {
 }
 
 /**
+ * Match all credential sources before any replacement or JSON serialization can
+ * fragment a longer secret or change its spelling.
+ * @param {string} content
+ * @param {string[]} secretValues
+ * @param {string[]} maskedValues
+ * @returns {{content: string, redactionCount: number}}
+ */
+function redactArtifactContent(content, secretValues, maskedValues) {
+  const configured = new Set(secretValues.filter(value => value && value.length >= 6));
+  /** @type {Map<string, string>} */
+  const builtInValues = new Map();
+  // Discovery only: include escaped built-in credentials without rewriting the
+  // original numeric lexemes, malformed records, or unchanged JSON strings.
+  const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+  const decoded = content.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => (escape[0] === "u" ? String.fromCharCode(parseInt(escape.slice(1), 16)) : escapes[escape]));
+  for (const text of new Set([content, decoded])) {
+    for (const { name, pattern } of BUILT_IN_PATTERNS) {
+      for (const match of text.matchAll(pattern)) builtInValues.set(match[0], name);
+    }
+  }
+  const values = [...new Set([...configured, ...builtInValues.keys(), ...maskedValues])].sort((a, b) => b.length - a.length);
+  let redactionCount = 0;
+  const builtInCounts = new Map();
+  let configuredCount = 0;
+  const replacement = value => {
+    redactionCount++;
+    const name = builtInValues.get(value);
+    if (name) builtInCounts.set(name, (builtInCounts.get(name) || 0) + 1);
+    else if (configured.has(value)) configuredCount++;
+    return name || configured.has(value) ? "***REDACTED***" : "***";
+  };
+  // Raw multiline values must be removed before the mixed-record parser splits
+  // lines; never pre-rewrite valid JSON syntax or its original numeric lexemes.
+  const multilineValues = values.filter(value => /[\r\n]/.test(value));
+  let prepared = content;
+  if (multilineValues.some(value => content.includes(value))) {
+    try {
+      JSON.parse(content);
+    } catch {
+      prepared = redactMaskedValues(content, multilineValues, replacement);
+    }
+  }
+  const redacted = redactArtifactMaskedValues(prepared, values, undefined, replacement);
+  for (const [name, count] of builtInCounts) global.core?.info?.(`Redacted ${count} occurrence(s) of ${name}`);
+  if (configuredCount) global.core?.info?.(`Redacted ${configuredCount} occurrence(s) of a secret`);
+  return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
+}
+
+/**
  * Validate and read the host-only AWF early configuration artifact. The exact
  * path contract and metadata checks prevent an environment variable from
  * turning this diagnostic step into an arbitrary host-file uploader.
@@ -518,25 +567,10 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
       if (redactionCount) core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
       return redactionCount;
     }
-    const encodedResult =
-      path.extname(filePath).toLowerCase() === ".html"
-        ? redactPiSessionHTML(content, text => {
-            const masked = redactArtifactMaskedValues(text, maskedValues);
-            const builtIn = redactBuiltInPatterns(masked);
-            const custom = redactSecrets(builtIn.content, secretValues);
-            return { content: custom.content, redactionCount: builtIn.redactionCount + custom.redactionCount + (masked !== text ? 1 : 0) };
-          })
-        : { content, redactionCount: 0 };
-    const runtimeRedacted = redactArtifactMaskedValues(encodedResult.content, maskedValues);
-    // First, redact built-in patterns
-    const builtInResult = redactBuiltInPatterns(runtimeRedacted);
-    let redacted = builtInResult.content;
-    let totalRedactions = encodedResult.redactionCount + builtInResult.redactionCount + (runtimeRedacted !== encodedResult.content ? 1 : 0);
-
-    // Then, redact custom secrets
-    const customResult = redactSecrets(redacted, secretValues);
-    redacted = customResult.content;
-    totalRedactions += customResult.redactionCount;
+    const encodedResult = path.extname(filePath).toLowerCase() === ".html" ? redactPiSessionHTML(content, text => redactArtifactContent(text, secretValues, maskedValues)) : { content, redactionCount: 0 };
+    const genericResult = redactArtifactContent(encodedResult.content, secretValues, maskedValues);
+    const redacted = genericResult.content;
+    const totalRedactions = encodedResult.redactionCount + genericResult.redactionCount;
 
     if (totalRedactions > 0 || prepareForCustomMasking) {
       stage = "write";

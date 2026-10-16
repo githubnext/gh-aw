@@ -45,6 +45,29 @@ describe("add_mask_redaction", () => {
       expect(strings.mock.calls.map(([token]) => token)).toEqual(['" "']);
     });
 
+    it.each([1024, 2048])("bounds character inspections after %i malformed escaped quotes", count => {
+      const prefix = '"' + '\\"'.repeat(count) + "\\q ";
+      const content = prefix + '"\\u006fpaque" tail';
+      const strings = vi.fn(token => token);
+      const plain = vi.fn(text => text);
+      const original = String.prototype.charCodeAt;
+      let inspections = 0;
+      const spy = vi.spyOn(String.prototype, "charCodeAt").mockImplementation(function (index) {
+        inspections++;
+        return original.call(this, index);
+      });
+      let result;
+      try {
+        result = transformJSONStrings(content, strings, plain);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(inspections).toBeLessThanOrEqual(content.length);
+      expect(result).toBe(content);
+      expect(strings.mock.calls.map(([token]) => token)).toEqual(['"\\u006fpaque"']);
+      expect(plain.mock.calls.map(([text]) => text).join("")).toBe(prefix + " tail");
+    });
+
     it.each(["string", "plain"])("propagates %s callback failures without adding source text", callback => {
       const error = new Error("synthetic callback failure");
       const fail = () => {
@@ -154,9 +177,15 @@ describe("add_mask_redaction", () => {
         ).toEqual([expectedNested, expected]);
         const mixed = `output: ${encodedValue} end`;
         expect(redactArtifactMaskedValues(mixed, [mask]), context).toBe(`output: ${JSON.stringify(expected)} end`);
+        const selected = redactArtifactMaskedValues(mixed, [mask], undefined, () => "***");
+        expect(JSON.parse(selected.slice("output: ".length, -" end".length)), context).toBe(expected);
         expect(redactArtifactMaskedValues(nested, ["ABSENT_RUNTIME_MASK"]), context).toBe(nested);
         expect(redactArtifactMaskedValues(jsonl, ["ABSENT_RUNTIME_MASK"]), context).toBe(jsonl);
         expect(redactArtifactMaskedValues(mixed, ["ABSENT_RUNTIME_MASK"]), context).toBe(mixed);
+        expect(
+          redactArtifactMaskedValues(mixed, ["ABSENT_RUNTIME_MASK"], undefined, () => "***"),
+          context
+        ).toBe(mixed);
       }
     });
 
@@ -165,12 +194,13 @@ describe("add_mask_redaction", () => {
       const prefixes = ['"bad\\q"', '"bad\\u12gg"', '"bad\\u123"', '"bad\t"', '"bad\u0000"'];
       for (let iteration = 0; iteration < 300; iteration++) {
         const prefix = prefixes[random(prefixes.length)];
-        const before = "a".repeat(random(16));
-        const after = "z".repeat(random(16));
+        const before = (random(2) ? String.raw`C:\temp\file.txt \u0041 \\u006fpaque ` : "") + "a".repeat(random(16));
+        const after = "z".repeat(random(16)) + (random(2) ? String.raw` D:\new\report.txt \u0042` : "");
         const encodedMask = "\\u006f" + encodeString("paque", random).slice(1, -1);
         const content = `${prefix} "${before}${encodedMask}${after}"`;
         const context = `seed ${seed}, iteration ${iteration}, input ${JSON.stringify(content)}`;
         expect(JSON.parse(redactArtifactMaskedValues(content, ["opaque"])), context).toBe(`${prefix} "${before}***${after}"`);
+        expect(JSON.parse(redactArtifactMaskedValues(content, ["opaque"], undefined, () => "***")), context).toBe(`${prefix} "${before}***${after}"`);
         expect(redactArtifactMaskedValues(content, ["ABSENT_RUNTIME_MASK"]), context).toBe(content);
       }
     });
@@ -242,6 +272,13 @@ describe("add_mask_redaction", () => {
   });
 
   describe("redactMaskedValues", () => {
+    it("preserves per-value replacement markers across adjacent and overlapping matches", () => {
+      const replacement = value => (value === "configured" ? "***REDACTED***" : "***");
+      expect(redactMaskedValues("configuredruntimeconfiguredconfigured runtime", ["configured", "runtime", "figure"], replacement)).toBe("***REDACTED***" + "***" + "***REDACTED***".repeat(2) + " ***");
+      expect(redactMaskedValues("ababa", ["aba"])).toBe("***ba");
+      expect(redactMaskedValues("ababa", ["aba"], replacement)).toBe("***");
+    });
+
     it("replaces every occurrence with ***", () => {
       expect(redactMaskedValues("token=abc and abc again", ["abc"])).toBe("token=*** and *** again");
     });
@@ -320,6 +357,94 @@ describe("add_mask_redaction", () => {
     });
 
     describe("redactArtifactMaskedValues", () => {
+      it.each([
+        ['{"configured":["configured",12345678],"live":"runtime","safe":42}', '{"***REDACTED***":["***REDACTED***","***REDACTED***"],"live":"***","safe":42}'],
+        ['plain configured runtime "\\u0063onfigured" "\\u0072untime"', 'plain ***REDACTED*** *** "***REDACTED***" "***"'],
+        ['"bad\t" "\\u0063onfigured \\u0072untime" C:\\temp\\file.txt', JSON.stringify('"bad\t" "***REDACTED*** ***" C:\\temp\\file.txt')],
+      ])("supports per-value replacement markers throughout encoding-aware redaction (%j)", (content, expected) => {
+        const replacement = value => (value === "runtime" ? "***" : "***REDACTED***");
+        expect(redactArtifactMaskedValues(content, ["configured", "12345678", "runtime"], undefined, replacement)).toBe(expected);
+      });
+
+      it("preserves original JSON whitespace, safe escapes, and numeric lexemes with explicit replacement markers", () => {
+        const content = ' \t{ "configured" : "\\u0063onfigured", "safe" : "\\u0041", "values" : [12345678,-0,1e+09,9007199254740993,1e400] }\r\n';
+        const expected = ' \t{ "***REDACTED***" : "***REDACTED***", "safe" : "\\u0041", "values" : ["***REDACTED***",-0,1e+09,9007199254740993,1e400] }\r\n';
+        expect(redactArtifactMaskedValues(content, ["configured", "12345678"], undefined, () => "***REDACTED***")).toBe(expected);
+      });
+
+      it.each([
+        ["synthetic\\n", "synthetic\npassword", JSON.stringify("synthetic\npassword")],
+        ["synthetic\\u006e", "syntheticnpassword", '"synthetic\\u006epassword"'],
+        ['"password', '"passwordtail', JSON.stringify('"passwordtail')],
+      ])("resolves longer encoded masks before raw configured prefixes (%j)", (configured, runtime, encoded) => {
+        const masks = [configured, runtime].sort((a, b) => b.length - a.length);
+        const replacement = value => (value === configured ? "***REDACTED***" : "***");
+        expect(redactArtifactMaskedValues("output: " + encoded, masks, undefined, replacement)).toBe('output: "***"');
+        expect(JSON.parse(redactArtifactMaskedValues('"bad\t" ' + encoded, masks, undefined, replacement))).toBe('"bad\t" "***"');
+      });
+
+      it("resolves raw configured masks spanning recoverable token boundaries before shorter decoded masks", () => {
+        const configured = 'synthetic"\\\tpassword';
+        const content = '"bad\t" "\\u006fpaque" token=' + configured;
+        const replacement = value => (value === configured ? "***REDACTED***" : "***");
+        expect(JSON.parse(redactArtifactMaskedValues(content, [configured, "synthetic", "opaque"], undefined, replacement))).toBe('"bad\t" "***" token=***REDACTED***');
+      });
+
+      it.each(["***", "***REDACTED***"])("keeps a fully masked raw shell command as a plain marker (%s)", marker => {
+        const content = 'export PAYLOAD_DIR="/synthetic/session/payload"';
+        expect(redactArtifactMaskedValues(content, [content], undefined, () => marker)).toBe(marker);
+        expect(redactArtifactMaskedValues(content + "\n", [content], undefined, () => marker)).toBe(marker + "\n");
+      });
+
+      it("coalesces raw and encoded matches that overlap at different source positions", () => {
+        const content = String.raw`\u0061bc\nf`;
+        expect(JSON.parse(redactArtifactMaskedValues(content, [String.raw`u0061bc\nf`, String.raw`c\nf`, "ab"], undefined, () => "***"))).toBe("***");
+      });
+
+      it.each([
+        ["long-configured-secret", "ablong", "ablong-configured-secret"],
+        ["12345678", "9123", "912345678"],
+      ])("coalesces shorter earlier runtime overlaps across text, JSON strings, keys, and numeric lexemes (%j)", (configured, runtime, content) => {
+        const replacement = value => (value === configured ? "***REDACTED***" : "***");
+        const masks = [configured, runtime];
+        expect(redactMaskedValues(content, masks, replacement)).toBe("***REDACTED***");
+        expect(redactArtifactMaskedValues(content, masks, undefined, replacement)).toBe(/^\d+$/.test(content) ? '"***REDACTED***"' : "***REDACTED***");
+        expect(redactArtifactMaskedValues(JSON.stringify({ [content]: content }), masks, undefined, replacement)).toBe('{"***REDACTED***":"***REDACTED***"}');
+        expect(redactArtifactMaskedValues("output: " + JSON.stringify(content), masks, undefined, replacement)).toBe('output: "***REDACTED***"');
+      });
+
+      it("keeps literal Unicode escapes distinct with explicit replacement markers", () => {
+        const content = '"bad\t" ' + JSON.stringify("\\u006fpaque");
+        expect(redactArtifactMaskedValues(content, ["opaque"], undefined, () => "***")).toBe(content);
+      });
+
+      it("fails closed if decoding an original validated token unexpectedly fails with explicit replacement markers", () => {
+        const encoded = '"\\u006fpaque"';
+        const failure = new Error("synthetic decoding failure");
+        const original = JSON.parse;
+        const spy = vi.spyOn(JSON, "parse").mockImplementation(value => {
+          if (value === encoded) throw failure;
+          return original(value);
+        });
+        try {
+          expect(() => redactArtifactMaskedValues("output: " + encoded, ["opaque"], undefined, () => "***")).toThrow("Unable to decode JSON log string during secret redaction");
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it("keeps the structured JSON visitor authoritative and propagates its failures", () => {
+        const visitor = vi.fn(value => ({ wrapped: value }));
+        expect(redactArtifactMaskedValues('{"safe":42}', [], visitor, () => "***REDACTED***")).toBe('{"wrapped":{"safe":42}}');
+        expect(visitor).toHaveBeenCalledExactlyOnceWith({ safe: 42 });
+        const error = new Error("synthetic visitor failure");
+        expect(() =>
+          redactArtifactMaskedValues('{"safe":42}', [], () => {
+            throw error;
+          })
+        ).toThrow(error);
+      });
+
       describe("JSON string scanner boundaries", () => {
         const encodedMask = '"\\u006fpaque"';
         const validStrings = [
@@ -392,6 +517,20 @@ describe("add_mask_redaction", () => {
         it("redacts encoded masks crossing quote boundaries in an alternate pairing", () => {
           const content = '"bad\t" "foo\\"bar"';
           expect(JSON.parse(redactArtifactMaskedValues(content, ['foo"bar']))).toBe('"bad\t" "***"');
+        });
+
+        it.each(["opaque", 'foo"bar', "a\tb", "a\\b", "\ud83d\ude80"])("only rewrites source spans participating in conservative matches (%j)", mask => {
+          const encodedMask = Array.from({ length: mask.length }, (_, index) => `\\u${mask.charCodeAt(index).toString(16).padStart(4, "0")}`).join("");
+          const prefix = String.raw`before C:\temp\file.txt \\server\folder \n \t \b \f \r \" \/ \u0041 "bad` + '\t" "';
+          const suffix = String.raw`" after D:\new\report.txt \\server\share \u0042 \\u006fpaque`;
+          const content = prefix + encodedMask + suffix;
+          expect(JSON.parse(redactArtifactMaskedValues(content, [mask]))).toBe(prefix + "***" + suffix);
+          expect(redactArtifactMaskedValues(content, ["absent"])).toBe(content);
+        });
+
+        it("preserves unmatched escapes between multiple conservative matches and overlapping candidates", () => {
+          const content = '"bad\t" ' + String.raw`"\u006fpaque" C:\temp\file.txt "\u006fpaque-tail" \\u006fpaque`;
+          expect(JSON.parse(redactArtifactMaskedValues(content, ["opaque-tail", "opaque"]))).toBe('"bad\t" ' + String.raw`"***" C:\temp\file.txt "***" \\u006fpaque`);
         });
 
         it("does not recursively decode literal Unicode escapes after malformed prefixes", () => {
@@ -470,6 +609,15 @@ describe("add_mask_redaction", () => {
         expect(parsed.text.length).toBe(2 * 1024 * 1024 + 5);
         expect(parsed.text.endsWith("***\\\\")).toBe(true);
         expect(parsed.safe).toBe("12345678");
+      });
+
+      it.each([false, true])("redacts a multi-megabyte malformed escaped-quote record without rescanning its rejected prefix (explicit selector %j)", selector => {
+        const prefix = '"' + '\\"'.repeat(1024 * 1024);
+        const suffix = String.raw`\q "safe" C:\temp\file.txt`;
+        const content = prefix + String.raw`\u006fpaque` + suffix;
+        const replacement = selector ? () => "***" : undefined;
+        expect(JSON.parse(redactArtifactMaskedValues(content, ["opaque"], undefined, replacement))).toBe(prefix + "***" + suffix);
+        expect(redactArtifactMaskedValues(content, ["absent"], undefined, replacement)).toBe(content);
       });
 
       it.each(["\n", "\r", "\u2028", "\u2029"])("recovers encoded masks after an invalid escaped line terminator", terminator => {
