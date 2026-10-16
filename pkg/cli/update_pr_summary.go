@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"html"
 	"io"
 	"net/url"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -39,10 +39,9 @@ type updatePRCompilerTransition struct {
 }
 
 type updatePRSummary struct {
-	before   map[string]updatePRFile
-	dir      string
-	applied  []workflowFixInfo
-	outcomes []string
+	before  map[string]updatePRFile
+	dir     string
+	applied []workflowFixInfo
 }
 
 var summaryReleaseVersion = regexp.MustCompile(`^v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
@@ -62,9 +61,6 @@ func newUpdatePRSummary(ctx context.Context, dir string) (*updatePRSummary, erro
 }
 
 func updatePRBody(ctx context.Context, summary *updatePRSummary, opts UpdateWorkflowsOptions) (string, error) {
-	if opts.NoCompile {
-		summary.outcomes = append(summary.outcomes, "Workflow compilation skipped (`--no-compile`).")
-	}
 	body, err := summary.body(ctx, "update")
 	if err != nil {
 		return "", err
@@ -79,13 +75,22 @@ func captureUpdatePRFiles(ctx context.Context, dir string) (map[string]updatePRF
 	if err != nil {
 		return nil, fmt.Errorf("cannot locate repository for PR summary: %w", err)
 	}
-	root := strings.TrimSpace(string(rootBytes))
-	workflowDir, err := filepath.Abs(dir)
+	root, err := filepath.EvalSymlinks(strings.TrimSpace(string(rootBytes)))
+	if err != nil {
+		return nil, err
+	}
+	workflowDir, err := summaryPhysicalPath(dir)
 	if err != nil {
 		return nil, err
 	}
 	args := []string{"-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--",
 		".github", ".gitattributes", ".gitignore", "AGENTS.md", "SKILL.md"}
+	agentDirs := []string{constants.AgentsDir}
+	for _, engine := range workflow.GetGlobalEngineRegistry().GetSupportedEngines() {
+		skillDir, agentDir := workflow.GetEngineSkillDir(engine), workflow.GetEngineSubAgentDir(engine)
+		args = append(args, skillDir, agentDir)
+		agentDirs = append(agentDirs, agentDir+"/")
+	}
 	if relativeDir, err := filepath.Rel(root, workflowDir); err == nil && relativeDir != ".." && !strings.HasPrefix(relativeDir, ".."+string(filepath.Separator)) {
 		if relativeDir == "." {
 			args = append(args, ":(glob)*.md", ":(glob)*.lock.yml")
@@ -114,7 +119,7 @@ func captureUpdatePRFiles(ctx context.Context, dir string) (map[string]updatePRF
 		if !info.Mode().IsRegular() {
 			continue
 		}
-		if strings.HasPrefix(path, constants.AgentsDir) {
+		if slices.ContainsFunc(agentDirs, func(dir string) bool { return strings.HasPrefix(path, dir) }) {
 			// Agent contents aren't needed to report that generated artifacts
 			// changed. Metadata-only entries are explicitly labeled in the body.
 			fingerprint := fmt.Sprintf("%d:%d:%d", info.Size(), info.ModTime().UnixNano(), info.Mode())
@@ -128,6 +133,23 @@ func captureUpdatePRFiles(ctx context.Context, dir string) (map[string]updatePRF
 		files[path] = state
 	}
 	return files, nil
+}
+
+func summaryPhysicalPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(absolute)
+	if !os.IsNotExist(err) {
+		return resolved, err
+	}
+	// A default workflow directory may not have been created yet.
+	parent, err := summaryPhysicalPath(filepath.Dir(absolute))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, filepath.Base(absolute)), nil
 }
 
 func hashUpdatePRFile(full string) (hash [32]byte, err error) {
@@ -171,9 +193,11 @@ func readUpdatePRFile(full, path, workflowDir string) (updatePRFile, error) {
 				if source, ok := parsed.Frontmatter["source"].(string); ok {
 					state.source = source
 				}
+				state.pins = summaryYAMLPins([]byte(strings.Join(parsed.FrontmatterLines, "\n")))
 			}
 		case strings.HasSuffix(path, ".lock.yml"):
 			state.compiler = extractCompilerVersionFromLockContent(string(content))
+			state.pins = summaryYAMLPins(content)
 		case isWorkflowYAML:
 			state.pins = summaryYAMLPins(content)
 		}
@@ -265,8 +289,24 @@ func summaryLockPins(content []byte) map[string]updatePRPin {
 }
 
 func summaryCode(text string) string {
-	text = strings.NewReplacer("`", "&#96;", "\r", " ", "\n", " ").Replace(html.EscapeString(text))
-	return "`" + text + "`"
+	if text == "" {
+		return "—"
+	}
+	text = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(text)
+	longest, run := 0, 0
+	for _, character := range text {
+		if character == '`' {
+			run++
+			longest = max(longest, run)
+		} else {
+			run = 0
+		}
+	}
+	delimiter := strings.Repeat("`", longest+1)
+	if strings.HasPrefix(text, "`") || strings.HasSuffix(text, "`") || (strings.HasPrefix(text, " ") && strings.HasSuffix(text, " ") && strings.TrimSpace(text) != "") {
+		text = " " + text + " "
+	}
+	return delimiter + text + delimiter
 }
 
 func summaryPinValue(pin updatePRPin) string {
@@ -385,6 +425,7 @@ func (s *updatePRSummary) body(ctx context.Context, command string) (string, err
 func (s *updatePRSummary) changedFiles(after map[string]updatePRFile) (changed, sources, compilers, pins []string) {
 	paths := make(map[string]struct{})
 	transitions := make(map[updatePRCompilerTransition]int)
+	pinPaths := make(map[string]map[string]struct{})
 	for path := range s.before {
 		paths[path] = struct{}{}
 	}
@@ -415,7 +456,19 @@ func (s *updatePRSummary) changedFiles(after map[string]updatePRFile) (changed, 
 			transitions[updatePRCompilerTransition{old.compiler, next.compiler}]++
 		}
 		for _, pin := range summaryPinChanges(old.pins, next.pins) {
-			pins = append(pins, pin+" — "+summaryCode(path))
+			if pinPaths[pin] == nil {
+				pinPaths[pin] = make(map[string]struct{})
+			}
+			pinPaths[pin][path] = struct{}{}
+		}
+	}
+	for pin, paths := range pinPaths {
+		if len(paths) == 1 {
+			for path := range paths {
+				pins = append(pins, pin+" — "+summaryCode(path))
+			}
+		} else {
+			pins = append(pins, fmt.Sprintf("%s — %d file(s).", pin, len(paths)))
 		}
 	}
 	for transition, count := range transitions {
@@ -444,12 +497,6 @@ func (s *updatePRSummary) render(command string, after map[string]updatePRFile) 
 	if command == "upgrade" {
 		body.WriteString("\n### Applied codemods\n\n")
 		writeSummaryList(&body, s.codemodSummary(), "No workflow codemods were applied.")
-	}
-	if len(s.outcomes) > 0 {
-		body.WriteString("\n### Execution notes\n\n")
-		for _, outcome := range s.outcomes {
-			body.WriteString("- " + outcome + "\n")
-		}
 	}
 	return body.String()
 }

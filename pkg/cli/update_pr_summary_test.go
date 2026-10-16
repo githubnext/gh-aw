@@ -83,6 +83,117 @@ func TestUpdatePRSummaryYAMLPins(t *testing.T) {
 	assert.NotContains(t, rows[0], "not-an-action")
 }
 
+func TestUpdatePRSummaryWorkflowPins(t *testing.T) {
+	dir := t.TempDir()
+	oldSHA, newSHA := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	for _, name := range []string{"test.md", "test.lock.yml"} {
+		t.Run(name, func(t *testing.T) {
+			template := "jobs:\n  test:\n    steps:\n      - uses: owner/action@%s # %s\n"
+			if strings.HasSuffix(name, ".md") {
+				template = "---\n" + template + "---\nPrompt with uses: owner/not-an-action@v1.0.0\n"
+			}
+			path := filepath.Join(dir, name)
+			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(template, oldSHA, "v1.0.0")), 0600))
+			old, err := readUpdatePRFile(path, name, dir)
+			require.NoError(t, err)
+			require.Len(t, old.pins, 1)
+			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(template, newSHA, "v2.0.0")), 0600))
+			next, err := readUpdatePRFile(path, name, dir)
+			require.NoError(t, err)
+			rows := summaryPinChanges(old.pins, next.pins)
+			require.Len(t, rows, 1)
+			assert.Contains(t, rows[0], "`v1.0.0 @ "+oldSHA+"` → `v2.0.0 @ "+newSHA+"`")
+		})
+	}
+}
+
+func TestUpdatePRSummaryCodeSpans(t *testing.T) {
+	for _, tc := range []struct{ text, want string }{
+		{"", "—"},
+		{"Migrate MCP 'mode' to 'type'", "`Migrate MCP 'mode' to 'type'`"},
+		{"a&<b>.md", "`a&<b>.md`"},
+		{"a`b``c", "```a`b``c```"},
+		{"`path`", "`` `path` ``"},
+		{" path ", "`  path  `"},
+		{"line\r\nbreak\nnext\rend", "`line break next end`"},
+	} {
+		assert.Equal(t, tc.want, summaryCode(tc.text))
+	}
+	summary := &updatePRSummary{before: map[string]updatePRFile{}}
+	body := summary.render("update", map[string]updatePRFile{"new.lock.yml": {compiler: "v1.0.0"}})
+	assert.Contains(t, body, "— → `v1.0.0`: 1 workflow(s)")
+}
+
+func TestUpdatePRSummarySymlinkCheckout(t *testing.T) {
+	dir := t.TempDir()
+	repo := filepath.Join(dir, "repo")
+	require.NoError(t, os.MkdirAll(repo, 0755))
+	t.Chdir(repo)
+	output, err := exec.Command("git", "init", "-q").CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	link := filepath.Join(dir, "checkout")
+	require.NoError(t, os.Symlink(repo, link))
+	for _, workflowDir := range []string{".github/workflows", "custom-workflows"} {
+		require.NoError(t, os.MkdirAll(workflowDir, 0755))
+		path := filepath.Join(workflowDir, "test.md")
+		require.NoError(t, os.WriteFile(path, []byte("---\nsource: owner/repo/test.md@v1.0.0\n---\n"), 0600))
+		summary, err := newUpdatePRSummary(context.Background(), filepath.Join(link, workflowDir))
+		require.NoError(t, err)
+		require.Contains(t, summary.before, filepath.ToSlash(path))
+		assert.Equal(t, "owner/repo/test.md@v1.0.0", summary.before[filepath.ToSlash(path)].source)
+		require.NoError(t, os.WriteFile(path, []byte("---\nsource: owner/repo/test.md@v2.0.0\n---\n"), 0600))
+		body, err := summary.body(context.Background(), "update")
+		require.NoError(t, err)
+		assert.Contains(t, body, "`owner/repo/test.md@v1.0.0`")
+		assert.Contains(t, body, "`owner/repo/test.md@v2.0.0`")
+	}
+	missing, err := summaryPhysicalPath(filepath.Join(link, "not-created", "workflows"))
+	require.NoError(t, err)
+	physicalRepo, err := filepath.EvalSymlinks(repo)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(physicalRepo, "not-created", "workflows"), missing)
+}
+
+func TestUpdatePRSummaryEngineArtifacts(t *testing.T) {
+	t.Chdir(t.TempDir())
+	output, err := exec.Command("git", "init", "-q").CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	summary, err := newUpdatePRSummary(context.Background(), ".github/workflows")
+	require.NoError(t, err)
+	for _, engine := range []string{"claude", "codex", "gemini", "pi"} {
+		skill := "." + engine + "/skills/review/SKILL.md"
+		agent := "." + engine + "/agents/reviewer.md"
+		require.NoError(t, os.MkdirAll(filepath.Dir(skill), 0755))
+		require.NoError(t, os.MkdirAll(filepath.Dir(agent), 0755))
+		require.NoError(t, os.WriteFile(skill, []byte("private skill content"), 0600))
+		// Agent metadata must be captured without opening agent content.
+		require.NoError(t, os.WriteFile(agent, []byte("private agent content"), 0000))
+		t.Cleanup(func() { _ = os.Chmod(agent, 0600) })
+	}
+	after, err := captureUpdatePRFiles(context.Background(), summary.dir)
+	require.NoError(t, err)
+	body := summary.render("update", after)
+	for _, engine := range []string{"claude", "codex", "gemini", "pi"} {
+		assert.Contains(t, body, "Added `."+engine+"/skills/review/SKILL.md`")
+		assert.Contains(t, body, "Added `."+engine+"/agents/reviewer.md` (metadata only)")
+		assert.True(t, after["."+engine+"/agents/reviewer.md"].metadataOnly)
+	}
+	assert.NotContains(t, body, "private")
+	summary.before = after
+	require.NoError(t, os.WriteFile(".claude/skills/review/SKILL.md", []byte("updated private skill content"), 0600))
+	require.NoError(t, os.Chmod(".claude/agents/reviewer.md", 0600))
+	require.NoError(t, os.WriteFile(".claude/agents/reviewer.md", []byte("updated private agent content"), 0600))
+	require.NoError(t, os.Remove(".codex/skills/review/SKILL.md"))
+	require.NoError(t, os.Remove(".codex/agents/reviewer.md"))
+	body, err = summary.body(context.Background(), "update")
+	require.NoError(t, err)
+	assert.Contains(t, body, "Modified `.claude/skills/review/SKILL.md`")
+	assert.Contains(t, body, "Modified `.claude/agents/reviewer.md` (metadata only)")
+	assert.Contains(t, body, "Removed `.codex/skills/review/SKILL.md`")
+	assert.Contains(t, body, "Removed `.codex/agents/reviewer.md` (metadata only)")
+	assert.NotContains(t, body, "private")
+}
+
 func TestUpdatePRSummaryReleaseLinks(t *testing.T) {
 	for _, version := range []string{"dev", "main", "v1", "v1.2.3-4-gabc123", "deadbeef", ""} {
 		assert.Empty(t, summaryReleaseLink("github/gh-aw", version))
@@ -140,7 +251,6 @@ func TestUpdatePRSummarySnapshotsActualRunChanges(t *testing.T) {
 	assert.NotContains(t, body, "Updated\n")
 	withMessage, err := updatePRBody(context.Background(), summary, UpdateWorkflowsOptions{NoCompile: true, PRMessage: "Review the rollout carefully."})
 	require.NoError(t, err)
-	assert.Contains(t, withMessage, "Workflow compilation skipped (`--no-compile`).")
 	assert.Contains(t, withMessage, "Review the rollout carefully.")
 	require.NoError(t, os.Remove(path))
 	body, err = summary.body(context.Background(), "update")
@@ -187,6 +297,13 @@ func TestUpdatePRSummaryLargeRepositoryFitsPRBody(t *testing.T) {
 		newPins[repo] = updatePRPin{"Action", repo, "v2.0.0", strings.Repeat("b", 40)}
 	}
 	lock := ".github/aw/actions-lock.json"
+	for path, state := range summary.before {
+		state.pins = oldPins
+		summary.before[path] = state
+		next := after[path]
+		next.pins = newPins
+		after[path] = next
+	}
 	summary.before[lock] = updatePRFile{hash: [32]byte{1}, pins: oldPins}
 	after[lock] = updatePRFile{hash: [32]byte{2}, pins: newPins}
 	body := summary.render("upgrade", after)
@@ -204,36 +321,7 @@ func TestUpdatePRSummaryLargeRepositoryFitsPRBody(t *testing.T) {
 	}
 	assert.Equal(t, 120, strings.Count(body, strings.Repeat("a", 40)))
 	assert.Equal(t, 120, strings.Count(body, strings.Repeat("b", 40)))
-}
-
-func TestUpdatePRSummarySkippedUpgradeSteps(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		noFix     bool
-		noActions bool
-		noCompile bool
-		want      []string
-		absent    []string
-	}{
-		{name: "default", absent: []string{"skipped", "--no-fix", "--no-actions", "--no-compile"}},
-		{name: "no-fix", noFix: true, noActions: true, noCompile: true, want: []string{"Codemods, action/container updates, and workflow compilation skipped (`--no-fix`)"}, absent: []string{"--no-actions", "--no-compile", "compilation completed"}},
-		{name: "no-actions", noActions: true, want: []string{"update steps skipped (`--no-actions`)"}, absent: []string{"--no-fix", "--no-compile"}},
-		{name: "no-compile", noCompile: true, want: []string{"compilation skipped (`--no-compile`)"}, absent: []string{"--no-fix", "--no-actions"}},
-		{name: "both", noActions: true, noCompile: true, want: []string{"--no-actions", "--no-compile"}, absent: []string{"--no-fix"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			summary := &updatePRSummary{before: map[string]updatePRFile{}}
-			opts := upgradeOptions{noFix: tc.noFix, noActions: tc.noActions, noCompile: tc.noCompile, summary: summary}
-			opts.recordSkippedSummarySteps()
-			body := summary.render("upgrade", map[string]updatePRFile{})
-			for _, want := range tc.want {
-				assert.Contains(t, body, want)
-			}
-			for _, absent := range tc.absent {
-				assert.NotContains(t, body, absent)
-			}
-		})
-	}
+	assert.Equal(t, 120, strings.Count(body, "345 file(s)"))
 }
 
 func TestRunFixReportsOnlyWrittenCodemods(t *testing.T) {

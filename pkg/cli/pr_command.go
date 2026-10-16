@@ -524,7 +524,11 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 	}
 
 	// Create PR body with original info
-	prBody := withPRFooter(buildTransferPRBody(prInfo))
+	bodyFile, err := writePRBodyFile(buildTransferPRBody(prInfo))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(bodyFile)
 
 	// Create the PR
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
@@ -538,7 +542,7 @@ func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo 
 	output, err := workflow.RunGHContext(ctx, "Creating pull request...", "pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
-		"--body", prBody,
+		"--body-file", bodyFile,
 		"--head", headRef)
 	if err != nil {
 		return fmt.Errorf("could not create PR; ensure required prerequisites are configured, then retry: %w", err)
@@ -849,7 +853,12 @@ func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug stri
 	// Build gh pr create args. Explicitly specifying --repo ensures the PR is created in the
 	// current repo (not an upstream fork). Use GH_HOST env var instead of --hostname
 	// (which is only valid for gh api, not gh pr create).
-	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", withPRFooter(body), "--head", branchName}
+	bodyFile, err := writePRBodyFile(body)
+	if err != nil {
+		return 0, "", err
+	}
+	defer os.Remove(bodyFile)
+	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body-file", bodyFile, "--head", branchName}
 	output, err := createPRRunGHContextWithHost(ctx, "Creating pull request...", remoteHost, prCreateArgs...)
 	if err != nil {
 		// Try to get stderr for better error reporting

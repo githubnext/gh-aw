@@ -44,7 +44,7 @@ Rather than erroring at 65,536 characters, the CLI could trim the body and appen
 #### Neutral
 - `runFixCommand` gained an `OnApplied` callback (via `runFixCommandWithResults`) purely so that upgrade can report codemods that were actually written; the existing non-reporting call path is preserved by passing `nil`.
 - `PRInfo.PRMessage` is marked `json:"-"`, carrying caller input through an otherwise API-shaped struct rather than as a separate parameter.
-- `processWorkflowFileWithInfo` now returns `true` with applied codemods when Serena scaffolding fails, so partial writes are reported instead of being masked as "not fixed".
+- Codemods are included in PR summaries only after the workflow update and any required Serena scaffolding both succeed; partial failures retain their error reporting without claiming a completed migration.
 - The ADR/file numbering uses the PR number (`69378`), matching the existing convention in `docs/adr/`.
 
 ---

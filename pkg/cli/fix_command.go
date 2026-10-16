@@ -25,7 +25,7 @@ type FixConfig struct {
 	Verbose            bool
 	WorkflowDir        string   // Custom workflow directory
 	DisabledCodemodIDs []string // Codemod IDs to skip
-	// OnApplied receives only fixes successfully written to a workflow.
+	// OnApplied receives fixes only after the workflow migration completes successfully.
 	OnApplied func(file string, fixes []string)
 }
 
@@ -177,9 +177,6 @@ func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, wo
 		fixLog.Printf("Processing file: %s", file)
 
 		fixed, appliedFixes, err := processWorkflowFileWithInfo(file, codemods, write, verbose)
-		if write && fixed && onApplied != nil {
-			onApplied(file, appliedFixes)
-		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", console.FormatErrorMessage(fmt.Sprintf("Error processing %s: %v", filepath.Base(file), err)))
 			var guidedErr *GuidedError
@@ -192,6 +189,9 @@ func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, wo
 			continue
 		}
 
+		if write && fixed && onApplied != nil {
+			onApplied(file, appliedFixes)
+		}
 		totalFiles++
 		if fixed {
 			totalFixed++
@@ -338,7 +338,7 @@ func processWorkflowFileWithInfo(filePath string, codemods []Codemod, write bool
 		}
 
 		if err := scaffoldSerenaSharedWorkflowIfNeeded(filePath, appliedCodemods, currentContent, verbose); err != nil {
-			return true, appliedCodemods, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
+			return false, nil, fmt.Errorf("failed to scaffold shared Serena workflow: %w", err)
 		}
 
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatSuccessMessage(fileName))
