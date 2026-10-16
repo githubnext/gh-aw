@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+const { readJsonlFile } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 /**
@@ -53,19 +54,7 @@ const OTLP_STATUS_ERROR = 2;
  */
 function readJSONL(filePath) {
   try {
-    const lines = fs.readFileSync(filePath, "utf8").split("\n");
-    /** @type {any[]} */
-    const items = [];
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        items.push(JSON.parse(trimmed));
-      } catch {
-        // Invalid NDJSON line — ignored.
-      }
-    }
-    return items;
+    return Array.from(readJsonlFile(filePath));
   } catch {
     return [];
   }

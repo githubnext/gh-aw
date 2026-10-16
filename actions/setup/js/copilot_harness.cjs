@@ -1,5 +1,6 @@
 // @ts-check
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 /**
  * Copilot Harness with Retry Logic
  *
@@ -47,7 +48,7 @@
  * Example: node copilot_harness.cjs copilot --add-dir /tmp/ --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt
  */
 
-"use strict";
+("use strict");
 
 require("./shim.cjs");
 
@@ -755,7 +756,7 @@ function isCopilotContentFilterError(output) {
   return output.split(/\r?\n/).some(line => {
     let event;
     try {
-      event = JSON.parse(line);
+      event = parseJsonlLine(line);
     } catch {
       return false;
     }

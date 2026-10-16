@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 
+const { parseJsonlLine, LineFramer } = require("./jsonl_helpers.cjs");
 const { spawn, spawnSync } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -103,8 +104,8 @@ const main = async () => {
     await new Promise(
       /** @param {(value?: void) => void} resolve */ (resolve, reject) => {
         const child = spawn(binary, args, { cwd: env.GH_AW_ENGINE_CWD || workspace, env, detached: true, stdio: ["pipe", "pipe", "pipe"] });
-        let buffer = "",
-          stderrTail = "",
+        const framer = new LineFramer();
+        let stderrTail = "",
           result,
           invalid = false,
           denied = false,
@@ -157,7 +158,7 @@ const main = async () => {
           if (!value.trim()) return;
           let event;
           try {
-            event = JSON.parse(value);
+            event = parseJsonlLine(value);
           } catch {
             invalid = true;
             terminate("SIGTERM");
@@ -174,17 +175,7 @@ const main = async () => {
         };
         child.stdout.setEncoding("utf8").on("data", chunk => {
           process.stdout.write(chunk);
-          buffer += chunk;
-          if (buffer.length > 2 * 1024 * 1024) {
-            invalid = true;
-            terminate("SIGTERM");
-            return;
-          }
-          let newline;
-          while ((newline = buffer.indexOf("\n")) >= 0) {
-            line(buffer.slice(0, newline));
-            buffer = buffer.slice(newline + 1);
-          }
+          for (const value of framer.push(chunk)) line(value);
         });
         child.stderr.setEncoding("utf8").on("data", chunk => {
           stderrTail = (stderrTail + chunk).slice(-4096);
@@ -215,7 +206,7 @@ const main = async () => {
           if (settled) return;
           settled = true;
           cleanup();
-          line(buffer);
+          for (const value of framer.finish()) line(value);
           const inferred =
             Number.isSafeInteger(result?.num_turns) &&
             result.num_turns > 0 &&

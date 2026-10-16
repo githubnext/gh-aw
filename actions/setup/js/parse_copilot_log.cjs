@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 /** @typedef {import("./types/agent_session").SessionEvent} SessionEvent */
 
 const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, buildStepSummaryDetailsSection, formatInitializationSummary, formatToolUse, AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
@@ -277,7 +278,7 @@ function parseDebugLogFormat(logContent) {
     if (!duplicate && value.error !== undefined) entries.push(createSessionEvent(source, "session.result", { errors: [value.error] }));
   };
 
-  for (const line of logContent.split("\n")) {
+  for (const line of iterateLines(logContent)) {
     const debug = line.match(/^(?:(\d{4}-\d{2}-\d{2}T\S+)\s+)?\[DEBUG\]\s+(?:\[rust:[^\]]+\]\s+)?(.*)$/);
     const clean = debug ? debug[2] : line;
     const response = clean.match(/^response \(Request-ID ([^)]+)\):/);
@@ -293,7 +294,7 @@ function parseDebugLogFormat(logContent) {
     }
     let parsed;
     try {
-      parsed = JSON.parse(marker ? marker[2] : clean);
+      parsed = parseJsonlLine(marker ? marker[2] : clean);
     } catch {
       // Ignore this malformed framing line; independently valid adjacent records remain recoverable.
     }

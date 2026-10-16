@@ -1,4 +1,5 @@
 // @ts-check
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 
 /**
  * Helpers that make rendered agent logs aware of GitHub Actions `::add-mask::`
@@ -157,7 +158,7 @@ function redactArtifactMaskedValues(content, maskedValues) {
   };
   const redactJson = text => {
     try {
-      let value = JSON.parse(text);
+      let value = parseJsonlLine(text);
       // Skip quoted strings and match original numeric tokens at every depth so
       // rounding or exponent notation cannot hide a mask.
       const numericRedacted = text.replace(/"(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {

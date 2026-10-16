@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 
+const { parseJsonlLine, LineFramer } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -81,7 +82,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         reject(new Error("Pi sub-agent requires piped input and output"));
         return;
       }
-      let buffer = "";
+      const framer = new LineFramer();
       let stderr = "";
       let output = "";
       let failure = "";
@@ -97,7 +98,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         if (!line.trim()) return;
         let event;
         try {
-          event = JSON.parse(line);
+          event = parseJsonlLine(line);
         } catch {
           failure ||= "Pi sub-agent emitted an invalid JSON event";
           return;
@@ -120,16 +121,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         }
       };
       child.stdout.on("data", data => {
-        buffer += data.toString();
-        if (Buffer.byteLength(buffer) > 1024 * 1024) {
-          failure = "Pi sub-agent event exceeded the 1 MiB limit";
-          buffer = "";
-          terminate();
-          return;
-        }
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) parseLine(line);
+        for (const line of framer.push(data)) parseLine(line);
       });
       child.stderr.on("data", data => {
         stderr = (stderr + data.toString()).slice(-16384);
@@ -155,7 +147,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         clearTimeout(timeout);
         clearTimeout(killTimer);
         signal?.removeEventListener("abort", abort);
-        if (buffer.trim()) parseLine(buffer);
+        for (const line of framer.finish()) parseLine(line);
         if (code !== 0 || terminationSignal || failure || !output.trim()) {
           const error = sanitizeProviderErrorMessage(failure || stderr || `Pi sub-agent exited ${code ?? terminationSignal} without an answer`);
           emitResult("failed", error);

@@ -2,6 +2,7 @@
 
 "use strict";
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const { BUILT_IN_PATTERNS } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues, redactMaskedValues } = require("./add_mask_redaction.cjs");
 
@@ -164,10 +165,10 @@ function parseAPIProxyGuardRejection(output) {
   const safeOutput = typeof output === "string" ? output : "";
   if (!safeOutput) return null;
   const diagnostics = [];
-  for (const line of safeOutput.split(/\r?\n/)) {
+  for (const line of iterateLines(safeOutput)) {
     let record;
     try {
-      record = JSON.parse(line);
+      record = parseJsonlLine(line);
     } catch {
       continue;
     }
@@ -275,7 +276,7 @@ function parseAICreditsExceededProxyRejection(output) {
     /** @type {unknown} */
     let parsed;
     try {
-      parsed = JSON.parse(trimmed);
+      parsed = parseJsonlLine(trimmed);
     } catch {
       continue;
     }

@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
@@ -9,11 +10,11 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** @param {string} stream @returns {string} */
 function sessionIDFromStream(stream) {
-  for (const line of stream.split("\n")) {
+  for (const line of iterateLines(stream)) {
     if (!line.startsWith("{")) continue;
     let record;
     try {
-      record = JSON.parse(line);
+      record = parseJsonlLine(line);
     } catch {
       continue;
     }

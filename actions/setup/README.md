@@ -73,6 +73,42 @@ All files are copied from the committed `js/` and `sh/` directories which contai
 
 ## Development
 
+### JSONL runtime helpers
+
+Use `js/jsonl_helpers.cjs` instead of splitting files or maintaining chunk buffers:
+
+```javascript
+const fs = require("node:fs");
+const { readJsonlFile, streamJsonl } = require("./jsonl_helpers.cjs");
+
+for (const record of readJsonlFile(filePath)) {
+  consume(record);
+}
+
+for await (const record of streamJsonl(fs.createReadStream(filePath))) {
+  await consume(record);
+}
+```
+
+Both iterators are lazy, retain at most the current line and input chunk, and close
+their input on early termination. Multi-megabyte lines, split UTF-8 characters,
+CRLF, and a final line without a newline are supported. Blank and malformed lines
+are skipped; obviously non-JSON lines bypass `JSON.parse`. All JSON values are
+supported, including `null`, `false`, and `0`.
+
+`iterateJsonl(textOrLines, options)` handles existing text or complete-line iterables.
+All JSONL iterators accept `lineFilter(line, lineNumber)`, optional `maxLineLength`
+(UTF-16 code units, unlimited by default), and `onError(error, lineNumber)`.
+Errors have sanitized messages and physical, one-based line numbers. Filter,
+callback, and I/O failures propagate. The length limit rejects oversized records
+after framing; memory remains proportional to the largest line.
+
+Strict protocols use `parseJsonlLine(line)` with their existing error handling.
+Custom repair or framing formats can use `iterateLines(text)`, `readLines(filePath)`,
+`streamLines(chunks)`, or `LineFramer.push(chunk)` / `finish()` without duplicating
+line buffering. `parseJsonlContent` remains an eager compatibility wrapper for
+callers that require an array; prefer iterators when results need not be retained.
+
 The `js/` and `sh/` directories contain the source of truth for all JavaScript and shell script files. These files are manually edited and committed to the repository.
 
 **To update JavaScript files:**

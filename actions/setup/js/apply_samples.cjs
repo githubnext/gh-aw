@@ -29,6 +29,7 @@
 //   GITHUB_WORKSPACE          — git working directory for pre-staging (optional;
 //                               falls back to cwd)
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const { spawn } = require("child_process");
@@ -500,7 +501,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
       continue;
     }
     try {
-      return JSON.parse(line);
+      return parseJsonlLine(line);
     } catch (err) {
       throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`, { cause: err });
     }

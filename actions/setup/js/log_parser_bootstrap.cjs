@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -214,7 +215,7 @@ async function runLogParser(options) {
         continue;
       }
       try {
-        JSON.parse(trimmedLine);
+        parseJsonlLine(trimmedLine);
         count++;
       } catch (e) {
         // Ignore invalid JSONL lines
@@ -436,7 +437,7 @@ async function runLogParser(options) {
                     }
                     if (start < 0) return false;
                     try {
-                      const parsed = JSON.parse(line.slice(start));
+                      const parsed = parseJsonlLine(line.slice(start));
                       if (Array.isArray(parsed)) {
                         return parsed.some(isUsableResult);
                       }

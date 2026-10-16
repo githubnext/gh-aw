@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -73,7 +74,7 @@ function readModelRoutingRecord(ghAwDir) {
     const previousPathRecords = new Set(seenOutcomeRecords);
     for (const line of lines) {
       try {
-        const record = JSON.parse(line);
+        const record = parseJsonlLine(line);
         if (typeof record?._schema !== "string" || !record._schema.startsWith("model-routing/")) continue;
         if (record.stage === "selection" || record.stage === "failure") {
           // Suppress mirrored copies from earlier paths, not repeated records within this log.
@@ -350,7 +351,7 @@ function readDedupedTokenUsage(paths) {
       continue;
     }
 
-    for (const line of fileContent.split("\n")) {
+    for (const line of iterateLines(fileContent)) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       const dedupeKey = extractTokenUsageDedupeKey(trimmed) || trimmed;
@@ -406,11 +407,11 @@ function findCopilotUsageCheckpoint(sessionStateDir = getGhAwPath("sandbox/agent
     } catch {
       continue;
     }
-    for (const line of content.split("\n")) {
+    for (const line of iterateLines(content)) {
       sequence++;
       if (!line.trim()) continue;
       try {
-        const event = JSON.parse(line);
+        const event = parseJsonlLine(line);
         if (event?.type !== "session.usage_checkpoint") continue;
         const totalNanoAiu = Number(event?.data?.totalNanoAiu);
         if (!Number.isFinite(totalNanoAiu) || totalNanoAiu < 0) continue;

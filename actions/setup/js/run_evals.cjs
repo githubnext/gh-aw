@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 /**
  * run_evals — BinEval binary evaluation harness.
  *
@@ -28,7 +29,7 @@
  * only handles prompt construction and result parsing.
  */
 
-"use strict";
+("use strict");
 
 const fs = require("fs");
 const path = require("path");
@@ -322,7 +323,7 @@ function extractAssistantTextFromJsonlLog(logContent) {
     if (jsonStart === -1) continue;
     let obj;
     try {
-      obj = JSON.parse(trimmed.slice(jsonStart));
+      obj = parseJsonlLine(trimmed.slice(jsonStart));
     } catch {
       continue;
     }

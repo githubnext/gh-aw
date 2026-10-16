@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -342,7 +343,7 @@ function hasMCPTransportWedge(sessionContent) {
   if (!sessionContent.includes('"transport_wedge"')) return false;
   return sessionContent.split(/\r?\n/).some(line => {
     try {
-      const event = JSON.parse(line);
+      const event = parseJsonlLine(line);
       return isAgentExecutionEvent(event) && event.data.categories.includes("transport_wedge");
     } catch {
       return false;
@@ -370,7 +371,7 @@ function readModelEndpointMismatch() {
         .readFileSync(file, "utf8")
         .split(/\r?\n/)
         .filter(line => line.trim())
-        .map(line => JSON.parse(line));
+        .map(line => parseJsonlLine(line));
     } catch (error) {
       const missing = error && typeof error === "object" && "code" in error && error.code === "ENOENT";
       if (process.env.GH_AW_UNIFIED_SESSION || !missing) throw error;
@@ -1648,7 +1649,7 @@ function loadToolDenialsExceededEvents() {
         const line = rawLine.trim();
         if (!line) continue;
         try {
-          const parsed = JSON.parse(line);
+          const parsed = parseJsonlLine(line);
           if (parsed.type === "tool.execution_start" && parsed.data && typeof parsed.data === "object") {
             const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
             if (toolName) {
@@ -2822,7 +2823,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
     const seenProviders = new Set();
     const results = [];
 
-    for (const line of content.split("\n")) {
+    for (const line of iterateLines(content)) {
       const trimmed = line.trim();
       if (!trimmed || trimmed[0] !== "{") continue;
 
@@ -2832,7 +2833,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
 
       let entry;
       try {
-        entry = JSON.parse(trimmed);
+        entry = parseJsonlLine(trimmed);
       } catch {
         continue;
       }
@@ -3586,7 +3587,7 @@ function buildSafeOutputsCliInvocationContext(stdioLogPathOverride) {
   const commands = [];
   const seen = new Set();
   let hasDroppedPipe = false;
-  for (const rawLine of logContent.split("\n")) {
+  for (const rawLine of iterateLines(logContent)) {
     const line = rawLine.trim();
     if (!line || !line.includes("safeoutputs")) continue;
     if (isAddMaskCommandLine(line)) continue;

@@ -22,6 +22,7 @@
 // group, and only the highest-fidelity source contributes cost for the overlapping
 // occurrences. Model invocations are consumed at most once across all events.
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 /** @typedef {"measured" | "causal" | "statistical" | "unavailable"} FrictionState */
 /** @typedef {"measured" | "causal" | "statistical" | "unavailable" | "unsupported"} FrictionDimensionState */
 
@@ -261,13 +262,13 @@ function parseInvocationsFromJSONL(content) {
   let ignoredRecords = 0;
   let index = 0;
 
-  for (const raw of String(content || "").split("\n")) {
+  for (const raw of iterateLines(String(content || ""))) {
     const line = raw.trim();
     if (!line) continue;
     /** @type {any} */
     let entry;
     try {
-      entry = JSON.parse(line);
+      entry = parseJsonlLine(line);
     } catch {
       ignoredRecords += 1;
       continue;

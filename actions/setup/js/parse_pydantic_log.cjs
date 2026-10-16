@@ -1,5 +1,6 @@
 // @ts-check
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 const { stripVTControlCharacters } = require("node:util");
 const { createEngineLogParser, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
 const { createSessionEvent, isTokenCount } = require("./agent_session.cjs");
@@ -32,7 +33,7 @@ function parseFramedSession(content) {
     const frame = line.match(/^\x1eGH-AW-SESSION\/([0-9a-f]{32}) (\{.*\})$/);
     if (!frame || frame[1] !== frameKey) continue;
     try {
-      const event = JSON.parse(frame[2]);
+      const event = parseJsonlLine(frame[2]);
       if (isValidEnvelope(event)) records.push(event);
     } catch {
       // A truncated record must not hide adjacent observed events.
@@ -138,7 +139,7 @@ function parsePydanticLog(content) {
       flushText();
       let raw;
       try {
-        raw = JSON.parse(trimmed);
+        raw = parseJsonlLine(trimmed);
       } catch {
         // An unrecognized multiline record may be an echoed prompt. Do not
         // consume its continuation as assistant text without a new boundary.

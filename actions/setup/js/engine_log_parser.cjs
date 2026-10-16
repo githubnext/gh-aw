@@ -1,4 +1,5 @@
 // @ts-check
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -187,7 +188,7 @@ function parseBehaviorLog(content, engine) {
   let terminal;
   if ((lines[terminalIndex] ?? "").trimStart().startsWith("{")) {
     try {
-      const record = JSON.parse(lines[terminalIndex] ?? "");
+      const record = parseJsonlLine(lines[terminalIndex] ?? "");
       if (record.type === "result" && (Object.hasOwn(record, "num_turns") || Object.hasOwn(record, "usage"))) {
         terminal = record;
         lines.splice(terminalIndex);

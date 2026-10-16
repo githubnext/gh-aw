@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { normalizeRuntimeMessage, readClaimScopeContext, currentClaimHandle, currentClaimAssignment } = require("./work_queue_claim_scope.cjs");
@@ -146,7 +147,7 @@ async function main() {
     }
     function parseJsonWithRepair(jsonStr) {
       try {
-        const parsed = JSON.parse(jsonStr);
+        const parsed = parseJsonlLine(jsonStr);
         // Sanitize the parsed object to prevent prototype pollution
         return sanitizePrototypePollution(parsed);
       } catch (originalError) {
@@ -228,12 +229,14 @@ async function main() {
     // Parse JSONL (JSON Lines) format: each line is a separate JSON object
     // CRITICAL: This expects one JSON object per line. If JSON is formatted with
     // indentation/pretty-printing, parsing will fail.
-    const lines = outputContent.trim().split("\n");
+    const lines = iterateLines(outputContent.trim());
 
     const parsedItems = [];
     const errors = collectionErrors;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    let i = -1;
+    for (const rawLine of lines) {
+      i++;
+      const line = rawLine.trim();
       if (line === "") continue;
       core.info(`[INGESTION] Processing line ${i + 1}: ${line.substring(0, 200)}...`);
       let item;

@@ -1,5 +1,6 @@
 // @ts-check
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
@@ -113,7 +114,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
     let malformed = 0;
     for (const line of (evidence.content || "").split("\n").filter(line => line.trim())) {
       try {
-        const entry = JSON.parse(line);
+        const entry = parseJsonlLine(line);
         if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
       } catch {
         malformed++;
@@ -126,7 +127,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   let malformed = 0;
   for (const line of lines) {
     try {
-      const item = JSON.parse(line);
+      const item = parseJsonlLine(line);
       if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
     } catch {
       malformed++;
@@ -179,9 +180,9 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   try {
     const auditPath = path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl");
     if (fs.lstatSync(auditPath).isFile()) {
-      for (const line of fs.readFileSync(auditPath, "utf8").split("\n")) {
+      for (const line of iterateLines(fs.readFileSync(auditPath, "utf8"))) {
         try {
-          const entry = JSON.parse(line);
+          const entry = parseJsonlLine(line);
           if (["parse_args_error", "unrecognized_args"].includes(entry?.event)) {
             safeoutputsCliError = true;
             reason = "safeoutputs_cli_error";
@@ -278,7 +279,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     .split("\n")
     .map(line => {
       try {
-        return redactJson(JSON.parse(line));
+        return redactJson(parseJsonlLine(line));
       } catch {
         return redact(line);
       }

@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 /**
  * Parse Threat Detection Results
  *
@@ -196,7 +197,7 @@ function extractFromStreamJson(line) {
   }
 
   try {
-    const obj = JSON.parse(jsonText);
+    const obj = parseJsonlLine(jsonText);
     // Only extract from the authoritative "result" summary, not "assistant" messages.
     // In stream-json mode, the same content appears in both; using only "result"
     // avoids double-counting.
@@ -312,7 +313,7 @@ function parseDetectionLog(content) {
       const trimmed = line.trim();
       if (!trimmed.startsWith("{")) continue;
       try {
-        const obj = JSON.parse(trimmed);
+        const obj = parseJsonlLine(trimmed);
         if (obj.type === "message" && obj.role === "assistant" && typeof obj.content === "string") {
           assistantChunks.push(obj.content);
         }

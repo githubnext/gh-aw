@@ -151,7 +151,22 @@ describe("Pi managed delegation", () => {
     await expect(pending).rejects.toThrow("aborted");
   });
 
-  it.each(["not JSON\n", "null\n", "x".repeat(1024 * 1024 + 1)])("fails explicitly on invalid or oversized protocol output", async output => {
+  it("accepts multi-megabyte events split across chunks", async () => {
+    const text = "x".repeat(3 * 1024 * 1024);
+    const launch = () => {
+      const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill: vi.fn() });
+      queueMicrotask(() => {
+        const event = JSON.stringify({ type: "message_end", message: { role: "assistant", content: [{ type: "text", text }], stopReason: "stop" } });
+        for (let offset = 0; offset < event.length; offset += 65536) child.stdout.write(event.slice(offset, offset + 65536));
+        child.emit("close", 0, null);
+      });
+      return child;
+    };
+    const result = await runPiSubagent(agent, "Read.", { cwd: dir }, undefined, launch);
+    expect(result.content[0].text).toContain("[Sub-agent output truncated at 64000 characters]");
+  });
+
+  it.each(["not JSON\n", "null\n", "x".repeat(1024 * 1024 + 1)])("fails explicitly on invalid protocol output", async output => {
     const launch = () => {
       const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill: vi.fn() });
       queueMicrotask(() => {

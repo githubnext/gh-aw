@@ -14,6 +14,7 @@
 //   working_set: cumulative input-token traffic relative to peak invocation input
 //   friction: precomputed cost of wasted work (AIC canonical) with attribution states
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
@@ -327,7 +328,7 @@ function parseFirewallLogs() {
     for (const logPath of findFiles(logDir, entry => entry.name.endsWith(".log"))) {
       try {
         const content = fs.readFileSync(logPath, "utf-8");
-        const lines = content.split("\n");
+        const lines = iterateLines(content);
 
         for (const raw of lines) {
           const line = raw.trim();
@@ -450,7 +451,7 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
         const childSessions = new Map();
         const entries = [];
         const content = fs.readFileSync(eventsPath, "utf-8");
-        const lines = content.split("\n");
+        const lines = iterateLines(content);
 
         for (const raw of lines) {
           const line = raw.trim();
@@ -460,7 +461,7 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
 
           let entry;
           try {
-            entry = JSON.parse(line);
+            entry = parseJsonlLine(line);
           } catch {
             continue;
           }
@@ -764,13 +765,13 @@ function getRpcMessageType(entry) {
  * @param {string} content
  */
 function parseGatewayJSONL(activity, content) {
-  for (const raw of content.split("\n")) {
+  for (const raw of iterateLines(content)) {
     const line = raw.trim();
     if (!line || !line.startsWith("{")) {
       continue;
     }
     try {
-      const entry = JSON.parse(line);
+      const entry = parseJsonlLine(line);
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -816,13 +817,13 @@ function parseGatewayJSONL(activity, content) {
  */
 function parseRPCMessagesJSONL(activity, content) {
   const pending = new Map();
-  for (const raw of content.split("\n")) {
+  for (const raw of iterateLines(content)) {
     const line = raw.trim();
     if (!line || !line.startsWith("{")) {
       continue;
     }
     try {
-      const entry = JSON.parse(line);
+      const entry = parseJsonlLine(line);
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -1002,7 +1003,7 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
   const items = [];
   let totalItems = 0;
 
-  for (const raw of content.split("\n")) {
+  for (const raw of iterateLines(content)) {
     const line = raw.trim();
     if (!line || !line.startsWith("{")) {
       continue;
@@ -1010,7 +1011,7 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
 
     let entry;
     try {
-      entry = JSON.parse(line);
+      entry = parseJsonlLine(line);
     } catch {
       continue;
     }

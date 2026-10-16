@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
@@ -42,7 +43,7 @@ function countBlockedRequests() {
       const line = raw.trim();
       if (!line) continue;
       try {
-        const entry = JSON.parse(line);
+        const entry = parseJsonlLine(line);
         if (entry && entry.type === "DIFC_FILTERED") total++;
       } catch {
         // Malformed line — ignored.
@@ -95,11 +96,11 @@ function readOTLPExportErrorDetails() {
 
   const details = [];
   try {
-    for (const rawLine of fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8").split("\n")) {
+    for (const rawLine of iterateLines(fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8"))) {
       const line = rawLine.trim();
       if (!line) continue;
       try {
-        const entry = JSON.parse(line);
+        const entry = parseJsonlLine(line);
         if (!entry || typeof entry !== "object") continue;
         const host = typeof entry.host === "string" ? entry.host.trim() : "";
         const reason = typeof entry.reason === "string" ? entry.reason.trim() : "";

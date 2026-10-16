@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { parseJsonlLine, iterateLines } = require("./jsonl_helpers.cjs");
 /**
  * merge_ledger_transactions.cjs
  *
@@ -100,11 +101,11 @@ function readAuditEntries(logPath) {
   const entries = [];
   const seen = new Set();
   let dropped = 0;
-  for (const line of content.split("\n")) {
+  for (const line of iterateLines(content)) {
     if (!line.trim()) continue;
     let parsed;
     try {
-      parsed = JSON.parse(line);
+      parsed = parseJsonlLine(line);
     } catch {
       dropped++;
       continue;

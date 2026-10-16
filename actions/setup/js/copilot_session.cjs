@@ -1,5 +1,6 @@
 // @ts-check
 
+const { parseJsonlLine } = require("./jsonl_helpers.cjs");
 /** @typedef {import("./types/agent_session").SessionEvent} SessionEvent */
 /** @typedef {import("./types/agent_session").SessionUsage} SessionUsage */
 /** @typedef {import("./types/agent_session").SessionResultData} SessionResultData */
@@ -40,7 +41,7 @@ function hasMalformedJsonl(content) {
   return content.split(/\r?\n/).some(line => {
     if (!line.trim()) return false;
     try {
-      JSON.parse(line);
+      parseJsonlLine(line);
       return false;
     } catch {
       return true;
