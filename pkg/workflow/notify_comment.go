@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -50,10 +49,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	notifyCommentLog.Printf("Job built successfully: dependencies_count=%d", len(needs))
 	conclusionPerms := computeConclusionJobPermissions(data)
-	displayNames, err := json.Marshal(buildFailedJobsDisplayNames(data))
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize job display names for session durations: %w", err)
-	}
 	return &Job{
 		Name:        "conclusion",
 		If:          RenderCondition(c.buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
@@ -64,7 +59,6 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 		Steps:       steps,
 		Needs:       needs,
 		Outputs:     buildConclusionJobOutputs(data),
-		Env:         map[string]string{"GH_AW_JOB_DISPLAY_NAMES": fmt.Sprintf("%q", string(displayNames))},
 	}, nil
 }
 
@@ -128,11 +122,11 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 
 // computeConclusionJobPermissions resolves the GITHUB_TOKEN permissions for the conclusion
 // job: the base safe-outputs permissions plus the extra scopes required by the OTLP OIDC
-// token, the daily-AIC cache save step, the report-failed-jobs step, and any issue-creating
-// conclusion mechanism.
+// token, session job-duration collection, and any issue-creating conclusion mechanism.
 func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-	// Session job durations are read from the current run attempt's Actions jobs.
+	// Session job-duration collection is always enabled, independently of failure
+	// reporting, and reads the current run attempt's Actions jobs.
 	if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
 		conclusionPerms.Set(PermissionActions, PermissionRead)
 	}
@@ -160,19 +154,9 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
 		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 	}
-	// The report-failed-jobs step lists workflow run jobs (actions: read) when the
-	// feature is enabled (default: true).
-	if conclusionReportFailedJobsEnabled(data) {
-		if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
-			conclusionPerms.Set(PermissionActions, PermissionRead)
-		}
-	}
 	// The agent-failure handler checks the PR state and agent job steps before
-	// reporting a failed PR merge-ref checkout.
+	// reporting a failed PR merge-ref checkout; Actions access is already granted above.
 	if conclusionReportFailureAsIssueEnabled(data) {
-		if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
-			conclusionPerms.Set(PermissionActions, PermissionRead)
-		}
 		if level, ok := conclusionPerms.Get(PermissionPullRequests); !ok || level == PermissionNone {
 			conclusionPerms.Set(PermissionPullRequests, PermissionRead)
 		}

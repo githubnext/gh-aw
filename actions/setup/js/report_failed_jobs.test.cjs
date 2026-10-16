@@ -87,6 +87,7 @@ describe("getFailedNonBuiltinJobs", () => {
     };
     vi.stubEnv("GH_AW_JOB_RESULTS", "{}");
     vi.stubEnv("GH_AW_JOB_DISPLAY_NAMES", "{}");
+    vi.stubEnv("GH_AW_JOB_TIMING_ELIGIBLE", "{}");
     vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
     vi.stubEnv("GH_AW_JOB_DURATIONS", "");
     vi.stubEnv("GH_AW_RUN_URL", "https://github.com/owner/repo/actions/runs/123");
@@ -107,6 +108,7 @@ describe("getFailedNonBuiltinJobs", () => {
 
   it("exports durations for all dependencies from the existing outcome listing", async () => {
     vi.stubEnv("GH_AW_JOB_RESULTS", JSON.stringify({ custom: { result: "failure" }, agent: { result: "success" } }));
+    vi.stubEnv("GH_AW_JOB_TIMING_ELIGIBLE", JSON.stringify({ custom: true, agent: true }));
     global.github.rest.actions.listJobsForWorkflowRun.mockResolvedValue({
       data: {
         jobs: [

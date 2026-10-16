@@ -2027,7 +2027,6 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 		}
 		assert.Contains(t, job.Permissions, "actions: read")
 		assert.NotContains(t, strings.Join(job.Steps, ""), "GH_AW_JOB_DURATIONS:")
-		assert.Contains(t, job.Env["GH_AW_JOB_DISPLAY_NAMES"], `\"agent\"`)
 	})
 
 	t.Run("no issues: write when default threat detection is enabled but issue-writing paths are disabled", func(t *testing.T) {
@@ -2153,9 +2152,7 @@ func TestConclusionReportFailedJobsExpression(t *testing.T) {
 
 	output := strings.Join(steps, "")
 	assert.NotContains(t, output, "GH_AW_JOB_RESULTS:", "failed-job reporting inherits result-only metadata from the conclusion job environment")
-	if !strings.Contains(output, `\"agent\":\"Agent\"`) {
-		t.Errorf("failed-job reporting must receive the compiler's display-name mapping: %q", output)
-	}
+	assert.NotContains(t, output, "GH_AW_JOB_DISPLAY_NAMES:", "failed-job reporting inherits the final emitted-name inventory from the conclusion job environment")
 	if !strings.Contains(output, "GH_AW_REPORT_FAILED_JOBS: ${{ inputs.report-failed-jobs }}") {
 		t.Errorf("report-failed-jobs expression was not emitted unquoted: %q", output)
 	}

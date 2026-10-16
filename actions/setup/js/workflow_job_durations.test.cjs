@@ -15,7 +15,12 @@ function fixture(needs = { agent: { result: "success" } }, names = { agent: "Age
   return {
     githubClient: { rest: { actions: { listJobsForWorkflowRunAttempt: list } } },
     runContext: { repo: { owner: "owner", repo: "repo" }, runId: 123 },
-    env: { GH_AW_JOB_RESULTS: JSON.stringify(needs), GH_AW_JOB_DISPLAY_NAMES: JSON.stringify(names), GITHUB_RUN_ATTEMPT: "2" },
+    env: {
+      GH_AW_JOB_RESULTS: JSON.stringify(needs),
+      GH_AW_JOB_DISPLAY_NAMES: JSON.stringify(names),
+      GH_AW_JOB_TIMING_ELIGIBLE: JSON.stringify(Object.fromEntries(Object.keys(needs).map(id => [id, true]))),
+      GITHUB_RUN_ATTEMPT: "2",
+    },
     warn: vi.fn(),
   };
 }
@@ -88,6 +93,46 @@ describe("workflow job durations", () => {
     const options = fixture({ agent: { result: "success" } }, { agent: "Agent", custom: "Agent" });
     expect(await collectJobDurations({ ...options, jobs: [completed("Agent")] })).toEqual({});
     expect(options.warn).toHaveBeenCalledOnce();
+  });
+
+  it("never falls back to IDs for dynamic jobs with swapped resolved names", async () => {
+    const options = fixture({ build: { result: "success" }, lint: { result: "success" }, unnamed: { result: "success" } }, { unnamed: "unnamed" });
+    options.env.GH_AW_JOB_TIMING_ELIGIBLE = JSON.stringify({ build: false, lint: false, unnamed: true });
+    expect(await collectJobDurations({ ...options, jobs: [completed("lint"), completed("build", { completed_at: "2026-10-16T10:00:03Z" }), completed("unnamed")] })).toEqual({ unnamed: 2000 });
+    expect(options.warn).not.toHaveBeenCalled();
+  });
+
+  it.each(["Build", "Build (linux)", "Build / child"])("omits a grouped dependency even when a partial rerun returns only one child: %s", name => {
+    const options = fixture({ grouped: { result: "failure" } }, { grouped: "Build" });
+    options.env.GH_AW_JOB_TIMING_ELIGIBLE = JSON.stringify({ grouped: false });
+    return collectJobDurations({ ...options, jobs: [completed(name)] }).then(result => {
+      expect(result).toEqual({});
+      expect(options.warn).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each(["Build (linux)", "Build / child"])("rejects a current-attempt child colliding with a separate job from a previous attempt: %s", name => {
+    const options = fixture({ grouped: { result: "failure" }, separate: { result: "success" } }, { grouped: "Build", separate: name });
+    options.env.GH_AW_JOB_TIMING_ELIGIBLE = JSON.stringify({ grouped: false, separate: true });
+    return collectJobDurations({ ...options, jobs: [completed(name), completed(name, { run_attempt: 1, completed_at: "2026-10-16T10:00:08Z" })] }).then(result => {
+      expect(result).toEqual({});
+      expect(options.warn).toHaveBeenCalledExactlyOnceWith("Unified session: job duration unavailable for separate (no unique Actions job match)");
+    });
+  });
+
+  it("requires explicit compiler timing eligibility rather than assuming unnamed jobs are singles", async () => {
+    const options = fixture();
+    delete options.env.GH_AW_JOB_TIMING_ELIGIBLE;
+    expect(await collectJobDurations({ ...options, jobs: [completed("Agent")] })).toEqual({});
+    expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
+  });
+
+  it.each(["null", "[]", "not-json"])("rejects malformed compiler timing eligibility: %s", async eligibility => {
+    const options = fixture();
+    options.env.GH_AW_JOB_TIMING_ELIGIBLE = eligibility;
+    expect(await collectJobDurations(options)).toEqual({});
+    expect(options.warn).toHaveBeenCalledExactlyOnceWith("Unified session: job durations unavailable (invalid job metadata)");
+    expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
   });
 
   it("warns on API failures without logging request details or fabricating durations", async () => {

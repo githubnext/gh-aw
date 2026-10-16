@@ -659,11 +659,24 @@ results are distinct from agent execution exit codes and detection verdicts.
 Duration collection reuses the conclusion failed-job reporter's existing outcome
 listing through its `job_durations` step output. When no listing was produced,
 the collector reads the current run attempt's paginated Actions jobs, using
-`actions: read`. Only a unique exact match against the compiler's static job
-display-name inventory supplies timing. Skipped jobs, dynamic or ambiguous
-names, matrix/reusable-workflow groups, and missing or invalid timestamps omit
-duration rather than reporting zero; a measured zero remains valid. API failures
-emit a warning without discarding dependency outcomes.
+`actions: read`. The reporter and summary inherit the same job-level
+`GH_AW_JOB_DISPLAY_NAMES` inventory and explicit `GH_AW_JOB_TIMING_ELIGIBLE`
+set, finalized after generated-job annotations from effective emitted names:
+unnamed jobs use emitted job IDs, and static author overrides are retained.
+Only compiler-confirmed static-name, non-matrix, non-reusable single jobs with
+a unique exact API-name match supply timing. Dynamic-name and grouped jobs omit
+timing even when only one cell appears in the current attempt. Prefix-colliding
+names remain ambiguous on partial reruns. Skipped jobs and missing or invalid
+timestamps also omit duration rather than reporting zero; a measured zero remains
+valid. API failures emit a warning without discarding dependency outcomes.
+
+Job-duration collection is always enabled; there is no frontmatter opt-out.
+Consequently, every generated conclusion job requests at least `actions: read`,
+even when both `safe-outputs.report-failed-jobs` and
+`safe-outputs.report-failure-as-issue` are disabled. This expands the previous
+permission model, where disabling both reporters could omit Actions access.
+Existing `actions: write` grants required by configured safe outputs are preserved;
+duration collection itself requires only read access.
 
 **T-UAS-072 — Skill evidence and conflicts.** When an activation skill inventory
 is present, the merger MUST include its deterministic installed-skill names,

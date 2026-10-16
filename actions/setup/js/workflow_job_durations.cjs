@@ -28,18 +28,21 @@ async function collectJobDurations({ githubClient = global.github, runContext = 
   }
   let needs;
   let names;
+  let eligible;
   try {
     needs = JSON.parse(env.GH_AW_JOB_RESULTS);
     names = JSON.parse(env.GH_AW_JOB_DISPLAY_NAMES || "{}");
+    eligible = JSON.parse(env.GH_AW_JOB_TIMING_ELIGIBLE || "{}");
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
     warn("Unified session: job durations unavailable (invalid job metadata)");
     return {};
   }
-  if (!needs || typeof needs !== "object" || Array.isArray(needs) || !names || typeof names !== "object" || Array.isArray(names)) {
+  if (!needs || typeof needs !== "object" || Array.isArray(needs) || !names || typeof names !== "object" || Array.isArray(names) || !eligible || typeof eligible !== "object" || Array.isArray(eligible)) {
     warn("Unified session: job durations unavailable (invalid job metadata)");
     return {};
   }
+  if (!Object.keys(needs).some(id => eligible[id] === true)) return {};
   const attempt = Number(env.GITHUB_RUN_ATTEMPT);
   if (!githubClient || !runContext?.repo || !Number.isSafeInteger(attempt) || attempt < 1) {
     warn("Unified session: job durations unavailable (missing Actions run context)");
@@ -68,10 +71,11 @@ async function collectJobDurations({ githubClient = global.github, runContext = 
   const durations = Object.create(null);
   const knownIds = [...new Set([...Object.keys(needs), ...Object.keys(names)])];
   const displayName = id => (typeof names[id] === "string" && names[id] ? names[id] : id);
+  const matchesName = (name, display) => name === display || name.startsWith(`${display} (`) || name.startsWith(`${display} / `);
   for (const [jobId, dependency] of Object.entries(needs)) {
-    if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(jobId) || !["success", "failure", "cancelled"].includes(dependency?.result)) continue;
+    if (eligible[jobId] !== true || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(jobId) || !["success", "failure", "cancelled"].includes(dependency?.result)) continue;
     const matches = jobs.filter(job => job.name === displayName(jobId) && (job.run_attempt === undefined || job.run_attempt === attempt));
-    const ambiguous = knownIds.some(id => id !== jobId && displayName(id) === displayName(jobId));
+    const ambiguous = knownIds.some(id => id !== jobId && matchesName(displayName(jobId), displayName(id)));
     if (matches.length !== 1 || ambiguous) {
       warn(`Unified session: job duration unavailable for ${jobId} (no unique Actions job match)`);
       continue;

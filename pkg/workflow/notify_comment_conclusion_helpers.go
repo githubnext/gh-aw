@@ -3,14 +3,12 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
@@ -699,14 +697,9 @@ func (c *Compiler) buildConclusionReportFailedJobsStep(data *WorkflowData, mainJ
 		notifyCommentLog.Print("Skipping report-failed-jobs step: disabled in frontmatter")
 		return nil, nil
 	}
-	displayNames, err := json.Marshal(buildFailedJobsDisplayNames(data))
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize job display names for failed-job reporting: %w", err)
-	}
 	var envVars []string
 	envVars = append(envVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 	envVars = append(envVars, "          GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n")
-	envVars = append(envVars, fmt.Sprintf("          GH_AW_JOB_DISPLAY_NAMES: %q\n", displayNames))
 	if data.SafeOutputs != nil && data.SafeOutputs.ReportFailedJobs != nil {
 		envVars = append(envVars, buildTemplatableBoolEnvVar("GH_AW_REPORT_FAILED_JOBS", templatableBoolPtrToStringPtr(data.SafeOutputs.ReportFailedJobs))...)
 	} else {
@@ -722,22 +715,46 @@ func (c *Compiler) buildConclusionReportFailedJobsStep(data *WorkflowData, mainJ
 	}), nil
 }
 
-func buildFailedJobsDisplayNames(data *WorkflowData) map[string]string {
-	names := maps.Clone(generatedJobNames)
-	// Dynamic names fall back to job IDs rather than being interpolated into JSON.
-	for id, value := range data.Jobs {
-		if config, ok := value.(map[string]any); ok {
-			if name, ok := config["name"].(string); ok && name != "" && !containsExpression(name) {
-				names[id] = name
-			}
+func buildFailedJobsDisplayNames(jobs map[string]*Job) map[string]string {
+	names := make(map[string]string, len(jobs))
+	for id, job := range jobs {
+		name := job.DisplayName
+		if name == "" {
+			name = id
 		}
-	}
-	if data.SafeOutputs != nil {
-		for id, config := range data.SafeOutputs.Jobs {
-			if config != nil && config.Name != "" && !containsExpression(config.Name) {
-				names[stringutil.NormalizeSafeOutputIdentifier(id)] = config.Name
-			}
+		if !containsExpression(name) {
+			names[id] = name
 		}
 	}
 	return names
+}
+
+// finalizeConclusionJobInventory shares one inventory after all jobs and author
+// overrides are known, using the same names that the compiler emits.
+func (c *Compiler) finalizeConclusionJobInventory() error {
+	conclusion, exists := c.jobManager.GetJob(string(constants.ConclusionJobName))
+	if !exists {
+		return nil
+	}
+	jobs := c.jobManager.GetAllJobs()
+	names := buildFailedJobsDisplayNames(jobs)
+	eligible := make(map[string]bool, len(jobs))
+	for id, job := range jobs {
+		_, static := names[id]
+		eligible[id] = static && job.Strategy == "" && job.Uses == ""
+	}
+	for key, inventory := range map[string]any{
+		"GH_AW_JOB_DISPLAY_NAMES":   names,
+		"GH_AW_JOB_TIMING_ELIGIBLE": eligible,
+	} {
+		value, err := json.Marshal(inventory)
+		if err != nil {
+			return fmt.Errorf("failed to serialize conclusion job inventory %s: %w", key, err)
+		}
+		if conclusion.Env == nil {
+			conclusion.Env = make(map[string]string)
+		}
+		conclusion.Env[key] = fmt.Sprintf("%q", value)
+	}
+	return nil
 }
