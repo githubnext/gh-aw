@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import os from "os";
 import fs from "fs";
 import path from "path";
+import gooseSessions from "./fixtures/goose_ci_sessions.cjs";
+import piStream from "./fixtures/pi_ci_stream.cjs";
 
 let parseMaxAICreditsExceededFromAuditLog;
 let resolveAICreditsFailureState;
@@ -168,9 +170,29 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
   });
 
   describe("resolveAICreditsFailureState maxAICreditsExceeded", () => {
-    const retryDiagnosticPrefixes = ["", " (total retry wait time: 380.35 seconds)", " (Request-ID ABC123)", " (total retry wait time: 380.35 seconds) (Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27)"].flatMap(metadata =>
-      ["", "."].map(punctuation => `Failed to get response from the AI model; retried 5 times${metadata}${punctuation} Last error: CAPIError: 429 Maximum AI credits exceeded`)
-    );
+    const retryDiagnosticPrefixes = [
+      ...["", " (total retry wait time: 380.35 seconds)", " (Request-ID ABC123)", " (total retry wait time: 380.35 seconds) (Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27)"].flatMap(metadata =>
+        ["", "."].map(punctuation => `Failed to get response from the AI model; retried 5 times${metadata}${punctuation} Last error: CAPIError: 429 Maximum AI credits exceeded`)
+      ),
+      "Execution failed: CAPIError: 429 Maximum AI credits exceeded",
+      "[sdk-driver] error: CAPIError: 429 Maximum AI credits exceeded",
+      "[copilot-sdk-driver] [sdk-driver] error: CAPIError: 429 Maximum AI credits exceeded",
+      "[copilot-sdk-driver] unhandled error: Error: CAPIError: 429 Maximum AI credits exceeded",
+      "[copilot-sdk-driver] error: API Error: 403 Maximum AI credits exceeded",
+      "[sdk-driver] error: Maximum AI credits exceeded",
+    ];
+    const piError = piStream.failure.find(event => event.type === "message_end" && event.message?.stopReason === "error").message;
+    const nativeErrorLines = [
+      ...["message_end", "turn_end"].map(type => message => JSON.stringify({ type, message: { ...piError, errorMessage: `403: ${message}` } })),
+      message => JSON.stringify({ type: "message_end", message: { ...piError, errorMessage: `403: ${JSON.stringify({ message })}` } }),
+      message => JSON.stringify({ ...gooseSessions.terminalFailure.at(-1), error: gooseSessions.terminalFailure.at(-1).error.replace("Maximum AI credits exceeded.", message) }),
+      message => JSON.stringify({ type: "session.error", data: { errorType: "sdk_driver", message: `API Error: 403 ${message}` } }),
+      message => JSON.stringify({ type: "session.error", data: { errorType: "sdk_driver", message: `CAPIError: 429 ${message}` } }),
+      message =>
+        `[gh-aw/pi-provider] 2026-10-16T14:00:00.000Z provider_error provider=copilot model=auto api=openai-responses status=403 method=POST url=http://api-proxy:10002/responses response_headers=content-type error=${JSON.stringify(message)}`,
+      message =>
+        `[gh-aw/pi-provider] 2026-10-16T14:00:00.000Z provider_error provider=copilot model=auto api=openai-responses status=403 method=POST url=http://api-proxy:10002/responses response_headers=content-type error=${JSON.stringify(JSON.stringify({ error: { message } }))}`,
+    ];
 
     it("returns maxAICreditsExceeded: true when budget_exceeded event is present", () => {
       writeAuditLog([{ event: "budget_exceeded", reason: "hard_limit", forced_termination: true, ai_credits: 105000, max_ai_credits: 100000 }]);
@@ -317,6 +339,71 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.maxAICreditsExceeded).toBe(true);
       expect(result.aiCredits).toBe("");
       expect(result.maxAICredits).toBe("");
+    });
+
+    it.each(nativeErrorLines.flatMap(makeLine => ["", " (1.025406 / 1)"].map(pair => [makeLine(`Maximum AI credits exceeded${pair}.`), pair])))("retains native transport rejection with optional usage pair: %s", (line, pair) => {
+      writeAgentStdio(line);
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: pair ? "1.025406" : "",
+        maxAICredits: pair ? "1" : "",
+        aiCreditsRateLimitError: true,
+        maxAICreditsExceeded: true,
+      });
+    });
+
+    it.each(
+      nativeErrorLines.flatMap(makeLine =>
+        [
+          "Maximum AI credits exceeded (0.5 / 1).",
+          "Maximum AI credits exceeded (1 / 0).",
+          `Maximum AI credits exceeded (${"9".repeat(400)} / 1).`,
+          "403 Maximum consecutive cache misses exceeded (5 / 5).",
+          'Review example: "403 Maximum AI credits exceeded (1.025406 / 1)."',
+        ].map(makeLine)
+      )
+    )("rejects invalid pairs, other guardrails and quotes in native errors: %s", line => {
+      writeAWFConfig(1);
+      writeTokenUsageLog([{ ai_credits_total: 1.025406 }]);
+      writeAgentStdio(line);
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "1.025406",
+        maxAICredits: "1",
+        aiCreditsRateLimitError: false,
+        maxAICreditsExceeded: false,
+      });
+    });
+
+    it.each([
+      { message: "403 Maximum AI credits exceeded (1.025406 / 1)." },
+      { error: "403 Maximum AI credits exceeded (1.025406 / 1)." },
+      { type: "assistant", message: { ...piError, errorMessage: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "message_end", message: { ...piError, role: "toolResult", errorMessage: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "turn_end", message: { ...piError, stopReason: "stop", errorMessage: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "error", role: "assistant", error: "Maximum AI credits exceeded." },
+      { type: "error", role: "tool", message: "403 Maximum AI credits exceeded (1.025406 / 1)." },
+      { type: "session.error", data: { role: "tool", message: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "session.error", data: { severity: "warning", message: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "session.error", data: { message: '{"type":"assistant","message":"Maximum AI credits exceeded."}' } },
+      { type: "session.error", data: { message: '{"role":"tool","message":"Maximum AI credits exceeded."}' } },
+      { type: "session.error", data: { message: "403 Forbidden", output: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "session.error", data: { parentToolCallId: "tool-1", message: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "toolResponse", toolResult: { status: "error", value: "403 Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "message", message: { role: "assistant", content: [{ type: "error", error: "Maximum AI credits exceeded." }] } },
+    ])("rejects conversational or tool envelopes and unrelated error fields: %j", record => {
+      writeAgentStdio(JSON.stringify(record));
+      expect(resolveAICreditsFailureState({ logProvenance: false }).maxAICreditsExceeded).toBe(false);
+    });
+
+    it.each(nativeErrorLines.map(makeLine => makeLine("Maximum AI credits exceeded.")))("does not unwrap native errors quoted in conversation or tool output: %s", line => {
+      writeAgentStdio(JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: line }] } }));
+      expect(resolveAICreditsFailureState({ logProvenance: false }).maxAICreditsExceeded).toBe(false);
+    });
+
+    it.each(["status=400", "status=429", "status=no-response", "status=200"])("requires HTTP 403 on Pi provider errors: %s", status => {
+      const line = nativeErrorLines.at(-2)("Maximum AI credits exceeded (1.025406 / 1).").replace("status=403", status);
+      writeAgentStdio(line);
+      expect(resolveAICreditsFailureState({ logProvenance: false }).maxAICreditsExceeded).toBe(false);
     });
 
     it.each([
