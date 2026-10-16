@@ -724,6 +724,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
           return response;
         },
       };
+      require("./work_queue_git_transport.cjs").registerQueueLedgerClient(client, client);
       await assert.rejects(() => readCheckedQueue({ githubClient: client, owner: "owner", repo: "repo" }), /immutable checked head/);
       await assert.rejects(
         () => writeCheckedFiles({ githubClient: m.options.githubClient, owner: "owner", repo: "repo", branch: "work-queue", expectedHeadOid: "a".repeat(40), files: [{ path: "../outside", content: "" }] }),

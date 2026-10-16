@@ -52,13 +52,14 @@ function publisherOptions(githubClient, actorId = "11") {
   };
 }
 
-test("publication retries only known transient HTTP failures", () => {
+test("publication rechecks known HTTP failures and uncertain Git acknowledgements", () => {
   for (const error of [
     Object.assign(new Error("conflict"), { status: 409 }),
     Object.assign(new Error("reference update failed"), { status: 422 }),
     Object.assign(new Error("timeout"), { status: 408 }),
     Object.assign(new Error("rate limited"), { status: 429 }),
     Object.assign(new Error("unavailable"), { status: 503 }),
+    Object.assign(new Error("Git push acknowledgement unavailable"), { code: "git_transport_failed" }),
   ])
     assert.equal(isRetryablePublicationError(error), true);
   for (const error of [new TypeError("bad response"), new Error("unexpected"), { status: "503" }, { status: 600 }, { status: 422, message: "unprocessable" }, null]) assert.equal(isRetryablePublicationError(error), false);

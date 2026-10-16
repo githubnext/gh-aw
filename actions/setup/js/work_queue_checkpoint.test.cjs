@@ -18,6 +18,7 @@ const { queueFixture } = require("./work_queue_lifecycle.test_helpers.cjs");
 const { futurePolicy, serializeDeployments } = require("./work_queue_deployment.cjs");
 const { normalizeSubmitParameters } = require("./work_queue_intents.cjs");
 const { registerStaticQueueAuthentication } = require("./work_queue_auth_cache.cjs");
+const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 async function aliasedCheckpointFixture() {
   const contract = "a".repeat(64);
@@ -154,6 +155,7 @@ describe("shared version-3 checkpoint conformance", () => {
       return getCommit(parameters);
     };
     const other = { ...f.fake.githubClient };
+    registerQueueLedgerClient(other, other);
     for (let attempt = 0; attempt < 2; attempt++) await assert.rejects(() => readWorkQueueLog({ ...input, githubClient: other }), /History unavailable/);
     assert.equal(denied, 2);
     git.getCommit = getCommit;
@@ -446,6 +448,7 @@ describe("shared version-3 checkpoint conformance", () => {
         },
       },
     };
+    registerQueueLedgerClient(githubClient, githubClient);
     const read = () => readWorkQueueLog({ githubClient, owner: "owner", repo: "repo" });
     try {
       assert.equal((await read()).state.tip, fixture.checkpoint[0].id);
@@ -500,6 +503,7 @@ describe("shared version-3 checkpoint conformance", () => {
         },
       },
     };
+    registerQueueLedgerClient(githubClient, githubClient);
     const read = () => readCheckedQueue({ githubClient, owner: "owner", repo: "repo" });
     assert.equal((await read()).state.tip, fixture.checkpoint[0].id);
     head = "9".repeat(40);
@@ -540,6 +544,7 @@ describe("shared version-3 checkpoint conformance", () => {
         },
       },
     };
+    registerQueueLedgerClient(githubClient, githubClient);
     const current = await readWorkQueueLog({ githubClient, owner: "owner", repo: "repo" });
     assert.equal(current.sha, parent);
     assert.equal(current.transactions.length, 1);

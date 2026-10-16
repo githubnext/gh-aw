@@ -396,15 +396,12 @@ type Reconciliation struct {
 // reservations; terminal recovery cancels open members only, preserving every
 // Completion and independently pending delivery barrier.
 func (b Branch) Reconcile(ctx context.Context, dispatchID, requestID string) (Reconciliation, error) {
-	b, err := b.withClient()
+	b, actor, session, err := b.withAuthenticatedLedgerSession(ctx, "reconciler")
 	if err != nil {
 		return Reconciliation{}, err
 	}
-	actor, err := b.Authenticate(ctx, "reconciler")
-	if err != nil {
-		return Reconciliation{}, err
-	}
-	commits, err := b.Read(ctx)
+	defer session.Close()
+	commits, err := session.Read(ctx)
 	if err != nil {
 		return Reconciliation{}, err
 	}
@@ -447,7 +444,7 @@ func (b Branch) Reconcile(ctx context.Context, dispatchID, requestID string) (Re
 	if err != nil {
 		return result, err
 	}
-	publication, err := b.Publish(ctx, actor, request)
+	publication, err := session.Publish(ctx, actor, request)
 	if err != nil {
 		return result, err
 	}
@@ -516,15 +513,12 @@ func (b Branch) InspectEvidence(ctx context.Context, dispatchID string) (Reconci
 // CancelReserved is a checked prelaunch cancellation, never a force release.
 // A competing start marker wins through CAS and makes this request invalid.
 func (b Branch) CancelReserved(ctx context.Context, dispatchID, requestID string) (Reconciliation, error) {
-	b, err := b.withClient()
+	_, actor, session, err := b.withAuthenticatedLedgerSession(ctx, "reconciler")
 	if err != nil {
 		return Reconciliation{}, err
 	}
-	actor, err := b.Authenticate(ctx, "reconciler")
-	if err != nil {
-		return Reconciliation{}, err
-	}
-	commits, err := b.Read(ctx)
+	defer session.Close()
+	commits, err := session.Read(ctx)
 	if err != nil {
 		return Reconciliation{}, err
 	}
@@ -574,7 +568,7 @@ func (b Branch) CancelReserved(ctx context.Context, dispatchID, requestID string
 	if err != nil {
 		return Reconciliation{}, err
 	}
-	publication, err := b.Publish(ctx, actor, request)
+	publication, err := session.Publish(ctx, actor, request)
 	return Reconciliation{DispatchID: dispatchID, State: dispatch.State,
 		Reason: "prelaunch_cancelled", Evidence: &evidence, Publication: &publication}, err
 }

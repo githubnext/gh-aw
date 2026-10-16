@@ -36,7 +36,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && npm run schema:session:check && vitest run --no-file-parallelism",
     "test:js": "vitest run",
-    "test:work-queue-performance": "vitest run --no-file-parallelism --silent=false work_queue_performance.test.cjs work_queue_control_performance.test.cjs work_queue_live_performance.test.cjs",
+    "test:work-queue-performance": "vitest run --no-file-parallelism --silent=false work_queue_git_transport.test.cjs work_queue_performance.test.cjs work_queue_control_performance.test.cjs work_queue_live_performance.test.cjs",
     "test:js-integration-live-api": "vitest run --config vitest.integration.config.mjs --no-file-parallelism",
     "test:js-integration-artifact": "vitest run --config vitest.artifact-integration.config.mjs --no-file-parallelism",
     "test:js-watch": "vitest",
