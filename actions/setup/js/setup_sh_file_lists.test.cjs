@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, rmSync } from "fs";
+import { execFileSync } from "child_process";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -63,7 +64,7 @@ function getDirectLocalRequires(filename) {
   if (!existsSync(filePath)) return [];
   const content = readFileSync(filePath, "utf8");
   const deps = [];
-  for (const match of content.matchAll(/require\(["']\.\/([\w\-./]+\.cjs)["']\)/g)) {
+  for (const match of content.matchAll(/require\(["']\.\/([\w\-./]+\.(?:cjs|json))["']\)/g)) {
     deps.push(match[1]);
   }
   return deps;
@@ -111,6 +112,38 @@ describe("setup.sh isolated redaction dependencies", () => {
 });
 
 describe("setup.sh MCP_SCRIPTS_FILES", () => {
+  it("loads redaction consumers from the deployed bundle without source-directory dependencies", () => {
+    const runnerRoot = resolve(__dirname, `.setup-mcp-bundle-${process.pid}`);
+    mkdirSync(runnerRoot);
+    try {
+      // Run only the real MCP deployment block, not setup's runner-wide initialization.
+      const deploymentBlock = setupShContent.slice(setupShContent.indexOf("# Copy mcp-scripts files"), setupShContent.indexOf("# Copy safe-outputs files"));
+      execFileSync("bash", ["-ec", `create_dir() { mkdir -p "$1"; }\ndebug_log() { :; }\n${deploymentBlock}`], {
+        env: { ...process.env, GH_AW_ROOT: runnerRoot, JS_SOURCE_DIR: __dirname },
+      });
+      execFileSync(
+        process.execPath,
+        [
+          "-e",
+          `
+            const assert = require("node:assert/strict");
+            const manifest = require("./safe_output_manifest.cjs");
+            const summary = require("./work_queue_summary_renderer.cjs");
+            assert.equal(typeof summary.renderWorkQueue, "function");
+            const token = "ghp_" + "a".repeat(36);
+            assert.equal(
+              manifest.redactManifestValue(token + " fixture-custom-secret", ["fixture-custom-secret"]),
+              "***REDACTED*** ***REDACTED***"
+            );
+          `,
+        ],
+        { cwd: resolve(runnerRoot, "mcp-scripts") }
+      );
+    } finally {
+      rmSync(runnerRoot, { recursive: true, force: true });
+    }
+  });
+
   it("contains all transitive local dependencies", () => {
     const listed = new Set(mcpScriptsFiles);
     const allDeps = collectTransitiveDeps(mcpScriptsFiles);
@@ -164,7 +197,7 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
   });
 
   it("contains all transitive local dependencies (including entry point safe-outputs-mcp-server.cjs)", () => {
-    const listed = new Set(safeOutputsFiles);
+    const listed = new Set([...safeOutputsFiles, "safe_outputs_tools.json"]);
     // Entry point is also deployed (as mcp-server.cjs), so its deps must be covered too
     const allDeps = collectTransitiveDeps(safeOutputsRoots);
     const missing = [...allDeps]

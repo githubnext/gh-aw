@@ -281,6 +281,7 @@ MCP_SCRIPTS_FILES=(
   "otlp_header_helpers.cjs"
   "redact_secrets.cjs"
   "safe_output_redaction.cjs"
+  "safe_outputs_tools.json"
   "safe_outputs_config_redact.cjs"
   "repo_helpers.cjs"
   "safe_output_helpers.cjs"
