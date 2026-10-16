@@ -207,7 +207,16 @@ function registerTests({ describe, it }) {
         assert.notEqual(first.directory, second.directory);
         assert.equal(JSON.parse(fs.readFileSync(first.assignmentFile, "utf8")).claims.length, 2);
         assert.equal((await prepareAdapterContext({ assignment: assignment(), adapter, index: 2, type: "custom", messages, authorize, artifactRoot: root })).active, false);
-        assert.equal(requests.length, 4);
+        assert.deepEqual(
+          requests.map(({ claim_handle, message, resource, requireCompletion }) => ({ claim_handle, message, resource, requireCompletion })),
+          ["h1", "h2"].flatMap(claim_handle => {
+            const message = { type: "work_queue_adapter_prepare", claim_handle, repo: "owner/repo" };
+            return [
+              { claim_handle, message, resource: undefined, requireCompletion: false },
+              { claim_handle, message, resource: { repository: "owner/repo", host: require("./work_queue_host.cjs").expectedGitHubHost() }, requireCompletion: false },
+            ];
+          })
+        );
       } finally {
         fs.rmSync(root, { recursive: true, force: true });
       }

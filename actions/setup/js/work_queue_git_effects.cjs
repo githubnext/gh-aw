@@ -8,11 +8,12 @@ const { resolveRepositoryTarget } = require("./work_queue_effect_resource.cjs");
 
 async function withGitClaimEffects(options, callback) {
   if (!currentClaimHandle() && !readClaimScopeContext()) return callback();
-  const message = { type: "work_queue_git_effect", claim_handle: currentClaimHandle(), repo: options.repository };
+  const message = { type: "work_queue_git_effect", claim_handle: currentClaimHandle(), repo: options.repository, branch_name: options.branch };
   await assertClaimAuthorized(message, { authorize: options.authorize });
   const ref = `refs/heads/${options.branch}`;
   const paths = options.paths?.length ? [...new Set(options.paths)] : [undefined];
-  const resources = await Promise.all(paths.map(path => resolveRepositoryTarget(options.github || global.github, { repository: options.repository, ref, ...(path === undefined ? {} : { path }) })));
+  const repository = await resolveRepositoryTarget(options.github || global.github, { repository: options.repository, ref });
+  const resources = paths.map(path => ({ ...repository, ...(path === undefined ? {} : { path }) }));
   return withClaimResourceEffects(resources, ["rest.git.createRef", "git.push"], callback);
 }
 
