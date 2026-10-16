@@ -139,6 +139,63 @@ function applyAddMaskRedaction(text, maskedValues) {
 }
 
 /**
+ * Visit quoted JSON tokens without a repeated regex alternation, which can
+ * exhaust the RegExp stack on multi-megabyte log records.
+ * Malformed prefixes are preserved as text; their quote pairing is ambiguous.
+ * @param {string} text
+ * @param {(token: string) => string} transformString
+ * @param {(text: string) => string} [transformText]
+ * @returns {string}
+ */
+function transformJSONStrings(text, transformString, transformText = value => value) {
+  const parts = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    const start = text.indexOf('"', cursor);
+    if (start === -1) {
+      parts.push(transformText(text.slice(cursor)));
+      break;
+    }
+    let end = start + 1;
+    let invalidString = false;
+    while (end < text.length && text[end] !== '"') {
+      if (text.charCodeAt(end) < 0x20) {
+        invalidString = true;
+        break;
+      }
+      if (text[end] === "\\") {
+        end++;
+        const escaped = text[end];
+        if (escaped === "u") {
+          if (!/^[0-9a-fA-F]{4}$/.test(text.slice(end + 1, end + 5))) {
+            invalidString = true;
+            break;
+          }
+          end += 4;
+        } else if (!escaped || !'"\\/bfnrt'.includes(escaped)) {
+          invalidString = true;
+          break;
+        }
+      }
+      end++;
+    }
+    if (invalidString) {
+      parts.push(transformText(text.slice(cursor, start + 1)));
+      cursor = start + 1;
+      continue;
+    }
+    if (end >= text.length) {
+      parts.push(transformText(text.slice(cursor)));
+      break;
+    }
+    parts.push(transformText(text.slice(cursor, start)));
+    parts.push(transformString(text.slice(start, end + 1)));
+    cursor = end + 1;
+  }
+  return parts.join("");
+}
+
+/**
  * Sanitize artifact sources while runtime masks are still available in memory.
  * Decode JSON strings first so escaping cannot hide a registered value, redact
  * matching numeric tokens as JSON strings, and preserve untouched records
@@ -160,11 +217,15 @@ function redactArtifactMaskedValues(content, maskedValues) {
       let value = JSON.parse(text);
       // Skip quoted strings and match original numeric tokens at every depth so
       // rounding or exponent notation cannot hide a mask.
-      const numericRedacted = text.replace(/"(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
-        if (token.startsWith('"')) return token;
-        const redacted = redactMaskedValues(token, maskedValues);
-        return redacted === token ? token : JSON.stringify(redacted);
-      });
+      const numericRedacted = transformJSONStrings(
+        text,
+        token => token,
+        plain =>
+          plain.replace(/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
+            const redacted = redactMaskedValues(token, maskedValues);
+            return redacted === token ? token : JSON.stringify(redacted);
+          })
+      );
       if (numericRedacted !== text) value = JSON.parse(numericRedacted);
       const redacted = JSON.stringify(redactValue(value));
       return redacted === JSON.stringify(value) ? numericRedacted : text.match(/^\s*/)[0] + redacted + text.match(/\s*$/)[0];
@@ -181,16 +242,27 @@ function redactArtifactMaskedValues(content, maskedValues) {
       const jsonLine = redactJson(line);
       if (jsonLine !== undefined) return jsonLine;
       // Mixed or malformed logs can still contain recoverable JSON strings.
-      const decoded = line.replace(/"(?:[^"\\]|\\.)*"/g, encoded => {
+      const decoded = transformJSONStrings(line, encoded => {
+        let value;
         try {
-          const value = JSON.parse(encoded);
-          const redacted = redactValue(value);
-          return redacted === value ? encoded : JSON.stringify(redacted);
-        } catch {
-          return encoded;
+          value = JSON.parse(encoded);
+        } catch (error) {
+          throw new Error("Unable to decode JSON log string during secret redaction", { cause: error });
         }
+        const redacted = redactValue(value);
+        return redacted === value ? encoded : JSON.stringify(redacted);
       });
-      return redactMaskedValues(decoded, maskedValues);
+      const redacted = redactMaskedValues(decoded, maskedValues);
+      // Malformed quotes have no unique pairing. Decode remaining escapes once
+      // conservatively so an alternate pairing cannot hide an encoded mask.
+      const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+      const unescaped = redacted.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => {
+        if (escape[0] === "u") return String.fromCharCode(parseInt(escape.slice(1), 16));
+        return escapes[escape];
+      });
+      const conservative = applyAddMaskRedaction(unescaped, maskedValues);
+      // Only re-encode an ambiguous record when the extra decoding finds a mask.
+      return conservative === unescaped ? redacted : JSON.stringify(conservative);
     })
     .join("\n");
 }
@@ -203,5 +275,6 @@ module.exports = {
   isAddMaskCommandLine,
   redactArtifactMaskedValues,
   redactMaskedValues,
+  transformJSONStrings,
   unescapeWorkflowCommandValue,
 };
