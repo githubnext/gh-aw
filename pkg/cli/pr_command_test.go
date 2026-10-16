@@ -239,6 +239,7 @@ func TestCreatePRWithChangesAutoMerge(t *testing.T) {
 				createPRRunGHContextWithHost, autoMergeRunGH = originalCreate, originalAuto
 			})
 			prURL := "https://github.example.com/owner/repo/pull/42"
+			autoMergeErr := errors.New("auto-merge permission denied")
 			createPRRunGHContextWithHost = func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
 				if args[0] == "repo" {
 					return []byte(`{"owner":{"login":"owner"},"name":"repo"}`), nil
@@ -256,7 +257,7 @@ func TestCreatePRWithChangesAutoMerge(t *testing.T) {
 			autoMergeRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 				autoCalls++
 				if tc.autoFails {
-					return nil, errors.New("auto-merge permission denied")
+					return nil, autoMergeErr
 				}
 				if autoCalls == 1 {
 					return []byte(autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42")), nil
@@ -284,6 +285,9 @@ func TestCreatePRWithChangesAutoMerge(t *testing.T) {
 				if tc.autoFails {
 					if err == nil || !strings.Contains(err.Error(), prURL) || !strings.Contains(err.Error(), "remains open") {
 						t.Fatalf("error = %v, want retained PR and auto-merge error", err)
+					}
+					if !errors.Is(err, autoMergeErr) {
+						t.Fatalf("error = %v, want wrapped auto-merge error", err)
 					}
 					if tc.cleanupFails && !strings.Contains(err.Error(), "failed to switch back") {
 						t.Fatalf("error = %v, want both errors", err)
