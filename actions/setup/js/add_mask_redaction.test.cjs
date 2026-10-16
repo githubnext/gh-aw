@@ -134,6 +134,41 @@ describe("add_mask_redaction", () => {
     });
 
     describe("redactArtifactMaskedValues", () => {
+      it.each(["json", "mixed"])("redacts multi-megabyte %s records without exhausting the regex stack", shape => {
+        const mask = 'synthetic-"quoted"\\mask';
+        const value = "x".repeat(10 * 1024 * 1024) + mask;
+        const record = JSON.stringify({ text: value, number: shape === "mixed" ? 42 : 12345678 });
+        const prefix = shape === "mixed" ? "tool output: " : "";
+        const redacted = redactArtifactMaskedValues(prefix + record, [mask, "12345678"]);
+        expect(redacted.includes(mask)).toBe(false);
+        expect(redacted.includes(JSON.stringify(mask).slice(1, -1))).toBe(false);
+        const parsed = JSON.parse(redacted.slice(prefix.length));
+        expect(parsed.text.length).toBe(10 * 1024 * 1024 + 3);
+        expect(parsed.text.endsWith("***")).toBe(true);
+        expect(parsed.number).toBe(shape === "mixed" ? 42 : "***");
+      });
+
+      it("handles many escaped quotes and both odd and even backslash runs", () => {
+        const mask = 'synthetic-"quoted"\\mask';
+        const value = '\\"'.repeat(1024 * 1024) + mask + "\\\\";
+        const record = JSON.stringify({ text: value, safe: "12345678" });
+        const redacted = redactArtifactMaskedValues(record, [mask]);
+        const parsed = JSON.parse(redacted);
+        expect(parsed.text.length).toBe(2 * 1024 * 1024 + 5);
+        expect(parsed.text.endsWith("***\\\\")).toBe(true);
+        expect(parsed.safe).toBe("12345678");
+      });
+
+      it.each(["\n", "\r", "\u2028", "\u2029"])("recovers encoded masks after an invalid escaped line terminator", terminator => {
+        const mask = 'synthetic-"quoted"\\mask';
+        const prefix = '"invalid\\' + terminator;
+        expect(redactArtifactMaskedValues(prefix + JSON.stringify(mask), [mask])).toBe(prefix + '"***"');
+      });
+
+      it.each(['"bad\\q ', '"bad\\u12gg ', '"bad\\u12 ', '"bad\u0001 ', '"bad\t ', '"bad\\v '])("recovers Unicode-encoded masks after invalid JSON string prefixes (%j)", prefix => {
+        expect(redactArtifactMaskedValues(prefix + '"\\u006fpaque"', ["opaque"])).toBe(prefix + '"***"');
+      });
+
       it("redacts decoded JSON strings and keys without mutating syntax or primitives", () => {
         const secret = 'quote"\\percent%0A';
         const value = { [secret]: [secret, 0, false, null], nested: { output: "first\nsecond" } };

@@ -933,6 +933,7 @@ async function main() {
     core.setFailed("ERROR: Configuration is missing required 'gateway' section");
     return;
   }
+  applyAgenticWorkflowsRunnerIdentity(configObj);
   applyGatewayRuntimeTimeouts(configObj, process.env);
   mcpConfig = JSON.stringify(configObj);
   if (!("port" in gw) || gw.port == null) {
@@ -1480,7 +1481,39 @@ if (require.main === module) {
   });
 }
 
+/**
+ * Backend containers do not inherit the gateway container's Docker user.
+ * Keep private downloaded logs runner-owned so artifact redaction can read them.
+ * @param {Record<string, unknown>} config
+ * @param {number | undefined} [uid]
+ * @param {number | undefined} [gid]
+ */
+function applyAgenticWorkflowsRunnerIdentity(config, uid = process.getuid?.(), gid = process.getgid?.()) {
+  const servers = config.mcpServers;
+  if (!servers || typeof servers !== "object" || !("agenticworkflows" in servers)) return;
+  const server = servers.agenticworkflows;
+  if (!server || typeof server !== "object" || !("container" in server) || typeof server.container !== "string" || !server.container) return;
+  const args = "args" in server ? server.args : [];
+  if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
+    throw new Error("Invalid agenticworkflows container arguments");
+  }
+  if (args.some(arg => arg === "--user" || arg === "-u" || arg.startsWith("--user=") || (arg.startsWith("-u") && !arg.startsWith("--")))) return;
+  if (!Number.isSafeInteger(uid) || !Number.isSafeInteger(gid) || uid === undefined || gid === undefined || uid < 0 || gid < 0) {
+    throw new Error("Runner identity is required for the agenticworkflows container");
+  }
+  const env = "env" in server ? server.env : {};
+  if (!env || typeof env !== "object" || Array.isArray(env)) {
+    throw new Error("Invalid agenticworkflows container environment");
+  }
+  Object.assign(server, {
+    args: [...args, "--user", `${uid}:${gid}`],
+    // /tmp is private to this backend container; /root is not writable as the runner.
+    env: { HOME: "/tmp", ...env },
+  });
+}
+
 module.exports = {
+  applyAgenticWorkflowsRunnerIdentity,
   applyOTLPIgnoreIfMissing,
   clearGatewayStartupMarker,
   createGatewayStderrPath,

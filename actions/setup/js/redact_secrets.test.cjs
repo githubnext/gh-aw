@@ -127,6 +127,50 @@ describe("redact_secrets.cjs", () => {
       }
     }),
     describe("file handling", () => {
+      it("retains and sanitizes a private multi-megabyte artifact instead of failing closed on regex stack exhaustion", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "large-record.jsonl");
+        const mask = 'synthetic-"quoted"\\mask';
+        fs.writeFileSync(file, JSON.stringify({ text: "x".repeat(10 * 1024 * 1024) + mask }), { mode: 0o600 });
+        expect(processFile(file, [], [mask])).toBe(1);
+        expect(fs.existsSync(file)).toBe(true);
+        const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+        expect(parsed.text.endsWith("***")).toBe(true);
+        expect(parsed.text.length).toBe(10 * 1024 * 1024 + 3);
+        expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
+      it.each(['"bad\\q ', '"bad\\u12gg ', '"bad\\u12 ', '"bad\u0001 ', '"bad\t ', '"bad\\v '])("sanitizes recoverable encoded masks after invalid JSON string prefixes (%j)", prefix => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "malformed.log");
+        fs.writeFileSync(file, prefix + '"\\u006fpaque"', { mode: 0o600 });
+        expect(processFile(file, [], ["opaque"])).toBe(1);
+        expect(fs.readFileSync(file, "utf8")).toBe(prefix + '"***"');
+        expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("removes the artifact if decoding a validated mixed-log token unexpectedly fails", () => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "mixed.log");
+        fs.writeFileSync(file, 'output: "\\u006fpaque"');
+        const parse = JSON.parse;
+        const parseSpy = vi.spyOn(JSON, "parse").mockImplementation(text => {
+          if (text === '"\\u006fpaque"') throw new Error("opaque runtime-mask");
+          return parse(text);
+        });
+        try {
+          expect(processFile(file, [], ["opaque"])).toBe(0);
+          expect(fs.existsSync(file)).toBe(false);
+          expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=redact, code=unknown)");
+          expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/opaque|runtime-mask/);
+          expect(mockCore.setFailed).toHaveBeenCalled();
+        } finally {
+          parseSpy.mockRestore();
+        }
+      });
+
       it.each(["EACCES", "EPERM", "ENOSPC"])("reports only safe read diagnostics for secret-bearing %s errors", code => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "secret-value.log");

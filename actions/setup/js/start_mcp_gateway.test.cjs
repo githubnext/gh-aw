@@ -4,6 +4,7 @@ import path from "path";
 import http from "http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyAgenticWorkflowsRunnerIdentity,
   applyOTLPIgnoreIfMissing,
   clearGatewayStartupMarker,
   createGatewayStderrPath,
@@ -34,6 +35,61 @@ import {
   httpGet,
 } from "./start_mcp_gateway.cjs";
 import { writeMcpConfiguration } from "./mcp_configuration.cjs";
+
+describe("agenticworkflows backend ownership", () => {
+  it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses the runner identity without widening private artifact modes (%s)", container => {
+    const env = { GITHUB_TOKEN: "${GITHUB_TOKEN}", GITHUB_ACTOR: "${GITHUB_ACTOR}" };
+    const backend = { container, args: ["--network", "host", "-w", "/workspace"], env };
+    const other = { container: "example/server", args: [] };
+    const config = { mcpServers: { agenticworkflows: backend, other } };
+    applyAgenticWorkflowsRunnerIdentity(config, 1001, 123);
+    expect(backend.args).toEqual(["--network", "host", "-w", "/workspace", "--user", "1001:123"]);
+    expect(backend.env).toEqual({ HOME: "/tmp", ...env });
+    expect(other).toEqual({ container: "example/server", args: [] });
+    applyAgenticWorkflowsRunnerIdentity(config, 1001, 123);
+    expect(backend.args.filter(arg => arg === "--user")).toHaveLength(1);
+  });
+
+  it.each([["--user", "42:43"], ["--user=42:43"], ["-u", "42:43"], ["-u42:43"]])("preserves an explicitly configured container user: %j", (...args) => {
+    const backend = { container: "example/server", args, env: { HOME: "/custom" } };
+    const original = structuredClone(backend);
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+    expect(backend).toEqual(original);
+  });
+
+  it("preserves a configured HOME and supports default container arguments", () => {
+    const backend = { container: "alpine:3.24", env: { HOME: "/custom" } };
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+    expect(backend).toEqual({ container: "alpine:3.24", args: ["--user", "1001:123"], env: { HOME: "/custom" } });
+  });
+
+  it.each([{}, { mcpServers: {} }, { mcpServers: { agenticworkflows: { url: "https://example.com/mcp" } } }])("leaves absent and HTTP backends unchanged", config => {
+    const original = structuredClone(config);
+    applyAgenticWorkflowsRunnerIdentity(config, 1001, 123);
+    expect(config).toEqual(original);
+  });
+
+  it.each([
+    [-1, 123],
+    [1001, -1],
+    [NaN, 123],
+    [1001, Infinity],
+    [1.5, 123],
+  ])("rejects invalid runner identities (%s, %s)", (uid, gid) => {
+    const backend = { container: "alpine:3.24" };
+    expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, uid, gid)).toThrow("Runner identity is required");
+    expect(backend).toEqual({ container: "alpine:3.24" });
+  });
+
+  it.each([{ args: "invalid" }, { args: [42] }, { env: [] }, { env: null }])("rejects malformed backend configuration without publishing it", fields => {
+    expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine:3.24", ...fields } } }, 1001, 123)).toThrow(/Invalid agenticworkflows container/);
+  });
+
+  it("applies identity before serializing the configuration sent to the gateway", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source.indexOf("applyAgenticWorkflowsRunnerIdentity(configObj)")).toBeLessThan(source.indexOf("mcpConfig = JSON.stringify(configObj)"));
+  });
+});
 
 describe("start_mcp_gateway logging", () => {
   it("records only a sanitized configuration snapshot before launching the gateway", () => {
