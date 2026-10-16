@@ -70,7 +70,7 @@ describe("redact_secrets.cjs", () => {
     expect(JSON.parse(fs.readFileSync(scalarFile, "utf8"))).toBe("***");
     assertRedacted(redactStepSummaryContent(payload));
     expect(JSON.parse(redactStepSummaryContent("12345678\n"))).toBe("***");
-    expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(passwords[0]);
+    expect(mockCore.info).not.toHaveBeenCalled();
   });
   it("redacts decoded Grafana Cloud tokens even without an exact-value secret", () => {
     const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
@@ -127,7 +127,7 @@ describe("redact_secrets.cjs", () => {
       }
     }),
     describe("file handling", () => {
-      it.each(["ordinary.json", "safeoutputs.jsonl"])("logs UTF-8 input and output byte sizes without payload data for %s", filename => {
+      it.each(["ordinary.json", "safeoutputs.jsonl"])("silently redacts UTF-8 payloads in %s", filename => {
         const { processFile } = require("./redact_secrets.cjs");
         const secret = "synthetic-private-value";
         const file = path.join(tempDir, filename);
@@ -137,36 +137,38 @@ describe("redact_secrets.cjs", () => {
         expect(processFile(file, [secret])).toBeGreaterThan(0);
 
         const output = fs.readFileSync(file, "utf8");
-        const format = filename === "safeoutputs.jsonl" ? "structured" : "text";
         expect(Buffer.byteLength(content, "utf8")).toBeGreaterThan(content.length);
-        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction input: bytes=${Buffer.byteLength(content, "utf8")}`);
-        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction sizes: input_bytes=${Buffer.byteLength(content, "utf8")} output_bytes=${Buffer.byteLength(output, "utf8")} format=${format}`);
-        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(secret);
-        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("\u00e9");
+        expect(output).not.toContain(secret);
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.warning).not.toHaveBeenCalled();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
-      it("logs equal byte sizes for unchanged artifacts", () => {
+      it("does not log unchanged artifacts", () => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "ordinary.log");
         fs.writeFileSync(file, "public");
 
         expect(processFile(file, [])).toBe(0);
 
-        expect(mockCore.info).toHaveBeenCalledWith("Secret redaction sizes: input_bytes=6 output_bytes=6 format=text");
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.warning).not.toHaveBeenCalled();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
-      it("logs input size before a fail-closed redaction error without reporting successful output", () => {
+      it("reports input bytes only after a fail-closed redaction error without payload data", () => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "safeoutputs.jsonl");
-        const content = '{"body":"synthetic-private-value"';
+        const content = '{"body":"\u00e9 \ud83d\ude80 synthetic-private-value"';
         fs.writeFileSync(file, content);
 
         expect(processFile(file, ["synthetic-private-value"])).toBe(0);
 
         expect(fs.existsSync(file)).toBe(false);
-        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction input: bytes=${Buffer.byteLength(content, "utf8")}`);
-        expect(mockCore.info.mock.calls.flat().some(message => message.startsWith("Secret redaction sizes:"))).toBe(false);
-        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("synthetic-private-value");
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=redact, code=unknown)");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(`ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=${Buffer.byteLength(content, "utf8")})`);
+        expect([...mockCore.warning.mock.calls, ...mockCore.setFailed.mock.calls].flat().join("\n")).not.toContain("synthetic-private-value");
       });
 
       it.each(["safeoutputs.jsonl", "agent_output.json"])("coalesces all credential sources in executable %s payloads", filename => {
@@ -561,7 +563,7 @@ describe("redact_secrets.cjs", () => {
           expect(processFile(file, ["secret-value"], ["runtime-mask"])).toBe(0);
           expect(fs.existsSync(file)).toBe(false);
           expect(mockCore.warning).toHaveBeenCalledWith(`Secret redaction failed (stage=read, code=${code})`);
-          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed");
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=unknown)");
           expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/secret-value|runtime-mask/);
         } finally {
           read.mockRestore();
@@ -626,7 +628,7 @@ describe("redact_secrets.cjs", () => {
           expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=replace, code=ENOSPC)");
           expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=unlink, code=EPERM)");
           expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/secret-value|runtime-mask/);
-          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed");
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)");
         } finally {
           write.mockRestore();
           rename.mockRestore();
@@ -701,7 +703,7 @@ describe("redact_secrets.cjs", () => {
         try {
           expect(() => processFile(file, ["secret-value"], ["runtime-mask"])).toThrow(
             expect.objectContaining({
-              message: "ERR_VALIDATION: Failed to remove artifact source after secret redaction failed",
+              message: "ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=unknown)",
               errors: [expect.objectContaining({ message: "Secret redaction failed (stage=read, code=EACCES)" }), expect.objectContaining({ message: "Secret redaction failed (stage=unlink, code=EPERM)" })],
             })
           );
@@ -770,7 +772,7 @@ describe("redact_secrets.cjs", () => {
           throw Object.assign(new Error("permission denied: secret-value"), { code });
         });
         try {
-          expect(() => processFile(file, ["secret-value"], ["runtime-mask"])).toThrow(/^ERR_VALIDATION: Failed to remove artifact source after secret redaction failed$/);
+          expect(() => processFile(file, ["secret-value"], ["runtime-mask"])).toThrow(/^ERR_VALIDATION: Failed to remove artifact source after secret redaction failed \(input_bytes=12\)$/);
           expect(fs.readFileSync(file, "utf8")).toBe("secret-value");
           expect(fs.statSync(file).mode & 0o777).toBe(0o444);
           expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("secret-value");
@@ -1036,9 +1038,7 @@ describe("redact_secrets.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
       (it("should scan for built-in patterns even when GH_AW_SECRET_NAMES is not set", async () => {
-        (await eval(`(async () => { ${redactScript}; await main(); })()`),
-          expect(mockCore.info).toHaveBeenCalledWith(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Scanning for built-in credential patterns")));
+        (await eval(`(async () => { ${redactScript}; await main(); })()`), expect(mockCore.info).not.toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
       }),
         it("should redact secrets from files in /tmp using exact matching", async () => {
           const testFile = path.join(tempDir, "test.txt"),
@@ -1047,9 +1047,7 @@ describe("redact_secrets.cjs", () => {
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redactedContent = fs.readFileSync(testFile, "utf8");
-          (expect(redactedContent).toBe("Secret: ***REDACTED*** and another ***REDACTED***"),
-            expect(mockCore.info).toHaveBeenCalledWith(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Secret redaction complete")));
+          (expect(redactedContent).toBe("Secret: ***REDACTED*** and another ***REDACTED***"), expect(mockCore.info).not.toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
         }),
         it("should handle multiple file types", async () => {
           (fs.writeFileSync(path.join(tempDir, "test1.txt"), "Secret: api-key-123"),
@@ -1076,14 +1074,12 @@ describe("redact_secrets.cjs", () => {
           expect(fs.existsSync(target)).toBe(true);
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Removed symbolic link before artifact upload"));
         }),
-        it("should use core.info for logging hits", async () => {
+        it("should not log successful redaction hits", async () => {
           const testFile = path.join(tempDir, "test.txt"),
             secretValue = "sk-1234567890";
           (fs.writeFileSync(testFile, `Secret: ${secretValue} and ${secretValue}`), (process.env.GH_AW_SECRET_NAMES = "API_KEY"), (process.env.SECRET_API_KEY = secretValue));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret")),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processed")));
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`), expect(mockCore.info).not.toHaveBeenCalled(), expect(fs.readFileSync(testFile, "utf8")).toBe("Secret: ***REDACTED*** and ***REDACTED***"));
         }),
         it("should not log actual secret values", async () => {
           const testFile = path.join(tempDir, "test.txt"),
@@ -1124,9 +1120,7 @@ describe("redact_secrets.cjs", () => {
           const testFile = path.join(tempDir, "test.txt");
           (fs.writeFileSync(testFile, "No secrets here"), (process.env.GH_AW_SECRET_NAMES = "EMPTY_SECRET"), (process.env.SECRET_EMPTY_SECRET = ""));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
-            expect(mockCore.info).toHaveBeenCalledWith(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("no secrets found")));
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`), expect(mockCore.info).not.toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
         }),
         it("should handle new file extensions (.md, .mdx, .yml, .jsonl)", async () => {
           (fs.writeFileSync(path.join(tempDir, "test.md"), "# Markdown\nSecret: api-key-md123"),
@@ -1176,7 +1170,7 @@ describe("redact_secrets.cjs", () => {
           const redacted = fs.readFileSync(patchFile, "utf8");
           expect(redacted).not.toContain(ghToken);
           expect(redacted).toContain("***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         }));
     }),
     describe("built-in pattern detection", () => {
@@ -1190,7 +1184,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Using token: ***REDACTED*** in this file");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1202,7 +1196,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact long JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1220,7 +1214,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Long server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact boundary-length JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1234,7 +1228,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Boundary server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact dash-containing GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1251,7 +1245,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Dashed server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub OAuth Access Token (gho_)", async () => {
@@ -1263,7 +1257,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OAuth: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub OAuth Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub User Access Token (ghu_)", async () => {
@@ -1275,7 +1269,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("User token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub User Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub Fine-grained PAT (github_pat_)", async () => {
@@ -1287,7 +1281,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Fine-grained PAT: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Fine-grained PAT"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub Refresh Token (ghr_)", async () => {
@@ -1299,7 +1293,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Refresh: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Refresh Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact multiple GitHub token types in same file", async () => {
@@ -1327,7 +1321,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("DefaultEndpointsProtocol=https;AccountName=myaccount;***REDACTED***;EndpointSuffix=core.windows.net");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Azure Storage Account Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should not falsely redact plain base64 strings without AccountKey= context", async () => {
@@ -1366,7 +1360,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Google API Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact Google OAuth Access Token", async () => {
@@ -1378,7 +1372,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OAuth Token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google OAuth Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1392,7 +1386,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("AWS Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWS Access Key ID"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1406,7 +1400,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OpenAI Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("OpenAI API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact OpenAI Project API Key", async () => {
@@ -1418,7 +1412,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OpenAI Project Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("OpenAI Project API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1432,7 +1426,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Anthropic Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Anthropic API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1446,7 +1440,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Linear Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Linear API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1462,8 +1456,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("GitHub: ***REDACTED***\nCustom: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should handle overlapping matches between built-in and custom secrets", async () => {
@@ -1642,7 +1635,7 @@ Custom secret: my-secret-123456789012`;
             const redacted = fs.readFileSync(testFile, "utf8");
             // Should be redacted since it's a valid pattern within bounds
             expect(redacted).toBe("Token: ***REDACTED***");
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google OAuth Access Token"));
+            expect(mockCore.info).not.toHaveBeenCalled();
           });
         });
         describe("AWF_RESOLVED_CONFIG", () => {
