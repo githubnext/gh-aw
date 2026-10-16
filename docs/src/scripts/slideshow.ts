@@ -33,6 +33,41 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
   let requestedIndex = 0;
   let scrollY = 0;
   let transition: ViewTransition | undefined;
+  let entrances: Animation[] = [];
+
+  const cancelEntrances = () => {
+    entrances.forEach(animation => animation.cancel());
+    entrances = [];
+  };
+
+  const animateEntrance = (slide: HTMLElement, delay: number) => {
+    if (reducedMotion.matches) return;
+    const elements: HTMLElement[] = [];
+    const collect = (parent: HTMLElement) => {
+      for (const element of parent.children) {
+        if (!(element instanceof HTMLElement) || !element.checkVisibility() || element.matches('[aria-hidden="true"], script, style')) continue;
+        if (element.matches(".aw-container, .aw-split, .aw-split-main, .aw-hero-inner, .aw-hero-text, [data-variant-group], [data-variant], ul, ol")) {
+          collect(element);
+        } else {
+          elements.push(element);
+        }
+      }
+    };
+    collect(slide);
+    const duration = elements.length === 1 ? 1000 - delay : 350;
+    entrances = elements.map((element, i) => {
+      const stagger = elements.length > 1 ? (i * (1000 - delay - duration)) / (elements.length - 1) : 0;
+      const animation = element.animate(
+        [
+          { opacity: 0, transform: "translateY(16px)" },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration, delay: delay + stagger, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)", fill: "backwards" }
+      );
+      animation.id = "aw-slide-entrance";
+      return animation;
+    });
+  };
 
   const fit = () => {
     if (!dialog.open) return;
@@ -58,7 +93,8 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
     slide.querySelectorAll("video").forEach(video => video.pause());
   };
 
-  const showSlide = (target: number) => {
+  const showSlide = (target: number, entranceDelay = 0) => {
+    cancelEntrances();
     const newIndex = Math.max(0, Math.min(slides.length - 1, target));
     if (newIndex !== index) pauseVideos(slides[index]);
     index = newIndex;
@@ -76,6 +112,7 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
     fit();
     dialog.dataset.slideIndex = String(index);
     dialog.dispatchEvent(new Event("slideshow:slide-change"));
+    animateEntrance(slides[index], entranceDelay);
   };
 
   const navigate = (target: number) => {
@@ -90,7 +127,8 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
     }
     document.documentElement.dataset.slideshowDirection = direction;
     const current = document.startViewTransition(() => {
-      if (dialog.open && requestedIndex === newIndex) showSlide(newIndex);
+      // Reserve the frame transition's 280ms within the one-second entrance.
+      if (dialog.open && requestedIndex === newIndex) showSlide(newIndex, 280);
     });
     transition = current;
     current.finished.then(() => {
@@ -101,6 +139,7 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
   };
 
   const restore = () => {
+    cancelEntrances();
     transition?.skipTransition();
     transition = undefined;
     delete document.documentElement.dataset.slideshowDirection;
@@ -161,6 +200,16 @@ export function createSlideshow(trigger: HTMLButtonElement): SlideshowController
       if (!desktop.matches && dialog.open) {
         dialog.close();
         restore();
+      }
+    },
+    { signal }
+  );
+  reducedMotion.addEventListener(
+    "change",
+    () => {
+      if (reducedMotion.matches) {
+        cancelEntrances();
+        transition?.skipTransition();
       }
     },
     { signal }

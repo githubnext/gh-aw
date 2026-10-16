@@ -78,7 +78,7 @@ enforcement, or prove that a provider honored the requested model.
 
 The manual `credentials-check.yml` workflow has an opt-in `agy-only` input and
 an `agy-model` native model slug. Its default behavior still runs the existing
-credential checks. The Agy job verifies the native Linux x64 v1.3.1 archive's
+credential checks. The Agy job verifies the native Linux x64 v1.3.6 archive's
 SHA-256 checksum and runs with a fresh settings home and empty workspace.
 It requires `GEMINI_API_KEY` with `modelProvider: gemini`, verifies a fresh
 inference challenge and reported usage, checks missing/invalid credentials
@@ -174,8 +174,9 @@ secret is required.
 
 Choose the engine that matches the required capabilities, identity mechanism, and existing provider access. Copilot supports native agent selection, custom harnesses, and continuation mode. Claude Code and Codex provide native web search when enabled. Gemini supports Google WIF and per-command bash restrictions. Pi supports multiple providers, native MCP, codemode, and SDK/RPC execution.
 
-Agy is experimental, Linux x64 only, and supports the verified native v1.3.1
-Gemini API-key profile. It is not a Gemini alias or feature-equivalent replacement.
+Agy is experimental, Linux x64 only, and defaults to the verified native v1.3.6
+Gemini API-key profile; explicit v1.3.3 and v1.3.1 pins remain supported.
+It is not a Gemini alias or feature-equivalent replacement.
 Retain Gemini for WIF or native shell restrictions. See the
 [Agy capability and configuration limits](/gh-aw/engines/agy/#tools-configuration-and-limits)
 before considering a migration.
