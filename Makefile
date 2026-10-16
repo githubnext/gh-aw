@@ -497,6 +497,11 @@ deps-js: check-node-version
 	cd actions/setup/js && npm ci
 	cd eslint-factory && npm ci
 
+# Verify every locked npm registry dependency through the public 1ES feed.
+.PHONY: check-npm-1es
+check-npm-1es: check-node-version
+	node scripts/check-npm-1es.mjs
+
 .PHONY: build-js
 build-js: deps-js
 	cd actions/setup/js && npm run typecheck
@@ -514,6 +519,7 @@ bundle-js:
 test-scripts: build
 	@echo "Running script tests..."
 	node --test scripts/agy-authentication.test.cjs
+	node --test scripts/check-npm-1es.test.mjs
 	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-skill-file-paths_test.sh
@@ -1463,6 +1469,7 @@ help:
 	@echo "  test-impacted-go - Run impacted Go unit tests for current branch changes"
 	@echo "  test-impacted    - Run impacted JavaScript and Go unit tests for current branch changes"
 	@echo "  test-scripts     - Run Bash script tests (check-stale-lock-files, check-workflow-drift)"
+	@echo "  check-npm-1es    - Verify locked npm package tarballs are available in the 1ES feed"
 	@echo "  test-all         - Run all tests (Go, JavaScript, wasm golden, shell scripts, and guidance contracts)"
 	@echo "  test-guidance    - Run agentic-workflows documentation contract tests"
 	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"

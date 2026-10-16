@@ -186,7 +186,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     if (!message || message.role !== "assistant") return;
     const failed = ["error", "aborted"].includes(message.stopReason) || typeof message.errorMessage === "string";
     const usage = message.usage && typeof message.usage === "object" && !Array.isArray(message.usage) ? message.usage : {};
-    const hasTokens = ["input", "output", "cacheRead", "cacheWrite"].some(key => Number.isSafeInteger(usage[key]) && usage[key] >= 0);
+    const hasTokens = ["input", "output", "cacheRead", "cacheWrite", "reasoning"].some(key => Number.isSafeInteger(usage[key]) && usage[key] >= 0);
     if (failed && !hasTokens) return;
     const model = message.responseModel ?? message.model;
     if (typeof model !== "string" || model === "") return;
@@ -201,6 +201,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
       ["output", "outputTokens"],
       ["cacheRead", "cacheReadTokens"],
       ["cacheWrite", "cacheWriteTokens"],
+      ["reasoning", "reasoningOutputTokens"],
     ]) {
       const value = usage[source] ?? usage[target];
       if (Number.isSafeInteger(value) && value >= 0) data[target] = value;
@@ -358,7 +359,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     delete messageMetadata.content;
     const metadata = {
       messageMetadata,
-      ...(message.model !== undefined ? { model: message.model } : {}),
+      ...((message.responseModel ?? message.model) !== undefined ? { model: message.responseModel ?? message.model } : {}),
       ...((message.id ?? message.responseId) !== undefined ? { messageId: message.id ?? message.responseId } : {}),
     };
     for (const segments of [...state.text.values(), ...state.thinking.values()]) {
@@ -370,7 +371,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
     if (raw.type === "message_end" || raw.type === "turn_end") state.finalized = true;
     if (message.errorMessage !== undefined && !state.errors.some(error => isDeepStrictEqual(error, message.errorMessage))) {
       state.errors.push(structuredClone(message.errorMessage));
-      emit(raw, "session.error", { error: message.errorMessage, model: message.model });
+      emit(raw, "session.error", { error: message.errorMessage, model: message.responseModel ?? message.model });
     }
   };
 
@@ -509,7 +510,7 @@ function transformPiV3Entries(records, mapLegacyEvent = event => event) {
         if (index >= 0) consumed.add(index);
         emitMessage(raw, message, index >= 0 ? snapshots[index].state : partialAssistant && position === lastAssistant ? assistantState : newMessageState());
       }
-    } else if (raw.type === "error") emit(raw, "session.error", { error: raw.error ?? raw.message });
+    } else if (raw.type === "error" || raw.type === "extension_error") emit(raw, "session.error", { error: raw.error ?? raw.message, ...(raw.type === "extension_error" ? { sourceType: raw.type } : {}) });
     else {
       const flat = normalizeAgentSession(transformFlatSessionEntries([raw]), { sourceEngine: "pi" });
       if (flat.length) events.push(...flat);
@@ -525,6 +526,7 @@ function piUsage(usage) {
     ...usage,
     input_tokens: usage.input ?? usage.input_tokens,
     output_tokens: usage.output ?? usage.output_tokens,
+    reasoning_output_tokens: usage.reasoning ?? usage.reasoning_output_tokens,
     cache_read_input_tokens: usage.cacheRead ?? usage.cache_read_input_tokens,
     cache_creation_input_tokens: usage.cacheWrite ?? usage.cache_creation_input_tokens,
     total_tokens: usage.totalTokens ?? usage.total_tokens,
@@ -560,7 +562,7 @@ function computePiV3Stats(records) {
     if (!value || auxiliarySeen.has(key)) return;
     auxiliarySeen.add(key);
     const normalized = piUsage(value);
-    for (const field of ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "total_tokens"]) {
+    for (const field of ["input_tokens", "output_tokens", "reasoning_output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "total_tokens"]) {
       if (isTokenCount(normalized[field])) usage[field] = (usage[field] ?? 0) + normalized[field];
     }
     if (isMetric(value.cost?.total)) totalCostUsd = (totalCostUsd ?? 0) + value.cost.total;
@@ -586,7 +588,7 @@ function computePiV3Stats(records) {
     report.message = structuredClone(message);
     if (message.usage && typeof message.usage === "object") {
       const normalized = piUsage(message.usage);
-      for (const key of ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "total_tokens"]) {
+      for (const key of ["input_tokens", "output_tokens", "reasoning_output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "total_tokens"]) {
         if (!isTokenCount(normalized[key])) continue;
         usage[key] = (usage[key] ?? 0) + normalized[key] - (report.usage[key] ?? 0);
         report.usage[key] = normalized[key];
@@ -633,7 +635,7 @@ function computePiV3Stats(records) {
       const snapshot = raw.usage ?? raw.stats?.usage ?? raw.stats;
       if (snapshot && typeof snapshot === "object") {
         const normalized = piUsage(snapshot);
-        for (const key of ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "total_tokens"]) {
+        for (const key of ["input_tokens", "output_tokens", "reasoning_output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "total_tokens"]) {
           if (isTokenCount(normalized[key])) usage[key] = normalized[key];
         }
         if (isTokenCount(snapshot.input) && [snapshot.cacheRead, snapshot.cacheWrite].some(isTokenCount)) usage.input_tokens_include_cache = false;
@@ -660,7 +662,7 @@ function computePiV3Stats(records) {
       if (isMetric(result.totalCostUsd)) totalCostUsd = result.totalCostUsd;
       if (isMetric(result.durationMs)) durationMs = result.durationMs;
       if (isTokenCount(result.numTurns)) reportedTurns = result.numTurns;
-    } else if (raw.type === "error") {
+    } else if (raw.type === "error" || raw.type === "extension_error") {
       const error = raw.error ?? raw.message;
       if (error !== undefined) errors.push(structuredClone(error));
     }

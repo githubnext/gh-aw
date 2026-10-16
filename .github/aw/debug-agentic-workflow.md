@@ -49,7 +49,7 @@ dispatch.
 
 3. **Reproduce one boundary.** Choose compilation/prompt/MCP/agent/safe outputs. Run the real component with existing edge test doubles, minimal inputs, output assertions, disposable files and a timeout. Mock missing context/APIs/credentials. Never contact production or disable the firewall; leave OIDC, approvals, hosted tokens and runners unverified.
 
-4. **Fix and gate.** Add a minimal fix/regression. Review the revised changes with the [agentic security-review instructions](debug-security-review.md), then compile current source with `--dry-run`: strict, staged, source validation, shellcheck and model checks, warnings as errors. Include emitted locks in the final security review before executing or uploading them. Docker-based checks are optional; Docker unavailability does not block the gate. When Docker is available, recommend `gh aw validate WORKFLOW` for source checks and `gh aw compile WORKFLOW --dry-run --zizmor --actionlint --poutine` for scanner checks. Run these scanners if possible; `validate` itself skips them. Unsupported `--dry-run`, missing required checks or failed compilation blocks live testing, not local diagnosis. Existing/generated locks need a successful gate for current hashes. Never downgrade required checks, suppress findings, substitute `strict: true`, use `--approve`, or commit to erase warnings.
+4. **Fix and gate.** Add a minimal fix/regression. Review the revised changes with the [agentic security-review instructions](debug-security-review.md), then compile current source with `--dry-run`: strict, staged, source validation, shellcheck and model checks, with differential scanner gating described below. Include emitted locks in the final security review before executing or uploading them. Docker-based checks are optional; Docker unavailability does not block the gate. When Docker is available, recommend `gh aw validate WORKFLOW` for source checks and `gh aw compile WORKFLOW --dry-run --zizmor --actionlint --poutine` for scanner checks. Run these scanners if possible; `validate` itself skips them. Unsupported `--dry-run`, missing required checks or failed compilation blocks live testing, not local diagnosis. Existing/generated locks need a successful gate for current hashes. Never downgrade required checks, add ad hoc suppressions beyond the documented dry-run filter, substitute `strict: true`, use `--approve`, or commit to erase warnings.
 
 5. **Constrain credentials.** Recommend, not require, a protected test environment and rotated, restricted development credentials. Inspect environments; provision only with authorization and revoke replaced credentials at their issuer. Never copy/rotate production secrets. Authorized repository/organization/enterprise shared secrets remain job-scoped, not automatically OS-exported; test environments do not isolate them. Keep production/dispatch credentials out of harnesses.
 
@@ -144,14 +144,23 @@ gh aw compile WORKFLOW --dry-run --zizmor --actionlint --poutine
 Docker-based scanners and `--validate-images` are opt-in, not dry-run gate
 requirements. Run zizmor, actionlint and poutine when possible; report unavailable
 checks as unverified, not passed. Without Docker, use a native `shellcheck` binary
-for the required run-step linting. Findings or failures from requested checks still
-fail the dry-run gate.
+for the required run-step linting. Enabled scanners scan the existing on-disk locks
+before compilation and compare finding identities and occurrence counts against
+the emitted diagnostic locks using the same result filters. Only added
+medium-or-higher or unclassified findings fail. Low-severity/informational findings
+remain visible but nonblocking. Zizmor's `secrets-outside-env` is excluded from
+dry-run results because repository/organization secrets are common in agentic workflows;
+ordinary compilation is unchanged. With no existing lock, actionable findings
+are all added. The baseline is the pre-compilation on-disk state, not a Git diff;
+do not overwrite a baseline to conceal regressions. Execution/parsing failures
+in either scan remain fatal.
 
-With explicit user acceptance of experimental-feature notices, add
-`--allow-experimental`. Only built-in feature notices are acknowledged;
-their warning counts remain visible in the dry-run summary. Other warnings,
-security findings, and scanner failures remain fatal. This opt-in grants no
-live execution or policy-installation authorization.
+Built-in experimental-feature notices are low-severity and nonblocking;
+`--allow-experimental` additionally records explicit acknowledgement.
+Their counts remain visible in the dry-run summary. Validation errors, unclassified
+compiler warnings, model-inventory failures, and scanner execution/parsing failures
+remain fatal. Neither this policy nor explicit acknowledgement grants live
+execution or policy-installation authorization.
 
 `validate` uses `--no-emit`, which skips zizmor, actionlint and poutine. Only the
 scanner-enabled compile command above runs them; a passing `validate` command
@@ -183,7 +192,11 @@ they report changed fields/keys and forced flags without configuration values.
 Compile text output reports excluded effects and scanner invocation coverage.
 `--json` adds a batch `workflow: "dry-run"` summary: `dry_run.gate` includes
 workflow and batch failures; scanner statuses distinguish `passed`, `failed`
-and `not_run`. Model inventory refresh/collection warnings fail the dry-run
+and `not_run`; each scanner's `differential` reports baseline, existing, added,
+and ignored low-severity counts. A passed scanner gate is not a claim of zero findings.
+The summary records `warning_baseline: "pre_compile_lock_files"`,
+`minimum_severity: "medium"`, `ignored_scanner_rules`, and
+`ignored_low_severity_warnings`. Model inventory refresh/collection warnings fail the dry-run
 gate. Check the exit status and all results; preflight failures may emit no
 summary. Passing coverage is not execution approval or per-image/script proof.
 

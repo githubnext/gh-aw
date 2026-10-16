@@ -104,7 +104,7 @@ post-steps:
         const binary = fs.lstatSync(path.join(process.env.GITHUB_WORKSPACE, "gh-aw"));
         assert.ok(binary.isFile() && !binary.isSymbolicLink() && (binary.mode & 0o111) !== 0, "gh-aw build output is missing");
         const log = fs.readFileSync("/tmp/gh-aw/agent-stdio.log", "utf8");
-        assert.ok(log.includes("[goose-harness] verified Goose 1.53.0"), "Pinned CLI verification is missing");
+        assert.ok(log.includes("[goose-harness] verified Goose 1.54.0"), "Pinned CLI verification is missing");
         assert.ok(!log.includes("Failed to start extension"), "A Goose MCP extension failed to connect");
         const events = log.split("\n").filter(line => line.trim().startsWith("{")).map(line => JSON.parse(line));
         assert.ok(events.some(event => event.type === "complete"), "Goose did not finish a structured run");

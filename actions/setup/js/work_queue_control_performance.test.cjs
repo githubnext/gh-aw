@@ -17,6 +17,7 @@ import { readWorkQueuePolicyConfig } from "./work_queue_policy_config.cjs";
 const require = createRequire(import.meta.url);
 const { setupGlobals } = require("./setup_globals.cjs");
 const { queueAuthenticationScope } = require("./work_queue_auth_cache.cjs");
+const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 const GLOBAL_NAMES = ["core", "github", "context", "exec", "io", "getOctokit", "runtimeFeatures", "hasRuntimeFeature", "getRuntimeFeatureValue"];
 const savedGlobals = new Map(GLOBAL_NAMES.map(name => [name, Object.getOwnPropertyDescriptor(global, name)]));
 const directories = [];
@@ -119,14 +120,24 @@ async function fixture({ depth = 32, profiles = 3, works = 15, retained = 100, a
   };
   const failures = [];
   const core = { setOutput: () => {}, info: () => {}, setFailed: message => failures.push(message) };
-  const createClient = token => ({
-    rest: fake.githubClient.rest,
-    graphql: fake.githubClient.graphql,
-    auth: async () => ({ type: "token", token }),
-    hook: { before: () => {} },
-  });
+  const createClient = token => {
+    const client = {
+      rest: fake.githubClient.rest,
+      graphql: fake.githubClient.graphql,
+      auth: async () => ({ type: "token", token }),
+      hook: { before: () => {} },
+    };
+    registerQueueLedgerClient(client, client);
+    return client;
+  };
   const injected = createClient("fixture-token");
   setupGlobals(core, injected, queue.dispatcherContext, {}, {}, createClient, "github_actions");
+  const getOctokit = global.getOctokit;
+  global.getOctokit = (...args) => {
+    const client = getOctokit(...args);
+    registerQueueLedgerClient(client, client);
+    return client;
+  };
   expect(await queueAuthenticationScope(injected)).toBeUndefined();
   const client = auth === "injected" ? injected : global.getOctokit("fixture-token", auth === "dynamic" ? { authStrategy: () => {} } : {});
   expect(Boolean(await queueAuthenticationScope(client))).toBe(auth === "constructed");

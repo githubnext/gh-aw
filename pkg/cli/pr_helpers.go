@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 
-	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -25,11 +23,24 @@ func PreflightCheckForCreatePR(verbose bool) error {
 	return nil
 }
 
+func requireAutoMergePR(autoMerge, createPR bool) error {
+	if autoMerge && !createPR {
+		return errors.New("--auto-merge requires --pr or --create-pull-request")
+	}
+	return nil
+}
+
+var switchPRBranch = switchBranch
+
 // CreatePRWithChanges creates a new branch, stages and commits all current changes,
 // pushes the branch, creates a pull request, and returns to the original branch.
 // branchPrefix is used as the prefix for the auto-generated branch name.
-// Returns the PR URL on success.
+// Returns the created PR URL even if enabling auto-merge or branch cleanup fails.
 func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error) {
+	return createPRWithChanges(ctx, branchPrefix, commitMessage, prTitle, prBody, verbose, false)
+}
+
+func createPRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose, autoMerge bool) (string, error) {
 	prHelpersLog.Printf("Creating PR with branch prefix: %s", branchPrefix)
 
 	currentBranch, err := getCurrentBranch()
@@ -45,31 +56,37 @@ func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTit
 
 	// Stage all changes before committing
 	if err := stageAllChanges(verbose); err != nil {
-		_ = switchBranch(currentBranch, verbose)
+		_ = switchPRBranch(currentBranch, verbose)
 		return "", fmt.Errorf("failed to stage changes: %w", err)
 	}
 
 	if err := commitChanges(commitMessage, verbose); err != nil {
-		_ = switchBranch(currentBranch, verbose)
+		_ = switchPRBranch(currentBranch, verbose)
 		return "", fmt.Errorf("failed to commit changes: %w", err)
 	}
 
 	if err := pushBranch(branchName, verbose); err != nil {
-		_ = switchBranch(currentBranch, verbose)
+		_ = switchPRBranch(currentBranch, verbose)
 		return "", err
 	}
 
 	_, prURL, err := createPR(ctx, branchName, prTitle, prBody, verbose)
 	if err != nil {
-		_ = switchBranch(currentBranch, verbose)
+		_ = switchPRBranch(currentBranch, verbose)
 		return "", fmt.Errorf("failed to create PR: %w", err)
 	}
 
-	if err := switchBranch(currentBranch, verbose); err != nil {
-		return prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
+	var autoMergeErr error
+	if autoMerge {
+		autoMergeErr = enablePRAutoMerge(ctx, prURL)
+	}
+	if err := switchPRBranch(currentBranch, verbose); err != nil {
+		return prURL, errors.Join(autoMergeErr, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err))
+	}
+	if autoMergeErr != nil {
+		return prURL, autoMergeErr
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created PR: "+prURL))
 	prHelpersLog.Printf("Created PR: %s", prURL)
 	return prURL, nil
 }

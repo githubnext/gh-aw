@@ -23,6 +23,8 @@ type HealthCollection struct {
 	APIRequests     int                      `json:"api_requests"`
 	MinimumRuns     int                      `json:"minimum_runs"`
 	MaximumDays     int                      `json:"maximum_days"`
+	StartDate       string                   `json:"start_date,omitempty"`
+	EndDate         string                   `json:"end_date,omitempty"`
 	workflows       []GitHubWorkflow
 	revisions       map[string]*workflow.LockMetadata
 	headRevisions   map[string]*workflow.LockMetadata
@@ -30,6 +32,7 @@ type HealthCollection struct {
 	repoOverride    string
 	stopped         bool
 	visited         map[string]struct{}
+	jobPresence     map[healthRunAttempt]bool
 }
 
 const healthMinimumRuns = 5

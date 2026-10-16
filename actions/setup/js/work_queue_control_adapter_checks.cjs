@@ -150,9 +150,15 @@ function registerTests({ describe, it }) {
                 assert.equal(parameters.ref, `refs/tags/gh-aw/work-queue/${REF}`);
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
-              getWorkflowRun: async parameters => {
+              getWorkflowRun: async () => {
+                throw new Error("Launch verification must read immutable attempt 1, not the latest run");
+              },
+              getWorkflowRunAttempt: async parameters => {
                 workerReads++;
+                assert.equal(parameters.owner, "owner");
+                assert.equal(parameters.repo, "repo");
                 assert.equal(parameters.run_id, "42");
+                assert.equal(parameters.attempt_number, 1);
                 const dispatch = [...fixture.state.dispatches.values()][0];
                 return { status: 200, data: { ...fixture.nativeRun(), display_title: `gh-aw work-queue ${dispatch.dispatch_id}` } };
               },
@@ -809,7 +815,9 @@ async function verifyCompiledDispatchIdentity(input) {
             assert.notEqual(parameters.ref, fixture.dispatcherContext.sha);
             return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
           },
-          getWorkflowRun: async () => {
+          getWorkflowRunAttempt: async parameters => {
+            assert.equal(parameters.run_id, "42");
+            assert.equal(parameters.attempt_number, 1);
             const dispatch = [...fixture.state.dispatches.values()][0];
             const data = { ...fixture.nativeRun(), display_title: `gh-aw work-queue ${dispatch.dispatch_id}` };
             if (mode === "wrong-worker") data.actor = { id: "11" };
@@ -930,7 +938,13 @@ async function verifyCompiledDispatchIdentity(input) {
       } else if (mode === "wrong-credential" || mode === "wrong-dispatch-tag") {
         assert.equal(posts, 0);
         assert.equal(tagReads, mode === "wrong-dispatch-tag" ? 1 : 0);
-        assert.equal(result.receipts[0].status, "blocked", JSON.stringify(result));
+        assert.equal(result.receipts[0].status, "durable", JSON.stringify(result));
+        assert.equal(result.receipts[0].success, false);
+        assert.equal(result.receipts[0].launches.length, 1);
+        assert.equal(result.receipts[0].launches[0].dispatch_id, dispatch.dispatch_id);
+        assert.equal(result.receipts[0].launches[0].state, "blocked");
+        assert.equal(result.receipts[0].launches[0].failure_stage, "launch_processing");
+        assert.equal(result.receipts[0].launches[0].reason, mode === "wrong-credential" ? "work_queue_dispatch_credential_principal_mismatch" : "work_queue_dispatch_tag_mismatch");
         assert.equal(dispatch.state, "reserved");
         assert.equal(
           fixture.transactions.some(commit => commit.operations.some(operation => operation.kind === "Dispatch" && operation.state === "started")),

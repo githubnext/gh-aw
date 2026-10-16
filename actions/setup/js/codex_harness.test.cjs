@@ -490,6 +490,19 @@ process.exit(0);`,
       expect(result.stderr).toContain("trusted budget-abort evidence");
     });
 
+    it("does not let guard names in file reads mask the observed credit rejection", () => {
+      const events = [
+        { type: "item.completed", item: { type: "command_execution", aggregated_output: "GH_AW_MAX_CACHE_MISSES_EXCEEDED: max_cache_misses_exceeded" } },
+        { type: "error", message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" },
+        { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" } },
+      ];
+      const { result, calls } = runHarnessFixture(`for(const event of ${JSON.stringify(events)})process.stdout.write(JSON.stringify(event)+"\\n");process.exit(1);`);
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+      expect(result.stderr).toContain("AI credits budget enforced");
+      expect(result.stderr).not.toContain("terminal proxy guard");
+    });
+
     it("reports the soft-deadline reason when preempting an attempt that handles SIGTERM cleanly", () => {
       const tempDir = makeHarnessTempDir("soft-deadline-report-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
@@ -1235,6 +1248,25 @@ env_key = "OPENAI_API_KEY"
   describe("retry policy: fresh run on partial execution", () => {
     const MAX_RETRIES = 3;
 
+    it.each(["stdout", "stderr"])("does not retry the observed unknown model pricing rejection on %s", stream => {
+      const error = {
+        type: "unknown_model_ai_credits",
+        message: 'Model "gpt-6.1-sol" has no AI credits pricing and no default pricing is configured.',
+        model: "gpt-6.1-sol",
+      };
+      const events = [
+        { type: "thread.started", thread_id: "01a0545e-6060-7472-9d50-d4a643611434" },
+        { type: "error", message: JSON.stringify(error) },
+        { type: "turn.failed", error: { message: JSON.stringify(error) } },
+      ];
+      const { result, calls } = runHarnessFixture(`for(const event of ${JSON.stringify(events)})process.${stream}.write(JSON.stringify(event)+"\\n");process.exitCode=1;`, { env: { GH_AW_HARNESS_MAX_RETRIES: "3" } });
+      expect(calls).toHaveLength(1);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("unknown_model_ai_credits");
+      expect(result.stderr).toContain("not retrying (terminal proxy guard)");
+      expect(result.stderr).not.toContain("will retry");
+    });
+
     /**
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
      * @param {number} attempt
@@ -1257,6 +1289,7 @@ env_key = "OPENAI_API_KEY"
 
     it("does not retry a provider invalid_request_error failure", () => {
       const tempDir = makeHarnessTempDir("codex-invalid-request-error-");
+      const safeOutputsPath = path.join(tempDir, "safeoutputs.jsonl");
       const stubPath = path.join(tempDir, "stub.cjs");
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
@@ -1278,6 +1311,7 @@ process.exit(1);`,
           CODEX_API_KEY: "fake-key-for-test",
           GH_AW_HARNESS_MAX_RETRIES: "1",
           GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
         },
         encoding: "utf8",
         timeout: 10000,
@@ -1287,6 +1321,11 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("isInvalidRequestError=true");
       expect(result.stderr).toContain("invalid_request_error (HTTP 400) — not retrying");
+      expect(JSON.parse(fs.readFileSync(safeOutputsPath, "utf8"))).toEqual({
+        type: "report_incomplete",
+        reason: "infrastructure_error",
+        details: expect.stringContaining("Codex request-body rejection (invalid_request_error)"),
+      });
     });
 
     it("does not retry the observed unsupported-model 'tools' unknown_parameter failure", () => {

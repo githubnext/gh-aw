@@ -2,6 +2,7 @@
 "use strict";
 
 const { queueError } = require("./work_queue_codec.cjs");
+const { inheritQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 function wrapGithubClient(githubClient, { sleep = delay => new Promise(resolve => setTimeout(resolve, delay)), now = Date.now } = {}) {
   const metrics = { requests: 0, reads: 0, mutations: 0, paced_ms: 0 };
@@ -47,6 +48,7 @@ function wrapGithubClient(githubClient, { sleep = delay => new Promise(resolve =
       return target[key];
     },
   });
+  inheritQueueLedgerClient(githubClient, client);
   return { client, metrics };
 }
 

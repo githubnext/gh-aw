@@ -5,6 +5,7 @@ package parser
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -461,6 +462,98 @@ func TestResolveRefToSHA_ClientCreationAuthError_EnterpriseHostDoesNotUsePublicA
 	}
 	if publicRequests != 0 {
 		t.Fatalf("public fallback request count = %d, want 0", publicRequests)
+	}
+}
+
+func TestDownloadFileFromGitHub_ForbiddenUsesUnauthenticatedRawURL(t *testing.T) {
+	for _, filePath := range []string{".github/aw/instructions.md", ".github/skills/agentic-workflows/SKILL.md"} {
+		for _, clientCreationFailure := range []bool{false, true} {
+			for _, apiErr := range []error{
+				&api.HTTPError{StatusCode: http.StatusForbidden, Message: "Forbidden"},
+				errors.New("gh: Resource protected by organization SAML enforcement (HTTP 403)"),
+				errors.New("gh: forbidden (HTTP 403)"),
+			} {
+				t.Run(fmt.Sprintf("%s/clientCreationFailure=%t/%s", filePath, clientCreationFailure, apiErr), func(t *testing.T) {
+					originalFactory := createRESTClientForHostFunc
+					originalFetch := fetchRemoteFileContentFunc
+					t.Cleanup(func() {
+						createRESTClientForHostFunc = originalFactory
+						fetchRemoteFileContentFunc = originalFetch
+					})
+					createRESTClientForHostFunc = func(string) (*api.RESTClient, error) {
+						if clientCreationFailure {
+							return nil, apiErr
+						}
+						return &api.RESTClient{}, nil
+					}
+					fetchRemoteFileContentFunc = func(context.Context, *api.RESTClient, string, string, string, string, any) error {
+						return apiErr
+					}
+					installFailingGit(t)
+					t.Setenv("GH_TOKEN", "test-token-not-for-target-org")
+					rawRequests := 0
+					withPublicAPIClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+						rawRequests++
+						wantURL := "https://raw.githubusercontent.com/github/gh-aw/release/test/" + filePath
+						if req.URL.String() != wantURL {
+							t.Fatalf("request URL = %q, want %q", req.URL, wantURL)
+						}
+						if req.Header.Get("Authorization") != "" {
+							t.Fatal("raw fallback must not send credentials")
+						}
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Body:       io.NopCloser(strings.NewReader("# Public instructions\n")),
+							Header:     make(http.Header),
+						}, nil
+					}))
+
+					content, err := DownloadFileFromGitHubForHost(context.Background(), "github", "gh-aw", filePath, "release/test", "github.com")
+					if err != nil {
+						t.Fatalf("download failed: %v", err)
+					}
+					if string(content) != "# Public instructions\n" {
+						t.Fatalf("unexpected content: %q", content)
+					}
+					if rawRequests != 1 {
+						t.Fatalf("raw request count = %d, want 1", rawRequests)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestDownloadFileFromGitHub_ForbiddenFallbackFailure(t *testing.T) {
+	originalFactory := createRESTClientForHostFunc
+	originalFetch := fetchRemoteFileContentFunc
+	t.Cleanup(func() {
+		createRESTClientForHostFunc = originalFactory
+		fetchRemoteFileContentFunc = originalFetch
+	})
+	createRESTClientForHostFunc = func(string) (*api.RESTClient, error) {
+		return &api.RESTClient{}, nil
+	}
+	fetchRemoteFileContentFunc = func(context.Context, *api.RESTClient, string, string, string, string, any) error {
+		return &api.HTTPError{StatusCode: http.StatusForbidden, Message: "Forbidden"}
+	}
+	installFailingGit(t)
+	var hosts []string
+	withPublicAPIClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		hosts = append(hosts, req.URL.Host)
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Body:       io.NopCloser(strings.NewReader(`{"message":"not found"}`)),
+			Header:     make(http.Header),
+		}, nil
+	}))
+
+	content, err := DownloadFileFromGitHubForHost(context.Background(), "github", "gh-aw", ".github/aw/instructions.md", "main", "github.com")
+	if err == nil || content != nil {
+		t.Fatalf("expected download failure, got content %q and error %v", content, err)
+	}
+	if got := strings.Join(hosts, ","); got != "raw.githubusercontent.com,api.github.com" {
+		t.Fatalf("fallback request hosts = %q", got)
 	}
 }
 

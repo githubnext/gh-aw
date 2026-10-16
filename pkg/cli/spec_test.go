@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,65 @@ func TestSpec_PublicAPI_ValidateWorkflowName(t *testing.T) {
 			} else {
 				require.NoError(t, err, "ValidateWorkflowName(%q) should not return an error", tt.input)
 			}
+		})
+	}
+}
+
+// TestSpec_Types_WorkflowRunFlags validates the documented embedded flag layout
+// and its flat JSON compatibility contract.
+func TestSpec_Types_WorkflowRunFlags(t *testing.T) {
+	t.Parallel()
+	opts := cli.RunOptions{WorkflowRunFlags: cli.WorkflowRunFlags{
+		Verbose: true, EngineOverride: "copilot", RepoOverride: "owner/repo",
+		RefOverride: "main", AutoMergePRs: true, Push: true, DryRun: true, Approve: true,
+	}}
+	assert.True(t, opts.Verbose, "embedded WorkflowRunFlags fields should remain promoted")
+	assert.Equal(t, "owner/repo", opts.RepoOverride, "embedded repository override should remain promoted")
+
+	encoded, err := json.Marshal(opts)
+	require.NoError(t, err, "RunOptions should serialize with embedded WorkflowRunFlags")
+	assert.NotContains(t, string(encoded), "WorkflowRunFlags", "JSON should remain flat rather than nesting the embedded type")
+	assert.Contains(t, string(encoded), "RepoOverride", "flat JSON should contain embedded flag fields")
+
+	interactive := cli.RunWorkflowOptions{WorkflowRunFlags: cli.WorkflowRunFlags{DryRun: true}, WorkflowName: "example"}
+	assert.True(t, interactive.DryRun, "RunWorkflowOptions should promote embedded workflow flags")
+}
+
+// TestSpec_PublicAPI_RPCMessageEntryEffectiveType validates legacy precedence and v2 event fallback.
+func TestSpec_PublicAPI_RPCMessageEntryEffectiveType(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		entry cli.RPCMessageEntry
+		want  string
+	}{
+		{name: "legacy type takes precedence", entry: cli.RPCMessageEntry{Type: "REQUEST", Event: "rpc_response"}, want: "REQUEST"},
+		{name: "v2 request event is normalized", entry: cli.RPCMessageEntry{Event: "rpc_request"}, want: "REQUEST"},
+		{name: "v2 response event is normalized", entry: cli.RPCMessageEntry{Event: "rpc_response"}, want: "RESPONSE"},
+		{name: "v2 filtered event is normalized", entry: cli.RPCMessageEntry{Event: "difc_filtered"}, want: "DIFC_FILTERED"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.entry.EffectiveType(), "EffectiveType should honor the documented compatibility rule")
+		})
+	}
+}
+
+// TestSpec_PublicAPI_AwInfoGetFirewallVersion validates the documented field-name migration fallback.
+func TestSpec_PublicAPI_AwInfoGetFirewallVersion(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		info cli.AwInfo
+		want string
+	}{
+		{name: "new field is preferred", info: cli.AwInfo{AwfVersion: "new", FirewallVersion: "legacy"}, want: "new"},
+		{name: "legacy field remains supported", info: cli.AwInfo{FirewallVersion: "legacy"}, want: "legacy"},
+		{name: "both absent returns empty", info: cli.AwInfo{}, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.info.GetFirewallVersion(), "GetFirewallVersion should follow documented precedence")
 		})
 	}
 }
@@ -322,20 +382,6 @@ func TestSpec_PublicAPI_ResolveArtifactFilter(t *testing.T) {
 			break
 		}
 	})
-}
-
-// TestSpec_PublicAPI_GroupRunsByWorkflow validates that a flat slice of runs is grouped by workflow name.
-// Spec: "Groups a flat slice of runs by workflow name"
-func TestSpec_PublicAPI_GroupRunsByWorkflow(t *testing.T) {
-	runs := []cli.WorkflowRun{
-		{WorkflowName: "workflow-a"},
-		{WorkflowName: "workflow-b"},
-		{WorkflowName: "workflow-a"},
-	}
-	grouped := cli.GroupRunsByWorkflow(runs)
-	assert.Len(t, grouped, 2, "should produce two groups for two distinct workflow names")
-	assert.Len(t, grouped["workflow-a"], 2, "workflow-a group should contain two runs")
-	assert.Len(t, grouped["workflow-b"], 1, "workflow-b group should contain one run")
 }
 
 // TestSpec_PublicAPI_UpdateFieldInFrontmatter validates the documented frontmatter field update.

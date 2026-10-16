@@ -28,6 +28,20 @@ description: Complete reference for gh aw CLI commands and their MCP tool equiva
 
 ## Command Reference
 
+### `gh aw skill`
+
+Print the bundled `/agentic-workflows` `SKILL.md` content to standard output without adding files to the repository:
+
+```bash
+gh aw skill
+```
+
+Works outside a Git repository with no authentication or network access. Uses the file list bundled with the installed CLI version.
+
+**MCP equivalent**: Not available.
+
+---
+
 ### `gh aw init`
 
 Initialize a repository for agentic workflows.
@@ -64,14 +78,12 @@ gh aw compile --approve           # Approve new secrets / action changes
 
 **MCP equivalent**: `compile` tool
 
-Docker-based checks are optional for the dry-run gate. Recommend
-`gh aw validate <workflow-name>` for source checks when Docker is available,
-alongside the scanner-enabled compile command above for zizmor, actionlint and
-poutine when possible. `validate` uses `--no-emit` and skips these scanners;
-its success does not establish scanner coverage.
-Without Docker, required run-step linting uses a native
-`shellcheck` binary. Report unavailable optional checks as unverified.
-
+Docker-based checks are optional for the dry-run gate. Recommend `gh aw validate
+<workflow-name>` for source checks when Docker is available, alongside the
+scanner-enabled compile command above for zizmor, actionlint and poutine.
+`validate` uses `--no-emit` and skips these scanners; its success does not
+establish scanner coverage. Without Docker, required run-step linting uses a native
+`shellcheck` binary; report unavailable optional checks as unverified.
 The compile MCP input `validate_images: true` opts into `--validate-images`,
 including with `dry_run: true`; it fails when Docker is unavailable.
 
@@ -95,10 +107,9 @@ Follow the shared live-outcome table for unknown dispatch results, moved refs,
 run-SHA mismatches and audit/log denial. `--repeat` requires an approved matching
 run-count budget; examples below do not grant approval.
 
-Codespaces may still return SAML-related 403 responses. Check the active token
-source and SSO authorization using the shared credential triage; environment
-tokens override stored CLI credentials. Do not automatically replace tokens or
-retry a denied run.
+Codespaces may still return SAML-related 403 responses. Check the active token source
+and SSO authorization using the shared credential triage; environment tokens override
+stored CLI credentials. Do not automatically replace tokens or retry a denied run.
 
 ```bash
 gh aw run                           # Interactive mode — pick workflow and fill inputs
@@ -133,15 +144,7 @@ gh aw logs --ignore-workflow-runs 123,456  # Exclude specific run IDs from resul
 
 **MCP equivalent**: `logs` tool
 
-For failure triage, project `summary`, `failure_investigation`, and `continuation`
-before reading individual runs. `failure_investigation.selected_runs` is a bounded,
-deduplicated audit plan; inspect local `audit_path`/`logs_path` first. Join selected
-cluster IDs to `failure_clusters` for evidence and full membership. Specific
-`failure_boundary` signals precede generic `aftermath`; `signal.job`/`signal.step`
-identify failed boundaries without parsing display strings. Count unique runs,
-not overlapping cluster counts. Recommendations exclude intentional failures;
-`metadata_only` means unknown, not a confirmed shared cause. Follow every
-continuation parameter, including the updated end date, before claiming full coverage.
+For failure triage methodology, see [analyzing-runs.md](analyzing-runs.md#select).
 
 ---
 
@@ -158,11 +161,7 @@ gh aw audit <id1> <id2> --group     # Grouped findings: one entry per [run, code
 gh aw audit <id1> <id2> <id3> --group --json  # Per-run finding codes for recurrence checks
 ```
 
-Plain multi-run diffs focus on metrics/firewall/tools. For recurring errors, use
-grouped findings and cached individual reports/logs to compare first failing boundaries and normalized
-error/tool/status signatures across comparable runs. Count each run once,
-report matching/inspectable runs and IDs, and account for workflow/revision/configuration
-differences. Missing evidence is unknown, not proof that the error disappeared.
+For audit triage methodology, see [analyzing-runs.md](analyzing-runs.md#audit).
 
 **MCP equivalent**: `audit` tool (single run) / `audit-diff` tool (multi-run comparison)
 
@@ -190,6 +189,26 @@ gh aw checks <run-id>
 ```
 
 **MCP equivalent**: `checks` tool
+
+---
+
+### `gh aw health`
+
+Display workflow health metrics, success rates, and revision-aware failure clusters.
+
+```bash
+gh aw health                                 # Current status of all workflows
+gh aw health <workflow-name>                 # Detailed metrics for a specific workflow
+gh aw health --days 30 --threshold 90        # Bound lookback; warn below 90% success
+gh aw health --json                          # JSON output for programmatic use
+gh aw health --start-date -24h --logs-dir ./workflow-logs  # Reuse cached logs, no downloads
+```
+
+Reports a bounded current-revision sample: compares `gh-aw-metadata` hashes across
+`workflows[].revisions` for `recovery_observed`, and surfaces `failure_clusters`/
+`failure_investigation` alongside success/failure counts and trend. See [analyzing-runs.md](analyzing-runs.md) for interpreting the JSON output.
+
+**MCP equivalent**: Not available — run from a local terminal.
 
 ---
 
@@ -366,6 +385,7 @@ gh aw json-schema logs-jsonl
 | `gh aw audit` | `audit` |
 | `gh aw audit <id1> <id2>` | `audit-diff` |
 | `gh aw checks` | `checks` |
+| `gh aw health` | *(local only)* |
 | `gh aw experiments` | *(local only)* |
 | `gh aw mcp inspect` | `mcp-inspect` |
 | `gh aw add` | `add` |

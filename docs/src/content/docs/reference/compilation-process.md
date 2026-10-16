@@ -229,7 +229,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw compile my-workflow` | Compile specific workflow |
 | `gh aw compile --verbose` | Enable verbose output |
 | `gh aw compile --strict` | Enhanced security validation |
-| `gh aw compile my-workflow --dry-run` | Compile for development testing with staging, mandatory validation/shellcheck/model checks, and warnings as errors; Docker scanners are opt-in |
+| `gh aw compile my-workflow --dry-run` | Compile with staging and mandatory validation/shellcheck/model checks; gate added medium-or-higher scanner findings against pre-compilation locks; Docker scanners are opt-in |
 | `gh aw compile my-workflow --environment gh-aw-debug` | Replace the environment on every generated job |
 | `gh aw compile --no-emit` | Validate without generating files |
 | `gh aw compile --actionlint --zizmor --poutine --grant` | Run security scanners |
@@ -260,9 +260,22 @@ pyflakes from `PATH` when those integrations are enabled; it does not install th
 
 `--dry-run` enables `--strict`, `--staged`, `--validate`, `--shellcheck`,
 and `--models`. These settings are
-forced regardless of frontmatter; explicitly disabling a required flag is rejected. Compiler warnings,
-including safe-update warnings, and scanner failures cause a nonzero exit status
-and invalid JSON validation results. Missing required tools block compilation
+forced regardless of frontmatter; explicitly disabling a required flag is rejected.
+Enabled scanners first scan the existing lock files before compilation, then scan
+the emitted diagnostic locks with the same scanner configuration and result filters.
+Only added medium-or-higher findings, or added findings with unknown severity,
+fail the scanner gate. Matching uses finding identity and occurrence counts, not
+aggregate totals, and tolerates shifted YAML lines and steps with stable IDs/names.
+Low-severity and informational findings remain visible but do not fail the gate.
+Zizmor's `secrets-outside-env` rule is excluded in dry-run mode because repository
+and organization secrets are common in agentic workflows; ordinary compilation
+retains the rule. With no existing lock, every actionable finding is added.
+The baseline is the on-disk lock at invocation time, not a Git branch comparison;
+repeated dry runs compare against the locks left by the preceding invocation.
+
+Validation errors, unclassified compiler warnings (including safe-update warnings),
+and scanner execution/parsing failures remain fatal, including failures while
+collecting the baseline. Missing required tools block compilation
 rather than silently skipping checks. Model checking uses the observed active
 model inventory; development compilation fails if that inventory is unavailable
 and the workflow declares `models` policies or `engine.models`. It does not prove
@@ -271,12 +284,15 @@ Observed-inventory refresh and collection warnings are also reported: they fail
 the dry-run gate even when cached observations remain available. Ordinary
 `--models` compilation reports them as warnings instead.
 
-To acknowledge experimental-feature notices explicitly, add `--allow-experimental`
-to `--dry-run`. Notices remain visible and the JSON dry-run summary records
-`accepted_experimental_warnings`. This accepts only the compiler's built-in
-experimental-feature notices, not arbitrary warning text. Security, safe-update,
-schedule, model-inventory and other warnings, validation errors, and scanner
-failures still block the gate. Required checks and staging remain enabled.
+Built-in experimental-feature notices are low-severity and nonblocking.
+They remain visible and the JSON summary records `ignored_low_severity_warnings`.
+`--allow-experimental` additionally records explicit acknowledgement in
+`accepted_experimental_warnings`; it does not exempt arbitrary warning text.
+The summary identifies `warning_baseline`, `minimum_severity`, and
+`ignored_scanner_rules`; each scanner's `differential` reports baseline, existing,
+added, and low-severity ignored counts. A scanner status of `passed` means its
+differential gate passed, not that its output contained no findings.
+Required checks and staging remain enabled.
 
 Docker-based scanners and `--validate-images` remain opt-in. Docker unavailability
 does not block the dry-run gate; install native `shellcheck` for required run-step
@@ -286,7 +302,12 @@ is recommended for source checks, alongside
 checks. `validate` uses `--no-emit` and skips these scanners; its success does not
 establish scanner coverage. Run the scanner-enabled compile command when possible
 and report unavailable checks as unverified. Explicitly requested checks
-still fail the dry-run gate on findings or scanner failures.
+still fail the dry-run gate on added actionable findings or scanner failures.
+
+When optional CLI scanner preparation cannot find Docker on `PATH`, it prints one
+informational notice per process and does not retry image downloads. MCP
+compilation continues with compatible native scanners and reports skipped
+Docker-based checks with a concise `docker_unavailable` warning.
 
 MCP callers can opt into required image validation with `validate_images: true`,
 including with `dry_run: true`; Docker unavailability then fails compilation.

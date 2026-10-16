@@ -36,72 +36,82 @@ import {
 } from "./start_mcp_gateway.cjs";
 import { writeMcpConfiguration } from "./mcp_configuration.cjs";
 
-describe("agentic-workflows MCP runner identity", () => {
-  beforeEach(() => {
-    vi.spyOn(process, "getuid").mockReturnValue(1001);
-    vi.spyOn(process, "getgid").mockReturnValue(1002);
-  });
-  afterEach(() => vi.restoreAllMocks());
-
-  it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses runner ownership for owner-only downloads from %s", container => {
-    const server = {
-      container,
-      args: ["--network", "host", "-w", "${GITHUB_WORKSPACE}"],
-      entrypointArgs: ["mcp-server", "--validate-actor"],
-      mounts: ["/tmp/gh-aw:/tmp/gh-aw:rw"],
-      env: { GITHUB_TOKEN: "${GITHUB_TOKEN}" },
-    };
-    const original = structuredClone(server);
-    const other = { container: "other", args: ["--user", "42:42"] };
-    const config = { mcpServers: { agenticworkflows: server, other } };
-
-    applyAgenticWorkflowsRunnerIdentity(config);
-
-    expect(server).toEqual({ ...original, args: [...original.args, "--user", "1001:1002"] });
-    expect(other).toEqual({ container: "other", args: ["--user", "42:42"] });
+describe("agenticworkflows backend ownership", () => {
+  it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses the runner identity without widening private artifact modes (%s)", container => {
+    const env = { GITHUB_TOKEN: "${GITHUB_TOKEN}", GITHUB_ACTOR: "${GITHUB_ACTOR}" };
+    const backend = { container, args: ["--network", "host", "-w", "/workspace"], env };
+    const other = { container: "example/server", args: [] };
+    const config = { mcpServers: { agenticworkflows: backend, other } };
+    applyAgenticWorkflowsRunnerIdentity(config, 1001, 123);
+    expect(backend.args).toEqual(["--network", "host", "-w", "/workspace", "--user", "1001:123"]);
+    expect(backend.env).toEqual({ HOME: "/tmp", ...env });
+    expect(other).toEqual({ container: "example/server", args: [] });
+    applyAgenticWorkflowsRunnerIdentity(config, 1001, 123);
+    expect(backend.args.filter(arg => arg === "--user")).toHaveLength(1);
   });
 
-  it.each([["--user", "0:0"], ["--user=0:0"], ["-u", "0:0"], ["-u=0:0"], ["-u0:0"]])("replaces existing identity arguments %j idempotently", (...identityArgs) => {
-    const config = { mcpServers: { agenticworkflows: { container: "alpine", args: ["--network", "host", ...identityArgs, "-w", "/workspace"] } } };
-    applyAgenticWorkflowsRunnerIdentity(config);
-    applyAgenticWorkflowsRunnerIdentity(config);
-    expect(config.mcpServers.agenticworkflows.args).toEqual(["--network", "host", "-w", "/workspace", "--user", "1001:1002"]);
+  it.each([["--user", "42:43"], ["--user=42:43"], ["-u", "42:43"], ["-u42:43"], ["--user", "app:staff"], ["--user=app:staff"], ["-u", "app:staff"], ["-uroot"], ["-uapp:staff"], ["-u=app:staff"]])(
+    "preserves an explicitly configured container user: %j",
+    (...args) => {
+      const backend = { container: "example/server", args, env: { HOME: "/custom" } };
+      const original = structuredClone(backend);
+      applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+      applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+      expect(backend).toEqual(original);
+    }
+  );
+
+  it.each(["-update", "-unshare"])("preserves %s as Docker's attached -u username, not an unrelated flag", arg => {
+    const backend = { container: "example/server", args: [arg], env: { HOME: "/custom" } };
+    const original = structuredClone(backend);
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+    expect(backend).toEqual(original);
   });
 
-  it("adds Docker arguments when none were configured", () => {
-    const config = { mcpServers: { agenticworkflows: { container: "alpine" } } };
-    applyAgenticWorkflowsRunnerIdentity(config);
-    expect(config.mcpServers.agenticworkflows).toEqual({ container: "alpine", args: ["--user", "1001:1002"] });
+  it("does not confuse --userns with an explicit container user", () => {
+    const backend = { container: "example/server", args: ["--userns=host"], env: { HOME: "/custom" } };
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+    expect(backend).toEqual({ container: "example/server", args: ["--userns=host", "--user", "1001:123"], env: { HOME: "/custom" } });
   });
 
-  it.each([{}, { mcpServers: {} }, { mcpServers: { agenticworkflows: null } }, { mcpServers: { agenticworkflows: { url: "https://example.com/mcp" } } }])("leaves absent or non-container backends unchanged: %j", config => {
+  it("preserves a configured HOME and supports default container arguments", () => {
+    const backend = { container: "alpine:3.24", env: { HOME: "/custom" } };
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+    expect(backend).toEqual({ container: "alpine:3.24", args: ["--user", "1001:123"], env: { HOME: "/custom" } });
+  });
+
+  it("defaults to the current runner identity", () => {
+    const backend = { container: "alpine:3.24" };
+    const uid = process.getuid?.();
+    const gid = process.getgid?.();
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } });
+    expect(backend.args).toEqual(["--user", `${uid}:${gid}`]);
+    expect(backend.env).toEqual({ HOME: "/tmp" });
+  });
+
+  it.each([{}, { mcpServers: {} }, { mcpServers: { agenticworkflows: { url: "https://example.com/mcp" } } }])("leaves absent and HTTP backends unchanged", config => {
     const original = structuredClone(config);
-    applyAgenticWorkflowsRunnerIdentity(config);
+    applyAgenticWorkflowsRunnerIdentity(config, 1001, 123);
     expect(config).toEqual(original);
-    expect(process.getuid).not.toHaveBeenCalled();
   });
 
-  it.each(["getuid", "getgid"])("fails closed when %s is unavailable", method => {
-    vi.stubGlobal("process", { ...process, [method]: undefined });
-    try {
-      expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine" } } })).toThrow("Cannot determine runner UID/GID");
-    } finally {
-      vi.unstubAllGlobals();
-    }
+  it.each([
+    [-1, 123],
+    [1001, -1],
+    [NaN, 123],
+    [1001, Infinity],
+    [1.5, 123],
+  ])("rejects invalid runner identities (%s, %s)", (uid, gid) => {
+    const backend = { container: "alpine:3.24" };
+    expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, uid, gid)).toThrow("Runner identity is required");
+    expect(backend).toEqual({ container: "alpine:3.24" });
   });
 
-  it.each(["getuid", "getgid"])("rejects invalid %s values", method => {
-    for (const value of [-1, NaN, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
-      vi.mocked(process[method]).mockReturnValue(value);
-      expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine" } } })).toThrow("Cannot determine runner UID/GID");
-    }
+  it.each([{ args: "invalid" }, { args: [42] }, { env: [] }, { env: null }])("rejects malformed backend configuration without publishing it", fields => {
+    expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine:3.24", ...fields } } }, 1001, 123)).toThrow(/Invalid agenticworkflows container/);
   });
 
-  it.each([null, "--user=0:0", [null]])("rejects malformed Docker arguments %j", args => {
-    expect(() => applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: { container: "alpine", args } } })).toThrow("Invalid Docker arguments");
-  });
-
-  it("normalizes the configuration before serializing it for the gateway", () => {
+  it("applies identity before serializing the configuration sent to the gateway", () => {
     const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
     expect(source.indexOf("applyAgenticWorkflowsRunnerIdentity(configObj)")).toBeLessThan(source.indexOf("mcpConfig = JSON.stringify(configObj)"));
   });

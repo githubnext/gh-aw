@@ -234,6 +234,15 @@
                           "agent_name": {
                             "type": "string"
                           },
+                          "display_names": {
+                            "type": [
+                              "null",
+                              "array"
+                            ],
+                            "items": {
+                              "type": "string"
+                            }
+                          },
                           "agent_type": {
                             "type": "string"
                           },
@@ -369,6 +378,15 @@
                     "properties": {
                       "agent_name": {
                         "type": "string"
+                      },
+                      "display_names": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
                       },
                       "agent_type": {
                         "type": "string"
@@ -605,6 +623,15 @@
                               "agent_name": {
                                 "type": "string"
                               },
+                              "display_names": {
+                                "type": [
+                                  "null",
+                                  "array"
+                                ],
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
                               "agent_type": {
                                 "type": "string"
                               },
@@ -734,6 +761,15 @@
                             "properties": {
                               "agent_name": {
                                 "type": "string"
+                              },
+                              "display_names": {
+                                "type": [
+                                  "null",
+                                  "array"
+                                ],
+                                "items": {
+                                  "type": "string"
+                                }
                               },
                               "agent_type": {
                                 "type": "string"
@@ -2148,6 +2184,15 @@
                   "agent_name": {
                     "type": "string"
                   },
+                  "display_names": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
                   "agent_type": {
                     "type": "string"
                   },
@@ -2670,6 +2715,15 @@
                   "agent_name": {
                     "type": "string"
                   },
+                  "display_names": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
                   "agent_type": {
                     "type": "string"
                   },
@@ -3106,6 +3160,9 @@
               },
               "file": {
                 "type": "string"
+              },
+              "severity": {
+                "type": "string"
               }
             },
             "required": [
@@ -3133,6 +3190,9 @@
                 "type": "integer"
               },
               "file": {
+                "type": "string"
+              },
+              "severity": {
                 "type": "string"
               }
             },

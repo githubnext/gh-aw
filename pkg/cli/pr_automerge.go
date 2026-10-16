@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -12,10 +13,146 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var prAutomergeLog = logger.New("cli:pr_automerge")
+
+var autoMergeRunGH = workflow.RunGHContext
+
+type prAutoMergeRepository struct {
+	AutoMergeAllowed         bool   `json:"autoMergeAllowed"`
+	ViewerDefaultMergeMethod string `json:"viewerDefaultMergeMethod"`
+	MergeCommitAllowed       bool   `json:"mergeCommitAllowed"`
+	SquashMergeAllowed       bool   `json:"squashMergeAllowed"`
+	RebaseMergeAllowed       bool   `json:"rebaseMergeAllowed"`
+	PullRequest              struct {
+		ID string `json:"id"`
+	} `json:"pullRequest"`
+}
+
+func (r prAutoMergeRepository) mergeMethod() (string, error) {
+	allowed := map[string]bool{
+		"MERGE": r.MergeCommitAllowed, "SQUASH": r.SquashMergeAllowed, "REBASE": r.RebaseMergeAllowed,
+	}
+	if allowed[r.ViewerDefaultMergeMethod] {
+		return r.ViewerDefaultMergeMethod, nil
+	}
+	for _, method := range []string{"MERGE", "SQUASH", "REBASE"} {
+		if allowed[method] {
+			return method, nil
+		}
+	}
+	return "", errors.New("repository has no supported merge method enabled")
+}
+
+// enablePRAutoMerge schedules native auto-merge without merging directly or bypassing checks.
+func enablePRAutoMerge(ctx context.Context, prURL string) error {
+	if err := configurePRAutoMerge(ctx, prURL); err != nil {
+		return fmt.Errorf("pull request %s was created and remains open, but auto-merge could not be enabled: %w", prURL, err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Enabled auto-merge for pull request: "+prURL))
+	return nil
+}
+
+func configurePRAutoMerge(ctx context.Context, prURL string) error {
+	parsed, err := url.Parse(prURL)
+	if err != nil {
+		return fmt.Errorf("invalid pull request URL: %w", err)
+	}
+	if parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+		return errors.New("expected an HTTPS pull request URL with owner/repo/pull/number")
+	}
+	owner, repoName, number, err := parser.ParsePRURL(prURL)
+	if err != nil {
+		return err
+	}
+	if number <= 0 {
+		return errors.New("expected a positive pull request number in the URL")
+	}
+
+	const query = `query($owner: String!, $name: String!, $number: Int!) {
+		repository(owner: $owner, name: $name) {
+			autoMergeAllowed viewerDefaultMergeMethod
+			mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed
+			pullRequest(number: $number) { id }
+		}
+	}`
+	output, err := autoMergeRunGH(ctx, "Checking auto-merge configuration...",
+		"api", "graphql", "--hostname", parsed.Host,
+		"-f", "query="+query, "-f", "owner="+owner, "-f", "name="+repoName, "-F", fmt.Sprintf("number=%d", number))
+	if err != nil {
+		return fmt.Errorf("could not read repository auto-merge configuration: %w", err)
+	}
+	var response struct {
+		Data struct {
+			Repository *prAutoMergeRepository `json:"repository"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return fmt.Errorf("could not parse repository auto-merge configuration: %w", err)
+	}
+	if len(response.Errors) > 0 {
+		return fmt.Errorf("could not read repository auto-merge configuration: %s", response.Errors[0].Message)
+	}
+	if response.Data.Repository == nil {
+		return errors.New("GitHub did not return repository auto-merge configuration")
+	}
+	repo := *response.Data.Repository
+	if !repo.AutoMergeAllowed {
+		return errors.New("auto-merge is disabled or unavailable in this repository; enable it in repository settings")
+	}
+	if repo.PullRequest.ID == "" {
+		return errors.New("GitHub did not return the created pull request ID")
+	}
+	method, err := repo.mergeMethod()
+	if err != nil {
+		return err
+	}
+
+	const mutation = `mutation($prId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+		enablePullRequestAutoMerge(input: {pullRequestId: $prId, mergeMethod: $mergeMethod}) {
+			pullRequest { id }
+		}
+	}`
+	output, err = autoMergeRunGH(ctx, "Enabling pull request auto-merge...",
+		"api", "graphql", "--hostname", parsed.Host,
+		"-f", "query="+mutation, "-f", "prId="+repo.PullRequest.ID, "-f", "mergeMethod="+method)
+	if err != nil {
+		return fmt.Errorf("GitHub refused auto-merge; check repository settings, branch rules, and token permissions: %w", err)
+	}
+	var mutationResponse struct {
+		Data struct {
+			EnablePullRequestAutoMerge *struct {
+				PullRequest *struct {
+					ID string `json:"id"`
+				} `json:"pullRequest"`
+			} `json:"enablePullRequestAutoMerge"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(output, &mutationResponse); err != nil {
+		return fmt.Errorf("could not parse auto-merge response: %w", err)
+	}
+	if len(mutationResponse.Errors) > 0 {
+		return fmt.Errorf("GitHub refused auto-merge; check repository settings, branch rules, and token permissions: %s", mutationResponse.Errors[0].Message)
+	}
+	if mutationResponse.Data.EnablePullRequestAutoMerge == nil ||
+		mutationResponse.Data.EnablePullRequestAutoMerge.PullRequest == nil ||
+		mutationResponse.Data.EnablePullRequestAutoMerge.PullRequest.ID == "" {
+		return errors.New("GitHub did not confirm that auto-merge was enabled")
+	}
+	if mutationResponse.Data.EnablePullRequestAutoMerge.PullRequest.ID != repo.PullRequest.ID {
+		return errors.New("GitHub returned an unexpected pull request after enabling auto-merge")
+	}
+	return nil
+}
 
 // AutoMergePullRequestsCreatedAfter checks for open PRs in the repository created after a specific time and auto-merges them
 // This function filters PRs to only those created after the specified time to avoid merging unrelated PRs

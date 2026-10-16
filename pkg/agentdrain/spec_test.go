@@ -528,3 +528,28 @@ func TestSpec_Types_Snapshot(t *testing.T) {
 	require.NoError(t, err, "LoadJSON should restore miner from snapshot bytes")
 	assert.Len(t, restored.Clusters(), 1, "restored miner should have the same cluster count as the original")
 }
+
+// TestSpec_Constants_AnomalyWeights validates the documented anomaly scoring constants.
+func TestSpec_Constants_AnomalyWeights(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 1.0, agentdrain.AnomalyWeightNew, "new-template anomaly weight should match the specification")
+	assert.Equal(t, 0.7, agentdrain.AnomalyWeightLow, "low-similarity anomaly weight should match the specification")
+	assert.Equal(t, 0.3, agentdrain.AnomalyWeightRare, "rare-cluster anomaly weight should match the specification")
+	assert.Equal(t, 2.0, agentdrain.AnomalyMaxScore, "maximum anomaly score should match the specification")
+}
+
+// TestSpec_PublicAPI_FlattenEvent_Ordering validates the documented stage-first,
+// alphabetically sorted key=value representation.
+func TestSpec_PublicAPI_FlattenEvent_Ordering(t *testing.T) {
+	t.Parallel()
+	event := agentdrain.AgentEvent{
+		Stage: "tool_call",
+		Fields: map[string]string{
+			"zeta":       "last",
+			"action":     "start",
+			"session_id": "excluded",
+		},
+	}
+	assert.Equal(t, "stage=tool_call action=start zeta=last", agentdrain.FlattenEvent(event, []string{"session_id"}),
+		"FlattenEvent should emit a non-empty stage first, sort keys, and omit excluded fields")
+}

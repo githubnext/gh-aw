@@ -22,17 +22,24 @@ type DryRunCompileReport struct {
 	ModelInventoryAvailable      bool                          `json:"model_inventory_available"`
 	UnverifiedEffects            []string                      `json:"unverified_effects"`
 	AcceptedExperimentalWarnings int                           `json:"accepted_experimental_warnings,omitempty"`
+	IgnoredLowSeverityWarnings   int                           `json:"ignored_low_severity_warnings,omitempty"`
+	WarningBaseline              string                        `json:"warning_baseline"`
+	MinimumSeverity              string                        `json:"minimum_severity"`
+	IgnoredScannerRules          map[string][]string           `json:"ignored_scanner_rules"`
 }
 
 // DryRunScannerCheck records an invocation against emitted inputs.
 type DryRunScannerCheck struct {
-	Requested bool   `json:"requested"`
-	Status    string `json:"status"`
+	Requested    bool                       `json:"requested"`
+	Status       string                     `json:"status"`
+	Differential *DryRunScannerDifferential `json:"differential,omitempty"`
 }
 
 func newDryRunCompileReport(config CompileConfig) *DryRunCompileReport {
 	report := &DryRunCompileReport{
 		Gate: "failed", CompileOnly: true, RequiredFlags: DryRunRequiredBoolFlags(),
+		WarningBaseline: "pre_compile_lock_files", MinimumSeverity: "medium",
+		IgnoredScannerRules:    map[string][]string{"zizmor": {"secrets-outside-env"}},
 		Scanners:               make(map[string]DryRunScannerCheck),
 		ValidateImagesRequired: config.ValidateImages,
 		UnverifiedEffects: []string{
@@ -72,9 +79,12 @@ func appendDryRunCompileReport(config CompileConfig, stats *CompilationStats, re
 		report = newDryRunCompileReport(config)
 	}
 	report.ModelInventoryAvailable = config.activeModels != nil
-	valid := stats.Errors == 0 && stats.Warnings <= report.AcceptedExperimentalWarnings && stats.Succeeded > 0
+	valid := stats.Errors == 0 && stats.Warnings <= report.IgnoredLowSeverityWarnings && stats.Succeeded > 0
 	for _, result := range *results {
-		valid = valid && result.Valid && len(result.Errors) == 0 && len(result.Warnings) == 0
+		valid = valid && result.Valid && len(result.Errors) == 0
+		for _, warning := range result.Warnings {
+			valid = valid && isLowSeverityWarning(warning)
+		}
 	}
 	if valid {
 		report.Gate = "passed"
@@ -98,12 +108,17 @@ func displayDryRunCompileReport(report *DryRunCompileReport) {
 	slices.Sort(names)
 	statuses := make([]string, 0, len(names))
 	for _, name := range names {
-		statuses = append(statuses, name+"="+report.Scanners[name].Status)
+		status := name + "=" + report.Scanners[name].Status
+		if diff := report.Scanners[name].Differential; diff != nil {
+			status = fmt.Sprintf("%s(added=%d, existing=%d, ignored=%d, baseline=%d)", status, diff.Added, diff.Existing, diff.Ignored, diff.Baseline)
+		}
+		statuses = append(statuses, status)
 	}
 	message := fmt.Sprintf("Dry-run compilation gate: %s. Scanner coverage: %s. Unverified: %s.",
 		report.Gate, strings.Join(statuses, ", "), strings.Join(report.UnverifiedEffects, ", "))
 	if report.AcceptedExperimentalWarnings > 0 {
-		message += fmt.Sprintf(" Accepted %d experimental-feature notice(s) via --allow-experimental; all other warnings remain fatal.", report.AcceptedExperimentalWarnings)
+		message += fmt.Sprintf(" Accepted %d experimental-feature notice(s) via --allow-experimental.", report.AcceptedExperimentalWarnings)
 	}
+	message += " Only added medium-or-higher or unclassified scanner findings fail; low-severity findings and zizmor secrets-outside-env are excluded from the gate."
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(message))
 }

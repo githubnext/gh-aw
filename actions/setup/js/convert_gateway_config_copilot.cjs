@@ -19,6 +19,9 @@ require("./shim.cjs");
  * - MCP_GATEWAY_DOMAIN: Domain for MCP server URLs (e.g., host.docker.internal)
  * - MCP_GATEWAY_PORT: Port for MCP gateway (e.g., 80)
  * - HOME: User home directory (standard POSIX env var inherited by the runner)
+ * - RUNNER_TEMP: Per-run directory for the separate SDK MCP configuration
+ * - GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, GITHUB_JOB: Catalog integrity scope
+ * - GITHUB_ENV: Trusted environment file for publishing catalog integrity
  *
  * Optional:
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
@@ -26,6 +29,8 @@ require("./shim.cjs");
 
 const path = require("path");
 const { rewriteUrl, normalizeGatewayEntry, runGatewayConversion } = require("./convert_gateway_config_shared.cjs");
+const { publishCopilotSDKMCPConfig } = require("./copilot_sdk_mcp_config.cjs");
+const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
@@ -74,6 +79,7 @@ function main() {
   let outputPath;
   try {
     outputPath = resolveCopilotConfigOutputPath();
+    resolveCopilotSDKMCPConfigPath();
   } catch (err) {
     core.setFailed(`ERROR: ${getErrorMessage(err)}`);
     return;
@@ -84,7 +90,11 @@ function main() {
     engine: "Copilot",
     outputPath,
     transformServer: (_name, entry, urlPrefix) => transformCopilotEntry(entry, urlPrefix),
-    serialize: servers => JSON.stringify({ mcpServers: servers }, null, 2),
+    serialize: servers => {
+      const output = JSON.stringify({ mcpServers: servers }, null, 2);
+      publishCopilotSDKMCPConfig(output);
+      return output;
+    },
   });
 }
 

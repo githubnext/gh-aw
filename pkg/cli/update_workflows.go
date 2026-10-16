@@ -95,6 +95,7 @@ type UpdateWorkflowsOptions struct {
 	NoRedirect             bool
 	CoolDown               time.Duration
 	Approve                bool
+	AutoMerge              bool
 }
 
 // UpdateWorkflows updates workflows from their source repositories

@@ -28,6 +28,9 @@ type AddWorkflowsResult struct {
 // with optional repository installation and PR creation.
 // Returns AddWorkflowsResult containing PR number (if created) and other metadata.
 func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*AddWorkflowsResult, error) {
+	if err := requireAutoMergePR(opts.AutoMerge, opts.CreatePR); err != nil {
+		return nil, err
+	}
 	if opts.Name != "" {
 		if err := validateAddedWorkflowName(opts.Name); err != nil {
 			return nil, err
@@ -47,6 +50,9 @@ func AddWorkflows(ctx context.Context, workflows []string, opts AddOptions) (*Ad
 // This allows callers to resolve workflows early (e.g., to show descriptions) and then add them later.
 // The opts.Quiet parameter suppresses detailed output (useful for interactive mode where output is already shown).
 func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolved *ResolvedWorkflows, opts AddOptions) (*AddWorkflowsResult, error) {
+	if err := requireAutoMergePR(opts.AutoMerge, opts.CreatePR); err != nil {
+		return nil, err
+	}
 	if opts.Name != "" {
 		if err := validateAddedWorkflowName(opts.Name); err != nil {
 			return nil, err
@@ -90,12 +96,12 @@ func AddResolvedWorkflows(ctx context.Context, workflowStrings []string, resolve
 	if opts.CreatePR {
 		addLog.Print("Creating workflow with PR")
 		prNumber, prURL, err := addWorkflowsWithPR(ctx, resolved.Workflows, opts)
-		if err != nil {
-			return nil, err
-		}
 		result.PRNumber = prNumber
 		result.PRURL = prURL
-		return result, nil
+		if err != nil && prURL == "" {
+			return nil, err
+		}
+		return result, err
 	}
 
 	// Handle normal workflow addition - pass resolved workflows with content

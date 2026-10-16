@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { main, matchingWork, closedIssue, readIssuesConfig } = require("./cancel_work_queue_closed_issue.cjs");
+const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 const resource = { kind: "issue", host: "github.com", repository: "owner/repo", repository_id: "12", resource_id: "34", number: "7" };
 const work = { work_id: "work_1", backing_issue: resource, state: "available" };
@@ -59,6 +60,7 @@ function fixture(initialWork = work) {
     publishWorkQueueRequest,
     core: { info: vi.fn() },
   };
+  registerQueueLedgerClient(githubClient, githubClient);
   return { githubClient, options, state, confirmed, publishWorkQueueRequest };
 }
 

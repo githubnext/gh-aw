@@ -28,6 +28,7 @@ test("workflow bounds one-session tool continuation and gates its conclusion on 
   assert.match(lock, /conclusion:\n[\s\S]*?needs:\n(?:      - .+\n)*      - verify_credit_limit/);
   assert.match(lock, /verify_credit_limit:\n[\s\S]*?needs: agent\n    if: always\(\) && !cancelled\(\) && needs\.agent\.result != 'skipped'/);
   assert.match(lock, /run: node \.github\/scripts\/check-max-ai-credits\.cjs \/tmp\/gh-aw\//);
+  assert.match(source, /sparse-checkout: \|\n\s+\.github\/scripts\n\s+actions\/setup\/js/);
 });
 
 function fixture(t) {
@@ -64,6 +65,43 @@ test("credit totals at or above the cap do not prove request rejection", t => {
   write("sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl", JSON.stringify({ ai_credits_total: 1.02 }));
   write(LOG_PATHS[0], JSON.stringify({ event: "token_budget_usage", ai_credits_total: 1.02 }));
   assert.throws(() => verifyCreditLimit(directory), /No AWF per-run credit rejection/);
+});
+
+for (const entry of [
+  { type: "error", message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" },
+  { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)." } },
+]) {
+  test(`accepts the observed native Codex ${entry.type} rejection without standalone firewall events`, t => {
+    const { directory, write } = fixture(t);
+    write("agent-stdio.log", JSON.stringify(entry));
+    assert.match(verifyCreditLimit(directory), /^Passed:/);
+  });
+}
+
+for (const entry of [
+  { type: "item.completed", item: { type: "agent_message", text: "403 Maximum AI credits exceeded (1.028578 / 1)." } },
+  { type: "item.completed", item: { type: "command_execution", aggregated_output: "403 Maximum AI credits exceeded (1.028578 / 1)." } },
+  { type: "turn.failed", error: { message: "403 Maximum AI credits exceeded (1.028578 / 2)." } },
+  { type: "turn.failed", error: { message: "403 Maximum AI credits exceeded (10001 / 10000)." } },
+  { type: "turn.failed", error: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
+  { type: "turn.failed", error: { message: "403 Forbidden" } },
+  { type: "turn.failed", error: { message: "403 Forbidden", metadata: "403 Maximum AI credits exceeded (1.028578 / 1)." } },
+  { error: "authentication_failed", message: "API Error: 403 Maximum AI credits exceeded (1.028578 / 1)." },
+  { type: "tool_result", error: "403 Maximum AI credits exceeded (1.028578 / 1)." },
+  { type: "assistant", error: "403 Maximum AI credits exceeded (1.028578 / 1)." },
+]) {
+  test(`does not accept unrelated or untrusted engine evidence ${JSON.stringify(entry)}`, t => {
+    const { directory, write } = fixture(t);
+    write("agent-stdio.log", JSON.stringify(entry));
+    assert.throws(() => verifyCreditLimit(directory), /enforcement remains unverified/);
+  });
+}
+
+test("finds the configured cap rejection after a rejection with another cap", t => {
+  const { directory, write } = fixture(t);
+  const error = cap => JSON.stringify({ type: "error", message: `403 Maximum AI credits exceeded (10001 / ${cap}).` });
+  write("agent-stdio.log", `${error(10000)}\n${error(1)}\n`);
+  assert.match(verifyCreditLimit(directory), /^Passed:/);
 });
 
 for (const entry of [

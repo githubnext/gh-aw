@@ -4,16 +4,32 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
 var dockerImagesLog = logger.New("cli:docker_images")
+var dockerMissingNotice sync.Once
+
+const dockerUnavailableMessage = "Docker is unavailable; Docker-based static analysis will be skipped."
+
+func isDockerCLIAvailable() bool {
+	if _, err := exec.LookPath("docker"); err != nil {
+		dockerImagesLog.Printf("Docker executable unavailable: %v", err)
+		dockerMissingNotice.Do(func() {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Docker is not installed; Docker-based features are unavailable."))
+		})
+		return false
+	}
+	return true
+}
 
 // DockerUnavailableError is returned when the Docker daemon is not accessible.
 // This is distinct from transient errors (e.g., images being downloaded) and signals
@@ -79,6 +95,9 @@ func isDockerImageAvailableUnlocked(ctx context.Context, image string) bool {
 		dockerImagesLog.Printf("Mock: Checking if image %s is available: %v", image, available)
 		return available
 	}
+	if !isDockerCLIAvailable() {
+		return false
+	}
 
 	// For non-mock mode, we need to execute docker command
 	// This is safe to do under lock since it's just a subprocess call
@@ -124,6 +143,9 @@ func IsDockerAvailable(ctx context.Context) bool {
 		dockerImagesLog.Printf("Mock: Docker available: %v", mockAvailable)
 		return mockAvailable
 	}
+	if !isDockerCLIAvailable() {
+		return false
+	}
 
 	cmd := exec.CommandContext(ctx, "docker", "info")
 	cmd.Stdout = nil
@@ -135,7 +157,8 @@ func IsDockerAvailable(ctx context.Context) bool {
 }
 
 // StartDockerImageDownload starts downloading a Docker image in the background.
-// Returns true if the download was started, false if already downloading or available.
+// Returns true if the download was started, false if already downloading, available,
+// or Docker is not installed.
 // The download can be cancelled by cancelling the provided context.
 // The returned join function blocks until the download goroutine exits and returns
 // any error that occurred (nil on success or context cancellation).
@@ -156,6 +179,12 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func() e
 				return dl.err
 			}
 			return nil
+		}
+	}
+
+	if !pullState.mockAvailableInUse && !isDockerCLIAvailable() {
+		return false, func() error {
+			return &DockerUnavailableError{Message: "Docker is not installed; image downloads are unavailable."}
 		}
 	}
 
@@ -282,55 +311,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, opts DockerImagesOptions) 
 
 	// Check if Docker daemon is available before attempting any image operations
 	if !IsDockerAvailable(ctx) {
-		var requestedTools []string
-		var paramsList []string
-		if opts.Zizmor {
-			tool := "zizmor"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.Poutine {
-			tool := "poutine"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.Actionlint {
-			tool := "actionlint"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.RunnerGuard {
-			tool := "runner-guard"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.Syft {
-			tool := "syft"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.Grype {
-			tool := "grype"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.Grant {
-			tool := "grant"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		if opts.Yamllint {
-			tool := "yamllint"
-			requestedTools = append(requestedTools, tool)
-			paramsList = append(paramsList, tool+": false")
-		}
-		verb := "requires"
-		if len(requestedTools) > 1 {
-			verb = "require"
-		}
-		return &DockerUnavailableError{
-			Message: fmt.Sprintf("docker is not available (cannot connect to Docker daemon). %s %s Docker. Please install and start Docker, or set %s to skip static analysis", strings.Join(requestedTools, " and "), verb, strings.Join(paramsList, " and ")),
-		}
+		return &DockerUnavailableError{Message: dockerUnavailableMessage}
 	}
 
 	var missingImages []string
@@ -365,8 +346,14 @@ func CheckAndPrepareDockerImages(ctx context.Context, opts DockerImagesOptions) 
 			downloadingImages = append(downloadingImages, img.name)
 		} else {
 			// Start download
-			_, _ = StartDockerImageDownload(ctx, img.image)
-			missingImages = append(missingImages, img.name)
+			started, join := StartDockerImageDownload(ctx, img.image)
+			if started {
+				missingImages = append(missingImages, img.name)
+			} else if IsDockerImageDownloading(img.image) {
+				downloadingImages = append(downloadingImages, img.name)
+			} else if err := join(); err != nil {
+				return err
+			}
 		}
 	}
 

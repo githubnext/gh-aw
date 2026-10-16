@@ -7,7 +7,7 @@ package constants
 //
 // Example usage:
 //
-//	const DefaultCopilotVersion Version = "1.0.96"
+//	const DefaultCopilotVersion Version = "1.0.98"
 //	func InstallTool(name string, version Version) error { ... }
 type Version string
 
@@ -39,23 +39,23 @@ const DefaultClaudeCodeVersion Version = "2.1.296"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.96"
+const DefaultCopilotVersion Version = "1.0.98"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
 const DefaultCopilotSDKVersion Version = "1.0.16"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion Version = "0.162.1"
+const DefaultCodexVersion Version = "0.163.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.62.0"
+const DefaultGeminiVersion Version = "0.64.0"
 
-const DefaultAgyVersion Version = "1.3.3"
+const DefaultAgyVersion Version = "1.3.6"
 
 const AgyDefaultModel = "gemini-3.8-flash-medium"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "1.2.0"
+const DefaultPiVersion Version = "1.3.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion Version = "v2.0.2"
@@ -68,7 +68,7 @@ const DefaultGitHubMCPServerVersion Version = "v2.0.2"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.57"
+const DefaultFirewallVersion Version = "v0.28.59"
 
 // AWFFallbackModelsMinVersion is the first AWF release with ordered request-level fallback.
 const AWFFallbackModelsMinVersion Version = "v0.28.31"
@@ -248,7 +248,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.31"
+const DefaultMCPGatewayVersion Version = "v0.4.33"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.

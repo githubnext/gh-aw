@@ -34,7 +34,7 @@ func TestAgyBuiltInRegistration(t *testing.T) {
 	require.NoError(t, err)
 	assert.IsType(t, engine, registered)
 	assert.True(t, engine.IsExperimental())
-	assert.Equal(t, "1.3.3", def.Version)
+	assert.Equal(t, "1.3.6", def.Version)
 	assert.False(t, engine.GetCapabilities().BashCommandAllowlist)
 	assert.False(t, engine.GetCapabilities().BashDisable)
 	assert.Contains(t, NewEngineCatalog(NewEngineRegistry()).IDs(), "agy")
@@ -46,7 +46,7 @@ func TestAgyBuiltInRegistration(t *testing.T) {
 	assert.Contains(t, engine.GetAgentManifestPathPrefixes(), ".agents/")
 	assert.Contains(t, engine.GetAgentManifestPathPrefixes(), ".gemini/")
 	assert.Contains(t, NewEngineRegistry().GetAllAgentManifestFolders(), ".agents")
-	assert.Equal(t, "1.3.3", getVersionForSetup(&WorkflowData{AI: "agy"}, NewEngineRegistry()))
+	assert.Equal(t, "1.3.6", getVersionForSetup(&WorkflowData{AI: "agy"}, NewEngineRegistry()))
 	assert.Equal(t, string(constants.CopilotEngine), constants.EngineOptions[0].Value)
 }
 
@@ -57,7 +57,8 @@ func TestAgyCompilerSelectionAndRestrictions(t *testing.T) {
 		{"short form", "agy", "bash: [\"*\"]", ""},
 		{"object form", "\n  id: agy\n  model: gemini-3.8-flash-medium", "bash: [\"*\"]", ""},
 		{"custom trusted executable", "\n  id: agy\n  command: /opt/trusted/agy", "bash: [\"*\"]", ""},
-		{"verified latest version", "\n  id: agy\n  version: \"1.3.3\"", "bash: [\"*\"]", ""},
+		{"verified latest version", "\n  id: agy\n  version: \"1.3.6\"", "bash: [\"*\"]", ""},
+		{"previous default version", "\n  id: agy\n  version: \"1.3.3\"", "bash: [\"*\"]", ""},
 		{"verified legacy version", "\n  id: agy\n  version: \"1.3.1\"", "bash: [\"*\"]", ""},
 		{"WIF", "\n  id: agy\n  auth:\n    type: github-oidc\n    provider: gcp\n    workload-identity-provider: projects/1/locations/global/workloadIdentityPools/test/providers/test\n    service-account: test@example.iam.gserviceaccount.com", "bash: [\"*\"]", "Retain engine: gemini"},
 		{"extra CLI arguments", "\n  id: agy\n  args: [\"--prompt\", \"override\"]", "bash: [\"*\"]", "headless profile"},
@@ -85,7 +86,10 @@ func TestAgyCompilerSelectionAndRestrictions(t *testing.T) {
 			lock, err := os.ReadFile(filepath.Join(dir, "agy.lock.yml"))
 			require.NoError(t, err)
 			assert.Contains(t, string(lock), "agy_harness.cjs")
-			version := "1.3.3"
+			version := "1.3.6"
+			if tt.name == "previous default version" {
+				version = "1.3.3"
+			}
 			if tt.name == "verified legacy version" {
 				version = "1.3.1"
 			}
@@ -123,7 +127,8 @@ func TestAgyInstallationDoesNotMutateOptionalConfiguration(t *testing.T) {
 		{"nil workflow", nil},
 		{"nil engine config", &WorkflowData{AI: "agy"}},
 		{"empty version", &WorkflowData{AI: "agy", EngineConfig: &EngineConfig{ID: "agy"}}},
-		{"explicit version", &WorkflowData{AI: "agy", EngineConfig: &EngineConfig{ID: "agy", Version: "1.3.3"}}},
+		{"explicit version", &WorkflowData{AI: "agy", EngineConfig: &EngineConfig{ID: "agy", Version: "1.3.6"}}},
+		{"previous default version", &WorkflowData{AI: "agy", EngineConfig: &EngineConfig{ID: "agy", Version: "1.3.3"}}},
 		{"legacy version", &WorkflowData{AI: "agy", EngineConfig: &EngineConfig{ID: "agy", Version: "1.3.1"}}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -135,7 +140,7 @@ func TestAgyInstallationDoesNotMutateOptionalConfiguration(t *testing.T) {
 			require.NotEmpty(t, steps)
 			assert.Equal(t, GenerateNodeJsSetupStep(), steps[0])
 			if tt.data != nil {
-				expected := "1.3.3"
+				expected := "1.3.6"
 				if version != "" {
 					expected = version
 				}
@@ -222,7 +227,7 @@ func TestAgyNativeRuntimeDefaults(t *testing.T) {
 	assert.Contains(t, content, "agy_harness.cjs agy")
 	assert.Contains(t, content, "awf --config")
 	assert.Contains(t, content, "AWF_REFLECT_ENABLED: 1")
-	assert.Contains(t, content, "GH_AW_ENGINE_VERSION: 1.3.3")
+	assert.Contains(t, content, "GH_AW_ENGINE_VERSION: 1.3.6")
 	assert.Contains(t, content, "GH_AW_AGY_MODEL: gemini-3.8-flash-medium")
 	assert.Contains(t, content, "--exclude-env GEMINI_API_KEY")
 	assert.Equal(t, "parse_agy_log", engine.GetLogParserScriptId())
@@ -237,7 +242,7 @@ func TestAgyCLIOverrideUsesBuiltInDefaults(t *testing.T) {
 	require.NoError(t, NewCompiler(WithEngineOverride("agy")).CompileWorkflow(source))
 	lock, err := os.ReadFile(filepath.Join(dir, "override.lock.yml"))
 	require.NoError(t, err)
-	assert.Contains(t, string(lock), "GH_AW_ENGINE_VERSION: 1.3.3")
+	assert.Contains(t, string(lock), "GH_AW_ENGINE_VERSION: 1.3.6")
 	assert.Contains(t, string(lock), "GH_AW_AGY_MODEL: gemini-3.8-flash-medium")
 	assert.Contains(t, string(lock), "agy_harness.cjs")
 	assert.NotContains(t, string(lock), "@google/gemini-cli")

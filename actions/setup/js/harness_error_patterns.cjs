@@ -104,13 +104,60 @@ const API_PROXY_GUARD_REJECTION_PATTERNS = [
 function parseAPIProxyGuardRejection(output) {
   const safeOutput = typeof output === "string" ? output : "";
   if (!safeOutput) return null;
+  const diagnostics = [];
+  for (const line of safeOutput.split(/\r?\n/)) {
+    let record;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!record || typeof record !== "object" || Array.isArray(record)) continue;
+    const isApiErrorEnvelope = record.type === "assistant" && record.is_api_error_message === true;
+    const isNativeTransportError = record.type === "error" || record.type === "turn.failed" || record.type === "session.error";
+    const isGuardRecord = API_PROXY_GUARD_REJECTION_PATTERNS.some(({ guard }) => record.type === guard || ((isNativeTransportError || isApiErrorEnvelope) && record.code === guard));
+    const isFailedResult = record.type === "result" && record.is_error === true;
+    const isTransportError = isNativeTransportError || isApiErrorEnvelope || isFailedResult;
+    if (isGuardRecord || isTransportError) {
+      const diagnostic = record.type === "session.error" && record.data && typeof record.data === "object" ? record.data : record;
+      diagnostics.push(
+        JSON.stringify({
+          type: diagnostic.type,
+          code: diagnostic.code,
+          error: diagnostic.error,
+          message: diagnostic.message,
+          ...(diagnostic.type === "result" && diagnostic.is_error === true ? { result: diagnostic.result, errors: diagnostic.errors } : {}),
+        })
+      );
+    }
+    const candidates = record.type === "unknown_model_ai_credits" ? [record] : isNativeTransportError || isApiErrorEnvelope ? [record.error, record.message] : [];
+    // Only unwrap transport errors, never assistant messages or tool results.
+    for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
+      let candidate = candidates.shift();
+      if (typeof candidate === "string") {
+        try {
+          candidate = JSON.parse(candidate);
+        } catch {
+          continue;
+        }
+      }
+      if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) continue;
+      if (candidate.type === "unknown_model_ai_credits" || candidate.code === "unknown_model_ai_credits") {
+        return { guard: "unknown_model_ai_credits", counters: {} };
+      }
+      candidates.push(candidate.error, candidate.message);
+    }
+  }
+  // Tool results can quote entire lock files containing guard names. Only inspect
+  // transport diagnostics, not assistant content or command output.
+  const diagnosticText = diagnostics.join("\n");
   for (const { guard, pattern, counterRe, counterNames } of API_PROXY_GUARD_REJECTION_PATTERNS) {
-    if (!pattern.test(safeOutput)) continue;
+    if (!pattern.test(diagnosticText)) continue;
     // Endpoint incompatibility has its own diagnostic, even if wrapped as a policy violation.
-    if (guard === "model_policy_violation" && parseModelEndpointMismatch(safeOutput)) continue;
+    if (guard === "model_policy_violation" && parseModelEndpointMismatch(diagnosticText)) continue;
     /** @type {Record<string, string|number>} */
     const counters = {};
-    const match = counterRe ? counterRe.exec(safeOutput) : null;
+    const match = counterRe ? counterRe.exec(diagnosticText) : null;
     if (match) {
       counterNames.forEach((name, index) => {
         const value = Number.parseInt(match[index + 1], 10);
@@ -186,11 +233,20 @@ function parseAICreditsExceededProxyRejection(output) {
     // prettier-ignore
     const record = /** @type {Record<string, unknown>} */ (parsed);
     const nativeError = record.error;
-    const isCodexApiError =
-      (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && nativeError && typeof nativeError === "object" && "message" in nativeError && typeof nativeError.message === "string");
-    const isEngineFlaggedApiError = record.is_api_error_message === true || typeof record.error === "string" || isCodexApiError;
+    const nativeMessage = nativeError && typeof nativeError === "object" && "message" in nativeError ? nativeError.message : undefined;
+    const isCodexApiError = (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && typeof nativeMessage === "string");
+    const isClaudeFailedResult = record.type === "result" && record.is_error === true;
+    const isClaudeApiError = record.type === "assistant" && record.is_api_error_message === true;
+    const isEngineFlaggedApiError = isClaudeApiError || isCodexApiError || isClaudeFailedResult;
     if (!isEngineFlaggedApiError) continue;
-    const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(JSON.stringify(record));
+    const diagnostic = isCodexApiError
+      ? record.type === "error"
+        ? record.message
+        : nativeMessage
+      : isClaudeFailedResult
+        ? JSON.stringify({ result: record.result, errors: record.errors })
+        : JSON.stringify({ error: record.error, message: record.message });
+    const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(typeof diagnostic === "string" ? diagnostic : "");
     if (!match) continue;
     const aiCredits = Number.parseFloat(match[1]);
     const maxAICredits = Number.parseFloat(match[2]);

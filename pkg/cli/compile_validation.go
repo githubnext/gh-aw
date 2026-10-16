@@ -34,26 +34,7 @@ func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compi
 
 	compiler.SetContext(ctx)
 
-	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
-	relPath, err := getRepositoryRelativePath(filePath)
-	if err != nil {
-		compileValidationLog.Printf("Warning: failed to get repository-relative path for %s: %v", filePath, err)
-		// Fallback to basename if we can't get relative path
-		relPath = filepath.Base(filePath)
-	}
-	compiler.SetWorkflowIdentifier(relPath)
-
-	// Set repository slug for this specific file (may differ from CWD's repo)
-	// Uses SetRepositorySlugIfUnlocked so that an explicit --schedule-seed flag is never overridden.
-	fileRepoSlug := getRepositorySlugFromRemoteForPath(filePath)
-	if fileRepoSlug != "" {
-		if compiler.IsRepositorySlugLocked() {
-			compileValidationLog.Printf("Repository slug from file remote (%s) ignored: overridden via --schedule-seed (%s)", fileRepoSlug, compiler.GetRepositorySlug())
-		} else {
-			compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
-			compileValidationLog.Printf("Repository slug for file set: %s", fileRepoSlug)
-		}
-	}
+	setWorkflowFileContext(compiler, filePath)
 
 	// Compile the workflow first
 	if err := compiler.CompileWorkflow(filePath); err != nil {
@@ -263,10 +244,11 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 
 	sanitizeError := func(e ValidationIssue) ValidationIssue {
 		return ValidationIssue{
-			Type:    e.Type,
-			Message: stringutil.SanitizeErrorMessage(e.Message),
-			Line:    e.Line,
-			File:    e.File,
+			Type:     e.Type,
+			Message:  stringutil.SanitizeErrorMessage(e.Message),
+			Line:     e.Line,
+			File:     e.File,
+			Severity: e.Severity,
 		}
 	}
 

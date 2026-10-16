@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { parseAICreditsExceededProxyRejection } = require("../../actions/setup/js/harness_error_patterns.cjs");
 
 const LOG_PATHS = [
   "sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl",
@@ -43,6 +44,16 @@ function verifyCreditLimit(directory) {
         rejectionFound = true;
       }
     }
+  }
+  // AWF versions without a standalone rejection event still expose the proxy's
+  // 403 usage/cap pair in engine-authenticated API error records.
+  const stdioPath = path.join(directory, "agent-stdio.log");
+  if (fs.existsSync(stdioPath)) {
+    const matchingRejection = fs
+      .readFileSync(stdioPath, "utf8")
+      .split("\n")
+      .some(line => parseAICreditsExceededProxyRejection(line)?.maxAICredits === 1);
+    rejectionFound ||= matchingRejection;
   }
   if (!rejectionFound) {
     throw new Error("No AWF per-run credit rejection at cap 1 was recorded. The workload may have ended below the cap or runtime evidence may be missing; enforcement remains unverified.");

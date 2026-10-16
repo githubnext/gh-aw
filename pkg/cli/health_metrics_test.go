@@ -160,24 +160,6 @@ func TestCalculateTrend(t *testing.T) {
 	}
 }
 
-func TestGroupRunsByWorkflow(t *testing.T) {
-	t.Parallel()
-	runs := []WorkflowRun{
-		{WorkflowName: "workflow-a", Conclusion: "success"},
-		{WorkflowName: "workflow-b", Conclusion: "success"},
-		{WorkflowName: "workflow-a", Conclusion: "failure"},
-		{WorkflowName: "workflow-c", Conclusion: "success"},
-		{WorkflowName: "workflow-b", Conclusion: "success"},
-	}
-
-	grouped := GroupRunsByWorkflow(runs)
-
-	assert.Len(t, grouped, 3, "Should have 3 different workflows")
-	assert.Len(t, grouped["workflow-a"], 2, "workflow-a should have 2 runs")
-	assert.Len(t, grouped["workflow-b"], 2, "workflow-b should have 2 runs")
-	assert.Len(t, grouped["workflow-c"], 1, "workflow-c should have 1 run")
-}
-
 func TestCalculateHealthSummary(t *testing.T) {
 	t.Parallel()
 	workflowHealths := []WorkflowHealth{

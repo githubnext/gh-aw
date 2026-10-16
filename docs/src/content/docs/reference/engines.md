@@ -20,7 +20,7 @@ Set `engine:` in workflow frontmatter and configure the corresponding authentica
 | [Google Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) (experimental) | `agy` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) only; no ADC/WIF | [Using experimental Agy](/gh-aw/engines/agy/) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) | `pi` | Copilot authentication by default; Anthropic or OpenAI/Codex key for a provider-prefixed `model:` | [Using Pi with GitHub Agentic Workflows](/gh-aw/engines/pi/) |
 
-Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copilot SDK mode is an execution mode of the Copilot engine, not a separate engine; enable it with `engine: copilot` and `copilot-sdk: true`. See [Copilot SDK support](#copilot-sdk-support).
+Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copilot SDK mode is a stable execution mode of the Copilot engine, not a separate engine; enable it with `engine: copilot` and `copilot-sdk: true`. See [Copilot SDK support](#copilot-sdk-support).
 
 Copilot model availability is scoped to the `agentic-workflows` integration as
 well as organization policy. Gemini models available in the standalone Copilot
@@ -78,7 +78,7 @@ enforcement, or prove that a provider honored the requested model.
 
 The manual `credentials-check.yml` workflow has an opt-in `agy-only` input and
 an `agy-model` native model slug. Its default behavior still runs the existing
-credential checks. The Agy job verifies the native Linux x64 v1.3.1 archive's
+credential checks. The Agy job verifies the native Linux x64 v1.3.6 archive's
 SHA-256 checksum and runs with a fresh settings home and empty workspace.
 It requires `GEMINI_API_KEY` with `modelProvider: gemini`, verifies a fresh
 inference challenge and reported usage, checks missing/invalid credentials
@@ -114,7 +114,7 @@ The OpenCode, Aider, Crush, Cursor, DeepSeek Harness, Goose, Kiro, and Pydantic 
 | [Cursor](https://cursor.com/docs/cli) | `.github/workflows/shared/cursor.md` |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | `.github/workflows/shared/deepseek-harness.md` |
 | [Goose](https://github.com/aaif-goose/goose) | `.github/workflows/shared/goose.md` |
-| [Kiro](https://kiro.dev/) | `.github/workflows/shared/kiro.md` |
+| [Kiro](https://kiro.dev/) (CLI 2.31.1, V2 harness; no Powers plugins) | `.github/workflows/shared/kiro.md` |
 | [Pydantic AI](https://ai.pydantic.dev/) | `pydantic/pydantic-ai/src/pydantic_ai_harness/gh-aw/pydantic.md@main` |
 
 Engine owners should publish and maintain their own Markdown integration definition. Users should import the definition from that owner-maintained source, pinned to a tag or commit SHA. The in-repository files are examples for authors, not supported engine integrations.
@@ -174,8 +174,9 @@ secret is required.
 
 Choose the engine that matches the required capabilities, identity mechanism, and existing provider access. Copilot supports native agent selection, custom harnesses, and continuation mode. Claude Code and Codex provide native web search when enabled. Gemini supports Google WIF and per-command bash restrictions. Pi supports multiple providers, native MCP, codemode, and SDK/RPC execution.
 
-Agy is experimental, Linux x64 only, and supports the verified native v1.3.1
-Gemini API-key profile. It is not a Gemini alias or feature-equivalent replacement.
+Agy is experimental, Linux x64 only, and defaults to the verified native v1.3.6
+Gemini API-key profile; explicit v1.3.3 and v1.3.1 pins remain supported.
+It is not a Gemini alias or feature-equivalent replacement.
 Retain Gemini for WIF or native shell restrictions. See the
 [Agy capability and configuration limits](/gh-aw/engines/agy/#tools-configuration-and-limits)
 before considering a migration.
@@ -207,7 +208,7 @@ Not all features are available across all engines. The table below summarizes pe
 | Native MCP server integration | ✅ | ✅ | ✅ | ✅ | ✅ | Release gated on production conformance |
 | Agent Plugins (`plugins`) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 
-`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by the stable built-in engines. Experimental Agy supports credit and cache-miss limits, but rejects `max-turns` and uses a fixed native timeout. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot continuation mode. Claude and Codex have native web search support. Copilot's offline BYOK mode disables native web tools: use an MCP server for search, or `engine.copilot-sdk: true` for the custom proxy-aware `tools.web-fetch` implementation. Codex enables shared search/browsing through either `tools.web-search` or `tools.web-fetch`. Gemini can use a third-party MCP server for search. Top-level `plugins` is experimental, uses the [Agent Plugins](https://agent-plugins.org) format, and is supported by Copilot, Claude, Codex, and any imported engine definition that declares a `behaviors.plugins` block (such as the shared Cursor and Kiro engines). See [Using Web Search](/gh-aw/reference/web-search/) and [Agent Plugins](/gh-aw/reference/frontmatter/#agent-plugins-plugins).
+`max-turns` (default `500`, legacy alias `max-runs`) and `max-ai-credits` (default `1000`) are top-level frontmatter fields supported by the stable built-in engines. Experimental Agy supports credit and cache-miss limits, but rejects `max-turns` and uses a fixed native timeout. `engine.max-turns` is a deprecated nested alias that still limits Claude iterations when present; `max-continuations` enables Copilot continuation mode. Claude and Codex have native web search support. Copilot's offline BYOK mode disables native web tools: use an MCP server for search, or `engine.copilot-sdk: true` for the custom proxy-aware `tools.web-fetch` implementation. Codex enables shared search/browsing through either `tools.web-search` or `tools.web-fetch`. Gemini can use a third-party MCP server for search. Top-level `plugins` is experimental, uses the [Agent Plugins](https://agent-plugins.org) format, and is supported by Copilot, Claude, Codex, and any imported engine definition that declares a `behaviors.plugins` block (such as the shared Cursor engine). See [Using Web Search](/gh-aw/reference/web-search/) and [Agent Plugins](/gh-aw/reference/frontmatter/#agent-plugins-plugins).
 
 ## Shared imported engines
 
@@ -579,7 +580,7 @@ Codex has no gh-aw-supplied default model. Set `engine.model`, a phase-specific 
 
 ### Copilot SDK Support
 
-Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.
+Enable `engine.copilot-sdk: true` to run Copilot in stable, non-experimental SDK mode.
 In this mode, the harness starts a local sidecar and runs the
 SDK driver process instead of the default CLI-only flow.
 

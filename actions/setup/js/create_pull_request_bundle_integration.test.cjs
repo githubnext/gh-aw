@@ -61,11 +61,11 @@ function createRepo(prefix) {
 
 function createExecApi(cwd, onExec) {
   return {
-    async exec(command, args = []) {
+    async exec(command, args = [], options = {}) {
       if (command !== "git") {
         throw new Error(`unexpected command: ${command}`);
       }
-      const result = execGit(args, { cwd, allowFailure: true });
+      const result = execGit(args, { ...options, cwd, allowFailure: true });
       if (result.status !== 0) {
         throw new Error(result.stderr || result.stdout);
       }
@@ -78,7 +78,7 @@ function createExecApi(cwd, onExec) {
       if (command !== "git") {
         throw new Error(`unexpected command: ${command}`);
       }
-      const result = execGit(args, { cwd, allowFailure: true });
+      const result = execGit(args, { ...options, cwd, allowFailure: true });
       if (result.status !== 0 && !options.ignoreReturnCode) {
         throw new Error(result.stderr || result.stdout);
       }
@@ -179,9 +179,11 @@ describe("create_pull_request bundle integration", () => {
       branchName,
       "",
       createExecApi(targetRepo, args => {
-        if (args[0] === "fetch" && args[1] === bundlePath) {
-          bundleTempRef = args[2].split(":")[1];
+        expect(args[0]).not.toBe("fetch");
+        if (args[0] === "update-ref" && args[1].startsWith("refs/bundles/")) {
+          bundleTempRef = args[1];
           expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo }).status).toBe(0);
+          expect(execGit(["rev-parse", bundleTempRef], { cwd: targetRepo }).stdout.trim()).toBe(expectedHead);
         }
       })
     );
@@ -217,8 +219,10 @@ describe("create_pull_request bundle integration", () => {
 
     let bundleTempRef = "";
     const execApi = createExecApi(targetRepo, args => {
-      if (args[0] === "fetch" && args[1] === bundlePath) {
-        bundleTempRef = args[2].split(":")[1];
+      expect(args[0]).not.toBe("fetch");
+      if (args[0] === "update-ref" && args[1].startsWith("refs/bundles/")) {
+        bundleTempRef = args[1];
+        expect(execGit(["show-ref", "--verify", bundleTempRef], { cwd: targetRepo }).status).toBe(0);
       }
     });
     const { applyBundleToBranch } = require("./create_pull_request.cjs");
@@ -226,11 +230,11 @@ describe("create_pull_request bundle integration", () => {
     await expect(
       applyBundleToBranch(bundlePath, branchName, "", {
         ...execApi,
-        async exec(command, args = []) {
+        async exec(command, args = [], options = {}) {
           if (command === "git" && args[0] === "update-ref" && args[1] === `refs/heads/${branchName}`) {
             throw new Error("simulated update-ref failure");
           }
-          return execApi.exec(command, args);
+          return execApi.exec(command, args, options);
         },
       })
     ).rejects.toThrow("simulated update-ref failure");

@@ -56,36 +56,6 @@ const DOCKER_CLEANUP_TIMEOUT_MS = getSetupTimeoutMs("mcpDockerCleanup");
 const MCP_SERVER_CHECK_TIMEOUT_MS = getSetupTimeoutMs("mcpServerCheck");
 
 /**
- * Keep owner-only MCP downloads readable and redactable by the host runner.
- * @param {Record<string, unknown>} config
- */
-function applyAgenticWorkflowsRunnerIdentity(config) {
-  const servers = config.mcpServers;
-  if (!servers || typeof servers !== "object" || !Object.hasOwn(servers, "agenticworkflows") || !("agenticworkflows" in servers)) return;
-  const server = servers.agenticworkflows;
-  if (!server || typeof server !== "object" || !("container" in server) || typeof server.container !== "string" || !server.container) return;
-  const uid = process.getuid?.();
-  const gid = process.getgid?.();
-  if (!Number.isSafeInteger(uid) || !Number.isSafeInteger(gid) || uid === undefined || gid === undefined || uid < 0 || gid < 0) {
-    throw new Error("Cannot determine runner UID/GID for the agentic-workflows MCP container");
-  }
-  const existing = "args" in server ? server.args : [];
-  if (!Array.isArray(existing) || !existing.every(arg => typeof arg === "string")) {
-    throw new Error("Invalid Docker arguments for the agentic-workflows MCP container");
-  }
-  const args = [];
-  for (let i = 0; i < existing.length; i++) {
-    const arg = existing[i];
-    if (arg === "--user" || arg === "-u") {
-      i++;
-    } else if (!arg.startsWith("--user=") && !arg.startsWith("-u")) {
-      args.push(arg);
-    }
-  }
-  Object.assign(server, { args: [...args, "--user", `${uid}:${gid}`] });
-}
-
-/**
  * Retries startup probes without letting requests or backoff extend the shared
  * container startup deadline.
  *
@@ -1508,6 +1478,38 @@ if (require.main === module) {
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);
     core.setFailed(`FATAL: ${message}`);
+  });
+}
+
+/**
+ * Backend containers do not inherit the gateway container's Docker user.
+ * Keep private downloaded logs runner-owned so artifact redaction can read them.
+ * @param {Record<string, unknown>} config
+ * @param {number | undefined} [uid]
+ * @param {number | undefined} [gid]
+ */
+function applyAgenticWorkflowsRunnerIdentity(config, uid = process.getuid?.(), gid = process.getgid?.()) {
+  const servers = config.mcpServers;
+  if (!servers || typeof servers !== "object" || !("agenticworkflows" in servers)) return;
+  const server = servers.agenticworkflows;
+  if (!server || typeof server !== "object" || !("container" in server) || typeof server.container !== "string" || !server.container) return;
+  const args = "args" in server ? server.args : [];
+  if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
+    throw new Error("Invalid agenticworkflows container arguments");
+  }
+  // Docker parses any suffix after -u as a username or UID, including -uroot.
+  if (args.some(arg => arg === "--user" || arg === "-u" || arg.startsWith("--user=") || (arg.startsWith("-u") && !arg.startsWith("--")))) return;
+  if (!Number.isSafeInteger(uid) || !Number.isSafeInteger(gid) || uid === undefined || gid === undefined || uid < 0 || gid < 0) {
+    throw new Error("Runner identity is required for the agenticworkflows container");
+  }
+  const env = "env" in server ? server.env : {};
+  if (!env || typeof env !== "object" || Array.isArray(env)) {
+    throw new Error("Invalid agenticworkflows container environment");
+  }
+  Object.assign(server, {
+    args: [...args, "--user", `${uid}:${gid}`],
+    // /tmp is private to this backend container; /root is not writable as the runner.
+    env: { HOME: "/tmp", ...env },
   });
 }
 

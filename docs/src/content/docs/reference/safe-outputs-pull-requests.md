@@ -144,10 +144,10 @@ By default a random hex suffix is appended to the agent-provided branch name to 
 The agent's commits are packaged as a **git bundle** and uploaded as an Actions artifact. A separate, permission-controlled `safe_outputs` job then:
 
 1. Checks out the target repository at the base branch (shallow, depth 1). Any additional `fetch:` refs declared in `checkout:` frontmatter for the target repository are fetched so their commits are locally available.
-2. Applies the bundle via `git fetch <bundle-file>`. If prerequisite commits are missing (because the base branch advanced while the agent was running), they are fetched from origin by SHA and the bundle fetch retried automatically.
+2. Imports the local bundle offline with `git bundle unbundle`. If prerequisite commits are missing, the handler fails by default; provision the required objects during authenticated checkout or opt in to prerequisite recovery with `allow-full-history-fetch: true` on that specific PR handler. The opt-in permits potentially unbounded recovery downloads, but bundle import and validation remain offline.
 3. Pushes the branch using the GitHub GraphQL API (signed commits) and creates the pull request.
 
-If the base branch advances between agent start and `safe_outputs` apply, the PR is created slightly behind the current base — normal behavior the author can address with a rebase. If a non-fast-forward race occurs during the push itself, the job creates a fallback PR from a temporary branch so no changes are lost.
+If the base branch advances between agent start and `safe_outputs` apply, the PR can be created slightly behind the current base and addressed with a rebase when the necessary bundle objects are available. Otherwise, missing prerequisites cause the handler to fail unless recovery is explicitly enabled as described above. If a non-fast-forward race occurs during the push itself, the job creates a fallback PR from a temporary branch so no changes are lost.
 
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 
@@ -435,7 +435,25 @@ branch name (see [issue #37835](https://github.com/github/gh-aw/issues/37835)).
 
 By default, pushes are replayed through GitHub's signed commit API because `signed-commits: true` means signed commits are required. Set `signed-commits: false` only for repositories that do not require signed commits; this uses direct `git push` and can preserve merge commits that the signed commit API cannot represent. This field is supported by both `create-pull-request` and `push-to-pull-request-branch`.
 
-For unsigned bundle pushes that newly incorporate the PR base commit fetched by the handler, patch-size, changed-content-size, and protected-file checks compare against a validation-only merge of the old PR head and that trusted base. Unmodified base-branch changes are excluded; agent changes and conflict resolutions remain subject to the checks. Agent-created octopus merges (three or more parents) are rejected in this mode because their resolution changes cannot be validated with Git's remerge diffs. If the trusted baseline cannot be established, checks use the old PR head. Staged mode retains offline patch-preview checks. The push remains append-only: merge an already-fetched base ref rather than rebasing existing PR commits.
+For unsigned bundle pushes, the handler pins the current PR base branch tip using an exact-ref, metadata-only `git ls-remote` against the target checkout's origin, with that checkout's credentials rather than a fork-head token. It does not fetch objects to establish this optional baseline. After local bundle import, patch-size, changed-content-size, and protected-file checks can compare against a validation-only merge of the old PR head and that trusted tip when the necessary objects and ancestry are locally available. Unmodified base-branch changes are excluded; agent changes and conflict resolutions remain subject to the checks. Agent-created octopus merges (three or more parents) are rejected because their resolution changes cannot be validated with Git's remerge diffs.
+
+Local bundle import and optional ancestry/tree inspection deny all Git transports, including promisor lazy downloads. This uses `GIT_ALLOW_PROTOCOL` as well as `GIT_NO_LAZY_FETCH`, so it does not depend on newer Git versions recognizing the latter. Missing credentials, unavailable history or blobs, and unsupported `merge-tree` retain conservative PR-head validation; they never cause an optional baseline fetch. A newer base tip not merged into the candidate also retains PR-head validation; workflow-start SHAs and agent metadata are not alternate provenance sources. Staged mode retains offline patch-preview checks. The push remains append-only: merge an already-provisioned base ref rather than rebasing existing PR commits.
+
+### Bundle prerequisites and history downloads
+
+`create-pull-request` and `push-to-pull-request-branch` import bundles without automatic prerequisite downloads by default. A missing prerequisite fails with guidance to provision the required objects in the target checkout, or explicitly enable recovery:
+
+```yaml wrap
+safe-outputs:
+  push-to-pull-request-branch:
+    allow-full-history-fetch: true
+```
+
+**This opt-in permits unbounded downloads**, including `--unshallow` and fetch-by-SHA. Commit depth, an exact SHA, and `blob:none` are not byte limits. Prefer configuring the required refs and history during authenticated [`checkout:`](/gh-aw/reference/checkout/) instead, using credentials for each target repository. Choose checkout depth deliberately for the repository; full history can be prohibitively expensive in a large monorepo. A bundle whose prerequisites and required content are already present needs no recovery, including in shallow checkouts. Partial clones may fail locally when required content is absent, even if the commit object exists.
+
+`allow-full-history-fetch` is configured independently under `safe-outputs.create-pull-request` or `safe-outputs.push-to-pull-request-branch`. Both default to `false` and accept only a literal boolean. The setting affects that handler's bundle prerequisite recovery, not optional baseline discovery, ordinary PR-head fetch/push operations, or other network paths. Recovery authentication failures use fixed diagnostics without printing credentials or raw remote errors.
+
+For `push-to-pull-request-branch`, opted-in recovery uses the validated PR head repository and the same credentials as PR-head fetch/push operations, including a configured automation fork (`head-repo` and `head-github-token`). Fork credentials are scoped to recovery and restored before local bundle import and validation. Trusted base discovery still queries only target `origin` metadata with target-checkout credentials; it never fetches base objects. `create-pull-request` recovery continues to use its checkout's `origin`.
 
 ### Cross-repo usage
 

@@ -179,6 +179,8 @@ Fallback chain:
 
 `custom github-token` → `secrets.GH_AW_GITHUB_TOKEN` → `secrets.GITHUB_TOKEN`
 
+The compiler's activation job checks configured magic tokens for unsupported OAuth-token formats. It passes the relevant secrets through step-level environment variables for that validation; workflow authors should not move these compiler-managed values into workflow- or job-level `env`, or use a GitHub Environment as a workaround for scanner findings. A scanner policy finding on these compiler-generated references is distinct from a compiler error or an authored top-level secret binding, which can expose the value to the agent. Configure activation API access with `on.github-token` or `on.github-app`; those settings control the token used by activation operations but do not change the compiler-managed validation step.
+
 **How to create it**:
 
 1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) owned by a user account.

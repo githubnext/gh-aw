@@ -71,7 +71,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-gemini-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.62.0"
+          GH_AW_INFO_VERSION: "0.64.0"
           GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"
           GH_AW_INFO_ENGINE_ID: "gemini"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
@@ -346,7 +346,7 @@ jobs:
       contents: read
     timeout-minutes: 60
     env:
-      GH_AW_ENGINE_VERSION: "0.62.0"
+      GH_AW_ENGINE_VERSION: "0.64.0"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_WORKFLOW_ID_SANITIZED: workflow
     outputs:
@@ -380,7 +380,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-gemini-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.62.0"
+          GH_AW_INFO_VERSION: "0.64.0"
           GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"
           GH_AW_INFO_ENGINE_ID: "gemini"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
@@ -435,7 +435,7 @@ jobs:
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" vAWF_VERSION --rootless
       - name: Install Gemini CLI
-        run: npm install --ignore-scripts -g @google/gemini-cli@0.62.0
+        run: npm install --ignore-scripts -g @google/gemini-cli@0.64.0
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -668,6 +668,7 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
       - name: Redact secrets in logs
+        id: redact_secrets
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -744,7 +745,7 @@ jobs:
             const { main } = require(path.join(actionsDir, 'awf_reflect_summary.cjs'));
             await main();
       - name: Upload agent artifacts
-        if: always()
+        if: always() && steps.redact_secrets.outcome == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -766,6 +767,7 @@ jobs:
             /tmp/gh-aw/pre-agent-audit.txt
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/awf-config.json
+            /tmp/gh-aw/awf-resolved-config.json
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/sandbox/firewall/audit/
             /tmp/gh-aw/sandbox/firewall/awf-reflect.json
@@ -805,7 +807,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-gemini-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "0.62.0"
+          GH_AW_INFO_VERSION: "0.64.0"
           GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"
           GH_AW_INFO_ENGINE_ID: "gemini"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}

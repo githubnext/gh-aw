@@ -28,6 +28,8 @@ interface HandlerConfig {
   fallback_as_pull_request?: boolean;
   /** When false, skip GraphQL signed commits and push the local git history directly. */
   signed_commits?: boolean;
+  /** Explicit opt-in to potentially unbounded bundle prerequisite downloads. Defaults to false. */
+  allow_full_history_fetch?: boolean;
   /** Additional handler-specific configuration properties */
   [key: string]: any;
 }

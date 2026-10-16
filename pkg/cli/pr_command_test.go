@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +15,16 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestTransferPRRejectsInvalidURL(t *testing.T) {
+	t.Parallel()
+	if err := transferPR("invalid", "", false); err == nil {
+		t.Fatal("transfer must reject invalid source URLs before performing remote operations")
+	}
+}
 
 func TestCreatePRForRepoSkipsRepositoryLookup(t *testing.T) {
 	originalRunGH := createPRRunGHContextWithHost
@@ -42,6 +53,295 @@ func TestCreatePRForRepoSkipsRepositoryLookup(t *testing.T) {
 	if !strings.Contains(args, "pr create --repo owner/repo") {
 		t.Fatalf("gh args = %q, want explicit repository", args)
 	}
+}
+
+func TestCreatePRPrintsFullURL(t *testing.T) {
+	for _, repoSlug := range []string{"", "owner/repo"} {
+		for _, verbose := range []bool{false, true} {
+			t.Run(fmt.Sprintf("repo=%s/verbose=%t", repoSlug, verbose), func(t *testing.T) {
+				originalRunGH := createPRRunGHContextWithHost
+				t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+
+				prURL := "https://github.example.com/owner/repo/pull/42"
+				createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, args ...string) ([]byte, error) {
+					if args[0] == "repo" {
+						return []byte(`{"owner":{"login":"owner"},"name":"repo"}`), nil
+					}
+					return []byte(prURL + "\n"), nil
+				}
+
+				_, stderr := captureOutput(t, func() error {
+					var number int
+					var url string
+					var err error
+					if repoSlug == "" {
+						number, url, err = createPR(context.Background(), "feature", "Title", "Body", verbose)
+					} else {
+						number, url, err = createPRForRepo(context.Background(), "feature", "Title", "Body", repoSlug, verbose)
+					}
+					if number != 42 || url != prURL {
+						t.Errorf("createPR returned (%d, %q), want (42, %q)", number, url, prURL)
+					}
+					return err
+				})
+				if strings.Count(stderr, prURL) != 1 {
+					t.Fatalf("stderr = %q, want full PR URL exactly once", stderr)
+				}
+				if !strings.Contains(stderr, "Created pull request: "+prURL+"\n") {
+					t.Fatalf("stderr = %q, want unbroken full PR URL", stderr)
+				}
+			})
+		}
+	}
+}
+
+func TestCreatePRFailureDoesNotPrintSuccess(t *testing.T) {
+	originalRunGH := createPRRunGHContextWithHost
+	t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+	createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, _ ...string) ([]byte, error) {
+		return nil, errors.New("creation failed")
+	}
+
+	_, stderr := captureOutput(t, func() error {
+		_, _, err := createPRForRepo(context.Background(), "feature", "Title", "Body", "owner/repo", false)
+		if err == nil {
+			t.Error("expected PR creation error")
+		}
+		return nil
+	})
+	if strings.Contains(stderr, "Created pull request:") {
+		t.Fatalf("stderr = %q, unexpected success message", stderr)
+	}
+}
+
+func TestCreateTransferPRPrintsFullURL(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+	prependFakeGH(t, `case "$1 $2" in
+	  'api /user') echo transfer-user;;
+	  'api /repos/owner/repo/collaborators/transfer-user/permission') echo '{"permission":"write"}';;
+	  'pr create') echo 'https://github.example.com/owner/repo/pull/99';;
+	  *) echo unexpected gh "$@" >&2; exit 1;;
+	esac
+	`)
+
+	_, stderr := captureOutput(t, func() error {
+		return createTransferPR("owner", "repo", &PRInfo{Title: "Title", Number: 42, SourceRepo: "source/repo"}, "main", false)
+	})
+	if !strings.Contains(stderr, "Created pull request: https://github.example.com/owner/repo/pull/99\n") {
+		t.Fatalf("stderr = %q, want full transferred PR URL", stderr)
+	}
+}
+
+func TestCreateTransferPRAutoMerge(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+	prependFakeGH(t, `case "$1 $2" in
+	  'api /user') echo transfer-user;;
+	  'api /repos/owner/repo/collaborators/transfer-user/permission') echo '{"permission":"write"}';;
+	  'pr create') echo 'https://github.example.com/owner/repo/pull/99';;
+	  *) echo unexpected gh "$@" >&2; exit 1;;
+	esac
+	`)
+	original := autoMergeRunGH
+	t.Cleanup(func() { autoMergeRunGH = original })
+	for _, fail := range []bool{false, true} {
+		calls := 0
+		autoMergeRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			calls++
+			if fail {
+				return nil, errors.New("auto-merge denied")
+			}
+			if calls == 1 {
+				if !strings.Contains(strings.Join(args, " "), "number=99") {
+					t.Fatal("auto-merge must target the newly created PR, not the source")
+				}
+				return []byte(autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_99")), nil
+			}
+			return []byte(`{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_99"}}}}`), nil
+		}
+		err := createTransferPRWithAutoMerge(context.Background(), "owner", "repo", &PRInfo{Title: "Title", Number: 42, SourceRepo: "source/repo"}, "main", false, true)
+		if fail {
+			if err == nil || !strings.Contains(err.Error(), "pull/99") || !strings.Contains(err.Error(), "remains open") {
+				t.Fatalf("error = %v, want retained transferred PR URL", err)
+			}
+		} else if err != nil || calls != 2 {
+			t.Fatalf("error = %v, calls = %d, want success with two API calls", err, calls)
+		}
+	}
+}
+
+func TestCreatePRWithChangesPrintsURLBeforeCleanup(t *testing.T) {
+	for _, failCleanup := range []bool{false, true} {
+		t.Run(fmt.Sprintf("failCleanup=%t", failCleanup), func(t *testing.T) {
+			repoDir := initPRTransferRepo(t)
+			chdirForTest(t, repoDir)
+			if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("updated\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			originalRunGH := createPRRunGHContextWithHost
+			t.Cleanup(func() { createPRRunGHContextWithHost = originalRunGH })
+			prURL := "https://github.example.com/owner/repo/pull/42"
+			createPRRunGHContextWithHost = func(_ context.Context, _ string, _ string, args ...string) ([]byte, error) {
+				if args[0] == "repo" {
+					return []byte(`{"owner":{"login":"owner"},"name":"repo"}`), nil
+				}
+				if failCleanup {
+					runGit(t, repoDir, "branch", "-D", "main")
+					runGit(t, repoDir, "config", "checkout.guess", "false")
+				}
+				return []byte(prURL + "\n"), nil
+			}
+
+			_, stderr := captureOutput(t, func() error {
+				url, err := CreatePRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false)
+				if url != prURL {
+					t.Errorf("PR URL = %q, want %q", url, prURL)
+				}
+				if failCleanup {
+					if err == nil || !strings.Contains(err.Error(), "failed to switch back") {
+						t.Errorf("error = %v, want branch cleanup error", err)
+					}
+					return nil
+				}
+				return err
+			})
+			if strings.Count(stderr, prURL) != 1 {
+				t.Fatalf("stderr = %q, want full PR URL exactly once", stderr)
+			}
+		})
+	}
+}
+
+func TestCreatePRWithChangesAutoMerge(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		autoMerge    bool
+		createFails  bool
+		autoFails    bool
+		cleanupFails bool
+	}{
+		{name: "disabled"},
+		{name: "enabled", autoMerge: true},
+		{name: "creation fails", autoMerge: true, createFails: true},
+		{name: "activation fails", autoMerge: true, autoFails: true},
+		{name: "activation and cleanup fail", autoMerge: true, autoFails: true, cleanupFails: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir := initPRTransferRepo(t)
+			chdirForTest(t, repoDir)
+			if err := os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("updated\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			originalCreate, originalAuto := createPRRunGHContextWithHost, autoMergeRunGH
+			t.Cleanup(func() {
+				createPRRunGHContextWithHost, autoMergeRunGH = originalCreate, originalAuto
+			})
+			prURL := "https://github.example.com/owner/repo/pull/42"
+			autoMergeErr := errors.New("auto-merge permission denied")
+			createPRRunGHContextWithHost = func(_ context.Context, _, _ string, args ...string) ([]byte, error) {
+				if args[0] == "repo" {
+					return []byte(`{"owner":{"login":"owner"},"name":"repo"}`), nil
+				}
+				if tc.createFails {
+					return nil, errors.New("creation failed")
+				}
+				if tc.cleanupFails {
+					runGit(t, repoDir, "branch", "-D", "main")
+					runGit(t, repoDir, "config", "checkout.guess", "false")
+				}
+				return []byte(prURL), nil
+			}
+			autoCalls := 0
+			autoMergeRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				autoCalls++
+				if tc.autoFails {
+					return nil, autoMergeErr
+				}
+				if autoCalls == 1 {
+					return []byte(autoMergeRepoJSON(true, "SQUASH", true, true, true, "PR_42")), nil
+				}
+				return []byte(`{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"id":"PR_42"}}}}`), nil
+			}
+			originalSwitch := switchPRBranch
+			t.Cleanup(func() { switchPRBranch = originalSwitch })
+			cleanupErr := errors.New("branch cleanup failed")
+			if tc.autoFails && tc.cleanupFails {
+				switchPRBranch = func(branch string, verbose bool) error {
+					_ = originalSwitch(branch, verbose)
+					return cleanupErr
+				}
+			}
+			url, err := createPRWithChanges(context.Background(), "test", "Update README", "Title", "Body", false, tc.autoMerge)
+			if tc.createFails {
+				if err == nil || url != "" || autoCalls != 0 {
+					t.Fatalf("failed creation = (%q, %v), auto calls %d", url, err, autoCalls)
+				}
+			} else {
+				if url != prURL {
+					t.Fatalf("PR URL = %q, want %q", url, prURL)
+				}
+				if tc.autoFails {
+					if err == nil || !strings.Contains(err.Error(), prURL) || !strings.Contains(err.Error(), "remains open") {
+						t.Fatalf("error = %v, want retained PR and auto-merge error", err)
+					}
+					if !errors.Is(err, autoMergeErr) {
+						t.Fatalf("error = %v, want wrapped auto-merge error", err)
+					}
+					if tc.cleanupFails && !strings.Contains(err.Error(), "failed to switch back") {
+						t.Fatalf("error = %v, want both errors", err)
+					}
+					if tc.cleanupFails && !errors.Is(err, cleanupErr) {
+						t.Fatalf("error = %v, want wrapped branch cleanup error", err)
+					}
+				} else if err != nil {
+					t.Fatal(err)
+				}
+				if !tc.autoMerge && autoCalls != 0 {
+					t.Fatal("auto-merge disabled must not call GitHub")
+				}
+				if tc.autoMerge && !tc.autoFails && autoCalls != 2 {
+					t.Fatalf("auto calls = %d, want 2", autoCalls)
+				}
+			}
+			if !tc.cleanupFails {
+				if branch := strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")); branch != "main" {
+					t.Fatalf("current branch = %q, want main", branch)
+				}
+			}
+		})
+	}
+}
+
+func TestApplyPatchAndCreateTransferPRRestoresBranchAfterFailure(t *testing.T) {
+	repoDir := initPRTransferRepo(t)
+	chdirForTest(t, repoDir)
+
+	originalApply, originalCreate, originalSwitch := applyPatchForTransfer, createTransferPRForTransfer, switchTransferBranch
+	t.Cleanup(func() {
+		applyPatchForTransfer, createTransferPRForTransfer, switchTransferBranch = originalApply, originalCreate, originalSwitch
+	})
+
+	applyPatchForTransfer = func(string, *PRInfo, string, string, bool) (string, error) {
+		runGit(t, repoDir, "checkout", "-b", "transfer-pr-test")
+		return "transfer-pr-test", nil
+	}
+	autoMergeErr := errors.New("auto-merge activation failed")
+	restoreErr := errors.New("branch restoration failed")
+	createTransferPRForTransfer = func(context.Context, string, string, *PRInfo, string, bool, bool) error {
+		return fmt.Errorf("pull request https://github.com/owner/repo/pull/42 remains open: %w", autoMergeErr)
+	}
+	switchTransferBranch = func(branch string, verbose bool) error {
+		_ = originalSwitch(branch, verbose)
+		return restoreErr
+	}
+
+	err := applyPatchAndCreateTransferPR(context.Background(), "patch", &PRInfo{}, "owner", "repo", false, true)
+	require.ErrorIs(t, err, autoMergeErr)
+	require.ErrorIs(t, err, restoreErr)
+	require.ErrorContains(t, err, "https://github.com/owner/repo/pull/42")
+	assert.Equal(t, "main", strings.TrimSpace(gitOutput(t, repoDir, "branch", "--show-current")))
 }
 
 func TestCreatePatchFromPRWritesOnlyDiff(t *testing.T) {

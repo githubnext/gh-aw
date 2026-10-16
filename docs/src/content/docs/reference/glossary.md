@@ -845,7 +845,7 @@ See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Agent Plugins (`plugins:`)
 
-An experimental top-level frontmatter field that installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, a path to a plugin within it; `gh aw compile` resolves and pins each reference to a specific commit SHA so a moving branch or tag ref cannot silently change what gets installed at run time. Supported by Copilot, Claude, Codex, and any imported engine definition that declares a `behaviors.plugins` block (such as the shared Cursor and Kiro engines); using `plugins:` with an unsupported engine is a compile-time error. Compiling a workflow that uses `plugins:` emits a warning because the feature is experimental. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#agent-plugins-plugins).
+An experimental top-level frontmatter field that installs [Agent Plugins](https://agent-plugins.org) through the selected agentic engine. Each entry identifies a GitHub repository and, optionally, a path to a plugin within it; `gh aw compile` resolves and pins each reference to a specific commit SHA so a moving branch or tag ref cannot silently change what gets installed at run time. Supported by Copilot, Claude, Codex, and any imported engine definition that declares a `behaviors.plugins` block (such as the shared Cursor engine); using `plugins:` with an unsupported engine is a compile-time error. Compiling a workflow that uses `plugins:` emits a warning because the feature is experimental. See [Frontmatter Reference](/gh-aw/reference/frontmatter/#agent-plugins-plugins).
 
 ### Custom Provider (`OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`)
 

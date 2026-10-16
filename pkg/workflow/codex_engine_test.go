@@ -304,11 +304,15 @@ func TestCodexEngineWithVersion(t *testing.T) {
 }
 
 func TestCodexEngineStableReleaseInstallation(t *testing.T) {
-	// The verified official codex-npm-0.162.1.tgz manifest retains all six
+	// The verified official codex-npm-0.163.0.tgz manifest retains all six
 	// platform aliases. A stale local mirror must not change the installer.
-	for _, version := range []string{"0.162.1", "0.159.3"} {
+	for _, version := range []string{string(constants.DefaultCodexVersion), "0.162.1", "0.159.3"} {
 		t.Run(version, func(t *testing.T) {
-			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex", Version: version}}
+			configuredVersion := version
+			if version == string(constants.DefaultCodexVersion) {
+				configuredVersion = ""
+			}
+			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex", Version: configuredVersion}}
 			steps := NewCodexEngine().GetInstallationSteps(data)
 			require.Len(t, steps, 2)
 			assert.Contains(t, strings.Join(steps[0], "\n"), "Setup Node.js")

@@ -125,7 +125,7 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Default exec mock
     mockExec = {
       exec: vi.fn().mockResolvedValue(0),
-      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+      getExecOutput: vi.fn().mockImplementation((_cmd, args) => Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" })),
     };
 
     // Default pull request context
@@ -2351,7 +2351,9 @@ index 0000000..abc1234
       fs.writeFileSync(changedPath, Buffer.alloc(contentSize));
       const pr = (await mockGithub.rest.pulls.get()).data;
       pr.base.sha = trustedBase;
+      pr.base.ref = "main";
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "ls-remote" && args.includes("--refs")) return { exitCode: 0, stdout: `${trustedBase}\trefs/heads/main\n`, stderr: "" };
         if (args[0] === "merge-base") {
           return { exitCode: args[3] === "remote-head" ? 1 : 0, stdout: "", stderr: "" };
         }
@@ -2364,7 +2366,7 @@ index 0000000..abc1234
         if (args[0] === "log" && args.includes("--patch")) return { exitCode: 0, stdout: historyPatch, stderr: "" };
         if (args[0] === "log" && args[1] === "--format=") return { exitCode: 0, stdout: historyFile ? historyFile + "\0" : "", stderr: "" };
         if (args[0] === "rev-list" && args[1] === "--min-parents=3") return { exitCode: 0, stdout: octopusMerge ? "c".repeat(40) + "\n" : "", stderr: "" };
-        return { exitCode: 0, stdout: "remote-head\n", stderr: "" };
+        return { exitCode: 0, stdout: args[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "remote-head\n", stderr: "" };
       });
       const pushModule = require("./push_signed_commits.cjs");
       const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
@@ -2381,7 +2383,8 @@ index 0000000..abc1234
           expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({ baseRef: "remote-head", signedCommits: false }));
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${validationTree}..HEAD`], expect.any(Object));
         }
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"], expect.objectContaining({ silent: true }));
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
         if (expectedError === "bundle modifies protected files") {
           const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
@@ -2424,17 +2427,16 @@ index 0000000..abc1234
       });
     });
 
-    it("retains the preview size limit when the trusted base fetch fails", async () => {
+    it("retains the preview size limit when trusted base metadata is unavailable", async () => {
       const branch = "merge-base-fetch-fails";
       createPatchFile(branch, "x".repeat(4096));
       fs.writeFileSync(canonicalBundlePath(branch), "bundle content");
       const pr = (await mockGithub.rest.pulls.get()).data;
       pr.base.sha = "b".repeat(40);
-      mockExec.exec.mockImplementation(async (_cmd, args) => {
-        if (args[0] === "fetch" && args[2] === pr.base.sha) throw new Error("base unavailable");
-        return 0;
-      });
+      pr.base.ref = "main";
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "ls-remote" && args.includes("--refs")) return { exitCode: 128, stdout: "", stderr: "synthetic credential-bearing diagnostic" };
+        if (args[0] === "bundle" && args[1] === "unbundle") return { exitCode: 0, stdout: `${"a".repeat(40)} HEAD\n`, stderr: "" };
         if (args[0] === "log" && args.includes("--patch")) return { exitCode: 0, stdout: "x".repeat(4096), stderr: "" };
         return { exitCode: 0, stdout: "", stderr: "" };
       });
@@ -2443,6 +2445,8 @@ index 0000000..abc1234
       const result = await handler({ branch, diff_size: 0 }, {});
       expect(result.success).toBe(false);
       expect(result.error).toContain("Patch size");
+      expect(mockCore.warning).toHaveBeenCalledWith("Unable to resolve trusted PR base metadata; using PR-head validation");
+      expect(JSON.stringify(mockCore.warning.mock.calls)).not.toContain("synthetic");
       expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "update-ref" && args[1] === "refs/heads/feature-branch")).toBe(false);
     });
 
@@ -2462,7 +2466,7 @@ index 0000000..abc1234
     it("should accept patches within max size", async () => {
       const patchPath = createPatchFile("should-accept-patches-within-max-size"); // Small valid patch
 
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => ({ exitCode: 0, stdout: args[0] === "bundle" && args[1] === "unbundle" ? `${"a".repeat(40)} HEAD\n` : "abc123\n", stderr: "" }));
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 });
@@ -2531,7 +2535,7 @@ index 0000000..abc1234
       const patchPath = createPatchFile("should-prefer-diff-size-over-bundle-file-size-for-the-limit-", "small patch content");
       fs.writeFileSync(bundlePath, Buffer.alloc(2 * 1024 * 1024));
 
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: "abc123\n", stderr: "" });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args) => ({ exitCode: 0, stdout: args[0] === "bundle" && args[1] === "unbundle" ? `${"a".repeat(40)} HEAD\n` : "abc123\n", stderr: "" }));
 
       const module = await loadModule();
       const handler = await module.main({ max_patch_size: 1024 }); // 1 MB max
@@ -2583,7 +2587,7 @@ index 0000000..abc1234
 
       try {
         const prereqSha = "a".repeat(40);
-        let prereqFetched = false;
+        const prereqFetched = true;
         mockExec.getExecOutput.mockImplementation((cmd, args, options) => {
           if (cmd === "git" && args[0] === "ls-remote") {
             return Promise.resolve({ exitCode: 0, stdout: "remote-head\trefs/heads/feature-branch\n", stderr: "" });
@@ -2607,30 +2611,26 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
-        mockExec.exec.mockImplementation((cmd, args) => {
-          if (cmd === "git" && Array.isArray(args) && args[0] === "fetch" && args.includes("origin") && args.includes(prereqSha)) {
-            prereqFetched = true;
-          }
-          return Promise.resolve(0);
-        });
-
         const module = await loadModule();
         const handler = await module.main({});
         const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
         // Initial bundle fetch is via getExecOutput (with ignoreReturnCode: true), not exec.exec
-        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(([, args, options]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode);
+        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(
+          ([, args, options]) => Array.isArray(args) && args[0] === "bundle" && args[1] === "unbundle" && isBundleSnapshot(args[2], bundlePath) && options && options.ignoreReturnCode
+        );
         expect(bundleFetchCall).toBeDefined();
-        expect(bundleFetchCall[1]).toEqual(["fetch", bundleSnapshot(bundlePath), "refs/heads/feature-branch:refs/bundles/push-feature-branch"]);
+        expect(bundleFetchCall[1]).toEqual(["bundle", "unbundle", bundleSnapshot(bundlePath)]);
+        expect(bundleFetchCall[2].env.GIT_ALLOW_PROTOCOL).toBe("");
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/heads/feature-branch", "refs/bundles/push-feature-branch", "remote-head"], expect.any(Object));
         expect(mockExec.exec).toHaveBeenCalledWith("git", ["reset", "--hard"], expect.any(Object));
         expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["merge", "--ff-only", "refs/bundles/push-feature-branch"], expect.any(Object));
-        // Primary path: the exact prerequisite SHA is fetched directly from origin; no broad deepen.
+        // Already-provisioned prerequisites never trigger a recovery download.
         const directFetch = mockExec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && args.includes("origin") && args.includes(prereqSha));
-        expect(directFetch).toBeTruthy();
+        expect(directFetch).toBeUndefined();
         const deepenCallIndex = mockExec.exec.mock.calls.findIndex(([, args]) => Array.isArray(args) && args[0] === "fetch" && typeof args[1] === "string" && args[1].startsWith("--deepen="));
         expect(deepenCallIndex).toBe(-1);
       } finally {
@@ -2676,7 +2676,7 @@ index 0000000..abc1234
             return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
           }
           if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
-            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
           }
           if (cmd === "git" && args[0] === "diff" && args[1] === "--name-only" && args[2] === "--no-renames") {
             return Promise.resolve({ exitCode: 0, stdout: `${actualFiles.join("\0")}\0`, stderr: "" });
@@ -2684,7 +2684,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -2726,7 +2726,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -2737,18 +2737,16 @@ index 0000000..abc1234
         expect(result.success).toBe(true);
 
         // Bundle fetch must use the sanitized API branch name, not the agent-supplied message.branch
-        const bundleFetchCall = mockExec.getExecOutput.mock.calls.find(([, args, opts]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && opts && opts.ignoreReturnCode);
-        expect(bundleFetchCall).toBeDefined();
-        // Refspec must use the sanitized name "feature-branch", not "feature-branch; rm -rf /"
-        expect(bundleFetchCall[1][2]).toMatch(/^refs\/heads\/feature-branch:/);
-        expect(bundleFetchCall[1][2]).not.toContain(";");
-        expect(bundleFetchCall[1][2]).not.toContain("rm");
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "unbundle", bundleSnapshot(bundlePath)], expect.objectContaining({ silent: true }));
+        const update = mockExec.exec.mock.calls.find(([, args]) => args[0] === "update-ref" && args[1] === "refs/heads/feature-branch");
+        expect(update).toBeDefined();
+        expect(update[1][1]).not.toContain(";");
       } finally {
         pushSignedSpy.mockRestore();
       }
     });
 
-    it("should fetch a HEAD-only filtered bundle when the named branch ref is absent", async () => {
+    it("imports a HEAD-only bundle without prerequisite recovery downloads", async () => {
       const bundlePath = canonicalBundlePath("feature-branch");
       const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
@@ -2772,7 +2770,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && args[2].startsWith("refs/heads/") && options && options.ignoreReturnCode) {
             return Promise.resolve({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/heads/feature-branch" });
           }
-          if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads") {
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "unbundle") {
             return Promise.resolve({ exitCode: 0, stdout: `${bundleHead} HEAD\n`, stderr: "" });
           }
           if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && args[2].startsWith("HEAD:") && options && options.ignoreReturnCode) {
@@ -2781,7 +2779,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -2789,10 +2787,9 @@ index 0000000..abc1234
         const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "list-heads", bundleSnapshot(bundlePath)], expect.any(Object));
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", bundleSnapshot(bundlePath), "HEAD:refs/bundles/push-feature-branch"], expect.objectContaining({ ignoreReturnCode: true }));
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", prerequisiteSha], expect.any(Object));
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", bundleSnapshot(bundlePath), "HEAD:refs/bundles/push-feature-branch"], expect.any(Object));
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "unbundle", bundleSnapshot(bundlePath)], expect.objectContaining({ env: expect.objectContaining({ GIT_ALLOW_PROTOCOL: "" }) }));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/bundles/push-feature-branch", bundleHead], expect.any(Object));
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "--filter=blob:none", "origin", prerequisiteSha], expect.any(Object));
       } finally {
         pushSignedSpy.mockRestore();
       }
@@ -2822,16 +2819,16 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && args[2].startsWith("refs/heads/feature-branch:") && options?.ignoreReturnCode) {
             return Promise.resolve({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/heads/feature-branch" });
           }
-          if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads") {
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "unbundle") {
             return Promise.resolve({ exitCode: 0, stdout: `${bundleHead} ${bundleSourceRef}\n`, stderr: "" });
           }
           if (cmd === "git" && args[0] === "check-ref-format") {
-            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
           }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -2840,7 +2837,7 @@ index 0000000..abc1234
 
         expect(result.success).toBe(true);
         expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["check-ref-format", bundleSourceRef], expect.objectContaining({ ignoreReturnCode: true }));
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", bundleSnapshot(bundlePath), `${bundleSourceRef}:refs/bundles/push-feature-branch`], expect.objectContaining({ ignoreReturnCode: true }));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/bundles/push-feature-branch", bundleHead], expect.any(Object));
       } finally {
         pushSignedSpy.mockRestore();
       }
@@ -2870,7 +2867,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && args[2].startsWith("refs/heads/feature-branch:") && options?.ignoreReturnCode) {
             return Promise.resolve({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/heads/feature-branch" });
           }
-          if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads") {
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "unbundle") {
             return Promise.resolve({ exitCode: 0, stdout: `${bundleHead} ${invalidBranchRef}\n${bundleHead} HEAD\n`, stderr: "" });
           }
           if (cmd === "git" && args[0] === "check-ref-format") {
@@ -2879,7 +2876,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "1\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -2887,7 +2884,7 @@ index 0000000..abc1234
         const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(true);
-        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", bundleSnapshot(bundlePath), "HEAD:refs/bundles/push-feature-branch"], expect.objectContaining({ ignoreReturnCode: true }));
+        expect(mockExec.exec).toHaveBeenCalledWith("git", ["update-ref", "refs/bundles/push-feature-branch", bundleHead], expect.any(Object));
       } finally {
         pushSignedSpy.mockRestore();
       }
@@ -2914,13 +2911,13 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && args[2].startsWith("refs/heads/feature-branch:") && options?.ignoreReturnCode) {
             return Promise.resolve({ exitCode: 128, stdout: "", stderr: "fatal: couldn't find remote ref refs/heads/feature-branch" });
           }
-          if (cmd === "git" && args[0] === "bundle" && args[1] === "list-heads") {
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "unbundle") {
             return Promise.resolve({ exitCode: 0, stdout: bundleSourceRefs.map(ref => `${bundleHead} ${ref}`).join("\n"), stderr: "" });
           }
           if (cmd === "git" && args[0] === "check-ref-format") {
-            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -2928,13 +2925,13 @@ index 0000000..abc1234
         const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain("expected exactly 1 refs/heads entry, found 2");
+        expect(result.error).toContain("unique source ref");
       } finally {
         pushSignedSpy.mockRestore();
       }
     });
 
-    it("should fetch prerequisite commits and retry bundle fetch when bundle lacks prerequisites", async () => {
+    it("fails with opt-in guidance rather than fetching missing bundle prerequisites", async () => {
       const bundlePath = canonicalBundlePath("feature-branch");
       const patchPath = createPatchFile("feature-branch", "small patch content");
       fs.writeFileSync(bundlePath, "bundle content");
@@ -2954,25 +2951,114 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
             return Promise.resolve({ exitCode: 0, stdout: "false\n", stderr: "" });
           }
-          if (cmd === "git" && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath) && options && options.ignoreReturnCode) {
+          if (cmd === "git" && args[0] === "bundle" && args[1] === "unbundle" && isBundleSnapshot(args[2], bundlePath) && options && options.ignoreReturnCode) {
             // Initial bundle fetch fails with prerequisite error (the real race condition scenario)
             return Promise.resolve({ exitCode: 1, stderr: `error: Repository lacks these prerequisite commits:\nerror: ${missingSha}`, stdout: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
         const handler = await module.main({});
         const result = await handler({ branch: "feature-branch", diff_size: 5 * 1024 }, {});
 
-        expect(result.success).toBe(true);
-        // Repo is not shallow and not sparse in this scenario, so no --filter=blob:none is used:
-        // the local clone already has all blobs and we must not convert it to a partial clone.
-        expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", missingSha], expect.any(Object));
-        // Should have retried the bundle fetch via exec after fetching prerequisites
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("allow-full-history-fetch: true");
+        expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", missingSha], expect.any(Object));
         const bundleRetryFetch = mockExec.exec.mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "fetch" && isBundleSnapshot(args[1], bundlePath));
-        expect(bundleRetryFetch).toBeDefined();
-        expect(bundleRetryFetch[1]).toEqual(["fetch", bundleSnapshot(bundlePath), "refs/heads/feature-branch:refs/bundles/push-feature-branch"]);
+        expect(bundleRetryFetch).toBeUndefined();
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
+    it.each([
+      { fork: false, failRecovery: false },
+      { fork: true, failRecovery: false },
+      { fork: true, failRecovery: true },
+    ])("scopes opted-in bundle recovery to PR-head credentials without changing target metadata (fork: $fork, failure: $failRecovery)", async ({ fork, failRecovery }) => {
+      const bundlePath = canonicalBundlePath("feature-branch");
+      createPatchFile("feature-branch", "small patch content");
+      fs.writeFileSync(bundlePath, "bundle content");
+      const prerequisite = "b".repeat(40);
+      const candidate = "c".repeat(40);
+      const targetHeader = "Authorization: basic synthetic-target-checkout";
+      const headToken = "synthetic-head-token";
+      const headHeader = `Authorization: basic ${Buffer.from(`x-access-token:${headToken}`).toString("base64")}`;
+      const headRepo = fork ? "test-owner/automation-fork" : "test-owner/test-repo";
+      const remote = fork ? "https://github.com/test-owner/automation-fork.git" : "origin";
+      const head = { ref: "feature-branch", repo: { full_name: headRepo, fork } };
+      mockContext.payload.pull_request.head = head;
+      mockGithub.rest.pulls.get.mockResolvedValue({
+        data: { head, base: { ref: "main", repo: { full_name: "test-owner/test-repo" } }, title: "Recovery PR", labels: [] },
+      });
+      let header = targetHeader;
+      let recovered = false;
+      const pushSignedSpy = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockResolvedValue(candidate);
+      mockExec.exec.mockImplementation(async (_cmd, args, options) => {
+        if (args[0] === "config" && args.includes("--replace-all")) {
+          expect(options.silent).toBe(true);
+          header = args.at(-1);
+        }
+        return 0;
+      });
+      mockExec.getExecOutput.mockImplementation(async (_cmd, args, options) => {
+        if (args[0] === "config") {
+          if (args.includes("--get-all")) return { exitCode: 0, stdout: header ? `${header}\n` : "", stderr: "" };
+          if (args.includes("--unset-all")) header = "";
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        if (args[0] === "ls-remote") {
+          if (args.includes("--refs")) {
+            expect(header).toBe(targetHeader);
+            expect(args).toEqual(["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"]);
+            return { exitCode: 0, stdout: `${"a".repeat(40)}\trefs/heads/main\n`, stderr: "" };
+          }
+          return { exitCode: 0, stdout: `${prerequisite}\trefs/heads/feature-branch\n`, stderr: "" };
+        }
+        if (args[0] === "bundle") {
+          expect(options.env.GIT_ALLOW_PROTOCOL).toBe("");
+          expect(header).toBe(targetHeader);
+          return args[1] === "verify" ? { exitCode: 1, stdout: "", stderr: `The bundle requires this ref:\n${prerequisite}\n` } : { exitCode: 0, stdout: `${candidate} HEAD\n`, stderr: "" };
+        }
+        if (args[0] === "cat-file") return { exitCode: recovered ? 0 : 1, stdout: "", stderr: "" };
+        if (args[0] === "rev-parse") return { exitCode: 0, stdout: args[1] === "--is-shallow-repository" ? "true\n" : `${prerequisite}\n`, stderr: "" };
+        if (args[0] === "fetch") {
+          expect(args.includes(remote)).toBe(true);
+          expect(header).toBe(headHeader);
+          expect(options.silent).toBe(true);
+          if (failRecovery) return { exitCode: 128, stdout: "", stderr: `synthetic private remote diagnostic ${headToken}` };
+          if (args[1] !== "--unshallow") recovered = true;
+        }
+        return { exitCode: 0, stdout: "", stderr: "" };
+      });
+      try {
+        const module = await loadModule();
+        const handler = await module.main({
+          signed_commits: false,
+          allow_full_history_fetch: true,
+          "head-repo": headRepo,
+          "head-github-token": headToken,
+          allowed_repos: ["test-owner/test-repo", headRepo],
+        });
+        const result = await handler({ branch: "feature-branch" }, {});
+        expect(result.success).toBe(!failRecovery);
+        expect(recovered).toBe(!failRecovery);
+        expect(header).toBe(targetHeader);
+        expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", "--unshallow", remote], expect.any(Object));
+        if (failRecovery) {
+          expect(result.error).toContain("Explicit bundle history recovery failed");
+          expect(result.error).not.toContain("synthetic");
+          expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "bundle" && args[1] === "unbundle")).toBe(false);
+        } else {
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["fetch", remote, prerequisite], expect.any(Object));
+          expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "unbundle", bundleSnapshot(bundlePath)], expect.objectContaining({ env: expect.objectContaining({ GIT_ALLOW_PROTOCOL: "", GIT_NO_LAZY_FETCH: "1" }) }));
+        }
+        const logs = JSON.stringify([mockCore.info.mock.calls, mockCore.warning.mock.calls, mockCore.error.mock.calls, mockCore.debug.mock.calls]);
+        expect(logs).not.toContain(headToken);
+        expect(logs).not.toContain(headHeader);
+        expect(logs).not.toContain(targetHeader);
+        expect(logs).not.toContain("synthetic private remote diagnostic");
       } finally {
         pushSignedSpy.mockRestore();
       }
@@ -3016,7 +3102,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -3075,7 +3161,7 @@ index 0000000..abc1234
           }
           // No non-merge commits exist → return empty string
           if (cmd === "git" && args[0] === "log" && args.includes("--no-merges")) {
-            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
           }
           // Fall back: last commit message is the merge commit's message
           if (cmd === "git" && args[0] === "log" && args[1] === "-1" && args[2] === "--format=%B") {
@@ -3088,7 +3174,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -3130,7 +3216,7 @@ index 0000000..abc1234
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();
@@ -3181,12 +3267,12 @@ index 0000000..abc1234
           }
           // No staged changes after soft reset → triggers validation error
           if (cmd === "git" && args[0] === "diff" && args[1] === "--cached" && args[2] === "--name-only") {
-            return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+            return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
           }
           if (cmd === "git" && args[0] === "rev-list") {
             return Promise.resolve({ exitCode: 0, stdout: "2\n", stderr: "" });
           }
-          return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+          return Promise.resolve({ exitCode: 0, stdout: args?.[0] === "bundle" && args[1] === "unbundle" ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa HEAD\n" : "", stderr: "" });
         });
 
         const module = await loadModule();

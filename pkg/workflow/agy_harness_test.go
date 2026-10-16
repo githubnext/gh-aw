@@ -30,7 +30,7 @@ func agyHarnessCommand(t *testing.T, body string, reflectJSON string) (*exec.Cmd
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "awf_reflect.cjs"), []byte("module.exports = { ...require("+string(module)+"), fetchAWFReflect: async () => JSON.parse(process.env.AGY_TEST_REFLECT) };"), 0o600))
 	binary := filepath.Join(dir, "native-agy")
-	fixture := "#!/usr/bin/env node\nif (process.argv.includes('--version')) { console.log('1.3.3'); process.exit(0); }\n" + body
+	fixture := "#!/usr/bin/env node\nif (process.argv.includes('--version')) { console.log('1.3.6'); process.exit(0); }\n" + body
 	require.NoError(t, os.WriteFile(binary, []byte(fixture), 0o700))
 	prompt := filepath.Join(dir, "prompt with spaces.txt")
 	require.NoError(t, os.WriteFile(prompt, []byte("Literal $(touch SHOULD_NOT_EXIST)\n\"quoted\"; --model not-an-argument"), 0o600))
@@ -39,7 +39,7 @@ func agyHarnessCommand(t *testing.T, body string, reflectJSON string) (*exec.Cmd
 	cmd := exec.CommandContext(ctx, "node", harness, binary)
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "GITHUB_WORKSPACE=" + dir,
-		"GH_AW_ENGINE_VERSION=1.3.3", "GH_AW_AGY_MODEL=gemini-3.8-flash-medium",
+		"GH_AW_ENGINE_VERSION=1.3.6", "GH_AW_AGY_MODEL=gemini-3.8-flash-medium",
 		"GH_AW_PROMPT=" + prompt, "GEMINI_API_KEY=host-test-key",
 		"GOOGLE_APPLICATION_CREDENTIALS=/private/adc.json", "GOOGLE_API_KEY=other-test-key",
 		"AWF_REFLECT_ENABLED=1", "AGY_TEST_REFLECT=" + reflectJSON,
@@ -238,21 +238,25 @@ func TestAgyHarnessRejectsWrongCustomExecutableVersion(t *testing.T) {
 }
 
 func TestAgyHarnessRetainsVerifiedLegacyVersion(t *testing.T) {
-	body := `console.log(JSON.stringify({event:"result",result:{status:"SUCCESS",num_turns:1,usage:{input_tokens:10,output_tokens:2}}}));`
-	cmd, _ := agyHarnessCommand(t, body, `{"ok":true,"reflectData":{"endpoints":[{"configured":true,"provider":"gemini","models_url":"http://api-proxy:10004/v1beta/models"}]}}`)
-	binary := cmd.Args[2]
-	fixture, err := os.ReadFile(binary)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(binary, []byte(strings.ReplaceAll(string(fixture), "1.3.3", "1.3.1")), 0o700))
-	for index, value := range cmd.Env {
-		if value == "GH_AW_ENGINE_VERSION=1.3.3" {
-			cmd.Env[index] = "GH_AW_ENGINE_VERSION=1.3.1"
-		}
+	for _, version := range []string{"1.3.1", "1.3.3"} {
+		t.Run(version, func(t *testing.T) {
+			body := `console.log(JSON.stringify({event:"result",result:{status:"SUCCESS",num_turns:1,usage:{input_tokens:10,output_tokens:2}}}));`
+			cmd, _ := agyHarnessCommand(t, body, `{"ok":true,"reflectData":{"endpoints":[{"configured":true,"provider":"gemini","models_url":"http://api-proxy:10004/v1beta/models"}]}}`)
+			binary := cmd.Args[2]
+			fixture, err := os.ReadFile(binary)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(binary, []byte(strings.ReplaceAll(string(fixture), "1.3.6", version)), 0o700))
+			for index, value := range cmd.Env {
+				if value == "GH_AW_ENGINE_VERSION=1.3.6" {
+					cmd.Env[index] = "GH_AW_ENGINE_VERSION=" + version
+				}
+			}
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", out)
+			assert.Contains(t, string(out), "verified experimental Agy "+version)
+			assert.NotContains(t, string(out), "session.error")
+		})
 	}
-	out, err := cmd.CombinedOutput()
-	require.NoError(t, err, "%s", out)
-	assert.Contains(t, string(out), "verified experimental Agy 1.3.1")
-	assert.NotContains(t, string(out), "session.error")
 }
 
 func TestAgyRuntimeScriptsHaveValidSyntax(t *testing.T) {
