@@ -52,6 +52,33 @@ describe("Pi coding-agent SDK driver", () => {
     expect(emit).toHaveBeenCalledWith(expect.objectContaining({ type: "session", version: 3 }));
   });
 
+  it("keeps ambient skill discovery off in bare mode but loads the staged workflow skills", async () => {
+    vi.stubEnv("GH_AW_PI_BARE", "true");
+    vi.stubEnv("GH_AW_PI_STAGING_DIR", path.join(dir, "staging"));
+    fs.mkdirSync(path.join(dir, "staging/skills/reporting"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "staging/skills/ambient-helper"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "staging/skills/reporting/SKILL.md"), "Report.");
+    fs.writeFileSync(path.join(dir, "staging/skills/ambient-helper/SKILL.md"), "Ambient.");
+    fs.writeFileSync(path.join(dir, "staging/skills/.gh-aw-inline-skills.json"), '["reporting"]');
+    const session = { sessionId: "session-id", subscribe: vi.fn(), bindExtensions: vi.fn(), prompt: vi.fn(), dispose: vi.fn() };
+    const sdk = {
+      ModelRuntime: { create: vi.fn(async () => ({ getModel: () => ({ id: "gpt-5.4" }) })) },
+      SettingsManager: { create: () => ({ applyOverrides: vi.fn() }) },
+      DefaultResourceLoader: vi.fn(function () {
+        return { reload: vi.fn() };
+      }),
+      createCodemodeExtension: vi.fn(),
+      createToolSearchExtension: vi.fn(),
+      createMcpExtension: vi.fn(),
+      SessionManager: { inMemory: vi.fn() },
+      createAgentSession: vi.fn(async () => ({ session })),
+    };
+    await main({ sdk, emit: vi.fn() });
+    expect(sdk.DefaultResourceLoader).toHaveBeenCalledWith(
+      expect.objectContaining({ noSkills: true, noContextFiles: true, noPromptTemplates: true, noExtensions: true, additionalSkillPaths: [path.join(dir, "agent/skills/reporting/SKILL.md")] })
+    );
+  });
+
   it("removes cumulative streaming snapshots while preserving usage and tool identity", () => {
     const event = jsonEvent({
       type: "message_update",

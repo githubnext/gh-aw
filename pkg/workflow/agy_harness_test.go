@@ -23,8 +23,9 @@ func agyHarnessCommand(t *testing.T, body string, reflectJSON string) (*exec.Cmd
 	t.Helper()
 	dir := t.TempDir()
 	harness := filepath.Join(dir, "agy_harness.cjs")
-	require.NoError(t, os.WriteFile(harness, agyRuntimeScript(t, "agy_harness.cjs"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "jsonl_helpers.cjs"), agyRuntimeScript(t, "jsonl_helpers.cjs"), 0o600))
+	for _, name := range []string{"agy_harness.cjs", "jsonl_helpers.cjs", "json_schema_validation.cjs", "mcp_scripts_validation.cjs", "memory_schema_contract.cjs"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), agyRuntimeScript(t, name), 0o600))
+	}
 	actionsDir, err := filepath.Abs("../../actions/setup/js")
 	require.NoError(t, err)
 	module, err := json.Marshal(filepath.Join(actionsDir, "awf_reflect.cjs"))

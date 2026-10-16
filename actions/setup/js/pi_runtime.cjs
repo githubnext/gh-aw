@@ -7,6 +7,7 @@ const { pathToFileURL } = require("node:url");
 const { execFileSync } = require("node:child_process");
 const { writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { INLINE_SKILL_MANIFEST, resolveWorkflowSkillPaths, writeWorkflowSkillArgs } = require("./pi_workflow_skills.cjs");
 
 const DEFAULT_AGENT_DIR = "/tmp/gh-aw/pi-agent-dir";
 const DEFAULT_SESSION_DIR = "/tmp/gh-aw/agent/pi-sessions";
@@ -153,14 +154,17 @@ function preparePiRuntime(config = parsePiConfig()) {
   writeSecureOutput(path.join(agentDir, "mcp.json"), JSON.stringify(gateway, null, 2));
 
   stagePiArtifacts(agentDir);
-  return { agentDir, settings, config, routingSelection };
+  // Bare mode disables skill discovery; explicitly load only the inline skills activation staged.
+  const skillPaths = process.env.GH_AW_PI_BARE === "true" ? resolveWorkflowSkillPaths(agentDir) : [];
+  writeWorkflowSkillArgs(agentDir, skillPaths);
+  return { agentDir, settings, config, routingSelection, skillPaths };
 }
 
 /** @param {string} agentDir */
 function stagePiArtifacts(agentDir) {
   for (const kind of ["skills", "agents"]) {
     const source = path.join(process.env.GH_AW_PI_STAGING_DIR || "/tmp/gh-aw/.pi", kind);
-    if (fs.existsSync(source)) fs.cpSync(source, path.join(agentDir, kind), { recursive: true, dereference: false });
+    if (fs.existsSync(source)) fs.cpSync(source, path.join(agentDir, kind), { recursive: true, dereference: false, filter: src => path.basename(src) !== INLINE_SKILL_MANIFEST });
   }
 }
 
