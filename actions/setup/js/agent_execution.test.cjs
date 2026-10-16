@@ -116,6 +116,55 @@ describe("unique agent execution observation", () => {
     expect(collectAgentExecution({ content }).data.categories).toContain(category);
   });
 
+  it.each(["max_cache_misses_exceeded", "effective_tokens_limit_exceeded", "permission_denied_limit_exceeded", "model_policy_violation"])("observes %s only in attributed diagnostics", category => {
+    for (const content of [
+      `${category}=true`,
+      `[copilot-harness] ${category}`,
+      `Assistant:\nDiscussing guardrails\n[claude-harness] ${category}`,
+      JSON.stringify({ type: "session.error", data: { message: category } }),
+      JSON.stringify({ type: "turn.failed", error: { message: category } }),
+    ]) {
+      expect(collectAgentExecution({ content }).data.categories).toEqual([category]);
+      expect(agentErrorSummaryText(content)).toContain(`(${category})`);
+    }
+    for (const content of [
+      `The agent discussed ${category} in its answer.`,
+      `Assistant:\n${category}`,
+      `Tool output:\n${category}`,
+      `\`\`\`text\n${category}\n\`\`\``,
+      `[copilot-harness] outputTail="${category}"`,
+      `[claude-harness] spawning: echo ${category}`,
+      JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: category }] } }),
+      JSON.stringify({ type: "tool_result", content: category }),
+    ]) {
+      expect(collectAgentExecution({ content })).toBeUndefined();
+      expect(agentErrorSummaryText(content)).toBe("");
+    }
+    for (const type of ["assistant.message", "assistant.reasoning", "user.message", "tool.execution_complete", "tool.execution_update"]) {
+      const event = { type, data: { [type.startsWith("tool.") ? "output" : "content"]: category } };
+      expect(collectAgentExecution({ content: category, events: [event] })).toBeUndefined();
+      expect(collectAgentExecution({ content: JSON.stringify(event), events: [event] })).toBeUndefined();
+    }
+  });
+
+  it("retains all observed proxy guards across attempts without claiming final failure", () => {
+    const content = ["[copilot-harness] Maximum effective tokens exceeded (100 / 100)", "[copilot-harness] permission_denied_limit_exceeded", "[copilot-harness] model_policy_violation", "[copilot-harness] done: exitCode=0"].join("\n");
+    expect(collectAgentExecution({ content }).data).toEqual({
+      categories: ["effective_tokens_limit_exceeded", "model_policy_violation", "permission_denied_limit_exceeded"],
+      errorCodes: [],
+      errorTypes: [],
+      exitCode: 0,
+    });
+  });
+
+  it.each([
+    "[copilot-harness] model_policy_violation: model_endpoint_incompatible: model gpt-5 is not accessible via the responses endpoint",
+    JSON.stringify({ type: "session.error", data: { message: "model_policy_violation: model_endpoint_incompatible: model gpt-5 is not accessible via the responses endpoint" } }),
+  ])("does not classify endpoint incompatibility as a model policy violation: %s", content => {
+    expect(collectAgentExecution({ content, exitCode: 1 }).data.categories).not.toContain("model_policy_violation");
+    expect(agentErrorSummaryText(content)).not.toContain("(model_policy_violation)");
+  });
+
   it("does not turn a post-result watchdog kill into a timeout", () => {
     const content = "[copilot-harness] process closed exitCode=0 signal=SIGTERM watchdogFired=true\n[copilot-harness] done: exitCode=0\n";
     expect(collectAgentExecution({ content }).data).toEqual({ categories: [], errorCodes: [], errorTypes: [], exitCode: 0 });

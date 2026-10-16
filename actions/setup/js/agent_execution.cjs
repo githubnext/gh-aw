@@ -1,7 +1,7 @@
 // @ts-check
 
 const { detectErrors, buildOutputLines, isCAPIServerError } = require("./agent_error_patterns.cjs");
-const { detectNonRetryableHarnessGuard, isAuthenticationFailedError } = require("./harness_error_patterns.cjs");
+const { API_PROXY_GUARD_REJECTION_PATTERNS, detectNonRetryableHarnessGuard, isAuthenticationFailedError } = require("./harness_error_patterns.cjs");
 const { crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { sessionContext } = require("./agent_session.cjs");
@@ -322,6 +322,10 @@ function collectAgentExecution({ content = "", events = [], categories = [], exi
   if (guards.awfAPIProxyBlockingRequests) categorySet.add("awf_api_proxy_blocking_requests");
   if (guards.goalAlreadyActive) categorySet.add("goal_already_active");
   if (guards.apiProxyGuardRejection) categorySet.add(guards.apiProxyGuardRejection.guard);
+  // Observation accepts attributed diagnostic text; retry decisions require transport envelopes.
+  for (const { guard, pattern } of API_PROXY_GUARD_REJECTION_PATTERNS) {
+    if (pattern.test(text) && !(guard === "model_policy_violation" && guards.modelEndpointMismatch)) categorySet.add(guard);
+  }
   const crashSignal = observedExit === undefined ? null : crashSignalNameForExitCode(observedExit);
   if (crashSignal) {
     categorySet.add("sandbox_runtime_crash");
