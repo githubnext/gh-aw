@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -180,44 +181,45 @@ func TestCreateTransferPRAutoMerge(t *testing.T) {
 	}
 }
 
-func TestCreateTransferPRUsesBodyFileForLargeUnicodeDescription(t *testing.T) {
+func TestCreateTransferPRUsesBodyFile(t *testing.T) {
 	repoDir := initPRTransferRepo(t)
 	chdirForTest(t, repoDir)
-	outputDir := t.TempDir()
-	t.Setenv("TEST_PR_BODY", filepath.Join(outputDir, "body.md"))
-	t.Setenv("TEST_PR_BODY_PATH", filepath.Join(outputDir, "body-path"))
 	prependFakeGH(t, `case "$1 $2" in
 	  'api /user') echo transfer-user;;
 	  'api /repos/owner/repo/collaborators/transfer-user/permission') echo '{"permission":"write"}';;
 	  'pr create')
 	    while [ "$#" -gt 0 ]; do
 	      case "$1" in
-	        --body) exit 1;;
+	        --body) echo 'unexpected body argument' >&2; exit 1;;
 	        --body-file)
-	          shift
-	          cat "$1" > "$TEST_PR_BODY"
-	          printf '%s' "$1" > "$TEST_PR_BODY_PATH"
-	          ;;
+	          printf '%s' "$2" > body-path
+	          cat "$2" > captured-body
+	          shift;;
 	      esac
 	      shift
 	    done
+	    if [ "$FAIL_PR_CREATE" = true ]; then exit 1; fi
 	    echo 'https://github.com/owner/repo/pull/99';;
-	  *) exit 1;;
+	  *) echo unexpected gh "$@" >&2; exit 1;;
 	esac
 	`)
 	info := &PRInfo{
-		Title: "Title", Number: 42, SourceRepo: "source/fork", TargetRepo: "source/repo",
-		Body: strings.Repeat("界", 40000), PRMessage: strings.Repeat("a", 20000),
+		Title: "Title", Number: 42, SourceRepo: "source/repo",
+		Body: strings.Repeat("a", 20000), PRMessage: strings.Repeat("界", 40000),
 	}
-	err := createTransferPRWithAutoMerge(context.Background(), "owner", "repo", info, "main", false, false)
-	require.NoError(t, err)
-	body, err := os.ReadFile(filepath.Join(outputDir, "body.md"))
-	require.NoError(t, err)
-	assert.Equal(t, withPRFooter(buildTransferPRBody(info)), string(body))
-	path, err := os.ReadFile(filepath.Join(outputDir, "body-path"))
-	require.NoError(t, err)
-	_, err = os.Stat(string(path))
-	assert.True(t, os.IsNotExist(err), "transfer body file must be removed")
+	for _, fail := range []bool{false, true} {
+		t.Setenv("FAIL_PR_CREATE", strconv.FormatBool(fail))
+		err := createTransferPRWithAutoMerge(context.Background(), "owner", "repo", info, "main", false, false)
+		if fail {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		assert.Equal(t, withPRFooter(buildTransferPRBody(info)), readFileString(t, filepath.Join(repoDir, "captured-body")))
+		bodyFile := readFileString(t, filepath.Join(repoDir, "body-path"))
+		_, err = os.Stat(bodyFile)
+		require.ErrorIs(t, err, os.ErrNotExist)
+	}
 }
 
 func TestCreatePRWithChangesPrintsURLBeforeCleanup(t *testing.T) {

@@ -1488,20 +1488,52 @@ tools:
 	}
 }
 
-func TestFixCommandScaffoldFailureDoesNotReportAppliedCodemods(t *testing.T) {
+func TestRunFix_ScaffoldFailureDoesNotReportSuccessfulCodemods(t *testing.T) {
 	t.Chdir(t.TempDir())
 	workflowDir := filepath.Join(".github", "workflows")
-	require.NoError(t, os.MkdirAll(workflowDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(workflowDir, "shared"), []byte("not a directory"), 0600))
-	file := filepath.Join(workflowDir, "test.md")
-	content := "---\nengine: copilot\ntools:\n  serena: [\"typescript\"]\n---\n\n# Test\n"
-	require.NoError(t, os.WriteFile(file, []byte(content), 0600))
-	reported := false
-	err := runFixCommandWithResults([]string{"test"}, true, false, workflowDir, nil, func(string, []string) {
-		reported = true
+	require.NoError(t, os.MkdirAll(workflowDir, 0o755))
+	workflowFile := filepath.Join(workflowDir, "test-workflow.md")
+	content := "---\nengine: copilot\ntools:\n  serena: [\"typescript\"]\n---\nTest\n"
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0o600))
+	// A file where the shared directory belongs prevents scaffolding after the workflow is written.
+	require.NoError(t, os.WriteFile(filepath.Join(workflowDir, "shared"), []byte("blocked"), 0o600))
+
+	var disabled []string
+	for _, codemod := range GetAllCodemods() {
+		if codemod.ID != "serena-tools-to-shared-import" {
+			disabled = append(disabled, codemod.ID)
+		}
+	}
+	serenaCodemod := getCodemodByID("serena-tools-to-shared-import")
+	require.NotNil(t, serenaCodemod)
+
+	summary := &updatePRSummary{before: map[string]updatePRFile{}}
+	var runErr error
+	_, stderr := captureOutput(t, func() error {
+		runErr = RunFix(FixConfig{
+			Write:              true,
+			WorkflowDir:        workflowDir,
+			DisabledCodemodIDs: disabled,
+			OnApplied:          summary.recordFix,
+		})
+		return nil
 	})
-	require.Error(t, err)
-	assert.False(t, reported, "a failed scaffold must not report successfully applied fixes")
+	var exitErr *ExitCodeError
+	require.ErrorAs(t, runErr, &exitErr)
+	assert.Equal(t, 1, exitErr.Code)
+	assert.Contains(t, stderr, "Error processing test-workflow.md")
+	assert.Contains(t, stderr, "failed to scaffold shared Serena workflow")
+	assert.NotContains(t, stderr, "Applied fixes to")
+	assert.NotContains(t, stderr, "No fixes needed")
+	assert.Empty(t, summary.applied, "an incomplete migration must not be reported as successfully applied")
+
+	written, err := os.ReadFile(workflowFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(written), "shared/mcp/serena.md", "the workflow was written before scaffolding failed")
+	body := summary.render("upgrade", map[string]updatePRFile{})
+	assert.NotContains(t, body, serenaCodemod.Name)
+	assert.NotContains(t, body, "Codemod step ran")
+	assert.NotContains(t, body, "Execution notes")
 }
 
 func TestRunFix_GuidedErrorReturnsExitCode2(t *testing.T) {

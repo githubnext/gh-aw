@@ -79,7 +79,7 @@ func captureUpdatePRFiles(ctx context.Context, dir string) (map[string]updatePRF
 	if err != nil {
 		return nil, err
 	}
-	workflowDir, err := summaryWorkflowDir(dir)
+	workflowDir, err := summaryPhysicalPath(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -139,16 +139,21 @@ func summaryWorkflowPathspec(root, dir string) []string {
 	return []string{filepath.ToSlash(relative)}
 }
 
-func summaryWorkflowDir(dir string) (string, error) {
-	absolute, err := filepath.Abs(dir)
+func summaryPhysicalPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
 	resolved, err := filepath.EvalSymlinks(absolute)
-	if os.IsNotExist(err) {
-		return absolute, nil
+	if !os.IsNotExist(err) {
+		return resolved, err
 	}
-	return resolved, err
+	// A default workflow directory may not have been created yet.
+	parent, err := summaryPhysicalPath(filepath.Dir(absolute))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, filepath.Base(absolute)), nil
 }
 
 func summaryEngineDirs() (skills, agents []string) {
@@ -202,6 +207,7 @@ func readUpdatePRFile(full, path, workflowDir string) (updatePRFile, error) {
 				if source, ok := parsed.Frontmatter["source"].(string); ok {
 					state.source = source
 				}
+				state.pins = summaryYAMLPins([]byte(strings.Join(parsed.FrontmatterLines, "\n")))
 			}
 		case strings.HasSuffix(path, ".lock.yml"):
 			state.compiler = extractCompilerVersionFromLockContent(string(content))

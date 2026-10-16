@@ -84,7 +84,7 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 	if err != nil {
 		return err
 	}
-	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge, appendPRMessage(details, addOpts.PRMessage)); err != nil {
+	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge, details, addOpts.PRMessage); err != nil {
 		return err
 	}
 
@@ -278,9 +278,10 @@ func runDeployCompilePass(ctx context.Context, addOpts AddOptions) error {
 	return nil
 }
 
-func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool, details string) error {
+func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool, details, prMessage string) error {
 	prTitle, prBody := buildDeployPRMetadata(resolvedWorkflows, targetRepo)
 	prBody = appendPRMessage(prBody, details)
+	prBody = appendPRMessage(prBody, prMessage)
 	_, err := createPRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose, autoMerge)
 	if err != nil {
 		return fmt.Errorf("failed to create deploy pull request: %w", err)
