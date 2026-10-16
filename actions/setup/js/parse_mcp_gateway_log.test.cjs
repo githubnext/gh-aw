@@ -25,10 +25,160 @@ const {
   generateTokenUsageSummary,
   formatDurationMs,
   writeStepSummaryWithTokenUsage,
+  boundGatewaySummary,
   hasAICreditsRateLimitError,
 } = require("./parse_mcp_gateway_log.cjs");
 
 describe("parse_mcp_gateway_log", () => {
+  describe("step summary byte budget", () => {
+    const { MAX_STEP_SUMMARY_SIZE } = require("./log_parser_shared.cjs");
+
+    test.each([-1, 0, 1])("handles the UTF-8 limit boundary %+d bytes", delta => {
+      const content = "界".repeat(Math.floor(MAX_STEP_SUMMARY_SIZE / 3)) + "x".repeat((MAX_STEP_SUMMARY_SIZE % 3) + delta);
+      const result = boundGatewaySummary(content, MAX_STEP_SUMMARY_SIZE);
+      expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
+      if (delta <= 0) expect(result).toBe(content);
+      else {
+        expect(result).toContain("MCP gateway summary truncated");
+        expect(result).toContain("agent artifact");
+        expect(result).toContain("界");
+        expect(result).not.toContain("\uFFFD");
+        expect(result.endsWith("</pre>\n</details>\n")).toBe(true);
+      }
+    });
+
+    test.each([0, 1, 127, 256, 512, 4096])("fits even a small remaining budget of %i bytes", maxBytes => {
+      const result = boundGatewaySummary("<details>界&".repeat(10000), maxBytes);
+      expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(maxBytes);
+      expect(result).not.toContain("\uFFFD");
+      if (result.includes("<pre>")) {
+        expect(result).toContain("&lt;details&gt;");
+        expect(result.endsWith("</pre>\n</details>\n")).toBe(true);
+      }
+    });
+
+    test("bounds accumulated sections including existing UTF-8 summary bytes", async () => {
+      const os = require("os");
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-summary-"));
+      const summaryPath = path.join(dir, "summary.md");
+      const existing = "界".repeat(100000);
+      fs.writeFileSync(summaryPath, existing);
+      const previousPath = process.env.GITHUB_STEP_SUMMARY;
+      process.env.GITHUB_STEP_SUMMARY = summaryPath;
+      const existsSync = fs.existsSync;
+      const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(file => (String(file).endsWith("/token-usage.jsonl") ? false : existsSync(file)));
+      const coreObj = {
+        debug: vi.fn(),
+        warning: vi.fn(),
+        summary: {
+          addRaw: vi.fn(content => fs.appendFileSync(summaryPath, content)),
+          write: vi.fn().mockResolvedValue(undefined),
+        },
+      };
+      try {
+        const oversized = "<details>\n" + "界 diagnostic evidence\n".repeat(100000) + "</details>\n";
+        await writeStepSummaryWithTokenUsage(coreObj, [oversized, oversized, "HTTP 429: try again in 2s\nDIFC: filtered response\n"]);
+        const result = fs.readFileSync(summaryPath, "utf8");
+        expect(fs.statSync(summaryPath).size).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
+        expect(result.startsWith(existing)).toBe(true);
+        expect(result).toContain("diagnostic evidence");
+        expect(result).toContain("HTTP 429: try again in 2s");
+        expect(result).toContain("DIFC: filtered response");
+        expect(coreObj.warning).toHaveBeenCalledTimes(2);
+        expect(coreObj.summary.write).toHaveBeenCalledOnce();
+      } finally {
+        existsSpy.mockRestore();
+        if (previousPath === undefined) delete process.env.GITHUB_STEP_SUMMARY;
+        else process.env.GITHUB_STEP_SUMMARY = previousPath;
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    test.each(["gateway.md", "rpc-messages.jsonl", "gateway.log"])("bounds oversized %s through the real parser entry point", async filename => {
+      const prefix = "/tmp/gh-aw/mcp-logs/";
+      const files = {
+        [prefix + filename]:
+          filename === "rpc-messages.jsonl"
+            ? Array.from({ length: 40000 }, (_, id) => JSON.stringify({ event: "rpc_request", server_id: "github", payload: { id, method: "tools/call", params: { name: "lookup" } } })).join("\n")
+            : "<details>\n<summary>MCP Gateway</summary>\n" + "界".repeat(3500000) + "\n</details>\n",
+      };
+      const existsSync = fs.existsSync;
+      const readFileSync = fs.readFileSync;
+      const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(file => (String(file).startsWith("/tmp/gh-aw/") ? Object.hasOwn(files, String(file)) : existsSync(file)));
+      const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((file, options) => files[String(file)] ?? readFileSync(file, options));
+      const previousCore = global.core;
+      const mockCore = {
+        info: vi.fn(),
+        debug: vi.fn(),
+        startGroup: vi.fn(),
+        endGroup: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        setFailed: vi.fn(),
+        setOutput: vi.fn(),
+        summary: { addRaw: vi.fn(), write: vi.fn().mockResolvedValue(undefined) },
+      };
+      global.core = mockCore;
+      try {
+        await require("./parse_mcp_gateway_log.cjs").main();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        const result = mockCore.summary.addRaw.mock.calls.map(([content]) => content).join("");
+        expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(MAX_STEP_SUMMARY_SIZE);
+        expect(result).toContain("MCP gateway summary truncated");
+        expect(result).toContain("agent artifact");
+        expect(mockCore.summary.write).toHaveBeenCalledOnce();
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("byte limit reached"));
+      } finally {
+        existsSpy.mockRestore();
+        readSpy.mockRestore();
+        global.core = previousCore;
+      }
+    });
+
+    test.each([MAX_STEP_SUMMARY_SIZE, MAX_STEP_SUMMARY_SIZE + 1])("does not add bytes to an already full %i-byte summary", async size => {
+      const previousPath = process.env.GITHUB_STEP_SUMMARY;
+      process.env.GITHUB_STEP_SUMMARY = "/tmp/gateway-summary.md";
+      const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation(file => file === process.env.GITHUB_STEP_SUMMARY);
+      const statSpy = vi.spyOn(fs, "statSync").mockReturnValue({ size });
+      const coreObj = {
+        debug: vi.fn(),
+        warning: vi.fn(),
+        summary: { addRaw: vi.fn(), write: vi.fn().mockResolvedValue(undefined) },
+      };
+      try {
+        await writeStepSummaryWithTokenUsage(coreObj, ["diagnostic evidence"]);
+        expect(coreObj.summary.addRaw).not.toHaveBeenCalled();
+        expect(coreObj.warning).toHaveBeenCalledWith(expect.stringContaining("byte limit reached"));
+        expect(coreObj.summary.write).toHaveBeenCalledOnce();
+      } finally {
+        existsSpy.mockRestore();
+        statSpy.mockRestore();
+        if (previousPath === undefined) delete process.env.GITHUB_STEP_SUMMARY;
+        else process.env.GITHUB_STEP_SUMMARY = previousPath;
+      }
+    });
+
+    test("surfaces summary measurement failures rather than writing without a budget", async () => {
+      const previousPath = process.env.GITHUB_STEP_SUMMARY;
+      process.env.GITHUB_STEP_SUMMARY = "/tmp/gateway-summary.md";
+      const existsSpy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      const statSpy = vi.spyOn(fs, "statSync").mockImplementation(() => {
+        throw new Error("permission denied");
+      });
+      const coreObj = { summary: { addRaw: vi.fn(), write: vi.fn() } };
+      try {
+        await expect(writeStepSummaryWithTokenUsage(coreObj, ["diagnostic evidence"])).rejects.toThrow("ERR_SYSTEM: Failed to measure existing MCP gateway step summary: permission denied");
+        expect(coreObj.summary.addRaw).not.toHaveBeenCalled();
+        expect(coreObj.summary.write).not.toHaveBeenCalled();
+      } finally {
+        existsSpy.mockRestore();
+        statSpy.mockRestore();
+        if (previousPath === undefined) delete process.env.GITHUB_STEP_SUMMARY;
+        else process.env.GITHUB_STEP_SUMMARY = previousPath;
+      }
+    });
+  });
+
   describe("MCP rate-limit diagnostics", () => {
     const request = (server_id = "github", name = "search_code", id = 1) => ({
       event: "rpc_request",
