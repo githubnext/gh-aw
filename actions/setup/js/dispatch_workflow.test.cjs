@@ -135,6 +135,10 @@ describe("dispatch_workflow handler factory", () => {
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
               getWorkflowRun: async () => {
+                throw new Error("Launch verification must read immutable attempt 1, not the latest run");
+              },
+              getWorkflowRunAttempt: async parameters => {
+                expect(parameters).toMatchObject({ owner: "owner", repo: "repo", run_id: "42", attempt_number: 1 });
                 const dispatch = [...replayTransactions(native.log()).dispatches.values()][0];
                 return { status: 200, data: { ...fixture.nativeRun(), display_title: `gh-aw work-queue ${dispatch.dispatch_id}` } };
               },

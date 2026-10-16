@@ -200,6 +200,8 @@ tools:
 
 See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for available operations.
 
+The built-in container runs with the runner's UID and GID unless a container user is explicitly configured. This keeps downloaded logs runner-owned without widening their owner-only permissions, so the post-agent secret-redaction step can read them. Its default `HOME` is the backend container's ephemeral `/tmp`, not `/root`. Redaction failures still remove unsanitized sources and fail the step.
+
 Workflow-writing tools (`add`, `update`, `fix`, and `compile`, including dry-run compilation) are disabled by default. Trusted workflows can opt in at server startup:
 
 ```aw wrap
