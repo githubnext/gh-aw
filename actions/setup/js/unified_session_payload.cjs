@@ -234,6 +234,7 @@ const EVENT_FIELDS = {
     output: ["output"],
     result: ["result"],
     error: ["error"],
+    fileEdits: ["fileEdits"],
     durationMs: ["durationMs", "duration_ms"],
     exitCode: ["exitCode", "exit_code"],
     status: ["status"],

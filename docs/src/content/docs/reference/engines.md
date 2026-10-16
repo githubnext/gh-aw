@@ -20,7 +20,7 @@ Set `engine:` in workflow frontmatter and configure the corresponding authentica
 | [Google Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) (experimental) | `agy` | [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) only; no ADC/WIF | [Using experimental Agy](/gh-aw/engines/agy/) |
 | [Pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent) | `pi` | Copilot authentication by default; Anthropic or OpenAI/Codex key for a provider-prefixed `model:` | [Using Pi with GitHub Agentic Workflows](/gh-aw/engines/pi/) |
 
-Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copilot SDK mode is an execution mode of the Copilot engine, not a separate engine; enable it with `engine: copilot` and `copilot-sdk: true`. See [Copilot SDK support](#copilot-sdk-support).
+Copilot CLI is the default, so `engine:` can be omitted when using Copilot. Copilot SDK mode is a stable execution mode of the Copilot engine, not a separate engine; enable it with `engine: copilot` and `copilot-sdk: true`. See [Copilot SDK support](#copilot-sdk-support).
 
 Copilot model availability is scoped to the `agentic-workflows` integration as
 well as organization policy. Gemini models available in the standalone Copilot
@@ -580,7 +580,7 @@ Codex has no gh-aw-supplied default model. Set `engine.model`, a phase-specific 
 
 ### Copilot SDK Support
 
-Enable `engine.copilot-sdk: true` to run Copilot in SDK mode.
+Enable `engine.copilot-sdk: true` to run Copilot in stable, non-experimental SDK mode.
 In this mode, the harness starts a local sidecar and runs the
 SDK driver process instead of the default CLI-only flow.
 
