@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, iterateJsonlEvents, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, readJsonlFileEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -364,7 +364,7 @@ function readModelEndpointMismatch() {
     let events;
     try {
       events = [];
-      for (const event of iterateJsonlEvents(fs.readFileSync(file, "utf8"))) {
+      for (const event of readJsonlFileEvents(file)) {
         if (event.type === "json") events.push(event.value);
         else if (event.reason !== "blank") throw event.error;
       }
