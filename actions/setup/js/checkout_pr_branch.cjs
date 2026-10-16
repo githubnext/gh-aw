@@ -296,6 +296,7 @@ async function assertTrustedCheckoutRuntime(awContext, pullRequest) {
   // events require the collaborator check unless explicitly allow-listed below.
   if (
     (context.eventName === "pull_request" || context.eventName === "pull_request_target") &&
+    typeof context.payload.action === "string" &&
     TRUSTED_BOT_PR_ACTIONS.includes(context.payload.action) &&
     senderType === "Bot" &&
     context.payload.sender?.login === actor &&
