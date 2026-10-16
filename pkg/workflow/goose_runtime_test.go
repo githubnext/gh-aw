@@ -5,6 +5,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -22,9 +23,10 @@ import (
 )
 
 func TestGooseReleaseRuntime(t *testing.T) {
+	// Native runtime coverage is opt-in; unit tests do not replace it or verify the supplied binary's checksum.
 	binary := os.Getenv("GH_AW_TEST_GOOSE_BINARY")
 	if binary == "" {
-		t.Skip("set GH_AW_TEST_GOOSE_BINARY to a verified Goose v1.53.0 binary")
+		t.Skip("set GH_AW_TEST_GOOSE_BINARY to a verified Goose v" + loadGooseSample(t).Version + " binary")
 	}
 	dir := t.TempDir()
 	var toolCalls, inferenceCalls atomic.Int32
@@ -38,21 +40,24 @@ exports.resolveOpenAICompatibleEndpointFromReflect = () => ({provider: "github",
 	prompt := filepath.Join(dir, "prompt.txt")
 	require.NoError(t, os.WriteFile(prompt, []byte("Call the probe echo tool once, then answer Done."), 0o600))
 	config := filepath.Join(dir, "mcp.json")
-	content, err := json.Marshal(map[string]any{"mcpServers": map[string]any{
-		"probe": map[string]any{"url": server.URL + "/mcp/probe", "headers": map[string]string{"Authorization": "Bearer test-only"}},
-	}})
+	servers := map[string]map[string]any{
+		"probe": {"url": server.URL + "/mcp/probe", "headers": map[string]string{"Authorization": "Bearer test-only"}},
+	}
+	servers["probe"]["tools"] = []string{"echo"}
+	content, err := json.Marshal(map[string]any{"mcpServers": servers})
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(config, content, 0o600))
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "node", harness, binary)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "GH_AW_ENGINE_VERSION=1.53.0",
-		"GH_AW_MCP_CONFIG="+config, "GH_AW_PROMPT="+prompt,
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
+		"GH_AW_ENGINE_VERSION=" + loadGooseSample(t).Version,
+		"GH_AW_MCP_CONFIG=" + config, "GH_AW_PROMPT=" + prompt,
 		"GOOSE_MODEL=copilot/test-model", "GOOSE_MODE=auto",
 		"GOOSE_DISABLE_SESSION_NAMING=true", "GH_AW_MAX_TURNS=3",
 		"OPENAI_API_KEY=test-only", "AWF_REFLECT_ENABLED=1",
-		"GH_AW_LLM_PROVIDER=github", "TEST_ENDPOINT="+server.URL)
+		"GH_AW_LLM_PROVIDER=github", "TEST_ENDPOINT=" + server.URL}
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "%s", output)
 	assert.NotContains(t, string(output), "Failed to start extension")
@@ -99,6 +104,10 @@ func gooseRuntimeHandler(t *testing.T, tools, inference *atomic.Int32) http.Hand
 		tools.Add(1)
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "probe passed"}}}, nil, nil
 	})
+	mcp.AddTool(server, &mcp.Tool{Name: "excluded", Description: "Tool excluded by the configured allowlist"}, func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		t.Error("Goose called a tool outside the configured allowlist")
+		return nil, nil, errors.New("tool is not allowed")
+	})
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{JSONResponse: true, Stateless: true})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/chat/completions" {
@@ -129,12 +138,13 @@ func gooseRuntimeCompletion(t *testing.T, w http.ResponseWriter, r *http.Request
 	assert.Equal(t, "test-model", request.Model)
 	message := map[string]any{"role": "assistant", "content": "Done"}
 	finish := "stop"
+	found := false
+	for _, tool := range request.Tools {
+		function := tool["function"].(map[string]any)
+		found = found || function["name"] == "probe__echo"
+		assert.NotEqual(t, "probe__excluded", function["name"], "upstream extension leases must preserve the configured tool allowlist")
+	}
 	if turn == 1 {
-		found := false
-		for _, tool := range request.Tools {
-			function := tool["function"].(map[string]any)
-			found = found || function["name"] == "probe__echo"
-		}
 		assert.True(t, found, "authenticated MCP tool must be advertised on the first model turn")
 		message = map[string]any{"role": "assistant", "content": nil, "tool_calls": []any{
 			map[string]any{"index": 0, "id": "probe-call", "type": "function", "function": map[string]string{"name": "probe__echo", "arguments": "{}"}},
@@ -162,6 +172,40 @@ func gooseRuntimeCompletion(t *testing.T, w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		t.Errorf("encode test completion: %v", err)
+	}
+}
+
+func TestGooseRuntimeCompletion(t *testing.T) {
+	for _, stream := range []bool{false, true} {
+		t.Run(fmt.Sprintf("stream=%t", stream), func(t *testing.T) {
+			for turn := int32(1); turn <= 2; turn++ {
+				body := fmt.Sprintf(`{"model":"test-model","stream":%t,"tools":[{"function":{"name":"probe__echo"}}]}`, stream)
+				request := httptest.NewRequest(http.MethodPost, "/chat/completions", strings.NewReader(body))
+				response := httptest.NewRecorder()
+				gooseRuntimeCompletion(t, response, request, turn)
+				require.Equal(t, http.StatusOK, response.Code)
+				data := response.Body.String()
+				if stream {
+					assert.Equal(t, "text/event-stream", response.Header().Get("Content-Type"))
+					require.Contains(t, data, "\n\ndata: [DONE]\n\n")
+					data = strings.TrimSuffix(strings.TrimPrefix(data, "data: "), "\n\ndata: [DONE]\n\n")
+				}
+				var completion struct {
+					Choices []struct {
+						FinishReason string `json:"finish_reason"`
+					} `json:"choices"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(data), &completion))
+				require.Len(t, completion.Choices, 1)
+				if turn == 1 {
+					assert.Equal(t, "tool_calls", completion.Choices[0].FinishReason)
+					assert.Contains(t, data, "probe__echo")
+				} else {
+					assert.Equal(t, "stop", completion.Choices[0].FinishReason)
+					assert.Contains(t, data, "Done")
+				}
+			}
+		})
 	}
 }
 
