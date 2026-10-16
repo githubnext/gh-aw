@@ -23,7 +23,9 @@ permissions:
   actions: read
   security-events: read
 tracker-id: uk-ai-operational-resilience
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 30
 tools:

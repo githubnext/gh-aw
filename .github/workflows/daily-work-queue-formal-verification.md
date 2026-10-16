@@ -1,5 +1,8 @@
 ---
 name: Daily Work Queue Formal Verification
+engine:
+  id: copilot
+  copilot-sdk: true
 description: Collect bounded TLC evidence for the two expensive work-queue configurations and prepare an artifact handoff for later agents.
 intent: Give maintainers and analysis agents reproducible evidence about unresolved work-queue formal verification without treating partial searches as proofs.
 on:

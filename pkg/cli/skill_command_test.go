@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,12 +35,28 @@ func TestSkillCommand(t *testing.T) {
 	require.Equal(t, expected, stdout.String())
 	require.Contains(t, stdout.String(), "---\nname: agentic-workflows\n")
 	require.Contains(t, stdout.String(), ".github/aw/create-agentic-workflow.md")
+	require.Contains(t, stdout.String(), "[Model and engine misconfiguration](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md#model-and-engine-misconfiguration)")
 	require.NotContains(t, stdout.String(), agenticWorkflowsSkillFileListPlaceholder)
 	require.Empty(t, stderr.String())
 
 	files, err := os.ReadDir(".")
 	require.NoError(t, err)
 	require.Empty(t, files, "skill must not create repository files")
+}
+
+func TestShippedMarkdownTemplatesAvoidParentRelativeLinks(t *testing.T) {
+	paths, err := filepath.Glob("data/*.md")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			content, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.NotRegexp(t, `(?m)(\]\(\s*<?|^\s*\[[^\]]+\]:\s*<?)(\./)?\.\./`, string(content),
+				"shipped templates must not link to parent paths that are unavailable in consumer repositories")
+		})
+	}
 }
 
 func TestSkillCommandRejectsArguments(t *testing.T) {
