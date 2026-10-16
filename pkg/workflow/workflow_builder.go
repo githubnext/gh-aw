@@ -30,6 +30,8 @@ func ParseStaleCheckMode(frontmatter map[string]any) (disabled, full bool) {
 }
 
 // buildInitialWorkflowData creates the initial WorkflowData struct with basic fields populated.
+//
+//nolint:largefunc
 func (c *Compiler) buildInitialWorkflowData(
 	result *parser.FrontmatterResult,
 	toolsResult *toolsProcessingResult,
@@ -92,6 +94,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		MarkdownContent:            toolsResult.markdownContent,
 		SubAgentModels:             append(toolsResult.subAgentModels, importsResult.SubAgentModels...),
 		SubAgents:                  append(subAgents, importsResult.SubAgents...),
+		InlineSkills:               collectWorkflowInlineSkills(result.Markdown, importsResult.InlineSkills),
 		AI:                         engineSetup.engineSetting,
 		Model:                      engineSetup.model,
 		EngineConfig:               engineSetup.engineConfig,

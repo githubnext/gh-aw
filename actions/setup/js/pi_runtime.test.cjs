@@ -29,6 +29,21 @@ describe("Pi runtime configuration", () => {
     expect(fs.readFileSync(path.join(dir, "agent/agents/reader.md"), "utf8")).toBe("Agent.");
     expect(fs.readFileSync(path.join(dir, "agent/skills/report/SKILL.md"), "utf8")).toBe("Skill.");
   });
+  it("stages activation-extracted inline skills at the path bare mode loads with --skill", () => {
+    vi.stubGlobal("core", { info: () => {}, warning: () => {}, error: () => {} });
+    const { writeInlineSkills } = require("./extract_inline_skills.cjs");
+    const hint = "Use the `reporting` skill when producing a report, issue, or PR comment.";
+    const prompt = writeInlineSkills(`${hint}\n\n## skill: \`reporting\`\n---\ndescription: Report formatting\n---\n\nUse ### headers.\n\n## end skill: \`reporting\`\n`, dir, path.join(dir, "activation"), "pi");
+    expect(prompt).toContain(hint);
+    expect(prompt).not.toContain("## skill:");
+    vi.stubEnv("GH_AW_PI_STAGING_DIR", path.join(dir, "activation/.pi"));
+    preparePiRuntime({});
+    // The compiler emits --skill <PI_CODING_AGENT_DIR>/skills/<name>/SKILL.md for each workflow inline skill.
+    const staged = fs.readFileSync(path.join(dir, "agent/skills/reporting/SKILL.md"), "utf8");
+    expect(staged).toContain("description: Report formatting");
+    expect(staged).toContain("Use ### headers.");
+    vi.unstubAllGlobals();
+  });
   it.each(["0.99.2", "1.0.0-beta.1", "unexpected"])("rejects an incompatible actual CLI version: %s", version => {
     expect(() => verifyPiVersion("pi", () => version)).toThrow("v1.0.0 or newer");
   });

@@ -103,6 +103,7 @@ type importAccumulator struct {
 	warnings       []string
 	subAgentModels []SubAgentModel
 	subAgents      []InlineSubAgent
+	inlineSkills   []InlineSkill
 }
 
 const (
@@ -275,8 +276,11 @@ func (acc *importAccumulator) collectInlineSubAgentWarnings(importPath, sectionN
 		agentWarnings = ValidateInlineSubAgentsInBody(bodyForValidation)
 	}
 	acc.subAgentModels = append(acc.subAgentModels, ExtractSubAgentModels(bodyForValidation)...)
-	if _, agents, err := ExtractInlineSubAgents(bodyForValidation); err == nil {
+	if bodyWithoutAgents, agents, err := ExtractInlineSubAgents(bodyForValidation); err == nil {
 		acc.subAgents = append(acc.subAgents, agents...)
+		if _, skills, err := ExtractInlineSkills(bodyWithoutAgents); err == nil {
+			acc.inlineSkills = append(acc.inlineSkills, skills...)
+		}
 	}
 	for _, w := range agentWarnings {
 		msg := fmt.Sprintf("import '%s': %s", importPath, w)
@@ -1095,6 +1099,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		AgentFile:                     acc.agentFile,
 		SubAgentModels:                acc.subAgentModels,
 		SubAgents:                     acc.subAgents,
+		InlineSkills:                  acc.inlineSkills,
 		AgentImportSpec:               acc.agentImportSpec,
 		RepositoryImports:             acc.repositoryImports,
 		ImportInputs:                  acc.importInputs,

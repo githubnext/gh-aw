@@ -374,11 +374,37 @@ func (e *PiEngine) buildPiArgs(workflowData *WorkflowData) []string {
 	}
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
 		piArgs = append(piArgs, "--no-context-files", "--no-skills", "--no-prompt-templates", "--no-extensions", "--no-themes")
+		piArgs = append(piArgs, piBareInlineSkillArgs(workflowData)...)
 	}
 	if workflowData.EngineConfig != nil {
 		piArgs = append(piArgs, filterPiArgs(workflowData.EngineConfig.Args, modelRouting)...)
 	}
 	return piArgs
+}
+
+// piBareInlineSkillArgs returns one explicit --skill argument per workflow-declared or
+// imported inline skill. Bare mode disables ambient skill discovery with --no-skills, but
+// pi still loads explicit --skill paths, so workflow-owned skills staged by
+// pi_runtime.cjs (stagePiArtifacts) into the managed agent directory remain available.
+// Skill names are validated by the inline-skill extractor ([a-z][a-z0-9_-]*) and are
+// emitted in declaration order, deduplicated, for deterministic output.
+func piBareInlineSkillArgs(workflowData *WorkflowData) []string {
+	var args []string
+	seen := make(map[string]struct{}, len(workflowData.InlineSkills))
+	for _, skill := range workflowData.InlineSkills {
+		if skill.Name == "" {
+			continue
+		}
+		if _, ok := seen[skill.Name]; ok {
+			continue
+		}
+		seen[skill.Name] = struct{}{}
+		args = append(args, "--skill", path.Join(constants.TmpPiAgentDir, "skills", skill.Name, "SKILL.md"))
+	}
+	if len(args) > 0 {
+		piLog.Printf("Pi bare mode: explicitly loading %d workflow inline skill(s)", len(args)/2)
+	}
+	return args
 }
 
 func (e *PiEngine) buildPiModelsJSONSetup(workflowData *WorkflowData, profile universalLLMBackendProfile, backend UniversalLLMBackend, piArgs []string, firewallEnabled, modelConfigured, driverConfigured bool) (string, []string) {

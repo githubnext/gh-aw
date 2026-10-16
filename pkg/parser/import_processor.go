@@ -87,6 +87,7 @@ type ImportsResult struct {
 	AgentFile                     string                // Path to custom agent file (if imported)
 	SubAgentModels                []SubAgentModel       // models declared by imported inline agents and agent files
 	SubAgents                     []InlineSubAgent      // imported inline definitions for engine-specific validation
+	InlineSkills                  []InlineSkill         // imported inline skill definitions (## skill: `name` blocks)
 	AgentImportSpec               string                // Original import specification for agent file (e.g., "owner/repo/path@ref")
 	RepositoryImports             []string              // List of repository imports (format: "owner/repo@ref") for .github folder merging
 	// ImportInputs uses map[string]any because input values can be different types (string, number, boolean).
