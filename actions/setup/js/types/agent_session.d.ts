@@ -86,6 +86,7 @@ export interface ToolExecutionCompleteData {
   output?: JsonValue;
   result?: JsonValue;
   error?: JsonValue;
+  fileEdits?: JsonValue;
   durationMs?: SessionMetric;
   exitCode?: number | null;
   status?: string;

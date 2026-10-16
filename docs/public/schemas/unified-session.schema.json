@@ -314,6 +314,7 @@
                 "output": { "$ref": "#/definitions/JsonValue" },
                 "result": { "$ref": "#/definitions/JsonValue" },
                 "error": { "$ref": "#/definitions/JsonValue" },
+                "fileEdits": { "$ref": "#/definitions/JsonValue" },
                 "durationMs": { "$ref": "#/definitions/SessionMetric" },
                 "exitCode": { "type": ["number", "null"] },
                 "status": { "type": "string" },

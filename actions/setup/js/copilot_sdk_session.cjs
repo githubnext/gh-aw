@@ -38,7 +38,7 @@ const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_s
 const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
 const { qualifyModelForMultiProvider, parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
 
-const CAPTURED_EPHEMERAL_EVENTS = new Set([...COPILOT_WORKFLOW_EVENT_TYPES, "assistant.usage", "assistant.message_delta", "assistant.reasoning_delta", "model.call_failure", "model.call_final_result"]);
+const CAPTURED_EPHEMERAL_EVENTS = new Set([...COPILOT_WORKFLOW_EVENT_TYPES, "assistant.usage", "assistant.message_delta", "assistant.reasoning_delta", "model.call_failure", "model.call_final_result", "model.call_finished"]);
 
 // Default timeout for a single sendAndWait call: 10 minutes.
 // This is intentionally generous — the headless Copilot CLI has its own internal
@@ -423,6 +423,10 @@ async function runWithCopilotSDK({
     }
 
     session.on(event => {
+      if (stream.writableEnded || stream.destroyed) return;
+      // Defer shell chunks until redaction can protect credentials spanning chunks.
+      // Background output must not extend the post-completion watchdog either.
+      if (event.type === "tool.shell_output") return;
       if (event.ephemeral && !CAPTURED_EPHEMERAL_EVENTS.has(event.type)) return;
       const data = { ...event.data };
       if (event.type.startsWith("subagent.") && data.agentName && data.agentDisplayName) data.agentDisplayName = data.agentName;
