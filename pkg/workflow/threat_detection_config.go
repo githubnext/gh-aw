@@ -16,6 +16,8 @@ type ThreatDetectionConfig struct {
 	Retries             *int          `yaml:"retries,omitempty"`           // Detector-only retries override passed to threat-detect (--retries)
 	MaxAICredits        int64         `yaml:"max-ai-credits,omitempty"`    // Maximum AI credits budget for threat-detection engine execution
 	Model               string        `yaml:"model,omitempty"`             // Model override for threat detection engine execution
+	CACert              string        `yaml:"ca-cert,omitempty"`           // Host CA certificate path override (inherits the agent path for matching engines)
+	DisableCACert       bool          `yaml:"-"`                           // Explicitly disable inheriting sandbox.agent.ca-cert
 	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
 	EngineDisabled      bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
 	RunsOn              string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
@@ -192,11 +194,20 @@ func parseThreatDetectionScalarFields(configMap map[string]any, threatConfig *Th
 		threatConfig.RunsOn = renderRunsOnSnippet(runOn)
 	}
 
+	parseThreatDetectionNetworkFields(configMap, threatConfig)
+	parseThreatDetectionReportingFields(configMap, threatConfig)
+}
+
+func parseThreatDetectionNetworkFields(configMap map[string]any, threatConfig *ThreatDetectionConfig) {
 	if artifactBaseURL, ok := configMap["artifact-base-url"].(string); ok {
 		threatConfig.ArtifactBaseURL = artifactBaseURL
 	}
 
-	parseThreatDetectionReportingFields(configMap, threatConfig)
+	if caCert, ok := configMap["ca-cert"].(string); ok {
+		threatConfig.CACert = strings.TrimSpace(caCert)
+	} else if caCert, ok := configMap["ca-cert"].(bool); ok {
+		threatConfig.DisableCACert = !caCert
+	}
 }
 
 func parseThreatDetectionModel(configMap map[string]any, threatConfig *ThreatDetectionConfig) {

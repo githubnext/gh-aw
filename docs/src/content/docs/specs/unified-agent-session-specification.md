@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.9.0"
+version: "1.10.0"
 status: Draft
-publication_date: "2026-10-15"
+publication_date: "2026-10-16"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.9.0<br>
+**Version**: 1.10.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-15<br>
+**Publication Date**: 2026-10-16<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.9.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.10.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -639,6 +639,7 @@ source for opaque fields.
 | `grader.manifest`, `grader.result` | Essential deterministic grader definitions/results, without scripts; grading does not invent event time. |
 | `eval.result` | Evals JSONL observations, preserving answers, IDs, and observed timestamps. |
 | `usage.report`, `execution.result`, `detection.result`, `workflow.info` | Existing accounting, execution evidence, detection verdicts, and run metadata. `workflow.info` retains available `cliVersion` (gh-aw), `awfVersion`, `mcpgVersion`, `engineId`, `agentVersion`, observed `model`, `requestedModel`, compact `modelRouting`, and `triggerType` from `aw_info.json`. `requestedModel` prefers `requested_model` and falls back to `model` for earlier metadata. Unavailable values are not inferred. |
+| `workflow.job_result` | Conclusion's GitHub Actions dependency snapshot from `needs`, passed through `GH_AW_JOB_RESULTS`. Each record contains the stable `jobId` and its observed `result`: `success`, `failure`, `cancelled`, or `skipped`. Optional `durationMs` is the completed Actions job's `completed_at - started_at` in milliseconds, excluding queue time. Outputs and other dependency fields are excluded. Records have workflow component, conclusion phase, and `usage/aw_session.jsonl` provenance, with deterministic job-ID order and no invented timestamp. |
 | `model_routing.outcome` | The harness's observed routing status, wire model, effective endpoint, selected endpoint, effort, applied effort, and failure code from `agent/awf-routing-outcome.json`; free-form detail is excluded. |
 | `model.inventory` | AWF's runtime model list from `sandbox/firewall/models.json` and persisted `/reflect` inventory, selecting the first valid copy from `agent/awf-reflect.json`, then `sandbox/firewall/awf-reflect.json`. Agent and threat-detection inventories retain their source path and phase separately. Payloads contain provider names, full model ID lists, routing model IDs and supported endpoints, and the observed `modelsFetchComplete` flag when supplied. Endpoint routing metadata takes precedence over the top-level fallback. Credentials, headers, URLs, and unrecognized fields are excluded. Missing inventory does not imply unavailable models; malformed sources emit collection warnings rather than empty inventory events. JSON parse failures produce one warning per source. |
 | `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
@@ -647,6 +648,35 @@ source for opaque fields.
 | `plugin.installation` | Successful plugin installations retain the pinned `plugin` reference, `repository`, `ref`, local checkout `path`, and `status: "installed"`, with the installation timestamp. CLI and directory-based engines record success after installation or staging; Claude records the checked-out directory made available through `--plugin-dir`, and Codex records success after marketplace registration and plugin installation. The collector prefers `plugin-installations.jsonl` over its `usage/` copy. Credentials and unrecognized fields are excluded; absent evidence does not imply an installation. |
 | `session.collection_warning`, `session.collection` | Explicit collection diagnostics and coverage. |
 | `session.format` | Leading collector-owned file-format metadata, distinct from source-native events with the same type. |
+
+Job-result records cover only the conclusion job's direct dependencies, including
+custom jobs when present in `needs`. They do not imply a final workflow result
+or a result for the still-running conclusion job. Missing dependency metadata,
+including historical reconstruction without this context, produces no job-result
+records. Malformed metadata emits collection warnings without copying its
+contents; valid adjacent job results remain available. These native Actions
+results are distinct from agent execution exit codes and detection verdicts.
+Duration collection reuses the conclusion failed-job reporter's existing outcome
+listing through its `job_durations` step output. When no listing was produced,
+the collector reads the current run attempt's paginated Actions jobs, using
+`actions: read`. The reporter and summary inherit the same job-level
+`GH_AW_JOB_DISPLAY_NAMES` inventory and explicit `GH_AW_JOB_TIMING_ELIGIBLE`
+set, finalized after generated-job annotations from effective emitted names:
+unnamed jobs use emitted job IDs, and static author overrides are retained.
+Only compiler-confirmed static-name, non-matrix, non-reusable single jobs with
+a unique exact API-name match supply timing. Dynamic-name and grouped jobs omit
+timing even when only one cell appears in the current attempt. Prefix-colliding
+names remain ambiguous on partial reruns. Skipped jobs and missing or invalid
+timestamps also omit duration rather than reporting zero; a measured zero remains
+valid. API failures emit a warning without discarding dependency outcomes.
+
+Job-duration collection is always enabled; there is no frontmatter opt-out.
+Consequently, every generated conclusion job requests at least `actions: read`,
+even when both `safe-outputs.report-failed-jobs` and
+`safe-outputs.report-failure-as-issue` are disabled. This expands the previous
+permission model, where disabling both reporters could omit Actions access.
+Existing `actions: write` grants required by configured safe outputs are preserved;
+duration collection itself requires only read access.
 
 **T-UAS-072 — Skill evidence and conflicts.** When an activation skill inventory
 is present, the merger MUST include its deterministic installed-skill names,
@@ -2010,6 +2040,11 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 1.10.0 — Draft (2026-10-16)
+
+- Added `workflow.job_result` dependency outcomes and observed job durations to the unified artifact and publication views without job outputs or inferred final workflow status.
+- Retained serialization-format version 1.
 
 ### Version 1.9.0 — Draft (2026-10-15)
 

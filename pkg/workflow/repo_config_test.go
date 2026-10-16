@@ -80,6 +80,38 @@ func TestLoadRepoConfig_RequireSelfHostedRunners(t *testing.T) {
 	assert.True(t, cfg.RequireSelfHostedRunners)
 }
 
+func TestLoadRepoConfig_LockFileLogo(t *testing.T) {
+	assert.True(t, (*RepoConfig)(nil).IsLockFileLogoEnabled())
+	for _, tt := range []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{"missing file", "", true},
+		{"omitted", `{}`, true},
+		{"enabled", `{"lock_file_logo": true}`, true},
+		{"disabled", `{"lock_file_logo": false}`, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tt.content != "" {
+				writeAWJSON(t, dir, tt.content)
+			}
+			cfg, err := LoadRepoConfig(dir)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg.IsLockFileLogoEnabled())
+		})
+	}
+	for _, value := range []string{`"false"`, `0`, `null`} {
+		t.Run("invalid "+value, func(t *testing.T) {
+			dir := t.TempDir()
+			writeAWJSON(t, dir, `{"lock_file_logo": `+value+`}`)
+			_, err := LoadRepoConfig(dir)
+			require.Error(t, err)
+		})
+	}
+}
+
 func TestLoadRepoConfig_StrictFalseRejected(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"strict": false}`)

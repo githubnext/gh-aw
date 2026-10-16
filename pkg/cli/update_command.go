@@ -92,6 +92,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			prMessage, _ := cmd.Flags().GetString("pr-message")
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
 			yes, _ := cmd.Flags().GetBool("yes")
 			coolDownStr, _ := cmd.Flags().GetString("cool-down")
@@ -148,6 +149,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				CoolDown:               coolDown,
 				Approve:                approveFlag,
 				AutoMerge:              autoMerge,
+				PRMessage:              prMessage,
 			}
 
 			if targetRepo != "" {
@@ -158,13 +160,24 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				return runUpdateForOrg(cmd.Context(), targetOrg, repoGlobs, opts, createPR, createIssue, verbose)
 			}
 
+			var summary *updatePRSummary
+			if createPR {
+				var err error
+				summary, err = newUpdatePRSummary(cmd.Context(), opts.WorkflowsDir)
+				if err != nil {
+					return err
+				}
+			}
 			if err := RunUpdateWorkflows(cmd.Context(), opts); err != nil {
 				return err
 			}
 
 			if createPR {
-				prBody := "This PR updates agentic workflows from their source repositories."
-				_, err := createPRWithChanges(cmd.Context(), "update-workflows", "chore: update workflows",
+				prBody, err := updatePRBody(cmd.Context(), summary, opts)
+				if err != nil {
+					return err
+				}
+				_, err = createPRWithChanges(cmd.Context(), "update-workflows", "chore: update workflows",
 					"Update workflows from source", prBody, verbose, opts.AutoMerge)
 				return err
 			}
@@ -192,6 +205,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
+	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository that has pending workflow updates (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode update confirmations (required in CI)")
 	cmd.Flags().String("cool-down", "7d", coolDownFlagUsage)
@@ -338,23 +352,31 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 		}
 	}
 
+	var summary *updatePRSummary
+	if createPR {
+		summary, err = newUpdatePRSummary(ctx, opts.WorkflowsDir)
+		if err != nil {
+			return err
+		}
+	}
 	if err := RunUpdateWorkflows(ctx, opts); err != nil {
 		return err
 	}
 
 	if createPR {
-		releaseTag, releaseURL := getGhawReleaseInfo(ctx)
-		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
+		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, normalizeDisplayVersion(GetVersion()))
 
-		// Close any stale update PRs in the target repo before creating the new one.
-		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
-
-		var releaseLine string
-		if releaseURL != "" {
-			releaseLine = fmt.Sprintf("\n[View gh-aw release %s](%s)\n", releaseTag, releaseURL)
+		prBody, err := updatePRBody(ctx, summary, opts)
+		if err != nil {
+			return err
 		}
-		prBody := "This PR updates agentic workflows from their source repositories." +
-			releaseLine + "\n" + xmlMarker
+		prBody += "\n" + xmlMarker
+		if err := validatePRBody(prBody); err != nil {
+			return err
+		}
+
+		// Close stale PRs only after the replacement description is validated.
+		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
 
 		prURL, err := createPRWithChanges(ctx, "update-workflows", "chore: update workflows",
 			"Update workflows from source", prBody, verbose, opts.AutoMerge)

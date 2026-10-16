@@ -6712,6 +6712,135 @@ describe("handle_agent_failure", () => {
       expect(createCommentMock).not.toHaveBeenCalled();
     });
 
+    it("skips cancelled agents with collector-reported missing terminal output", async () => {
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+      const reason = "missing_terminal_safe_output";
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "report_incomplete", reason, failureCause: reason, driverExitCode: 0 }],
+          collectorEmptyOutputCause: reason,
+          collectorFailureCause: reason,
+        })
+      );
+      const createIssueMock = vi.fn();
+      const createCommentMock = vi.fn();
+      const searchMock = vi.fn();
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: { create: createIssueMock, createComment: createCommentMock },
+        },
+      };
+
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(global.core.setFailed).not.toHaveBeenCalled();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(searchMock).not.toHaveBeenCalled();
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("(conclusion: cancelled), skipping failure handling"));
+    });
+
+    it("reports an agent-authored missing terminal output without collector corroboration", async () => {
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+      syncRuntimePromptTemplates(import.meta.url);
+      fs.writeFileSync(path.join(tmpDir, "agent_output.json"), JSON.stringify({ items: [{ type: "report_incomplete", reason: "missing_terminal_safe_output" }] }));
+      const createIssueMock = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create: createIssueMock },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(global.core.setFailed).toHaveBeenCalledWith("Agent reported that it could not complete the task");
+      expect(createIssueMock).toHaveBeenCalled();
+    });
+
+    it("omits collector missing-terminal diagnostics from mixed-output cancellation reports", async () => {
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+      syncRuntimePromptTemplates(import.meta.url);
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [
+            { type: "report_incomplete", reason: "missing_terminal_safe_output", failureCause: "missing_terminal_safe_output", details: "private cancellation diagnostics" },
+            { type: "missing_tool", tool: "private-tool", reason: "private tool unavailable" },
+          ],
+          collectorEmptyOutputCause: "missing_terminal_safe_output",
+          collectorFailureCause: "missing_terminal_safe_output",
+        })
+      );
+      const createIssueMock = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create: createIssueMock },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(createIssueMock).toHaveBeenCalledOnce();
+      const { title, body } = createIssueMock.mock.calls[0][0];
+      expect(title).not.toContain("finished without a terminal safe output");
+      expect(body).toContain("private-tool");
+      expect(body).not.toContain("private cancellation diagnostics");
+      expect(body).not.toContain("Failure classification: missing_terminal_safe_output");
+      const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
+      expect(categories).toContain("missing_tool");
+      expect(categories).not.toContain("missing_terminal_safe_output");
+      expect(categories).not.toContain("report_incomplete");
+    });
+
+    it.each([
+      ["success", "missing_terminal_safe_output"],
+      ["failure", "missing_terminal_safe_output"],
+      ["timed_out", "missing_terminal_safe_output"],
+      ["cancelled", "mcp_crash"],
+    ])("preserves failure reporting for %s agents with %s", async (conclusion, reason) => {
+      process.env.GH_AW_AGENT_CONCLUSION = conclusion;
+      syncRuntimePromptTemplates(import.meta.url);
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "report_incomplete", reason }],
+          ...(reason === "missing_terminal_safe_output" ? { collectorEmptyOutputCause: reason } : {}),
+        })
+      );
+      const createIssueMock = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create: createIssueMock },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(global.core.setFailed).toHaveBeenCalledWith("Agent reported that it could not complete the task");
+      expect(createIssueMock).toHaveBeenCalled();
+    });
+
     it.each([
       ["agent_startup_failure", "failed before agent execution started"],
       ["engine_driver_failure", "engine driver failed before emitting a terminal safe output"],

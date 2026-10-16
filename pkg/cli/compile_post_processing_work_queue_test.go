@@ -23,7 +23,7 @@ func TestGenerateWorkQueueEventWorkflowSkipsRepoConfigWhenIssueMirroringIsUnused
 
 	err := generateWorkQueueEventWorkflowWrapper(context.Background(), []*workflow.WorkflowData{{
 		Tools: map[string]any{"work-queue": true},
-	}}, workflowDir, repoRoot, true)
+	}}, workflowDir, repoRoot, true, false)
 
 	require.NoError(t, err)
 	_, err = os.Stat(generatedPath)

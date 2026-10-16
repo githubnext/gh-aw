@@ -62,6 +62,7 @@ type GenerateAutoUpdateWorkflowOptions struct {
 	UpgradeOptions []string
 	RepoConfig     *RepoConfig
 	PinWarnings    map[string]bool
+	NoLogo         bool
 }
 
 // GenerateAutoUpdateWorkflow generates or removes the agentic-auto-upgrade.yml workflow
@@ -125,6 +126,7 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error { 
 		getCLICmdPrefix(actionMode),
 		opts.CustomCron != "",
 		opts.UpgradeOptions,
+		shouldIncludeLockFileLogo(opts.RepoConfig, opts.NoLogo),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to finalize auto-update workflow YAML: %w", err)
@@ -178,6 +180,7 @@ func buildAutoUpdateWorkflowYAML( //nolint:largefunc // The renderer preserves t
 	cronSchedule, setupActionRef, githubScriptPin, installCLISteps, cliCmdPrefix string,
 	isCustomCron bool,
 	upgradeOptions []string,
+	logo bool,
 ) (string, error) {
 	var customInstructions string
 	if isCustomCron {
@@ -206,7 +209,7 @@ The weekly schedule is deterministically scattered based on the repository slug.
 		scheduleComment = "Weekly (auto-upgrade)"
 	}
 
-	header := GenerateWorkflowHeader("", "pkg/workflow/auto_update_workflow.go", customInstructions)
+	header := GenerateWorkflowHeader("", "pkg/workflow/auto_update_workflow.go", customInstructions, logo)
 	upgradeOptionsEnv := ""
 	if len(upgradeOptions) > 0 {
 		encodedOptions, err := json.Marshal(upgradeOptions)

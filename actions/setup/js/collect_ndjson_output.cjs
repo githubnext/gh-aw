@@ -9,7 +9,7 @@ const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
 const { parseIntTemplatable } = require("./templatable.cjs");
 const { isProbingNoopMessage } = require("./intent_probe.cjs");
-const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
+const { buildEmptyOutputOutcome, collectOutcomeSession, hasFailedFinalResult } = require("./empty_output_outcome.cjs");
 
 const MENTION_AWARE_OUTPUT_TYPES = new Set(["add_comment", "close_discussion", "create_discussion", "create_issue", "create_pull_request", "create_pull_request_review_comment", "reply_to_pull_request_review_comment"]);
 
@@ -374,8 +374,19 @@ async function main() {
     let collectorDriverExitCode;
     let collectorRetryCount;
     let collectorEngineErrorType;
-    if (!queueScope && !parsedItems.some(item => !["missing_tool", "missing_data"].includes(item.type))) {
-      const incompleteOutcome = buildEmptyOutputOutcome(errors);
+    const hasTerminalOutput = parsedItems.some(item => !["missing_tool", "missing_data"].includes(item.type));
+    let failedFinalResult = false;
+    let session;
+    if (!queueScope && hasTerminalOutput) {
+      try {
+        session = collectOutcomeSession(TMP_GH_AW_PATH);
+        failedFinalResult = hasFailedFinalResult(session.events);
+      } catch {
+        core.warning("Runtime diagnostics could not be collected.");
+      }
+    }
+    if (!queueScope && (failedFinalResult || !hasTerminalOutput)) {
+      const incompleteOutcome = buildEmptyOutputOutcome(errors, undefined, session);
       parsedItems.push(incompleteOutcome);
       collectorEmptyOutputCause = incompleteOutcome.reason;
       collectorFailureCause = incompleteOutcome.failureCause;

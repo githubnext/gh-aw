@@ -113,7 +113,7 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 		})...)
 	}
 	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
-	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), c.getActionPin)...)
+	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -122,10 +122,14 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 
 // computeConclusionJobPermissions resolves the GITHUB_TOKEN permissions for the conclusion
 // job: the base safe-outputs permissions plus the extra scopes required by the OTLP OIDC
-// token, the daily-AIC cache save step, the report-failed-jobs step, and any issue-creating
-// conclusion mechanism.
+// token, session job-duration collection, and any issue-creating conclusion mechanism.
 func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	// Session job-duration collection is always enabled, independently of failure
+	// reporting, and reads the current run attempt's Actions jobs.
+	if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
+		conclusionPerms.Set(PermissionActions, PermissionRead)
+	}
 	if isWorkQueueParticipant(data) {
 		conclusionPerms = NewPermissions()
 		conclusionPerms.Set(PermissionContents, PermissionRead)
@@ -150,19 +154,9 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
 		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 	}
-	// The report-failed-jobs step lists workflow run jobs (actions: read) when the
-	// feature is enabled (default: true).
-	if conclusionReportFailedJobsEnabled(data) {
-		if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
-			conclusionPerms.Set(PermissionActions, PermissionRead)
-		}
-	}
 	// The agent-failure handler checks the PR state and agent job steps before
-	// reporting a failed PR merge-ref checkout.
+	// reporting a failed PR merge-ref checkout; Actions access is already granted above.
 	if conclusionReportFailureAsIssueEnabled(data) {
-		if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
-			conclusionPerms.Set(PermissionActions, PermissionRead)
-		}
 		if level, ok := conclusionPerms.Get(PermissionPullRequests); !ok || level == PermissionNone {
 			conclusionPerms.Set(PermissionPullRequests, PermissionRead)
 		}
@@ -288,13 +282,13 @@ func buildUsageArtifactInputDownloadSteps(prefix string, hasEvals bool, experime
 // can include safe-output item counts in the activity summary without requiring a separate artifact download.
 func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, experimentArtifactName string, hasDetection bool, pinAction func(string) string) []string {
 	steps := buildUsageArtifactInputDownloadSteps(prefix, hasEvals, experimentArtifactName, pinAction)
-	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, true, pinAction)...)
+	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, true, false, pinAction)...)
 }
 
-func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail bool, pinAction func(string) string) []string {
+func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string) []string {
 	usageArtifactName := prefix + "usage"
 	steps := buildUsageArtifactCollectionStep(hasDetection)
-	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, pinAction)...)
+	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations, pinAction)...)
 	usageArtifactUploadAction := pinAction("actions/upload-artifact")
 	usageArtifactUploadWithLines := []string{
 		"        with:\n",
@@ -374,16 +368,21 @@ func buildUsageArtifactCollectionStep(hasDetection bool) []string {
 	return collectionStep
 }
 
-func buildUsageActivityGenerationStep(hasDailyAICGuardrail bool, pinAction func(string) string) []string {
+func buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string) []string {
 	steps := []string{
 		"      - name: Generate usage activity summary and unified session\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
 	}
+	if reuseJobDurations || hasDailyAICGuardrail {
+		steps = append(steps, "        env:\n")
+	}
+	if reuseJobDurations {
+		steps = append(steps, "          GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}\n")
+	}
 	if hasDailyAICGuardrail {
 		steps = append(steps,
-			"        env:\n",
 			"          GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}\n",
 			"          GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}\n",
 			"          GH_AW_DAILY_AI_CREDITS_TOTAL: ${{ needs.activation.outputs.daily_ai_credits_total }}\n",

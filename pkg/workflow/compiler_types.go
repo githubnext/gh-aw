@@ -66,6 +66,7 @@ type Compiler struct {
 	repoConfigLoaded        bool                     // True once repo config has been loaded (success or failure)
 	contentOverride         string                   // If set, use this content instead of reading from disk (for Wasm/in-memory compilation)
 	skipHeader              bool                     // If true, skip ASCII art header in generated YAML (for Wasm/editor mode)
+	noLogo                  bool                     // If true, omit only the ASCII logo from generated headers
 	inlinePrompt            bool                     // If true, inline markdown content in YAML instead of using runtime-import macros (for Wasm builds)
 	priorManifests          map[string]*GHAWManifest // Pre-cached manifests keyed by lock file path; takes precedence over git HEAD / filesystem reads
 	requireDocker           bool                     // If true, fail validation when Docker is not available instead of silently skipping

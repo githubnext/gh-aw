@@ -137,6 +137,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 			Agent: &AgentSandboxConfig{
 				Type:   SandboxTypeAWF,
 				Images: maps.Clone(getSandboxAgentImages(data)),
+				CACert: resolveThreatDetectionCACert(data, engineID),
 			},
 		},
 	}
@@ -169,6 +170,21 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 	}
 
 	return detectionData
+}
+
+// resolveThreatDetectionCACert prefers an explicit detection CA path, honors
+// ca-cert: false, and otherwise inherits the agent path only for the same engine.
+func resolveThreatDetectionCACert(data *WorkflowData, engineID string) string {
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.CACert != "" {
+		return data.SafeOutputs.ThreatDetection.CACert
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.DisableCACert {
+		return ""
+	}
+	if ResolveEngineID(data) != engineID {
+		return ""
+	}
+	return extractAPIProxyCACert(data)
 }
 
 // buildThreatDetectionContainerImages translates AWF container pin redirects into

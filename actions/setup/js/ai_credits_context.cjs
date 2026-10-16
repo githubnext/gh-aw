@@ -3,6 +3,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
+const { parseAICreditsExceededProxyRejection } = require("./harness_error_patterns.cjs");
 
 const MAX_AI_CREDITS_FIELDS = new Set(["max_ai_credits", "maxAiCredits"]);
 const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
@@ -32,9 +33,87 @@ const API_PROXY_GUARD_REJECTION_EVENT_TYPES = [MAX_CACHE_MISSES_EXCEEDED_EVENT_T
 // Counter fields carried by proxy guard rejection events, reported alongside the guard name
 // so the step log states what limit was hit and at which value.
 const API_PROXY_GUARD_COUNTER_FIELDS = ["consecutive_cache_misses", "max_cache_misses", "effective_tokens", "max_effective_tokens", "permission_denied_count", "max_permission_denied", "model"];
-const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?/i;
+// Raw stderr fallback assumes unprefixed subprocess diagnostics; only explicitly allowlisted wrappers are unwrapped below.
+const MAX_AI_CREDITS_EXCEEDED_STDIO_RE =
+  /^(?:(?:Execution failed:\s*)?CAPIError:\s*429\s+|Failed to get response from the AI model; retried \d+ times(?: \(total retry wait time:[^)]+\))?(?: \(Request-ID [^)]+\))?\.? Last error: CAPIError:\s*429\s+|Fatal:\s*)Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;
+const MAX_AI_CREDITS_EXCEEDED_NATIVE_ERROR_RE = /^(?:(?:API Error:\s*)?403(?::\s*|\s+)(?:Forbidden[.:]?\s*)?)?Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;
 const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
 const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
+
+/**
+ * Compatibility for native diagnostics alongside the pair-only harness parser.
+ * Never walk arbitrary JSON fields: only engine-owned error slots are eligible.
+ * @param {string} line
+ * @returns {{ aiCredits: string, maxAICredits: string } | null}
+ */
+function parseNativeAICreditsRejection(line) {
+  let diagnostic = line;
+  let nativeEnvelope = false;
+  if (line.trimStart().startsWith("{")) {
+    let record;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      return null;
+    }
+    if (!record || typeof record !== "object" || Array.isArray(record)) return null;
+    if (record.role || record.data?.role || record.error?.role || record.parentToolUseId || record.parent_tool_use_id || record.parentToolCallId || record.agentId || record.data?.parentToolCallId || record.data?.agentId) return null;
+    if (["warning", "info"].includes(record.data?.severity || record.severity)) return null;
+    if (record.message?.role && !["message_end", "turn_end", "assistant"].includes(record.type)) return null;
+    if (record.message?.role && record.message.role !== "assistant") return null;
+    const rejection = parseAICreditsExceededProxyRejection(line);
+    if (rejection) return { aiCredits: String(rejection.aiCredits), maxAICredits: String(rejection.maxAICredits) };
+    if (["message_end", "turn_end"].includes(record.type) && record.message?.role === "assistant" && record.message.stopReason === "error") {
+      diagnostic = record.message.errorMessage;
+    } else if (record.type === "error" && typeof record.error === "string" && record.message === undefined) {
+      diagnostic = record.error;
+    } else if (record.type === "session.error" && record.data) {
+      diagnostic = record.data.message;
+    } else {
+      return null;
+    }
+    nativeEnvelope = true;
+  } else {
+    const sdkError = /^\[(?:copilot-sdk-driver|sdk-driver)\]\s+(?:\[sdk-driver\]\s+)?(?:error|unhandled error):\s*(?:Error:\s*)?([\s\S]*)$/i.exec(line);
+    if (sdkError) {
+      diagnostic = sdkError[1];
+      nativeEnvelope = true;
+    }
+    // Pi strips the HTTP status from its JSON-quoted error field.
+    const providerError = /^\[gh-aw\/pi-provider\]\s+\S+\s+provider_error provider=.+? model=.+? api=\S+ status=403 method=\S+ url=.+? response_headers=\S+ error=("(?:[^"\\]|\\.)*")$/.exec(line);
+    if (providerError) {
+      try {
+        diagnostic = JSON.parse(providerError[1]);
+      } catch {
+        return null;
+      }
+      nativeEnvelope = true;
+    }
+  }
+  if (typeof diagnostic !== "string") return null;
+  let match = MAX_AI_CREDITS_EXCEEDED_STDIO_RE.exec(diagnostic);
+  if (!match && nativeEnvelope) {
+    // Goose's terminal error wraps the response and appends fixed retry advice.
+    diagnostic = diagnostic.replace(/^Ran into this error: Authentication error: Status: 403 Forbidden\. Response: /, "").replace(/\n\nPlease retry if you think this is a transient or recoverable error\.$/, "");
+    // Pi may retain the provider's JSON error body after the HTTP status.
+    const jsonBody = /^(?:403(?::\s*|\s+))?(\{.*\})$/.exec(diagnostic);
+    if (jsonBody) {
+      try {
+        const body = JSON.parse(jsonBody[1]);
+        if (body.role || body.error?.role || ["assistant", "user", "tool", "tool_result", "toolResponse", "message"].includes(body.type)) return null;
+        diagnostic = typeof body.error?.message === "string" ? body.error.message : body.message;
+      } catch {
+        return null;
+      }
+    }
+    match = typeof diagnostic === "string" ? MAX_AI_CREDITS_EXCEEDED_NATIVE_ERROR_RE.exec(diagnostic) : null;
+  }
+  if (!match) return null;
+  const aiCredits = match[1] || "";
+  const maxAICredits = match[2] || "";
+  if (aiCredits && (!Number.isFinite(Number(aiCredits)) || !Number.isFinite(Number(maxAICredits)) || Number(maxAICredits) <= 0 || Number(aiCredits) < Number(maxAICredits))) return null;
+  return { aiCredits, maxAICredits };
+}
 
 /**
  * @param {unknown} value
@@ -716,25 +795,21 @@ function parseAICreditsExceededFromAgentStdio() {
       fs.closeSync(fd);
     }
     const content = buf.toString("utf8");
-    const proxyHTTP403 = content.split(/\r?\n/).some(line => {
-      const proxyFailure = line.match(/Authentication failed with provider at (\S+) \(HTTP 403\)\.?/i);
+    const lines = content.split(/\r?\n/);
+    const proxyHTTP403 = lines.some(line => {
+      const proxyFailure = line.match(/^Authentication failed with provider at (\S+) \(HTTP 403\)\.?$/i);
       return proxyFailure !== null && isLikelyAWFAPIProxyURL(proxyFailure[1]);
     });
-    // Use matchAll and take the last occurrence — in retried runs the final
-    // entry carries the authoritative (highest) credit values.
-    const RE_G = new RegExp(MAX_AI_CREDITS_EXCEEDED_STDIO_RE.source, "gi");
-    const allMatches = [...content.matchAll(RE_G)];
-    const match = allMatches.at(-1);
-    if (!match) return { ...EMPTY_AGENT_STDIO_STATE, proxyHTTP403 };
-    const aiCredits = parsePositiveNumberString(match[1] || "");
-    const maxAICredits = parsePositiveNumberString(match[2] || "");
-    return {
-      aiCredits,
-      maxAICredits,
-      rateLimitError: true,
-      maxAICreditsExceeded: true,
-      proxyHTTP403,
-    };
+    // JSON tool/assistant records can quote rejection examples. Only inspect
+    // authenticated transport errors or a complete native stderr diagnostic.
+    let result = { ...EMPTY_AGENT_STDIO_STATE, proxyHTTP403 };
+    for (const line of lines) {
+      const rejection = parseNativeAICreditsRejection(line);
+      if (!rejection) continue;
+      const { aiCredits, maxAICredits } = rejection;
+      result = { aiCredits, maxAICredits, rateLimitError: true, maxAICreditsExceeded: true, proxyHTTP403 };
+    }
+    return result;
   } catch {
     return EMPTY_AGENT_STDIO_STATE;
   }
