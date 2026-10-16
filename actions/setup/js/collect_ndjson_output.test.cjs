@@ -7,8 +7,6 @@ const _require = createRequire(import.meta.url);
 const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = _require("./constants.cjs");
 const emptyOutputOutcome = _require("./empty_output_outcome.cjs");
 const { buildEmptyOutputOutcome } = emptyOutputOutcome;
-const unifiedSession = _require("./unified_session.cjs");
-const { collectUnifiedSession } = unifiedSession;
 const { normalizeGeminiSession } = _require("./gemini_session.cjs");
 const incompleteOutput = JSON.stringify({
   items: [
@@ -31,9 +29,11 @@ describe("collect_ndjson_output.cjs", () => {
   (beforeEach(() => {
     vi.stubEnv("GITHUB_RUN_ID", "38401428490");
     vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
+    vi.stubEnv("GH_AW_ENGINE_ID", undefined);
     diagnosticRoot = fs.mkdtempSync(path.join(os.tmpdir(), "collect-ndjson-diagnostics-"));
-    outcomeSpy = vi.spyOn(emptyOutputOutcome, "buildEmptyOutputOutcome").mockImplementation(errors => buildEmptyOutputOutcome(errors, diagnosticRoot));
-    sessionSpy = vi.spyOn(unifiedSession, "collectUnifiedSession").mockImplementation(options => collectUnifiedSession({ ...options, rootDir: diagnosticRoot }));
+    outcomeSpy = vi.spyOn(emptyOutputOutcome, "buildEmptyOutputOutcome").mockImplementation((errors, _rootDir, session) => buildEmptyOutputOutcome(errors, diagnosticRoot, session));
+    const collectOutcomeSession = emptyOutputOutcome.collectOutcomeSession;
+    sessionSpy = vi.spyOn(emptyOutputOutcome, "collectOutcomeSession").mockImplementation(() => collectOutcomeSession(diagnosticRoot));
     fs.rmSync("/tmp/gh-aw/mcp-cli-audit", { recursive: true, force: true });
     (fs.existsSync("/tmp/gh-aw") || fs.mkdirSync("/tmp/gh-aw", { recursive: !0 }),
       (global.originalConsole = global.console),
@@ -316,6 +316,44 @@ describe("collect_ndjson_output.cjs", () => {
       expect(output.items[1].details).not.toContain("without emitting a terminal safe output");
       expect(output.items[1].details).not.toContain("exited before a terminal safe output");
       expect(mockCore.setOutput).toHaveBeenCalledWith("output_types", `${item.type},report_incomplete`);
+    }),
+    it("uses the Aider engine hint and one collected session for a failed final result", async () => {
+      const item = { type: "noop", message: "Nothing to publish" };
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      vi.stubEnv("GH_AW_ENGINE_ID", "aider");
+      fs.writeFileSync(testFile, JSON.stringify(item));
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      fs.writeFileSync(process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, JSON.stringify({ noop: {} }));
+      fs.writeFileSync(path.join(diagnosticRoot, "agent_execution_exit_code.txt"), "0");
+      fs.writeFileSync(path.join(diagnosticRoot, "agent-session.jsonl"), `${JSON.stringify({ type: "session.result", data: { errors: [{ status: "error" }] } })}\n`);
+
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+
+      const output = JSON.parse(mockCore.setOutput.mock.calls.find(call => call[0] === "output")[1]);
+      expect(output.items).toEqual([item, expect.objectContaining({ type: "report_incomplete", reason: "engine_driver_failure", driverExitCode: 0 })]);
+      expect(sessionSpy).toHaveBeenCalledTimes(1);
+      expect(output.collectorEmptyOutputCause).toBe("engine_driver_failure");
+    }),
+    it("preserves final Gemini failure over an earlier CLI error with valid output and nonzero exit", async () => {
+      const item = { type: "noop", message: "Nothing to publish" };
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      fs.writeFileSync(testFile, JSON.stringify(item));
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      fs.writeFileSync(process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, JSON.stringify({ noop: {} }));
+      fs.writeFileSync(path.join(diagnosticRoot, "aw_info.json"), JSON.stringify({ engine_id: "gemini" }));
+      fs.writeFileSync(path.join(diagnosticRoot, "agent_execution_exit_code.txt"), "1");
+      fs.writeFileSync(path.join(diagnosticRoot, "agent-stdio.log"), `${JSON.stringify({ type: "result", status: "error" })}\n`);
+      const auditPath = path.join(diagnosticRoot, "mcp-cli-audit/safeoutputs.jsonl");
+      fs.mkdirSync(path.dirname(auditPath), { recursive: true });
+      fs.writeFileSync(auditPath, `${JSON.stringify({ event: "parse_args_error" })}\n`);
+
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+
+      const output = JSON.parse(mockCore.setOutput.mock.calls.find(call => call[0] === "output")[1]);
+      expect(output.items).toEqual([item, expect.objectContaining({ type: "report_incomplete", reason: "engine_driver_failure", driverExitCode: 1 })]);
+      expect(output.items[1].details).toContain("The safeoutputs CLI failed.");
+      expect(output.items[1].details).toContain("The engine's final result reported an error");
+      expect(output.collectorEmptyOutputCause).toBe("engine_driver_failure");
     }),
     it.each([
       [{ type: "result", status: "success" }],

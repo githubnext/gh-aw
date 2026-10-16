@@ -138,8 +138,19 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   return summary;
 }
 
+/**
+ * @param {string} [rootDir]
+ * @returns {ReturnType<typeof collectUnifiedSession>}
+ */
+function collectOutcomeSession(rootDir = "/tmp/gh-aw") {
+  return collectUnifiedSession({ rootDir, ...(process.env.GH_AW_ENGINE_ID === "aider" ? { engine: "aider" } : {}), warn: () => {} });
+}
+
 /** @param {import("./types/unified_session").UnifiedSession} events @returns {boolean} */
 function hasFailedFinalResult(events) {
+  const workflowInfo = events.find(event => event.type === "workflow.info" && event.provenance.component === "workflow");
+  const engineId = process.env.GH_AW_ENGINE_ID ?? workflowInfo?.data.engineId ?? workflowInfo?.data.engine_id;
+  if (typeof engineId !== "string" || !["aider", "gemini"].includes(engineId)) return false;
   const result = events.filter(event => event.type === "session.result" && event.provenance.component === "agent" && event.provenance.phase === "agent" && !isNestedSessionEvent(event)).at(-1);
   return Array.isArray(result?.data.errors) && result.data.errors.length > 0;
 }
@@ -149,6 +160,7 @@ function hasFailedFinalResult(events) {
  * in a first-class incomplete signal when the agent emitted no valid outputs.
  * @param {string[]} errors
  * @param {string} [rootDir]
+ * @param {ReturnType<typeof collectUnifiedSession>} [session]
  * @returns {{
  *   type: string,
  *   reason: string,
@@ -159,14 +171,14 @@ function hasFailedFinalResult(events) {
  *   details?: string
  * }}
  */
-function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
+function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   const diagnostics = new Set();
   if (errors.length) diagnostics.add("Safe-output validation status: failed");
   let reason = errors.length ? "invalid_safe_outputs" : "missing_terminal_safe_output";
   let events = [];
   let maskedValues = [];
   try {
-    ({ events, maskedValues } = collectUnifiedSession({ rootDir, ...(process.env.GH_AW_ENGINE_ID === "aider" ? { engine: "aider" } : {}), warn: () => {} }));
+    ({ events, maskedValues } = session ?? collectOutcomeSession(rootDir));
   } catch {
     diagnostics.add("Runtime diagnostics could not be collected.");
   }
@@ -192,7 +204,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
           const entry = JSON.parse(line);
           if (["parse_args_error", "unrecognized_args"].includes(entry?.event)) {
             safeoutputsCliError = true;
-            reason = "safeoutputs_cli_error";
+            if (!failedFinalResult) reason = "safeoutputs_cli_error";
             diagnostics.add("The safeoutputs CLI failed. Run `safeoutputs <tool> --help` and pass a single quoted JSON object or --key value flags.");
           }
         } catch {
@@ -382,4 +394,4 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   };
 }
 
-module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, hasFailedFinalResult, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };
+module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, collectOutcomeSession, hasFailedFinalResult, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };
