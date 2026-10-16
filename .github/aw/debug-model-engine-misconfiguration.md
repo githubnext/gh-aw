@@ -9,6 +9,10 @@ Use this checklist for AWF 400s mentioning models or endpoints, silent cross-fam
 sub-agent failures, `model: auto` failures, install-step 404s after a version pin,
 or questions about version fields. Referenced from [debug-agentic-workflow.md](debug-agentic-workflow.md#identify-the-first-failing-boundary).
 
+For `not advertised` or model-not-found failures, start with the
+[model availability playbook](debug-model-not-available.md): inspect the failing
+run's reflected inventory before changing model pins or upgrading runtimes.
+
 ## 1. Check the gh-aw compiler version first
 
 Read `compiler_version` in the lock file's `gh-aw-metadata` header and `cli_version`

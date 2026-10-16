@@ -20,6 +20,23 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_model_availability_playbook(self):
+        name = "debug-model-not-available.md"
+        guide = (ROOT / ".github/aw" / name).read_text()
+        for path in (DEBUG_GUIDE, GUIDES[0]):
+            with self.subTest(path=path):
+                self.assertIn(name, path.read_text())
+        for required in (
+            "models_fetch_complete", "inventory_available", "routing_models",
+            "supported_endpoints", "model_aliases", "awf-reflect.json",
+            "token-usage.jsonl", "gh run download", "gh run view",
+            "Availability is unknown", "empty file", "missing file",
+            "same AWF version", "credential source (names only)",
+            "not proof", "Do not dispatch workflows",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, guide)
+
     def test_public_instruction_download_fallback(self):
         for path in (
             SKILL / "SKILL.md",

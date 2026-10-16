@@ -307,6 +307,10 @@ it needs `actions: read` and CLI installation before invoking `gh aw`.
 
 ## Model and engine misconfiguration
 
+For unavailable model IDs or `not advertised` startup failures, use the
+[model availability playbook](debug-model-not-available.md) to inspect saved
+reflection and compare existing runs without dispatching another workflow.
+
 For AWF 400s mentioning models or endpoints, silent cross-family sub-agent
 failures, `model: auto` failures, install-step 404s after a version pin, or
 questions about version fields, see
