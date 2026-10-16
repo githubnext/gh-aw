@@ -3,7 +3,7 @@ title: Model Routing Analytics Design
 description: Draft design for a model routing analytics page built only from unified session files, with metric definitions, source events, and proposed records for missing data.
 sidebar:
   order: 1366
-version: "0.1.0"
+version: "0.2.0"
 status: Draft
 publication_date: "2026-10-16"
 editors:
@@ -13,7 +13,7 @@ editors:
 
 # Model Routing Analytics Design
 
-**Version**: 0.1.0<br>
+**Version**: 0.2.0<br>
 **Status**: Draft<br>
 **Publication Date**: 2026-10-16<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
@@ -170,7 +170,7 @@ Current collectors project essential fields in camelCase. Older session files ca
 | Engine | `workflow.info.engineId` (`copilot`, `claude`, `codex`, `pi`, others) | Copilot CLI and Copilot SDK are indistinguishable today; see [G-9](#g-9-engine-harness). |
 | gh-aw version | `workflow.info.cliVersion` | Absent for unreleased builds. |
 | AWF version | `workflow.info.awfVersion` | |
-| Router version | Selection record `router.version`, else `workflow.info.modelRouting.routerVersion` | Router package version (for example `0.1.3`), not the AWF release; see [G-3](#g-3-router-routing-table-and-classifier-identity). |
+| Router identity | `workflow.info.awfVersion` plus selection record `router.tables` | The router image is released with AWF, so the AWF version identifies the router code and the table identity identifies the tables, which can be mounted separately. Runs whose `router.image` is a `sandbox.agent.images.router` override are grouped by that image. Runs on the retired `githubnext/gh-aw-router` image are labelled with `router.version`, else `workflow.info.modelRouting.routerVersion`. Table identity and overrides are unknown until [G-3](#g-3-router-routing-table-and-classifier-identity). |
 | Goal | Selection record `objective.goal` (`cost`, `cost-speed`) | Configured value. Unknown for runs without a selection record until [G-1](#g-1-model-configuration). |
 | Configured mode | Selection record `objective.mode` (`auto`, `economy`, `balanced`, `robust`) | |
 | Resolved mode | Selection record `mode`, else `workflow.info.modelRouting.mode` | `auto` resolves to `economy`, `balanced`, or `robust`. |
@@ -218,7 +218,14 @@ Threat detection is identified by provenance phase `detection` (sources under `t
 
 Sub-agent rows are keyed by `agentName` (T-UAS-073); when `agentName` is absent, the row uses `agentDisplayName`. The served model of a sub-agent row is the accounting record's `model`, never `model_routing.outcome`. The engine snapshot `session.result.agentMetrics[*].totalNanoAiu / 10^9` MAY be shown in a separate "engine-reported" column for sub-agents with no matched record; it is never added to proxy totals.
 
-**MRA-072 — Request join.** An accounting record joins its request record by `requestId`. The join supplies `routed`, `deviations`, `requestedModel`, `requestedEffort`, `selectedModel`, `selectedEffort`, and `outcome`. A request record without an accounting record (for example a request with `outcome: "rejected"`) has unknown cost.
+**MRA-072 — Request join.** An accounting record joins its request record by `requestId`. The join supplies `routed`, `deviations`, `requestedModel`, `requestedEffort`, `selectedModel`, `selectedEffort`, and `outcome`. A request record without an accounting record has unknown cost unless MRA-073 establishes zero cost.
+
+**MRA-073 — Zero-cost request records.** These request records establish zero AIC by themselves and need no accounting record:
+
+1. **Guard rejection**: `outcome: "rejected"`. AWF marks a request rejected when one of its guards (rate limit, model policy) refuses it before forwarding, so it reaches no provider and incurs no AIC.
+2. **AWF-local reasoning-effort failure**: `outcome: "failed"` with error code `unsupported_reasoning_effort`. AWF's reasoning-effort check (`validateReasoningEffort` in gh-aw-firewall `containers/api-proxy/upstream-http.js`) answers locally with HTTP 400 before forwarding, so the request reaches no provider and incurs no AIC.
+
+Current request records carry no error code; the code reaches the session only as the `code` of the run's failure record (`stage: "failure"`), which has no `requestId`. Until [G-5](#g-5-upstream-errors) adds `errorCode` to request records, a failed request record without an accounting record is an AWF-local reasoning-effort failure only when the run has a failure record with `code: "unsupported_reasoning_effort"` and it is the run's only failed request record without an accounting record. Any other failed request record without an accounting record keeps unknown cost.
 
 ### 4.5 Deviation causes
 
@@ -265,12 +272,12 @@ Every view accepts the filters workflow, repository, engine, routing state, goal
 | Modal pick share | max over *p* of runs with pick *p* ÷ runs with a known pick, per workflow. Higher means more stable. | Derived |
 | Pick change rate | Among a workflow's runs with a known pick, ordered by run time, the fraction of adjacent pairs whose picks differ. Requires at least two runs. | Derived |
 | Label-conditioned change rate | Pick change rate computed within each label cell (`task_type`, `scope`, `task_complexity`) and averaged, weighted by pairs. Separates task variation from router variation. | Selection record `labels` |
-| Change context | For each pick change within a label cell, whether `awfVersion`, router version, or the agent-phase `model.inventory` model set also changed between the two runs. | `workflow.info`, selection `router`, `model.inventory` |
+| Change context | For each pick change within a label cell, whether router identity ([Section 4.2](#42-dimensions)) or the agent-phase `model.inventory` model set also changed between the two runs. | `workflow.info`, selection `router`, `model.inventory` |
 | Label distribution | Count of runs per `task_type`, `scope`, and `task_complexity`. | Selection record `labels` |
 | Label-to-pick matrix | Run counts by label cell and pick. | Selection record |
 | Classifier model | Distribution of `classifierModel` and `classifierEffort`. | Classification or selection record |
 | Router latency | p50 and p95 of selection `latencyMs`. | Selection record |
-| Candidate pool | `eligibleChoices`, `catalogueOverlap`, and the rank of the pick within `rankedChoices`. Available only in older raw files until [G-2](#g-2-router-candidate-pool-and-predictions). | Selection record |
+| Candidate pool | `eligibleChoices`, `catalogueOverlap`, and the rank of the pick within `rankedChoices`. Available only in older raw files until [G-2](#g-2-router-candidate-pool). | Selection record |
 
 ### 5.3 Cost
 
@@ -278,7 +285,7 @@ All costs are AIC from `aic` on accounting records ([Section 4.4](#44-request-at
 
 1. `session.collection` lists that phase's accounting source (AWF `token-usage.jsonl` or the phase's `usage.report` file), so a missing source is not read as zero.
 2. Every accounting record in the relevant buckets has `aic`.
-3. Every request record in that phase joins an accounting record (MRA-072). A request record without one, including `outcome: "rejected"` records, has unknown cost ([Section 8](#8-open-questions), question 6).
+3. Every request record in that phase joins an accounting record (MRA-072) or is a zero-cost record under MRA-073 (a guard rejection or an AWF-local reasoning-effort failure). Any other request record without an accounting record has unknown cost.
 
 | Metric | Definition | Source |
 | --- | --- | --- |
@@ -326,8 +333,9 @@ When runs carry an `experiment.assignment` event whose variants differ in routin
 | Exit 78 runs | Runs with `agent.execution.exitCode` equal to 78, cross-tabulated with failure `code` and `agent.execution.categories`. Exit 78 with no proxy failure record is flagged "cause not recorded". | `agent.execution` |
 | Budget exhaustion | Runs with failure `code` `ai_credits_limit_exceeded` or with `max_ai_credits_exceeded` in `agent.execution.categories`. | `firewall.model_routing`, `agent.execution` |
 | Steering reach | Per run and steering type (`ai_credit`, `timeout`, `token`), the highest `threshold` in either `firewall.token_usage.steering` or `firewall.steering`. The share of runs reaching 80, 90, 95, and 99 uses only runs with at least one steering field or event in the denominator; other runs are "no notice recorded". | `firewall.token_usage.steering`, `firewall.steering.threshold` |
-| Rejected requests | Request records with `outcome: "rejected"`, grouped by `requestedModel`; runs with `model_policy_violation` or `awf_api_proxy_blocking_requests` in `agent.execution.categories`. | Request record, `agent.execution` |
-| Failed and aborted requests | Request records with `outcome` `failed` or `aborted`, grouped by `requestedModel` and `requestedEffort`. | Request record |
+| Rejected requests | Request records with `outcome: "rejected"` (zero AIC, MRA-073), grouped by `requestedModel`; runs with `model_policy_violation` or `awf_api_proxy_blocking_requests` in `agent.execution.categories`. | Request record, `agent.execution` |
+| AWF-local failures | Request records that MRA-073 identifies as AWF-local reasoning-effort failures (`unsupported_reasoning_effort`), grouped by `requestedModel` and `requestedEffort`. Shown as their own group with zero AIC, separate from provider failures. | Request record, failure record |
+| Failed and aborted requests | Request records with `outcome` `failed` or `aborted`, other than AWF-local failures, grouped by `requestedModel` and `requestedEffort`. | Request record |
 | Upstream errors | `firewall.event` events with `event: "UPSTREAM_ERROR_RESPONSE"`, grouped by `status` and, through `requestId` (MRA-072), by requested model and effort. Error code available only after [G-5](#g-5-upstream-errors). | `firewall.event` |
 | Unavailable models | Count of `subagent.model_unavailable` events (`declaredModel` → `model`), `subagent.failed` events with `errorCode` `SUBAGENT_MODEL_UNAVAILABLE`, runs with `model_not_supported_error` in `agent.execution.categories`, and picks absent from the run's agent-phase `model.inventory`. The inventory test applies only when the inventory has `modelsFetchComplete: true` and the pick's provider endpoint has a non-empty `models` list; an empty list is unknown, because current files cannot distinguish an unconfigured endpoint from one with no models ([G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints)). | `subagent.*`, `agent.execution`, `model.inventory` |
 | Failure clustering | For each pick, failing runs ÷ runs with that pick, where failing means any of the rows above. For request-level failures, the same ratio per (`requestedModel`, `requestedEffort`). | Derived |
@@ -377,10 +385,10 @@ The drill-down shows one run, with its Actions link ([Section 4.1](#41-run-ident
 | View | Available today | Limited until |
 | --- | --- | --- |
 | Adoption | Yes, with `unrouted_inferred` and unknown goal for selection failures | [G-1](#g-1-model-configuration), [G-9](#g-9-engine-harness) |
-| Decisions | Yes, without candidate pool | [G-2](#g-2-router-candidate-pool-and-predictions), [G-3](#g-3-router-routing-table-and-classifier-identity), [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints) |
+| Decisions | Yes, without candidate pool | [G-2](#g-2-router-candidate-pool), [G-3](#g-3-router-routing-table-and-classifier-identity), [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints) |
 | Cost | Yes; sub-agent split mostly correlated or unsplit | [G-10](#g-10-request-ownership), [G-6](#g-6-baseline-price), [G-1](#g-1-model-configuration) |
 | Deviations | Yes; alias moves need `model.resolution` | [G-11](#g-11-request-fields-dropped-by-the-projection), #69487 |
-| Failures | Yes; upstream errors without codes, inventory-based unavailability only for non-empty endpoints | [G-5](#g-5-upstream-errors), [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints), [G-11](#g-11-request-fields-dropped-by-the-projection) |
+| Failures | Yes; upstream errors without codes, AWF-local failures identified per request only in the cases MRA-073 allows, inventory-based unavailability only for non-empty endpoints | [G-5](#g-5-upstream-errors), [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints), [G-11](#g-11-request-fields-dropped-by-the-projection) |
 | Outcomes | Yes, conclusion-time outcomes only | [G-4](#g-4-run-outcome) |
 | Drill-down | Yes | — |
 
@@ -393,10 +401,10 @@ Each proposal follows the unified session specification's existing rules: the re
 | Gap | Finding | Proposed record | Writer |
 | --- | --- | --- | --- |
 | [G-1](#g-1-model-configuration) Model configuration | Confirmed (not in the problem list) | New `model.config` | gh-aw runner (activation) |
-| [G-2](#g-2-router-candidate-pool-and-predictions) Candidate pool and predictions | Partly recorded by AWF, dropped by the collector; predictions do not exist | Extend `firewall.model_routing` selection | Router, AWF api-proxy |
-| [G-3](#g-3-router-routing-table-and-classifier-identity) Router, tables, classifier | Partly present | Extend `router` object and classification record | Router, AWF api-proxy |
+| [G-2](#g-2-router-candidate-pool) Candidate pool | Recorded by AWF, dropped by the collector | Retain fields on `firewall.model_routing` selection | Collector |
+| [G-3](#g-3-router-routing-table-and-classifier-identity) Router, tables, classifier | Router code identified by AWF version; table identity, image override, and classifier request ID missing | Extend `router` object and classification record | Router, AWF api-proxy |
 | [G-4](#g-4-run-outcome) Run outcome | Conclusion-time outcomes present; delayed outcomes missing | New `safe_output.outcome` | Outcome evaluator step (runner) |
-| [G-5](#g-5-upstream-errors) Upstream errors | Reach the session as a generic event without code | New `firewall.upstream_error` | AWF api-proxy |
+| [G-5](#g-5-upstream-errors) Upstream errors | Reach the session as a generic event without code; failed request records carry no code | New `firewall.upstream_error`; `errorCode` on failed request records | AWF api-proxy |
 | [G-6](#g-6-baseline-price) Baseline price | Confirmed | New `model.baseline_estimate` | Conclusion collector (runner) |
 | [G-7](#g-7-model-inventory-rejected-for-unconfigured-endpoints) Inventory dropped | Confirmed; wider than reported | Collector fix to `model.inventory` | AWF (source), collector |
 | [G-8](#g-8-threat-detection-attribution) Detection attribution | No gap; identified by phase | None | — |
@@ -424,11 +432,11 @@ Each proposal follows the unified session specification's existing rules: the re
 
 Absence of the event means an older file; the page falls back to Section 4.3. Model patterns are workflow configuration already present in the compiled lock file.
 
-### G-2. Router candidate pool and predictions
+### G-2. Router candidate pool
 
-**Finding.** AWF already writes the ranked candidate list on the selection record: `ranked_choices` (an ordered list of `{model, effort}`), `eligible_choices`, and `catalogue_overlap` (for example in the AWF `model-routing/v0.28.51` record of the `copilot-budget-exhausted-steering` fixture). The collector's `firewall.model_routing` projection does not retain these fields, so only older raw session files carry them. Per-candidate predicted success and predicted credits exist nowhere at run time: the router's `/route` response carries only `ranked_choices` with `id`, `model`, and `effort`, and the router documentation states that routing tables contain only ordered model and effort identities per label cell, while prices, benchmark evidence, and fitted parameters stay outside the runtime package.
+**Finding.** AWF already writes the ranked candidate list on the selection record: `ranked_choices` (an ordered list of `{model, effort}`), `eligible_choices`, and `catalogue_overlap` (for example in the AWF `model-routing/v0.28.51` record of the `copilot-budget-exhausted-steering` fixture). The collector's `firewall.model_routing` projection does not retain these fields, so only older raw session files carry them.
 
-**Proposal, step 1 (collector only).** Retain on selection records:
+**Proposal (collector only).** Retain on selection records:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -436,23 +444,23 @@ Absence of the event means an older file; the page falls back to Section 4.3. Mo
 | `eligibleChoices` | number | Number of eligible choices after inventory and policy filtering. |
 | `catalogueOverlap` | number | Number of routing-table choices present in the live catalogue. |
 
-**Proposal, step 2 (router and AWF).** A routing-table schema version 2 that carries, for each label cell and choice, the table generator's `predicted_success` (probability, 0–1) and `predicted_aic` (expected AIC per run). The router returns them on each `ranked_choices` entry and adds `excluded_choices` (`{model, effort?, reason}` with `reason` in `not_in_inventory`, `outside_allowed_models`, `blocked_by_policy`, `unsupported_endpoint`, `provider_unconfigured`). AWF writes them on the selection record, and the collector projects them as `rankedChoices[].predictedSuccess`, `rankedChoices[].predictedAic`, and `excludedChoices`. The page labels predictions as router estimates and never mixes them with observed cost or outcome.
+The page shows the ranked list, the pick's rank within it, and observed results. It does not record or show per-candidate predicted success or predicted credits.
 
 ### G-3. Router, routing-table, and classifier identity
 
-**Finding.** The selection record's `router` object carries `name` and `version`, which is the router package version (`0.1.3`), and `workflow.info.awfVersion` carries the AWF version. Neither identifies the routing tables served: gh-aw currently defaults the router image to `ghcr.io/githubnext/gh-aw-router:0.1.3` (`pkg/constants`), a workflow can replace it with `sandbox.agent.images.router`, and AWF publishes `ghcr.io/github/gh-aw-firewall/router:<awf-version>` with the package version as its version label. Tables can also be mounted separately, which is why their `schema_version` is independent of the image. The classifier's model and effort are present on classification and selection records (`classifierModel`, `classifierEffort`). Its cost is present only through accounting records with `purpose: "routing_classification"`; the classification record has no `requestId`, so attempts cannot be matched one-to-one with their cost.
+**Finding.** Since gh-aw-firewall#10104, the router image is published with every AWF release as `ghcr.io/github/gh-aw-firewall/router:<awf-version>`. gh-aw currently defaults to `ghcr.io/githubnext/gh-aw-router:0.1.3` (`DefaultRouterRegistry` in `pkg/constants`) and switches its default to the AWF image next; `githubnext/gh-aw-router` is being retired. Router identity is therefore the AWF version (`workflow.info.awfVersion`) plus the identity of the routing tables served. The session records only the first part: the selection record's `router` object carries `name` and `version`, where `version` is the router package version (`0.1.3`), not the AWF release, and nothing identifies the tables. Tables can be mounted separately from the image, which is why their `schema_version` is independent of it. A workflow can also replace the image with `sandbox.agent.images.router`, which no record shows. The classifier's model and effort are present on classification and selection records (`classifierModel`, `classifierEffort`). Its cost is present only through accounting records with `purpose: "routing_classification"`; the classification record has no `requestId`, so attempts cannot be matched one-to-one with their cost.
 
 **Proposal.** The router reports its table identity through `/capabilities`; AWF adds it, and the image it started, to the selection record's `router` object; and AWF adds the classifier request ID to each classification record. The collector projects the extended `router` object unchanged and adds `requestId` to classification records.
 
 | Field | Record | Meaning |
 | --- | --- | --- |
-| `router.image` | Selection | Image reference with digest as started by AWF. |
+| `router.image` | Selection | Image reference with digest as started by AWF; distinguishes a `sandbox.agent.images.router` override from the AWF-released image. |
 | `router.tables.schemaVersion` | Selection | Routing-table `schema_version`. |
 | `router.tables.profile` | Selection | Table profile used, `{goal}-{mode}`. |
 | `router.tables.digest` | Selection | SHA-256 of the table file used. |
 | `requestId` | Classification | AWF request ID of that classification attempt, joining its accounting record. |
 
-Classifier cost stays on the accounting record; repeating it on the routing record would create an overlapping total (T-UAS-062).
+`router.version` stays as recorded; the page uses it only to label runs on the retired `githubnext/gh-aw-router` image ([Section 4.2](#42-dimensions)). Classifier cost stays on the accounting record; repeating it on the routing record would create an overlapping total (T-UAS-062).
 
 ### G-4. Run outcome
 
@@ -485,6 +493,8 @@ Classifier cost stays on the accounting record; repeating it on the routing reco
 | `requestId` | AWF request ID, joining request and accounting records. |
 | `errorCode`, `errorType`, `errorParam` | Parsed provider error identifiers. |
 | `streaming` | Whether the response was streaming. |
+
+AWF also adds `error_code` to request-stage `firewall.model_routing` records with `outcome: "failed"`, taken from the same parsed error envelope or, for AWF-local failures such as `unsupported_reasoning_effort`, from AWF's own error; the collector projects it as `errorCode`. Request records then identify AWF-local failures directly (MRA-073).
 
 `response_body`, response headers, upstream host and request IDs, and request tool names and counts are excluded. Older files keep the generic `firewall.event`, which the page reads as "upstream error, code unknown".
 
@@ -552,9 +562,9 @@ The caller is declared with an `x-awf-caller` request header (`main` or `subagen
 ## 7. Rollout
 
 1. Build the page on current data with the rules in Sections 3–5. Every view in [Section 5.8](#58-availability-on-current-data) works with the stated limits.
-2. Collector-only changes: G-2 step 1, G-7, G-11, and G-12.
+2. Collector-only changes: G-2, G-7, G-11, and G-12.
 3. gh-aw runner changes: G-1, G-9, and G-6 (after G-1).
-4. AWF and router changes: G-2 step 2, G-3, G-5, and the AWF side of G-10; harness headers for G-10.
+4. AWF and router changes: G-3, G-5, and the AWF side of G-10; harness headers for G-10.
 5. Outcome evaluator: G-4.
 
 Each step adds fields or event types only, so files produced before it continue to load (MRA-001, MRA-003, MRA-020).
@@ -563,10 +573,10 @@ Each step adds fields or event types only, so files produced before it continue 
 
 1. Should `N_min` and the comparison window be per page or per view?
 2. Should attempts of one run be merged, or should only the final attempt count once G-12 lands?
-3. Should G-2's predictions be per label cell (as tables are generated) or adjusted by the router per request?
+3. Resolved: the page does not record or show per-candidate predictions, so G-2 proposes none ([G-2](#g-2-router-candidate-pool)).
 4. Should `safe_output.outcome` events from the outcome collector be ingested from that workflow's session files only, or should every repository run its own evaluator?
 5. Does any engine other than Copilot need a harness value in G-9?
-6. Does AWF guarantee that a request record with `outcome: "rejected"` reached no provider and incurred no AIC? If so, the record itself can establish zero cost, and such requests no longer make a run's cost partial ([Section 5.3](#53-cost)).
+6. Resolved: AWF guard rejections (rate limit, model policy) are recorded as `rejected` before forwarding and incur no AIC, and AWF-local `unsupported_reasoning_effort` failures never reach the provider and are recorded as `failed`. Both establish zero cost (MRA-073) and no longer make a run's cost partial ([Section 5.3](#53-cost)).
 
 ## 9. References
 
@@ -576,10 +586,17 @@ Each step adds fields or event types only, so files produced before it continue 
 - [Graders Specification](/gh-aw/specs/graders-specification/).
 - [Model routing reference](/gh-aw/reference/model-routing/).
 - Pull request #69487, which proposes the `model.resolution` event.
-- AWF router: `containers/router/README.md` and `containers/router/openapi.yaml` in `github/gh-aw-firewall`.
+- AWF router: `containers/router/README.md` and `containers/router/openapi.yaml` in `github/gh-aw-firewall`; gh-aw-firewall#10104, which publishes the router image with every AWF release.
+- AWF api-proxy reasoning-effort check: `validateReasoningEffort` in `containers/api-proxy/upstream-http.js` in `github/gh-aw-firewall`.
 - Golden fixtures: `pkg/cli/testdata/model_routing_golden/`.
 
 ## 10. Change Log
+
+### Version 0.2.0 — Draft (2026-10-16)
+
+- G-3 and Section 4.2: router identity is the AWF version plus the table identity, since the router image is released with AWF (gh-aw-firewall#10104) and `githubnext/gh-aw-router` is being retired; `router.tables.*` and `router.image` are kept.
+- G-2: keep only the collector change retaining `rankedChoices`, `eligibleChoices`, and `catalogueOverlap`; remove per-candidate predictions from the design, the rollout, and the gap summary. Open question 3 resolved.
+- Add MRA-073: guard rejections and AWF-local `unsupported_reasoning_effort` failures are zero-cost; update the cost completeness rules and show AWF-local failures as their own group in the failures view. G-5 adds `errorCode` to failed request records. Open question 6 resolved.
 
 ### Version 0.1.0 — Draft (2026-10-16)
 
