@@ -1,23 +1,51 @@
 {
-  "run_date": "2026-10-15T18:30:00Z",
-  "run_id": "38785600324",
-  "source": "manual-pr-triage",
-  "eligible_total": 2,
-  "cooldown_skipped": 2,
-  "open_copilot_prs": 4,
-  "category_counts": { "bug": 2 },
-  "risk_counts": { "medium": 2 },
-  "priority_counts": { "high": 1, "medium": 1 },
-  "action_counts": { "auto_merge": 0, "fast_track": 1, "batch_review": 0, "defer": 1, "close": 0 },
-  "batches": [],
+  "run_date": "2026-10-16T06:37:56Z",
+  "run_id": "38862104606",
+  "source": "pr-triage",
+  "eligible_total": 3,
+  "cooldown_skipped": 0,
+  "open_copilot_prs": 3,
+  "category_counts": {
+    "bug": 3
+  },
+  "risk_counts": {
+    "medium": 2,
+    "high": 1
+  },
+  "priority_counts": {
+    "high": 1,
+    "medium": 2
+  },
+  "action_counts": {
+    "auto_merge": 0,
+    "fast_track": 1,
+    "batch_review": 0,
+    "defer": 2,
+    "close": 0
+  },
+  "batches": [
+    {
+      "id": "copilot-bugfixes-2026-10-16",
+      "prs": [
+        69162,
+        69046,
+        56568
+      ],
+      "reason": "Similar bug-fix workload with medium/high runtime risk and shared compatibility/release-safety concerns."
+    }
+  ],
   "selected_candidates": [
     {
-      "number": 69072,
-      "title": "Fix direct Anthropic `claude-sonnet-5-5` cache-read price ($0.20 → $0.10 per 1M tokens)",
+      "number": 69162,
+      "title": "Compatibility: enforce Copilot CLI min version and allow aw_info.json writes under Cloud Hypervisor",
       "category": "bug",
       "risk": "medium",
-      "priority_score": 74,
-      "score_breakdown": { "impact": 38, "urgency": 20, "quality": 16 },
+      "priority_score": 84,
+      "score_breakdown": {
+        "impact": 42,
+        "urgency": 24,
+        "quality": 18
+      },
       "action": "fast_track",
       "review_state": "pass",
       "ci_state": "passing"
@@ -27,23 +55,42 @@
       "title": "[WIP] Fix failing GitHub Actions job 'agent'",
       "category": "bug",
       "risk": "medium",
-      "priority_score": 53,
-      "score_breakdown": { "impact": 23, "urgency": 18, "quality": 12 },
+      "priority_score": 40,
+      "score_breakdown": {
+        "impact": 22,
+        "urgency": 10,
+        "quality": 8
+      },
       "action": "defer",
       "review_state": "draft",
       "ci_state": "passing"
+    },
+    {
+      "number": 56568,
+      "title": "Signed-commit replay fallback safety fix",
+      "category": "bug",
+      "risk": "high",
+      "priority_score": 52,
+      "score_breakdown": {
+        "impact": 30,
+        "urgency": 12,
+        "quality": 10
+      },
+      "action": "defer",
+      "review_state": "changes_requested",
+      "ci_state": "unknown"
     }
   ],
   "prs": [
     {
-      "number": 69072,
-      "title": "Fix direct Anthropic `claude-sonnet-5-5` cache-read price ($0.20 → $0.10 per 1M tokens)",
+      "number": 69162,
+      "title": "Compatibility: enforce Copilot CLI min version and allow aw_info.json writes under Cloud Hypervisor",
       "state": "open",
       "user": "Copilot",
       "draft": false,
       "category": "bug",
       "risk": "medium",
-      "priority_score": 74,
+      "priority_score": 84,
       "action": "fast_track",
       "review_state": "pass",
       "ci_state": "passing"
@@ -56,12 +103,25 @@
       "draft": true,
       "category": "bug",
       "risk": "medium",
-      "priority_score": 53,
+      "priority_score": 40,
       "action": "defer",
       "review_state": "draft",
       "ci_state": "passing"
+    },
+    {
+      "number": 56568,
+      "title": "Signed-commit replay fallback safety fix",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "category": "bug",
+      "risk": "high",
+      "priority_score": 52,
+      "action": "defer",
+      "review_state": "changes_requested",
+      "ci_state": "unknown"
     }
   ],
-  "cooldown_skipped_prs": [ 69081, 69079 ],
-  "notes": "Two eligible Copilot-authored PRs remain after the one-hour cooldown. The pricing fix is a focused, passing bug fix that should be fast-tracked, while the draft WIP job-fix PR stays deferred until actionable evidence is present."
+  "cooldown_skipped_prs": [],
+  "notes": "Three eligible Copilot-authored PRs remain after the one-hour cooldown. The CLI compatibility fix is ready for fast-track review; the other two are bugfixes in varying states of readiness and should remain deferred until they clear review or gain evidence."
 }
