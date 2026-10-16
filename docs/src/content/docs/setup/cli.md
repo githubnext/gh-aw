@@ -787,7 +787,7 @@ The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an err
 
 For release-scoped evidence, pass the release's publication timestamp as `--start-date`; this filters by time, not compiler version. Text output and JSON `collection.start_date` / `collection.end_date` show the resolved UTC window. Health still samples current workflow revisions toward five completed first-attempt runs per scope, subject to API limits; it does not enumerate every run or reconstruct historical branch heads. A narrow window can leave insufficient evidence.
 
-Runs awaiting approval (`waiting` status or `action_required` conclusion) and skipped runs are excluded from health metrics and revision evidence. Collection continues past these runs to find executed runs within the requested window and API limits.
+Runs awaiting approval (`waiting` status or `action_required` conclusion), skipped runs, and failed runs with no jobs are excluded from health metrics, revision evidence, and failure clusters. Failed runs are checked against the Jobs API for their run attempt, including runs whose approval expired. Collection continues past ignored runs to find executed runs within the requested window and API limits. An unavailable or malformed Jobs API response is reported as an error, not treated as evidence that no jobs ran.
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 

@@ -107,9 +107,40 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 		if isIgnoredHealthRun(run) {
 			continue
 		}
+		if isClusterFailureConclusion(run.Conclusion) {
+			hasJobs, err := healthRunHasJobs(run, collection)
+			if err != nil {
+				return nil, 0, err
+			}
+			if !hasJobs {
+				healthLog.Printf("Ignoring failed run %d with no jobs", run.DatabaseID)
+				continue
+			}
+		}
 		runs = append(runs, run)
 	}
 	return runs, len(data.Runs), nil
+}
+
+func healthRunHasJobs(run WorkflowRun, collection *HealthCollection) (bool, error) {
+	endpoint := fmt.Sprintf("%s/actions/runs/%d", healthRepositoryEndpoint(collection.repoOverride), run.DatabaseID)
+	if run.Attempt > 0 {
+		endpoint += fmt.Sprintf("/attempts/%d", run.Attempt)
+	}
+	out, err := healthAPI(collection, path.Join(endpoint, "jobs")+"?per_page=1")
+	if err != nil {
+		return false, fmt.Errorf("failed to check jobs for health run %d: %w", run.DatabaseID, err)
+	}
+	var data struct {
+		Jobs []json.RawMessage `json:"jobs"`
+	}
+	if err := json.Unmarshal(out, &data); err != nil {
+		return false, fmt.Errorf("failed to parse jobs for health run %d: %w", run.DatabaseID, err)
+	}
+	if data.Jobs == nil {
+		return false, fmt.Errorf("failed to parse jobs for health run %d: missing jobs array", run.DatabaseID)
+	}
+	return len(data.Jobs) > 0, nil
 }
 
 func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose bool, collections ...*HealthCollection) ([]WorkflowRun, error) {

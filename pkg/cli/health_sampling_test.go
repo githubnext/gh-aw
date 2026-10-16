@@ -207,6 +207,8 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 					out, err := json.Marshal(map[string]any{"workflow_runs": responses})
 					require.NoError(t, err)
 					return out, nil
+				case strings.HasSuffix(endpoint, "/jobs?per_page=1"):
+					return []byte(`{"jobs":[{"id":42}]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
 					body := "fixed-prompt"
 					if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
@@ -238,7 +240,7 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 			}
 			assert.Empty(t, report.FailureClusters)
 			assert.False(t, report.Collection.Partial)
-			assert.Equal(t, 5, requests)
+			assert.Equal(t, 10, requests)
 		})
 	}
 }
