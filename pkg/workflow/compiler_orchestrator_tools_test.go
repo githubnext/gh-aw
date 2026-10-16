@@ -26,6 +26,7 @@ func TestCompileExcludedEnvWithFrontmatterShorthands(t *testing.T) {
 		{"string trigger", "on: workflow_dispatch"},
 		{"both shorthands", "on: workflow_dispatch\nsafe-outputs: { noop: { max: 1 } }"},
 		{"disabled github tool", "on: workflow_dispatch\ntools: { github: false }"},
+		{"restricted bash allow-list", "on: workflow_dispatch\ntools: { bash: [echo] }"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -51,8 +52,8 @@ func TestTryParseFrontmatterConfigWarning(t *testing.T) {
 	compiler := NewCompiler()
 	stderr := testutil.CaptureStderr(t, func() {
 		config := compiler.tryParseFrontmatterConfig(map[string]any{
-			"on":          map[string]any{"workflow_dispatch": nil},
-			"permissions": "read-all",
+			"on":    map[string]any{"workflow_dispatch": nil},
+			"tools": map[string]any{"bash": []any{42}},
 		})
 		assert.Nil(t, config)
 	})

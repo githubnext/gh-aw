@@ -78,6 +78,115 @@ func TestParseFrontmatterConfigShorthands(t *testing.T) {
 	}
 }
 
+func TestParseFrontmatterConfigSchemaShorthands(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter map[string]any
+	}{
+		{
+			name: "restricted bash allow-list",
+			frontmatter: map[string]any{
+				"tools": map[string]any{"bash": []any{"echo"}},
+			},
+		},
+		{
+			name: "tool booleans and github string",
+			frontmatter: map[string]any{
+				"tools": map[string]any{"github": "remote", "bash": false, "edit": true, "grep": false},
+			},
+		},
+		{
+			name: "enabled github tool",
+			frontmatter: map[string]any{
+				"tools": map[string]any{"github": true},
+			},
+		},
+		{
+			name: "string configuration sections",
+			frontmatter: map[string]any{
+				"permissions": "read-all",
+				"network":     "defaults",
+				"environment": "production",
+				"concurrency": "one-at-a-time",
+				"container":   "ubuntu:latest",
+				"sandbox":     "awf",
+			},
+		},
+		{
+			name: "safe output booleans and sandbox agent",
+			frontmatter: map[string]any{
+				"sandbox":      map[string]any{"agent": "awf"},
+				"safe-outputs": map[string]any{"noop": false, "mentions": true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original, err := json.Marshal(tt.frontmatter)
+			require.NoError(t, err)
+			config, err := ParseFrontmatterConfig(tt.frontmatter)
+			require.NoError(t, err)
+			require.NotNil(t, config)
+			if tools, ok := tt.frontmatter["tools"].(map[string]any); ok {
+				if commands, ok := tools["bash"].([]any); ok {
+					require.NotNil(t, config.Tools)
+					require.NotNil(t, config.Tools.Bash)
+					assert.Equal(t, []string{"echo"}, config.Tools.Bash.AllowedCommands)
+					assert.Equal(t, []any{"echo"}, commands, "parsing must not mutate frontmatter")
+				}
+				if github, ok := tools["github"].(string); ok {
+					require.NotNil(t, config.Tools)
+					require.NotNil(t, config.Tools.GitHub)
+					assert.Equal(t, GitHubMCPMode(github), config.Tools.GitHub.Mode)
+				}
+				if github, ok := tools["github"].(bool); ok && github {
+					require.NotNil(t, config.Tools)
+					require.NotNil(t, config.Tools.GitHub)
+				}
+			}
+			if sandbox, ok := tt.frontmatter["sandbox"].(string); ok {
+				assert.Equal(t, SandboxType(sandbox), config.Sandbox.Type)
+			}
+			if sandbox, ok := tt.frontmatter["sandbox"].(map[string]any); ok {
+				if agent, ok := sandbox["agent"].(string); ok {
+					require.NotNil(t, config.Sandbox)
+					require.NotNil(t, config.Sandbox.Agent)
+					assert.Equal(t, agent, config.Sandbox.Agent.ID)
+				}
+			}
+			if safeOutputs, ok := tt.frontmatter["safe-outputs"].(map[string]any); ok {
+				require.NotNil(t, config.SafeOutputs)
+				assert.Nil(t, config.SafeOutputs.NoOp)
+				require.NotNil(t, config.SafeOutputs.Mentions)
+				require.NotNil(t, config.SafeOutputs.Mentions.Enabled)
+				assert.True(t, *config.SafeOutputs.Mentions.Enabled)
+				assert.Equal(t, false, safeOutputs["noop"])
+			}
+			if _, ok := tt.frontmatter["permissions"]; ok {
+				require.NotNil(t, config.PermissionsTyped)
+				assert.Equal(t, "read-all", config.PermissionsTyped.Shorthand)
+			}
+			if _, ok := tt.frontmatter["network"]; ok {
+				require.NotNil(t, config.Network)
+				assert.Equal(t, []string{"defaults"}, config.Network.Allowed)
+			}
+			if _, ok := tt.frontmatter["environment"]; ok {
+				assert.Equal(t, "production", config.Environment["name"])
+			}
+			if _, ok := tt.frontmatter["concurrency"]; ok {
+				assert.Equal(t, "one-at-a-time", config.Concurrency["group"])
+			}
+			if _, ok := tt.frontmatter["container"]; ok {
+				assert.Equal(t, "ubuntu:latest", config.Container["image"])
+			}
+			after, err := json.Marshal(tt.frontmatter)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(original), string(after), "normalization must not mutate frontmatter")
+		})
+	}
+}
+
 func TestParseFrontmatterConfig(t *testing.T) {
 	t.Run("parses minimal workflow config", func(t *testing.T) {
 		frontmatter := map[string]any{
