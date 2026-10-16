@@ -7,6 +7,8 @@ description: Select and authenticate OpenAI Codex as the AI engine for GitHub Ag
 
 The default CLI version is [Codex 0.163.0](https://github.com/openai/codex/releases/tag/rust-v0.163.0). Its `exec` arguments and JSONL event contract are unchanged from 0.162.1, so the existing harness and unified session parser remain compatible, including concurrent read-only tool calls. Recompile existing workflows to update their generated installation pin.
 
+An AWF `unknown_model_ai_credits` rejection stops harness retries and fails the run. Configure the model's pricing or an authorized fallback pricing policy before retrying; the harness does not invent pricing or bypass credit enforcement.
+
 > [!CAUTION]
 > Codex cannot enforce a per-command `tools.bash` allowlist. Configuring one does not restrict which shell commands can run. Set `tools.bash: false` to disable shell execution, or choose an engine that supports command allowlists.
 
