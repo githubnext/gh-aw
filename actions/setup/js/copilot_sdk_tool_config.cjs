@@ -256,6 +256,7 @@ function loadCopilotSDKMCPServers(config, configPath) {
       }
       server.headers = Object.fromEntries(Object.entries(entry.headers).map(([key, value]) => [key, String(value)]));
     }
+    // Preserve names such as __proto__ as own keys without invoking inherited setters.
     Object.defineProperty(servers, name, { value: server, enumerable: true, configurable: true, writable: true });
   }
   return servers;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
@@ -194,6 +195,17 @@ describe("loadCopilotSDKMCPServers", () => {
     expect(loadCopilotSDKMCPServers(validToolConfig({ capabilities: { mcp: false } }), "/missing/config.json")).toEqual({});
   });
 
+  it("preserves a literal __proto__ server as an own property without changing the dictionary prototype", () => {
+    const catalog = JSON.parse('{"mcpServers":{"__proto__":{"type":"http","url":"http://awmg-mcpg:8080/mcp/proto","tools":["noop"]}}}');
+    withConfig(catalog, file => {
+      const servers = loadCopilotSDKMCPServers(validToolConfig(), file);
+      expect(Object.getPrototypeOf(servers)).toBe(Object.prototype);
+      expect(Object.hasOwn(servers, "__proto__")).toBe(true);
+      expect(Object.keys(servers)).toEqual(["__proto__"]);
+      expect(servers["__proto__"]).toEqual(catalog.mcpServers["__proto__"]);
+    });
+  });
+
   it.each(["http", "sse"])("trims and deduplicates %s gateway tool names in first-seen order", type => {
     const url = "http://awmg-mcpg:8080/mcp/github";
     withConfig({ mcpServers: { github: { type, url, tools: ["issue_read", "issue_read", " issue_write ", " issue_read ", "issue_write"] } } }, file => {
@@ -290,6 +302,82 @@ describe("loadCopilotSDKMCPServers", () => {
       expect(() => loadCopilotSDKMCPServers(validToolConfig(), file)).toThrow(message);
       expect(() => loadCopilotSDKMCPServers(validToolConfig(), file)).not.toThrow("test-secret");
     });
+  });
+});
+
+describe("copilot_sdk_driver MCP registration", () => {
+  it("forwards the per-run catalog from main's environment loading to SDK createSession", () => {
+    const dir = mkdtempSync(join(process.cwd(), ".sdk-mcp-driver-"));
+    try {
+      const promptPath = join(dir, "prompt.txt");
+      const capturedPath = join(dir, "session-config.json");
+      const preloadPath = join(dir, "sdk-preload.cjs");
+      const sdkPath = join(dir, "gh-aw", "mcp-config", "copilot-sdk.json");
+      const mcpServers = {
+        safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop"], timeout: 30000, headers: { Authorization: "test-only" } },
+        mcpscripts: { type: "sse", url: "http://awmg-mcpg:8080/mcp/mcpscripts", tools: ["run"] },
+      };
+      mkdirSync(join(sdkPath, ".."), { recursive: true });
+      writeFileSync(sdkPath, JSON.stringify({ mcpServers }));
+      writeFileSync(promptPath, "test prompt");
+      writeFileSync(
+        preloadPath,
+        `const fs = require("node:fs");
+const Module = require("node:module");
+const sdkPath = ${JSON.stringify(require.resolve("@github/copilot-sdk"))};
+const sdk = new Module(sdkPath);
+sdk.exports = {
+  RuntimeConnection: { forUri: () => ({}) },
+  CopilotClient: class {
+    async start() {}
+    async stop() {}
+    async createSession(config) {
+      fs.writeFileSync(${JSON.stringify(capturedPath)}, JSON.stringify(config));
+      return {
+        sessionId: "driver-mcp-registration",
+        on() {},
+        async sendAndWait() { return { data: { content: "done" } }; },
+        async disconnect() {},
+      };
+    }
+  },
+  ToolSet: class {
+    addBuiltIn() { return this; }
+    addMcp() { return this; }
+  },
+  BuiltInTools: { Isolated: [] },
+  approveAll: () => ({ kind: "approve-once" }),
+};
+sdk.loaded = true;
+require.cache[sdkPath] = sdk;`
+      );
+      const result = spawnSync(process.execPath, ["--require", preloadPath, require.resolve("./copilot_sdk_driver.cjs")], {
+        cwd: dir,
+        env: {
+          HOME: dir,
+          TMPDIR: dir,
+          RUNNER_TEMP: dir,
+          GITHUB_WORKSPACE: dir,
+          GH_AW_SESSION_STATE_BASE_DIR: join(dir, "session-state"),
+          GH_AW_PROMPT: promptPath,
+          COPILOT_SDK_URI: "http://127.0.0.1:3002",
+          COPILOT_CONNECTION_TOKEN: "test-only",
+          GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON: JSON.stringify({
+            model: "gpt-5.4",
+            providers: [{ name: "copilot-responses", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" }],
+            models: [{ id: "gpt-5.4", provider: "copilot-responses" }],
+          }),
+          GH_AW_COPILOT_SDK_TOOL_CONFIG: JSON.stringify(validToolConfig({ capabilities: { webFetch: false }, permissions: { allowedTools: ["read", "safeoutputs", "mcpscripts"] } })),
+        },
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr).toBe(0);
+      expect(JSON.parse(readFileSync(capturedPath, "utf8")).mcpServers).toEqual(mcpServers);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
