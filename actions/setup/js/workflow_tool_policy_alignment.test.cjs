@@ -26,6 +26,17 @@ const readWorkflow = name => {
 };
 
 describe("workflow native MCP permission alignment", () => {
+  it.each([
+    ["audit-workflows", "audit-history"],
+    ["copilot-centralization-optimizer", "centralization"],
+  ])("%s keeps table upsert instructions aligned with the ledger protocol", (name, ledger) => {
+    const { workflow, prompt } = readWorkflow(name);
+    expect(workflow.tools.ledger[ledger]).toMatchObject({ type: "table", key: "run_id" });
+    expect(prompt).toContain("current run ID as a string in `run_id`");
+    expect(prompt).toContain("The table primary key is `value.run_id`; do not send a top-level `key` for `upsert`.");
+    expect(prompt).not.toMatch(/(?:run ID|`run_id`) as `key`/);
+  });
+
   it("round-trips documented multiline CLI examples without helper commands", () => {
     const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(safeoutputs:*)"] }, () => ({ kind: "approve-once" }));
     const expected = { item_number: 42, body: '### Result\n\nIt\'s ready.\nQuoted text: "hello".\nLiteral path: C:\\temp\\file.txt' };

@@ -10,7 +10,9 @@ permissions:
   contents: read
   actions: read
   copilot-requests: write
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 tools:
   work-queue: true
   cli-proxy: true

@@ -1,5 +1,8 @@
 ---
 name: Daily Workflow Security Model
+engine:
+  id: copilot
+  copilot-sdk: true
 description: Model-check and refine the compiled-workflow TLA+ security architecture, preserving concrete counterexamples.
 on:
   schedule: daily
