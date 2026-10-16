@@ -532,9 +532,9 @@ func TestSpec_Types_Snapshot(t *testing.T) {
 // TestSpec_Constants_AnomalyWeights validates the documented anomaly scoring constants.
 func TestSpec_Constants_AnomalyWeights(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 1.0, agentdrain.AnomalyWeightNew, "new-template anomaly weight should match the specification")
-	assert.Equal(t, 0.7, agentdrain.AnomalyWeightLow, "low-similarity anomaly weight should match the specification")
-	assert.Equal(t, 0.3, agentdrain.AnomalyWeightRare, "rare-cluster anomaly weight should match the specification")
+	assert.InDelta(t, 1.0, agentdrain.AnomalyWeightNew, 1e-9, "new-template anomaly weight should match the specification")
+	assert.InDelta(t, 0.7, agentdrain.AnomalyWeightLow, 1e-9, "low-similarity anomaly weight should match the specification")
+	assert.InDelta(t, 0.3, agentdrain.AnomalyWeightRare, 1e-9, "rare-cluster anomaly weight should match the specification")
 	assert.Equal(t, 2.0, agentdrain.AnomalyMaxScore, "maximum anomaly score should match the specification")
 }
 
