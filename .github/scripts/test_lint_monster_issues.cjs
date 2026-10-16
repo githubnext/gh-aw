@@ -216,10 +216,17 @@ test("inventory replaces a destination symlink without overwriting its target", 
   const plan = await collectEmptyIssues(outputPath);
 
   assert.equal(fs.readFileSync(outside, "utf8"), "do-not-touch");
-  assert.equal(fs.lstatSync(outputPath).isSymbolicLink(), false);
-  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, "utf8")), plan);
-  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
-  assert.ok(fs.readFileSync(outputPath, "utf8").endsWith("\n"));
+  const fd = fs.openSync(outputPath, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  try {
+    const stat = fs.fstatSync(fd);
+    assert.equal(stat.isFile(), true);
+    assert.equal(stat.mode & 0o777, 0o600);
+    const content = fs.readFileSync(fd, "utf8");
+    assert.deepEqual(JSON.parse(content), plan);
+    assert.ok(content.endsWith("\n"));
+  } finally {
+    fs.closeSync(fd);
+  }
 });
 
 test("inventory rejects symlinked ancestors without creating files through them", async t => {
