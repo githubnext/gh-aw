@@ -27,7 +27,9 @@ imports:
 - shared/otlp.md
 description: Weekly analysis of the default Ubuntu Actions runner image and guidance for creating Docker mimics
 emoji: 🐧
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 name: Ubuntu Actions Image Analyzer
 strict: true
 timeout-minutes: 30
