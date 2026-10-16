@@ -313,10 +313,10 @@ func buildDeployPRMetadata(workflows []string, targetRepo string) (string, strin
 		workflowDescription = fmt.Sprintf("%d workflows", len(workflows))
 	}
 	var body strings.Builder
-	body.WriteString(fmt.Sprintf("## Summary\n\nDeploy %s to %s.\n\n", markdownText(workflowDescription), markdownText(targetRepo)))
+	body.WriteString("## Summary\n\nDeploy " + markdownText(workflowDescription) + " to " + markdownText(targetRepo) + ".\n\n")
 	body.WriteString("This PR was created by `gh aw deploy` after running update, add, and compile --purge in the target repository.\n\n## Workflows requested\n\n")
 	for _, spec := range workflows {
-		body.WriteString(fmt.Sprintf("- `%s`\n", markdownText(spec)))
+		body.WriteString("- `" + markdownText(spec) + "`\n")
 	}
 	body.WriteString("\n## Deployment steps\n\n- Update existing sourced workflows and dependency pins.\n- Add the requested workflows that are not already managed by their source.\n- Recompile workflows and purge stale generated lock files.\n\n## Review and next steps\n\nReview workflow sources, permissions, network access, and generated lock files. After merging, verify required repository secrets and monitor the first workflow runs.\n")
 	return deployCommitMessage, body.String()

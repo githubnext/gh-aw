@@ -1,11 +1,23 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 )
+
+const maxPRBodyCharacters = 65536
+
+func validatePRBody(body string) error {
+	if utf8.RuneCountInString(withPRFooter(body)) > maxPRBodyCharacters {
+		return errors.New("pull request description exceeds GitHub's 65,536-character limit; select fewer workflows or shorten --pr-message")
+	}
+	return nil
+}
 
 func addPRMessageFlag(cmd *cobra.Command) {
 	cmd.Flags().String("pr-message", "", "Append a custom Markdown message to the generated pull request description")
@@ -37,7 +49,7 @@ func buildInitPRBody(opts InitOptions) string {
 		body.WriteString("- Install the agentic-workflows dispatcher skill.\n")
 	}
 	if opts.Engine != "" {
-		body.WriteString(fmt.Sprintf("- **Engine:** `%s`.\n", markdownText(opts.Engine)))
+		body.WriteString("- **Engine:** `" + markdownText(opts.Engine) + "`.\n")
 	}
 	if opts.Engine == "copilot" {
 		if opts.Agent {
@@ -50,7 +62,7 @@ func buildInitPRBody(opts InitOptions) string {
 	if opts.CodespaceEnabled {
 		body.WriteString("- Configure a GitHub Codespaces devcontainer")
 		if len(opts.CodespaceRepos) > 0 {
-			body.WriteString(fmt.Sprintf(" with access to %s", joinCodeValues(opts.CodespaceRepos)))
+			body.WriteString(" with access to " + joinCodeValues(opts.CodespaceRepos))
 		}
 		body.WriteString(".\n")
 	}
@@ -64,8 +76,10 @@ func buildTransferPRBody(info *PRInfo) string {
 		body.WriteString(info.Body)
 		body.WriteString("\n\n---\n\n")
 	}
-	body.WriteString(fmt.Sprintf("## Transfer details\n\n**Transferred from:** [%s#%d](https://github.com/%s/pull/%d)\n\n", markdownText(info.SourceRepo), info.Number, info.SourceRepo, info.Number))
-	body.WriteString(fmt.Sprintf("**Original Author:** @%s\n\n", markdownText(info.AuthorLogin)))
+	number := strconv.Itoa(info.Number)
+	sourceURL := fmt.Sprintf("https://github.com/%s/pull/%d", info.SourceRepo, info.Number)
+	body.WriteString("## Transfer details\n\n**Transferred from:** [" + markdownText(info.SourceRepo) + "#" + number + "](" + sourceURL + ")\n\n")
+	body.WriteString("**Original Author:** @" + markdownText(info.AuthorLogin) + "\n\n")
 	body.WriteString("Apply the original pull request's changes as a single squashed commit, preserving its title and description. Review the patch for compatibility with this repository before merging.\n")
 	return appendPRMessage(body.String(), info.PRMessage)
 }

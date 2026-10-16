@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -524,10 +524,10 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
 	// the original slice backing array.
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
-	if slices.ContainsFunc(newArgs, containsControlCharacters) {
+	if !validUpgradeRelaunchArgs(newArgs) {
 		return errors.New("invalid relaunch arguments: argument contains invalid control characters. Example: compile .github/workflows/example.md")
 	}
-	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
+	upgradeLog.Printf("Re-launching with new binary: %s (argument count: %d)", exe, len(newArgs))
 
 	// Validate the executable path before re-launching it (defense-in-depth).
 	// exe is always derived from os.Executable() or the pre-rename installPath which is
@@ -556,4 +556,33 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 		return err
 	}
 	return nil
+}
+
+func validUpgradeRelaunchArgs(args []string) bool {
+	var messageValue, flagsEnded bool
+	whitespace := strings.NewReplacer("\n", "", "\r", "", "\t", "")
+	for _, arg := range args {
+		isMessage := messageValue
+		messageValue = false
+		if !isMessage && !flagsEnded {
+			if value, ok := strings.CutPrefix(arg, "--pr-message="); ok {
+				arg = value
+				isMessage = true
+			} else {
+				switch arg {
+				case "--":
+					flagsEnded = true
+				case "--pr-message":
+					messageValue = true
+				}
+			}
+		}
+		if isMessage {
+			arg = whitespace.Replace(arg)
+		}
+		if containsControlCharacters(arg) {
+			return false
+		}
+	}
+	return true
 }

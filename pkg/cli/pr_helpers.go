@@ -41,6 +41,9 @@ func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTit
 }
 
 func createPRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose, autoMerge bool) (string, error) {
+	if err := validatePRBody(prBody); err != nil {
+		return "", err
+	}
 	prHelpersLog.Printf("Creating PR with branch prefix: %s", branchPrefix)
 
 	currentBranch, err := getCurrentBranch()

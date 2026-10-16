@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -31,6 +32,10 @@ type updatePRFile struct {
 
 type updatePRPin struct {
 	kind, repo, version, sha string
+}
+
+type updatePRCompilerTransition struct {
+	before, after string
 }
 
 type updatePRSummary struct {
@@ -379,6 +384,7 @@ func (s *updatePRSummary) body(ctx context.Context, command string) (string, err
 
 func (s *updatePRSummary) changedFiles(after map[string]updatePRFile) (changed, sources, compilers, pins []string) {
 	paths := make(map[string]struct{})
+	transitions := make(map[updatePRCompilerTransition]int)
 	for path := range s.before {
 		paths[path] = struct{}{}
 	}
@@ -406,12 +412,15 @@ func (s *updatePRSummary) changedFiles(after map[string]updatePRFile) (changed, 
 			sources = append(sources, fmt.Sprintf("- %s: %s → %s", summaryCode(path), summarySource(old.source), summarySource(next.source)))
 		}
 		if old.compiler != next.compiler && (old.compiler != "" || next.compiler != "") {
-			link := summaryReleaseLink(ghawReleaseRepo, normalizeDisplayVersion(next.compiler))
-			compilers = append(compilers, fmt.Sprintf("- %s: %s → %s %s", summaryCode(path), summaryCode(old.compiler), summaryCode(next.compiler), link))
+			transitions[updatePRCompilerTransition{old.compiler, next.compiler}]++
 		}
 		for _, pin := range summaryPinChanges(old.pins, next.pins) {
 			pins = append(pins, pin+" — "+summaryCode(path))
 		}
+	}
+	for transition, count := range transitions {
+		link := summaryReleaseLink(ghawReleaseRepo, normalizeDisplayVersion(transition.after))
+		compilers = append(compilers, fmt.Sprintf("- %s → %s: %d workflow(s). %s", summaryCode(transition.before), summaryCode(transition.after), count, link))
 	}
 	return changed, sources, compilers, pins
 }
@@ -425,7 +434,7 @@ func (s *updatePRSummary) render(command string, after map[string]updatePRFile) 
 	}
 	body.WriteString("\n\n### Changed workflows and artifacts\n\n")
 	changed, sources, compilers, pins := s.changedFiles(after)
-	writeSummaryList(&body, changed, "No file changes detected.")
+	writeSummaryChangedFiles(&body, changed)
 	body.WriteString("\n### Source updates\n\n")
 	writeSummaryList(&body, sources, "No source reference changes.")
 	body.WriteString("\n### Action and container pin changes\n\n")
@@ -434,14 +443,7 @@ func (s *updatePRSummary) render(command string, after map[string]updatePRFile) 
 	writeSummaryList(&body, compilers, "No compiler version changes in generated workflows.")
 	if command == "upgrade" {
 		body.WriteString("\n### Applied codemods\n\n")
-		var fixes []string
-		for _, applied := range s.applied {
-			names := slices.Compact(slices.Sorted(slices.Values(applied.Fixes)))
-			for _, name := range names {
-				fixes = append(fixes, "- "+summaryCode(applied.File)+": "+summaryCode(name))
-			}
-		}
-		writeSummaryList(&body, fixes, "No workflow codemods were applied.")
+		writeSummaryList(&body, s.codemodSummary(), "No workflow codemods were applied.")
 	}
 	if len(s.outcomes) > 0 {
 		body.WriteString("\n### Execution notes\n\n")
@@ -450,6 +452,34 @@ func (s *updatePRSummary) render(command string, after map[string]updatePRFile) 
 		}
 	}
 	return body.String()
+}
+
+func (s *updatePRSummary) codemodSummary() []string {
+	workflows := make(map[string]map[string]struct{})
+	for _, applied := range s.applied {
+		for _, name := range applied.Fixes {
+			if workflows[name] == nil {
+				workflows[name] = make(map[string]struct{})
+			}
+			workflows[name][applied.File] = struct{}{}
+		}
+	}
+	var fixes []string
+	for name, files := range workflows {
+		fixes = append(fixes, fmt.Sprintf("- %s: %d workflow(s).", summaryCode(name), len(files)))
+	}
+	return fixes
+}
+
+func writeSummaryChangedFiles(body *strings.Builder, changed []string) {
+	const displayLimit = 50
+	slices.Sort(changed)
+	if len(changed) <= displayLimit {
+		writeSummaryList(body, changed, "No file changes detected.")
+		return
+	}
+	writeSummaryList(body, changed[:displayLimit], "")
+	body.WriteString("\n" + strconv.Itoa(len(changed)-displayLimit) + " additional changed files. See **Files changed** for the complete list.\n")
 }
 
 func summarySource(source string) string {

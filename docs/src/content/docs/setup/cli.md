@@ -109,6 +109,8 @@ Commands that create pull requests print the full pull request URL to stderr imm
 
 Use `--pr-message` to append a custom Markdown message without replacing the generated description. The message appears before the version footer and is passed to each created pull request in `--repo` and `--org` modes. This option does not enable PR creation by itself.
 
+Large summaries group compiler updates and applied codemods, and show up to 50 changed file paths; the full pin-change list is retained. Descriptions that still exceed GitHub's 65,536-character limit are rejected before committing or pushing the PR branch.
+
 ```bash wrap
 gh aw update --create-pull-request --pr-message "Part of the quarterly automation refresh."
 gh aw upgrade --org my-org --pr --yes --pr-message "Tracking issue: #123."

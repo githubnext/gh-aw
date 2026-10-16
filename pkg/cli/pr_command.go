@@ -428,6 +428,9 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 }
 
 func createTransferPRWithAutoMerge(ctx context.Context, targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose, autoMerge bool) error { //nolint:largefunc
+	if err := validatePRBody(buildTransferPRBody(prInfo)); err != nil {
+		return err
+	}
 	// Check if user has write access to target repository
 	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
 	if err != nil && verbose {
@@ -749,6 +752,9 @@ func transferPRWithMessage(ctx context.Context, prURL, targetRepo string, verbos
 		return err
 	}
 	prInfo.PRMessage = message
+	if err := validatePRBody(buildTransferPRBody(prInfo)); err != nil {
+		return err
+	}
 
 	if prInfo.State != "open" && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("PR is in '%s' state", prInfo.State)))
@@ -807,6 +813,9 @@ func createPR(ctx context.Context, branchName, title, body string, verbose bool)
 // createPRForRepo creates a pull request in repoSlug. When repoSlug is empty,
 // it resolves the current repository for compatibility with other PR callers.
 func createPRForRepo(ctx context.Context, branchName, title, body, repoSlug string, verbose bool) (int, string, error) {
+	if err := validatePRBody(body); err != nil {
+		return 0, "", err
+	}
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating PR: "+title))
 	}

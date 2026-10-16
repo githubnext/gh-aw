@@ -61,6 +61,10 @@ func sanitizeBranchName(name string) string {
 
 // addWorkflowsWithPR handles workflow addition with PR creation using pre-resolved workflows.
 func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
+	prBody := buildAddWorkflowPRBody(workflows, opts)
+	if err := validatePRBody(prBody); err != nil {
+		return 0, "", err
+	}
 	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation (resolved)", len(workflows))
 
 	// Get current branch for restoration later
@@ -143,7 +147,7 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 	}
 
 	// Commit changes
-	var commitMessage, prTitle, prBody, joinedNames string
+	var commitMessage, prTitle, joinedNames string
 	if len(workflows) == 1 {
 		joinedNames = workflows[0].Spec.WorkflowName
 		commitMessage = "Add agentic workflow " + joinedNames
@@ -156,8 +160,6 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 		commitMessage = "Add agentic workflows: " + joinedNames
 		prTitle = "Add agentic workflows: " + joinedNames
 	}
-	prBody = buildAddWorkflowPRBody(workflows, opts)
-
 	if err := commitChanges(commitMessage, opts.Verbose); err != nil {
 		addWorkflowPRLog.Printf("Failed to commit workflow files on branch %s: %v", branchName, err)
 		// Don't rollback - leave the workflow files on disk for manual recovery.

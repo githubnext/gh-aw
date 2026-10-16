@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -165,6 +166,46 @@ func TestUpdatePRSummaryCodemodsOnlyApplied(t *testing.T) {
 	assert.NotContains(t, body, "timeout-minutes")
 }
 
+func TestUpdatePRSummaryLargeRepositoryFitsPRBody(t *testing.T) {
+	summary := &updatePRSummary{before: make(map[string]updatePRFile)}
+	after := make(map[string]updatePRFile)
+	for i := range 344 {
+		path := fmt.Sprintf(".github/workflows/detailed-agentic-workflow-with-a-long-name-%03d.lock.yml", i)
+		oldVersion := "v1.0.0"
+		if i < 4 {
+			oldVersion = "v0.9.0"
+		}
+		summary.before[path] = updatePRFile{hash: [32]byte{1}, compiler: oldVersion}
+		after[path] = updatePRFile{hash: [32]byte{2}, compiler: "v2.0.0"}
+		summary.recordFix(path, []string{"Migration A", "Migration B", "Migration A"})
+	}
+	summary.recordFix("one-workflow.md", []string{"Rare migration"})
+	oldPins, newPins := make(map[string]updatePRPin), make(map[string]updatePRPin)
+	for i := range 120 {
+		repo := fmt.Sprintf("owner/action-%03d", i)
+		oldPins[repo] = updatePRPin{"Action", repo, "v1.0.0", strings.Repeat("a", 40)}
+		newPins[repo] = updatePRPin{"Action", repo, "v2.0.0", strings.Repeat("b", 40)}
+	}
+	lock := ".github/aw/actions-lock.json"
+	summary.before[lock] = updatePRFile{hash: [32]byte{1}, pins: oldPins}
+	after[lock] = updatePRFile{hash: [32]byte{2}, pins: newPins}
+	body := summary.render("upgrade", after)
+	assert.Less(t, len(body), 60000, "leave room for custom text and the common footer")
+	assert.Equal(t, 50, strings.Count(body, "- Modified "))
+	assert.Contains(t, body, "295 additional changed files")
+	assert.Contains(t, body, "**Files changed**")
+	assert.Contains(t, body, "`v1.0.0` → `v2.0.0`: 340 workflow(s)")
+	assert.Contains(t, body, "`v0.9.0` → `v2.0.0`: 4 workflow(s)")
+	assert.Contains(t, body, "`Migration A`: 344 workflow(s)")
+	assert.Contains(t, body, "`Migration B`: 344 workflow(s)")
+	assert.Contains(t, body, "`Rare migration`: 1 workflow(s)")
+	for _, pin := range newPins {
+		assert.Contains(t, body, summaryCode(pin.repo))
+	}
+	assert.Equal(t, 120, strings.Count(body, strings.Repeat("a", 40)))
+	assert.Equal(t, 120, strings.Count(body, strings.Repeat("b", 40)))
+}
+
 func TestUpdatePRSummarySkippedUpgradeSteps(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
@@ -246,4 +287,53 @@ func TestUpdateUpgradePRMessageFlagsForwarded(t *testing.T) {
 	upgrade := NewUpgradeCommand(func(string) error { return nil })
 	upgrade.SetArgs([]string{"--repo", "owner/repo", "--pr", "--pr-message", "custom upgrade context"})
 	require.NoError(t, upgrade.Execute())
+}
+
+func TestUpgradeRelaunchPRMessageControls(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"separate multiline", []string{"upgrade", "--pr-message", "Header\n\n- one\r\n\t- nested"}, true},
+		{"equals multiline", []string{"upgrade", "--pr-message=Header\n\n- one\r\n\t- nested"}, true},
+		{"separate NUL", []string{"upgrade", "--pr-message", "bad\x00message"}, false},
+		{"equals NUL", []string{"upgrade", "--pr-message=bad\x00message"}, false},
+		{"other control", []string{"upgrade", "--pr-message", "bad\x1bmessage"}, false},
+		{"unicode control", []string{"upgrade", "--pr-message", "bad\u200bmessage"}, false},
+		{"unicode separator", []string{"upgrade", "--pr-message", "bad\u2028message"}, false},
+		{"other argument", []string{"upgrade", "--dir", "bad\npath"}, false},
+		{"after message", []string{"upgrade", "--pr-message", "valid\nmessage", "bad\targ"}, false},
+		{"after flag terminator", []string{"upgrade", "--", "--pr-message=bad\narg"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, validUpgradeRelaunchArgs(tc.args))
+		})
+	}
+}
+
+func TestUpgradeRelaunchForwardsMultilinePRMessage(t *testing.T) {
+	for _, equalForm := range []bool{false, true} {
+		t.Run(fmt.Sprintf("equals=%v", equalForm), func(t *testing.T) {
+			originalArgs, originalStdout := os.Args, os.Stdout
+			t.Cleanup(func() { os.Args, os.Stdout = originalArgs, originalStdout })
+			message := "Header\n\n- first\r\n\t- nested"
+			os.Args = []string{"gh-aw", "upgrade"}
+			if equalForm {
+				os.Args = append(os.Args, "--pr-message="+message)
+			} else {
+				os.Args = append(os.Args, "--pr-message", message)
+			}
+			reader, writer, err := os.Pipe()
+			require.NoError(t, err)
+			defer func() { require.NoError(t, reader.Close()) }()
+			os.Stdout = writer
+			err = relaunchWithSameArgs("--skip-extension-upgrade", "/bin/echo")
+			require.NoError(t, writer.Close())
+			require.NoError(t, err)
+			output, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			assert.Contains(t, string(output), message)
+		})
+	}
 }

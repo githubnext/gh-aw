@@ -295,14 +295,17 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 
 	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, normalizeDisplayVersion(GetVersion()))
 
-	// Close any stale upgrade PRs in the target repo before creating the new one.
-	closeExistingOrgPRsByMarker(ctx, repo, ghawUpgradeMarkerPrefix, verbose)
-
 	prBody, err := opts.summary.body(ctx, "upgrade")
 	if err != nil {
 		return err
 	}
 	prBody = appendPRMessage(prBody, opts.prMessage) + "\n" + xmlMarker
+	if err := validatePRBody(prBody); err != nil {
+		return err
+	}
+
+	// Close stale PRs only after the replacement description is validated.
+	closeExistingOrgPRsByMarker(ctx, repo, ghawUpgradeMarkerPrefix, verbose)
 
 	prURL, err := createPRWithChanges(ctx, "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 		"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)

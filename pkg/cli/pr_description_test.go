@@ -6,6 +6,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,25 @@ func TestAppendPRMessage(t *testing.T) {
 	}
 	message := "## Context\n\nKeep `Markdown` and $(literal) text."
 	assert.Equal(t, "Summary\n\n"+message, appendPRMessage("Summary\n", message))
+}
+
+func TestPRBodyLimitIncludesFooter(t *testing.T) {
+	available := maxPRBodyCharacters - utf8.RuneCountInString(withPRFooter(""))
+	require.NoError(t, validatePRBody(strings.Repeat("a", available)))
+	require.ErrorContains(t, validatePRBody(strings.Repeat("a", available+1)), "65,536-character limit")
+	require.NoError(t, validatePRBody(strings.Repeat("é", available)))
+}
+
+func TestOversizedPRDescriptionsFailBeforeSideEffects(t *testing.T) {
+	body := strings.Repeat("a", maxPRBodyCharacters)
+	_, err := createPRWithChanges(context.Background(), "unused", "unused", "Title", body, false, false)
+	require.ErrorContains(t, err, "65,536-character limit")
+	_, _, err = createPRForRepo(context.Background(), "unused", "Title", body, "", false)
+	require.ErrorContains(t, err, "65,536-character limit")
+	_, _, err = addWorkflowsWithPR(context.Background(), nil, AddOptions{PRMessage: body})
+	require.ErrorContains(t, err, "65,536-character limit")
+	err = createTransferPRWithAutoMerge(context.Background(), "owner", "repo", &PRInfo{Body: body}, "branch", false, false)
+	require.ErrorContains(t, err, "65,536-character limit")
 }
 
 func TestPRVersionFooter(t *testing.T) {

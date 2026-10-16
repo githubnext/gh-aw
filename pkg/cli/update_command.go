@@ -366,14 +366,17 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 	if createPR {
 		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, normalizeDisplayVersion(GetVersion()))
 
-		// Close any stale update PRs in the target repo before creating the new one.
-		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
-
 		prBody, err := updatePRBody(ctx, summary, opts)
 		if err != nil {
 			return err
 		}
 		prBody += "\n" + xmlMarker
+		if err := validatePRBody(prBody); err != nil {
+			return err
+		}
+
+		// Close stale PRs only after the replacement description is validated.
+		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
 
 		prURL, err := createPRWithChanges(ctx, "update-workflows", "chore: update workflows",
 			"Update workflows from source", prBody, verbose, opts.AutoMerge)
