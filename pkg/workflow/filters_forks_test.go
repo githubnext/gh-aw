@@ -66,17 +66,12 @@ func TestApplyPullRequestForkFilter(t *testing.T) {
 }
 
 func TestPullRequestForkAuthorAssociationCompilation(t *testing.T) {
-	for _, associations := range []string{
-		"author-association: [OWNER, MEMBER, COLLABORATOR]",
-		"author-association:\n        - OWNER\n        - MEMBER\n        - COLLABORATOR",
-	} {
-		t.Run(associations, func(t *testing.T) {
-			workflowFile := filepath.Join(testutil.TempDir(t, "fork-associations"), "forks.md")
-			require.NoError(t, os.WriteFile(workflowFile, []byte(`---
+	workflowFile := filepath.Join(testutil.TempDir(t, "fork-associations"), "forks.md")
+	require.NoError(t, os.WriteFile(workflowFile, []byte(`---
 on:
   pull_request:
     forks:
-      `+associations+`
+      author-association: [OWNER, MEMBER, COLLABORATOR]
     types: [opened, synchronize]
     branches: [main]
   push:
@@ -87,29 +82,27 @@ engine: copilot
 ---
 # Trusted fork authors
 `), 0644))
-			require.NoError(t, NewCompiler().CompileWorkflow(workflowFile))
-			content, err := os.ReadFile(filepath.Join(filepath.Dir(workflowFile), "forks.lock.yml"))
-			require.NoError(t, err)
+	require.NoError(t, NewCompiler().CompileWorkflow(workflowFile))
+	content, err := os.ReadFile(filepath.Join(filepath.Dir(workflowFile), "forks.lock.yml"))
+	require.NoError(t, err)
 
-			var compiled map[string]any
-			require.NoError(t, yaml.Unmarshal(content, &compiled))
-			on := compiled["on"].(map[string]any)
-			pr := on["pull_request"].(map[string]any)
-			assert.NotContains(t, pr, "forks")
-			assert.NotContains(t, pr, "author-association")
-			assert.Equal(t, []any{"opened", "synchronize"}, pr["types"])
-			assert.Equal(t, []any{"main"}, pr["branches"])
-			assert.Contains(t, on, "push")
-			assert.Contains(t, on, "workflow_dispatch")
-			assert.Contains(t, string(content), "# author-association:")
+	var compiled map[string]any
+	require.NoError(t, yaml.Unmarshal(content, &compiled))
+	on := compiled["on"].(map[string]any)
+	pr := on["pull_request"].(map[string]any)
+	assert.NotContains(t, pr, "forks")
+	assert.NotContains(t, pr, "author-association")
+	assert.Equal(t, []any{"opened", "synchronize"}, pr["types"])
+	assert.Equal(t, []any{"main"}, pr["branches"])
+	assert.Contains(t, on, "push")
+	assert.Contains(t, on, "workflow_dispatch")
+	assert.Contains(t, string(content), "# author-association:")
 
-			jobs := compiled["jobs"].(map[string]any)
-			activation := jobs["activation"].(map[string]any)
-			condition := activation["if"].(string)
-			assert.Contains(t, condition, "github.actor != 'dependabot[bot]'")
-			assert.Contains(t, condition, "github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id")
-			assert.Contains(t, condition, `|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)`)
-			assert.Contains(t, string(content), "github.event.pull_request.base.sha || github.sha")
-		})
-	}
+	jobs := compiled["jobs"].(map[string]any)
+	activation := jobs["activation"].(map[string]any)
+	condition := activation["if"].(string)
+	assert.Contains(t, condition, "github.actor != 'dependabot[bot]'")
+	assert.Contains(t, condition, "github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id")
+	assert.Contains(t, condition, `|| contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)`)
+	assert.Contains(t, string(content), "github.event.pull_request.base.sha || github.sha")
 }

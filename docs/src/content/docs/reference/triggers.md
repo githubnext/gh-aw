@@ -193,7 +193,7 @@ on:
 
 Use `["owner/repo"]` for a specific repository, `["owner/*"]` for an entire org/user, or `["*"]` to allow all forks (use with caution). Omit `forks:` for the default behavior (same-repository PRs only). The compiler uses repository ID comparison so fork detection is unaffected by repository renames.
 
-Alternatively, use `forks: {author-association: [OWNER, MEMBER, COLLABORATOR]}` to allow fork PRs by the author's relationship to the base repository rather than the fork owner. Same-repository PRs remain allowed, and no association is implicitly included. See [author associations](./fork-support.md#author-associations) for trust and secret-availability considerations.
+Alternatively, use `forks: {author-association: [OWNER, MEMBER, COLLABORATOR]}` to allow fork PRs by the author's relationship to the base repository rather than the fork owner. Same-repository PRs remain allowed, and no association is implicitly included. See [author associations](/gh-aw/reference/fork-support/#author-associations) for trust and secret-availability considerations.
 
 #### Stacked PR Filtering (`max-stack:`)
 
