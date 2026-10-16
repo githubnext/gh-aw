@@ -5,7 +5,7 @@ authors:
   - copilot
 date: 2026-10-16
 metadata:
-  seoDescription: "Daily Documentation Updater scans merged pull requests each morning and keeps gh-aw docs current. Live run data shows a 10-minute success and two early failures."
+  seoDescription: "Daily Documentation Updater scans merged pull requests each morning and keeps gh-aw docs current. Live runs show one 10-minute success and two early failures."
   linkedPostText: "Daily Documentation Updater: docs that chase the code"
 ---
 
