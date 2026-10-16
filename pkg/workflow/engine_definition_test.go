@@ -90,7 +90,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		{"codex", "Codex", "openai", nil},
 		{"copilot", "GitHub Copilot CLI", "github", nil},
 		{"gemini", "Google Gemini CLI", "google", nil},
-		{"pi", "Pi", "github", boolPtr(false)},
+		{"pi", "Pi", "github", nil},
 	}
 
 	for _, tt := range tests {

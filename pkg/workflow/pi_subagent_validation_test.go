@@ -21,6 +21,7 @@ func TestPiSubagentValidation(t *testing.T) {
 	}{
 		{"bare model", "description: Read files\nmodel: claude-haiku-4.5", "", ""},
 		{"alias model", "description: Read files\nmodel: small", "", ""},
+		{"maximum effort", "description: Read files\nmodel: small?effort=max", "", ""},
 		{"inherited model", "description: Read files", "", ""},
 		{"SDK mode", "description: Read files", "pi_agent_core_driver.cjs", ""},
 		{"RPC mode", "description: Read files", "pi_rpc_driver.cjs", ""},

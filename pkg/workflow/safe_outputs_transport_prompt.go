@@ -12,10 +12,6 @@ var mcpToolCallsLog = logger.New("workflow:safe_outputs_transport_prompt")
 // directly. Unknown or unset engines are treated as MCP-capable, matching the default
 // engine behaviour.
 func engineSupportsMCPToolCalls(catalog *EngineCatalog, data *WorkflowData) bool {
-	if data != nil && data.EngineConfig != nil && data.EngineConfig.ID == "pi" && data.ParsedTools != nil && data.ParsedTools.CLIProxy {
-		mcpToolCallsLog.Print("Pi engine in CLI-proxy mode: MCP tool calls unsupported")
-		return false
-	}
 	if data == nil || data.EngineConfig == nil || data.EngineConfig.ID == "" {
 		return true
 	}

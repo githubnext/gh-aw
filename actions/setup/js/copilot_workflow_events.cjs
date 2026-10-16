@@ -45,6 +45,7 @@ const COPILOT_WORKFLOW_EVENT_FIELDS = {
     model: ["model"],
     inputTokens: ["inputTokens"],
     outputTokens: ["outputTokens"],
+    reasoningOutputTokens: ["reasoningOutputTokens"],
     cacheReadTokens: ["cacheReadTokens"],
     cacheWriteTokens: ["cacheWriteTokens"],
   },
