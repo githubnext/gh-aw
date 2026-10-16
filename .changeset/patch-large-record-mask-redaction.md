@@ -9,3 +9,5 @@ Keep malformed-token recovery linear, preserve unrelated plain-text escapes when
 Sanitize malformed ordinary JSON artifacts as whole-file text, matching raw and escaped credentials together even inside recoverable quoted spans or across line breaks.
 
 Preserve bundled safe-output schema vocabulary during redaction so short masks do not corrupt review message fields, dispatch types, or collector configuration. Continue redacting payload data and fail closed on malformed executable records, unsafe custom routing changes, or conflicts with control data.
+
+Coalesce overlapping built-in, configured, and runtime credentials in executable safe-output payloads without reparsing their already-decoded free-form strings.

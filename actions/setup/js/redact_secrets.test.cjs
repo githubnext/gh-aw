@@ -127,6 +127,61 @@ describe("redact_secrets.cjs", () => {
       }
     }),
     describe("file handling", () => {
+      it.each(["safeoutputs.jsonl", "agent_output.json"])("coalesces all credential sources in executable %s payloads", filename => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const token = "ghs_" + "A".repeat(40);
+        const cases = [
+          { text: "SECRET_AB_LONGVALUE", secrets: ["AB_LONGVALUE"], masks: ["SECRET_AB"] },
+          { text: "prefix-" + token + "-configured", secrets: ["prefix-" + token + "-configured"], masks: [] },
+          { text: "before" + token, secrets: [], masks: ["beforeghs_"] },
+        ];
+        const file = path.join(tempDir, filename);
+        for (const { text, secrets, masks } of cases) {
+          const message = { type: "submit_pull_request_review", event: "COMMENT", pull_request_number: 12, body: `before [${text}] after` };
+          const envelope = filename === "agent_output.json";
+          fs.writeFileSync(file, JSON.stringify(envelope ? { items: [message], errors: [] } : message) + "\n");
+
+          expect(processFile(file, secrets, [...masks, "body", "COMMENT", "type", "items"])).toBeGreaterThan(0);
+
+          const output = JSON.parse(fs.readFileSync(file, "utf8"));
+          const expected = { ...message, body: "before [***REDACTED***] after" };
+          expect(output).toEqual(envelope ? { items: [expected], errors: [] } : expected);
+          expect(mockCore.setFailed).not.toHaveBeenCalled();
+        }
+      });
+
+      it.each(["safeoutputs.jsonl", "agent_output.json"])("keeps decoded free-form strings literal while redacting %s", filename => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, filename);
+        const values = [
+          ['{ "key" : "SECRET_AB_LONGVALUE" }', '{ "key" : "***REDACTED***" }'],
+          ['"SECRET_AB_LONGVALUE"', '"***REDACTED***"'],
+          ["12345678", "***REDACTED***"],
+          [String.raw`literal \u0053ECRET_WORD \n C:\new\path`, String.raw`literal \u0053ECRET_WORD \n C:\new\path`],
+          ["first\nSECRET_AB_LONGVALUE\nlast", "first\n***REDACTED***\nlast"],
+          ['{ "key" : "public" }', '{ "key" : "public" }'],
+          [String.raw`before synthetic\npassword after`, "before ***REDACTED*** after"],
+          ["before synthetic\n::add-mask::middle\npassword after", "before ***REDACTED*** after"],
+          ["before\n::add-mask::unrelated\nafter", "before\nafter"],
+          ["before\n::add-mask::SECRET_AB_LONGVALUE\nafter", "before\nafter"],
+          ["before\n::add-mask::whole-command\nafter", "before\nafter"],
+          ["before runtime\n::add-mask::middle\npassword after", "before *** after"],
+        ];
+        const record = Object.fromEntries(values.map(([value], index) => [`field-${index}`, value]));
+        record["SECRET_AB_LONGVALUE"] = "public";
+        const message = { type: "ledger_append", record };
+        const expected = { type: "ledger_append", record: { ...Object.fromEntries(values.map(([, value], index) => [`field-${index}`, value])), "***REDACTED***": "public" } };
+        const envelope = filename === "agent_output.json";
+        fs.writeFileSync(file, JSON.stringify(envelope ? { items: [message], errors: [] } : message));
+
+        expect(
+          processFile(file, ["AB_LONGVALUE", "12345678", "SECRET_WORD", String.raw`synthetic\npassword`, "synthetic\n::add-mask::middle\npassword"], ["SECRET_AB", "::add-mask::whole-command", "runtime\n::add-mask::middle\npassword"])
+        ).toBeGreaterThan(0);
+
+        expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual(envelope ? { items: [expected], errors: [] } : expected);
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
       it.each(['export SYNTHETIC_DIR="/example/synthetic"', 'mkdir -p "/example/synthetic"'])("keeps complete-line quoted shell masks as plain redaction markers (%s)", line => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "shell-mask.log");

@@ -10,7 +10,8 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { applyAddMaskRedaction, collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { maskedValueMatches, overlappingMatchGroups } = require("./mask_value_matcher.cjs");
 const { redactSafeOutputContent } = require("./safe_output_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
 const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
@@ -334,16 +335,17 @@ function isValidJSONArtifact(content) {
  * @param {string} content
  * @param {string[]} secretValues
  * @param {string[]} maskedValues
+ * @param {{decodedText?: boolean}} [options] - Treat already-decoded protocol payloads as literal text
  * @returns {{content: string, redactionCount: number}}
  */
-function redactArtifactContent(content, secretValues, maskedValues) {
+function redactArtifactContent(content, secretValues, maskedValues, options = {}) {
   const configured = new Set(secretValues.filter(value => value && value.length >= 6));
   /** @type {Map<string, string>} */
   const builtInValues = new Map();
   // Discovery only: include escaped built-in credentials without rewriting the
   // original numeric lexemes, malformed records, or unchanged JSON strings.
   const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
-  const decoded = content.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => (escape[0] === "u" ? String.fromCharCode(parseInt(escape.slice(1), 16)) : escapes[escape]));
+  const decoded = options.decodedText ? content : content.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => (escape[0] === "u" ? String.fromCharCode(parseInt(escape.slice(1), 16)) : escapes[escape]));
   for (const text of new Set([content, decoded])) {
     for (const { name, pattern } of BUILT_IN_PATTERNS) {
       for (const match of text.matchAll(pattern)) builtInValues.set(match[0], name);
@@ -360,10 +362,40 @@ function redactArtifactContent(content, secretValues, maskedValues) {
     else if (configured.has(value)) configuredCount++;
     return name || configured.has(value) ? "***REDACTED***" : "***";
   };
-  const redacted = redactArtifactMaskedValues(content, values, undefined, replacement, { textMode: !isValidJSONArtifact(content) });
+  // Protocol callbacks already receive decoded strings, not serialized artifacts.
+  const redacted = options.decodedText ? redactDecodedCredentialText(content, values, replacement) : redactArtifactMaskedValues(content, values, undefined, replacement, { textMode: !isValidJSONArtifact(content) });
   for (const [name, count] of builtInCounts) global.core?.info?.(`Redacted ${count} occurrence(s) of ${name}`);
   if (configuredCount) global.core?.info?.(`Redacted ${configuredCount} occurrence(s) of a secret`);
   return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
+}
+
+/**
+ * Keep command lines intact until removal, unless a credential union crosses
+ * their boundary and must be replaced before removing any original text.
+ * @param {string} content
+ * @param {string[]} values
+ * @param {(value: string) => string} replacement
+ * @returns {string}
+ */
+function redactDecodedCredentialText(content, values, replacement) {
+  const commands = [];
+  let offset = 0;
+  for (const line of content.split("\n")) {
+    if (isAddMaskCommandLine(line)) commands.push({ start: offset, end: offset + line.length });
+    offset += line.length + 1;
+  }
+  const parts = [];
+  let cursor = 0;
+  let commandIndex = 0;
+  for (const match of overlappingMatchGroups(maskedValueMatches(content, values, undefined, true))) {
+    while (commandIndex < commands.length && commands[commandIndex].end < match.start) commandIndex++;
+    const command = commands[commandIndex];
+    if (command && match.start >= command.start && match.end <= command.end) continue;
+    parts.push(content.slice(cursor, match.start), replacement(match.value));
+    cursor = match.end;
+  }
+  parts.push(content.slice(cursor));
+  return applyAddMaskRedaction(parts.join(""), []);
 }
 
 /**
@@ -566,10 +598,7 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
       filePath,
       content,
       [...maskedValues, ...secretValues.filter(value => value && value.length >= 6)].sort((a, b) => b.length - a.length),
-      text => {
-        const custom = redactSecrets(redactBuiltInPatterns(text).content, secretValues);
-        return applyAddMaskRedaction(custom.content, maskedValues);
-      }
+      text => redactArtifactContent(text, secretValues, maskedValues, { decodedText: true }).content
     );
     if (structured !== null) {
       const redactionCount = structured === content ? 0 : 1;
