@@ -128,7 +128,7 @@ describe("Declared custom engine log parsers", () => {
     }
   });
 
-  it.each(["aider", "crush"])("lets the declared %s parser own full mixed stdout and terminal snapshots", engine => {
+  it.each(["aider", "crush", "cursor"])("lets the declared %s parser own full mixed stdout and terminal snapshots", engine => {
     const extension = { type: "vendor.progress", data: { ready: false, count: 0 } };
     const events = [
       { type: "assistant.message", data: { content: "  Partial answer.\n\n" } },
@@ -144,7 +144,7 @@ describe("Declared custom engine log parsers", () => {
     expect(parse).toHaveBeenCalledWith(content);
   });
 
-  it.each(["aider", "crush"])("passes canonical-only %s input to its declared parser unchanged, once", engine => {
+  it.each(["aider", "crush", "cursor"])("passes canonical-only %s input to its declared parser unchanged, once", engine => {
     const events = [
       { type: "assistant.message", id: "answer", data: { content: "saved answer" } },
       { type: "session.result", data: { numTurns: 0, usage: { output_tokens: 0 } } },
@@ -157,7 +157,7 @@ describe("Declared custom engine log parsers", () => {
     expect(parse).toHaveBeenCalledWith(content);
   });
 
-  it.each(["aider", "crush"])("does not restore canonical-looking records rejected by the declared %s parser", engine => {
+  it.each(["aider", "crush", "cursor"])("does not restore canonical-looking records rejected by the declared %s parser", engine => {
     const content = `Quoted output:\n{"type":"assistant.message","data":{"content":"not attributed"}}\n{"type":"result","num_turns":99,"usage":{"output_tokens":999}}\n`;
     const parse = vi.fn(() => ({ logEntries: [] }));
     mockDeclaredParser(engine, parse);
@@ -175,12 +175,12 @@ describe("Declared custom engine log parsers", () => {
     expect(parse).toHaveBeenCalledWith(content);
   });
 
-  it("retains legacy Crush terminal extraction after its full-input compatibility probe", () => {
+  it.each(["crush", "cursor"])("retains legacy %s terminal extraction after its full-input compatibility probe", engine => {
     const body = "Assistant: legacy answer\n";
     const content = body + '{"type":"result","num_turns":2,"usage":{"output_tokens":0}}\n\n';
     const parse = vi.fn(text => ({ logEntries: [{ type: "assistant", message: { content: text } }], maxTurnsHit: false }));
-    mockDeclaredParser("crush", parse);
-    const parsed = parseBehaviorLog(content, "crush");
+    mockDeclaredParser(engine, parse);
+    const parsed = parseBehaviorLog(content, engine);
     expect(parse.mock.calls).toEqual([[content], [body.slice(0, -1)]]);
     expect(parsed.logEntries).toMatchObject([
       { type: "assistant.message", data: { content: body.slice(0, -1) } },
@@ -189,7 +189,7 @@ describe("Declared custom engine log parsers", () => {
     expect(parsed.maxTurnsHit).toBe(false);
   });
 
-  it.each(["cursor", "custom-engine"])("keeps generic %s parsing after canonical preflight and terminal extraction", engine => {
+  it.each(["custom-engine"])("keeps generic %s parsing after canonical preflight and terminal extraction", engine => {
     const parse = vi.fn(text => ({ logEntries: [{ type: "assistant", message: { content: text } }] }));
     mockDeclaredParser(engine, parse);
     const saved = { type: "assistant.message", data: { content: "saved answer" } };
@@ -201,6 +201,27 @@ describe("Declared custom engine log parsers", () => {
     ]);
     expect(parse).toHaveBeenCalledTimes(1);
     expect(parse).toHaveBeenCalledWith("Assistant: answer");
+  });
+
+  it("routes mixed Cursor stream records through the declared parser before generic message preflight", () => {
+    // Synthetic routing fixture: the engine-owned parser defines native payload mappings.
+    const records = [
+      { type: "assistant", message: { content: [{ type: "text", text: "Checking.\n" }] } },
+      { type: "tool_call", subtype: "started", call_id: "call" },
+      { type: "tool_call", subtype: "completed", call_id: "call" },
+      { type: "result", num_turns: 99, usage: { output_tokens: 999 } },
+    ];
+    const events = [
+      { type: "assistant.message", data: { content: "Checking.\n" } },
+      { type: "tool.execution_start", data: { toolCallId: "call", input: false } },
+      { type: "tool.execution_complete", data: { toolCallId: "call", output: 0 } },
+    ];
+    const content = records.map(JSON.stringify).join("\n");
+    const parse = vi.fn(() => ({ logEntries: events, mcpFailures: [], maxTurnsHit: false }));
+    mockDeclaredParser("cursor", parse);
+    expect(parseEngineSession(content, "cursor")).toEqual(events);
+    expect(parse).toHaveBeenCalledExactlyOnceWith(content);
+    expect(records.at(-1).usage.output_tokens).toBe(999);
   });
 
   it("does not mistake quoted canonical JSON inside attributed Kiro commands for the transcript", () => {

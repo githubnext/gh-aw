@@ -8,6 +8,15 @@ import { validateSession, createSessionValidator } from "./validate_session.cjs"
 import { collectUnifiedSession, parseEngineSession, SESSION_FILE_FORMAT_VERSION } from "../unified_session.cjs";
 import { serializeSessionArtifact } from "../session_artifact.cjs";
 import { normalizeUnifiedSessionEvent } from "../unified_session_payload.cjs";
+import { sessionCLI } from "../session_cli.cjs";
+import { success as claudeSuccess } from "../fixtures/claude_ci_sessions.cjs";
+import copilotAudit from "../fixtures/copilot_ci_audit.cjs";
+import geminiLifecycle from "../fixtures/gemini_ci_lifecycle.cjs";
+import { agySmoke } from "../fixtures/agy_ci_sessions.cjs";
+import { success as kiroSuccess } from "../fixtures/kiro_ci_sessions.cjs";
+import { startupFailure as deepseekFailure } from "../fixtures/deepseek_ci_logs.cjs";
+import { opencodeCiExcerpt } from "../fixtures/opencode_ci_sessions.cjs";
+import { success as gooseSuccess } from "../fixtures/goose_ci_sessions.cjs";
 
 const roots = [];
 const jsonl = events => events.map(event => JSON.stringify(event)).join("\n") + "\n";
@@ -161,6 +170,67 @@ describe("Generated session schemas", () => {
       expect(events.length, engine).toBeGreaterThan(0);
       expect(validateSession(serializeSessionArtifact(events), "agent")).toBe(events.length);
     }
+  });
+
+  it.each([
+    ["claude", () => jsonl(claudeSuccess), ["assistant.reasoning", "tool.execution_complete", "session.result"]],
+    ["copilot", () => jsonl(copilotAudit), ["assistant.reasoning", "tool.execution_complete", "session.shutdown"]],
+    ["codex", () => fs.readFileSync(new URL("../test_data/codex_ci_smoke.jsonl", import.meta.url), "utf8"), ["tool.execution_complete", "session.result"]],
+    ["gemini", () => jsonl(geminiLifecycle), ["assistant.message", "tool.execution_complete", "session.result"]],
+    ["agy", () => jsonl(agySmoke), ["assistant.message", "tool.execution_complete", "usage.report", "session.result"]],
+    ["kiro", () => kiroSuccess, ["assistant.message", "tool.execution_start", "tool.execution_complete"]],
+    ["deepseek-harness", () => deepseekFailure, ["session.init", "session.error"]],
+    ["pydantic-ai", () => fs.readFileSync(new URL("../test_data/pydantic_ai_smoke_stdout.log", import.meta.url), "utf8"), ["assistant.message", "tool.execution_start", "session.collection_warning"]],
+    ["opencode", () => jsonl(opencodeCiExcerpt), ["assistant.message", "tool.execution_complete", "session.result"]],
+    ["goose", () => jsonl(gooseSuccess), ["assistant.message", "tool.execution_complete", "session.result"]],
+    ["aider", () => fs.readFileSync(new URL("../../../../pkg/workflow/testdata/aider_session/smoke-success.log", import.meta.url), "utf8"), ["assistant.message", "tool.execution_complete", "session.result"]],
+    // Synthetic canonical routing only; legacy plaintext definitions emit invalid null model fields.
+    ["crush", () => jsonl([{ type: "assistant.message", data: { content: "Captured answer\n" } }]), ["assistant.message"]],
+    ["cursor", () => jsonl([{ type: "assistant.message", data: { content: "Captured answer\n" } }]), ["assistant.message"]],
+  ])("validates %s fixture routing, canonical artifact precedence and CLI reconstruction", (engine, input, requiredTypes) => {
+    const root = tempRoot();
+    const content = input();
+    const parsed = parseEngineSession(content, engine);
+    expect(parsed.map(event => event.type)).toEqual(expect.arrayContaining(requiredTypes));
+    expect(validateSession(serializeSessionArtifact(parsed), "agent")).toBe(parsed.length);
+    fs.writeFileSync(path.join(root, "agent-stdio.log"), content);
+    const collect = () =>
+      collectUnifiedSession({
+        rootDir: root,
+        engine,
+        warn: message => {
+          throw new Error(message);
+        },
+      }).events;
+    const raw = collect();
+    expect(validateSession(serializeSessionArtifact(raw))).toBe(raw.length);
+    expect(raw.filter(event => event.provenance.component === "agent").map(event => event.type)).toEqual(expect.arrayContaining(requiredTypes));
+
+    const extension = { type: "vendor.future", id: "future", data: { values: [false, 0, null, ""] } };
+    const canonical = [...parsed, extension];
+    const original = structuredClone(canonical);
+    fs.writeFileSync(path.join(root, "agent-session.jsonl"), serializeSessionArtifact(canonical));
+    const saved = collect();
+    expect(validateSession(serializeSessionArtifact(saved))).toBe(saved.length);
+    expect(saved.find(event => event.id === "future").data).toEqual(extension.data);
+    expect(saved.filter(event => event.provenance.component === "agent").every(event => event.provenance.path === "agent-session.jsonl")).toBe(true);
+    expect(saved.filter(event => event.provenance.component === "agent").map(event => [event.type, event.data])).toEqual(
+      raw
+        .filter(event => event.provenance.component === "agent")
+        .map(event => [event.type, event.data])
+        .concat([[extension.type, extension.data]])
+    );
+    const reconstructed = sessionCLI(["reconstruct", root, engine]);
+    expect(validateSession(reconstructed)).toBe(saved.length);
+    expect(
+      JSON.parse(
+        reconstructed
+          .trim()
+          .split("\n")
+          .find(line => JSON.parse(line).id === "future")
+      ).data
+    ).toEqual(extension.data);
+    expect(canonical).toEqual(original);
   });
 
   it("validates collected runtime families, decoded strings, projection aliases, warnings and coverage", () => {
