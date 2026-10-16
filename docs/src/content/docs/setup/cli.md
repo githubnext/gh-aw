@@ -103,6 +103,20 @@ For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
 Commands that create pull requests print the full pull request URL to stderr immediately after creation, including in non-verbose and quiet modes, so terminals can display it as a clickable link. The URL remains visible if subsequent local branch cleanup fails.
 
+### Pull request auto-merge
+
+`--auto-merge` enables GitHub-native auto-merge on the created pull request. Without this flag, command behavior is unchanged.
+
+| Commands | Options |
+|----------|---------|
+| `init`, `add`, `update`, `upgrade` | `--auto-merge` requires `--pr` or its equivalent `--create-pull-request` |
+| `add-wizard` | `--pr` / `--create-pull-request` forces pull request delivery instead of asking for confirmation; `--auto-merge` requires one of these flags |
+| `deploy`, `pr transfer` | Always create a pull request, but `--auto-merge` still requires the compatibility flag `--pr` or `--create-pull-request` |
+
+The repository must allow auto-merge and at least one merge method, and the authenticated token must have permission to enable it through the GitHub API. The CLI uses the GraphQL `enablePullRequestAutoMerge` mutation, choosing the repository's `viewerDefaultMergeMethod` when allowed, otherwise an allowed merge method. It does not immediately merge through `gh pr merge`, force a merge, or bypass required checks or reviews.
+
+If auto-merge is disabled, no merge method is allowed, API permissions are insufficient, or GitHub otherwise rejects the request, the command reports the error and pull request URL; the created pull request remains open. In organization mode, `update`, `upgrade`, and `deploy` enable auto-merge independently for each repository and report per-repository failures without preventing attempts for other repositories.
+
 ## Commands
 
 Commands are organized by workflow lifecycle: creating, building, testing, monitoring, and managing workflows.
@@ -137,9 +151,10 @@ gh aw init --codespaces                 # Configure Codespaces for current repo 
 gh aw init --codespaces=repo1,repo2     # Configure Codespaces with additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
+gh aw init --pr --auto-merge            # Initialize, open a PR, and enable auto-merge
 ```
 
-**Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request`
+**Options:** `--engine/-e`, `--no-mcp`, `--no-skill`, `--no-agent`, `--codespaces`, `--completions`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge))
 
 ##### Initializing for non-Copilot engines
 
@@ -162,14 +177,17 @@ Add a workflow with interactive guided setup. Checks requirements, adds the mark
 
 Before the final pull request confirmation, the wizard optionally offers to add repository support files for using coding agents to author, debug, update, and audit agentic workflows. The prompt is skipped when those support files are already configured. Declining adds only the selected workflow files.
 
+`--pr` / `--create-pull-request` forces pull request delivery but does not make the wizard non-interactive. With `--auto-merge`, GitHub-native auto-merge is enabled; the wizard's review and merge-confirmation loop still runs before post-merge secret setup, bootstrap, and status steps.
+
 ```bash wrap
 gh aw add-wizard githubnext/agentics/ci-doctor           # Interactive setup
 gh aw add-wizard https://github.com/org/repo/blob/main/workflows/my-workflow.md
 gh aw add-wizard https://example.com/workflows/my-workflow.json   # Arbitrary URL (JSON workflow)
 gh aw add-wizard githubnext/agentics/ci-doctor --no-secret  # Skip secret prompt
+gh aw add-wizard githubnext/agentics/ci-doctor --pr --auto-merge  # Force PR delivery and enable auto-merge
 ```
 
-**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--gh-aw-ref`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`
+**Options:** `--no-secret`, `--dir/-d`, `--engine/-e`, `--gh-aw-ref`, `--no-gitattributes`, `--no-stop-after`, `--stop-after`, `--append`, `--no-security-scanner`, `--no-config`, `--create-pull-request` / `--pr` (force PR delivery), `--auto-merge` (requires explicit PR flag; see [auto-merge requirements](#pull-request-auto-merge))
 
 When the Copilot engine is selected, the wizard prompts the user to choose an authentication method: organization billing via [`permissions.copilot-requests: write`](/gh-aw/reference/auth/#copilot-requests-write-permission) (no PAT required), or a [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) personal access token (a separate token from the default `GITHUB_TOKEN`, because the agent needs elevated Copilot API access that the ephemeral workflow token does not carry). When `COPILOT_GITHUB_TOKEN` already exists, using it is the default; because GitHub does not expose stored secret values, the user asserts that it is a suitable fine-grained PAT with Copilot Requests permission. The alternative replacement path opens a preconfigured fine-grained PAT creation page, validates the pasted token, and updates the repository secret.
 
@@ -186,11 +204,12 @@ gh aw add ./my-workflow.md                       # Add a local workflow file
 gh aw add ./*.md                                 # Add multiple local workflow files
 gh aw add githubnext/agentics/ci-doctor --dir .github/workflows/shared  # Organize in subdirectory
 gh aw add githubnext/agentics/ci-doctor --create-pull-request        # Create PR instead of commit
+gh aw add githubnext/agentics/ci-doctor --pr --auto-merge             # Create PR and enable auto-merge
 gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary HTTPS URL (markdown)
 gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
-**Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--gh-aw-ref`, `--name/-n`, `--no-stop-after`, `--stop-after`
+**Options:** `--dir/-d`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--gh-aw-ref`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
 
@@ -879,10 +898,12 @@ gh aw update ci-doctor --major --force    # Allow major version updates
 gh aw update --no-release-bump            # Update workflows; only force-update core actions/*
 gh aw update --repo owner/repo            # Update workflows in another repository
 gh aw update --create-pull-request        # Update and open a pull request
+gh aw update --pr --auto-merge             # Update, open a PR, and enable auto-merge
+gh aw update --org my-org --pr --auto-merge --yes  # Enable auto-merge per repository
 gh aw update --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--approve`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
+**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--approve`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
 
 Org mode (`--org`) previews or creates workflow update pull requests across every repository in an organization. Use `--repos` to limit matches, `--create-issue` to open an issue in each repository with pending updates, and `--yes/-y` to auto-accept per-repository confirmations in CI.
 
@@ -896,10 +917,12 @@ Roll out one or more workflows to a target repository through a pull request. Th
 gh aw deploy githubnext/agentics/ci-doctor --repo owner/repo
 gh aw deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
 gh aw deploy ./my-workflow.md --repo owner/repo
+gh aw deploy ./my-workflow.md --repo owner/repo --pr --auto-merge  # Enable auto-merge on the deployment PR
 gh aw deploy githubnext/agentics/ci-doctor --org my-org --repos '*-service' --yes  # Deploy across an org
+gh aw deploy ./my-workflow.md --org my-org --pr --auto-merge --yes  # Enable auto-merge per repository
 ```
 
-**Options:** `--repo/-r` (required unless `--org`), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--no-security-scanner`, `--cool-down`, `--org`, `--repos`, `--yes/-y`
+**Options:** `--repo/-r` (required unless `--org`), `--name/-n`, `--engine/-e`, `--force/-f`, `--append`, `--no-gitattributes`, `--dir/-d`, `--no-stop-after`, `--stop-after`, `--no-security-scanner`, `--cool-down`, `--org`, `--repos`, `--yes/-y`, `--create-pull-request` / `--pr` (compatibility flags; PR creation is always enabled), `--auto-merge` (requires explicit PR flag; see [auto-merge requirements](#pull-request-auto-merge))
 
 Org mode (`--org`) deploys workflows across every repository in an organization instead of a single `--repo` target. Use `--repos` to limit org mode to repositories matching one or more glob patterns, and `--yes/-y` to auto-accept org-mode deploy confirmations (required in CI).
 
@@ -913,6 +936,8 @@ Upgrade repository with latest agent files and apply codemods to all workflows.
 gh aw upgrade                              # Upgrade repository agent files and all workflows
 gh aw upgrade --no-fix                     # Update agent files only (skip codemods, actions, and compilation)
 gh aw upgrade --create-pull-request        # Upgrade and open a pull request
+gh aw upgrade --pr --auto-merge             # Upgrade, open a PR, and enable auto-merge
+gh aw upgrade --org my-org --pr --auto-merge --yes  # Enable auto-merge per repository
 gh aw upgrade --engine claude              # Override AI engine for compilation
 gh aw upgrade --repo owner/repo            # Upgrade workflows in another repository
 gh aw upgrade --audit                      # Run dependency health audit
@@ -920,7 +945,7 @@ gh aw upgrade --audit --json               # Dependency audit in JSON format
 gh aw upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--engine/-e`, `--repo/-r`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request`, `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+**Options:** `--dir/-d`, `--engine/-e`, `--repo/-r`, `--no-fix`, `--no-actions`, `--no-compile`, `--disable-codemod`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
 
 Org mode (`--org`) previews or creates upgrade pull requests across every repository in an organization. Use `--repos` to limit org mode to repositories matching one or more glob patterns, `--create-issue` to open an issue in each org repository with agentic workflows (requires `--org`), and `--yes/-y` to auto-accept org-mode upgrade confirmations (required in CI).
 
@@ -1000,9 +1025,10 @@ Transfer pull request to another repository, preserving changes, title, and desc
 
 ```bash wrap
 gh aw pr transfer <pr-url> --repo target-owner/target-repo
+gh aw pr transfer <pr-url> --repo target-owner/target-repo --pr --auto-merge
 ```
 
-**Options:** `--repo/-r`
+**Options:** `--repo/-r`, `--create-pull-request` / `--pr` (compatibility flags; PR creation is always enabled), `--auto-merge` (requires explicit PR flag; see [auto-merge requirements](#pull-request-auto-merge))
 
 #### `mcp-server`
 

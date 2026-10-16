@@ -42,8 +42,9 @@ func TestRunDeployForOrgAppliesAcrossRepositories(t *testing.T) {
 		return []string{"octo/api", "octo/web"}, nil
 	}
 	var deployed []string
-	runDeployForTargetRepoFn = func(_ context.Context, targetRepo string, _ []string, _ AddOptions, _ time.Duration) error {
+	runDeployForTargetRepoFn = func(_ context.Context, targetRepo string, _ []string, opts AddOptions, _ time.Duration) error {
 		deployed = append(deployed, targetRepo)
+		assert.True(t, opts.AutoMerge, "org deploy must preserve auto-merge for each repository")
 		return nil
 	}
 	waitForOrgRateLimitFn = func(context.Context, string, bool) error { return nil }
@@ -53,7 +54,7 @@ func TestRunDeployForOrgAppliesAcrossRepositories(t *testing.T) {
 		waitForOrgRateLimitFn = origWait
 	}()
 
-	err := runDeployForOrg(context.Background(), "octo", nil, []string{"githubnext/agentics/ci-doctor"}, AddOptions{}, time.Hour, true, false)
+	err := runDeployForOrg(context.Background(), "octo", nil, []string{"githubnext/agentics/ci-doctor"}, AddOptions{AutoMerge: true}, time.Hour, true, false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"octo/api", "octo/web"}, deployed)
 }

@@ -30,10 +30,11 @@ func NewDeployCommand(validateEngine func(string) error) *cobra.Command {
 		Short: "Deploy agentic workflows to a target repository using a pull request",
 		Long: `Deploy one or more workflows to a target repository by cloning the target repository, updating existing workflows, adding specified workflows, compiling lock files, and opening a pull request.
 
-The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles lock files with purge enabled, and opens a pull request. This command always creates a pull request; the --create-pull-request flag is not needed.`,
+The command clones the target repository, updates existing workflows from source, adds the specified workflows, recompiles lock files with purge enabled, and opens a pull request. This command always creates a pull request. The --create-pull-request and --pr flags are compatibility aliases and do not change this behavior; one is required with --auto-merge to explicitly enable auto-merge on the created pull request.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --repo owner/repo
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/repo-assist githubnext/agentics/ci-doctor --repo owner/repo --force
   ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo
+  ` + string(constants.CLIExtensionPrefix) + ` deploy ./my-workflow.md --repo owner/repo --pr --auto-merge
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --org my-org --yes
   ` + string(constants.CLIExtensionPrefix) + ` deploy githubnext/agentics/ci-doctor --org my-org --repos '*-service' --yes`,
 		Args: validateDeployArgs,
@@ -74,7 +75,7 @@ func runDeploy(ctx context.Context, targetRepo string, workflows []string, addOp
 		return err
 	}
 
-	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose); err != nil {
+	if err := createDeployPR(ctx, resolvedWorkflows, targetRepo, addOpts.Verbose, addOpts.AutoMerge); err != nil {
 		return err
 	}
 
@@ -94,6 +95,10 @@ func registerDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("name", "n", "", "Specify name for the added workflow (without .md extension)")
 	addEngineFlag(cmd)
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request (always enabled for deploy)")
+	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	_ = cmd.Flags().MarkHidden("pr")
+	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the deployment pull request (requires --pr or --create-pull-request)")
 	cmd.Flags().String("append", "", "Append extra content to the end of the agentic workflow on installation")
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
@@ -141,6 +146,12 @@ func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateE
 	engineOverride, _ := cmd.Flags().GetString("engine")
 	nameFlag, _ := cmd.Flags().GetString("name")
 	forceFlag, _ := cmd.Flags().GetBool("force")
+	autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+	createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+	prFlagAlias, _ := cmd.Flags().GetBool("pr")
+	if err := requireAutoMergePR(autoMerge, createPRFlag || prFlagAlias); err != nil {
+		return AddOptions{}, 0, err
+	}
 	appendText, _ := cmd.Flags().GetString("append")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
@@ -167,6 +178,7 @@ func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateE
 		EngineOverride:         engineOverride,
 		Name:                   nameFlag,
 		Force:                  forceFlag,
+		AutoMerge:              autoMerge,
 		AppendText:             appendText,
 		NoGitattributes:        noGitattributes,
 		WorkflowDir:            workflowDir,
@@ -233,6 +245,9 @@ func runDeployAddPass(ctx context.Context, resolvedWorkflows []string, addOpts A
 		return nil
 	}
 
+	// Deploy creates its PR after all update, add, and compile passes complete.
+	addOpts.CreatePR = false
+	addOpts.AutoMerge = false
 	if _, err := AddWorkflows(ctx, workflowsToAdd, addOpts); err != nil {
 		return fmt.Errorf("failed to add workflows: %w", err)
 	}
@@ -252,9 +267,9 @@ func runDeployCompilePass(ctx context.Context, addOpts AddOptions) error {
 	return nil
 }
 
-func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool) error {
+func createDeployPR(ctx context.Context, resolvedWorkflows []string, targetRepo string, verbose bool, autoMerge bool) error {
 	prTitle, prBody := buildDeployPRMetadata(resolvedWorkflows, targetRepo)
-	_, err := CreatePRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose)
+	_, err := createPRWithChanges(ctx, "deploy-workflows", deployCommitMessage, prTitle, prBody, verbose, autoMerge)
 	if err != nil {
 		return fmt.Errorf("failed to create deploy pull request: %w", err)
 	}

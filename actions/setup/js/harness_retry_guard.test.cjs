@@ -116,6 +116,31 @@ describe("harness_retry_guard.cjs", () => {
     expect(isAuthenticationFailedError(output)).toBe(true);
   });
 
+  it.each([
+    { type: "unknown_model_ai_credits", model: "gpt-6.1-sol" },
+    { error: { type: "unknown_model_ai_credits" } },
+    { type: "error", message: JSON.stringify({ type: "unknown_model_ai_credits", model: "gpt-6.1-sol" }) },
+    { type: "turn.failed", error: { message: JSON.stringify({ type: "unknown_model_ai_credits", model: "gpt-6.1-sol" }) } },
+    { type: "turn.failed", error: { message: JSON.stringify({ error: { code: "unknown_model_ai_credits" } }) } },
+  ])("treats missing model pricing as a terminal proxy rejection: %j", event => {
+    const output = JSON.stringify(event);
+    expect(parseAPIProxyGuardRejection(output)).toEqual({ guard: "unknown_model_ai_credits", counters: {} });
+    expect(detectNonRetryableHarnessGuard(output).apiProxyGuardRejection?.guard).toBe("unknown_model_ai_credits");
+  });
+
+  it.each([
+    "",
+    "unknown_model_ai_credits",
+    '{"type":"error","message":"unknown_model_ai_credits"}',
+    '{"type":"error","message":"{broken"}',
+    JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: '{"type":"unknown_model_ai_credits"}' } }),
+    JSON.stringify({ type: "item.completed", item: { type: "mcp_tool_call", result: { type: "unknown_model_ai_credits" } } }),
+    JSON.stringify({ type: "assistant", message: { type: "unknown_model_ai_credits" } }),
+    JSON.stringify({ type: "turn.failed", error: { message: "Model has no pricing; unknown_model_ai_credits" } }),
+  ])("does not classify quoted or malformed pricing errors as transport rejections: %s", output => {
+    expect(parseAPIProxyGuardRejection(output)).toBeNull();
+  });
+
   it("detects AI credits exceeded markers", () => {
     const result = detectNonRetryableHarnessGuard("error: max_ai_credits_exceeded=true");
     expect(result.aiCreditsExceeded).toBe(true);

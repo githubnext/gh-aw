@@ -66,6 +66,8 @@ This command always upgrades all Markdown files in .github/workflows.`,
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-actions                # Skip updating GitHub Actions versions
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --no-compile                # Skip recompiling workflows (do not modify lock files)
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --create-pull-request       # Upgrade and open a pull request
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --pr --auto-merge           # Open a pull request and enable auto-merge
+  ` + string(constants.CLIExtensionPrefix) + ` upgrade --org my-org --pr --auto-merge --yes  # Enable auto-merge for org upgrade pull requests
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --dir custom/workflows      # Upgrade workflows in custom directory
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --engine claude             # Override AI engine for compilation
   ` + string(constants.CLIExtensionPrefix) + ` upgrade --repo owner/repo           # Upgrade workflows in another repository
@@ -87,6 +89,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
+			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
 			yes, _ := cmd.Flags().GetBool("yes")
 			noActions, _ := cmd.Flags().GetBool("no-actions")
@@ -101,6 +104,10 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			targetRepo, _ := cmd.Flags().GetString("repo")
 			targetOrg, _ := cmd.Flags().GetString("org")
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
+
+			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
+			}
 
 			if err := validateEngine(engineOverride); err != nil {
 				return err
@@ -140,6 +147,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 				preReleases:          preReleases,
 				yes:                  yes,
 				engineOverride:       engineOverride,
+				autoMerge:            autoMerge,
 			}
 
 			if targetRepo != "" {
@@ -163,8 +171,8 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			if createPR {
 				prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
 					"updating GitHub Actions versions, and recompiling all workflows."
-				_, err := CreatePRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
-					"Upgrade agentic workflows", prBody, verbose)
+				_, err := createPRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+					"Upgrade agentic workflows", prBody, verbose, opts.autoMerge)
 				return err
 			}
 			return nil
@@ -180,6 +188,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 	cmd.Flags().StringSlice("disable-codemod", nil, "Disable specific codemod IDs during the fix step (repeatable)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the upgrade changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository with agentic workflows (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode upgrade confirmations (required in CI)")
@@ -232,6 +241,7 @@ type upgradeOptions struct {
 	preReleases          bool
 	yes                  bool
 	engineOverride       string
+	autoMerge            bool
 }
 
 // runUpgradeCommand executes the upgrade process

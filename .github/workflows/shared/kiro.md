@@ -5,7 +5,7 @@ engine:
   display-name: Kiro
   description: Kiro CLI with headless execution and native MCP support
   experimental: true
-  version: "2.27.1"
+  version: "2.31.1"
   provider:
     name: kiro
   auth:
@@ -14,8 +14,6 @@ engine:
   behaviors:
     supported-env-var-keys:
       - KIRO_API_KEY
-    plugins:
-      directory: .kiro/powers
     manifest:
       files:
         - AGENTS.md
@@ -40,6 +38,7 @@ engine:
       command-name: kiro-cli
       args:
         - chat
+        - --v2
         - --no-interactive
         - --trust-all-tools
         - --require-mcp-startup
@@ -133,16 +132,16 @@ engine:
       const [, ...commandArgs] = process.argv.slice(2);
       const installDir = mkdtempSync(join(tmpdir(), "kiro-cli-"));
       const archive = join(installDir, "kiro-cli.tar.gz");
-      const version = "2.27.1";
+      const version = "2.31.1";
       const started = Date.now();
       const releases = {
         x64: {
           arch: "x86_64",
-          checksum: "3c0d7268a4bfb73f8e827822049978fa578e020b271afc1021c7532602d45d99",
+          checksum: "22eef4c19c42782316b0e24cdd3399024760eec9056b4298751cb99f33795ace",
         },
         arm64: {
           arch: "aarch64",
-          checksum: "33ad5462c3111ba4ef527f1d58bda08a9d1997e0ae73841a7c2ca734ebcba2d0",
+          checksum: "cf3fc7681cca9677e18c0d22371fe60d7921ca73ea9d751d78f9cb470c0dce6d",
         },
       };
       const fail = (result, action) => {
@@ -252,12 +251,19 @@ Configure the `KIRO_API_KEY` GitHub Actions secret with an API key from Kiro.
 Kiro serves the selected model through its own API, so this engine does not use
 universal provider routing.
 
-The harness pins [Kiro CLI 2.27.1](https://kiro.dev/changelog/cli/2-27/) and
+The harness pins [Kiro CLI 2.31.1](https://kiro.dev/changelog/cli/2-31/) and
 verifies the x86_64 or aarch64 Linux archive against the SHA-256 checksum in
 the [stable release manifest](https://prod.download.cli.kiro.dev/stable/latest/manifest.json).
 Update `engine.version`, the harness version, and both checksums together.
 Other `engine.version` overrides are rejected rather than silently installing
 a different release.
+
+Headless execution explicitly selects `chat --v2`, overriding saved harness
+preferences without changing them. This preserves the V2 MCP configuration and
+text-log contract during the CLI's gradual V3 rollout. V3 migration, its
+structured stream output, and its new sandbox/settings behavior are not enabled
+by this sample. [Powers plugins](https://kiro.dev/docs/powers/) require V3;
+this V2 sample does not support `plugins:`.
 
 Headless execution retains `--no-interactive`, `--trust-all-tools`, and
 `--require-mcp-startup`; `kiro/<model>` is passed as `--model <model>`.
@@ -297,4 +303,13 @@ redaction, not engine execution. The sampled stdout does not expose structured
 user prompts, reasoning, provider refusals, tool outputs, or token usage.
 Synthetic partial/error and canonical round-trip cases are labeled separately
 and do not claim live coverage for those fields.
+
+The 2.31.1 banner and unified-session projection regressions are synthetic
+compatibility checks, not captured 2.31.1 inference output. Native V2/V3
+`--output-format stream-json` events are not enabled or normalized by this
+plaintext adapter. A V3 or structured-output migration requires release-specific
+event fixtures before changing the parser; existing canonical round-trip tests
+do not establish native event-schema support.
+The canonical `session.init` retains the CLI version; the current shared unified
+`session.init` projection omits `agentVersion`.
 -->

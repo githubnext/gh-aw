@@ -52,6 +52,7 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard https://example.com/workflow.json        # Import JSON workflow definition with guided setup
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --engine copilot   # Pre-select engine
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-secret        # Skip secret prompt
+  ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --pr --auto-merge  # Use pull request delivery with auto-merge
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-security-scanner             # Skip security scan
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-config # Skip GitHub App permission/event inference from package workflows`,
@@ -75,6 +76,13 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			appendText, _ := cmd.Flags().GetString("append")
 			disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
 			noGitHubAppInference, _ := cmd.Flags().GetBool("no-config")
+			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			createPRFlag, _ := cmd.Flags().GetBool("create-pull-request")
+			prFlagAlias, _ := cmd.Flags().GetBool("pr")
+			createPR := createPRFlag || prFlagAlias
+			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
+			}
 			ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
 			resolvedGhAwRef, err := resolveAddGhAwRef(cmd.Context(), ghAwRef)
 			if err != nil {
@@ -108,6 +116,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 				DisableSecurityScanner:              disableSecurityScanner,
 				DisableGitHubAppPermissionInference: noGitHubAppInference,
 				GhAwRef:                             resolvedGhAwRef,
+				AutoMerge:                           autoMerge,
+				CreatePR:                            createPR,
 			})
 		},
 	}
@@ -143,6 +153,10 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// permissions/events from resolved package workflows.
 	cmd.Flags().Bool("no-config", false, "Disable inferring GitHub App permissions/events from the package's workflows; use only permissions/events declared in aw.yml")
 	cmd.Flags().String("gh-aw-ref", "", "Pin compiled workflows to a branch, tag, or commit SHA of github/gh-aw; branch and tag names are resolved to an immutable full SHA")
+	cmd.Flags().Bool("create-pull-request", false, "Create a pull request instead of prompting for delivery")
+	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
+	_ = cmd.Flags().MarkHidden("pr")
+	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

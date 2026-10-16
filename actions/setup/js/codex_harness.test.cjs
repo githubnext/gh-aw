@@ -1235,6 +1235,25 @@ env_key = "OPENAI_API_KEY"
   describe("retry policy: fresh run on partial execution", () => {
     const MAX_RETRIES = 3;
 
+    it.each(["stdout", "stderr"])("does not retry the observed unknown model pricing rejection on %s", stream => {
+      const error = {
+        type: "unknown_model_ai_credits",
+        message: 'Model "gpt-6.1-sol" has no AI credits pricing and no default pricing is configured.',
+        model: "gpt-6.1-sol",
+      };
+      const events = [
+        { type: "thread.started", thread_id: "01a0545e-6060-7472-9d50-d4a643611434" },
+        { type: "error", message: JSON.stringify(error) },
+        { type: "turn.failed", error: { message: JSON.stringify(error) } },
+      ];
+      const { result, calls } = runHarnessFixture(`for(const event of ${JSON.stringify(events)})process.${stream}.write(JSON.stringify(event)+"\\n");process.exitCode=1;`, { env: { GH_AW_HARNESS_MAX_RETRIES: "3" } });
+      expect(calls).toHaveLength(1);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("unknown_model_ai_credits");
+      expect(result.stderr).toContain("not retrying (terminal proxy guard)");
+      expect(result.stderr).not.toContain("will retry");
+    });
+
     /**
      * @param {{hasOutput: boolean, exitCode: number, output: string}} result
      * @param {number} attempt
