@@ -207,9 +207,62 @@ function registerTests({ describe, it }) {
         assert.notEqual(first.directory, second.directory);
         assert.equal(JSON.parse(fs.readFileSync(first.assignmentFile, "utf8")).claims.length, 2);
         assert.equal((await prepareAdapterContext({ assignment: assignment(), adapter, index: 2, type: "custom", messages, authorize, artifactRoot: root })).active, false);
-        assert.equal(requests.length, 2);
+        assert.equal(requests.length, 4);
       } finally {
         fs.rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("resolves native adapter repository authority before Completion without permitting writes or terminal Claims", async () => {
+      const { queueFixture, REF, REPOSITORY, WORKFLOW } = require("./work_queue_lifecycle.test_helpers.cjs");
+      const { authorizeWorkerClaim } = require("./finish_work_queue_claim.cjs");
+      const { assertClaimAuthorized } = require("./work_queue_claim_scope.cjs");
+      const repository = { repository: REPOSITORY, host: "github.com", repository_id: "7" };
+      for (const resources of [undefined, [{ repository: REPOSITORY }], [{ ...repository, repository_id: "8" }], [repository]]) {
+        const root = require("./work_queue_effect_test_helpers.cjs").temporaryDirectory("claim-adapter-native");
+        const fixture = queueFixture({
+          bound: true,
+          count: 1,
+          configureWork(work) {
+            work.payload = { effect_contract: { version: 1, outputs: [{ type: "custom", min: 1, max: 1 }] }, ...(resources === undefined ? {} : { resource_scope: { version: 1, resources } }) };
+          },
+        });
+        const original = fixture.assignment;
+        assert.ok(original);
+        const member = original.claims[0];
+        const authorize = request => authorizeWorkerClaim({ ...request, context: fixture.workerContext, githubClient: fixture.githubClient, workflowRef: `${REPOSITORY}/${WORKFLOW}@${REF}`, readWorkQueueLog: fixture.readWorkQueueLog });
+        const options = { assignment: original, adapter, index: 0, type: "custom", messages: [{ type: "custom", claim_handle: member.handle }], authorize, github: fixture.githubClient, artifactRoot: root };
+        try {
+          if (resources?.[0]?.repository_id === "7") {
+            assert.equal((await prepareAdapterContext(options)).active, true);
+            await withClaimExecution({ assignment: original, claim_handle: member.handle, authorize }, async () => {
+              await assert.rejects(assertClaimAuthorized({ type: "custom", claim_handle: member.handle }, { effect: true, resource: repository }), /Completion/);
+            });
+          } else {
+            await assert.rejects(prepareAdapterContext(options), /positive immutable Work target binding/);
+            assert.deepEqual(fs.readdirSync(root), []);
+          }
+          fixture.append("finish", { dispatch_id: original.dispatch_id, claim_handle: member.handle, outcome: "cancelled" }, { ...fixture.workerActor, dispatch_id: original.dispatch_id, claim_handle: member.handle });
+          let reads = 0;
+          await assert.rejects(
+            prepareAdapterContext({
+              ...options,
+              github: {
+                rest: {
+                  repos: {
+                    get: async () => {
+                      reads++;
+                    },
+                  },
+                },
+              },
+            }),
+            /cancelled/
+          );
+          assert.equal(reads, 0);
+        } finally {
+          fs.rmSync(root, { recursive: true, force: true });
+        }
       }
     });
 

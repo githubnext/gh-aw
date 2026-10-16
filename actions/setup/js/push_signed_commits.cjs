@@ -14,6 +14,7 @@ const { backfillCommitObjects } = require("./git_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { redactSecrets, redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { withGitClaimEffects } = require("./work_queue_git_effects.cjs");
 const ERROR_CODE_PREFIX_RE = /^(?:ERR_[A-Z_]+|E\d{3}):\s*/;
 
 /**
@@ -817,12 +818,14 @@ async function pushSignedCommits({
           core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
           try {
             assertTransportUnchanged?.();
-            await githubClient.rest.git.createRef({
-              owner,
-              repo,
-              ref: `refs/heads/${branch}`,
-              sha: expectedHeadOid,
-            });
+            await withGitClaimEffects({ github: githubClient, repository: `${owner}/${repo}`, branch }, () =>
+              githubClient.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${branch}`,
+                sha: expectedHeadOid,
+              })
+            );
             core.info(`pushSignedCommits: remote branch ${branch} created successfully`);
           } catch (createRefError) {
             assertTransportUnchanged?.();
@@ -873,11 +876,13 @@ async function pushSignedCommits({
 
       core.info(`pushSignedCommits: calling createCommitOnBranch mutation (expectedHeadOid=${expectedHeadOid})`);
       assertTransportUnchanged?.();
-      const result = await githubClient.graphql(
-        `mutation($input: CreateCommitOnBranchInput!) {
-          createCommitOnBranch(input: $input) { commit { oid } }
-        }`,
-        { input }
+      const result = await withGitClaimEffects({ github: githubClient, repository: `${owner}/${repo}`, branch, paths: [...additions, ...deletions].map(file => file.path) }, () =>
+        githubClient.graphql(
+          `mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) { commit { oid } }
+            }`,
+          { input }
+        )
       );
       const newOid = result && result.createCommitOnBranch && result.createCommitOnBranch.commit ? result.createCommitOnBranch.commit.oid : undefined;
       if (typeof newOid !== "string" || newOid.length === 0) {

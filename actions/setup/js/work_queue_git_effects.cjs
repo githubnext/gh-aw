@@ -1,10 +1,20 @@
 // @ts-check
 "use strict";
 
-const { currentClaimHandle, readClaimScopeContext, assertClaimAuthorized } = require("./work_queue_claim_scope.cjs");
+const { currentClaimHandle, readClaimScopeContext, assertClaimAuthorized, withClaimResourceEffects } = require("./work_queue_claim_scope.cjs");
 const { execGitSync } = require("./git_helpers.cjs");
 const { randomUUID } = require("crypto");
 const { resolveRepositoryTarget } = require("./work_queue_effect_resource.cjs");
+
+async function withGitClaimEffects(options, callback) {
+  if (!currentClaimHandle() && !readClaimScopeContext()) return callback();
+  const message = { type: "work_queue_git_effect", claim_handle: currentClaimHandle(), repo: options.repository };
+  await assertClaimAuthorized(message, { authorize: options.authorize });
+  const ref = `refs/heads/${options.branch}`;
+  const paths = options.paths?.length ? [...new Set(options.paths)] : [undefined];
+  const resources = await Promise.all(paths.map(path => resolveRepositoryTarget(options.github || global.github, { repository: options.repository, ref, ...(path === undefined ? {} : { path }) })));
+  return withClaimResourceEffects(resources, ["rest.git.createRef", "git.push"], callback);
+}
 
 function gitPushRepository(url) {
   const expected = new URL(process.env.GITHUB_SERVER_URL || "https://github.com");
@@ -50,11 +60,8 @@ async function assertGitPushAuthorized(options) {
   if (!urls.length || urls.length > 128) throw new Error("Claim git remote targets exceed the count bound");
   for (const url of urls) {
     const repository = gitPushRepository(url);
-    const message = { type: "work_queue_git_effect", claim_handle: currentClaimHandle(), repo: repository, branch_name: options.branch };
-    await assertClaimAuthorized(message, { authorize: options.authorize });
-    const resource = await resolveRepositoryTarget(options.github || global.github, { repository, ref: options.branch });
-    await assertClaimAuthorized(message, { authorize: options.authorize, effect: true, resource });
+    await withGitClaimEffects({ repository, branch: options.branch, github: options.github, authorize: options.authorize }, () => {});
   }
 }
 
-module.exports = { assertGitPushAuthorized, gitPushRepository };
+module.exports = { assertGitPushAuthorized, gitPushRepository, withGitClaimEffects };
