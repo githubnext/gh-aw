@@ -7,6 +7,7 @@ import { spawn, spawnSync } from "node:child_process";
 import http from "node:http";
 import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as stageAssets } from "./nvx_assets.cjs";
 import { resolveCopilotSDKMCPConfigPath } from "./copilot_sdk_mcp_config_path.cjs";
+import { COPILOT_SDK_MCP_CONFIG_SHA256, digestCopilotSDKMCPConfig } from "./copilot_sdk_mcp_config.cjs";
 
 describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {
   /** @type {string} */
@@ -83,6 +84,8 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     const sdkPath = resolveCopilotSDKMCPConfigPath(environment.RUNNER_TEMP);
     fs.mkdirSync(path.dirname(sdkPath), { recursive: true });
     fs.writeFileSync(sdkPath, '{"mcpServers":{"safeoutputs":{"type":"http","url":"http://gateway:80/mcp/safeoutputs"}}}');
+    Object.assign(environment, { GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_JOB: "agent" });
+    environment[COPILOT_SDK_MCP_CONFIG_SHA256] = digestCopilotSDKMCPConfig(fs.readFileSync(sdkPath), environment);
     fs.writeFileSync(path.join(path.dirname(sdkPath), "gateway-output.json"), "must not be exported");
     const cliPath = path.join(temp, "ambient-cli.json");
     fs.writeFileSync(cliPath, "must not be exported");
@@ -94,6 +97,7 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     const guestPath = resolveCopilotSDKMCPConfigPath(guestEnv.RUNNER_TEMP);
     expect(guestPath).toBe(path.join(root, "gh-aw", "mcp-config", "copilot-sdk.json"));
     expect(fs.readFileSync(guestPath, "utf8")).toBe(fs.readFileSync(sdkPath, "utf8"));
+    expect(digestCopilotSDKMCPConfig(fs.readFileSync(guestPath), guestEnv)).toBe(guestEnv[COPILOT_SDK_MCP_CONFIG_SHA256]);
     expect(fs.existsSync(path.join(root, "gh-aw", "mcp-config", "gateway-output.json"))).toBe(false);
     expect(fs.existsSync(path.join(root, "gh-aw", "mcp-config", "ambient-cli.json"))).toBe(false);
   });

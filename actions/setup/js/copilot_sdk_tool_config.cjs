@@ -2,7 +2,7 @@
 
 "use strict";
 
-const fs = require("node:fs");
+const { readCopilotSDKMCPConfig } = require("./copilot_sdk_mcp_config.cjs");
 const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
 const { createCopilotSDKWebFetchTool } = require("./copilot_sdk_web_fetch.cjs");
 const { parseMaxToolCalls } = require("./copilot_sdk_tool_budget.cjs");
@@ -214,12 +214,7 @@ function loadCopilotSDKMCPServers(config, configPath) {
   configPath ??= resolveCopilotSDKMCPConfigPath();
   if (!configPath) throw new Error("Copilot SDK MCP configuration path is required when SDK MCP tools are enabled");
 
-  let source;
-  try {
-    source = fs.readFileSync(configPath, "utf8");
-  } catch {
-    throw new Error("Cannot read generated Copilot SDK MCP configuration");
-  }
+  const source = readCopilotSDKMCPConfig(configPath);
   let parsed;
   try {
     parsed = JSON.parse(source);

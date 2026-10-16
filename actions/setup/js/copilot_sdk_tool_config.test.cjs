@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
@@ -9,6 +10,7 @@ const { parseCopilotSDKToolConfig, buildCopilotSDKSessionToolConfig, loadCopilot
 const { filterAndTransformServers } = require("./convert_gateway_config_shared.cjs");
 const { transformCopilotEntry, main: convertCopilotGatewayConfig } = require("./convert_gateway_config_copilot.cjs");
 const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
+const { COPILOT_SDK_MCP_CONFIG_SHA256 } = require("./copilot_sdk_mcp_config.cjs");
 const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
 const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.cjs");
 
@@ -158,13 +160,21 @@ describe("isReservedSDKPermission", () => {
 });
 
 describe("loadCopilotSDKMCPServers", () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
 
   const withConfig = (value, run) => {
     const dir = mkdtempSync(join(process.cwd(), ".sdk-mcp-config-"));
     const file = join(dir, "mcp-config.json");
     try {
-      writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value));
+      const source = typeof value === "string" ? value : JSON.stringify(value);
+      writeFileSync(file, source);
+      vi.stubEnv("GITHUB_RUN_ID", "123");
+      vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
+      vi.stubEnv("GITHUB_JOB", "agent");
+      vi.stubEnv(COPILOT_SDK_MCP_CONFIG_SHA256, createHash("sha256").update('["123","1","agent"]\0').update(source).digest("hex"));
       return run(file);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -252,6 +262,9 @@ describe("loadCopilotSDKMCPServers", () => {
         vi.stubEnv("MCP_GATEWAY_PORT", "8080");
         vi.stubEnv("GH_AW_MCP_CLI_SERVERS", '["github"]');
         const sdkPath = resolveCopilotSDKMCPConfigPath();
+        const envFile = join(root, "github-env");
+        writeFileSync(envFile, "");
+        vi.stubEnv("GITHUB_ENV", envFile);
         mkdirSync(join(sdkPath, ".."), { recursive: true });
         writeFileSync(sdkPath, JSON.stringify({ mcpServers: { stale: { type: "http", url: "https://unexpected.example/stale" } } }));
 
@@ -260,6 +273,9 @@ describe("loadCopilotSDKMCPServers", () => {
         expect(readFileSync(cliPath, "utf8")).toBe(converted);
         expect(readFileSync(sdkPath, "utf8")).toBe(converted);
         expect(statSync(sdkPath).mode & 0o777).toBe(0o600);
+        const published = readFileSync(envFile, "utf8");
+        expect(published).toMatch(new RegExp(`^${COPILOT_SDK_MCP_CONFIG_SHA256}=[a-f0-9]{64}\\n$`));
+        vi.stubEnv(COPILOT_SDK_MCP_CONFIG_SHA256, published.trim().split("=")[1]);
         const ambient = {
           mcpServers: {
             safeoutputs: { type: "http", url: "https://unexpected.example/mcp/safeoutputs" },
@@ -306,19 +322,48 @@ describe("loadCopilotSDKMCPServers", () => {
 });
 
 describe("copilot_sdk_driver MCP registration", () => {
-  it("forwards the per-run catalog from main's environment loading to SDK createSession", () => {
+  it.each(["unchanged", "tampered", "replayed"])("checks the %s catalog from the real converter before SDK createSession", state => {
     const dir = mkdtempSync(join(process.cwd(), ".sdk-mcp-driver-"));
     try {
       const promptPath = join(dir, "prompt.txt");
       const capturedPath = join(dir, "session-config.json");
       const preloadPath = join(dir, "sdk-preload.cjs");
-      const sdkPath = join(dir, "gh-aw", "mcp-config", "copilot-sdk.json");
+      const gatewayPath = join(dir, "gateway.json");
+      const envFile = join(dir, "github-env");
       const mcpServers = {
         safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop"], timeout: 30000, headers: { Authorization: "test-only" } },
         mcpscripts: { type: "sse", url: "http://awmg-mcpg:8080/mcp/mcpscripts", tools: ["run"] },
       };
-      mkdirSync(join(sdkPath, ".."), { recursive: true });
-      writeFileSync(sdkPath, JSON.stringify({ mcpServers }));
+      const catalog = JSON.stringify({ mcpServers });
+      const runEnv = {
+        HOME: dir,
+        TMPDIR: dir,
+        RUNNER_TEMP: dir,
+        GITHUB_WORKSPACE: dir,
+        GITHUB_RUN_ID: "123",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_JOB: "agent",
+      };
+      writeFileSync(gatewayPath, catalog);
+      writeFileSync(envFile, "");
+      const conversion = spawnSync(process.execPath, [require.resolve("./convert_gateway_config_copilot.cjs")], {
+        cwd: dir,
+        env: { ...runEnv, GITHUB_ENV: envFile, MCP_GATEWAY_OUTPUT: gatewayPath, MCP_GATEWAY_DOMAIN: "awmg-mcpg", MCP_GATEWAY_PORT: "8080" },
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      expect(conversion.error).toBeUndefined();
+      expect(conversion.status, conversion.stderr).toBe(0);
+      const published = readFileSync(envFile, "utf8");
+      expect(published).toMatch(new RegExp(`^${COPILOT_SDK_MCP_CONFIG_SHA256}=[a-f0-9]{64}\\n$`));
+      const digest = published.trim().split("=")[1];
+      if (state === "tampered") {
+        const changed = JSON.parse(readFileSync(resolveCopilotSDKMCPConfigPath(dir), "utf8"));
+        changed.mcpServers.safeoutputs.url = "https://unexpected.example/mcp/safeoutputs";
+        writeFileSync(resolveCopilotSDKMCPConfigPath(dir), JSON.stringify(changed));
+      } else if (state === "replayed") {
+        runEnv.GITHUB_RUN_ATTEMPT = "2";
+      }
       writeFileSync(promptPath, "test prompt");
       writeFileSync(
         preloadPath,
@@ -354,10 +399,8 @@ require.cache[sdkPath] = sdk;`
       const result = spawnSync(process.execPath, ["--require", preloadPath, require.resolve("./copilot_sdk_driver.cjs")], {
         cwd: dir,
         env: {
-          HOME: dir,
-          TMPDIR: dir,
-          RUNNER_TEMP: dir,
-          GITHUB_WORKSPACE: dir,
+          ...runEnv,
+          [COPILOT_SDK_MCP_CONFIG_SHA256]: digest,
           GH_AW_SESSION_STATE_BASE_DIR: join(dir, "session-state"),
           GH_AW_PROMPT: promptPath,
           COPILOT_SDK_URI: "http://127.0.0.1:3002",
@@ -373,8 +416,15 @@ require.cache[sdkPath] = sdk;`
         timeout: 5000,
       });
       expect(result.error).toBeUndefined();
-      expect(result.status, result.stderr).toBe(0);
-      expect(JSON.parse(readFileSync(capturedPath, "utf8")).mcpServers).toEqual(mcpServers);
+      if (state === "unchanged") {
+        expect(result.status, result.stderr).toBe(0);
+        expect(JSON.parse(readFileSync(capturedPath, "utf8")).mcpServers).toEqual(mcpServers);
+      } else {
+        expect(result.status, result.stderr).toBe(1);
+        expect(result.stderr).toContain("Copilot SDK MCP configuration integrity check failed");
+        expect(result.stderr).not.toContain("test-only");
+        expect(existsSync(capturedPath)).toBe(false);
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
