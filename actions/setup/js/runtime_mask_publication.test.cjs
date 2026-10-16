@@ -7,6 +7,7 @@ import { publishUnifiedSessionSummary } from "./unified_session_render.cjs";
 
 const redactScript = fs.readFileSync(path.join(import.meta.dirname, "redact_secrets.cjs"), "utf8");
 const bootstrapScript = fs.readFileSync(path.join(import.meta.dirname, "log_parser_bootstrap.cjs"), "utf8");
+const collectorScript = fs.readFileSync(path.join(import.meta.dirname, "collect_ndjson_output.cjs"), "utf8");
 
 describe("runtime mask publication boundary", () => {
   let root, otherRoot, originalEnv, originalCore;
@@ -111,12 +112,12 @@ describe("runtime mask publication boundary", () => {
   it("sanitizes sources with oversized runtime masks without removing artifacts", async () => {
     const mask = "x".repeat(200000);
     const stdio = write("agent-stdio.log", `::add-mask::${mask}\noutput ${mask}\n`);
-    const source = write("safeoutputs.jsonl", { body: mask });
+    const source = write("safeoutputs.jsonl", { type: "add_comment", body: mask });
     await redactSources();
     expect(core.setFailed).not.toHaveBeenCalled();
     expect(core.warning).not.toHaveBeenCalled();
     expect(fs.readFileSync(stdio, "utf8")).toBe("output ***\n");
-    expect(JSON.parse(fs.readFileSync(source, "utf8"))).toEqual({ body: "***" });
+    expect(JSON.parse(fs.readFileSync(source, "utf8"))).toEqual({ type: "add_comment", body: "***" });
   });
 
   it("sanitizes regex-shaped multiline gateway text without removing artifacts", async () => {
@@ -130,18 +131,122 @@ describe("runtime mask publication boundary", () => {
     ];
     const mask = actualGatewayLines.join("\n");
     const stdio = write("agent-stdio.log", `::add-mask::${mask.replace(/\n/g, "%0A")}\n${mask}\n`);
-    const source = write("safeoutputs.jsonl", { body: mask });
+    const source = write("safeoutputs.jsonl", { type: "add_comment", body: mask });
     await redactSources();
     expect(core.setFailed).not.toHaveBeenCalled();
     expect(core.warning).not.toHaveBeenCalled();
     expect(fs.readFileSync(stdio, "utf8")).toBe("***\n***\n***\n***\n");
-    expect(JSON.parse(fs.readFileSync(source, "utf8"))).toEqual({ body: "***\n***\n***\n***" });
+    expect(JSON.parse(fs.readFileSync(source, "utf8"))).toEqual({ type: "add_comment", body: "***\n***\n***\n***" });
   });
+
+  it("redacts runtime masks from malformed mixed records without changing unrelated paths", async () => {
+    write("agent-stdio.log", "::add-mask::opaque\n");
+    const record = '"bad\t" "\\u006fpaque" C:\\temp\\file.txt';
+    const source = write("mcp-logs/rpc.jsonl", record);
+    await redactSources();
+    expect(core.setFailed).not.toHaveBeenCalled();
+    const redacted = fs.readFileSync(source, "utf8").trim();
+    expect(redacted).not.toContain("opaque");
+    expect(JSON.parse(redacted)).toBe('"bad\t" "***" C:\\temp\\file.txt');
+  });
+
+  it("keeps review messages executable after short-mask redaction across live, fallback, and collected outputs", async () => {
+    const originalGithub = global.github;
+    const originalContext = global.context;
+    try {
+      core.debug = vi.fn();
+      core.setOutput = vi.fn();
+      core.exportVariable = vi.fn();
+      global.github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: {} }) } } };
+      global.context = {
+        eventName: "pull_request",
+        runId: 123,
+        repo: { owner: "test-owner", repo: "test-repo" },
+        payload: { pull_request: { number: 12, head: { sha: "test-sha" } } },
+      };
+      const messages = [
+        { type: "create_pull_request_review_comment", path: "src/file.js", line: 12, side: "RIGHT", pull_request_number: 12, body: "bad body" },
+        { type: "submit_pull_request_review", event: "COMMENT", pull_request_number: 12, body: "bad body" },
+      ];
+      write("agent-stdio.log", "::add-mask::b\n");
+      process.env.GH_AW_SAFE_OUTPUTS = write("runner-temp/safeoutputs/outputs.jsonl", messages.map(item => JSON.stringify(item)).join("\n") + "\n");
+      const config = { create_pull_request_review_comment: { max: 10 }, submit_pull_request_review: { max: 1, allowed_events: ["COMMENT"] } };
+      process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH = write("runner-temp/safeoutputs/config.json", config);
+      const fields = { body: { required: true, type: "string" }, pull_request_number: { type: "number" } };
+      const validation = {
+        create_pull_request_review_comment: { defaultMax: 10, fields: { ...fields, path: { type: "string" }, line: { type: "number" }, side: { type: "string", enum: ["LEFT", "RIGHT"] } } },
+        submit_pull_request_review: { defaultMax: 1, fields: { ...fields, event: { type: "string", enum: ["COMMENT"] } } },
+      };
+      process.env.GH_AW_VALIDATION_CONFIG_PATH = write("runner-temp/safeoutputs/validation.json", validation);
+      const fallback = write("safeoutputs.jsonl", messages.map(item => JSON.stringify(item)).join("\n") + "\n");
+      const collected = write("agent_output.json", { items: messages, errors: [] });
+      const generic = write("mcp-logs/rpc.jsonl", messages[1]);
+      await redactSources();
+      expect(core.setFailed).not.toHaveBeenCalled();
+      const expected = messages.map(item => ({ ...item, body: "***ad ***ody" }));
+      for (const file of [process.env.GH_AW_SAFE_OUTPUTS, fallback]) {
+        expect(fs.readFileSync(file, "utf8").trim().split("\n").map(JSON.parse)).toEqual(expected);
+      }
+      const output = JSON.parse(fs.readFileSync(collected, "utf8"));
+      expect(output).toEqual({ items: expected, errors: [] });
+      expect(JSON.parse(fs.readFileSync(generic, "utf8"))).toEqual({ type: "su***mit_pull_request_review", event: "COMMENT", "pull_request_num***er": 12, "***ody": "***ad ***ody" });
+      expect(JSON.parse(fs.readFileSync(process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH, "utf8"))).toEqual(config);
+      expect(JSON.parse(fs.readFileSync(process.env.GH_AW_VALIDATION_CONFIG_PATH, "utf8"))).toEqual(validation);
+      const script = collectorScript
+        .replace('const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");', 'const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs"); const TMP_GH_AW_PATH = root;')
+        .replaceAll("/tmp/gh-aw", root);
+      await eval(`(async () => { ${script}; await main(); })()`);
+      const collectedOutput = JSON.parse(fs.readFileSync(collected, "utf8"));
+      expect(collectedOutput.errors).toEqual([]);
+      expect(collectedOutput.items).toEqual(expected);
+      const { createReviewBuffer } = require("./pr_review_buffer.cjs");
+      const buffer = createReviewBuffer();
+      for (const [index, module] of ["./create_pr_review_comment.cjs", "./submit_pr_review.cjs"].entries()) {
+        const handler = await require(module).main({ _prReviewBuffer: buffer });
+        expect((await handler(collectedOutput.items[index], {})).success).toBe(true);
+      }
+      expect(buffer.getBufferedCount()).toBe(1);
+      expect(core.warning).not.toHaveBeenCalled();
+    } finally {
+      global.github = originalGithub;
+      global.context = originalContext;
+      require("./safe_output_type_validator.cjs").resetValidationConfigCache();
+    }
+  });
+
+  it("redacts built-in, custom, encoded, and numeric payload secrets without changing protocol keys", async () => {
+    const builtin = "ghs_" + "b".repeat(40);
+    process.env.GH_AW_SECRET_NAMES = "CUSTOM";
+    process.env.SECRET_CUSTOM = "body-value";
+    write("agent-stdio.log", "::add-mask::b\n::add-mask::9007199254740993\n");
+    const source = write("safeoutputs.jsonl", `{"type":"create_pull_request_review_comment","path":"src/file.js","line":9007199254740993,"body":"${builtin} \\u0062ody-value"}\n`);
+    await redactSources();
+    expect(core.setFailed).not.toHaveBeenCalled();
+    const message = JSON.parse(fs.readFileSync(source, "utf8"));
+    expect(message.type).toBe("create_pull_request_review_comment");
+    expect(message.line).toBe("***");
+    expect(message.body).not.toContain(builtin);
+    expect(message.body).not.toContain("body-value");
+    expect(message.body).not.toContain("ody-value");
+    expect(message.body).not.toContain("b");
+  });
+
+  it.each(['{"type":"add_comment","body":"opaque"', '{"type":"opaque_job","body":"opaque"}', '{"type":"add_comment","opaque_field":"value","body":"opaque"}'])(
+    "removes unsafe executable output instead of publishing a malformed or rerouted message",
+    content => {
+      const { processFile } = require("./redact_secrets.cjs");
+      const source = write("safeoutputs.jsonl", content);
+      expect(processFile(source, [], ["opaque"])).toBe(0);
+      expect(fs.existsSync(source)).toBe(false);
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Removed artifact source after secret redaction failed"));
+      expect(core.warning.mock.calls.flat().join("\n")).not.toContain("opaque");
+    }
+  );
 
   it("removes a source on failed runtime-mask writes without logging masks and continues sanitizing the other files", async () => {
     write("agent-stdio.log", `::add-mask::${opaque.replace(/%/g, "%25")}\n`);
     const failing = write("mcp-logs/first.jsonl", { credential: opaque });
-    const remaining = write("safeoutputs.jsonl", { body: opaque });
+    const remaining = write("safeoutputs.jsonl", { type: "add_comment", body: opaque });
     const originalWrite = fs.writeFileSync;
     vi.spyOn(fs, "writeFileSync").mockImplementation((file, ...args) => {
       if (file === failing) throw new Error(`write denied: ${opaque}`);
