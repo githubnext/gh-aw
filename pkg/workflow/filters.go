@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -103,7 +104,7 @@ func (c *Compiler) applyPullRequestDraftFilter(data *WorkflowData, frontmatter m
 }
 
 // applyPullRequestForkFilter applies fork filter conditions for pull_request triggers
-// Supports "forks: []string" with glob patterns
+// Supports repository patterns or an explicit author-association list.
 // Default behavior: When forks field is not specified, only same-repo PRs are allowed (forks are disallowed by default)
 func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter map[string]any) {
 	filtersLog.Print("Applying pull request fork filter")
@@ -141,11 +142,12 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 		return
 	}
 
-	// Check for "forks" field (string or array)
+	// Check for "forks" field (string, array, or author-association object)
 	forksValue, hasForks := prMap["forks"]
 
 	// Default behavior: If forks field is not specified, only allow same-repo PRs (disallow all forks by default)
 	var allowedForks []string
+	var allowedAssociations []string
 	if !hasForks {
 		filtersLog.Print("No forks field specified - applying default fork filter (disallow all forks)")
 		// Empty allowedForks array means only same-repo PRs are allowed
@@ -153,7 +155,7 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	} else {
 		filtersLog.Print("Found forks filter configuration")
 
-		// Convert forks value to []string, handling both string and array formats
+		// Parse repository patterns or author associations.
 		// Handle string format (e.g., forks: "*" or forks: "org/*")
 		if forksStr, isForksStr := forksValue.(string); isForksStr {
 			allowedForks = []string{forksStr}
@@ -164,6 +166,8 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 					allowedForks = append(allowedForks, forkStr)
 				}
 			}
+		} else if forksMap, isForksMap := forksValue.(map[string]any); isForksMap {
+			allowedAssociations = parseStringSliceAny(forksMap["author-association"], filtersLog)
 		} else {
 			// Invalid forks format, skip
 			return
@@ -182,6 +186,17 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 		BuildStringLiteral("pull_request"),
 	)
 	allowedForksCondition := BuildFromAllowedForks(allowedForks)
+	if len(allowedAssociations) > 0 {
+		associationsJSON, _ := json.Marshal(allowedAssociations) //nolint:jsonmarshalignoredeerror // marshaling a string slice cannot fail
+		allowedForksCondition = BuildOr(
+			allowedForksCondition,
+			BuildFunctionCall(
+				"contains",
+				BuildFunctionCall("fromJSON", BuildStringLiteral(string(associationsJSON))),
+				BuildPropertyAccess("github.event.pull_request.author_association"),
+			),
+		)
+	}
 
 	forkCondition := &OrNode{
 		Left:  notPullRequestEvent,

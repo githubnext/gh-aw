@@ -41,6 +41,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Networking | `ToolCall`, `egress`, `NetworkPolicy` | Authorized GitHub/inference services, blocked destinations, and service-bound engine authentication. |
 | Git | `checkouts`, `cleanup`, `agentBegan`, `privilegedCheckout`, `operations`, `errors` | Per-repository auth, temporary setup credentials, verified cleanup/failure, available blobs/refs, sparse/shallow state, local operations, REST, and privileged push. |
 | Runtime repository-list checkout | [`RuntimeRepositoryCheckout.tla`](RuntimeRepositoryCheckout.tla) | Trusted policy, bounded whole-batch validation, visibility, entry authentication, agent/privileged finalization, job-local manifests, staged isolation, and failure reporting. |
+| Pull-request fork admission | [`PullRequestForkAdmission.tla`](PullRequestForkAdmission.tla) | Same-repository default, repository-pattern or explicit author-association admission, non-PR trigger preservation, and permission independence. |
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
 | PR checkout authorization | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Same-repository Bot branch-event authorization for supported PR actions plus the stricter allow-listed comment/review exception. |
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
@@ -58,6 +59,29 @@ fail. Agent failures revoke the modeled engine credential. A minted installation
 token remains live until the `actions/create-github-app-token` post step, which
 revokes it after either safe-output success or failure.
 
+## Pull-request fork admission
+
+[`PullRequestForkAdmission.tla`](PullRequestForkAdmission.tla) models the
+compiler-generated `pull_request` admission condition. Same-repository PRs are
+always admitted; fork PRs are admitted only by a matching configured repository
+pattern, wildcard, or explicit author-association. Omitted configuration and an
+empty association list deny forks, while non-`pull_request` triggers are
+unaffected. The author-association filter changes job admission only: the model
+does not grant permissions, expose secrets, or establish that an author is
+otherwise trustworthy.
+
+Run the bounded model with the pinned TLA+ Tools installation:
+
+```bash
+java -cp /path/to/tla2tools.jar tlc2.TLC \
+  -config specs/workflow-security/PullRequestForkAdmission.cfg \
+  specs/workflow-security/PullRequestForkAdmission.tla
+```
+
+The `Fault` constant provides negative controls for default fork admission,
+association matching, same-repository admission, non-PR filtering, and
+permission escalation.
+
 `DetectionPolicy` independently declares required, disabled, or conditional
 detection. `DetectionEnabled` selects a conditional run. Required detection
 cannot be bypassed merely by omitting the job. Disabled/conditionally skipped
@@ -69,7 +93,7 @@ represented by a skipped state-machine slot, not a real runtime job.
 
 Reviewed baseline: `542e937dd8447172c8c484cda3a9a5716ae99245`.
 The authorities are [Security Architecture v1.1.0](../security-architecture-spec.md),
-[Compiler Threat Detection v1.0.43](../compiler-threat-detection-spec.md),
+[Compiler Threat Detection v1.0.53](../compiler-threat-detection-spec.md),
 [Checkout Behavior](../../docs/src/content/docs/specs/checkout-behavior-specification.md),
 and the [Safe Outputs specification](../../docs/src/content/docs/specs/safe-outputs-specification.md).
 Line references describe that baseline; symbols are the more durable mapping.
