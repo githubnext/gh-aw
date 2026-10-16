@@ -6,6 +6,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,6 +112,123 @@ func TestUpgradeCommandFlagRegistration(t *testing.T) {
 	err := cmd2.Execute()
 	require.Error(t, err, "should error when --repos is specified without --org")
 	require.ErrorContains(t, err, "--repos", "error should mention --repos flag")
+}
+
+func TestUpgradeCommandArtifactFlagsForwarded(t *testing.T) {
+	original := runUpgradeForTargetRepoFn
+	t.Cleanup(func() { runUpgradeForTargetRepoFn = original })
+
+	for _, flag := range []string{"no-agent", "no-mcp", "no-skill"} {
+		t.Run(flag, func(t *testing.T) {
+			var captured upgradeOptions
+			runUpgradeForTargetRepoFn = func(_ context.Context, _ string, opts upgradeOptions, _ bool, _ bool) error {
+				captured = opts
+				return nil
+			}
+			cmd := NewUpgradeCommand(upgradeValidateEngineStub)
+			skipFlag := cmd.Flags().Lookup(flag)
+			require.NotNil(t, skipFlag)
+			assert.Equal(t, "false", skipFlag.DefValue)
+			cmd.SetArgs([]string{"--repo", "owner/repo", "--" + flag})
+			require.NoError(t, cmd.Execute())
+			assert.Equal(t, flag == "no-agent", captured.noAgent)
+			assert.Equal(t, flag == "no-mcp", captured.noMCP)
+			assert.Equal(t, flag == "no-skill", captured.noSkill)
+		})
+	}
+}
+
+func TestUpgradeCommandCopilotArtifacts(t *testing.T) {
+	withMockAWMarkdownFileList(t, []string{"create-agentic-workflow.md"}, nil)
+	t.Setenv("GH_AW_ACTION_MODE", "action")
+	t.Setenv("GH_AW_WORKFLOWS_DIR", ".github/workflows")
+
+	tests := []struct {
+		name      string
+		engines   []string
+		args      []string
+		existing  []string
+		wantAgent bool
+		wantSetup bool
+		wantSkill bool
+		customDir bool
+	}{
+		{name: "claude", engines: []string{"engine: claude"}, wantSkill: true},
+		{name: "claude override", engines: []string{"engine: claude"}, args: []string{"--engine", "claude"}, wantSkill: true},
+		{name: "codex", engines: []string{"engine: codex"}, wantSkill: true},
+		{name: "copilot", engines: []string{"engine: copilot"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "object engine", engines: []string{"engine:\n  id: copilot"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "object claude", engines: []string{"engine:\n  id: claude"}, wantSkill: true},
+		{name: "default engine", engines: []string{""}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "mixed engines", engines: []string{"engine: claude", "engine: copilot"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "copilot override", engines: []string{"engine: claude"}, args: []string{"--engine", "copilot"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "non-copilot override", engines: []string{"engine: copilot"}, args: []string{"--engine", "claude"}, wantSkill: true},
+		{name: "existing agent only", engines: []string{"engine: claude"}, existing: []string{"agent"}, wantAgent: true, wantSkill: true},
+		{name: "existing setup only", engines: []string{"engine: claude"}, existing: []string{"setup"}, wantSetup: true, wantSkill: true},
+		{name: "no agent", engines: []string{"engine: copilot"}, args: []string{"--no-agent"}, wantSetup: true, wantSkill: true},
+		{name: "no mcp", engines: []string{"engine: copilot"}, args: []string{"--no-mcp"}, wantAgent: true, wantSkill: true},
+		{name: "no skill", engines: []string{"engine: copilot"}, args: []string{"--no-skill"}, wantAgent: true, wantSetup: true},
+		{name: "skip existing files", engines: []string{"engine: copilot"}, existing: []string{"agent", "setup", "skill"}, args: []string{"--no-agent", "--no-mcp", "--no-skill"}, wantAgent: true, wantSetup: true, wantSkill: true},
+		{name: "no workflows", wantSkill: true},
+		{name: "custom workflow directory", engines: []string{"engine: copilot"}, customDir: true, wantAgent: true, wantSetup: true, wantSkill: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, initTestGitRepo(dir))
+			chdirForTest(t, dir)
+			workflowsDir := filepath.Join(dir, ".github", "workflows")
+			args := []string{"--no-fix", "--skip-extension-upgrade"}
+			if tt.customDir {
+				workflowsDir = filepath.Join(dir, "custom", "workflows")
+				args = append(args, "--dir", workflowsDir)
+			}
+			if len(tt.engines) > 0 {
+				require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+				for i, engine := range tt.engines {
+					content := "---\non: workflow_dispatch\n" + engine + "\n---\nSay hello.\n"
+					path := filepath.Join(workflowsDir, string(rune('a'+i))+".md")
+					require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+				}
+				require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "README.md"), []byte("# Workflows\n"), 0o644))
+			}
+			paths := map[string]string{
+				"agent": filepath.Join(dir, ".github", "agents", "agentic-workflows.md"),
+				"setup": filepath.Join(dir, ".github", "workflows", "copilot-setup-steps.yml"),
+				"skill": filepath.Join(dir, ".github", "skills", "agentic-workflows", "SKILL.md"),
+			}
+			const existingContent = "existing content\n"
+			for _, artifact := range tt.existing {
+				require.NoError(t, os.MkdirAll(filepath.Dir(paths[artifact]), 0o755))
+				require.NoError(t, os.WriteFile(paths[artifact], []byte(existingContent), 0o644))
+			}
+
+			cmd := NewUpgradeCommand(upgradeValidateEngineStub)
+			cmd.SetArgs(append(args, tt.args...))
+			require.NoError(t, cmd.Execute())
+
+			for artifact, want := range map[string]bool{"agent": tt.wantAgent, "setup": tt.wantSetup, "skill": tt.wantSkill} {
+				if want {
+					assert.FileExists(t, paths[artifact])
+				} else {
+					assert.NoFileExists(t, paths[artifact])
+				}
+			}
+			if tt.name == "existing agent only" {
+				content, err := os.ReadFile(paths["agent"])
+				require.NoError(t, err)
+				assert.NotEqual(t, existingContent, string(content), "existing agents should be refreshed")
+			}
+			if tt.name == "skip existing files" {
+				for _, path := range paths {
+					content, err := os.ReadFile(path)
+					require.NoError(t, err)
+					assert.Equal(t, existingContent, string(content), "opt-out flags should preserve existing files")
+				}
+			}
+		})
+	}
 }
 
 // TestUpgradeCommandRepoDispatchNoPR verifies that plain `upgrade --repo`
