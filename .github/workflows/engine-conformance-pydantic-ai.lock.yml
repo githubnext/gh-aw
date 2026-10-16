@@ -1862,6 +1862,7 @@ jobs:
             /tmp/gh-aw/claims/**/*.patch
             /tmp/gh-aw/claims/**/*.html
             /tmp/gh-aw/awf-config.json
+            /tmp/gh-aw/awf-resolved-config.json
             /tmp/gh-aw/sandbox/firewall/logs/
             /tmp/gh-aw/sandbox/firewall/audit/
             /tmp/gh-aw/sandbox/firewall/awf-reflect.json
