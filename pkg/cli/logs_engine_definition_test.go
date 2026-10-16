@@ -125,7 +125,7 @@ func TestDeclaredEngineSessionParserBundle(t *testing.T) {
 			require.Empty(t, events["session.init"])
 			require.Len(t, events["assistant.message"], 1)
 			if id == "cursor" {
-				require.JSONEq(t, `{"content":"Assistant: Real answer\nSecond line\n"}`, string(events["assistant.message"][0]))
+				require.JSONEq(t, `{"content":"Assistant: Real answer\nSecond line\n","sourceEngine":"cursor"}`, string(events["assistant.message"][0]))
 			} else {
 				require.JSONEq(t, `{"content":"Assistant: Real answer\nSecond line"}`, string(events["assistant.message"][0]))
 			}

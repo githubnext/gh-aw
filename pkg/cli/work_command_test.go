@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -162,8 +160,8 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log, pending := string(data), ""
-	head, writes := 1, 0
+	queue := newWorkQueueGitRemote(t, string(data))
+	writes := 0
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
 	http.DefaultTransport = workAPIRoundTripper(func(r *http.Request) (*http.Response, error) {
@@ -184,30 +182,6 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 				"head_sha": profile.Ref, "actor": map[string]any{"id": 1001},
 				"display_title": "native worker " + assignment.DispatchID,
 			}
-		case r.Method == http.MethodGet && path == "git/ref/heads/"+workqueue.DefaultBranch:
-			response = map[string]any{"ref": "refs/heads/" + workqueue.DefaultBranch, "object": map[string]string{"sha": fmt.Sprintf("%040x", head)}}
-		case r.Method == http.MethodGet && strings.HasPrefix(path, "git/commits/"):
-			response = map[string]any{"tree": map[string]string{"sha": "tree"}}
-		case r.Method == http.MethodGet && path == "git/trees/tree":
-			response = map[string]any{"tree": []map[string]string{{"path": workqueue.FileName, "mode": "100644", "type": "blob", "sha": "blob"}}}
-		case r.Method == http.MethodGet && path == "git/blobs/blob":
-			response = map[string]string{"encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(log))}
-		case r.Method == http.MethodPost && path == "git/trees":
-			var body struct {
-				Tree []struct {
-					Content string `json:"content"`
-				} `json:"tree"`
-			}
-			_ = json.NewDecoder(r.Body).Decode(&body)
-			pending = body.Tree[0].Content
-			response = map[string]string{"sha": "tree"}
-		case r.Method == http.MethodPost && path == "git/commits":
-			response = map[string]string{"sha": fmt.Sprintf("%040x", head+1)}
-		case r.Method == http.MethodPatch && path == "git/refs/heads/"+workqueue.DefaultBranch:
-			writes++
-			head++
-			log = pending
-			response = map[string]string{"ref": "refs/heads/" + workqueue.DefaultBranch}
 		default:
 			t.Fatalf("unexpected native host API %s %s", r.Method, r.URL.Path)
 		}
@@ -239,6 +213,7 @@ func TestWorkCommandProtectedNativeDeliveryEntryPoint(t *testing.T) {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("native host command failed: %v (%s)", err, output.String())
 		}
+		writes = queue.pushes(t)
 		var result workqueue.DeliveryRecovery
 		if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 			t.Fatal(err)
@@ -292,17 +267,8 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	t.Setenv("GH_HOST", "github.com")
 	t.Setenv("GH_TOKEN", "test-token")
 	const remote = "owner/repo"
-	var log, pending string
-	head := 0
-	invalidGitSHA := false
-	gitSHA := func(revision int) string {
-		if invalidGitSHA {
-			return strconv.Itoa(revision)
-		}
-		return fmt.Sprintf("%040x", revision)
-	}
-	trees := map[string]string{}
-	parents := map[string][]map[string]string{}
+	queue := newWorkQueueGitRemote(t, "")
+	var log string
 	apiWrites := 0
 	admin := false
 	actorID := 1001
@@ -342,56 +308,6 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 			result = map[string]any{"type": "file", "path": ".github/workflows/worker.lock.yml", "encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(content))}
 		case r.Method == http.MethodGet && path == "actions/workflows/worker.lock.yml":
 			result = map[string]any{"path": ".github/workflows/worker.lock.yml", "state": "active"}
-		case r.Method == http.MethodGet && path == "git/ref/heads/"+workqueue.DefaultBranch:
-			if head == 0 {
-				status, result = http.StatusNotFound, map[string]string{"message": "Not Found"}
-			} else {
-				result = map[string]any{"ref": "refs/heads/" + workqueue.DefaultBranch, "object": map[string]string{"sha": gitSHA(head)}}
-			}
-		case r.Method == http.MethodGet && strings.HasPrefix(path, "git/commits/"):
-			sha := strings.TrimPrefix(path, "git/commits/")
-			result = map[string]any{"tree": map[string]string{"sha": sha}, "parents": parents[sha]}
-		case r.Method == http.MethodGet && strings.HasPrefix(path, "git/trees/"):
-			sha := strings.TrimPrefix(path, "git/trees/")
-			result = map[string]any{"tree": []map[string]string{{"path": workqueue.FileName, "mode": "100644", "type": "blob", "sha": sha}}}
-		case r.Method == http.MethodGet && strings.HasPrefix(path, "git/blobs/"):
-			sha := strings.TrimPrefix(path, "git/blobs/")
-			data := trees[sha]
-			if sha == gitSHA(head) {
-				data = log
-			}
-			result = map[string]string{"encoding": "base64", "content": base64.StdEncoding.EncodeToString([]byte(data))}
-		case r.Method == http.MethodPost && path == "git/trees":
-			var body struct {
-				Tree []struct {
-					Content string `json:"content"`
-				} `json:"tree"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				t.Fatal(err)
-			}
-			if head != 0 {
-				trees[gitSHA(head)] = log
-			}
-			pending = body.Tree[0].Content
-			trees[gitSHA(head+1)] = pending
-			result = map[string]string{"sha": gitSHA(head + 1)}
-		case r.Method == http.MethodPost && path == "git/commits":
-			var body struct {
-				Parents []string `json:"parents"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				t.Fatal(err)
-			}
-			for _, parent := range body.Parents {
-				parents[gitSHA(head+1)] = append(parents[gitSHA(head+1)], map[string]string{"sha": parent})
-			}
-			result = map[string]string{"sha": gitSHA(head + 1)}
-		case r.Method == http.MethodPost && path == "git/refs" ||
-			r.Method == http.MethodPatch && path == "git/refs/heads/"+workqueue.DefaultBranch:
-			head++
-			log = pending
-			result = map[string]string{"ref": "refs/heads/" + workqueue.DefaultBranch}
 		default:
 			t.Errorf("unexpected API request %s %s", r.Method, r.URL.Path)
 			status, result = http.StatusNotFound, map[string]string{"message": "Not Found"}
@@ -414,6 +330,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("command %v: %v (%s)", args, err, output.String())
 		}
+		log = queue.read(t)
 		var result map[string]any
 		if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 			t.Fatalf("JSON result %q: %v", output.String(), err)
@@ -432,6 +349,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), code+":") {
 			t.Fatalf("command %v: expected %s, got %v", args, code, err)
 		}
+		log = queue.read(t)
 		if log != before {
 			t.Fatalf("rejected command %v changed queue authority", args)
 		}
@@ -517,7 +435,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 		t.Fatal("request acknowledgment recovery changed accepted batch")
 	}
 	claimID := operations[0].(map[string]any)["claim_id"].(string)
-	before, writes := log, apiWrites
+	before, writes := log, queue.pushes(t)
 	historical := run("", "explain", "--before-claim", claimID)
 	if historical["status"] != "committed_claim_prefix" || historical["commit_id"] != commit["id"] ||
 		historical["selection"].(map[string]any)["work_id"] != id ||
@@ -537,10 +455,10 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	run("", "trace", "--request-id", "stable-submit")
 	run("", "trace", "--claim-id", claimID, "--offset", "2")
 	run("", "explain", "--work-id", id)
-	if log != before || apiWrites != writes {
+	if log != before || queue.pushes(t) != writes {
 		t.Fatal("read-only trace/explanation made a remote mutation or changed debt/history")
 	}
-	priorGitSHA := gitSHA(head)
+	priorGitSHA := queue.head(t)
 	priorCommits, err := workqueue.Parse([]byte(log))
 	if err != nil {
 		t.Fatal(err)
@@ -551,11 +469,11 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	}
 	admin = false
 	reject("", "actor_unauthorized", "compact")
-	if apiWrites != writes {
+	if queue.pushes(t) != writes {
 		t.Fatal("unauthorized checkpoint attempted a remote mutation")
 	}
 	admin = true
-	invalidGitSHA = true
+	t.Setenv("WORK_QUEUE_TEST_INVALID_REF", "true")
 	invalidRefCommand := NewWorkCommand()
 	invalidRefCommand.SetOut(io.Discard)
 	invalidRefCommand.SetErr(io.Discard)
@@ -566,10 +484,10 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	if log != before {
 		t.Fatal("invalid queue branch SHA changed queue authority")
 	}
-	if apiWrites != writes {
+	if queue.pushes(t) != writes {
 		t.Fatal("invalid prior Git SHA attempted a remote mutation")
 	}
-	invalidGitSHA = false
+	t.Setenv("WORK_QUEUE_TEST_INVALID_REF", "false")
 	if result := run("", "compact"); result["changed"] != true || result["commits"] != float64(1) ||
 		result["tip"] == commit["id"] {
 		t.Fatalf("full history did not publish a checkpoint: %v", result)
@@ -603,8 +521,8 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 			t.Fatal("checkpoint changed queue state or scheduling debt")
 		}
 	}
-	before, writes = log, apiWrites
-	if result := run("", "compact"); result["changed"] != false || apiWrites != writes || log != before {
+	before, writes = log, queue.pushes(t)
+	if result := run("", "compact"); result["changed"] != false || queue.pushes(t) != writes || log != before {
 		t.Fatal("already canonical checkpoint was unnecessarily published")
 	}
 	if result := run(`{"task":"review"}`, "submit-work", "--file", "-", "--request-id", "stable-submit"); result["publication"].(map[string]any)["commit"].(map[string]any)["id"] != originalCommit || log != before {
@@ -631,6 +549,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	physical.Write(line)
 	physical.WriteByte('\n')
 	log = physical.String()
+	queue.write(t, log)
 	admin = false
 	reject("", "actor_unauthorized", "compact")
 	admin = true
@@ -639,9 +558,12 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 		t.Fatalf("public compact changed the checkpoint or lost canonical state: %v", compacted)
 	}
 	canonicalLog := log
+	canonicalHead := queue.head(t)
 	log = "{\"version\":2}\n"
+	queue.write(t, log)
 	reject("", "unsupported_protocol", "compact")
 	log = canonicalLog
+	queue.run(t, "", "update-ref", "refs/heads/"+workqueue.DefaultBranch, canonicalHead)
 	reject(`{"task":"review"}`, "request_reuse", "submit-work", "--file", "-", "--request-id", "stable-grant")
 	run("", "control", "--name", "grants_paused", "--paused=true", "--reason", "incident")
 	state := run("", "stats")
@@ -702,6 +624,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 			if err := cmd.Execute(); err != nil {
 				t.Fatalf("%s atomic observed dispatch: %v (%s)", stage, err, output.String())
 			}
+			log = queue.read(t)
 			if !strings.HasPrefix(output.String(), "Fair prefix: 1 Claims, 1 reserved assignments; ") {
 				t.Fatalf("%s observation was counted as a Claim: %q", stage, output.String())
 			}
@@ -719,7 +642,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 	t.Run("operator state priority and cancellation use native publication", func(t *testing.T) {
 		one := run(`{"task":"operator-one"}`, "submit-work", "--file", "-", "--graph-id", "operator-one")["work_id"].(string)
 		two := run(`{"task":"operator-two"}`, "submit-work", "--file", "-", "--graph-id", "operator-two")["work_id"].(string)
-		before, writes := log, apiWrites
+		before, writes := log, queue.pushes(t)
 		page := run("", "state", "--graph", "operator-one")
 		if page["status"] != "committed_snapshot" || len(page["rows"].([]any)) != 2 {
 			t.Fatalf("operator state is not a scoped metadata forest: %v", page)
@@ -728,7 +651,7 @@ func TestWorkCommandCurrentProtocolWithoutCheckout(t *testing.T) {
 		if !strings.Contains(detail["details"].(string), one) || strings.Contains(detail["details"].(string), "operator-one\"}") {
 			t.Fatal("inspection omitted ID or exposed stored payload")
 		}
-		if log != before || apiWrites != writes {
+		if log != before || queue.pushes(t) != writes {
 			t.Fatal("operator state/inspect mutated authority")
 		}
 		admin = false
