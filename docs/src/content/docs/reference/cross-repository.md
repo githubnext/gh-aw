@@ -133,6 +133,8 @@ safe-outputs:
 
 Use this when the target repository is not known at workflow authoring time — for example, when building a workflow that routes issues to different repositories based on labels or content.
 
+Wildcard `target-repo` values apply only to safe-output routing; they do not authorize `workflow_dispatch` inputs such as `target_repo`. Invocation validation uses concrete handler targets and handler `allowed-repos` only when the global repository allowlist is empty.
+
 :::note
 The following safe-output types do **not** support `target-repo: "*"`: `create-pull-request-review-comment`, `reply-to-pull-request-review-comment`, `submit-pull-request-review`, `create-agent-session`, and `manage-project-items`. Use an explicit `owner/repo` value or `allowed-repos` for these types.
 :::

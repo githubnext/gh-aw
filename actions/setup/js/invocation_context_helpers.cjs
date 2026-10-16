@@ -179,8 +179,10 @@ function checkAllowedRepo(workflowRepo, targetRepo) {
             for (const repo of parsed) {
               allowedRepos.add(repo);
             }
-            if (typeof value["target-repo"] === "string" && value["target-repo"].trim() !== "") {
-              allowedRepos.add(value["target-repo"].trim());
+            const handlerTargetRepo = typeof value["target-repo"] === "string" ? value["target-repo"].trim() : "";
+            // Dynamic handler routing must not grant wildcard invocation access.
+            if (parseRepoSlug(handlerTargetRepo) && !handlerTargetRepo.includes("*")) {
+              allowedRepos.add(handlerTargetRepo);
             }
           }
         }
