@@ -90,7 +90,7 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 	if opts.WorkflowName != "" {
 		endpoint = path.Join(healthRepositoryEndpoint(opts.RepoOverride), "actions/workflows", url.PathEscape(opts.WorkflowName), "runs")
 	}
-	endpoint += fmt.Sprintf("?per_page=%d&page=%d&created=%s", opts.Limit, page, url.QueryEscape(buildCreatedFilter(opts.StartDate, opts.EndDate, "")))
+	endpoint += fmt.Sprintf("?per_page=%d&page=%d&created=%s", opts.Limit, page, url.QueryEscape(buildCreatedFilter(opts.StartDate, opts.EndDate, opts.BeforeDate)))
 	out, err := healthAPI(collection, endpoint)
 	if err != nil {
 		return nil, 0, err
@@ -102,7 +102,11 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 		return nil, 0, fmt.Errorf("failed to parse health runs: %w", err)
 	}
 	var runs []WorkflowRun
+	var oldest time.Time
 	for _, response := range data.Runs {
+		if oldest.IsZero() || response.CreatedAt.Before(oldest) {
+			oldest = response.CreatedAt
+		}
 		run := response.workflowRun()
 		if isIgnoredHealthRun(run) {
 			continue
@@ -118,6 +122,9 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 			}
 		}
 		runs = append(runs, run)
+	}
+	if opts.OldestFetchedCreatedAt != nil {
+		*opts.OldestFetchedCreatedAt = oldest
 	}
 	return runs, len(data.Runs), nil
 }
@@ -179,7 +186,7 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		RepoOverride: repoOverride, Verbose: verbose, OldestFetchedCreatedAt: &oldest}
 	var sample []WorkflowRun
 	seen := make(map[int64]struct{})
-	for page := 1; page <= MaxIterations; page++ {
+	for page := 1; ; page++ {
 		batch, total, err := healthListWorkflowRuns(opts, page, collection)
 		if err != nil {
 			return sample, err
@@ -213,8 +220,11 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		if total < opts.Limit || healthWorkflowEvidenceEnough(sample, collection) {
 			return sample, nil
 		}
-		opts.BeforeDate = oldest.Format(time.RFC3339)
+		if page*opts.Limit >= healthMaximumRunSearchResults {
+			if !advanceHealthRunWindow(&opts, oldest, collection) {
+				return sample, nil
+			}
+			page = 0
+		}
 	}
-	collection.Partial, collection.Reason = true, "pagination_limit"
-	return sample, nil
 }
