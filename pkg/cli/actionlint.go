@@ -295,18 +295,28 @@ func withActionlintFindings(err error, output string) error {
 	if decodeErr := json.Unmarshal([]byte(output), &native); decodeErr != nil {
 		return fmt.Errorf("actionlint output could not be parsed: %w", decodeErr)
 	}
-	findings := make([]scanfindings.Finding, 0, len(native))
+	diagnostics := make([]scannerDiagnostic, 0, len(native))
 	for _, issue := range native {
 		severity := scanfindings.SeverityHigh
 		if !isHighSeverityActionlintError(issue) {
 			severity = scanfindings.SeverityLow
 		}
-		findings = append(findings, scanfindings.Finding{
+		finding := scanfindings.Finding{
 			RuleID: issue.Kind, Severity: severity, Message: issue.Message,
 			File: issue.Filepath, Line: issue.Line, Column: issue.Column,
-		})
+		}
+		identity := scannerFindingIdentity(finding)
+		if issue.Kind == "shellcheck" {
+			if stableIdentity, ok := actionlintShellcheckIdentity(issue); ok {
+				identity = stableIdentity
+			}
+		}
+		diagnostics = append(diagnostics, scannerDiagnostic{Finding: finding, Identity: identity})
 	}
-	return withScannerFindings(err, findings)
+	if err == nil || len(diagnostics) == 0 {
+		return err
+	}
+	return &scannerFindingsError{err: err, diagnostics: diagnostics}
 }
 
 func maybePrintActionlintVersion(ctx context.Context) {

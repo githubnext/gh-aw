@@ -103,6 +103,60 @@ jobs:
 	assert.NotEqual(t, before, scannerFindingIdentity(finding), "a finding in another logical step is new")
 }
 
+func TestScannerFindingIdentityResolvesPathsFromGitRoot(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, initTestGitRepo(root))
+	lockDir := filepath.Join(root, ".github", "workflows")
+	nestedDir := filepath.Join(lockDir, "nested")
+	require.NoError(t, os.MkdirAll(nestedDir, 0755))
+	lock := filepath.Join(lockDir, "test.lock.yml")
+	content := "jobs:\n  agent:\n    steps:\n      - id: check\n        run: echo unsafe\n"
+	require.NoError(t, os.WriteFile(lock, []byte(content), 0600))
+
+	oldWD, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(nestedDir))
+	t.Cleanup(func() { require.NoError(t, os.Chdir(oldWD)) })
+
+	relative := scanfindings.Finding{RuleID: "test", Message: "unsafe", File: ".github/workflows/test.lock.yml", Line: 6}
+	absolute := relative
+	absolute.File = lock
+	assert.Equal(t, scannerFindingIdentity(absolute), scannerFindingIdentity(relative))
+}
+
+func TestActionlintShellcheckIdentitySurvivesLeadingScriptComment(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "shellcheck.lock.yml")
+	before := `jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - id: check
+        run: |
+          echo "$value"
+`
+	require.NoError(t, os.WriteFile(path, []byte(before), 0600))
+	lineFor := func(content, text string) int {
+		offset := strings.Index(content, text)
+		require.NotEqual(t, -1, offset)
+		return strings.Count(content[:offset], "\n") + 1
+	}
+	issue := actionlintError{
+		Kind: "shellcheck", Filepath: path, Line: lineFor(before, `echo "$value"`),
+		Message: "SC2086:warning:1:6: quote this",
+	}
+	beforeIdentity, ok := actionlintShellcheckIdentity(issue)
+	require.True(t, ok)
+
+	after := strings.Replace(before, "          echo \"$value\"", "          # harmless comment\n          echo \"$value\"", 1)
+	require.NoError(t, os.WriteFile(path, []byte(after), 0600))
+	issue.Line = lineFor(after, `echo "$value"`)
+	issue.Message = "SC2086:warning:2:6: quote this"
+	afterIdentity, ok := actionlintShellcheckIdentity(issue)
+	require.True(t, ok)
+	assert.Equal(t, beforeIdentity, afterIdentity)
+}
+
 func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {
 	stdout := `[
 {"ident":"secrets-outside-env","desc":"secret outside environment","determinations":{"severity":"Medium"},"locations":[{"symbolic":{"key":{"Local":{"verbatim_path":"test.lock.yml"}}},"concrete":{"location":{"start_point":{"row":1}}}}]},
@@ -110,15 +164,19 @@ func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {
 {"ident":"template-injection","desc":"unsafe input","determinations":{"severity":"High"},"locations":[{"symbolic":{"key":{"Local":{"verbatim_path":"test.lock.yml"}}},"concrete":{"location":{"start_point":{"row":3}}}}]}
 ]`
 	var findings []scanfindings.Finding
+	var filteredWarnings int
 	var count, high int
 	var err error
 	output := captureStderrForGuardPolicyReportTest(func() {
-		count, high, err = parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{dryRun: true, findings: &findings})
+		count, high, err = parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{
+			dryRun: true, findings: &findings, filteredWarnings: &filteredWarnings,
+		})
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 	assert.Equal(t, 1, high)
 	require.Len(t, findings, 2)
+	assert.Equal(t, 1, filteredWarnings)
 	assert.NotContains(t, output, "secrets-outside-env")
 	assert.Contains(t, output, "test.lock.yml:3:1: info: [Low] self-repository")
 	assert.Contains(t, output, "test.lock.yml:4:1: error: [High] template-injection")
@@ -130,6 +188,26 @@ func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {
 	assert.Equal(t, 1, high)
 	_, _, err = parseAndDisplayZizmorOutputWithOptions("invalid JSON", "", false, zizmorResultOptions{dryRun: true})
 	require.Error(t, err)
+}
+
+func TestZizmorEmptyDiagnosticsOnlyAllowsFilteredFindings(t *testing.T) {
+	require.Error(t, zizmorEmptyDiagnosticsError(10, 0))
+	require.Error(t, zizmorEmptyDiagnosticsError(14, 0))
+	assert.NoError(t, zizmorEmptyDiagnosticsError(10, 1))
+	assert.NoError(t, zizmorEmptyDiagnosticsError(0, 0))
+
+	for _, stdout := range []string{
+		"null",
+		`[{"ident":"template-injection","locations":[]}]`,
+		`[{"ident":"secrets-outside-env","locations":[]}]`,
+	} {
+		var filteredWarnings int
+		_, _, err := parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{
+			dryRun: true, filteredWarnings: &filteredWarnings,
+		})
+		require.NoError(t, err)
+		assert.Error(t, zizmorEmptyDiagnosticsError(10, filteredWarnings), "output: %s", stdout)
+	}
 }
 
 func TestDevelopmentCompileScannerBaselineBeforeEmission(t *testing.T) {
@@ -189,6 +267,93 @@ Say Done.
 	assert.Equal(t, "passed", report.Scanners["zizmor"].Status)
 }
 
+func TestPrepareDryRunScannerBaselineRejectsMalformedShellcheckLock(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "malformed.md")
+	lock := strings.TrimSuffix(source, ".md") + ".lock.yml"
+	require.NoError(t, os.WriteFile(source, []byte("---\non: workflow_dispatch\n---\n"), 0600))
+	require.NoError(t, os.WriteFile(lock, []byte("jobs: [\n"), 0600))
+
+	err := prepareDryRunScannerBaseline(context.Background(), &CompileConfig{
+		DryRun: true, Shellcheck: true,
+	}, []string{source}, "", workflow.NewCompiler())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot extract ShellCheck baseline")
+}
+
+func TestPrepareDryRunScannerBaselineIncludesShellcheckResources(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "resource.md")
+	content := `---
+name: Resource test
+on: workflow_dispatch
+mcp-scripts:
+  inspect:
+    description: Inspect repository state
+    run: |
+      echo "$value"
+---
+Check the workflow.
+`
+	require.NoError(t, os.WriteFile(source, []byte(content), 0600))
+	originalShellcheck := runBatchShellcheckOnLockFilesAndResources
+	t.Cleanup(func() { runBatchShellcheckOnLockFilesAndResources = originalShellcheck })
+
+	var baselineResources []workflow.ShellScriptResource
+	runBatchShellcheckOnLockFilesAndResources = func(_ context.Context, lockFiles []string, resources []workflow.ShellScriptResource, _, _ bool) error {
+		assert.Empty(t, lockFiles)
+		baselineResources = resources
+		require.Len(t, resources, 1)
+		step := runStepInfo{Source: resources[0].Source, Name: resources[0].Name, Script: resources[0].Script}
+		return withShellcheckFindings(errors.New("existing resource finding"), step,
+			"script:1:6: warning: quote this [SC2086]\n")
+	}
+
+	config := &CompileConfig{DryRun: true, Shellcheck: true}
+	require.NoError(t, prepareDryRunScannerBaseline(context.Background(), config, []string{source}, "", workflow.NewCompiler()))
+	require.Len(t, baselineResources, 1)
+
+	data, err := workflow.NewCompiler().ParseWorkflowFile(source)
+	require.NoError(t, err)
+	require.Len(t, data.ShellScriptResources(), 1)
+	resource := data.ShellScriptResources()[0]
+	current := withShellcheckFindings(errors.New("current resource finding"),
+		runStepInfo{Source: resource.Source, Name: resource.Name, Script: resource.Script},
+		"script:1:6: warning: quote this [SC2086]\n")
+	diff, err := config.dryRunBaseline.filter("shellcheck", current)
+	require.NoError(t, err)
+	assert.Equal(t, 1, diff.Existing)
+}
+
+func TestPrepareDryRunScannerBaselineKeepsDirectoryScopeWithoutTargetLock(t *testing.T) {
+	root := t.TempDir()
+	newWorkflowDir := filepath.Join(root, "new")
+	existingWorkflowDir := filepath.Join(root, "existing")
+	require.NoError(t, os.MkdirAll(newWorkflowDir, 0755))
+	require.NoError(t, os.MkdirAll(existingWorkflowDir, 0755))
+	newSource := filepath.Join(newWorkflowDir, "new.md")
+	existingSource := filepath.Join(existingWorkflowDir, "existing.md")
+	require.NoError(t, os.WriteFile(newSource, []byte("---\non: workflow_dispatch\n---\n"), 0600))
+	require.NoError(t, os.WriteFile(existingSource, []byte("---\non: workflow_dispatch\n---\n"), 0600))
+	require.NoError(t, os.WriteFile(strings.TrimSuffix(existingSource, ".md")+".lock.yml", []byte("jobs: {}\n"), 0600))
+
+	originalPoutine := runBatchPoutineOnDirectory
+	t.Cleanup(func() { runBatchPoutineOnDirectory = originalPoutine })
+	var scannedDirs []string
+	runBatchPoutineOnDirectory = func(dir string, _, _ bool) error {
+		scannedDirs = append(scannedDirs, dir)
+		return nil
+	}
+	config := CompileConfig{DryRun: true, Poutine: true}
+	require.NoError(t, prepareDryRunScannerBaseline(context.Background(), &config,
+		[]string{newSource, existingSource}, "", workflow.NewCompiler()))
+	require.Equal(t, newWorkflowDir, config.dryRunWorkflowDir)
+
+	_, err := runBatchExternalTools(context.Background(), config, batchToolsOptions{
+		workflowDir: config.dryRunWorkflowDir,
+	}, &CompilationStats{}, &[]ValidationResult{})
+	require.NoError(t, err)
+	require.Equal(t, []string{newWorkflowDir, newWorkflowDir}, scannedDirs)
+}
+
 func TestDryRunLowSeverityWorkflowWarnings(t *testing.T) {
 	t.Parallel()
 	for _, compilerWarning := range []bool{false, true} {
@@ -235,6 +400,60 @@ func TestShellcheckDifferentialUsesScriptLocations(t *testing.T) {
 		_, err := baseline.filter("shellcheck", withShellcheckFindings(errors.New("bad output"), step, output))
 		require.Error(t, err)
 	}
+}
+
+func TestShellcheckOutputParsingFailsClosedOnUnmatchedLines(t *testing.T) {
+	t.Parallel()
+	info := runStepInfo{Script: "echo unsafe\n"}
+	scannerErr := errors.New("shellcheck findings")
+	err := withShellcheckFindings(scannerErr, info,
+		"script:1:1: note: informational [SC1000]\ntruncated warning")
+	require.ErrorIs(t, err, scannerErr)
+	var findings *scannerFindingsError
+	assert.NotErrorAs(t, err, &findings, "partial diagnostics must remain an operational failure")
+}
+
+func TestShellcheckIdentityPrefersStepID(t *testing.T) {
+	t.Parallel()
+	lock := filepath.Join(t.TempDir(), "steps.lock.yml")
+	content := `jobs:
+  agent:
+    steps:
+      - name: Check
+        id: first
+        run: echo "$value"
+      - name: Check
+        id: second
+        run: echo "$value"
+      - id: named-by-id
+        run: echo "$other"
+`
+	require.NoError(t, os.WriteFile(lock, []byte(content), 0600))
+	steps, err := extractRunStepsFromLockFile(lock)
+	require.NoError(t, err)
+	require.Len(t, steps, 3)
+	assert.Equal(t, "first", steps[0].ID)
+	assert.Equal(t, "second", steps[1].ID)
+	assert.Equal(t, "named-by-id", steps[2].ID)
+
+	output := "script:1:6: warning: quote this [SC2086]\n"
+	first := withShellcheckFindings(errors.New("findings"), steps[0], output)
+	second := withShellcheckFindings(errors.New("findings"), steps[1], output)
+	var firstFindings, secondFindings *scannerFindingsError
+	require.ErrorAs(t, first, &firstFindings)
+	require.ErrorAs(t, second, &secondFindings)
+	require.Len(t, firstFindings.diagnostics, 1)
+	require.Len(t, secondFindings.diagnostics, 1)
+	assert.NotEqual(t, firstFindings.diagnostics[0].Identity, secondFindings.diagnostics[0].Identity)
+
+	before := withShellcheckFindings(errors.New("findings"), steps[2], output)
+	steps[2].Script = "# harmless comment\necho \"$other\"\n"
+	after := withShellcheckFindings(errors.New("findings"), steps[2],
+		"script:2:6: warning: quote this [SC2086]\n")
+	var beforeFindings, afterFindings *scannerFindingsError
+	require.ErrorAs(t, before, &beforeFindings)
+	require.ErrorAs(t, after, &afterFindings)
+	assert.Equal(t, beforeFindings.diagnostics[0].Identity, afterFindings.diagnostics[0].Identity)
 }
 
 func TestShellcheckDifferentialNativeFindings(t *testing.T) {
