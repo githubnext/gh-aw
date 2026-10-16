@@ -187,6 +187,7 @@ describe("Generated session schemas", () => {
     // Synthetic canonical routing only; legacy plaintext definitions emit invalid null model fields.
     ["crush", () => jsonl([{ type: "assistant.message", data: { content: "Captured answer\n" } }]), ["assistant.message"]],
     ["cursor", () => jsonl([{ type: "assistant.message", data: { content: "Captured answer\n" } }]), ["assistant.message"]],
+    ["cursor", () => 'Assistant: Real answer\nSecond line\n{"type":"result","num_turns":1}\n', ["assistant.message", "session.result"]],
   ])("validates %s fixture routing, canonical artifact precedence and CLI reconstruction", (engine, input, requiredTypes) => {
     const root = tempRoot();
     const content = input();

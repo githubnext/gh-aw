@@ -1289,7 +1289,9 @@ without duplicate answers or tool executions. Native canonical extensions remain
 opaque.
 
 Historical `text` output supplies only the captured final answer, not a full
-conversation. Its blank lines and final newlines remain exact. CLI version
+conversation. Its blank lines and final newlines remain exact. Supplied message
+`sourceEngine` attribution survives unified-session compaction; absent attribution
+is not inferred, and plaintext alone does not fabricate a `session.init`. CLI version
 verification and infrastructure output are not assistant messages; prose does
 not establish tools, turn counts, outcomes, or token accounting. The sampled
 historical runs verify this text path, whereas stream-json mappings are

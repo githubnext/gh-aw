@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import vm from "node:vm";
 import { loadEngineLogParser, normalizeEngineLogEntries, normalizeEngineSessionEvents, parseBehaviorLog } from "./engine_log_parser.cjs";
-import { parseEngineSession } from "./unified_session.cjs";
+import { mergeSessionSources, parseEngineSession } from "./unified_session.cjs";
 import { parseCustomLog } from "./parse_custom_log.cjs";
 
 function mockDeclaredParser(engine, parse) {
@@ -68,6 +68,17 @@ describe("Declared custom engine log parsers", () => {
     const events = parseEngineSession(`[crush-harness] resolved executable\n${text}\n{"type":"result","num_turns":1,"usage":{"input_tokens":0,"output_tokens":0}}\n`, "crush");
     expect(events.filter(event => event.type === "assistant.message")).toHaveLength(1);
     expect(events.find(event => event.type === "assistant.message").data.content.replace(/\n$/, "")).toBe(text);
+  });
+
+  it("retains Cursor plaintext attribution through unified session compaction", () => {
+    const content = "Assistant: Real answer\nSecond line\n";
+    const events = parseEngineSession(content + '{"type":"result","num_turns":1}\n', "cursor");
+    const answer = events.find(event => event.type === "assistant.message");
+    expect(answer.data).toEqual({ sourceEngine: "cursor", content });
+    const unified = mergeSessionSources([{ component: "agent", phase: "agent", path: "agent-stdio.log", events }]);
+    expect(unified.find(event => event.type === "assistant.message").data).toEqual(answer.data);
+    expect(unified.find(event => event.type === "session.result").data).toEqual({ numTurns: 1 });
+    expect(unified.some(event => event.type === "session.init")).toBe(false);
   });
 
   it("does not turn arbitrary unknown plaintext into assistant output", () => {

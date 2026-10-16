@@ -507,6 +507,16 @@ describe("essential unified session payloads", () => {
     expect(JSON.stringify(compact)).not.toContain("PRIVATE_");
   });
 
+  it.each(["user.message", "assistant.message", "assistant.reasoning", "assistant.refusal", "assistant.message_update"])("preserves supplied %s engine attribution without inferring absent values", type => {
+    const data = { content: "Exact answer\n", sourceEngine: "cursor" };
+    const event = { type, data };
+    const original = structuredClone(event);
+    expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+    expect(normalizeUnifiedSessionEvent(normalizeUnifiedSessionEvent(event))).toEqual(event);
+    expect(event).toEqual(original);
+    expect(normalizeUnifiedSessionEvent({ type, data: { content: data.content } }).data).not.toHaveProperty("sourceEngine");
+  });
+
   it("keeps Copilot, Claude and Gemini streaming evidence through collection and compaction", () => {
     const claude = event => ({ type: "stream_event", session_id: "session", event });
     const traces = [
