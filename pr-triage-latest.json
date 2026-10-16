@@ -1,28 +1,69 @@
 {
-  "run_date": "2026-10-16T12:35:09Z",
-  "run_id": "38901216523",
+  "run_date": "2026-10-16T18:27:55Z",
+  "run_id": "38947219462",
   "source": "pr-triage",
-  "eligible_total": 1,
-  "cooldown_skipped": 2,
-  "open_copilot_prs": 3,
+  "eligible_total": 3,
+  "cooldown_skipped": 4,
+  "open_copilot_prs": 7,
   "category_counts": {
-    "bug": 1
+    "bug": 3
   },
   "risk_counts": {
+    "medium": 2,
     "high": 1
   },
   "priority_counts": {
-    "medium": 1
+    "high": 1,
+    "medium": 2
   },
   "action_counts": {
     "auto_merge": 0,
-    "fast_track": 0,
+    "fast_track": 1,
     "batch_review": 0,
-    "defer": 1,
+    "defer": 2,
     "close": 0
   },
-  "batches": [],
+  "batches": [
+    {
+      "id": "pr-batch:copilot-bugfix",
+      "prs": [
+        69162,
+        69046,
+        56568
+      ]
+    }
+  ],
   "selected_candidates": [
+    {
+      "number": 69162,
+      "title": "Harden Copilot CLI and Cloud Hypervisor compatibility",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 79,
+      "score_breakdown": {
+        "impact": 38,
+        "urgency": 22,
+        "quality": 19
+      },
+      "action": "fast_track",
+      "review_state": "pending",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69046,
+      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 51,
+      "score_breakdown": {
+        "impact": 25,
+        "urgency": 18,
+        "quality": 8
+      },
+      "action": "defer",
+      "review_state": "in_progress",
+      "ci_state": "passing"
+    },
     {
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
@@ -41,6 +82,32 @@
   ],
   "prs": [
     {
+      "number": 69162,
+      "title": "Harden Copilot CLI and Cloud Hypervisor compatibility",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 79,
+      "action": "fast_track",
+      "review_state": "pending",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69046,
+      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 51,
+      "action": "defer",
+      "review_state": "in_progress",
+      "ci_state": "passing"
+    },
+    {
       "number": 56568,
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "state": "open",
@@ -55,8 +122,10 @@
     }
   ],
   "cooldown_skipped_prs": [
-    69162,
-    69046
+    69437,
+    69436,
+    69432,
+    69429
   ],
-  "notes": "Only one open Copilot-authored PR remained eligible after the one-hour cooldown. The remaining PR is a high-risk bug fix with request-changes review feedback and no fresh CI signal, so it should stay deferred until the review/CI state stabilizes."
+  "notes": "Eligible PRs were limited to the three Copilot-authored open PRs outside the one-hour cooldown. The batch is dominated by bug fixes; #69162 stands out as the strongest fast-track candidate while #69046 and #56568 remain deferred pending clearer evidence or review closure."
 }
