@@ -1276,6 +1276,7 @@ env_key = "OPENAI_API_KEY"
 
     it("does not retry a provider invalid_request_error failure", () => {
       const tempDir = makeHarnessTempDir("codex-invalid-request-error-");
+      const safeOutputsPath = path.join(tempDir, "safeoutputs.jsonl");
       const stubPath = path.join(tempDir, "stub.cjs");
       const promptPath = path.join(tempDir, "prompt.txt");
       const callsPath = path.join(tempDir, "calls.jsonl");
@@ -1297,6 +1298,7 @@ process.exit(1);`,
           CODEX_API_KEY: "fake-key-for-test",
           GH_AW_HARNESS_MAX_RETRIES: "1",
           GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
         },
         encoding: "utf8",
         timeout: 10000,
@@ -1306,6 +1308,11 @@ process.exit(1);`,
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("isInvalidRequestError=true");
       expect(result.stderr).toContain("invalid_request_error (HTTP 400) — not retrying");
+      expect(JSON.parse(fs.readFileSync(safeOutputsPath, "utf8"))).toEqual({
+        type: "report_incomplete",
+        reason: "infrastructure_error",
+        details: expect.stringContaining("Codex request-body rejection (invalid_request_error)"),
+      });
     });
 
     it("does not retry the observed unsupported-model 'tools' unknown_parameter failure", () => {
