@@ -574,6 +574,15 @@ describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
 
+After an accepted worker dispatch, trusted controls retry transient run reads
+and pending run-title correlation within the pool's reconciliation attempt and
+deadline limits. They never repeat the dispatch POST. If native verification
+succeeds but binding publication fails, the uncertainty marker retains the
+verified run evidence as a discovery hint, not a durable binding. Unverified
+responses never become native evidence. Reconciliation must still verify the exact
+repository, workflow, revision, principal, attempt and dispatch token before
+binding; uncertainty alone never releases the reservation.
+
 ### Replay an Actions snapshot
 
 Reproduce ledger validation and scheduling with the current CLI against a

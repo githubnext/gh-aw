@@ -710,6 +710,91 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(assignment).not.toHaveProperty("run");
   });
 
+  it.each(["not_found", "unavailable", "timeout", "title_pending"])("verifies an accepted %s launch with bounded reads and exactly one POST", async failure => {
+    const { fixture, post, options } = setup({ count: 1 });
+    const get = fixture.githubClient.rest.actions.getWorkflowRun;
+    const read = vi.fn(async parameters => {
+      if (read.mock.calls.length === 1) {
+        if (failure === "title_pending") return { status: 200, data: { ...fixture.nativeRun(), display_title: "worker" } };
+        throw Object.assign(new Error("private response"), failure === "timeout" ? { code: "ETIMEDOUT" } : { status: failure === "not_found" ? 404 : 503 });
+      }
+      return get(parameters);
+    });
+    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read(parameters) : get(parameters));
+    const sleepFn = vi.fn(async () => {});
+    expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "bound", run_id: "42", dispatched: true });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read.mock.calls.every(([parameters]) => parameters.run_id === "42" && parameters.request.retries === 0)).toBe(true);
+    expect(sleepFn).toHaveBeenCalledExactlyOnceWith(1000);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "bound", released: false, run: { run_id: "42", run_attempt: 1 } });
+  });
+
+  it("retains the reservation without asserting native evidence after exhausting verification reads", async () => {
+    const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.max_attempts = 2) });
+    const get = fixture.githubClient.rest.actions.getWorkflowRun;
+    const read = vi.fn().mockRejectedValue({ status: 404 });
+    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read(parameters) : get(parameters));
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
+    expect(read).toHaveBeenCalledTimes(2);
+    const dispatch = fixture.state.dispatches.get(fixture.assignment.dispatch_id);
+    expect(dispatch).toMatchObject({ state: "uncertain", released: false });
+    expect(dispatch.run).toBeUndefined();
+    expect(fixture.transactions.at(-1).operations[0]).not.toHaveProperty("evidence");
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(fixture.state.claims.size).toBe(1);
+  });
+
+  it("retains verified native evidence after a binding publication failure and recovers without redispatch", async () => {
+    const { fixture, post, options } = setup({ count: 1 });
+    const publish = options.publishWorkQueueRequest;
+    options.publishWorkQueueRequest = async parameters => {
+      if (parameters.request.parameters.operations?.some(operation => operation.kind === "Dispatch" && operation.state === "bound")) throw new Error("publication unavailable");
+      return publish(parameters);
+    };
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
+    const dispatch = fixture.state.dispatches.get(fixture.assignment.dispatch_id);
+    expect(dispatch.run).toBeUndefined();
+    expect(fixture.transactions.at(-1).operations[0]).toMatchObject({ state: "uncertain", reason: "binding_unconfirmed", evidence: { run_id: "42", run_attempt: 1, principal: "11" } });
+    options.publishWorkQueueRequest = publish;
+    expect(await reconcileDispatch(options)).toMatchObject({ state: "bound", run_id: "42", released: false });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(fixture.state.claims.size).toBe(1);
+  });
+
+  it.each([{ status: 403 }, { head_sha: "b".repeat(40) }, { actor: { id: "99" } }, { run_attempt: 2 }])("does not retry or bind a denied or mismatched returned run: %j", async failure => {
+    const { fixture, post, options } = setup({ count: 1 });
+    const get = fixture.githubClient.rest.actions.getWorkflowRun;
+    const read = vi.fn(async () => {
+      if (failure.status) throw failure;
+      return { status: 200, data: { ...fixture.nativeRun(), ...failure } };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read() : get(parameters));
+    const sleepFn = vi.fn();
+    expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(sleepFn).not.toHaveBeenCalled();
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).run).toBeUndefined();
+  });
+
+  it("stops verification reads at the policy deadline without releasing an uncertain launch", async () => {
+    const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.deadline_ms = 1) });
+    const get = fixture.githubClient.rest.actions.getWorkflowRun;
+    const read = vi.fn().mockRejectedValue({ status: 404 });
+    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read(parameters) : get(parameters));
+    const clock = vi.spyOn(Date, "now").mockReturnValue(0);
+    const sleepFn = vi.fn(async () => clock.mockReturnValue(1));
+    try {
+      expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "launch_unresolved", released: false });
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(sleepFn).toHaveBeenCalledExactlyOnceWith(1);
+      expect(post).toHaveBeenCalledTimes(1);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("derives native groups from the checked publication state rather than adapter assignment metadata", async () => {
     const { fixture, options, post } = setup({ granted: false, count: 1 });
     const publish = options.publishWorkQueueRequest;
