@@ -6712,6 +6712,70 @@ describe("handle_agent_failure", () => {
       expect(createCommentMock).not.toHaveBeenCalled();
     });
 
+    it.each([true, false])("skips cancelled agents with missing terminal output (collector metadata: %s)", async withCollectorMetadata => {
+      process.env.GH_AW_AGENT_CONCLUSION = "cancelled";
+      const reason = "missing_terminal_safe_output";
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "report_incomplete", reason, driverExitCode: 0 }],
+          ...(withCollectorMetadata ? { collectorEmptyOutputCause: reason } : {}),
+        })
+      );
+      const createIssueMock = vi.fn();
+      const createCommentMock = vi.fn();
+      const searchMock = vi.fn();
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: searchMock },
+          issues: { create: createIssueMock, createComment: createCommentMock },
+        },
+      };
+
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(global.core.setFailed).not.toHaveBeenCalled();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(createCommentMock).not.toHaveBeenCalled();
+      expect(searchMock).not.toHaveBeenCalled();
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("(conclusion: cancelled), skipping failure handling"));
+    });
+
+    it.each([
+      ["success", "missing_terminal_safe_output"],
+      ["failure", "missing_terminal_safe_output"],
+      ["timed_out", "missing_terminal_safe_output"],
+      ["cancelled", "mcp_crash"],
+    ])("preserves failure reporting for %s agents with %s", async (conclusion, reason) => {
+      process.env.GH_AW_AGENT_CONCLUSION = conclusion;
+      syncRuntimePromptTemplates(import.meta.url);
+      fs.writeFileSync(
+        path.join(tmpDir, "agent_output.json"),
+        JSON.stringify({
+          items: [{ type: "report_incomplete", reason }],
+          ...(reason === "missing_terminal_safe_output" ? { collectorEmptyOutputCause: reason } : {}),
+        })
+      );
+      const createIssueMock = vi.fn(async () => {
+        throw new Error("stop after capturing issue");
+      });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create: createIssueMock },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      const { main: mainFn } = require("./handle_agent_failure.cjs");
+      await mainFn();
+
+      expect(global.core.setFailed).toHaveBeenCalledWith("Agent reported that it could not complete the task");
+      expect(createIssueMock).toHaveBeenCalled();
+    });
+
     it.each([
       ["agent_startup_failure", "failed before agent execution started"],
       ["engine_driver_failure", "engine driver failed before emitting a terminal safe output"],

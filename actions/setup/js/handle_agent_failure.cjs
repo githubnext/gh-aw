@@ -4204,7 +4204,8 @@ async function main() {
     // safe outputs such as add_comment, preventing a tool-failure narrative from being
     // classified as a successful review or other completed task.
     if (agentOutputResult.success && agentOutputResult.items && agentOutputResult.items.length > 0) {
-      const reportIncompleteItems = agentOutputResult.items.filter(item => item.type === "report_incomplete");
+      // Cancellation can interrupt the agent before it emits a terminal safe output.
+      const reportIncompleteItems = agentOutputResult.items.filter(item => item.type === "report_incomplete" && !(agentConclusion === "cancelled" && item.reason === "missing_terminal_safe_output"));
       if (reportIncompleteItems.length > 0) {
         if (taskCompleteRegistrationIssueOnlyReportIncomplete) {
           core.info("Ignoring report_incomplete signal(s) caused only by task_complete registration trouble after successful task-level outputs");
