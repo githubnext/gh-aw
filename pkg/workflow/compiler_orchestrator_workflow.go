@@ -140,6 +140,7 @@ func (c *Compiler) validateWorkflowBuildContext(ctx *workflowBuildContext) error
 		return err
 	}
 	c.warnCodexCopilotModelCompatibility(ctx.workflowData, ctx.cleanPath)
+	c.warnEngineCannotResolveModelAlias(ctx.workflowData, ctx.cleanPath)
 	c.warnCopilotIntegrationModelAvailability(ctx.workflowData, ctx.cleanPath)
 	c.warnClaudeCopilotSettingsOverride(ctx.workflowData, ctx.cleanPath)
 	c.warnUnknownConfiguredModels(ctx.workflowData, ctx.cleanPath)
@@ -165,7 +166,7 @@ func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) erro
 	if ctx.workflowData.EngineConfig != nil {
 		engineModel = ctx.workflowData.Model
 	}
-	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, nil, engineModel, ctx.cleanPath)
+	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, extractMainModelAliases(ctx.frontmatter.Frontmatter), engineModel, ctx.cleanPath)
 }
 
 func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData *WorkflowData) error {

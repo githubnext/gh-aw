@@ -34,6 +34,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/syncutil"
 )
@@ -212,4 +213,62 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 
 	modelAliasesLog.Printf("Final alias map has %d entries", len(merged))
 	return merged
+}
+
+// reservedModelsKeys are keys under the models: frontmatter field that are not alias names.
+var reservedModelsKeys = map[string]bool{
+	"providers":                  true,
+	"default-ai-credits-pricing": true,
+	"allowed":                    true,
+	"blocked":                    true,
+}
+
+// extractMainModelAliases returns the workflow-defined model aliases declared under the
+// main workflow's models: field. Reserved keys (providers, default-ai-credits-pricing,
+// allowed, blocked) keep their own meaning and are skipped.
+func extractMainModelAliases(frontmatter map[string]any) map[string][]string {
+	rawModels, ok := frontmatter["models"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	aliases := make(map[string][]string)
+	for key, value := range rawModels {
+		if reservedModelsKeys[key] {
+			continue
+		}
+		var entries []string
+		switch v := value.(type) {
+		case []string:
+			entries = append(entries, v...)
+		case []any:
+			for _, item := range v {
+				if s, ok := item.(string); ok && s != "" {
+					entries = append(entries, s)
+				}
+			}
+		}
+		if len(entries) > 0 {
+			aliases[key] = entries
+		}
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+	modelAliasesLog.Printf("Extracted %d workflow-defined model alias(es) from main frontmatter", len(aliases))
+	return aliases
+}
+
+// modelResolutionRecordPath is the runner-written record of configured and resolved
+// models, relative to /tmp/gh-aw (see MODEL_RESOLUTION_RECORD_PATH in resolve_model_alias.cjs).
+const modelResolutionRecordPath = "agent/model-resolution.json"
+
+// engineRunsSharedModelResolution reports whether the engine's harness runs the shared
+// "resolve configured model" step (resolveEngineModel in resolve_model_alias.cjs) before
+// it launches its CLI. Other engines receive the configured model unchanged.
+func engineRunsSharedModelResolution(engineID string) bool {
+	switch engineID {
+	case string(constants.CopilotEngine), string(constants.ClaudeEngine), string(constants.CodexEngine), string(constants.PiEngine), string(constants.AgyEngine):
+		return true
+	}
+	return false
 }

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 const { preparePiSubagents } = await import("./pi_subagent_config.cjs");
+const reflectFixtures = await import("./fixtures/model_resolution_reflect.cjs");
 let dir;
 let frontmatter;
 const sdk = { parseFrontmatter: () => ({ frontmatter, body: "Read the requested file." }) };
@@ -16,6 +17,7 @@ beforeEach(() => {
   frontmatter = { description: "Read files", model: "claude-haiku-4.5", tools: ["read"] };
   vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify({ small: ["copilot/*haiku*", "anthropic/*haiku*"], recursive: ["small"] }));
   vi.stubEnv("GH_AW_PI_COMMAND", path.join(dir, "pi"));
+  vi.stubEnv("GH_AW_TMP_DIR", dir);
   fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.3.0\\n'\n", { mode: 0o700 });
 });
 afterEach(() => {
@@ -72,6 +74,36 @@ describe("Pi sub-agent model resolution", () => {
   it("refuses unresolved aliases instead of silently using the parent model", () => {
     frontmatter.model = "small";
     expect(() => prepare({ catalog: ["github-copilot/gpt-5.6-luna"] })).toThrow("did not resolve");
+  });
+
+  it("workflow-defined alias overrides built-in", () => {
+    const reflectData = reflectFixtures.withCopilotModels(["claude-opus-6"]);
+    frontmatter.model = "opus";
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify(reflectFixtures.builtinAliases()));
+    expect(prepare({ catalog: undefined, reflectData })[0].modelId).toBe("claude-opus-6");
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify({ ...reflectFixtures.builtinAliases(), opus: ["copilot/claude-opus-5*"] }));
+    expect(prepare({ catalog: undefined, reflectData })[0].modelId).toBe("claude-opus-5.5");
+    expect(JSON.parse(fs.readFileSync(path.join(dir, "agent/model-resolution.json"), "utf8"))).toEqual([
+      { engine: "pi", role: "reader", configured_model: "opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null },
+    ]);
+  });
+
+  // Incomplete discovery is derived from the recorded /reflect of run 38945917145
+  // (models_fetch_complete: false, Copilot models: null); no recorded run has this shape.
+  it("incomplete discovery passes exact ids through and fails aliases with catalog_unavailable", () => {
+    const reflectData = reflectFixtures.incompleteDiscovery();
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify(reflectFixtures.builtinAliases()));
+    frontmatter.model = "claude-haiku-5.5";
+    expect(prepare({ catalog: undefined, reflectData })[0].modelId).toBe("claude-haiku-5.5");
+    frontmatter.model = "haiku";
+    let error;
+    try {
+      prepare({ catalog: undefined, reflectData });
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toMatchObject({ name: "ModelAliasResolutionError", reason: "catalog_unavailable" });
+    expect(error.message).toContain('Pi sub-agent "reader" model alias "haiku" did not resolve');
   });
 
   it("refuses other provider routes", () => {

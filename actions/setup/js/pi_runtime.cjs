@@ -96,9 +96,29 @@ function nativePiProvider(provider) {
 }
 
 /** @param {Record<string, any>} config */
+/**
+ * Point GH_AW_PI_MODEL at the main model chosen by the shared "resolve configured model"
+ * step in pi_models_json.cjs, so the SDK and RPC drivers launch the resolved model
+ * rather than the configured alias. The configured provider prefix is kept.
+ */
+function applyResolvedPiModel() {
+  if (process.env.GH_AW_PI_SUBAGENT_CHILD === "1" || !process.env.GH_AW_PI_MODEL) return;
+  let resolved = "";
+  try {
+    resolved = fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE || "/tmp/gh-aw/pi-model", "utf8").trim();
+  } catch {
+    return;
+  }
+  if (!resolved) return;
+  const configured = process.env.GH_AW_PI_MODEL;
+  const slash = configured.indexOf("/");
+  process.env.GH_AW_PI_MODEL = slash > 0 ? `${configured.slice(0, slash)}/${resolved}` : resolved;
+}
+
 function preparePiRuntime(config = parsePiConfig()) {
   const agentDir = process.env.PI_CODING_AGENT_DIR || DEFAULT_AGENT_DIR;
   const routingSelection = readPiModelRoutingSelection(agentDir);
+  if (!routingSelection) applyResolvedPiModel();
   const settingsPath = path.join(agentDir, "settings.json");
   let installedSettings = {};
   try {
@@ -191,16 +211,29 @@ function readPiModelRoutingSelection(agentDir) {
 async function main() {
   verifyPiVersion();
   const { agentDir } = preparePiRuntime();
+  if (process.env.AWF_REFLECT_ENABLED !== "1" && process.env.GH_AW_PI_MODEL) {
+    // Without AWF there is no live /reflect catalogue: exact ids pass through and
+    // aliases fail with catalog_unavailable, the same rule every engine follows.
+    const { loadModelAliasMap, resolveEngineModel } = require("./resolve_model_alias.cjs");
+    await resolveEngineModel({
+      engine: "pi",
+      role: "main",
+      configuredModel: process.env.GH_AW_PI_MODEL,
+      aliasMap: loadModelAliasMap({ envVar: "GH_AW_PI_MODEL_ALIASES" }),
+      reflectData: null,
+      preserveAuto: true,
+      logger: message => process.stderr.write(`[gh-aw/pi-runtime] ${message}\n`),
+    });
+  }
   if (process.env.AWF_REFLECT_ENABLED !== "1" && fs.existsSync(path.join(agentDir, "agents"))) {
     const sdk = await loadPiSDK();
-    const runtime = await sdk.ModelRuntime.create({ modelsPath: null });
     const provider = process.env.GH_AW_PI_NATIVE_PROVIDER || nativePiProvider("copilot");
     const { preparePiSubagents } = require("./pi_subagent_config.cjs");
     preparePiSubagents({
       agentDir,
       sdk,
       provider,
-      catalog: runtime.getModels(provider).map(model => `${model.provider}/${model.id}`),
+      reflectData: null,
       gateway: false,
       parentModel: process.env.GH_AW_PI_MODEL || "",
       logger: message => process.stderr.write(`[gh-aw/pi-subagent] ${message}\n`),

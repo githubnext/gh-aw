@@ -238,8 +238,9 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
-	// Populate model mappings: merge builtin aliases with any imported-workflow aliases.
-	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, nil)
+	// Populate model mappings: merge builtin aliases, imported-workflow aliases, and the main
+	// workflow's own aliases (merged last, so the main workflow always wins).
+	workflowData.ModelMappings = MergeImportedModelAliases(importsResult.MergedModels, extractMainModelAliases(result.Frontmatter))
 
 	mainModelCosts := extractMainModelCostsOverlay(toolsResult, result.Frontmatter)
 	mergedModelCosts := mergeModelCostOverlays(importsResult.MergedModelCosts, mainModelCosts)

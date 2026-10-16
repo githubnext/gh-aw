@@ -4,7 +4,11 @@ package workflow
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -376,4 +380,48 @@ func TestFrontmatterModelsField(t *testing.T) {
 		assert.Equal(t, []string{"gpt-5"}, config.ModelPolicyAllowed)
 		assert.Equal(t, []string{"claude-opus"}, config.ModelPolicyBlocked)
 	})
+}
+
+func compileModelAliasWorkflow(t *testing.T, frontmatter string) (string, *Compiler) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "workflow.md")
+	require.NoError(t, os.WriteFile(path, []byte("---\non: workflow_dispatch\npermissions:\n  contents: read\n"+frontmatter+"---\n\n# Test\n"), 0o600))
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(path))
+	lock, err := os.ReadFile(stringutil.MarkdownToLockFile(path))
+	require.NoError(t, err)
+	return string(lock), compiler
+}
+
+// TestMainWorkflowModelAliasesMerged verifies that aliases declared under the main workflow's
+// models: field are accepted and reach the AWF config alias map used at runtime.
+func TestMainWorkflowModelAliasesMerged(t *testing.T) {
+	lock, compiler := compileModelAliasWorkflow(t, "engine: codex\nmodel: copilot/luna\nmodels:\n  luna: [\"copilot/gpt-5.6*\"]\n  allowed: [\"copilot/*\"]\n")
+	assert.Contains(t, lock, `\"luna\":[\"copilot/gpt-5.6*\"]`, "workflow-defined alias should be merged into the AWF config")
+	assert.NotContains(t, lock, `\"allowed\":[`, "reserved models keys must not become aliases")
+	assert.Zero(t, compiler.GetWarningCount(), "Codex resolves aliases at runtime, so no compatibility warning is expected")
+
+	merged := MergeImportedModelAliases(nil, extractMainModelAliases(map[string]any{"models": map[string]any{
+		"luna":                       []any{"copilot/gpt-5.6*"},
+		"providers":                  map[string]any{},
+		"default-ai-credits-pricing": map[string]any{},
+		"allowed":                    []any{"copilot/*"},
+		"blocked":                    []any{"copilot/gpt-4*"},
+	}}))
+	assert.Equal(t, []string{"copilot/gpt-5.6*"}, merged["luna"])
+	for _, key := range []string{"providers", "default-ai-credits-pricing", "allowed", "blocked"} {
+		assert.NotContains(t, merged, key)
+	}
+}
+
+// TestMainWorkflowAliasOverridesBuiltin verifies that the main workflow's alias map is merged
+// last, so a workflow-defined alias replaces the built-in alias of the same name.
+func TestMainWorkflowAliasOverridesBuiltin(t *testing.T) {
+	require.NotEqual(t, []string{"copilot/claude-opus-5*"}, BuiltinModelAliases()["opus"])
+	lock, _ := compileModelAliasWorkflow(t, "engine: copilot\nmodel: opus\nmodels:\n  opus: [\"copilot/claude-opus-5*\"]\n")
+	assert.Contains(t, lock, `\"opus\":[\"copilot/claude-opus-5*\"]`)
+
+	merged := MergeImportedModelAliases([]map[string][]string{{"opus": {"copilot/imported-opus"}}}, map[string][]string{"opus": {"copilot/claude-opus-5*"}})
+	assert.Equal(t, []string{"copilot/claude-opus-5*"}, merged["opus"], "main workflow alias wins over built-in and imported aliases")
 }

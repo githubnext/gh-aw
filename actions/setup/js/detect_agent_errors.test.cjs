@@ -298,6 +298,14 @@ describe("detect_agent_errors.cjs", () => {
       expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
     });
 
+    it("reports model_unavailable from the pi harness", () => {
+      const { ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
+      const error = new ModelAliasResolutionError("copilot/claude-opus-5", "model_unavailable", { provider: "copilot" });
+      const errorOutput = `[gh-aw/pi-models-json] model resolution: engine=pi role=main configured=copilot/claude-opus-5 failed cause=model_unavailable\n[gh-aw/pi-models-json] fatal: ${error.message}\n`;
+      expect(MODEL_NOT_SUPPORTED_PATTERN.test(errorOutput)).toBe(true);
+      expect(detectErrors(errorOutput).modelNotSupportedError).toBe(true);
+    });
+
     it("classifies the raw Codex custom-tools rejection from unsupported models", () => {
       const errorOutput = String.raw`{"type":"turn.failed","error":{"message":"{\n  \"error\": {\n    \"message\": \"Invalid value: 'custom'\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"tools\",\n    \"code\": \"unknown_parameter\"\n  }\n}"}}`;
       expect(isUnsupportedModelToolsError(errorOutput)).toBe(true);
