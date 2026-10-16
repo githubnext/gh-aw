@@ -631,6 +631,13 @@ Body.
 	}
 	lockYAML := string(lockContent)
 
+	agentJob := extractJobSection(lockYAML, string(constants.AgentJobName))
+	assert.Equal(t, 1, strings.Count(agentJob, "id: redact_secrets\n"))
+	redactionSection := extractWorkflowStepByName(t, lockYAML, "Redact secrets in logs")
+	assert.Contains(t, redactionSection, "id: redact_secrets")
+	assert.Equal(t, 1, strings.Count(redactionSection, "id: redact_secrets"))
+	assert.Less(t, strings.Index(lockYAML, "id: redact_secrets"), strings.Index(lockYAML, "- name: Upload agent output fallback artifact"))
+
 	uploadSection := extractWorkflowStepByName(t, lockYAML, "Upload agent output fallback artifact")
 	assert.Contains(t, uploadSection, "if: always() && steps.redact_secrets.outcome == 'success'")
 	for _, expected := range []string{
@@ -800,7 +807,13 @@ Body.
 	if err != nil {
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
-	uploadSection := extractWorkflowStepByName(t, string(lockContent), "Upload agent artifacts")
+	lockYAML := string(lockContent)
+	agentJob := extractJobSection(lockYAML, string(constants.AgentJobName))
+	assert.Equal(t, 1, strings.Count(agentJob, "id: redact_secrets\n"))
+	redactionSection := extractWorkflowStepByName(t, lockYAML, "Redact secrets in logs")
+	assert.Contains(t, redactionSection, "id: redact_secrets")
+	assert.Less(t, strings.Index(lockYAML, "id: redact_secrets"), strings.Index(lockYAML, "- name: Upload agent artifacts"))
+	uploadSection := extractWorkflowStepByName(t, agentJob, "Upload agent artifacts")
 	assert.Contains(t, uploadSection, "if: always() && steps.redact_secrets.outcome == 'success'")
 
 	for _, expected := range []string{

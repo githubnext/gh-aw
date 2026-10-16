@@ -231,7 +231,7 @@ func (c *Compiler) finishWorkQueuePreparedAdapterSteps(data *WorkflowData, name 
 	steps = append(steps,
 		"      - name: Upload isolated Claim adapter preparation\n",
 		"        id: claim_adapter_artifact\n",
-		"        if: always() && steps.claim_adapter_context.outputs.active == 'true' && steps.redact_secrets.outcome == 'success'\n",
+		"        if: always() && steps.claim_adapter_context.outputs.active == 'true' && "+secretRedactionSuccessCondition(data)+"\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		fmt.Sprintf("          name: work-queue-claim-adapter-%s-%d\n", name, index),

@@ -41,6 +41,7 @@ export interface UnifiedSessionResultData extends UnifiedSessionContextData, Pic
 }
 
 export interface UnifiedMessageData extends Pick<MessageData, "content"> {
+  sourceEngine?: string;
   delta?: JsonValue;
   partial?: JsonValue;
   messageId?: JsonValue;

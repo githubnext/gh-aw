@@ -23411,6 +23411,8 @@ safe-outputs:
 secret-masking:
   # Additional secret redaction steps to inject after the built-in secret redaction.
   # Use this to mask secrets in generated files using custom patterns.
+  # Redaction-gated uploads require every masking step to succeed. A failed or
+  # skipped step blocks those uploads, even with continue-on-error: true.
   # (optional)
   steps: []
 

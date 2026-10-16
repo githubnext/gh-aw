@@ -55,6 +55,7 @@ function stripFrameworkSystemBlock(content) {
  * @returns {Promise<void>}
  */
 async function main() {
+  core.setOutput("ready", "false");
   const continueOnError = (process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR || "true").toLowerCase() !== "false";
 
   // Read the threat detection template from file
@@ -235,6 +236,7 @@ async function main() {
     await core.summary.addRaw("<details>\n<summary>Threat Detection Prompt</summary>\n\n" + "``````markdown\n" + promptContent + "\n" + "``````\n\n</details>\n").write();
   }
 
+  core.setOutput("ready", "true");
   core.info("Threat detection setup completed");
 }
 

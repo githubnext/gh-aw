@@ -3,11 +3,19 @@
 
 const { randomUUID } = require("node:crypto");
 const { digest, queueError } = require("./work_queue_codec.cjs");
+const { queueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 // Locks have no expiring lease: a slow or interrupted write must never overlap a
 // successor projector. An unresolved lock is pending, not permission to steal it.
 /** @param {import("./work_queue_store.cjs").QueueReadOptions & {head: string, keys: string[], repositoryId?: string, scopes?: Array<{work_id: string, keys: string[]}>}} options */
 async function withProjectionLocks({ githubClient, owner, repo, head, keys, repositoryId, scopes }, operation) {
+  if (!repositoryId && queueLedgerClient(githubClient, owner, repo).readFiles) {
+    // Hosting identity is needed for native Issue coordination, not ledger proof.
+    const response = await githubClient.graphql("query WorkQueueProjectionRepository($owner:String!,$repo:String!) { repository(owner:$owner,name:$repo) { id nameWithOwner } }", { owner, repo });
+    const repository = response?.repository;
+    if (!repository?.id || repository.nameWithOwner?.toLowerCase() !== `${owner}/${repo}`.toLowerCase()) throw queueError("projection_coordination_pending", "projection repository identity is unavailable");
+    repositoryId = repository.id;
+  }
   if (repositoryId) return withGraphQLProjectionLocks({ githubClient, repositoryId, head, keys, scopes }, operation);
   const locks = [...new Set(keys)].sort().map(key => ({ key, branch: `gh-aw-issue-projection/${digest(key)}` }));
   const held = [];

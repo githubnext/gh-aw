@@ -9,6 +9,9 @@ import { replayTransactions } from "./work_queue_replay.cjs";
 import { main as writeSnapshot } from "./write_work_queue_snapshot.cjs";
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
+
+const { registerQueueLedgerClient } = createRequire(import.meta.url)("./work_queue_git_transport.cjs");
 
 const temporaryDirectory = prefix => fs.mkdtempSync(path.join(fs.realpathSync(process.cwd()), `.gh-aw-${prefix}-`));
 
@@ -106,6 +109,7 @@ describe("dispatch_workflow handler factory", () => {
             },
           },
         };
+        registerQueueLedgerClient(publisher, publisher);
         const login = kind === "github_token" ? "github-actions[bot]" : kind === "github_app" ? "approved-worker[bot]" : "approved-pat-owner";
         const identity = async () => {
           identities++;

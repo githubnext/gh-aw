@@ -151,6 +151,7 @@ Compile each work-queue workflow phase.
 	require.Contains(t, agent, constants.WorkQueueFinishIntentPath)
 	require.Contains(t, agent, "collect_work_queue_intents.cjs")
 	require.Contains(t, agent, "Collect work queue intents")
+	require.Equal(t, 1, strings.Count(agent, "id: redact_secrets\n"))
 	require.Less(t, strings.Index(agent, "Collect work queue intents"), strings.Index(agent, "Redact secrets in logs"))
 	require.Contains(t, agent, "steps.redact_secrets.outcome == 'success'")
 

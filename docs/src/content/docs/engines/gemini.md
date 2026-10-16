@@ -20,6 +20,11 @@ To select Gemini CLI as the AI engine, with inference hosted and billed through 
 engine: gemini
 ```
 
+The default Gemini CLI version is [0.64.0](https://github.com/google-gemini/gemini-cli/releases/tag/v0.64.0).
+To retain a different version, set `engine.id: gemini` and `engine.version` explicitly.
+The engine uses headless `stream-json` output and project-level `.gemini/settings.json`
+for tool restrictions and MCP configuration.
+
 To authenticate, either:
 
 1. Provide [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) as a GitHub Actions repository secret, or

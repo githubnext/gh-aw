@@ -11,6 +11,7 @@ const { planDispatch } = require("./work_queue_scheduler.cjs");
 const { administrator, bind, commit, context, dispatcher, evidence, finish, genesis, grant, operationCommit, producer, reconciler, submission, workerActor } = require("./work_queue_test_helpers.cjs");
 const resourceFixture = require("../../../specs/work-queue/fixtures/resource-scope.json");
 const contractFixture = require("../../../specs/work-queue/fixtures/contract.json");
+const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 function fakeGitHub(initial = [], { immutableIds = false } = {}) {
   let serial = 0;
@@ -164,6 +165,7 @@ function fakeGitHub(initial = [], { immutableIds = false } = {}) {
       },
     },
   };
+  registerQueueLedgerClient(githubClient, githubClient);
   return { githubClient, state, refs, blobs, log, install };
 }
 

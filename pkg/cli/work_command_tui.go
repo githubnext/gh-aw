@@ -271,12 +271,12 @@ func (m workQueueTUI) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	return m, command
 }
 
-func workQueueService(ctx context.Context, branch workqueue.Branch) workQueueTUIService {
+func workQueueService(ctx context.Context, branch workqueue.Branch, session *workqueue.LedgerSession) workQueueTUIService {
 	return workQueueTUIService{
 		read: func() (workqueue.Projection, error) {
 			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
-			commits, err := branch.Read(ctx)
+			commits, err := session.Read(ctx)
 			if err != nil {
 				return workqueue.Projection{}, err
 			}
@@ -293,7 +293,7 @@ func workQueueService(ctx context.Context, branch workqueue.Branch) workQueueTUI
 			if err != nil {
 				return workqueue.Publication{}, err
 			}
-			return branch.Publish(ctx, actor, request)
+			return session.Publish(ctx, actor, request)
 		},
 	}
 }
@@ -311,7 +311,12 @@ func workTUICommand() *cobra.Command {
 		branch := workBranch(cmd)
 		ctx, stop := context.WithCancel(cmd.Context())
 		defer stop()
-		model := newWorkQueueTUI(workQueueService(ctx, branch), branch.Name)
+		session, err := branch.OpenLedgerSession(ctx)
+		if err != nil {
+			return err
+		}
+		defer session.Close()
+		model := newWorkQueueTUI(workQueueService(ctx, branch, session), branch.Name)
 		final, err := tea.NewProgram(model, tea.WithContext(ctx), tea.WithInput(cmd.InOrStdin()), tea.WithOutput(cmd.OutOrStdout())).Run()
 		if finished, ok := final.(workQueueTUI); ok && finished.lastRequest != "" {
 			if _, writeErr := fmt.Fprintf(cmd.OutOrStdout(), "Last operator request=%s; use explain --request-id to inspect its acknowledgment.\n", finished.lastRequest); writeErr != nil {

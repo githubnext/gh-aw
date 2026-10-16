@@ -2,7 +2,7 @@
 engine:
   id: crush
   detection-engine: copilot
-  version: "0.88.0"
+  version: "0.98.1"
   display-name: Crush
   description: Crush CLI with non-interactive execution and native MCP support
   experimental: true
@@ -76,6 +76,7 @@ engine:
       args:
         - run
         - --quiet
+        - --verbose
       step-name: Execute Crush CLI
       model-env-var: CRUSH_MODEL
       mcp-config-env-var: GH_AW_MCP_CONFIG
@@ -134,12 +135,13 @@ engine:
       const { spawnSync } = require("child_process");
       const { accessSync, constants, readFileSync, writeFileSync } = require("fs");
       const { isAbsolute, join } = require("path");
-      const { fetchAWFReflect, resolveProviderEndpointFromReflect, deriveBaseUrlFromModelsURL } = require("./awf_reflect.cjs");
+      const { fetchAWFReflect, resolveProviderEndpointFromReflect, deriveBaseUrlFromModelsURL, inferWireApiForModel, REFLECT_PROVIDER_ALIASES } = require("./awf_reflect.cjs");
 
       const [command, ...commandArgs] = process.argv.slice(2);
       const log = message => process.stderr.write(`[crush-harness] ${message}\n`);
       const fail = (result, action) => {
         if (result.error) throw result.error;
+        if (result.signal) throw new Error(`${action} terminated by signal ${result.signal}`);
         if (result.status !== 0) throw new Error(`${action} failed with exit code ${result.status ?? "unknown"}`);
       };
 
@@ -170,6 +172,7 @@ engine:
       };
 
       const main = async () => {
+        log("preparing non-interactive execution");
         const selectedModel = process.env.CRUSH_MODEL;
         if (!selectedModel || !selectedModel.includes("/")) {
           throw new Error("CRUSH_MODEL must use provider/model format");
@@ -189,7 +192,7 @@ engine:
             reflectData: result.reflectData,
             logger: log,
           });
-          if (!endpoint || !endpoint.baseUrl) {
+          if (!endpoint || !endpoint.baseUrl || !REFLECT_PROVIDER_ALIASES[provider]?.has(endpoint.endpointProvider)) {
             throw new Error(`No configured /reflect endpoint found for provider ${provider}`);
           }
           baseUrl = endpoint.baseUrl;
@@ -208,12 +211,15 @@ engine:
         if (!baseUrl) {
           throw new Error("Crush requires AWF endpoint discovery or OPENAI_BASE_URL");
         }
+        log("LLM endpoint discovery complete");
 
         const workspace = process.env.GITHUB_WORKSPACE;
         if (!workspace) throw new Error("GITHUB_WORKSPACE is required");
         const configPath = process.env.GH_AW_MCP_CONFIG || join(workspace, ".crush.json");
         const config = JSON.parse(readFileSync(configPath, "utf8"));
-        const providerType = provider === "anthropic" ? "anthropic" : "openai-compat";
+        const providerType = provider === "anthropic"
+          ? "anthropic"
+          : inferWireApiForModel("openai", model) === "responses" ? "openai" : "openai-compat";
         const apiKey = providerType === "anthropic" ? "$ANTHROPIC_API_KEY" : "$OPENAI_API_KEY";
         config.providers = {
           ...(config.providers || {}),
@@ -243,20 +249,23 @@ engine:
           large: { provider: "awf-proxy", model },
         };
         writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+        log(`configuration ready (provider type: ${providerType}; MCP servers: ${Object.keys(config.mcp || {}).length})`);
 
         const promptPath = process.env.GH_AW_PROMPT;
         if (!promptPath) throw new Error("GH_AW_PROMPT is required");
         const prompt = readFileSync(promptPath, "utf8");
+        log(`prompt loaded (${Buffer.byteLength(prompt, "utf8")} bytes)`);
         const executable = resolveCommand(command);
         log(`resolved ${command} to ${executable}`);
-        fail(
-          spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
-            cwd: workspace,
-            env: process.env,
-            stdio: "inherit",
-          }),
-          "Crush execution"
-        );
+        log("starting Crush CLI");
+        const startedAt = Date.now();
+        const result = spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
+          cwd: workspace,
+          env: process.env,
+          stdio: "inherit",
+        });
+        log(`Crush CLI finished after ${Date.now() - startedAt}ms (exit: ${result.status ?? "none"}; signal: ${result.signal ?? "none"})`);
+        fail(result, "Crush execution");
       };
 
       main().catch(error => {
@@ -265,69 +274,51 @@ engine:
       });
     log-parser: |
       function parseLog(logContent) {
-        const lines = logContent.split("\n");
-        const logEntries = [];
-        const mcpFailures = [];
-        let maxTurnsHit = false;
+        const { isSessionEvent } = require("./agent_session.cjs");
+        const { normalizeEngineLogEntries } = require("./engine_log_parser.cjs");
         const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|crush-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
-        let toolCallIndex = 0;
-        let turnCount = 0;
-        let currentRole = null;
-        let currentText = [];
-
-        function flushEntry() {
-          if (!currentRole || currentText.length === 0) { currentText = []; return; }
-          const text = currentText.join("\n").trim();
-          if (!text) { currentText = []; return; }
-          if (currentRole === "tool_use") {
-            const toolId = `crush_tool_${toolCallIndex++}`;
-            const nameMatch = text.match(/^(?:Tool|Running|Executing|>\s*)(view|edit|bash|grep|ls|write|webfetch|websearch)\b/i);
-            const toolName = nameMatch ? nameMatch[1] : "unknown_tool";
-            logEntries.push({ type: "assistant", message: { content: [{ type: "tool_use", id: toolId, name: toolName, input: {} }] } });
-            logEntries.push({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: text }] } });
-          } else if (currentRole === "assistant") {
-            logEntries.push({ type: "assistant", message: { content: [{ type: "text", text }] } });
-            turnCount++;
+        const lines = logContent.split("\n").filter(line => !AWF_INFRA_RE.test(line));
+        // Historical gh-aw logs may append an explicit result; quiet CLI text
+        // itself contains no tool identities, token usage, or turn counters.
+        let terminalIndex = lines.length - 1;
+        while (terminalIndex >= 0 && !lines[terminalIndex].trim()) terminalIndex--;
+        let terminal;
+        try {
+          const record = JSON.parse(lines[terminalIndex] || "");
+          if (record.type === "result" && (Object.hasOwn(record, "num_turns") || Object.hasOwn(record, "usage"))) {
+            terminal = record;
+            lines.splice(terminalIndex);
           }
-          currentText = [];
+        } catch {}
+
+        const text = lines.join("\n");
+        let records;
+        try {
+          const document = JSON.parse(text);
+          if (Array.isArray(document)) records = document;
+        } catch {}
+        if (!records) {
+          const observedLines = lines.filter(line => line.trim());
+          if (observedLines.length) records = observedLines.map(line => {
+            try { return JSON.parse(line); } catch { return null; }
+          });
+        }
+        if (records && records.every(isSessionEvent)) {
+          return {
+            markdown: "Crush saved session events",
+            logEntries: [...records, ...(terminal ? normalizeEngineLogEntries([terminal], "crush") : [])],
+            mcpFailures: [], maxTurnsHit: false,
+          };
         }
 
-        logEntries.push({ type: "system", subtype: "init", model: null, session_id: null });
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          if (AWF_INFRA_RE.test(line)) continue;
-          if (/max.?turns|maximum.*turns.*reached|turn limit/i.test(line)) maxTurnsHit = true;
-          if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
-            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
-            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
-          }
-
-          if (/^(Tool|Running|Executing|>\s*(view|edit|bash|grep|ls|write|webfetch|websearch))\b/i.test(line.trim())) {
-            flushEntry();
-            currentRole = "tool_use";
-            currentText.push(line);
-            continue;
-          }
-          if (/^(Assistant|Response|Output)\s*[>:]/i.test(line.trim())) {
-            if (currentRole !== "assistant") { flushEntry(); currentRole = "assistant"; }
-            currentText.push(line);
-            continue;
-          }
-          if (currentRole) {
-            currentText.push(line);
-          } else {
-            currentText.push(line);
-            currentRole = "assistant";
-          }
-        }
-        flushEntry();
-
-        logEntries.push({ type: "result", num_turns: turnCount, usage: {} });
-        const parts = [`**Turns:** ${turnCount}`, `**Tool calls:** ${toolCallIndex}`];
-        if (mcpFailures.length) parts.push(`**MCP failures:** ${mcpFailures.length}`);
-        if (maxTurnsHit) parts.push("**Max turns reached**");
-        return { markdown: parts.join(" · "), logEntries, mcpFailures, maxTurnsHit };
+        const logEntries = [];
+        if (text.trim()) logEntries.push({ type: "assistant.message", data: { content: text } });
+        if (terminal) logEntries.push(...normalizeEngineLogEntries([terminal], "crush"));
+        return {
+          markdown: "Crush plain-text output (tool and usage telemetry unavailable)",
+          // Unframed answer text cannot establish MCP failures or turn limits.
+          logEntries, mcpFailures: [], maxTurnsHit: false,
+        };
       }
 ---
 
@@ -337,4 +328,25 @@ engine:
 Shared engine definition for the [Crush](https://github.com/charmbracelet/crush)
 coding agent. Import this file and set `engine.id: crush` with a
 `provider/model` model selection.
+
+This unsupported sample pins Crush 0.98.1. Its npm package uses an install
+script to provision the native binary, so lifecycle scripts remain enabled
+only for the pinned installation.
+
+The harness discovers the selected provider's endpoint through AWF reflection
+and retains its API path prefix. GPT-5 and newer models use Crush's native
+OpenAI Responses provider; other non-Anthropic models retain Chat Completions.
+Anthropic uses its native Messages provider. Credential references remain
+environment-variable expressions in the private config, not literal API keys.
+Copilot inference uses the workflow's `copilot-requests: write` permission.
+
+JSON configuration and native HTTP/stdio MCP remain supported. CLI-mounted
+servers are excluded from the native MCP config. `run --quiet` emits plain
+text, so unified sessions preserve the answer without inventing tool calls,
+turn counts, model/session identifiers, token usage, MCP failures, or turn-limit
+failures from answer prose. Saved canonical JSON arrays/JSONL and explicit
+historical terminal records retain their observed fields.
+Native verbose logging and harness startup/exit milestones are written to
+stderr for timeout diagnosis. The harness logs prompt size, never prompt contents,
+configuration contents, or credential values.
 -->
