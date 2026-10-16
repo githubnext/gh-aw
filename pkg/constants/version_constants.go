@@ -48,7 +48,7 @@ const DefaultCopilotSDKVersion Version = "1.0.16"
 const DefaultCodexVersion Version = "0.163.0"
 
 // DefaultGeminiVersion is the default version of the Google Gemini CLI
-const DefaultGeminiVersion Version = "0.62.0"
+const DefaultGeminiVersion Version = "0.64.0"
 
 const DefaultAgyVersion Version = "1.3.6"
 
