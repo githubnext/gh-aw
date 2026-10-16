@@ -787,6 +787,8 @@ The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an err
 
 For release-scoped evidence, pass the release's publication timestamp as `--start-date`; this filters by time, not compiler version. Text output and JSON `collection.start_date` / `collection.end_date` show the resolved UTC window. Health still samples current workflow revisions toward five completed first-attempt runs per scope, subject to API limits; it does not enumerate every run or reconstruct historical branch heads. A narrow window can leave insufficient evidence.
 
+Runs awaiting approval (`waiting` status or `action_required` conclusion) and skipped runs are excluded from health metrics and revision evidence. Collection continues past these runs to find executed runs within the requested window and API limits.
+
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
 Runs that never dispatched a job are excluded from these metrics: `skipped` runs (the activation condition evaluated to false, for example a comment that does not contain the workflow's command) and `action_required` runs (created by GitHub but held for manual approval, for example comment events authored by a bot actor). Including them would report command workflows as near-0% success even when every dispatched run succeeded.

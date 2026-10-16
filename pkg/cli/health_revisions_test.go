@@ -51,6 +51,31 @@ func TestHealthRevisionRecoveryAndCurrentClusters(t *testing.T) {
 	assert.Equal(t, health, calculateCurrentWorkflowHealth("Example", runs, config))
 }
 
+func TestHealthIgnoresRunsAwaitingApproval(t *testing.T) {
+	for _, blocked := range []WorkflowRun{
+		{Status: "waiting"},
+		{Status: "completed", Conclusion: "action_required"},
+		{Status: "completed", Conclusion: "skipped"},
+	} {
+		t.Run(blocked.Status+"/"+blocked.Conclusion, func(t *testing.T) {
+			runs, collection := healthRevisionFixture()
+			config := HealthConfig{Threshold: 80, collection: collection}
+			expected := calculateCurrentWorkflowHealth("Example", runs, config)
+			expectedMetrics := CalculateWorkflowHealth("Example", runs, 80)
+			run := runs[len(runs)-1]
+			run.DatabaseID, run.HeadSha = 11, "unexecuted"
+			run.Status, run.Conclusion = blocked.Status, blocked.Conclusion
+			run.CreatedAt = run.CreatedAt.Add(time.Hour)
+			run.Duration, run.TokenUsage = time.Hour, 100000
+			run.HeadBranch, run.Event = "unapproved", "pull_request"
+			runs = append([]WorkflowRun{run}, runs...)
+			assert.Equal(t, expected, calculateCurrentWorkflowHealth("Example", runs, config))
+			assert.Equal(t, expectedMetrics, CalculateWorkflowHealth("Example", runs, 80))
+			assert.Equal(t, run, runs[0], "health calculation must not mutate caller data")
+		})
+	}
+}
+
 func TestHealthRevisionsDoNotClaimUnsupportedRecovery(t *testing.T) {
 	for _, scenario := range []string{"same-content", "one-success", "retry-only", "unknown-revision", "still-failing", "overlapping-runs", "other-branch", "other-event"} {
 		t.Run(scenario, func(t *testing.T) {

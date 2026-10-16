@@ -57,6 +57,7 @@ Use --start-date and --end-date to bound run creation times. Accepts UTC dates,
 RFC3339 timestamps, or relative times such as -24h and -1w. An explicit start
 replaces --days; otherwise --days counts backward from --end-date (default: now).
 The report remains a bounded current-revision sample, not an exhaustive history.
+Runs awaiting approval (waiting or action_required) and skipped runs are ignored.
 
 ` + WorkflowIDExplanation,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` health                       # Current status of all workflows

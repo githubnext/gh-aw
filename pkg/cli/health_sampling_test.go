@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +35,56 @@ func TestHealthSamplingCollectsEvidenceForEachWorkflow(t *testing.T) {
 	assert.Len(t, collected, 10)
 	assert.Equal(t, []string{"1", "2"}, calls, "busy workflows must not hide workflows with no recent runs")
 	assert.False(t, collection.Partial)
+}
+
+func TestHealthSamplingContinuesPastRunsAwaitingApproval(t *testing.T) {
+	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+	}
+	pages := 0
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		endpoint := args[3]
+		if strings.Contains(endpoint, "/contents/") {
+			assert.NotContains(t, endpoint, "unapproved", "ignored runs need no revision lookups")
+			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
+		}
+		pages++
+		assert.Contains(t, endpoint, "page="+strconv.Itoa(pages))
+		var responses []workflowRunAPIResponse
+		count := 10
+		if pages == 2 {
+			count = 5
+		}
+		for i := range count {
+			run := workflowRunAPIResponse{ID: int64(pages*10 + i), Name: "Example",
+				Path: ".github/workflows/example.lock.yml", Status: "completed",
+				Conclusion: "success", Event: "schedule", HeadBranch: "main",
+				HeadSHA: strings.Repeat("a", 40), RunAttempt: 1}
+			if pages == 1 {
+				run.HeadSHA = "unapproved"
+				if i%2 == 0 {
+					run.Status, run.Conclusion = "waiting", ""
+				} else {
+					run.Conclusion = "action_required"
+				}
+			}
+			responses = append(responses, run)
+		}
+		out, err := json.Marshal(map[string]any{"workflow_runs": responses})
+		require.NoError(t, err)
+		return out, nil
+	}
+	collection := &HealthCollection{Host: "github.com", repoOverride: "org/repo"}
+	runs, err := sampleHealthWorkflow(GitHubWorkflow{ID: 1, Name: "Example",
+		Path: ".github/workflows/example.lock.yml"}, "2026-10-08", "org/repo", false, collection)
+	require.NoError(t, err)
+	assert.Equal(t, 2, pages)
+	assert.Len(t, runs, 5)
+	health := calculateCurrentWorkflowHealth("Example", runs, HealthConfig{Threshold: 80, collection: collection})
+	assert.Equal(t, "healthy", health.Status)
+	assert.InDelta(t, 100.0, health.SuccessRate, 1e-9)
 }
 
 func TestHealthWorkflowSelectionUsesStablePaths(t *testing.T) {

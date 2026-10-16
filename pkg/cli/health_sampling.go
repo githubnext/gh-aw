@@ -103,10 +103,10 @@ func listHealthWorkflowRuns(opts ListWorkflowRunsOptions, page int, collection *
 	}
 	var runs []WorkflowRun
 	for _, response := range data.Runs {
-		if isNonDispatchedConclusion(response.Conclusion) {
+		run := response.workflowRun()
+		if isIgnoredHealthRun(run) {
 			continue
 		}
-		run := response.workflowRun()
 		runs = append(runs, run)
 	}
 	return runs, len(data.Runs), nil
