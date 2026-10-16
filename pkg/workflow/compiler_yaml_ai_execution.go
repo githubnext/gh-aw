@@ -753,7 +753,7 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
-	if hasSafeJobArtifactPaths(data) || isWorkQueueEnabled(data) {
+	if hasSafeJobArtifactPaths(data) || isWorkQueueEnabled(data) || isFirewallEnabled(data) {
 		c.generateTrackedSecretRedactionStep(yaml, yaml.String(), data)
 	} else {
 		c.generateSecretRedactionStep(yaml, yaml.String(), data)
