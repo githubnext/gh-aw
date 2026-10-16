@@ -1,5 +1,8 @@
 ---
 name: Daily Work Queues Report
+engine:
+  id: copilot
+  copilot-sdk: true
 description: Report the status of the repository's work queues each day
 on:
   schedule: daily

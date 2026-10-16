@@ -173,6 +173,23 @@ func TestCompileOptionsPropagateRequireSelfHostedRunners(t *testing.T) {
 	}
 }
 
+func TestCompileOptionsPropagateNoLogo(t *testing.T) {
+	t.Parallel()
+	flag := compileCmd.Flags().Lookup("no-logo")
+	if flag == nil || flag.DefValue != "false" {
+		t.Fatalf("expected --no-logo with default false, got %v", flag)
+	}
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("no-logo", false, "")
+	if err := cmd.ParseFlags([]string{"--no-logo"}); err != nil {
+		t.Fatal(err)
+	}
+	opts := getCompileCmdOptions(cmd)
+	if !opts.toCompileConfig(nil).NoLogo {
+		t.Fatal("expected --no-logo to be propagated to CompileConfig")
+	}
+}
+
 func TestCompileDevelopmentAndEnvironmentFlags(t *testing.T) {
 	t.Parallel()
 	for name, defaultValue := range map[string]string{"dry-run": "false", "environment": ""} {

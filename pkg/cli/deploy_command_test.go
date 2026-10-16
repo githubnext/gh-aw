@@ -210,6 +210,15 @@ func TestCreateDeployPRAutoMergePropagation(t *testing.T) {
 					return []byte(`{"owner":{"login":"octo"},"name":"repo"}`), nil
 				}
 				assert.Contains(t, args, deployCommitMessage)
+				assert.Contains(t, args, "--body-file")
+				for i, arg := range args {
+					if arg == "--body-file" {
+						require.Less(t, i+1, len(args))
+						body, err := os.ReadFile(args[i+1])
+						require.NoError(t, err)
+						assert.Contains(t, string(body), "Deployment details.\n\nCustom deployment message.")
+					}
+				}
 				created = true
 				return []byte("https://github.com/octo/repo/pull/42"), nil
 			}
@@ -220,7 +229,7 @@ func TestCreateDeployPRAutoMergePropagation(t *testing.T) {
 				autoMergeCalls++
 				return nil, enableErr
 			}
-			err := createDeployPR(context.Background(), []string{"owner/source/workflow"}, "octo/repo", false, autoMerge)
+			err := createDeployPR(context.Background(), []string{"owner/source/workflow"}, "octo/repo", false, autoMerge, "Deployment details.", "Custom deployment message.")
 			if autoMerge {
 				require.ErrorIs(t, err, enableErr)
 				require.ErrorContains(t, err, "https://github.com/octo/repo/pull/42")
@@ -238,14 +247,37 @@ func TestCreateDeployPRAutoMergePropagation(t *testing.T) {
 func TestBuildDeployPRMetadata_SingleWorkflow(t *testing.T) {
 	title, body := buildDeployPRMetadata([]string{"githubnext/agentics/ci-doctor"}, "owner/repo")
 	assert.Equal(t, deployCommitMessage, title)
-	assert.Contains(t, body, "Deploy ci-doctor to owner/repo.")
-	assert.Contains(t, body, "compile --purge")
+	assert.Equal(t, "## Summary\n\nDeploy ci-doctor to owner/repo.\n\n## Workflows requested\n\n- `githubnext/agentics/ci-doctor`\n", body)
 }
 
 func TestBuildDeployPRMetadata_MultipleWorkflows(t *testing.T) {
 	title, body := buildDeployPRMetadata([]string{"a", "b", "c"}, "owner/repo")
 	assert.Equal(t, deployCommitMessage, title)
 	assert.Contains(t, body, "Deploy 3 workflows to owner/repo.")
+}
+
+func TestBuildDeployPRMetadata_LocalPathsArePrivate(t *testing.T) {
+	t.Parallel()
+
+	baseDir := filepath.Join(string(filepath.Separator), "Users", "private-user", "private-project")
+	workflows := resolveDeployWorkflowSpecs(
+		[]string{"./my-workflow.md", filepath.Join(baseDir, "absolute-workflow.md"), "./*.md", "owner/source/remote.md@v1", "https://example.com/workflows/remote.md"},
+		baseDir,
+	)
+	_, body := buildDeployPRMetadata(workflows, "owner/repo")
+
+	assert.Contains(t, body, "- `my-workflow.md`\n")
+	assert.Contains(t, body, "- `absolute-workflow.md`\n")
+	assert.Contains(t, body, "- `*.md`\n")
+	assert.Contains(t, body, "- `owner/source/remote.md@v1`\n")
+	assert.Contains(t, body, "- `https://example.com/workflows/remote.md`\n")
+	assert.NotContains(t, body, baseDir)
+	assert.NotContains(t, body, "private-user")
+	assert.NotContains(t, body, "private-project")
+
+	_, singleBody := buildDeployPRMetadata(workflows[:1], "owner/repo")
+	assert.Contains(t, singleBody, "Deploy my-workflow to owner/repo.")
+	assert.NotContains(t, singleBody, baseDir)
 }
 
 func TestExcludeExistingSourcedWorkflows_SkipsExistingSourcedWorkflow(t *testing.T) {

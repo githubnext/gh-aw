@@ -349,6 +349,182 @@ func TestBuildPullAWFContainersStepPropagatesGitHubCLIMode(t *testing.T) {
 	})
 }
 
+func TestBuildThreatDetectionAWFConfigCACert(t *testing.T) {
+	tests := []struct {
+		name            string
+		sandbox         *SandboxConfig
+		safe            *SafeOutputsConfig
+		detectionEngine string
+		want            string
+	}{
+		{name: "no sandbox or safe outputs"},
+		{name: "no agent sandbox", sandbox: &SandboxConfig{}},
+		{name: "no certificate", sandbox: &SandboxConfig{Agent: &AgentSandboxConfig{}}},
+		{
+			name:    "inherits agent certificate",
+			sandbox: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			want:    "/tmp/agent-ca.pem",
+		},
+		{
+			name:    "inherits with default detection settings",
+			sandbox: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			safe:    &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{}},
+			want:    "/tmp/agent-ca.pem",
+		},
+		{
+			name:    "inherits without detection config",
+			sandbox: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			safe:    &SafeOutputsConfig{},
+			want:    "/tmp/agent-ca.pem",
+		},
+		{
+			name:    "detection override",
+			sandbox: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			safe:    &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{CACert: "/tmp/detection-ca.pem"}},
+			want:    "/tmp/detection-ca.pem",
+		},
+		{
+			name:    "explicitly disables inheritance",
+			sandbox: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			safe:    &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{DisableCACert: true}},
+		},
+		{
+			name:            "different detection engine does not inherit",
+			sandbox:         &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			safe:            &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{EngineConfig: &EngineConfig{ID: "copilot"}}},
+			detectionEngine: "copilot",
+		},
+		{
+			name: "detection certificate without agent sandbox",
+			safe: &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{CACert: "/tmp/detection-ca.pem"}},
+			want: "/tmp/detection-ca.pem",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{AI: "claude", SandboxConfig: tt.sandbox, SafeOutputs: tt.safe}
+			originalCACert := extractAPIProxyCACert(data)
+			detectionData := buildThreatDetectionWorkflowData(data, tt.detectionEngine)
+			engineName := tt.detectionEngine
+			if engineName == "" {
+				engineName = "claude"
+			}
+			if got := detectionData.SandboxConfig.Agent.CACert; got != tt.want {
+				t.Fatalf("detection CA certificate = %q, want %q", got, tt.want)
+			}
+			configJSON, err := BuildAWFConfigJSON(AWFCommandConfig{
+				EngineName:   engineName,
+				WorkflowData: detectionData,
+			})
+			if err != nil {
+				t.Fatalf("BuildAWFConfigJSON() error = %v", err)
+			}
+			var config struct {
+				APIProxy struct {
+					CACert string `json:"caCert"`
+				} `json:"apiProxy"`
+			}
+			if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
+				t.Fatalf("unmarshal AWF config: %v", err)
+			}
+			if config.APIProxy.CACert != tt.want {
+				t.Errorf("apiProxy.caCert = %q, want %q", config.APIProxy.CACert, tt.want)
+			}
+			if tt.want == "" && strings.Contains(configJSON, `"caCert"`) {
+				t.Error("apiProxy.caCert must be omitted when not configured")
+			}
+			detectionData.SandboxConfig.Agent.CACert = "/tmp/changed.pem"
+			if extractAPIProxyCACert(data) != originalCACert {
+				t.Error("detection sandbox must not mutate the agent sandbox")
+			}
+		})
+	}
+}
+
+func TestDetectionExecutionStepsCACert(t *testing.T) {
+	compiler := NewCompiler()
+	for _, engine := range []string{"claude", "codex", "copilot"} {
+		for _, override := range []string{"", "/tmp/detection-ca.pem"} {
+			data := &WorkflowData{
+				AI:            engine,
+				SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+				SafeOutputs:   &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{CACert: override}},
+			}
+			want := "/tmp/agent-ca.pem"
+			if override != "" {
+				want = override
+			}
+			for name, build := range map[string]func(*WorkflowData) []string{
+				"external": compiler.buildExternalDetectorExecutionStep,
+				"inline":   compiler.buildDetectionEngineExecutionStep,
+			} {
+				t.Run(engine+"/"+name+"/"+want, func(t *testing.T) {
+					steps := strings.ReplaceAll(strings.Join(build(data), ""), `\"`, `"`)
+					if !strings.Contains(steps, `"caCert":"`+want+`"`) {
+						t.Errorf("detection execution steps missing apiProxy.caCert %q", want)
+					}
+					if override != "" && strings.Contains(steps, "/tmp/agent-ca.pem") {
+						t.Error("detection execution steps must not use the overridden agent certificate")
+					}
+				})
+			}
+		}
+	}
+
+	t.Run("different detection engine does not inherit", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:            "claude",
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			SafeOutputs: &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			}},
+		}
+		for name, build := range map[string]func(*WorkflowData) []string{
+			"external": compiler.buildExternalDetectorExecutionStep,
+			"inline":   compiler.buildDetectionEngineExecutionStep,
+		} {
+			t.Run(name, func(t *testing.T) {
+				steps := strings.Join(build(data), "")
+				if strings.Contains(steps, `"caCert":`) || strings.Contains(steps, "/tmp/agent-ca.pem") {
+					t.Errorf("different-engine detection must not inherit the agent CA: %s", steps)
+				}
+			})
+		}
+	})
+
+	t.Run("public endpoint override can disable inherited CA", func(t *testing.T) {
+		data := &WorkflowData{
+			AI: "claude",
+			EngineConfig: &EngineConfig{
+				ID:        "claude",
+				APITarget: "private-upstream.example.com",
+			},
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{CACert: "/tmp/agent-ca.pem"}},
+			SafeOutputs: &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{
+				DisableCACert: true,
+				EngineConfig: &EngineConfig{
+					ID:        "claude",
+					APITarget: "public-upstream.example.com",
+				},
+			}},
+		}
+		for name, build := range map[string]func(*WorkflowData) []string{
+			"external": compiler.buildExternalDetectorExecutionStep,
+			"inline":   compiler.buildDetectionEngineExecutionStep,
+		} {
+			t.Run(name, func(t *testing.T) {
+				steps := strings.Join(build(data), "")
+				if strings.Contains(steps, `"caCert":`) || strings.Contains(steps, "/tmp/agent-ca.pem") {
+					t.Errorf("public-upstream detection must not inherit the agent CA: %s", steps)
+				}
+				if !strings.Contains(steps, "public-upstream.example.com") {
+					t.Errorf("expected detection to use its public endpoint override: %s", steps)
+				}
+			})
+		}
+	})
+}
+
 func TestBuildThreatDetectionWorkflowDataPropagatesImageOverrides(t *testing.T) {
 	images := map[string]string{
 		awfImageRoleSquid:    "mirror.example.com/awf/squid:v1@sha256:" + strings.Repeat("a", 64),

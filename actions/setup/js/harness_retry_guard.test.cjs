@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError, isAuthenticationFailedError, parseAICreditsExceededProxyRejection, parseAPIProxyGuardRejection } = require("./harness_retry_guard.cjs");
-const { parseModelEndpointMismatch, MODEL_ENDPOINT_MISMATCH_PATTERN } = require("./harness_error_patterns.cjs");
+const { parseModelEndpointMismatch, MODEL_ENDPOINT_MISMATCH_PATTERN, shouldSuppressGuardCategory } = require("./harness_error_patterns.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it.each([
@@ -71,6 +71,21 @@ describe("harness_retry_guard.cjs", () => {
     expect(parseAPIProxyGuardRejection('{"type":"model_policy_violation"}')?.guard).toBe("model_policy_violation");
   });
 
+  it("shares diagnostic-scoped model policy precedence without suppressing other guards", () => {
+    expect(shouldSuppressGuardCategory("model_policy_violation", "model_endpoint_incompatible")).toBe(true);
+    expect(shouldSuppressGuardCategory("model_policy_violation", "request rejected")).toBe(false);
+    expect(shouldSuppressGuardCategory("effective_tokens_limit_exceeded", "model_endpoint_incompatible")).toBe(false);
+  });
+
+  it.each(["error", "turn.failed", "session.error", "model_policy_violation"])("retains independent model policy rejection across %s transport records", type => {
+    const messages = ["model_policy_violation", "model_policy_violation: model_endpoint_incompatible"];
+    const records = messages.map(message => (type === "session.error" ? { type, data: { message } } : type === "turn.failed" ? { type, error: { message } } : { type, message }));
+    for (const ordered of [records, [...records].reverse()]) {
+      expect(parseAPIProxyGuardRejection(ordered.map(JSON.stringify).join("\n"))).toEqual({ guard: "model_policy_violation", counters: {} });
+    }
+    expect(parseAPIProxyGuardRejection(JSON.stringify(records[1]))).toBeNull();
+  });
+
   it.each(["400 Bad Request", "400 invalid input", "normal output", "", null, undefined])("does not detect unrelated output: %s", output => {
     expect(parseModelEndpointMismatch(output)).toBeNull();
     expect(detectNonRetryableHarnessGuard(output).modelEndpointMismatch).toBeNull();
@@ -95,11 +110,8 @@ describe("harness_retry_guard.cjs", () => {
 
   it("detects the AWF API proxy cache-miss guardrail in text form", () => {
     const output = "API Error: 403 Maximum consecutive cache misses exceeded (5 / 5).";
-    expect(parseAPIProxyGuardRejection(output)).toEqual({
-      guard: "max_cache_misses_exceeded",
-      counters: { consecutive_cache_misses: 5, max_cache_misses: 5 },
-    });
-    expect(detectNonRetryableHarnessGuard(output).apiProxyGuardRejection?.guard).toBe("max_cache_misses_exceeded");
+    expect(parseAPIProxyGuardRejection(output)).toBeNull();
+    expect(detectNonRetryableHarnessGuard(output).apiProxyGuardRejection).toBeNull();
   });
 
   it("detects the structured api-proxy guardrail error types", () => {
@@ -107,6 +119,62 @@ describe("harness_retry_guard.cjs", () => {
     expect(parseAPIProxyGuardRejection('{"type":"effective_tokens_limit_exceeded"}')?.guard).toBe("effective_tokens_limit_exceeded");
     expect(parseAPIProxyGuardRejection('{"type":"permission_denied_limit_exceeded"}')?.guard).toBe("permission_denied_limit_exceeded");
     expect(parseAPIProxyGuardRejection('{"type":"model_policy_violation"}')?.guard).toBe("model_policy_violation");
+  });
+
+  it.each([
+    { type: "turn.failed", error: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
+    { type: "session.error", data: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
+    { type: "assistant", is_api_error_message: true, message: { content: [{ type: "text", text: "403 Maximum consecutive cache misses exceeded (5 / 5)." }] } },
+    { type: "result", is_error: true, result: "API Error: 403 Maximum consecutive cache misses exceeded (5 / 5)." },
+    { type: "result", is_error: true, errors: ["API Error: 403 Maximum consecutive cache misses exceeded (5 / 5)."] },
+  ])("preserves transport guard diagnostics in native engine envelopes: %j", record => {
+    expect(parseAPIProxyGuardRejection(JSON.stringify(record))).toEqual({ guard: "max_cache_misses_exceeded", counters: { consecutive_cache_misses: 5, max_cache_misses: 5 } });
+  });
+
+  it("ignores successful Claude result diagnostics", () => {
+    expect(parseAPIProxyGuardRejection(JSON.stringify({ type: "result", is_error: false, result: "Maximum consecutive cache misses exceeded (5 / 5)." }))).toBeNull();
+  });
+
+  it.each(["max_cache_misses_exceeded", "effective_tokens_limit_exceeded", "permission_denied_limit_exceeded", "model_policy_violation"])("ignores quoted %s guard names in model and tool content", guard => {
+    const records = [
+      { type: "item.completed", item: { type: "command_execution", aggregated_output: `GH_AW_FAILURE_CATEGORIES: ${guard}` } },
+      { type: "item.completed", item: { type: "agent_message", text: `403 ${guard}` } },
+      { type: "assistant", message: { content: [{ type: "text", text: `403 ${guard}` }] } },
+      { type: "tool_result", content: `403 ${guard}` },
+      { type: "error", message: "connection reset", metadata: { quoted: guard } },
+      { type: "turn.failed", error: { message: "connection reset", metadata: { quoted: guard } } },
+      { type: "error", message: JSON.stringify({ message: "connection reset", metadata: { quoted: guard } }) },
+      { type: "result", is_error: true, result: "connection reset", permission_denials: [{ tool_input: { command: guard } }] },
+      { type: "assistant", is_api_error_message: true, error: "api_error", message: { content: [{ type: "tool_use", input: { command: guard } }] } },
+      { type: "turn_end", message: { errorMessage: "connection reset", content: [{ type: "text", text: guard }] } },
+    ];
+    for (const record of records) {
+      expect(parseAPIProxyGuardRejection(JSON.stringify(record))).toBeNull();
+    }
+    const error = { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)." } };
+    const output = [...records, error].map(JSON.stringify).join("\n");
+    expect(parseAPIProxyGuardRejection(output)).toBeNull();
+    expect(parseAICreditsExceededProxyRejection(output)).toEqual({ aiCredits: 1.028578, maxAICredits: 1 });
+  });
+
+  it("ignores plain-text and untyped JSON proxy guard claims", () => {
+    const message = "403 Maximum consecutive cache misses exceeded (5 / 5).";
+    expect(parseAPIProxyGuardRejection(message)).toBeNull();
+    expect(parseAPIProxyGuardRejection(JSON.stringify({ error: message }))).toBeNull();
+    expect(parseAPIProxyGuardRejection(JSON.stringify({ error: { message } }))).toBeNull();
+    expect(parseAPIProxyGuardRejection(JSON.stringify({ code: "max_cache_misses_exceeded" }))).toBeNull();
+    expect(parseAPIProxyGuardRejection(JSON.stringify({ is_api_error_message: true, message }))).toBeNull();
+  });
+
+  it("ignores a guard claim in a byte-truncated tool record beyond the 4 MiB collection limit", () => {
+    const outputLimit = 4 * 1024 * 1024;
+    const completeRecord = JSON.stringify({
+      type: "item.completed",
+      item: { type: "command_execution", aggregated_output: `${"x".repeat(outputLimit)}Maximum consecutive cache misses exceeded (5 / 5).` },
+    });
+    const collectedTail = Buffer.from(completeRecord).subarray(-outputLimit).toString("utf8");
+    expect(collectedTail.startsWith("{")).toBe(false);
+    expect(parseAPIProxyGuardRejection(collectedTail)).toBeNull();
   });
 
   it("does not report a proxy guardrail for a genuine credential failure", () => {
@@ -118,7 +186,6 @@ describe("harness_retry_guard.cjs", () => {
 
   it.each([
     { type: "unknown_model_ai_credits", model: "gpt-6.1-sol" },
-    { error: { type: "unknown_model_ai_credits" } },
     { type: "error", message: JSON.stringify({ type: "unknown_model_ai_credits", model: "gpt-6.1-sol" }) },
     { type: "turn.failed", error: { message: JSON.stringify({ type: "unknown_model_ai_credits", model: "gpt-6.1-sol" }) } },
     { type: "turn.failed", error: { message: JSON.stringify({ error: { code: "unknown_model_ai_credits" } }) } },
@@ -178,14 +245,19 @@ describe("harness_retry_guard.cjs", () => {
   });
 
   it("ignores a proxy 403 usage pair that has not reached the budget", () => {
-    expect(parseAICreditsExceededProxyRejection('{"error":"authentication_failed","message":"API Error: 403 Maximum AI credits exceeded (12 / 300)."}')).toBeNull();
+    expect(parseAICreditsExceededProxyRejection('{"type":"error","message":"API Error: 403 Maximum AI credits exceeded (12 / 300)."}')).toBeNull();
   });
 
   it("accepts a proxy 403 usage pair that exactly reaches the budget", () => {
-    expect(parseAICreditsExceededProxyRejection('{"error":"authentication_failed","message":"API Error: 403 Maximum AI credits exceeded (300 / 300)."}')).toEqual({
+    expect(parseAICreditsExceededProxyRejection('{"type":"error","message":"API Error: 403 Maximum AI credits exceeded (300 / 300)."}')).toEqual({
       aiCredits: 300,
       maxAICredits: 300,
     });
+  });
+
+  it("ignores untyped JSON credit rejection claims", () => {
+    expect(parseAICreditsExceededProxyRejection('{"error":"authentication_failed","message":"API Error: 403 Maximum AI credits exceeded (1.02 / 1)."}')).toBeNull();
+    expect(parseAICreditsExceededProxyRejection('{"is_api_error_message":true,"message":"API Error: 403 Maximum AI credits exceeded (1.02 / 1)."}')).toBeNull();
   });
 
   it("ignores the proxy 403 usage pair when it only appears in plain assistant text without an engine error marker", () => {
@@ -200,6 +272,15 @@ describe("harness_retry_guard.cjs", () => {
 
   it("ignores JSON lines without an engine error marker even when the usage pair is present", () => {
     expect(parseAICreditsExceededProxyRejection('{"type":"assistant","text":"API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}')).toBeNull();
+  });
+
+  it.each([
+    { type: "tool_result", error: "403 Maximum AI credits exceeded (1.02 / 1)." },
+    { type: "assistant", error: "403 Maximum AI credits exceeded (1.02 / 1)." },
+    { type: "error", message: "403 Forbidden", metadata: "403 Maximum AI credits exceeded (1.02 / 1)." },
+    { type: "turn.failed", error: { message: "403 Forbidden", metadata: "403 Maximum AI credits exceeded (1.02 / 1)." } },
+  ])("does not trust a credit rejection quoted outside the transport diagnostic: %j", record => {
+    expect(parseAICreditsExceededProxyRejection(JSON.stringify(record))).toBeNull();
   });
 
   it("detects AWF API proxy blocking request markers", () => {

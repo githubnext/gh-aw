@@ -52,7 +52,9 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            actions/setup/js
       - name: Download agent evidence
         uses: actions/download-artifact@v8.0.2
         with:
@@ -68,7 +70,8 @@ jobs:
 > `max-ai-credits: 1` is enforced by the AWF firewall and that the agent is
 > cut off when the per-run budget is exhausted. The `verify_credit_limit` job
 > passes only when the agent artifact contains the firewall's
-> `ai_credits_limit_exceeded` event for the configured cap of 1 AI credit.
+> `ai_credits_limit_exceeded` event or an engine-authenticated API error
+> recording the proxy's HTTP 403 credit rejection at the configured cap of 1.
 > Assistant text, a successful exit, `noop`, and credit totals alone are not
 > evidence that the firewall rejected a request.
 

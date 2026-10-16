@@ -13,6 +13,22 @@ The `gh aw compile` command transforms a markdown workflow file into a complete 
 
 When the workflow runs, the markdown body is loaded at runtime — you can edit instructions without recompilation. See [Editing Workflows](/gh-aw/guides/working-with-workflows/#editing-workflows) for details.
 
+## Repository Configuration (`aw.json`)
+
+`.github/workflows/aw.json` stores repository-wide compilation settings.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `lock_file_logo` | boolean | `true` | Include the ASCII logo in generated workflow headers, including companion workflows. Set to `false` to omit only the logo. |
+
+```json title=".github/workflows/aw.json"
+{
+  "lock_file_logo": false
+}
+```
+
+`gh aw compile --no-logo` disables the logo for a single invocation, even when `lock_file_logo` is `true`. Omitting the flag does not override `lock_file_logo: false`. Metadata, manifests, the “DO NOT EDIT” notice, and regeneration instructions are unchanged.
+
 ## Compilation Phases
 
 ### Phase 1: Parsing and Validation

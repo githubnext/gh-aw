@@ -24,6 +24,7 @@ permissions:
 
 engine:
   id: copilot
+  copilot-sdk: true
 strict: true
 timeout-minutes: 25
 

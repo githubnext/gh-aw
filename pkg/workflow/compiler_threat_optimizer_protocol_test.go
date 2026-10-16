@@ -69,7 +69,7 @@ func TestThreatSuppression_TCTR024_ReasonRequired(t *testing.T) {
 	var header strings.Builder
 	err = (&Compiler{}).generateWorkflowHeader(&header, &WorkflowData{
 		RawFrontmatter: missingReasonFrontmatter,
-	}, "", "", nil, nil)
+	}, "", "", nil, nil, nil)
 	require.ErrorContains(t, err, "reason must not be empty")
 }
 
@@ -81,7 +81,7 @@ func TestThreatSuppression_TCTR025_AuditFields(t *testing.T) {
 		ParsedFrontmatter: &FrontmatterConfig{
 			ThreatDetectionSuppressions: []ThreatDetectionSuppression{suppression},
 		},
-	}, "", "", nil, nil))
+	}, "", "", nil, nil, nil))
 	assert.Contains(t, header.String(), `"threat_detection_suppressions":[{"rule":"CTR-006","reason":"Reviewed safe","expires":"2000-01-01"}]`)
 }
 

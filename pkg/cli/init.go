@@ -36,6 +36,7 @@ type InitOptions struct {
 	Completions      bool
 	CreatePR         bool
 	AutoMerge        bool
+	PRMessage        string
 	RootCmd          CommandProvider
 }
 
@@ -215,10 +216,7 @@ func InitRepository(opts InitOptions) error {
 		initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
 		fmt.Fprintln(os.Stderr, "")
 
-		prBody := "This PR initializes the repository for agentic workflows by:\n" +
-			"- Configuring .gitattributes\n" +
-			"- Creating GitHub Copilot custom instructions\n" +
-			"- Setting up workflow prompts and skills"
+		prBody := buildInitPRBody(opts)
 		if _, err := createPRWithChanges(ctx, "init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose, opts.AutoMerge); err != nil {
 			return err
 		}

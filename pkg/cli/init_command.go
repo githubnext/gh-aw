@@ -136,6 +136,7 @@ After running this command, you can:
 				Completions:      completions,
 				CreatePR:         createPR,
 				AutoMerge:        autoMerge,
+				PRMessage:        cmd.Flag("pr-message").Value.String(),
 				RootCmd:          cmd.Root(),
 			}
 			if err := InitRepository(opts); err != nil {
@@ -159,6 +160,7 @@ After running this command, you can:
 	cmd.Flags().Lookup("codespaces").NoOptDefVal = " "
 	cmd.Flags().Bool("completions", false, "Install shell completion for the detected shell (bash, zsh, fish, or PowerShell)")
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the initialization changes")
+	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output

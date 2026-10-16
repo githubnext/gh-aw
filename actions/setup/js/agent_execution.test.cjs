@@ -116,6 +116,108 @@ describe("unique agent execution observation", () => {
     expect(collectAgentExecution({ content }).data.categories).toContain(category);
   });
 
+  it.each(["max_cache_misses_exceeded", "effective_tokens_limit_exceeded", "permission_denied_limit_exceeded", "model_policy_violation"])("observes %s only in attributed diagnostics", category => {
+    for (const content of [
+      `${category}=true`,
+      `[copilot-harness] ${category}`,
+      `Assistant:\nDiscussing guardrails\n[claude-harness] ${category}`,
+      JSON.stringify({ type: "session.error", data: { message: category } }),
+      JSON.stringify({ type: "turn.failed", error: { message: category } }),
+    ]) {
+      expect(collectAgentExecution({ content }).data.categories).toEqual([category]);
+      expect(agentErrorSummaryText(content)).toContain(`(${category})`);
+    }
+    for (const content of [
+      `The agent discussed ${category} in its answer.`,
+      `Assistant:\n${category}`,
+      `Tool output:\n${category}`,
+      `\`\`\`text\n${category}\n\`\`\``,
+      `[copilot-harness] outputTail="${category}"`,
+      `[claude-harness] spawning: echo ${category}`,
+      JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: category }] } }),
+      JSON.stringify({ type: "tool_result", content: category }),
+    ]) {
+      expect(collectAgentExecution({ content })).toBeUndefined();
+      expect(agentErrorSummaryText(content)).toBe("");
+    }
+    for (const type of ["assistant.message", "assistant.reasoning", "user.message", "tool.execution_complete", "tool.execution_update"]) {
+      const event = { type, data: { [type.startsWith("tool.") ? "output" : "content"]: category } };
+      expect(collectAgentExecution({ content: category, events: [event] })).toBeUndefined();
+      expect(collectAgentExecution({ content: JSON.stringify(event), events: [event] })).toBeUndefined();
+    }
+  });
+
+  it("retains all observed proxy guards across attempts without claiming final failure", () => {
+    const content = ["[copilot-harness] Maximum effective tokens exceeded (100 / 100)", "[copilot-harness] permission_denied_limit_exceeded", "[copilot-harness] model_policy_violation", "[copilot-harness] done: exitCode=0"].join("\n");
+    expect(collectAgentExecution({ content }).data).toEqual({
+      categories: ["effective_tokens_limit_exceeded", "model_policy_violation", "permission_denied_limit_exceeded"],
+      errorCodes: [],
+      errorTypes: [],
+      exitCode: 0,
+    });
+  });
+
+  it.each([
+    "[copilot-harness] model_policy_violation: model_endpoint_incompatible: model gpt-5 is not accessible via the responses endpoint",
+    JSON.stringify({ type: "session.error", data: { message: "model_policy_violation: model_endpoint_incompatible: model gpt-5 is not accessible via the responses endpoint" } }),
+    JSON.stringify({ type: "error", error: "model_policy_violation", message: "model_endpoint_incompatible" }),
+    JSON.stringify({ type: "turn.failed", error: { code: "model_policy_violation", message: "model_endpoint_incompatible" } }),
+  ])("does not classify endpoint incompatibility as a model policy violation: %s", content => {
+    expect(collectAgentExecution({ content, exitCode: 1 }).data.categories).not.toContain("model_policy_violation");
+    expect(agentErrorSummaryText(content)).not.toContain("(model_policy_violation)");
+  });
+
+  it("does not let quoted endpoint mismatch metadata suppress a genuine policy diagnostic", () => {
+    const content = JSON.stringify({ type: "error", code: "model_policy_violation", message: "policy rejected this model", metadata: { quoted: "model_endpoint_incompatible" } });
+    expect(collectAgentExecution({ content }).data.categories).toContain("model_policy_violation");
+  });
+
+  it.each(["plaintext", "native", "mixed", "canonical"])("preserves independent model policy errors beside endpoint mismatches in %s diagnostics", format => {
+    const messages = ["model_policy_violation", "model_endpoint_incompatible"];
+    const events = format === "canonical" ? messages.map(message => ({ type: "session.error", data: { message } })) : [];
+    const lines = messages.map((message, index) => (format === "native" || (format === "mixed" && index === 1) ? JSON.stringify({ type: "error", message }) : `[copilot-harness] ${message}`));
+    for (const ordered of [lines, [...lines].reverse()]) {
+      const content = format === "canonical" ? "" : ordered.join("\n");
+      const orderedEvents = ordered === lines ? events : [...events].reverse();
+      expect(collectAgentExecution({ content, events: orderedEvents, exitCode: 0 }).data.categories).toContain("model_policy_violation");
+      expect(collectAgentExecution({ content, events: orderedEvents, exitCode: 0 }).data.exitCode).toBe(0);
+      expect(agentErrorSummaryText(content, orderedEvents)).toContain("(model_policy_violation)");
+    }
+  });
+
+  it.each(["max_cache_misses_exceeded", "effective_tokens_limit_exceeded", "permission_denied_limit_exceeded", "model_policy_violation"])("ignores quoted %s inside valid native error records", guard => {
+    const records = [
+      { type: "error", message: "connection reset", metadata: { quoted: guard } },
+      { type: "turn.failed", error: { message: "connection reset", metadata: { quoted: guard } } },
+      { type: "error", message: JSON.stringify({ error: { message: "connection reset", metadata: { quoted: guard } } }) },
+      { type: "result", is_error: true, result: "connection reset", permission_denials: [{ tool_input: { command: guard } }] },
+      { type: "assistant", is_api_error_message: true, error: "api_error", message: { content: [{ type: "tool_use", input: { command: guard } }] } },
+      { type: "message_end", message: { role: "assistant", errorMessage: "connection reset", content: [{ type: "text", text: guard }] } },
+      { type: "turn_end", message: { role: "assistant", errorMessage: "connection reset", content: [{ type: "text", text: guard }] } },
+    ];
+    for (const record of records) {
+      for (const options of [{ content: JSON.stringify(record) }, { events: [record] }]) {
+        expect(collectAgentExecution({ ...options, exitCode: 0 }).data.categories).not.toContain(guard);
+        expect(agentErrorSummaryText(options.content ?? "", options.events ?? [])).not.toContain(`(${guard})`);
+      }
+    }
+  });
+
+  it.each([
+    { type: "error", code: "effective_tokens_limit_exceeded", message: "request rejected" },
+    { type: "turn.failed", error: { type: "effective_tokens_limit_exceeded" } },
+    { type: "assistant", is_api_error_message: true, message: { content: [{ type: "text", text: "effective_tokens_limit_exceeded" }] } },
+    { type: "result", is_error: true, result: "effective_tokens_limit_exceeded" },
+    { type: "result", is_error: true, errors: ["effective_tokens_limit_exceeded"] },
+    { type: "session.error", data: { error: { code: "effective_tokens_limit_exceeded" } } },
+    { type: "turn.failed", error: { message: JSON.stringify({ error: { type: "effective_tokens_limit_exceeded" } }) } },
+    { type: "session.result", data: { errors: [{ error: "api_error", message: { role: "assistant", content: [{ type: "text", text: "effective_tokens_limit_exceeded" }] } }] } },
+  ])("preserves selected native guard diagnostic fields: %j", record => {
+    const content = JSON.stringify(record);
+    expect(collectAgentExecution({ content, exitCode: 0 }).data.categories).toContain("effective_tokens_limit_exceeded");
+    expect(agentErrorSummaryText(content)).toContain("(effective_tokens_limit_exceeded)");
+  });
+
   it("does not turn a post-result watchdog kill into a timeout", () => {
     const content = "[copilot-harness] process closed exitCode=0 signal=SIGTERM watchdogFired=true\n[copilot-harness] done: exitCode=0\n";
     expect(collectAgentExecution({ content }).data).toEqual({ categories: [], errorCodes: [], errorTypes: [], exitCode: 0 });

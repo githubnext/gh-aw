@@ -36,6 +36,12 @@ func (c *Compiler) SetRequireSelfHostedRunners(require bool) {
 	c.requireSelfHosted = require
 }
 
+// SetLockFileLogo configures whether generated headers include the ASCII logo (enabled by default).
+// A repository-level lock_file_logo: false still disables the logo.
+func (c *Compiler) SetLockFileLogo(logo bool) {
+	c.noLogo = !logo
+}
+
 // SetQuiet configures whether to suppress success messages (for interactive mode)
 func (c *Compiler) SetQuiet(quiet bool) {
 	c.quiet = quiet

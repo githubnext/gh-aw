@@ -29,7 +29,7 @@ func collectDetectionPolicyForManifest(data *WorkflowData) *GHAWManifestDetectio
 // for description, source, imports/includes, frontmatter-hash, stop-time, and manual-approval.
 // All ANSI escape codes are stripped from the output.
 // The gh-aw-metadata line is placed first for easy machine parsing.
-func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string) error {
+func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowData, frontmatterHash string, bodyHash string, secrets []string, actions []string, repoConfig *RepoConfig) error {
 	// Skip the ASCII art banner in wasm/editor mode — it takes up too much space
 	if c.skipHeader {
 		return nil
@@ -38,7 +38,7 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 	if err := c.generateManifestHeader(yaml, data, secrets, actions); err != nil {
 		return err
 	}
-	generateDescriptiveHeader(yaml, data)
+	generateDescriptiveHeader(yaml, data, shouldIncludeLockFileLogo(repoConfig, c.noLogo))
 	generateSourceHeader(yaml, data)
 	generateConfigHeader(yaml, data, secrets, actions)
 	generateApprovalHeader(yaml, data)
@@ -112,13 +112,13 @@ func (c *Compiler) generateManifestHeader(yaml *strings.Builder, data *WorkflowD
 	return nil
 }
 
-func generateDescriptiveHeader(yaml *strings.Builder, data *WorkflowData) {
+func generateDescriptiveHeader(yaml *strings.Builder, data *WorkflowData, logo bool) {
 	// Add workflow header with logo and instructions
 	sourceFile := "the corresponding .md file"
 	if data.Source != "" {
 		sourceFile = data.Source
 	}
-	header := GenerateWorkflowHeader(sourceFile, "gh-aw", "")
+	header := GenerateWorkflowHeader(sourceFile, "gh-aw", "", logo)
 	yaml.WriteString(header)
 
 	// Add description comment if provided

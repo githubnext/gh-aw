@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -105,7 +106,7 @@ func TestConclusionJobPermissionsDerivedFromSafeOutputsIntegration(t *testing.T)
 			wantPullRequestsRead: true,
 		},
 		{
-			name: "detection reporting keeps issues write without actions read",
+			name: "detection reporting keeps issues write and session durations require actions read",
 			safeOutputsConfig: `
   report-failed-jobs: false
   report-failure-as-issue: false
@@ -115,7 +116,7 @@ func TestConclusionJobPermissionsDerivedFromSafeOutputsIntegration(t *testing.T)
   threat-detection: true
 `,
 			wantIssues:      "write",
-			wantActionsRead: false,
+			wantActionsRead: true,
 		},
 	}
 
@@ -163,6 +164,7 @@ Conclusion permissions integration fixture
 	require.NoError(t, os.WriteFile(workflowFile, []byte(workflowContent), 0644))
 
 	compiler := NewCompiler()
+	compiler.SetSkipValidation(false)
 	require.NoError(t, compiler.CompileWorkflow(workflowFile))
 
 	lockBytes, err := os.ReadFile(lockFile)
@@ -176,6 +178,12 @@ Conclusion permissions integration fixture
 
 	conclusion, ok := jobs["conclusion"].(map[string]any)
 	require.True(t, ok, "expected conclusion job in compiled workflow")
+
+	env, ok := conclusion["env"].(map[string]any)
+	require.True(t, ok)
+	displayNames, ok := env["GH_AW_JOB_DISPLAY_NAMES"].(string)
+	require.True(t, ok, "job display-name inventory must be a JSON string, not a YAML mapping")
+	require.True(t, json.Valid([]byte(displayNames)))
 
 	perms, ok := conclusion["permissions"].(map[string]any)
 	require.True(t, ok, "expected conclusion permissions to be a map")

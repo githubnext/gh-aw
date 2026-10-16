@@ -26,6 +26,17 @@ const readWorkflow = name => {
 };
 
 describe("workflow native MCP permission alignment", () => {
+  it.each([
+    ["audit-workflows", "audit-history"],
+    ["copilot-centralization-optimizer", "centralization"],
+  ])("%s keeps table upsert instructions aligned with the ledger protocol", (name, ledger) => {
+    const { workflow, prompt } = readWorkflow(name);
+    expect(workflow.tools.ledger[ledger]).toMatchObject({ type: "table", key: "run_id" });
+    expect(prompt).toContain("current run ID as a string in `run_id`");
+    expect(prompt).toContain("The table primary key is `value.run_id`; do not send a top-level `key` for `upsert`.");
+    expect(prompt).not.toMatch(/(?:run ID|`run_id`) as `key`/);
+  });
+
   it("round-trips documented multiline CLI examples without helper commands", () => {
     const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(safeoutputs:*)"] }, () => ({ kind: "approve-once" }));
     const expected = { item_number: 42, body: '### Result\n\nIt\'s ready.\nQuoted text: "hello".\nLiteral path: C:\\temp\\file.txt' };
@@ -138,7 +149,9 @@ describe("workflow native MCP permission alignment", () => {
       const gateway = resolve(directory, "gateway.json");
       const toolsOutput = resolve(directory, "tools.json");
       const configPath = resolve(directory, "config.json");
+      const githubEnv = resolve(directory, "github_env");
       writeFileSync(configPath, steps.find(step => step.env?.GH_AW_SAFE_OUTPUTS_CONFIG).env.GH_AW_SAFE_OUTPUTS_CONFIG);
+      writeFileSync(githubEnv, "");
       const registryResult = spawnSync(process.execPath, [resolve(import.meta.dirname, "generate_safe_outputs_tools.cjs")], {
         env: {
           PATH: process.env.PATH,
@@ -175,6 +188,10 @@ describe("workflow native MCP permission alignment", () => {
           MCP_GATEWAY_DOMAIN: "fixture.invalid",
           MCP_GATEWAY_PORT: "80",
           GH_AW_MCP_CLI_SERVERS: "[]",
+          GITHUB_ENV: githubEnv,
+          GITHUB_RUN_ID: "1",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_JOB: "test",
         },
         encoding: "utf8",
         timeout: 10000,

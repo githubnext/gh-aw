@@ -16,6 +16,7 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.53 | Audit-only clarification that same-repository bot checkout on `pull_request` and `pull_request_target` `ready_for_review` and `reopened` events is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | 1.0.52 | Audit-only clarification of the safe-output patch/bundle runtime integrity boundary (PTI-001–007 and bounded TLA+ evidence), plus CTR-033 / T-CTR-048 for explicit `checkout.multi: true`, single-repository expression validation in agent and safe-output jobs, mode-preserving merges, and bounded TLA+ negative controls and reachability witnesses. No new generated-workflow compatibility change beyond CTR-033. |
 | 1.0.51 | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode; in non-strict mode, the dangerous feature flag suppresses only the roles warning. |
 | 1.0.50 | Extended CTR-032 with creating-run traceability for every issue comment, PR description, and PR review comment from first publication. Specified HTML execution markers except percent-encoded Markdown anchor markers for review comments and replies, independent of visible footers, with forged-marker and destination API filtering coverage required. |
@@ -47,6 +48,19 @@ This changelog records the version history and the dated mapping audits for `spe
 | 1.0.7–1.0.0 | Established CTR-001–015, conformance model, and daily reconciliation. |
 
 ## Mapping Audits
+
+### Mapping Audit (2026-10-16)
+
+Reviewed the same-repository bot checkout exception for `pull_request` and
+`pull_request_target` `ready_for_review` and `reopened` events in
+`actions/setup/js/checkout_pr_branch.cjs`, the regression tests, RS-05a, and the
+bounded checkout authorization model.
+
+The bot exception still requires a Bot sender whose login exactly matches the
+runtime actor and positive runtime, PR-head, and PR-base repository IDs that all
+match. Forks, unsupported actions, inconsistent provenance, and non-bot actors
+retain the collaborator permission floor. This is a runtime trust clarification,
+not a compiler-generated construct or a new `CTR-*` rule.
 
 ### Mapping Audit (2026-10-14)
 
