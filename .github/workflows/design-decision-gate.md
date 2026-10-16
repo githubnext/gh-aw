@@ -81,20 +81,35 @@ steps:
     run: |
       set -euo pipefail
 
+      mkdir -p /tmp/gh-aw/agent
+      SKIP_REASON=""
       if [ "$EXPR_GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ -z "${PR_NUMBER:-}" ]; then
-        echo "::notice::workflow_dispatch did not include inputs.pr_number; skipping ADR gate."
-        mkdir -p /tmp/gh-aw/agent
+        SKIP_REASON="workflow_dispatch did not include inputs.pr_number"
         printf '{"number":null,"title":"No pull request provided","body":"","labels":[],"baseRefName":"","headRefName":"","author":null,"url":""}\n' \
           > /tmp/gh-aw/agent/pr.json
+      else
+        gh pr view "$PR_NUMBER" \
+          --repo "$EXPR_GITHUB_REPOSITORY" \
+          --json number,title,body,labels,baseRefName,headRefName,author,url,state \
+          > /tmp/gh-aw/agent/pr.json
+        PR_STATE=$(jq -r '.state' /tmp/gh-aw/agent/pr.json)
+        if [ "$PR_STATE" = "CLOSED" ] || [ "$PR_STATE" = "MERGED" ]; then
+          SKIP_REASON="Pull request #$PR_NUMBER is $PR_STATE; ADR enforcement applies only to open pull requests"
+        fi
+      fi
+
+      if [ -n "$SKIP_REASON" ]; then
+        echo "::notice::$SKIP_REASON; skipping ADR gate."
         printf '[]\n' > /tmp/gh-aw/agent/pr-files.json
-        printf '# ADR gate skipped: workflow_dispatch did not include inputs.pr_number.\n' \
+        printf '# ADR gate skipped: %s.\n' "$SKIP_REASON" \
           > /tmp/gh-aw/agent/pr.diff
-        printf 'No .design-gate.yml read because workflow_dispatch did not include inputs.pr_number.\n' \
+        printf 'No .design-gate.yml read because ADR gate was skipped: %s.\n' "$SKIP_REASON" \
           > /tmp/gh-aw/agent/design-gate-config.yml
         jq -n \
-          --arg skip_reason "workflow_dispatch did not include inputs.pr_number" \
+          --arg skip_reason "$SKIP_REASON" \
+          --arg pr_number "${PR_NUMBER:-}" \
           '{
-            pr_number: null,
+            pr_number: (if $pr_number == "" then null else ($pr_number | tonumber) end),
             threshold: 100,
             has_custom_config: false,
             has_implementation_label: false,
@@ -106,13 +121,6 @@ steps:
           }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
         exit 0
       fi
-
-      mkdir -p /tmp/gh-aw/agent
-
-      gh pr view "$PR_NUMBER" \
-        --repo "$EXPR_GITHUB_REPOSITORY" \
-        --json number,title,body,labels,baseRefName,headRefName,author,url \
-        > /tmp/gh-aw/agent/pr.json
 
       gh api --paginate "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" \
         --jq '.[]' | jq -s '.' > /tmp/gh-aw/agent/pr-files.json
@@ -197,7 +205,7 @@ Stop at the first step where you have sufficient information to emit a safe outp
 
 Stop and emit a safe output **immediately** when any of the following is true:
 
-- **Skipped prefetch**: `adr-prefetch-summary.json` contains `skip_reason` → call `noop` with that reason and **stop**.
+- **Skipped prefetch**: `adr-prefetch-summary.json` contains `skip_reason` (including a PR that has already closed or merged) → call `noop` with that reason and **stop**. Do not generate an ADR or attempt to push to a closed PR's branch.
 - **Noop exit**: `has_implementation_label` is `false` AND `requires_adr_by_default_volume` is `false` → call `noop` and **stop**.
 - **ADR found, no divergence**: ADR contains all four required sections and the diff does not contradict the decision → call `add-comment` (approved) and **stop**.
 - **ADR found, divergence**: Divergences identified → call `add-comment` (divergence list) and **stop**.
