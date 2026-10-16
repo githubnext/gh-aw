@@ -3,6 +3,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
 const { createCopilotSDKWebFetchTool } = require("./copilot_sdk_web_fetch.cjs");
 const { parseMaxToolCalls } = require("./copilot_sdk_tool_budget.cjs");
 
@@ -201,41 +202,48 @@ function parseCopilotSDKToolConfig(value) {
 
 /**
  * SDK sessions need explicit server registration; allowing MCP tools does not
- * load the CLI's gateway configuration into the session.
+ * load the CLI's gateway configuration into the session. Only use the separate
+ * converter-owned catalog, never the user-managed GH_AW_MCP_CONFIG CLI catalog.
  *
  * @param {CopilotSDKToolConfig} config
  * @param {string | undefined} [configPath]
  * @returns {Record<string, import("@github/copilot-sdk").MCPServerConfig>}
  */
-function loadCopilotSDKMCPServers(config, configPath = process.env.GH_AW_MCP_CONFIG) {
+function loadCopilotSDKMCPServers(config, configPath) {
   if (!config.capabilities.mcp) return {};
-  if (!configPath) throw new Error("GH_AW_MCP_CONFIG is required when SDK MCP tools are enabled");
+  configPath ??= resolveCopilotSDKMCPConfigPath();
+  if (!configPath) throw new Error("Copilot SDK MCP configuration path is required when SDK MCP tools are enabled");
 
   let source;
   try {
     source = fs.readFileSync(configPath, "utf8");
   } catch {
-    throw new Error("Cannot read GH_AW_MCP_CONFIG");
+    throw new Error("Cannot read generated Copilot SDK MCP configuration");
   }
   let parsed;
   try {
     parsed = JSON.parse(source);
   } catch {
-    throw new Error("GH_AW_MCP_CONFIG must be valid JSON");
+    throw new Error("Copilot SDK MCP configuration must be valid JSON");
   }
   if (!isRecord(parsed) || !isRecord(parsed.mcpServers)) {
-    throw new Error("GH_AW_MCP_CONFIG must contain an mcpServers object");
+    throw new Error("Copilot SDK MCP configuration must contain an mcpServers object");
   }
 
   /** @type {Record<string, import("@github/copilot-sdk").MCPServerConfig>} */
   const servers = {};
   for (const [name, entry] of Object.entries(parsed.mcpServers)) {
     if (!isRecord(entry) || (entry.type !== "http" && entry.type !== "sse") || typeof entry.url !== "string") {
-      throw new Error("GH_AW_MCP_CONFIG servers must use the generated HTTP gateway configuration");
+      throw new Error("Copilot SDK MCP configuration servers must use the generated HTTP gateway configuration");
     }
     /** @type {import("@github/copilot-sdk").MCPHTTPServerConfig} */
     const server = { type: entry.type === "http" ? "http" : "sse", url: entry.url };
-    if (entry.tools !== undefined) server.tools = parseStringArray(entry.tools, "MCP server tools");
+    if (entry.tools !== undefined) {
+      if (!Array.isArray(entry.tools) || entry.tools.some(tool => typeof tool !== "string" || tool.trim() === "")) {
+        throw new Error("MCP server tools must be an array of non-empty strings");
+      }
+      server.tools = [...new Set(entry.tools.map(tool => tool.trim()))];
+    }
     if (entry.timeout !== undefined) {
       if (typeof entry.timeout !== "number" || !Number.isFinite(entry.timeout) || entry.timeout <= 0) {
         throw new Error("MCP server timeout must be a positive number");

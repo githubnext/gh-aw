@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import http from "node:http";
 import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as stageAssets } from "./nvx_assets.cjs";
+import { resolveCopilotSDKMCPConfigPath } from "./copilot_sdk_mcp_config_path.cjs";
 
 describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {
   /** @type {string} */
@@ -31,6 +32,7 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     state = path.join(temp, "state");
     for (const dir of [workspace, path.join(hostRoot, "actions"), path.join(state, "aw-prompts")]) fs.mkdirSync(dir, { recursive: true });
     fs.copyFileSync(path.join(import.meta.dirname, "nvx_assets.cjs"), path.join(hostRoot, "actions", "nvx_assets.cjs"));
+    fs.copyFileSync(path.join(import.meta.dirname, "copilot_sdk_mcp_config_path.cjs"), path.join(hostRoot, "actions", "copilot_sdk_mcp_config_path.cjs"));
     fs.writeFileSync(path.join(state, "aw-prompts", "prompt.txt"), "fixture prompt");
     fs.writeFileSync(path.join(hostRoot, "provider-token"), "must not be exported");
     fs.writeFileSync(path.join(state, "gateway-secret"), "must not be exported");
@@ -75,6 +77,25 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     expect(guestEnv.GH_AW_MCP_CONFIG).toBe(path.join(root, "gh-aw", "mcp-config", "config.toml"));
     expect(fs.readFileSync(guestEnv.GH_AW_MCP_CONFIG || "", "utf8")).toContain("[mcp_servers.fixture]");
     expect(fs.existsSync(path.join(root, "gh-aw", "mcp-config", "provider-token"))).toBe(false);
+  });
+
+  it("stages the converter-owned SDK catalog at its derived guest path without copying ambient CLI or gateway files", () => {
+    const sdkPath = resolveCopilotSDKMCPConfigPath(environment.RUNNER_TEMP);
+    fs.mkdirSync(path.dirname(sdkPath), { recursive: true });
+    fs.writeFileSync(sdkPath, '{"mcpServers":{"safeoutputs":{"type":"http","url":"http://gateway:80/mcp/safeoutputs"}}}');
+    fs.writeFileSync(path.join(path.dirname(sdkPath), "gateway-output.json"), "must not be exported");
+    const cliPath = path.join(temp, "ambient-cli.json");
+    fs.writeFileSync(cliPath, "must not be exported");
+    environment.GH_AW_MCP_CONFIG = cliPath;
+
+    stage(environment, state);
+    const root = path.join(workspace, ".gh-aw-nvx");
+    const guestEnv = guestEnvironment({ ...environment, GH_AW_NVX_HOST_ROOT: hostRoot }, root);
+    const guestPath = resolveCopilotSDKMCPConfigPath(guestEnv.RUNNER_TEMP);
+    expect(guestPath).toBe(path.join(root, "gh-aw", "mcp-config", "copilot-sdk.json"));
+    expect(fs.readFileSync(guestPath, "utf8")).toBe(fs.readFileSync(sdkPath, "utf8"));
+    expect(fs.existsSync(path.join(root, "gh-aw", "mcp-config", "gateway-output.json"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "gh-aw", "mcp-config", "ambient-cli.json"))).toBe(false);
   });
 
   it("rejects a redirected native MCP config directory", () => {

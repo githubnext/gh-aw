@@ -1,13 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
 const { parseCopilotSDKToolConfig, buildCopilotSDKSessionToolConfig, loadCopilotSDKMCPServers, isReservedSDKPermission } = require("./copilot_sdk_tool_config.cjs");
 const { filterAndTransformServers } = require("./convert_gateway_config_shared.cjs");
-const { transformCopilotEntry } = require("./convert_gateway_config_copilot.cjs");
+const { transformCopilotEntry, main: convertCopilotGatewayConfig } = require("./convert_gateway_config_copilot.cjs");
+const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
 const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
 const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.cjs");
 
@@ -93,6 +93,8 @@ describe("parseCopilotSDKToolConfig", () => {
     ["missing capability", JSON.stringify({ ...validToolConfig(), capabilities: { bash: false } }), "capabilities.edit"],
     ["malformed workflow capability", JSON.stringify(validToolConfig({ capabilities: { dynamicWorkflows: "true" } })), "capabilities.dynamicWorkflows"],
     ["duplicate permission", JSON.stringify(validToolConfig({ permissions: { allowedTools: ["read", "read"] } })), "duplicate"],
+    ["duplicate trimmed permission", JSON.stringify(validToolConfig({ permissions: { allowedTools: ["read", " read "] } })), "duplicate"],
+    ["duplicate disabled tool", JSON.stringify(validToolConfig({ explicitlyDisabledTools: ["bash", " bash "] })), "duplicate"],
     ["empty permissions", JSON.stringify(validToolConfig({ permissions: { allowedTools: [] } })), "must not be empty"],
     ["zero tool-call limit", JSON.stringify({ ...validToolConfig(), maxToolCalls: 0 }), "positive safe integer"],
     ["malformed tool-call limit", JSON.stringify({ ...validToolConfig(), maxToolCalls: "1.5" }), "positive safe integer"],
@@ -155,8 +157,10 @@ describe("isReservedSDKPermission", () => {
 });
 
 describe("loadCopilotSDKMCPServers", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   const withConfig = (value, run) => {
-    const dir = mkdtempSync(join(tmpdir(), "sdk-mcp-config-"));
+    const dir = mkdtempSync(join(process.cwd(), ".sdk-mcp-config-"));
     const file = join(dir, "mcp-config.json");
     try {
       writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value));
@@ -176,7 +180,7 @@ describe("loadCopilotSDKMCPServers", () => {
     withConfig({ mcpServers }, file => {
       vi.stubEnv("GH_AW_MCP_CONFIG", file);
       try {
-        expect(loadCopilotSDKMCPServers(validToolConfig())).toEqual({
+        expect(loadCopilotSDKMCPServers(validToolConfig(), file)).toEqual({
           safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop", "report_incomplete"], timeout: 30000, headers: { Authorization: "test-only" } },
           mcpscripts: { type: "http", url: "http://awmg-mcpg:8080/mcp/mcpscripts", tools: ["*"] },
         });
@@ -190,13 +194,86 @@ describe("loadCopilotSDKMCPServers", () => {
     expect(loadCopilotSDKMCPServers(validToolConfig({ capabilities: { mcp: false } }), "/missing/config.json")).toEqual({});
   });
 
+  it.each(["http", "sse"])("trims and deduplicates %s gateway tool names in first-seen order", type => {
+    const url = "http://awmg-mcpg:8080/mcp/github";
+    withConfig({ mcpServers: { github: { type, url, tools: ["issue_read", "issue_read", " issue_write ", " issue_read ", "issue_write"] } } }, file => {
+      expect(loadCopilotSDKMCPServers(validToolConfig(), file)).toEqual({
+        github: { type, url, tools: ["issue_read", "issue_write"] },
+      });
+    });
+  });
+
+  it.each([
+    ["wildcard", [" * ", "*"], ["*"]],
+    ["empty allowlist", [], []],
+  ])("preserves the %s gateway tool list", (_name, tools, expected) => {
+    const url = "http://awmg-mcpg:8080/mcp/github";
+    withConfig({ mcpServers: { github: { type: "http", url, tools } } }, file => {
+      expect(loadCopilotSDKMCPServers(validToolConfig(), file).github.tools).toEqual(expected);
+    });
+  });
+
+  it.each([null, {}, ["issue_read", 1], ["issue_read", null], ["issue_read", ""], ["issue_read", " \t "]])("rejects malformed gateway tools %j", tools => {
+    withConfig({ mcpServers: { github: { type: "http", url: "http://awmg-mcpg:8080/mcp/github", tools } } }, file => {
+      expect(() => loadCopilotSDKMCPServers(validToolConfig(), file)).toThrow("MCP server tools must be an array of non-empty strings");
+    });
+  });
+
   it("preserves an empty catalog when all servers are CLI-mounted", () => {
     withConfig({ mcpServers: {} }, file => expect(loadCopilotSDKMCPServers(validToolConfig(), file)).toEqual({}));
   });
 
+  it("loads only the freshly converted SDK catalog even when ambient CLI entries have trusted server names", () => {
+    withConfig(
+      {
+        mcpServers: {
+          safeoutputs: { type: "http", url: "http://localhost:80/mcp/safeoutputs", tools: ["noop"], toolTimeout: 30, headers: { Authorization: "test-only" } },
+          github: { type: "http", url: "http://localhost:80/mcp/github" },
+        },
+      },
+      file => {
+        const root = join(file, "..");
+        vi.stubEnv("RUNNER_TEMP", join(root, "runtime"));
+        vi.stubEnv("HOME", join(root, "home"));
+        vi.stubEnv("MCP_GATEWAY_OUTPUT", file);
+        vi.stubEnv("MCP_GATEWAY_DOMAIN", "awmg-mcpg");
+        vi.stubEnv("MCP_GATEWAY_PORT", "8080");
+        vi.stubEnv("GH_AW_MCP_CLI_SERVERS", '["github"]');
+        const sdkPath = resolveCopilotSDKMCPConfigPath();
+        mkdirSync(join(sdkPath, ".."), { recursive: true });
+        writeFileSync(sdkPath, JSON.stringify({ mcpServers: { stale: { type: "http", url: "https://unexpected.example/stale" } } }));
+
+        const converted = convertCopilotGatewayConfig();
+        const cliPath = join(process.env.HOME, ".copilot", "mcp-config.json");
+        expect(readFileSync(cliPath, "utf8")).toBe(converted);
+        expect(readFileSync(sdkPath, "utf8")).toBe(converted);
+        expect(statSync(sdkPath).mode & 0o777).toBe(0o600);
+        const ambient = {
+          mcpServers: {
+            safeoutputs: { type: "http", url: "https://unexpected.example/mcp/safeoutputs" },
+            github: { type: "http", url: "https://unexpected.example/mcp/github" },
+          },
+        };
+        writeFileSync(cliPath, JSON.stringify(ambient));
+        vi.stubEnv("GH_AW_MCP_CONFIG", cliPath);
+        expect(loadCopilotSDKMCPServers(validToolConfig())).toEqual({
+          safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop"], timeout: 30000, headers: { Authorization: "test-only" } },
+        });
+        rmSync(sdkPath);
+        expect(() => loadCopilotSDKMCPServers(validToolConfig())).toThrow("Cannot read generated Copilot SDK MCP configuration");
+      }
+    );
+  });
+
+  it("requires the existing per-run directory rather than falling back to an ambient CLI catalog", () => {
+    vi.stubEnv("RUNNER_TEMP", "");
+    expect(() => loadCopilotSDKMCPServers(validToolConfig())).toThrow("RUNNER_TEMP is required");
+    expect(loadCopilotSDKMCPServers(validToolConfig({ capabilities: { mcp: false } }))).toEqual({});
+  });
+
   it("fails before inference when an enabled MCP configuration is missing or unreadable", () => {
-    expect(() => loadCopilotSDKMCPServers(validToolConfig(), "")).toThrow("GH_AW_MCP_CONFIG is required");
-    expect(() => loadCopilotSDKMCPServers(validToolConfig(), "/missing/config.json")).toThrow("Cannot read GH_AW_MCP_CONFIG");
+    expect(() => loadCopilotSDKMCPServers(validToolConfig(), "")).toThrow("configuration path is required");
+    expect(() => loadCopilotSDKMCPServers(validToolConfig(), "/missing/config.json")).toThrow("Cannot read generated Copilot SDK MCP configuration");
   });
 
   it.each([
@@ -205,9 +282,9 @@ describe("loadCopilotSDKMCPServers", () => {
     ["array catalog", { mcpServers: [] }, "mcpServers object"],
     ["local process", { mcpServers: { unsafe: { type: "stdio", command: "unexpected" } } }, "generated HTTP gateway"],
     ["invalid entry", { mcpServers: { unsafe: null } }, "generated HTTP gateway"],
-    ["invalid tools", { mcpServers: { safeoutputs: { type: "http", url: "http://gateway", tools: "noop" } } }, "array of non-empty strings"],
-    ["invalid headers", { mcpServers: { safeoutputs: { type: "http", url: "http://gateway", headers: { Authorization: 123 } } } }, "object of strings"],
-    ["invalid timeout", { mcpServers: { safeoutputs: { type: "http", url: "http://gateway", timeout: 0 } } }, "positive number"],
+    ["invalid tools", { mcpServers: { safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: "noop" } } }, "array of non-empty strings"],
+    ["invalid headers", { mcpServers: { safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", headers: { Authorization: 123 } } } }, "object of strings"],
+    ["invalid timeout", { mcpServers: { safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", timeout: 0 } } }, "positive number"],
   ])("rejects %s without disclosing the configuration", (_name, value, message) => {
     withConfig(value, file => {
       expect(() => loadCopilotSDKMCPServers(validToolConfig(), file)).toThrow(message);
