@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { execFileSync } from "node:child_process";
-import { parseJsonlContent, iterateLines, readLines, streamLines, iterateJsonl, readJsonlFile, streamJsonl, iterateJsonlEvents, readJsonlFileEvents, streamJsonlEvents } from "./jsonl_helpers.cjs";
+import { parseJsonlContent, iterateLines, readLines, streamLines, iterateJsonl, readJsonlFile, streamJsonl, iterateJsonlEvents, readJsonlFileEvents, streamJsonlEvents, JsonlParser } from "./jsonl_helpers.cjs";
 import { ReadBuffer } from "./read_buffer.cjs";
 
 async function collect(source) {
@@ -14,6 +14,78 @@ async function collect(source) {
 }
 
 describe("jsonl_helpers", () => {
+  describe("incremental parser", () => {
+    it("retains UTF-8, framing, and physical line state across pushes", () => {
+      const parser = new JsonlParser();
+      const text = '{"text":"你好 🚀"}\r\nnoise\n{"bad":}\n\nfalse\n{"last":1}';
+      const events = [];
+      for (const byte of Buffer.from(text)) events.push(...parser.push(Buffer.from([byte])));
+      events.push(...parser.finish());
+      expect(events).toEqual([...iterateJsonlEvents(text)]);
+      expect(events.map(event => event.rawLine).join("")).toBe(text);
+      expect(events.map(event => event.lineNumber)).toEqual([1, 2, 3, 4, 5, 6]);
+      expect([...parser.finish()]).toEqual([]);
+    });
+
+    it("does not decode unconsumed records in a chunk", () => {
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        const parser = new JsonlParser();
+        const events = parser.push('{"first":1}\n{"second":2}\n');
+        expect(parse).not.toHaveBeenCalled();
+        expect(events.next().value.value).toEqual({ first: 1 });
+        expect(parse).toHaveBeenCalledTimes(1);
+        events.return();
+        expect(parse).toHaveBeenCalledTimes(1);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
+    it("filters and transforms once per record without changing raw text", async () => {
+      const raw = '  skip {"ignore":1}\r\n  log {"ok":2} \r\n  log {"bad":} \n';
+      const filter = vi.fn(line => !line.startsWith("skip"));
+      const transform = vi.fn(line => line.slice(line.indexOf("{")));
+      const events = [...iterateJsonlEvents(raw, { lineFilter: filter, lineTransform: transform })];
+      expect(events.map(event => [event.type, event.lineNumber, event.rawLine])).toEqual([
+        ["json", 2, '  log {"ok":2} \r\n'],
+        ["invalid", 3, '  log {"bad":} \n'],
+      ]);
+      expect(events[0].value).toEqual({ ok: 2 });
+      expect(filter).toHaveBeenNthCalledWith(1, 'skip {"ignore":1}', 1);
+      expect(transform.mock.calls).toEqual([
+        ['log {"ok":2}', 2],
+        ['log {"bad":}', 3],
+      ]);
+      expect(await collect(streamJsonlEvents([raw], { lineFilter: filter, lineTransform: transform }))).toEqual(events);
+      expect(() => [
+        ...iterateJsonl(raw, {
+          lineTransform: () => {
+            throw new Error("transform failed");
+          },
+        }),
+      ]).toThrow("transform failed");
+    });
+
+    it("keeps JSON-RPC parsing lazy across queued appends and recovers after corruption", () => {
+      const reader = new ReadBuffer();
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        reader.append(Buffer.from('{"id":1}\n{"bad":}\n{"id":'));
+        reader.append(Buffer.from("2}\n"));
+        expect(parse).not.toHaveBeenCalled();
+        expect(reader.readMessage()).toEqual({ id: 1 });
+        expect(parse).toHaveBeenCalledTimes(1);
+        expect(() => reader.readMessage()).toThrow("Invalid JSONL record");
+        expect(reader.readMessage()).toEqual({ id: 2 });
+        expect(reader.readMessage()).toBeNull();
+        expect(parse).toHaveBeenCalledTimes(3);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+  });
+
   describe("parseJsonlContent", () => {
     it("returns parsed JSON entries and skips malformed lines", () => {
       const parsed = parseJsonlContent(['{"event":"token_steering"}', "not-json", "", "   ", '{"event":"request"}'].join("\n"));

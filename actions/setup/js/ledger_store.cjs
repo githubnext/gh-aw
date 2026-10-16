@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl, iterateJsonlEvents, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -334,13 +334,12 @@ class Ledger {
     }
     if (!content.endsWith("\n")) throw new TypeError("Ledger segment has an incomplete record");
     const records = [];
-    for (const line of iterateLines(content.slice(0, -1))) {
-      let record;
-      try {
-        record = iterateJsonl([line], { strict: true }).next().value;
-      } catch {
+    for (const event of iterateJsonlEvents(content)) {
+      const line = event.rawLine.slice(0, -1);
+      if (event.type === "invalid") {
         throw new TypeError("Ledger segment contains an invalid record");
       }
+      const record = event.value;
       if (!recordShape(record) || line !== canonicalJSON(record) || sha256(Object.fromEntries(Object.entries(record).filter(([key]) => key !== "sha"))) !== record.sha || (this.validate && !this.validate(record.payload))) {
         throw new TypeError("Ledger segment contains an invalid record");
       }

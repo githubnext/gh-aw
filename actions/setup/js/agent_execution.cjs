@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { detectErrors, buildOutputLines, isCAPIServerError } = require("./agent_error_patterns.cjs");
 const { API_PROXY_GUARD_REJECTION_PATTERNS, detectNonRetryableHarnessGuard, isAuthenticationFailedError, selectNativeErrorDiagnostic, shouldSuppressGuardCategory } = require("./harness_error_patterns.cjs");
 const { crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
@@ -152,8 +152,8 @@ function collectAgentErrorEvidence(content, events = [], rawSourceEngine) {
   }
   let transcriptBlock = false;
   let fencedBlock = false;
-  for (const raw of iterateLines(content)) {
-    const line = raw.trim();
+  for (const entry of iterateJsonlEvents(content)) {
+    const line = entry.rawLine.trim();
     if (!line) continue;
     if (/^```/.test(line)) {
       fencedBlock = !fencedBlock;
@@ -165,10 +165,7 @@ function collectAgentErrorEvidence(content, events = [], rawSourceEngine) {
       continue;
     }
     if (conversationLines.has(conversationKey(line))) continue;
-    let record;
-    try {
-      record = iterateJsonl([line], { strict: true }).next().value;
-    } catch {
+    if (entry.type === "invalid") {
       const runtimeLine = /^\[(?:(?:copilot|claude|codex)-harness|copilot-sdk-driver|sdk-driver|gh-aw\/pi-provider|ERROR)\]/.test(line) || /^\d{4}-\d{2}-\d{2}T\S+\s+ERROR\s+/.test(line);
       if (runtimeLine) transcriptBlock = false;
       if (!transcriptBlock && isAgentDiagnosticLine(line)) {
@@ -178,6 +175,7 @@ function collectAgentErrorEvidence(content, events = [], rawSourceEngine) {
       }
       continue;
     }
+    const record = entry.value;
     if (!transcriptBlock) {
       const evidence = (Array.isArray(record) ? record : [record]).flatMap(recordEvidence);
       if (evidence.length && Array.isArray(record) && conversationDocuments.has(conversationDocumentKey(record))) continue;

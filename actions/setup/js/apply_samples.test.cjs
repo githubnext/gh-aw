@@ -233,10 +233,8 @@ describe("apply_samples.cjs", () => {
 describe("apply_samples.cjs sendJsonRpc", () => {
   const { sendJsonRpc } = require("./apply_samples.cjs");
 
-  async function* fromLines(lines) {
-    for (const line of lines) {
-      yield line;
-    }
+  function fromLines(lines) {
+    return require("./jsonl_helpers.cjs").streamJsonlEvents(lines.map(line => line + "\n"));
   }
 
   it("skips non-JSON stdout lines until a JSON-RPC response arrives", async () => {

@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { iterateJsonl, LineFramer } = require("./jsonl_helpers.cjs");
+const { JsonlParser } = require("./jsonl_helpers.cjs");
 const { spawn, spawnSync } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -104,7 +104,7 @@ const main = async () => {
     await new Promise(
       /** @param {(value?: void) => void} resolve */ (resolve, reject) => {
         const child = spawn(binary, args, { cwd: env.GH_AW_ENGINE_CWD || workspace, env, detached: true, stdio: ["pipe", "pipe", "pipe"] });
-        const framer = new LineFramer();
+        const parser = new JsonlParser();
         let stderrTail = "",
           result,
           invalid = false,
@@ -154,12 +154,15 @@ const main = async () => {
           timedOut = true;
           terminate("SIGTERM");
         }, 305000);
-        const line = value => {
-          if (!value.trim()) return;
-          let event;
-          try {
-            event = iterateJsonl([value], { strict: true }).next().value;
-          } catch {
+        const consume = entry => {
+          if (entry.type === "invalid") {
+            if (entry.reason === "blank") return;
+            invalid = true;
+            terminate("SIGTERM");
+            return;
+          }
+          const event = entry.value;
+          if (!event || typeof event !== "object" || Array.isArray(event)) {
             invalid = true;
             terminate("SIGTERM");
             return;
@@ -175,7 +178,7 @@ const main = async () => {
         };
         child.stdout.setEncoding("utf8").on("data", chunk => {
           process.stdout.write(chunk);
-          for (const value of framer.push(chunk)) line(value);
+          for (const event of parser.push(chunk)) consume(event);
         });
         child.stderr.setEncoding("utf8").on("data", chunk => {
           stderrTail = (stderrTail + chunk).slice(-4096);
@@ -206,7 +209,7 @@ const main = async () => {
           if (settled) return;
           settled = true;
           cleanup();
-          for (const value of framer.finish()) line(value);
+          for (const event of parser.finish()) consume(event);
           const inferred =
             Number.isSafeInteger(result?.num_turns) &&
             result.num_turns > 0 &&

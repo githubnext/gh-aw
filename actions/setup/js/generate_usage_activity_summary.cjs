@@ -451,20 +451,7 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
         const childSessions = new Map();
         const entries = [];
         const content = fs.readFileSync(eventsPath, "utf-8");
-        const lines = iterateLines(content);
-
-        for (const raw of lines) {
-          const line = raw.trim();
-          if (!line || !line.startsWith("{")) {
-            continue;
-          }
-
-          let entry;
-          try {
-            entry = iterateJsonl([line], { strict: true }).next().value;
-          } catch {
-            continue;
-          }
+        for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
           if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
 
           const eventType = String(entry.type || "")
@@ -765,13 +752,8 @@ function getRpcMessageType(entry) {
  * @param {string} content
  */
 function parseGatewayJSONL(activity, content) {
-  for (const raw of iterateLines(content)) {
-    const line = raw.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
+  for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
     try {
-      const entry = iterateJsonl([line], { strict: true }).next().value;
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -817,13 +799,8 @@ function parseGatewayJSONL(activity, content) {
  */
 function parseRPCMessagesJSONL(activity, content) {
   const pending = new Map();
-  for (const raw of iterateLines(content)) {
-    const line = raw.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
+  for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
     try {
-      const entry = iterateJsonl([line], { strict: true }).next().value;
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -1003,19 +980,7 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
   const items = [];
   let totalItems = 0;
 
-  for (const raw of iterateLines(content)) {
-    const line = raw.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
-
-    let entry;
-    try {
-      entry = iterateJsonl([line], { strict: true }).next().value;
-    } catch {
-      continue;
-    }
-
+  for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
     const itemType = String(entry.type || "").trim();
     if (!itemType) {
       continue;

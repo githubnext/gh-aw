@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -402,11 +402,11 @@ function findCopilotUsageCheckpoint(sessionStateDir = getGhAwPath("sandbox/agent
     } catch {
       continue;
     }
-    for (const line of iterateLines(content)) {
+    for (const entry of iterateJsonlEvents(content)) {
       sequence++;
-      if (!line.trim()) continue;
+      if (entry.type === "invalid") continue;
       try {
-        const event = iterateJsonl([line], { strict: true }).next().value;
+        const event = entry.value;
         if (event?.type !== "session.usage_checkpoint") continue;
         const totalNanoAiu = Number(event?.data?.totalNanoAiu);
         if (!Number.isFinite(totalNanoAiu) || totalNanoAiu < 0) continue;
@@ -423,6 +423,7 @@ function findCopilotUsageCheckpoint(sessionStateDir = getGhAwPath("sandbox/agent
         // Ignore malformed session events.
       }
     }
+    if (!content || content.endsWith("\n")) sequence++;
   }
   return latest;
 }

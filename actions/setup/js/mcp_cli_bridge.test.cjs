@@ -669,6 +669,21 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(process.exitCode).toBe(0);
   });
 
+  it("recovers adjacent SSE records after malformed data without treating framing as JSON", async () => {
+    const body = [
+      "event: message",
+      'data: {"broken":}',
+      'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"message":"working"}}',
+      ' data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ignored"}]}}',
+      'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"recovered"}]}}',
+      "data: [DONE]",
+    ].join("\r\n");
+    await formatResponse(body, "agenticworkflows");
+    expect(stderrChunks.join("")).toContain("working");
+    expect(stdoutChunks.join("")).toBe("recovered\n");
+    expect(process.exitCode).toBe(0);
+  });
+
   it("adds a non-retry hint for safeoutputs empty-argument rejections", async () => {
     await formatResponse(
       {

@@ -3,6 +3,7 @@ import { spawnSync as spawnProcessSync } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
+import os from "node:os";
 
 const require = createRequire(import.meta.url);
 const {
@@ -54,7 +55,7 @@ const {
 } = require("./codex_harness.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
-const agentTempDir = fs.mkdtempSync(path.join(process.cwd(), "codex-harness-tests-"));
+const agentTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-harness-tests-"));
 afterAll(() => fs.rmSync(agentTempDir, { recursive: true, force: true }));
 const preloadPath = path.join(agentTempDir, "isolated-audit.cjs");
 fs.writeFileSync(

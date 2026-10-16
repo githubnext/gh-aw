@@ -32,7 +32,7 @@
 
 "use strict";
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, JsonlParser } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { DEFAULT_MCP_CALL_WATCHDOG_MS, MCP_CALL_TRANSPORT_GRACE_MS } = require("./constants.cjs");
@@ -121,6 +121,7 @@ function resolveMCPServerToolTimeouts(config, runtimeToolTimeoutSeconds) {
 
 function createMCPCallWatchdog(timeoutMs, now = Date.now) {
   const pending = new Map();
+  const parser = new JsonlParser();
   function track(eventType, item) {
     if (item?.type !== "mcp_tool_call" || typeof item.id !== "string") return;
     if (eventType === "item.started") {
@@ -131,13 +132,14 @@ function createMCPCallWatchdog(timeoutMs, now = Date.now) {
   }
   return {
     observe(line) {
-      let event;
-      try {
-        event = iterateJsonl([line], { strict: true }).next().value;
-      } catch {
-        return;
+      let observed;
+      for (const entry of parser.push(line + "\n")) {
+        if (entry.type !== "json") continue;
+        const event = entry.value;
+        track(event?.type, event?.item);
+        observed = event;
       }
-      track(event?.type, event?.item);
+      return observed;
     },
     observePrefix(prefix) {
       const event = parseJsonPrefix(prefix);
@@ -1004,15 +1006,13 @@ async function main() {
         stdin: resumeArgs ? resumePrompt : promptInput.stdin,
         maxCollectedOutputBytes: 4 * 1024 * 1024,
         onStdoutLine: line => {
-          mcpWatchdog.observe(line);
-          try {
-            const event = iterateJsonl([line], { strict: true }).next().value;
-            if (event.type === "thread.started" && typeof event.thread_id === "string") lastThreadId = event.thread_id;
-            if (event.type === "turn.failed" || event.type === "error") {
-              terminalErrors.push(line);
-              if (terminalErrors.length > 8) terminalErrors.shift();
-            }
-          } catch {}
+          const event = mcpWatchdog.observe(line);
+          if (!event) return;
+          if (event.type === "thread.started" && typeof event.thread_id === "string") lastThreadId = event.thread_id;
+          if (event.type === "turn.failed" || event.type === "error") {
+            terminalErrors.push(line);
+            if (terminalErrors.length > 8) terminalErrors.shift();
+          }
         },
         onStdoutLinePrefix: prefix => mcpWatchdog.observePrefix(prefix),
         runtimeGuard: {

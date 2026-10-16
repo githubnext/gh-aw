@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl, iterateLines, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
@@ -183,9 +183,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   try {
     const auditPath = path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl");
     if (fs.lstatSync(auditPath).isFile()) {
-      for (const line of iterateLines(fs.readFileSync(auditPath, "utf8"))) {
+      for (const entry of iterateJsonl(fs.readFileSync(auditPath, "utf8"))) {
         try {
-          const entry = iterateJsonl([line], { strict: true }).next().value;
           if (["parse_args_error", "unrecognized_args"].includes(entry?.event)) {
             safeoutputsCliError = true;
             reason = "safeoutputs_cli_error";

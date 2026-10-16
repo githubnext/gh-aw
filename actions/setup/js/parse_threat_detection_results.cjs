@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * Parse Threat Detection Results
  *
@@ -166,8 +166,15 @@ function extractFromStreamJson(line) {
   // Assumes the first JSON object on the line is the event payload.
   const jsonStart = trimmed.indexOf("{");
   if (jsonStart === -1) return null;
-  const jsonText = trimmed.slice(jsonStart);
+  const event = iterateJsonlEvents(trimmed.slice(jsonStart)).next().value;
+  return event?.type === "json" ? extractFromStreamRecord(event.value) : null;
+}
 
+/**
+ * @param {any} obj Already decoded stream record.
+ * @returns {string|null}
+ */
+function extractFromStreamRecord(obj) {
   /**
    * @param {string} text
    * @returns {string|null}
@@ -197,7 +204,6 @@ function extractFromStreamJson(line) {
   }
 
   try {
-    const obj = iterateJsonl([jsonText], { strict: true }).next().value;
     // Only extract from the authoritative "result" summary, not "assistant" messages.
     // In stream-json mode, the same content appears in both; using only "result"
     // avoids double-counting.
@@ -293,11 +299,18 @@ function parseDetectionLog(content) {
 
   // Phase 1: Try stream-json extraction (from "type":"result" lines only)
   const streamMatches = [];
-  for (const line of lines) {
-    const extracted = extractFromStreamJson(line);
+  const assistantChunks = [];
+  for (const event of iterateJsonlEvents(content, {
+    lineFilter: line => line.includes("{"),
+    lineTransform: line => line.slice(line.indexOf("{")),
+  })) {
+    if (event.type === "invalid") continue;
+    const extracted = extractFromStreamRecord(event.value);
     if (extracted) {
       streamMatches.push(extracted);
     }
+    const obj = event.value;
+    if (event.rawLine.trim().startsWith("{") && obj.type === "message" && obj.role === "assistant" && typeof obj.content === "string") assistantChunks.push(obj.content);
   }
 
   // Phase 2: If no stream-json result field matches, try assistant stream chunk matching.
@@ -308,20 +321,6 @@ function parseDetectionLog(content) {
   // Reassemble assistant chunks and parse the first complete verdict object.
   const assistantMatches = [];
   if (streamMatches.length === 0) {
-    const assistantChunks = [];
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("{")) continue;
-      try {
-        const obj = iterateJsonl([trimmed], { strict: true }).next().value;
-        if (obj.type === "message" && obj.role === "assistant" && typeof obj.content === "string") {
-          assistantChunks.push(obj.content);
-        }
-      } catch {
-        // Not valid JSON — ignore
-      }
-    }
-
     if (assistantChunks.length > 0) {
       const combinedAssistantText = assistantChunks.join("");
       const prefixIdx = combinedAssistantText.indexOf(RESULT_PREFIX);

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { parseJsonlContent, iterateJsonl, iterateLines, readJsonlFile } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateLines, readJsonlFile } = require("./jsonl_helpers.cjs");
 const childProcess = require("child_process");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
@@ -2021,34 +2021,6 @@ function readAgentRuntimeMetrics(engineId = "") {
       if (PERMISSION_DENIED_RE.test(line)) {
         fallbackPermissionDeniedCount += 1;
       }
-      if (codexRecords) continue;
-
-      const jsonObjectStart = line.indexOf("{");
-      const jsonArrayStart = line.indexOf("[{");
-      let jsonStart = -1;
-      if (jsonObjectStart >= 0 && jsonArrayStart >= 0) {
-        jsonStart = Math.min(jsonObjectStart, jsonArrayStart);
-      } else if (jsonObjectStart >= 0) {
-        jsonStart = jsonObjectStart;
-      } else {
-        jsonStart = jsonArrayStart;
-      }
-      if (jsonStart < 0) {
-        continue;
-      }
-
-      try {
-        const parsed = iterateJsonl([line.slice(jsonStart)], { strict: true }).next().value;
-        if (Array.isArray(parsed)) {
-          for (const entry of parsed) {
-            applyRuntimeEntry(entry);
-          }
-          continue;
-        }
-        applyRuntimeEntry(parsed);
-      } catch {
-        // Ignore non-JSON and truncated log lines.
-      }
     }
     if (codexRecords) {
       for (const record of codexRecords) applyRuntimeEntry(record);
@@ -2056,6 +2028,15 @@ function readAgentRuntimeMetrics(engineId = "") {
       applyRuntimeEntry(projectSessionResult(session));
       const model = observedSessionModel(session);
       if (model) metrics.resolvedModel = model;
+    } else {
+      for (const parsed of iterateJsonl(content, {
+        lineTransform: line => {
+          const starts = [line.indexOf("{"), line.indexOf("[{")].filter(index => index >= 0);
+          return starts.length ? line.slice(Math.min(...starts)) : line;
+        },
+      })) {
+        for (const entry of Array.isArray(parsed) ? parsed : [parsed]) applyRuntimeEntry(entry);
+      }
     }
   } catch {
     return metrics;

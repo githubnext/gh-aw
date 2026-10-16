@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { findJSONLFiles, isDailyAICUsageJSONLFile, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
@@ -52,11 +52,8 @@ function readLedgerEntries({ repoMemoryDir, repository, workflowId, now = Date.n
     } catch {
       continue;
     }
-    for (const line of iterateLines(content)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
+    for (const entry of iterateJsonl(content)) {
       try {
-        const entry = iterateJsonl([trimmed], { strict: true }).next().value;
         if (!validEntry(entry, repository, workflowId, now)) continue;
         const prior = entriesByRun.get(entry.run_id);
         const entryTimestamp = Date.parse(entry.timestamp);

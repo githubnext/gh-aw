@@ -1,5 +1,6 @@
 // @ts-check
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 /**
  * mcp_cli_bridge.cjs
@@ -1502,19 +1503,11 @@ function extractJSONRPCMessages(responseBody) {
 
   /** @type {unknown[]} */
   const messages = [];
-  for (const line of trimmed.split(/\r?\n/)) {
-    if (!line.startsWith("data:")) {
-      continue;
-    }
-    const payload = line.slice(5).trim();
-    if (!payload || payload === "[DONE]") {
-      continue;
-    }
-    try {
-      messages.push(JSON.parse(payload));
-    } catch {
-      // Ignore non-JSON SSE data lines.
-    }
+  for (const event of iterateJsonlEvents(trimmed, {
+    lineFilter: line => line.startsWith("data:"),
+    lineTransform: line => line.slice(5),
+  })) {
+    if (event.type === "json" && event.rawLine.startsWith("data:")) messages.push(event.value);
   }
 
   return messages;

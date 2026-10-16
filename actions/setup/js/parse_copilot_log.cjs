@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /** @typedef {import("./types/agent_session").SessionEvent} SessionEvent */
 
 const { createEngineLogParser, generateConversationMarkdown, generateInformationSection, buildStepSummaryDetailsSection, formatInitializationSummary, formatToolUse, AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
@@ -278,7 +278,15 @@ function parseDebugLogFormat(logContent) {
     if (!duplicate && value.error !== undefined) entries.push(createSessionEvent(source, "session.result", { errors: [value.error] }));
   };
 
-  for (const line of iterateLines(logContent)) {
+  for (const entry of iterateJsonlEvents(logContent, {
+    lineTransform: line => {
+      const debug = line.match(/^(?:(\d{4}-\d{2}-\d{2}T\S+)\s+)?\[DEBUG\]\s+(?:\[rust:[^\]]+\]\s+)?(.*)$/);
+      const clean = debug ? debug[2] : line;
+      const marker = debug && clean.match(/^(data|Tools|Got model info):\s*(.*)$/);
+      return marker ? marker[2] : clean;
+    },
+  })) {
+    const line = entry.rawLine.replace(/\r?\n$|\r$/, "");
     const debug = line.match(/^(?:(\d{4}-\d{2}-\d{2}T\S+)\s+)?\[DEBUG\]\s+(?:\[rust:[^\]]+\]\s+)?(.*)$/);
     const clean = debug ? debug[2] : line;
     const response = clean.match(/^response \(Request-ID ([^)]+)\):/);
@@ -292,12 +300,7 @@ function parseDebugLogFormat(logContent) {
       block = { kind: marker[1], lines: [], timestamp: debug[1], requestId: marker[1] === "data" ? requestId : undefined };
       if (marker[1] === "data") requestId = undefined;
     }
-    let parsed;
-    try {
-      parsed = iterateJsonl([marker ? marker[2] : clean], { strict: true }).next().value;
-    } catch {
-      // Ignore this malformed framing line; independently valid adjacent records remain recoverable.
-    }
+    const parsed = entry.type === "json" ? entry.value : undefined;
     if (!marker && parsed && block?.kind !== "Tools" && normalizeAgentSession(Array.isArray(parsed) ? parsed : [parsed]).length) {
       entries.push(...(Array.isArray(parsed) ? parsed : [parsed]));
       block = undefined;

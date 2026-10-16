@@ -5,7 +5,8 @@ const { StringDecoder } = require("node:string_decoder");
 
 /**
  * @typedef {object} JsonlOptions
- * @property {(line: string, lineNumber: number) => boolean} [lineFilter] Runs before JSON.parse.
+ * @property {(line: string, lineNumber: number) => boolean} [lineFilter] Receives trimmed text before transformation and decoding.
+ * @property {(line: string, lineNumber: number) => string} [lineTransform] Transforms trimmed record text after filtering, retaining the original rawLine.
  * @property {(error: Error, lineNumber: number) => void} [onError] Reports rejected nonblank lines without exposing their contents.
  * @property {number} [maxLineLength] Optional limit in UTF-16 code units; unlimited by default.
  */
@@ -157,11 +158,12 @@ function invalidEvent(rawLine, lineNumber, reason, options) {
  * @returns {JsonlEvent|undefined}
  */
 function parseEvent(rawLine, lineNumber, options) {
-  const line = rawLine.trim();
+  let line = rawLine.trim();
   if (!line) {
     return invalidEvent(rawLine, lineNumber, "blank", options);
   }
   if (options.lineFilter && !options.lineFilter(line, lineNumber)) return;
+  if (options.lineTransform) line = options.lineTransform(line, lineNumber).trim();
   const length = rawLine.endsWith("\r\n") ? rawLine.length - 2 : rawLine.endsWith("\n") ? rawLine.length - 1 : rawLine.length;
   const tooLong = options.maxLineLength !== undefined && length > options.maxLineLength;
   if (!tooLong && isJsonCandidate(line)) {
@@ -173,6 +175,41 @@ function parseEvent(rawLine, lineNumber, options) {
     }
   }
   return invalidEvent(rawLine, lineNumber, tooLong ? "too-long" : "syntax", options);
+}
+
+/**
+ * Incremental JSONL event parser for callback-driven byte/text streams. Keep one
+ * instance per stream and consume each push iterator before the next one.
+ */
+class JsonlParser {
+  /** @param {JsonlOptions} [options] */
+  constructor(options = {}) {
+    validateOptions(options);
+    this.options = options;
+    this.framer = new LineFramer(true);
+    this.decoder = new StringDecoder("utf8");
+    this.lineNumber = 0;
+  }
+
+  /** @param {Iterable<string>} lines @returns {Generator<JsonlEvent>} */
+  *#events(lines) {
+    for (const line of lines) {
+      const event = parseEvent(line, ++this.lineNumber, this.options);
+      if (event) yield event;
+    }
+  }
+
+  /** @param {Buffer|string} chunk @returns {Generator<JsonlEvent>} */
+  *push(chunk) {
+    const text = typeof chunk === "string" ? this.decoder.end() + chunk : this.decoder.write(chunk);
+    yield* this.#events(this.framer.push(text));
+  }
+
+  /** @returns {Generator<JsonlEvent>} */
+  *finish() {
+    yield* this.#events(this.framer.push(this.decoder.end()));
+    yield* this.#events(this.framer.finish());
+  }
 }
 
 /**
@@ -211,12 +248,9 @@ function* readJsonlFileEvents(filePath, options = {}) {
  * @returns {AsyncGenerator<JsonlEvent>}
  */
 async function* streamJsonlEvents(source, options = {}) {
-  validateOptions(options);
-  let lineNumber = 0;
-  for await (const rawLine of streamLines(source, true)) {
-    const event = parseEvent(rawLine, ++lineNumber, options);
-    if (event) yield event;
-  }
+  const parser = new JsonlParser(options);
+  for await (const chunk of source) yield* parser.push(chunk);
+  yield* parser.finish();
 }
 
 /**
@@ -288,4 +322,5 @@ module.exports = {
   readJsonlFileEvents,
   streamJsonlEvents,
   LineFramer,
+  JsonlParser,
 };

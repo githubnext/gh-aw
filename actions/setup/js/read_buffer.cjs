@@ -1,8 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, LineFramer } = require("./jsonl_helpers.cjs");
-const { StringDecoder } = require("node:string_decoder");
+const { JsonlParser } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 
@@ -26,9 +25,8 @@ const { ERR_PARSE } = require("./error_codes.cjs");
  */
 class ReadBuffer {
   constructor() {
-    this._framer = new LineFramer();
-    this._decoder = new StringDecoder("utf8");
-    /** @type {string[]} */
+    this._parser = new JsonlParser();
+    /** @type {Generator<import("./jsonl_helpers.cjs").JsonlEvent>[]} */
     this._lines = [];
     this._offset = 0;
   }
@@ -38,9 +36,7 @@ class ReadBuffer {
    * @param {Buffer} chunk - Data chunk to append
    */
   append(chunk) {
-    for (const line of this._framer.push(this._decoder.write(chunk))) {
-      this._lines.push(line);
-    }
+    this._lines.push(this._parser.push(chunk));
   }
 
   /**
@@ -49,21 +45,25 @@ class ReadBuffer {
    */
   readMessage() {
     while (this._offset < this._lines.length) {
-      const line = this._lines[this._offset];
-      this._lines[this._offset++] = "";
-      if (this._offset === this._lines.length) {
-        this._lines = [];
-        this._offset = 0;
-      } else if (this._offset >= 1024 && this._offset * 2 >= this._lines.length) {
-        this._lines = this._lines.slice(this._offset);
-        this._offset = 0;
+      const next = this._lines[this._offset].next();
+      if (next.done) {
+        delete this._lines[this._offset++];
+        if (this._offset === this._lines.length) {
+          this._lines = [];
+          this._offset = 0;
+        } else if (this._offset >= 1024 && this._offset * 2 >= this._lines.length) {
+          this._lines = this._lines.slice(this._offset);
+          this._offset = 0;
+        }
+        continue;
       }
-      if (!line.trim()) continue;
-      try {
-        return iterateJsonl([line], { strict: true }).next().value;
-      } catch (error) {
+      const event = next.value;
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
+        const error = event.error;
         throw new Error(`${ERR_PARSE}: Parse error: ${getErrorMessage(error)}`, { cause: error });
       }
+      return event.value;
     }
     return null;
   }

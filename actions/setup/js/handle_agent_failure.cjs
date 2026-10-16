@@ -2816,21 +2816,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
     const seenProviders = new Set();
     const results = [];
 
-    for (const line of iterateLines(content)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed[0] !== "{") continue;
-
-      // Pass 2 — per-line regex pre-filter: skip lines that cannot have a 401/403 status.
-      // This avoids the JSON.parse overhead on the majority of non-auth-failure lines.
-      if (!/"status"\s*:\s*40[13]/.test(trimmed)) continue;
-
-      let entry;
-      try {
-        entry = iterateJsonl([trimmed], { strict: true }).next().value;
-      } catch {
-        continue;
-      }
-
+    for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") && /"status"\s*:\s*40[13]/.test(line) })) {
       const status = entry.status;
       if (status !== 401 && status !== 403) continue;
 

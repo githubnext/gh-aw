@@ -314,19 +314,10 @@ function extractAnswerByID(logContent, id) {
  */
 function extractAssistantTextFromJsonlLog(logContent) {
   const texts = [];
-  for (const line of iterateLines(logContent)) {
-    const trimmed = line.trim();
-    // Find the first '{' which starts the JSON object.  Some runner environments
-    // prefix log lines with a timestamp (e.g. "2026-07-16T07:21:45Z {...}");
-    // stripping that prefix lets us parse the JSON regardless.
-    const jsonStart = trimmed.indexOf("{");
-    if (jsonStart === -1) continue;
-    let obj;
-    try {
-      obj = iterateJsonl([trimmed.slice(jsonStart)], { strict: true }).next().value;
-    } catch {
-      continue;
-    }
+  for (const obj of iterateJsonl(logContent, {
+    lineFilter: line => line.includes("{"),
+    lineTransform: line => line.slice(line.indexOf("{")),
+  })) {
     // v3 schema: turn_end carries the complete assistant message.
     // Claude engine's native stream-json format also emits a top-level
     // "assistant" event with the same nested message.content array shape

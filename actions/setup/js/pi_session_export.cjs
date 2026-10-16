@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
@@ -10,14 +10,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 
 /** @param {string} stream @returns {string} */
 function sessionIDFromStream(stream) {
-  for (const line of iterateLines(stream)) {
-    if (!line.startsWith("{")) continue;
-    let record;
-    try {
-      record = iterateJsonl([line], { strict: true }).next().value;
-    } catch {
-      continue;
-    }
+  for (const record of iterateJsonl(stream, { lineFilter: line => line.startsWith("{") })) {
     if (record.type === "session" && typeof record.id === "string") return record.id;
   }
   throw new Error("Pi did not emit a session header; cannot export the session");

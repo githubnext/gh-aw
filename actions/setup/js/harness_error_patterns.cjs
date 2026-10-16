@@ -2,7 +2,7 @@
 
 "use strict";
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { BUILT_IN_PATTERNS } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues, redactMaskedValues } = require("./add_mask_redaction.cjs");
 
@@ -165,13 +165,7 @@ function parseAPIProxyGuardRejection(output) {
   const safeOutput = typeof output === "string" ? output : "";
   if (!safeOutput) return null;
   const diagnostics = [];
-  for (const line of iterateLines(safeOutput)) {
-    let record;
-    try {
-      record = iterateJsonl([line], { strict: true }).next().value;
-    } catch {
-      continue;
-    }
+  for (const record of iterateJsonl(safeOutput)) {
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
     const isApiErrorEnvelope = record.type === "assistant" && record.is_api_error_message === true;
     const isNativeTransportError = record.type === "error" || record.type === "turn.failed" || record.type === "session.error";

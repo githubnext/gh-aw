@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { iterateJsonl, LineFramer } = require("./jsonl_helpers.cjs");
+const { JsonlParser } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -82,7 +82,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         reject(new Error("Pi sub-agent requires piped input and output"));
         return;
       }
-      const framer = new LineFramer();
+      const parser = new JsonlParser();
       let stderr = "";
       let output = "";
       let failure = "";
@@ -94,15 +94,13 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
       };
       child.stdout.setEncoding("utf8");
       child.stderr.setEncoding("utf8");
-      const parseLine = line => {
-        if (!line.trim()) return;
-        let event;
-        try {
-          event = iterateJsonl([line], { strict: true }).next().value;
-        } catch {
+      const consume = entry => {
+        if (entry.type === "invalid") {
+          if (entry.reason === "blank") return;
           failure ||= "Pi sub-agent emitted an invalid JSON event";
           return;
         }
+        const event = entry.value;
         if (!event || typeof event !== "object" || Array.isArray(event)) {
           failure ||= "Pi sub-agent emitted an invalid JSON event";
           return;
@@ -121,7 +119,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         }
       };
       child.stdout.on("data", data => {
-        for (const line of framer.push(data)) parseLine(line);
+        for (const event of parser.push(data)) consume(event);
       });
       child.stderr.on("data", data => {
         stderr = (stderr + data.toString()).slice(-16384);
@@ -147,7 +145,7 @@ async function runPiSubagent(agent, task, ctx, signal, launch = spawn) {
         clearTimeout(timeout);
         clearTimeout(killTimer);
         signal?.removeEventListener("abort", abort);
-        for (const line of framer.finish()) parseLine(line);
+        for (const event of parser.finish()) consume(event);
         if (code !== 0 || terminationSignal || failure || !output.trim()) {
           const error = sanitizeProviderErrorMessage(failure || stderr || `Pi sub-agent exited ${code ?? terminationSignal} without an answer`);
           emitResult("failed", error);

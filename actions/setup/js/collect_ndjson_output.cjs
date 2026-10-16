@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { normalizeRuntimeMessage, readClaimScopeContext, currentClaimHandle, currentClaimAssignment } = require("./work_queue_claim_scope.cjs");
@@ -145,23 +145,17 @@ async function main() {
         normalizedItem,
       };
     }
-    function parseJsonWithRepair(jsonStr) {
+    function repairJsonRecord(jsonStr, originalError) {
       try {
-        const parsed = iterateJsonl([jsonStr], { strict: true }).next().value;
+        const repairedJson = repairJson(jsonStr);
+        const parsed = JSON.parse(repairedJson);
         // Sanitize the parsed object to prevent prototype pollution
         return sanitizePrototypePollution(parsed);
-      } catch (originalError) {
-        try {
-          const repairedJson = repairJson(jsonStr);
-          const parsed = JSON.parse(repairedJson);
-          // Sanitize the parsed object to prevent prototype pollution
-          return sanitizePrototypePollution(parsed);
-        } catch (repairError) {
-          core.info(`invalid input json: ${jsonStr}`);
-          const originalMsg = getErrorMessage(originalError);
-          const repairMsg = getErrorMessage(repairError);
-          throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
-        }
+      } catch (repairError) {
+        core.info(`invalid input json: ${jsonStr}`);
+        const originalMsg = getErrorMessage(originalError);
+        const repairMsg = getErrorMessage(repairError);
+        throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
       }
     }
     const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
@@ -229,14 +223,13 @@ async function main() {
     // Parse JSONL (JSON Lines) format: each line is a separate JSON object
     // CRITICAL: This expects one JSON object per line. If JSON is formatted with
     // indentation/pretty-printing, parsing will fail.
-    const lines = iterateLines(outputContent.trim());
+    const records = iterateJsonlEvents(outputContent.trim());
 
     const parsedItems = [];
     const errors = collectionErrors;
-    let i = -1;
-    for (const rawLine of lines) {
-      i++;
-      const line = rawLine.trim();
+    for (const record of records) {
+      const i = record.lineNumber - 1;
+      const line = record.rawLine.trim();
       if (line === "") continue;
       core.info(`[INGESTION] Processing line ${i + 1}: ${line.substring(0, 200)}...`);
       let item;
@@ -251,7 +244,7 @@ async function main() {
           });
       };
       try {
-        item = queueScope ? sanitizePrototypePollution(parseStrictJSON(line)) : parseJsonWithRepair(line);
+        item = queueScope ? sanitizePrototypePollution(parseStrictJSON(line)) : record.type === "json" ? sanitizePrototypePollution(record.value) : repairJsonRecord(line, record.error);
         if (item === undefined) {
           rejectItem(`Line ${i + 1}: Invalid JSON - JSON parsing failed`);
           continue;

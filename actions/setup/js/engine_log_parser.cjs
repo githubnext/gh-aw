@@ -1,5 +1,5 @@
 // @ts-check
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -182,24 +182,26 @@ function parseBehaviorLog(content, engine) {
     return { logEntries: normalizeEngineLogEntries(records, engine), mcpFailures: [], maxTurnsHit: false };
   }
   if (!parse) return undefined;
-  const lines = content.split("\n");
-  let terminalIndex = lines.length - 1;
-  while (terminalIndex >= 0 && !lines[terminalIndex].trim()) terminalIndex--;
+  const end = content.trimEnd().length;
+  const start = end ? content.lastIndexOf("\n", end - 1) + 1 : 0;
+  const lastLine = content.slice(start, end);
+  let source = content;
   let terminal;
-  if ((lines[terminalIndex] ?? "").trimStart().startsWith("{")) {
-    try {
-      const record = iterateJsonl([lines[terminalIndex] ?? ""], { strict: true }).next().value;
+  if (lastLine.trimStart().startsWith("{")) {
+    const entry = iterateJsonlEvents(lastLine).next().value;
+    if (entry.type === "json") {
+      const record = entry.value;
       if (record.type === "result" && (Object.hasOwn(record, "num_turns") || Object.hasOwn(record, "usage"))) {
         terminal = record;
-        lines.splice(terminalIndex);
+        source = content.slice(0, start).replace(/\n$/, "");
       }
-    } catch {
+    } else {
       const message = `${ERR_PARSE}: Malformed terminal JSON for ${engine}; retaining the original engine output`;
       if (global.core?.warning) global.core.warning(message);
       else console.error(message);
     }
   }
-  const parsed = parseDeclaredLog(lines.join("\n"), engine, parse);
+  const parsed = parseDeclaredLog(source, engine, parse);
   const events = parsed.logEntries;
   const logEntries = terminal
     ? [

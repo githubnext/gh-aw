@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -412,21 +412,13 @@ async function runLogParser(options) {
             if (parserName === "Codex") {
               alreadyHasResult = collectCodexJSONRecords(stdioContent).some(isUsableResult);
             } else {
-              for (const line of iterateLines(stdioContent)) {
-                const objectStart = line.indexOf("{");
-                const arrayStart = line.indexOf("[");
-                let start = -1;
-                if (objectStart >= 0 && arrayStart >= 0) {
-                  start = Math.min(objectStart, arrayStart);
-                } else if (objectStart >= 0) {
-                  start = objectStart;
-                } else {
-                  start = arrayStart;
-                }
-                if (start < 0) continue;
-                for (const parsed of iterateJsonl([line.slice(start)])) {
-                  alreadyHasResult = Array.isArray(parsed) ? parsed.some(isUsableResult) : isUsableResult(parsed);
-                }
+              for (const parsed of iterateJsonl(stdioContent, {
+                lineTransform: line => {
+                  const starts = [line.indexOf("{"), line.indexOf("[")].filter(index => index >= 0);
+                  return starts.length ? line.slice(Math.min(...starts)) : line;
+                },
+              })) {
+                alreadyHasResult = Array.isArray(parsed) ? parsed.some(isUsableResult) : isUsableResult(parsed);
                 if (alreadyHasResult) break;
               }
             }

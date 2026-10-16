@@ -1,6 +1,6 @@
 // @ts-check
 
-const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * daily_aic_cache_helpers.cjs
  *
@@ -100,16 +100,16 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
   const keptLines = [];
   let prunedCount = 0;
   let totalCount = 0;
-  for (const rawLine of iterateLines(content)) {
-    const line = rawLine.trim();
+  for (const event of iterateJsonlEvents(content)) {
+    const line = event.rawLine.trim();
     if (!line) continue;
     totalCount++;
     if (!line.startsWith("{")) {
       prunedCount++;
       continue;
     }
-    try {
-      const entry = iterateJsonl([line], { strict: true }).next().value;
+    if (event.type === "json") {
+      const entry = event.value;
       if (typeof entry?.timestamp === "string") {
         const ts = Date.parse(entry.timestamp);
         if (Number.isFinite(ts) && ts < cutoffMs) {
@@ -117,11 +117,8 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
           continue;
         }
       }
-      keptLines.push(line);
-    } catch {
-      // Preserve object-like lines that cannot be parsed (defensive: avoids data loss).
-      keptLines.push(line);
     }
+    keptLines.push(line);
   }
   return { keptLines, prunedCount, totalCount };
 }

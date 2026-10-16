@@ -97,11 +97,14 @@ are skipped; obviously non-JSON lines bypass `JSON.parse`. All JSON values are
 supported, including `null`, `false`, and `0`.
 
 `iterateJsonl(textOrLines, options)` handles existing text or complete-line iterables.
-All JSONL iterators accept `lineFilter(line, lineNumber)`, optional `maxLineLength`
+All JSONL iterators accept `lineFilter(line, lineNumber)`, `lineTransform(line, lineNumber)`, optional `maxLineLength`
 (UTF-16 code units, unlimited by default), and `onError(error, lineNumber)`.
 Errors have sanitized messages and physical, one-based line numbers. Filter,
 callback, and I/O failures propagate. The length limit rejects oversized records
 after framing; memory remains proportional to the largest line.
+The filter receives trimmed text before decoding. The transform runs afterward on
+trimmed text, allowing timestamp prefixes or keyed framing to be removed without
+changing the event's original `rawLine`.
 
 For redaction or diagnostics that must retain rejected input, use
 `iterateJsonlEvents(textOrLines)`, `readJsonlFileEvents(filePath)`, or
@@ -133,8 +136,25 @@ The event iterators support `break`, `return`, and explicit iterator `.return()`
 they do not decode later records, even in an already-read chunk. Async iterators
 also close their upstream source. Value-only iterators accept `{ strict: true }`
 to throw on any invalid record, including blank lines, instead of skipping it.
-Strict single-record protocols consume `iterateJsonl([line], { strict: true })`;
-there is no exported standalone record decoder.
+Create one iterator per input; do not restart a parser for each manually split line.
+There is no exported standalone record decoder.
+
+Callback-driven protocols use one persistent `JsonlParser` per stream:
+
+```javascript
+const { JsonlParser } = require("./jsonl_helpers.cjs");
+const parser = new JsonlParser();
+source.on("data", chunk => {
+  for (const event of parser.push(chunk)) consumeEvent(event);
+});
+source.on("end", () => {
+  for (const event of parser.finish()) consumeEvent(event);
+});
+```
+
+`push` and `finish` return lazy event iterators. Consume each iterator completely
+before feeding more input; stopping an iterator is appropriate only when abandoning
+that stream. Invalid protocol events can be rejected using `event.error`.
 Custom repair or framing formats can use `iterateLines(text)`, `readLines(filePath)`,
 `streamLines(chunks)`, or `LineFramer.push(chunk)` / `finish()` without duplicating
 line buffering. `parseJsonlContent` remains an eager compatibility wrapper for
