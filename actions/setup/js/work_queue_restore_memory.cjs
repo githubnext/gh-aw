@@ -2,6 +2,7 @@
 "use strict";
 
 const { parseStrictJSON } = require("./work_queue_codec.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { createHash } = require("node:crypto");
 
 const BASE = "46b68a61c366a01d86dc319b8e689d09a48bad04";
@@ -66,7 +67,12 @@ async function restoreESLintMemory(github) {
     if (hash !== entry.sha) throw new Error("Memory history bytes differ from their immutable native blob identity");
     const content = bytes.toString("utf8");
     if (!Buffer.from(content).equals(bytes)) throw new Error("Memory history must contain exact UTF-8 JSON");
-    for (const line of entry.path.endsWith(".jsonl") ? content.split("\n").filter(line => line.trim()) : [content]) parseStrictJSON(line);
+    if (entry.path.endsWith(".jsonl")) {
+      for (const event of iterateJsonlEvents(content)) {
+        if (event.type === "invalid" && event.reason === "blank") continue;
+        parseStrictJSON(event.rawLine);
+      }
+    } else parseStrictJSON(content);
     return { path: entry.path, blob: entry.sha, content };
   };
 

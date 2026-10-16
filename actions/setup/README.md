@@ -161,6 +161,13 @@ to throw on any invalid record, including blank lines, instead of skipping it.
 Create one iterator per input; do not restart a parser for each manually split line.
 There is no exported standalone record decoder.
 
+Ledger, work-queue, and repo-memory JSONL readers use these shared iterators.
+File-backed usage and audit ledgers stream directly from disk. Queue readers
+retain bounded buffers where transport-wide UTF-8 validation is required and
+apply `parseStrictJSON` to each original `rawLine`, preserving duplicate-key,
+numeric, Unicode, and resource checks. Shared framing does not make corrupted
+queue history skippable or replace canonical-byte and hash verification.
+
 Callback-driven protocols use one persistent `JsonlParser` per stream:
 
 ```javascript

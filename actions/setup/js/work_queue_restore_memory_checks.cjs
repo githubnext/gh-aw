@@ -135,6 +135,19 @@ function registerTests({ describe, it }) {
       assert.equal(f.calls.filter(name => name === "git.getBlob").length, 3);
     });
 
+    it("retains strict JSONL validation rather than skipping malformed restored memory records", async () => {
+      for (const invalid of ['{"partial":', '{"field":1,"field":2}', '{"field":1e0}', '{"field":"\\ud800"}', '\ufeff{"field":1}', '\u00a0{"field":1}']) {
+        const f = fixture();
+        f.legacy[1] = f.blob("history.jsonl", `{"run":1}\n${invalid}\n{"run":2}\n`);
+        await assert.rejects(restoreESLintMemory(f.github));
+      }
+      const f = fixture();
+      const content = '\n{"run":1}\r\n \t\n{"run":2}';
+      f.legacy[1] = f.blob("history.jsonl", content);
+      const restored = await restoreESLintMemory(f.github);
+      assert.equal(restored.legacy.files.find(file => file.path === "history.jsonl").content, content);
+    });
+
     it("retains the pinned original history when the legacy branch is absent and supports first-run snapshot absence", async () => {
       const f = fixture();
       f.state.missingLegacy = true;

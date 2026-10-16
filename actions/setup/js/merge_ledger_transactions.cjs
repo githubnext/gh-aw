@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
+const { readJsonlFileEvents } = require("./jsonl_helpers.cjs");
 /**
  * merge_ledger_transactions.cjs
  *
@@ -92,34 +92,32 @@ function readAuditEntries(logPath) {
     core.warning(`Ledger transaction log exceeds ${MAX_LOG_BYTES} bytes; skipping ledger audit merge`);
     return [];
   }
-  let content;
-  try {
-    content = fs.readFileSync(logPath, "utf8");
-  } catch (error) {
-    throw new Error(`${ERR_SYSTEM}: Failed to read ledger transaction log: ${getErrorMessage(error)}`, { cause: error });
-  }
   const entries = [];
   const seen = new Set();
   let dropped = 0;
-  for (const event of iterateJsonlEvents(content)) {
-    if (event.type === "invalid") {
-      if (event.reason === "blank") continue;
-      dropped++;
-      continue;
+  try {
+    for (const event of readJsonlFileEvents(logPath)) {
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
+        dropped++;
+        continue;
+      }
+      const normalized = normalizeEntry(event.value);
+      if (!normalized) {
+        dropped++;
+        continue;
+      }
+      const key = normalized.record.sha;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (entries.length >= MAX_ENTRIES) {
+        dropped++;
+        continue;
+      }
+      entries.push(normalized);
     }
-    const normalized = normalizeEntry(event.value);
-    if (!normalized) {
-      dropped++;
-      continue;
-    }
-    const key = normalized.record.sha;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    if (entries.length >= MAX_ENTRIES) {
-      dropped++;
-      continue;
-    }
-    entries.push(normalized);
+  } catch (error) {
+    throw new Error(`${ERR_SYSTEM}: Failed to read ledger transaction log: ${getErrorMessage(error)}`, { cause: error });
   }
   if (dropped > 0) {
     core.warning(`Dropped ${dropped} malformed or excess ledger audit entr${dropped === 1 ? "y" : "ies"}`);

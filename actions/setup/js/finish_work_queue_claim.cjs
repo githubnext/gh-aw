@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 // @safe-outputs-exempt SEC-005 — authorizeWorkerClaim enforces the authenticated profile.effect_scope allowlist for assertClaimAuthorized callers, rejecting foreign message and resource repositories with E004.
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("claims");
 
@@ -72,11 +73,12 @@ function readFinishIntent(filename = process.env.GH_AW_WORK_QUEUE_FINISH_INTENT 
   const intents = new Map();
   const errors = [];
   const lines = readIntentLines(filename);
-  for (const [index, line] of lines.entries()) {
-    if (!line.trim()) continue;
+  for (const event of iterateJsonlEvents(lines)) {
+    if (event.type === "invalid" && event.reason === "blank") continue;
+    const index = event.lineNumber - 1;
     let handle = null;
     try {
-      const intent = parseStrictJSON(line);
+      const intent = parseStrictJSON(event.rawLine);
       closed(intent, ["version", "intent_id", "kind", "parameters"], ["claim_handle"], "finish intent");
       if (intent.version !== 3 || intent.kind !== "finish" || typeof intent.intent_id !== "string" || !intent.intent_id) throw new Error("work_queue_finish_invalid");
       closed(intent.parameters, ["outcome"], ["keep_open"], "finish parameters");

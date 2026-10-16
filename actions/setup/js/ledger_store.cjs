@@ -420,7 +420,12 @@ class Ledger {
         if (!declarationStat.isFile() || declarationStat.isSymbolicLink()) continue;
         const content = fs.readFileSync(declarationFile, "utf8");
         if (!content.endsWith("\n") || content.indexOf("\n") !== content.length - 1) continue;
-        declaration = JSON.parse(content.slice(0, -1));
+        // Coverage framing permits JSON whitespace, not broader String.trim() whitespace.
+        if (!/^[ \t\r]*\{/.test(content) || !/\}[ \t\r]*\n$/.test(content)) continue;
+        for (const event of iterateJsonlEvents(content)) {
+          if (event.type !== "json") throw new TypeError("Invalid ledger coverage declaration");
+          declaration = event.value;
+        }
       } catch {
         continue;
       }
