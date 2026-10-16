@@ -124,6 +124,7 @@ type GenerateMaintenanceWorkflowOptions struct {
 	ActionTag        string
 	RepoConfig       *RepoConfig
 	RepoSlug         string
+	NoLogo           bool
 }
 
 const defaultNoOpIssueExpirationHours = 24 * 30
@@ -169,6 +170,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		}
 		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 			RepoConfig:      repoConfig,
+			NoLogo:          opts.NoLogo,
 			PinWarnings:     pinWarnings,
 			Context:         ctx,
 			WorkflowDir:     workflowDir,
@@ -235,6 +237,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 			workflowDataList: workflowDataList,
 			pinWarnings:      pinWarnings,
 			repoConfig:       repoConfig,
+			noLogo:           opts.NoLogo,
 			workflowDir:      workflowDir,
 			version:          version,
 			actionMode:       actionMode,
@@ -249,6 +252,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 		return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 			RepoConfig:      repoConfig,
+			NoLogo:          opts.NoLogo,
 			PinWarnings:     pinWarnings,
 			Context:         ctx,
 			WorkflowDir:     workflowDir,
@@ -332,6 +336,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		hasWorkQueue:        hasWorkQueue,
 		hasCacheMemory:      hasCacheMemory,
 		hasSteering:         hasSteering,
+		noLogo:              !shouldIncludeLockFileLogo(repoConfig, opts.NoLogo),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to finalize maintenance workflow YAML: %w", err)
@@ -365,6 +370,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 		workflowDataList: workflowDataList,
 		pinWarnings:      pinWarnings,
 		repoConfig:       repoConfig,
+		noLogo:           opts.NoLogo,
 		workflowDir:      workflowDir,
 		version:          version,
 		actionMode:       actionMode,
@@ -379,6 +385,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 	return GenerateAutoUpdateWorkflow(GenerateAutoUpdateWorkflowOptions{
 		RepoConfig:      repoConfig,
+		NoLogo:          opts.NoLogo,
 		PinWarnings:     pinWarnings,
 		Context:         ctx,
 		WorkflowDir:     workflowDir,

@@ -30,6 +30,7 @@ type AddInteractiveConfig struct {
 	StopAfter              string
 	SkipWorkflowRun        bool
 	AutoMerge              bool
+	PRMessage              string
 	CreatePR               bool   // Force pull request delivery instead of prompting.
 	SkipSecret             bool   // Skip the API secret prompt (useful when secret is set at org level)
 	RepoOverride           string // owner/repo format, if user provides it

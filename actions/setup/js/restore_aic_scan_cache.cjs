@@ -19,21 +19,25 @@ function isTrustedProducer(run, current, repository, defaultBranch) {
   );
 }
 
-async function listRequiredWorkflowRuns(owner, repo, current, repository, defaultBranch, budget) {
-  const runs = [];
+async function* listRequiredWorkflowRuns(owner, repo, current, repository, defaultBranch, budget) {
+  let candidates = 0;
   const created = `>=${new Date(Date.now() - SCAN_WINDOW_MS).toISOString()}`;
-  for (let page = 1; page <= MAX_RESTORE_PAGES && runs.length < MAX_RESTORE_RUNS; page++) {
+  for (let page = 1; page <= MAX_RESTORE_PAGES && candidates < MAX_RESTORE_RUNS; page++) {
     const response = await budget.request(() => github.rest.actions.listWorkflowRunsForRepo({ owner, repo, status: "completed", created, per_page: 100, page }), true, API_READ_OPERATIONS.REPOSITORY_HISTORY);
     const pageRuns = response.data.workflow_runs || [];
     const trustedRuns = pageRuns.filter(run => run.id !== context.runId && isTrustedProducer(run, current, repository, defaultBranch));
     core.info(`[daily-aic-cache] Evaluated repository history page: ${JSON.stringify({ page, listedRuns: pageRuns.length, trustedCandidates: trustedRuns.length })}`);
-    runs.push(...trustedRuns.slice(0, MAX_RESTORE_RUNS - runs.length));
+    // Inspect each page before spending quota on older history. A verified
+    // snapshot ends restoration; the guardrail still lists its complete window.
+    for (const run of trustedRuns.slice(0, MAX_RESTORE_RUNS - candidates)) {
+      candidates++;
+      yield run;
+    }
     if (pageRuns.length < 100) break;
   }
-  return runs;
 }
 
-async function listRecentWorkflowRuns(owner, repo, current, repository, defaultBranch, budget) {
+async function* listRecentWorkflowRuns(owner, repo, current, repository, defaultBranch, budget) {
   let response;
   core.info(`[daily-aic-cache] Querying workflow-specific run history: ${JSON.stringify({ workflowId: current.workflow_id })}`);
   try {
@@ -41,10 +45,11 @@ async function listRecentWorkflowRuns(owner, repo, current, repository, defaultB
   } catch (error) {
     if (error?.status !== 404 || isQuotaError(error) || safeResponseHeaders(error?.response?.headers)["retry-after"] != null) throw error;
     core.info("[daily-aic-cache] Workflow-specific history unavailable; searching repository history for required workflow runs.");
-    return listRequiredWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
+    yield* listRequiredWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
+    return;
   }
   core.info(`[daily-aic-cache] Workflow-specific run history returned candidates: ${JSON.stringify({ workflowId: current.workflow_id, runs: response.data.workflow_runs?.length ?? 0 })}`);
-  return response.data.workflow_runs;
+  yield* response.data.workflow_runs;
 }
 
 async function restoreWithBudget(cachePath, options, budget) {
@@ -55,13 +60,9 @@ async function restoreWithBudget(cachePath, options, budget) {
   const current = currentResponse.data;
   if (!Number.isSafeInteger(current?.workflow_id) || current.workflow_id <= 0) throw new Error("Cannot resolve workflow for daily AIC snapshot restore");
   const defaultBranch = context.payload.repository?.default_branch;
-  const runs = await listRecentWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
-  const auth = await github.auth({ type: "token" });
-  if (!auth || typeof auth !== "object" || !("token" in auth) || typeof auth.token !== "string" || !auth.token) {
-    throw new Error("No token available to restore daily AIC observations");
-  }
-  const token = auth.token;
-  for (const run of runs) {
+  const runs = listRecentWorkflowRuns(owner, repo, current, repository, defaultBranch, budget);
+  let token;
+  for await (const run of runs) {
     const isCurrentRun = run.id === context.runId;
     const trusted = isTrustedProducer(run, current, repository, defaultBranch);
     core.info(
@@ -77,6 +78,13 @@ async function restoreWithBudget(cachePath, options, budget) {
       })}`
     );
     if (isCurrentRun || !trusted) continue;
+    if (!token) {
+      const auth = await github.auth({ type: "token" });
+      if (!auth || typeof auth !== "object" || !("token" in auth) || typeof auth.token !== "string" || !auth.token) {
+        throw new Error("No token available to restore daily AIC observations");
+      }
+      token = auth.token;
+    }
     const response = await budget.request(() => github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: run.id, per_page: 100 }), true, API_READ_OPERATIONS.ARTIFACT_LIST);
     const artifact = response.data.artifacts.find(item => item.name === AIC_SCAN_CACHE_ARTIFACT_NAME && !item.expired);
     if (!artifact) {

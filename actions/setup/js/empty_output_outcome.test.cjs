@@ -5,7 +5,7 @@ import path from "path";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { buildEmptyOutputOutcome, buildCompletionEvidence } = require("./empty_output_outcome.cjs");
+const { buildEmptyOutputOutcome, buildCompletionEvidence, hasFailedFinalResult } = require("./empty_output_outcome.cjs");
 
 describe("empty output outcome", () => {
   let rootDir;
@@ -14,6 +14,7 @@ describe("empty output outcome", () => {
   beforeEach(() => {
     vi.stubEnv("GITHUB_RUN_ID", "38401428490");
     vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
+    vi.stubEnv("GH_AW_ENGINE_ID", undefined);
     rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "empty-output-outcome-"));
     vi.stubEnv("RUNNER_TEMP", rootDir);
     global.core = { info: vi.fn(), debug: vi.fn(), warning: vi.fn() };
@@ -39,6 +40,53 @@ describe("empty output outcome", () => {
     expect(details).toContain("inspect the agent artifact (agent-session.jsonl and agent-stdio.log)");
     expect(details).not.toContain("unknown (");
     expect(details).not.toContain("Retry attempts observed: 0");
+  });
+
+  it.each([
+    ["no result", "gemini", [], false],
+    ["a failed Gemini result", "gemini", [{ data: { errors: [{ status: "error" }] } }], true],
+    ["a failed Aider result", "aider", [{ data: { errors: [{ status: "error" }] } }], true],
+    ["an empty errors array", "gemini", [{ data: { errors: [] } }], false],
+    ["a recovered Pi result", "pi", [{ data: { errors: [{ status: "error" }] } }, { data: {} }], false],
+    ["a recovered OpenCode result", "opencode", [{ data: { errors: [{ status: "error" }] } }, { data: {} }], false],
+    ["a recovered Claude result", "claude", [{ data: { errors: [{ status: "error" }] } }, { data: {} }], false],
+    ["a final failure after success", "gemini", [{ data: {} }, { data: { errors: [{ status: "error" }] } }], true],
+    ["a child failure", "gemini", [{ data: { errors: [{ status: "error" }], agentId: "child" } }], false],
+    ["a child success after main failure", "gemini", [{ data: { errors: [{ status: "error" }] } }, { data: { errors: [], parentToolUseId: "child" } }], true],
+    ["a detection result", "gemini", [{ provenance: { component: "agent", phase: "detection" }, data: { errors: [{ status: "error" }] } }], false],
+    ["a tool failure", "gemini", [{ type: "tool.execution_complete", data: { errors: [{ status: "error" }] } }], false],
+  ])("checks terminal results for supported engines and the last main-session result: %s", (_description, engineId, records, expected) => {
+    const events = [
+      { type: "workflow.info", provenance: { component: "workflow", phase: "activation" }, data: { engine_id: engineId } },
+      ...records.map(record => ({ type: "session.result", provenance: { component: "agent", phase: "agent" }, ...record })),
+    ];
+    expect(hasFailedFinalResult(events)).toBe(expected);
+  });
+
+  it("distinguishes a failed final Gemini result from missing terminal output despite exit 0", () => {
+    fs.writeFileSync(path.join(rootDir, "aw_info.json"), JSON.stringify({ engine_id: "gemini" }));
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "0");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), JSON.stringify({ type: "result", status: "error" }));
+
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+
+    expect(outcome).toMatchObject({ reason: "engine_driver_failure", failureCause: "unknown", driverExitCode: 0 });
+    expect(outcome.details).toContain("The engine's final result reported an error");
+    expect(outcome.details).not.toContain("No terminal safe output was recorded");
+    expect(outcome.details).not.toContain("without emitting a terminal safe output");
+  });
+
+  it("preserves a failed final Gemini result over a recovered safeoutputs CLI error", () => {
+    fs.writeFileSync(path.join(rootDir, "aw_info.json"), JSON.stringify({ engine_id: "gemini" }));
+    writeEvents([{ type: "session.result", data: { errors: [{ status: "error" }] } }]);
+    fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), `${JSON.stringify({ event: "parse_args_error" })}\n`);
+
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+
+    expect(outcome).toMatchObject({ reason: "engine_driver_failure", failureCause: "unknown" });
+    expect(outcome.details).toContain("The safeoutputs CLI failed.");
+    expect(outcome.details).toContain("The engine's final result reported an error");
   });
 
   it.each([0, 1])("classifies the observed SDK runtime content filter as request rejection despite exit %s", exitCode => {

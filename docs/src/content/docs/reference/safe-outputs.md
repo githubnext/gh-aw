@@ -1784,7 +1784,7 @@ safe-outputs:
 | `missing_safe_outputs` | Agent succeeded but produced no safe outputs |
 | `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
 | `agent_startup_failure` | Runtime recorded `not_started`: setup failed before agent execution, so missing outputs are downstream |
-| `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output |
+| `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output, or the final engine result reported an error even if the process exited 0 and safe outputs exist |
 | `safeoutputs_cli_error` | Safeoutputs CLI failed and no terminal safe output was recorded |
 | `invalid_safe_outputs` | Output validation rejected the agent's outputs, leaving no terminal safe output |
 | `missing_terminal_safe_output` | Agent finished with no terminal safe output, including diagnostic-only exits |

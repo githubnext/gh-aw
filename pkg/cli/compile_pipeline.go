@@ -1013,17 +1013,17 @@ func runPostProcessingForDirectory(
 	// Keep invoking generators for empty workflowDataList so stale generated files are cleaned up.
 	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
+		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict, config.NoLogo); err != nil {
 			if config.Strict {
 				return err
 			}
 		}
-		if err := generateWorkQueueEventWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict); err != nil {
+		if err := generateWorkQueueEventWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict, config.NoLogo); err != nil {
 			if config.Strict {
 				return err
 			}
 		}
-		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict); err != nil {
+		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict, config.NoLogo); err != nil {
 			if config.Strict {
 				return err
 			}
