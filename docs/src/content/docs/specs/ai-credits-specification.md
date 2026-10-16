@@ -511,6 +511,8 @@ This describes existing restoration compatibility, not a recommendation to autho
 
 Restore excludes the current run, checks recent workflow history, and uses bounded repository history on workflow-history 404. Missing, expired, empty, or unusable snapshot artifacts are misses. API/permission/quota failures during restoration remain errors; exhausted transient restoration failures are not silently converted into a cache miss.
 
+Repository-history restoration inspects trusted producers on each page before requesting older pages and stops at the first usable snapshot. The search remains limited to 25 pages and 10 trusted producers. Stopping restoration early does not establish a complete budget window: the subsequent guardrail MUST still obtain a complete authoritative run listing and resolve every uncached or mismatched attempt.
+
 Accepted observation lines MUST have version 2, component-coverage version 2, matching repository/workflow, positive integer run/attempt IDs, finite non-negative AIC, valid creation/update/observation timestamps, and observation age between zero and 48 hours inclusive. Source is `recorded`, `estimated`, or absent for compatibility. Malformed or invalid lines are ignored. Conflicting recorded values for the same attempt/update identity MUST fail, not choose a lower value.
 
 When merging observations, a newer observation normally wins. Recorded accounting MUST NOT be overwritten by an estimate for the same attempt and creation/update identity. During a fresh scan, reuse additionally requires exact attempt, creation, and update matches and `source: recorded`. Estimates, provenance-less entries, old coverage versions, mismatched reruns, and invalid/expired observations MUST be reinspected.
