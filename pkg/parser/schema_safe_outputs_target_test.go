@@ -6,6 +6,37 @@ import (
 	"testing"
 )
 
+func TestMainWorkflowSchema_CreateIssueOptOut(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		value any
+		valid bool
+	}{
+		{"disabled", false, true},
+		{"null", nil, true},
+		{"empty", map[string]any{}, true},
+		{"configured", map[string]any{"max": 1}, true},
+		{"true", true, false},
+		{"string", "false", false},
+		{"zero-max", map[string]any{"max": 0}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			frontmatter := map[string]any{
+				"on": "push",
+				"safe-outputs": map[string]any{
+					"create-issue": tc.value,
+				},
+			}
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/create-issue-opt-out.md")
+			if (err == nil) != tc.valid {
+				t.Fatalf("schema validity = %v, want %v: %v", err == nil, tc.valid, err)
+			}
+		})
+	}
+}
+
 func TestMainWorkflowSchema_AllowFullHistoryFetch(t *testing.T) {
 	t.Parallel()
 	for _, handler := range []string{"create-pull-request", "push-to-pull-request-branch"} {

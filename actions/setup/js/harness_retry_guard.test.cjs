@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, isMaxRunsExceededError, isAuthenticationFailedError, parseAICreditsExceededProxyRejection, parseAPIProxyGuardRejection } = require("./harness_retry_guard.cjs");
-const { parseModelEndpointMismatch, MODEL_ENDPOINT_MISMATCH_PATTERN } = require("./harness_error_patterns.cjs");
+const { parseModelEndpointMismatch, MODEL_ENDPOINT_MISMATCH_PATTERN, shouldSuppressGuardCategory } = require("./harness_error_patterns.cjs");
 
 describe("harness_retry_guard.cjs", () => {
   it.each([
@@ -71,6 +71,21 @@ describe("harness_retry_guard.cjs", () => {
     expect(parseAPIProxyGuardRejection('{"type":"model_policy_violation"}')?.guard).toBe("model_policy_violation");
   });
 
+  it("shares diagnostic-scoped model policy precedence without suppressing other guards", () => {
+    expect(shouldSuppressGuardCategory("model_policy_violation", "model_endpoint_incompatible")).toBe(true);
+    expect(shouldSuppressGuardCategory("model_policy_violation", "request rejected")).toBe(false);
+    expect(shouldSuppressGuardCategory("effective_tokens_limit_exceeded", "model_endpoint_incompatible")).toBe(false);
+  });
+
+  it.each(["error", "turn.failed", "session.error", "model_policy_violation"])("retains independent model policy rejection across %s transport records", type => {
+    const messages = ["model_policy_violation", "model_policy_violation: model_endpoint_incompatible"];
+    const records = messages.map(message => (type === "session.error" ? { type, data: { message } } : type === "turn.failed" ? { type, error: { message } } : { type, message }));
+    for (const ordered of [records, [...records].reverse()]) {
+      expect(parseAPIProxyGuardRejection(ordered.map(JSON.stringify).join("\n"))).toEqual({ guard: "model_policy_violation", counters: {} });
+    }
+    expect(parseAPIProxyGuardRejection(JSON.stringify(records[1]))).toBeNull();
+  });
+
   it.each(["400 Bad Request", "400 invalid input", "normal output", "", null, undefined])("does not detect unrelated output: %s", output => {
     expect(parseModelEndpointMismatch(output)).toBeNull();
     expect(detectNonRetryableHarnessGuard(output).modelEndpointMismatch).toBeNull();
@@ -127,6 +142,11 @@ describe("harness_retry_guard.cjs", () => {
       { type: "assistant", message: { content: [{ type: "text", text: `403 ${guard}` }] } },
       { type: "tool_result", content: `403 ${guard}` },
       { type: "error", message: "connection reset", metadata: { quoted: guard } },
+      { type: "turn.failed", error: { message: "connection reset", metadata: { quoted: guard } } },
+      { type: "error", message: JSON.stringify({ message: "connection reset", metadata: { quoted: guard } }) },
+      { type: "result", is_error: true, result: "connection reset", permission_denials: [{ tool_input: { command: guard } }] },
+      { type: "assistant", is_api_error_message: true, error: "api_error", message: { content: [{ type: "tool_use", input: { command: guard } }] } },
+      { type: "turn_end", message: { errorMessage: "connection reset", content: [{ type: "text", text: guard }] } },
     ];
     for (const record of records) {
       expect(parseAPIProxyGuardRejection(JSON.stringify(record))).toBeNull();
