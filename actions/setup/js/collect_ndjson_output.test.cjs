@@ -343,7 +343,7 @@ describe("collect_ndjson_output.cjs", () => {
       fs.writeFileSync(path.join(diagnosticRoot, "aw_info.json"), JSON.stringify({ engine_id: "gemini" }));
       fs.writeFileSync(path.join(diagnosticRoot, "agent_execution_exit_code.txt"), "1");
       fs.writeFileSync(path.join(diagnosticRoot, "agent-stdio.log"), `${JSON.stringify({ type: "result", status: "error" })}\n`);
-      const auditPath = path.join(diagnosticRoot, "mcp-cli-audit/safeoutputs.jsonl");
+      const auditPath = path.join(diagnosticRoot, "mcp-cli-audit/safeoutputs.audit.jsonl");
       fs.mkdirSync(path.dirname(auditPath), { recursive: true });
       fs.writeFileSync(auditPath, `${JSON.stringify({ event: "parse_args_error" })}\n`);
 
