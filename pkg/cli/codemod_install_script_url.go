@@ -9,6 +9,8 @@ import (
 
 var installScriptURLCodemodLog = logger.New("cli:codemod_install_script_url")
 
+// Include dots in the full repository token: a bare trailing period is ambiguous
+// with a repository name, unlike punctuation outside a quoted reference.
 var installScriptRepositoryPattern = regexp.MustCompile(`[A-Za-z0-9_.-]+/gh-aw[A-Za-z0-9_.-]*`)
 
 // getInstallScriptURLCodemod creates a codemod for migrating githubnext/gh-aw to github/gh-aw in install script URLs
