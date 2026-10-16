@@ -114,6 +114,31 @@ func TestGeminiEngineInstallation(t *testing.T) {
 		assert.Empty(t, steps, "Should skip installation when custom command is specified")
 	})
 
+	t.Run("default version is installed and recorded", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:         "test-workflow",
+			EngineConfig: &EngineConfig{},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+		assert.Equal(t, string(constants.DefaultGeminiVersion), workflowData.EngineConfig.Version)
+		assert.Contains(t, stepsToString(steps), "npm install --ignore-scripts -g @google/gemini-cli@"+string(constants.DefaultGeminiVersion))
+	})
+
+	t.Run("explicit version overrides the default", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				Version: "0.62.0",
+			},
+		}
+
+		steps := engine.GetInstallationSteps(workflowData)
+		assert.Equal(t, "0.62.0", workflowData.EngineConfig.Version)
+		assert.Contains(t, stepsToString(steps), "npm install --ignore-scripts -g @google/gemini-cli@0.62.0")
+		assert.NotContains(t, stepsToString(steps), "@google/gemini-cli@"+string(constants.DefaultGeminiVersion))
+	})
+
 	t.Run("with firewall", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test-workflow",
