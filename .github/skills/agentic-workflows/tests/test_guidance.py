@@ -21,6 +21,17 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_debug_playbook_agent_consumption_budget(self):
+        guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
+        self.assertLessEqual(len(guide.split()), 2800)
+        self.assertLessEqual(len(guide.encode()), 26000)
+        self.assertIn("Read only the linked", guide)
+        for variable in ("REPO", "RUN_ID", "MODEL", "PROVIDER", "BASE_RUN_ID"):
+            with self.subTest(variable=variable):
+                self.assertIn(f"${{{variable}:?", guide)
+        self.assertNotRegex(guide, r"\b(?:RUN_ID|BASE_RUN_ID)=\d+")
+        self.assertNotRegex(guide, r"(?m)^MODEL=[a-z0-9]")
+
     def test_diagnostic_routing_mini_eval_contract(self):
         guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
         for case in FIXTURES["diagnostic_routing"]:

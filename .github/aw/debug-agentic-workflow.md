@@ -313,13 +313,9 @@ it needs `actions: read` and CLI installation before invoking `gh aw`.
 
 ## Model and engine misconfiguration
 
-For Pi `not advertised` startup failures, audit checks same-run provider reflection:
-`model_unavailable` confirms the exact ID is absent from a complete matching
-inventory; `model_availability_unknown` preserves missing or contradictory evidence.
-Follow [Model availability](debug-playbook.md#model-availability) in the consolidated
-playbook for cached `gh aw models` inspection and comparison. An advertised
-candidate is not an automatic replacement; another run's catalog does not prove
-availability to the failing run.
+Pi `not advertised`: follow [Model availability](debug-playbook.md#model-availability)
+in the consolidated playbook for `model_unavailable`/`model_availability_unknown`,
+cached `gh aw models`, same-run evidence checks, and candidate verification.
 
 For AWF 400s mentioning models or endpoints, silent cross-family sub-agent
 failures, `model: auto` failures, install-step 404s after a version pin, or
