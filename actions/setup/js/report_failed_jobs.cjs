@@ -130,6 +130,8 @@ async function getFailedNonBuiltinJobs() {
 
   /** @type {Array<{name: string, html_url: string | null, id?: number, error_detail?: string, failed_steps?: number[]}>} */
   const runJobs = [];
+  /** @type {import("./workflow_job_durations.cjs").JobTiming[]} */
+  const timingJobs = [];
 
   let page = 1;
   const perPage = 100;
@@ -145,6 +147,7 @@ async function getFailedNonBuiltinJobs() {
     });
 
     const jobs = response.data.jobs;
+    timingJobs.push(...jobs);
     core.info(`Page ${page}: retrieved ${jobs.length} jobs`);
 
     for (const job of jobs) {
@@ -164,6 +167,10 @@ async function getFailedNonBuiltinJobs() {
     }
     page++;
   }
+
+  const { collectJobDurations } = require("./workflow_job_durations.cjs");
+  const durations = await collectJobDurations({ jobs: timingJobs, warn: message => core.warning(message) });
+  core.setOutput("job_durations", JSON.stringify(durations));
 
   const matchesName = (name, display) => name === display || name.startsWith(`${display} (`) || name.startsWith(`${display} / `);
   const knownIds = new Set([...Object.keys(jobResults), ...Object.keys(jobDisplayNames)]);

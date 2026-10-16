@@ -13,6 +13,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestUsageActivityGenerationIncludesJobResults(t *testing.T) {
+	for _, hasGuardrail := range []bool{false, true} {
+		for _, reuseJobDurations := range []bool{false, true} {
+			steps := strings.Join(buildUsageActivityGenerationStep(hasGuardrail, reuseJobDurations, func(action string) string { return action }), "")
+			assert.NotContains(t, steps, "GH_AW_JOB_RESULTS:", "result-only metadata is inherited from the conclusion job environment")
+			assert.Equal(t, reuseJobDurations, strings.Contains(steps, "GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}"))
+			assert.Equal(t, hasGuardrail || reuseJobDurations, strings.Contains(steps, "        env:\n"))
+			assert.Equal(t, hasGuardrail, strings.Contains(steps, "GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS:"))
+			assert.NotContains(t, steps[strings.Index(steps, "          script:"):], "${{ toJSON(needs) }}")
+		}
+	}
+}
+
 func TestConclusionJob(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -1862,6 +1875,8 @@ func TestConclusionJobNeedsPreActivationFromMessages(t *testing.T) {
 			}
 
 			preActName := string(constants.PreActivationJobName)
+			env := buildRenderedJobEnv(job)
+			assert.Equal(t, tt.expectPreActNeeds, strings.Contains(env["GH_AW_JOB_RESULTS"], "${{ needs.pre_activation.result }}"))
 			if tt.expectPreActNeeds {
 				if !slices.Contains(job.Needs, preActName) {
 					t.Errorf("Expected pre_activation in conclusion job needs, got: %v", job.Needs)
@@ -1980,13 +1995,13 @@ func TestConclusionJobActionsWritePermissionForDailyAICCache(t *testing.T) {
 }
 
 // TestConclusionJobIssuesWritePermissionDerivedFromConfig verifies that the conclusion job's
-// issues: write (and actions: read) permissions are derived from the resolved safe-outputs
+// issues: write permissions are derived from the resolved safe-outputs
 // configuration rather than emitted unconditionally. See github/gh-aw#54548.
 func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 	falseVal := "false"
 	falseTemplatable := TemplatableBool("false")
 
-	t.Run("no issues: write or actions: read when all conclusion issue-writing paths are disabled", func(t *testing.T) {
+	t.Run("no issues: write but actions: read for durations when issue-writing paths are disabled", func(t *testing.T) {
 		compiler := NewCompiler()
 		falseReportFailedJobs := TemplatableBool("false")
 		workflowData := &WorkflowData{
@@ -2010,9 +2025,8 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 		if strings.Contains(job.Permissions, "issues: write") {
 			t.Errorf("conclusion job should NOT have 'issues: write' when every issue-creating mechanism is disabled, got: %q", job.Permissions)
 		}
-		if strings.Contains(job.Permissions, "actions: read") {
-			t.Errorf("conclusion job should NOT have 'actions: read' when report-failed-jobs is disabled, got: %q", job.Permissions)
-		}
+		assert.Contains(t, job.Permissions, "actions: read")
+		assert.NotContains(t, strings.Join(job.Steps, ""), "GH_AW_JOB_DURATIONS:")
 	})
 
 	t.Run("no issues: write when default threat detection is enabled but issue-writing paths are disabled", func(t *testing.T) {
@@ -2040,9 +2054,7 @@ func TestConclusionJobIssuesWritePermissionDerivedFromConfig(t *testing.T) {
 		if strings.Contains(job.Permissions, "issues: write") {
 			t.Errorf("conclusion job should NOT have 'issues: write' when only threat detection is enabled, got: %q", job.Permissions)
 		}
-		if strings.Contains(job.Permissions, "actions: read") {
-			t.Errorf("conclusion job should NOT have 'actions: read' when report-failed-jobs is disabled, got: %q", job.Permissions)
-		}
+		assert.Contains(t, job.Permissions, "actions: read")
 		if !strings.Contains(job.Permissions, "contents: write") {
 			t.Errorf("conclusion job should preserve update-release permissions, got: %q", job.Permissions)
 		}
@@ -2139,12 +2151,8 @@ func TestConclusionReportFailedJobsExpression(t *testing.T) {
 	}
 
 	output := strings.Join(steps, "")
-	if !strings.Contains(output, "GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}") {
-		t.Errorf("failed-job reporting must receive needs keyed by stable job IDs: %q", output)
-	}
-	if !strings.Contains(output, `\"agent\":\"Agent\"`) {
-		t.Errorf("failed-job reporting must receive the compiler's display-name mapping: %q", output)
-	}
+	assert.NotContains(t, output, "GH_AW_JOB_RESULTS:", "failed-job reporting inherits result-only metadata from the conclusion job environment")
+	assert.NotContains(t, output, "GH_AW_JOB_DISPLAY_NAMES:", "failed-job reporting inherits the final emitted-name inventory from the conclusion job environment")
 	if !strings.Contains(output, "GH_AW_REPORT_FAILED_JOBS: ${{ inputs.report-failed-jobs }}") {
 		t.Errorf("report-failed-jobs expression was not emitted unquoted: %q", output)
 	}
