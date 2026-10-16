@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
 const { agentErrorSummaryText } = require("./agent_execution.cjs");
-const { sessionContext } = require("./agent_session.cjs");
+const { sessionContext, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactDiagnosticText, redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -138,6 +138,12 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   return summary;
 }
 
+/** @param {import("./types/unified_session").UnifiedSession} events @returns {boolean} */
+function hasFailedFinalResult(events) {
+  const result = events.filter(event => event.type === "session.result" && event.provenance.component === "agent" && event.provenance.phase === "agent" && !isNestedSessionEvent(event)).at(-1);
+  return Array.isArray(result?.data.errors) && result.data.errors.length > 0;
+}
+
 /**
  * Silence is not evidence of an intentional noop. Preserve runtime diagnostics
  * in a first-class incomplete signal when the agent emitted no valid outputs.
@@ -164,6 +170,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   } catch {
     diagnostics.add("Runtime diagnostics could not be collected.");
   }
+  const failedFinalResult = hasFailedFinalResult(events);
+  if (failedFinalResult) reason = "engine_driver_failure";
   let stdio = "";
   try {
     const stdioPath = path.join(rootDir, "agent-stdio.log");
@@ -339,7 +347,9 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
         ]
       : [
           `Failure classification: ${failureCause}`,
-          reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
+          reason === "engine_driver_failure" && !failedFinalResult
+            ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.`
+            : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
           `Last tool call status: ${lastToolCallStatus}`,
           ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
           `Failed tool calls observed: ${failedToolCalls}`,
@@ -348,7 +358,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
           ...completionEvidence,
         ];
   if (failureCause === "missing_terminal_safe_output" && !observedCompletionEvidence.length) summary.splice(-1, 0, "Safe-output telemetry: not recorded");
-  if (!agentNotStarted && failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
+  if (failedFinalResult) diagnostics.add("The engine's final result reported an error; task completion could not be confirmed, even if safe outputs were recorded.");
+  else if (!agentNotStarted && failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
   if (errorCodes.length) diagnostics.add(`Engine HTTP error codes: ${[...new Set(errorCodes)].join(", ")}`);
   if (permissionDenials) diagnostics.add(`Permission denials observed: ${permissionDenials}`);
   if (toolDenialLimitExceeded) diagnostics.add("Tool denial limit status: exceeded");
@@ -371,4 +382,4 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   };
 }
 
-module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };
+module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, hasFailedFinalResult, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };
