@@ -9,6 +9,7 @@ jobs:
     steps:
       - name: Download agent artifact
         id: download-agent
+        if: ${{ !contains(fromJSON('["kiro","cursor"]'), needs.activation.outputs.engine_id) }}
         uses: actions/download-artifact@v8.0.2
         with:
           name: agent
@@ -59,7 +60,7 @@ jobs:
           echo "OK: agent_usage.json reports ${INPUT_TOKENS} input tokens"
 
       - name: Report engines without proxy token telemetry
-        if: steps.download-agent.outcome == 'success' && contains(fromJSON('["kiro","cursor"]'), needs.activation.outputs.engine_id)
+        if: contains(fromJSON('["kiro","cursor"]'), needs.activation.outputs.engine_id)
         run: echo "::notice::This engine does not provide proxy token counts; token telemetry assertions are not applicable."
 ---
 <!--
@@ -69,7 +70,8 @@ This shared workflow adds a `check_token_telemetry` job that runs after the `age
 and asserts that AWF firewall proxy token telemetry is functioning correctly
 for engines that provide proxy token counts, including Goose. Kiro and Cursor do not
 currently provide these counts, so the job reports that the assertions are
-not applicable instead of treating missing proxy records as a regression.
+not applicable without downloading the agent artifact, instead of treating missing
+proxy records as a regression. Artifact download failures remain fatal for supported engines.
 
 It guards against silent regressions in the `token_usage.jsonl` emitter, which feeds
 downstream token-cost and API-consumption audits.

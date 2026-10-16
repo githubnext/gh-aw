@@ -32,6 +32,11 @@ func (b Branch) Compact(ctx context.Context) (Compaction, error) {
 		return Compaction{}, err
 	}
 	b.Remote = actor.Repository
+	b, cleanup, err := b.withLedger(ctx)
+	if err != nil {
+		return Compaction{}, err
+	}
+	defer cleanup()
 	var previous []QueueCommit
 	var pendingErr error
 	for attempt := range maxRetries {
@@ -89,7 +94,7 @@ func prepareCheckpointCompaction(commits []QueueCommit, before []byte, priorGitS
 		return compactionCandidate{}, err
 	}
 	duplicates := len(commits) - len(ordered)
-	if len(ordered) != 1 || !isCheckpoint(ordered[0]) {
+	if len(ordered) != 1 || !slices.ContainsFunc(ordered, isCheckpoint) {
 		ordered, err = CompactCheckpoint(ordered, priorGitSHA, actor, time.Now().UnixMilli())
 		if err != nil {
 			return compactionCandidate{}, err
@@ -99,8 +104,12 @@ func prepareCheckpointCompaction(commits []QueueCommit, before []byte, priorGitS
 	if err != nil {
 		return compactionCandidate{}, err
 	}
+	tip, err := compactionTip(ordered)
+	if err != nil {
+		return compactionCandidate{}, err
+	}
 	return compactionCandidate{commits: ordered, data: data, result: Compaction{
-		Tip: ordered[0].ID, At: time.Now().UnixMilli(), Commits: 1,
+		Tip: tip, At: time.Now().UnixMilli(), Commits: 1,
 		DuplicatesRemoved: duplicates, BytesBefore: len(before), BytesAfter: len(data),
 	}}, nil
 }

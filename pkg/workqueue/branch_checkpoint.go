@@ -80,7 +80,7 @@ func (b Branch) checkpointGitParent(ctx context.Context, head string) (string, e
 			SHA string `json:"sha"`
 		} `json:"parents"`
 	}
-	if err := b.request(ctx, http.MethodGet, "git/commits/"+head, nil, &gitCommit); err != nil {
+	if err := b.ledgerRequest(ctx, http.MethodGet, "git/commits/"+head, nil, &gitCommit); err != nil {
 		return "", err
 	}
 	if len(gitCommit.Parents) != 1 {

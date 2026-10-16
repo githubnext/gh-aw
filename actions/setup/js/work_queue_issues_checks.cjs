@@ -309,6 +309,7 @@ function mock(f, { labelMissing = false } = {}) {
     sleep: async () => {},
     core: { info: () => {}, warning: message => warnings.push(message) },
   };
+  require("./work_queue_git_transport.cjs").registerQueueLedgerClient(githubClient, githubClient);
   return {
     options,
     calls,

@@ -4,6 +4,7 @@
 const { canonical, parseStrictJSON, queueError } = require("./work_queue_codec.cjs");
 const { newState } = require("./work_queue_replay.cjs");
 const { validateBranch, replayVerifiedQueueLog } = require("./work_queue_store.cjs");
+const { queueLedgerClient } = require("./work_queue_git_transport.cjs");
 
 const MAX_BYTES = 80 * 1024 * 1024;
 const JOURNAL_PATH = /^\.gh-aw\/issue-projection\/[a-f0-9]{64}\.json$/;
@@ -30,6 +31,15 @@ async function checkedBlobText(githubClient, owner, repo, blob, oid, maxBytes) {
 async function readCheckedQueue({ githubClient, owner, repo, branch = "work-queue", paths = [], issueRead = undefined, core: coreApi = undefined }) {
   validateBranch(branch);
   if (paths.length > 25 || paths.some(path => !JOURNAL_PATH.test(path))) throw queueError("projection_invalid", "invalid bounded projection journal paths");
+  const ledger = queueLedgerClient(githubClient, owner, repo, branch);
+  if (ledger.readFiles) {
+    const current = await require("./work_queue_store.cjs").readWorkQueueLog({ githubClient, owner, repo, branch, core: coreApi });
+    const files = current.sha ? await ledger.readFiles(current.sha, paths) : new Map();
+    const journal = new Map([...files].map(([file, contents]) => [file, parseStrictJSON(contents, { maxBytes: 1024 * 1024 })]));
+    // Native issue evidence is not part of the ledger or its Git proof.
+    const nativeResponse = issueRead?.selections?.length ? await githubClient.graphql(`query WorkQueueIssuePreflight(${issueRead.declarations.join(",")}) { ${issueRead.selections.join("\n")} }`, issueRead.variables) : undefined;
+    return { ...current, journal, nativeResponse, repositoryId: undefined };
+  }
   const journals = paths.map((path, index) => `j${index}: object(expression:$j${index}) { oid ... on Blob { text byteSize isTruncated } }`).join("\n");
   const variables = { owner, repo, ref: `refs/heads/${branch}`, log: `refs/heads/${branch}:work-queue.jsonl` };
   paths.forEach((path, index) => {
@@ -110,6 +120,8 @@ async function writeCheckedFiles({ githubClient, owner, repo, branch, expectedHe
     )
   )
     throw queueError("publication_invalid", "checked publication requires explicit head and files");
+  const ledger = queueLedgerClient(githubClient, owner, repo, branch);
+  if (ledger.writeFiles) return ledger.writeFiles(expectedHeadOid, files);
   const response = await githubClient.graphql("mutation CheckedWorkQueuePublication($input:CreateCommitOnBranchInput!) { createCommitOnBranch(input:$input) { commit { oid } } }", {
     input: {
       branch: { repositoryNameWithOwner: `${owner}/${repo}`, branchName: branch },

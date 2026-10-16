@@ -12,6 +12,7 @@ const { verifyWorkerRoute, verifyWorkerRoutes } = require("./work_queue_provisio
 const { serializeDeployments } = require("./work_queue_deployment.cjs");
 const { writeWorkQueueUpdateSummary } = require("./work_queue_summary_renderer.cjs");
 const { queueAuthenticationScope } = require("./work_queue_auth_cache.cjs");
+const { queueGitScope, queueLedgerClient } = require("./work_queue_git_transport.cjs");
 const {
   appendCommit,
   causalChain,
@@ -117,6 +118,7 @@ async function readRef(githubClient, owner, repo, branch) {
 async function readWorkQueueLog({ githubClient, owner, repo, branch = WORK_QUEUE_BRANCH, core: coreApi = undefined }) {
   log.debug("ledger.read.start");
   validateBranch(branch);
+  githubClient = queueLedgerClient(githubClient, owner, repo, branch);
   const repository = await verifyRepository(githubClient, owner, repo);
   const sha = await readRef(githubClient, owner, repo, branch);
   if (!sha) {
@@ -134,7 +136,7 @@ async function readWorkQueueLog({ githubClient, owner, repo, branch = WORK_QUEUE
 
 async function readVerifiedQueueAtSHA(options, sha, verify = true, recover = true) {
   const { githubClient, branch, repository, coreApi } = options;
-  const scope = await queueAuthenticationScope(githubClient);
+  const scope = queueGitScope(githubClient) || (await queueAuthenticationScope(githubClient));
   const previous = verifiedQueueContents.get(githubClient);
   if (!scope || previous?.scope !== scope) verifiedQueueContents.delete(githubClient);
   const cached = scope && previous?.scope === scope ? previous : undefined;
@@ -143,7 +145,8 @@ async function readVerifiedQueueAtSHA(options, sha, verify = true, recover = tru
   const { state, checkpointRecovered } = await replayVerifiedQueueLog(options, sha, contents, verify, recover);
   const transactions = state.transactions;
   const bytes = Buffer.byteLength(contents, "utf8");
-  if (verify && scope && bytes <= 4 * 1024 * 1024 && (await queueAuthenticationScope(githubClient)) === scope) verifiedQueueContents.set(githubClient, { scope, repository: repository.full_name.toLowerCase(), sha, treeSha, contents });
+  if (verify && scope && bytes <= 4 * 1024 * 1024 && (queueGitScope(githubClient) || (await queueAuthenticationScope(githubClient))) === scope)
+    verifiedQueueContents.set(githubClient, { scope, repository: repository.full_name.toLowerCase(), sha, treeSha, contents });
   coreApi?.info(`Work queue: validated ${transactions.length} causal commits`);
   log.debug("ledger.read.complete", { bytes, transactions: transactions.length, works: state.works.size, claims: state.claims.size });
   return { sha, treeSha, transactions, state, branch, logPath: WORK_QUEUE_LOG_PATH, ...(checkpointRecovered ? { checkpointRecovered: true } : {}) };
@@ -180,6 +183,7 @@ async function readQueueContentsAtSHA({ githubClient, owner, repo }, sha) {
 }
 
 async function replayVerifiedQueueLog(options, sha, contents, verify = true, recover = true) {
+  options = { ...options, githubClient: queueLedgerClient(options.githubClient, options.owner, options.repo, options.branch) };
   let state;
   let checkpointRecovered = false;
   try {
@@ -221,20 +225,21 @@ async function recoverDeploymentCheckpoint(options, sha, contents, failure) {
 }
 
 async function verifyCheckpointGitHistory(options, head, root) {
+  options = { ...options, githubClient: queueLedgerClient(options.githubClient, options.owner, options.repo, options.branch) };
   const { githubClient, owner, repo } = options;
   const invalid = () => queueError("checkpoint_invalid", "checkpoint does not match its Git parent history");
   const visited = new Set();
-  const scope = await queueAuthenticationScope(githubClient);
+  const scope = queueGitScope(githubClient) || (await queueAuthenticationScope(githubClient));
   const cached = verifiedCheckpointHistory.get(githubClient);
   if (!scope || cached?.scope !== scope) verifiedCheckpointHistory.delete(githubClient);
-  const verified = scope && cached?.scope === scope ? cached.proofs : new Set();
+  const verified = cached && scope && cached.scope === scope ? cached.proofs : new Set();
   const pending = new Set();
   verification: while (root?.operations?.[0]?.kind === "Checkpoint") {
     const checkpoint = root.operations[0];
     const checkpointDigest = digest(root);
     let current = head;
     for (;;) {
-      // Reuse immutable proofs only within a registered, unchanged static authentication.
+      // Git reads recheck repository access; other transports require static auth.
       const proof = `${owner.toLowerCase()}/${repo.toLowerCase()}:${current}:${checkpointDigest}`;
       if (verified.has(proof)) break verification;
       pending.add(proof);
@@ -264,7 +269,7 @@ async function verifyCheckpointGitHistory(options, head, root) {
       break;
     }
   }
-  if (!scope || (await queueAuthenticationScope(githubClient)) !== scope) return;
+  if (!scope || (queueGitScope(githubClient) || (await queueAuthenticationScope(githubClient))) !== scope) return;
   for (const proof of pending) {
     verified.add(proof);
     if (verified.size > 128) {
@@ -303,7 +308,8 @@ function validateExtendingPrefix(previous, current, message) {
   }
 }
 
-async function validateCompactionExtension(previous, current, { githubClient, owner, repo, sha }, message, depth = 0) {
+async function validateCompactionExtension(previous, current, { githubClient, owner, repo, sha, branch = WORK_QUEUE_BRANCH }, message, depth = 0) {
+  githubClient = queueLedgerClient(githubClient, owner, repo, branch);
   try {
     validateExtendingPrefix(previous, current, message);
     return;
@@ -348,7 +354,7 @@ async function validateCompactionExtension(previous, current, { githubClient, ow
   )
     throw queueError("ledger_invalid", message);
   if (prepareCheckpoint(source.transactions, checkpoint.prior_git_sha, undefined, current[0].at)[0].operations[0].state_sha256 !== checkpoint.state_sha256) throw queueError("ledger_invalid", message);
-  await validateCompactionExtension(previous, source.transactions, { githubClient, owner, repo, sha: checkpoint.prior_git_sha }, message, depth + 1);
+  await validateCompactionExtension(previous, source.transactions, { githubClient, owner, repo, sha: checkpoint.prior_git_sha, branch }, message, depth + 1);
 }
 
 /** Checkpoint validated history against the current Git HEAD and publish by fast-forward CAS. */
@@ -362,7 +368,7 @@ async function compactWorkQueue({ githubClient, owner, repo, context, branch = W
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const current = await readWorkQueueLog({ githubClient, owner, repo, branch });
     if (!current.sha) throw queueError("queue_missing", "checkpoint requires an existing queue");
-    await validateCompactionExtension(observedPrefix, current.transactions, { githubClient, owner, repo, sha: current.sha }, "queue history was rewritten during checkpoint publication");
+    await validateCompactionExtension(observedPrefix, current.transactions, { githubClient, owner, repo, sha: current.sha, branch }, "queue history was rewritten during checkpoint publication");
     observedPrefix = current.transactions;
     if (lastCandidate && current.transactions[0]?.request.kind === "checkpoint" && current.transactions[0].operations[0].prior_git_sha === lastBaseSHA) {
       return { ...current, publishedNow: false, recovered: canonical(current.transactions[0]) === canonical(lastCandidate) };
@@ -378,7 +384,7 @@ async function compactWorkQueue({ githubClient, owner, repo, context, branch = W
       if (!refConflict(error) && !ambiguousWrite(error)) throw error;
       if (attempt === maxRetries) {
         const refreshed = await readWorkQueueLog({ githubClient, owner, repo, branch });
-        await validateCompactionExtension(observedPrefix, refreshed.transactions, { githubClient, owner, repo, sha: refreshed.sha }, "queue history was rewritten during checkpoint publication");
+        await validateCompactionExtension(observedPrefix, refreshed.transactions, { githubClient, owner, repo, sha: refreshed.sha, branch }, "queue history was rewritten during checkpoint publication");
         if (refreshed.transactions[0]?.request.kind === "checkpoint" && refreshed.transactions[0].operations[0].prior_git_sha === current.sha) {
           return { ...refreshed, publishedNow: false, recovered: canonical(refreshed.transactions[0]) === canonical(transactions[0]) };
         }
@@ -417,7 +423,8 @@ function freshAuthorizer({ githubClient, owner, repo, context, branch = WORK_QUE
 }
 
 async function writeCandidate({ githubClient, owner, repo, current, transactions }) {
-  if (current.sha && process.env.GH_AW_WORK_QUEUE_CHECKED_TRANSPORT === "graphql") return require("./work_queue_checked_transport.cjs").writeCheckedCandidate({ githubClient, owner, repo, current, transactions });
+  githubClient = queueLedgerClient(githubClient, owner, repo, current.branch);
+  if (!githubClient.writeFiles && current.sha && process.env.GH_AW_WORK_QUEUE_CHECKED_TRANSPORT === "graphql") return require("./work_queue_checked_transport.cjs").writeCheckedCandidate({ githubClient, owner, repo, current, transactions });
   // appendCommit already checked this candidate; never replay its history again.
   const content = transactions.map(commit => canonical(commit)).join("\n") + "\n";
   log.debug("candidate.write.start", { transactions: transactions.length, bytes: Buffer.byteLength(content, "utf8"), initialized: !!current.sha });

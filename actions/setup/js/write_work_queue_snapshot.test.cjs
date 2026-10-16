@@ -13,6 +13,9 @@ import { MAX_SNAPSHOT_PARSE_BYTES } from "./work_queue_codec.cjs";
 import { loadQueue } from "./work_queue_binding.cjs";
 import { publishWorkQueueRequest } from "./work_queue_store.cjs";
 import { newWork } from "./work_queue_graph.cjs";
+import { createRequire } from "node:module";
+
+const { registerQueueLedgerClient } = createRequire(import.meta.url)("./work_queue_git_transport.cjs");
 
 const directories = [];
 function setup(options = {}) {
@@ -43,6 +46,7 @@ describe("authenticated immutable activation snapshots", () => {
     const { fixture, options } = setup({ started: true, count: 1, workerPrincipal: "22" });
     const fake = fakeGitHub(fixture.transactions);
     const githubClient = { rest: { ...fixture.githubClient.rest, git: fake.githubClient.rest.git } };
+    registerQueueLedgerClient(githubClient, githubClient);
     const configured = { ...options, githubClient, readWorkQueueLog: undefined, publishWorkQueueRequest: undefined, requireAssignment: true };
     const callerRelative = structuredClone(fixture.policy);
     callerRelative.producers = { "22": callerRelative.producers["11"] };
@@ -73,6 +77,7 @@ describe("authenticated immutable activation snapshots", () => {
     const fake = fakeGitHub(transactions);
     fake.githubClient.rest.repos.get = vi.fn(async () => ({ status: 200, data: { full_name: repository, id: 7, default_branch: "main", size: 1 } }));
     const githubClient = { rest: { ...fake.githubClient.rest, actions: fixture.githubClient.rest.actions } };
+    registerQueueLedgerClient(githubClient, githubClient);
     const snapshot = await main({
       ...options,
       githubClient,
@@ -99,6 +104,7 @@ describe("authenticated immutable activation snapshots", () => {
     fake.githubClient.rest.repos.get = vi.fn(async () => ({ status: 200, data: { full_name: REPOSITORY, id: 7, default_branch: "main", size: 1 } }));
     const getWorkflowRun = vi.fn(fixture.githubClient.rest.actions.getWorkflowRun);
     const githubClient = { rest: { ...fake.githubClient.rest, actions: { ...fixture.githubClient.rest.actions, getWorkflowRun } } };
+    registerQueueLedgerClient(githubClient, githubClient);
     await expect(main({ ...options, githubClient, readWorkQueueLog: undefined, publishWorkQueueRequest: undefined })).rejects.toThrow(/actor_unauthorized/);
     expect(getWorkflowRun).not.toHaveBeenCalled();
     expect(options.core.setOutput).not.toHaveBeenCalled();
@@ -197,6 +203,7 @@ describe("authenticated immutable activation snapshots", () => {
       },
     };
     const configured = { ...options, githubClient, policyProposal: fixture.policy, readWorkQueueLog: undefined, publishWorkQueueRequest: undefined };
+    registerQueueLedgerClient(githubClient, githubClient);
     const snapshot = await main(configured);
     expect(snapshot).toMatchObject({ sha: null, worker: null, transactionLog: "" });
     expect(readWorkQueueState(loadWorkQueueSnapshot(options.snapshotPath))).toMatchObject({ queue_state: "uninitialized", total: 0 });

@@ -25,9 +25,9 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 // generateUnifiedArtifactUpload generates a single step that uploads all agent job artifacts
 // This consolidates multiple individual upload steps into one, improving workflow readability
 // and reliability. The step always runs (even on cancellation) and ignores missing files.
-// Workflows with custom safe-job artifacts additionally require successful secret redaction.
+// Uploads with custom safe-job artifacts or resolved AWF configuration require successful redaction.
 // prefix is prepended to the artifact name to avoid clashes in workflow_call context.
-func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []string, prefix string, requireSuccessfulRedaction bool) {
+func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []string, prefix string, requireSuccessfulRedaction bool, data *WorkflowData) {
 	if len(paths) == 0 {
 		compilerYamlArtifactsLog.Print("No paths to upload, skipping unified artifact upload")
 		return
@@ -50,7 +50,7 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 		}
 	}
 	if requireSuccessfulRedaction || includesAWFResolvedConfig {
-		yaml.WriteString("        if: always() && steps.redact_secrets.outcome == 'success'\n")
+		yaml.WriteString("        if: always() && " + secretRedactionSuccessCondition(data) + "\n")
 	} else {
 		yaml.WriteString("        if: always()\n")
 	}
@@ -126,7 +126,7 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 	yaml.WriteString("      # survives a failed or timed-out upload of the larger agent artifact\n")
 	yaml.WriteString("      - name: Upload agent output fallback artifact\n")
 	if isFirewallEnabled(data) {
-		yaml.WriteString("        if: always() && steps.redact_secrets.outcome == 'success'\n")
+		yaml.WriteString("        if: always() && " + secretRedactionSuccessCondition(data) + "\n")
 	} else {
 		yaml.WriteString("        if: always()\n")
 	}

@@ -89,6 +89,7 @@ function registerTests({ describe, it }) {
         },
       };
       const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-case192-"));
+      require("./work_queue_git_transport.cjs").registerQueueLedgerClient(githubClient, githubClient);
       /** @type {string | undefined} */
       let originOutput;
       const options = {
