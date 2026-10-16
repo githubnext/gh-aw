@@ -207,7 +207,7 @@ function validateSchemaNode(value, schema, path, options = {}) {
         path,
         message: `must be ${allowedTypes.length === 1 ? `a ${allowedTypes[0]}` : `one of: ${allowedTypes.join(", ")}`}`,
         expected: allowedTypes.join(" | "),
-        received: JSON.stringify(value),
+        received: options.includeReceived === false ? undefined : JSON.stringify(value),
       };
     }
   }
@@ -219,7 +219,7 @@ function validateSchemaNode(value, schema, path, options = {}) {
         path,
         message: `must be one of: ${schema.enum.join(", ")}`,
         expected: JSON.stringify(schema.enum),
-        received: JSON.stringify(value),
+        received: options.includeReceived === false ? undefined : JSON.stringify(value),
       };
     }
   }
@@ -279,8 +279,8 @@ function validateArgumentsAgainstSchema(args, inputSchema) {
   return validateSchemaNode(args, inputSchema, "", { skipRequiredAtRoot: true });
 }
 
-function validateValueAgainstSchema(value, schema) {
-  return validateSchemaNode(value, schema, "", { skipRequiredAtRoot: false });
+function validateValueAgainstSchema(value, schema, options = {}) {
+  return validateSchemaNode(value, schema, "", { ...options, skipRequiredAtRoot: false });
 }
 
 function formatSchemaValidationError(toolName, args, error) {

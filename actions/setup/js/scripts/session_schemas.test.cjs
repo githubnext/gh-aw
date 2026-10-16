@@ -339,6 +339,21 @@ describe("Generated session schemas", () => {
     expect(() => validateSession('[{"type":"session.result","data":{"durationMs":1e999}}]', "agent", "json")).toThrow("Invalid agent session");
   });
 
+  it.each([" ", "\t", "\r", "\u00a0", "\ufeff", "\f", "\v", "\u1680", "\u2003", "\u2028", "\u2029", "\u202f", "\u205f", "\u3000"])("rejects outside-string whitespace on unified headers and events (%j)", whitespace => {
+    const records = [JSON.stringify(header), JSON.stringify(unified({ type: "assistant.message", data: { content: "safe" } }))];
+    for (const index of [0, 1]) {
+      for (const leading of [true, false]) {
+        const framed = records.map((record, position) => (position !== index ? record : leading ? whitespace + record : record + whitespace)).join("\n") + "\n";
+        expect(() => validateSession(framed)).toThrow(`Unified session JSONL must use compact JSON at line ${index + 1}`);
+      }
+    }
+  });
+
+  it("allows whitespace inside unified JSON strings, including escaped quotes and backslashes", () => {
+    const content = ' \t\r\n\f\v\u00a0\ufeff\u1680\u2003\u2028\u2029\u202f\u205f\u3000"\\ ';
+    expect(validateSession(jsonl([header, unified({ type: "assistant.message", data: { content } })]))).toBe(2);
+  });
+
   it("does not expose private object keys in schema diagnostics", () => {
     try {
       validateSession('{"type":"assistant.message","data":{"content":{"PRIVATE_SECRET":1e999}}}\n', "agent");

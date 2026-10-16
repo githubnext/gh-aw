@@ -27,6 +27,7 @@ const http = require("http");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderSafeOutputsPromptDocs } = require("./mcp_cli_schema_docs.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 const MANIFEST_FILE = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_temp", "gh-aw/mcp-cli/manifest.json");
 // Use RUNNER_TEMP so the bin and tools directories are inside the AWF sandbox mount
@@ -331,19 +332,11 @@ function parseMCPResponseBody(body) {
 
   /** @type {unknown} */
   let lastDataMessage = null;
-  for (const line of trimmed.split(/\r?\n/)) {
-    if (!line.startsWith("data:")) {
-      continue;
-    }
-    const payload = line.slice(5).trim();
-    if (!payload || payload === "[DONE]") {
-      continue;
-    }
-    try {
-      lastDataMessage = JSON.parse(payload);
-    } catch {
-      // Ignore non-JSON SSE data lines.
-    }
+  for (const event of iterateJsonlEvents(trimmed, {
+    lineFilter: line => line.startsWith("data:"),
+    lineTransform: line => line.slice(5),
+  })) {
+    if (event.type === "json" && event.rawLine.startsWith("data:")) lastDataMessage = event.value;
   }
   return lastDataMessage;
 }

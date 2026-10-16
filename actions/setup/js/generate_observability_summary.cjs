@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 
 const AW_INFO_PATH = "/tmp/gh-aw/aw_info.json";
@@ -37,16 +38,8 @@ function countBlockedRequests() {
     } catch (err) {
       throw new Error(`Failed to read file ${path}: ${String(err)}`, { cause: err });
     }
-    const lines = fileContent.split("\n");
-    for (const raw of lines) {
-      const line = raw.trim();
-      if (!line) continue;
-      try {
-        const entry = JSON.parse(line);
-        if (entry && entry.type === "DIFC_FILTERED") total++;
-      } catch {
-        // Malformed line — ignored.
-      }
+    for (const entry of iterateJsonl(fileContent)) {
+      if (entry && entry.type === "DIFC_FILTERED") total++;
     }
   }
 
@@ -95,11 +88,8 @@ function readOTLPExportErrorDetails() {
 
   const details = [];
   try {
-    for (const rawLine of fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8").split("\n")) {
-      const line = rawLine.trim();
-      if (!line) continue;
+    for (const entry of iterateJsonl(fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8"))) {
       try {
-        const entry = JSON.parse(line);
         if (!entry || typeof entry !== "object") continue;
         const host = typeof entry.host === "string" ? entry.host.trim() : "";
         const reason = typeof entry.reason === "string" ? entry.reason.trim() : "";

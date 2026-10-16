@@ -16,6 +16,7 @@ const childProcess = require("child_process");
 const fs = require("fs");
 const { ERR_VALIDATION, ERR_SYSTEM } = require("./error_codes.cjs");
 const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 
 const SAFEOUTPUTS_CLI_TIMEOUT_MS = getSetupTimeoutMs("safeoutputsCli");
 
@@ -199,18 +200,10 @@ function hasExpectedSafeOutputs(safeOutputsPath, options) {
     return false;
   }
 
-  const lines = content.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(parsed.type)) {
-        logger(`hasExpectedSafeOutputs: non-diagnostic entry found in ${safeOutputsPath}: type=${parsed.type}`);
-        return true;
-      }
-    } catch {
-      // Malformed line — ignored, it does not represent a valid entry.
+  for (const parsed of iterateJsonl(content)) {
+    if (parsed && parsed.type && !DIAGNOSTIC_SAFE_OUTPUT_TYPES.has(parsed.type)) {
+      logger(`hasExpectedSafeOutputs: non-diagnostic entry found in ${safeOutputsPath}: type=${parsed.type}`);
+      return true;
     }
   }
   return false;
@@ -265,31 +258,24 @@ function hasTerminalSafeOutput(safeOutputsPath, options) {
     return false;
   }
 
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
-      if (!type) continue;
-      if (TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
-        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
-        return true;
-      }
-      if (type === "missing_data" && options?.includeMissingData) {
-        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
-        return true;
-      }
-      if (type === "report_incomplete" && options?.includeReportIncomplete) {
-        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
-        return true;
-      }
-      if (!NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
-        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
-        return true;
-      }
-    } catch {
-      // Malformed line — ignored, it does not represent a valid entry.
+  for (const parsed of iterateJsonl(content)) {
+    const type = parsed && typeof parsed.type === "string" ? parsed.type : "";
+    if (!type) continue;
+    if (TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+      logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+      return true;
+    }
+    if (type === "missing_data" && options?.includeMissingData) {
+      logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+      return true;
+    }
+    if (type === "report_incomplete" && options?.includeReportIncomplete) {
+      logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+      return true;
+    }
+    if (!NON_TERMINAL_SAFE_OUTPUT_TYPES.has(type)) {
+      logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+      return true;
     }
   }
   return false;
@@ -323,18 +309,10 @@ function hasNoopInSafeOutputs(safeOutputsPath, options) {
     return false;
   }
 
-  const lines = content.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && parsed.type === "noop") {
-        logger(`hasNoopInSafeOutputs: noop entry found in ${safeOutputsPath}`);
-        return true;
-      }
-    } catch {
-      // Skip malformed lines — they do not represent valid noop entries
+  for (const parsed of iterateJsonl(content)) {
+    if (parsed && parsed.type === "noop") {
+      logger(`hasNoopInSafeOutputs: noop entry found in ${safeOutputsPath}`);
+      return true;
     }
   }
   return false;

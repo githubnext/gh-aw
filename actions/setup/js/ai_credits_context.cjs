@@ -1,9 +1,10 @@
 // @ts-check
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
-const { parseAICreditsExceededProxyRejection } = require("./harness_error_patterns.cjs");
+const { parseAICreditsExceededProxyRejectionRecord } = require("./harness_error_patterns.cjs");
 
 const MAX_AI_CREDITS_FIELDS = new Set(["max_ai_credits", "maxAiCredits"]);
 const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
@@ -44,24 +45,19 @@ const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any real
  * Compatibility for native diagnostics alongside the pair-only harness parser.
  * Never walk arbitrary JSON fields: only engine-owned error slots are eligible.
  * @param {string} line
+ * @param {any} record Already decoded JSONL record, if valid.
  * @returns {{ aiCredits: string, maxAICredits: string } | null}
  */
-function parseNativeAICreditsRejection(line) {
+function parseNativeAICreditsRejection(line, record) {
   let diagnostic = line;
   let nativeEnvelope = false;
   if (line.trimStart().startsWith("{")) {
-    let record;
-    try {
-      record = JSON.parse(line);
-    } catch {
-      return null;
-    }
     if (!record || typeof record !== "object" || Array.isArray(record)) return null;
     if (record.role || record.data?.role || record.error?.role || record.parentToolUseId || record.parent_tool_use_id || record.parentToolCallId || record.agentId || record.data?.parentToolCallId || record.data?.agentId) return null;
     if (["warning", "info"].includes(record.data?.severity || record.severity)) return null;
     if (record.message?.role && !["message_end", "turn_end", "assistant"].includes(record.type)) return null;
     if (record.message?.role && record.message.role !== "assistant") return null;
-    const rejection = parseAICreditsExceededProxyRejection(line);
+    const rejection = parseAICreditsExceededProxyRejectionRecord(record);
     if (rejection) return { aiCredits: String(rejection.aiCredits), maxAICredits: String(rejection.maxAICredits) };
     if (["message_end", "turn_end"].includes(record.type) && record.message?.role === "assistant" && record.message.stopReason === "error") {
       diagnostic = record.message.errorMessage;
@@ -376,11 +372,9 @@ function iterateJSONLFiles(filePaths, defaultValue, contentGuard, accumulate, sh
         const content = fs.readFileSync(filePath, "utf8");
         if (!content.trim()) continue;
         if (contentGuard && !contentGuard(content)) continue;
-        for (const line of content.split("\n")) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed[0] !== "{") continue;
+        for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
           try {
-            const nextResult = accumulate(result, JSON.parse(trimmed));
+            const nextResult = accumulate(result, entry);
             if (nextResult !== undefined) result = nextResult;
             if (shouldStop && shouldStop(result)) return result;
           } catch {
@@ -795,19 +789,17 @@ function parseAICreditsExceededFromAgentStdio() {
       fs.closeSync(fd);
     }
     const content = buf.toString("utf8");
-    const lines = content.split(/\r?\n/);
-    const proxyHTTP403 = lines.some(line => {
-      const proxyFailure = line.match(/^Authentication failed with provider at (\S+) \(HTTP 403\)\.?$/i);
-      return proxyFailure !== null && isLikelyAWFAPIProxyURL(proxyFailure[1]);
-    });
     // JSON tool/assistant records can quote rejection examples. Only inspect
     // authenticated transport errors or a complete native stderr diagnostic.
-    let result = { ...EMPTY_AGENT_STDIO_STATE, proxyHTTP403 };
-    for (const line of lines) {
-      const rejection = parseNativeAICreditsRejection(line);
+    let result = { ...EMPTY_AGENT_STDIO_STATE };
+    for (const event of iterateJsonlEvents(content)) {
+      const line = event.rawLine.replace(/\r?\n$/, "");
+      const proxyFailure = line.match(/^Authentication failed with provider at (\S+) \(HTTP 403\)\.?$/i);
+      if (proxyFailure && isLikelyAWFAPIProxyURL(proxyFailure[1])) result.proxyHTTP403 = true;
+      const rejection = parseNativeAICreditsRejection(line, event.type === "json" ? event.value : undefined);
       if (!rejection) continue;
       const { aiCredits, maxAICredits } = rejection;
-      result = { aiCredits, maxAICredits, rateLimitError: true, maxAICreditsExceeded: true, proxyHTTP403 };
+      result = { aiCredits, maxAICredits, rateLimitError: true, maxAICreditsExceeded: true, proxyHTTP403: result.proxyHTTP403 };
     }
     return result;
   } catch {

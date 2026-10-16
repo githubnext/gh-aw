@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * daily_aic_cache_helpers.cjs
  *
@@ -23,13 +24,7 @@ const AIC_SCAN_CACHE_ARTIFACT_NAME = "aic-usage-scan-v2";
  */
 function readScanCache(content, repository, workflowId, now = Date.now()) {
   const entries = new Map();
-  for (const line of content.split("\n").filter(line => line.trim())) {
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
+  for (const entry of iterateJsonl(content)) {
     if (
       entry?.version !== 2 ||
       entry.coverage_version !== 3 ||
@@ -105,16 +100,16 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
   const keptLines = [];
   let prunedCount = 0;
   let totalCount = 0;
-  for (const rawLine of content.split("\n")) {
-    const line = rawLine.trim();
+  for (const event of iterateJsonlEvents(content)) {
+    const line = event.rawLine.trim();
     if (!line) continue;
     totalCount++;
     if (!line.startsWith("{")) {
       prunedCount++;
       continue;
     }
-    try {
-      const entry = JSON.parse(line);
+    if (event.type === "json") {
+      const entry = event.value;
       if (typeof entry?.timestamp === "string") {
         const ts = Date.parse(entry.timestamp);
         if (Number.isFinite(ts) && ts < cutoffMs) {
@@ -122,11 +117,8 @@ function pruneStaleJSONLCacheLines(content, cutoffMs) {
           continue;
         }
       }
-      keptLines.push(line);
-    } catch {
-      // Preserve object-like lines that cannot be parsed (defensive: avoids data loss).
-      keptLines.push(line);
     }
+    keptLines.push(line);
   }
   return { keptLines, prunedCount, totalCount };
 }

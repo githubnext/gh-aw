@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl, iterateLines, readJsonlFile } = require("./jsonl_helpers.cjs");
 const childProcess = require("child_process");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
@@ -9,7 +10,6 @@ const path = require("path");
 const { nowMs } = require("./performance_now.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = require("./experiment_helpers.cjs");
-const { parseJsonlContent } = require("./jsonl_helpers.cjs");
 const { countSteeringEventsInApiProxyJsonl } = require("./steering_helpers.cjs");
 const { resolveAICreditsFailureState } = require("./ai_credits_context.cjs");
 const { collectCodexMixedRecords } = require("./parse_codex_log.cjs");
@@ -1569,7 +1569,7 @@ function readJSONIfExists(filePath) {
  */
 function readJSONLIfExists(filePath) {
   try {
-    return parseJsonlContent(fs.readFileSync(filePath, "utf8"));
+    return Array.from(readJsonlFile(filePath));
   } catch {
     return [];
   }
@@ -1638,10 +1638,8 @@ const PERMISSION_DENIED_RE = /\b(?:permissions?\s+denied(?!\s+counts?\b)|EACCES|
  */
 function readLastRateLimitEntry() {
   try {
-    const content = fs.readFileSync(GITHUB_RATE_LIMITS_JSONL_PATH, "utf8");
-    const entries = parseJsonlContent(content);
-    if (entries.length === 0) return null;
-    const last = entries[entries.length - 1];
+    let last = null;
+    for (const entry of readJsonlFile(GITHUB_RATE_LIMITS_JSONL_PATH)) last = entry;
     // Rate-limit enrichment requires object entries (not primitive values or
     // arrays) so the expected fields can be extracted as attributes.
     return last && typeof last === "object" && !Array.isArray(last) ? last : null;
@@ -1738,10 +1736,9 @@ function normalizeOTLPExportErrorDetail(detail) {
  */
 function readOTLPExportErrorDetails() {
   try {
-    const content = fs.readFileSync(OTLP_EXPORT_ERROR_DETAILS_PATH, "utf8");
     /** @type {OTLPExportErrorDetail[]} */
     const details = [];
-    for (const parsed of parseJsonlContent(content)) {
+    for (const parsed of readJsonlFile(OTLP_EXPORT_ERROR_DETAILS_PATH)) {
       if (isValidOTLPExportErrorDetail(parsed)) {
         details.push(normalizeOTLPExportErrorDetail(parsed));
       }
@@ -1973,7 +1970,6 @@ function readAgentRuntimeMetrics(engineId = "") {
 
   try {
     const content = fs.readFileSync(AGENT_STDIO_LOG_PATH, "utf8");
-    const lines = content.split("\n");
     const codexRecords = engineId.toLowerCase() === "codex" ? collectCodexMixedRecords(content) : null;
 
     const applyRuntimeEntry = parsed => {
@@ -2013,7 +2009,7 @@ function readAgentRuntimeMetrics(engineId = "") {
       }
     };
 
-    for (const rawLine of lines) {
+    for (const rawLine of iterateLines(content)) {
       const line = rawLine.trim();
       if (!line) {
         continue;
@@ -2025,34 +2021,6 @@ function readAgentRuntimeMetrics(engineId = "") {
       if (PERMISSION_DENIED_RE.test(line)) {
         fallbackPermissionDeniedCount += 1;
       }
-      if (codexRecords) continue;
-
-      const jsonObjectStart = line.indexOf("{");
-      const jsonArrayStart = line.indexOf("[{");
-      let jsonStart = -1;
-      if (jsonObjectStart >= 0 && jsonArrayStart >= 0) {
-        jsonStart = Math.min(jsonObjectStart, jsonArrayStart);
-      } else if (jsonObjectStart >= 0) {
-        jsonStart = jsonObjectStart;
-      } else {
-        jsonStart = jsonArrayStart;
-      }
-      if (jsonStart < 0) {
-        continue;
-      }
-
-      try {
-        const parsed = JSON.parse(line.slice(jsonStart));
-        if (Array.isArray(parsed)) {
-          for (const entry of parsed) {
-            applyRuntimeEntry(entry);
-          }
-          continue;
-        }
-        applyRuntimeEntry(parsed);
-      } catch {
-        // Ignore non-JSON and truncated log lines.
-      }
     }
     if (codexRecords) {
       for (const record of codexRecords) applyRuntimeEntry(record);
@@ -2060,6 +2028,15 @@ function readAgentRuntimeMetrics(engineId = "") {
       applyRuntimeEntry(projectSessionResult(session));
       const model = observedSessionModel(session);
       if (model) metrics.resolvedModel = model;
+    } else {
+      for (const parsed of iterateJsonl(content, {
+        lineTransform: line => {
+          const starts = [line.indexOf("{"), line.indexOf("[{")].filter(index => index >= 0);
+          return starts.length ? line.slice(Math.min(...starts)) : line;
+        },
+      })) {
+        for (const entry of Array.isArray(parsed) ? parsed : [parsed]) applyRuntimeEntry(entry);
+      }
     }
   } catch {
     return metrics;

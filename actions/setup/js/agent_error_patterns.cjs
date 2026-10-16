@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError, parseModelEndpointMismatch } = require("./harness_error_patterns.cjs");
 const STEP_TIMEOUT_TOLERANCE_MS = 30_000;
 
@@ -82,32 +83,27 @@ const MODEL_NOT_SUPPORTED_PATTERN =
  * @returns {boolean}
  */
 function isUnsupportedModelToolsError(output) {
-  return output.split(/\r?\n/).some(line => {
-    try {
-      const event = JSON.parse(line);
-      if (event?.type !== "turn.failed" || !event.error) return false;
+  for (const event of iterateJsonl(output)) {
+    if (event?.type !== "turn.failed" || !event.error) continue;
 
-      const candidates = [event.error];
-      for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
-        const current = candidates.shift();
-        if (!current || typeof current !== "object") continue;
-        if (current.message === "Invalid value: 'custom'" && current.param === "tools") return true;
+    const candidates = [event.error];
+    for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
+      const current = candidates.shift();
+      if (!current || typeof current !== "object") continue;
+      if (current.message === "Invalid value: 'custom'" && current.param === "tools") return true;
 
-        if (current.error && typeof current.error === "object") candidates.push(current.error);
-        for (const value of [current.message, current.metadata?.raw]) {
-          if (typeof value !== "string") continue;
-          try {
-            candidates.push(JSON.parse(value));
-          } catch {
-            // Ignore non-JSON strings.
-          }
+      if (current.error && typeof current.error === "object") candidates.push(current.error);
+      for (const value of [current.message, current.metadata?.raw]) {
+        if (typeof value !== "string") continue;
+        try {
+          candidates.push(JSON.parse(value));
+        } catch {
+          // Ignore non-JSON strings.
         }
       }
-      return false;
-    } catch {
-      return false;
     }
-  });
+  }
+  return false;
 }
 
 // Pattern: Generic HTTP 400 Bad Request responses emitted by engine / SDK wrappers.

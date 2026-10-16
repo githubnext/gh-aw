@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
@@ -597,41 +598,11 @@ function parseLogEntries(logContent) {
   } catch (jsonArrayError) {
     // If that fails, try to parse as JSONL format (mixed format with debug logs)
     logEntries = [];
-    const lines = logContent.split("\n");
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine === "") {
-        continue; // Skip empty lines
-      }
-
-      // Handle lines that start with [ (JSON array format)
-      if (trimmedLine.startsWith("[{")) {
-        try {
-          const arrayEntries = JSON.parse(trimmedLine);
-          if (Array.isArray(arrayEntries)) {
-            logEntries.push(...arrayEntries);
-            continue;
-          }
-        } catch (arrayParseError) {
-          // Skip invalid array lines
-          continue;
-        }
-      }
-
-      // Skip debug log lines that don't start with {
-      // (these are typically timestamped debug messages)
-      if (!trimmedLine.startsWith("{")) {
-        continue;
-      }
-
-      // Try to parse each line as JSON
-      try {
-        const jsonEntry = JSON.parse(trimmedLine);
-        logEntries.push(jsonEntry);
-      } catch (jsonLineError) {
-        // Skip invalid JSON lines (could be partial debug output)
-        continue;
+    for (const entry of iterateJsonl(logContent, { lineFilter: line => line.startsWith("{") || line.startsWith("[{") })) {
+      if (Array.isArray(entry)) {
+        for (const item of entry) logEntries.push(item);
+      } else {
+        logEntries.push(entry);
       }
     }
   }
@@ -1122,20 +1093,7 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
     return "";
   }
 
-  const lines = safeOutputsContent.trim().split("\n");
-  const entries = [];
-
-  // Parse JSONL entries
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    try {
-      const entry = JSON.parse(line);
-      entries.push(entry);
-    } catch (e) {
-      // Skip invalid JSON lines
-      continue;
-    }
-  }
+  const entries = Array.from(iterateJsonl(safeOutputsContent));
 
   if (entries.length === 0) {
     return "";

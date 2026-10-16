@@ -1,6 +1,6 @@
 // @ts-check
 
-const { parseJsonlContent } = require("./jsonl_helpers.cjs");
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 
 /**
  * Pre-filter pattern: only parse lines that contain the word "steering".
@@ -64,7 +64,7 @@ function getApiProxyEventName(entry) {
 function countSteeringEventsByTypeInApiProxyJsonl(jsonlContent) {
   /** @type {Record<string, number>} */
   const counts = {};
-  for (const parsed of parseJsonlContent(jsonlContent, line => STEERING_EVENT_PATTERN.test(line))) {
+  for (const parsed of iterateJsonl(jsonlContent, { lineFilter: line => STEERING_EVENT_PATTERN.test(line) })) {
     const eventName = getApiProxyEventName(parsed).toLowerCase();
     if (eventName === "steering" || eventName.endsWith("_steering")) {
       counts[eventName] = (counts[eventName] || 0) + 1;

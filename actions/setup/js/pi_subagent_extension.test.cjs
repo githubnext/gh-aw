@@ -159,7 +159,22 @@ describe("Pi managed delegation", () => {
     await expect(pending).rejects.toThrow("aborted");
   });
 
-  it.each(["not JSON\n", "null\n", "x".repeat(1024 * 1024 + 1)])("fails explicitly on invalid or oversized protocol output", async output => {
+  it("accepts multi-megabyte events split across chunks", async () => {
+    const text = "x".repeat(3 * 1024 * 1024);
+    const launch = () => {
+      const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill: vi.fn() });
+      queueMicrotask(() => {
+        const event = JSON.stringify({ type: "message_end", message: { role: "assistant", content: [{ type: "text", text }], stopReason: "stop" } });
+        for (let offset = 0; offset < event.length; offset += 65536) child.stdout.write(event.slice(offset, offset + 65536));
+        child.emit("close", 0, null);
+      });
+      return child;
+    };
+    const result = await runPiSubagent(agent, "Read.", { cwd: dir }, undefined, launch);
+    expect(result.content[0].text).toContain("[Sub-agent output truncated at 64000 characters]");
+  });
+
+  it.each(["not JSON\n", "null\n", "x".repeat(1024 * 1024 + 1)])("fails explicitly on invalid protocol output", async output => {
     const launch = () => {
       const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill: vi.fn() });
       queueMicrotask(() => {
@@ -169,6 +184,32 @@ describe("Pi managed delegation", () => {
       return child;
     };
     await expect(runPiSubagent(agent, "Read.", { cwd: dir }, undefined, launch)).rejects.toThrow();
+  });
+
+  it.each([false, true])("terminates oversized pending records before child exit (fragmented=%s)", async fragmented => {
+    vi.useFakeTimers();
+    const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill: vi.fn() });
+    const pending = runPiSubagent(agent, "Read.", { cwd: dir }, undefined, () => child);
+    const rejected = expect(pending).rejects.toThrow("pending JSONL record limit (16777216 UTF-16 code units)");
+    const limit = 16 * 1024 * 1024;
+    if (fragmented) {
+      const fragment = "x".repeat(65536);
+      for (let written = 0; written < limit; written += fragment.length) child.stdout.write(fragment);
+      expect(child.kill).not.toHaveBeenCalled();
+      child.stdout.write("x");
+    } else child.stdout.write("x".repeat(limit + 1) + "\n");
+    expect(child.kill).toHaveBeenCalledExactlyOnceWith("SIGTERM");
+    // Later output must not revive the parser or replace the framing error.
+    child.stdout.write('\n{"type":"extension_error","error":"must not replace framing failure"}\n');
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(child.kill).toHaveBeenCalledWith("SIGKILL");
+    child.emit("close", 0, null);
+    await rejected;
+    const records = process.stdout.write.mock.calls.map(([line]) => JSON.parse(line));
+    expect(records.find(record => record.type === "gh_aw_subagent_result")).toMatchObject({
+      outcome: "failed",
+      error: "Pi sub-agent output exceeds the pending JSONL record limit (16777216 UTF-16 code units)",
+    });
   });
 
   it("runs a real isolated child process with stdin instructions and preserved UTF-8", async () => {

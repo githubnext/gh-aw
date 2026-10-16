@@ -102,13 +102,21 @@ describe("handle_agent_failure", () => {
     it("reads only the unified session and uses the dedicated grouping category", () => {
       const fs = require("fs");
       const { readModelEndpointMismatch, buildModelEndpointMismatchContext, buildFailureMatchCategories } = require("./handle_agent_failure.cjs");
-      const read = vi.spyOn(fs, "readFileSync").mockReturnValue([header, record].map(event => JSON.stringify(event)).join("\n"));
-      vi.stubEnv("GH_AW_AGENT_OUTPUT", join(promptRoot, "agent-output.json"));
+      const root = fs.mkdtempSync(join(promptRoot, "unified-session-"));
+      fs.mkdirSync(join(root, "usage"));
+      const file = join(root, "usage/aw_session.jsonl");
+      fs.writeFileSync(file, `${JSON.stringify(header)}\n${" ".repeat(128 * 1024)}\n${JSON.stringify(record)}`);
+      const read = vi.spyOn(fs, "readFileSync");
+      const readChunk = vi.spyOn(fs, "readSync");
+      const close = vi.spyOn(fs, "closeSync");
+      vi.stubEnv("GH_AW_AGENT_OUTPUT", join(root, "agent-output.json"));
       vi.stubEnv("GH_AW_UNIFIED_SESSION", "");
       try {
         expect(readModelEndpointMismatch()).toEqual(mismatch);
-        expect(read).toHaveBeenCalledTimes(1);
-        expect(read).toHaveBeenCalledWith(join(promptRoot, "usage/aw_session.jsonl"), "utf8");
+        expect(read).not.toHaveBeenCalled();
+        expect(readChunk.mock.calls.length).toBeGreaterThan(2);
+        expect(readChunk.mock.calls.every(([, buffer]) => buffer.length === 64 * 1024)).toBe(true);
+        expect(close).toHaveBeenCalledTimes(1);
         const context = buildModelEndpointMismatchContext(mismatch);
         expect(context).toContain("Cause: Unsupported endpoint");
         expect(context).toContain("Fix: Select a compatible model");
@@ -120,6 +128,9 @@ describe("handle_agent_failure", () => {
         expect(require("./handle_agent_failure.cjs").buildFailureIssueTitle({ workflowName: "Test", hasModelEndpointMismatch: true })).toContain("model/endpoint mismatch");
       } finally {
         read.mockRestore();
+        readChunk.mockRestore();
+        close.mockRestore();
+        fs.rmSync(root, { recursive: true, force: true });
         vi.unstubAllEnvs();
       }
     });
@@ -142,15 +153,21 @@ describe("handle_agent_failure", () => {
                       ? { ...record, data: { ...mismatch, supported_endpoints: "bad" } }
                       : record,
             ];
-      const read = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
-        if (kind === "missing") throw new Error("missing");
-        return kind === "malformed" ? "{" : records.map(event => JSON.stringify(event)).join("\n");
-      });
+      const root = fs.mkdtempSync(join(promptRoot, "invalid-unified-session-"));
+      const file = join(root, "session.jsonl");
+      if (kind !== "missing") fs.writeFileSync(file, kind === "malformed" ? "{" : records.map(event => JSON.stringify(event)).join("\n"));
+      vi.stubEnv("GH_AW_UNIFIED_SESSION", file);
+      const read = vi.spyOn(fs, "readFileSync");
+      const close = vi.spyOn(fs, "closeSync");
       try {
         expect(readModelEndpointMismatch()).toBeUndefined();
-        expect(read).toHaveBeenCalledTimes(1);
+        expect(read).not.toHaveBeenCalled();
+        expect(close).toHaveBeenCalledTimes(kind === "missing" ? 0 : 1);
       } finally {
         read.mockRestore();
+        close.mockRestore();
+        fs.rmSync(root, { recursive: true, force: true });
+        vi.unstubAllEnvs();
       }
     });
 
@@ -7781,6 +7798,25 @@ describe("handle_agent_failure", () => {
       expect(getAgentStdioLogPath("")).toBe("/tmp/gh-aw/agent-stdio.log");
       expect(getAgentSessionPath("/tmp/call-workflow/agent_output.json")).toBe("/tmp/call-workflow/agent-session.jsonl");
       expect(getAgentSessionPath("")).toBe("/tmp/gh-aw/agent-session.jsonl");
+    });
+
+    it.each([
+      null,
+      42,
+      [],
+      { type: "agent.execution", data: {} },
+      { type: "agent.execution", data: null },
+      { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [] } },
+      { type: "agent.execution", data: { categories: "transport_wedge", errorCodes: [], errorTypes: [] } },
+      { type: "agent.execution", data: { categories: ["transport_wedge", null], errorCodes: [], errorTypes: [] } },
+      { type: "agent.execution", data: { categories: ["transport_wedge", "transport_wedge"], errorCodes: [], errorTypes: [] } },
+      { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [], errorTypes: [], exitCode: -1 } },
+    ])("ignores malformed records before later MCP watchdog evidence: %j", invalidEvent => {
+      const { hasMCPTransportWedge } = require("./handle_agent_failure.cjs");
+      const validEvent = { type: "agent.execution", data: { categories: ["transport_wedge"], errorCodes: [], errorTypes: [] } };
+      const invalidContent = JSON.stringify(invalidEvent);
+      expect(hasMCPTransportWedge(`${invalidContent}\n{"message":"transport_wedge"}`)).toBe(false);
+      expect(hasMCPTransportWedge(`${invalidContent}\nnot-json\n${JSON.stringify(validEvent)}`)).toBe(true);
     });
 
     it("returns missing_safe_outputs category", () => {

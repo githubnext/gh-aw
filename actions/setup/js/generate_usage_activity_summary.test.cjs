@@ -647,6 +647,17 @@ describe("generate_usage_activity_summary.cjs", () => {
       const result = parseSafeOutputsManifest(manifestPath);
       expect(result).toEqual({ total_items: 0, items_by_type: {}, items: [] });
     });
+
+    it("leaves JSON detection to the parser and counts only manifest objects", () => {
+      const item = { type: "create_issue", url: "https://github.com/owner/repo/issues/1" };
+      fs.writeFileSync(manifestPath, ["diagnostic: not JSON", "null", "false", "0", '"text"', "[]", '{"broken":}', `  ${JSON.stringify(item)}  `].join("\n"));
+
+      expect(parseSafeOutputsManifest(manifestPath)).toEqual({
+        total_items: 1,
+        items_by_type: { create_issue: 1 },
+        items: [item],
+      });
+    });
   });
 
   describe("parseExperimentsData", () => {

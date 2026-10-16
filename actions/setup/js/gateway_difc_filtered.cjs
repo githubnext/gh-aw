@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl, iterateLines, readLines } = require("./jsonl_helpers.cjs");
 /**
  * Gateway DIFC Filtered Module
  *
@@ -13,22 +14,14 @@ const { GATEWAY_JSONL_PATH, RPC_MESSAGES_PATH } = require("./constants.cjs");
 
 /**
  * Parses JSONL content and extracts DIFC_FILTERED events
- * @param {string} jsonlContent - The JSONL file content
+ * @param {string|Iterable<string>} jsonlContent - JSONL text or complete lines
  * @returns {Array<Object>} Array of DIFC_FILTERED event objects
  */
 function parseDifcFilteredEvents(jsonlContent) {
   const filteredEvents = [];
-  const lines = jsonlContent.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || !trimmed.includes("DIFC_FILTERED")) continue;
-    try {
-      const entry = JSON.parse(trimmed);
-      if (entry.type === "DIFC_FILTERED") {
-        filteredEvents.push(entry);
-      }
-    } catch {
-      // Malformed line — ignored.
+  for (const entry of iterateJsonl(jsonlContent, { lineFilter: line => line.includes("DIFC_FILTERED") })) {
+    if (entry?.type === "DIFC_FILTERED") {
+      filteredEvents.push(entry);
     }
   }
   return filteredEvents;
@@ -51,8 +44,7 @@ function getDifcFilteredEvents(gatewayJsonlPath, rpcMessagesPath) {
 
   if (fs.existsSync(jsonlPath)) {
     try {
-      const content = fs.readFileSync(jsonlPath, "utf8");
-      return parseDifcFilteredEvents(content);
+      return parseDifcFilteredEvents(readLines(jsonlPath));
     } catch {
       return [];
     }
@@ -60,8 +52,7 @@ function getDifcFilteredEvents(gatewayJsonlPath, rpcMessagesPath) {
 
   if (fs.existsSync(rpcPath)) {
     try {
-      const content = fs.readFileSync(rpcPath, "utf8");
-      return parseDifcFilteredEvents(content);
+      return parseDifcFilteredEvents(readLines(rpcPath));
     } catch {
       return [];
     }
@@ -133,7 +124,7 @@ function generateDifcFilteredSection(filteredEvents) {
   } catch (err) {
     throw new Error(`Failed to read file ${remediationPath}: ${String(err)}`, { cause: err });
   }
-  for (const line of remediationText.trimEnd().split("\n")) {
+  for (const line of iterateLines(remediationText.trimEnd())) {
     section += line ? `> ${line}\n` : `>\n`;
   }
   section += `>\n`;

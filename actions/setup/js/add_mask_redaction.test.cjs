@@ -530,6 +530,16 @@ describe("add_mask_redaction", () => {
         }
       });
 
+      it.each(["\u00a0", "\ufeff", "\f"])("preserves trimmed record framing while redacting numeric masks (%j)", whitespace => {
+        for (const terminator of ["\n", "\r\n", ""]) {
+          const content = `${whitespace}{"pin":123456,"text":"safe"}${whitespace}${terminator}`;
+          expect(redactArtifactMaskedValues(content, ["123456"])).toBe(`${whitespace}{"pin":"***","text":"safe"}${whitespace}${terminator}`);
+          expect(redactArtifactMaskedValues(content, ["123456"], undefined, () => "[MASK]")).toBe(`${whitespace}{"pin":"[MASK]","text":"safe"}${whitespace}${terminator}`);
+          expect(redactArtifactMaskedValues(content, ["123456"], value => ({ ...value, text: "sanitized" }))).toBe(`${whitespace}{"pin":"***","text":"sanitized"}${whitespace}${terminator}`);
+          expect(redactArtifactMaskedValues(content, ["ABSENT_RUNTIME_MASK"])).toBe(content);
+        }
+      });
+
       it("does not match normalized numeric representations or alter unmatched nested records", () => {
         const content = '  {"values":[-0,1e+09,9007199254740993,1e400],"escaped":"quote\\"12345","safe":false}\r\n';
         expect(redactArtifactMaskedValues(content, ["12345678", "1000000000", "9007199254740992", "Infinity"])).toBe(content);
@@ -554,6 +564,17 @@ describe("add_mask_redaction", () => {
         const content = '::add-mask::opaque\n{"data":"\\u006fpaque"}\n{"broken":"\\u006fpaque",\nplain opaque\n{"data":"safe"}\n';
         const redacted = redactArtifactMaskedValues(content, ["opaque"]);
         expect(redacted).toBe('{"data":"***"}\n{"broken":"***",\nplain ***\n{"data":"safe"}\n');
+      });
+
+      it("preserves blank lines, mixed line endings and unterminated records while redacting events", () => {
+        const content = '::add-mask::opaque\r\n\r\n {"data":"safe"} \r\n{"data":"\\u006fpaque"}\r\n{"broken":"\\u006fpaque",\nplain opaque\r\n \t\r\nlast opaque';
+        expect(redactArtifactMaskedValues(content, ["opaque"])).toBe('\r\n {"data":"safe"} \r\n{"data":"***"}\r\n{"broken":"***",\nplain ***\r\n \t\r\nlast ***');
+      });
+
+      it("redacts multi-megabyte valid and invalid adjacent event lines", () => {
+        const padding = "x".repeat(3 * 1024 * 1024);
+        const content = `{"data":"${padding}\\u006fpaque"}\r\n{"broken":"${padding}\\u006fpaque",\nplain opaque`;
+        expect(redactArtifactMaskedValues(content, ["opaque"])).toBe(`{"data":"${padding}***"}\r\n{"broken":"${padding}***",\nplain ***`);
       });
 
       it("preserves untouched formatting and empty or unmasked inputs", () => {

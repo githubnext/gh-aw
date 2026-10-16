@@ -80,10 +80,23 @@ describe("merge_ledger_transactions", () => {
   it("prefixes ledger transaction log read errors with ERR_SYSTEM", () => {
     const logPath = path.join(dir, "ledger-transactions.jsonl");
     fs.writeFileSync(logPath, "");
-    vi.spyOn(fs, "readFileSync").mockImplementationOnce(() => {
+    vi.spyOn(fs, "readSync").mockImplementationOnce(() => {
       throw new Error("permission denied");
     });
     expect(() => readAuditEntries(logPath)).toThrow("ERR_SYSTEM: Failed to read ledger transaction log: permission denied");
+  });
+
+  it("streams audit records in bounded chunks without reading the whole file", () => {
+    const logPath = path.join(dir, "ledger-transactions.jsonl");
+    fs.writeFileSync(logPath, "not json\n".repeat(20000) + JSON.stringify(ENTRY));
+    const read = vi.spyOn(fs, "readFileSync");
+    const readChunk = vi.spyOn(fs, "readSync");
+    const close = vi.spyOn(fs, "closeSync");
+    expect(readAuditEntries(logPath)).toEqual([ENTRY]);
+    expect(read).not.toHaveBeenCalled();
+    expect(readChunk.mock.calls.length).toBeGreaterThan(2);
+    expect(readChunk.mock.calls.every(([, buffer]) => buffer.length === 64 * 1024)).toBe(true);
+    expect(close).toHaveBeenCalledTimes(1);
   });
 
   it("appends validated entries to the safe-output file", async () => {

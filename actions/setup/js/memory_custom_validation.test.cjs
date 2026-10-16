@@ -3,7 +3,7 @@ import childProcess from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { clearValidationMarker, formatJSONFiles, getValidationMarkerPath, runCustomMemoryValidation, writeValidationMarker } from "./memory_custom_validation.cjs";
+import { clearValidationMarker, formatJSONFiles, getValidationMarkerPath, runCustomMemoryValidation, validateMemoryJSONSchemas, writeValidationMarker } from "./memory_custom_validation.cjs";
 import { validateSchemaContract } from "./memory_schema_contract.cjs";
 import schemaContractFixtures from "./memory_schema_contract.fixtures.json";
 
@@ -317,6 +317,28 @@ describe("memory_custom_validation", () => {
     expect(result.ok).toBe(false);
     expect(result.stderr).toContain("line 1");
     expect(result.stderr).toContain("cannot be represented exactly");
+  });
+
+  it("uses shared streaming validation for multi-megabyte JSONL records and closes on schema failure", () => {
+    fs.writeFileSync(path.join(tempDir, "events.jsonl"), `{"id":1,"text":"${"x".repeat(2 * 1024 * 1024)}"}\n{"id":"bad"}\n`);
+    const declaration = [{ file: "events.jsonl", schema: { type: "object", properties: { id: { type: "integer" } } } }];
+    const readFile = vi.spyOn(fs, "readFileSync");
+    const read = vi.spyOn(fs, "readSync");
+    const close = vi.spyOn(fs, "closeSync");
+    try {
+      expect(() => validateMemoryJSONSchemas(tempDir, declaration, "repo", "streamed")).toThrow("file 'events.jsonl' line 2 at id");
+      expect(readFile).not.toHaveBeenCalled();
+      expect(read.mock.calls.length).toBeGreaterThan(1);
+      expect(read.mock.calls.every(call => call[3] === 64 * 1024)).toBe(true);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it.each(["\ufeff", "\u00a0", "\v", "\f"])("retains strict JSONL whitespace validation (%j)", whitespace => {
+    fs.writeFileSync(path.join(tempDir, "events.jsonl"), `${whitespace}{"ok":true}\n`);
+    expect(() => validateMemoryJSONSchemas(tempDir, [{ file: "events.jsonl", schema: { type: "object" } }], "repo", "strict")).toThrow("line 1 contains malformed JSON");
   });
 
   it("does not apply numeric enum exactness checks to unrelated JSON values", () => {

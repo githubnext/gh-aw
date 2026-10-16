@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
@@ -333,13 +334,12 @@ class Ledger {
     }
     if (!content.endsWith("\n")) throw new TypeError("Ledger segment has an incomplete record");
     const records = [];
-    for (const line of content.slice(0, -1).split("\n")) {
-      let record;
-      try {
-        record = JSON.parse(line);
-      } catch {
+    for (const event of iterateJsonlEvents(content)) {
+      const line = event.rawLine.slice(0, -1);
+      if (event.type === "invalid") {
         throw new TypeError("Ledger segment contains an invalid record");
       }
+      const record = event.value;
       if (!recordShape(record) || line !== canonicalJSON(record) || sha256(Object.fromEntries(Object.entries(record).filter(([key]) => key !== "sha"))) !== record.sha || (this.validate && !this.validate(record.payload))) {
         throw new TypeError("Ledger segment contains an invalid record");
       }
@@ -420,7 +420,12 @@ class Ledger {
         if (!declarationStat.isFile() || declarationStat.isSymbolicLink()) continue;
         const content = fs.readFileSync(declarationFile, "utf8");
         if (!content.endsWith("\n") || content.indexOf("\n") !== content.length - 1) continue;
-        declaration = JSON.parse(content.slice(0, -1));
+        // Coverage framing permits JSON whitespace, not broader String.trim() whitespace.
+        if (!/^[ \t\r]*\{/.test(content) || !/\}[ \t\r]*\n$/.test(content)) continue;
+        for (const event of iterateJsonlEvents(content)) {
+          if (event.type !== "json") throw new TypeError("Invalid ledger coverage declaration");
+          declaration = event.value;
+        }
       } catch {
         continue;
       }
@@ -566,22 +571,21 @@ class Ledger {
         diagnostics.push({ code: "invalid-envelope", file });
         continue;
       }
-      const lines = content.split("\n");
       const offsets = [];
       for (let pos = 0; pos < raw.length; pos++) {
         if (pos === 0 || raw[pos - 1] === 10) offsets.push(pos);
       }
-      if (lines.at(-1) !== "") diagnostics.push({ code: "truncated-record", file, line: lines.length });
-      for (let index = 0; index < lines.length - 1; index++) {
-        const text = lines[index];
-        const position = { file, line: index + 1 };
-        let record;
-        try {
-          record = JSON.parse(text);
-        } catch {
+      if (content && !content.endsWith("\n")) diagnostics.push({ code: "truncated-record", file, line: offsets.length });
+      for (const event of iterateJsonlEvents(content)) {
+        if (!event.rawLine.endsWith("\n")) continue;
+        const index = event.lineNumber - 1;
+        const text = event.rawLine.slice(0, -1);
+        const position = { file, line: event.lineNumber };
+        if (event.type === "invalid") {
           diagnostics.push({ code: "invalid-json", ...position });
           continue;
         }
+        const record = event.value;
         try {
           if (record && typeof record === "object" && Object.hasOwn(record, "version") && record.version !== 1) {
             diagnostics.push({ code: "unsupported-version", ...position });

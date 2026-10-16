@@ -73,6 +73,149 @@ All files are copied from the committed `js/` and `sh/` directories which contai
 
 ## Development
 
+### JSONL runtime helpers
+
+Use `js/jsonl_helpers.cjs` instead of splitting files or maintaining chunk buffers:
+
+```javascript
+const fs = require("node:fs");
+const { readJsonlFile, streamJsonl } = require("./jsonl_helpers.cjs");
+
+for (const record of readJsonlFile(filePath)) {
+  consume(record);
+}
+
+for await (const record of streamJsonl(fs.createReadStream(filePath))) {
+  await consume(record);
+}
+```
+
+Both iterators are lazy, retain at most the current line and input chunk, and close
+their input on early termination. Multi-megabyte lines, split UTF-8 characters,
+CRLF, and a final line without a newline are supported. Blank and malformed lines
+are skipped; obviously non-JSON lines bypass `JSON.parse`. All JSON values are
+supported, including `null`, `false`, and `0`.
+
+`iterateJsonl(textOrLines, options)` handles existing text or complete-line iterables.
+All JSONL iterators accept `lineFilter(line, lineNumber)`, `lineTransform(line, lineNumber)`, optional `maxLineLength`
+(UTF-16 code units, unlimited by default), and `onError(error, lineNumber)`.
+Errors have sanitized messages and physical, one-based line numbers. Filter,
+callback, and I/O failures propagate. The length limit rejects oversized records
+after framing; memory remains proportional to the largest line.
+The filter receives trimmed text before decoding. The transform runs afterward on
+trimmed text, allowing timestamp prefixes or keyed framing to be removed without
+changing the event's original `rawLine`.
+
+For an exact top-level field/value search, pass
+`fieldFilter: { field: "type", value: "wanted" }`. All value/event iterators and
+`JsonlParser` support this option. A fast string search skips records that cannot
+match before `JSON.parse`; decoded candidates must have their own matching field.
+Values may be strings, finite numbers, booleans, or `null`. Escaped keys/values
+and alternate numeric spellings still match correctly. Filtering occurs after
+`lineTransform`, and filtered records are omitted, not validated. Do not use this
+option when every record must be validated or retained for redaction.
+
+```javascript
+let found = false;
+for (const record of readJsonlFile(filePath, {
+  fieldFilter: { field: "type", value: "wanted" },
+})) {
+  found = true;
+  break; // No later records are decoded; the file closes immediately.
+}
+```
+
+Use the same option with `iterateJsonl(text)` or `streamJsonl(chunks)`.
+String inputs also short-circuit before line scanning when no match is possible.
+
+Pass `schema` to validate decoded records using the lightweight memory schema
+subset: `type`, `enum`, `required`, `properties`, `additionalProperties: false`,
+`items`, `oneOf`, and `anyOf`. Unsupported schemas fail before reading input.
+Schemas are prepared once per iterator or persistent parser; numeric enums also
+check raw numeric tokens for rounding, without constraining unrelated numbers.
+Schema failures are invalid events with reason `"schema"` and
+`validationError: { path, message }`. Value iterators skip them unless
+`strict: true` is set. Filters still omit records before validation.
+For example: `readJsonlFile(filePath, { schema: { type: "object" }, strict: true })`.
+
+Set `fatalUTF8: true` on byte-backed file, streaming, or persistent parsers to
+report malformed UTF-8 as invalid events with reason `"encoding"`, preserving
+physical line numbers. Set `jsonWhitespaceOnly: true` to reject non-JSON framing
+whitespace such as BOM and NBSP. Memory schema validation enables both options;
+the default tolerant log parsing behavior is unchanged.
+
+For redaction or diagnostics that must retain rejected input, use
+`iterateJsonlEvents(textOrLines)`, `readJsonlFileEvents(filePath)`, or
+`streamJsonlEvents(chunks)`. Each event has `type` (`"json"` or `"invalid"`),
+`rawLine` (including its original LF/CRLF terminator, if present), and `lineNumber`.
+JSON events also have `value`; invalid events have a sanitized `error` and a
+`reason` (`"syntax"`, `"too-long"`, `"blank"`, `"schema"`, or `"encoding"`). Blank lines are emitted but do
+not invoke `onError`. No synthetic empty event follows a final newline.
+Without a filter, concatenating `rawLine` reproduces the original text exactly.
+Raw lines and schema paths are untrusted and may contain secrets; redact them before logging.
+
+```javascript
+const { iterateJsonlEvents, readJsonlFileEvents } = require("./jsonl_helpers.cjs");
+
+for (const event of iterateJsonlEvents(text)) {
+  writeRedacted(event.type === "json" ? redactJson(event.value) : redactText(event.rawLine));
+  if (shouldStop()) break;
+}
+
+for (const event of readJsonlFileEvents(filePath)) {
+  if (isWanted(event)) {
+    consume(event);
+    break; // Stops decoding and closes the file immediately.
+  }
+}
+```
+
+The event iterators support `break`, `return`, and explicit iterator `.return()`;
+they do not decode later records, even in an already-read chunk. Async iterators
+also close their upstream source. Value-only iterators accept `{ strict: true }`
+to throw on any invalid record, including blank lines, instead of skipping it.
+Create one iterator per input; do not restart a parser for each manually split line.
+There is no exported standalone record decoder.
+
+Ledger, work-queue, and repo-memory JSONL readers use these shared iterators.
+File-backed usage and audit ledgers stream directly from disk. Queue readers
+retain bounded buffers where transport-wide UTF-8 validation is required and
+apply `parseStrictJSON` to each original `rawLine`, preserving duplicate-key,
+numeric, Unicode, and resource checks. Shared framing does not make corrupted
+queue history skippable or replace canonical-byte and hash verification.
+
+Callback-driven protocols use one persistent `JsonlParser` per stream:
+
+```javascript
+const { JsonlParser } = require("./jsonl_helpers.cjs");
+const parser = new JsonlParser();
+source.on("data", chunk => {
+  for (const event of parser.push(chunk)) consumeEvent(event);
+});
+source.on("end", () => {
+  for (const event of parser.finish()) consumeEvent(event);
+});
+```
+
+`push` and `finish` return lazy event iterators. Consume each iterator completely
+before feeding more input; stopping an iterator is appropriate only when abandoning
+that stream. Invalid protocol events can be rejected using `event.error`.
+`JsonlParser`, `streamJsonlEvents`, and `streamJsonl` also accept an opt-in
+`maxPendingRecordLength` (positive safe integer). It counts raw UTF-16 code units,
+including LF/CRLF, per record, not total stream size or UTF-8 bytes. Framing checks
+the bound before retaining fragments or joining a complete record, even when a
+single chunk contains the whole record. Exceeding it releases pending fragments
+and throws a sanitized, terminal `RangeError`; abandon the parser and terminate
+the source rather than expecting an invalid event or calling `finish` afterward.
+The default remains unlimited, and `maxLineLength` retains its separate
+after-framing behavior. The Agy harness and Pi sub-agent runner explicitly use
+16,777,216 UTF-16 code units per raw record and terminate children on overflow,
+while allowing legitimate multi-megabyte records.
+Custom repair or framing formats can use `iterateLines(text)`, `readLines(filePath)`,
+`streamLines(chunks)`, or `LineFramer.push(chunk)` / `finish()` without duplicating
+line buffering. `parseJsonlContent` remains an eager compatibility wrapper for
+callers that require an array; prefer iterators when results need not be retained.
+
 The `js/` and `sh/` directories contain the source of truth for all JavaScript and shell script files. These files are manually edited and committed to the repository.
 
 **To update JavaScript files:**

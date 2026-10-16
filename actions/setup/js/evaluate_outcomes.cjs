@@ -1,4 +1,5 @@
 // @ts-check
+const { readJsonlFile } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 /**
@@ -99,26 +100,18 @@ function readJSON(filePath, fallback) {
 }
 
 /**
- * Read a JSONL file, returning an array of parsed objects.
+ * Lazily read truthy JSONL records, skipping malformed lines.
  * @param {string} filePath
- * @returns {any[]}
+ * @returns {Generator<any>}
  */
-function readJSONL(filePath) {
+function* readJSONL(filePath) {
   try {
-    return fs
-      .readFileSync(filePath, "utf8")
-      .split("\n")
-      .filter(l => l.trim())
-      .map(l => {
-        try {
-          return JSON.parse(l);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
+    for (const record of readJsonlFile(filePath)) {
+      if (record) yield record;
+    }
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return;
+    throw error;
   }
 }
 
@@ -383,14 +376,13 @@ function main() {
     const manifestPath = path.join(itemDir, "safe-output-items.jsonl");
     if (!fs.existsSync(manifestPath)) continue;
 
-    const manifest = readJSONL(manifestPath);
-    if (manifest.length === 0) continue;
-
-    // Separate actionable items from noops
-    const actionable = manifest.filter(m => m.type && !NOOP_TYPES.has(m.type));
-    const noops = manifest.filter(m => m.type && NOOP_TYPES.has(m.type));
-    const runNoops = noops.length;
-    const runItems = actionable.length;
+    let runNoops = 0;
+    let runItems = 0;
+    for (const item of readJSONL(manifestPath)) {
+      if (!item.type) continue;
+      if (NOOP_TYPES.has(item.type)) runNoops++;
+      else runItems++;
+    }
 
     if (runItems === 0 && runNoops === 0) continue;
 
@@ -401,7 +393,8 @@ function main() {
     total += runItems;
 
     // Write noop entries
-    for (const n of noops) {
+    for (const n of readJSONL(manifestPath)) {
+      if (!n.type || !NOOP_TYPES.has(n.type)) continue;
       const normalized = normalizeOutcome("noop", n.type || "");
       try {
         fs.appendFileSync(
@@ -440,7 +433,8 @@ function main() {
     }
 
     // Evaluate each actionable item
-    for (const item of actionable) {
+    for (const item of readJSONL(manifestPath)) {
+      if (!item.type || NOOP_TYPES.has(item.type)) continue;
       const evalResult = evaluateItem(item, repo);
       const normalized = evalResult;
 
