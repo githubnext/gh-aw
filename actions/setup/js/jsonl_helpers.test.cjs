@@ -14,6 +14,102 @@ async function collect(source) {
 }
 
 describe("jsonl_helpers", () => {
+  describe("field-value search", () => {
+    const options = { fieldFilter: { field: "type", value: "wanted" } };
+
+    it("searches text before decoding and stops after the first verified match", () => {
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        expect([...iterateJsonl('{"type":"other"}\n'.repeat(10000), options)]).toEqual([]);
+        expect(parse).not.toHaveBeenCalled();
+        const iterator = iterateJsonl('{"type":"other"}\n{"type":"other","message":"wanted"}\n{"type":"wanted","id":7}\n{"type":"wanted","bad":}\n', options);
+        expect(iterator.next().value).toEqual({ type: "wanted", id: 7 });
+        iterator.return();
+        expect(parse).toHaveBeenCalledTimes(2);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
+    it("confirms exact own top-level matches instead of trusting text hits", () => {
+      const text = ['{"nested":{"type":"wanted"}}', '{"type":"other","message":"wanted"}', '{"type":"wanted","type":"other"}', '["type","wanted"]', '{"type":"wanted"}'].join("\n");
+      expect([...iterateJsonl(text, options)]).toEqual([{ type: "wanted" }]);
+      expect([...iterateJsonl('{"other":null}', { fieldFilter: { field: "toString", value: null } })]).toEqual([]);
+    });
+
+    it.each([
+      { field: "type", value: "wanted", text: String.raw`{"\u0074ype":"\u0077anted"}` },
+      { field: "path", value: "a/b", text: String.raw`{"path":"a\/b"}` },
+      { field: 'a"b', value: "x\ny", text: String.raw`{"a\"b":"x\ny"}` },
+      { field: "count", value: 1000, text: '{"count":1e3}' },
+      { field: "count", value: 0, text: '{"count":-0}' },
+      { field: "enabled", value: false, text: '{"enabled":false}' },
+      { field: "empty", value: null, text: '{"empty":null}' },
+      { field: "", value: "", text: '{"":""}' },
+      { field: "text", value: "\ud800", text: '{"text":"\ud800"}' },
+      { field: "\ud800", value: true, text: '{"\ud800":true}' },
+    ])("preserves alternate JSON spellings: $text", ({ field, value, text }) => {
+      expect([...iterateJsonl(text, { fieldFilter: { field, value } })]).toHaveLength(1);
+    });
+
+    it("applies string filtering after transforms and preserves event positions and raw text", () => {
+      const text = 'skip {"type":"other"}\nlog {"type":"wanted"}\r\n';
+      expect([...iterateJsonlEvents(text, { ...options, lineTransform: line => line.slice(line.indexOf("{")) })]).toMatchObject([{ type: "json", value: { type: "wanted" }, lineNumber: 2, rawLine: 'log {"type":"wanted"}\r\n' }]);
+    });
+
+    it("streams file searches without decoding unrelated records and closes on a match", () => {
+      const directory = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-jsonl-search-"));
+      const file = path.join(directory, "records.jsonl");
+      fs.writeFileSync(file, '{"type":"other"}\n'.repeat(10000) + '{"type":"wanted"}\n{"type":"wanted","bad":}\n');
+      const parse = vi.spyOn(JSON, "parse");
+      const close = vi.spyOn(fs, "closeSync");
+      try {
+        for (const record of readJsonlFile(file, options)) {
+          expect(record).toEqual({ type: "wanted" });
+          break;
+        }
+        expect(parse).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledTimes(1);
+      } finally {
+        parse.mockRestore();
+        close.mockRestore();
+        fs.rmSync(directory, { recursive: true, force: true });
+      }
+    });
+
+    it("closes async searches on early termination, including split escaped matches", async () => {
+      let closed = false;
+      let pulled = 0;
+      async function* chunks() {
+        try {
+          pulled++;
+          yield '{"type":"other"}\n{"ty';
+          pulled++;
+          yield String.raw`pe":"\u0077anted"}` + "\n";
+          pulled++;
+          yield '{"type":"wanted"}\n';
+        } finally {
+          closed = true;
+        }
+      }
+      for await (const record of streamJsonl(chunks(), options)) {
+        expect(record).toEqual({ type: "wanted" });
+        break;
+      }
+      expect(pulled).toBe(2);
+      expect(closed).toBe(true);
+    });
+
+    it("retains candidate parse errors and validates filter configuration", () => {
+      const onError = vi.fn();
+      expect([...iterateJsonl('{"type":"wanted","bad":}\n{"type":"wanted"}', { ...options, onError })]).toEqual([{ type: "wanted" }]);
+      expect(onError).toHaveBeenCalledTimes(1);
+      for (const value of [undefined, NaN, Infinity, {}, []]) {
+        expect(() => [...iterateJsonl("", { fieldFilter: { field: "type", value } })]).toThrow("fieldFilter requires");
+      }
+    });
+  });
+
   describe("incremental parser", () => {
     it("retains UTF-8, framing, and physical line state across pushes", () => {
       const parser = new JsonlParser();

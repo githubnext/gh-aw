@@ -20,6 +20,37 @@ function measure(body, heapMb = 64) {
 
 describe("JSONL performance regressions", () => {
   it(
+    "finds a sparse field value among a million records while decoding only the match",
+    () => {
+      const result = measure(`
+      const originalParse = JSON.parse;
+      let parseCalls = 0;
+      let closed = false;
+      JSON.parse = (...args) => { parseCalls++; return originalParse(...args); };
+      try {
+        const batch = '{"type":"other","text":"unrelated"}\\n'.repeat(256);
+        function* chunks() {
+          try {
+            for (let index = 0; index < 4096; index++) yield batch;
+            yield '{"type":"wanted"}\\n{"type":"wanted","bad":}\\n';
+          } finally { closed = true; }
+        }
+        let found = false;
+        for await (const event of streamJsonlEvents(chunks(), { fieldFilter: { field: "type", value: "wanted" } })) {
+          if (event.type !== "json") throw new Error("Unexpected rejection");
+          found = event.value.type === "wanted";
+          break;
+        }
+        return { found, parseCalls, closed };
+      } finally { JSON.parse = originalParse; }
+    `);
+      expect(result).toMatchObject({ found: true, parseCalls: 1, closed: true });
+      expect(result.elapsedMs).toBeLessThan(budgetMs);
+    },
+    budgetMs + 10000
+  );
+
+  it(
     "streams a million short records within a 64 MB heap and bounded time",
     () => {
       const result = measure(`

@@ -9,6 +9,7 @@ const { StringDecoder } = require("node:string_decoder");
  * @property {(line: string, lineNumber: number) => string} [lineTransform] Transforms trimmed record text after filtering, retaining the original rawLine.
  * @property {(error: Error, lineNumber: number) => void} [onError] Reports rejected nonblank lines without exposing their contents.
  * @property {number} [maxLineLength] Optional limit in UTF-16 code units; unlimited by default.
+ * @property {{field: string, value: string|number|boolean|null}} [fieldFilter] Match an own top-level field, prefiltering text before decoding.
  */
 
 /**
@@ -151,6 +152,28 @@ function validateOptions(options) {
   }
 }
 
+/** @param {JsonlOptions} options */
+function prepareFieldFilter(options) {
+  const filter = options.fieldFilter;
+  if (filter === undefined) return;
+  if (!filter || typeof filter.field !== "string" || !(filter.value === null || typeof filter.value === "string" || typeof filter.value === "boolean" || (typeof filter.value === "number" && Number.isFinite(filter.value)))) {
+    throw new TypeError("fieldFilter requires a string field and a finite JSON primitive value");
+  }
+  const fieldToken = JSON.stringify(filter.field);
+  const valueToken = typeof filter.value === "number" ? undefined : JSON.stringify(filter.value);
+  return { ...filter, fieldToken, valueToken, escapedSearch: fieldToken.includes("\\") || valueToken?.includes("\\") === true };
+}
+
+/**
+ * Escapes can spell keys/values differently, and numbers have alternate exponent
+ * forms. Only reject text whose absence proves that the decoded field cannot match.
+ * @param {string} text
+ * @param {ReturnType<typeof prepareFieldFilter>} filter
+ */
+function mayMatchField(text, filter) {
+  return !filter || filter.escapedSearch || text.includes("\\") || (text.includes(filter.fieldToken) && (filter.valueToken === undefined || text.includes(filter.valueToken)));
+}
+
 /**
  * @param {string} rawLine
  * @param {number} lineNumber
@@ -180,20 +203,23 @@ function invalidEvent(rawLine, lineNumber, reason, options) {
  * @param {string} rawLine
  * @param {number} lineNumber
  * @param {JsonlOptions} options
+ * @param {ReturnType<typeof prepareFieldFilter>} fieldFilter
  * @returns {JsonlEvent|undefined}
  */
-function parseEvent(rawLine, lineNumber, options) {
+function parseEvent(rawLine, lineNumber, options, fieldFilter) {
   let line = rawLine.trim();
   if (!line) {
     return invalidEvent(rawLine, lineNumber, "blank", options);
   }
   if (options.lineFilter && !options.lineFilter(line, lineNumber)) return;
   if (options.lineTransform) line = options.lineTransform(line, lineNumber).trim();
+  if (!mayMatchField(line, fieldFilter)) return;
   const length = rawLine.endsWith("\r\n") ? rawLine.length - 2 : rawLine.endsWith("\n") ? rawLine.length - 1 : rawLine.length;
   const tooLong = options.maxLineLength !== undefined && length > options.maxLineLength;
   if (!tooLong && isJsonCandidate(line)) {
     try {
       const value = JSON.parse(line);
+      if (fieldFilter && (!value || typeof value !== "object" || Array.isArray(value) || !Object.hasOwn(value, fieldFilter.field) || value[fieldFilter.field] !== fieldFilter.value)) return;
       return { type: "json", value, rawLine, lineNumber };
     } catch {
       // Report a sanitized error below, not JSON.parse's input-bearing message.
@@ -217,6 +243,7 @@ class JsonlParser {
       throw new RangeError("maxPendingRecordLength must be a positive safe integer");
     }
     this.options = options;
+    this.fieldFilter = prepareFieldFilter(options);
     this.framer = new LineFramer(true, options.maxPendingRecordLength);
     this.decoder = new StringDecoder("utf8");
     this.lineNumber = 0;
@@ -225,7 +252,7 @@ class JsonlParser {
   /** @param {Iterable<string>} lines @returns {Generator<JsonlEvent>} */
   *#events(lines) {
     for (const line of lines) {
-      const event = parseEvent(line, ++this.lineNumber, this.options);
+      const event = parseEvent(line, ++this.lineNumber, this.options, this.fieldFilter);
       if (event) yield event;
     }
   }
@@ -254,9 +281,11 @@ class JsonlParser {
  */
 function* iterateJsonlEvents(source, options = {}) {
   validateOptions(options);
+  const fieldFilter = prepareFieldFilter(options);
+  if (typeof source === "string" && !options.lineTransform && !mayMatchField(source, fieldFilter)) return;
   let lineNumber = 0;
   for (const rawLine of typeof source === "string" ? iterateLines(source, true) : source) {
-    const event = parseEvent(rawLine, ++lineNumber, options);
+    const event = parseEvent(rawLine, ++lineNumber, options, fieldFilter);
     if (event) yield event;
   }
 }

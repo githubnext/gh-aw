@@ -106,6 +106,28 @@ The filter receives trimmed text before decoding. The transform runs afterward o
 trimmed text, allowing timestamp prefixes or keyed framing to be removed without
 changing the event's original `rawLine`.
 
+For an exact top-level field/value search, pass
+`fieldFilter: { field: "type", value: "wanted" }`. All value/event iterators and
+`JsonlParser` support this option. A fast string search skips records that cannot
+match before `JSON.parse`; decoded candidates must have their own matching field.
+Values may be strings, finite numbers, booleans, or `null`. Escaped keys/values
+and alternate numeric spellings still match correctly. Filtering occurs after
+`lineTransform`, and filtered records are omitted, not validated. Do not use this
+option when every record must be validated or retained for redaction.
+
+```javascript
+let found = false;
+for (const record of readJsonlFile(filePath, {
+  fieldFilter: { field: "type", value: "wanted" },
+})) {
+  found = true;
+  break; // No later records are decoded; the file closes immediately.
+}
+```
+
+Use the same option with `iterateJsonl(text)` or `streamJsonl(chunks)`.
+String inputs also short-circuit before line scanning when no match is possible.
+
 For redaction or diagnostics that must retain rejected input, use
 `iterateJsonlEvents(textOrLines)`, `readJsonlFileEvents(filePath)`, or
 `streamJsonlEvents(chunks)`. Each event has `type` (`"json"` or `"invalid"`),

@@ -47,25 +47,36 @@ const OTLP_STATUS_OK = 1;
 const OTLP_STATUS_ERROR = 2;
 
 /**
- * Read a JSONL file, returning an array of parsed objects.
+ * Lazily read JSONL records.
  * Silently skips invalid lines.
  * @param {string} filePath
- * @returns {any[]}
+ * @returns {Generator<any>}
  */
-function readJSONL(filePath) {
+function* readJSONL(filePath) {
   try {
-    return Array.from(readJsonlFile(filePath));
-  } catch {
-    return [];
+    yield* readJsonlFile(filePath);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return;
+    throw error;
   }
 }
 
 async function main() {
   const evaluations = readJSONL(EVALUATIONS_PATH);
+  const firstEvaluation = evaluations.next();
+  try {
+    await emitOutcomeSpans(evaluations, firstEvaluation);
+  } finally {
+    evaluations.return(undefined);
+  }
+}
+
+/** @param {Generator<any>} evaluations @param {IteratorResult<any>} firstEvaluation */
+async function emitOutcomeSpans(evaluations, firstEvaluation) {
   const summary = readJSONIfExists(SUMMARY_PATH);
   const awInfo = readJSONIfExists(AW_INFO_PATH) || {};
 
-  if (evaluations.length === 0 && (!summary || summary.total_outcomes === 0)) {
+  if (firstEvaluation.done && (!summary || summary.total_outcomes === 0)) {
     core.info("[outcome-otel] No outcome evaluations to export");
     return;
   }
@@ -126,8 +137,17 @@ async function main() {
   // Per-item outcome spans
   // -------------------------------------------------------------------------
   const itemSpans = [];
+  const resolutionTimes = [];
+  const eventNames = new Set();
+  const workflowNames = new Set();
+  const typeNames = new Set();
 
-  for (const eval_ of evaluations) {
+  for (let next = firstEvaluation; !next.done; next = evaluations.next()) {
+    const eval_ = next.value;
+    if (typeof eval_.resolution_sec === "number" && eval_.resolution_sec > 0) resolutionTimes.push(eval_.resolution_sec);
+    if (eval_.event) eventNames.add(eval_.event);
+    if (eval_.workflow) workflowNames.add(eval_.workflow);
+    if (eval_.type) typeNames.add(eval_.type);
     const type = typeof eval_.type === "string" ? eval_.type : "";
     const result = typeof eval_.result === "string" ? eval_.result : "unknown";
     // Fall back to the legacy result field so older JSONL artifacts still render
@@ -212,7 +232,7 @@ async function main() {
   const summaryAttributes = [
     buildAttr("gh-aw.exporter.name", "outcome-collector"),
     buildAttr("gh-aw.outcome.runs_checked", getSummaryNumber("runs_checked", 0)),
-    buildAttr("gh-aw.outcome.total", getSummaryNumber("total_outcomes", evaluations.length)),
+    buildAttr("gh-aw.outcome.total", getSummaryNumber("total_outcomes", itemSpans.length)),
     buildAttr("gh-aw.outcome.accepted", getSummaryNumber("accepted", 0)),
     buildAttr("gh-aw.outcome.rejected", getSummaryNumber("rejected", 0)),
     buildAttr("gh-aw.outcome.ignored", getSummaryNumber("ignored", 0)),
@@ -230,7 +250,7 @@ async function main() {
     buildAttr("gh-aw.outcome.noop_rate", getSummaryNumber("noop_rate", 0)),
     buildAttr("gh-aw.outcome.zero_touch_count", getSummaryNumber("zero_touch", 0)),
     buildAttr("gh-aw.outcome.zero_touch_rate", getSummaryNumber("zero_touch_rate", 0)),
-    buildAttr("gh-aw.outcome.item_count", evaluations.length),
+    buildAttr("gh-aw.outcome.item_count", itemSpans.length),
   ];
 
   if (summary && summary.date) {
@@ -242,10 +262,7 @@ async function main() {
   if (summaryMedian !== null) {
     summaryAttributes.push(buildAttr("gh-aw.outcome.median_resolution_sec", summaryMedian));
   } else {
-    const resolutionTimes = evaluations
-      .filter(e => typeof e.resolution_sec === "number" && e.resolution_sec > 0)
-      .map(e => e.resolution_sec)
-      .sort((a, b) => a - b);
+    resolutionTimes.sort((a, b) => a - b);
     if (resolutionTimes.length > 0) {
       const mid = Math.floor(resolutionTimes.length / 2);
       const median = resolutionTimes.length % 2 !== 0 ? resolutionTimes[mid] : Math.round((resolutionTimes[mid - 1] + resolutionTimes[mid]) / 2);
@@ -254,19 +271,19 @@ async function main() {
   }
 
   // Trigger type distribution
-  const events = [...new Set(evaluations.map(e => e.event).filter(Boolean))].sort();
+  const events = [...eventNames].sort();
   if (events.length > 0) {
     summaryAttributes.push(buildAttr("gh-aw.outcome.events", events.join(",")));
   }
 
   // Distinct workflows evaluated
-  const workflows = [...new Set(evaluations.map(e => e.workflow).filter(Boolean))].sort();
+  const workflows = [...workflowNames].sort();
   if (workflows.length > 0) {
     summaryAttributes.push(buildAttr("gh-aw.outcome.workflows", workflows.join(",")));
   }
 
   // Distinct outcome types seen
-  const types = [...new Set(evaluations.map(e => e.type).filter(Boolean))].sort();
+  const types = [...typeNames].sort();
   if (types.length > 0) {
     summaryAttributes.push(buildAttr("gh-aw.outcome.types", types.join(",")));
   }
@@ -300,7 +317,7 @@ async function main() {
   // Always write to local JSONL mirror
   appendToOTLPJSONL(payload);
 
-  core.info(`[outcome-otel] Emitting ${evaluations.length} outcome span(s) + 1 summary span`);
+  core.info(`[outcome-otel] Emitting ${itemSpans.length} outcome span(s) + 1 summary span`);
 
   if (hasEndpoints) {
     await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
@@ -317,4 +334,5 @@ if (require.main === module) {
 
 module.exports = {
   main,
+  readJSONL,
 };
