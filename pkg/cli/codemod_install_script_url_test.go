@@ -294,3 +294,53 @@ jobs:
 	assert.Contains(t, result, "https://raw.githubusercontent.com/github/gh-aw/v1.0.0/install-gh-aw.sh", "Result should update tag reference")
 	assert.NotContains(t, result, "githubnext/gh-aw", "Result should not contain old references")
 }
+
+func TestInstallScriptURLCodemod_RepositoryBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "cao source", input: "source: githubnext/gh-aw-cao@main"},
+		{name: "cao condition", input: "if: ${{ inputs.target_repo == 'githubnext/gh-aw-cao' }}"},
+		{name: "starter repository", input: "env: {STARTER_REPO: githubnext/gh-aw-cao-bug-bash}"},
+		{name: "raw URL for other repository", input: "run: curl https://raw.githubusercontent.com/githubnext/gh-aw-cao/main/install-gh-aw.sh"},
+		{name: "underscore suffix", input: "source: githubnext/gh-aw_test@main"},
+		{name: "dot suffix", input: "source: githubnext/gh-aw.test@main"},
+		{name: "alphanumeric suffix", input: "source: githubnext/gh-aw2@main"},
+		{name: "owner prefix", input: "run: gh extension install notgithubnext/gh-aw"},
+		{name: "owner hyphen prefix", input: "run: gh extension install not-githubnext/gh-aw"},
+		{name: "owner dot prefix", input: "run: gh extension install not.githubnext/gh-aw"},
+		{name: "source ref", input: "source: githubnext/gh-aw@main", want: "source: github/gh-aw@main"},
+		{name: "source path", input: "source: githubnext/gh-aw/workflows/test.md@main", want: "source: github/gh-aw/workflows/test.md@main"},
+		{name: "GitHub URL", input: "run: curl https://github.com/githubnext/gh-aw/releases/latest", want: "run: curl https://github.com/github/gh-aw/releases/latest"},
+		{name: "git URL", input: "run: git clone https://github.com/githubnext/gh-aw.git", want: "run: git clone https://github.com/github/gh-aw.git"},
+		{name: "quoted repository", input: "env: {REPO: 'githubnext/gh-aw'}", want: "env: {REPO: 'github/gh-aw'}"},
+		{name: "repeated references", input: "env: {REPOS: 'githubnext/gh-aw githubnext/gh-aw'}", want: "env: {REPOS: 'github/gh-aw github/gh-aw'}"},
+		{name: "mixed references", input: "env: {REPOS: 'githubnext/gh-aw-cao githubnext/gh-aw githubnext/gh-aw-cao-bug-bash'}", want: "env: {REPOS: 'githubnext/gh-aw-cao github/gh-aw githubnext/gh-aw-cao-bug-bash'}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			content := "---\n" + tt.input + "\n---\n\n# Test\n\ngithubnext/gh-aw\n"
+			want := content
+			if tt.want != "" {
+				want = "---\n" + tt.want + "\n---\n\n# Test\n\ngithubnext/gh-aw\n"
+			}
+
+			codemod := getInstallScriptURLCodemod()
+			result, applied, err := codemod.Apply(content, nil)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want != "", applied)
+			assert.Equal(t, want, result)
+
+			again, appliedAgain, err := codemod.Apply(result, nil)
+			require.NoError(t, err)
+			assert.False(t, appliedAgain, "Migration should be idempotent")
+			assert.Equal(t, result, again)
+		})
+	}
+}
