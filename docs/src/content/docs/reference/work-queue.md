@@ -511,6 +511,9 @@ checkpoints, detached reads, stable-request recovery, journal publication and
 CAS conflicts. Damaged checkpoints and unavailable ancestry fail closed.
 Injected object-transport fixtures also retain historical API/cache budgets;
 their simulated network costs are not production Git measurements.
+The local stress simulator explicitly registers its Git-backed adapter for both
+parent and worker RPC clients, keeping ledger operations on disposable local
+repositories rather than the production GitHub transport.
 
 Compiled controls keep the protected queue publisher credential separate from
 the worker-dispatch credential. Git reads recheck remote access even when local
