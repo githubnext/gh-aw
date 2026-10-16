@@ -933,8 +933,8 @@ async function main() {
     core.setFailed("ERROR: Configuration is missing required 'gateway' section");
     return;
   }
-  applyGatewayRuntimeTimeouts(configObj, process.env);
   applyAgenticWorkflowsRunnerIdentity(configObj);
+  applyGatewayRuntimeTimeouts(configObj, process.env);
   mcpConfig = JSON.stringify(configObj);
   if (!("port" in gw) || gw.port == null) {
     core.setFailed("ERROR: Gateway configuration is missing required 'port' field");
