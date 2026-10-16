@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 )
 
@@ -18,11 +19,16 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 		return nil, err
 	}
 
+	normalized, err := normalizeFrontmatterConfig(frontmatter)
+	if err != nil {
+		return nil, err
+	}
+
 	// Use JSON marshaling for the entire frontmatter conversion.
 	// TemplatableInt32.UnmarshalJSON transparently handles both integer literals
 	// (e.g. timeout-minutes: 30) and GitHub Actions expressions
 	// (e.g. timeout-minutes: ${{ inputs.timeout }}) during unmarshaling.
-	jsonBytes, err := json.Marshal(frontmatter)
+	jsonBytes, err := json.Marshal(normalized)
 	if err != nil {
 		frontmatterTypesLog.Printf("Failed to marshal frontmatter: %v", err)
 		return nil, fmt.Errorf("failed to marshal frontmatter to JSON: %w", err)
@@ -149,6 +155,36 @@ func ParseFrontmatterConfig(frontmatter map[string]any) (*FrontmatterConfig, err
 
 	frontmatterTypesLog.Printf("Successfully parsed frontmatter config: name=%s, engine=%v", config.Name, config.Engine)
 	return &config, nil
+}
+
+// normalizeFrontmatterConfig adapts schema-valid shorthands for typed JSON
+// unmarshaling without changing the raw frontmatter used by other compiler paths.
+func normalizeFrontmatterConfig(frontmatter map[string]any) (map[string]any, error) {
+	normalized := maps.Clone(frontmatter)
+	if trigger, ok := frontmatter["on"].(string); ok {
+		normalized["on"] = map[string]any{trigger: nil}
+	}
+	if outputs, ok := frontmatter["safe-outputs"].(map[string]any); ok {
+		outputs = maps.Clone(outputs)
+		for name, value := range outputs {
+			// data is an inline JSON schema, not a handler configuration.
+			if name == "data" {
+				continue
+			}
+			if handler, ok := value.(map[string]any); ok {
+				switch handler["max"].(type) {
+				case int, int64, uint64, float64:
+					handler = maps.Clone(handler)
+					if err := preprocessIntFieldAsString(handler, "max", frontmatterTypesLog); err != nil {
+						return nil, err
+					}
+					outputs[name] = handler
+				}
+			}
+		}
+		normalized["safe-outputs"] = outputs
+	}
+	return normalized, nil
 }
 
 func extractModelPolicyFromFrontmatter(frontmatter map[string]any) ([]string, []string) {

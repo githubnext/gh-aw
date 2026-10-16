@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -37,6 +38,37 @@ func TestParseFrontmatterConfigMaxTurnsAndMaxRuns(t *testing.T) {
 	require.NotNil(t, config.MaxRuns)
 	assert.True(t, config.MaxRuns.IsExpression())
 	assert.Equal(t, "${{ inputs.max-runs }}", config.MaxRuns.String())
+}
+
+func TestParseFrontmatterConfigShorthands(t *testing.T) {
+	for _, trigger := range []any{"workflow_dispatch", map[string]any{"workflow_dispatch": nil}} {
+		for _, max := range []any{0, 1, int64(2), uint64(3), float64(4), "${{ inputs.max }}"} {
+			frontmatter := map[string]any{
+				"on":           trigger,
+				"excluded-env": []any{"OTEL_EXPORTER_OTLP_HEADERS"},
+				"safe-outputs": map[string]any{
+					"noop": map[string]any{"max": max},
+					"data": map[string]any{"max": 1},
+				},
+			}
+			original, err := json.Marshal(frontmatter)
+			require.NoError(t, err)
+
+			config, err := ParseFrontmatterConfig(frontmatter)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{"workflow_dispatch": nil}, config.On)
+			assert.Equal(t, []string{"OTEL_EXPORTER_OTLP_HEADERS"}, config.ExcludedEnv)
+			require.NotNil(t, config.SafeOutputs)
+			require.NotNil(t, config.SafeOutputs.NoOp)
+			require.NotNil(t, config.SafeOutputs.NoOp.Max)
+			assert.Equal(t, fmt.Sprint(max), *config.SafeOutputs.NoOp.Max)
+			assert.Equal(t, map[string]any{"max": float64(1)}, config.SafeOutputs.Data)
+
+			after, err := json.Marshal(frontmatter)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(original), string(after), "parsing must not mutate frontmatter")
+		}
+	}
 }
 
 func TestParseFrontmatterConfig(t *testing.T) {

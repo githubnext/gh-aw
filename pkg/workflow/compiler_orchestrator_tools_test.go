@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,58 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCompileExcludedEnvWithFrontmatterShorthands(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter string
+	}{
+		{"object trigger", "on:\n  workflow_dispatch:"},
+		{"integer max", "on:\n  workflow_dispatch:\nsafe-outputs: { noop: { max: 1 } }"},
+		{"string trigger", "on: workflow_dispatch"},
+		{"both shorthands", "on: workflow_dispatch\nsafe-outputs: { noop: { max: 1 } }"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.md")
+			content := fmt.Sprintf("---\n%s\nengine: copilot\nexcluded-env:\n  - OTEL_EXPORTER_OTLP_HEADERS\n  - WORKFLOW_PRIVATE_HEADER\n---\nSay hello.\n", tt.frontmatter)
+			require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+
+			compiler := NewCompiler()
+			stderr := testutil.CaptureStderr(t, func() {
+				require.NoError(t, compiler.CompileWorkflow(path))
+			})
+			assert.NotContains(t, stderr, "Failed to parse frontmatter config")
+			lock, err := os.ReadFile(filepath.Join(dir, "test.lock.yml"))
+			require.NoError(t, err)
+			assert.Contains(t, string(lock), "--exclude-env OTEL_EXPORTER_OTLP_HEADERS")
+			assert.Contains(t, string(lock), "--exclude-env WORKFLOW_PRIVATE_HEADER")
+		})
+	}
+}
+
+func TestTryParseFrontmatterConfigWarning(t *testing.T) {
+	compiler := NewCompiler()
+	stderr := testutil.CaptureStderr(t, func() {
+		config := compiler.tryParseFrontmatterConfig(map[string]any{
+			"on":          map[string]any{"workflow_dispatch": nil},
+			"permissions": "read-all",
+		})
+		assert.Nil(t, config)
+	})
+	assert.Equal(t, 1, compiler.GetWarningCount())
+	assert.Contains(t, stderr, "Failed to parse frontmatter config")
+	assert.Contains(t, stderr, "some frontmatter settings may be ignored")
+
+	compiler.ResetWarningCount()
+	stderr = testutil.CaptureStderr(t, func() {
+		config := compiler.tryParseFrontmatterConfig(map[string]any{"on": "workflow_dispatch"})
+		assert.NotNil(t, config)
+	})
+	assert.Zero(t, compiler.GetWarningCount())
+	assert.Empty(t, stderr)
+}
 
 // TestProcessToolsAndMarkdown_BasicTools tests basic tools processing
 func TestProcessToolsAndMarkdown_BasicTools(t *testing.T) {
