@@ -980,7 +980,8 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
   const items = [];
   let totalItems = 0;
 
-  for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
+  for (const entry of iterateJsonl(content)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const itemType = String(entry.type || "").trim();
     if (!itemType) {
       continue;
