@@ -55,8 +55,8 @@ func TestOpenCodeSampleInstallationAndCapabilities(t *testing.T) {
 
 func TestOpenCodeSampleVersionOutsideCooldown(t *testing.T) {
 	def := loadOpenCodeSample(t)
-	require.Equal(t, "1.18.33", def.Version, "update release publication evidence with the pin")
-	publishedAt, err := time.Parse(time.RFC3339, "2026-09-28T04:22:46Z")
+	require.Equal(t, "1.18.35", def.Version, "update npm publication evidence with the pin")
+	publishedAt, err := time.Parse(time.RFC3339, "2026-10-06T20:21:30Z")
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, time.Since(publishedAt), 72*time.Hour)
 }
