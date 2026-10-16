@@ -92,8 +92,10 @@ type subagentIdentityLink struct {
 // subagent.started event lacks agentId into the instance of its canonical agent
 // ID. The link requires the same session ID and exactly one native start with
 // the same data.toolCallId and a top-level agentId; agent definition, display
-// name, start time, and native event index must not conflict. Instances
-// without such a unique, conflict-free link keep their previous output.
+// name, start time, and native event index must not conflict. The lifecycle
+// instance must carry no accounting of its own, and the agent ID must carry no
+// lifecycle or configuration evidence of its own. Instances without such a
+// unique, conflict-free link keep their previous output.
 func (models *subagentSessionModels) reconcileSubagentIdentities(native *subagentSessionModels) {
 	if native == nil || models.sessionID == "" || models.sessionID != native.sessionID {
 		return
@@ -162,16 +164,48 @@ func (models *subagentSessionModels) subagentStartsAgree(unified, native subagen
 		return false
 	}
 	if names, ok := models.metricNames[native.agentID]; ok {
-		if conflictingSubagentNames(unified.definition, names.definition) ||
-			conflictingSubagentNames(unified.displayName, names.displayName) {
-			return false
+		// Unified names may be missing, so native names are compared with the
+		// metrics names too.
+		for _, start := range []subagentStartEvidence{unified, native} {
+			if conflictingSubagentNames(start.definition, names.definition) ||
+				conflictingSubagentNames(start.displayName, names.displayName) {
+				return false
+			}
 		}
 	}
-	if usage := models.agentUsage[unified.identity]; usage != nil && (usage.Requests != 0 || len(usage.Models) > 0) {
-		// The lifecycle half carries its own accounting; merging could double it.
+	if usage := models.agentUsage[unified.identity]; usage != nil && hasAgentUsageAccounting(usage) {
+		// The lifecycle half carries its own accounting; merging could drop or
+		// double it.
+		return false
+	}
+	if len(models.actualModels[unified.identity]) > 0 || len(models.actualCounts[unified.identity]) > 0 {
+		return false
+	}
+	if models.hasLifecycleEvidence(native.agentID) {
+		// The metrics-keyed instance has its own lifecycle or configuration
+		// events (mixed IDs); merging would overwrite them.
 		return false
 	}
 	return true
+}
+
+func hasAgentUsageAccounting(usage *AgentUsageBreakdown) bool {
+	return usage.Requests != 0 || len(usage.Models) > 0 || len(usage.requestUsages) > 0 ||
+		usage.TokenCoreMetrics != (TokenCoreMetrics{}) || usage.AIC != 0 || usage.TotalApiDurationMs != 0
+}
+
+// hasLifecycleEvidence reports whether agentID holds lifecycle or
+// configuration evidence beyond what a per-agent metrics snapshot records.
+func (models *subagentSessionModels) hasLifecycleEvidence(agentID string) bool {
+	if row := models.agents[agentID]; row != nil &&
+		(row.InvocationCount != 0 || row.CompletedCount != 0 || row.FailedCount != 0 || row.IncompleteCount != 0 ||
+			row.Effort != "" || row.ResolvedModel != "" || row.Error != "" || row.ErrorCode != "") {
+		return true
+	}
+	usage := models.agentUsage[agentID]
+	return usage != nil &&
+		(usage.CompletedCount != 0 || usage.FailedCount != 0 || usage.IncompleteCount != 0 ||
+			usage.Effort != "" || len(usage.RequestedModels) > 0 || len(usage.ResolvedModels) > 0)
 }
 
 func conflictingSubagentNames(left, right string) bool {

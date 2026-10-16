@@ -467,3 +467,162 @@ func legacyNoSessionDefinitionRow(t *testing.T, runDir, definition string) Agent
 	require.Failf(t, "missing definition row", "%s in %+v", definition, agents)
 	return AgentUsageBreakdown{}
 }
+
+func TestSessionSubagentMissingAgentIDRefusesUnsafeLinks(t *testing.T) {
+	fixtureDir := filepath.Join("testdata", "model_routing_golden", legacyNoSessionFixture)
+	unified := legacyNoSessionExploreExtract(t, filepath.Join(fixtureDir, "usage", "aw_session.jsonl"))
+	native := legacyNoSessionExploreExtract(t, filepath.Join(fixtureDir, "agent-session.jsonl"))
+	ghaw, awf := legacyNoSessionInstances[1], legacyNoSessionInstances[2]
+	isRecord := func(eventType, toolCallID string) func(map[string]any) bool {
+		return func(event map[string]any) bool {
+			data, _ := event["data"].(map[string]any)
+			return event["type"] == eventType && (toolCallID == "" || data["toolCallId"] == toolCallID)
+		}
+	}
+	hasID := func(id string) func(map[string]any) bool {
+		return func(event map[string]any) bool { return event["id"] == id }
+	}
+	editMetric := func(agentID string, edit func(metric map[string]any)) func(map[string]any) {
+		return func(event map[string]any) {
+			metrics := event["data"].(map[string]any)["agentMetrics"].(map[string]any)
+			metric, _ := metrics[agentID].(map[string]any)
+			if metric == nil {
+				metric = make(map[string]any)
+				metrics[agentID] = metric
+			}
+			edit(metric)
+		}
+	}
+	withoutUnifiedNames := editSessionRecords(t, unified, isRecord("subagent.started", ghaw.toolCallID), func(event map[string]any) {
+		data := event["data"].(map[string]any)
+		delete(data, "agentName")
+		delete(data, "agentDisplayName")
+	})
+	// ghaw-issues' configured and completed records carry its agentId in the
+	// native trace; mixed-ID unified sessions can carry it too.
+	withMixedIDs := func(records []string, matches func(map[string]any) bool) []string {
+		return editSessionRecords(t, records, matches, func(event map[string]any) { event["agentId"] = ghaw.agentID })
+	}
+	metricsFirst := func(records []string) []string {
+		reordered := slices.Clone(records)
+		index := slices.IndexFunc(reordered, func(record string) bool { return strings.Contains(record, `"agentMetrics"`) })
+		require.GreaterOrEqual(t, index, 0)
+		shutdown := reordered[index]
+		reordered = slices.Delete(reordered, index, index+1)
+		completed := slices.IndexFunc(reordered, func(record string) bool {
+			return strings.Contains(record, `"subagent.completed"`) || strings.Contains(record, `"subagent.failed"`)
+		})
+		require.GreaterOrEqual(t, completed, 0)
+		return slices.Insert(reordered, completed, shutdown)
+	}
+
+	t.Run("missing unified names still link consistent evidence", func(t *testing.T) {
+		runDir := writeSubagentIdentityRun(t, withoutUnifiedNames, native)
+		models := reconciledSubagentModels(t, runDir)
+		assert.NotContains(t, models.agentUsage, ghaw.toolCallID)
+		row := legacyNoSessionInstanceRows(t, runDir)[ghaw.displayName]
+		assert.Equal(t, 1, row.InstanceCount)
+		assert.Equal(t, 1, row.CompletedCount)
+		assert.Equal(t, ghaw.effort, row.Effort)
+		assert.Equal(t, ghaw.requests, row.Requests)
+	})
+
+	refused := map[string][]string{
+		"missing unified names, conflicting metrics definition": editSessionRecords(t, withoutUnifiedNames, isRecord("session.shutdown", ""),
+			editMetric(ghaw.agentID, func(metric map[string]any) { metric["agentName"] = "research" })),
+		"missing unified names, conflicting metrics display name": editSessionRecords(t, withoutUnifiedNames, isRecord("session.shutdown", ""),
+			editMetric(ghaw.agentID, func(metric map[string]any) { metric["agentDisplayName"] = "subagent-research" })),
+		"lifecycle half with credits only": editSessionRecords(t, unified, isRecord("session.shutdown", ""),
+			editMetric(ghaw.toolCallID, func(metric map[string]any) {
+				metric["agentName"], metric["agentDisplayName"], metric["totalNanoAiu"] = "explore", ghaw.displayName, 1250000000
+			})),
+		"lifecycle half with API duration only": editSessionRecords(t, unified, isRecord("session.shutdown", ""),
+			editMetric(ghaw.toolCallID, func(metric map[string]any) {
+				metric["agentName"], metric["agentDisplayName"], metric["totalApiDurationMs"] = "explore", ghaw.displayName, 4321
+			})),
+		"mixed IDs, configured by agentId":        withMixedIDs(unified, hasID("c1cca7e7-1255-4182-aded-755918082c4b")),
+		"mixed IDs, completed by agentId":         withMixedIDs(unified, isRecord("subagent.completed", ghaw.toolCallID)),
+		"mixed IDs, metrics before completion":    metricsFirst(withMixedIDs(unified, isRecord("subagent.completed", ghaw.toolCallID))),
+		"mixed IDs, metrics before failure":       metricsFirst(withMixedIDs(editSessionRecords(t, unified, isRecord("subagent.completed", ghaw.toolCallID), func(event map[string]any) { event["type"] = "subagent.failed" }), isRecord("subagent.failed", ghaw.toolCallID))),
+		"mixed IDs, configured and metrics first": metricsFirst(withMixedIDs(unified, hasID("c1cca7e7-1255-4182-aded-755918082c4b"))),
+	}
+	for name, records := range refused {
+		t.Run(name+" keeps its previous output", func(t *testing.T) {
+			baseline := subagentInstanceRowList(t, writeSubagentIdentityRun(t, records, nil))
+			runDir := writeSubagentIdentityRun(t, records, native)
+			models := reconciledSubagentModels(t, runDir)
+			assert.Contains(t, models.agentUsage, ghaw.toolCallID, "ghaw-issues must not be linked")
+			assert.NotContains(t, models.agentUsage, awf.toolCallID, "awf-routing is still linked")
+			rows := subagentInstanceRowList(t, runDir)
+			isAWF := func(row AgentUsageBreakdown) bool { return row.AgentName == awf.displayName }
+			assert.ElementsMatch(t, slices.DeleteFunc(slices.Clone(baseline), isAWF), slices.DeleteFunc(slices.Clone(rows), isAWF))
+			awfIndex := slices.IndexFunc(rows, isAWF)
+			require.GreaterOrEqual(t, awfIndex, 0)
+			assert.Equal(t, 1, rows[awfIndex].InstanceCount)
+			assert.Equal(t, awf.effort, rows[awfIndex].Effort)
+
+			var baselineAIC, aic float64
+			var baselineDuration, duration int
+			for _, row := range baseline {
+				baselineAIC += row.AIC
+				baselineDuration += row.TotalApiDurationMs
+			}
+			for _, row := range rows {
+				aic += row.AIC
+				duration += row.TotalApiDurationMs
+			}
+			assert.InDelta(t, baselineAIC, aic, 0.000001, "no credits are dropped")
+			assert.Equal(t, baselineDuration, duration, "no API duration is dropped")
+		})
+	}
+}
+
+// subagentInstanceRowList returns the sub-agent rows before definition-level
+// merging; unlike legacyNoSessionInstanceRows it allows repeated names.
+func subagentInstanceRowList(t *testing.T, runDir string) []AgentUsageBreakdown {
+	t.Helper()
+	_, _, agents, found, err := readSessionSubagentModelsDetailed(runDir)
+	require.NoError(t, err)
+	require.True(t, found)
+	rows := make([]AgentUsageBreakdown, 0, len(agents))
+	for _, agent := range agents {
+		if agent.AgentType == "subagent" {
+			agent.requestUsages = nil
+			rows = append(rows, agent)
+		}
+	}
+	return rows
+}
+
+func reconciledSubagentModels(t *testing.T, runDir string) *subagentSessionModels {
+	t.Helper()
+	models, err := parseSessionSubagentFile(filepath.Join(runDir, "usage", "aw_session.jsonl"), true)
+	require.NoError(t, err)
+	require.NotNil(t, models)
+	models.reconcileSubagentIdentities(readNativeSubagentSession(runDir))
+	return models
+}
+
+// editSessionRecords applies edit to each record that matches; at least one
+// record must match.
+func editSessionRecords(t *testing.T, records []string, matches func(map[string]any) bool, edit func(map[string]any)) []string {
+	t.Helper()
+	edited := slices.Clone(records)
+	count := 0
+	for i, record := range edited {
+		decoder := json.NewDecoder(strings.NewReader(record))
+		decoder.UseNumber()
+		var event map[string]any
+		require.NoError(t, decoder.Decode(&event))
+		if !matches(event) {
+			continue
+		}
+		edit(event)
+		encoded, err := json.Marshal(event)
+		require.NoError(t, err)
+		edited[i] = string(encoded)
+		count++
+	}
+	require.Positive(t, count, "no session record matched")
+	return edited
+}
