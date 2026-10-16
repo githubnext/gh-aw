@@ -1038,7 +1038,18 @@ describe("redact_secrets.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
       (it("should scan for built-in patterns even when GH_AW_SECRET_NAMES is not set", async () => {
-        (await eval(`(async () => { ${redactScript}; await main(); })()`), expect(mockCore.info).not.toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
+        const { main } = require("./redact_secrets.cjs");
+        const directory = path.join(process.env.RUNNER_TEMP, "gh-aw");
+        const artifact = path.join(directory, "token.log");
+        const token = "ghp_" + "a".repeat(36);
+        fs.mkdirSync(directory, { recursive: true });
+        fs.writeFileSync(artifact, `Token: ${token}`);
+
+        await main();
+
+        expect(fs.readFileSync(artifact, "utf8")).toBe("Token: ***REDACTED***");
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
       }),
         it("should redact secrets from files in /tmp using exact matching", async () => {
           const testFile = path.join(tempDir, "test.txt"),
