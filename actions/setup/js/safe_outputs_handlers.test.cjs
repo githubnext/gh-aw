@@ -209,6 +209,30 @@ describe("safe_outputs_handlers", () => {
       expect(validateAddCommentIntent({ body: "This is the real follow-up comment." })).toBeNull();
     });
 
+    it.each(["test body", "  TEST \n body  "])("rejects field-style body probe %j", body => {
+      expect(validateAddCommentIntent({ body })).toContain("Refusing to record an exploratory comment");
+      expect(validateCreateIssueIntent({ title: "test title", body })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ body })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreatePullRequestIntent({ title: "test title", body, branch: "feature/real-work" })).toContain("Refusing to record an exploratory pull request");
+    });
+
+    it("matches test placeholders against the corresponding field name", () => {
+      expect(validateCreateIssueIntent({ title: "test title" })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ title: "test title", body: "Actual investigation details" })).toBeNull();
+      expect(validatePushToPullRequestBranchIntent({ branch: "test branch", message: "Real commit message" })).toContain("Refusing to record an exploratory pull request branch update");
+      expect(validatePushToPullRequestBranchIntent({ branch: "feature/probe-auth", message: "test message" })).toContain("Refusing to record an exploratory pull request branch update");
+      expect(validateAddCommentIntent({ body: "test title" })).toBeNull();
+    });
+
+    it.each(["Test coverage improved", "Test body sanitization with nested HTML", "Example body contains a reproduction", "The probe body was rejected", "test body\n\nActual research findings"])(
+      "preserves substantive content %j",
+      value => {
+        expect(validateAddCommentIntent({ body: value })).toBeNull();
+        expect(validateCreateIssueIntent({ title: value, body: value })).toBeNull();
+        expect(validateCreatePullRequestIntent({ title: value, body: value, branch: "feature/real-work" })).toBeNull();
+      }
+    );
+
     it("rejects exploratory pull request branch updates and allows real ones", () => {
       expect(
         validatePushToPullRequestBranchIntent({
@@ -5318,14 +5342,14 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
     expect(mockAppendSafeOutput).toHaveBeenCalledTimes(2);
   });
 
-  it("does not record or count probing noop calls against the configured max", () => {
+  it.each(["test", "test message"])("does not record or count probing noop %j against the configured max", message => {
     const h = createHandlers(mockServer, mockAppendSafeOutput, {
       noop: { max: 1 },
     });
 
     // A probing call such as {"message": "test"} is ignored entirely, so it must neither
     // be recorded nor consume the budget reserved for the real completion signal.
-    expect(h.defaultHandler("noop")({ message: "test" })).not.toHaveProperty("isError");
+    expect(h.defaultHandler("noop")({ message })).not.toHaveProperty("isError");
     expect(mockAppendSafeOutput).not.toHaveBeenCalled();
 
     expect(h.defaultHandler("noop")({ message: "Analysis complete - no issues found" })).not.toHaveProperty("isError");
@@ -5363,6 +5387,27 @@ describe("per-type max enforcement (MCE4 dual enforcement)", () => {
       expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
     } finally {
       global.context = { repo: { owner: "test-owner", repo: "test-repo" }, eventName: "push", payload: {} };
+    }
+  });
+
+  it("rejects the Scout test-body probe without consuming the real comment budget", () => {
+    const h = createHandlers(mockServer, mockAppendSafeOutput, {
+      add_comment: { max: 1 },
+    });
+    const savedContext = global.context;
+    global.context = { ...savedContext, eventName: "issues", payload: { issue: { number: 67174 } } };
+    try {
+      const probe = h.addCommentHandler({ body: "test body" });
+      expect(probe.isError).toBe(true);
+      expect(JSON.parse(probe.content[0].text).error).toContain("Refusing to record an exploratory comment");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+
+      expect(h.addCommentHandler({ body: "Research complete: use safe-outputs.data for machine-readable state." })).not.toHaveProperty("isError");
+      expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment", body: "Research complete: use safe-outputs.data for machine-readable state." }));
+      expect(() => h.addCommentHandler({ body: "Another real comment" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
+    } finally {
+      global.context = savedContext;
     }
   });
 

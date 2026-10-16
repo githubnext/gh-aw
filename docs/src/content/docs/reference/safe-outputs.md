@@ -419,6 +419,8 @@ safe-outputs:
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; use `target: "*"` for any, or number for specific items. When combined with `create-issue`, `create-discussion`, or `create-pull-request`, includes "Related Items" section.
 
+The `add_comment` tool rejects obvious placeholder bodies such as `test` and `test body` before recording the output or consuming the comment budget. Intent checks also recognize `test ` followed by the corresponding field name, such as `test title` for issue or pull request titles. Matching ignores case and repeated whitespace, but preserves substantive content such as `Test coverage improved`. Rejected calls return a validation error so the agent can submit the real comment.
+
 Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
 `max-links` accepts a positive integer and defaults to 50. It counts every `http://` or `https://` URL occurrence in agent-provided content, including repeated URLs. Generated footer and metadata links do not count toward this limit. Both tool invocation and comment posting enforce the configured limit; the final body still must satisfy length and mention limits. Raise `max-links` for trusted link-heavy reports.
@@ -1273,7 +1275,7 @@ Agent output: `{"noop": {"message": "No action needed: analysis complete - no is
 
 The `[aw] No-Op Runs` tracker and no-op sections of completion status comments omit agent messages and reuse the same categorized body. For runs with only no-op outputs, `reported_no_action` means the agent succeeded and reported no action; it does not independently verify task completion or publication readiness. `incomplete` means the agent failed despite emitting a no-op. An explicit `report_incomplete` also makes reusable tracking comments `incomplete`, while its failure report remains separate from the no-op tracker. The existing failure-policy exception for task-complete registration diagnostics also applies: registration-only reports are ignored only with terminal completion evidence and real task-level outputs. Other agent conclusions remain `unconfirmed` and are not posted to the tracker. Categories use run status and the existing incomplete-report policy, not interpretation of no-op prose. Existing tracker comments are not rewritten.
 
-Up to two `noop` calls are accepted by default (`max: 2`), since an agent's first call is often a probe. Calls whose `message` is an obvious placeholder (e.g. `test`, `probe`, `placeholder`, `dummy`, `todo`) are detected and ignored entirely — they don't count against the `noop` budget and aren't surfaced in summaries or tracking issues, so a probing call never crowds out a real completion message.
+Up to two `noop` calls are accepted by default (`max: 2`), since an agent's first call is often a probe. Calls whose `message` is an obvious placeholder (e.g. `test`, `test message`, `probe`, `placeholder`, `dummy`, `todo`) are detected and ignored entirely — they don't count against the `noop` budget and aren't surfaced in summaries or tracking issues, so a probing call never crowds out a real completion message.
 
 **Always include explicit `noop` instructions in your workflow prompts:**
 
