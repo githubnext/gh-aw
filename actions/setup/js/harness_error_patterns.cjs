@@ -91,6 +91,65 @@ const API_PROXY_GUARD_REJECTION_PATTERNS = [
 ];
 
 /**
+ * Select diagnostic fields without inspecting metadata, tool input, or assistant prose.
+ * The caller must first attribute the record as a native error.
+ * @param {any} record
+ * @returns {any}
+ */
+function selectNativeErrorDiagnostic(record) {
+  /** @param {any} value @param {number} depth @returns {any} */
+  const select = (value, depth) => {
+    if (depth > 8) return undefined;
+    if (typeof value === "string") {
+      try {
+        return select(JSON.parse(value), depth + 1);
+      } catch {
+        return value;
+      }
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const diagnostic = {};
+    for (const key of ["type", "code", "error_code", "errorCode", "error_type", "errorType", "terminal_reason", "statusCode", "status_code", "status", "error_status", "api_error_status", "subtype"]) {
+      if (typeof value[key] === "string" || typeof value[key] === "number") diagnostic[key] = value[key];
+    }
+    for (const key of ["error", "message", "errorMessage"]) {
+      if (value[key] !== undefined) diagnostic[key] = select(value[key], depth + 1);
+    }
+    if (value.is_api_error_message === true) diagnostic.is_api_error_message = true;
+    // Claude marks API-error assistant content as transport text, not conversation.
+    // Its canonical error envelope retains the error identifier and assistant message.
+    if ((value.type === "assistant" && value.is_api_error_message === true) || (typeof value.error === "string" && value.message?.role === "assistant")) {
+      const content = value.message?.content;
+      if (Array.isArray(content))
+        diagnostic.message = content
+          .filter(block => block?.type === "text" && typeof block.text === "string")
+          .map(block => {
+            const text = select(block.text, depth + 1);
+            return typeof text === "string" ? text : (JSON.stringify(text) ?? "");
+          })
+          .join("\n");
+    }
+    if (value.is_error === true) {
+      diagnostic.is_error = true;
+      diagnostic.result = select(value.result, depth + 1);
+      if (Array.isArray(value.errors)) diagnostic.errors = value.errors.map(error => select(error, depth + 1));
+    }
+    return diagnostic;
+  };
+  return select(record, 0);
+}
+
+/**
+ * Endpoint incompatibility wins only within the originating diagnostic.
+ * @param {string} guard
+ * @param {string} diagnostic
+ * @returns {boolean}
+ */
+function shouldSuppressGuardCategory(guard, diagnostic) {
+  return guard === "model_policy_violation" && parseModelEndpointMismatch(diagnostic) !== null;
+}
+
+/**
  * Detect an AWF API proxy guardrail rejection in harness output.
  *
  * Only the text form is inspected here; the authoritative source is the proxy's structured
@@ -120,15 +179,7 @@ function parseAPIProxyGuardRejection(output) {
     const isTransportError = isNativeTransportError || isApiErrorEnvelope || isFailedResult;
     if (isGuardRecord || isTransportError) {
       const diagnostic = record.type === "session.error" && record.data && typeof record.data === "object" ? record.data : record;
-      diagnostics.push(
-        JSON.stringify({
-          type: diagnostic.type,
-          code: diagnostic.code,
-          error: diagnostic.error,
-          message: diagnostic.message,
-          ...(diagnostic.type === "result" && diagnostic.is_error === true ? { result: diagnostic.result, errors: diagnostic.errors } : {}),
-        })
-      );
+      diagnostics.push(JSON.stringify(selectNativeErrorDiagnostic(diagnostic)) ?? "");
     }
     const candidates = record.type === "unknown_model_ai_credits" ? [record] : isNativeTransportError || isApiErrorEnvelope ? [record.error, record.message] : [];
     // Only unwrap transport errors, never assistant messages or tool results.
@@ -150,21 +201,20 @@ function parseAPIProxyGuardRejection(output) {
   }
   // Tool results can quote entire lock files containing guard names. Only inspect
   // transport diagnostics, not assistant content or command output.
-  const diagnosticText = diagnostics.join("\n");
   for (const { guard, pattern, counterRe, counterNames } of API_PROXY_GUARD_REJECTION_PATTERNS) {
-    if (!pattern.test(diagnosticText)) continue;
-    // Endpoint incompatibility has its own diagnostic, even if wrapped as a policy violation.
-    if (guard === "model_policy_violation" && parseModelEndpointMismatch(diagnosticText)) continue;
-    /** @type {Record<string, string|number>} */
-    const counters = {};
-    const match = counterRe ? counterRe.exec(diagnosticText) : null;
-    if (match) {
-      counterNames.forEach((name, index) => {
-        const value = Number.parseInt(match[index + 1], 10);
-        if (Number.isFinite(value)) counters[name] = value;
-      });
+    for (const diagnosticText of diagnostics) {
+      if (!pattern.test(diagnosticText) || shouldSuppressGuardCategory(guard, diagnosticText)) continue;
+      /** @type {Record<string, string|number>} */
+      const counters = {};
+      const match = counterRe ? counterRe.exec(diagnosticText) : null;
+      if (match) {
+        counterNames.forEach((name, index) => {
+          const value = Number.parseInt(match[index + 1], 10);
+          if (Number.isFinite(value)) counters[name] = value;
+        });
+      }
+      return { guard, counters };
     }
-    return { guard, counters };
   }
   return null;
 }
@@ -288,5 +338,7 @@ module.exports = {
   MODEL_ENDPOINT_MISMATCH_PATTERN,
   parseModelEndpointMismatch,
   parseAPIProxyGuardRejection,
+  selectNativeErrorDiagnostic,
+  shouldSuppressGuardCategory,
   parseAICreditsExceededProxyRejection,
 };
