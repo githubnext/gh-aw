@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.53
+**Version**: 1.0.54
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -22,7 +22,7 @@ The gh-aw maintainers revise this Candidate Recommendation using security-review
 
 ## 1. Scope and Conformance
 
-This specification covers `pkg/workflow/`, related `pkg/parser/` and `actions/setup/` validation, compiler-generated safe-output publishing identity, and the daily optimizer. It excludes runtime detection-job internals, external scanner ecosystems, and non-compiler repositories.
+This specification covers `pkg/workflow/`, related `pkg/parser/` and `actions/setup/` validation, compiler-generated safe-output publishing identity, the host-side MCP compilation boundary in `pkg/cli/`, and the daily optimizer. It excludes runtime detection-job internals, external scanner ecosystems, and non-compiler repositories.
 
 A conforming implementation satisfies every MUST in Sections 2–8. Rules are specification-first, secure by default, mapped bidirectionally to implementation, and auditable through version history.
 
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.54` | Unreleased | Specifies the host-side MCP compilation capability boundary: read-only compilation without startup write-tool opt-in, unchanged validation and filesystem state, cached-only remote imports, and repository-root cache lookup. Adds bounded TLA+ evidence; no new `CTR-*` rule or lock-file schema change. |
 | `1.0.53` | Unreleased | Adds CTR-034: formalizes pull-request fork admission by repository pattern or explicit author association, retaining same-repository defaults and separating admission from permissions and secrets. Clarifies that same-repository bot checkout on `pull_request` and `pull_request_target` `ready_for_review` and `reopened` events is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | `1.0.52` | Unreleased | Adds CTR-033: repository-list checkout requires literal `multi: true`; ordinary repository expressions retain single-checkout semantics with runtime cardinality validation in both jobs. Safe Outputs PTI-001–007 and its TLA+ model clarify a runtime patch/bundle validation-to-application integrity boundary without changing permissions or lock-file schema. |
 | `1.0.51` | Unreleased | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode and permit suppression of only the corresponding warning in non-strict mode via an explicit dangerous feature flag. |
@@ -82,6 +83,8 @@ Host-side OTLP exporter configuration is another secret-bearing trust boundary. 
 Safe-output body content is untrusted even when supplied to a trusted publisher. A body can contain forged reserved HTML comments, including nested, variant, or unterminated openers, or Markdown anchor markers that imitate execution provenance. Attribution can also be lost when a publisher omits markers from initial WIP bodies or uses HTML comments in PR review comments, where GitHub's API filters them out. CTR-032 requires the compiler to provide the publishing check-run identity and the runtime publisher to remove or neutralize supplied reserved markers before appending trusted execution metadata in a format retained by the destination API; missing or invalid identity fails closed.
 
 Repository-selection expressions are runtime data, not an implicit request for repository-list expansion. Inferring multi mode from an expression or an allowlist changes authentication, visibility, path, and secondary-fetch behavior unexpectedly. CTR-033 requires explicit mode classification and generated single-selector validation. The multi-mode preflight and privileged-consumer boundary are specified by checkout behavior §3.1 and safe outputs RCR8–RCR15 and modeled in `specs/workflow-security/RuntimeRepositoryCheckout.tla`; the model does not prove parser, filesystem, or Git correctness.
+
+An MCP caller can request host-side compilation of untrusted workflow content without being authorized to change compiler-managed files. Actor permissions and server write-tool capability are separate: an actor with repository write access cannot enable writing through a tool call. Errors, external scanner preparation, automatic fixes, update checks, and import-cache population can otherwise turn nominal validation into a write path. Section 5.2.1 specifies this boundary independently of the generated-workflow `CTR-*` catalog; [`MCPCompile.tla`](workflow-security/MCPCompile.tla) models the bounded policy and operation ordering, not a filesystem sandbox or a proof of compiler refinement.
 
 ## 4. Governance and Responsibilities
 
@@ -145,6 +148,21 @@ Conformance tests MUST simulate destination API filtering and inspect the stored
 ### 5.2 Compiler Response Requirements
 
 The compiler MUST produce deterministic, actionable diagnostics and either reject insecure generation or apply a safe rewrite for every active rule in Section 5.1.
+
+### 5.2.1 Host-Side MCP Compilation Boundary
+
+These requirements apply to the MCP `compile` invocation, not arbitrary CLI flag combinations or server-startup bookkeeping.
+
+| Requirement | Required behavior |
+|---|---|
+| **MCP-COMPILE-001 Startup capability** | Only server startup with `--allow-write-tools` MAY enable writing tools. Tool arguments or actor permissions MUST NOT enable that capability. Without it, `compile` MUST remain available as a read-only tool, advertise `ReadOnlyHint: true`, and bypass write-actor authorization; `add`, `update`, and `fix` MUST remain disabled. With it, those tools and write-enabled `compile` MUST retain configured actor validation and its repository write-permission floor. |
+| **MCP-COMPILE-002 Read-only invocation** | Without startup write capability, `compile` MUST automatically pass `--no-emit --no-check-update`. It MUST reject `fix`, `dry_run`, and external scanner options (`zizmor`, `poutine`, `actionlint`, `runner-guard`, `syft`, `grype`, `grant`, `yamllint`) before starting the compile subprocess or scanner preparation. `dry_run` MUST NOT substitute for `--no-emit`, because development compilation emits files. |
+| **MCP-COMPILE-003 Filesystem preservation** | Read-only compilation MUST NOT create, modify, or delete compiler-managed files on success or failure. This includes workflow sources, `.lock.yml` outputs, `.invalid.yml` diagnostics, action-pin caches, `.gitattributes`, and import-cache entries. It MUST skip writing post-processing and diagnostic emission rather than writing and restoring files, including when outputs already exist. |
+| **MCP-COMPILE-004 Cached imports** | Read-only compilation MUST reuse available remote-import cache entries without rewriting them. An uncached remote import MUST produce an actionable error before download, cache insertion, or temporary-file fallback. Shared cache initialization MUST prefer the Git repository root over the process working directory, including when launched from a repository subdirectory; outside Git it MUST retain the working-directory fallback (`.` if that directory cannot be obtained). Import expansion and hashing MUST share that cache. |
+| **MCP-COMPILE-005 Validation preservation** | Read-only compilation MUST preserve workflow validation and return compilation errors without emitting diagnostic files; `--no-emit` MUST NOT convert invalid input into a successful result. Tests MUST cover valid and invalid inputs, existing and absent outputs, explicit-file and directory compilation, and cached imports with a subdirectory launch. |
+| **MCP-COMPILE-006 Write-enabled compatibility** | Explicitly write-enabled compilation MUST retain normal output emission after authorization. Read-only admission MUST NOT weaken authorization for write-enabled compilation or the other writing tools. Neither mode grants additional GitHub permissions. |
+
+This contract concerns compilation-controlled filesystem effects, not arbitrary external programs, concurrent filesystem changes, or all process-level temporary files. In particular, MCP server-startup manifest baselines remain independent bookkeeping. The bounded model abstracts file operations as mutation events; real-binary filesystem snapshots and implementation tests supply the concrete evidence.
 
 ### 5.3 Candidacy and Lifecycle
 
@@ -220,6 +238,19 @@ Every active rule MUST map to implementation and test coverage. References are p
 ### 7.2 Mapping Audit History
 
 Dated mapping-audit records are maintained in `specs/compiler-threat-detection-changelog.md`. A daily optimizer run MUST append its audit entry to that changelog, not to this specification.
+
+### 7.3 Host-Side MCP Compilation Mapping
+
+The `MCP-COMPILE-*` requirements are separate from the `CTR-*` / `T-CTR-*` generated-workflow catalogs.
+
+| Requirements | Implementation | Concrete evidence and bounded invariants |
+|---|---|---|
+| MCP-COMPILE-001–002 | `pkg/cli/mcp_server.go`, `mcp_write_tools.go`, `mcp_tools_readonly.go` | `pkg/cli/mcp_write_tools_test.go`; `MCPCompile.tla`: `StartupCapability`, `ActorAuthorization`, `WritingOptionsGated`, `ReadOnlyMode`, `NoExternalScanners`, `DeniedBeforeExecution`. |
+| MCP-COMPILE-003, MCP-COMPILE-005 | `pkg/cli/compile_pipeline.go`, `pkg/workflow/compiler.go` | `TestMCPServer_ReadOnlyCompilePreservesFiles` in `pkg/cli/mcp_server_compile_test.go` snapshots inventory, file bytes, modes, and modification times; `pkg/workflow/compiler_template_injection_both_paths_test.go`; model: `ReadOnlyIsolation`, `ValidationPreserved`, `ReadOnlyAvailability`. |
+| MCP-COMPILE-004 | `pkg/parser/import_cache.go`, `remote_workflow_spec.go`, `pkg/workflow/compiler_mutators.go`, `compiler_yaml.go` | `pkg/parser/import_cache_test.go`, `TestCompilerSharedImportCacheRoot` in `pkg/workflow/compiler_mutators_test.go`, cached/uncached and subdirectory-launch cases in the real-binary MCP test; model: `NoRemoteDownloads`, `CacheRootConforms`, `ReadOnlyAvailability`. |
+| MCP-COMPILE-006 | `pkg/cli/mcp_write_tools.go`, `mcp_tools_readonly.go` | `pkg/cli/mcp_write_tools_test.go`, `TestMCPServer_CompileTool` in `pkg/cli/mcp_server_compile_test.go`; model: `ActorAuthorization`, `WriteEnabledEmission`. |
+
+`specs/workflow-security/check.py` MUST exhaust the secure MCP configuration and verify each configured synthetic negative control and reachability witness. These checks MUST NOT substitute for the concrete filesystem-preservation tests or be reported as confirmed product vulnerabilities.
 
 ## 8. Compliance Testing
 
