@@ -317,32 +317,32 @@ test("active-run lookup can be narrowed to one PR branch", () => {
   assert.ok(calls.every(args => args[1].includes("&branch=copilot%2Ffix%20a%20bug")));
 });
 
-const restPr = {
-  number: 42,
-  title: pr.title,
-  state: "open",
-  draft: false,
-  html_url: "https://github.com/github/gh-aw/pull/42",
-  head: { sha: "abc", ref: "copilot/fix", repo: { owner: { login: "external-author" } } },
-  base: { ref: "main" },
-  user: { login: "Copilot" },
-  created_at: pr.createdAt,
-  updated_at: pr.updatedAt,
-  changed_files: 2,
-  mergeable_state: "dirty",
+const graphPr = {
+  ...pr,
+  mergeStateStatus: "DIRTY",
+  isDraft: false,
+  url: "https://github.com/github/gh-aw/pull/42",
+  labels: { nodes: [], pageInfo: { hasNextPage: false } },
 };
 
-test("targeted refresh uses paginated REST APIs, not proxy-incompatible gh pr view", () => {
+function metadataResponse(candidate = graphPr) {
+  return { data: { repository: { pullRequest: candidate } } };
+}
+
+test("targeted refresh uses explicit GraphQL metadata and paginated REST checks", () => {
   const calls = [];
   const candidate = fetchCandidate("github/gh-aw", "42", args => {
     calls.push(args);
-    if (args[1].includes("/pulls/")) return restPr;
+    if (args[1] === "graphql") return metadataResponse();
     if (args[1].includes("/check-runs?")) return [{ check_runs: [{ name: "CGO", status: "completed", conclusion: "failure", html_url: "https://github.com/run/1" }] }];
     return [{ statuses: [{ context: "external-ci", state: "pending", target_url: "https://github.com/run/2" }] }];
   });
   assert.equal(candidate.number, 42);
-  assert.deepEqual(calls, [
-    ["api", "repos/github/gh-aw/pulls/42"],
+  assert.equal(calls[0][1], "graphql");
+  assert.match(calls[0][3], /repository\(owner:\$owner,name:\$name\)\{pullRequest\(number:\$number\)/);
+  assert.doesNotMatch(calls[0][3], /\.\.\.|statusCheckRollup/);
+  assert.deepEqual(calls[0].slice(4), ["-f", "owner=github", "-f", "name=gh-aw", "-F", "number=42"]);
+  assert.deepEqual(calls.slice(1), [
     ["api", "repos/github/gh-aw/commits/abc/check-runs?per_page=100&filter=latest", "--paginate", "--slurp"],
     ["api", "repos/github/gh-aw/commits/abc/status?per_page=100", "--paginate", "--slurp"],
   ]);
@@ -353,9 +353,47 @@ test("targeted refresh uses paginated REST APIs, not proxy-incompatible gh pr vi
 });
 
 test("targeted refresh fails closed when metadata is incomplete or the PR is absent", () => {
-  for (const result of [null, { ...restPr, number: 43 }, { ...restPr, updated_at: null }, { ...restPr, head: null }, { ...restPr, base: null }]) {
-    assert.throws(() => fetchCandidate("github/gh-aw", "42", () => result), /could not refresh PR metadata/);
+  for (const result of [
+    null,
+    { ...graphPr, number: 43 },
+    { ...graphPr, updatedAt: null },
+    { ...graphPr, headRefOid: null },
+    { ...graphPr, headRefName: null },
+    { ...graphPr, baseRefName: null },
+    { ...graphPr, state: null },
+    { ...graphPr, isDraft: null },
+    { ...graphPr, labels: null },
+    { ...graphPr, labels: { nodes: [null], pageInfo: { hasNextPage: false } } },
+    { ...graphPr, labels: { nodes: [{}], pageInfo: { hasNextPage: false } } },
+    { ...graphPr, labels: { nodes: [], pageInfo: { hasNextPage: true } } },
+  ]) {
+    assert.throws(() => fetchCandidate("github/gh-aw", "42", () => metadataResponse(result)), /could not refresh PR metadata/);
   }
+});
+
+test("proxy-filtered and GraphQL error responses never become successful refreshes", () => {
+  for (const response of [[], {}, null, { data: null }, { data: { repository: null } }, { ...metadataResponse(), errors: [{ message: "access denied" }] }]) {
+    let calls = 0;
+    assert.throws(
+      () =>
+        fetchCandidate("github/gh-aw", "42", () => {
+          calls++;
+          return response;
+        }),
+      /could not refresh PR metadata|access denied/
+    );
+    assert.equal(calls, 1);
+  }
+});
+
+test("GraphQL metadata normalizes conflicts and preserves branch states and opted-out labels", () => {
+  for (const mergeStateStatus of ["DIRTY", "BEHIND", "BLOCKED", "UNKNOWN"]) {
+    const { api } = queueAPI({ candidate: { ...graphPr, mergeStateStatus } });
+    assert.equal(fetchCandidate("github/gh-aw", "42", api, now).mergeStateStatus, mergeStateStatus === "DIRTY" ? "CONFLICTING" : mergeStateStatus);
+  }
+  const { api, calls } = queueAPI({ candidate: { ...graphPr, labels: { nodes: [{ name: "broccoli" }], pageInfo: { hasNextPage: false } } } });
+  assert.equal(fetchQueue("github/gh-aw", "42", api, now).skipped[0].skip_reason, "opted_out");
+  assert.equal(calls.length, 2);
 });
 
 test("deduplication finds a nudge beyond the first hundred comments", () => {
@@ -657,7 +695,7 @@ const budgets = {
 };
 const idleMsForTest = 10 * 60 * 1000;
 
-function queueAPI({ listed = [pr], candidate = restPr, checks = [], statuses = [], data = detail(), comments = [], runs = [], approvals = [] } = {}) {
+function queueAPI({ listed = [pr], candidate = graphPr, checks = [], statuses = [], data = detail(), comments = [], runs = [], approvals = [] } = {}) {
   const calls = [];
   return {
     calls,
@@ -665,7 +703,7 @@ function queueAPI({ listed = [pr], candidate = restPr, checks = [], statuses = [
       calls.push(args);
       if (args[1] === "rate_limit") return budgets;
       if (args[0] === "pr") return listed;
-      if (args[1].includes("/pulls/")) return candidate;
+      if (args[1] === "graphql" && args[3].includes("headRefOid")) return metadataResponse(candidate);
       if (args[1].includes("/check-runs?")) return [{ check_runs: checks }];
       if (args[1].includes("/status?")) return [{ statuses }];
       if (args[1].includes("/actions/runs?")) return [{ workflow_runs: args[1].includes("status=action_required") ? approvals : runs }];
@@ -700,13 +738,13 @@ test("cheap metadata exclusions avoid all detail and active-run reads", () => {
 
 test("targeted refresh preserves metadata gates before fetching checks", () => {
   for (const [changes, reason] of [
-    [{ draft: true }, "closed_or_draft"],
-    [{ state: "closed" }, "closed_or_draft"],
-    [{ labels: [{ name: "broccoli" }] }, "opted_out"],
-    [{ updated_at: "2026-10-03T17:55:00Z" }, "not_idle"],
-    [{ user: { login: "renovate[bot]" } }, "dependency_bot"],
+    [{ isDraft: true }, "closed_or_draft"],
+    [{ state: "CLOSED" }, "closed_or_draft"],
+    [{ labels: { nodes: [{ name: "broccoli" }], pageInfo: { hasNextPage: false } } }, "opted_out"],
+    [{ updatedAt: "2026-10-03T17:55:00Z" }, "not_idle"],
+    [{ author: { login: "renovate[bot]" } }, "dependency_bot"],
   ]) {
-    const { api, calls } = queueAPI({ candidate: { ...restPr, ...changes } });
+    const { api, calls } = queueAPI({ candidate: { ...graphPr, ...changes } });
     const queue = fetchQueue("github/gh-aw", "42", api, now);
     assert.deepEqual(queue.skipped, [{ pr_number: 42, skip_reason: reason }]);
     assert.equal(calls.length, 2);
@@ -714,7 +752,7 @@ test("targeted refresh preserves metadata gates before fetching checks", () => {
 });
 
 test("metadata is rechecked when the PR changed after list enumeration", () => {
-  const { api, calls } = queueAPI({ candidate: { ...restPr, updated_at: "2026-10-03T17:55:00Z" } });
+  const { api, calls } = queueAPI({ candidate: { ...graphPr, updatedAt: "2026-10-03T17:55:00Z" } });
   assert.equal(fetchQueue("github/gh-aw", undefined, api, now).skipped[0].skip_reason, "not_idle");
   assert.equal(calls.length, 4);
 });
@@ -726,7 +764,7 @@ test("pending checks and active agent checks avoid review and run lookups", () =
   ]) {
     const { api, calls } = queueAPI({ checks: [check] });
     assert.equal(fetchQueue("github/gh-aw", undefined, api, now).skipped[0].skip_reason, reason);
-    assert.ok(!calls.some(args => args[1] === "graphql" || args[1].includes("/actions/runs?")));
+    assert.ok(!calls.some(args => (args[1] === "graphql" && args[3].includes("reviewThreads")) || args[1].includes("/actions/runs?")));
   }
 });
 
@@ -736,7 +774,7 @@ test("approval-required runs are discovered by conclusion, scoped to the PR bran
     { name: "CGO", status: "waiting" },
   ]) {
     const { api, calls } = queueAPI({
-      candidate: { ...restPr, mergeable_state: "blocked" },
+      candidate: { ...graphPr, mergeStateStatus: "BLOCKED" },
       checks: [check],
       approvals: [{ ...waitingRun, status: "completed", conclusion: "action_required" }],
     });
@@ -751,7 +789,7 @@ test("approval-required runs are discovered by conclusion, scoped to the PR bran
 
 test("healthy idle PRs and human-only approvals produce empty queues", () => {
   for (const checks of [[], [{ name: "Other CI", status: "completed", conclusion: "action_required" }]]) {
-    const { api } = queueAPI({ candidate: { ...restPr, mergeable_state: "clean" }, checks });
+    const { api } = queueAPI({ candidate: { ...graphPr, mergeStateStatus: "CLEAN" }, checks });
     const queue = fetchQueue("github/gh-aw", undefined, api, now);
     assert.deepEqual(queue.prs, []);
     assert.equal(queue.skipped[0].skip_reason, checks.length ? "approval_required" : "nothing_actionable");
