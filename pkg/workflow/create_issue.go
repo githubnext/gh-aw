@@ -28,6 +28,10 @@ type CreateIssuesConfig struct {
 
 // parseCreateIssuesConfig handles create-issue configuration
 func (c *Compiler) parseCreateIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
+	if enabled, ok := outputMap["create-issue"].(bool); ok && !enabled {
+		return nil
+	}
+
 	return parseCreateEntityConfig(
 		outputMap,
 		"create-issue",
