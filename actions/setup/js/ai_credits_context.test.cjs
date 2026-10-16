@@ -284,6 +284,52 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.maxAICredits).toBe("");
     });
 
+    it.each([
+      { type: "item.completed", item: { type: "command_execution", aggregated_output: "403 Maximum AI credits exceeded (1.02 / 1)." } },
+      { type: "assistant", message: { content: [{ type: "text", text: "403 Maximum AI credits exceeded (1.02 / 1)." }] } },
+      { type: "user", message: { content: [{ type: "tool_result", content: "CAPIError: 429 Maximum AI credits exceeded (1.02 / 1)." }] } },
+      { type: "turn.failed", error: { message: "403 Forbidden" }, metadata: "403 Maximum AI credits exceeded (1.02 / 1)." },
+      { type: "turn.failed", error: { message: "403 Maximum consecutive cache misses exceeded (5 / 5)." } },
+    ])("does not classify quoted or unrelated credit evidence as budget exhaustion: %j", record => {
+      writeAWFConfig(1000);
+      writeTokenUsageLog([{ ai_credits_total: 8.747565 }]);
+      writeAgentStdio(JSON.stringify(record));
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "8.747565",
+        maxAICredits: "1000",
+        aiCreditsRateLimitError: false,
+        maxAICreditsExceeded: false,
+      });
+    });
+
+    it.each([
+      { type: "error", message: "Reconnecting... 1/5 (unexpected status 403 Forbidden: Maximum AI credits exceeded (1.025406 / 1)., url: http://api-proxy:10000/responses)" },
+      { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.025406 / 1)." } },
+      { type: "assistant", is_api_error_message: true, error: "rate_limit", message: "API Error: 403 Maximum AI credits exceeded (1.025406 / 1)." },
+    ])("retains authentic proxy credit rejection: %j", record => {
+      writeAWFConfig(1);
+      writeAgentStdio(JSON.stringify(record));
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "1.025406",
+        maxAICredits: "1",
+        aiCreditsRateLimitError: true,
+        maxAICreditsExceeded: true,
+      });
+    });
+
+    it.each([
+      "CAPIError: 429 Maximum AI credits exceeded (8.75 / 1000).",
+      "CAPIError: 429 Maximum AI credits exceeded (0 / 1000).",
+      "CAPIError: 429 Maximum AI credits exceeded (1 / 0).",
+      JSON.stringify({ type: "error", message: "403 Maximum AI credits exceeded (8.75 / 1000)." }),
+      'Review example: "CAPIError: 429 Maximum AI credits exceeded (1001 / 1000)."',
+      "The workflow discusses Maximum AI credits exceeded.",
+    ])("does not infer budget exhaustion from an invalid native diagnostic: %s", content => {
+      writeAgentStdio(content);
+      expect(resolveAICreditsFailureState({ logProvenance: false }).maxAICreditsExceeded).toBe(false);
+    });
+
     it("ignores env rate-limit signal when no AI credits evidence is present", () => {
       writeAuditLog([{ type: "response", status: 200 }]);
       process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR = "true";

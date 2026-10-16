@@ -3,6 +3,7 @@ require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
+const { parseAICreditsExceededProxyRejection } = require("./harness_error_patterns.cjs");
 
 const MAX_AI_CREDITS_FIELDS = new Set(["max_ai_credits", "maxAiCredits"]);
 const AI_CREDITS_FIELDS = new Set(["ai_credits", "aiCredits"]);
@@ -32,7 +33,8 @@ const API_PROXY_GUARD_REJECTION_EVENT_TYPES = [MAX_CACHE_MISSES_EXCEEDED_EVENT_T
 // Counter fields carried by proxy guard rejection events, reported alongside the guard name
 // so the step log states what limit was hit and at which value.
 const API_PROXY_GUARD_COUNTER_FIELDS = ["consecutive_cache_misses", "max_cache_misses", "effective_tokens", "max_effective_tokens", "permission_denied_count", "max_permission_denied", "model"];
-const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?/i;
+const MAX_AI_CREDITS_EXCEEDED_STDIO_RE =
+  /^(?:CAPIError:\s*429\s+|Failed to get response from the AI model; retried \d+ times\. Last error: CAPIError:\s*429\s+|Fatal:\s*)Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;
 const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
 const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
 
@@ -716,25 +718,24 @@ function parseAICreditsExceededFromAgentStdio() {
       fs.closeSync(fd);
     }
     const content = buf.toString("utf8");
-    const proxyHTTP403 = content.split(/\r?\n/).some(line => {
-      const proxyFailure = line.match(/Authentication failed with provider at (\S+) \(HTTP 403\)\.?/i);
+    const lines = content.split(/\r?\n/);
+    const proxyHTTP403 = lines.some(line => {
+      const proxyFailure = line.match(/^Authentication failed with provider at (\S+) \(HTTP 403\)\.?$/i);
       return proxyFailure !== null && isLikelyAWFAPIProxyURL(proxyFailure[1]);
     });
-    // Use matchAll and take the last occurrence — in retried runs the final
-    // entry carries the authoritative (highest) credit values.
-    const RE_G = new RegExp(MAX_AI_CREDITS_EXCEEDED_STDIO_RE.source, "gi");
-    const allMatches = [...content.matchAll(RE_G)];
-    const match = allMatches.at(-1);
-    if (!match) return { ...EMPTY_AGENT_STDIO_STATE, proxyHTTP403 };
-    const aiCredits = parsePositiveNumberString(match[1] || "");
-    const maxAICredits = parsePositiveNumberString(match[2] || "");
-    return {
-      aiCredits,
-      maxAICredits,
-      rateLimitError: true,
-      maxAICreditsExceeded: true,
-      proxyHTTP403,
-    };
+    // JSON tool/assistant records can quote rejection examples. Only inspect
+    // authenticated transport errors or a complete native stderr diagnostic.
+    let result = { ...EMPTY_AGENT_STDIO_STATE, proxyHTTP403 };
+    for (const line of lines) {
+      const rejection = parseAICreditsExceededProxyRejection(line);
+      const legacyMatch = MAX_AI_CREDITS_EXCEEDED_STDIO_RE.exec(line);
+      if (!rejection && !legacyMatch) continue;
+      if (legacyMatch?.[1] !== undefined && (!Number.isFinite(Number(legacyMatch[1])) || !Number.isFinite(Number(legacyMatch[2])) || Number(legacyMatch[2]) <= 0 || Number(legacyMatch[1]) < Number(legacyMatch[2]))) continue;
+      const aiCredits = rejection ? String(rejection.aiCredits) : parsePositiveNumberString(legacyMatch?.[1] || "");
+      const maxAICredits = rejection ? String(rejection.maxAICredits) : parsePositiveNumberString(legacyMatch?.[2] || "");
+      result = { aiCredits, maxAICredits, rateLimitError: true, maxAICreditsExceeded: true, proxyHTTP403 };
+    }
+    return result;
   } catch {
     return EMPTY_AGENT_STDIO_STATE;
   }
