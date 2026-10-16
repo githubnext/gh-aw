@@ -142,6 +142,74 @@ func TestHealthUnadvanceableSearchWindowRemainsExplicitlyPartial(t *testing.T) {
 	}
 }
 
+func TestHealthSamplingReusesJobProbesAcrossOverlappingWindows(t *testing.T) {
+	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+	}
+	end := time.Date(2026, 10, 16, 4, 0, 0, 0, time.UTC)
+	boundary := end.Add(-100 * time.Second)
+	jobChecks := make(map[string]int)
+	rolledPages := []int{}
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		endpoint := args[3]
+		switch {
+		case strings.HasSuffix(endpoint, "/jobs?per_page=1"):
+			jobChecks[endpoint]++
+			assert.Contains(t, endpoint, "/attempts/2/jobs")
+			if strings.Contains(endpoint, "/runs/1000/") {
+				return []byte(`{"jobs":[{"id":42}]}`), nil
+			}
+			return []byte(`{"jobs":[]}`), nil
+		case strings.Contains(endpoint, "/contents/"):
+			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
+		}
+		parsed, err := url.Parse(endpoint)
+		require.NoError(t, err)
+		page, err := strconv.Atoi(parsed.Query().Get("page"))
+		require.NoError(t, err)
+		rolled := strings.HasSuffix(parsed.Query().Get("created"), ".."+boundary.Format(time.RFC3339))
+		if rolled {
+			rolledPages = append(rolledPages, page)
+		}
+		count := 2 * healthMinimumRuns
+		if rolled && page == 2 {
+			count = healthMinimumRuns
+		}
+		var responses []workflowRunAPIResponse
+		for i := range count {
+			run := workflowRunAPIResponse{ID: int64(page*10 + i), Name: "Example",
+				Path: ".github/workflows/example.lock.yml", Status: "completed", Conclusion: "action_required",
+				Event: "schedule", HeadBranch: "main", HeadSHA: strings.Repeat("a", 40), RunAttempt: 1,
+				CreatedAt: end.Add(-time.Duration(page) * time.Second)}
+			if page == 100 || rolled {
+				run.ID, run.Conclusion, run.RunAttempt, run.CreatedAt = int64(1000+i), "failure", 2, boundary
+			}
+			if rolled && page == 2 {
+				run.ID, run.Conclusion, run.RunAttempt = int64(2000+i), "success", 1
+			}
+			responses = append(responses, run)
+		}
+		out, err := json.Marshal(map[string]any{"workflow_runs": responses})
+		require.NoError(t, err)
+		return out, nil
+	}
+	collection := &HealthCollection{Host: "github.com", repoOverride: "org/repo", EndDate: end.Format(time.RFC3339)}
+	runs, err := sampleHealthWorkflow(GitHubWorkflow{ID: 1, Name: "Example",
+		Path: ".github/workflows/example.lock.yml"}, end.Add(-time.Hour).Format(time.RFC3339), "org/repo", false, collection)
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, rolledPages)
+	require.Len(t, runs, healthMinimumRuns+1)
+	assert.Equal(t, int64(1000), runs[0].DatabaseID, "retain job-backed failure only once")
+	require.Len(t, jobChecks, 10)
+	for endpoint, checks := range jobChecks {
+		assert.Equal(t, 1, checks, "overlap must reuse both empty and nonempty jobs responses: %s", endpoint)
+	}
+	assert.False(t, collection.Partial)
+	assert.Equal(t, 114, collection.APIRequests, "102 run pages, 10 jobs probes, 2 revision lookups")
+}
+
 func TestHealthFilteredPagesStillRespectRequestBudget(t *testing.T) {
 	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
 	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })

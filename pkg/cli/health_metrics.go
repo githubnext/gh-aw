@@ -105,7 +105,7 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 }
 
 func isIgnoredHealthRun(run WorkflowRun) bool {
-	return run.Status == "waiting" || isNonDispatchedConclusion(run.Conclusion)
+	return isNonDispatchedConclusion(run.Conclusion)
 }
 
 func accumulateWorkflowHealth(runs []WorkflowRun) WorkflowHealth {

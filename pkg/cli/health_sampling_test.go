@@ -43,9 +43,14 @@ func TestHealthSamplingContinuesPastRunsAwaitingApproval(t *testing.T) {
 	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
 		return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
 	}
-	pages := 0
+	pages, jobChecks := 0, 0
 	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		endpoint := args[3]
+		if strings.HasSuffix(endpoint, "/jobs?per_page=1") {
+			jobChecks++
+			assert.Contains(t, endpoint, "/attempts/1/jobs")
+			return []byte(`{"jobs":[]}`), nil
+		}
 		if strings.Contains(endpoint, "/contents/") {
 			assert.NotContains(t, endpoint, "unapproved", "ignored runs need no revision lookups")
 			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
@@ -81,6 +86,7 @@ func TestHealthSamplingContinuesPastRunsAwaitingApproval(t *testing.T) {
 		Path: ".github/workflows/example.lock.yml"}, "2026-10-08", "org/repo", false, collection)
 	require.NoError(t, err)
 	assert.Equal(t, 2, pages)
+	assert.Equal(t, 5, jobChecks, "only ambiguous waiting runs need jobs lookups")
 	assert.Len(t, runs, 5)
 	health := calculateCurrentWorkflowHealth("Example", runs, HealthConfig{Threshold: 80, collection: collection})
 	assert.Equal(t, "healthy", health.Status)

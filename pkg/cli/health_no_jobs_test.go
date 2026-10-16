@@ -109,6 +109,113 @@ func TestHealthRunHasJobsRequiresConfirmedEvidence(t *testing.T) {
 				assert.Equal(t, tc.wantJobs, hasJobs)
 			}
 			assert.Equal(t, 1, collection.APIRequests)
+			if tc.wantErr != "" {
+				healthRunGH = func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+					return []byte(`{"jobs":[{"id":42}]}`), nil
+				}
+				hasJobs, err = healthRunHasJobs(WorkflowRun{DatabaseID: 42, Attempt: 2}, collection)
+				require.NoError(t, err)
+				assert.True(t, hasJobs, "an unsuccessful lookup must not be cached as no jobs")
+				assert.Equal(t, 2, collection.APIRequests)
+			}
+		})
+	}
+}
+
+func TestHealthJobPresenceCacheIsPerAttemptAndCollection(t *testing.T) {
+	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+	}
+	calls := make(map[string]int)
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		assert.Contains(t, args, "github.example.com")
+		endpoint := args[3]
+		calls[endpoint]++
+		if strings.Contains(endpoint, "/attempts/2/") {
+			return []byte(`{"jobs":[{"id":42}]}`), nil
+		}
+		return []byte(`{"jobs":[]}`), nil
+	}
+	for range 2 {
+		collection := &HealthCollection{Host: "github.example.com", repoOverride: "github.example.com/org/repo"}
+		for _, attempt := range []int{0, 1, 2} {
+			for range 2 {
+				hasJobs, err := healthRunHasJobs(WorkflowRun{DatabaseID: 42, Attempt: attempt}, collection)
+				require.NoError(t, err)
+				assert.Equal(t, attempt == 2, hasJobs)
+			}
+		}
+		assert.Equal(t, 3, collection.APIRequests, "cache both presence and absence within one collection")
+	}
+	assert.Equal(t, map[string]int{
+		"repos/org/repo/actions/runs/42/jobs?per_page=1":            2,
+		"repos/org/repo/actions/runs/42/attempts/1/jobs?per_page=1": 2,
+		"repos/org/repo/actions/runs/42/attempts/2/jobs?per_page=1": 2,
+	}, calls, "each new collection must check jobs again")
+}
+
+func TestHealthSamplingWaitingJobsPreservePendingRevision(t *testing.T) {
+	for _, hasJobs := range []bool{false, true} {
+		t.Run(map[bool]string{false: "approval-only", true: "job-backed"}[hasJobs], func(t *testing.T) {
+			originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+			t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+			fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+				return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+			}
+			jobChecks := 0
+			healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				endpoint := args[3]
+				switch {
+				case strings.HasSuffix(endpoint, "/jobs?per_page=1"):
+					jobChecks++
+					assert.Contains(t, endpoint, "/runs/11/attempts/2/jobs?")
+					if hasJobs {
+						return []byte(`{"jobs":[{"id":42}]}`), nil
+					}
+					return []byte(`{"jobs":[]}`), nil
+				case strings.Contains(endpoint, "/contents/"):
+					body := "new-prompt"
+					if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
+						body = "old-prompt"
+					}
+					return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"` + body + `"}`), nil
+				default:
+					var runs []workflowRunAPIResponse
+					for i := range 6 {
+						run := workflowRunAPIResponse{ID: int64(11 - i), Name: "Example",
+							Path: ".github/workflows/example.lock.yml", Status: "completed", Conclusion: "success",
+							Event: "schedule", HeadBranch: "main", HeadSHA: strings.Repeat("b", 40), RunAttempt: 1}
+						if i == 0 {
+							run.Status, run.Conclusion, run.HeadSHA, run.RunAttempt = "waiting", "", strings.Repeat("a", 40), 2
+						}
+						runs = append(runs, run)
+					}
+					out, err := json.Marshal(map[string]any{"workflow_runs": runs})
+					require.NoError(t, err)
+					return out, nil
+				}
+			}
+			collection := &HealthCollection{Host: "github.com", repoOverride: "org/repo"}
+			runs, err := sampleHealthWorkflow(GitHubWorkflow{ID: 1, Name: "Example",
+				Path: ".github/workflows/example.lock.yml"}, "2026-10-08", "org/repo", false, collection)
+			require.NoError(t, err)
+			assert.Equal(t, 1, jobChecks)
+			health := calculateCurrentWorkflowHealth("Example", runs, HealthConfig{Threshold: 80, collection: collection})
+			require.Len(t, health.Revisions, 1)
+			if hasJobs {
+				assert.Len(t, runs, 6)
+				assert.Equal(t, "insufficient_evidence", health.Status)
+				assert.Equal(t, 1, health.Revisions[0].Current.Pending)
+				assert.Equal(t, []int64{11}, health.Revisions[0].Current.RunIDs)
+			} else {
+				assert.Len(t, runs, 5)
+				assert.Equal(t, "no_current_revision_runs", health.Status)
+				assert.Zero(t, health.Revisions[0].Current.Pending)
+				assert.Empty(t, health.Revisions[0].Current.RunIDs)
+			}
+			assert.False(t, collection.Partial)
 		})
 	}
 }

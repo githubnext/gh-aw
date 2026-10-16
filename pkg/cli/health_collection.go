@@ -32,6 +32,7 @@ type HealthCollection struct {
 	repoOverride    string
 	stopped         bool
 	visited         map[string]struct{}
+	jobPresence     map[healthRunAttempt]bool
 }
 
 const healthMinimumRuns = 5

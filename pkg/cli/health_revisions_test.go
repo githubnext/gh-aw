@@ -51,9 +51,9 @@ func TestHealthRevisionRecoveryAndCurrentClusters(t *testing.T) {
 	assert.Equal(t, health, calculateCurrentWorkflowHealth("Example", runs, config))
 }
 
-func TestHealthIgnoresRunsAwaitingApproval(t *testing.T) {
+func TestHealthIgnoresNonDispatchedConclusions(t *testing.T) {
 	for _, blocked := range []WorkflowRun{
-		{Status: "waiting"},
+		{Status: "waiting", Conclusion: "action_required"},
 		{Status: "completed", Conclusion: "action_required"},
 		{Status: "completed", Conclusion: "skipped"},
 	} {
@@ -74,6 +74,26 @@ func TestHealthIgnoresRunsAwaitingApproval(t *testing.T) {
 			assert.Equal(t, run, runs[0], "health calculation must not mutate caller data")
 		})
 	}
+}
+
+func TestHealthRetainsAmbiguousWaitingEvidenceWithoutAPI(t *testing.T) {
+	runs, collection := healthRevisionFixture()
+	waiting := runs[len(runs)-1]
+	waiting.DatabaseID, waiting.HeadSha = 11, "pending"
+	waiting.Status, waiting.Conclusion = "waiting", ""
+	waiting.CreatedAt = waiting.CreatedAt.Add(time.Hour)
+	collection.revisions[healthRevisionLookupKey(waiting)] = &workflow.LockMetadata{
+		FrontmatterHash: "settings", BodyHash: "new-prompt",
+	}
+	runs = append([]WorkflowRun{waiting}, runs...)
+	health := calculateCurrentWorkflowHealth("Example", runs, HealthConfig{Threshold: 80, collection: collection})
+	assert.Equal(t, "insufficient_evidence", health.Status)
+	require.Len(t, health.Revisions, 1)
+	assert.Equal(t, 1, health.Revisions[0].Current.Pending)
+	assert.Equal(t, []int64{11}, health.Revisions[0].Current.RunIDs)
+	metrics := CalculateWorkflowHealth("Example", runs, 80)
+	assert.Equal(t, 11, metrics.TotalRuns, "waiting alone cannot prove a run never executed")
+	assert.Equal(t, waiting, runs[0], "health calculation must not mutate caller data")
 }
 
 func TestHealthRevisionsDoNotClaimUnsupportedRecovery(t *testing.T) {
