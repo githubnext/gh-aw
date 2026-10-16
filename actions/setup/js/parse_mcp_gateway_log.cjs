@@ -9,6 +9,8 @@ const { formatModelEmojiAlias } = require("./model_aliases.cjs");
 const { computeInferenceAIC, formatAIC } = require("./model_costs.cjs");
 const { parseUnknownModelAICreditsFromAuditLog } = require("./ai_credits_context.cjs");
 const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./mcp_rate_limit.cjs");
+const { MAX_STEP_SUMMARY_SIZE } = require("./log_parser_shared.cjs");
+const { boundSummaryLines } = require("./agent_session_render.cjs");
 
 /**
  * Parses MCP gateway logs and creates a step summary
@@ -380,13 +382,54 @@ function generateTokenUsageSummary(summary) {
 }
 
 /**
- * Writes the step summary and exports AI credit metadata when token usage data exists.
- * Token Usage rendering is handled by parse_token_usage.cjs to avoid duplicate sections.
- * This is the final call in each main() exit path — it consolidates the summary write
- * so callers don't need to chain addRaw() + write() themselves.
- * @param {typeof import('@actions/core')} coreObj - The GitHub Actions core object
+ * Bound oversized sections without leaving partial Markdown/HTML structures open.
+ * The complete redacted logs remain in the existing agent artifact.
+ * @param {string} content
+ * @param {number} maxBytes
+ * @returns {string}
  */
-async function writeStepSummaryWithTokenUsage(coreObj) {
+function boundGatewaySummary(content, maxBytes) {
+  if (Buffer.byteLength(content, "utf8") <= maxBytes) return content;
+  const notice = `MCP gateway summary truncated (${Buffer.byteLength(content, "utf8")} bytes). Full redacted logs: \`mcp-logs/\` in the agent artifact.\n\n`;
+  const header = `${notice}<details>\n<summary>MCP gateway diagnostic preview</summary>\n<pre>\n`;
+  const footer = "\n</pre>\n</details>\n";
+  const budget = maxBytes - Buffer.byteLength(header + footer, "utf8");
+  if (budget < 128) return Buffer.byteLength(notice, "utf8") <= maxBytes ? notice : "";
+  const lines = content.split("\n").map(line => escapeHtml(line));
+  return header + boundSummaryLines(lines, budget, 4096).join("\n") + footer;
+}
+
+/**
+ * @param {typeof import('@actions/core')} coreObj
+ * @param {string[]} sections
+ */
+function appendGatewaySummary(coreObj, sections) {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  let remaining = MAX_STEP_SUMMARY_SIZE;
+  try {
+    if (summaryPath && fs.existsSync(summaryPath)) remaining -= fs.statSync(summaryPath).size;
+  } catch (error) {
+    throw new Error(`${ERR_SYSTEM}: Failed to measure existing MCP gateway step summary: ${getErrorMessage(error)}`, { cause: error });
+  }
+  for (const [index, section] of sections.entries()) {
+    // Share the remaining capacity so a verbose gateway log cannot crowd out
+    // later rate-limit, steering, or DIFC diagnostics.
+    const budget = Math.max(0, Math.floor(remaining / (sections.length - index)));
+    const bounded = boundGatewaySummary(section, budget);
+    if (bounded !== section) coreObj.warning("MCP gateway step summary byte limit reached; full redacted logs are in the agent artifact.");
+    if (bounded) coreObj.summary.addRaw(bounded);
+    remaining -= Buffer.byteLength(bounded, "utf8");
+  }
+}
+
+/**
+ * Writes bounded gateway diagnostics and exports AI credit metadata.
+ * Token Usage rendering is handled by parse_token_usage.cjs to avoid duplicate sections.
+ * @param {typeof import('@actions/core')} coreObj - The GitHub Actions core object
+ * @param {string[]} [sections] - Gateway sections sharing this step's byte budget
+ */
+async function writeStepSummaryWithTokenUsage(coreObj, sections = []) {
+  appendGatewaySummary(coreObj, sections);
   if (!fs.existsSync(TOKEN_USAGE_PATH)) {
     coreObj.debug(`No token-usage.jsonl found at: ${TOKEN_USAGE_PATH}`);
   } else {
@@ -1043,6 +1086,7 @@ function generateRpcMessagesSummary(entries, difcFilteredEvents) {
  */
 async function main() {
   try {
+    const summarySections = [];
     // First, print all gateway-related files for debugging
     printAllGatewayFiles();
 
@@ -1113,7 +1157,7 @@ async function main() {
     const rateLimitSummary = generateMcpRateLimitSummary(`${gatewayJsonlContent}\n${rpcMessagesContent || ""}`);
     if (rateLimitSummary) {
       core.warning("MCP tools returned HTTP 429; see the MCP rate limits summary for retry hints.");
-      core.summary.addRaw(rateLimitSummary);
+      summarySections.push(rateLimitSummary);
     }
 
     // Always scan authoritative text logs for AI credits signals before selecting
@@ -1152,27 +1196,27 @@ async function main() {
         unknownModelAICredits ||= hasUnknownModelAICreditsError([gatewayMdContent]);
 
         // Write the markdown directly to the step summary
-        core.summary.addRaw(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
+        summarySections.push(gatewayMdContent.endsWith("\n") ? gatewayMdContent : gatewayMdContent + "\n");
 
         // Append any proxy-side steering or DIFC_FILTERED sections after the gateway summary
         if (tokenSteeringEvents.length > 0) {
           const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
-          core.summary.addRaw(steeringSummary);
+          summarySections.push(steeringSummary);
         }
 
         if (modelAliasResolutionEvents.length > 0) {
           const modelAliasResolutionSummary = generateModelAliasResolutionSummary(modelAliasResolutionEvents);
-          core.summary.addRaw(modelAliasResolutionSummary);
+          summarySections.push(modelAliasResolutionSummary);
         }
 
         if (difcFilteredEvents.length > 0) {
           const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
-          core.summary.addRaw(difcSummary);
+          summarySections.push(difcSummary);
         }
 
         setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
         setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-        await writeStepSummaryWithTokenUsage(core);
+        await writeStepSummaryWithTokenUsage(core, summarySections);
         return;
       }
     } else {
@@ -1190,20 +1234,20 @@ async function main() {
       if (totalMessages > 0 || difcFilteredEvents.length > 0) {
         const rpcSummary = generateRpcMessagesSummary(rpcEntries, difcFilteredEvents);
         if (rpcSummary.length > 0) {
-          core.summary.addRaw(rpcSummary);
+          summarySections.push(rpcSummary);
         }
         if (tokenSteeringEvents.length > 0) {
-          core.summary.addRaw(generateTokenSteeringSummary(tokenSteeringEvents));
+          summarySections.push(generateTokenSteeringSummary(tokenSteeringEvents));
         }
         if (modelAliasResolutionEvents.length > 0) {
-          core.summary.addRaw(generateModelAliasResolutionSummary(modelAliasResolutionEvents));
+          summarySections.push(generateModelAliasResolutionSummary(modelAliasResolutionEvents));
         }
       } else {
         core.info("rpc-messages.jsonl is present but contains no renderable messages");
       }
       setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
       setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-      await writeStepSummaryWithTokenUsage(core);
+      await writeStepSummaryWithTokenUsage(core, summarySections);
       return;
     }
 
@@ -1219,7 +1263,7 @@ async function main() {
       core.info("MCP gateway log files are empty or missing");
       setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
       setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-      await writeStepSummaryWithTokenUsage(core);
+      await writeStepSummaryWithTokenUsage(core, summarySections);
       return;
     }
 
@@ -1229,19 +1273,15 @@ async function main() {
       core.info(plainTextSummary);
     }
 
-    // Generate step summary: legacy logs + DIFC filtered section
+    // Keep supplemental diagnostics separate from potentially verbose legacy logs.
     const legacySummary = generateGatewayLogSummary(gatewayLogContent, stderrLogContent);
     const steeringSummary = generateTokenSteeringSummary(tokenSteeringEvents);
     const modelAliasResolutionSummary = generateModelAliasResolutionSummary(modelAliasResolutionEvents);
     const difcSummary = generateDifcFilteredSummary(difcFilteredEvents);
-    const fullSummary = [legacySummary, steeringSummary, modelAliasResolutionSummary, difcSummary].filter(s => s.length > 0).join("\n");
-
-    if (fullSummary.length > 0) {
-      core.summary.addRaw(fullSummary);
-    }
+    summarySections.push(...[legacySummary, steeringSummary, modelAliasResolutionSummary, difcSummary].filter(s => s.length > 0));
     setAICreditsRateLimitOutput(core, aiCreditsRateLimitError);
     setUnknownModelAICreditsOutput(core, unknownModelAICredits);
-    await writeStepSummaryWithTokenUsage(core);
+    await writeStepSummaryWithTokenUsage(core, summarySections);
   } catch (error) {
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   }
@@ -1375,6 +1415,7 @@ if (typeof module !== "undefined" && module.exports) {
     formatDurationMs,
     formatAICForOutput,
     writeStepSummaryWithTokenUsage,
+    boundGatewaySummary,
     hasAICreditsRateLimitError,
     hasUnknownModelAICreditsError,
     setUnknownModelAICreditsOutput,

@@ -114,6 +114,7 @@ func (c *Compiler) buildWorkQueuePreparedAdapterSetup(data *WorkflowData, name s
 		"        id: claim_adapter_context\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/github-script")),
 		"        env:\n",
+		"          GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}\n",
 		fmt.Sprintf("          GH_AW_CLAIM_ADAPTER_TYPE: %q\n", name),
 		fmt.Sprintf("          GH_AW_CLAIM_ADAPTER_CONFIG: %q\n", string(configuration)),
 		fmt.Sprintf("          GH_AW_CLAIM_ADAPTER_INDEX: %q\n", strconv.Itoa(index)),
