@@ -30,6 +30,27 @@ describe("Crush 0.98.1 quiet-mode sessions", () => {
     expect(parseEngineSession(events.map(JSON.stringify).join("\n"), "crush")).toEqual(events);
   });
 
+  it.each(["compact array", "pretty array", "JSONL"])("preserves canonical %s with or without a historical result", format => {
+    const events = [
+      { type: "session.init", data: { model: "gpt-6.1-sol", sessionId: "observed-session", sourceEngine: "crush" } },
+      { type: "tool.execution_start", data: { toolCallId: "observed-call", toolName: "bash", input: { command: "pwd" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "observed-call", output: "", success: false } },
+      { type: "session.result", data: { numTurns: 0, usage: { output_tokens: 0 }, success: false } },
+    ];
+    const text = format === "JSONL" ? events.map(JSON.stringify).join("\n") : JSON.stringify(events, null, format === "pretty array" ? 2 : undefined);
+    expect(parseEngineSession(`[crush-harness] saved session\n${text}\n`, "crush")).toEqual(events);
+    const terminal = { type: "result", num_turns: 0, usage: { output_tokens: 0 } };
+    const parsed = parseEngineSession(`${text}\n${JSON.stringify(terminal)}\n`, "crush");
+    expect(parsed.slice(0, events.length)).toEqual(events);
+    expect(parsed).toHaveLength(events.length + 1);
+    expect(parsed.at(-1)).toMatchObject({ type: "session.result", data: { numTurns: 0, usage: { output_tokens: 0 } } });
+    expect(parsed.some(event => event.type === "assistant.message")).toBe(false);
+  });
+
+  it("preserves an empty canonical array without turning it into assistant prose", () => {
+    expect(parseEngineSession("[]\n", "crush")).toEqual([]);
+  });
+
   it("retains explicit historical terminal observations rather than inferred counters", () => {
     const events = parseEngineSession('Observed answer.\n{"type":"result","num_turns":0,"usage":{"output_tokens":0}}\n', "crush");
     expect(events.find(event => event.type === "assistant.message").data.content).toBe("Observed answer.");
@@ -42,13 +63,23 @@ describe("Crush 0.98.1 quiet-mode sessions", () => {
     expect(parseEngineSession(text, "crush")).toEqual([{ type: "assistant.message", data: { content: text } }]);
   });
 
-  it("keeps anchored failure hints without inventing tool outcomes", () => {
+  it("does not promote a mixed canonical and noncanonical array into session events", () => {
+    const text = JSON.stringify([{ type: "tool.execution_complete", data: { success: true } }, { example: true }], null, 2);
+    expect(parseEngineSession(text, "crush")).toEqual([{ type: "assistant.message", data: { content: text } }]);
+  });
+
+  it.each([
+    "MCP server 'fixture' failed in the earlier incident, but is healthy now.\n",
+    "MCP server 'fixture' failed\nMaximum turns reached\n",
+    "MCP connection error is only hypothetical.\n",
+    "Failed to connect to MCP is an example error message.\n",
+    "The turn limit may be reached; an MCP connection error is only hypothetical.",
+  ])("does not infer failure metadata from unframed answer text: %s", text => {
     const parse = loadEngineLogParser("crush");
-    const parsed = parse("MCP server 'fixture' failed\nMaximum turns reached\n");
-    expect(parsed.mcpFailures).toEqual(["fixture"]);
-    expect(parsed.maxTurnsHit).toBe(true);
-    expect(parsed.logEntries).toHaveLength(1);
-    expect(parse("The turn limit may be reached; an MCP connection error is only hypothetical.").maxTurnsHit).toBe(false);
+    const parsed = parse(text);
+    expect(parsed.mcpFailures).toEqual([]);
+    expect(parsed.maxTurnsHit).toBe(false);
+    expect(parsed.logEntries).toEqual([{ type: "assistant.message", data: { content: text } }]);
     expect(parse("").mcpFailures).toEqual([]);
   });
 });

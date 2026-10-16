@@ -278,14 +278,6 @@ engine:
         const { normalizeEngineLogEntries } = require("./engine_log_parser.cjs");
         const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|crush-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
         const lines = logContent.split("\n").filter(line => !AWF_INFRA_RE.test(line));
-        const observedLines = lines.filter(line => line.trim());
-        const records = observedLines.map(line => {
-          try { return JSON.parse(line); } catch { return null; }
-        });
-        if (records.length && records.every(isSessionEvent)) {
-          return { markdown: "Crush saved session events", logEntries: records, mcpFailures: [], maxTurnsHit: false };
-        }
-
         // Historical gh-aw logs may append an explicit result; quiet CLI text
         // itself contains no tool identities, token usage, or turn counters.
         let terminalIndex = lines.length - 1;
@@ -299,22 +291,33 @@ engine:
           }
         } catch {}
 
-        const logEntries = [];
-        const mcpFailures = [];
-        let maxTurnsHit = false;
-        for (const line of lines) {
-          if (/^(?:max.?turns|maximum.*turns.*reached|turn limit)/i.test(line)) maxTurnsHit = true;
-          if (/^(?:MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP)/i.test(line)) {
-            const serverMatch = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
-            mcpFailures.push(serverMatch ? serverMatch[1] : line.trim());
-          }
-        }
         const text = lines.join("\n");
+        let records;
+        try {
+          const document = JSON.parse(text);
+          if (Array.isArray(document)) records = document;
+        } catch {}
+        if (!records) {
+          const observedLines = lines.filter(line => line.trim());
+          if (observedLines.length) records = observedLines.map(line => {
+            try { return JSON.parse(line); } catch { return null; }
+          });
+        }
+        if (records && records.every(isSessionEvent)) {
+          return {
+            markdown: "Crush saved session events",
+            logEntries: [...records, ...(terminal ? normalizeEngineLogEntries([terminal], "crush") : [])],
+            mcpFailures: [], maxTurnsHit: false,
+          };
+        }
+
+        const logEntries = [];
         if (text.trim()) logEntries.push({ type: "assistant.message", data: { content: text } });
         if (terminal) logEntries.push(...normalizeEngineLogEntries([terminal], "crush"));
         return {
           markdown: "Crush plain-text output (tool and usage telemetry unavailable)",
-          logEntries, mcpFailures, maxTurnsHit,
+          // Unframed answer text cannot establish MCP failures or turn limits.
+          logEntries, mcpFailures: [], maxTurnsHit: false,
         };
       }
 ---
@@ -340,8 +343,9 @@ Copilot inference uses the workflow's `copilot-requests: write` permission.
 JSON configuration and native HTTP/stdio MCP remain supported. CLI-mounted
 servers are excluded from the native MCP config. `run --quiet` emits plain
 text, so unified sessions preserve the answer without inventing tool calls,
-turn counts, model/session identifiers, or token usage. Saved canonical events
-and explicit historical terminal records retain their observed fields.
+turn counts, model/session identifiers, token usage, MCP failures, or turn-limit
+failures from answer prose. Saved canonical JSON arrays/JSONL and explicit
+historical terminal records retain their observed fields.
 Native verbose logging and harness startup/exit milestones are written to
 stderr for timeout diagnosis. The harness logs prompt size, never prompt contents,
 configuration contents, or credential values.
