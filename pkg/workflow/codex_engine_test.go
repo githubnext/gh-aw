@@ -308,7 +308,11 @@ func TestCodexEngineStableReleaseInstallation(t *testing.T) {
 	// platform aliases. A stale local mirror must not change the installer.
 	for _, version := range []string{string(constants.DefaultCodexVersion), "0.162.1", "0.159.3"} {
 		t.Run(version, func(t *testing.T) {
-			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex", Version: version}}
+			configuredVersion := version
+			if version == string(constants.DefaultCodexVersion) {
+				configuredVersion = ""
+			}
+			data := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex", Version: configuredVersion}}
 			steps := NewCodexEngine().GetInstallationSteps(data)
 			require.Len(t, steps, 2)
 			assert.Contains(t, strings.Join(steps[0], "\n"), "Setup Node.js")
