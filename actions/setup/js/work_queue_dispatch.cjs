@@ -13,7 +13,7 @@ const store = require("./work_queue_store.cjs");
 const { normalizeAssignment, normalizeClaimScope, readClaimScopeContext } = require("./work_queue_claim_scope.cjs");
 const { readStagedIntentBatch, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters, validatePreparedPlanIntentBatch } = require("./work_queue_intents.cjs");
 const { assertPolicyProposal, loadQueue, policyProposalFor, publishOperations, validateStoredAssignment, expectedWorkerRun, bindingForRun } = require("./work_queue_binding.cjs");
-const { authenticatePublisher, authenticateIntentPublisher, immutableRef, fetchNativeRun, postQueueDispatch, validateNativeRun } = require("./work_queue_native.cjs");
+const { authenticatePublisher, authenticateIntentPublisher, immutableRef, fetchNativeRunAttempt, isTransientVerificationError, postQueueDispatch, validateNativeRun } = require("./work_queue_native.cjs");
 const { dependencyKey, allowedScope, resolveDependencies, resolveExternalEdges } = require("./work_queue_dependency_resolver.cjs");
 const { lifecycleEvidence, reconcileDispatch, reconcileQueue, releaseAssignment } = require("./work_queue_reconciler.cjs");
 const { DEFAULT_INTENT_PATH } = require("./work_queue_mcp_server.cjs");
@@ -218,6 +218,22 @@ function rejectedEvidence(latest, dispatch, assignment, profile, options) {
   return lifecycleEvidence(assignment, profile, senderRepository, "nonlaunch", "github_api", options.now ?? Date.now(), { receipt, principal: dispatchPrincipal(dispatch) });
 }
 
+async function verifyLaunchedRun(options, expected, policy) {
+  const started = Date.now();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return validateNativeRun(await fetchNativeRunAttempt(options.dispatchClient || options.githubClient, expected.repository, expected.run_id, 1), expected);
+    } catch (error) {
+      log.failure("launch.verification.failed", error, true);
+      const remaining = policy.deadline_ms - (Date.now() - started);
+      if (!isTransientVerificationError(error) || attempt >= policy.max_attempts || remaining <= 0) throw error;
+      // Poll at a fixed 1s cadence, never exceeding the remaining reconciliation deadline.
+      await (options.sleepFn || (delay => new Promise(resolve => setTimeout(resolve, delay))))(Math.min(1000, remaining));
+      if (Date.now() - started >= policy.deadline_ms) throw error;
+    }
+  }
+}
+
 async function launchAssignment(options, supplied) {
   log.debug("launch.start");
   assertQueueControlRole(options);
@@ -289,20 +305,24 @@ async function launchAssignment(options, supplied) {
     log.debug("launch.unresolved");
     return { state: "launch_unresolved", released: false, dispatched: true };
   }
+  let verifiedEvidence;
   try {
     const expected = expectedWorkerRun(assignment, profile, options.context, sender.repository, credential.principal);
-    const proof = validateNativeRun(await fetchNativeRun(options.dispatchClient || options.githubClient, sender.repository, returned.run_id), { ...expected, run_id: returned.run_id });
+    const proof = await verifyLaunchedRun(options, { ...expected, run_id: returned.run_id }, latest.projection.policy.pools[assignment.pool].reconciliation);
     const binding = bindingForRun(proof, expected);
     const evidence = lifecycleEvidence(assignment, profile, sender.repository, "reconciliation", "github_api", options.now ?? Date.now(), { run_id: proof.run_id, run_attempt: 1, principal: proof.principal });
+    verifiedEvidence = evidence;
     await publishOperations(options, trustedContext, ["bind", assignment.dispatch_id, proof.run_id], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "bound", run: binding, evidence }]);
     latest = await loadQueue(options);
     if (canonical(latest.projection.dispatches.get(assignment.dispatch_id)?.run) !== canonical(binding)) throw new Error("run_binding_conflict");
     log.debug("launch.binding.persisted");
     return { state: "bound", released: false, dispatched: true, run_id: returned.run_id, html_url: returned.html_url };
   } catch (error) {
-    log.failure("launch.binding.failed", error);
+    log.failure("launch.binding.failed", error, true);
     try {
-      await publishOperations(options, trustedContext, ["uncertain", assignment.dispatch_id, returned.run_id], "dispatch", [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "uncertain", reason: "binding_unconfirmed" }]);
+      await publishOperations(options, trustedContext, ["uncertain", assignment.dispatch_id, returned.run_id], "dispatch", [
+        { kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "uncertain", reason: "binding_unconfirmed", ...(verifiedEvidence ? { evidence: verifiedEvidence } : {}) },
+      ]);
     } catch (error) {
       log.failure("launch.binding_uncertain_marker.failed", error);
       // Authenticated activation can recover binding publication without POST.

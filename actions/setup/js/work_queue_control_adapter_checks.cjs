@@ -150,9 +150,15 @@ function registerTests({ describe, it }) {
                 assert.equal(parameters.ref, `refs/tags/gh-aw/work-queue/${REF}`);
                 return { status: 200, data: { workflow_run_id: "42", run_url: "https://api.github.com/repos/owner/repo/actions/runs/42", html_url: "https://github.com/owner/repo/actions/runs/42" } };
               },
-              getWorkflowRun: async parameters => {
+              getWorkflowRun: async () => {
+                throw new Error("Launch verification must read immutable attempt 1, not the latest run");
+              },
+              getWorkflowRunAttempt: async parameters => {
                 workerReads++;
+                assert.equal(parameters.owner, "owner");
+                assert.equal(parameters.repo, "repo");
                 assert.equal(parameters.run_id, "42");
+                assert.equal(parameters.attempt_number, 1);
                 const dispatch = [...fixture.state.dispatches.values()][0];
                 return { status: 200, data: { ...fixture.nativeRun(), display_title: `gh-aw work-queue ${dispatch.dispatch_id}` } };
               },
