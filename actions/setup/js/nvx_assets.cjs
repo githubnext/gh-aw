@@ -2,6 +2,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync, spawn } = require("node:child_process");
+const { resolveCopilotSDKMCPConfigPath } = require("./copilot_sdk_mcp_config_path.cjs");
 
 const GUEST_ROOT = "/workspace/.gh-aw-nvx";
 const STATE_INPUTS = ["aw-prompts", "mcp-config", "agent", "threat-detection", ".pi", "pi-agent-dir", "models.json", "awf-config.json", "engine-command.sh"];
@@ -142,12 +143,14 @@ function stage(environment = process.env, stateRoot = "/tmp/gh-aw", guestRoot = 
       fs.unlinkSync(guestCopilot);
       fs.rmdirSync(path.dirname(guestCopilot));
     }
-    const mcpConfig = environment.GH_AW_MCP_CONFIG;
     const mcpConfigDir = path.join(hostRoot, "mcp-config");
-    if (mcpConfig && path.dirname(mcpConfig) === mcpConfigDir && fs.existsSync(mcpConfig)) {
-      if (!fs.lstatSync(mcpConfigDir).isDirectory()) throw new Error("NVX native MCP config directory must not be a symlink");
-      fs.mkdirSync(path.join(runtime, "mcp-config"));
-      copyTree(mcpConfig, path.join(runtime, "mcp-config", path.basename(mcpConfig)));
+    const mcpConfigs = [environment.GH_AW_MCP_CONFIG, resolveCopilotSDKMCPConfigPath(runnerTemp)];
+    for (const mcpConfig of mcpConfigs) {
+      if (mcpConfig && path.dirname(mcpConfig) === mcpConfigDir && fs.existsSync(mcpConfig)) {
+        if (!fs.lstatSync(mcpConfigDir).isDirectory()) throw new Error("NVX native MCP config directory must not be a symlink");
+        fs.mkdirSync(path.join(runtime, "mcp-config"), { recursive: true });
+        copyTree(mcpConfig, path.join(runtime, "mcp-config", path.basename(mcpConfig)));
+      }
     }
     if (!fs.existsSync(path.join(runtime, "actions", "nvx_assets.cjs"))) throw new Error("NVX guest bootstrap is missing");
     fs.mkdirSync(path.join(runtime, "bin"), { recursive: true });

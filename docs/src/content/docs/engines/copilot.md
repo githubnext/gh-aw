@@ -53,6 +53,10 @@ The default installation uses Copilot CLI [1.0.98](https://github.com/github/cop
 
 Copilot SDK mode (`engine.copilot-sdk: true`) is stable and does not require an experimental opt-in. SDK session artifacts retain `model.call_finished` observations alongside durable events. Live `tool.shell_output` chunks are excluded from SDK artifacts and driver stderr until redaction can protect credentials split across chunks. Unified sessions preserve retained native payloads, including file-edit details and human-response provenance; a logical model dispatch ending is not evidence that the workflow completed.
 
+The built-in SDK driver explicitly registers native MCP servers from a separate converter-owned configuration under `RUNNER_TEMP/gh-aw/mcp-config/copilot-sdk.json`, not the user-managed Copilot CLI catalog. Servers mounted through `tools.cli-proxy` remain CLI-only. Tool permissions and gateway enforcement still apply to registered servers.
+
+The converter atomically replaces the catalog and publishes a SHA-256 digest through the step environment, bound to the run ID, attempt, and job. Missing, malformed, changed, or linked catalogs and stale integrity values fail before inference. Sandboxed agents receive read-only runtime assets; integrity verification does not protect against a compromised runner that can replace both the catalog and its trusted environment.
+
 Copilot supports the broadest set of `gh-aw` engine-specific features: native custom-agent selection with `engine.agent`, custom harnesses, `max-continuations`, bare mode, and per-command bash allowlisting. Offline BYOK mode disables its native web tools. Compilation rejects `tools.web-search` and CLI-mode `tools.web-fetch`; configure an MCP server instead. SDK mode (`engine.copilot-sdk: true`) supports `tools.web-fetch` through a custom proxy-aware implementation. See the [AI engine feature comparison](/gh-aw/reference/engines/#engine-feature-comparison).
 
 ### Dynamic workflows

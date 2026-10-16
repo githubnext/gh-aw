@@ -138,6 +138,7 @@ function resolveCopilotSDKWorkingDirectory() {
  *     allowedTools?: string[],
  *   },
  *   toolConfig?: import("./copilot_sdk_tool_config.cjs").CopilotSDKToolConfig,
+ *   mcpServers?: Record<string, import("@github/copilot-sdk").MCPServerConfig>,
  *   webFetchOptions?: {fetchImpl?: typeof fetch, timeoutMs?: number, maxRedirects?: number},
  *   coreLogger?: import("./copilot_sdk_permissions.cjs").CopilotSDKCoreLogger,
  *   sdkModule?: {
@@ -168,6 +169,7 @@ async function runWithCopilotSDK({
   maxToolDenials,
   permissionConfig,
   toolConfig,
+  mcpServers,
   webFetchOptions,
   coreLogger,
   sdkModule,
@@ -387,6 +389,7 @@ async function runWithCopilotSDK({
       workingDirectory,
       skipCustomInstructions: bare,
       customAgents,
+      ...(mcpServers === undefined ? {} : { mcpServers }),
       onPermissionRequest,
       ...(toolCallBudget ? { hooks: { onPreToolUse: toolCallBudget.onPreToolUse } } : {}),
       ...buildCopilotSDKSessionToolConfig(toolConfig, sdk, webFetchOptions),
