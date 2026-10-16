@@ -11,6 +11,8 @@ beforeEach(() => {
   vi.stubEnv("PI_CODING_AGENT_DIR", path.join(dir, "agent"));
   vi.stubEnv("RUNNER_TEMP", dir);
   vi.stubEnv("GH_AW_PI_STAGING_DIR", path.join(dir, "staging"));
+  vi.stubEnv("GH_AW_PI_COMMAND", path.join(dir, "pi"));
+  fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.3.0\\n'\n", { mode: 0o700 });
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -32,6 +34,12 @@ describe("Pi runtime configuration", () => {
   });
   it.each(["1.0.0", "1.1.0", "1.3.0", "2.0.0", "Pi 1.0.0"])("accepts an actual compatible version: %s", version => {
     expect(() => verifyPiVersion("pi", () => version)).not.toThrow();
+  });
+  it.each(["1.0.0", "1.2.9", "1.3.0-beta.1"])("rejects max effort on an older CLI: %s", version => {
+    expect(() => verifyPiVersion("pi", () => version, "1.3.0")).toThrow("v1.3.0 or newer is required for effort=max");
+  });
+  it.each(["1.3.0", "v1.3.0+build.1", "1.10.0", "2.0.0"])("accepts max effort on a supported CLI: %s", version => {
+    expect(() => verifyPiVersion("pi", () => version, "1.3.0")).not.toThrow();
   });
 
   it("uses the install-time package root even when sandbox npm paths differ", () => {
@@ -75,17 +83,57 @@ describe("Pi runtime configuration", () => {
     expect(result.settings.retry).toEqual({ enabled: true, maxRetries: 4, baseDelayMs: 500, maxAgentDelayMs: 30000 });
   });
 
-  it("preserves installed tool selections and forwards current release settings", () => {
+  it("merges installed tool selections with managed defaults and forwards current release settings", () => {
     fs.mkdirSync(path.join(dir, "agent"));
     fs.writeFileSync(path.join(dir, "agent/settings.json"), JSON.stringify({ defaultTools: ["+grep", "+codemode"] }));
     const result = preparePiRuntime({ settings: { sessionShareDestination: "radius", defaultThinkingLevel: "max", codemode: { mode: "only", inlineBudget: 0 } } });
     expect(result.settings).toMatchObject({
-      defaultTools: ["+grep", "+codemode"],
+      defaultTools: ["+grep", "+codemode", "+tool_search"],
       sessionShareDestination: "radius",
       defaultThinkingLevel: "max",
       codemode: { mode: "only", inlineBudget: 0 },
     });
     expect(preparePiRuntime({ settings: { defaultTools: ["read"] } }).settings.defaultTools).toEqual(["read"]);
+  });
+
+  it.each([["+grep"], [], null, "read"])("restores missing managed default tools from installed settings: %j", defaultTools => {
+    fs.mkdirSync(path.join(dir, "agent"));
+    fs.writeFileSync(path.join(dir, "agent/settings.json"), JSON.stringify({ defaultTools }));
+    expect(preparePiRuntime({}).settings.defaultTools).toEqual([...(Array.isArray(defaultTools) ? defaultTools : []), "+codemode", "+tool_search"]);
+  });
+
+  it("rejects max in effective settings before rewriting the installed settings", () => {
+    fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.2.0\\n'\n");
+    fs.mkdirSync(path.join(dir, "agent"));
+    const settingsPath = path.join(dir, "agent/settings.json");
+    fs.writeFileSync(settingsPath, JSON.stringify({ defaultThinkingLevel: "max" }));
+    expect(() => preparePiRuntime({})).toThrow("v1.3.0 or newer is required for effort=max");
+    expect(JSON.parse(fs.readFileSync(settingsPath, "utf8"))).toEqual({ defaultThinkingLevel: "max" });
+    expect(preparePiRuntime({ settings: { defaultThinkingLevel: "high" } }).settings.defaultThinkingLevel).toBe("high");
+    expect(() => preparePiRuntime({ settings: { defaultThinkingLevel: "max" } })).toThrow("v1.3.0 or newer");
+  });
+
+  it.each(["GH_AW_PI_ARGS", "GH_AW_PI_SUBAGENT_ARGS"])("rejects max CLI arguments on older Pi through %s", env => {
+    fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.2.0\\n'\n");
+    for (const args of [["--thinking", "max"], ["--thinking=max"]]) {
+      vi.stubEnv(env, JSON.stringify(args));
+      expect(() => preparePiRuntime({})).toThrow("v1.3.0 or newer is required for effort=max");
+    }
+    vi.stubEnv(env, JSON.stringify(["--thinking", "high"]));
+    expect(() => preparePiRuntime({})).not.toThrow();
+  });
+
+  it.each(["GH_AW_PI_ARGS", "GH_AW_PI_SUBAGENT_ARGS"])("does not interpret positional prompt text after -- as options through %s", env => {
+    fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.2.0\\n'\n");
+    for (const args of [
+      ["--", "--thinking=max"],
+      ["--thinking", "high", "--", "--thinking", "max"],
+    ]) {
+      vi.stubEnv(env, JSON.stringify(args));
+      expect(() => preparePiRuntime({})).not.toThrow();
+    }
+    vi.stubEnv(env, JSON.stringify(["--thinking=max", "--", "prompt"]));
+    expect(() => preparePiRuntime({})).toThrow("v1.3.0 or newer is required for effort=max");
   });
 
   it("applies the routed model effort instead of a fixed setting", () => {
@@ -100,6 +148,17 @@ describe("Pi runtime configuration", () => {
   it("fails closed when the routed selection file is missing", () => {
     vi.stubEnv("GH_AW_MODEL_ROUTING", "1");
     expect(() => preparePiRuntime({})).toThrow("AWF model routing selection is unavailable to Pi");
+  });
+
+  it("checks the routed thinking effort rather than the overridden fixed setting", () => {
+    fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.2.0\\n'\n");
+    fs.mkdirSync(path.join(dir, "agent"));
+    const selectionPath = path.join(dir, "agent/model-routing-selection.json");
+    fs.writeFileSync(selectionPath, JSON.stringify({ wire_model: "claude-opus-5", mapped_effort: "max" }));
+    vi.stubEnv("GH_AW_MODEL_ROUTING", "1");
+    expect(() => preparePiRuntime({})).toThrow("v1.3.0 or newer is required for effort=max");
+    fs.writeFileSync(selectionPath, JSON.stringify({ wire_model: "claude-opus-5", mapped_effort: "high" }));
+    expect(preparePiRuntime({ settings: { defaultThinkingLevel: "max" } }).settings.defaultThinkingLevel).toBe("high");
   });
 
   it("uses only gateway-authorized MCP servers and preserves scoped headers", () => {

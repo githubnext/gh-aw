@@ -15,6 +15,8 @@ beforeEach(() => {
   fs.writeFileSync(path.join(dir, "agents/reader.md"), "Fixture");
   frontmatter = { description: "Read files", model: "claude-haiku-4.5", tools: ["read"] };
   vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify({ small: ["copilot/*haiku*", "anthropic/*haiku*"], recursive: ["small"] }));
+  vi.stubEnv("GH_AW_PI_COMMAND", path.join(dir, "pi"));
+  fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.3.0\\n'\n", { mode: 0o700 });
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -47,6 +49,24 @@ describe("Pi sub-agent model resolution", () => {
   it("rejects unsupported thinking efforts", () => {
     frontmatter.model = "small?effort=invalid";
     expect(() => prepare()).toThrow("unsupported thinking effort");
+  });
+
+  it.each([true, false])("rejects resolved max effort on older Pi before writing launch configuration (gateway=%s)", gateway => {
+    fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.2.0\\n'\n");
+    frontmatter.model = "small?effort=max";
+    expect(() => prepare({ gateway })).toThrow("v1.3.0 or newer is required for effort=max");
+    expect(fs.existsSync(path.join(dir, "subagents.json"))).toBe(false);
+    frontmatter.model = "small?effort=high";
+    expect(prepare({ gateway })[0].thinking).toBe("high");
+  });
+
+  it("checks inherited and alias-selected max effort on older Pi", () => {
+    fs.writeFileSync(path.join(dir, "pi"), "#!/bin/sh\nprintf '1.2.0\\n'\n");
+    delete frontmatter.model;
+    expect(() => prepare({ parentModel: "github-copilot/gpt-5.6-luna?effort=max" })).toThrow("v1.3.0 or newer");
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify({ small: ["copilot/*haiku*?effort=max"] }));
+    frontmatter.model = "small";
+    expect(() => prepare()).toThrow("v1.3.0 or newer");
   });
 
   it("refuses unresolved aliases instead of silently using the parent model", () => {

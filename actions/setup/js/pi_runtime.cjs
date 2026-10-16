@@ -11,8 +11,8 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const DEFAULT_AGENT_DIR = "/tmp/gh-aw/pi-agent-dir";
 const DEFAULT_SESSION_DIR = "/tmp/gh-aw/agent/pi-sessions";
 
-/** @param {string} [command] @param {typeof execFileSync} [execute] */
-function verifyPiVersion(command = process.env.GH_AW_PI_COMMAND || "pi", execute = execFileSync) {
+/** @param {string} [command] @param {typeof execFileSync} [execute] @param {string} [minimumVersion] */
+function verifyPiVersion(command = process.env.GH_AW_PI_COMMAND || "pi", execute = execFileSync, minimumVersion = "1.0.0") {
   let version;
   try {
     version = execute(command, ["--version"], { encoding: "utf8", timeout: 10000, maxBuffer: 4096 }).trim();
@@ -20,9 +20,16 @@ function verifyPiVersion(command = process.env.GH_AW_PI_COMMAND || "pi", execute
     throw new Error(`Cannot verify installed Pi version: ${getErrorMessage(error)}`, { cause: error });
   }
   const match = /^(?:pi\s+)?v?(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/i.exec(version);
-  if (!match || Number(match[1]) < 1 || (match[1] === "1" && match[2] === "0" && match[3] === "0" && match[4])) {
-    throw new Error(`Pi v1.0.0 or newer is required; installed version is ${version}`);
+  const minimum = minimumVersion.split(".").map(Number);
+  const comparison = match ? [1, 2, 3].map((index, i) => Number(match[index]) - minimum[i]).find(value => value !== 0) || 0 : -1;
+  if (!match || comparison < 0 || (comparison === 0 && match[4])) {
+    throw new Error(`Pi v${minimumVersion} or newer is required${minimumVersion === "1.3.0" ? " for effort=max" : ""}; installed version is ${version}`);
   }
+}
+
+/** @param {string|null|undefined} effort */
+function verifyPiThinkingEffort(effort) {
+  if (effort === "max") verifyPiVersion(undefined, undefined, "1.3.0");
 }
 
 /** @param {string} [raw] @returns {Record<string, any>} */
@@ -100,7 +107,7 @@ function preparePiRuntime(config = parsePiConfig()) {
   }
   const settings = {
     ...installedSettings,
-    defaultTools: installedSettings.defaultTools ?? ["+codemode", "+tool_search"],
+    defaultTools: [...new Set([...(Array.isArray(installedSettings.defaultTools) ? installedSettings.defaultTools : []), "+codemode", "+tool_search"])],
     sessionDir: DEFAULT_SESSION_DIR,
     enableInstallTelemetry: false,
     ...config.settings,
@@ -117,6 +124,18 @@ function preparePiRuntime(config = parsePiConfig()) {
   if (routingSelection) {
     if (routingSelection.mapped_effort) settings.defaultThinkingLevel = routingSelection.mapped_effort;
     else delete settings.defaultThinkingLevel;
+  }
+  verifyPiThinkingEffort(settings.defaultThinkingLevel);
+  for (const rawArgs of [process.env.GH_AW_PI_ARGS, process.env.GH_AW_PI_SUBAGENT_ARGS]) {
+    if (!rawArgs) continue;
+    const args = JSON.parse(rawArgs);
+    if (Array.isArray(args)) {
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--") break;
+        if (args[i] === "--thinking") verifyPiThinkingEffort(args[++i]);
+        else if (args[i] === "--thinking=max") verifyPiThinkingEffort("max");
+      }
+    }
   }
   writeSecureOutput(settingsPath, JSON.stringify(settings, null, 2));
 
@@ -192,4 +211,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parsePiConfig, loadPiSDK, resolvePiPackageFile, nativePiProvider, preparePiRuntime, stagePiArtifacts, readPiModelRoutingSelection, verifyPiVersion, DEFAULT_AGENT_DIR, DEFAULT_SESSION_DIR };
+module.exports = { parsePiConfig, loadPiSDK, resolvePiPackageFile, nativePiProvider, preparePiRuntime, stagePiArtifacts, readPiModelRoutingSelection, verifyPiVersion, verifyPiThinkingEffort, DEFAULT_AGENT_DIR, DEFAULT_SESSION_DIR };
