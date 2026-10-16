@@ -13,7 +13,7 @@ const store = require("./work_queue_store.cjs");
 const { normalizeAssignment, normalizeClaimScope, readClaimScopeContext } = require("./work_queue_claim_scope.cjs");
 const { readStagedIntentBatch, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters, validatePreparedPlanIntentBatch } = require("./work_queue_intents.cjs");
 const { assertPolicyProposal, loadQueue, policyProposalFor, publishOperations, validateStoredAssignment, expectedWorkerRun, bindingForRun } = require("./work_queue_binding.cjs");
-const { authenticatePublisher, authenticateIntentPublisher, immutableRef, fetchNativeRun, postQueueDispatch, validateNativeRun } = require("./work_queue_native.cjs");
+const { authenticatePublisher, authenticateIntentPublisher, immutableRef, fetchNativeRunAttempt, isTransientVerificationError, postQueueDispatch, validateNativeRun } = require("./work_queue_native.cjs");
 const { dependencyKey, allowedScope, resolveDependencies, resolveExternalEdges } = require("./work_queue_dependency_resolver.cjs");
 const { lifecycleEvidence, reconcileDispatch, reconcileQueue, releaseAssignment } = require("./work_queue_reconciler.cjs");
 const { DEFAULT_INTENT_PATH } = require("./work_queue_mcp_server.cjs");
@@ -222,13 +222,12 @@ async function verifyLaunchedRun(options, expected, policy) {
   const started = Date.now();
   for (let attempt = 1; ; attempt++) {
     try {
-      return validateNativeRun(await fetchNativeRun(options.dispatchClient || options.githubClient, expected.repository, expected.run_id), expected);
+      return validateNativeRun(await fetchNativeRunAttempt(options.dispatchClient || options.githubClient, expected.repository, expected.run_id, 1), expected);
     } catch (error) {
       log.failure("launch.verification.failed", error, true);
-      const status = error?.status ?? error?.response?.status;
-      const transient = status === 404 || (status >= 500 && status <= 599) || ["ETIMEDOUT", "ECONNRESET"].includes(error?.code) || error?.message === "run_correlation_mismatch";
       const remaining = policy.deadline_ms - (Date.now() - started);
-      if (!transient || attempt >= policy.max_attempts || remaining <= 0) throw error;
+      if (!isTransientVerificationError(error) || attempt >= policy.max_attempts || remaining <= 0) throw error;
+      // Poll at a fixed 1s cadence, never exceeding the remaining reconciliation deadline.
       await (options.sleepFn || (delay => new Promise(resolve => setTimeout(resolve, delay))))(Math.min(1000, remaining));
       if (Date.now() - started >= policy.deadline_ms) throw error;
     }

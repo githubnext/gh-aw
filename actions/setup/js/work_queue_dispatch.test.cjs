@@ -16,7 +16,7 @@ import {
   main as publishQueueControls,
 } from "./work_queue_dispatch.cjs";
 import { cancelBeforeLaunch, cancellationOperations, reconcileDispatch, reconcileQueue, reconciliationCandidates } from "./work_queue_reconciler.cjs";
-import { appendCommit, newRequest, serializeProjection } from "./work_queue_replay.cjs";
+import { appendCommit, compactTransactions, generateRequestOperations, newRequest, replayTransactions, serializeProjection } from "./work_queue_replay.cjs";
 import { assignmentOnly } from "./work_queue_scheduler.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
 import { validateStoredAssignment } from "./work_queue_binding.cjs";
@@ -89,6 +89,22 @@ function failedFixture(disposition) {
   return { ...result, member };
 }
 
+function compactQueue(options, fixture, transactions = fixture.transactions) {
+  let ledger = compactTransactions(transactions, "c".repeat(40), fixture.administrator, fixture.at);
+  options.readWorkQueueLog = async () => ({ sha: "compacted-head", transactions: ledger, state: replayTransactions(ledger) });
+  options.publishWorkQueueRequest = async parameters => {
+    const state = replayTransactions(ledger);
+    const at = ledger.at(-1).at + 1;
+    const id = `post-checkpoint-${ledger.length}`;
+    const decision = (parameters.generateOperations || generateRequestOperations)(state, parameters.request, parameters.actor, at, id);
+    const commit = { version: 3, id, previous: state.tip, request: parameters.request, actor: parameters.actor, policy_epoch: state.policy_epoch, at, operations: decision.operations };
+    const result = appendCommit(ledger, commit);
+    ledger = result.transactions;
+    return { ...result, ...decision, persisted: true, publishedNow: true };
+  };
+  return ledger;
+}
+
 describe("native queue launch fencing and conservative recovery", () => {
   it.each(["cancelled", "failure", "success"])("reclaims never-started singleton reservations after the exact originating attempt ends with %s", async conclusion => {
     const { fixture, options, post } = setup({ batch: 1 });
@@ -112,7 +128,8 @@ describe("native queue launch fencing and conservative recovery", () => {
 
   it("releases an abandoned reservation before the next dispatcher grants and launches retry Work", async () => {
     const { fixture, options, post } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.retry.backoff_ms = 1) });
-    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async () => ({ status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled" } });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async parameters =>
+      parameters.run_id === "15" ? { status: 200, data: { ...fixture.nativeRun(fixture.dispatcherContext), status: "completed", conclusion: "cancelled" } } : fixture.githubClient.rest.actions.getWorkflowRun(parameters);
     const context = { ...fixture.dispatcherContext, runId: "16" };
     fixture.githubClient.rest.actions.getWorkflowRun = async ({ run_id }) => ({
       status: 200,
@@ -712,7 +729,7 @@ describe("native queue launch fencing and conservative recovery", () => {
 
   it.each(["not_found", "unavailable", "timeout", "title_pending"])("verifies an accepted %s launch with bounded reads and exactly one POST", async failure => {
     const { fixture, post, options } = setup({ count: 1 });
-    const get = fixture.githubClient.rest.actions.getWorkflowRun;
+    const get = fixture.githubClient.rest.actions.getWorkflowRunAttempt;
     const read = vi.fn(async parameters => {
       if (read.mock.calls.length === 1) {
         if (failure === "title_pending") return { status: 200, data: { ...fixture.nativeRun(), display_title: "worker" } };
@@ -720,11 +737,11 @@ describe("native queue launch fencing and conservative recovery", () => {
       }
       return get(parameters);
     });
-    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read(parameters) : get(parameters));
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
     const sleepFn = vi.fn(async () => {});
     expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "bound", run_id: "42", dispatched: true });
     expect(read).toHaveBeenCalledTimes(2);
-    expect(read.mock.calls.every(([parameters]) => parameters.run_id === "42" && parameters.request.retries === 0)).toBe(true);
+    expect(read.mock.calls.every(([parameters]) => parameters.run_id === "42" && parameters.attempt_number === 1 && parameters.request.retries === 0)).toBe(true);
     expect(sleepFn).toHaveBeenCalledExactlyOnceWith(1000);
     expect(post).toHaveBeenCalledTimes(1);
     expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "bound", released: false, run: { run_id: "42", run_attempt: 1 } });
@@ -732,9 +749,8 @@ describe("native queue launch fencing and conservative recovery", () => {
 
   it("retains the reservation without asserting native evidence after exhausting verification reads", async () => {
     const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.max_attempts = 2) });
-    const get = fixture.githubClient.rest.actions.getWorkflowRun;
     const read = vi.fn().mockRejectedValue({ status: 404 });
-    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read(parameters) : get(parameters));
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
     expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
     expect(read).toHaveBeenCalledTimes(2);
     const dispatch = fixture.state.dispatches.get(fixture.assignment.dispatch_id);
@@ -745,7 +761,23 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(fixture.state.claims.size).toBe(1);
   });
 
-  it("retains verified native evidence after a binding publication failure and recovers without redispatch", async () => {
+  it("verifies the original launch attempt even when the latest native attempt is a rerun", async () => {
+    const { fixture, post, options } = setup({ count: 1 });
+    const get = fixture.githubClient.rest.actions.getWorkflowRun;
+    fixture.githubClient.rest.actions.getWorkflowRun = vi.fn(async parameters => (parameters.run_id === "42" ? { status: 200, data: { ...fixture.nativeRun(), run_attempt: 2 } } : get(parameters)));
+    const getAttempt = vi.fn(async parameters => {
+      expect(parameters).toMatchObject({ run_id: "42", attempt_number: 1, request: { retries: 0 } });
+      return { status: 200, data: fixture.nativeRun() };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = getAttempt;
+    expect(await launchAssignment(options, fixture.assignment)).toMatchObject({ state: "bound", run_id: "42", dispatched: true });
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "bound", run: { run_id: "42", run_attempt: 1 }, released: false });
+    expect(getAttempt).toHaveBeenCalledTimes(1);
+    expect(fixture.githubClient.rest.actions.getWorkflowRun.mock.calls.every(([parameters]) => parameters.run_id !== "42")).toBe(true);
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([0, 1, 2])("recovers saved native evidence after a binding publication failure and %s compactions without discovery or redispatch", async compactions => {
     const { fixture, post, options } = setup({ count: 1 });
     const publish = options.publishWorkQueueRequest;
     options.publishWorkQueueRequest = async parameters => {
@@ -757,19 +789,69 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(dispatch.run).toBeUndefined();
     expect(fixture.transactions.at(-1).operations[0]).toMatchObject({ state: "uncertain", reason: "binding_unconfirmed", evidence: { run_id: "42", run_attempt: 1, principal: "11" } });
     options.publishWorkQueueRequest = publish;
+    let transactions = fixture.transactions;
+    for (let index = 0; index < compactions; index++) transactions = compactQueue(options, fixture, transactions);
+    const restored = (await options.readWorkQueueLog()).state;
+    if (compactions) {
+      expect(restored.transactions).toHaveLength(1);
+      expect(restored.historicalTransactions.flatMap(commit => commit.operations)).toContainEqual(expect.objectContaining({ reason: "binding_unconfirmed", evidence: expect.objectContaining({ run_id: "42" }) }));
+    }
+    fixture.githubClient.rest.actions.listWorkflowRuns.mockResolvedValue({ status: 200, data: { workflow_runs: [] } });
+    const getAttempt = vi.fn(async parameters => {
+      expect(parameters).toMatchObject({ run_id: "42", attempt_number: 1 });
+      return { status: 200, data: fixture.nativeRun() };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = getAttempt;
     expect(await reconcileDispatch(options)).toMatchObject({ state: "bound", run_id: "42", released: false });
+    expect(getAttempt).toHaveBeenCalledTimes(2);
+    expect(fixture.githubClient.rest.actions.listWorkflowRuns).toHaveBeenCalledTimes(1);
     expect(post).toHaveBeenCalledTimes(1);
-    expect(fixture.state.claims.size).toBe(1);
+    const recovered = (await options.readWorkQueueLog()).state;
+    expect(recovered.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ state: "bound", run: { run_id: "42", run_attempt: 1 }, released: false });
+    expect(recovered.claims.size).toBe(1);
+  });
+
+  it.each(["current", "historical", "checkpoint_boundary"])("prefers the newest retained native run hint across %s transactions", async history => {
+    const { fixture, post, options } = setup({ count: 1, started: true });
+    const operation = runId => ({
+      kind: "Dispatch",
+      dispatch_id: fixture.assignment.dispatch_id,
+      state: "uncertain",
+      reason: "binding_unconfirmed",
+      evidence: { kind: "reconciliation", source: "github_api", repository: REPOSITORY, workflow: fixture.binding.workflow, ref: REF, principal: "11", checked_at: fixture.at, run_id: runId, run_attempt: 1 },
+    });
+    fixture.append("dispatch", { operations: [operation("43")] }, fixture.dispatcher);
+    if (history === "checkpoint_boundary") {
+      compactQueue(options, fixture);
+      await options.publishWorkQueueRequest({
+        actor: fixture.dispatcher,
+        request: newRequest("newer-returned-hint", "dispatch", fixture.dispatcher, { operations: [operation("42")] }),
+      });
+    } else {
+      fixture.append("dispatch", { operations: [operation("42")] }, fixture.dispatcher);
+      if (history === "historical") compactQueue(options, fixture);
+    }
+    const getAttempt = vi.fn(async parameters => {
+      expect(parameters).toMatchObject({ run_id: "42", attempt_number: 1 });
+      return { status: 200, data: fixture.nativeRun() };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = getAttempt;
+    expect(await reconcileDispatch(options)).toMatchObject({ state: "bound", run_id: "42", released: false });
+    expect(getAttempt).toHaveBeenCalledTimes(2);
+    expect(fixture.githubClient.rest.actions.listWorkflowRuns).toHaveBeenCalledExactlyOnceWith(expect.any(Object));
+    expect(post).not.toHaveBeenCalled();
+    const recovered = (await options.readWorkQueueLog()).state;
+    expect(recovered.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ run: { run_id: "42", run_attempt: 1 }, released: false });
   });
 
   it.each([{ status: 403 }, { head_sha: "b".repeat(40) }, { actor: { id: "99" } }, { run_attempt: 2 }])("does not retry or bind a denied or mismatched returned run: %j", async failure => {
     const { fixture, post, options } = setup({ count: 1 });
-    const get = fixture.githubClient.rest.actions.getWorkflowRun;
-    const read = vi.fn(async () => {
+    const read = vi.fn(async parameters => {
+      expect(parameters).toMatchObject({ run_id: "42", attempt_number: 1 });
       if (failure.status) throw failure;
       return { status: 200, data: { ...fixture.nativeRun(), ...failure } };
     });
-    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read() : get(parameters));
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
     const sleepFn = vi.fn();
     expect(await launchAssignment({ ...options, sleepFn }, fixture.assignment)).toMatchObject({ state: "launch_unresolved", run_id: "42", released: false });
     expect(read).toHaveBeenCalledTimes(1);
@@ -780,9 +862,8 @@ describe("native queue launch fencing and conservative recovery", () => {
 
   it("stops verification reads at the policy deadline without releasing an uncertain launch", async () => {
     const { fixture, post, options } = setup({ count: 1, configurePolicy: policy => (policy.pools.default.reconciliation.deadline_ms = 1) });
-    const get = fixture.githubClient.rest.actions.getWorkflowRun;
     const read = vi.fn().mockRejectedValue({ status: 404 });
-    fixture.githubClient.rest.actions.getWorkflowRun = parameters => (parameters.run_id === "42" ? read(parameters) : get(parameters));
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = read;
     const clock = vi.spyOn(Date, "now").mockReturnValue(0);
     const sleepFn = vi.fn(async () => clock.mockReturnValue(1));
     try {
