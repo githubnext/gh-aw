@@ -578,6 +578,9 @@ const TmpGhAwDirSlash = TmpGhAwDir + "/"
 // TmpGhAwAgentDir is the agent working directory in the /tmp/gh-aw tree.
 const TmpGhAwAgentDir = TmpGhAwDir + "/agent/"
 
+// AwInfoPath is the runtime metadata file updated by engine harnesses.
+const AwInfoPath = TmpGhAwDir + "/aw_info.json"
+
 // TmpGhAwAssetsDir is the directory the upload_assets job downloads the
 // safe-outputs assets artifact into. It is the single source of truth shared by
 // the download step (path:) and the upload_assets.cjs consumer script, so the

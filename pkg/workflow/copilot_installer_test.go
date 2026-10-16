@@ -47,6 +47,9 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 	if !strings.Contains(installStep, `install_copilot_cli.sh" `+customVersion) {
 		t.Errorf("Expected user-specified version %q in install step, got:\n%s", customVersion, installStep)
 	}
+	if !strings.Contains(installStep, "GH_AW_COPILOT_MIN_VERSION: "+string(constants.CopilotSessionIDMinVersion)) {
+		t.Errorf("Expected Copilot CLI feature minimum in install step, got:\n%s", installStep)
+	}
 	if strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
 		t.Errorf("Expected user-specified version, not default version, in install step:\n%s", installStep)
 	}

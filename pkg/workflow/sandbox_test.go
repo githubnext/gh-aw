@@ -271,7 +271,7 @@ func TestApplySandboxDefaults(t *testing.T) {
 			},
 			engine:                 &EngineConfig{ID: "copilot"},
 			expectDefaultWritePath: true,
-			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, defaultAgentLogsWritePath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
+			expectedAllowWrite:     []string{defaultAgentWorkspaceWritePath, defaultAgentLogsWritePath, constants.AwInfoPath, cloudHypervisorWorkspaceWritePath, cloudHypervisorAwfHomeWritePath},
 			expected: &SandboxConfig{
 				Agent: &AgentSandboxConfig{
 					Type: SandboxTypeAWF,

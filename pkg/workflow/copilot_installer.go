@@ -59,7 +59,7 @@ func generateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 		"        env:",
 		"          GH_HOST: github.com",
 	}
-	stepLines = appendCopilotInstallerVersionEnv(stepLines, "", "", guestLibc)
+	stepLines = appendCopilotInstallerVersionEnv(stepLines, "", copilotMinVersion, guestLibc)
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}
 }
