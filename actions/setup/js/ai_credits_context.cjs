@@ -34,7 +34,7 @@ const API_PROXY_GUARD_REJECTION_EVENT_TYPES = [MAX_CACHE_MISSES_EXCEEDED_EVENT_T
 // so the step log states what limit was hit and at which value.
 const API_PROXY_GUARD_COUNTER_FIELDS = ["consecutive_cache_misses", "max_cache_misses", "effective_tokens", "max_effective_tokens", "permission_denied_count", "max_permission_denied", "model"];
 const MAX_AI_CREDITS_EXCEEDED_STDIO_RE =
-  /^(?:CAPIError:\s*429\s+|Failed to get response from the AI model; retried \d+ times\. Last error: CAPIError:\s*429\s+|Fatal:\s*)Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;
+  /^(?:CAPIError:\s*429\s+|Failed to get response from the AI model; retried \d+ times(?: \(total retry wait time:[^)]+\))?(?: \(Request-ID [^)]+\))?\.? Last error: CAPIError:\s*429\s+|Fatal:\s*)Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;
 const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
 const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
 

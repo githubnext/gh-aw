@@ -168,6 +168,10 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
   });
 
   describe("resolveAICreditsFailureState maxAICreditsExceeded", () => {
+    const retryDiagnosticPrefixes = ["", " (total retry wait time: 380.35 seconds)", " (Request-ID ABC123)", " (total retry wait time: 380.35 seconds) (Request-ID AC21:F5CEC:33A719:40DD88:6A83AA27)"].flatMap(metadata =>
+      ["", "."].map(punctuation => `Failed to get response from the AI model; retried 5 times${metadata}${punctuation} Last error: CAPIError: 429 Maximum AI credits exceeded`)
+    );
+
     it("returns maxAICreditsExceeded: true when budget_exceeded event is present", () => {
       writeAuditLog([{ event: "budget_exceeded", reason: "hard_limit", forced_termination: true, ai_credits: 105000, max_ai_credits: 100000 }]);
       const result = resolveAICreditsFailureState();
@@ -253,15 +257,46 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.maxAICreditsExceeded).toBe(true);
     });
 
-    it("detects max-ai-credits exceeded signal from agent-stdio log", () => {
-      // Set GH_AW_AGENT_OUTPUT so the derived stdio-log path resolves to tmpDir.
-      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
-      fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 Maximum AI credits exceeded (1002.381900 / 1000).", "utf8");
+    it.each(retryDiagnosticPrefixes)("detects max-ai-credits exceeded signal from native retry diagnostic: %s", prefix => {
+      writeAgentStdio(`${prefix} (1002.381900 / 1000).`);
       const result = resolveAICreditsFailureState();
       expect(result.aiCredits).toBe("1002.381900");
       expect(result.maxAICredits).toBe("1000");
       expect(result.aiCreditsRateLimitError).toBe(true);
       expect(result.maxAICreditsExceeded).toBe(true);
+    });
+
+    it.each(retryDiagnosticPrefixes.flatMap(prefix => ["8.75 / 1000", "0 / 1000", "1 / 0"].map(pair => `${prefix} (${pair}).`)))("rejects under-cap or invalid credit pairs in native retry diagnostics: %s", diagnostic => {
+      writeAgentStdio(diagnostic);
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "",
+        maxAICredits: "",
+        aiCreditsRateLimitError: false,
+        maxAICreditsExceeded: false,
+      });
+    });
+
+    it.each(
+      retryDiagnosticPrefixes.flatMap(prefix => {
+        const diagnostic = `${prefix} (1002.381900 / 1000).`;
+        return [
+          `Review example: "${diagnostic}"`,
+          JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: diagnostic }] } }),
+          JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: diagnostic }] } }),
+          JSON.stringify({ type: "item.completed", item: { type: "command_execution", aggregated_output: diagnostic } }),
+        ];
+      })
+    )("rejects quoted native retry diagnostics: %s", content => {
+      writeAWFConfig(1000);
+      writeTokenUsageLog([{ ai_credits_total: 8.747565 }]);
+      writeAgentStdio(content);
+      process.env.GH_AW_AGENT_CONCLUSION = "failure";
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "8.747565",
+        maxAICredits: "1000",
+        aiCreditsRateLimitError: false,
+        maxAICreditsExceeded: false,
+      });
     });
 
     it("detects max-ai-credits exceeded from stdio log alone (no audit rate-limit signal)", () => {
