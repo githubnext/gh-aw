@@ -71,7 +71,7 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	validationResults *[]ValidationResult,
 ) ([]*workflow.WorkflowData, error) {
 	compileOrchestrationLog.Printf("Compiling %d specific workflow files", len(config.MarkdownFiles))
-	if err := prepareDryRunScannerBaseline(ctx, &config, config.MarkdownFiles, ""); err != nil {
+	if err := prepareDryRunScannerBaseline(ctx, &config, config.MarkdownFiles, "", compiler); err != nil {
 		return nil, err
 	}
 
@@ -211,7 +211,12 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 		*validationResults = append(*validationResults, fileResult.validationResult)
 	}
 
+	workflowDir := ""
+	if config.DryRun {
+		workflowDir = config.dryRunWorkflowDir
+	}
 	strictGrantErr, batchToolErr := runBatchExternalTools(ctx, config, batchToolsOptions{
+		workflowDir:            workflowDir,
 		lockFilesForActionlint: lockFilesForActionlint,
 		lockFilesForZizmor:     lockFilesForZizmor,
 		lockFilesForDirTools:   lockFilesForDirTools,
@@ -307,7 +312,7 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	if len(mdFiles) == 0 {
 		return nil, fmt.Errorf("no workflow markdown files found in %s (workflow files must start with a frontmatter opener on the first line)", workflowsDir)
 	}
-	if err := prepareDryRunScannerBaseline(ctx, &config, mdFiles, workflowsDir); err != nil {
+	if err := prepareDryRunScannerBaseline(ctx, &config, mdFiles, workflowsDir, compiler); err != nil {
 		return nil, err
 	}
 
@@ -431,8 +436,12 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 		*validationResults = append(*validationResults, fileResult.validationResult)
 	}
 
+	dryRunWorkflowDir := ""
+	if config.DryRun {
+		dryRunWorkflowDir = config.dryRunWorkflowDir
+	}
 	strictGrantErr, batchToolErr := runBatchExternalTools(ctx, config, batchToolsOptions{
-		workflowDir:            workflowsDir,
+		workflowDir:            firstNonEmpty(dryRunWorkflowDir, workflowsDir),
 		lockFilesForActionlint: lockFilesForActionlint,
 		lockFilesForZizmor:     lockFilesForZizmor,
 		lockFilesForDirTools:   lockFilesForDirTools,

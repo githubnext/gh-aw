@@ -87,6 +87,7 @@ const shellcheckMaxConcurrency = 8
 // that is needed to run shellcheck on the script snippet.
 type runStepInfo struct {
 	JobID string
+	ID    string
 	// Name is the step's "name" field, used only for diagnostic messages.
 	Name string
 	// Script is the raw content of the run: field.
@@ -176,7 +177,9 @@ func extractRunStepsFromJob(job map[string]any, jobDefaultShell, lockFile string
 			continue
 		}
 		name, _ := step["name"].(string)
+		id, _ := step["id"].(string)
 		steps = append(steps, runStepInfo{
+			ID:       id,
 			Name:     name,
 			Script:   runScript,
 			Shell:    effectiveShell,
@@ -583,7 +586,11 @@ var shellcheckFindingPattern = regexp.MustCompile(`(?m)^script:(\d+):(\d+): (err
 func withShellcheckFindings(err error, info runStepInfo, output string) error {
 	var diagnostics []scannerDiagnostic
 	lines := strings.Split(sanitizeGHAExpressions(info.Script), "\n")
-	for _, matches := range shellcheckFindingPattern.FindAllStringSubmatch(output, -1) {
+	for outputLine := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
+		if strings.TrimSpace(outputLine) == "" {
+			continue
+		}
+		matches := shellcheckFindingPattern.FindStringSubmatch(strings.TrimSpace(outputLine))
 		if len(matches) != 6 {
 			return err
 		}
@@ -598,7 +605,10 @@ func withShellcheckFindings(err error, info runStepInfo, output string) error {
 			RuleID: match[5], Severity: scanfindings.ParseSeverity(match[3]), Message: match[4],
 			File: firstNonEmpty(info.LockFile, info.Source), Line: line, Column: column,
 		}
-		step := info.Name
+		step := info.ID
+		if step == "" {
+			step = info.Name
+		}
 		if step == "" {
 			step = info.Script
 		}

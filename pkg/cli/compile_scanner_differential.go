@@ -12,8 +12,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
@@ -99,12 +101,56 @@ func (b *dryRunScannerBaseline) filter(tool string, err error) (*DryRunScannerDi
 	return diff, nil
 }
 
-func prepareDryRunScannerBaseline(ctx context.Context, config *CompileConfig, files []string, workflowDir string) error {
+func prepareDryRunScannerBaseline(ctx context.Context, config *CompileConfig, files []string, workflowDir string, compiler *workflow.Compiler) error {
 	if !config.DryRun {
 		return nil
 	}
 	baseline := &dryRunScannerBaseline{results: make(map[string]error)}
 	config.dryRunBaseline = baseline
+	workflowDir = resolveDryRunWorkflowDir(files, workflowDir)
+	config.dryRunWorkflowDir = workflowDir
+	lockFiles, shellcheckResources, err := collectDryRunBaselineInputs(files, config, compiler)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Scanning pre-compilation inputs for the dry-run warning baseline"))
+	baselineConfig := *config
+	baselineConfig.DryRun = false
+	baselineConfig.Strict = true
+	baselineConfig.JSONOutput = true
+	opts := batchToolsOptions{
+		workflowDir: workflowDir, dryRunZizmor: true,
+		lockFilesForActionlint: lockFiles, lockFilesForZizmor: lockFiles,
+		lockFilesForDirTools: lockFiles, lockFilesForSyft: lockFiles,
+		lockFilesForGrype: lockFiles, lockFilesForGrant: lockFiles,
+		lockFilesForYamllint: lockFiles, lockFilesForShellcheck: lockFiles,
+		shellcheckResources: shellcheckResources,
+		reportResult:        func(tool string, _ int, err error) { baseline.results[tool] = err },
+	}
+	var results []ValidationResult
+	_, err = runBatchExternalTools(ctx, baselineConfig, opts, &CompilationStats{}, &results)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	// Findings and scanner failures are retained separately for the final gate.
+	compileDevelopmentLog.Printf("Captured dry-run scanner baseline: tools=%d, diagnostics=%t", len(baseline.results), err != nil)
+	return nil
+}
+
+func resolveDryRunWorkflowDir(files []string, workflowDir string) string {
+	if workflowDir != "" {
+		return workflowDir
+	}
+	for _, file := range files {
+		resolved, err := resolveWorkflowFile(file, false)
+		if err == nil {
+			return filepath.Dir(resolved)
+		}
+	}
+	return ""
+}
+
+func collectDryRunBaselineInputs(files []string, config *CompileConfig, compiler *workflow.Compiler) ([]string, []workflow.ShellScriptResource, error) {
 	var lockFiles []string
 	for _, file := range files {
 		resolved, err := resolveWorkflowFile(file, false)
@@ -117,46 +163,61 @@ func prepareDryRunScannerBaseline(ctx context.Context, config *CompileConfig, fi
 			continue
 		}
 		if err != nil {
-			return fmt.Errorf("cannot read dry-run baseline %s: %w", lockFile, err)
+			return nil, nil, fmt.Errorf("cannot read dry-run baseline %s: %w", lockFile, err)
 		}
 		if !info.Mode().IsRegular() {
-			return fmt.Errorf("dry-run baseline %s must be a regular lock file", lockFile)
+			return nil, nil, fmt.Errorf("dry-run baseline %s must be a regular lock file", lockFile)
 		}
 		lockFiles = append(lockFiles, lockFile)
 	}
-	if len(lockFiles) == 0 {
-		return nil
+	if !config.shellcheckEnabled() || config.NoEmit {
+		return lockFiles, nil, nil
 	}
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Scanning pre-compilation lock files for the dry-run warning baseline"))
-	baselineConfig := *config
-	baselineConfig.DryRun = false
-	baselineConfig.Strict = true
-	baselineConfig.JSONOutput = true
-	opts := batchToolsOptions{
-		workflowDir: workflowDir, dryRunZizmor: true,
-		lockFilesForActionlint: lockFiles, lockFilesForZizmor: lockFiles,
-		lockFilesForDirTools: lockFiles, lockFilesForSyft: lockFiles,
-		lockFilesForGrype: lockFiles, lockFilesForGrant: lockFiles,
-		lockFilesForYamllint: lockFiles, lockFilesForShellcheck: lockFiles,
-		reportResult: func(tool string, _ int, err error) { baseline.results[tool] = err },
+	for _, lockFile := range lockFiles {
+		if _, err := extractRunStepsFromLockFile(lockFile); err != nil {
+			return nil, nil, fmt.Errorf("cannot extract ShellCheck baseline from %s: %w", lockFile, err)
+		}
 	}
-	var results []ValidationResult
-	_, err := runBatchExternalTools(ctx, baselineConfig, opts, &CompilationStats{}, &results)
-	if ctx.Err() != nil {
-		return ctx.Err()
+	var resources []workflow.ShellScriptResource
+	for _, file := range files {
+		resolved, err := resolveWorkflowFile(file, false)
+		if err != nil {
+			continue // The ordinary compile pipeline reports source resolution errors.
+		}
+		data, err := compiler.ParseWorkflowFile(resolved)
+		if err != nil {
+			var sharedErr *workflow.SharedWorkflowError
+			var redirectErr *workflow.RedirectOnlyWorkflowError
+			if errors.As(err, &sharedErr) || errors.As(err, &redirectErr) {
+				continue
+			}
+			return nil, nil, fmt.Errorf("cannot extract ShellCheck resource baseline from %s: %w", resolved, err)
+		}
+		resources = append(resources, data.ShellScriptResources()...)
 	}
-	// Findings and scanner failures are retained separately for the final gate.
-	compileDevelopmentLog.Printf("Captured dry-run scanner baseline: tools=%d, diagnostics=%t", len(baseline.results), err != nil)
-	return nil
+	return lockFiles, resources, nil
 }
 
 var scannerStepIndexPattern = regexp.MustCompile(`\.steps\[(\d+)\]`)
+var scannerShellcheckRulePattern = regexp.MustCompile(`^SC\d+$`)
+
+func normalizeScannerFile(file string) string {
+	file = filepath.Clean(file)
+	if strings.HasSuffix(strings.ToLower(file), ".yml") || strings.HasSuffix(strings.ToLower(file), ".yaml") {
+		if !filepath.IsAbs(file) {
+			if gitRoot, err := gitutil.FindGitRoot(); err == nil {
+				file = filepath.Join(gitRoot, file)
+			}
+		}
+		if abs, err := filepath.Abs(file); err == nil {
+			file = abs
+		}
+	}
+	return file
+}
 
 func scannerFindingIdentity(finding scanfindings.Finding) string {
-	file := filepath.Clean(finding.File)
-	if abs, err := filepath.Abs(file); err == nil {
-		file = abs
-	}
+	file := normalizeScannerFile(finding.File)
 	anchor := strconv.Itoa(finding.Line) + ":" + strconv.Itoa(finding.Column)
 	content, err := os.ReadFile(file)
 	if err == nil && (strings.HasSuffix(file, ".yml") || strings.HasSuffix(file, ".yaml")) {
@@ -168,25 +229,108 @@ func scannerFindingIdentity(finding scanfindings.Finding) string {
 			lines := strings.Split(string(content), "\n")
 			lineIndex := finding.Line - 1
 			if visitor.path != "" && lineIndex >= 0 && lineIndex < len(lines) {
-				path := scannerStepIndexPattern.ReplaceAllStringFunc(visitor.path, func(match string) string {
-					prefix := visitor.path[:strings.Index(visitor.path, match)] + match
-					for _, field := range []string{"id", "name", "uses", "run"} {
-						p, pathErr := yaml.PathString(prefix + "." + field)
-						if pathErr != nil {
-							continue
-						}
-						var value string
-						if p.Read(strings.NewReader(string(content)), &value) == nil && value != "" {
-							return fmt.Sprintf(".steps[%s:%x]", field, sha256.Sum256([]byte(value)))
-						}
-					}
-					return match
-				})
+				path := scannerStepPathIdentity(visitor.path, content)
 				anchor = path + "\x00" + strings.TrimSpace(lines[lineIndex])
 			}
 		}
 	}
 	return strings.Join([]string{file, finding.RuleID, finding.Severity.String(), finding.Message, anchor}, "\x00")
+}
+
+func scannerStepPathIdentity(path string, content []byte) string {
+	return scannerStepIndexPattern.ReplaceAllStringFunc(path, func(match string) string {
+		prefix := path[:strings.Index(path, match)] + match
+		for _, field := range []string{"id", "name", "uses", "run"} {
+			p, err := yaml.PathString(prefix + "." + field)
+			if err != nil {
+				continue
+			}
+			var value string
+			if p.Read(strings.NewReader(string(content)), &value) == nil && value != "" {
+				return fmt.Sprintf(".steps[%s:%x]", field, sha256.Sum256([]byte(value)))
+			}
+		}
+		return match
+	})
+}
+
+func actionlintShellcheckIdentity(issue actionlintError) (string, bool) {
+	rule, severity, line, column, ok := parseActionlintShellcheckMessage(issue.Message)
+	if !ok {
+		return "", false
+	}
+	file := normalizeScannerFile(issue.Filepath)
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return "", false
+	}
+	parsed, err := parser.ParseBytes(content, 0)
+	if err != nil {
+		return "", false
+	}
+	visitor := &scannerLocationVisitor{line: issue.Line}
+	for _, doc := range parsed.Docs {
+		ast.Walk(visitor, doc.Body)
+	}
+	if visitor.path == "" {
+		return "", false
+	}
+	runPath, err := yaml.PathString(visitor.path)
+	if err != nil {
+		return "", false
+	}
+	var script string
+	if err := runPath.Read(strings.NewReader(string(content)), &script); err != nil {
+		return "", false
+	}
+	scriptLine, err := strconv.Atoi(line)
+	if err != nil || scriptLine < 1 {
+		return "", false
+	}
+	lines := strings.Split(script, "\n")
+	var affectedLine string
+	found := false
+	for index, candidate := range lines {
+		if index == scriptLine-1 {
+			affectedLine = strings.TrimSpace(candidate)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", false
+	}
+	identity := strings.Join([]string{
+		file, "shellcheck", rule, severity, column,
+		scannerStepPathIdentity(visitor.path, content), affectedLine,
+	}, "\x00")
+	return identity, true
+}
+
+func parseActionlintShellcheckMessage(message string) (rule, severity, line, column string, ok bool) {
+	rule, message, ok = strings.Cut(message, ":")
+	if !ok || !scannerShellcheckRulePattern.MatchString(rule) {
+		return "", "", "", "", false
+	}
+	severity, message, ok = strings.Cut(message, ":")
+	if !ok || severity != "error" && severity != "warning" && severity != "info" && severity != "note" {
+		return "", "", "", "", false
+	}
+	line, message, ok = strings.Cut(message, ":")
+	if !ok {
+		return "", "", "", "", false
+	}
+	column, _, ok = strings.Cut(message, ":")
+	if !ok {
+		return "", "", "", "", false
+	}
+	if _, err := strconv.Atoi(line); err != nil {
+		return "", "", "", "", false
+	}
+	if _, err := strconv.Atoi(column); err != nil {
+		return "", "", "", "", false
+	}
+	return rule, severity, line, column, true
 }
 
 type scannerLocationVisitor struct {
