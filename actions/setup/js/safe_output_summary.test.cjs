@@ -862,6 +862,24 @@ describe("safe_output_summary", () => {
   });
 
   describe("writeSafeOutputSummaries", () => {
+    it.each([
+      { success: false, error: "ERR_API: operation failed" },
+      { success: false, skipped: true, result: { skipped: true, reason_code: "POLICY_FILE_PROTECTION_DENIED" } },
+    ])("links diagnostic outcomes to the playbook without changing status", async outcome => {
+      await writeSafeOutputSummaries([{ type: "create_issue", messageIndex: 0, ...outcome }], [{ title: "Issue" }]);
+      const summary = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summary).toContain("debug-playbook.md#completion-and-safe-output-errors");
+      expect(mockCore.info.mock.calls.flat().join("\n")).toContain("Debug playbook:");
+      if (outcome.skipped) {
+        expect(summary).toContain("0 failed");
+      }
+    });
+
+    it("omits diagnostic links for successful output", async () => {
+      await writeSafeOutputSummaries([{ type: "create_issue", messageIndex: 0, success: true, result: { number: 1 } }], [{ title: "Issue" }]);
+      expect(mockCore.summary.addRaw.mock.calls[0][0]).not.toContain("debug-playbook.md");
+    });
+
     it("should redact credential-shaped strings before writing the step summary", async () => {
       // Built from parts so the fixture is never a literal credential string in source.
       const fakePat = "ghp_" + "a1b2c3d4e5".repeat(3) + "f6g7h8";

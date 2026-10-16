@@ -121,6 +121,8 @@ The top-level `schema_version` identifies the audit cache and JSON contract vers
 | `multiple_errors` | The run produced more than five errors |
 | `mcp_server_failures` | One or more MCP servers failed |
 | `tools_not_available` | Requested tools were unavailable |
+| `model_unavailable` | Pi rejected a model at startup and the same run's complete provider inventory confirms it was not advertised |
+| `model_availability_unknown` | Pi rejected a model at startup, but saved reflection cannot confirm its absence |
 | `blocked_network_requests` | The firewall blocked network requests |
 | `workflow_succeeded` | The workflow completed successfully |
 | `threat_detection_job_failed` | The `detection` job failed |
@@ -133,6 +135,21 @@ The top-level `schema_version` identifies the audit cache and JSON contract vers
 | `agentic_delegated_context_present` | Delegated workflow context was preserved |
 
 The audit inspects the `detection` job result and the downloaded `detection` artifact. A failed job emits `threat_detection_job_failed`. A structured verdict in `detection_result.json`, or a legacy `THREAT_DETECTION_RESULT` verdict in `detection.log`, emits `threat_detected` when `prompt_injection`, `secret_leak`, or `malicious_patch` is true. Threat reasons are not copied into the finding description because they may contain sensitive agent output.
+
+For Pi's `not advertised` startup failure, audit checks the exact model ID against
+the matching configured provider in the same run's `awf-reflect.json`. It confirms
+absence only when discovery completed and an array inventory is available.
+Missing, malformed, incomplete, ambiguous, or contradictory evidence produces
+`model_availability_unknown`, not a claim that the model was removed.
+Findings list up to five advertised same-family candidates and their known
+supported endpoints. These are inspection candidates, not guaranteed replacements.
+Recommendations use `gh aw models --refresh-observed=false --logs-dir <audit-output-dir>`
+to inspect cached model evidence without downloading more runs. Audit does not
+change model pins or infer global retirement from one run's inventory.
+Each finding includes a `playbook_url` in JSON and a playbook link in console
+output. Model and sub-agent findings link to specialized guidance; other findings
+link to the diagnostic code playbook. Actions runtime error detection and
+safe-output diagnostics also print the relevant playbook URL.
 
 The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run. It is absent when token-usage data is unavailable for the run — for example, when neither `token-usage.jsonl` nor the fallback `agent_usage.json` can be found in the downloaded artifacts, which is common for older runs and runs without firewall/usage artifacts:
 - `ambient_context.input_tokens` — input tokens for the first invocation

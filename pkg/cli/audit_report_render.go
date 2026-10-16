@@ -454,6 +454,9 @@ func renderConsoleFindings(findings []AuditFinding) {
 	fmt.Fprintln(os.Stderr, "  findings:")
 	for _, finding := range findings {
 		fmt.Fprintf(os.Stderr, "    [%s] %s: %s\n", strings.ToUpper(finding.Severity.String()), finding.Title, finding.Description)
+		if finding.PlaybookURL != "" {
+			fmt.Fprintf(os.Stderr, "      Playbook: %s\n", finding.PlaybookURL)
+		}
 	}
 }
 

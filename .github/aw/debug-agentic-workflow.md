@@ -220,6 +220,8 @@ telemetry-free emitted lock; no workflow was executed."
 
 ## Collect Existing Evidence
 
+Map audit findings and runtime codes through the [debug playbook](debug-playbook.md).
+
 For model/endpoint errors, `model: auto` failures, or install failures after version
 pins, collect the artifacts in [Model and engine misconfiguration](#model-and-engine-misconfiguration).
 
@@ -308,7 +310,7 @@ it needs `actions: read` and CLI installation before invoking `gh aw`.
 ## Model and engine misconfiguration
 
 For unavailable model IDs or `not advertised` startup failures, use the
-[model availability playbook](debug-model-not-available.md) to inspect saved
+[model availability playbook](debug-playbook.md#model-availability) to inspect saved
 reflection and compare existing runs without dispatching another workflow.
 
 For AWF 400s mentioning models or endpoints, silent cross-family sub-agent

@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+import re
 import unittest
 
 
@@ -20,16 +21,82 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_diagnostic_routing_mini_eval_contract(self):
+        guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
+        for case in FIXTURES["diagnostic_routing"]:
+            with self.subTest(case=case["id"]):
+                section = guide.split(f"## {case['section']}\n", 1)[1].split("\n## ", 1)[0]
+                row = next(line for line in section.splitlines() if f"`{case['code']}`" in line)
+                if "next_guide" in case:
+                    self.assertIn(case["next_guide"], section)
+                    self.assertTrue((ROOT / ".github/aw" / case["next_guide"]).is_file())
+                if "next_section" in case:
+                    anchor = case["next_section"].lower().replace(" ", "-")
+                    self.assertIn(f"(#{anchor})", row)
+                    self.assertIn(f"## {case['next_section']}\n", guide)
+                if "required" in case:
+                    self.assertIn(case["required"], row)
+
+    def test_debug_playbook_covers_diagnostic_codes(self):
+        guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
+        rows = {}
+        for line in guide.splitlines():
+            if line.startswith("| ") and line.count("|") == 4:
+                codes, evidence, remedy = line.strip("|").split("|")
+                if evidence.strip() and remedy.strip():
+                    for code in re.findall(r"`([^`]+)`", codes):
+                        rows[code] = line
+        sources = [
+            *sorted((ROOT / "actions/setup/js").glob("*.cjs")),
+            *sorted((ROOT / "pkg/workqueue").glob("*.go")),
+        ]
+        code_patterns = (
+            r'\b(?:code|reason_code|failure_code|error_code|reasonCode|errorCode)\s*:\s*["\']([A-Za-z][A-Za-z0-9_-]+)["\']',
+            r'\bqueueError\(\s*["\']([a-z][a-z0-9_-]+)["\']',
+            r'\bE\d{3}\b',
+        )
+        for path in sources:
+            if ".test." in path.name or path.name.endswith(("_test.go", "_checks.cjs")) or "fixture" in path.name:
+                continue
+            for pattern in code_patterns:
+                for code in set(re.findall(pattern, path.read_text())):
+                    with self.subTest(path=path.name, code=code):
+                        self.assertTrue(code in rows, f"{code} needs an evidence/remedy row")
+        registries = (
+            ("pkg/cli/audit_finding_codes.go", r'AuditFindingCode = "([^"]+)"'),
+            ("actions/setup/js/error_codes.cjs", r'const [A-Z_0-9]+ = "([^"]+)"'),
+            ("actions/setup/js/agent_error_patterns.cjs", r'`([a-z_]+)=\$\{'),
+            ("actions/setup/js/agent_execution.cjs", r'categorySet.add\("([^"]+)"\)'),
+            ("actions/setup/js/harness_error_patterns.cjs", r'guard: "([^"]+)"'),
+        )
+        for name, pattern in registries:
+            for code in re.findall(pattern, (ROOT / name).read_text()):
+                if code != "missing_model_pricing_model_name":
+                    with self.subTest(registry=name, code=code):
+                        self.assertTrue(code in rows, f"{code} needs an evidence/remedy row")
+        causes = (ROOT / "actions/setup/js/empty_output_outcome.cjs").read_text()
+        for block in re.findall(r"const EMPTY_OUTPUT_(?:FAILURE_)?CAUSES = Object.freeze\(\{(.*?)\}\)", causes, re.S):
+            for code in re.findall(r"^\s+([a-z_]+):", block, re.M):
+                self.assertTrue(code in rows, f"{code} needs an evidence/remedy row")
+        self.assertIn("debug-playbook.md", DEBUG_GUIDE.read_text())
+        for required in ("gh aw audit", "--no-baseline", "gh aw models", "--refresh-observed=false",
+                         "Do not dispatch workflows", "first failing boundary", "Unmapped codes"):
+            self.assertIn(required, guide)
+
     def test_model_availability_playbook(self):
-        name = "debug-model-not-available.md"
+        name = "debug-playbook.md"
         guide = (ROOT / ".github/aw" / name).read_text()
         for path in (DEBUG_GUIDE, GUIDES[0]):
             with self.subTest(path=path):
-                self.assertIn(name, path.read_text())
+                self.assertIn(f"{name}#model-availability", path.read_text())
         for required in (
-            "models_fetch_complete", "inventory_available", "routing_models",
+            "models_fetch_complete", "routing_models",
             "supported_endpoints", "model_aliases", "awf-reflect.json",
             "token-usage.jsonl", "gh run download", "gh run view",
+            "gh aw models", "--refresh-observed=false", "--logs-dir",
+            "gh aw audit", "--no-baseline", "--timeout 2m",
+            'gh aw audit "$BASE_RUN_ID" "$RUN_ID"', "incomplete JSON report",
+            "model_unavailable", "model_availability_unknown",
             "Availability is unknown", "empty file", "missing file",
             "same AWF version", "credential source (names only)",
             "not proof", "Do not dispatch workflows",

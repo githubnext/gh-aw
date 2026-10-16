@@ -87,6 +87,7 @@ type AuditFinding struct {
 	Title       string                     `json:"title"`            // Brief title
 	Description string                     `json:"description"`      // Detailed description
 	Impact      string                     `json:"impact,omitempty"` // What impact this has
+	PlaybookURL string                     `json:"playbook_url,omitempty"`
 }
 
 // Recommendation represents an actionable suggestion
@@ -693,7 +694,11 @@ func extractCreatedItemsFromManifest(logsPath string) []CreatedItemReport {
 		// File not present is expected for runs without safe outputs
 		return nil
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			auditReportLog.Printf("Failed to close safe-output manifest: %v", err)
+		}
+	}()
 
 	var items []CreatedItemReport
 	scanner := bufio.NewScanner(f)
@@ -1064,7 +1069,11 @@ func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) s
 		auditReportLog.Printf("Failed to read %s: %v", agentStdioPath, err)
 		return ""
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			auditReportLog.Printf("Failed to close agent startup log: %v", err)
+		}
+	}()
 
 	// Read only the tail of the file to bound memory use for large logs.
 	const maxReadBytes int64 = 64 * 1024 // 64 KB tail window

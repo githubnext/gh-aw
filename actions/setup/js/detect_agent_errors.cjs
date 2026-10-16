@@ -328,6 +328,10 @@ async function main({ rootDir = process.env.GH_AW_TMP_DIR || "/tmp/gh-aw" } = {}
 
   persistAgentExecution(logContent, results, rootDir);
 
+  if (buildOutputLines(results).some(line => line.endsWith("=true")) || process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME === "failure") {
+    process.stderr.write("[detect-agent-errors] Debug playbook: https://github.com/github/gh-aw/blob/main/.github/aw/debug-playbook.md#agent-model-and-proxy-classifications\n");
+  }
+
   await renderInternalEngineLogOnFailure();
 }
 
