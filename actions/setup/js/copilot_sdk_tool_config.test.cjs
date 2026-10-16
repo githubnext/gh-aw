@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
-const { parseCopilotSDKToolConfig, buildCopilotSDKSessionToolConfig, isReservedSDKPermission } = require("./copilot_sdk_tool_config.cjs");
+const { parseCopilotSDKToolConfig, buildCopilotSDKSessionToolConfig, loadCopilotSDKMCPServers, isReservedSDKPermission } = require("./copilot_sdk_tool_config.cjs");
+const { filterAndTransformServers } = require("./convert_gateway_config_shared.cjs");
+const { transformCopilotEntry } = require("./convert_gateway_config_copilot.cjs");
 const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
 const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.cjs");
 
@@ -146,6 +151,68 @@ describe("isReservedSDKPermission", () => {
     expect(isReservedSDKPermission("web_search")).toBe(true);
     expect(isReservedSDKPermission("workflow")).toBe(true);
     expect(isReservedSDKPermission("github")).toBe(false);
+  });
+});
+
+describe("loadCopilotSDKMCPServers", () => {
+  const withConfig = (value, run) => {
+    const dir = mkdtempSync(join(tmpdir(), "sdk-mcp-config-"));
+    const file = join(dir, "mcp-config.json");
+    try {
+      writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value));
+      return run(file);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it("loads only converted gateway servers, preserving tool limits, timeouts, and headers", () => {
+    const gateway = {
+      safeoutputs: { type: "http", url: "http://localhost:80/mcp/safeoutputs", tools: ["noop", "report_incomplete"], toolTimeout: 30, headers: { Authorization: "test-only" } },
+      mcpscripts: { type: "http", url: "http://localhost:80/mcp/mcpscripts" },
+      github: { type: "http", url: "http://localhost:80/mcp/github" },
+    };
+    const mcpServers = filterAndTransformServers(gateway, new Set(["github"]), (_name, entry) => transformCopilotEntry(entry, "http://awmg-mcpg:8080"));
+    withConfig({ mcpServers }, file => {
+      vi.stubEnv("GH_AW_MCP_CONFIG", file);
+      try {
+        expect(loadCopilotSDKMCPServers(validToolConfig())).toEqual({
+          safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop", "report_incomplete"], timeout: 30000, headers: { Authorization: "test-only" } },
+          mcpscripts: { type: "http", url: "http://awmg-mcpg:8080/mcp/mcpscripts", tools: ["*"] },
+        });
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+  });
+
+  it("does not read any MCP configuration when the capability is disabled", () => {
+    expect(loadCopilotSDKMCPServers(validToolConfig({ capabilities: { mcp: false } }), "/missing/config.json")).toEqual({});
+  });
+
+  it("preserves an empty catalog when all servers are CLI-mounted", () => {
+    withConfig({ mcpServers: {} }, file => expect(loadCopilotSDKMCPServers(validToolConfig(), file)).toEqual({}));
+  });
+
+  it("fails before inference when an enabled MCP configuration is missing or unreadable", () => {
+    expect(() => loadCopilotSDKMCPServers(validToolConfig(), "")).toThrow("GH_AW_MCP_CONFIG is required");
+    expect(() => loadCopilotSDKMCPServers(validToolConfig(), "/missing/config.json")).toThrow("Cannot read GH_AW_MCP_CONFIG");
+  });
+
+  it.each([
+    ["invalid JSON", '{"private":"test-secret",', "must be valid JSON"],
+    ["missing catalog", {}, "mcpServers object"],
+    ["array catalog", { mcpServers: [] }, "mcpServers object"],
+    ["local process", { mcpServers: { unsafe: { type: "stdio", command: "unexpected" } } }, "generated HTTP gateway"],
+    ["invalid entry", { mcpServers: { unsafe: null } }, "generated HTTP gateway"],
+    ["invalid tools", { mcpServers: { safeoutputs: { type: "http", url: "http://gateway", tools: "noop" } } }, "array of non-empty strings"],
+    ["invalid headers", { mcpServers: { safeoutputs: { type: "http", url: "http://gateway", headers: { Authorization: 123 } } } }, "object of strings"],
+    ["invalid timeout", { mcpServers: { safeoutputs: { type: "http", url: "http://gateway", timeout: 0 } } }, "positive number"],
+  ])("rejects %s without disclosing the configuration", (_name, value, message) => {
+    withConfig(value, file => {
+      expect(() => loadCopilotSDKMCPServers(validToolConfig(), file)).toThrow(message);
+      expect(() => loadCopilotSDKMCPServers(validToolConfig(), file)).not.toThrow("test-secret");
+    });
   });
 });
 
@@ -315,6 +382,10 @@ describe("runWithCopilotSDK compiler-owned catalog", () => {
       logger: () => {},
       permissionConfig: validToolConfig().permissions,
       toolConfig: validToolConfig(),
+      mcpServers: {
+        safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop", "report_incomplete"] },
+        mcpscripts: { type: "http", url: "http://awmg-mcpg:8080/mcp/mcpscripts", tools: ["concurrency-audit-state"] },
+      },
       sdkModule,
     });
 
@@ -324,6 +395,12 @@ describe("runWithCopilotSDK compiler-owned catalog", () => {
       expect(sessionConfig.availableTools.toArray()).not.toContain(forbiddenTool);
     }
     expect(sessionConfig.tools.map(tool => tool.name)).toEqual(["web_fetch"]);
+    expect(sessionConfig.mcpServers).toEqual({
+      safeoutputs: { type: "http", url: "http://awmg-mcpg:8080/mcp/safeoutputs", tools: ["noop", "report_incomplete"] },
+      mcpscripts: { type: "http", url: "http://awmg-mcpg:8080/mcp/mcpscripts", tools: ["concurrency-audit-state"] },
+    });
+    expect(sessionConfig.onPermissionRequest({ kind: "mcp", serverName: "safeoutputs", toolName: "noop" }).kind).toBe("approve-once");
+    expect(sessionConfig.onPermissionRequest({ kind: "mcp", serverName: "unconfigured", toolName: "write" }).kind).toBe("reject");
   });
 
   it("enforces one shared pre-tool budget across the parent and subagent hooks", async () => {
