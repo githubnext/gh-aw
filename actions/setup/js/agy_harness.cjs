@@ -92,6 +92,7 @@ const main = async () => {
     if (verification.stdout.trim() !== version) throw new Error("Agy executable does not match engine.version");
 
     const env = { ...process.env };
+    /** @type {any} */
     let reflectData = null;
     if (env.AWF_REFLECT_ENABLED === "1") {
       const reflection = await fetchAWFReflect({ logger: log });

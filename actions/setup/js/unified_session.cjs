@@ -577,7 +577,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
         report(resolutionFile, "invalid_model_resolution", undefined);
       } else {
         const keys = ["engine", "role", "configured_model", "resolved_model", "provider", "status", "cause"];
-        const events = records.map(record => ({ type: "model.resolution", data: Object.fromEntries(keys.map(key => [key, record[key]])) }));
+        const events = records.map(record => /** @type {SessionEvent} */ ({ type: "model.resolution", data: Object.fromEntries(keys.map(key => [key, record[key]])) }));
         sources.push({ component: "model_resolution", phase: "agent", path: "agent/model-resolution.json", events });
       }
     } catch (error) {

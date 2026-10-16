@@ -597,7 +597,8 @@ function recordModelResolution(record, env = process.env) {
  * Engine-specific handling (prefix checks, CLI id overrides, `auto`) runs after
  * resolution through `normalize`, which returns the model handed to the CLI.
  *
- * @param {Parameters<typeof resolveConfiguredModel>[0] & {
+ * @param {Omit<Parameters<typeof resolveConfiguredModel>[0], "aliasMap"> & {
+ *   aliasMap?: Record<string, string[]>|null,
  *   engine: string,
  *   role?: string,
  *   refetchReflectData?: () => Promise<any>,
