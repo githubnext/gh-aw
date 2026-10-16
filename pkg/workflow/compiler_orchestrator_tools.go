@@ -546,6 +546,8 @@ func (c *Compiler) tryParseFrontmatterConfig(frontmatter map[string]any) *Frontm
 	parsedFrontmatter, err := ParseFrontmatterConfig(frontmatter)
 	if err != nil {
 		orchestratorToolsLog.Printf("Failed to parse frontmatter config: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to parse frontmatter config; some frontmatter settings may be ignored. Enable DEBUG=workflow:compiler_orchestrator_tools for details."))
+		c.IncrementWarningCount()
 		return nil
 	}
 	return parsedFrontmatter
