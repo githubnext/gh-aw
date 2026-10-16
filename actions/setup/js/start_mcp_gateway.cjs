@@ -1497,6 +1497,7 @@ function applyAgenticWorkflowsRunnerIdentity(config, uid = process.getuid?.(), g
   if (!Array.isArray(args) || !args.every(arg => typeof arg === "string")) {
     throw new Error("Invalid agenticworkflows container arguments");
   }
+  // Docker parses any suffix after -u as a username or UID, including -uroot.
   if (args.some(arg => arg === "--user" || arg === "-u" || arg.startsWith("--user=") || (arg.startsWith("-u") && !arg.startsWith("--")))) return;
   if (!Number.isSafeInteger(uid) || !Number.isSafeInteger(gid) || uid === undefined || gid === undefined || uid < 0 || gid < 0) {
     throw new Error("Runner identity is required for the agenticworkflows container");

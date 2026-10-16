@@ -3,9 +3,57 @@ import { describe, it, expect, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues, redactMaskedValues, unescapeWorkflowCommandValue } = require("./add_mask_redaction.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues, redactMaskedValues, transformJSONStrings, unescapeWorkflowCommandValue } = require("./add_mask_redaction.cjs");
 
 describe("add_mask_redaction", () => {
+  describe("transformJSONStrings", () => {
+    it("passes complete quoted tokens and plain spans to separate callbacks", () => {
+      const strings = vi.fn(token => `[${token}]`);
+      const plain = vi.fn(text => `{${text}}`);
+      expect(transformJSONStrings('head "one" between "two" tail', strings, plain)).toBe('{head }["one"]{ between }["two"]{ tail}');
+      expect(strings.mock.calls.map(([token]) => token)).toEqual(['"one"', '"two"']);
+      expect(plain.mock.calls.map(([text]) => text)).toEqual(["head ", " between ", " tail"]);
+    });
+
+    it("visits adjacent and empty tokens without separators or trailing text", () => {
+      const strings = vi.fn(token => token);
+      const content = '"""one""two"""';
+      expect(transformJSONStrings(content, strings)).toBe(content);
+      expect(strings.mock.calls.map(([token]) => token)).toEqual(['""', '"one"', '"two"', '""']);
+    });
+
+    it.each(['"unterminated', '"ends\\', '"ends\\u', '"ends\\u123', 'plain "unterminated', '"safe" "ends\\'])("preserves truncated input and never transforms incomplete strings (%j)", content => {
+      const strings = vi.fn(token => token);
+      const plain = vi.fn(text => text);
+      expect(transformJSONStrings(content, strings, plain)).toBe(content);
+      expect(strings.mock.calls.map(([token]) => token)).toEqual(content.startsWith('"safe"') ? ['"safe"'] : []);
+      expect(plain.mock.calls.map(([text]) => text).join("")).toBe(content.startsWith('"safe"') ? content.slice(6) : content);
+    });
+
+    it.each(['"bad\t ', '"bad\\q ', '"bad\\u12gg '])("recovers valid tokens after invalid unterminated prefixes without losing bytes (%j)", prefix => {
+      const strings = vi.fn(token => token);
+      const plain = vi.fn(text => text);
+      expect(transformJSONStrings(prefix + '"\\u006fpaque" tail', strings, plain)).toBe(prefix + '"\\u006fpaque" tail');
+      expect(strings.mock.calls.map(([token]) => token)).toEqual(['"\\u006fpaque"']);
+      expect(plain.mock.calls.map(([text]) => text).join("")).toBe(prefix + " tail");
+    });
+
+    it("preserves bytes even when malformed terminated input makes quote pairing ambiguous", () => {
+      const strings = vi.fn(token => token);
+      const content = '"bad\t" "\\u006fpaque"';
+      expect(transformJSONStrings(content, strings)).toBe(content);
+      expect(strings.mock.calls.map(([token]) => token)).toEqual(['" "']);
+    });
+
+    it.each(["string", "plain"])("propagates %s callback failures without adding source text", callback => {
+      const error = new Error("synthetic callback failure");
+      const fail = () => {
+        throw error;
+      };
+      expect(() => transformJSONStrings('plain "value"', callback === "string" ? fail : token => token, callback === "plain" ? fail : text => text)).toThrow(error);
+    });
+  });
+
   describe("isAddMaskCommandLine", () => {
     it("detects add-mask command lines", () => {
       expect(isAddMaskCommandLine("::add-mask::secret")).toBe(true);
@@ -186,6 +234,31 @@ describe("add_mask_redaction", () => {
         it.each(["", "0", "00", "000", "gggg", "000g", "00g0", "0g00", "g000", "+000", "-000", " 000"])("recovers after malformed Unicode escape %j", digits => {
           const prefix = '"invalid\\u' + digits + " ";
           expect(redactArtifactMaskedValues(prefix + encodedMask, ["opaque"])).toBe(prefix + '"***"');
+        });
+
+        it.each(['"bad\t"', '"bad\u0001"', '"bad\\q"', '"bad\\u12gg"'])("conservatively redacts alternate quote pairings after terminated malformed tokens (%j)", prefix => {
+          const content = `${prefix} ${encodedMask}`;
+          const redacted = redactArtifactMaskedValues(content, ["opaque"]);
+          expect(JSON.parse(redacted)).toBe(`${prefix} "***"`);
+          expect(redacted).not.toContain("\\u006fpaque");
+          expect(redactArtifactMaskedValues(content, ["absent"])).toBe(content);
+        });
+
+        it("conservatively redacts escapes before invalid controls and in unterminated strings", () => {
+          for (const content of ['"\\u006fpaque\t"', '"\\u006fpaque', '"\\u006fpaque\\']) {
+            const redacted = redactArtifactMaskedValues(content, ["opaque"]);
+            expect(JSON.parse(redacted)).toBe(content.replace("\\u006fpaque", "***"));
+          }
+        });
+
+        it("redacts encoded masks crossing quote boundaries in an alternate pairing", () => {
+          const content = '"bad\t" "foo\\"bar"';
+          expect(JSON.parse(redactArtifactMaskedValues(content, ['foo"bar']))).toBe('"bad\t" "***"');
+        });
+
+        it("does not recursively decode literal Unicode escapes after malformed prefixes", () => {
+          const content = '"bad\t" ' + JSON.stringify("\\u006fpaque");
+          expect(redactArtifactMaskedValues(content, ["opaque"])).toBe(content);
         });
 
         it.each(["", "plain", '"', '"unterminated', '"ends\\', '"ends\\u', '"ends\\u123', '"bad\\q', '""', '"" ""', '"safe"tail', '"safe" "unterminated'])("preserves unmatched or truncated input byte-for-byte (%j)", content => {

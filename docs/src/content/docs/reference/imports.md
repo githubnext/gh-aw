@@ -388,7 +388,7 @@ Steps from imports run **before** steps defined in the main workflow. Imported p
 
 Built-in redaction scans supported text files under `/tmp/gh-aw` and `${RUNNER_TEMP}/gh-aw`. Files without secret matches are left unchanged unless `secret-masking.steps` configures custom redactors, which require writable files. When redaction or custom-hook preparation requires a write, a readable non-writable file, such as a container-owned log, is atomically replaced with a runner-owned copy with owner-only read/write permissions. If the parent directory is also read-only, such as a Go module cache directory, redaction instead makes the file owner-readable and writable in place without changing directory permissions. This requires permission to change the file's mode; it does not bypass file locks or inaccessible directories.
 
-Runtime-mask redaction handles multi-megabyte JSON strings and mixed log records without relying on recursive regular-expression matching. This does not change GitHub's step-summary size limit.
+Runtime-mask redaction handles multi-megabyte JSON strings and mixed log records without relying on recursive regular-expression matching. If malformed quotes hide an encoded mask, a conservative escape-decoding pass redacts it and represents that record as a JSON string; records without additional mask matches retain their original bytes. This does not change GitHub's step-summary size limit.
 
 Custom hooks must tolerate absent optional files and files that disappear between discovery and reading (`ENOENT`). Earlier cleanup or redaction can remove files, including symbolic links and artifacts that could not be sanitized. Do not create empty placeholders for missing logs or outputs.
 

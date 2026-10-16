@@ -141,6 +141,7 @@ function applyAddMaskRedaction(text, maskedValues) {
 /**
  * Visit quoted JSON tokens without a repeated regex alternation, which can
  * exhaust the RegExp stack on multi-megabyte log records.
+ * Malformed prefixes are preserved as text; their quote pairing is ambiguous.
  * @param {string} text
  * @param {(token: string) => string} transformString
  * @param {(text: string) => string} [transformText]
@@ -251,7 +252,17 @@ function redactArtifactMaskedValues(content, maskedValues) {
         const redacted = redactValue(value);
         return redacted === value ? encoded : JSON.stringify(redacted);
       });
-      return redactMaskedValues(decoded, maskedValues);
+      const redacted = redactMaskedValues(decoded, maskedValues);
+      // Malformed quotes have no unique pairing. Decode remaining escapes once
+      // conservatively so an alternate pairing cannot hide an encoded mask.
+      const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+      const unescaped = redacted.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => {
+        if (escape[0] === "u") return String.fromCharCode(parseInt(escape.slice(1), 16));
+        return escapes[escape];
+      });
+      const conservative = applyAddMaskRedaction(unescaped, maskedValues);
+      // Only re-encode an ambiguous record when the extra decoding finds a mask.
+      return conservative === unescaped ? redacted : JSON.stringify(conservative);
     })
     .join("\n");
 }
@@ -264,5 +275,6 @@ module.exports = {
   isAddMaskCommandLine,
   redactArtifactMaskedValues,
   redactMaskedValues,
+  transformJSONStrings,
   unescapeWorkflowCommandValue,
 };

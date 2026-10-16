@@ -50,11 +50,28 @@ describe("agenticworkflows backend ownership", () => {
     expect(backend.args.filter(arg => arg === "--user")).toHaveLength(1);
   });
 
-  it.each([["--user", "42:43"], ["--user=42:43"], ["-u", "42:43"], ["-u42:43"]])("preserves an explicitly configured container user: %j", (...args) => {
-    const backend = { container: "example/server", args, env: { HOME: "/custom" } };
+  it.each([["--user", "42:43"], ["--user=42:43"], ["-u", "42:43"], ["-u42:43"], ["--user", "app:staff"], ["--user=app:staff"], ["-u", "app:staff"], ["-uroot"], ["-uapp:staff"], ["-u=app:staff"]])(
+    "preserves an explicitly configured container user: %j",
+    (...args) => {
+      const backend = { container: "example/server", args, env: { HOME: "/custom" } };
+      const original = structuredClone(backend);
+      applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+      applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+      expect(backend).toEqual(original);
+    }
+  );
+
+  it.each(["-update", "-unshare"])("preserves %s as Docker's attached -u username, not an unrelated flag", arg => {
+    const backend = { container: "example/server", args: [arg], env: { HOME: "/custom" } };
     const original = structuredClone(backend);
     applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
     expect(backend).toEqual(original);
+  });
+
+  it("does not confuse --userns with an explicit container user", () => {
+    const backend = { container: "example/server", args: ["--userns=host"], env: { HOME: "/custom" } };
+    applyAgenticWorkflowsRunnerIdentity({ mcpServers: { agenticworkflows: backend } }, 1001, 123);
+    expect(backend).toEqual({ container: "example/server", args: ["--userns=host", "--user", "1001:123"], env: { HOME: "/custom" } });
   });
 
   it("preserves a configured HOME and supports default container arguments", () => {

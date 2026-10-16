@@ -151,6 +151,18 @@ describe("redact_secrets.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
+      it.each(['"bad\t"', '"bad\\q"', '"bad\\u12gg"'])("conservatively sanitizes alternate quote pairings after malformed terminated tokens (%j)", prefix => {
+        const { processFile } = require("./redact_secrets.cjs");
+        const file = path.join(tempDir, "ambiguous.log");
+        fs.writeFileSync(file, prefix + ' "\\u006fpaque"', { mode: 0o600 });
+        expect(processFile(file, [], ["opaque"])).toBe(1);
+        const redacted = fs.readFileSync(file, "utf8");
+        expect(JSON.parse(redacted)).toBe(prefix + ' "***"');
+        expect(redacted).not.toContain("\\u006fpaque");
+        expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+      });
+
       it("removes the artifact if decoding a validated mixed-log token unexpectedly fails", () => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "mixed.log");
