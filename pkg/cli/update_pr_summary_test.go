@@ -453,8 +453,9 @@ func TestRunFixReportsOnlyWrittenCodemods(t *testing.T) {
 	require.NotEmpty(t, expected)
 	var applied []workflowFixInfo
 	config := FixConfig{
-		WorkflowDir:        "workflows",
-		DisabledCodemodIDs: disabled,
+		WorkflowDir:                "workflows",
+		DisabledCodemodIDs:         disabled,
+		SkipInstructionFileUpdates: true,
 		OnApplied: func(file string, fixes []string) {
 			applied = append(applied, workflowFixInfo{File: file, Fixes: fixes})
 		},
@@ -467,6 +468,8 @@ func TestRunFixReportsOnlyWrittenCodemods(t *testing.T) {
 	assert.Equal(t, []string{expected}, applied[0].Fixes)
 	require.NoError(t, RunFix(config))
 	require.Len(t, applied, 1, "unchanged workflows must not produce additional results")
+	assert.NoFileExists(t, ".github/skills/agentic-workflows/SKILL.md")
+	assert.NoFileExists(t, ".github/agents/agentic-workflows.md")
 }
 
 func TestUpdateUpgradePRMessageFlagsForwarded(t *testing.T) {

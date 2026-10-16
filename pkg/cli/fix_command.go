@@ -20,18 +20,19 @@ var fixLog = logger.New("cli:fix_command")
 
 // FixConfig contains configuration for the fix command
 type FixConfig struct {
-	WorkflowIDs        []string
-	Write              bool
-	Verbose            bool
-	WorkflowDir        string   // Custom workflow directory
-	DisabledCodemodIDs []string // Codemod IDs to skip
+	WorkflowIDs                []string
+	Write                      bool
+	Verbose                    bool
+	WorkflowDir                string   // Custom workflow directory
+	DisabledCodemodIDs         []string // Codemod IDs to skip
+	SkipInstructionFileUpdates bool
 	// OnApplied receives fixes only after the workflow migration completes successfully.
 	OnApplied func(file string, fixes []string)
 }
 
 // RunFix runs the fix command with the given configuration
 func RunFix(config FixConfig) error {
-	return runFixCommandWithResults(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs, config.OnApplied)
+	return runFixCommandWithResults(config.WorkflowIDs, config.Write, config.Verbose, config.WorkflowDir, config.DisabledCodemodIDs, config.SkipInstructionFileUpdates, config.OnApplied)
 }
 
 // NewFixCommand creates the fix command
@@ -80,7 +81,7 @@ all steps and additionally:
 				return listAvailableCodemods()
 			}
 
-			return runFixCommand(args, write, verbose, dir, disabledCodemods)
+			return runFixCommand(args, write, verbose, dir, disabledCodemods, false)
 		},
 	}
 
@@ -117,11 +118,11 @@ func listAvailableCodemods() error {
 }
 
 // runFixCommand runs the fix command on specified or all workflows
-func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string) error {
-	return runFixCommandWithResults(workflowIDs, write, verbose, workflowDir, disabledCodemodIDs, nil)
+func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, skipInstructionFileUpdates bool) error {
+	return runFixCommandWithResults(workflowIDs, write, verbose, workflowDir, disabledCodemodIDs, skipInstructionFileUpdates, nil)
 }
 
-func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, onApplied func(string, []string)) error { //nolint:largefunc // Existing command orchestration remains centralized.
+func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, workflowDir string, disabledCodemodIDs []string, skipInstructionFileUpdates bool, onApplied func(string, []string)) error { //nolint:largefunc // Existing command orchestration remains centralized.
 	fixLog.Printf("Running fix command: workflowIDs=%v, write=%v, verbose=%v, workflowDir=%s, disabledCodemodIDs=%v", workflowIDs, write, verbose, workflowDir, disabledCodemodIDs)
 
 	// Set up workflow directory (using default if not specified)
@@ -204,18 +205,19 @@ func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, wo
 		}
 	}
 
-	// Update prompt and skill files (similar to init command)
-	// This ensures the latest templates are always used
-	fixLog.Print("Updating prompt and skill files")
+	if !skipInstructionFileUpdates {
+		// Update prompt and skill files (similar to init command)
+		// This ensures the latest templates are always used
+		fixLog.Print("Updating prompt and skill files")
 
-	// Update dispatcher skill
-	if err := ensureAgenticWorkflowsDispatcher(verbose, false, write); err != nil {
-		fixLog.Printf("Failed to update dispatcher skill: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update dispatcher skill: %v", err)))
-	}
-	if err := ensureAgenticWorkflowsAgent(verbose, write); err != nil {
-		fixLog.Printf("Failed to update agentic workflows custom agent: %v", err)
-		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflows custom agent: %v", err)))
+		if err := ensureAgenticWorkflowsDispatcher(verbose, false, write); err != nil {
+			fixLog.Printf("Failed to update dispatcher skill: %v", err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update dispatcher skill: %v", err)))
+		}
+		if err := ensureAgenticWorkflowsAgent(verbose, write); err != nil {
+			fixLog.Printf("Failed to update agentic workflows custom agent: %v", err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflows custom agent: %v", err)))
+		}
 	}
 
 	// Delete old template files from pkg/cli/templates/ (only with --write)
@@ -228,7 +230,7 @@ func runFixCommandWithResults(workflowIDs []string, write bool, verbose bool, wo
 	}
 
 	// Delete old agent files if write flag is set
-	if write {
+	if write && !skipInstructionFileUpdates {
 		fixLog.Print("Deleting old agent files")
 		if err := deleteLegacyAgentFiles(verbose); err != nil {
 			fixLog.Printf("Failed to delete old agent files: %v", err)

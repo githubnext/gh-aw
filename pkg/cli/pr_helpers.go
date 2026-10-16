@@ -32,14 +32,6 @@ func requireAutoMergePR(autoMerge, createPR bool) error {
 
 var switchPRBranch = switchBranch
 
-// CreatePRWithChanges creates a new branch, stages and commits all current changes,
-// pushes the branch, creates a pull request, and returns to the original branch.
-// branchPrefix is used as the prefix for the auto-generated branch name.
-// Returns the created PR URL even if enabling auto-merge or branch cleanup fails.
-func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error) {
-	return createPRWithChanges(ctx, branchPrefix, commitMessage, prTitle, prBody, verbose, false)
-}
-
 func createPRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose, autoMerge bool) (string, error) {
 	if err := validatePRBody(prBody); err != nil {
 		return "", err
