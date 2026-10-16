@@ -33,6 +33,7 @@ const API_PROXY_GUARD_REJECTION_EVENT_TYPES = [MAX_CACHE_MISSES_EXCEEDED_EVENT_T
 // Counter fields carried by proxy guard rejection events, reported alongside the guard name
 // so the step log states what limit was hit and at which value.
 const API_PROXY_GUARD_COUNTER_FIELDS = ["consecutive_cache_misses", "max_cache_misses", "effective_tokens", "max_effective_tokens", "permission_denied_count", "max_permission_denied", "model"];
+// Raw stderr fallback assumes unprefixed subprocess diagnostics; only explicitly allowlisted wrappers are unwrapped below.
 const MAX_AI_CREDITS_EXCEEDED_STDIO_RE =
   /^(?:(?:Execution failed:\s*)?CAPIError:\s*429\s+|Failed to get response from the AI model; retried \d+ times(?: \(total retry wait time:[^)]+\))?(?: \(Request-ID [^)]+\))?\.? Last error: CAPIError:\s*429\s+|Fatal:\s*)Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;
 const MAX_AI_CREDITS_EXCEEDED_NATIVE_ERROR_RE = /^(?:(?:API Error:\s*)?403(?::\s*|\s+)(?:Forbidden[.:]?\s*)?)?Maximum AI credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?\.?$/i;

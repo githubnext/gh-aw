@@ -331,6 +331,22 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.aiCredits).toBe("1002.381900");
     });
 
+    it.each([
+      ["no trailing record", ""],
+      ["an invalid pair", "CAPIError: 429 Maximum AI credits exceeded (1 / 0)."],
+      ["a quoted diagnostic", 'Review example: "CAPIError: 429 Maximum AI credits exceeded (2000 / 1000)."'],
+      ["a conversational JSON record", JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "CAPIError: 429 Maximum AI credits exceeded (2000 / 1000)." }] } })],
+      ["a below-cap pair", "CAPIError: 429 Maximum AI credits exceeded (500 / 1000)."],
+    ])("retains the last genuine stdio rejection with %s", (_description, trailingRecord) => {
+      writeAgentStdio(["CAPIError: 429 Maximum AI credits exceeded (1500 / 1000).", "CAPIError: 429 Maximum AI credits exceeded (1200 / 1000).", trailingRecord].join("\n"));
+      expect(resolveAICreditsFailureState({ logProvenance: false })).toEqual({
+        aiCredits: "1200",
+        maxAICredits: "1000",
+        aiCreditsRateLimitError: true,
+        maxAICreditsExceeded: true,
+      });
+    });
+
     it("sets exceeded flags but leaves credit amounts empty when no parenthetical is present", () => {
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
       fs.writeFileSync(path.join(tmpDir, "agent-stdio.log"), "Fatal: Maximum AI credits exceeded.", "utf8");
