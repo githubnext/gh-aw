@@ -5,7 +5,7 @@ description: Configure the experimental Google Antigravity CLI engine with Gemin
 
 > [!WARNING]
 > Agy is an experimental built-in engine, not a Gemini alias or a feature-equivalent
-> replacement. Support is Linux x64 with native CLI v1.3.3 and Gemini
+> replacement. Support is Linux x64 with native CLI v1.3.6 and Gemini
 > API-key authentication. ADC, Google WIF and Vertex AI are not supported.
 
 ## Selection and authentication
@@ -27,7 +27,7 @@ engine: agy
 engine:
   id: agy
   model: gemini-3.8-flash-medium
-  version: "1.3.3"
+  version: "1.3.6"
 ```
 
 Configure `GEMINI_API_KEY` as a repository secret, for example with
@@ -48,9 +48,9 @@ not `google/`, `gemini/` or Copilot provider prefixes. Availability depends on
 the native release and the API key's access; an unknown or inaccessible model
 fails the run.
 
-The harness downloads the native Linux x64 v1.3.3 release, verifies its published
+The harness downloads the native Linux x64 v1.3.6 release, verifies its published
 SHA-256 checksum, extracts only `antigravity`, and verifies the executable version.
-An explicit `version: "1.3.1"` retains the previous verified release.
+Explicit `version: "1.3.3"` and `version: "1.3.1"` retain the previous verified releases.
 Other releases and architectures are not supported. A custom `engine.command`
 must report the same verified version. Installation and settings are temporary
 and removed after execution; no inherited user authentication profile is used.
@@ -101,9 +101,18 @@ is not evidence of a passing production gate. The successful
 publishes only a sanitized receipt, including negative-probe status and usage,
 not the native transcript. Reasoning, refusal, and additional failure cases in
 the parser tests are synthetic, not observations from these runs.
-The [v1.3.3 release](https://github.com/google-antigravity/antigravity-cli/releases/tag/1.3.3)
+The [v1.3.6 release](https://github.com/google-antigravity/antigravity-cli/releases/tag/1.3.6)
 and current headless documentation retain the streaming envelope and token fields.
-The parser's live evidence remains v1.3.1; no v1.3.3 workflow execution is claimed.
+The parser's live evidence remains v1.3.1; no v1.3.6 workflow execution is claimed.
+
+The v1.3.4-v1.3.6 changes include default thinking levels for base model names,
+remote MCP OAuth retry fixes, bounded connection-stall retries, and fail-fast
+version-control editors. The pinned model slug and stream protocol remain compatible.
+New Auto mode and ADC-only Claude models do not change this integration's
+Gemini API-key provider or explicit permission profile.
+Documented `subagent_info` records retain child conversation, role, log and
+workspace references as native extension data; they do not establish canonical
+subagent lifecycle events or separate child token usage.
 
 Agent writes to `GITHUB_STEP_SUMMARY` use an isolated file that is appended to
 the runner's step summary only after secret redaction, matching other built-in engines.
@@ -204,7 +213,7 @@ engine is an explicit choice, not an automatic migration:
 | Gemini configuration | Experimental Agy configuration |
 |---|---|
 | `engine: gemini` | `engine: agy` |
-| Gemini CLI version pin | Verified native `version: "1.3.3"`; explicit `"1.3.1"` remains supported |
+| Gemini CLI version pin | Verified native `version: "1.3.6"`; explicit `"1.3.3"` and `"1.3.1"` remain supported |
 | Gemini model name | Native Agy slug, such as `gemini-3.8-flash-medium` |
 | `GEMINI_API_KEY` | Same secret name; private `modelProvider: gemini` settings |
 | Gemini settings, hooks or customizations | Not copied; review native configuration differences |

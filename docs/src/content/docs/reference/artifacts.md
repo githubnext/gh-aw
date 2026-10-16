@@ -69,6 +69,16 @@ gh aw logs <run-id>
 
 The `firewall-audit-logs` artifact is uploaded by **all firewall-enabled workflows**. It contains AWF (Agent Workflow Firewall) structured audit and observability logs.
 
+When running AWF v0.28.59 or newer, the agent artifact also contains
+`awf-resolved-config.json` when AWF publishes `AWF_RESOLVED_CONFIG`. AWF must
+publish a path matching
+`/run/awf-config-audit/run-<six-alphanumeric>/awf-resolved-config.json`; the
+host-side redaction step validates the protected source's ownership, mode, and
+regular-file link count, sanitizes sensitive fields, and stages only the
+sanitized copy at `/tmp/gh-aw/awf-resolved-config.json` before upload. Older
+AWF versions remain compatible and simply omit this file; omission is not
+reported as collected evidence.
+
 > **⚠️ Important:** Current runs include API proxy logs in the unified `agent` artifact at `sandbox/firewall/logs/api-proxy-logs/`. The separate `firewall-audit-logs` artifact may also contain firewall audit logs, depending on workflow configuration and AWF version.
 
 ### Directory Structure
