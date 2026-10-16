@@ -124,6 +124,16 @@ const MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT = 10_000;
 const MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS = 25_000;
 
 /**
+ * @param {string | undefined} raw
+ * @param {{ integer?: boolean }} [options]
+ * @returns {number | undefined}
+ */
+function parsePositiveEnvNumber(raw, options = {}) {
+  const parsed = Number(raw?.trim());
+  return Number.isFinite(parsed) && parsed > 0 && (!options.integer || Number.isSafeInteger(parsed)) ? parsed : undefined;
+}
+
+/**
  * Reads a positive number from the environment, warning when the variable is
  * set to a value that cannot be used.
  *
@@ -138,9 +148,8 @@ function readPositiveEnvNumber(envName, defaultValue, env, options = {}) {
   if (raw === undefined || !raw.trim()) {
     return defaultValue;
   }
-  const parsed = Number(raw.trim());
-  const isValid = Number.isFinite(parsed) && parsed > 0 && (!options.integer || Number.isSafeInteger(parsed));
-  if (!isValid) {
+  const parsed = parsePositiveEnvNumber(raw, options);
+  if (parsed === undefined) {
     core.warning(`Ignoring invalid ${envName}='${raw}': expected a positive ${options.integer ? "integer" : "number"}, using ${defaultValue}`);
     return defaultValue;
   }
@@ -202,8 +211,7 @@ function resolveGatewayHealthRetryConfig(env = process.env) {
 
   const config = { maxTotalAttempts, initialDelayMs, maxDelayMs, backoffMultiplier, backendStartupTimeoutMs };
   const requiredBudgetMs = backendStartupTimeoutMs + MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS;
-  const rawAttempts = env[MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]?.trim();
-  const explicitAttempts = rawAttempts && Number.isSafeInteger(Number(rawAttempts)) && Number(rawAttempts) > 0;
+  const explicitAttempts = parsePositiveEnvNumber(env[MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts], { integer: true }) !== undefined;
   if (!explicitAttempts) {
     // Every retry waits at least the first delay. Use that upper bound to find
     // the smallest default attempt count that covers the backend startup window.

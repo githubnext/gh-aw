@@ -251,22 +251,27 @@ describe("start_mcp_gateway health timeout", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it.each(["150", "330"])("preserves an explicit %s-attempt override for a longer startup timeout", attempts => {
+  it.each(["1", "150", "330", " 1.5e2 ", "\t3.3e2\n"])("preserves an explicit %s-attempt override for a longer startup timeout", attempts => {
     const config = resolveGatewayHealthRetryConfig({
       [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: attempts,
       [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000",
     });
     expect(config.maxTotalAttempts).toBe(Number(attempts));
-    expect(global.core.warning).toHaveBeenCalledTimes(attempts === "150" ? 1 : 0);
+    expect(global.core.warning).toHaveBeenCalledTimes(Number(attempts) < 327 ? 1 : 0);
   });
 
-  it.each([undefined, "", " ", "invalid", "0", "-1", "1.5", "Infinity"])("sizes fallback retries when the attempt override is %s", attempts => {
+  it.each([undefined, "", " ", "\t\n", "invalid", "0", "-1", "1.5", "Infinity", "NaN", "9007199254740992", " 9.007199254740992e15 "])("sizes fallback retries when the attempt override is %s", attempts => {
     const config = resolveGatewayHealthRetryConfig({
       [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: attempts,
       [MCP_GATEWAY_HEALTH_RETRY_ENV.backendStartupTimeoutMs]: "300000",
     });
     expect(config.maxTotalAttempts).toBe(327);
     expect(config.retryBudgetMs).toBeGreaterThanOrEqual(325_000);
+    if (attempts === undefined || !attempts.trim()) {
+      expect(global.core.warning).not.toHaveBeenCalled();
+    } else {
+      expect(global.core.warning).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("Ignoring invalid"));
+    }
   });
 
   it.each([
@@ -378,12 +383,17 @@ describe("start_mcp_gateway health timeout", () => {
     expect(config.backoffMultiplier).toBe(1);
   });
 
-  it("caps an excessive attempt count", () => {
+  it.each(["10000", "10001", "1000000000", "9007199254740991", " 9.007199254740991e15 "])("caps a valid attempt count of %s at the explicit override limit", attempts => {
     const config = resolveGatewayHealthRetryConfig({
-      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: "1000000000",
+      [MCP_GATEWAY_HEALTH_RETRY_ENV.maxTotalAttempts]: attempts,
     });
 
     expect(config.maxTotalAttempts).toBe(MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT);
+    if (Number(attempts) === MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT) {
+      expect(global.core.warning).not.toHaveBeenCalled();
+    } else {
+      expect(global.core.warning).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("exceeds the supported maximum"));
+    }
   });
 
   it("computes the cumulative startup retry delay", () => {
