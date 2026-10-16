@@ -5,6 +5,7 @@
  * Redacts secrets from files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories before uploading artifacts
  * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw
  * and redacts any strings matching the actual secret values provided via environment variables.
+ * Successful redaction is silent; failures report safe diagnostics and input byte counts without payloads.
  */
 const fs = require("fs");
 const path = require("path");
@@ -265,7 +266,6 @@ function redactBuiltInPatterns(content) {
       }
       redactionCount += matches.length;
       detectedPatterns.push(name);
-      global.core?.info?.(`Redacted ${matches.length} occurrence(s) of ${name}`);
     }
   }
 
@@ -299,7 +299,6 @@ function redactSecrets(content, secretValues) {
     if (occurrences > 0) {
       redacted = parts.join(replacement);
       redactionCount += occurrences;
-      global.core?.info?.(`Redacted ${occurrences} occurrence(s) of a secret`);
     }
   }
   return { content: redacted, redactionCount };
@@ -353,19 +352,13 @@ function redactArtifactContent(content, secretValues, maskedValues, options = {}
   }
   const values = [...new Set([...configured, ...builtInValues.keys(), ...maskedValues])].sort((a, b) => b.length - a.length);
   let redactionCount = 0;
-  const builtInCounts = new Map();
-  let configuredCount = 0;
   const replacement = value => {
     redactionCount++;
     const name = builtInValues.get(value);
-    if (name) builtInCounts.set(name, (builtInCounts.get(name) || 0) + 1);
-    else if (configured.has(value)) configuredCount++;
     return name || configured.has(value) ? "***REDACTED***" : "***";
   };
   // Protocol callbacks already receive decoded strings, not serialized artifacts.
   const redacted = options.decodedText ? redactDecodedCredentialText(content, values, replacement) : redactArtifactMaskedValues(content, values, undefined, replacement, { textMode: !isValidJSONArtifact(content) });
-  for (const [name, count] of builtInCounts) global.core?.info?.(`Redacted ${count} occurrence(s) of ${name}`);
-  if (configuredCount) global.core?.info?.(`Redacted ${configuredCount} occurrence(s) of a secret`);
   return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
 }
 
@@ -591,10 +584,11 @@ function writeProcessedFile(filePath, content, changed) {
 function processFile(filePath, secretValues, maskedValues = [], prepareForCustomMasking = false) {
   /** @type {RedactionStage} */
   let stage = "read";
+  /** @type {number | undefined} */
+  let inputBytes;
   try {
     const content = fs.readFileSync(filePath, "utf8");
-    const inputBytes = Buffer.byteLength(content, "utf8");
-    core.info(`Secret redaction input: bytes=${inputBytes}`);
+    inputBytes = Buffer.byteLength(content, "utf8");
     stage = "redact";
     const structured = redactSafeOutputContent(
       filePath,
@@ -608,8 +602,6 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
         stage = "write";
         writeProcessedFile(filePath, structured, Boolean(redactionCount));
       }
-      if (redactionCount) core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
-      core.info(`Secret redaction sizes: input_bytes=${inputBytes} output_bytes=${Buffer.byteLength(structured, "utf8")} format=structured`);
       return redactionCount;
     }
     const encodedResult = path.extname(filePath).toLowerCase() === ".html" ? redactPiSessionHTML(content, text => redactArtifactContent(text, secretValues, maskedValues)) : { content, redactionCount: 0 };
@@ -621,10 +613,6 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
       stage = "write";
       writeProcessedFile(filePath, redacted, totalRedactions > 0);
     }
-    if (totalRedactions > 0) {
-      core.info(`Processed ${filePath}: ${totalRedactions} redaction(s)`);
-    }
-    core.info(`Secret redaction sizes: input_bytes=${inputBytes} output_bytes=${Buffer.byteLength(redacted, "utf8")} format=text`);
     return totalRedactions;
   } catch (error) {
     if (isErrnoCode(error, "ENOENT") && !fs.existsSync(filePath)) {
@@ -640,11 +628,11 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
         const cleanupDiagnostic = new RedactionOperationError("unlink", cleanupError);
         diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
         core.warning(cleanupDiagnostic.message);
-        throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed`);
+        throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed (input_bytes=${inputBytes ?? "unknown"})`);
       }
     }
     diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
-    core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed`);
+    core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed (input_bytes=${inputBytes ?? "unknown"})`);
     return 0;
   }
 }
@@ -657,7 +645,6 @@ async function main({ prepareForCustomMasking = false } = {}) {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
 
-  core.info(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`);
   try {
     // Collect custom secret values from environment variables
     const secretValues = [];
@@ -675,30 +662,19 @@ async function main({ prepareForCustomMasking = false } = {}) {
       }
     }
 
-    if (secretValues.length > 0) {
-      core.info(`Found ${secretValues.length} custom secret(s) to redact`);
-    }
-
     // Extract MCP gateway bearer tokens from known config files and add them to
     // the redaction list.  The gateway token has no fixed prefix so it cannot be
     // matched by the built-in regex patterns; we must read it from the config.
     const gatewayTokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS);
     if (gatewayTokens.length > 0) {
-      core.info(`Found ${gatewayTokens.length} MCP gateway token(s) to redact`);
       secretValues.push(...gatewayTokens);
     }
-
-    // Always scan for built-in patterns, even if there are no custom secrets
-    core.info("Scanning for built-in credential patterns and custom secrets");
 
     // Find all target files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch", ".html"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
     const optFiles = findFiles(`${process.env.RUNNER_TEMP}/gh-aw`, targetExtensions);
     const files = [...new Set([...tmpFiles, ...optFiles])];
-    core.info(`Found ${files.length} file(s) to scan for secrets (${tmpFiles.length} in /tmp/gh-aw, ${optFiles.length} in ${process.env.RUNNER_TEMP}/gh-aw)`);
-    let totalRedactions = 0;
-    let filesWithRedactions = 0;
     // Collect before built-in/custom redaction or bootstrap removes mask commands.
     // Only sanitized sources cross the job boundary, never the raw mask values.
     const masks = new Set(getOTLPSecretValues());
@@ -719,33 +695,16 @@ async function main({ prepareForCustomMasking = false } = {}) {
       }
     }
     const maskedValues = [...masks].sort((a, b) => b.length - a.length);
-    let stagedResolvedConfig = false;
-    let resolvedConfigCollectionFailed = false;
     try {
-      stagedResolvedConfig = stageAWFResolvedConfig(process.env.AWF_RESOLVED_CONFIG, secretValues, maskedValues);
+      stageAWFResolvedConfig(process.env.AWF_RESOLVED_CONFIG, secretValues, maskedValues);
     } catch (error) {
-      resolvedConfigCollectionFailed = true;
       core.setFailed(`${ERR_VALIDATION}: AWF resolved configuration was not collected safely`);
       core.warning(`AWF resolved configuration collection failed: ${getErrorMessage(error)}`);
       core.warning("Continuing with standard artifact redaction despite AWF resolved configuration collection failure");
     }
-    if (stagedResolvedConfig) {
-      core.info("Collected sanitized AWF resolved configuration");
-    } else if (!resolvedConfigCollectionFailed && !process.env.AWF_RESOLVED_CONFIG) {
-      core.info("AWF did not publish an early resolved configuration artifact");
-    }
     // Process each file
     for (const file of files) {
-      const redactionCount = processFile(file, secretValues, maskedValues, prepareForCustomMasking);
-      if (redactionCount > 0) {
-        filesWithRedactions++;
-        totalRedactions += redactionCount;
-      }
-    }
-    if (totalRedactions > 0) {
-      core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
-    } else {
-      core.info("Secret redaction complete: no secrets found");
+      processFile(file, secretValues, maskedValues, prepareForCustomMasking);
     }
   } catch (error) {
     core.setFailed(`${ERR_VALIDATION}: Secret redaction failed: ${getErrorMessage(error)}`);
@@ -777,12 +736,8 @@ async function redactFilesInDir(dir) {
     if (files.length === 0) return;
 
     const maskedValues = getOTLPSecretValues();
-    let totalRedactions = 0;
     for (const file of files) {
-      totalRedactions += processFile(file, secretValues, maskedValues);
-    }
-    if (totalRedactions > 0) {
-      core.info(`Grader output redaction: ${totalRedactions} redaction(s) in ${dir}`);
+      processFile(file, secretValues, maskedValues);
     }
   } catch (error) {
     core.warning(`Grader output redaction failed: ${getErrorMessage(error)}`);

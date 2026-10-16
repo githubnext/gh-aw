@@ -26,8 +26,11 @@ type sessionSubagentEvent struct {
 		Path          string          `json:"path"`
 		TimestampUnit string          `json:"timestampUnit"`
 		TimestampMs   json.RawMessage `json:"timestampMs"`
+		Index         json.RawMessage `json:"index"`
 		Native        struct {
-			Path string `json:"path"`
+			Path          string          `json:"path"`
+			Index         json.RawMessage `json:"index"`
+			PersistedPath string          `json:"persistedPath"`
 		} `json:"native"`
 	} `json:"provenance"`
 }
@@ -118,12 +121,19 @@ func readSessionSubagentModelsDetailed(runDir string) ([]SubagentModelRequest, [
 		if err := validateSubagentSessionSource(path); err != nil {
 			return nil, nil, nil, false, fmt.Errorf("%s: %w", relative, err)
 		}
-		requests, actuals, agentUsage, found, parseErr := parseSessionSubagentFileDetailed(path, true)
+		models, parseErr := parseSessionSubagentFile(path, true)
 		if parseErr != nil {
 			tokenUsageSubagentLog.Printf("failed to parse %s: %v", relative, parseErr)
 			return nil, nil, nil, false, fmt.Errorf("%s: %w", relative, parseErr)
 		}
-		return requests, actuals, agentUsage, found, nil
+		if models == nil {
+			return nil, nil, nil, false, nil
+		}
+		if models.hasStartsWithoutAgentID() {
+			models.reconcileSubagentIdentities(readNativeSubagentSession(runDir))
+		}
+		requests, actuals := models.rows()
+		return requests, actuals, models.agentRows(), models.found, nil
 	}
 
 	path := filepath.Join(runDir, "agent-session.jsonl")
@@ -135,13 +145,14 @@ func readSessionSubagentModelsDetailed(runDir string) ([]SubagentModelRequest, [
 	if err := validateSubagentSessionSource(path); err != nil {
 		return nil, nil, nil, false, fmt.Errorf("agent-session.jsonl: %w", err)
 	}
-	requests, actuals, agentUsage, found, err := parseSessionSubagentFileDetailed(path, false)
+	models, err := parseSessionSubagentFile(path, false)
 	if err != nil {
 		tokenUsageSubagentLog.Printf("failed to parse agent-session.jsonl: %v", err)
 		return nil, nil, nil, false, fmt.Errorf("agent-session.jsonl: %w", err)
 	}
-	if found {
-		return requests, actuals, agentUsage, true, nil
+	if models != nil && models.found {
+		requests, actuals := models.rows()
+		return requests, actuals, models.agentRows(), true, nil
 	}
 	return nil, nil, nil, false, nil
 }
@@ -466,17 +477,17 @@ func validateSubagentSessionSource(path string) error {
 	return nil
 }
 
-func parseSessionSubagentFileDetailed(path string, unified bool) (requests []SubagentModelRequest, actuals []SubagentModelActual, agentUsage []AgentUsageBreakdown, found bool, err error) {
+func parseSessionSubagentFile(path string, unified bool) (models *subagentSessionModels, err error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, nil, nil, false, err
+		return nil, err
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
 			err = errors.Join(err, fmt.Errorf("failed to close session: %w", closeErr))
 		}
 	}()
-	return parseSessionSubagentModelsDetailed(file, unified)
+	return parseSessionSubagentSession(file, unified)
 }
 
 type subagentSessionModels struct {
@@ -489,6 +500,11 @@ type subagentSessionModels struct {
 	legacyPiTools  map[string]string
 	sourceEngine   string
 	found          bool
+	// sessionID, starts, and metricNames are identity evidence used to
+	// reconcile lifecycle instances that lack a top-level agentId.
+	sessionID   string
+	starts      []subagentStartEvidence
+	metricNames map[string]subagentMetricNames
 }
 
 func parseSessionSubagentModels(input io.Reader, unified bool) ([]SubagentModelRequest, []SubagentModelActual, bool, error) {
@@ -497,50 +513,56 @@ func parseSessionSubagentModels(input io.Reader, unified bool) ([]SubagentModelR
 }
 
 func parseSessionSubagentModelsDetailed(input io.Reader, unified bool) ([]SubagentModelRequest, []SubagentModelActual, []AgentUsageBreakdown, bool, error) {
+	models, err := parseSessionSubagentSession(input, unified)
+	if err != nil || models == nil {
+		return nil, nil, nil, false, err
+	}
+	requests, actuals := models.rows()
+	return requests, actuals, models.agentRows(), models.found, nil
+}
+
+// parseSessionSubagentSession returns the per-instance models of the final
+// session scope, or nil when the session has none.
+func parseSessionSubagentSession(input io.Reader, unified bool) (*subagentSessionModels, error) {
 	reader := bufio.NewReader(input)
 	headerSeen := !unified
 	sessions := subagentSessionSelection{scopes: make(map[string]*subagentSessionModels), sources: make(map[string]string)}
 	for lineNumber := 1; ; lineNumber++ {
 		line, oversized, readErr := readUnifiedSessionLine(reader)
 		if oversized {
-			return nil, nil, nil, false, fmt.Errorf("oversized session record on line %d", lineNumber)
+			return nil, fmt.Errorf("oversized session record on line %d", lineNumber)
 		}
 		if line = bytes.TrimSpace(line); len(line) > 0 {
 			var event sessionSubagentEvent
 			if err := json.Unmarshal(line, &event); err != nil {
-				return nil, nil, nil, false, fmt.Errorf("invalid session event on line %d: %w", lineNumber, err)
+				return nil, fmt.Errorf("invalid session event on line %d: %w", lineNumber, err)
 			}
 			if !headerSeen {
 				metadata := event.unifiedDetectionEvent
 				metadata.Provenance.Component = event.Provenance.Component
 				if err := validateUnifiedDetectionHeader(metadata); err != nil {
-					return nil, nil, nil, false, err
+					return nil, err
 				}
 				headerSeen = true
 			} else if unified && event.Type == "session.format" && event.Provenance.Component == "collector" {
-				return nil, nil, nil, false, errors.New("session contains multiple collector format headers")
+				return nil, errors.New("session contains multiple collector format headers")
 			} else if !unified || (event.Provenance.Component == "agent" && event.Provenance.Phase == "agent") {
 				if err := sessions.observe(event); err != nil {
-					return nil, nil, nil, false, fmt.Errorf("invalid %s on line %d: %w", event.Type, lineNumber, err)
+					return nil, fmt.Errorf("invalid %s on line %d: %w", event.Type, lineNumber, err)
 				}
 			}
 		}
 		if readErr != nil {
 			if !errors.Is(readErr, io.EOF) {
-				return nil, nil, nil, false, fmt.Errorf("failed to read session: %w", readErr)
+				return nil, fmt.Errorf("failed to read session: %w", readErr)
 			}
 			break
 		}
 	}
 	if !headerSeen {
-		return nil, nil, nil, false, errors.New("session is missing its leading session.format header")
+		return nil, errors.New("session is missing its leading session.format header")
 	}
-	models := sessions.scopes[sessions.final]
-	if models == nil {
-		return nil, nil, nil, false, nil
-	}
-	requests, actuals := models.rows()
-	return requests, actuals, models.agentRows(), models.found, nil
+	return sessions.scopes[sessions.final], nil
 }
 
 type subagentSessionSelection struct {
@@ -637,8 +659,13 @@ func (models *subagentSessionModels) observe(event sessionSubagentEvent) error {
 			models.legacyPiActive = make(map[string]string)
 			models.legacyPiCount = make(map[string]int)
 			models.legacyPiTools = make(map[string]string)
+			models.starts = nil
+			models.metricNames = nil
 		}
 		models.found = true
+	}
+	if (event.Type == "session.start" || event.Type == "session.init") && event.AgentID == "" && data.SessionID != "" {
+		models.sessionID = data.SessionID
 	}
 	if event.Type == "session.start" {
 		models.found = true
@@ -777,6 +804,7 @@ func (models *subagentSessionModels) observeMetrics(data sessionSubagentData) er
 		models.found = true
 		models.actualCounts = make(map[string]map[string]int)
 		models.actualModels = make(map[string]map[string]SubagentModelActual)
+		models.metricNames = make(map[string]subagentMetricNames, len(data.AgentMetrics))
 		models.resetAgentUsageMetrics()
 	}
 	for agentID, metric := range data.AgentMetrics {
@@ -806,6 +834,7 @@ func (models *subagentSessionModels) observeAgentMetric(agentID string, metric s
 		if row.RequestedModel == "" {
 			row.RequestedModel = agentMetricRequestedModel(metric)
 		}
+		models.metricNames[agentID] = subagentMetricNames{definition: metric.AgentName, displayName: metric.AgentDisplayName}
 	}
 	agentUsage := models.agentUsage[agentID]
 	if agentUsage == nil {
@@ -932,6 +961,7 @@ func (models *subagentSessionModels) observeLifecycle(event sessionSubagentEvent
 	agentUsage.SourceEngine = models.sourceEngine
 	agentUsage.observeIdentity(data.AgentName, lifecycleDisplayName(event.Type, data.AgentDisplayName))
 	if event.Type == "subagent.started" {
+		models.recordStartEvidence(identity, event, data)
 		row.RequestedModel = data.Model
 		row.ResolvedModel = data.ResolvedModel
 		row.IncompleteCount = 1

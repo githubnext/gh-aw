@@ -32,7 +32,7 @@ permissions:
   issues: read
   copilot-requests: write
 max-turns: 30
-model: copilot/claude-opus-5
+model: copilot/claude-opus-5.5
 engine:
   id: pi
   model-provider: github

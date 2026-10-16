@@ -117,9 +117,9 @@ func assertLegacyNoSessionExploreRow(t *testing.T, row ModelRoutingAgentCost) {
 }
 
 func TestModelRoutingSubagentCostsGroupByDefinition(t *testing.T) {
-	// The downloaded variant counts each instance twice because its lifecycle
-	// events lack a top-level agentId; that separate bug is pinned here.
-	instanceCounts := map[bool]int{false: 4, true: 2}
+	// The downloaded variant's unified lifecycle events lack a top-level agentId;
+	// the native agent-session.jsonl toolCallId bridge reconciles each instance,
+	// so both variants count every sub-agent once and recover its effort.
 	for _, legacy := range []bool{false, true} {
 		t.Run(map[bool]string{false: "downloaded", true: "legacy"}[legacy], func(t *testing.T) {
 			routing := analyzeModelRouting(modelRoutingGoldenVariantDir(t, "legacy-no-session-routing", legacy))
@@ -129,11 +129,11 @@ func TestModelRoutingSubagentCostsGroupByDefinition(t *testing.T) {
 			explore, ok := rows["explore"]
 			require.True(t, ok, "missing explore row in %+v", routing.SubagentCosts)
 			assertLegacyNoSessionExploreRow(t, explore)
-			assert.Equal(t, instanceCounts[legacy], explore.InstanceCount)
-			if legacy {
-				assert.Equal(t, "low", explore.Effort)
-			}
+			assert.Equal(t, 2, explore.InstanceCount)
+			assert.Equal(t, "low", explore.Effort)
 			assert.Equal(t, []string{"subagent-research"}, rows["research"].DisplayNames)
+			assert.Equal(t, 1, rows["research"].InstanceCount)
+			assert.Equal(t, "xhigh", rows["research"].Effort)
 		})
 	}
 }
@@ -153,14 +153,15 @@ func TestModelRoutingLogsSubagentCostsGroupByDefinition(t *testing.T) {
 			explore = append(explore, row)
 		}
 	}
-	require.Len(t, explore, 2, "explore rows with different efforts stay separate: %+v", explore)
-	byEffort := map[string]ModelRoutingAgentCost{explore[0].Effort: explore[0], explore[1].Effort: explore[1]}
-	assertLegacyNoSessionExploreRow(t, byEffort[""])
-	assert.Equal(t, 4, byEffort[""].InstanceCount)
-	builtin, ok := byEffort["low"]
-	require.True(t, ok)
-	assert.Equal(t, []string{"cost-table-explorer"}, builtin.DisplayNames)
-	assert.Equal(t, []string{"gpt-5.6-luna"}, builtin.Models)
+	// Rows are grouped by definition and effort; the recovered low effort merges
+	// the legacy run's explore instances with the built-in explore/low row.
+	require.Len(t, explore, 1, "explore rows with the same effort merge: %+v", explore)
+	assert.Equal(t, "low", explore[0].Effort)
+	assert.Equal(t, []string{"awf-routing", "cost-table-explorer", "ghaw-issues"}, explore[0].DisplayNames)
+	assert.ElementsMatch(t, []string{"claude-opus-5", "gpt-5.6-luna"}, explore[0].Models)
+	assert.Equal(t, 3, explore[0].InstanceCount)
+	assert.Equal(t, 3, explore[0].CompletedCount)
+	assert.Equal(t, 18, explore[0].Requests)
 }
 
 func TestModelRoutingSubagentCostsWithoutSessionSubagentEvents(t *testing.T) {
