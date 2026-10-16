@@ -812,16 +812,21 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     vi.spyOn(Date, "now").mockReturnValue(now);
     const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
     const producer = { ...current, id: 50, event: "push", head_branch: "main", repository: { full_name: repository }, head_repository: { full_name: repository } };
+    const workflowRunAt = (page, id) => {
+      if (page === snapshotPage && id === 0) return producer;
+      if (emptyEarlierSnapshot && page === 1 && id === 0) return { ...producer, id: 49 };
+      return { ...producer, id: 1000 + id, workflow_id: 8 };
+    };
     const listWorkflowRunsForRepo = vi.fn(async ({ page }) => {
       if (page > snapshotPage) throw apiError(403, { "x-ratelimit-remaining": "0" }, "quota exhausted");
       return response({
-        workflow_runs: Array.from({ length: 100 }, (_, id) => (page === snapshotPage && id === 0 ? producer : emptyEarlierSnapshot && page === 1 && id === 0 ? { ...producer, id: 49 } : { ...producer, id: 1000 + id, workflow_id: 8 })),
+        workflow_runs: Array.from({ length: 100 }, (_, id) => workflowRunAt(page, id)),
       });
     });
     const listWorkflowRunArtifacts = vi.fn(async ({ run_id }) => response({ artifacts: [{ id: run_id + 100, name: "aic-usage-scan-v2", expired: false }] }));
     global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
     global.github = {
-      auth: async () => ({ token: "synthetic" }),
+      auth: vi.fn(async () => ({ token: "synthetic" })),
       rest: {
         actions: {
           getWorkflowRun: async () => response(current),
@@ -838,6 +843,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
       return { downloadPath: options.path };
     });
     await restore(cachePath, { createArtifactClient: () => ({ downloadArtifact }) });
+    expect(global.github.auth).toHaveBeenCalledExactlyOnceWith({ type: "token" });
     expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(snapshotPage);
     expect(listWorkflowRunArtifacts).toHaveBeenCalledTimes(emptyEarlierSnapshot ? 2 : 1);
     expect(downloadArtifact).toHaveBeenCalledTimes(emptyEarlierSnapshot ? 2 : 1);
@@ -848,6 +854,45 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     expect(f.listPage).toHaveBeenCalledOnce();
     expect(f.getRunAIC).toHaveBeenCalledOnce();
     expect(f.getRunAIC.mock.calls[0][1]).toBe(2);
+  });
+
+  it.each([
+    ["missing auth", undefined],
+    ["rejected auth", undefined],
+    ["undefined auth result", undefined],
+    ["null auth result", null],
+    ["non-object auth result", "synthetic"],
+    ["missing token", {}],
+    ["non-string token", { token: 1 }],
+    ["empty token", { token: "" }],
+  ])("fails closed for %s after finding a trusted producer", async (kind, authResult) => {
+    const current = { workflow_id: 7, path: ".github/workflows/example.yml" };
+    const producer = { ...current, id: 50, event: "pull_request_target", repository: { full_name: repository } };
+    const failure = new Error("private auth failure");
+    const auth = vi.fn().mockResolvedValue(authResult);
+    if (kind === "rejected auth") auth.mockRejectedValue(failure);
+    const listWorkflowRunArtifacts = vi.fn();
+    const downloadArtifact = vi.fn();
+    global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: {} };
+    global.github = {
+      rest: {
+        actions: {
+          getWorkflowRun: async () => response(current),
+          listWorkflowRuns: async () => response({ workflow_runs: [producer] }),
+          listWorkflowRunArtifacts,
+        },
+      },
+    };
+    if (kind !== "missing auth") global.github.auth = auth;
+    const assertion = expect(restore(cachePath, { createArtifactClient: () => ({ downloadArtifact }) })).rejects;
+    if (kind === "missing auth") await assertion.toThrow(TypeError);
+    else if (kind === "rejected auth") await assertion.toBe(failure);
+    else await assertion.toThrow("No token available to restore daily AIC observations");
+    if (kind !== "missing auth") expect(auth).toHaveBeenCalledExactlyOnceWith({ type: "token" });
+    expect(listWorkflowRunArtifacts).not.toHaveBeenCalled();
+    expect(downloadArtifact).not.toHaveBeenCalled();
+    expect(fs.existsSync(cachePath)).toBe(false);
+    expect(JSON.stringify([global.core.info.mock.calls, global.core.warning.mock.calls])).not.toContain("private auth failure");
   });
 
   it("stops on quota exhaustion on a later required-workflow history page when no snapshot was verified", async () => {
@@ -1026,7 +1071,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     const listWorkflowRunArtifacts = vi.fn(async () => response({ artifacts: [] }));
     global.context = { repo: { owner: "example", repo: "project" }, runId: 99, payload: { repository: { default_branch: "main" } } };
     global.github = {
-      auth: async () => ({ token: "synthetic" }),
+      auth: vi.fn(async () => ({ token: "synthetic" })),
       rest: {
         actions: {
           getWorkflowRun: async () => response(current),
@@ -1040,6 +1085,7 @@ describe("trusted artifact fallback without writable Actions cache", () => {
     };
     await restore(cachePath);
     expect(listWorkflowRunsForRepo).toHaveBeenCalledTimes(trustedPerPage ? 2 : 25);
+    expect(global.github.auth).toHaveBeenCalledTimes(trustedPerPage ? 1 : 0);
     expect(listWorkflowRunArtifacts).toHaveBeenCalledTimes(trustedPerPage ? 10 : 0);
     expect(fs.existsSync(cachePath)).toBe(false);
   });
