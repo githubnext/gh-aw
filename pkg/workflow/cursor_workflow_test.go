@@ -203,7 +203,7 @@ func TestCursorNativeSessionParser(t *testing.T) {
 	assert.Equal(t, "stream-json", def.Behaviors.Execution.Args[len(def.Behaviors.Execution.Args)-1])
 	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", "-e", def.Behaviors.LogParser+cursorParserTestDriver)
+	cmd := exec.CommandContext(ctx, "node", "-e", def.Behaviors.LogParser+cursorParserTestDriver, t.TempDir())
 	cmd.Dir = "../../actions/setup/js"
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH")}
 	output, err := cmd.CombinedOutput()
@@ -225,6 +225,13 @@ func TestCursorNativeSessionParser(t *testing.T) {
 const cursorParserTestDriver = `
 const assert = require("node:assert/strict");
 const { normalizeAgentSession } = require("./agent_session.cjs");
+const parserEvents = [];
+const originalParseLog = parseLog;
+parseLog = content => {
+  const parsed = originalParseLog(content);
+  parserEvents.push(...parsed.logEntries);
+  return parsed;
+};
 const init = {type: "system", subtype: "init", session_id: "session-1", model: "Auto", cwd: "/workspace", apiKeySource: "env"};
 const user = {type: "user", session_id: "session-1", message: {role: "user", content: [{type: "text", text: "Read the file"}]}};
 const assistant = {type: "assistant", session_id: "session-1", id: "message-1", message: {role: "assistant", content: [{type: "text", text: "Reading."}]}};
@@ -284,14 +291,80 @@ assert.equal(legacy.some(event => event.type.startsWith("tool.")), false);
 assert.equal(parseLog(prose).maxTurnsHit, false);
 assert.deepEqual(parseLog("").logEntries, []);
 const malformed = parseLog(input + '\n{"private":"do-not-copy"');
-assert.equal(malformed.logEntries.at(-1).type, "cursor.parse_error");
+assert.deepEqual(malformed.logEntries.at(-1), {
+  type: "session.collection_warning",
+  data: {sourceEngine: "cursor", code: "malformed_jsonl", line: 7},
+});
 assert.equal(malformed.markdown.includes("**Parse errors:** 1"), true);
 assert.equal(JSON.stringify(malformed.logEntries).includes("do-not-copy"), false);
 assert.equal(malformed.logEntries.filter(event => event.type === "session.result").length, 1);
-process.stdout.write(JSON.stringify([
-  ...events, unknownInit, missing, failure, zero, extension,
-  ...parseLog(prose).logEntries, ...legacy, ...malformed.logEntries,
-]));
+const backtick = String.fromCharCode(96);
+for (const example of [
+  '{"answer":42}',
+  JSON.stringify(start),
+  JSON.stringify(init),
+  '{"type":"result","num_turns":999}',
+  '{"private":"do-not-copy"',
+]) {
+  for (const [open, close] of [["~~~json", "~~~"], [backtick.repeat(3) + "json", backtick.repeat(3)], [backtick.repeat(4) + "json", backtick.repeat(4)]]) {
+    const answer = "Example only.\n\n" + open + "\n" + example + "\n" + close + "\n\nNo tool ran.";
+    const parsed = parseLog(answer);
+    assert.deepEqual(parsed.logEntries, [{type: "assistant.message", data: {sourceEngine: "cursor", content: answer}}]);
+    assert.equal(parsed.markdown, "**Observed tool starts:** 0");
+    assert.deepEqual(parsed.mcpFailures, []);
+    const withTrailer = parseLog(answer + '\n{"type":"result","num_turns":1}');
+    assert.equal(withTrailer.logEntries.find(event => event.type === "assistant.message").data.content, answer);
+    assert.equal(withTrailer.logEntries.find(event => event.type === "session.result").data.numTurns, 1);
+    assert.equal(withTrailer.logEntries.length, 2);
+  }
+}
+for (const answer of [
+  '{"answer":42}',
+  'An unfenced example:\n' + JSON.stringify(start),
+  'A malformed example:\n{"private":"do-not-copy"',
+]) {
+  assert.deepEqual(parseLog(answer).logEntries, [{type: "assistant.message", data: {sourceEngine: "cursor", content: answer}}]);
+}
+const rejected = parseLog([
+  "[INFO] infrastructure", "2026.10.14-941492e", '{"private":"do-not-copy"',
+  JSON.stringify(init), '{"private":"do-not-copy"}', '{"type":42,"private":"do-not-copy"}',
+  JSON.stringify(result),
+].join("\n"));
+assert.deepEqual(rejected.logEntries.filter(event => event.type === "session.collection_warning").map(event => event.data), [
+  {sourceEngine: "cursor", code: "malformed_jsonl", line: 3},
+  {sourceEngine: "cursor", code: "malformed_cursor_event", line: 5},
+  {sourceEngine: "cursor", code: "malformed_cursor_event", line: 6},
+]);
+assert.equal(rejected.markdown.includes("**Parse errors:** 3"), true);
+assert.equal(JSON.stringify(rejected.logEntries).includes("do-not-copy"), false);
+assert.equal(rejected.logEntries.at(-1).data.content, "2026.10.14-941492e");
+const rootDir = process.argv[1];
+require("node:fs").writeFileSync(require("node:path").join(rootDir, "agent-session.jsonl"),
+  rejected.logEntries.map(JSON.stringify).join("\n"));
+const collected = require("./unified_session.cjs").collectUnifiedSession({rootDir, engine: "cursor", dailyAIC: {}, warn: () => {}});
+assert.equal(collected.events.find(event => event.type === "session.collection").data.warnings, 3);
+const rendered = require("./log_parser_shared.cjs").generateCopilotCliStyleSummary(collected.events);
+assert.equal(rendered.includes("malformed_jsonl"), true);
+assert.equal(rendered.includes("malformed_cursor_event"), true);
+assert.equal(rendered.includes("do-not-copy"), false);
+for (const diagnostic of [
+  "MCP server github failed",
+  "MCP server 'github' failed",
+  'MCP server "github" failed',
+  "MCP connection error",
+  "Failed to connect to MCP",
+]) {
+  const parsed = parseLog(JSON.stringify(init) + "\n" + diagnostic + "\n" + diagnostic);
+  assert.deepEqual(parsed.mcpFailures, [diagnostic.startsWith("MCP server") ? "github" : diagnostic]);
+  assert.equal(parsed.logEntries.at(-1).type, "cursor.diagnostic");
+  assert.equal(parsed.logEntries.some(event => event.type === "session.result"), false);
+  assert.deepEqual(parseLog(diagnostic).mcpFailures, []);
+  assert.deepEqual(parseLog("Example:\n~~~text\n" + diagnostic + "\n~~~").mcpFailures, []);
+  const quoted = {...assistant, message: {role: "assistant", content: [{type: "text", text: diagnostic}]}};
+  assert.deepEqual(parseLog([init, quoted, {...result, result: diagnostic}].map(JSON.stringify).join("\n")).mcpFailures, []);
+}
+assert.deepEqual(parseLog(JSON.stringify(init) + "\nMCP server github connected").mcpFailures, []);
+process.stdout.write(JSON.stringify(parserEvents));
 `
 
 func TestCursorSmokeExercisesNativeMCPAndGoBuild(t *testing.T) {

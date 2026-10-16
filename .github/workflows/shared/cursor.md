@@ -159,29 +159,56 @@ engine:
         const AWF_INFRA_RE = /^\[(INFO|WARN|SUCCESS|ERROR|entrypoint|health-check|cursor-harness)\]|^ (?:Container|Network|Volume) |^Process exiting with code:/;
         const plaintext = [];
         const emit = (type, data) => logEntries.push({ type, data });
-        let structured = false;
+        const mcpFailures = new Set();
         let parseErrors = 0;
+        let fence;
+        const lines = logContent.split("\n").map((line, index) => {
+          const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+          const fenced = Boolean(fence || marker);
+          if (fence) {
+            if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()) fence = undefined;
+          } else if (marker) fence = marker[1];
+          let record;
+          if (!fenced && line.trimStart().startsWith("{")) {
+            try { record = JSON.parse(line); } catch {}
+          }
+          return { line, index, fenced, record };
+        }).filter(({ line }) => !AWF_INFRA_RE.test(line));
+        // An init outside Markdown fences establishes native framing even with
+        // startup diagnostics. Otherwise only an all-JSONL log is a native stream.
+        const structured = lines.some(({ fenced, record }) => !fenced &&
+          (record?.type === "system" && record.subtype === "init" || record?.type === "session.init")) ||
+          lines.every(({ line, fenced }) => !line.trim() || !fenced && line.trimStart().startsWith("{")) &&
+          lines.some(({ record }) => typeof record?.type === "string");
+        const trailer = lines.findLast(entry => entry.line.trim());
 
-        for (const [index, line] of logContent.split("\n").entries()) {
-          if (!line.trim() || AWF_INFRA_RE.test(line)) continue;
-          if (!line.trimStart().startsWith("{")) {
-            plaintext.push(line);
+        for (const { line, index, fenced, record } of lines) {
+          if (!structured) {
+            if (!fenced && record?.type === "result" && record.subtype === undefined && record.session_id === undefined &&
+                trailer?.index === index) {
+              logEntries.push(...normalizeAgentSession([record], { sourceEngine: "cursor" }));
+            } else plaintext.push(line);
             continue;
           }
-          let record;
-          try {
-            record = JSON.parse(line);
-          } catch {
+          if (!line.trim()) continue;
+          if (!line.trimStart().startsWith("{")) {
+            plaintext.push(line);
+            if (/MCP server .* failed|MCP.*connection.*error|Failed to connect to MCP/i.test(line)) {
+              const server = line.match(/MCP server ['"]?([^\s'"]+)['"]?/i);
+              mcpFailures.add(server ? server[1] : line.trim());
+            }
+            continue;
+          }
+          if (record === undefined) {
             parseErrors++;
-            emit("cursor.parse_error", { sourceEngine: "cursor", lineNumber: index + 1, message: "Malformed Cursor JSON event" });
+            emit("session.collection_warning", { sourceEngine: "cursor", code: "malformed_jsonl", line: index + 1 });
             continue;
           }
           if (!record || typeof record !== "object" || typeof record.type !== "string") {
             parseErrors++;
-            emit("cursor.parse_error", { sourceEngine: "cursor", lineNumber: index + 1, message: "Cursor event requires a type" });
+            emit("session.collection_warning", { sourceEngine: "cursor", code: "malformed_cursor_event", line: index + 1 });
             continue;
           }
-          if (record.type !== "result" || record.subtype !== undefined || record.session_id !== undefined) structured = true;
           if (isSessionEvent(record)) {
             logEntries.push(record);
             continue;
@@ -221,11 +248,10 @@ engine:
           }
         }
         // Legacy text contains final-answer prose, not observable tool activity.
-        if (!structured && plaintext.length) emit("assistant.message", { sourceEngine: "cursor", content: plaintext.join("\n") });
-        else if (plaintext.length) emit("cursor.diagnostic", { sourceEngine: "cursor", content: plaintext.join("\n") });
+        if (plaintext.some(line => line.trim())) emit(structured ? "cursor.diagnostic" : "assistant.message", { sourceEngine: "cursor", content: plaintext.join("\n") });
         const toolStarts = logEntries.filter(entry => entry.type === "tool.execution_start").length;
         const markdown = `**Observed tool starts:** ${toolStarts}` + (parseErrors ? ` · **Parse errors:** ${parseErrors}` : "");
-        return { markdown, logEntries, mcpFailures: [], maxTurnsHit: false };
+        return { markdown, logEntries, mcpFailures: [...mcpFailures], maxTurnsHit: false };
       }
 ---
 
@@ -264,6 +290,11 @@ without partial text deltas. The parser preserves observed session, message,
 tool-call IDs, arguments, results, and terminal metadata as unified session
 events. It does not invent turn counts, token usage, or tool success when
 these are absent. Legacy text is retained as final-answer prose, never parsed
-as tool calls. Fixture coverage follows the published format; authenticated
+as tool calls, including JSON examples in Markdown fences. Native framing
+requires an initialization record outside a fence or an all-JSONL log.
+Rejected native records emit payload-free collection warnings with 1-based
+line numbers. MCP connection failures are recognized only in non-JSON native
+diagnostics, not in legacy answers or JSON-encoded assistant messages.
+Fixture coverage follows the published format; authenticated
 latest-build event output remains unverified until a permitted live smoke.
 -->
