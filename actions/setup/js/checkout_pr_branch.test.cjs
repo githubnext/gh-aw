@@ -345,10 +345,17 @@ If the pull request is still open, verify that:
         expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["fetch", "origin"]));
       });
 
-      it("should allow a same-repository GitHub App to synchronize its PR branch", async () => {
+      it.each([
+        ["pull_request", "synchronize"],
+        ["pull_request", "ready_for_review"],
+        ["pull_request", "reopened"],
+        ["pull_request_target", "ready_for_review"],
+        ["pull_request_target", "reopened"],
+      ])("should allow a same-repository GitHub App PR on %s with action %s", async (eventName, action) => {
+        mockContext.eventName = eventName;
         mockContext.actor = "automation[bot]";
         mockContext.payload.sender = { login: "automation[bot]", type: "Bot" };
-        mockContext.payload.action = "synchronize";
+        mockContext.payload.action = action;
         mockContext.payload.repository.id = 42;
         mockContext.payload.pull_request.head.repo.id = 42;
         mockContext.payload.pull_request.base.repo.id = 42;
@@ -358,6 +365,8 @@ If the pull request is still open, verify that:
 
         expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).not.toHaveBeenCalled();
         expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expect(mockExec.exec).toHaveBeenCalledWith("git", expect.arrayContaining(["fetch", "origin"]));
       });
 
       it.each([
@@ -368,6 +377,14 @@ If the pull request is still open, verify that:
         ["metadata-only PR event", 42, 42, 42, "automation[bot]", "Bot", "labeled"],
         ["missing base repository ID", 42, 42, undefined, "automation[bot]", "Bot", "opened"],
         ["mismatched base repository ID", 42, 42, 43, "automation[bot]", "Bot", "opened"],
+        ["forked PR marked ready for review", 43, 42, 42, "automation[bot]", "Bot", "ready_for_review"],
+        ["reopened forked PR", 43, 42, 42, "automation[bot]", "Bot", "reopened"],
+        ["ready_for_review event with mismatched base", 42, 42, 43, "automation[bot]", "Bot", "ready_for_review"],
+        ["reopened event with mismatched base", 42, 42, 43, "automation[bot]", "Bot", "reopened"],
+        ["ready_for_review event with different sender", 42, 42, 42, "other[bot]", "Bot", "ready_for_review"],
+        ["reopened event with different sender", 42, 42, 42, "other[bot]", "Bot", "reopened"],
+        ["ready_for_review event with non-bot sender", 42, 42, 42, "automation[bot]", "User", "ready_for_review"],
+        ["reopened event with non-bot sender", 42, 42, 42, "automation[bot]", "User", "reopened"],
       ])("should not bypass permission verification for a %s", async (_reason, headId, repositoryId, baseId, senderLogin, senderType, action) => {
         mockContext.actor = "automation[bot]";
         mockContext.payload.sender = { login: senderLogin, type: senderType };
