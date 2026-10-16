@@ -394,7 +394,7 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 		return tools
 	}
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), agenticEngine.GetID())))
-	c.IncrementWarningCount()
+	c.IncrementExperimentalWarningCount()
 	if _, hasTools := frontmatter["tools"]; hasTools {
 		message := fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", agenticEngine.GetID(), agenticEngine.GetDisplayName())
 		if _, hasQueue := tools["work-queue"]; hasQueue {

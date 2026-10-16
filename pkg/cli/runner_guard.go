@@ -139,7 +139,8 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	err = cmd.Run()
 
 	// Parse and display output
-	totalFindings, parseErr := parseAndDisplayRunnerGuardOutput(stdout.String(), verbose, gitRoot)
+	var findings []scanfindings.Finding
+	totalFindings, parseErr := parseAndDisplayRunnerGuardOutputWithFindings(stdout.String(), verbose, gitRoot, &findings)
 	if parseErr != nil {
 		runnerGuardLog.Printf("Failed to parse runner-guard output: %v", parseErr)
 		// Fall back to showing raw output
@@ -150,6 +151,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		if stderr.Len() > 0 {
 			fmt.Fprint(os.Stderr, stderr.String())
 		}
+		return fmt.Errorf("runner-guard output could not be parsed: %w", parseErr)
 	}
 
 	// Check if the error is due to findings or actual failure
@@ -166,7 +168,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 						return fmt.Errorf("strict mode: runner-guard exited with code 1 (findings present) and output could not be parsed: %w", parseErr)
 					}
 					if totalFindings > 0 {
-						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode. Example: rerun after resolving all reported findings", totalFindings)
+						return withScannerFindings(fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode. Example: rerun after resolving all reported findings", totalFindings), findings)
 					}
 					// Exit code 1 with no remaining findings means every reported finding was
 					// a known false positive that was filtered out, so the scan passes.
@@ -182,6 +184,9 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		return fmt.Errorf("runner-guard failed to start; a working docker installation is required. Example: run docker info to check the daemon: %w", err)
 	}
 
+	if strict && totalFindings > 0 {
+		return withScannerFindings(fmt.Errorf("strict mode: runner-guard found %d security findings", totalFindings), findings)
+	}
 	return nil
 }
 
@@ -201,6 +206,10 @@ func runnerGuardDockerArgs(imageRef, volumeMount, containerScanPath string) []st
 // parseAndDisplayRunnerGuardOutput parses runner-guard JSON output and displays findings.
 // Returns the total number of findings found.
 func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot string) (int, error) {
+	return parseAndDisplayRunnerGuardOutputWithFindings(stdout, verbose, gitRoot, nil)
+}
+
+func parseAndDisplayRunnerGuardOutputWithFindings(stdout string, verbose bool, gitRoot string, collected *[]scanfindings.Finding) (int, error) {
 	if stdout == "" {
 		return 0, nil // No output means no findings
 	}
@@ -240,6 +249,9 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	output.Findings = filterCopilotLocalAllowToolFindings(output.Findings, gitRoot)
 
 	totalFindings = len(output.Findings)
+	if collected != nil {
+		*collected = runnerGuardFindingsToShared(output.Findings, nil)
+	}
 	if totalFindings == 0 {
 		return 0, nil
 	}

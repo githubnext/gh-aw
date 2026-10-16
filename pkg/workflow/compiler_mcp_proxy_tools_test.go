@@ -80,6 +80,16 @@ func TestAdjustToolsForNativeMCPEngineWithoutAllowlistRetainsFallback(t *testing
 	actual := compiler.adjustToolsForEngineCapabilities(map[string]any{"tools": tools}, engine, tools)
 	assert.Equal(t, map[string]any{"github": map[string]any{}}, actual)
 	assert.Equal(t, 2, compiler.warningCount)
+	assert.Equal(t, 1, compiler.GetExperimentalWarningCount(), "ignored tool restrictions are not experimental notices")
+}
+
+func TestExperimentalEngineNoticeWithoutIgnoredTools(t *testing.T) {
+	engine, err := NewBehaviorDefinedEngine(newHarnessEngineDefinition())
+	require.NoError(t, err)
+	compiler := NewCompiler()
+	compiler.adjustToolsForEngineCapabilities(map[string]any{}, engine, nil)
+	assert.Equal(t, 1, compiler.GetWarningCount())
+	assert.Equal(t, 1, compiler.GetExperimentalWarningCount())
 }
 
 func TestAdjustToolsForNativeMCPEngineWithoutAllowlistPreservesQueueControls(t *testing.T) {

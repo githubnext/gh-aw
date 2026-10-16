@@ -16,6 +16,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/scanfindings"
 )
 
 var actionlintLog = logger.New("cli:actionlint")
@@ -282,7 +283,40 @@ func runActionlintOnFilesWithOptions(ctx context.Context, lockFiles []string, ve
 	if shouldParseOutput && actionlintStats != nil {
 		actionlintStats.TotalWorkflows += len(lockFiles)
 	}
-	return handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr, runResult.stdout)
+	err = handleActionlintExecutionError(runResult.err, strict, lockFiles, totalErrors, parseErr, runResult.stdout)
+	if shouldParseOutput && parseErr == nil && totalErrors > 0 {
+		return withActionlintFindings(err, runResult.stdout)
+	}
+	return err
+}
+
+func withActionlintFindings(err error, output string) error {
+	var native []actionlintError
+	if decodeErr := json.Unmarshal([]byte(output), &native); decodeErr != nil {
+		return fmt.Errorf("actionlint output could not be parsed: %w", decodeErr)
+	}
+	diagnostics := make([]scannerDiagnostic, 0, len(native))
+	for _, issue := range native {
+		severity := scanfindings.SeverityHigh
+		if !isHighSeverityActionlintError(issue) {
+			severity = scanfindings.SeverityLow
+		}
+		finding := scanfindings.Finding{
+			RuleID: issue.Kind, Severity: severity, Message: issue.Message,
+			File: issue.Filepath, Line: issue.Line, Column: issue.Column,
+		}
+		identity := scannerFindingIdentity(finding)
+		if issue.Kind == "shellcheck" {
+			if stableIdentity, ok := actionlintShellcheckIdentity(issue); ok {
+				identity = stableIdentity
+			}
+		}
+		diagnostics = append(diagnostics, scannerDiagnostic{Finding: finding, Identity: identity})
+	}
+	if err == nil || len(diagnostics) == 0 {
+		return err
+	}
+	return &scannerFindingsError{err: err, diagnostics: diagnostics}
 }
 
 func maybePrintActionlintVersion(ctx context.Context) {

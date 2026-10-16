@@ -696,7 +696,7 @@ func (c *Compiler) resolveEngineRuntimeConfig(engineSetting string, engineConfig
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Using experimental engine: "+agenticEngine.GetDisplayName()+" (Gemini API key only; retain engine: gemini for WIF)"))
 	} else if agenticEngine.IsExperimental() && c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Using experimental engine: "+agenticEngine.GetDisplayName()))
-		c.IncrementWarningCount()
+		c.IncrementExperimentalWarningCount()
 	}
 	return agenticEngine, configSteps, nil
 }

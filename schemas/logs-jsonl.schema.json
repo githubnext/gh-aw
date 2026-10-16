@@ -6453,6 +6453,9 @@
                       },
                       "file": {
                         "type": "string"
+                      },
+                      "severity": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -6480,6 +6483,9 @@
                         "type": "integer"
                       },
                       "file": {
+                        "type": "string"
+                      },
+                      "severity": {
                         "type": "string"
                       }
                     },
