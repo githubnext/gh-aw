@@ -484,6 +484,17 @@ the installed retry policy. Active origins, unavailable evidence, and any
 durable start marker retain their reservations; cancellation never resends a
 possibly started launch.
 
+Compiled queue workers also register a `workflow_run: completed` handler in
+`agentic-workqueue.yml`, including when Issue mirroring is disabled. It selects
+only the completed run's existing reservation, then independently authenticates
+the original run attempt, revision, principal and dispatch correlation before
+releasing capacity. Unfinished Claims follow the installed retry policy;
+completed Claims and delivery barriers are preserved. The handler never
+dispatches work, replays effects, or treats Actions success as a verified Result.
+It runs trusted default-branch code, not the worker's checkout or artifacts.
+An unavailable or mismatched native read retains the reservation for subsequent
+bounded dispatcher reconciliation or `reconcile --dispatch-id`.
+
 ### Diagnostic artifacts
 
 Audit exports for each Claim contain executed operations, temporary-ID
