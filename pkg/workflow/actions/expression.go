@@ -126,20 +126,7 @@ func (ctx expressionContext) render(expr Expression) (string, error) {
 	case Call:
 		return ctx.renderCall(value)
 	case Binary:
-		switch value.Operator {
-		case "==", "!=", "<", "<=", ">", ">=", "&&", "||":
-		default:
-			return "", fmt.Errorf("unsupported workflow expression operator %q", value.Operator)
-		}
-		left, err := ctx.render(value.Left)
-		if err != nil {
-			return "", err
-		}
-		right, err := ctx.render(value.Right)
-		if err != nil {
-			return "", err
-		}
-		return "(" + left + " " + value.Operator + " " + right + ")", nil
+		return ctx.renderBinary(value)
 	case Not:
 		inner, err := ctx.render(value.Value)
 		if err != nil {
@@ -149,6 +136,29 @@ func (ctx expressionContext) render(expr Expression) (string, error) {
 	default:
 		return "", errors.New("workflow expression cannot be nil or an unsupported type")
 	}
+}
+
+func (ctx expressionContext) renderBinary(value Binary) (string, error) {
+	switch value.Operator {
+	case "==", "!=", "<", "<=", ">", ">=", "&&", "||":
+	default:
+		return "", fmt.Errorf("unsupported workflow expression operator %q", value.Operator)
+	}
+	left, err := ctx.render(value.Left)
+	if err != nil {
+		return "", err
+	}
+	right, err := ctx.render(value.Right)
+	if err != nil {
+		return "", err
+	}
+	if _, ok := value.Left.(Context); ok {
+		left = "(" + left + ")"
+	}
+	if _, ok := value.Right.(Context); ok {
+		right = "(" + right + ")"
+	}
+	return "(" + left + " " + value.Operator + " " + right + ")", nil
 }
 
 func (ctx expressionContext) renderCall(value Call) (string, error) {

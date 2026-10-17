@@ -57,6 +57,9 @@ func (jm *JobManager) resolveActions() error {
 			if err := lowerActionsContribution(&job, typed, irJob.ID, resolved); err != nil {
 				return fmt.Errorf("lowering Actions workflow job %q: %w", name, err)
 			}
+			if err := actions.ValidateJob(irJob); err != nil {
+				return fmt.Errorf("validating Actions workflow job %q: %w", name, err)
+			}
 			job.Actions = nil
 		}
 		if err := validateJobDefinition(&job); err != nil {
@@ -70,7 +73,13 @@ func (jm *JobManager) resolveActions() error {
 
 func jobToActions(original *Job) (*actions.Job, error) {
 	name := original.Name
-	job := &actions.Job{ID: actions.JobID(name), Outputs: make(map[actions.OutputName]actions.Expression)}
+	job := &actions.Job{
+		ID: actions.JobID(name), Outputs: make(map[actions.OutputName]actions.Expression),
+		Uses: original.Uses,
+	}
+	if original.RunsOn != "" {
+		job.RunsOn = original.RunsOn
+	}
 	for _, dep := range original.Needs {
 		job.Needs = append(job.Needs, actions.JobID(dep))
 	}
@@ -89,8 +98,8 @@ func jobToActions(original *Job) (*actions.Job, error) {
 	if hasActionsExecutionSettings(typed) {
 		return nil, fmt.Errorf("job %q must set name, runs-on, and native fields on the enclosing job, not its typed contribution", name)
 	}
+	copyEnclosingJobSettings(job, original, typed)
 	job.If = typed.If
-	job.Env = typed.Env
 	job.Needs = append(job.Needs, typed.Needs...)
 	for key, value := range typed.Outputs {
 		if _, exists := job.Outputs[key]; exists {
@@ -111,6 +120,45 @@ func jobToActions(original *Job) (*actions.Job, error) {
 	return job, nil
 }
 
+func copyEnclosingJobSettings(job *actions.Job, original *Job, typed *actions.Job) {
+	if len(original.Env)+len(typed.Env) > 0 {
+		job.Env = make(map[string]actions.Expression, len(original.Env)+len(typed.Env))
+	}
+	for key, value := range original.Env {
+		job.Env[key] = actions.Literal(value)
+	}
+	maps.Copy(job.Env, typed.Env)
+	if len(original.With) > 0 {
+		job.With = make(map[string]actions.Expression, len(original.With))
+		for key, value := range original.With {
+			job.With[key] = actions.Literal(fmt.Sprint(value))
+		}
+	}
+	if len(original.Secrets) > 0 {
+		job.Secrets = make(map[string]actions.Expression, len(original.Secrets))
+		for key, value := range original.Secrets {
+			job.Secrets[key] = actions.Literal(value)
+		}
+	}
+	job.SecretsInherit = original.SecretsInherit
+	if original.Environment != "" {
+		job.Environment = original.Environment
+	}
+	if original.Container != "" {
+		job.Container = original.Container
+	}
+	if original.Services != "" {
+		job.Services = map[string]any{"legacy": original.Services}
+	}
+	job.TimeoutMinutes = original.TimeoutMinutes
+	if original.TimeoutMinutesExpression != "" {
+		job.TimeoutMinutesExpression = actions.Literal(original.TimeoutMinutesExpression)
+	}
+	if original.ContinueOnError != nil {
+		job.ContinueOnError = actions.Boolean(*original.ContinueOnError)
+	}
+}
+
 func hasActionsExecutionSettings(job *actions.Job) bool {
 	return job.Name != "" || job.RunsOn != nil || job.Permissions != nil || job.Defaults != nil ||
 		job.Concurrency != nil || job.Environment != nil || job.Strategy != nil ||
@@ -119,8 +167,8 @@ func hasActionsExecutionSettings(job *actions.Job) bool {
 }
 
 func lowerActionsContribution(job *Job, typed *actions.Job, id actions.JobID, resolved *actions.Workflow) error {
-	if job.Uses != "" && (len(typed.Steps) > 0 || len(typed.Env) > 0) {
-		return errors.New("reusable workflow job cannot declare typed steps or env")
+	if job.Uses != "" && (len(typed.Steps) > 0 || len(typed.Env) > 0 || len(typed.Outputs) > 0) {
+		return errors.New("reusable workflow job cannot declare typed steps, env, or outputs")
 	}
 	if typed.If != nil {
 		if job.If != "" {
@@ -131,6 +179,7 @@ func lowerActionsContribution(job *Job, typed *actions.Job, id actions.JobID, re
 			return err
 		}
 		job.If = "${{ " + rendered + " }}"
+		job.actionsCondition = true
 	}
 	job.Env = maps.Clone(job.Env)
 	for key, value := range typed.Env {

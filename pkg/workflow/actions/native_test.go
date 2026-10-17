@@ -120,6 +120,47 @@ func TestNativeJobExpressionReferencesDeriveDependencies(t *testing.T) {
 	}
 }
 
+func TestNativeConditionsKeepLiteralExpressions(t *testing.T) {
+	input := &Workflow{Jobs: []*Job{{
+		ID: "build", RunsOn: "ubuntu-latest", If: Literal("false"),
+		Steps: []Step{RunStep{
+			StepOptions: StepOptions{If: Literal("ready")},
+			Run:         "echo test",
+		}},
+	}}}
+
+	job := emittedWorkflow(t, input)["jobs"].(map[string]any)["build"].(map[string]any)
+	assert.Equal(t, "${{ 'false' }}", job["if"])
+	step := job["steps"].([]any)[0].(map[string]any)
+	assert.Equal(t, "${{ 'ready' }}", step["if"])
+}
+
+func TestContextOperandsPreserveBinaryGrouping(t *testing.T) {
+	tests := []struct {
+		name     string
+		expr     Expression
+		expected string
+	}{
+		{
+			name:     "left",
+			expr:     Binary{Left: Context("true || false"), Operator: "&&", Right: Boolean(false)},
+			expected: "((true || false) && false)",
+		},
+		{
+			name:     "right",
+			expr:     Binary{Left: Boolean(false), Operator: "||", Right: Context("true && false")},
+			expected: "(false || (true && false))",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value, err := RenderExpression(tt.expr, "build", &Workflow{}, false)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, value)
+		})
+	}
+}
+
 func TestRejectsNonActionsAndInvalidNativeProperties(t *testing.T) {
 	tests := []struct {
 		name   string

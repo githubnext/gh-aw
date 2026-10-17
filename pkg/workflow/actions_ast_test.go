@@ -63,6 +63,59 @@ func TestActionsASTLegacyOutputAndCondition(t *testing.T) {
 	assert.Equal(t, "${{ (needs.safe_outputs.outputs.worker == 'worker') }}", job.If)
 }
 
+func TestActionsASTSerializesConditionsAsSafeYAMLScalars(t *testing.T) {
+	tests := []struct {
+		name      string
+		condition actions.Expression
+	}{
+		{
+			name: "colon literal",
+			condition: actions.Binary{
+				Left: actions.Literal("build: release"), Operator: "==",
+				Right: actions.Literal("build: release"),
+			},
+		},
+		{
+			name: "hash literal",
+			condition: actions.Binary{
+				Left: actions.Literal("value # comment"), Operator: "==",
+				Right: actions.Literal("value # comment"),
+			},
+		},
+		{
+			name: "long false condition",
+			condition: actions.Binary{
+				Left: actions.Binary{
+					Left: actions.Literal(strings.Repeat("worker", 22)), Operator: "==",
+					Right: actions.Literal("selected"),
+				},
+				Operator: "&&", Right: actions.Boolean(false),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jm := NewJobManager()
+			require.NoError(t, jm.AddJob(&Job{
+				Name: "call", Uses: "./worker.yml", SecretsInherit: true,
+				Actions: &actions.Job{If: tt.condition},
+			}))
+			require.NoError(t, jm.resolveActions())
+			job, _ := jm.GetJob("call")
+
+			content := renderActionsASTJobs(jm)
+			var parsed struct {
+				Jobs map[string]struct {
+					If string `yaml:"if"`
+				} `yaml:"jobs"`
+			}
+			require.NoError(t, yaml.Unmarshal([]byte(content), &parsed))
+			assert.Equal(t, job.If, parsed.Jobs["call"].If)
+			assert.NotContains(t, parsed.Jobs["call"].If, "\n")
+		})
+	}
+}
+
 func TestActionsASTFailureIsAtomic(t *testing.T) {
 	jm := NewJobManager()
 	original := &Job{Name: "build", Actions: &actions.Job{
@@ -90,7 +143,7 @@ func TestActionsASTPreservesLegacyYAML(t *testing.T) {
 
 func TestActionsASTQuotesValuesAndCollectsSecrets(t *testing.T) {
 	jm := NewJobManager()
-	require.NoError(t, jm.AddJob(&Job{Name: "build", Actions: &actions.Job{
+	require.NoError(t, jm.AddJob(&Job{Name: "build", RunsOn: "runs-on: ubuntu-latest", Actions: &actions.Job{
 		Env: map[string]actions.Expression{
 			"MULTILINE": actions.Literal("one\ntwo\n"),
 			"BOOLEAN":   actions.Literal("true"),
@@ -100,6 +153,7 @@ func TestActionsASTQuotesValuesAndCollectsSecrets(t *testing.T) {
 		Outputs: map[actions.OutputName]actions.Expression{
 			"message": actions.Literal("key: value\nand more"),
 		},
+		Steps: []actions.Step{actions.RunStep{Run: "echo test"}},
 	}}))
 	require.NoError(t, jm.resolveActions())
 	content := renderActionsASTJobs(jm)
@@ -135,10 +189,18 @@ func TestActionsASTRejectsConflictingContributions(t *testing.T) {
 		}}, "both legacy and typed output"},
 		{"reusable env", &Job{Name: "build", Uses: "./worker.yml", Actions: &actions.Job{
 			Env: map[string]actions.Expression{"VALUE": actions.Literal("typed")},
-		}}, "cannot declare typed steps or env"},
+		}}, "cannot declare typed steps, env, or outputs"},
 		{"reusable step", &Job{Name: "build", Uses: "./worker.yml", Actions: &actions.Job{
 			Steps: []actions.Step{actions.RunStep{Run: "echo test"}},
-		}}, "cannot declare typed steps or env"},
+		}}, "cannot declare typed steps, env, or outputs"},
+		{"reusable output", &Job{Name: "build", Uses: "./worker.yml", Actions: &actions.Job{
+			Outputs: map[actions.OutputName]actions.Expression{"result": actions.Literal("ready")},
+		}}, "cannot declare typed steps, env, or outputs"},
+		{"runner missing runs-on", &Job{Name: "build", Actions: &actions.Job{
+			Steps: []actions.Step{actions.RunStep{Run: "echo test"}},
+		}}, "runner job requires runs-on"},
+		{"reusable with runs-on", &Job{Name: "build", Uses: "./worker.yml", RunsOn: "runs-on: ubuntu-latest",
+			Actions: &actions.Job{If: actions.Boolean(true)}}, "reusable workflow job cannot declare runner properties"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

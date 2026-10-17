@@ -17,15 +17,3 @@ func validateIdentifier(kind, value string) error {
 	}
 	return nil
 }
-
-func NewJobID(value string) (JobID, error) {
-	return JobID(value), validateIdentifier("job id", value)
-}
-
-func NewStepID(value string) (StepID, error) {
-	return StepID(value), validateIdentifier("step id", value)
-}
-
-func NewOutputName(value string) (OutputName, error) {
-	return OutputName(value), validateIdentifier("output name", value)
-}

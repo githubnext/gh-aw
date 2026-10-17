@@ -35,6 +35,14 @@ func validateJob(job *Job) error {
 	return nil
 }
 
+// ValidateJob validates the runner or reusable-workflow shape of a job.
+func ValidateJob(job *Job) error {
+	if job == nil {
+		return errors.New("workflow job cannot be nil")
+	}
+	return validateJob(job)
+}
+
 func lowerJobExpressions(fields map[string]any, job *Job, resolved *Workflow) error {
 	if job.TimeoutMinutesExpression != nil {
 		value, err := RenderExpression(job.TimeoutMinutesExpression, job.ID, resolved, true)

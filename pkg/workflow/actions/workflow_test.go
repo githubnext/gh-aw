@@ -262,22 +262,35 @@ func TestRawStepPreservesNativeFields(t *testing.T) {
 	assert.Contains(t, content, "${{ fromJSON(vars.TIMEOUT) }}")
 }
 
-func TestIdentifierGrammar(t *testing.T) {
+func TestResolveValidatesIdentifierGrammar(t *testing.T) {
+	workflowWithIdentifiers := func(jobID JobID, stepID StepID, outputName OutputName) *Workflow {
+		return &Workflow{Jobs: []*Job{{
+			ID: jobID, RunsOn: "ubuntu-latest",
+			Steps: []Step{RunStep{
+				StepOptions: StepOptions{ID: stepID, Outputs: []OutputDecl{{Name: outputName}}},
+				Run:         "echo test",
+			}},
+		}}}
+	}
 	for _, value := range []string{"agent", "_step", "safe-outputs", "output_1"} {
-		_, err := NewJobID(value)
-		require.NoError(t, err)
-		_, err = NewStepID(value)
-		require.NoError(t, err)
-		_, err = NewOutputName(value)
+		_, err := Resolve(workflowWithIdentifiers(JobID(value), StepID(value), OutputName(value)))
 		require.NoError(t, err)
 	}
 	for _, value := range []string{"", "1job", "job.name", "job name", "job\ninjected", "job:"} {
-		_, err := NewJobID(value)
-		require.Error(t, err)
-		_, err = NewStepID(value)
-		require.Error(t, err)
-		_, err = NewOutputName(value)
-		require.Error(t, err)
+		t.Run("job id "+value, func(t *testing.T) {
+			_, err := Resolve(workflowWithIdentifiers(JobID(value), "step", "output"))
+			require.ErrorContains(t, err, "invalid job id")
+		})
+		if value != "" {
+			t.Run("step id "+value, func(t *testing.T) {
+				_, err := Resolve(workflowWithIdentifiers("job", StepID(value), "output"))
+				require.ErrorContains(t, err, "invalid step id")
+			})
+		}
+		t.Run("output name "+value, func(t *testing.T) {
+			_, err := Resolve(workflowWithIdentifiers("job", "step", OutputName(value)))
+			require.ErrorContains(t, err, "invalid output name")
+		})
 	}
 }
 

@@ -78,11 +78,11 @@ func lowerJob(job *Job, resolved *Workflow) (map[string]any, error) {
 		fields["needs"] = needs
 	}
 	if job.If != nil {
-		value, err := RenderExpression(job.If, job.ID, resolved, true)
+		value, err := RenderExpression(job.If, job.ID, resolved, false)
 		if err != nil {
 			return nil, err
 		}
-		fields["if"] = value
+		fields["if"] = "${{ " + value + " }}"
 	}
 	if len(job.Env) > 0 {
 		env, err := lowerValues(job.Env, job.ID, resolved)
@@ -205,11 +205,11 @@ func lowerStepOptions(fields map[string]any, opts StepOptions, consumer JobID, r
 		fields["name"] = opts.Name
 	}
 	if opts.If != nil {
-		value, err := RenderExpression(opts.If, consumer, resolved, true)
+		value, err := RenderExpression(opts.If, consumer, resolved, false)
 		if err != nil {
 			return err
 		}
-		fields["if"] = value
+		fields["if"] = "${{ " + value + " }}"
 	}
 	if len(opts.Env) > 0 {
 		env, err := lowerValues(opts.Env, consumer, resolved)
