@@ -29,7 +29,15 @@
       "tested": "2026-07-08",
       "effectiveness": "High",
       "finding": "On floor-regime days ~99% of total wall-clock compute concentrates in a handful of agentic 'Addressing comment on PR' runs (7 runs = 79.4 of 79.7 min today), while the 45 action-required gate stubs consume ~0.28 min combined (near-instant approval placeholders). Separates 'compute spent' from 'runs counted': daily completion% (8%) and gate-stub count wildly understate that real agent effort ran deep on just 2-3 checkout-behavior PRs. Sub-metric CARM (Comment-Addressing Retry Multiplicity): PR#44224 fired the agentic workflow 3x (2 success + 1 cancelled = retry churn), #44225 2x. Complements BGSI (footprint inversely tracks completion) and provenance_inversion. Recommend Refine: track AWTC + CARM as a per-day churn/efficiency signal."
+    },
+    {
+      "date": "2026-10-17",
+      "name": "temporal_analysis",
+      "description": "Split sessions by UTC hour, compare success rate per hour for time-of-day effects.",
+      "result": "Hour 01=3.8% vs hour 02=34.8% success -- large gap but confounded by branch identity, not isolated from workflow mix.",
+      "effectiveness": "unknown",
+      "recommendation": "refine - needs multi-day replication deconfounding hour from branch/workflow-type"
     }
   ],
-  "last_updated": "2026-07-08"
+  "last_updated": "2026-10-17"
 }

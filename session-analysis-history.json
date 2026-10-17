@@ -175,8 +175,41 @@
       "orphan_rate_pct": 0.0,
       "data_quality": "metadata-only (conv-logs empty again, reverted after 10-14's one-off)",
       "notes": "50.0% completion -16pts vs 10-14 (66%); provenance 88.0% bot-driven (above 72-86% band); true-agentic 3/3=100%; push_supersede_cancellation promoted candidate->confirmed (3 same-day instances, 2 branches, 10-14s push-to-failure offset); burst_vs_isolated inverted 2nd time on record (burst 53.7%>isolated 33.3%); top branch 52% concentration; orphan 0/8, 43rd healthy day; roll=95 standard run."
+    },
+    {
+      "date": "2026-10-16",
+      "sessions_analyzed": 50,
+      "completion_rate": 50.0,
+      "average_duration_minutes": 14.596,
+      "median_duration_minutes": 3.9,
+      "orphan_rate_pct": 0.0,
+      "escalations": 0,
+      "experimental_strategy": null,
+      "key_insights": [
+        "50% completion, flat vs 10-15; 64% of runs on one branch (fix-redaction-step-ref).",
+        "3/50 sessions logged (events.jsonl): clean permission-denial->retry recovery + 1 subagent model-routing failure.",
+        "0/7 open PRs orphaned, NORMAL."
+      ]
+    },
+    {
+      "date": "2026-10-17",
+      "sessions_analyzed": 50,
+      "completion_rate": 18.0,
+      "average_duration_minutes": 1.2417,
+      "median_duration_minutes": 0.0,
+      "orphan_rate_pct": 0.0,
+      "escalations": 0,
+      "experimental_strategy": "temporal_analysis (roll=0, triggered)",
+      "key_insights": [
+        "18.0% completion (9/50), -32pts vs 10-16, lowest since 10-01; 45-day mean 33.4%.",
+        "88.9% bot-driven successes (code-scanning+smoke); true_agentic 1/1=100%.",
+        "Extreme branch concentration: bump-gh-aw-firewall-v02862 54%; protected-session-capture 20% at 0% success. Duration collapsed to mean 1.24min, lowest of 30d window.",
+        "Experimental temporal_analysis: hour 01 3.8% vs hour 02 34.8% success, but confounded by branch mix -- unconfirmed candidate.",
+        "1/50 sessions logged (6 turns, clean, 1 expected permission denial + recovery).",
+        "0/10 open PRs orphaned, 45th healthy day."
+      ]
     }
   ],
-  "last_updated": "2026-10-02",
+  "last_updated": "2026-10-17",
   "version": "1.10"
 }
