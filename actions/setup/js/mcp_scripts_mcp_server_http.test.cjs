@@ -51,7 +51,7 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
       })
     ),
     it("should start HTTP MCP server successfully", { timeout: 15e3 }, async () => {
-      serverProcess = spawn("node", ["mcp_scripts_mcp_server_http.cjs", configPath, "--port", (4100).toString()], { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] });
+      serverProcess = spawn("node", ["mcp_scripts_mcp_server_http.cjs", configPath, "--port", (4100).toString()], { cwd: process.cwd(), env: { ...process.env, DEBUG: "*" }, stdio: ["pipe", "pipe", "pipe"] });
       (serverProcess.stderr.on("data", chunk => {
         serverOutput += chunk.toString();
       }),

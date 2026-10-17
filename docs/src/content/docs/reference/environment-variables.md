@@ -252,6 +252,8 @@ These variables configure the `gh aw` CLI tool. Set them in your local shell env
 
 Compiled workflows leave MCP debug logging disabled for normal runs. GitHub Actions debug mode (`runner.debug == '1'`, including **Re-run jobs** with **Enable debug logging**) automatically enables verbose MCP logs. An explicit workflow or job `DEBUG` value takes precedence and is forwarded to the gateway and built-in MCP servers.
 
+The built-in JavaScript MCP loggers use their server names as namespaces, including `safeoutputs` and `mcpscripts`. Patterns are comma- or whitespace-separated, support `*` wildcards, and give `-` exclusions precedence regardless of order. For example, `DEBUG=safeoutputs,mcpscripts` selects those servers, while `DEBUG=*,-safeoutputs` excludes safe-outputs diagnostics from both stderr and `server.log`. Error summaries, required audit records, and structured safe-output files are not disabled by these filters; error stack traces require a matching debug namespace.
+
 ```bash
 # All namespaces
 DEBUG=* gh aw compile

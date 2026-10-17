@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createLogger } = require("./mcp_logger.cjs");
+const { createLogger, debugEnabled } = require("./mcp_logger.cjs");
 const moduleLogger = createLogger("mcp_server_core");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
@@ -63,6 +63,7 @@ const UNKNOWN_PARAMETER_LIST_PREVIEW_MAX = 10;
  * @property {ServerInfo} serverInfo - Server information
  * @property {Object<string, Tool>} tools - Registered tools
  * @property {Function} debug - Debug logging function
+ * @property {Function} diagnostic - Required diagnostic logging function, independent of DEBUG
  * @property {Function} debugError - Debug logging function for errors (extracts message from Error objects)
  * @property {Function} writeMessage - Write message to stdout
  * @property {Function} replyResult - Send a result response
@@ -95,17 +96,16 @@ function initLogFile(server) {
 }
 
 /**
- * Create a debug function for the server
+ * Create an unconditional diagnostic function for the server
  * @param {MCPServer} server - The MCP server instance
- * @returns {Function} Debug function
+ * @returns {Function} Diagnostic function
  */
-function createDebugFunction(server) {
+function createDiagnosticFunction(server) {
   return msg => {
     const timestamp = new Date().toISOString();
     const safeMessage = server.redactLogMessage ? server.redactLogMessage(msg) : msg;
     const formattedMsg = `[${timestamp}] [${server.serverInfo.name}] ${safeMessage}\n`;
 
-    // Always write to stderr
     process.stderr.write(formattedMsg);
 
     // Also write to log file if log directory is set (initialize on first use)
@@ -125,14 +125,26 @@ function createDebugFunction(server) {
 }
 
 /**
+ * @param {MCPServer} server
+ * @returns {Function}
+ */
+function createDebugFunction(server) {
+  const diagnostic = createDiagnosticFunction(server);
+  return msg => {
+    if (debugEnabled(server.serverInfo.name)) diagnostic(msg);
+  };
+}
+
+/**
  * Create a debugError function for the server that handles error casting
  * @param {MCPServer} server - The MCP server instance
  * @returns {Function} Debug error function that extracts message from Error objects
  */
 function createDebugErrorFunction(server) {
+  const diagnostic = createDiagnosticFunction(server);
   return (prefix, error) => {
     const errorMessage = getErrorMessage(error);
-    server.debug(`${prefix}${errorMessage}`);
+    diagnostic(`${prefix}${errorMessage}`);
     if (error instanceof Error && error.stack) {
       server.debug(`${prefix}Stack trace: ${error.stack}`);
     }
@@ -176,7 +188,7 @@ function createReplyErrorFunction(server) {
   return (id, code, message) => {
     // Don't send error responses for notifications (id is null/undefined)
     if (id === undefined || id === null) {
-      server.debug(`Error for notification: ${message}`);
+      server.diagnostic(`Error for notification: ${message}`);
       return;
     }
 
@@ -208,6 +220,7 @@ function createServer(serverInfo, options = {}) {
     serverInfo,
     tools: {},
     debug: () => {}, // placeholder
+    diagnostic: () => {}, // placeholder
     debugError: () => {}, // placeholder
     writeMessage: () => {}, // placeholder
     replyResult: () => {}, // placeholder
@@ -222,6 +235,7 @@ function createServer(serverInfo, options = {}) {
 
   // Initialize functions with references to server
   server.debug = createDebugFunction(server);
+  server.diagnostic = createDiagnosticFunction(server);
   server.debugError = createDebugErrorFunction(server);
   server.writeMessage = createWriteMessageFunction(server);
   server.replyResult = createReplyResultFunction(server);
@@ -356,7 +370,7 @@ function loadToolHandlers(server, tools, basePath) {
         continue;
       }
     } else if (path.isAbsolute(handlerPath)) {
-      server.debug(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
+      (server.diagnostic || server.debug)(`  [${toolName}] Using absolute path (bypasses basePath validation): ${handlerPath}`);
     }
 
     // Store the original handler path for reference
