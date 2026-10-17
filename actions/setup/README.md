@@ -73,6 +73,30 @@ All files are copied from the committed `js/` and `sh/` directories which contai
 
 ## Development
 
+### Structured failure reports
+
+Failure issues are built as a report AST before publication.
+`js/report_ast.cjs` defines the typed inline and block nodes, normalization, and
+GitHub Markdown renderer. The renderer owns escaping, HTTPS link validation,
+heading levels, balanced details, code fences, and whitespace. It rejects raw
+HTML/Markdown nodes and redacts diagnostic secrets before choosing delimiters.
+
+`js/failure_report.cjs` builds reports from `md/agent_failure_issue.md`.
+`js/report_markdown.cjs` imports the runtime template dialect: headings,
+paragraphs, emphasis, links, code, lists, tables, quotes, alerts, and details.
+Templates are parsed **before** scalar metadata is substituted. Diagnostic
+fragments enter through explicit block fields, with headings below the report
+sections; unsupported HTML remains literal text. New programmatic report content
+should use AST nodes rather than concatenated Markdown. Empty optional blocks
+are omitted and rendering is deterministic.
+
+`js/report_footer.cjs` builds the footer from the shared attribution template and
+model/cost metadata. Attribution, expiration, provenance, failure-match markers,
+and the detection preamble are rendered with the document, not appended afterward.
+Marker names and fields are validated; marker values cannot close an HTML comment
+or inject another metadata field. Expiration remains a checked task-list item so
+existing cleanup and deduplication readers continue to work.
+
 ### JSONL runtime helpers
 
 Use `js/jsonl_helpers.cjs` instead of splitting files or maintaining chunk buffers:

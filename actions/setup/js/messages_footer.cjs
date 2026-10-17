@@ -422,6 +422,16 @@ function getFooterWorkflowRecompileCommentMessage(ctx) {
  * @returns {string} Footer message for agent failure tracking issues
  */
 function getFooterAgentFailureIssueMessage(ctx) {
+  const { template, context } = getFooterAgentFailureIssueTemplate(ctx);
+  return renderTemplate(template, context);
+}
+
+/**
+ * Expose the template separately so structured renderers can substitute literal
+ * metadata after parsing, rather than interpreting metadata as Markdown.
+ * @param {AgentFailureContext} ctx
+ */
+function getFooterAgentFailureIssueTemplate(ctx) {
   const messages = getMessages();
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
@@ -483,29 +493,23 @@ function getFooterAgentFailureIssueMessage(ctx) {
     ambientContext,
     ambientContextFormatted,
     ambientContextSuffix,
+    failureMetricsSuffix: `${aiCredits ? aiCreditsSuffix : ""}${ambientContext ? ambientContextSuffix : ""}`,
   });
 
   // Use custom agent failure issue footer if configured, otherwise use default footer
-  let footer;
+  let template;
   if (messages?.agentFailureIssue) {
-    footer = renderTemplate(messages.agentFailureIssue, templateContext);
+    template = messages.agentFailureIssue;
   } else {
     // Default footer template with link to workflow run
-    let defaultFooter = "> Generated from [{workflow_name}]({run_url})";
-    if (aiCredits) {
-      defaultFooter += aiCreditsSuffix;
-    }
-    if (ambientContext) {
-      defaultFooter += ambientContextSuffix;
-    }
+    template = "> Generated from [{workflow_name}]({run_url}){failure_metrics_suffix}";
     // Append history link when available
     if (ctx.historyUrl) {
-      defaultFooter += " · [◷]({history_url})";
+      template += " · [◷]({history_url})";
     }
-    footer = renderTemplate(defaultFooter, templateContext);
   }
 
-  return footer;
+  return { template, context: templateContext };
 }
 
 /**
@@ -612,6 +616,17 @@ function getFooterAgentFailureCommentMessage(ctx) {
  * @returns {string} XML comment marker with workflow metadata
  */
 function generateXMLMarker(workflowName, runUrl) {
+  return `<!-- ${getAgenticWorkflowMetadata(workflowName, runUrl)
+    .map(field => `${field.key}: ${field.value}`)
+    .join(", ")} -->`;
+}
+
+/**
+ * @param {string} workflowName
+ * @param {string} runUrl
+ * @returns {{key: string, value: string}[]}
+ */
+function getAgenticWorkflowMetadata(workflowName, runUrl) {
   // Read engine metadata from environment variables
   const engineId = process.env.GH_AW_ENGINE_ID || "";
   const engineVersion = process.env.GH_AW_ENGINE_VERSION || "";
@@ -625,49 +640,48 @@ function generateXMLMarker(workflowName, runUrl) {
   const parts = [];
 
   // Always include agentic-workflow name
-  parts.push(`gh-aw-agentic-workflow: ${workflowName}`);
+  parts.push({ key: "gh-aw-agentic-workflow", value: workflowName });
 
   // Add tracker-id if available (for searchability and tracing)
   if (trackerId) {
-    parts.push(`gh-aw-tracker-id: ${trackerId}`);
+    parts.push({ key: "gh-aw-tracker-id", value: trackerId });
   }
 
   // Add engine ID if available
   if (engineId) {
-    parts.push(`engine: ${engineId}`);
+    parts.push({ key: "engine", value: engineId });
   }
 
   // Add version if available
   if (engineVersion) {
-    parts.push(`version: ${engineVersion}`);
+    parts.push({ key: "version", value: engineVersion });
   }
 
   // Add model if available
   if (engineModel) {
-    parts.push(`model: ${engineModel}`);
+    parts.push({ key: "model", value: engineModel });
   }
   if (attribution.routing?.status === "selected") {
-    if (attribution.effort) parts.push(`effort: ${attribution.effort}`);
-    parts.push("routed: true");
+    if (attribution.effort) parts.push({ key: "effort", value: attribution.effort });
+    parts.push({ key: "routed", value: "true" });
   } else if (attribution.routing) {
-    parts.push(`routed: ${attribution.routing.status}`);
+    parts.push({ key: "routed", value: attribution.routing.status });
   }
 
   // Add numeric run ID if available
   if (runId) {
-    parts.push(`id: ${runId}`);
+    parts.push({ key: "id", value: runId });
   }
 
   // Add workflow identifier if available
   if (workflowId) {
-    parts.push(`workflow_id: ${workflowId}`);
+    parts.push({ key: "workflow_id", value: workflowId });
   }
 
   // Always include run URL
-  parts.push(`run: ${runUrl}`);
+  parts.push({ key: "run", value: runUrl });
 
-  // Return the XML comment marker
-  return `<!-- ${parts.join(", ")} -->`;
+  return parts;
 }
 
 /**
@@ -800,6 +814,8 @@ module.exports = {
   getFooterWorkflowRecompileMessage,
   getFooterWorkflowRecompileCommentMessage,
   getFooterAgentFailureIssueMessage,
+  getFooterAgentFailureIssueTemplate,
+  getAgenticWorkflowMetadata,
   getFooterAgentFailureCommentMessage,
   generateFooterWithMessages,
   generateXMLMarker,
