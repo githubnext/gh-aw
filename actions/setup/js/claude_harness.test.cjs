@@ -207,6 +207,29 @@ describe("claude_harness.cjs", () => {
       });
     });
 
+    // sandbox.agent: false (no AWF): the alias map arrives through GH_AW_MODEL_ALIASES only.
+    it("native Claude without AWF never launches Claude Code's own opus for a workflow-defined opus", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "claude-no-awf-"));
+      try {
+        const env = {
+          GH_AW_LLM_PROVIDER: "anthropic",
+          ANTHROPIC_MODEL: "opus",
+          GH_AW_TMP_DIR: tmpDir,
+          GH_AW_AWF_CONFIG_PATH: path.join(tmpDir, "missing-awf-config.json"),
+          GH_AW_MODEL_ALIASES: JSON.stringify({ opus: ["anthropic/claude-opus-4-7"] }),
+        };
+        await expect(buildClaudeChildEnv(null, env, () => {})).rejects.toMatchObject({ name: "ModelAliasResolutionError", reason: "catalog_unavailable" });
+        expect(JSON.parse(fs.readFileSync(path.join(tmpDir, "agent/model-resolution.json"), "utf8"))).toEqual([
+          { engine: "claude", role: "main", configured_model: "opus", resolved_model: null, provider: "anthropic", status: "failed", cause: "catalog_unavailable" },
+        ]);
+        // With /reflect, the same map resolves to the workflow's pin.
+        const reflect = { endpoints: [{ provider: "anthropic", configured: true, models: ["claude-opus-4-7", "claude-opus-5"] }] };
+        expect((await buildClaudeChildEnv(reflect, env, () => {})).ANTHROPIC_MODEL).toBe("claude-opus-4-7");
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it.each(["auto", "copilot/auto"])("fails before inference when %s has no advertised Claude model", async model => {
       await expect(buildClaudeChildEnv({ endpoints: [{ ...reflectData.endpoints[1], models: ["gpt-6.1-sol"] }] }, { GH_AW_LLM_PROVIDER: "github", ANTHROPIC_MODEL: model }, () => {})).rejects.toThrow("requires an advertised Claude");
     });

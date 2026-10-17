@@ -7,7 +7,18 @@ const fs = require("fs");
 const path = require("path");
 const { fileURLToPath } = require("url");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const { buildCatalogFromReflect, globMatch, ModelAliasResolutionError, normalizeForCopilotCLI, resolveConfiguredCopilotModel, resolveModelAlias, selectLatestGlobMatch } = require("./resolve_model_alias.cjs");
+const {
+  buildCatalogFromReflect,
+  globMatch,
+  isBundledModelId,
+  loadModelAliasMap,
+  ModelAliasResolutionError,
+  normalizeForCopilotCLI,
+  resolveConfiguredCopilotModel,
+  resolveEngineModel,
+  resolveModelAlias,
+  selectLatestGlobMatch,
+} = require("./resolve_model_alias.cjs");
 const { detectErrors } = require("./agent_error_patterns.cjs");
 
 const ALIAS_MAP = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../pkg/workflow/data/model_aliases.json"), "utf8")).aliases;
@@ -276,5 +287,32 @@ describe("resolve_model_alias", () => {
     // (which is reachable via both path-a and path-b).
     const result = resolveModelAlias("combo", diamondAliasMap, ["copilot/claude-haiku-4.5"]);
     expect(result).toBe("copilot/claude-haiku-4.5");
+  });
+});
+
+// Without AWF no /reflect catalogue can exist. A name listed in the bundled model catalogue
+// (models.json) is a plausible model id and passes through as exact; pure aliases fail.
+describe("resolveEngineModel without a possible catalogue", () => {
+  const run = (configuredModel, env = {}) => resolveEngineModel({ engine: "test", configuredModel, aliasMap: ALIAS_MAP, reflectData: null, env, record: false });
+
+  it("defines plausible model ids by the bundled catalogue", () => {
+    for (const id of ["gpt-5-mini", "gpt-5.4", "gpt-5.5", "gpt-5"]) expect(isBundledModelId(id)).toBe(true);
+    for (const alias of ["small", "opus", "auto", "sonnet", "mini"]) expect(isBundledModelId(alias)).toBe(false);
+  });
+
+  it.each(["copilot/gpt-5.4", "copilot/gpt-5-mini", "gpt-5.5", "gpt-5", "copilot/gpt-5"])("passes %s through as exact", async model => {
+    expect(await run(model)).toMatchObject({ engineModel: model, alias: false, status: "exact" });
+  });
+
+  it.each(["small", "copilot/opus", "auto"])("fails pure alias %s with catalog_unavailable", async model => {
+    await expect(run(model)).rejects.toMatchObject({ reason: "catalog_unavailable", message: `model-catalog retrieval prevented alias resolution for '${model}'` });
+  });
+
+  it("keeps the with-AWF rule: incomplete discovery fails an alias that is also a model id", async () => {
+    await expect(run("copilot/gpt-5-mini", { AWF_REFLECT_ENABLED: "1" })).rejects.toMatchObject({ reason: "catalog_unavailable" });
+  });
+
+  it("reads the merged alias map from GH_AW_MODEL_ALIASES", () => {
+    expect(loadModelAliasMap({ env: { GH_AW_MODEL_ALIASES: '{"opus":["anthropic/claude-opus-4-7"]}', GH_AW_AWF_CONFIG_PATH: "/nonexistent" } })).toEqual({ opus: ["anthropic/claude-opus-4-7"] });
   });
 });

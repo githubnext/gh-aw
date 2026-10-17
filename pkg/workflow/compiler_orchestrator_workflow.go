@@ -166,6 +166,14 @@ func (c *Compiler) validateWorkflowModelAliasMap(ctx *workflowBuildContext) erro
 	if ctx.workflowData.EngineConfig != nil {
 		engineModel = ctx.workflowData.Model
 	}
+	// Imported alias maps get the same key and entry checks as the main workflow's.
+	if ctx.engineSetup != nil && ctx.engineSetup.importsResult != nil {
+		for _, imported := range ctx.engineSetup.importsResult.MergedModels {
+			if err := c.validateUserModelAliases(imported, ctx.cleanPath); err != nil {
+				return err
+			}
+		}
+	}
 	return c.validateModelAliasMap(ctx.workflowData.ModelMappings, extractMainModelAliases(ctx.frontmatter.Frontmatter), engineModel, ctx.cleanPath)
 }
 

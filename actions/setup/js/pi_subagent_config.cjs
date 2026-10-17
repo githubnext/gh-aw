@@ -44,11 +44,12 @@ function readPiSubagents(agentDir, sdk) {
  * Resolve each sub-agent's model with the shared "resolve configured model" step,
  * limited to the parent's provider. Pass `reflectData` (the live /reflect catalogue)
  * or an explicit `catalog`; without either, aliases fail with catalog_unavailable.
+ * Set `noCatalog` when no catalogue can exist (AWF disabled) so bundled model ids pass through.
  *
- * @param {{agentDir: string, sdk: any, provider: string, catalog?: string[], reflectData?: any, gateway: boolean, parentModel: string, logger?: (message: string) => void, env?: NodeJS.ProcessEnv}} options
+ * @param {{agentDir: string, sdk: any, provider: string, catalog?: string[], reflectData?: any, noCatalog?: boolean, gateway: boolean, parentModel: string, logger?: (message: string) => void, env?: NodeJS.ProcessEnv}} options
  */
 function preparePiSubagents(options) {
-  const { agentDir, sdk, provider, catalog, reflectData, gateway, parentModel, logger = () => {}, env = process.env } = options;
+  const { agentDir, sdk, provider, catalog, reflectData, noCatalog, gateway, parentModel, logger = () => {}, env = process.env } = options;
   let aliases;
   try {
     aliases = JSON.parse(env.GH_AW_PI_MODEL_ALIASES || "{}");
@@ -66,7 +67,7 @@ function preparePiSubagents(options) {
     if (slash >= 0 && aliasProvider(base.slice(0, slash)) !== scopedProvider) throw new Error(`Pi sub-agent "${agent.name}" model "${requested}" uses a different provider than ${provider}`);
     let resolution;
     try {
-      resolution = resolveConfiguredModel({ configuredModel: requested, aliasMap: aliases, reflectData, catalog, provider: scopedProvider, logger });
+      resolution = resolveConfiguredModel({ configuredModel: requested, aliasMap: aliases, reflectData, catalog, noCatalog, provider: scopedProvider, logger });
     } catch (error) {
       if (!(error instanceof ModelAliasResolutionError)) throw error;
       recordModelResolution({ engine: "pi", role: agent.name, configured_model: requested, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason }, env);

@@ -407,6 +407,34 @@ function isLiveModelId(modelId, catalog) {
   });
 }
 
+/** @type {Set<string>|null} */
+let bundledModelIds = null;
+
+/**
+ * Whether `modelId` (no provider prefix, no parameters) is listed, under any provider, in
+ * the bundled model catalogue (`models.json`, shipped with the setup action). This is the
+ * "plausible model id" test used when no `/reflect` catalogue can exist: a name such as
+ * `gpt-5-mini` is a model id there, while a pure alias such as `small`, `opus` or `auto`
+ * is not.
+ * @param {string} modelId
+ * @returns {boolean}
+ */
+function isBundledModelId(modelId) {
+  if (!modelId) return false;
+  if (!bundledModelIds) {
+    bundledModelIds = new Set();
+    try {
+      const providers = JSON.parse(fs.readFileSync(path.join(__dirname, "models.json"), "utf8"))?.providers || {};
+      for (const section of Object.values(providers)) {
+        for (const id of Object.keys(section?.models || {})) bundledModelIds.add(id.toLowerCase());
+      }
+    } catch {
+      // No bundled catalogue: nothing counts as a plausible model id.
+    }
+  }
+  return bundledModelIds.has(modelId.toLowerCase());
+}
+
 /**
  * @typedef {{
  *   configuredModel: string,
@@ -428,6 +456,10 @@ function isLiveModelId(modelId, catalog) {
  *   an alias has the same name (for example `gpt-5-mini`); the alias map is used only when
  *   there is no exact live match;
  * - `?effort=` and other parameters carry through.
+ * - when no `/reflect` catalogue can exist on this run (`noCatalog`, set when AWF is
+ *   disabled), a value whose id is listed in the bundled model catalogue
+ *   (`isBundledModelId`) is exact and passes through even when an alias has the same
+ *   name; any other alias fails with catalog_unavailable.
  *
  * `resolvedModel` keeps the configured form: a provider-prefixed alias resolves to a
  * provider-prefixed id, a provider-scoped bare alias resolves to a bare id, and an
@@ -440,6 +472,7 @@ function isLiveModelId(modelId, catalog) {
  *   catalog?: string[],
  *   provider?: string,
  *   preserveAuto?: boolean,
+ *   noCatalog?: boolean,
  *   logger?: (msg: string) => void,
  *   logPrefix?: string,
  * }} options
@@ -462,6 +495,11 @@ function resolveConfiguredModel(options) {
     return exact;
   }
   if (options.preserveAuto && aliasKey.toLowerCase() === "auto") {
+    return exact;
+  }
+  if (options.noCatalog && isBundledModelId(aliasKey)) {
+    // No live catalogue can exist (AWF disabled): a bundled model id stays exact.
+    logger(`${logPrefix}: no live catalogue on this run; '${configuredModel}' is a bundled model id${scope ? ` (provider=${scope})` : ""}; passing it through as exact`);
     return exact;
   }
 
@@ -539,7 +577,7 @@ async function resolveConfiguredModelWithRefresh(options) {
     logger(`${logPrefix}: retrying awf-reflect model-catalog fetch once before failing for '${err.configuredModel}'`);
     const refreshedReflectData = options.refetchReflectData ? await options.refetchReflectData() : null;
     try {
-      return { ...resolveConfiguredModel({ ...options, reflectData: refreshedReflectData }), reflectData: refreshedReflectData };
+      return { ...resolveConfiguredModel({ ...options, reflectData: refreshedReflectData, noCatalog: options.noCatalog && !refreshedReflectData }), reflectData: refreshedReflectData };
     } catch (retryErr) {
       if (!(retryErr instanceof ModelAliasResolutionError)) throw retryErr;
       throw err.reason === "model_unavailable" ? err : retryErr;
@@ -547,8 +585,12 @@ async function resolveConfiguredModelWithRefresh(options) {
   }
 }
 
+/** Environment variable the compiler sets on every engine step with the merged alias map. */
+const MODEL_ALIASES_ENV_VAR = "GH_AW_MODEL_ALIASES";
+
 /**
- * Load the merged alias map: an explicit environment variable, then the AWF config
+ * Load the merged alias map: an explicit environment variable, then `GH_AW_MODEL_ALIASES`
+ * (set by the compiler on every engine step, with or without AWF), then the AWF config
  * written by the compiler (`apiProxy.models`), then `/reflect` `model_aliases`.
  * @param {{ reflectData?: any, env?: NodeJS.ProcessEnv, envVar?: string }} [options]
  * @returns {Record<string, string[]>|null}
@@ -556,12 +598,13 @@ async function resolveConfiguredModelWithRefresh(options) {
 function loadModelAliasMap(options = {}) {
   const env = options.env || process.env;
   const isMap = value => value && typeof value === "object" && !Array.isArray(value);
-  if (options.envVar && env[options.envVar]) {
+  for (const envVar of [options.envVar, MODEL_ALIASES_ENV_VAR]) {
+    if (!envVar || !env[envVar]) continue;
     try {
-      const parsed = JSON.parse(String(env[options.envVar]));
+      const parsed = JSON.parse(String(env[envVar]));
       if (isMap(parsed)) return parsed;
     } catch {
-      // Fall through to the AWF config.
+      // Fall through to the next source.
     }
   }
   try {
@@ -622,6 +665,9 @@ function recordModelResolution(record, env = process.env) {
  * Engine-specific handling (prefix checks, CLI id overrides, `auto`) runs after
  * resolution through `normalize`, which returns the model handed to the CLI.
  *
+ * `noCatalog` defaults to true when AWF is disabled (`AWF_REFLECT_ENABLED` is not "1")
+ * and neither `/reflect` data nor a catalogue is supplied.
+ *
  * @param {Omit<Parameters<typeof resolveConfiguredModel>[0], "aliasMap"> & {
  *   aliasMap?: Record<string, string[]>|null,
  *   engine: string,
@@ -639,12 +685,14 @@ async function resolveEngineModel(options) {
   const role = options.role || "main";
   const configuredModel = String(options.configuredModel || "").trim();
   const aliasMap = options.aliasMap !== undefined ? options.aliasMap : loadModelAliasMap({ reflectData: options.reflectData, env });
+  // Without AWF no /reflect catalogue can exist; an explicit catalogue or /reflect data overrides.
+  const noCatalog = options.noCatalog ?? (env.AWF_REFLECT_ENABLED !== "1" && !options.reflectData && !Array.isArray(options.catalog));
   const record = (/** @type {any} */ fields) => {
     if (options.record !== false) recordModelResolution({ engine: options.engine, role, configured_model: configuredModel, ...fields }, env);
   };
   let result;
   try {
-    result = await resolveConfiguredModelWithRefresh({ ...options, aliasMap });
+    result = await resolveConfiguredModelWithRefresh({ ...options, aliasMap, noCatalog });
   } catch (err) {
     if (err instanceof ModelAliasResolutionError) {
       logger(`model resolution: engine=${options.engine} role=${role} configured=${configuredModel} failed cause=${err.reason}: ${err.message}`);
@@ -663,9 +711,11 @@ module.exports = {
   buildProviderCatalog,
   canonicalModelProvider,
   globMatch,
+  isBundledModelId,
   isLiveModelId,
   loadModelAliasMap,
   mergeParams,
+  MODEL_ALIASES_ENV_VAR,
   MODEL_RESOLUTION_RECORD_PATH,
   ModelAliasResolutionError,
   normalizeForCopilotCLI,

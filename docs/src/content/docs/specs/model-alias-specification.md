@@ -535,6 +535,9 @@ Resolution runs at runtime, in the engine harness, before the harness launches t
 4. Parameters such as `?effort=` carry through as in Section 8.5.
 5. `auto` keeps each engine's own meaning (a Copilot gateway sentinel on Pi and Codex, Claude's own selection on Claude).
 6. When an alias does not resolve, the step fails before the engine starts with cause `model_unavailable`. When the catalogue is incomplete (`models_fetch_complete` is not true, or the provider has no model list), the step refetches `/reflect` once; exact ids still pass through, and aliases fail with `catalog_unavailable`. A value that is both an alias name and a model id counts as an alias here, because the incomplete catalogue cannot show that the id is live.
+7. When no catalogue can exist on the run (AWF is disabled with `sandbox.agent: false`, so `AWF_REFLECT_ENABLED` is not `1`), a value whose id, after removing its provider prefix and parameters, is listed under any provider in the bundled model catalogue (`actions/setup/js/models.json`, a copy of `pkg/cli/data/models.json`) is a plausible model id: it is exact and passes through unchanged, even when an alias has the same name (for example `copilot/gpt-5.4`, `gpt-5-mini`, `gpt-5.5`, `gpt-5`). Any other alias, such as `small` or `opus`, fails with `catalog_unavailable`; `auto` keeps rule 5. Rules 3 and 6 apply unchanged when AWF is enabled.
+
+The compiler passes the merged alias map to every harness in the `GH_AW_MODEL_ALIASES` step environment variable (`GH_AW_PI_MODEL_ALIASES` on Pi), with or without AWF, so the unsandboxed path resolves workflow-defined and imported aliases too.
 
 The harness logs the configured and resolved model and writes a runner record to `agent/model-resolution.json`, projected into the unified session as `model.resolution`. Engines without the shared step (Gemini and declarative engines) receive the configured model unchanged, and the compiler warns when such an engine is given an alias.
 
@@ -654,6 +657,8 @@ At compile time, an implementation MUST:
 - **V-MAF-004**: Reject glob patterns used in `engine.model` (glob patterns are valid only in alias list entries).
 - **V-MAF-005**: Reject alias keys that contain `/`, `?`, or `&`.
 - **V-MAF-006**: Reject any model identifier segment that contains a character outside the allowed set defined in Section 4.1. The implementation MUST name the offending character and the segment type (provider, model, alias, parameter key, or parameter value) in the error message.
+
+The alias key and entry rules (V-MAF-001 to V-MAF-006, and V-MAF-011) apply equally to the main workflow's `models:` aliases and to each imported workflow's.
 
 ### 11.2 Semantic Validation
 

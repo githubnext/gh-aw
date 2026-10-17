@@ -272,3 +272,20 @@ func engineRunsSharedModelResolution(engineID string) bool {
 	}
 	return false
 }
+
+// modelAliasesEnvVar carries the merged alias map to the engine harness (see
+// MODEL_ALIASES_ENV_VAR in resolve_model_alias.cjs). It is set on every engine step,
+// with or without AWF, so the unsandboxed path resolves workflow-defined aliases too.
+const modelAliasesEnvVar = "GH_AW_MODEL_ALIASES"
+
+// applyModelAliasesEnv sets modelAliasesEnvVar to the merged alias map as JSON.
+func applyModelAliasesEnv(env map[string]string, data *WorkflowData) {
+	if data == nil || len(data.ModelMappings) == 0 {
+		return
+	}
+	aliases, err := json.Marshal(data.ModelMappings)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: cannot encode model aliases: %v", err))
+	}
+	env[modelAliasesEnvVar] = string(aliases)
+}

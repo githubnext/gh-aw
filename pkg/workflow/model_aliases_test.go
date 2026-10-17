@@ -425,3 +425,36 @@ func TestMainWorkflowAliasOverridesBuiltin(t *testing.T) {
 	merged := MergeImportedModelAliases([]map[string][]string{{"opus": {"copilot/imported-opus"}}}, map[string][]string{"opus": {"copilot/claude-opus-5*"}})
 	assert.Equal(t, []string{"copilot/claude-opus-5*"}, merged["opus"], "main workflow alias wins over built-in and imported aliases")
 }
+
+// TestModelAliasesEnvWithoutAWF verifies that the merged alias map reaches the harness through
+// GH_AW_MODEL_ALIASES even when AWF is disabled, so native Claude with a workflow-defined
+// `opus` resolves the workflow's pin instead of launching Claude Code's own `opus`.
+func TestModelAliasesEnvWithoutAWF(t *testing.T) {
+	lock, _ := compileModelAliasWorkflow(t, "engine: claude\nstrict: false\nfeatures:\n  dangerously-disable-sandbox-agent: true\nsandbox:\n  agent: false\nmodel: opus\nmodels:\n  opus: [\"anthropic/claude-opus-4-7\"]\n")
+	assert.NotContains(t, lock, "awf-config.json", "the unsandboxed path has no AWF config")
+	require.Contains(t, lock, "GH_AW_MODEL_ALIASES: '{")
+	assert.Contains(t, lock, `"opus":["anthropic/claude-opus-4-7"]`, "the workflow's opus pin must reach the harness without AWF")
+}
+
+// TestImportedModelAliasValidation verifies that imported alias maps get the same V-MAF key
+// and entry checks as the main workflow's.
+func TestImportedModelAliasValidation(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		models string
+		want   string
+	}{
+		{name: "invalid key", models: "  'bad/name': [\"copilot/gpt-5.6-sol\"]\n", want: "V-MAF-005"},
+		{name: "invalid effort", models: "  fast: [\"copilot/gpt-5.6-sol?effort=bogus\"]\n", want: "V-MAF-002"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte("---\nmodels:\n"+tt.models+"---\n\n# Shared\n"), 0o600))
+			path := filepath.Join(dir, "workflow.md")
+			require.NoError(t, os.WriteFile(path, []byte("---\non: workflow_dispatch\npermissions:\n  contents: read\nengine: copilot\nimports:\n  - shared.md\n---\n\n# Test\n"), 0o600))
+			err := NewCompiler().CompileWorkflow(path)
+			require.Error(t, err, "an invalid imported alias map must fail compilation")
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}

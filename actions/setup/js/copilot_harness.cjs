@@ -99,7 +99,7 @@ const { recordAWFModelRoutingOutcome } = require("./awf_model_routing.cjs");
 const COPILOT_ROUTING_POLICY = getAWFModelRoutingPolicy("copilot");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
-const { resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
+const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
 const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
@@ -492,7 +492,7 @@ async function applyCopilotModelAliasResolution(options) {
       engine: "copilot",
       role: "main",
       configuredModel,
-      aliasMap: aliasMap ?? null,
+      aliasMap: aliasMap ?? loadModelAliasMap({ reflectData: options.awfReflectData }),
       reflectData: options.awfReflectData,
       refetchReflectData: options.refetchReflectData,
       logPrefix: "copilot model alias resolution",
