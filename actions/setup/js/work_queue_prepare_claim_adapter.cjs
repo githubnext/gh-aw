@@ -7,6 +7,7 @@ const path = require("path");
 const { normalizeAssignment, normalizeClaimScope, readClaimScopeContext, withClaimExecution, assertClaimAuthorized, claimArtifactPath, assertClaimArtifactDirectory } = require("./work_queue_claim_scope.cjs");
 const { validateAdapter, preparedAdapterPath } = require("./work_queue_claim_adapters.cjs");
 const { parseStrictJSON } = require("./work_queue_codec.cjs");
+const { resolveRepositoryTarget } = require("./work_queue_effect_resource.cjs");
 
 async function prepareAdapterContext(options) {
   const assignment = normalizeAssignment(options.assignment);
@@ -27,16 +28,11 @@ async function prepareAdapterContext(options) {
       }
     }
     if (!messages.length) return { active: false, claim_handle: member.handle };
-    await assertClaimAuthorized(
-      { type: "work_queue_adapter_prepare", claim_handle: member.handle, repo: adapter["target-repo"] },
-      {
-        authorize: options.authorize,
-        github: options.github,
-        context: options.context,
-        requireCompletion: false,
-        resource: { repository: adapter["target-repo"] },
-      }
-    );
+    const message = { type: "work_queue_adapter_prepare", claim_handle: member.handle, repo: adapter["target-repo"] };
+    const authorization = { authorize: options.authorize, github: options.github, context: options.context, requireCompletion: false };
+    await assertClaimAuthorized(message, authorization);
+    const resource = await resolveRepositoryTarget(options.github || global.github, { repository: adapter["target-repo"] });
+    await assertClaimAuthorized(message, { ...authorization, resource });
     const directory = claimArtifactPath(options.artifactRoot || "/tmp/gh-aw", member.handle);
     fs.mkdirSync(path.join(directory, "adapters"), { recursive: true, mode: 0o700 });
     assertClaimArtifactDirectory(directory);

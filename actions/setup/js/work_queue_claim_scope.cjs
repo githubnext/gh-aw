@@ -300,7 +300,9 @@ async function withClaimResourceEffects(resources, operations, callback) {
   if (
     !Array.isArray(resources) ||
     resources.length < 1 ||
-    resources.length > 128 ||
+    // Concrete file targets share the native commit/tree path bound, not the
+    // separate 128-selector limit on immutable Work resource_scope declarations.
+    resources.length > 4096 ||
     !Array.isArray(operations) ||
     operations.length < 1 ||
     operations.length > 16 ||
