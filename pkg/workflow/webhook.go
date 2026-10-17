@@ -82,13 +82,15 @@ type WebhookDispatch struct {
 	MaxRequestBytes int            `json:"max_request_bytes"`
 }
 
-// WebhookSubscription is a versioned, self-contained CAO subscription.
+// WebhookSubscription is the compiler's versioned filter and routing declaration.
 type WebhookSubscription struct {
 	SchemaVersion int                `json:"schema_version"`
 	Event         string             `json:"event"`
 	Types         []string           `json:"types"`
 	Conditions    []WebhookCondition `json:"conditions"`
-	Dispatch      WebhookDispatch    `json:"dispatch"`
+	// AnyOf requires a complete group to match, in addition to Conditions.
+	AnyOf    [][]WebhookCondition `json:"any_of,omitempty"`
+	Dispatch WebhookDispatch      `json:"dispatch"`
 }
 
 // WebhookCatalog returns an independent copy of the embedded event catalog.
@@ -137,31 +139,43 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	}
 	subscriptions := make([]WebhookSubscription, 0, len(events))
 	for _, name := range sortedWebhookKeys(events) {
-		path := paths[name]
 		definition, known := catalog[name]
 		if !known {
-			return nil, fmt.Errorf("missing embedded webhook catalog event %q for %s", name, path)
+			return nil, fmt.Errorf("missing embedded webhook catalog event %q for %s", name, paths[name])
 		}
-		config, ok := events[name].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("%s must be an object with optional types and filters", path)
-		}
-		for _, key := range sortedWebhookKeys(config) {
-			if key != "types" && key != "filters" {
-				return nil, fmt.Errorf("unsupported %s property %q; use types or filters", path, key)
-			}
-		}
-		types, err := parseWebhookTypes(config, path, definition.Actions)
+		subscription, err := parseWebhookSubscription(events[name], paths[name], name, workflowID, definition)
 		if err != nil {
 			return nil, err
 		}
-		conditions, err := parseWebhookConditions(config, path, types, definition)
-		if err != nil {
-			return nil, err
-		}
-		subscriptions = append(subscriptions, newWebhookSubscription(workflowID, name, types, conditions))
+		subscriptions = append(subscriptions, subscription)
 	}
 	return subscriptions, nil
+}
+
+func parseWebhookSubscription(raw any, path, event, workflowID string, definition WebhookEvent) (WebhookSubscription, error) {
+	config, ok := raw.(map[string]any)
+	if !ok {
+		return WebhookSubscription{}, fmt.Errorf("%s must be an object", path)
+	}
+	for _, key := range sortedWebhookKeys(config) {
+		supported := key == "types" || key == "filters" || (event == "projects_v2_item" && key == "status-transitions")
+		if !supported {
+			return WebhookSubscription{}, fmt.Errorf("unsupported %s property %q", path, key)
+		}
+	}
+	types, err := parseWebhookTypes(config, path, definition.Actions)
+	if err != nil {
+		return WebhookSubscription{}, err
+	}
+	conditions, err := parseWebhookConditions(config, path, types, definition)
+	if err != nil {
+		return WebhookSubscription{}, err
+	}
+	subscription := newWebhookSubscription(workflowID, event, types, conditions)
+	if err := applyWebhookStatusTransitions(&subscription, config, definition); err != nil {
+		return WebhookSubscription{}, err
+	}
+	return subscription, nil
 }
 
 func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]string, error) {
@@ -173,37 +187,95 @@ func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]str
 			continue
 		}
 		event := webhookTriggerAliases[alias]
-		if raw == nil {
-			raw = map[string]any{}
+		config, ok := raw.(map[string]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("on.%s must be an object with a required project_id", alias)
 		}
-		events[event] = raw
+		if _, exists := config["project_id"]; !exists {
+			return nil, nil, fmt.Errorf("on.%s.project_id is required", alias)
+		}
+		config, err := promoteWebhookFilters(config, "on."+alias, "project_id")
+		if err != nil {
+			return nil, nil, err
+		}
+		events[event] = config
 		paths[event] = "on." + alias
 	}
 	if raw, exists := onMap["security-alert"]; exists {
 		config, ok := raw.(map[string]any)
 		if !ok {
-			return nil, nil, errors.New("on.security-alert must be an object with a required type and optional types and filters")
+			return nil, nil, errors.New("on.security-alert must be an object with required sources and optional types, severity, and filters")
 		}
-		event, err := securityAlertEvent(config)
+		selected, err := securityAlertSourceEvents(config)
 		if err != nil {
 			return nil, nil, err
 		}
-		config = maps.Clone(config)
-		delete(config, "type")
-		events[event] = config
-		paths[event] = "on.security-alert"
+		config, err = promoteWebhookFilters(config, "on.security-alert", "severity")
+		if err != nil {
+			return nil, nil, err
+		}
+		delete(config, "sources")
+		for _, event := range selected {
+			events[event] = config
+			paths[event] = "on.security-alert"
+		}
 	}
 	return events, paths, nil
 }
 
-func securityAlertEvent(config map[string]any) (string, error) {
-	kind, ok := config["type"].(string)
-	if ok {
-		if event, supported := securityAlertEvents[kind]; supported {
-			return event, nil
-		}
+func securityAlertSourceEvents(config map[string]any) ([]string, error) {
+	sources, err := webhookStringValues(config["sources"], "on.security-alert.sources")
+	if err != nil {
+		return nil, err
 	}
-	return "", errors.New("on.security-alert.type must be one of: code-scanning, dependabot, secret-scanning")
+	events := make([]string, 0, len(sources))
+	for _, source := range sources {
+		event, supported := securityAlertEvents[source]
+		if !supported {
+			return nil, errors.New("on.security-alert.sources must select only code-scanning, dependabot, or secret-scanning")
+		}
+		events = append(events, event)
+	}
+	return events, nil
+}
+
+func promoteWebhookFilters(config map[string]any, path, field string) (map[string]any, error) {
+	config = maps.Clone(config)
+	filters := map[string]any{}
+	if raw, exists := config["filters"]; exists {
+		existing, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%s.filters must be an object", path)
+		}
+		maps.Copy(filters, existing)
+	}
+	if _, exists := filters[field]; exists {
+		return nil, fmt.Errorf("%s.filters.%s is not supported; use %s.%s beside types", path, field, path, field)
+	}
+	if raw, exists := config[field]; exists {
+		values, err := webhookStringValues(raw, path+"."+field)
+		if err != nil {
+			return nil, err
+		}
+		filters[field] = values
+		delete(config, field)
+	}
+	if len(filters) > 0 {
+		config["filters"] = filters
+	}
+	return config, nil
+}
+
+func webhookStringValues(raw any, path string) ([]string, error) {
+	if text, ok := raw.(string); ok {
+		raw = []string{text}
+	}
+	values, err := webhookStringList(raw)
+	if err != nil || len(values) == 0 || slices.ContainsFunc(values, func(value string) bool { return strings.TrimSpace(value) == "" }) {
+		return nil, fmt.Errorf("%s must be a non-empty string or a non-empty list of non-empty strings", path)
+	}
+	sort.Strings(values)
+	return slices.Compact(values), nil
 }
 
 func newWebhookSubscription(workflowID, event string, types []string, conditions []WebhookCondition) WebhookSubscription {

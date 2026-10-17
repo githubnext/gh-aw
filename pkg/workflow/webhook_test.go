@@ -11,11 +11,13 @@ import (
 
 func webhookTestOn(event string, config map[string]any) map[string]any {
 	if event == "projects_v2_item" {
-		return map[string]any{"projects-item": config}
+		project := map[string]any{"project_id": "PVT_example"}
+		maps.Copy(project, config)
+		return map[string]any{"projects-item": project}
 	}
 	for kind, name := range securityAlertEvents {
 		if event == name {
-			security := map[string]any{"type": kind}
+			security := map[string]any{"sources": []any{kind}}
 			maps.Copy(security, config)
 			return map[string]any{"security-alert": security}
 		}
@@ -35,11 +37,11 @@ func TestWebhookSubscriptionValidation(t *testing.T) {
 		{"scalar types", "projects_v2_item", map[string]any{"types": "edited"}, "non-empty list"},
 		{"unsupported property", "projects_v2_item", map[string]any{"filter": map[string]any{}}, "unsupported on.projects-item"},
 		{"labels require hydration", "projects_v2_item", map[string]any{"filters": map[string]any{"labels": []any{"bug"}}}, "unsupported filter"},
-		{"wrong identifier type", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": 123}}, "expected string"},
-		{"expression is not literal", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": "${{ github.repository }}"}}, "must be literals"},
-		{"null value", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": nil}}, "expected string"},
-		{"empty values", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": []any{}}}, "must not be empty"},
-		{"mixed types", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": []any{"PVT_1", true}}}, "expected string"},
+		{"wrong identifier type", "projects_v2_item", map[string]any{"project_id": 123}, "non-empty string"},
+		{"expression is not literal", "projects_v2_item", map[string]any{"project_id": "${{ github.repository }}"}, "must be literals"},
+		{"null value", "projects_v2_item", map[string]any{"project_id": nil}, "non-empty string"},
+		{"empty values", "projects_v2_item", map[string]any{"project_id": []any{}}, "non-empty list"},
+		{"mixed types", "projects_v2_item", map[string]any{"project_id": []any{"PVT_1", true}}, "non-empty string"},
 		{"empty nested filter", "projects_v2_item", map[string]any{"filters": map[string]any{"field": map[string]any{}}}, "empty object"},
 		{"dotted filter", "projects_v2_item", map[string]any{"filters": map[string]any{"field.name": "Status"}}, "nested filters"},
 		{"scalar filters", "projects_v2_item", map[string]any{"filters": true}, "filters must be an object"},
@@ -71,12 +73,10 @@ func TestWebhookRejectsRemovedFrontmatter(t *testing.T) {
 
 func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 	on := webhookTestOn("projects_v2_item", map[string]any{
-		"types": []any{"edited", "created", "edited"},
-		"filters": map[string]any{
-			"project_id": []any{"PVT_b", "PVT_a", "PVT_a"},
-		},
+		"types":      []any{"edited", "created", "edited"},
+		"project_id": []any{"PVT_b", "PVT_a", "PVT_a"},
 	})
-	on["security-alert"] = map[string]any{"type": "dependabot"}
+	on["security-alert"] = map[string]any{"sources": "dependabot"}
 	first, err := ParseWebhookSubscriptions(on, "project-agent")
 	if err != nil {
 		t.Fatal(err)
@@ -148,11 +148,11 @@ func TestWebhookCatalogIntegrity(t *testing.T) {
 	}
 }
 
-func TestWebhookProjectTransitionConformance(t *testing.T) {
+func TestWebhookSyntheticProjectTransitionPredicates(t *testing.T) {
 	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("projects_v2_item", map[string]any{
-		"types": []any{"edited"},
+		"types":      []any{"edited"},
+		"project_id": "PVT_example",
 		"filters": map[string]any{
-			"project_id": "PVT_example",
 			"field": map[string]any{
 				"name": "Status",
 				"from": map[string]any{"name": "Todo"},
@@ -194,6 +194,15 @@ func TestWebhookProjectTransitionConformance(t *testing.T) {
 			if err := json.Unmarshal(fixture, &payload); err != nil {
 				t.Fatal(err)
 			}
+			if matchWebhookContract(subscriptions[0], payload) {
+				t.Fatal("native Projects item deliveries do not supply transition operands")
+			}
+			// Synthetic operands exercise predicate semantics, not GitHub delivery compatibility.
+			payload["changes"] = map[string]any{"field_value": map[string]any{
+				"field_name": "Status",
+				"from":       map[string]any{"name": "Todo"},
+				"to":         map[string]any{"name": "Ready"},
+			}}
 			tt.change(payload)
 			if got := matchWebhookContract(subscriptions[0], payload); got != tt.match {
 				t.Fatalf("contract match = %v, want %v", got, tt.match)
@@ -312,7 +321,14 @@ func matchWebhookContract(sub WebhookSubscription, payload map[string]any) bool 
 			return false
 		}
 	}
-	return true
+	if len(sub.AnyOf) == 0 {
+		return true
+	}
+	return slices.ContainsFunc(sub.AnyOf, func(group []WebhookCondition) bool {
+		return len(group) > 0 && !slices.ContainsFunc(group, func(condition WebhookCondition) bool {
+			return !matchWebhookPath(payload, condition.Path, condition)
+		})
+	})
 }
 
 func matchWebhookPath(value any, path []string, condition WebhookCondition) bool {

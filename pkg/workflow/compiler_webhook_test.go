@@ -31,6 +31,7 @@ func TestCompileWebhookTriggers(t *testing.T) {
   push:
     branches: [main]
   projects-item:
+    project_id: PVT_example
     types: [edited]
 `), "webhook-test.md")
 	require.NoError(t, err)
@@ -76,9 +77,10 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	var frontmatter map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(`on:
   projects-item:
+    project_id: PVT_example
     types: [edited]
   security-alert:
-    type: dependabot
+    sources: [dependabot]
 `), &frontmatter))
 	original, err := json.Marshal(frontmatter)
 	require.NoError(t, err)
@@ -103,10 +105,11 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 		trigger string
 		event   string
 	}{
-		"projects-item":   {"  projects-item:\n", "projects_v2_item"},
-		"code-scanning":   {"  security-alert:\n    type: code-scanning\n", "code_scanning_alert"},
-		"dependabot":      {"  security-alert:\n    type: dependabot\n", "dependabot_alert"},
-		"secret-scanning": {"  security-alert:\n    type: secret-scanning\n", "secret_scanning_alert"},
+		"projects-item":      {"  projects-item:\n    project_id: PVT_example\n", "projects_v2_item"},
+		"status-transitions": {"  projects-item:\n    project_id: PVT_example\n    status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
+		"code-scanning":      {"  security-alert:\n    sources: [code-scanning]\n", "code_scanning_alert"},
+		"dependabot":         {"  security-alert:\n    sources: [dependabot]\n", "dependabot_alert"},
+		"secret-scanning":    {"  security-alert:\n    sources: [secret-scanning]\n", "secret_scanning_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := NewCompiler()
@@ -151,20 +154,31 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 
 func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 	tests := map[string]string{
+		"missing project ID": `  projects-item: {}`,
+		"nested project ID": `  projects-item:
+    filters:
+      project_id: PVT_example`,
+		"removed security type": `  security-alert:
+    type: dependabot`,
 		"removed general registration": `  webhook:
     not_a_github_event: {}`,
 		"removed auth": `  projects-item:
+    project_id: PVT_example
   webhook-auth:
     actors: ["cao[bot]"]`,
 		"invalid action": `  projects-item:
+    project_id: PVT_example
     types: [not_a_real_action]`,
 		"unknown filter": `  projects-item:
+    project_id: PVT_example
     filters:
       not-a-real-filter: test`,
 		"wrong filter type": `  projects-item:
+    project_id: PVT_example
     filters:
       item_database_id: "7"`,
 		"unavailable filter": `  projects-item:
+    project_id: PVT_example
     types: [created]
     filters:
       field:
@@ -172,25 +186,27 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 		"scalar event":   `  projects-item: true`,
 		"empty webhooks": `  webhook: {}`,
 		"unrestricted dispatch": `  repository_dispatch:
-  projects-item: {}`,
+  projects-item: {project_id: PVT_example}`,
 		"wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
-  projects-item: {}`,
+  projects-item: {project_id: PVT_example}`,
 		"colliding dispatch": `  repository_dispatch:
     types: ["` + WebhookDispatchEventType("webhook-test") + `"]
-  projects-item: {}`,
+  projects-item: {project_id: PVT_example}`,
 		"security wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
   security-alert:
-    type: dependabot`,
+    sources: [dependabot]`,
 		"security duplicate spelling": `  security-alert:
-    type: code-scanning
+    sources: [code-scanning]
   webhook:
     code_scanning_alert: {}`,
 		"duplicate spelling": `  projects-item:
+    project_id: PVT_example
   webhook:
     projects_v2_item: {}`,
 	}
+
 	for name, trigger := range tests {
 		t.Run(name, func(t *testing.T) {
 			compiler := NewCompiler()
@@ -198,6 +214,32 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestCompileWebhookNativeSelectors(t *testing.T) {
+	compiler := NewCompiler()
+	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
+  projects-item:
+    project_id: PVT_example
+    status-transitions:
+      - {from: Todo, to: Ready}
+      - {from: In progress, to: Done}
+  security-alert:
+    sources: [code-scanning, dependabot, secret-scanning]
+    types: [created]
+`), "native-selectors.md")
+	require.NoError(t, err)
+	require.Len(t, data.WebhookSubscriptions, 4)
+	project := data.WebhookSubscriptions[2]
+	assert.Equal(t, "projects_v2_item", project.Event)
+	assert.Equal(t, []string{"edited"}, project.Types)
+	require.Len(t, project.AnyOf, 2)
+	output, err := compiler.CompileToYAML(data, "native-selectors.md")
+	require.NoError(t, err)
+	assert.Contains(t, output, "any_of")
+	assert.NotContains(t, data.On, "status-transitions")
+	assert.NotContains(t, data.On, "security-alert")
+	assert.Equal(t, 1, strings.Count(output, "name: Validate webhook relay"))
 }
 
 func TestWebhookUsesStandardAuthorization(t *testing.T) {
@@ -209,7 +251,7 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := NewCompiler()
-			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  projects-item:\n"+policy), "webhook-test.md")
+			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  projects-item:\n    project_id: PVT_example\n"+policy), "webhook-test.md")
 			require.NoError(t, err)
 			output, err := compiler.CompileToYAML(data, "webhook-test.md")
 			require.NoError(t, err)
@@ -236,7 +278,7 @@ func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   repository_dispatch:
     types: [manual-operation]
-  projects-item: {}
+  projects-item: {project_id: PVT_example}
 `), "webhook-test.md")
 	require.NoError(t, err)
 	assert.Contains(t, data.On, "manual-operation")
@@ -247,14 +289,14 @@ func TestCompileMultipleWebhookSubscriptions(t *testing.T) {
 	compiler := NewCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   projects-item:
+    project_id: PVT_example
     types: [edited]
     filters:
-      project_id: PVT_example
       field:
         name: [Priority, Status]
       project_number: 7
   security-alert:
-    type: secret-scanning
+    sources: [secret-scanning]
     types: [created]
     filters:
       publicly_leaked: false

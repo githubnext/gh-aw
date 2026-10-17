@@ -147,8 +147,8 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 		if name == "" {
 			continue
 		}
-		if event, ok := firstClassWebhookEvent(name, onValue); ok {
-			eventSet[event] = struct{}{}
+		if events, ok := firstClassWebhookEvents(name, onValue); ok {
+			addEvents(events)
 			continue
 		}
 
@@ -191,21 +191,21 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 	return events
 }
 
-func firstClassWebhookEvent(name string, onValue any) (string, bool) {
+func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	if event, ok := webhookTriggerAliases[name]; ok {
-		return event, true
+		return []string{event}, true
 	}
 	if name != "security-alert" {
-		return "", false
+		return nil, false
 	}
 	on, ok := onValue.(map[string]any)
 	if !ok {
-		return "", false
+		return nil, false
 	}
 	config, ok := on[name].(map[string]any)
 	if !ok {
-		return "", false
+		return nil, false
 	}
-	event, err := securityAlertEvent(config)
-	return event, err == nil
+	events, err := securityAlertSourceEvents(config)
+	return events, err == nil
 }

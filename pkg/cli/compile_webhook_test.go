@@ -24,6 +24,7 @@ on:
   workflow_dispatch:
   bots: [cao-gateway]
   projects-item:
+    project_id: PVT_example
     types: [edited]
     filters:
       field:
@@ -50,7 +51,7 @@ Inspect github.event.client_payload.payload.
 	assert.Equal(t, "repository_dispatch", subscription.Dispatch.Method)
 	assert.Equal(t, workflow.WebhookDispatchEventType("webhook-test"), subscription.Dispatch.EventType)
 	assert.Equal(t, "github.event.client_payload.payload", subscription.Dispatch.Context.Payload)
-	require.Len(t, subscription.Conditions, 1)
+	require.Len(t, subscription.Conditions, 2)
 	assert.Equal(t, []string{"changes", "field_value", "field_name"}, subscription.Conditions[0].Path)
 	assert.Equal(t, "string", subscription.Conditions[0].ValueType)
 	assert.Equal(t, "equals", subscription.Conditions[0].Operator)
@@ -82,19 +83,22 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 		t.Run(tt.kind, func(t *testing.T) {
 			dir := testutil.TempDir(t, "security-webhook-compile-*")
 			path := filepath.Join(dir, "security-alerts.md")
+			selector := "    severity: " + tt.value
+			if tt.filter != "severity" {
+				selector = fmt.Sprintf("    filters:\n      %s: %s", tt.filter, tt.value)
+			}
 			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(`---
 on:
   security-alert:
-    type: %s
+    sources: [%s]
     types: [created]
-    filters:
-      %s: %s
+%s
 permissions:
   contents: read
 engine: copilot
 ---
 Triage the alert without logging secret values.
-`, tt.kind, tt.filter, tt.value)), 0600))
+`, tt.kind, selector)), 0600))
 			compiler := workflow.NewCompiler(workflow.WithNoEmit(true))
 			result := compileWorkflowFile(context.Background(), compiler, path, compileWorkflowFileOptions{
 				noEmit: true, jsonOutput: true,

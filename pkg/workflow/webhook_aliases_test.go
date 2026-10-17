@@ -24,7 +24,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.Equal(t, tt.event, webhookTriggerAliases[tt.alias])
 			config := map[string]any{
 				"types":   []any{tt.action},
-				"filters": map[string]any{tt.filter: tt.value},
+				tt.filter: tt.value,
 			}
 			on := map[string]any{
 				tt.alias: config,
@@ -37,14 +37,14 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.Len(t, got[0].Conditions, 1)
 			assert.Equal(t, tt.path, got[0].Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, got[0].Conditions[0].Values)
-			on[tt.alias] = nil
+			on[tt.alias] = map[string]any{"project_id": tt.value}
 			all, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
 			catalog, err := WebhookCatalog()
 			require.NoError(t, err)
 			require.Len(t, all, 1)
-			assert.ElementsMatch(t, catalog[tt.event].Actions, all[0].Types, "null selects all cataloged activity types")
-			assert.Empty(t, all[0].Conditions)
+			assert.ElementsMatch(t, catalog[tt.event].Actions, all[0].Types, "omitting types selects all cataloged activity types")
+			assert.Equal(t, got[0].Conditions, all[0].Conditions)
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
@@ -70,6 +70,9 @@ func TestFirstClassWebhookValidation(t *testing.T) {
 				"wrong value type": {map[string]any{"filters": map[string]any{"sender": false}}, "expected string"},
 			} {
 				t.Run(name, func(t *testing.T) {
+					if config, ok := tt.config.(map[string]any); ok {
+						config["project_id"] = "PVT_example"
+					}
 					_, err := ParseWebhookSubscriptions(map[string]any{
 						alias: tt.config,
 					}, "first-class")
@@ -97,11 +100,37 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 		}, "requires one of"},
 	} {
 		t.Run(tt.alias+"/"+tt.want, func(t *testing.T) {
+			tt.config["project_id"] = "PVT_example"
 			_, err := ParseWebhookSubscriptions(map[string]any{
 				tt.alias: tt.config,
 			}, "first-class")
 			require.ErrorContains(t, err, tt.want)
 			assert.Contains(t, err.Error(), "on."+tt.alias)
+		})
+	}
+
+}
+
+func TestFirstClassWebhookRequiresProjectID(t *testing.T) {
+	for name, config := range map[string]any{
+		"null trigger":      nil,
+		"empty trigger":     map[string]any{},
+		"types only":        map[string]any{"types": []any{"edited"}},
+		"nested ID only":    map[string]any{"filters": map[string]any{"project_id": "PVT_example"}},
+		"null ID":           map[string]any{"project_id": nil},
+		"empty ID":          map[string]any{"project_id": ""},
+		"blank ID":          map[string]any{"project_id": " \t"},
+		"numeric ID":        map[string]any{"project_id": 7},
+		"empty IDs":         map[string]any{"project_id": []any{}},
+		"blank list member": map[string]any{"project_id": []any{"PVT_example", " "}},
+		"mixed list":        map[string]any{"project_id": []any{"PVT_example", true}},
+		"nested ID alongside root": map[string]any{
+			"project_id": "PVT_example", "filters": map[string]any{"project_id": "PVT_other"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseWebhookSubscriptions(map[string]any{"projects-item": config}, "project-agent")
+			require.ErrorContains(t, err, "project_id")
 		})
 	}
 }

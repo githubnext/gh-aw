@@ -750,19 +750,57 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "projects-item": {
-              "$ref": "#/$defs/webhookTrigger",
-              "description": "Projects v2 item events (projects_v2_item), including field changes. Projects (classic) is not supported by this trigger."
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["project_id"],
+              "properties": {
+                "project_id": { "$ref": "#/$defs/webhookStringValues" },
+                "types": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": { "type": "string", "minLength": 1 }
+                },
+                "status-transitions": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["from", "to"],
+                    "properties": {
+                      "from": { "type": "string", "minLength": 1, "pattern": "\\S" },
+                      "to": { "type": "string", "minLength": 1, "pattern": "\\S" }
+                    }
+                  }
+                },
+                "filters": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "properties": { "project_id": false }
+                }
+              },
+              "description": "Projects v2 item events scoped to required project_id node IDs. Optional status-transitions match paired from/to Status names. Projects (classic) is not supported."
             },
             "security-alert": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["type"],
+              "required": ["sources"],
               "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": ["code-scanning", "dependabot", "secret-scanning"],
-                  "description": "Security alert source. Selects only the corresponding alert webhook, not related scan or location events."
+                "sources": {
+                  "oneOf": [
+                    { "type": "string", "enum": ["code-scanning", "dependabot", "secret-scanning"] },
+                    {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": { "type": "string", "enum": ["code-scanning", "dependabot", "secret-scanning"] }
+                    }
+                  ],
+                  "description": "Selected security alert sources. No related scan or location events are selected implicitly."
                 },
+                "severity": { "$ref": "#/$defs/webhookStringValues" },
                 "types": {
                   "type": "array",
                   "minItems": 1,
@@ -771,10 +809,11 @@
                 },
                 "filters": {
                   "type": "object",
-                  "minProperties": 1
+                  "minProperties": 1,
+                  "properties": { "severity": false }
                 }
               },
-              "description": "Security alert subscription selected by type, delivered through a trusted repository_dispatch relay."
+              "description": "Security alert subscriptions selected by sources, delivered through a trusted repository_dispatch relay."
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
@@ -14531,24 +14570,16 @@
     }
   ],
   "$defs": {
-    "webhookSubscription": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "types": {
+    "webhookStringValues": {
+      "oneOf": [
+        { "type": "string", "minLength": 1, "pattern": "\\S" },
+        {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
-        },
-        "filters": {
-          "type": "object",
-          "minProperties": 1
+          "items": { "type": "string", "minLength": 1, "pattern": "\\S" }
         }
-      }
-    },
-    "webhookTrigger": {
-      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/webhookSubscription" }]
+      ]
     },
     "work_queue_worker_profile": {
       "type": "object",
