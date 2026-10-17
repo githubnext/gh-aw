@@ -99,6 +99,18 @@ describe("Generated session schemas", () => {
     expect(validateSession(jsonl([header, unified({ type: "vendor.progress", data: { arbitrary: { body: false } } })]))).toBe(2);
   });
 
+  it("validates dependency job results with required IDs and native Actions outcomes", () => {
+    for (const result of ["success", "failure", "cancelled", "skipped"]) {
+      expect(validateSession(jsonl([header, unified({ type: "workflow.job_result", data: { jobId: "custom-job", result, durationMs: 0 } })]))).toBe(2);
+    }
+    for (const data of [{}, { jobId: "agent" }, { result: "success" }, { jobId: "", result: "success" }, { jobId: "bad id", result: "success" }, { jobId: "agent", result: "timed_out" }, { jobId: "agent", result: "success", outputs: {} }]) {
+      expect(() => validateSession(jsonl([header, unified({ type: "workflow.job_result", data })]))).toThrow("Invalid session event");
+    }
+    for (const durationMs of [-1, 0.5, "100"]) {
+      expect(() => validateSession(jsonl([header, unified({ type: "workflow.job_result", data: { jobId: "agent", result: "success", durationMs } })]))).toThrow("Invalid session event");
+    }
+  });
+
   it("validates optional caller context and episode lineage", () => {
     const canonical = {
       type: "workflow.info",
@@ -325,6 +337,21 @@ describe("Generated session schemas", () => {
     expect(() => validateSession(valid + "{PRIVATE_SECRET\n")).toThrow("line 2");
     expect(() => validateSession('{"events":[]}', "agent", "json")).toThrow("not a wrapper");
     expect(() => validateSession('[{"type":"session.result","data":{"durationMs":1e999}}]', "agent", "json")).toThrow("Invalid agent session");
+  });
+
+  it.each([" ", "\t", "\r", "\u00a0", "\ufeff", "\f", "\v", "\u1680", "\u2003", "\u2028", "\u2029", "\u202f", "\u205f", "\u3000"])("rejects outside-string whitespace on unified headers and events (%j)", whitespace => {
+    const records = [JSON.stringify(header), JSON.stringify(unified({ type: "assistant.message", data: { content: "safe" } }))];
+    for (const index of [0, 1]) {
+      for (const leading of [true, false]) {
+        const framed = records.map((record, position) => (position !== index ? record : leading ? whitespace + record : record + whitespace)).join("\n") + "\n";
+        expect(() => validateSession(framed)).toThrow(`Unified session JSONL must use compact JSON at line ${index + 1}`);
+      }
+    }
+  });
+
+  it("allows whitespace inside unified JSON strings, including escaped quotes and backslashes", () => {
+    const content = ' \t\r\n\f\v\u00a0\ufeff\u1680\u2003\u2028\u2029\u202f\u205f\u3000"\\ ';
+    expect(validateSession(jsonl([header, unified({ type: "assistant.message", data: { content } })]))).toBe(2);
   });
 
   it("does not expose private object keys in schema diagnostics", () => {

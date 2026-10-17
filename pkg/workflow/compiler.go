@@ -199,11 +199,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	if err := c.validateExpressionSizes(yamlContent); err != nil {
 		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", fmt.Sprintf("expression size validation failed: %v", err), err)
-		// Write the invalid YAML to a .invalid.yml file for inspection
-		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
-		}
+		c.writeInvalidWorkflowYAML(lockFile, yamlContent, "Invalid workflow YAML written to: ")
 		return "", nil, nil, formattedErr
 	}
 
@@ -293,11 +289,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			// Store error first so we can write invalid YAML before returning
 			formattedErr := formatCompilerErrorWithPosition(markdownPath, fieldLine, 1, "error",
 				fmt.Sprintf("invalid workflow: %v", schemaErr), schemaErr)
-			// Write the invalid YAML to a .invalid.yml file for inspection
-			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
-			}
+			c.writeInvalidWorkflowYAML(lockFile, yamlContent, "Invalid workflow YAML written to: ")
 			return "", nil, nil, formattedErr
 		}
 
@@ -465,14 +457,22 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		diagnosticErr := &threatDetectionDiagnosticError{Rule: "CTR-006", Err: templateErr}
 		// Store error first so we can write invalid YAML before returning
 		formattedErr := formatCompilerError(markdownPath, "error", diagnosticErr.Error(), diagnosticErr)
-		// Write the invalid YAML to a .invalid.yml file for inspection
-		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
-		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
-		}
+		c.writeInvalidWorkflowYAML(lockFile, yamlContent, "Workflow with template injection risks written to: ")
 		return formattedErr
 	}
 	return nil
+}
+
+func (c *Compiler) writeInvalidWorkflowYAML(lockFile, yamlContent, message string) {
+	if c.noEmit {
+		return
+	}
+	invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+	if err := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); err != nil {
+		workflowLog.Printf("Failed to write invalid workflow YAML: %v", err)
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(message+console.ToRelativePath(invalidFile)))
 }
 
 // readLockFileFromHEAD reads a lock file from git HEAD using the compiler's cached

@@ -13,10 +13,12 @@ function normalizeProbeValue(value) {
 
 /**
  * @param {unknown} value
+ * @param {string} fieldName
  * @returns {boolean}
  */
-function isTrivialProbeValue(value) {
-  return TRIVIAL_PROBE_VALUES.has(normalizeProbeValue(value));
+function isTrivialProbeValue(value, fieldName) {
+  const normalized = normalizeProbeValue(value);
+  return TRIVIAL_PROBE_VALUES.has(normalized) || normalized === `test ${fieldName}`;
 }
 
 /**
@@ -29,7 +31,7 @@ function isTrivialProbeValue(value) {
  * @returns {boolean}
  */
 function isProbingNoopMessage(message) {
-  return isTrivialProbeValue(message);
+  return isTrivialProbeValue(message, "message");
 }
 
 /**
@@ -39,7 +41,7 @@ function isProbingNoopMessage(message) {
 function looksLikeExploratoryBranch(value) {
   const branch = normalizeProbeValue(value);
   const hasProbeBranchMarker = /(^|[-/])probe([-/]|$)/.test(branch);
-  return branch.includes("test-from-main") || TRIVIAL_PROBE_VALUES.has(branch) || hasProbeBranchMarker;
+  return branch.includes("test-from-main") || isTrivialProbeValue(branch, "branch") || hasProbeBranchMarker;
 }
 
 /**
@@ -74,8 +76,8 @@ function validateCreatePullRequestIntent(entry) {
   const body = normalizeProbeValue(entry.body);
   const branch = normalizeProbeValue(entry.branch);
 
-  const looksLikeProbeTitle = TRIVIAL_PROBE_VALUES.has(title);
-  const looksLikeProbeBody = TRIVIAL_PROBE_VALUES.has(body);
+  const looksLikeProbeTitle = isTrivialProbeValue(title, "title");
+  const looksLikeProbeBody = isTrivialProbeValue(body, "body");
   const looksLikeTestFromMainBranch = branch.includes("test-from-main");
   const looksLikeProbeBranch = looksLikeExploratoryBranch(branch);
 
@@ -100,8 +102,10 @@ function validateCreatePullRequestIntent(entry) {
 function validateCreateIssueIntent(entry) {
   const rawResolvedTitle = resolveIssueTitleForValidation(entry);
   const body = normalizeProbeValue(entry.body);
+  const titleField = typeof entry.title === "string" && entry.title.trim() ? "title" : "body";
+  const looksLikeProbeTitle = isTrivialProbeValue(rawResolvedTitle, titleField);
 
-  if (isTrivialProbeValue(rawResolvedTitle) && (body === "" || isTrivialProbeValue(body))) {
+  if (looksLikeProbeTitle && (body === "" || isTrivialProbeValue(body, "body"))) {
     return (
       "Refusing to record an exploratory issue. " +
       "create_issue is for a real intended issue only and successful calls can lead to an externally visible issue. " +
@@ -120,7 +124,7 @@ function validateCreateIssueIntent(entry) {
  * @returns {string|null}
  */
 function validateAddCommentIntent(entry) {
-  if (isTrivialProbeValue(entry.body)) {
+  if (isTrivialProbeValue(entry.body, "body")) {
     return (
       "Refusing to record an exploratory comment. " +
       "add_comment is for a real intended comment only and successful calls can lead to an externally visible comment. " +
@@ -142,9 +146,9 @@ function validatePushToPullRequestBranchIntent(entry) {
   const branch = normalizeProbeValue(entry.branch);
   const looksLikeTestFromMainBranch = branch.includes("test-from-main");
   const looksLikeProbeBranch = looksLikeExploratoryBranch(branch);
-  const looksLikeProbeMessage = isTrivialProbeValue(entry.message);
+  const looksLikeProbeMessage = isTrivialProbeValue(entry.message, "message");
 
-  if (looksLikeTestFromMainBranch || TRIVIAL_PROBE_VALUES.has(branch) || (looksLikeProbeBranch && looksLikeProbeMessage)) {
+  if (looksLikeTestFromMainBranch || isTrivialProbeValue(branch, "branch") || (looksLikeProbeBranch && looksLikeProbeMessage)) {
     return (
       "Refusing to record an exploratory pull request branch update. " +
       "push_to_pull_request_branch is for a real intended PR update only and successful calls can lead to externally visible branch changes. " +

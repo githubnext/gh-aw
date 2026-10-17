@@ -118,7 +118,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	var bodyHash string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
-		cache := parser.NewImportCache(baseDir)
+		cache := c.getSharedImportCache()
 
 		// computeWorkflowHash calls the parsed-content path when RawMarkdown is
 		// available (fast path), falling back to a disk read otherwise.
@@ -251,7 +251,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	actions := CollectActionReferences(bodyContent)
 
 	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
-	if err := c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions); err != nil {
+	if err := c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions, repoConfig); err != nil {
 		return "", nil, nil, fmt.Errorf("workflow header rendering could not complete; ensure lockfile metadata inputs are valid: %w", err)
 	}
 

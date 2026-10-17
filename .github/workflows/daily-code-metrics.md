@@ -14,7 +14,9 @@ permissions:
   pull-requests: read
   copilot-requests: write
 tracker-id: daily-code-metrics
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
 model: copilot/auto
 sandbox:
   agent:

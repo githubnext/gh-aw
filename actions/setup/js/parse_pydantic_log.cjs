@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonlEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { stripVTControlCharacters } = require("node:util");
 const { createEngineLogParser, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
 const { createSessionEvent, isTokenCount } = require("./agent_session.cjs");
@@ -22,21 +23,22 @@ const ROLE = /^(?:[▌│]\s*)?(user|human|prompt|system|developer|assistant)\s*
  * @returns {import("./types/agent_session").SessionEvent[] | undefined}
  */
 function parseFramedSession(content) {
-  const lines = content.split(/\r?\n/);
-  const frameKey = lines.map(line => line.match(/^\x1eGH-AW-SESSION-KEY:([0-9a-f]{32})\x1e$/)?.[1]).find(Boolean);
+  let frameKey;
+  for (const line of iterateLines(content)) {
+    frameKey = line.match(/^\x1eGH-AW-SESSION-KEY:([0-9a-f]{32})\x1e$/)?.[1];
+    if (frameKey) break;
+  }
   if (!frameKey) return undefined;
   const types = new Set(["session.init", "user.message", "assistant.message", "assistant.reasoning", "tool.execution_start", "tool.execution_complete", "session.result"]);
   const isValidEnvelope = event => event && types.has(event.type) && event.data && typeof event.data === "object" && !Array.isArray(event.data);
   const records = [];
-  for (const line of lines) {
-    const frame = line.match(/^\x1eGH-AW-SESSION\/([0-9a-f]{32}) (\{.*\})$/);
-    if (!frame || frame[1] !== frameKey) continue;
-    try {
-      const event = JSON.parse(frame[2]);
-      if (isValidEnvelope(event)) records.push(event);
-    } catch {
-      // A truncated record must not hide adjacent observed events.
-    }
+  const prefix = `\x1eGH-AW-SESSION/${frameKey} `;
+  for (const event of iterateJsonlEvents(content, {
+    lineFilter: line => line.startsWith(prefix),
+    lineTransform: line => line.slice(prefix.length),
+  })) {
+    const raw = event.rawLine.replace(/\r?\n$/, "");
+    if (event.type === "json" && raw.startsWith(prefix + "{") && raw.endsWith("}") && isValidEnvelope(event.value)) records.push(event.value);
   }
   return JSON.parse(redactArtifactMaskedValues(JSON.stringify(records), collectAddMaskedValues(content))).filter(isValidEnvelope);
 }
@@ -61,7 +63,7 @@ function parsePydanticLog(content) {
   }
   /** @type {import("./types/agent_session").SessionEvent[]} */
   const logEntries = [];
-  const lines = redactMaskedValues(stripVTControlCharacters(content), collectAddMaskedValues(content)).split(/\r\n|\r|\n/);
+  const text = redactMaskedValues(stripVTControlCharacters(content), collectAddMaskedValues(content)).replace(/\r\n?/g, "\n");
   let recognized = false;
   let active = false;
   let userBlock = false;
@@ -90,7 +92,8 @@ function parsePydanticLog(content) {
     emit("assistant.message", { content: text });
   }
 
-  for (const sourceLine of lines) {
+  for (const entry of iterateJsonlEvents(iterateLines(text))) {
+    const sourceLine = entry.rawLine;
     // Rich's observed terminal-width padding is framing, unlike Markdown's
     // one/two trailing spaces and indentation within readable paragraphs.
     const line = sourceLine.replace(/[ \t]{3,}$/, "");
@@ -136,16 +139,14 @@ function parsePydanticLog(content) {
     }
     if (!fence && /^[{[]/.test(trimmed)) {
       flushText();
-      let raw;
-      try {
-        raw = JSON.parse(trimmed);
-      } catch {
+      if (entry.type === "invalid") {
         // An unrecognized multiline record may be an echoed prompt. Do not
         // consume its continuation as assistant text without a new boundary.
         active = false;
         userBlock = true;
         continue;
       }
+      const raw = entry.value;
       if (raw?.type === "result" && initialized) {
         const usage = {};
         for (const key of ["input_tokens", "output_tokens", "total_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"]) {

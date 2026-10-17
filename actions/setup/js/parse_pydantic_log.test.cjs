@@ -55,6 +55,9 @@ describe("Pydantic AI CLAI 2 session frames", () => {
         frame({ type: "assistant.message", data: ["PRIVATE_ARRAY"] }),
         frame({ type: "assistant.message", data: null }),
         `prefix ${frame(events[7])}`,
+        ` ${frame(events[7])}`,
+        `${frame(events[7])} `,
+        frame(events[7]).replace(`${frameKey} `, `${frameKey}  `),
         `\x1eGH-AW-SESSION/${frameKey} {"type":`,
         frame(events[8]),
       ].join("\n")

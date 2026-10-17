@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { isDeepStrictEqual } = require("node:util");
 const { createEngineLogParser, generateCopilotCliStyleSummary, buildStepSummaryDetailsSection } = require("./log_parser_shared.cjs");
 const { createSessionEvent, isSessionEvent, isTokenCount, isMetric, reconcileSessionUsage } = require("./agent_session.cjs");
@@ -60,7 +61,9 @@ function parseGooseLog(content) {
   let resultSource;
   let resultData;
 
-  for (const [index, line] of content.split(/\r?\n/).entries()) {
+  for (const event of iterateJsonlEvents(content)) {
+    const line = event.rawLine;
+    const index = event.lineNumber - 1;
     if (!line.trim().startsWith("{")) {
       const failure = line.match(/^(?:Warning:|[ \t]*⚠)\s*Failed to start extension '([^']+)'/);
       if (failure && !mcpFailures.has(failure[1])) {
@@ -69,13 +72,11 @@ function parseGooseLog(content) {
       }
       continue;
     }
-    let raw;
-    try {
-      raw = JSON.parse(line);
-    } catch {
+    if (event.type === "invalid") {
       logEntries.push({ type: "session.collection_warning", data: { code: "malformed_jsonl", line: index + 1 } });
       continue;
     }
+    const raw = event.value;
     if (isSessionEvent(raw)) {
       logEntries.push(structuredClone(raw));
       if (raw.type === "session.init") initialized = true;

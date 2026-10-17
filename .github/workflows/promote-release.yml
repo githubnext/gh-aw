@@ -74,6 +74,28 @@ jobs:
               return;
             }
 
+            let actionsRelease;
+            try {
+              ({ data: actionsRelease } = await github.rest.repos.getLatestRelease({
+                owner: 'github',
+                repo: 'gh-aw-actions',
+              }));
+            } catch (err) {
+              core.setFailed(
+                `Cannot verify the latest github/gh-aw-actions release: ${err.message}. ` +
+                `Manually publish "${version}" as a stable, latest release in github/gh-aw-actions first.`
+              );
+              return;
+            }
+
+            if (actionsRelease.tag_name !== version || actionsRelease.draft || actionsRelease.prerelease) {
+              core.setFailed(
+                `github/gh-aw-actions latest is "${actionsRelease.tag_name}", not the required stable release "${version}". ` +
+                `Manually publish "${version}" as a stable, latest release in github/gh-aw-actions first.`
+              );
+              return;
+            }
+
             core.info(`Found release: ${release.name || version} (id: ${release.id})`);
             if (!release.prerelease) {
               core.info(`ℹ️ "${version}" is already a non-prerelease; will still mark it as latest`);

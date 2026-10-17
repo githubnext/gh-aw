@@ -32,6 +32,7 @@
 
 "use strict";
 
+const { iterateJsonl, JsonlParser } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const { DEFAULT_MCP_CALL_WATCHDOG_MS, MCP_CALL_TRANSPORT_GRACE_MS } = require("./constants.cjs");
@@ -120,6 +121,7 @@ function resolveMCPServerToolTimeouts(config, runtimeToolTimeoutSeconds) {
 
 function createMCPCallWatchdog(timeoutMs, now = Date.now) {
   const pending = new Map();
+  const parser = new JsonlParser();
   function track(eventType, item) {
     if (item?.type !== "mcp_tool_call" || typeof item.id !== "string") return;
     if (eventType === "item.started") {
@@ -130,13 +132,14 @@ function createMCPCallWatchdog(timeoutMs, now = Date.now) {
   }
   return {
     observe(line) {
-      let event;
-      try {
-        event = JSON.parse(line);
-      } catch {
-        return;
+      let observed;
+      for (const entry of parser.push(line + "\n")) {
+        if (entry.type !== "json") continue;
+        const event = entry.value;
+        track(event?.type, event?.item);
+        observed = event;
       }
-      track(event?.type, event?.item);
+      return observed;
     },
     observePrefix(prefix) {
       const event = parseJsonPrefix(prefix);
@@ -318,15 +321,10 @@ function isInvalidRequestError(output) {
  * @returns {string | null}
  */
 function extractInvalidRequestErrorCode(output) {
-  for (const line of output.split(/\r?\n/)) {
-    try {
-      const event = JSON.parse(line);
-      if (event?.type !== "turn.failed" || !event.error) continue;
-      const match = JSON.stringify(event.error).match(INVALID_REQUEST_ERROR_PATTERN);
-      if (match) return match[0].toLowerCase();
-    } catch {
-      // Ignore non-JSON diagnostic lines.
-    }
+  for (const event of iterateJsonl(output)) {
+    if (event?.type !== "turn.failed" || !event.error) continue;
+    const match = JSON.stringify(event.error).match(INVALID_REQUEST_ERROR_PATTERN);
+    if (match) return match[0].toLowerCase();
   }
   return null;
 }
@@ -341,16 +339,12 @@ function extractInvalidRequestErrorCode(output) {
  * @returns {boolean}
  */
 function isUnsupportedModelToolsError(output) {
-  return output.split(/\r?\n/).some(line => {
-    try {
-      const event = JSON.parse(line);
-      if (event?.type !== "turn.failed" || !event.error) return false;
-      const details = extractNestedProviderErrorDetails(event.error);
-      return !!details && details.param === "tools" && details.code === "unknown_parameter";
-    } catch {
-      return false;
-    }
-  });
+  for (const event of iterateJsonl(output)) {
+    if (event?.type !== "turn.failed" || !event.error) continue;
+    const details = extractNestedProviderErrorDetails(event.error);
+    if (details?.param === "tools" && details.code === "unknown_parameter") return true;
+  }
+  return false;
 }
 
 /**
@@ -1012,15 +1006,13 @@ async function main() {
         stdin: resumeArgs ? resumePrompt : promptInput.stdin,
         maxCollectedOutputBytes: 4 * 1024 * 1024,
         onStdoutLine: line => {
-          mcpWatchdog.observe(line);
-          try {
-            const event = JSON.parse(line);
-            if (event.type === "thread.started" && typeof event.thread_id === "string") lastThreadId = event.thread_id;
-            if (event.type === "turn.failed" || event.type === "error") {
-              terminalErrors.push(line);
-              if (terminalErrors.length > 8) terminalErrors.shift();
-            }
-          } catch {}
+          const event = mcpWatchdog.observe(line);
+          if (!event) return;
+          if (event.type === "thread.started" && typeof event.thread_id === "string") lastThreadId = event.thread_id;
+          if (event.type === "turn.failed" || event.type === "error") {
+            terminalErrors.push(line);
+            if (terminalErrors.length > 8) terminalErrors.shift();
+          }
         },
         onStdoutLinePrefix: prefix => mcpWatchdog.observePrefix(prefix),
         runtimeGuard: {

@@ -212,6 +212,32 @@ Say Done.
 	assert.Zero(t, stats.Errors)
 }
 
+func TestDevelopmentCompileAllowsRestrictedBashShorthand(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "restricted-bash.md")
+	content := `---
+on: workflow_dispatch
+engine: copilot
+tools:
+  bash: ["echo"]
+excluded-env:
+  - OTEL_EXPORTER_OTLP_HEADERS
+---
+Say hello.
+`
+	require.NoError(t, os.WriteFile(source, []byte(content), 0600))
+	config := applyDevelopmentCompileMode(CompileConfig{
+		DryRun: true, activeModels: &activeModelInventory{},
+	})
+	compiler := createAndConfigureCompiler(config)
+	require.NoError(t, compiler.CompileWorkflow(source))
+	require.Zero(t, compiler.GetWarningCount())
+	stats := &CompilationStats{Total: 1, Succeeded: 1}
+	results := []ValidationResult{{Workflow: "restricted-bash.md", Valid: true}}
+	require.NoError(t, enforceDevelopmentDiagnostics(config, compiler, stats, &results))
+	assert.True(t, results[0].Valid)
+	assert.Zero(t, stats.Errors)
+}
+
 func TestDevelopmentExplicitlyDisabledChecks(t *testing.T) {
 	t.Parallel()
 	for _, name := range DryRunRequiredBoolFlags() {

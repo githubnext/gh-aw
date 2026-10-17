@@ -121,6 +121,30 @@ func TestCompileOptionsPropagateForceRefreshContainerPins(t *testing.T) {
 	}
 }
 
+func TestCompileReadOnlyOptions(t *testing.T) {
+	t.Parallel()
+	flag := compileCmd.Flags().Lookup("read-only")
+	if flag == nil || !flag.Hidden || flag.DefValue != "false" {
+		t.Fatal("expected hidden --read-only flag to default to false")
+	}
+	for _, readOnly := range []bool{false, true} {
+		cmd := &cobra.Command{}
+		cmd.Flags().Bool("read-only", false, "")
+		cmd.Flags().Bool("no-emit", false, "")
+		cmd.Flags().Bool("no-check-update", false, "")
+		if readOnly {
+			if err := cmd.ParseFlags([]string{"--read-only", "--no-emit=false", "--no-check-update=false"}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		opts := getCompileCmdOptions(cmd)
+		config := opts.toCompileConfig(nil)
+		if config.ReadOnly != readOnly || config.NoEmit != readOnly || opts.noCheckUpdate != readOnly {
+			t.Fatalf("read-only=%t must force no-emit and disable update checks: config=%+v, noCheckUpdate=%t", readOnly, config, opts.noCheckUpdate)
+		}
+	}
+}
+
 func TestCompileOptionsPropagateAllowExperimental(t *testing.T) {
 	t.Parallel()
 	flag := compileCmd.Flags().Lookup("allow-experimental")
@@ -170,6 +194,23 @@ func TestCompileOptionsPropagateRequireSelfHostedRunners(t *testing.T) {
 	config := (&compileCmdOptions{requireSelfHostedRunners: true}).toCompileConfig(nil)
 	if !config.RequireSelfHostedRunners {
 		t.Fatal("expected RequireSelfHostedRunners to be propagated to CompileConfig")
+	}
+}
+
+func TestCompileOptionsPropagateNoLogo(t *testing.T) {
+	t.Parallel()
+	flag := compileCmd.Flags().Lookup("no-logo")
+	if flag == nil || flag.DefValue != "false" {
+		t.Fatalf("expected --no-logo with default false, got %v", flag)
+	}
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("no-logo", false, "")
+	if err := cmd.ParseFlags([]string{"--no-logo"}); err != nil {
+		t.Fatal(err)
+	}
+	opts := getCompileCmdOptions(cmd)
+	if !opts.toCompileConfig(nil).NoLogo {
+		t.Fatal("expected --no-logo to be propagated to CompileConfig")
 	}
 }
 

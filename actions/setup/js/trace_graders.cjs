@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
@@ -71,18 +72,7 @@ function safeReadFile(filePath) {
  * @returns {any[]}
  */
 function safeParseJsonl(content) {
-  const results = [];
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.length > MAX_LINE_LENGTH) continue;
-    try {
-      results.push(JSON.parse(trimmed));
-    } catch {
-      continue;
-    }
-  }
-  return results;
+  return Array.from(iterateJsonl(content, { lineFilter: line => line.length <= MAX_LINE_LENGTH }));
 }
 
 /**

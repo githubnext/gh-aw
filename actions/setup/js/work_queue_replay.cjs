@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("replay");
+const { iterateLines, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 const { createHash } = require("node:crypto");
 const { deflateRawSync, inflateRawSync } = require("node:zlib");
@@ -1368,16 +1369,26 @@ function serializeProjection(state) {
   };
 }
 
+function* boundedTransactionLines(contents) {
+  let lineNumber = 0;
+  for (const rawLine of iterateLines(contents, true)) {
+    const line = rawLine.slice(0, -1);
+    lineNumber++;
+    if (!line.trim()) throw queueError("ledger_invalid", "empty or truncated log record");
+    if (Buffer.byteLength(line, "utf8") > 8 * 1024 * 1024) throw queueError("resource_limit", `commit line ${lineNumber} exceeds parser bound`);
+    yield rawLine;
+  }
+}
+
 function parseTransactionRecords(contents) {
   if (typeof contents !== "string" || Buffer.byteLength(contents, "utf8") > 80 * 1024 * 1024) throw queueError("resource_limit", "ledger exceeds cold parser bound");
   if (!contents || !contents.endsWith("\n")) throw queueError("ledger_invalid", "queue log must be nonempty and newline terminated");
-  const lines = contents.split("\n");
-  if (lines.at(-1) === "") lines.pop();
-  if (lines.some(line => !line.trim())) throw queueError("ledger_invalid", "empty or truncated log record");
-  return lines.map((line, index) => {
-    if (Buffer.byteLength(line, "utf8") > 8 * 1024 * 1024) throw queueError("resource_limit", `commit line ${index + 1} exceeds parser bound`);
-    return parseStrictJSON(line);
-  });
+  const records = [];
+  for (const event of iterateJsonlEvents(boundedTransactionLines(contents))) {
+    // Preserve duplicate-key, numeric, Unicode and nesting checks on original bytes.
+    records.push(parseStrictJSON(event.rawLine));
+  }
+  return records;
 }
 
 function replayTransactionLog(contents) {

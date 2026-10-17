@@ -1,10 +1,11 @@
 // @ts-check
 
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
 const { agentErrorSummaryText } = require("./agent_execution.cjs");
-const { sessionContext } = require("./agent_session.cjs");
+const { sessionContext, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 const { redactDiagnosticText, redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -105,37 +106,57 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   }
   const summary = [`Safe-output tools: ${availability}`];
   for (const [label, relativePath, eventName] of [
-    ["CLI", "mcp-cli-audit/safeoutputs.jsonl", "call_start"],
+    ["CLI", "mcp-cli-audit/safeoutputs.audit.jsonl", "call_start"],
     ["MCP", "mcp-logs/rpc-messages.jsonl", "tools/call"],
   ]) {
     const evidence = readCompletionEvidence(rootDir, relativePath);
     let count = 0;
     let malformed = 0;
-    for (const line of (evidence.content || "").split("\n").filter(line => line.trim())) {
-      try {
-        const entry = JSON.parse(line);
-        if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
-      } catch {
+    for (const event of iterateJsonlEvents(evidence.content || "")) {
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
         malformed++;
+        continue;
       }
+      const entry = event.value;
+      if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
     }
     summary.push(`Safe-output ${label} calls observed: ${evidence.status === "recorded" ? `${count}${malformed ? ` (partial evidence: ${malformed} malformed record${malformed === 1 ? "" : "s"})` : ""}` : `unknown (${evidence.status})`}`);
   }
   const output = readCompletionEvidence(rootDir, "safeoutputs.jsonl");
-  const lines = (output.content || "").split("\n").filter(line => line.trim());
+  let recordCount = 0;
   let malformed = 0;
-  for (const line of lines) {
-    try {
-      const item = JSON.parse(line);
-      if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
-    } catch {
+  for (const event of iterateJsonlEvents(output.content || "")) {
+    if (event.type === "invalid" && event.reason === "blank") continue;
+    recordCount++;
+    if (event.type === "invalid") {
       malformed++;
+      continue;
     }
+    const item = event.value;
+    if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
   }
   summary.push(
-    `Safe-output persistence: ${output.status === "recorded" ? `${lines.length ? "nonempty" : "empty"} (${lines.length} record${lines.length === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
+    `Safe-output persistence: ${output.status === "recorded" ? `${recordCount ? "nonempty" : "empty"} (${recordCount} record${recordCount === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
   );
   return summary;
+}
+
+/**
+ * @param {string} [rootDir]
+ * @returns {ReturnType<typeof collectUnifiedSession>}
+ */
+function collectOutcomeSession(rootDir = "/tmp/gh-aw") {
+  return collectUnifiedSession({ rootDir, ...(process.env.GH_AW_ENGINE_ID === "aider" ? { engine: "aider" } : {}), warn: () => {} });
+}
+
+/** @param {import("./types/unified_session").UnifiedSession} events @returns {boolean} */
+function hasFailedFinalResult(events) {
+  const workflowInfo = events.find(event => event.type === "workflow.info" && event.provenance.component === "workflow");
+  const engineId = process.env.GH_AW_ENGINE_ID ?? workflowInfo?.data.engineId ?? workflowInfo?.data.engine_id;
+  if (typeof engineId !== "string" || !["aider", "gemini"].includes(engineId)) return false;
+  const result = events.filter(event => event.type === "session.result" && event.provenance.component === "agent" && event.provenance.phase === "agent" && !isNestedSessionEvent(event)).at(-1);
+  return Array.isArray(result?.data.errors) && result.data.errors.length > 0;
 }
 
 /**
@@ -143,6 +164,7 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
  * in a first-class incomplete signal when the agent emitted no valid outputs.
  * @param {string[]} errors
  * @param {string} [rootDir]
+ * @param {ReturnType<typeof collectUnifiedSession>} [session]
  * @returns {{
  *   type: string,
  *   reason: string,
@@ -153,17 +175,19 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
  *   details?: string
  * }}
  */
-function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
+function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   const diagnostics = new Set();
   if (errors.length) diagnostics.add("Safe-output validation status: failed");
   let reason = errors.length ? "invalid_safe_outputs" : "missing_terminal_safe_output";
   let events = [];
   let maskedValues = [];
   try {
-    ({ events, maskedValues } = collectUnifiedSession({ rootDir, ...(process.env.GH_AW_ENGINE_ID === "aider" ? { engine: "aider" } : {}), warn: () => {} }));
+    ({ events, maskedValues } = session ?? collectOutcomeSession(rootDir));
   } catch {
     diagnostics.add("Runtime diagnostics could not be collected.");
   }
+  const failedFinalResult = hasFailedFinalResult(events);
+  if (failedFinalResult) reason = "engine_driver_failure";
   let stdio = "";
   try {
     const stdioPath = path.join(rootDir, "agent-stdio.log");
@@ -177,14 +201,13 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   const redactJson = value => JSON.stringify(value, (_key, nested) => (typeof nested === "string" ? redact(nested) : nested));
   let safeoutputsCliError = false;
   try {
-    const auditPath = path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl");
+    const auditPath = path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl");
     if (fs.lstatSync(auditPath).isFile()) {
-      for (const line of fs.readFileSync(auditPath, "utf8").split("\n")) {
+      for (const entry of iterateJsonl(fs.readFileSync(auditPath, "utf8"))) {
         try {
-          const entry = JSON.parse(line);
           if (["parse_args_error", "unrecognized_args"].includes(entry?.event)) {
             safeoutputsCliError = true;
-            reason = "safeoutputs_cli_error";
+            if (!failedFinalResult) reason = "safeoutputs_cli_error";
             diagnostics.add("The safeoutputs CLI failed. Run `safeoutputs <tool> --help` and pass a single quoted JSON object or --key value flags.");
           }
         } catch {
@@ -274,16 +297,12 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
     break;
   }
   if (agentNotStarted) reason = "agent_startup_failure";
-  const safeStdio = stdio
-    .split("\n")
-    .map(line => {
-      try {
-        return redactJson(JSON.parse(line));
-      } catch {
-        return redact(line);
-      }
-    })
-    .join("\n");
+  const redactedLines = [];
+  for (const event of iterateJsonlEvents(stdio)) {
+    const ending = event.rawLine.endsWith("\r\n") ? "\r\n" : event.rawLine.endsWith("\n") ? "\n" : "";
+    redactedLines.push(event.type === "json" ? redactJson(event.value) + ending : redact(event.rawLine));
+  }
+  const safeStdio = redactedLines.join("");
   const rawSourceEngine = process.env.GH_AW_ENGINE_ID === "aider" || events.some(event => event.type === "workflow.info" && event.provenance.component === "workflow" && event.data.engineId === "aider") ? "aider" : undefined;
   const engineSummary = agentNotStarted ? "" : agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);
@@ -339,7 +358,9 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
         ]
       : [
           `Failure classification: ${failureCause}`,
-          reason === "engine_driver_failure" ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.` : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
+          reason === "engine_driver_failure" && !failedFinalResult
+            ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.`
+            : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
           `Last tool call status: ${lastToolCallStatus}`,
           ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
           `Failed tool calls observed: ${failedToolCalls}`,
@@ -348,7 +369,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
           ...completionEvidence,
         ];
   if (failureCause === "missing_terminal_safe_output" && !observedCompletionEvidence.length) summary.splice(-1, 0, "Safe-output telemetry: not recorded");
-  if (!agentNotStarted && failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
+  if (failedFinalResult) diagnostics.add("The engine's final result reported an error; task completion could not be confirmed, even if safe outputs were recorded.");
+  else if (!agentNotStarted && failureCause !== "missing_terminal_safe_output") diagnostics.add("Agent finished without emitting a terminal safe output; task completion could not be confirmed.");
   if (errorCodes.length) diagnostics.add(`Engine HTTP error codes: ${[...new Set(errorCodes)].join(", ")}`);
   if (permissionDenials) diagnostics.add(`Permission denials observed: ${permissionDenials}`);
   if (toolDenialLimitExceeded) diagnostics.add("Tool denial limit status: exceeded");
@@ -371,4 +393,4 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw") {
   };
 }
 
-module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };
+module.exports = { buildEmptyOutputOutcome, buildCompletionEvidence, collectOutcomeSession, hasFailedFinalResult, EMPTY_OUTPUT_CAUSES, EMPTY_OUTPUT_FAILURE_CAUSES };

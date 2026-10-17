@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -98,6 +98,32 @@ describe("Claude runtime contracts", () => {
     expect(claudeSessionId(JSON.stringify(assistant))).toBe("exact-session");
     expect(claudeFailureEvidence(JSON.stringify({ type: "result", is_error: false, result: "unknown model fake not found" }))).not.toContain("unknown model");
     expect(claudeFailureEvidence(JSON.stringify({ type: "result", is_error: true, result: "API Error: 529 overloaded_error" }))).toContain("overloaded_error");
+  });
+  it("preserves malformed and plain-text failure evidence without decoding records twice", () => {
+    const answer = JSON.stringify(assistant);
+    const result = JSON.stringify({ type: "result", is_error: true, result: "API Error: 529 overloaded_error", permission_denials: [] });
+    const output = `startup\r\n{"broken"\r\n\r\n${answer}\r\n${result}\r\nnull\r\nplain error\n`;
+    const parse = vi.spyOn(JSON, "parse");
+    try {
+      expect(claudeFailureEvidence(output)).toBe('startup\n{"broken"\n\n{"type":"result","is_error":true,"result":"API Error: 529 overloaded_error"}\nnull\nplain error\n');
+      expect(parse.mock.calls.filter(([text]) => text === answer)).toHaveLength(1);
+      expect(parse.mock.calls.filter(([text]) => text === result)).toHaveLength(1);
+    } finally {
+      parse.mockRestore();
+    }
+  });
+  it.each([
+    ["progress", hasClaudeSessionProgress, true],
+    ["session ID", claudeSessionId, "exact-session"],
+  ])("short-circuits JSONL consumption after finding %s", (_label, consume, expected) => {
+    const first = JSON.stringify(assistant);
+    const parse = vi.spyOn(JSON, "parse");
+    try {
+      expect(consume(`[INFO] startup\n${first}\r\n{"later":true}`)).toBe(expected);
+      expect(parse.mock.calls.map(([text]) => text)).toEqual([first]);
+    } finally {
+      parse.mockRestore();
+    }
   });
   it("counts structured denials once and extracts the actual commands", () => {
     const record = { type: "result", permission_denials: [{ tool_use_id: "one", tool_input: { command: "blocked" } }] };

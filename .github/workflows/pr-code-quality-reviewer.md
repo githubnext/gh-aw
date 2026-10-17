@@ -17,6 +17,7 @@ on:
     events: [pull_request_comment, pull_request_review_comment]
 engine:
   id: copilot
+  copilot-sdk: true
 model: copilot/gpt-5.4
 permissions:
   contents: read
@@ -108,14 +109,14 @@ The PR diff and metadata have already been pre-fetched and are available as loca
 - **PR diff** (capped at 1500 lines, lock/generated/dist/build files excluded): `/tmp/gh-aw/agent/pr-diff.patch`
 - **PR metadata** (files list, additions, deletions): `/tmp/gh-aw/agent/pr-meta.json`
 
-In **one parallel turn**, read the PR diff and metadata, plus the review-comments file only if it is at least 3 bytes:
+In **one parallel turn**, read the PR diff and metadata and run exactly `wc -c /tmp/gh-aw/agent/pr-review-comments.json` to check the review-comments file size. Read that file only if the reported size is at least 3 bytes:
 - `/tmp/gh-aw/agent/pr-diff.patch` — PR diff
 - `/tmp/gh-aw/agent/pr-meta.json` — PR metadata
 - `/tmp/gh-aw/agent/pr-review-comments.json` — existing review comments (use to avoid duplication; each entry has `id`, `path`, `line`, `body`, `user`)
 
-If this PR has been reviewed before, also read `/tmp/gh-aw/comment-memory/pr-code-quality-reviewer.md` before Step 2 to inform theme continuity; otherwise skip.
+Use `glob` to check whether `/tmp/gh-aw/comment-memory/pr-code-quality-reviewer.md` exists. If it does, read it before Step 2 to inform theme continuity; otherwise skip. A missing optional file is not a reason to probe more tools.
 
-Use the `view`/`grep` tools for file reads. Do not retry a failed command unless you change it.
+Use the `view`/`grep` tools for file reads. Do not use `stat`, `awk`, shell tests (`test` or `[`), command substitutions, or `|| true` for these checks; they are not authorized. Do not retry a failed command unless you change it.
 
 **Do not** call `get_diff` or `get_review_comments`; use the pre-fetched files instead — they are already capped to prevent token-heavy context payloads.
 
@@ -142,6 +143,8 @@ While `grumpy-coder` runs in the background, run your own independent analysis o
 
 Review from the pre-fetched diff and never re-read it. Open at most 5 additional source files, batching those reads in one parallel call. Stop analysis and proceed to adjudication once you have 10 candidate findings.
 
+This is a static review: do not execute repository code, tests, package managers, or build commands. Use source and existing test coverage as evidence, and state any verification limits in the review.
+
 ### Step 3: Judge Agent-to-Agent Findings
 
 Before adjudicating, collect `grumpy-coder` output (started in Step 1). Check once for its result — do not block if it has not responded. Parse its JSONL findings, discarding any that are malformed or outside changed lines.
@@ -163,7 +166,7 @@ printf '%s' '{"path":"FILE","line":42,"pull_request_number":123,"body":"COMMENT"
 
 Each comment must contain one visible sentence stating the issue and its impact, then a `<details><summary>💡 …</summary>` block with explanation, fix snippet, and rationale.
 
-Keep publication commands stdout-only: construct JSON inline with `printf '%s'` and pipe it directly to `safeoutputs`. Do not write temporary payload files, use shell redirection or heredocs, or invoke `jq`, `python`, or `node`; they are not authorized by this workflow. JSON-escape content and shell-quote it correctly without shell expansion. Send each safe-output command separately from analysis commands.
+Keep publication commands stdout-only: construct JSON inline with `printf '%s'` and pipe it directly to `safeoutputs`. Do not write temporary payload files, use shell redirection or heredocs, or invoke `jq`, `python`, or `node`; they are not authorized by this workflow. JSON-escape content and shell-quote it correctly without shell expansion. Send each safe-output command separately from analysis commands. Invoke the documented pipeline directly; do not prepend availability probes or other commands.
 
 **Prioritization** (use your 10-comment budget aggressively):
 1. Correctness, concurrency, and security-adjacent bugs (highest priority, up to 6 comments)
@@ -186,7 +189,13 @@ Always submit a review before the 15-minute timeout, including when there are ze
 printf '%s' '{"pull_request_number":123,"event":"COMMENT","body":"Review summary"}' | safeoutputs submit_pull_request_review .
 ```
 
-If a publication command is denied, distinguish an unavailable CLI from unallowed commands or file writes in the pipeline. Correct the command to the stdout-only `printf` pipeline above without widening permissions. If the corrected command still cannot run, emit `report_incomplete` through the available safe-output transport with the concrete blocker; do not call `noop` or claim the review was published.
+If a publication command is denied, distinguish an unavailable CLI from unallowed commands or file writes in the pipeline. Correct the command to the stdout-only `printf` pipeline above without widening permissions. Make at most one corrected publication attempt, then stop probing and emit `report_incomplete` through the available safe-output transport with the concrete blocker, before exhausting the five-denial budget; do not call `noop` or claim the review was published. With this workflow's CLI transport, use:
+
+```bash
+printf '%s' '{"reason":"Review publication blocked: describe the concrete tool denial or CLI error; no review was published."}' | safeoutputs report_incomplete .
+```
+
+If an inline-comment publication fails, stop publishing further comments and follow the same bounded recovery path. If the CLI itself is unavailable and no safe-output transport can run, state explicitly that no terminal safe output was emitted.
 
 Set `event` to:
 - `COMMENT` if there are no actionable blocking issues

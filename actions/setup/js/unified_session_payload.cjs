@@ -189,6 +189,7 @@ const EVENT_FIELDS = {
   },
   ...COPILOT_WORKFLOW_EVENT_FIELDS,
   "session.format": { version: ["version"] },
+  "workflow.job_result": { jobId: ["jobId"], result: ["result"], durationMs: ["durationMs"] },
   "agent.execution": { categories: ["categories"], errorCodes: ["errorCodes"], errorTypes: ["errorTypes"], exitCode: ["exitCode", "exit_code"] },
   "skill.invoked": { name: ["name"], path: ["path"], source: ["source"], trigger: ["trigger"], model: ["model"], invokedAtTurn: ["invokedAtTurn"] },
   "skill.context_delivered_ref": { interactionId: ["interactionId"], source: ["source"], contentId: ["contentId"] },
@@ -659,7 +660,9 @@ function normalizeUnifiedSessionEvent(event, phase) {
   if (event.type === "tool.execution_complete" && (source.is_error === true || source.result?.isError === true || source.result?.is_error === true)) data.isError = true;
   if (event.type === "experiment.assignment") {
     for (const key of Object.keys(data)) delete data[key];
-    data.assignments = structuredClone(source.assignments ?? source);
+    const assignments = source.assignments;
+    // Only non-array objects identify the normalized wrapper; otherwise preserve the raw assignment map.
+    data.assignments = structuredClone(assignments && typeof assignments === "object" && !Array.isArray(assignments) ? assignments : source);
   }
   if (event.type === "grader.manifest" && Array.isArray(source.graders)) data.graders = source.graders.map(grader => selectFields(grader, GRADER_FIELDS));
   if (event.type === "grader.result") {

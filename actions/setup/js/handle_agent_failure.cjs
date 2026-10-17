@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl, readJsonlFileEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
@@ -340,14 +341,17 @@ function buildFailureMatchCategories(options) {
 
 function hasMCPTransportWedge(sessionContent) {
   if (!sessionContent.includes('"transport_wedge"')) return false;
-  return sessionContent.split(/\r?\n/).some(line => {
+  for (const event of iterateJsonl(sessionContent)) {
+    if (!event || typeof event !== "object" || event.type !== "agent.execution") continue;
     try {
-      const event = JSON.parse(line);
-      return isAgentExecutionEvent(event) && event.data.categories.includes("transport_wedge");
+      if (!isAgentExecutionEvent(event)) continue;
     } catch {
-      return false;
+      // The shared guard throws on invalid execution data; keep scanning later records.
+      continue;
     }
-  });
+    if (event.data.categories.includes("transport_wedge")) return true;
+  }
+  return false;
 }
 
 function getAgentStdioLogPath(agentOutputFile = process.env.GH_AW_AGENT_OUTPUT) {
@@ -366,11 +370,11 @@ function readModelEndpointMismatch() {
     /** @type {any[]} */
     let events;
     try {
-      events = fs
-        .readFileSync(file, "utf8")
-        .split(/\r?\n/)
-        .filter(line => line.trim())
-        .map(line => JSON.parse(line));
+      events = [];
+      for (const event of readJsonlFileEvents(file)) {
+        if (event.type === "json") events.push(event.value);
+        else if (event.reason !== "blank") throw event.error;
+      }
     } catch (error) {
       const missing = error && typeof error === "object" && "code" in error && error.code === "ENOENT";
       if (process.env.GH_AW_UNIFIED_SESSION || !missing) throw error;
@@ -1641,14 +1645,11 @@ function loadToolDenialsExceededEvents() {
       const eventsPath = path.join(COPILOT_SESSION_STATE_DIR, entry.name, "events.jsonl");
       if (!fs.existsSync(eventsPath)) continue;
       const content = fs.readFileSync(eventsPath, "utf8");
-      const lines = content.split("\n");
       /** @type {Array<string>} */
       const recentToolCalls = [];
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line) continue;
+      for (const parsed of iterateJsonl(content)) {
+        if (!parsed) continue;
         try {
-          const parsed = JSON.parse(line);
           if (parsed.type === "tool.execution_start" && parsed.data && typeof parsed.data === "object") {
             const toolName = typeof parsed.data.toolName === "string" ? parsed.data.toolName.trim() : "";
             if (toolName) {
@@ -2822,21 +2823,7 @@ function parseFirewallAuthErrors(auditJsonlPath) {
     const seenProviders = new Set();
     const results = [];
 
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed[0] !== "{") continue;
-
-      // Pass 2 — per-line regex pre-filter: skip lines that cannot have a 401/403 status.
-      // This avoids the JSON.parse overhead on the majority of non-auth-failure lines.
-      if (!/"status"\s*:\s*40[13]/.test(trimmed)) continue;
-
-      let entry;
-      try {
-        entry = JSON.parse(trimmed);
-      } catch {
-        continue;
-      }
-
+    for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") && /"status"\s*:\s*40[13]/.test(line) })) {
       const status = entry.status;
       if (status !== 401 && status !== 403) continue;
 
@@ -3586,7 +3573,7 @@ function buildSafeOutputsCliInvocationContext(stdioLogPathOverride) {
   const commands = [];
   const seen = new Set();
   let hasDroppedPipe = false;
-  for (const rawLine of logContent.split("\n")) {
+  for (const rawLine of iterateLines(logContent)) {
     const line = rawLine.trim();
     if (!line || !line.includes("safeoutputs")) continue;
     if (isAddMaskCommandLine(line)) continue;
@@ -4162,6 +4149,8 @@ async function main() {
       agentOutputResult = { success: false, items: [] };
     }
     const taskCompleteRegistrationIssueOnlyReportIncomplete = agentOutputResult.success && shouldIgnoreTaskCompleteRegistrationReports(agentOutputResult.items);
+    const collectorEmptyOutputCause = agentOutputResult.success ? agentOutputResult.collectorEmptyOutputCause : undefined;
+    const isCancelledMissingTerminalOutput = agentConclusion === "cancelled" && collectorEmptyOutputCause === "missing_terminal_safe_output";
 
     if (agentConclusion === "success") {
       if (!agentOutputResult.success || !agentOutputResult.items || agentOutputResult.items.length === 0) {
@@ -4204,7 +4193,8 @@ async function main() {
     // safe outputs such as add_comment, preventing a tool-failure narrative from being
     // classified as a successful review or other completed task.
     if (agentOutputResult.success && agentOutputResult.items && agentOutputResult.items.length > 0) {
-      const reportIncompleteItems = agentOutputResult.items.filter(item => item.type === "report_incomplete");
+      // Cancellation can interrupt the agent before it emits a terminal safe output.
+      const reportIncompleteItems = agentOutputResult.items.filter(item => item.type === "report_incomplete" && !(isCancelledMissingTerminalOutput && item.reason === collectorEmptyOutputCause));
       if (reportIncompleteItems.length > 0) {
         if (taskCompleteRegistrationIssueOnlyReportIncomplete) {
           core.info("Ignoring report_incomplete signal(s) caused only by task_complete registration trouble after successful task-level outputs");
@@ -4412,12 +4402,13 @@ async function main() {
     const modelEndpointMismatchContext = buildModelEndpointMismatchContext(modelEndpointMismatch);
     // A model/endpoint mismatch explains the missing terminal output, so the collector's
     // generic empty-output classification (e.g. engine_outage) must not override it.
-    const collectorEmptyOutputCause = agentOutputResult.success ? agentOutputResult.collectorEmptyOutputCause : undefined;
     const hasModelConfigurationError = hasModelEndpointMismatch || modelNotSupportedError;
-    const emptyOutputCause = hasModelConfigurationError ? undefined : collectorEmptyOutputCause;
-    const terminalOutputFailureCause = hasModelConfigurationError || !agentOutputResult.success ? undefined : agentOutputResult.collectorFailureCause;
+    const emptyOutputCause = hasModelConfigurationError || isCancelledMissingTerminalOutput ? undefined : collectorEmptyOutputCause;
+    const terminalOutputFailureCause = hasModelConfigurationError || !agentOutputResult.success || isCancelledMissingTerminalOutput ? undefined : agentOutputResult.collectorFailureCause;
     const reportItems = (Array.isArray(agentOutputResult.items) ? agentOutputResult.items : []).filter(
-      item => !(hasModelConfigurationError && collectorEmptyOutputCause && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause && typeof item.failureCause === "string")
+      item =>
+        !(hasModelConfigurationError && collectorEmptyOutputCause && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause && typeof item.failureCause === "string") &&
+        !(isCancelledMissingTerminalOutput && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause)
     );
     const hasReportedIncomplete = hasReportIncomplete && reportItems.some(item => item?.type === "report_incomplete");
     const issueTitle = buildFailureIssueTitle({

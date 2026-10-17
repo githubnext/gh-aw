@@ -3,11 +3,14 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
+import { createRequire } from "module";
 
 import { getSetupTimeoutMs } from "./child_process_timeouts.cjs";
 import { buildCheckoutManifest, main, readManifestEntriesFromEnv, resolveDefaultBranch } from "./build_checkout_manifest.cjs";
 import { _resetCache as resetCheckoutManifestCache, lookupCheckout } from "./checkout_manifest.cjs";
 import { findGitDirectories, findRepoCheckout } from "./find_repo_checkout.cjs";
+
+const require = createRequire(import.meta.url);
 
 function execGit(args, options = {}) {
   const result = spawnSync("git", args, { encoding: "utf8", ...options });
@@ -128,6 +131,55 @@ describe("build_checkout_manifest.cjs", () => {
     expect(defaultBranch).toBe("trunk");
     expect(ghOptions?.env?.GH_TOKEN).toBe("${{ secrets.CROSS_REPO_PAT }}");
     expect(ghOptions?.timeout).toBe(getSetupTimeoutMs("outcomeGh"));
+  });
+
+  it.each([
+    { host: "tenant.ghe.com", checkoutToken: "checkout-token" },
+    { host: "tenant.ghe.com", checkoutToken: "" },
+    { host: undefined, checkoutToken: "checkout-token" },
+    { host: undefined, checkoutToken: "" },
+  ])("preserves the gh subprocess environment with host=$host and checkoutToken=$checkoutToken", ({ host, checkoutToken }) => {
+    const workspace = createTempDir("checkout-manifest-workspace-");
+    tempDirs.push(workspace);
+    setEnv("GH_HOST", host);
+    setEnv("GH_TOKEN", "ambient-token");
+    setEnv("GH_AW_ENV_TEST", "inherited");
+    const ambientEnv = { ...process.env };
+    const childProcess = require("child_process");
+    const modulePath = require.resolve("./build_checkout_manifest.cjs");
+    const cached = require.cache[modulePath];
+    const mock = vi.spyOn(childProcess, "execFileSync").mockReturnValue("trunk\n");
+    delete require.cache[modulePath];
+    try {
+      const defaultBranch = require("./build_checkout_manifest.cjs").resolveDefaultBranch("owner/repo", "missing", {
+        workspace,
+        checkoutToken,
+      });
+
+      expect(defaultBranch).toBe("trunk");
+      expect(mock).toHaveBeenCalledTimes(1);
+      const [command, args, execOptions] = mock.mock.calls[0];
+      expect(command).toBe("gh");
+      expect(args).toEqual(["api", "repos/owner/repo", "--jq", ".default_branch"]);
+      expect({
+        encoding: execOptions.encoding,
+        stdio: execOptions.stdio,
+        timeout: execOptions.timeout,
+      }).toEqual({
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: getSetupTimeoutMs("outcomeGh"),
+      });
+      expect(execOptions.env.GH_HOST).toBe(host);
+      expect(execOptions.env.GH_TOKEN).toBe(checkoutToken || "ambient-token");
+      expect(execOptions.env.GH_AW_ENV_TEST).toBe("inherited");
+      expect(execOptions.env.PATH).toBe(ambientEnv.PATH);
+      expect(process.env.GH_TOKEN).toBe("ambient-token");
+      expect(execOptions.env).not.toBe(process.env);
+    } finally {
+      mock.mockRestore();
+      require.cache[modulePath] = cached;
+    }
   });
 
   it("writes manifest with lowercase keys", () => {

@@ -106,6 +106,12 @@ describe("mount_mcp_as_cli.cjs", () => {
     });
   });
 
+  it("recovers after malformed SSE data and ignores non-data and completion lines", () => {
+    const result = { jsonrpc: "2.0", id: 2, result: { text: "x".repeat(2 * 1024 * 1024) } };
+    const body = ["event: message", 'data: {"broken":}', `data: ${JSON.stringify(result)}`, ' data: {"ignored":true}', "data: [DONE]", "data:"].join("\r\n");
+    expect(parseMCPResponseBody(body)).toEqual(result);
+  });
+
   it("rewrites host.docker.internal to the AWF gateway IP for CLI wrappers", () => {
     const originalDomain = process.env.MCP_GATEWAY_DOMAIN;
     const originalPort = process.env.MCP_GATEWAY_PORT;

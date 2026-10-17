@@ -18,8 +18,8 @@ func (c *Compiler) disableDryRunPushJobs() {
 	}
 	for name, job := range c.jobManager.GetAllJobs() {
 		if strings.HasPrefix(name, "push_") || name == "update_cache_memory" || name == "update_drive_memory" {
-			if job.If != "false" {
-				job.If = "false"
+			if job.If != "${{ !always() }}" {
+				job.If = "${{ !always() }}"
 				compilerDevelopmentLog.Printf("Dry-run mutation: disable job %q", name)
 			}
 		}
@@ -96,6 +96,9 @@ func (c *Compiler) dryRunConclusionData(data *WorkflowData) *WorkflowData {
 	result := *data
 	defer logDryRunWorkflowChanges(data, &result)
 	result.DryRun = true
+	if result.RunName == workQueueWorkerRunName {
+		result.RunName = ""
+	}
 	result.OTLPEndpoint = ""
 	result.OTLPHeaders = ""
 	result.OTLPEndpoints = ""

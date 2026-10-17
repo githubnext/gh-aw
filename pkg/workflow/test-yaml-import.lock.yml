@@ -146,6 +146,7 @@ jobs:
       - name: Start MCP gateway
         id: start-mcp-gateway
         env:
+          DEBUG: ${{ env.DEBUG || runner.debug == '1' && '*' || '' }}
           GITHUB_MCP_LOCKDOWN: ${{ steps.determine-automatic-lockdown.outputs.lockdown == 'true' && '1' || '0' }}
           GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
@@ -159,7 +160,6 @@ jobs:
           MCP_GATEWAY_AGENT_ID=""
           MCP_GATEWAY_AGENT_ID=$(openssl rand -base64 45 | tr -d '/+=')
           export MCP_GATEWAY_AGENT_ID
-          export DEBUG="*"
           
           # Register API key as secret to mask it from logs
           echo "::add-mask::${MCP_GATEWAY_AGENT_ID}"

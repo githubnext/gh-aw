@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-⚠️ **VALIDATION STATUS**: The specification reflected the implementation at the time of full validation on 2026-07-15 and RS-05a targeted revalidation on 2026-10-09. The v1.1.2 review-checkout update has not yet received targeted revalidation (see §7b); this document does not claim that it has. These validations do not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
+⚠️ **VALIDATION STATUS**: The specification reflected the implementation at the time of full validation on 2026-07-15 and RS-05a targeted revalidation on 2026-10-09. The v1.1.2 review-checkout update and v1.1.3 branch-event update have not yet received targeted revalidation (see §7b); this document does not claim that they have. These validations do not replace the full revalidation required by the policy in `security-architecture-spec.md` §11.
 
 All major security architecture claims in the specification have been verified against actual workflow implementations:
 - ✅ Job architecture (activation, agent, safe_outputs)
@@ -439,7 +439,7 @@ if (!pullRequest && eventName === "workflow_dispatch") {
 }
 ```
 
-Actor trust and ref isolation are provided by the shared `assertTrustedCheckoutRuntime()` call and the `exec.exec("git", [...])` array invocation that apply to all PR checkout paths. The fork-runtime rejection inside `assertTrustedCheckoutRuntime()` is itself scoped to `context.eventName === "workflow_dispatch"`, and fails closed when `context.payload.repository` is absent. Centralized command and label dispatches validate the originating `aw_context.actor` instead of the `github-actions[bot]` dispatcher only when GitHub also supplies `sender.type == "Bot"`; they fail closed when the command/label marker or actor is absent. Bot/app identity does not bypass the write-or-higher permission floor except for the separately verified same-repository `opened` or `synchronize` PR branch-event path in RS-05a.
+Actor trust and ref isolation are provided by the shared `assertTrustedCheckoutRuntime()` call and the `exec.exec("git", [...])` array invocation that apply to all PR checkout paths. The fork-runtime rejection inside `assertTrustedCheckoutRuntime()` is itself scoped to `context.eventName === "workflow_dispatch"`, and fails closed when `context.payload.repository` is absent. Centralized command and label dispatches validate the originating `aw_context.actor` instead of the `github-actions[bot]` dispatcher only when GitHub also supplies `sender.type == "Bot"`; they fail closed when the command/label marker or actor is absent. Bot/app identity does not bypass the write-or-higher permission floor except for the separately verified same-repository `opened`, `synchronize`, `ready_for_review`, or `reopened` PR branch-event path in RS-05a.
 
 **Trust-boundary limitation:** `github-actions[bot]` is the shared identity of repository workflows using `GITHUB_TOKEN`, not proof of one specific caller workflow. GitHub does not include an immutable caller-workflow identity in the target `workflow_dispatch` event. This validation therefore assumes that `actions: write` is granted only to trusted repository workflows; any such workflow can construct `aw_context`, so untrusted code must not receive that permission.
 
@@ -477,7 +477,7 @@ async function assertTrustedCheckoutRuntime() {
 | coercible/non-canonical `item_number` values rejected before actor/API/git operations | item_number validation |
 | bot/app actor with write-or-higher repository permission allowed | actor trust |
 | bot/app actor without write-or-higher repository permission rejected for `workflow_dispatch`, `issue_comment`, `pull_request_review_comment`, and `pull_request_review` | actor trust |
-| same-repository bot `opened` / `synchronize` PR branch events allowed only when sender and runtime, head, and base repository IDs match | actor trust exception |
+| same-repository bot `opened`, `synchronize`, `ready_for_review`, and `reopened` PR events allowed only when sender and runtime, head, and base repository IDs match; `ready_for_review` and `reopened` are lifecycle actions, not branch-push evidence | actor trust exception |
 | allow-listed App comments on `issue_comment` and `pull_request_review_comment`, and reviews on `pull_request_review`, allowed only when sender and matching comment/review author match, sender and runtime actor are canonically equivalent, and runtime, head, and base repository IDs match | actor trust exception |
 | unlisted bot comments/reviews, differing sender/comment/review author identities, fork PRs, and missing or mismatched repository IDs retain the collaborator permission floor | actor trust exception (negative cases) |
 | bot exception rejected for forked heads, missing runtime ID, mismatched sender, non-bot sender, metadata-only action, and missing or mismatched base ID | actor trust exception (independent negative cases) |
@@ -509,7 +509,7 @@ async function assertTrustedCheckoutRuntime() {
 | `workflow_dispatch_uses_refs_pull_checkout` | `unsat` | workflow_dispatch PR replay cannot reach checkout without `refs/pull/N/head` isolation |
 | `non_dispatch_pr_trigger_allows_forked_runtime_after_trust` | `sat` | the model admits non-workflow_dispatch PR triggers from structurally forked runtime repositories once actor trust holds |
 
-**Status**: **EVIDENCE UPDATED; TARGETED REVALIDATION PENDING** — The RS-05a coverage mapping now includes `pull_request_review`, with distinct review-author mismatch and allow-listed review cases in the Z3 proof artifact and review-author guards in the TLA+ model. This update records the v1.1.2 evidence scope but does not claim a solver run or targeted revalidation. Existing branch-event, `workflow_dispatch`, ref-isolation, and fork-runtime evidence remains applicable; the full revalidation policy is in `security-architecture-spec.md` §11.
+**Status**: **RUNTIME TESTS PASS; FORMAL REVALIDATION PENDING** — The RS-05a coverage mapping includes `pull_request_review`, plus `ready_for_review` and `reopened` same-repository bot PR events. The Z3 artifact's `pr_action_proves_branch_access` guard abstracts membership in the explicit PR action allowlist; it does not assert that a branch push occurred. Runtime regression cases and the TLA+ model cover the concrete action set and rejection guards. On 2026-10-16, all 180 `checkout_pr_branch.test.cjs` tests and the setup JavaScript TypeScript check passed. The Z3 solver and pinned TLA+ Tools were unavailable in the validation environment, so the Z3 proof and TLC model were not rerun and targeted formal revalidation remains pending. Existing `workflow_dispatch`, ref-isolation, and fork-runtime evidence remains applicable; the full revalidation policy is in `security-architecture-spec.md` §11.
 
 ---
 

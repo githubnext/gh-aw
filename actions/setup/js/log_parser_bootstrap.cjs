@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { generatePlainTextSummary, generateCopilotCliStyleSummary, wrapAgentLogInSection, formatSafeOutputsPreview } = require("./log_parser_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_API, ERR_CONFIG, ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -207,19 +208,7 @@ async function runLogParser(options) {
     }
 
     let count = 0;
-    const lines = content.trim().split(/\r?\n/);
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine) {
-        continue;
-      }
-      try {
-        JSON.parse(trimmedLine);
-        count++;
-      } catch (e) {
-        // Ignore invalid JSONL lines
-      }
-    }
+    for (const _entry of iterateJsonl(content)) count++;
     return count;
   }
 
@@ -420,31 +409,19 @@ async function runLogParser(options) {
           if (fs.existsSync(stdioLogPath)) {
             const stdioContent = fs.readFileSync(stdioLogPath, "utf8");
             if (stdioContent && !stdioContent.endsWith("\n")) newline = "\n";
-            alreadyHasResult =
-              parserName === "Codex"
-                ? collectCodexJSONRecords(stdioContent).some(isUsableResult)
-                : stdioContent.split("\n").some(line => {
-                    const objectStart = line.indexOf("{");
-                    const arrayStart = line.indexOf("[");
-                    let start = -1;
-                    if (objectStart >= 0 && arrayStart >= 0) {
-                      start = Math.min(objectStart, arrayStart);
-                    } else if (objectStart >= 0) {
-                      start = objectStart;
-                    } else {
-                      start = arrayStart;
-                    }
-                    if (start < 0) return false;
-                    try {
-                      const parsed = JSON.parse(line.slice(start));
-                      if (Array.isArray(parsed)) {
-                        return parsed.some(isUsableResult);
-                      }
-                      return isUsableResult(parsed);
-                    } catch {
-                      return false;
-                    }
-                  });
+            if (parserName === "Codex") {
+              alreadyHasResult = collectCodexJSONRecords(stdioContent).some(isUsableResult);
+            } else {
+              for (const parsed of iterateJsonl(stdioContent, {
+                lineTransform: line => {
+                  const starts = [line.indexOf("{"), line.indexOf("[")].filter(index => index >= 0);
+                  return starts.length ? line.slice(Math.min(...starts)) : line;
+                },
+              })) {
+                alreadyHasResult = Array.isArray(parsed) ? parsed.some(isUsableResult) : isUsableResult(parsed);
+                if (alreadyHasResult) break;
+              }
+            }
           }
           if (!alreadyHasResult) {
             fs.mkdirSync(path.dirname(stdioLogPath), { recursive: true });

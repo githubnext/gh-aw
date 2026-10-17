@@ -172,6 +172,18 @@ function withTemporaryPromptTemplate(prefix, sourceTemplateDir, promptDirResolve
 describe("copilot_harness.cjs", () => {
   describe("SDK content-filter rejection", () => {
     const content = "The model returned no content because the response was blocked by content filtering.";
+    it("skips corrupt JSONL and short-circuits without decoding later records", () => {
+      const first = JSON.stringify({ type: "assistant.message", data: { content, rte: true } });
+      const output = `[INFO] startup\r\n{"broken"\nnull\n${first}\r\n{"later":true}`;
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        expect(isCopilotContentFilterError(output)).toBe(true);
+        expect(parse.mock.calls.map(([text]) => text)).toEqual(['{"broken"', "null", first]);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
     it("classifies the observed runtime rejection and stops partial-execution retries", () => {
       const output = JSON.stringify({ type: "assistant.message", data: { content, rte: true, toolRequests: [] } });
       expect(isCopilotContentFilterError(output)).toBe(true);
@@ -935,7 +947,7 @@ describe("copilot_harness.cjs", () => {
       });
 
       it("does not retry a failed attempt that hit an api-proxy guardrail", () => {
-        const output = "API Error: 403 Maximum consecutive cache misses exceeded (5 / 5).";
+        const output = JSON.stringify({ type: "error", message: "API Error: 403 Maximum consecutive cache misses exceeded (5 / 5)." });
         expect(shouldRetryFailedExecution({ exitCode: 1, hasOutput: true, output, attempt: 0, maxRetries: 3 })).toBe(false);
       });
 
@@ -3603,7 +3615,7 @@ process.exit(1);`,
         `const fs = require("fs");
 const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
 fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
-process.stdout.write(JSON.stringify({error: "authentication_failed", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}) + "\\n");
+process.stdout.write(JSON.stringify({type: "error", message: "Failed to authenticate. API Error: 403 Maximum AI credits exceeded (302.111025 / 300)."}) + "\\n");
 process.exit(1);`,
         "utf8"
       );

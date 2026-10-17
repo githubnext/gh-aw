@@ -245,8 +245,10 @@ func compileSpecificFiles( //nolint:largefunc // Orchestrates the full targeted 
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
 	// Post-processing
-	if err := runPostProcessing(ctx, compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
-		return workflowDataList, err
+	if !config.NoEmit {
+		if err := runPostProcessing(ctx, compiler, workflowDataList, compiledLockFiles, config, compiledCount); err != nil {
+			return workflowDataList, err
+		}
 	}
 
 	developmentErr := enforceDevelopmentDiagnostics(config, compiler, stats, validationResults, strictGrantErr, batchToolErr)
@@ -491,8 +493,10 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	}
 
 	// Post-processing
-	if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
-		return workflowDataList, err
+	if !config.NoEmit {
+		if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
+			return workflowDataList, err
+		}
 	}
 
 	developmentErr := enforceDevelopmentDiagnostics(config, compiler, stats, validationResults, strictGrantErr, batchToolErr)
@@ -1013,17 +1017,17 @@ func runPostProcessingForDirectory(
 	// Keep invoking generators for empty workflowDataList so stale generated files are cleaned up.
 	if !config.NoEmit && config.WorkflowDir == "" {
 		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict); err != nil {
+		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict, config.NoLogo); err != nil {
 			if config.Strict {
 				return err
 			}
 		}
-		if err := generateWorkQueueEventWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict); err != nil {
+		if err := generateWorkQueueEventWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict, config.NoLogo); err != nil {
 			if config.Strict {
 				return err
 			}
 		}
-		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict); err != nil {
+		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict, config.NoLogo); err != nil {
 			if config.Strict {
 				return err
 			}

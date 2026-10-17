@@ -70,6 +70,7 @@ type AddOptions struct {
 	AppendText             string
 	CreatePR               bool
 	AutoMerge              bool
+	PRMessage              string
 	NoGitattributes        bool
 	FromWildcard           bool
 	WorkflowDir            string
@@ -180,6 +181,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 		AppendText:             appendText,
 		CreatePR:               createPRFlag || prFlagAlias,
 		AutoMerge:              autoMerge,
+		PRMessage:              cmd.Flag("pr-message").Value.String(),
 		NoGitattributes:        noGitattributes,
 		WorkflowDir:            workflowDir,
 		NoStopAfter:            noStopAfter,
@@ -236,6 +238,7 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 
 	// Add PR flag to add command (--create-pull-request with --pr as alias)
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the workflow changes")
+	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
 	_ = cmd.Flags().MarkHidden("pr") // Hide the short alias from help output

@@ -335,6 +335,11 @@
       "digest": "sha256:e3924f943a55ebf362db12500c69f2ef0717661f363baecd95caa50a93380dc8",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.28.6@sha256:e3924f943a55ebf362db12500c69f2ef0717661f363baecd95caa50a93380dc8"
     },
+    "ghcr.io/github/gh-aw-firewall/agent:0.28.62": {
+      "image": "ghcr.io/github/gh-aw-firewall/agent:0.28.62",
+      "digest": "sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/agent:0.28.62@sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f"
+    },
     "ghcr.io/github/gh-aw-firewall/agent:0.28.7": {
       "image": "ghcr.io/github/gh-aw-firewall/agent:0.28.7",
       "digest": "sha256:40a1e30b1b8d70642d4292485146cd5af612730d7a6a2e12706ddd13df375059",
@@ -499,6 +504,11 @@
       "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.6",
       "digest": "sha256:18f81ac0941a06b931e27f8a7ba70e7d4d7fda8178eb8fe2ea3c6a46d6b63daa",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.6@sha256:18f81ac0941a06b931e27f8a7ba70e7d4d7fda8178eb8fe2ea3c6a46d6b63daa"
+    },
+    "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62": {
+      "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62",
+      "digest": "sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62@sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d"
     },
     "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.7": {
       "image": "ghcr.io/github/gh-aw-firewall/api-proxy:0.28.7",
@@ -665,6 +675,11 @@
       "digest": "sha256:14bea2c80605d342947483bfc7c80f81c964f038046fb3eaef9bf1ed9e2e315e",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.6@sha256:14bea2c80605d342947483bfc7c80f81c964f038046fb3eaef9bf1ed9e2e315e"
     },
+    "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.62": {
+      "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.62",
+      "digest": "sha256:b23bbe2c025f60ea9aacde67c078ea937b54b4039552bca072ae9610d9e1c294",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.62@sha256:b23bbe2c025f60ea9aacde67c078ea937b54b4039552bca072ae9610d9e1c294"
+    },
     "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.7": {
       "image": "ghcr.io/github/gh-aw-firewall/cli-proxy:0.28.7",
       "digest": "sha256:ebc8758c9b085ca244234e3e3ee22300d150095f9bfe7312ca8a61c5acb34a78",
@@ -734,6 +749,11 @@
       "image": "ghcr.io/github/gh-aw-firewall/enclave-script:0.28.9",
       "digest": "sha256:def4cc9669c0723cbdcdcdbd0ad4c72b6d977c02e4e0978797e9116fffd8e25d",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/enclave-script:0.28.9@sha256:def4cc9669c0723cbdcdcdbd0ad4c72b6d977c02e4e0978797e9116fffd8e25d"
+    },
+    "ghcr.io/github/gh-aw-firewall/router:0.28.62": {
+      "image": "ghcr.io/github/gh-aw-firewall/router:0.28.62",
+      "digest": "sha256:fb222d01480a2e8eda09f59e9bb8fdda04b0940e24fd6868d233ad24125cf85d",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/router:0.28.62@sha256:fb222d01480a2e8eda09f59e9bb8fdda04b0940e24fd6868d233ad24125cf85d"
     },
     "ghcr.io/github/gh-aw-firewall/squid:0.28.1": {
       "image": "ghcr.io/github/gh-aw-firewall/squid:0.28.1",
@@ -884,6 +904,11 @@
       "image": "ghcr.io/github/gh-aw-firewall/squid:0.28.6",
       "digest": "sha256:b80770265199ce518e3983256782e1ad41aee51fe29a3392e2694e056d6b1c98",
       "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.28.6@sha256:b80770265199ce518e3983256782e1ad41aee51fe29a3392e2694e056d6b1c98"
+    },
+    "ghcr.io/github/gh-aw-firewall/squid:0.28.62": {
+      "image": "ghcr.io/github/gh-aw-firewall/squid:0.28.62",
+      "digest": "sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef",
+      "pinned_image": "ghcr.io/github/gh-aw-firewall/squid:0.28.62@sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef"
     },
     "ghcr.io/github/gh-aw-firewall/squid:0.28.7": {
       "image": "ghcr.io/github/gh-aw-firewall/squid:0.28.7",

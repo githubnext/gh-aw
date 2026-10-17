@@ -5,18 +5,57 @@
  * Redacts secrets from files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories before uploading artifacts
  * This script processes all .txt, .json, .log, .md, .mdx, .yml, .jsonl files under /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw
  * and redacts any strings matching the actual secret values provided via environment variables.
+ * Successful redaction is silent; failures report safe diagnostics and input byte counts without payloads.
  */
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
-const { collectAddMaskedValues, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
+const { applyAddMaskRedaction, collectAddMaskedValues, isAddMaskCommandLine, redactArtifactMaskedValues } = require("./add_mask_redaction.cjs");
+const { maskedValueMatches, overlappingMatchGroups } = require("./mask_value_matcher.cjs");
+const { redactSafeOutputContent } = require("./safe_output_redaction.cjs");
 const { redactPiSessionHTML } = require("./pi_session_redaction.cjs");
 const { getOTLPSecretValues } = require("./otlp_header_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 
 const AWF_RESOLVED_CONFIG_PATH_PATTERN = /^\/run\/awf-config-audit\/run-[a-zA-Z0-9]{6}\/awf-resolved-config\.json$/;
 const AWF_RESOLVED_CONFIG_STAGING_PATH = "/tmp/gh-aw/awf-resolved-config.json";
+const MAX_ADDITIONAL_ARTIFACT_BYTES = 16 * 1024 * 1024;
+const DETECTION_MASKS_ENV = "GH_AW_DETECTION_MASKED_VALUES";
+
+class UnsupportedArtifactInputError extends Error {}
+
+/**
+ * Bound reads before decoding recursively uploaded firewall byproducts.
+ * @param {string} filePath
+ * @returns {string}
+ */
+function readAdditionalArtifactText(filePath) {
+  const descriptor = fs.openSync(filePath, "r");
+  try {
+    const size = fs.fstatSync(descriptor).size;
+    if (size > MAX_ADDITIONAL_ARTIFACT_BYTES) throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: oversized`);
+    const bytes = Buffer.alloc(size + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = fs.readSync(descriptor, bytes, length, bytes.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    if (length > size) throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: size_changed`);
+    let text;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes.subarray(0, length));
+    } catch {
+      throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: non-text`);
+    }
+    if (/[\u0000-\u0008\u000b\u000e-\u001f]/.test(text)) throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: non-text`);
+    return text;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
 
 /**
  * @param {unknown} error
@@ -60,7 +99,7 @@ class RedactionOperationError extends Error {
 /**
  * Recursively finds all files matching the specified extensions
  * @param {string} dir - Directory to search
- * @param {string[]} extensions - File extensions to match (e.g., ['.txt', '.json', '.log'])
+ * @param {string[] | null} extensions - File extensions to match, or null to include every regular file
  * @returns {string[]} Array of file paths
  */
 function findFiles(dir, extensions) {
@@ -103,7 +142,7 @@ function findFiles(dir, extensions) {
             core.warning(`Removed symbolic link before artifact upload: ${fullPath}`);
           } else if (entry.isDirectory()) {
             pending.push(fullPath);
-          } else if (entry.isFile() && extensions.includes(path.extname(entry.name).toLowerCase())) {
+          } else if (entry.isFile() && (extensions === null || extensions.includes(path.extname(entry.name).toLowerCase()))) {
             results.push(fullPath);
           }
         }
@@ -263,7 +302,6 @@ function redactBuiltInPatterns(content) {
       }
       redactionCount += matches.length;
       detectedPatterns.push(name);
-      global.core?.info?.(`Redacted ${matches.length} occurrence(s) of ${name}`);
     }
   }
 
@@ -297,10 +335,90 @@ function redactSecrets(content, secretValues) {
     if (occurrences > 0) {
       redacted = parts.join(replacement);
       redactionCount += occurrences;
-      global.core?.info?.(`Redacted ${occurrences} occurrence(s) of a secret`);
     }
   }
   return { content: redacted, redactionCount };
+}
+
+/**
+ * @param {string} content
+ * @returns {boolean}
+ */
+function isValidJSONArtifact(content) {
+  try {
+    JSON.parse(content);
+    return true;
+  } catch {
+    let hasRecord = false;
+    for (const event of iterateJsonlEvents(content)) {
+      if (event.type === "json") hasRecord = true;
+      else if (event.reason !== "blank") return false;
+    }
+    return hasRecord;
+  }
+}
+
+/**
+ * Match all credential sources before any replacement or JSON serialization can
+ * fragment a longer secret or change its spelling.
+ * @param {string} content
+ * @param {string[]} secretValues
+ * @param {string[]} maskedValues
+ * @param {{decodedText?: boolean}} [options] - Treat already-decoded protocol payloads as literal text
+ * @returns {{content: string, redactionCount: number}}
+ */
+function redactArtifactContent(content, secretValues, maskedValues, options = {}) {
+  const configured = new Set(secretValues.filter(value => value && value.length >= 6));
+  /** @type {Map<string, string>} */
+  const builtInValues = new Map();
+  // Discovery only: include escaped built-in credentials without rewriting the
+  // original numeric lexemes, malformed records, or unchanged JSON strings.
+  const escapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+  const decoded = options.decodedText ? content : content.replace(/\\(["\\/bfnrt]|u[0-9a-fA-F]{4})/g, (_, escape) => (escape[0] === "u" ? String.fromCharCode(parseInt(escape.slice(1), 16)) : escapes[escape]));
+  for (const text of new Set([content, decoded])) {
+    for (const { name, pattern } of BUILT_IN_PATTERNS) {
+      for (const match of text.matchAll(pattern)) builtInValues.set(match[0], name);
+    }
+  }
+  const values = [...new Set([...configured, ...builtInValues.keys(), ...maskedValues])].sort((a, b) => b.length - a.length);
+  let redactionCount = 0;
+  const replacement = value => {
+    redactionCount++;
+    const name = builtInValues.get(value);
+    return name || configured.has(value) ? "***REDACTED***" : "***";
+  };
+  // Protocol callbacks already receive decoded strings, not serialized artifacts.
+  const redacted = options.decodedText ? redactDecodedCredentialText(content, values, replacement) : redactArtifactMaskedValues(content, values, undefined, replacement, { textMode: !isValidJSONArtifact(content) });
+  return { content: redacted, redactionCount: redacted === content ? 0 : Math.max(1, redactionCount) };
+}
+
+/**
+ * Keep command lines intact until removal, unless a credential union crosses
+ * their boundary and must be replaced before removing any original text.
+ * @param {string} content
+ * @param {string[]} values
+ * @param {(value: string) => string} replacement
+ * @returns {string}
+ */
+function redactDecodedCredentialText(content, values, replacement) {
+  const commands = [];
+  let offset = 0;
+  for (const line of content.split("\n")) {
+    if (isAddMaskCommandLine(line)) commands.push({ start: offset, end: offset + line.length });
+    offset += line.length + 1;
+  }
+  const parts = [];
+  let cursor = 0;
+  let commandIndex = 0;
+  for (const match of overlappingMatchGroups(maskedValueMatches(content, values, undefined, true))) {
+    while (commandIndex < commands.length && commands[commandIndex].end < match.start) commandIndex++;
+    const command = commands[commandIndex];
+    if (command && match.start >= command.start && match.end <= command.end) continue;
+    parts.push(content.slice(cursor, match.start), replacement(match.value));
+    cursor = match.end;
+  }
+  parts.push(content.slice(cursor));
+  return applyAddMaskRedaction(parts.join(""), []);
 }
 
 /**
@@ -491,40 +609,40 @@ function writeProcessedFile(filePath, content, changed) {
  * @param {string[]} secretValues - Array of secret values to redact
  * @param {string[]} [maskedValues] - Runtime masks collected before any file is sanitized
  * @param {boolean} [prepareForCustomMasking] - Prepare unchanged files for configured custom redactors
+ * @param {boolean} [additionalArtifact] - Require bounded UTF-8 text for recursively uploaded files
  * @returns {number} Number of redactions made
  */
-function processFile(filePath, secretValues, maskedValues = [], prepareForCustomMasking = false) {
+function processFile(filePath, secretValues, maskedValues = [], prepareForCustomMasking = false, additionalArtifact = false) {
   /** @type {RedactionStage} */
   let stage = "read";
+  /** @type {number | undefined} */
+  let inputBytes;
   try {
-    const content = fs.readFileSync(filePath, "utf8");
+    const content = additionalArtifact ? readAdditionalArtifactText(filePath) : fs.readFileSync(filePath, "utf8");
+    inputBytes = Buffer.byteLength(content, "utf8");
     stage = "redact";
-    const encodedResult =
-      path.extname(filePath).toLowerCase() === ".html"
-        ? redactPiSessionHTML(content, text => {
-            const masked = redactArtifactMaskedValues(text, maskedValues);
-            const builtIn = redactBuiltInPatterns(masked);
-            const custom = redactSecrets(builtIn.content, secretValues);
-            return { content: custom.content, redactionCount: builtIn.redactionCount + custom.redactionCount + (masked !== text ? 1 : 0) };
-          })
-        : { content, redactionCount: 0 };
-    const runtimeRedacted = redactArtifactMaskedValues(encodedResult.content, maskedValues);
-    // First, redact built-in patterns
-    const builtInResult = redactBuiltInPatterns(runtimeRedacted);
-    let redacted = builtInResult.content;
-    let totalRedactions = encodedResult.redactionCount + builtInResult.redactionCount + (runtimeRedacted !== encodedResult.content ? 1 : 0);
-
-    // Then, redact custom secrets
-    const customResult = redactSecrets(redacted, secretValues);
-    redacted = customResult.content;
-    totalRedactions += customResult.redactionCount;
+    const structured = redactSafeOutputContent(
+      filePath,
+      content,
+      [...maskedValues, ...secretValues.filter(value => value && value.length >= 6)].sort((a, b) => b.length - a.length),
+      text => redactArtifactContent(text, secretValues, maskedValues, { decodedText: true }).content
+    );
+    if (structured !== null) {
+      const redactionCount = structured === content ? 0 : 1;
+      if (redactionCount || prepareForCustomMasking) {
+        stage = "write";
+        writeProcessedFile(filePath, structured, Boolean(redactionCount));
+      }
+      return redactionCount;
+    }
+    const encodedResult = path.extname(filePath).toLowerCase() === ".html" ? redactPiSessionHTML(content, text => redactArtifactContent(text, secretValues, maskedValues)) : { content, redactionCount: 0 };
+    const genericResult = redactArtifactContent(encodedResult.content, secretValues, maskedValues);
+    const redacted = genericResult.content;
+    const totalRedactions = encodedResult.redactionCount + genericResult.redactionCount;
 
     if (totalRedactions > 0 || prepareForCustomMasking) {
       stage = "write";
       writeProcessedFile(filePath, redacted, totalRedactions > 0);
-    }
-    if (totalRedactions > 0) {
-      core.info(`Processed ${filePath}: ${totalRedactions} redaction(s)`);
     }
     return totalRedactions;
   } catch (error) {
@@ -541,24 +659,27 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
         const cleanupDiagnostic = new RedactionOperationError("unlink", cleanupError);
         diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
         core.warning(cleanupDiagnostic.message);
-        throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed`);
+        throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed (input_bytes=${inputBytes ?? "unknown"})`);
       }
     }
+    if (error instanceof UnsupportedArtifactInputError) {
+      core.warning(`Removed unsupported artifact before upload (reason=${error.message})`);
+      return 0;
+    }
     diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
-    core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed`);
+    core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed (input_bytes=${inputBytes ?? "unknown"})`);
     return 0;
   }
 }
 
 /**
  * Main function
- * @param {{prepareForCustomMasking?: boolean}} [options]
+ * @param {{prepareForCustomMasking?: boolean, additionalDirectories?: string[], persistDetectionMasks?: (values: string[]) => void}} [options]
  */
-async function main({ prepareForCustomMasking = false } = {}) {
+async function main({ prepareForCustomMasking = false, additionalDirectories = [], persistDetectionMasks } = {}) {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
 
-  core.info(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`);
   try {
     // Collect custom secret values from environment variables
     const secretValues = [];
@@ -576,77 +697,69 @@ async function main({ prepareForCustomMasking = false } = {}) {
       }
     }
 
-    if (secretValues.length > 0) {
-      core.info(`Found ${secretValues.length} custom secret(s) to redact`);
-    }
-
     // Extract MCP gateway bearer tokens from known config files and add them to
     // the redaction list.  The gateway token has no fixed prefix so it cannot be
     // matched by the built-in regex patterns; we must read it from the config.
     const gatewayTokens = extractMCPGatewayTokens(MCP_GATEWAY_CONFIG_PATHS);
     if (gatewayTokens.length > 0) {
-      core.info(`Found ${gatewayTokens.length} MCP gateway token(s) to redact`);
       secretValues.push(...gatewayTokens);
     }
-
-    // Always scan for built-in patterns, even if there are no custom secrets
-    core.info("Scanning for built-in credential patterns and custom secrets");
 
     // Find all target files in /tmp/gh-aw and ${RUNNER_TEMP}/gh-aw directories
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch", ".html"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
     const optFiles = findFiles(`${process.env.RUNNER_TEMP}/gh-aw`, targetExtensions);
-    const files = [...new Set([...tmpFiles, ...optFiles])];
-    core.info(`Found ${files.length} file(s) to scan for secrets (${tmpFiles.length} in /tmp/gh-aw, ${optFiles.length} in ${process.env.RUNNER_TEMP}/gh-aw)`);
-    let totalRedactions = 0;
-    let filesWithRedactions = 0;
+    const additionalFiles = new Set(additionalDirectories.flatMap(dir => findFiles(dir, null)));
+    const files = [...new Set([...tmpFiles, ...optFiles, ...additionalFiles])];
     // Collect before built-in/custom redaction or bootstrap removes mask commands.
     // Only sanitized sources cross the job boundary, never the raw mask values.
     const masks = new Set(getOTLPSecretValues());
-    for (const file of files.filter(file => path.basename(file) === "agent-stdio.log")) {
-      try {
-        for (const value of collectAddMaskedValues(fs.readFileSync(file, "utf8"))) masks.add(value);
-      } catch (error) {
-        for (const source of files) {
-          try {
-            fs.unlinkSync(source);
-          } catch (cleanupError) {
-            if (!isErrnoCode(cleanupError, "ENOENT")) {
-              throw cleanupError;
-            }
+    try {
+      /** @type {Set<string>} */
+      const detectionMasks = new Set();
+      if (process.env[DETECTION_MASKS_ENV]) {
+        const saved = JSON.parse(process.env[DETECTION_MASKS_ENV]);
+        if (!Array.isArray(saved) || saved.some(value => typeof value !== "string")) throw new Error(`${ERR_VALIDATION}: Invalid detection mask state`);
+        for (const value of saved) detectionMasks.add(value);
+      }
+      for (const file of files.filter(file => ["agent-stdio.log", "detection.log"].includes(path.basename(file)))) {
+        const content = additionalFiles.has(file) ? readAdditionalArtifactText(file) : fs.readFileSync(file, "utf8");
+        for (const value of collectAddMaskedValues(content)) {
+          masks.add(value);
+          if (path.basename(file) === "detection.log") detectionMasks.add(value);
+        }
+      }
+      for (const value of detectionMasks) masks.add(value);
+      if (detectionMasks.size) {
+        // Runner command emission belongs to the detection step, not the shared
+        // redaction dependency deployed to isolated MCP/safe-output processes.
+        if (!persistDetectionMasks) throw new Error(`${ERR_VALIDATION}: Detection mask persistence is unavailable`);
+        persistDetectionMasks([...detectionMasks]);
+      }
+    } catch (error) {
+      for (const source of files) {
+        try {
+          fs.unlinkSync(source);
+        } catch (cleanupError) {
+          if (!isErrnoCode(cleanupError, "ENOENT")) {
+            const cleanupDiagnostic = new RedactionOperationError("unlink", cleanupError);
+            throw cleanupDiagnostic;
           }
         }
-        throw new Error(`${ERR_VALIDATION}: Removed artifact sources after runtime mask collection failed`, { cause: error });
       }
+      throw new Error(`${ERR_VALIDATION}: Removed artifact sources after runtime mask collection failed`, { cause: error });
     }
     const maskedValues = [...masks].sort((a, b) => b.length - a.length);
-    let stagedResolvedConfig = false;
-    let resolvedConfigCollectionFailed = false;
     try {
-      stagedResolvedConfig = stageAWFResolvedConfig(process.env.AWF_RESOLVED_CONFIG, secretValues, maskedValues);
+      stageAWFResolvedConfig(process.env.AWF_RESOLVED_CONFIG, secretValues, maskedValues);
     } catch (error) {
-      resolvedConfigCollectionFailed = true;
       core.setFailed(`${ERR_VALIDATION}: AWF resolved configuration was not collected safely`);
       core.warning(`AWF resolved configuration collection failed: ${getErrorMessage(error)}`);
       core.warning("Continuing with standard artifact redaction despite AWF resolved configuration collection failure");
     }
-    if (stagedResolvedConfig) {
-      core.info("Collected sanitized AWF resolved configuration");
-    } else if (!resolvedConfigCollectionFailed && !process.env.AWF_RESOLVED_CONFIG) {
-      core.info("AWF did not publish an early resolved configuration artifact");
-    }
     // Process each file
     for (const file of files) {
-      const redactionCount = processFile(file, secretValues, maskedValues, prepareForCustomMasking);
-      if (redactionCount > 0) {
-        filesWithRedactions++;
-        totalRedactions += redactionCount;
-      }
-    }
-    if (totalRedactions > 0) {
-      core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
-    } else {
-      core.info("Secret redaction complete: no secrets found");
+      processFile(file, secretValues, maskedValues, prepareForCustomMasking, additionalFiles.has(file));
     }
   } catch (error) {
     core.setFailed(`${ERR_VALIDATION}: Secret redaction failed: ${getErrorMessage(error)}`);
@@ -678,12 +791,8 @@ async function redactFilesInDir(dir) {
     if (files.length === 0) return;
 
     const maskedValues = getOTLPSecretValues();
-    let totalRedactions = 0;
     for (const file of files) {
-      totalRedactions += processFile(file, secretValues, maskedValues);
-    }
-    if (totalRedactions > 0) {
-      core.info(`Grader output redaction: ${totalRedactions} redaction(s) in ${dir}`);
+      processFile(file, secretValues, maskedValues);
     }
   } catch (error) {
     core.warning(`Grader output redaction failed: ${getErrorMessage(error)}`);
@@ -697,6 +806,7 @@ module.exports = {
   processFile,
   redactSecrets,
   redactBuiltInPatterns,
+  redactArtifactContent,
   redactStepSummaryContent,
   extractMCPGatewayTokens,
   readAWFResolvedConfig,

@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("intents");
+const { iterateLines, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -13,11 +14,11 @@ const MAX_INTENT_BYTES = 4 * 1024 * 1024;
 const MAX_INTENTS = 256;
 const INTENT_KINDS = ["submit", "dispatch_next", "finish"];
 
-function readIntentLines(filename) {
+function* readIntentLines(filename) {
   log.debug("intents.read.start");
   if (!fs.existsSync(filename)) {
     log.debug("intents.read.absent");
-    return [];
+    return;
   }
   const stat = fs.statSync(filename);
   if (!stat.isFile() || stat.size > MAX_INTENT_BYTES) throw new Error("work_queue_intent_limit");
@@ -29,10 +30,14 @@ function readIntentLines(filename) {
   } catch {
     throw new Error("work_queue_intent_transport_invalid");
   }
-  const lines = text.split("\n");
-  if (lines.filter(line => line.trim()).length > MAX_INTENTS) throw new Error("work_queue_intent_limit");
-  log.debug("intents.read.complete", { bytes: bytes.length, lines: lines.length });
-  return lines;
+  let lines = 0;
+  let nonblank = 0;
+  for (const line of iterateLines(text)) {
+    lines++;
+    if (line.trim() && ++nonblank > MAX_INTENTS) throw new Error("work_queue_intent_limit");
+  }
+  log.debug("intents.read.complete", { bytes: bytes.length, lines });
+  yield* iterateLines(text);
 }
 
 function readStagedIntentBatch(filename) {
@@ -40,11 +45,12 @@ function readStagedIntentBatch(filename) {
   const ids = new Map();
   const invalid = new Set();
   const errors = [];
-  for (const [index, line] of lines.entries()) {
-    if (!line.trim()) continue;
+  for (const event of iterateJsonlEvents(lines)) {
+    if (event.type === "invalid" && event.reason === "blank") continue;
+    const index = event.lineNumber - 1;
     let intentId;
     try {
-      const intent = parseStrictJSON(line);
+      const intent = parseStrictJSON(event.rawLine);
       intentId = identity(intent?.intent_id, "intent ID");
       closed(intent, ["version", "intent_id", "kind", "parameters"], ["claim_handle"], "staged queue intent");
       if (intent.version !== 3 || !INTENT_KINDS.includes(intent.kind)) throw new Error("work_queue_intent_invalid");

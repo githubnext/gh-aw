@@ -89,6 +89,7 @@ func setupDebugEnv(t *testing.T, debugValue string) {
 	t.Helper()
 	t.Setenv("DEBUG", debugValue)
 	t.Setenv("ACTIONS_RUNNER_DEBUG", "")
+	t.Setenv("RUNNER_DEBUG", "")
 
 	originalDebugEnv := debugEnv
 	debugEnv = initDebugEnv()

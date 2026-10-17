@@ -29,6 +29,7 @@
 //   GITHUB_WORKSPACE          — git working directory for pre-staging (optional;
 //                               falls back to cwd)
 
+const { streamJsonlEvents } = require("./jsonl_helpers.cjs");
 require("./shim.cjs");
 
 const { spawn } = require("child_process");
@@ -481,7 +482,7 @@ async function preStagePatch(entry, index, workspace) {
  * @param {import("child_process").ChildProcess} child
  * @param {NodeJS.WritableStream} stdin
  * @param {any} request
- * @param {AsyncIterableIterator<string>} responseIterator
+ * @param {AsyncIterableIterator<import("./jsonl_helpers.cjs").JsonlEvent>} responseIterator
  * @returns {Promise<any>}
  */
 async function sendJsonRpc(child, stdin, request, responseIterator) {
@@ -491,7 +492,7 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
     if (done) {
       throw new Error(`${ERR_API}: apply_samples: MCP server closed stdout before responding to request id=${request.id}`);
     }
-    const line = typeof value === "string" ? value.trim() : "";
+    const line = value.rawLine.trim();
     if (!line) {
       continue;
     }
@@ -499,33 +500,9 @@ async function sendJsonRpc(child, stdin, request, responseIterator) {
       core.debug(`apply_samples: ignoring non-JSON stdout line: ${line}`);
       continue;
     }
-    try {
-      return JSON.parse(line);
-    } catch (err) {
-      throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`, { cause: err });
-    }
-  }
-}
-
-/**
- * Turn the MCP server's stdout into an async iterator of line strings.
- * @param {NodeJS.ReadableStream} stdout
- */
-async function* lineIterator(stdout) {
-  let buffer = "";
-  for await (const chunk of stdout) {
-    buffer += chunk.toString();
-    let newlineIdx;
-    while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
-      const line = buffer.slice(0, newlineIdx).trim();
-      buffer = buffer.slice(newlineIdx + 1);
-      if (line) {
-        yield line;
-      }
-    }
-  }
-  if (buffer.trim()) {
-    yield buffer.trim();
+    if (value.type === "json") return value.value;
+    const err = value.error;
+    throw new Error(`${ERR_PARSE}: apply_samples: failed to parse MCP JSON-RPC response for request id=${request.id}: ${getErrorMessage(err)} (line: ${line})`, { cause: err });
   }
 }
 
@@ -634,7 +611,7 @@ async function main() {
     core.error(`apply_samples: failed to launch MCP server: ${getErrorMessage(err)}`);
   });
 
-  const stdoutIter = lineIterator(child.stdout);
+  const stdoutIter = streamJsonlEvents(child.stdout);
   let nextId = 1;
   const failures = [];
 

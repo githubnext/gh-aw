@@ -8,7 +8,19 @@ import { newRequest, generateRequestOperations } from "./work_queue_replay.cjs";
 import { queueFixture } from "./work_queue_lifecycle.test_helpers.cjs";
 import { digest } from "./work_queue_codec.cjs";
 import { nodeId } from "./work_queue_graph.cjs";
-import { MAX_INTENTS, MAX_INTENT_BYTES, readStagedIntentBatch, readStagedIntents, requestIdForIntent, requestForIntent, normalizeDispatchParameters, normalizeSubmitParameters, stageIntent, stagePlanIntents } from "./work_queue_intents.cjs";
+import {
+  MAX_INTENTS,
+  MAX_INTENT_BYTES,
+  readIntentLines,
+  readStagedIntentBatch,
+  readStagedIntents,
+  requestIdForIntent,
+  requestForIntent,
+  normalizeDispatchParameters,
+  normalizeSubmitParameters,
+  stageIntent,
+  stagePlanIntents,
+} from "./work_queue_intents.cjs";
 import { buildESLintFactoryPlan } from "./eslint_factory_portfolio.cjs";
 import { buildDailyReportPlan } from "./daily_report_portfolio.cjs";
 import { buildEngineConformancePlan } from "./engine_conformance_portfolio.cjs";
@@ -27,6 +39,26 @@ afterEach(() => {
 });
 
 describe("trusted stable intent ingestion", () => {
+  it("iterates intent lines lazily with split-compatible physical positions", () => {
+    const file = filename();
+    const lines = readIntentLines(file);
+    expect(lines[Symbol.iterator]()).toBe(lines);
+    fs.writeFileSync(file, '{"first":1}\n\n{"last":2}\n');
+    expect([...lines]).toEqual(['{"first":1}', "", '{"last":2}', ""]);
+  });
+
+  it.each([
+    '{"version":3,"intent_id":"bad","intent_id":"other","kind":"dispatch_next","parameters":{}}',
+    '{"version":3,"intent_id":"bad","kind":"dispatch_next","parameters":{"max_claims":1e0}}',
+    '\ufeff{"version":3,"intent_id":"bad","kind":"dispatch_next","parameters":{}}',
+    '\u00a0{"version":3,"intent_id":"bad","kind":"dispatch_next","parameters":{}}',
+  ])("keeps strict validation and physical error positions for %j", invalid => {
+    const file = filename();
+    const sibling = { version: 3, intent_id: "sibling", kind: "dispatch_next", parameters: {} };
+    fs.writeFileSync(file, `\n${invalid}\n\n${JSON.stringify(sibling)}\n`);
+    expect(readStagedIntentBatch(file)).toEqual({ intents: [sibling], errors: [{ line: 2, reason: "work_queue_intent_invalid" }] });
+  });
+
   it.each([buildESLintFactoryPlan, buildDailyReportPlan, buildEngineConformancePlan])("stages the exact portfolio submission before dispatch without an agent or credentials", buildPlan => {
     const file = filename();
     const plan = buildPlan({ date: "2026-10-08", repository: "owner/repo", repositoryId: "7" });

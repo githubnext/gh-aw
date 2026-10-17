@@ -60,3 +60,23 @@ on:
 
 > [!WARNING]
 > Allowing all forks (`"*"`) means any user who forks your repository can trigger agent execution. Workflows triggered from fork PRs run with the permissions configured in the workflow — review those permissions carefully before allowing untrusted forks.
+
+### Author associations
+
+Alternatively, `forks:` accepts an object with an explicit `author-association` list. This allows fork PRs based on GitHub's `github.event.pull_request.author_association`, which describes the PR author's relationship to the base repository, not the fork owner:
+
+```aw wrap
+---
+on:
+  pull_request:
+    forks:
+      author-association: [OWNER, MEMBER, COLLABORATOR]
+---
+```
+
+Same-repository PRs remain allowed. Fork PRs are allowed only when the author's association is in the list. Omit `MEMBER` if organization membership alone should not grant access. An empty list allows only same-repository PRs.
+
+Accepted values are `OWNER`, `MEMBER`, `COLLABORATOR`, `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, `MANNEQUIN`, and `NONE`. Values must be uppercase. Associations such as `CONTRIBUTOR` and `NONE` do not imply trusted repository access; include only associations appropriate for the workflow's permissions.
+
+> [!NOTE]
+> This filter does not grant permissions or expose secrets. Agent authentication still requires credentials to be available to the fork PR run, for example in a private or internal repository where an administrator has enabled sending secrets to workflows from fork pull requests. Other workflow guards still apply.

@@ -3,6 +3,7 @@ import { spawnSync as spawnProcessSync } from "child_process";
 import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
+import os from "node:os";
 
 const require = createRequire(import.meta.url);
 const {
@@ -54,7 +55,7 @@ const {
 } = require("./codex_harness.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
-const agentTempDir = fs.mkdtempSync(path.join(process.cwd(), "codex-harness-tests-"));
+const agentTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-harness-tests-"));
 afterAll(() => fs.rmSync(agentTempDir, { recursive: true, force: true }));
 const preloadPath = path.join(agentTempDir, "isolated-audit.cjs");
 fs.writeFileSync(
@@ -488,6 +489,19 @@ process.exit(0);`,
       expect(result.status).toBe(0);
       expect(calls).toHaveLength(1);
       expect(result.stderr).toContain("trusted budget-abort evidence");
+    });
+
+    it("does not let guard names in file reads mask the observed credit rejection", () => {
+      const events = [
+        { type: "item.completed", item: { type: "command_execution", aggregated_output: "GH_AW_MAX_CACHE_MISSES_EXCEEDED: max_cache_misses_exceeded" } },
+        { type: "error", message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" },
+        { type: "turn.failed", error: { message: "unexpected status 403 Forbidden: Maximum AI credits exceeded (1.028578 / 1)., url: http://api-proxy:10000/responses" } },
+      ];
+      const { result, calls } = runHarnessFixture(`for(const event of ${JSON.stringify(events)})process.stdout.write(JSON.stringify(event)+"\\n");process.exit(1);`);
+      expect(result.status).toBe(0);
+      expect(calls).toHaveLength(1);
+      expect(result.stderr).toContain("AI credits budget enforced");
+      expect(result.stderr).not.toContain("terminal proxy guard");
     });
 
     it("reports the soft-deadline reason when preempting an attempt that handles SIGTERM cleanly", () => {
@@ -1119,6 +1133,18 @@ env_key = "OPENAI_API_KEY"
   });
 
   describe("isUnsupportedModelToolsError", () => {
+    it("consumes JSONL lazily through corrupt lines without decoding records after a match", () => {
+      const first = '{"type":"turn.failed","error":{"code":"unknown_parameter","param":"tools"}}';
+      const output = `[INFO] startup\n{"broken"\r\nfalse\r\n${first}\n{"later":true}`;
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        expect(isUnsupportedModelToolsError(output)).toBe(true);
+        expect(parse.mock.calls.map(([text]) => text)).toEqual(['{"broken"', "false", first]);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
     it("returns true for the observed 'tools' unknown_parameter turn.failed event", () => {
       const output =
         '{"type":"thread.started","thread_id":"01a0545e-6060-7472-9d50-d4a643611434"}\n' +

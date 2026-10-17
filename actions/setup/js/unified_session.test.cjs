@@ -5,6 +5,7 @@ import path from "node:path";
 import { collectUnifiedSession, mergeSessionSources, normalizeRuntimeEvent, parseEngineSession, sessionTimestamp, writeUnifiedSession } from "./unified_session.cjs";
 import { serializeSessionArtifact, writeSessionArtifact } from "./session_artifact.cjs";
 import { normalizeUnifiedSessionEvent } from "./unified_session_payload.cjs";
+import { validateSession } from "./scripts/validate_session.cjs";
 
 const req = require;
 const { writeDetectionUsageResult } = req("./generate_usage_activity_summary.cjs");
@@ -39,6 +40,82 @@ describe("Unified conclusion session", () => {
     fs.writeFileSync(target, typeof entries === "string" ? entries : file.endsWith(".json") ? JSON.stringify(entries) : entries.map(entry => JSON.stringify(entry)).join("\n") + "\n");
     return target;
   }
+
+  it("persists dependency job outcomes without outputs or invented timing", () => {
+    process.env.GH_AW_JOB_RESULTS = JSON.stringify({
+      safe_outputs: { result: "failure", outputs: { token: "PRIVATE_OUTPUT" } },
+      activation: { result: "success", outputs: { activated: "true" } },
+      detection: { result: "cancelled" },
+      "custom-job": { result: "skipped", conclusion: "PRIVATE_CONCLUSION" },
+    });
+    const events = writeUnifiedSession({ rootDir: root });
+    const results = events.filter(event => event.type === "workflow.job_result");
+    expect(results).toEqual(
+      [
+        ["activation", "success"],
+        ["custom-job", "skipped"],
+        ["detection", "cancelled"],
+        ["safe_outputs", "failure"],
+      ].map(([jobId, result], index) => ({
+        type: "workflow.job_result",
+        data: { jobId, result },
+        provenance: { component: "workflow", phase: "conclusion", path: "usage/aw_session.jsonl", index },
+      }))
+    );
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("PRIVATE_");
+    expect(persisted.trim().split("\n").map(JSON.parse)).toEqual(events);
+    expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
+  });
+
+  it.each([0, 1234])("persists observed job duration %s in milliseconds", durationMs => {
+    process.env.GH_AW_JOB_RESULTS = '{"agent":{"result":"failure"},"detection":{"result":"skipped"}}';
+    writeUnifiedSession({ rootDir: root, jobDurations: { agent: durationMs, detection: 0 } });
+    const events = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    expect(events.filter(event => event.type === "workflow.job_result").map(event => event.data)).toEqual([
+      { jobId: "agent", result: "failure", durationMs },
+      { jobId: "detection", result: "skipped" },
+    ]);
+  });
+
+  it.each([-1, 0.5, NaN, Infinity])("omits invalid duration %s without losing the job outcome", durationMs => {
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults: '{"agent":{"result":"success"}}', jobDurations: { agent: durationMs } });
+    expect(events.find(event => event.type === "workflow.job_result").data).toEqual({ jobId: "agent", result: "success" });
+  });
+
+  it.each([undefined, "", "{}"])("does not fabricate job outcomes without dependency evidence: %s", jobResults => {
+    const warn = vi.fn();
+    delete process.env.GH_AW_JOB_RESULTS;
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults, warn });
+    expect(events.some(event => event.type === "workflow.job_result")).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(["invalid PRIVATE_JSON", "null", "[]", "42", '"PRIVATE_VALUE"'])("warns without exposing invalid dependency metadata: %s", jobResults => {
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults, warn });
+    expect(events.some(event => event.type === "workflow.job_result")).toBe(false);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: invalid_job_results in usage/aw_session.jsonl");
+    expect(events.find(event => event.type === "session.collection_warning").data.code).toBe("invalid_job_results");
+    expect(JSON.stringify(events)).not.toContain("PRIVATE_");
+  });
+
+  it.each([null, [], "PRIVATE_VALUE", {}, { result: "" }, { result: "timed_out" }, { result: 0 }])("skips invalid job results while retaining valid outcomes: %j", job => {
+    const warn = vi.fn();
+    const jobResults = JSON.stringify({ invalid: job, agent: { result: "failure" } });
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults, warn });
+    expect(events.filter(event => event.type === "workflow.job_result").map(event => event.data)).toEqual([{ jobId: "agent", result: "failure" }]);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: invalid_job_result in usage/aw_session.jsonl");
+    expect(JSON.stringify(events)).not.toContain("PRIVATE_");
+  });
+
+  it("rejects invalid job IDs without publishing them", () => {
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, jobResults: '{"PRIVATE ID":{"result":"success"}}', warn });
+    expect(events.some(event => event.type === "workflow.job_result")).toBe(false);
+    expect(warn).toHaveBeenCalledExactlyOnceWith("Unified session: invalid_job_result in usage/aw_session.jsonl");
+    expect(JSON.stringify(events)).not.toContain("PRIVATE ID");
+  });
 
   it.each(["agent", "detection"])("persists the complete AWF model inventory for the %s phase without credentials", phase => {
     const prefix = phase === "agent" ? "" : "threat-detection/";
@@ -809,6 +886,32 @@ describe("Unified conclusion session", () => {
     const original = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
     writeUnifiedSession({ rootDir: root });
     expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).toBe(original);
+  });
+
+  it.each(["experiments", "usage/experiment"])("persists exact current-run assignments from %s independently of historical state", directory => {
+    const assignments = { assignments: "treatment", model_size: "large", prompt_style: "detailed" };
+    const history = [
+      { run_id: "122", timestamp: "2026-10-01T00:00:00Z", assignments: { assignments: "control", model_size: "small", prompt_style: "concise" } },
+      { run_id: "123", timestamp: "2026-10-02T00:00:00Z", assignments },
+    ];
+    const assignmentPath = `${directory}/assignments.json`;
+    write(assignmentPath, assignments);
+    write(`${directory}/state.jsonl`, history);
+    const events = writeUnifiedSession({ rootDir: root });
+    expect(events.filter(event => event.type === "experiment.assignment")).toEqual([
+      {
+        type: "experiment.assignment",
+        data: { assignments },
+        provenance: { component: "experiment", phase: "activation", path: assignmentPath, index: 0 },
+      },
+    ]);
+    expect(events.filter(event => event.type === "experiment.state").map(event => event.data)).toEqual(history.map(({ run_id, assignments }) => ({ runId: run_id, assignments })));
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted.trim().split("\n").map(JSON.parse)).toEqual(events);
+    expect(validateSession(persisted)).toBe(events.length);
+    expect(events.at(-1).data.warnings).toBe(0);
+    expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
+    expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).toBe(persisted);
   });
 
   it("collects available tool and engine versions from workflow metadata", () => {

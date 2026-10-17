@@ -396,6 +396,19 @@ describe("Ledger", () => {
     expect(compactor.get(first.sha)).toEqual(first);
   });
 
+  it.each(["\ufeff", "\u00a0", "\f"])("does not loosen coverage JSON framing when using the shared parser (%j)", whitespace => {
+    const record = ledger.append("note", { value: 1 });
+    const compactor = new Ledger({ memoryDir });
+    const replacement = compactor.createSegment([record]);
+    const declaration = compactor.markCovered([ledger.writerId], replacement.id);
+    const file = path.join(compactor.coverageDir, `${declaration.id}.jsonl`);
+    const content = fs.readFileSync(file, "utf8");
+    fs.writeFileSync(file, whitespace + content);
+    expect(compactor.retireCovered()).toBe(0);
+    fs.writeFileSync(file, content);
+    expect(compactor.retireCovered()).toBe(1);
+  });
+
   it("does not retire forged, incomplete, self-referential, or current-run coverage declarations", () => {
     const first = ledger.append("note", { value: 1 });
     const secondLedger = new Ledger({ memoryDir });

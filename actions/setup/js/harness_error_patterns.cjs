@@ -2,6 +2,7 @@
 
 "use strict";
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const { BUILT_IN_PATTERNS } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues, redactMaskedValues } = require("./add_mask_redaction.cjs");
 
@@ -91,6 +92,65 @@ const API_PROXY_GUARD_REJECTION_PATTERNS = [
 ];
 
 /**
+ * Select diagnostic fields without inspecting metadata, tool input, or assistant prose.
+ * The caller must first attribute the record as a native error.
+ * @param {any} record
+ * @returns {any}
+ */
+function selectNativeErrorDiagnostic(record) {
+  /** @param {any} value @param {number} depth @returns {any} */
+  const select = (value, depth) => {
+    if (depth > 8) return undefined;
+    if (typeof value === "string") {
+      try {
+        return select(JSON.parse(value), depth + 1);
+      } catch {
+        return value;
+      }
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    const diagnostic = {};
+    for (const key of ["type", "code", "error_code", "errorCode", "error_type", "errorType", "terminal_reason", "statusCode", "status_code", "status", "error_status", "api_error_status", "subtype"]) {
+      if (typeof value[key] === "string" || typeof value[key] === "number") diagnostic[key] = value[key];
+    }
+    for (const key of ["error", "message", "errorMessage"]) {
+      if (value[key] !== undefined) diagnostic[key] = select(value[key], depth + 1);
+    }
+    if (value.is_api_error_message === true) diagnostic.is_api_error_message = true;
+    // Claude marks API-error assistant content as transport text, not conversation.
+    // Its canonical error envelope retains the error identifier and assistant message.
+    if ((value.type === "assistant" && value.is_api_error_message === true) || (typeof value.error === "string" && value.message?.role === "assistant")) {
+      const content = value.message?.content;
+      if (Array.isArray(content))
+        diagnostic.message = content
+          .filter(block => block?.type === "text" && typeof block.text === "string")
+          .map(block => {
+            const text = select(block.text, depth + 1);
+            return typeof text === "string" ? text : (JSON.stringify(text) ?? "");
+          })
+          .join("\n");
+    }
+    if (value.is_error === true) {
+      diagnostic.is_error = true;
+      diagnostic.result = select(value.result, depth + 1);
+      if (Array.isArray(value.errors)) diagnostic.errors = value.errors.map(error => select(error, depth + 1));
+    }
+    return diagnostic;
+  };
+  return select(record, 0);
+}
+
+/**
+ * Endpoint incompatibility wins only within the originating diagnostic.
+ * @param {string} guard
+ * @param {string} diagnostic
+ * @returns {boolean}
+ */
+function shouldSuppressGuardCategory(guard, diagnostic) {
+  return guard === "model_policy_violation" && parseModelEndpointMismatch(diagnostic) !== null;
+}
+
+/**
  * Detect an AWF API proxy guardrail rejection in harness output.
  *
  * Only the text form is inspected here; the authoritative source is the proxy's structured
@@ -104,20 +164,19 @@ const API_PROXY_GUARD_REJECTION_PATTERNS = [
 function parseAPIProxyGuardRejection(output) {
   const safeOutput = typeof output === "string" ? output : "";
   if (!safeOutput) return null;
-  for (const line of safeOutput.split(/\r?\n/)) {
-    let record;
-    try {
-      record = JSON.parse(line);
-    } catch {
-      continue;
-    }
+  const diagnostics = [];
+  for (const record of iterateJsonl(safeOutput)) {
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
-    const candidates =
-      record.type === "unknown_model_ai_credits"
-        ? [record]
-        : record.type === "error" || record.type === "turn.failed" || record.is_api_error_message === true || (record.type === undefined && record.error)
-          ? [record.error, record.message]
-          : [];
+    const isApiErrorEnvelope = record.type === "assistant" && record.is_api_error_message === true;
+    const isNativeTransportError = record.type === "error" || record.type === "turn.failed" || record.type === "session.error";
+    const isGuardRecord = API_PROXY_GUARD_REJECTION_PATTERNS.some(({ guard }) => record.type === guard || ((isNativeTransportError || isApiErrorEnvelope) && record.code === guard));
+    const isFailedResult = record.type === "result" && record.is_error === true;
+    const isTransportError = isNativeTransportError || isApiErrorEnvelope || isFailedResult;
+    if (isGuardRecord || isTransportError) {
+      const diagnostic = record.type === "session.error" && record.data && typeof record.data === "object" ? record.data : record;
+      diagnostics.push(JSON.stringify(selectNativeErrorDiagnostic(diagnostic)) ?? "");
+    }
+    const candidates = record.type === "unknown_model_ai_credits" ? [record] : isNativeTransportError || isApiErrorEnvelope ? [record.error, record.message] : [];
     // Only unwrap transport errors, never assistant messages or tool results.
     for (let visited = 0; visited < 8 && candidates.length > 0; visited++) {
       let candidate = candidates.shift();
@@ -135,20 +194,22 @@ function parseAPIProxyGuardRejection(output) {
       candidates.push(candidate.error, candidate.message);
     }
   }
+  // Tool results can quote entire lock files containing guard names. Only inspect
+  // transport diagnostics, not assistant content or command output.
   for (const { guard, pattern, counterRe, counterNames } of API_PROXY_GUARD_REJECTION_PATTERNS) {
-    if (!pattern.test(safeOutput)) continue;
-    // Endpoint incompatibility has its own diagnostic, even if wrapped as a policy violation.
-    if (guard === "model_policy_violation" && parseModelEndpointMismatch(safeOutput)) continue;
-    /** @type {Record<string, string|number>} */
-    const counters = {};
-    const match = counterRe ? counterRe.exec(safeOutput) : null;
-    if (match) {
-      counterNames.forEach((name, index) => {
-        const value = Number.parseInt(match[index + 1], 10);
-        if (Number.isFinite(value)) counters[name] = value;
-      });
+    for (const diagnosticText of diagnostics) {
+      if (!pattern.test(diagnosticText) || shouldSuppressGuardCategory(guard, diagnosticText)) continue;
+      /** @type {Record<string, string|number>} */
+      const counters = {};
+      const match = counterRe ? counterRe.exec(diagnosticText) : null;
+      if (match) {
+        counterNames.forEach((name, index) => {
+          const value = Number.parseInt(match[index + 1], 10);
+          if (Number.isFinite(value)) counters[name] = value;
+        });
+      }
+      return { guard, counters };
     }
-    return { guard, counters };
   }
   return null;
 }
@@ -203,33 +264,42 @@ function parseAICreditsExceededProxyRejection(output) {
   // array/object of structured log lines) is treated as "no output" rather than coerced, since
   // `String(someObject)` would produce a meaningless "[object Object]"-style value.
   const safeOutput = typeof output === "string" ? output : "";
-  for (const line of safeOutput.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed[0] !== "{") continue;
-    /** @type {unknown} */
-    let parsed;
-    try {
-      parsed = JSON.parse(trimmed);
-    } catch {
-      continue;
-    }
-    if (!parsed || typeof parsed !== "object") continue;
-    // prettier-ignore
-    const record = /** @type {Record<string, unknown>} */ (parsed);
-    const nativeError = record.error;
-    const isCodexApiError =
-      (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && nativeError && typeof nativeError === "object" && "message" in nativeError && typeof nativeError.message === "string");
-    const isEngineFlaggedApiError = record.is_api_error_message === true || typeof record.error === "string" || isCodexApiError;
-    if (!isEngineFlaggedApiError) continue;
-    const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(JSON.stringify(record));
-    if (!match) continue;
-    const aiCredits = Number.parseFloat(match[1]);
-    const maxAICredits = Number.parseFloat(match[2]);
-    if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0) continue;
-    if (aiCredits < maxAICredits) continue;
-    return { aiCredits, maxAICredits };
+  for (const parsed of iterateJsonl(safeOutput, { lineFilter: line => line.startsWith("{") })) {
+    const rejection = parseAICreditsExceededProxyRejectionRecord(parsed);
+    if (rejection) return rejection;
   }
   return null;
+}
+
+/**
+ * Inspect an already decoded native error without reparsing its JSONL record.
+ * @param {unknown} parsed
+ * @returns {{aiCredits: number, maxAICredits: number}|null}
+ */
+function parseAICreditsExceededProxyRejectionRecord(parsed) {
+  if (!parsed || typeof parsed !== "object") return null;
+  // prettier-ignore
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  const nativeError = record.error;
+  const nativeMessage = nativeError && typeof nativeError === "object" && "message" in nativeError ? nativeError.message : undefined;
+  const isCodexApiError = (record.type === "error" && typeof record.message === "string") || (record.type === "turn.failed" && typeof nativeMessage === "string");
+  const isClaudeFailedResult = record.type === "result" && record.is_error === true;
+  const isClaudeApiError = record.type === "assistant" && record.is_api_error_message === true;
+  const isEngineFlaggedApiError = isClaudeApiError || isCodexApiError || isClaudeFailedResult;
+  if (!isEngineFlaggedApiError) return null;
+  const diagnostic = isCodexApiError
+    ? record.type === "error"
+      ? record.message
+      : nativeMessage
+    : isClaudeFailedResult
+      ? JSON.stringify({ result: record.result, errors: record.errors })
+      : JSON.stringify({ error: record.error, message: record.message });
+  const match = AI_CREDITS_EXCEEDED_PROXY_REJECTION_RE.exec(typeof diagnostic === "string" ? diagnostic : "");
+  if (!match) return null;
+  const aiCredits = Number.parseFloat(match[1]);
+  const maxAICredits = Number.parseFloat(match[2]);
+  if (!Number.isFinite(aiCredits) || !Number.isFinite(maxAICredits) || maxAICredits <= 0 || aiCredits < maxAICredits) return null;
+  return { aiCredits, maxAICredits };
 }
 
 /**
@@ -263,5 +333,8 @@ module.exports = {
   MODEL_ENDPOINT_MISMATCH_PATTERN,
   parseModelEndpointMismatch,
   parseAPIProxyGuardRejection,
+  selectNativeErrorDiagnostic,
+  shouldSuppressGuardCategory,
   parseAICreditsExceededProxyRejection,
+  parseAICreditsExceededProxyRejectionRecord,
 };

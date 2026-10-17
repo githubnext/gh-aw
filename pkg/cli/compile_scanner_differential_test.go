@@ -181,7 +181,7 @@ func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {
 	assert.Contains(t, output, "test.lock.yml:3:1: info: [Low] self-repository")
 	assert.Contains(t, output, "test.lock.yml:4:1: error: [High] template-injection")
 	captureStderrForGuardPolicyReportTest(func() {
-		count, high, err = parseAndDisplayZizmorOutput(stdout, "", false)
+		count, high, err = parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{})
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 3, count, "ordinary compilation must not ignore secrets-outside-env")
@@ -273,6 +273,10 @@ func TestCollectDryRunBaselineInputsSetsWorkflowIdentifierPerFile(t *testing.T) 
 	t.Parallel()
 	root := t.TempDir()
 	require.NoError(t, initTestGitRepo(root))
+	gitConfig := filepath.Join(root, ".git", "config")
+	config, err := os.ReadFile(gitConfig)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(gitConfig, append(config, []byte("\n[remote \"origin\"]\n\turl = https://github.com/test-owner/test-repo.git\n")...), 0600))
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0755))
 	var sources, locks []string
@@ -296,10 +300,12 @@ Check the workflow.
 	}
 
 	compiler := workflow.NewCompiler()
+	compiler.SetRepositorySlug("original/repository")
 	gotLocks, resources, err := collectDryRunBaselineInputs(sources,
 		&CompileConfig{DryRun: true, Strict: true, Shellcheck: true}, compiler)
 	require.NoError(t, err)
 	assert.Equal(t, locks, gotLocks)
+	assert.Equal(t, "original/repository", compiler.GetRepositorySlug(), "baseline collection must restore the compiler's repository context")
 	require.Len(t, resources, 2)
 	for i, resource := range resources {
 		assert.Equal(t, strings.TrimSuffix(filepath.Base(sources[i]), ".md"), resource.Source)
@@ -308,11 +314,50 @@ Check the workflow.
 
 	expectedCompiler := workflow.NewCompiler(
 		workflow.WithWorkflowIdentifier(".github/workflows/second.md"))
+	expectedCompiler.SetRepositorySlug("original/repository")
 	expected, err := expectedCompiler.ParseWorkflowFile(sources[1])
 	require.NoError(t, err)
 	actual, err := compiler.ParseWorkflowFile(sources[1])
 	require.NoError(t, err)
 	assert.Equal(t, expected.On, actual.On, "the batch must not retain the first workflow's schedule seed")
+}
+
+func TestSetWorkflowFileContextUsesRemoteAndRespectsLockedSeed(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	require.NoError(t, initTestGitRepo(root))
+	gitConfig := filepath.Join(root, ".git", "config")
+	config, err := os.ReadFile(gitConfig)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(gitConfig, append(config, []byte("\n[remote \"origin\"]\n\turl = https://github.com/test-owner/test-repo.git\n")...), 0600))
+	file := filepath.Join(root, ".github", "workflows", "daily.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(file), 0755))
+	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  schedule: daily\n---\nCheck the workflow.\n"), 0600))
+
+	compiler := workflow.NewCompiler()
+	compiler.SetRepositorySlug("original/repository")
+	setWorkflowFileContext(compiler, file)
+	assert.Equal(t, "test-owner/test-repo", compiler.GetRepositorySlug())
+	expectedCompiler := workflow.NewCompiler(workflow.WithWorkflowIdentifier(".github/workflows/daily.md"))
+	expectedCompiler.SetRepositorySlug("test-owner/test-repo")
+	expectedData, err := expectedCompiler.ParseWorkflowFile(file)
+	require.NoError(t, err)
+	actualData, err := compiler.ParseWorkflowFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, expectedData.On, actualData.On, "the workflow identifier and repository slug must come from this file")
+
+	lockedCompiler := workflow.NewCompiler()
+	lockedCompiler.SetRepositorySlug("explicit/seed")
+	lockedCompiler.LockRepositorySlug()
+	setWorkflowFileContext(lockedCompiler, file)
+	assert.Equal(t, "explicit/seed", lockedCompiler.GetRepositorySlug())
+	expectedLockedCompiler := workflow.NewCompiler(workflow.WithWorkflowIdentifier(".github/workflows/daily.md"))
+	expectedLockedCompiler.SetRepositorySlug("explicit/seed")
+	expectedLockedData, err := expectedLockedCompiler.ParseWorkflowFile(file)
+	require.NoError(t, err)
+	actualLockedData, err := lockedCompiler.ParseWorkflowFile(file)
+	require.NoError(t, err)
+	assert.Equal(t, expectedLockedData.On, actualLockedData.On, "an explicit seed must not be overridden by the file remote")
 }
 
 func TestPrepareDryRunScannerBaselineRejectsMalformedShellcheckLock(t *testing.T) {

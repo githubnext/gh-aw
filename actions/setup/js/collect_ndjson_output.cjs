@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { repairJson, sanitizePrototypePollution } = require("./json_repair_helpers.cjs");
 const { normalizeRuntimeMessage, readClaimScopeContext, currentClaimHandle, currentClaimAssignment } = require("./work_queue_claim_scope.cjs");
@@ -9,7 +10,7 @@ const { AGENT_OUTPUT_FILENAME, TMP_GH_AW_PATH } = require("./constants.cjs");
 const { ERR_API, ERR_PARSE } = require("./error_codes.cjs");
 const { parseIntTemplatable } = require("./templatable.cjs");
 const { isProbingNoopMessage } = require("./intent_probe.cjs");
-const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
+const { buildEmptyOutputOutcome, collectOutcomeSession, hasFailedFinalResult } = require("./empty_output_outcome.cjs");
 
 const MENTION_AWARE_OUTPUT_TYPES = new Set(["add_comment", "close_discussion", "create_discussion", "create_issue", "create_pull_request", "create_pull_request_review_comment", "reply_to_pull_request_review_comment"]);
 
@@ -144,23 +145,17 @@ async function main() {
         normalizedItem,
       };
     }
-    function parseJsonWithRepair(jsonStr) {
+    function repairJsonRecord(jsonStr, originalError) {
       try {
-        const parsed = JSON.parse(jsonStr);
+        const repairedJson = repairJson(jsonStr);
+        const parsed = JSON.parse(repairedJson);
         // Sanitize the parsed object to prevent prototype pollution
         return sanitizePrototypePollution(parsed);
-      } catch (originalError) {
-        try {
-          const repairedJson = repairJson(jsonStr);
-          const parsed = JSON.parse(repairedJson);
-          // Sanitize the parsed object to prevent prototype pollution
-          return sanitizePrototypePollution(parsed);
-        } catch (repairError) {
-          core.info(`invalid input json: ${jsonStr}`);
-          const originalMsg = getErrorMessage(originalError);
-          const repairMsg = getErrorMessage(repairError);
-          throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
-        }
+      } catch (repairError) {
+        core.info(`invalid input json: ${jsonStr}`);
+        const originalMsg = getErrorMessage(originalError);
+        const repairMsg = getErrorMessage(repairError);
+        throw new Error(`${ERR_PARSE}: JSON parsing failed. Original: ${originalMsg}. After attempted repair: ${repairMsg}`);
       }
     }
     const outputFile = process.env.GH_AW_SAFE_OUTPUTS;
@@ -228,12 +223,13 @@ async function main() {
     // Parse JSONL (JSON Lines) format: each line is a separate JSON object
     // CRITICAL: This expects one JSON object per line. If JSON is formatted with
     // indentation/pretty-printing, parsing will fail.
-    const lines = outputContent.trim().split("\n");
+    const records = iterateJsonlEvents(outputContent.trim());
 
     const parsedItems = [];
     const errors = collectionErrors;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    for (const record of records) {
+      const i = record.lineNumber - 1;
+      const line = record.rawLine.trim();
       if (line === "") continue;
       core.info(`[INGESTION] Processing line ${i + 1}: ${line.substring(0, 200)}...`);
       let item;
@@ -248,7 +244,7 @@ async function main() {
           });
       };
       try {
-        item = queueScope ? sanitizePrototypePollution(parseStrictJSON(line)) : parseJsonWithRepair(line);
+        item = queueScope ? sanitizePrototypePollution(parseStrictJSON(line)) : record.type === "json" ? sanitizePrototypePollution(record.value) : repairJsonRecord(line, record.error);
         if (item === undefined) {
           rejectItem(`Line ${i + 1}: Invalid JSON - JSON parsing failed`);
           continue;
@@ -374,8 +370,19 @@ async function main() {
     let collectorDriverExitCode;
     let collectorRetryCount;
     let collectorEngineErrorType;
-    if (!queueScope && !parsedItems.some(item => !["missing_tool", "missing_data"].includes(item.type))) {
-      const incompleteOutcome = buildEmptyOutputOutcome(errors);
+    const hasTerminalOutput = parsedItems.some(item => !["missing_tool", "missing_data"].includes(item.type));
+    let failedFinalResult = false;
+    let session;
+    if (!queueScope && hasTerminalOutput) {
+      try {
+        session = collectOutcomeSession(TMP_GH_AW_PATH);
+        failedFinalResult = hasFailedFinalResult(session.events);
+      } catch {
+        core.warning("Runtime diagnostics could not be collected.");
+      }
+    }
+    if (!queueScope && (failedFinalResult || !hasTerminalOutput)) {
+      const incompleteOutcome = buildEmptyOutputOutcome(errors, undefined, session);
       parsedItems.push(incompleteOutcome);
       collectorEmptyOutputCause = incompleteOutcome.reason;
       collectorFailureCause = incompleteOutcome.failureCause;

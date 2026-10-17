@@ -420,9 +420,11 @@ type compileCmdOptions struct {
 	validate                  bool
 	watch                     bool
 	noEmit                    bool
+	readOnly                  bool
 	purge                     bool
 	strict                    bool
 	requireSelfHostedRunners  bool
+	noLogo                    bool
 	trial                     bool
 	dependabot                bool
 	forceOverwrite            bool
@@ -467,7 +469,8 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 	watch, _ := cmd.Flags().GetBool("watch")
 	dir, _ := cmd.Flags().GetString("dir")
 	workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
-	noEmit, _ := cmd.Flags().GetBool("no-emit")
+	noEmit, readOnly, noCheckUpdate := getCompileReadOnlyOptions(cmd)
+	noLogo, _ := cmd.Flags().GetBool("no-logo")
 	purge, _ := cmd.Flags().GetBool("purge")
 	strict, _ := cmd.Flags().GetBool("strict")
 	requireSelfHostedRunners, _ := cmd.Flags().GetBool("require-self-hosted-runners")
@@ -494,7 +497,6 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 	stats, _ := cmd.Flags().GetBool("stats")
 	models, _ := cmd.Flags().GetBool("models")
 	failFast, _ := cmd.Flags().GetBool("fail-fast")
-	noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
 	scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
 	staged, _ := cmd.Flags().GetBool("staged")
 	approve, _ := cmd.Flags().GetBool("approve")
@@ -508,12 +510,19 @@ func getCompileCmdOptions(cmd *cobra.Command) compileCmdOptions {
 		engineOverride:    engineOverride, actionMode: actionMode, actionTag: actionTag, actionsRepo: actionsRepo, ghAwRef: ghAwRef,
 		dir: dir, workflowsDir: workflowsDir, logicalRepo: logicalRepo, scheduleSeed: scheduleSeed, priorManifestFile: priorManifestFile,
 		environment: environment, dryRun: dryRun, allowExperimental: allowExperimental,
-		validate: validate, watch: watch, noEmit: noEmit, purge: purge, strict: strict, requireSelfHostedRunners: requireSelfHostedRunners, trial: trial, dependabot: dependabot,
+		validate: validate, watch: watch, noEmit: noEmit, readOnly: readOnly, noLogo: noLogo, purge: purge, strict: strict, requireSelfHostedRunners: requireSelfHostedRunners, trial: trial, dependabot: dependabot,
 		forceOverwrite: forceOverwrite, refreshStopTime: refreshStopTime, forceRefreshActionPins: forceRefreshActionPins, forceRefreshContainerPins: forceRefreshContainerPins, allowActionRefs: allowActionRefs,
 		zizmor: zizmor, poutine: poutine, actionlint: actionlint, runnerGuard: runnerGuard, syft: syft, grype: grype, grant: grant, yamllint: yamllint, shellcheck: shellcheck,
 		jsonOutput: jsonOutput, showAllErrors: showAllErrors, fix: fix, stats: stats, models: models, failFast: failFast, noCheckUpdate: noCheckUpdate,
 		staged: staged, approve: approve, validateImages: validateImages, ghes: ghes, verbose: verbose, useSamples: useSamples,
 	}
+}
+
+func getCompileReadOnlyOptions(cmd *cobra.Command) (noEmit, readOnly, noCheckUpdate bool) {
+	noEmit, _ = cmd.Flags().GetBool("no-emit")
+	readOnly, _ = cmd.Flags().GetBool("read-only")
+	noCheckUpdate, _ = cmd.Flags().GetBool("no-check-update")
+	return noEmit || readOnly, readOnly, noCheckUpdate || readOnly
 }
 
 func getExplicitDevelopmentBoolFlags(cmd *cobra.Command) map[string]bool {
@@ -551,7 +560,7 @@ func (o *compileCmdOptions) toCompileConfig(args []string) cli.CompileConfig {
 		ExplicitBoolFlags: o.explicitBoolFlags,
 		MarkdownFiles:     args, Verbose: o.verbose, EngineOverride: o.engineOverride, ActionMode: o.actionMode, ActionTag: o.actionTag,
 		ActionsRepo: o.actionsRepo, Validate: o.validate, Watch: o.watch, WorkflowDir: o.workflowDir(),
-		NoEmit: o.noEmit, Purge: o.purge, TrialMode: o.trial, TrialLogicalRepoSlug: o.logicalRepo, Strict: o.strict,
+		NoEmit: o.noEmit, ReadOnly: o.readOnly, NoLogo: o.noLogo, Purge: o.purge, TrialMode: o.trial, TrialLogicalRepoSlug: o.logicalRepo, Strict: o.strict,
 		RequireSelfHostedRunners: o.requireSelfHostedRunners,
 		EnvironmentOverride:      o.environment, DryRun: o.dryRun, AllowExperimental: o.allowExperimental,
 		Dependabot: o.dependabot, ForceOverwrite: o.forceOverwrite, RefreshStopTime: o.refreshStopTime, ForceRefreshActionPins: o.forceRefreshActionPins, ForceRefreshContainerPins: o.forceRefreshContainerPins,
@@ -808,6 +817,9 @@ func configureCompileBuildFlags() {
 	compileCmd.Flags().String("workflows-dir", "", "Deprecated: use --dir instead")
 	_ = compileCmd.Flags().MarkDeprecated("workflows-dir", "use --dir instead")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
+	compileCmd.Flags().Bool("read-only", false, "Compile untrusted workflows without filesystem or command side effects")
+	_ = compileCmd.Flags().MarkHidden("read-only")
+	compileCmd.Flags().Bool("no-logo", false, "Omit the ASCII logo from generated workflow headers")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are provided)")
 	compileCmd.Flags().Bool("strict", false, "Override frontmatter to enforce strict mode validation for all workflows (enforces action pinning, network config, safe-outputs, disallows write permissions and deprecated fields). Note: Workflows default to strict mode unless frontmatter sets strict: false")
 	compileCmd.Flags().Bool("dry-run", false, "Compile with strict validation, shellcheck, and model checks; gate added medium-or-higher scanner findings against pre-compilation locks; ignore low severity and zizmor secrets-outside-env; Docker-based scanners are opt-in; report gate/scanner coverage; disable compiler-managed GitHub mutations, stage safe outputs, and record dry_run in aw_info.json; custom scripts and external MCP effects remain unverified; does not authorize execution, upload, or dispatch workflows")

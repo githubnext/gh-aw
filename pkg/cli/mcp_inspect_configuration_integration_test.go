@@ -59,9 +59,13 @@ mcp-servers:
 	workflowPath := filepath.Join(workflowsDir, "untrusted.md")
 	require.NoError(t, os.WriteFile(workflowPath, []byte(content), 0o600))
 	require.NoError(t, initTestGitRepo(dir))
-	for _, launcher := range []string{"npx", "docker"} {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, launcher), []byte("#!/bin/sh\n: > \"$GH_AW_INSPECT_MARKER\"\n"), 0o700))
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "npx"), []byte("#!/bin/sh\n: > \"$GH_AW_INSPECT_MARKER\"\n"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker"), []byte(`#!/bin/sh
+case "$1 $2" in
+  "info "|"image inspect") exit 1 ;;
+esac
+: > "$GH_AW_INSPECT_MARKER"
+`), 0o700))
 
 	for _, allowWrite := range []bool{false, true} {
 		t.Run(fmt.Sprintf("allow-write=%t", allowWrite), func(t *testing.T) {
@@ -81,12 +85,24 @@ mcp-servers:
 			defer session.Close()
 
 			if !allowWrite {
-				for _, tool := range []string{"add", "update", "fix", "compile"} {
+				for _, tool := range []string{"add", "update", "fix"} {
 					_, err := session.CallTool(ctx, &mcp.CallToolParams{
 						Name: tool, Arguments: map[string]any{"workflows": []string{"attacker/evil/payload"}},
 					})
 					require.ErrorContains(t, err, "workflow-writing tools disabled")
 				}
+				result, err := session.CallTool(ctx, &mcp.CallToolParams{
+					Name: "compile", Arguments: map[string]any{"workflows": []string{"untrusted"}},
+				})
+				require.NoError(t, err, "read-only compile must remain available")
+				require.False(t, result.IsError)
+				require.NotEmpty(t, result.Content)
+				text, ok := result.Content[0].(*mcp.TextContent)
+				require.True(t, ok)
+				var results []ValidationResult
+				require.NoError(t, json.Unmarshal([]byte(text.Text), &results))
+				require.Len(t, results, 1)
+				assert.Equal(t, "untrusted.md", results[0].Workflow)
 			}
 			for _, workflow := range []string{"", "untrusted"} {
 				result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -113,7 +129,7 @@ mcp-servers:
 			assert.Equal(t, content, string(got))
 			entries, err := os.ReadDir(workflowsDir)
 			require.NoError(t, err)
-			assert.Len(t, entries, 1, "denied management calls must not plant or compile workflows")
+			assert.Len(t, entries, 1, "denied management calls and read-only compile must not write workflows")
 		})
 	}
 }

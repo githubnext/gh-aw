@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -419,6 +420,22 @@ func buildRenderedJobEnv(job *Job) map[string]string {
 		return nil
 	}
 	env := maps.Clone(job.Env)
+	if job.Name == string(constants.ConclusionJobName) {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		// Dependencies can be added after conclusion's steps are built. Project only
+		// their results at render time so private or large outputs never enter env.
+		results := make(map[string]map[string]string, len(job.Needs))
+		for _, id := range job.Needs {
+			results[id] = map[string]string{"result": fmt.Sprintf("${{ needs.%s.result }}", id)}
+		}
+		resultsJSON, err := json.Marshal(results)
+		if err != nil {
+			panic(fmt.Sprintf("BUG: failed to marshal conclusion job results: %v", err))
+		}
+		env["GH_AW_JOB_RESULTS"] = fmt.Sprintf("%q", resultsJSON)
+	}
 	if shouldInjectRuntimeFeaturesEnv(job) {
 		if env == nil {
 			env = make(map[string]string)

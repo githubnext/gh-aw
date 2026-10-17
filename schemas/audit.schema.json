@@ -1094,6 +1094,9 @@
               },
               "impact": {
                 "type": "string"
+              },
+              "playbook_url": {
+                "type": "string"
               }
             },
             "required": [
@@ -6883,6 +6886,9 @@
                     "type": "string"
                   },
                   "impact": {
+                    "type": "string"
+                  },
+                  "playbook_url": {
                     "type": "string"
                   }
                 },

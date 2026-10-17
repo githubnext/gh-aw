@@ -75,8 +75,8 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
       try {
         return execFileSync("gh", args, {
           encoding: "utf8",
-          env: { ...process.env, ...(execOptions.env || {}) },
           ...execOptions,
+          env: { ...process.env, ...(execOptions.env || {}) },
         });
       } catch (err) {
         throw new Error(`Failed to run gh ${args.join(" ")}: ${getErrorMessage(err)}`, { cause: err });

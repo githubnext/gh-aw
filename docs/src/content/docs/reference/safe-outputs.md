@@ -9,7 +9,14 @@ The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) (validated GitHub
 
 Safe outputs enforce security through separation: agents run read-only and request actions via structured output, while separate permission-controlled jobs execute those requests. This provides least privilege, defense against prompt injection, auditability, and controlled limits per operation.
 
-When no `safe-outputs:` section is present (or when only [system types](#system-types-auto-enabled) are configured), `create-issue` is automatically enabled with conservative defaults (`max: 1`, labels and title-prefix set to the workflow ID). To opt out, add an explicit `safe-outputs:` section with the outputs you want.
+When no `safe-outputs:` section is present (or when only [system types](#system-types-auto-enabled) are configured), `create-issue` is automatically enabled with conservative defaults (`max: 1`, labels and title-prefix set to the workflow ID).
+
+Setting `create-issue: false` disables the `create_issue` tool and its automatic reporting instruction while leaving system outputs enabled:
+
+```yaml wrap
+safe-outputs:
+  create-issue: false
+```
 
 Example:
 
@@ -22,7 +29,7 @@ The agent requests issue creation; a separate job with `issues: write` creates i
 
 ## Available Safe Output Types
 
-The tables below summarize the built-in safe output handlers. `noop`, `missing-tool`, and `missing-data` are always available, and `create-issue` is auto-injected only when no non-system safe outputs are configured.
+The tables below summarize the built-in safe output handlers. `noop`, `missing-tool`, and `missing-data` are always available, and `create-issue` is auto-injected only when no non-system safe outputs are configured and it is not explicitly disabled.
 
 ### Issues & Discussions
 
@@ -411,6 +418,9 @@ safe-outputs:
 ### Comment Creation (`add-comment:`)
 
 Posts comments on issues, PRs, or discussions. Defaults to triggering item; use `target: "*"` for any, or number for specific items. When combined with `create-issue`, `create-discussion`, or `create-pull-request`, includes "Related Items" section.
+
+For machine-readable state such as an incremental review's baseline commit, use [`safe-outputs.data`](#structured-data-data). HTML comments in the agent-provided body are stripped; structured data is published as visible fenced JSON.
+The `add_comment` tool rejects obvious placeholder bodies such as `test` and `test body` before recording the output or consuming the comment budget. Intent checks also recognize `test ` followed by the corresponding field name, such as `test title` for issue or pull request titles. Matching ignores case and repeated whitespace, but preserves substantive content such as `Test coverage improved`. Rejected calls return a validation error so the agent can submit the real comment.
 
 Use `required-labels` to only comment on issues/PRs that have **all** of the specified labels. Use `required-title-prefix` to only comment on issues/PRs whose title starts with the given prefix. These filters apply to issues and PRs only (not discussions).
 
@@ -1266,7 +1276,7 @@ Agent output: `{"noop": {"message": "No action needed: analysis complete - no is
 
 The `[aw] No-Op Runs` tracker and no-op sections of completion status comments omit agent messages and reuse the same categorized body. For runs with only no-op outputs, `reported_no_action` means the agent succeeded and reported no action; it does not independently verify task completion or publication readiness. `incomplete` means the agent failed despite emitting a no-op. An explicit `report_incomplete` also makes reusable tracking comments `incomplete`, while its failure report remains separate from the no-op tracker. The existing failure-policy exception for task-complete registration diagnostics also applies: registration-only reports are ignored only with terminal completion evidence and real task-level outputs. Other agent conclusions remain `unconfirmed` and are not posted to the tracker. Categories use run status and the existing incomplete-report policy, not interpretation of no-op prose. Existing tracker comments are not rewritten.
 
-Up to two `noop` calls are accepted by default (`max: 2`), since an agent's first call is often a probe. Calls whose `message` is an obvious placeholder (e.g. `test`, `probe`, `placeholder`, `dummy`, `todo`) are detected and ignored entirely — they don't count against the `noop` budget and aren't surfaced in summaries or tracking issues, so a probing call never crowds out a real completion message.
+Up to two `noop` calls are accepted by default (`max: 2`), since an agent's first call is often a probe. Calls whose `message` is an obvious placeholder (e.g. `test`, `test message`, `probe`, `placeholder`, `dummy`, `todo`) are detected and ignored entirely — they don't count against the `noop` budget and aren't surfaced in summaries or tracking issues, so a probing call never crowds out a real completion message.
 
 **Always include explicit `noop` instructions in your workflow prompts:**
 
@@ -1777,7 +1787,7 @@ safe-outputs:
 | `missing_safe_outputs` | Agent succeeded but produced no safe outputs |
 | `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
 | `agent_startup_failure` | Runtime recorded `not_started`: setup failed before agent execution, so missing outputs are downstream |
-| `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output |
+| `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output, or the final engine result reported an error even if the process exited 0 and safe outputs exist |
 | `safeoutputs_cli_error` | Safeoutputs CLI failed and no terminal safe output was recorded |
 | `invalid_safe_outputs` | Output validation rejected the agent's outputs, leaving no terminal safe output |
 | `missing_terminal_safe_output` | Agent finished with no terminal safe output, including diagnostic-only exits |
@@ -2001,6 +2011,9 @@ Validation rules:
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.
 
 HTML/XML comments (`<!-- ... -->`) are removed from sanitized body fields.
+
+#### Structured Data (`data:`)
+
 If you need a machine-readable channel that survives sanitization, configure `safe-outputs.data` in frontmatter:
 
 ```yaml wrap
@@ -2015,18 +2028,32 @@ safe-outputs:
 
 Inline object schemas are validated at compile-time (Go) and runtime (JavaScript). Expression-based schemas are resolved and validated at runtime in JavaScript.
 
-For safe outputs that support `body`, the validator preserves output `data` and appends it to the body as fenced JSON. For `create-issue`, the JSON is enclosed in a collapsed `<details>` element with a "Structured data" summary:
+For safe outputs that support `body`, the validator preserves output `data` and appends it to the body as fenced JSON. For `create-issue`, the JSON is enclosed in a collapsed `<details>` element with a "Structured data" summary. For `add-comment`, the JSON is visible under a "Structured data:" label, not hidden metadata.
+
+For example, an incremental review can declare a baseline SHA:
+
+```yaml wrap
+safe-outputs:
+  data:
+    reviewed_sha: string
+  add-comment:
+```
+
+The agent supplies the baseline in the output item's `data` field, not as an HTML comment in `body`:
 
 ```json
 {
   "type": "add_comment",
   "body": "Review complete. All criteria pass.",
   "data": {
-    "verdict": "APPROVE",
-    "criteria_passed": 5
+    "reviewed_sha": "0123456789abcdef0123456789abcdef01234567"
   }
 }
 ```
+
+On a later run, including an `issue_comment`-triggered run, read the PR's comment history and parse the fenced JSON following "Structured data:" in the latest matching review comment. Filter by the expected comment author and [workflow marker](#searching-for-workflow-created-items). Validate the recovered SHA against the target PR before using it as a baseline. The state persists in the posted comment; `data` does not automatically restore it or provide a separate cross-run store. Do not put secrets in `data`.
+
+#### Sanitization Options
 
 You can configure sanitization options:
 

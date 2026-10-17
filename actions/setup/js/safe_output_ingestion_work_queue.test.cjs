@@ -191,6 +191,7 @@ describe("safe-output ingestion queue compatibility", () => {
     await fixture({}, async test => {
       const output = await test.collect([
         { type: "noop", message: "probe" },
+        { type: "noop", message: "test message" },
         { type: "noop", message: "task completed without changes" },
       ]);
       assert.deepEqual(output.items, [{ type: "noop", message: "task completed without changes" }]);

@@ -94,26 +94,7 @@ func compileWorkflowFile(
 	// Parse workflow file to get data
 	compileWorkflowProcessorLog.Printf("Parsing workflow file: %s", resolvedFile)
 
-	// Set workflow identifier for schedule scattering (use repository-relative path for stability)
-	relPath, err := getRepositoryRelativePath(resolvedFile)
-	if err != nil {
-		compileWorkflowProcessorLog.Printf("Warning: failed to get repository-relative path for %s: %v", resolvedFile, err)
-		// Fallback to basename if we can't get relative path
-		relPath = filepath.Base(resolvedFile)
-	}
-	compiler.SetWorkflowIdentifier(relPath)
-
-	// Set repository slug for this specific file (may differ from CWD's repo)
-	// Uses SetRepositorySlugIfUnlocked so that an explicit --schedule-seed flag is never overridden.
-	fileRepoSlug := getRepositorySlugFromRemoteForPath(resolvedFile)
-	if fileRepoSlug != "" {
-		if compiler.IsRepositorySlugLocked() {
-			compileWorkflowProcessorLog.Printf("Repository slug from file remote (%s) ignored: overridden via --schedule-seed (%s)", fileRepoSlug, compiler.GetRepositorySlug())
-		} else {
-			compiler.SetRepositorySlugIfUnlocked(fileRepoSlug)
-			compileWorkflowProcessorLog.Printf("Repository slug for file set: %s", fileRepoSlug)
-		}
-	}
+	setWorkflowFileContext(compiler, resolvedFile)
 
 	// Parse the workflow
 	workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
@@ -166,6 +147,7 @@ func compileWorkflowFile(
 	// Per-file actionlint is always disabled here; actionlint runs in batch after all files are compiled.
 	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, CompileValidationOptions{
 		Verbose:            opts.verbose && !opts.jsonOutput,
+		NoEmit:             opts.noEmit,
 		RunZizmorPerFile:   opts.zizmor && !opts.noEmit,
 		RunPoutinePerFile:  opts.poutine && !opts.noEmit,
 		Strict:             opts.strict,

@@ -12,6 +12,19 @@ GitHub Agentic Workflows includes automatic threat detection to analyze agent ou
 
 Threat detection provides an additional security layer by analyzing agent output for malicious content, scanning code changes for suspicious patterns, using workflow context to distinguish legitimate actions from threats, and running automatically after the main job completes but before safe outputs are applied.
 
+Detection sanitizes its files after firewall-log collection and custom post-steps,
+before accounting reads or renders them. A second redaction pass covers newly
+generated usage files before log rendering, result publication, and artifact
+upload. These consumers require successful detection-job redaction; a failed or
+skipped redaction blocks publication for an active detection run even when detection
+uses `continue-on-error`. When no detection is needed, the redaction passes are
+skipped and the job still reports a successful skipped conclusion without reading
+detection output files. Exact-value secret inputs are limited to the detection
+job's own steps and inherited environment, not unrelated workflow credentials.
+GitHub Actions console masking does not sanitize downloadable artifact contents.
+Copied firewall files must be valid UTF-8 text no larger than 16 MiB; unsupported
+byproducts are removed before upload, and removal failures block publication.
+
 **Security Architecture:**
 
 ```text
@@ -102,6 +115,7 @@ safe-outputs:
 | `enabled` | boolean | Enable or disable detection (default: `true` when safe-outputs exist) |
 | `prompt` | string | Custom instructions appended to default detection prompt |
 | `engine` | string/object/false | AI engine config (`"copilot"`, full config object, or `false` for no AI) |
+| `ca-cert` | string/false | Absolute host path to a CA certificate for the detection API proxy. Inherits `sandbox.agent.ca-cert` when unset or empty and the detection engine matches the agent engine; set to `false` to disable inheritance. Requires AWF v0.28.10 or later. |
 | `runs-on` | string/array/object | Runner for the detection job (default: inherits from workflow `runs-on`) |
 | `artifact-base-url` | string | HTTPS base URL for a mirror of the pinned detector release assets. The compiler appends the pinned release tag and asset name; the embedded digest cannot be overridden. |
 | `steps` | array | Additional GitHub Actions steps to run **before** AI analysis (pre-steps) |
@@ -109,6 +123,26 @@ safe-outputs:
 | `max-ai-credits` | integer | AI Credits cap for the detection run, independent of the main agent budget. Defaults to `400` when unset, with runtime override via `vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`. Accepts plain integers; `-1` disables the detection budget. |
 | `continue-on-error` | boolean | When `true` (default), detection warnings/failures produce a caution notice instead of blocking safe outputs. |
 | `report-as-issue` | boolean | When `true` (default), detection warnings/failures create or update the `[aw] Detection Runs` tracking issue. Set to `false` to keep threat detection and its enforcement enabled while skipping the tracking issue; results remain visible in the GitHub Actions run logs. |
+
+### Private CA certificates
+
+The detection job inherits `sandbox.agent.ca-cert` for upstream API proxy TLS verification only when the detection and agent engines match. A non-empty `safe-outputs.threat-detection.ca-cert` overrides the inherited path; set it to `false` to opt out, or leave it unset/empty to use the matching-engine inheritance behavior.
+
+Detection runs on a fresh runner, so the certificate file must also exist there before engine execution. Use detection pre-steps to write it:
+
+```yaml wrap
+safe-outputs:
+  create-issue:
+  threat-detection:
+    ca-cert: /tmp/detection-ca.pem
+    steps:
+      - name: Write CA certificate
+        env:
+          CA_PEM: ${{ secrets.INTERNAL_CA_PEM }}
+        run: printf '%s\n' "$CA_PEM" > /tmp/detection-ca.pem
+```
+
+AWF versions before v0.28.10 silently omit `apiProxy.caCert` from the configuration instead of failing compilation. The custom certificate is therefore not used, and connections that require it may fail TLS verification.
 
 ### Use an artifact mirror
 

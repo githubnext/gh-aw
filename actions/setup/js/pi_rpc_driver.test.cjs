@@ -50,4 +50,20 @@ describe("Pi RPC driver", () => {
     expect(client.waitForIdle).not.toHaveBeenCalled();
     expect(client.stop).toHaveBeenCalledOnce();
   });
+
+  it("passes the staged workflow skills to the bare RPC child", async () => {
+    vi.stubEnv("GH_AW_PI_BARE", "true");
+    vi.stubEnv("GH_AW_PI_STAGING_DIR", path.join(dir, "staging"));
+    vi.stubEnv("GH_AW_PI_ARGS", '["--print","--mode","json","--no-session","--no-approve","--no-skills"]');
+    fs.mkdirSync(path.join(dir, "staging/skills/reporting"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "staging/skills/reporting/SKILL.md"), "Report.");
+    fs.writeFileSync(path.join(dir, "staging/skills/.gh-aw-inline-skills.json"), '["reporting"]');
+    const client = { onEvent: vi.fn(() => vi.fn()), start: vi.fn(), getState: vi.fn(async () => ({ sessionId: "rpc-session" })), prompt: vi.fn(async () => "handled"), waitForIdle: vi.fn(), stop: vi.fn(), getStderr: () => "" };
+    const RpcClient = vi.fn(function () {
+      return client;
+    });
+    await main({ sdk: { RpcClient }, cliPath: "/pi/dist/bundle/cli.js", emit: vi.fn() });
+    const { args } = RpcClient.mock.calls[0][0];
+    expect(args.slice(0, 5)).toEqual(["--no-session", "--no-approve", "--no-skills", "--skill", path.join(dir, "agent/skills/reporting/SKILL.md")]);
+  });
 });

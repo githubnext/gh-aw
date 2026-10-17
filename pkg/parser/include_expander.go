@@ -27,12 +27,12 @@ func hasIncludeDirectives(content string) bool {
 // This matches the bash expand_includes function behavior
 
 // ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
-func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
+func ExpandIncludesWithManifest(content, baseDir string, extractTools bool, caches ...*ImportCache) (string, []string, error) {
 	includeExpanderLog.Printf("Expanding includes: baseDir=%s, extractTools=%t, content_size=%d", baseDir, extractTools, len(content))
 	if noIncludeContent, done := handleNoIncludeFastPath(content, extractTools); done {
 		return noIncludeContent, nil, nil
 	}
-	currentContent, visited, err := expandIncludesIteratively(content, baseDir, extractTools)
+	currentContent, visited, err := expandIncludesIteratively(content, baseDir, extractTools, includeImportCache(caches))
 	if err != nil {
 		return "", nil, err
 	}
@@ -43,6 +43,13 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 		return mergedTools, includedFiles, err
 	}
 	return currentContent, includedFiles, nil
+}
+
+func includeImportCache(caches []*ImportCache) *ImportCache {
+	if len(caches) > 0 {
+		return caches[0]
+	}
+	return nil
 }
 
 func handleNoIncludeFastPath(content string, extractTools bool) (string, bool) {
@@ -59,7 +66,7 @@ func handleNoIncludeFastPath(content string, extractTools bool) (string, bool) {
 	return content, true
 }
 
-func expandIncludesIteratively(content, baseDir string, extractTools bool) (string, map[string]struct {
+func expandIncludesIteratively(content, baseDir string, extractTools bool, cache *ImportCache) (string, map[string]struct {
 }, error) {
 	const maxDepth = 10
 	currentContent := content
@@ -67,7 +74,7 @@ func expandIncludesIteratively(content, baseDir string, extractTools bool) (stri
 	})
 	for depth := range maxDepth {
 		includeExpanderLog.Printf("Include expansion depth: %d", depth)
-		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
+		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited, cache)
 		if err != nil {
 			return "", nil, err
 		}
@@ -213,23 +220,23 @@ func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 	return results
 }
 
-func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
+func ExpandIncludesForEngines(content, baseDir string, caches ...*ImportCache) ([]string, error) {
 	includeExpanderLog.Printf("Expanding includes for engines: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
 		return extractFrontmatterField(c, "engine", "")
-	}, "")
+	}, "", includeImportCache(caches))
 }
 
 // ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
-func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+func ExpandIncludesForSafeOutputs(content, baseDir string, caches ...*ImportCache) ([]string, error) {
 	includeExpanderLog.Printf("Expanding includes for safe-outputs: baseDir=%s", baseDir)
 	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
 		return extractFrontmatterField(c, "safe-outputs", "{}")
-	}, "{}")
+	}, "{}", includeImportCache(caches))
 }
 
 // expandIncludesForField recursively expands includes to extract a specific frontmatter field
-func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
+func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string, cache *ImportCache) ([]string, error) {
 	// Fast path: skip expansion entirely when no include/import directives are present.
 	if !hasIncludeDirectives(content) {
 		return nil, nil
@@ -241,7 +248,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 
 	for range maxDepth {
 		// Process includes in current content to extract the field
-		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
+		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +270,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 }
 
 // processIncludesForField processes import directives to extract a specific frontmatter field
-func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
+func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string, cache *ImportCache) ([]string, string, error) {
 	// Fast path: skip scanner allocation when no include/import directives are present.
 	if !hasIncludeDirectives(content) {
 		return nil, content, nil
@@ -279,7 +286,7 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 		// Parse import directive
 		directive := ParseImportDirective(line)
 		if directive != nil {
-			fieldJSON, shouldSkip, err := extractFieldFromDirectiveForField(directive, baseDir, extractFunc)
+			fieldJSON, shouldSkip, err := extractFieldFromDirectiveForField(directive, baseDir, extractFunc, cache)
 			if err != nil {
 				return nil, "", err
 			}
@@ -302,9 +309,10 @@ func extractFieldFromDirectiveForField(
 	directive *ImportDirectiveMatch,
 	baseDir string,
 	extractFunc func(string) (string, error),
+	cache *ImportCache,
 ) (string, bool, error) {
 	filePath := includeDirectiveFilePath(directive.Path)
-	fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+	fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
 	if err != nil {
 		if directive.IsOptional {
 			return "", true, nil

@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -158,9 +159,8 @@ function loadAICUsageCache(filePath) {
     const cutoff = Date.now() - CACHE_RETENTION_MS;
     const { keptLines, prunedCount: skippedStale } = pruneStaleJSONLCacheLines(content, cutoff);
     let loaded = 0;
-    for (const line of keptLines) {
+    for (const entry of iterateJsonl(keptLines)) {
       try {
-        const entry = JSON.parse(line);
         const runId = Number(entry?.run_id);
         const rawAic = entry?.aic;
         const aic = typeof rawAic === "number" ? rawAic : NaN;

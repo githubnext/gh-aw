@@ -24,7 +24,7 @@ func TestDevelopmentPushJobs(t *testing.T) {
 		compiler.disableDryRunPushJobs()
 		for name, job := range compiler.jobManager.GetAllJobs() {
 			if enabled && (strings.HasPrefix(name, "push_") || name == "update_cache_memory" || name == "update_drive_memory") {
-				assert.Equal(t, "false", job.If, name)
+				assert.Equal(t, "${{ !always() }}", job.If, name)
 			} else {
 				assert.Equal(t, "${{ always() }}", job.If, name)
 			}
@@ -43,6 +43,7 @@ func TestDryRunWorkflowMutationControls(t *testing.T) {
 		DriveMemoryConfig: &DriveMemoryConfig{Drives: []DriveMemoryEntry{{ID: "default"}}},
 		SafeOutputs:       &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{}},
 		Cache:             "cache:\n  key: example\n  path: example\n",
+		RunName:           workQueueWorkerRunName,
 	}
 	compiler := NewCompiler()
 	compiler.SetDryRun(true)
@@ -54,6 +55,8 @@ func TestDryRunWorkflowMutationControls(t *testing.T) {
 	assert.False(t, result.LabelCommandRemoveLabel)
 	assert.True(t, result.ReportBlockedVersionDisabled)
 	assert.False(t, isWorkQueueEnabled(result))
+	assert.Empty(t, result.RunName)
+	assert.Equal(t, workQueueWorkerRunName, data.RunName)
 	assert.True(t, result.ParsedTools.GitHub.ReadOnly)
 	assert.True(t, templatableBoolIsTrue(result.SafeOutputs.Staged))
 	assert.True(t, result.CacheMemoryConfig.Caches[0].RestoreOnly)
@@ -223,14 +226,20 @@ Debug generated delegated workflow jobs.
 				} else {
 					assert.NotEqual(t, false, compiled.Jobs["call-worker"]["if"])
 				}
-			} else if !enabled {
-				assert.Contains(t, string(content), "Snapshot work queue state")
-				assert.Contains(t, string(content), "Reconcile work queue claim")
+			} else {
+				assert.Empty(t, compiled.Jobs["conclusion"]["outputs"])
+				if !enabled {
+					assert.Contains(t, string(content), "Snapshot work queue state")
+					assert.Contains(t, string(content), "Reconcile work queue claim")
+				}
 			}
 			if enabled {
 				assert.NotContains(t, string(content), "Snapshot work queue state")
 				assert.NotContains(t, string(content), "Reconcile work queue claim")
 				assert.NotContains(t, compiled.Jobs, "work_queue_claim")
+				assert.NotContains(t, string(content), "inputs.work_queue_assignment")
+			} else if source == queueSource {
+				assert.Contains(t, string(content), "inputs.work_queue_assignment")
 			}
 		}
 	}
@@ -303,7 +312,7 @@ Test development job controls.
 		for _, name := range []string{"push_repo_memory", "push_custom"} {
 			require.Contains(t, compiled.Jobs, name)
 			if enabled {
-				assert.Equal(t, false, compiled.Jobs[name]["if"], name)
+				assert.Equal(t, "${{ !always() }}", compiled.Jobs[name]["if"], name)
 			} else {
 				assert.NotEqual(t, false, compiled.Jobs[name]["if"], name)
 			}

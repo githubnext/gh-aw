@@ -25,6 +25,80 @@ const require = createRequire(import.meta.url);
 // Import module once – globals are resolved at call time, not import time.
 const { pushSignedCommits, unquoteCPath } = require("./push_signed_commits.cjs");
 const { resolveExperimentStateRebaseConflict } = require("./push_experiment_state.cjs");
+const { withGitClaimEffects } = require("./work_queue_git_effects.cjs");
+const { withClaimExecution, currentClaimResourceEffects } = require("./work_queue_claim_scope.cjs");
+const { wrapClaimEffectClient } = require("./work_queue_effect_client.cjs");
+const { authorizeWorkerClaim } = require("./finish_work_queue_claim.cjs");
+const { queueFixture, REPOSITORY, WORKFLOW, REF } = require("./work_queue_lifecycle.test_helpers.cjs");
+
+function signedClaimFixture(resources) {
+  const queue = queueFixture({
+    bound: true,
+    count: 1,
+    configureWork(work) {
+      work.payload = { effect_contract: { version: 1, outputs: [{ type: "create_issue", min: 0, max: 1 }] }, resource_scope: { version: 1, resources } };
+    },
+  });
+  const assignment = queue.assignment;
+  const member = assignment.claims[0];
+  queue.append("finish", { dispatch_id: assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...queue.workerActor, dispatch_id: assignment.dispatch_id, claim_handle: member.handle });
+  const authorize = vi.fn(request =>
+    authorizeWorkerClaim({
+      ...request,
+      context: queue.workerContext,
+      githubClient: queue.githubClient,
+      workflowRef: `${REPOSITORY}/${WORKFLOW}@${REF}`,
+      readWorkQueueLog: queue.readWorkQueueLog,
+    })
+  );
+  return { assignment, claim_handle: member.handle, authorize };
+}
+
+describe("withGitClaimEffects signed replay bindings", () => {
+  const repository = { repository: REPOSITORY, host: "github.com", repository_id: "7" };
+
+  it("deduplicates added/deleted paths, resolves metadata once, and preserves the branch audit field", async () => {
+    const scope = signedClaimFixture([repository]);
+    const github = { rest: { repos: { get: vi.fn(async () => ({ data: { id: 7, full_name: REPOSITORY } })) } } };
+    const additions = [{ path: "new.ts" }, { path: "shared.ts" }];
+    const deletions = [{ path: "old.ts" }, { path: "shared.ts" }];
+    await withClaimExecution(scope, () =>
+      withGitClaimEffects({ github, repository: REPOSITORY, branch: "signed-paths", paths: [...additions, ...deletions].map(file => file.path) }, () => {
+        expect(currentClaimResourceEffects("rest.git.createRef")).toEqual(["new.ts", "shared.ts", "old.ts"].map(path => ({ ...repository, ref: "refs/heads/signed-paths", path })));
+      })
+    );
+    expect(github.rest.repos.get).toHaveBeenCalledExactlyOnceWith({ owner: "owner", repo: "repo" });
+    expect(scope.authorize.mock.calls.filter(([request]) => request.resource).map(([request]) => request.resource.path)).toEqual(["new.ts", "shared.ts", "old.ts"]);
+    expect(scope.authorize.mock.calls[0][0].message).toMatchObject({ type: "work_queue_git_effect", repo: REPOSITORY, branch_name: "signed-paths", claim_handle: scope.claim_handle });
+  });
+
+  it.each([undefined, []])("retains repository/ref binding when paths are %j", async paths => {
+    const scope = signedClaimFixture([repository]);
+    const github = { rest: { repos: { get: vi.fn(async () => ({ data: { id: 7, full_name: REPOSITORY } })) } } };
+    await withClaimExecution(scope, () =>
+      withGitClaimEffects({ github, repository: REPOSITORY, branch: "signed-paths", paths }, () => {
+        expect(currentClaimResourceEffects("git.push")).toEqual([{ ...repository, ref: "refs/heads/signed-paths" }]);
+      })
+    );
+    expect(github.rest.repos.get).toHaveBeenCalledOnce();
+  });
+
+  it("accepts 4096 concrete paths but rejects 4097 before the callback", async () => {
+    const fixture = signedClaimFixture([repository]);
+    const authorize = vi.fn(async request => ({ authorized: true, claim_handle: request.claim_handle }));
+    const scope = { ...fixture, authorize };
+    const github = { rest: { repos: { get: vi.fn(async () => ({ data: { id: 7, full_name: REPOSITORY } })) } } };
+    const callback = vi.fn();
+    const paths = Array.from({ length: 4096 }, (_, index) => `file-${index}.ts`);
+    await withClaimExecution(scope, async () => {
+      await withGitClaimEffects({ github, repository: REPOSITORY, branch: "large", paths }, () => {
+        expect(currentClaimResourceEffects("git.push")).toHaveLength(4096);
+      });
+      await expect(withGitClaimEffects({ github, repository: REPOSITORY, branch: "large", paths: [...paths, "overflow.ts"] }, callback)).rejects.toThrow("bounded concrete targets");
+    });
+    expect(callback).not.toHaveBeenCalled();
+  });
+});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Unit tests for unquoteCPath
@@ -271,6 +345,104 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
   // Happy path – GraphQL succeeds
   // ──────────────────────────────────────────────────────
+
+  describe("Claim-scoped signed replay", () => {
+    const repository = { repository: REPOSITORY, host: "github.com", repository_id: "7" };
+
+    it.each([true, false])("binds new branch creation to first-commit paths (matching selector: %s)", async matching => {
+      const branch = "claim-new-branch";
+      execGit(["checkout", "-b", branch], { cwd: workDir });
+      fs.mkdirSync(path.join(workDir, "eslint-factory"));
+      fs.writeFileSync(path.join(workDir, "eslint-factory/rule.ts"), "export {};\n");
+      execGit(["add", "."], { cwd: workDir });
+      execGit(["commit", "-m", "Add permitted rule"], { cwd: workDir });
+      global.exec = makeRealExec(workDir);
+      const source = makeMockGithubClient();
+      source.rest.repos = { get: vi.fn(async () => ({ data: { id: 7, full_name: REPOSITORY } })) };
+      const scope = signedClaimFixture([{ ...repository, ref: `refs/heads/${branch}`, path: matching ? "eslint-factory/rule.ts" : "eslint-factory/other.ts" }]);
+      const replay = () =>
+        withClaimExecution(scope, () =>
+          pushSignedCommits({ githubClient: wrapClaimEffectClient(source, { claim_handle: scope.claim_handle }), owner: "owner", repo: "repo", branch, baseRef: "origin/main", cwd: workDir, allowGitPushFallback: false })
+        );
+      if (matching) {
+        await expect(replay()).resolves.toBe("signed-oid-abc123");
+        expect(source.rest.git.createRef).toHaveBeenCalledOnce();
+        expect(source.graphql).toHaveBeenCalledOnce();
+        expect(source.rest.repos.get).toHaveBeenCalledTimes(4);
+      } else {
+        await expect(replay()).rejects.toThrow("immutable Work");
+        expect(source.rest.git.createRef).not.toHaveBeenCalled();
+        expect(source.graphql).not.toHaveBeenCalled();
+      }
+    });
+
+    it.each([1, 2])("signs a 129-file commit in a %i-commit replay without unsigned fallback", async commitCount => {
+      const branch = "claim-large-replay";
+      execGit(["checkout", "-b", branch], { cwd: workDir });
+      execGit(["push", "-u", "origin", branch], { cwd: workDir });
+      for (let commit = 0; commit < commitCount; commit++) {
+        const count = commit === commitCount - 1 ? 129 : 1;
+        for (let index = 0; index < count; index++) fs.writeFileSync(path.join(workDir, `file-${index}.ts`), `export const revision = ${commit};\n`);
+        execGit(["add", "."], { cwd: workDir });
+        execGit(["commit", "-m", `Replay commit ${commit + 1}`], { cwd: workDir });
+      }
+      global.exec = makeRealExec(workDir);
+      const source = makeMockGithubClient();
+      source.graphql.mockImplementation(async () => ({ createCommitOnBranch: { commit: { oid: `signed-oid-${source.graphql.mock.calls.length}` } } }));
+      source.rest.repos = { get: vi.fn(async () => ({ data: { id: 7, full_name: REPOSITORY } })) };
+      const scope = signedClaimFixture([repository]);
+      const initialRemote = execGit(["rev-parse", `refs/heads/${branch}`], { cwd: bareDir }).stdout.trim();
+      await expect(
+        withClaimExecution(scope, () =>
+          pushSignedCommits({
+            githubClient: wrapClaimEffectClient(source, { claim_handle: scope.claim_handle }),
+            owner: "owner",
+            repo: "repo",
+            branch,
+            baseRef: "origin/main",
+            cwd: workDir,
+            validationConfig: { max_patch_files: 200 },
+          })
+        )
+      ).resolves.toBe(`signed-oid-${commitCount}`);
+      expect(source.graphql).toHaveBeenCalledTimes(commitCount);
+      expect(source.graphql.mock.calls[commitCount - 1][1].input.fileChanges.additions).toHaveLength(129);
+      if (commitCount === 2) expect(source.graphql.mock.calls[1][1].input.expectedHeadOid).toBe("signed-oid-1");
+      expect(source.rest.repos.get).toHaveBeenCalledTimes(2 * commitCount);
+      const authorizedPaths = scope.authorize.mock.calls.filter(([request]) => request.resource?.path).map(([request]) => request.resource.path);
+      for (let index = 0; index < 129; index++) expect(authorizedPaths).toContain(`file-${index}.ts`);
+      expect(execGit(["rev-parse", `refs/heads/${branch}`], { cwd: bareDir }).stdout.trim()).toBe(initialRemote);
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+    });
+
+    it.each([0, 1])("preflights an oversized native payload after %i valid commits without writes or fallback", async validCommits => {
+      const branch = "claim-oversized-replay";
+      execGit(["checkout", "-b", branch], { cwd: workDir });
+      for (let index = 0; index <= validCommits; index++) {
+        fs.writeFileSync(path.join(workDir, "file.ts"), `revision ${index}\n`);
+        execGit(["add", "."], { cwd: workDir });
+        execGit(["commit", "-m", `Replay commit ${index + 1}`], { cwd: workDir });
+      }
+      const oversizedSha = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        getExecOutput: async (program, args, options) => {
+          if (args[0] === "diff-tree" && args.includes(oversizedSha)) {
+            const lines = Array.from({ length: 4097 }, (_, index) => `:100644 000000 ${"a".repeat(40)} ${"0".repeat(40)} D\tfile-${index}.ts`);
+            return { exitCode: 0, stdout: lines.join("\n"), stderr: "" };
+          }
+          return realExec.getExecOutput(program, args, options);
+        },
+      };
+      const source = makeMockGithubClient();
+      await expect(pushSignedCommits({ githubClient: source, owner: "test-owner", repo: "test-repo", branch, baseRef: "origin/main", cwd: workDir })).rejects.toThrow("4096 native file-change bound");
+      expect(source.rest.git.createRef).not.toHaveBeenCalled();
+      expect(source.graphql).not.toHaveBeenCalled();
+      expect(execGit(["ls-remote", bareDir, `refs/heads/${branch}`], { cwd: workDir }).stdout.trim()).toBe("");
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("falling back to git push"));
+    });
+  });
 
   describe("GraphQL signed commits (happy path)", () => {
     it("refuses a ledger mutation against a remote head newer than the validated base", async () => {

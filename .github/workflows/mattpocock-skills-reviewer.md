@@ -8,6 +8,7 @@ description: Reviews pull requests using Matt Pocock's engineering skills to pro
 emoji: 🔍
 engine:
   id: copilot
+  copilot-sdk: true
   max-continuations: 6
 features:
   gh-aw-detection: true

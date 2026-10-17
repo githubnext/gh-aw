@@ -520,12 +520,14 @@ test-scripts: build
 	@echo "Running script tests..."
 	node --test scripts/agy-authentication.test.cjs
 	node --test scripts/check-npm-1es.test.mjs
+	node --test scripts/release-workflows.test.cjs
 	bash scripts/extract-workflow-frontmatter-keys_test.sh
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-skill-file-paths_test.sh
 	bash scripts/check-safe-outputs-conformance_test.sh
 	bash scripts/resolve-base-commit_test.sh
 	bash scripts/pr-data-prefetch_test.sh
+	bash scripts/design-decision-gate-prefetch_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash scripts/update-threat-detect-pins_test.sh

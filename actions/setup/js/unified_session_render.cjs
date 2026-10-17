@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const { sessionOutputText, sessionContext, sessionScopeKey, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collapseStreamedMessages, boundSummaryLines, escapeSummaryText, redactSessionForPublication } = require("./agent_session_render.cjs");
@@ -45,6 +46,7 @@ const RUNTIME_TYPES = new Set([
   "execution.result",
   "detection.result",
   "workflow.info",
+  "workflow.job_result",
   "github_api.rate_limit",
   "guardrail.daily_aic",
   "otel.span",
@@ -106,6 +108,8 @@ function eventDetail(event) {
     );
   }
   switch (event.type) {
+    case "workflow.job_result":
+      return fields(data, ["jobId", "result", "durationMs"]);
     case "session.format":
       return `version=${inline(data.version)}`;
     case "session.init":
@@ -459,11 +463,11 @@ function renderUnifiedSession(events, { markdown, maxBytes, maxLineBytes, agentS
 async function publishUnifiedSessionSummary(filePath) {
   let events;
   try {
-    events = fs
-      .readFileSync(filePath, "utf8")
-      .split("\n")
-      .filter(line => line.trim())
-      .map(line => JSON.parse(line));
+    events = [];
+    for (const event of iterateJsonlEvents(fs.readFileSync(filePath, "utf8"))) {
+      if (event.type === "json") events.push(event.value);
+      else if (event.reason !== "blank") throw event.error;
+    }
   } catch (error) {
     throw new Error(`${ERR_SYSTEM}: Failed to read unified session for summary: ${getErrorMessage(error)}`, { cause: error });
   }

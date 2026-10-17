@@ -137,6 +137,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 			Agent: &AgentSandboxConfig{
 				Type:   SandboxTypeAWF,
 				Images: maps.Clone(getSandboxAgentImages(data)),
+				CACert: resolveThreatDetectionCACert(data, engineID),
 			},
 		},
 	}
@@ -169,6 +170,21 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 	}
 
 	return detectionData
+}
+
+// resolveThreatDetectionCACert prefers an explicit detection CA path, honors
+// ca-cert: false, and otherwise inherits the agent path only for the same engine.
+func resolveThreatDetectionCACert(data *WorkflowData, engineID string) string {
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.CACert != "" {
+		return data.SafeOutputs.ThreatDetection.CACert
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.DisableCACert {
+		return ""
+	}
+	if ResolveEngineID(data) != engineID {
+		return ""
+	}
+	return extractAPIProxyCACert(data)
 }
 
 // buildThreatDetectionContainerImages translates AWF container pin redirects into
@@ -742,7 +758,7 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName.String()
 	steps := []string{
 		"      - name: Upload threat detection artifact\n",
-		"        if: always()\n",
+		"        if: " + detectionArtifactsRedactedCondition + "\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
@@ -754,9 +770,8 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 	}
 	// Include the detection AWF run's own firewall proxy/audit logs (token usage, squid
 	// logs) so detection-phase usage surfaces in the usage artifact and counts toward the
-	// AI-credits budget cap (see gh-aw#54047). These are firewall/proxy metadata, not the
-	// untrusted agent transcript, so bundling them does not introduce the secret-exfiltration
-	// risk that keeps detection.log off this artifact.
+	// AI-credits budget cap (see gh-aw#54047). These files are collected before the
+	// detection-specific redaction passes; console masking cannot sanitize artifacts.
 	if isFirewallEnabled(data) {
 		threatLog.Print("Including firewall logs in detection artifact upload")
 		steps = append(steps,
@@ -789,7 +804,7 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 	steps := []string{
 		"      - name: Conclude threat detection\n",
 		"        id: detection_conclusion\n",
-		"        if: always()\n",
+		"        if: " + detectionConclusionCondition + "\n",
 	}
 
 	if continueOnErrorExpr != nil {

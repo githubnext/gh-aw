@@ -14,6 +14,14 @@ import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
 describe("essential unified session payloads", () => {
+  it("projects job outcomes without copying dependency outputs", () => {
+    const event = { type: "workflow.job_result", data: { jobId: "agent", result: "failure", outputs: { secret: "PRIVATE_OUTPUT" }, name: "PRIVATE_NAME" } };
+    const projected = normalizeUnifiedSessionEvent(event);
+    expect(projected.data).toEqual({ jobId: "agent", result: "failure" });
+    expect(normalizeUnifiedSessionEvent(projected)).toEqual(projected);
+    expect(event.data.outputs.secret).toBe("PRIVATE_OUTPUT");
+  });
+
   it.each([false, true])("preserves Copilot file edits through the published projection when tool success is %s", success => {
     const native = [
       { type: "tool.execution_start", id: "edit-start", data: { toolCallId: "edit", toolName: "edit", arguments: { path: "/workspace/partial.txt" } } },
@@ -563,6 +571,8 @@ describe("essential unified session payloads", () => {
     ["safe_output.result", { type: "create_issue", number: 0, identifier: null, body: "omit" }, { type: "create_issue", number: 0, identifier: null }],
     ["eval.result", { id: "quality", answer: false, question: "omit", model: "fixture" }, { id: "quality", answer: false, model: "fixture" }],
     ["experiment.assignment", { experiment: "B" }, { assignments: { experiment: "B" } }],
+    ["experiment.assignment", { assignments: "treatment", model_size: "large" }, { assignments: { assignments: "treatment", model_size: "large" } }],
+    ["experiment.assignment", { assignments: { assignments: "treatment", model_size: "large" } }, { assignments: { assignments: "treatment", model_size: "large" } }],
   ])("normalizes essential %s fields and aliases", (type, data, expected) => {
     const original = structuredClone(data);
     const compact = normalizeUnifiedSessionEvent({ type, data });

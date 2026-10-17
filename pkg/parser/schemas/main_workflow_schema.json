@@ -1183,9 +1183,25 @@
                         "type": "string",
                         "description": "Repository pattern with optional glob support"
                       }
+                    },
+                    {
+                      "type": "object",
+                      "description": "Allow fork PRs based on the author's relationship to the base repository",
+                      "additionalProperties": false,
+                      "required": ["author-association"],
+                      "properties": {
+                        "author-association": {
+                          "type": "array",
+                          "description": "Explicit list of allowed GitHub author associations. An empty list allows only same-repository PRs.",
+                          "items": {
+                            "type": "string",
+                            "enum": ["COLLABORATOR", "CONTRIBUTOR", "FIRST_TIMER", "FIRST_TIME_CONTRIBUTOR", "MANNEQUIN", "MEMBER", "NONE", "OWNER"]
+                          }
+                        }
+                      }
                     }
                   ],
-                  "description": "When true, allows workflow to run on pull requests from forked repositories. Security consideration: fork PRs have limited permissions."
+                  "description": "Allow fork pull requests by repository pattern or explicit author association. By default, only same-repository PRs are allowed. This does not change GitHub's fork permissions or secret availability."
                 },
                 "names": {
                   "oneOf": [
@@ -6738,6 +6754,10 @@
             {
               "type": "null",
               "description": "Enable issue creation with default configuration"
+            },
+            {
+              "const": false,
+              "description": "Disable issue creation, including the automatically injected tool and prompt"
             }
           ],
           "description": "Enable AI agents to create GitHub issues from workflow output. Supports title prefixes, automatic labeling, assignees, and cross-repository creation. Does not require 'issues: write' permission."
@@ -12536,6 +12556,19 @@
                 "environment": {
                   "type": "string",
                   "description": "GitHub Actions environment override for the detection job."
+                },
+                "ca-cert": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(/|$)"
+                    },
+                    {
+                      "const": false
+                    }
+                  ],
+                  "description": "Absolute host path to an additional CA certificate for the detection job's API proxy upstream TLS verification. Defaults to sandbox.agent.ca-cert when unset or empty and the detection engine matches the agent engine; set to false to disable inheritance. The file must exist on the detection runner before engine execution; use threat-detection.steps to create it. Requires AWF v0.28.10 or later.",
+                  "examples": ["/tmp/detection-ca.pem", false]
                 },
                 "artifact-base-url": {
                   "type": "string",

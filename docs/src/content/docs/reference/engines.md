@@ -713,7 +713,7 @@ The underlying mechanism is engine-specific:
 |--------|--------|
 | Copilot | Passes `--no-custom-instructions` — suppresses `.github/AGENTS.md` and user-level custom instructions |
 | Claude | Passes `--bare` — skips ambient discovery; explicit workflow skills/pinned plugins load, but automatic Skill-tool invocation and subagent delegation are unavailable in the minimal tool set |
-| Pi | Disables automatic context, skill, prompt-template, extension, and theme discovery; explicit infrastructure extensions remain loaded |
+| Pi | Disables automatic context, skill, prompt-template, extension, and theme discovery; explicit infrastructure extensions remain loaded, and workflow-declared or imported inline skills are loaded explicitly with `--skill` while ambient repository and user skills stay hidden |
 
 Defaults to `false`.
 

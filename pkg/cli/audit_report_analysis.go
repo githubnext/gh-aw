@@ -29,6 +29,7 @@ func filterActionableDomains(domains []string) []string {
 func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []ValidationIssue) []AuditFinding {
 	auditReportLog.Printf("Generating findings: errors=%d, conclusion=%s", len(errors), processedRun.Run.Conclusion)
 	findings := appendFailureAndTimeoutFindings(nil, processedRun, metrics, errors)
+	findings = append(findings, generateModelAvailabilityFindings(processedRun.Run)...)
 	findings = append(findings, generateThreatDetectionFindings(processedRun)...)
 	findings = append(findings, generatePerformanceFindings(metrics)...)
 	findings = append(findings, generateErrorVolumeFindings(errors)...)
@@ -37,6 +38,9 @@ func generateFindings(processedRun ProcessedRun, metrics MetricsData, errors []V
 	findings = append(findings, generateSubagentModelFindings(processedRun.TokenUsage)...)
 	findings = append(findings, generateSubagentModelUnavailableFindings(processedRun.Run.LogsPath)...)
 	findings = append(findings, generateSuccessFindings(processedRun.Run, metrics, errors)...)
+	for i := range findings {
+		findings[i].PlaybookURL = auditFindingPlaybookURL(findings[i].Code)
+	}
 	return findings
 }
 
@@ -56,6 +60,7 @@ func generateRecommendations(processedRun ProcessedRun, metrics MetricsData, fin
 	var recommendations []Recommendation
 	hasCriticalFindings, hasHighCostFindings, hasManyTurns := analyzeRecommendationInputs(findings)
 	recommendations = appendFailureRecommendations(recommendations, processedRun.Run, hasCriticalFindings)
+	recommendations = appendModelAvailabilityRecommendations(recommendations, findings)
 	recommendations = appendCostRecommendations(recommendations, hasHighCostFindings)
 	recommendations = appendIterationRecommendations(recommendations, hasManyTurns)
 	recommendations = appendToolingRecommendations(recommendations, processedRun)

@@ -22,7 +22,7 @@ func registerArgumentTestTools(t *testing.T, execCmd execCmdFunc) *mcp.Server {
 	registerAddTool(server, execCmd)
 	registerUpdateTool(server, execCmd)
 	registerFixTool(server, execCmd)
-	require.NoError(t, registerCompileTool(server, execCmd, "/trusted/manifest.json"))
+	require.NoError(t, registerCompileTool(server, execCmd, "/trusted/manifest.json", true))
 	registerMCPInspectTool(server, execCmd)
 	require.NoError(t, registerLogsTool(server, execCmd, "", false))
 	require.NoError(t, registerAuditTool(server, execCmd, "", false))

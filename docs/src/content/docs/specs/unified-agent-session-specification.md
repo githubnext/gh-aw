@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.9.0"
+version: "1.10.0"
 status: Draft
-publication_date: "2026-10-15"
+publication_date: "2026-10-16"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.9.0<br>
+**Version**: 1.10.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-15<br>
+**Publication Date**: 2026-10-16<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.9.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.10.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -243,7 +243,7 @@ opaque because its essential fields are not defined by this specification.
 | MCP | Server, direction, RPC/call/request IDs, method, tool name, duration, sizes, status, reason, and error code/message. Failed calls reporting HTTP 429 also retain `httpStatus: 429` and the sanitized `retryHint`, including retry durations or `Retry-After` seconds/HTTP-date. No RPC arguments, response bodies, echoed queries/URLs in rate-limit diagnostics, or error context. |
 | Firewall | Host, method, status, decision, byte count, duration; steering/tracker event, level, message, reason, and request ID. |
 | Safe outputs | Operation type, repository/number, provider/identifier/URL, status, and errors; no requested title/body or arbitrary operation payload. |
-| Experiments | Run ID, assignments, and counts. |
+| Experiments | Run ID, assignments, and counts. `experiment.assignment.data.assignments` retains the complete current-run name-to-variant map, including an experiment named `assignments`; historical ledger entries remain separate `experiment.state` observations. |
 | Graders and evals | Grader IDs/names, sources, enabled flags, bounds, values, units, statuses, decisions, thresholds, errors, severity, and diagnostic messages. Manifest/result versions, run ID/attempt and counts, implementation ID/version/digest, and metric ID/value pairs are retained when supplied. Eval ID, answer, model, error, run ID, and experiment assignments are retained. No grader scripts, opaque diagnostics, or eval questions. |
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
@@ -639,6 +639,7 @@ source for opaque fields.
 | `grader.manifest`, `grader.result` | Essential deterministic grader definitions/results, without scripts; grading does not invent event time. |
 | `eval.result` | Evals JSONL observations, preserving answers, IDs, and observed timestamps. |
 | `usage.report`, `execution.result`, `detection.result`, `workflow.info` | Existing accounting, execution evidence, detection verdicts, and run metadata. `workflow.info` retains available `cliVersion` (gh-aw), `awfVersion`, `mcpgVersion`, `engineId`, `agentVersion`, observed `model`, `requestedModel`, compact `modelRouting`, and `triggerType` from `aw_info.json`. `requestedModel` prefers `requested_model` and falls back to `model` for earlier metadata. Unavailable values are not inferred. |
+| `workflow.job_result` | Conclusion's GitHub Actions dependency snapshot from `needs`, passed through `GH_AW_JOB_RESULTS`. Each record contains the stable `jobId` and its observed `result`: `success`, `failure`, `cancelled`, or `skipped`. Optional `durationMs` is the completed Actions job's `completed_at - started_at` in milliseconds, excluding queue time. Outputs and other dependency fields are excluded. Records have workflow component, conclusion phase, and `usage/aw_session.jsonl` provenance, with deterministic job-ID order and no invented timestamp. |
 | `model_routing.outcome` | The harness's observed routing status, wire model, effective endpoint, selected endpoint, effort, applied effort, and failure code from `agent/awf-routing-outcome.json`; free-form detail is excluded. |
 | `model.inventory` | AWF's runtime model list from `sandbox/firewall/models.json` and persisted `/reflect` inventory, selecting the first valid copy from `agent/awf-reflect.json`, then `sandbox/firewall/awf-reflect.json`. Agent and threat-detection inventories retain their source path and phase separately. Payloads contain provider names, full model ID lists, routing model IDs and supported endpoints, and the observed `modelsFetchComplete` flag when supplied. Endpoint routing metadata takes precedence over the top-level fallback. Credentials, headers, URLs, and unrecognized fields are excluded. Missing inventory does not imply unavailable models; malformed sources emit collection warnings rather than empty inventory events. JSON parse failures produce one warning per source. |
 | `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
@@ -647,6 +648,35 @@ source for opaque fields.
 | `plugin.installation` | Successful plugin installations retain the pinned `plugin` reference, `repository`, `ref`, local checkout `path`, and `status: "installed"`, with the installation timestamp. CLI and directory-based engines record success after installation or staging; Claude records the checked-out directory made available through `--plugin-dir`, and Codex records success after marketplace registration and plugin installation. The collector prefers `plugin-installations.jsonl` over its `usage/` copy. Credentials and unrecognized fields are excluded; absent evidence does not imply an installation. |
 | `session.collection_warning`, `session.collection` | Explicit collection diagnostics and coverage. |
 | `session.format` | Leading collector-owned file-format metadata, distinct from source-native events with the same type. |
+
+Job-result records cover only the conclusion job's direct dependencies, including
+custom jobs when present in `needs`. They do not imply a final workflow result
+or a result for the still-running conclusion job. Missing dependency metadata,
+including historical reconstruction without this context, produces no job-result
+records. Malformed metadata emits collection warnings without copying its
+contents; valid adjacent job results remain available. These native Actions
+results are distinct from agent execution exit codes and detection verdicts.
+Duration collection reuses the conclusion failed-job reporter's existing outcome
+listing through its `job_durations` step output. When no listing was produced,
+the collector reads the current run attempt's paginated Actions jobs, using
+`actions: read`. The reporter and summary inherit the same job-level
+`GH_AW_JOB_DISPLAY_NAMES` inventory and explicit `GH_AW_JOB_TIMING_ELIGIBLE`
+set, finalized after generated-job annotations from effective emitted names:
+unnamed jobs use emitted job IDs, and static author overrides are retained.
+Only compiler-confirmed static-name, non-matrix, non-reusable single jobs with
+a unique exact API-name match supply timing. Dynamic-name and grouped jobs omit
+timing even when only one cell appears in the current attempt. Prefix-colliding
+names remain ambiguous on partial reruns. Skipped jobs and missing or invalid
+timestamps also omit duration rather than reporting zero; a measured zero remains
+valid. API failures emit a warning without discarding dependency outcomes.
+
+Job-duration collection is always enabled; there is no frontmatter opt-out.
+Consequently, every generated conclusion job requests at least `actions: read`,
+even when both `safe-outputs.report-failed-jobs` and
+`safe-outputs.report-failure-as-issue` are disabled. This expands the previous
+permission model, where disabling both reporters could omit Actions access.
+Existing `actions: write` grants required by configured safe outputs are preserved;
+duration collection itself requires only read access.
 
 **T-UAS-072 — Skill evidence and conflicts.** When an activation skill inventory
 is present, the merger MUST include its deterministic installed-skill names,
@@ -1650,6 +1680,15 @@ symlinks, and decoded-secret/add-mask redaction have separate cases.
 Compiler tests cover engine artifact paths, conclusion ordering, and the usage
 upload path.
 
+Live artifact checks for [Daily News run 38875907949](https://github.com/github/gh-aw/actions/runs/38875907949)
+and [Daily Cache Strategy Analyzer run 38948382604](https://github.com/github/gh-aw/actions/runs/38948382604)
+confirmed that each published `usage/aw_session.jsonl` contains exactly one
+`experiment.assignment` matching its original experiment artifact, on both a
+successful and a failed workflow. Collector regressions cover original and
+usage-only assignment files, historical state separation, the `assignments`
+name collision, schema validity, and byte-stable repeated collection. These
+checks use completed runs; no workflow was dispatched.
+
 `agent_execution.test.cjs` verifies the existing sanitized Claude API-error/retry
 fixture, every current compiler detector classification, native nested provider
 errors, guardrail precedence, watchdog exclusion, and final-zero exits after
@@ -1668,6 +1707,30 @@ Each produced one byte-stable aggregate on repeated collection. The Copilot
 workflow failed downstream despite its observed agent exit code being zero;
 the entry preserves that distinction. Claude and Pi lacked a final exit-code
 observation, so their entries omit it.
+
+#### Eval result recording: 2026-10-16 sample
+
+Read-only inspection of completed live runs compared the `evals` artifact's
+`evals.jsonl` with `eval.result` events in the `usage` artifact's
+`aw_session.jsonl`. Local replay through the current collector preserved the
+same results. No new workflows were dispatched.
+
+| Workflow and existing run | YES | NO | UNKNOWN | Recorded answers |
+| --- | ---: | ---: | ---: | ---: |
+| [Smoke Copilot](https://github.com/github/gh-aw/actions/runs/38826296309) | 0 | 2 | 1 | 3 |
+| [Design Decision Gate](https://github.com/github/gh-aw/actions/runs/38980042038) | 0 | 0 | 3 | 3 |
+| Total | 0 (0%) | 2 (33.3%) | 4 (66.7%) | 6 |
+
+This is a six-answer sample from two runs, not a repository-wide distribution
+or a workflow success rate. `UNKNOWN` remains an observed answer, not a pass.
+Every result appeared exactly once with its ID, answer, model, run attribution,
+available experiment assignments, timestamp, and eval provenance intact; raw
+question text was excluded. A separate
+[Smoke Copilot run with skipped evals](https://github.com/github/gh-aw/actions/runs/38901218081)
+contained no fabricated eval results and contributed nothing to the denominator.
+All three saved unified sessions passed schema validation. Both executed runs
+had an unrelated `invalid_model_inventory` collection warning; eval result
+collection was complete.
 
 ### 9.6 Mechanical contract checks (Informative)
 
@@ -2010,6 +2073,11 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 1.10.0 — Draft (2026-10-16)
+
+- Added `workflow.job_result` dependency outcomes and observed job durations to the unified artifact and publication views without job outputs or inferred final workflow status.
+- Retained serialization-format version 1.
 
 ### Version 1.9.0 — Draft (2026-10-15)
 

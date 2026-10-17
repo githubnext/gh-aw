@@ -27,6 +27,16 @@ report_detector_unavailable() {
   exit 1
 }
 
+# An explicit no-output skip must not invoke a preinstalled detector or inspect
+# payloads that bypassed redaction because detection was not needed.
+THREAT_DETECT_INSTALL_OUTCOME="${THREAT_DETECT_INSTALL_OUTCOME:-}"
+if [ "${RUN_DETECTION:-}" = "false" ] && [ "${THREAT_DETECT_INSTALL_OUTCOME}" = "skipped" ]; then
+  echo "conclusion=skipped" >> "${GITHUB_OUTPUT}"
+  echo "success=true" >> "${GITHUB_OUTPUT}"
+  echo "reason=" >> "${GITHUB_OUTPUT}"
+  exit 0
+fi
+
 # Fail closed when the pinned-digest installation did not succeed. The binary on
 # PATH is then either absent, a stale/preinstalled copy that was never verified
 # against the compiler-supplied digests, or the install script's fail-closed
@@ -34,22 +44,15 @@ report_detector_unavailable() {
 # conclusion itself, so the outputs are emitted here instead. The guard is scoped
 # to runs where detection was expected. A missing detector is a legitimate skip
 # only when the guard explicitly disabled detection and installation was skipped.
-THREAT_DETECT_INSTALL_OUTCOME="${THREAT_DETECT_INSTALL_OUTCOME:-}"
 if [ "${RUN_DETECTION:-}" = "true" ] && [ -n "${THREAT_DETECT_INSTALL_OUTCOME}" ] && [ "${THREAT_DETECT_INSTALL_OUTCOME}" != "success" ]; then
   report_detector_unavailable "threat-detect installation did not complete verification (install outcome: ${THREAT_DETECT_INSTALL_OUTCOME})"
 fi
 
 # threat-detect conclude handles every branch of the conclusion contract
-# (skipped run, missing/malformed result file, warn-mode vs strict-mode
+# (missing/malformed result file, warn-mode vs strict-mode
 # hard-fail rules, status-reason mapping, diagnostics, and step summary).
 # The only failure it cannot report on itself is its own absence from PATH.
 if ! command -v threat-detect >/dev/null 2>&1; then
-  if [ "${RUN_DETECTION:-}" = "false" ] && [ "${THREAT_DETECT_INSTALL_OUTCOME}" = "skipped" ]; then
-    echo "conclusion=skipped" >> "${GITHUB_OUTPUT}"
-    echo "success=true" >> "${GITHUB_OUTPUT}"
-    echo "reason=" >> "${GITHUB_OUTPUT}"
-    exit 0
-  fi
   report_detector_unavailable "threat-detect binary not found on PATH"
 fi
 

@@ -7,7 +7,8 @@ const os = require("os");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { readJsonlFileEvents } = require("./jsonl_helpers.cjs");
+const { prepareJsonSchema } = require("./json_schema_validation.cjs");
 const { validateSchemaContract } = require("./memory_schema_contract.cjs");
 
 const DEFAULT_VALIDATION_TIMEOUT_SECONDS = 60;
@@ -313,126 +314,6 @@ function findMemorySchemaFiles(memoryDir, pattern) {
 }
 
 /**
- * @param {string} text
- * @returns {Map<string, string>}
- */
-function collectRawJSONNumbers(text) {
-  const tokens = new Map();
-  const numberPattern = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
-  let index = 0;
-  const skipWhitespace = () => {
-    while (/\s/.test(text[index] || "")) index++;
-  };
-  const parseString = () => {
-    const start = index++;
-    let escaped = false;
-    while (index < text.length) {
-      const character = text[index++];
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') return JSON.parse(text.slice(start, index));
-    }
-    return "";
-  };
-  /** @param {(string | number)[]} path */
-  const parseValue = path => {
-    skipWhitespace();
-    const character = text[index];
-    if (character === "{") {
-      index++;
-      skipWhitespace();
-      while (text[index] !== "}") {
-        skipWhitespace();
-        const key = parseString();
-        skipWhitespace();
-        index++;
-        parseValue([...path, key]);
-        skipWhitespace();
-        if (text[index] !== ",") break;
-        index++;
-      }
-      index++;
-    } else if (character === "[") {
-      index++;
-      skipWhitespace();
-      let itemIndex = 0;
-      while (text[index] !== "]") {
-        parseValue([...path, itemIndex++]);
-        skipWhitespace();
-        if (text[index] !== ",") break;
-        index++;
-      }
-      index++;
-    } else if (character === '"') {
-      parseString();
-    } else if (character === "t" || character === "f" || character === "n") {
-      index += character === "t" ? 4 : character === "f" ? 5 : 4;
-    } else {
-      numberPattern.lastIndex = index;
-      const match = numberPattern.exec(text);
-      if (!match) return;
-      tokens.set(JSON.stringify(path), match[0]);
-      index = numberPattern.lastIndex;
-    }
-  };
-  parseValue([]);
-  return tokens;
-}
-
-/**
- * Reject numeric tokens that JavaScript would round before numeric enum comparison.
- * @param {string} token
- */
-function assertJSONNumberExactlyRepresentable(token) {
-  if (token.length > 256) {
-    throw new TypeError("contains a JSON number that cannot be represented exactly for numeric enum validation");
-  }
-  const number = Number(token);
-  if (!Number.isFinite(number) || canonicalDecimal(token) !== canonicalDecimal(String(number))) {
-    throw new TypeError("contains a JSON number that cannot be represented exactly for numeric enum validation");
-  }
-}
-
-/**
- * @param {string} text
- * @param {any} value
- * @param {Record<string, any>} schema
- */
-function assertSchemaNumericEnumValuesExactlyRepresentable(text, value, schema) {
-  const tokens = collectRawJSONNumbers(text);
-  /**
-   * @param {any} currentValue
-   * @param {Record<string, any>} currentSchema
-   * @param {(string | number)[]} currentPath
-   */
-  const visit = (currentValue, currentSchema, currentPath) => {
-    if (Array.isArray(currentSchema.enum) && currentSchema.enum.some(item => typeof item === "number") && typeof currentValue === "number") {
-      const token = tokens.get(JSON.stringify(currentPath));
-      if (token !== undefined) assertJSONNumberExactlyRepresentable(token);
-    }
-    if (currentValue && typeof currentValue === "object" && !Array.isArray(currentValue) && currentSchema.properties && typeof currentSchema.properties === "object" && !Array.isArray(currentSchema.properties)) {
-      for (const [key, childSchema] of Object.entries(currentSchema.properties)) {
-        if (Object.hasOwn(currentValue, key) && childSchema && typeof childSchema === "object") {
-          visit(currentValue[key], childSchema, [...currentPath, key]);
-        }
-      }
-    }
-    if (Array.isArray(currentValue) && currentSchema.items && typeof currentSchema.items === "object") {
-      currentValue.forEach((item, itemIndex) => visit(item, currentSchema.items, [...currentPath, itemIndex]));
-    }
-    for (const keyword of ["oneOf", "anyOf"]) {
-      const alternatives = currentSchema[keyword];
-      if (Array.isArray(alternatives)) {
-        for (const alternative of alternatives) {
-          if (alternative && typeof alternative === "object") visit(currentValue, alternative, currentPath);
-        }
-      }
-    }
-  };
-  visit(value, schema, []);
-}
-
-/**
  * @param {Buffer} bytes
  * @returns {string}
  */
@@ -445,91 +326,24 @@ function decodeUTF8(bytes) {
 }
 
 /**
- * @param {string} token
- * @returns {string}
- */
-function canonicalDecimal(token) {
-  const match = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(token);
-  if (!match) return token;
-  const sign = match[1];
-  let digits = `${match[2]}${match[3] || ""}`.replace(/^0+/, "");
-  if (!digits) return "0";
-  const trailingZeros = digits.length - digits.replace(/0+$/, "").length;
-  digits = digits.slice(0, digits.length - trailingZeros);
-  const exponent = BigInt(match[4] || "0") - BigInt((match[3] || "").length) + BigInt(trailingZeros);
-  return `${sign}${digits}e${exponent}`;
-}
-
-/**
  * @param {string} filePath
  * @param {string} file
  * @param {Record<string, any>} schema
  */
 function validateJSONLFile(filePath, file, schema) {
-  let descriptor;
   try {
-    descriptor = fs.openSync(filePath, "r");
+    for (const event of readJsonlFileEvents(filePath, { schema, fatalUTF8: true, jsonWhitespaceOnly: true })) {
+      if (event.type === "json") continue;
+      const prefix = `file '${file}' line ${event.lineNumber}`;
+      if (event.validationError) {
+        throw new Error(`${prefix} at ${event.validationError.path || "(root)"} ${event.validationError.message}`);
+      }
+      const detail = event.reason === "blank" ? "is a blank JSONL record" : event.reason === "encoding" ? "contains invalid UTF-8" : "contains malformed JSON";
+      throw new Error(`${prefix} ${detail}`, { cause: event.error });
+    }
   } catch (error) {
-    throw new Error(`file '${file}' is unreadable: ${getErrorMessage(error)}`, { cause: error });
-  }
-  /** @type {Buffer[]} */
-  let recordParts = [];
-  let recordBytes = 0;
-  let line = 1;
-  const validateRecord = () => {
-    let record = Buffer.concat(recordParts, recordBytes);
-    if (record.length > 0 && record[record.length - 1] === 0x0d) record = record.subarray(0, record.length - 1);
-    let text;
-    try {
-      text = decodeUTF8(record);
-    } catch (error) {
-      throw new Error(`file '${file}' line ${line} contains invalid UTF-8`, { cause: error });
-    }
-    if (!text.trim()) throw new Error(`file '${file}' line ${line} is a blank JSONL record`);
-    let value;
-    try {
-      value = JSON.parse(text);
-    } catch (error) {
-      throw new Error(`file '${file}' line ${line} contains malformed JSON: ${getErrorMessage(error)}`, { cause: error });
-    }
-    try {
-      assertSchemaNumericEnumValuesExactlyRepresentable(text, value, schema);
-    } catch (error) {
-      throw new Error(`file '${file}' line ${line} ${getErrorMessage(error)}`, { cause: error });
-    }
-    const validationError = validateValueAgainstSchema(value, schema);
-    if (validationError) {
-      throw new Error(`file '${file}' line ${line} at ${validationError.path || "(root)"} ${validationError.message}`);
-    }
-    recordParts = [];
-    recordBytes = 0;
-    line++;
-  };
-  try {
-    while (true) {
-      const chunk = Buffer.allocUnsafe(64 * 1024);
-      const bytesRead = fs.readSync(descriptor, chunk, 0, chunk.length, null);
-      if (bytesRead === 0) break;
-      let start = 0;
-      for (let index = 0; index < bytesRead; index++) {
-        if (chunk[index] !== 0x0a) continue;
-        if (index > start) {
-          const part = chunk.subarray(start, index);
-          recordParts.push(part);
-          recordBytes += part.length;
-        }
-        validateRecord();
-        start = index + 1;
-      }
-      if (start < bytesRead) {
-        const part = chunk.subarray(start, bytesRead);
-        recordParts.push(part);
-        recordBytes += part.length;
-      }
-    }
-    if (recordBytes > 0) validateRecord();
-  } finally {
-    fs.closeSync(descriptor);
+    if (error && typeof error === "object" && "code" in error) throw new Error(`file '${file}' is unreadable: ${getErrorMessage(error)}`, { cause: error });
+    throw error;
   }
 }
 
@@ -642,12 +456,7 @@ function validateMemoryJSONSchemaFile(memoryDir, file, declaration) {
     } catch (error) {
       throw new Error(`file '${file}' contains malformed JSON: ${getErrorMessage(error)}`, { cause: error });
     }
-    try {
-      assertSchemaNumericEnumValuesExactlyRepresentable(contents, value, declaration.schema);
-    } catch (error) {
-      throw new Error(`file '${file}' ${getErrorMessage(error)}`, { cause: error });
-    }
-    const validationError = validateValueAgainstSchema(value, declaration.schema);
+    const validationError = prepareJsonSchema(declaration.schema)(value, contents);
     if (validationError) {
       throw new Error(`file '${file}' at ${validationError.path || "(root)"} ${validationError.message}`);
     }

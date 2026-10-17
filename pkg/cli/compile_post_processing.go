@@ -80,6 +80,7 @@ func generateMaintenanceWorkflowWrapper(
 	gitRoot string,
 	verbose bool,
 	strict bool,
+	noLogo bool,
 ) error {
 	compilePostProcessingLog.Print("Generating maintenance workflow")
 
@@ -101,6 +102,7 @@ func generateMaintenanceWorkflowWrapper(
 		ActionTag:        compiler.GetActionTag(),
 		RepoConfig:       repoConfig,
 		RepoSlug:         compiler.GetRepositorySlug(),
+		NoLogo:           noLogo,
 	}); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
@@ -112,7 +114,7 @@ func generateMaintenanceWorkflowWrapper(
 	return nil
 }
 
-func generateWorkQueueEventWorkflowWrapper(ctx context.Context, workflowDataList []*workflow.WorkflowData, workflowsDir string, gitRoot string, strict bool) error {
+func generateWorkQueueEventWorkflowWrapper(ctx context.Context, workflowDataList []*workflow.WorkflowData, workflowsDir string, gitRoot string, strict bool, noLogo bool) error {
 	compilePostProcessingLog.Print("Generating work queue event workflow")
 	if !workflow.WorkQueueIssueMirroringEnabled(workflowDataList) {
 		return workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, nil)
@@ -126,7 +128,7 @@ func generateWorkQueueEventWorkflowWrapper(ctx context.Context, workflowDataList
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to load repo config for work queue event workflow: %v", err)))
 		repoConfig = nil
 	}
-	if err := workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, repoConfig); err != nil {
+	if err := workflow.GenerateWorkQueueEventWorkflow(ctx, workflowDataList, workflowsDir, repoConfig, noLogo); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate work queue event workflow: %w", err)
 		}
@@ -143,6 +145,7 @@ func generateCentralSlashCommandWorkflowWrapper(
 	workflowsDir string,
 	gitRoot string,
 	strict bool,
+	noLogo bool,
 ) error {
 	compilePostProcessingLog.Print("Generating centralized slash-command workflow")
 
@@ -156,7 +159,7 @@ func generateCentralSlashCommandWorkflowWrapper(
 		repoConfig = nil
 	}
 
-	if err := workflow.GenerateCentralSlashCommandWorkflow(ctx, workflowDataList, workflowsDir, repoConfig); err != nil {
+	if err := workflow.GenerateCentralSlashCommandWorkflow(ctx, workflowDataList, workflowsDir, repoConfig, noLogo); err != nil {
 		if strict {
 			return fmt.Errorf("failed to generate centralized slash-command workflow: %w", err)
 		}

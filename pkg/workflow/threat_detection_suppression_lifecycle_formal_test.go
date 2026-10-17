@@ -122,7 +122,7 @@ func TestFormal_ActiveSuppressionRetainsAuditFields(t *testing.T) {
 			"on":                        map[string]any{"schedule": "daily"},
 			"threat-detection-suppress": value,
 		},
-	}, "", "", nil, nil))
+	}, "", "", nil, nil, nil))
 	require.Contains(t, header.String(), `"threat_detection_suppressions":[{"rule":"CTR-011","reason":"documented exception for internal domain","expires":"2026-12-31"}]`)
 }
 

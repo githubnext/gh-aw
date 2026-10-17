@@ -41,9 +41,11 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Networking | `ToolCall`, `egress`, `NetworkPolicy` | Authorized GitHub/inference services, blocked destinations, and service-bound engine authentication. |
 | Git | `checkouts`, `cleanup`, `agentBegan`, `privilegedCheckout`, `operations`, `errors` | Per-repository auth, temporary setup credentials, verified cleanup/failure, available blobs/refs, sparse/shallow state, local operations, REST, and privileged push. |
 | Runtime repository-list checkout | [`RuntimeRepositoryCheckout.tla`](RuntimeRepositoryCheckout.tla) | Trusted policy, bounded whole-batch validation, visibility, entry authentication, agent/privileged finalization, job-local manifests, staged isolation, and failure reporting. |
+| Pull-request fork admission | [`PullRequestForkAdmission.tla`](PullRequestForkAdmission.tla) | Same-repository default, repository-pattern or explicit author-association admission, non-PR trigger preservation, and permission independence. |
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
-| Comment/review-triggered PR checkout | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Allow-listed Bot sender and exact comment/review-author identity, canonical App slug/bot actor equivalence, and same-repository head/base boundaries. |
+| PR checkout authorization | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Same-repository Bot branch-event authorization for supported PR actions plus the stricter allow-listed comment/review exception. |
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
+| Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -58,6 +60,29 @@ fail. Agent failures revoke the modeled engine credential. A minted installation
 token remains live until the `actions/create-github-app-token` post step, which
 revokes it after either safe-output success or failure.
 
+## Pull-request fork admission
+
+[`PullRequestForkAdmission.tla`](PullRequestForkAdmission.tla) models the
+compiler-generated `pull_request` admission condition. Same-repository PRs are
+always admitted; fork PRs are admitted only by a matching configured repository
+pattern, wildcard, or explicit author-association. Omitted configuration and an
+empty association list deny forks, while non-`pull_request` triggers are
+unaffected. The author-association filter changes job admission only: the model
+does not grant permissions, expose secrets, or establish that an author is
+otherwise trustworthy.
+
+Run the bounded model with the pinned TLA+ Tools installation:
+
+```bash
+java -cp /path/to/tla2tools.jar tlc2.TLC \
+  -config specs/workflow-security/PullRequestForkAdmission.cfg \
+  specs/workflow-security/PullRequestForkAdmission.tla
+```
+
+The `Fault` constant provides negative controls for default fork admission,
+association matching, same-repository admission, non-PR filtering, and
+permission escalation.
+
 `DetectionPolicy` independently declares required, disabled, or conditional
 detection. `DetectionEnabled` selects a conditional run. Required detection
 cannot be bypassed merely by omitting the job. Disabled/conditionally skipped
@@ -69,7 +94,7 @@ represented by a skipped state-machine slot, not a real runtime job.
 
 Reviewed baseline: `542e937dd8447172c8c484cda3a9a5716ae99245`.
 The authorities are [Security Architecture v1.1.0](../security-architecture-spec.md),
-[Compiler Threat Detection v1.0.43](../compiler-threat-detection-spec.md),
+[Compiler Threat Detection v1.0.54](../compiler-threat-detection-spec.md),
 [Checkout Behavior](../../docs/src/content/docs/specs/checkout-behavior-specification.md),
 and the [Safe Outputs specification](../../docs/src/content/docs/specs/safe-outputs-specification.md).
 Line references describe that baseline; symbols are the more durable mapping.
@@ -231,18 +256,22 @@ installation-token grants, arbitrary independent tooling, or multi-entry merge
 semantics. Existing compiler and runtime tests supply those narrower conformance
 checks; the real-Git `.gitmodules` regression is not replaced by this abstraction.
 
-## Comment- and review-triggered pull request checkout
+## Pull request checkout authorization
 
 [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) exhaustively
-models `issue_comment`, `pull_request_review_comment`, and `pull_request_review`
-checkout authorization. The allow-listed App exception requires a Bot sender,
-exact equality between the webhook sender and the matching comment or review
-author, canonical equality between the runtime actor and sender, and matching
-workflow, PR-head, and PR-base repository identities. Every other case retains
-the write-or-higher collaborator permission check. The finite model includes
-App slug and `[bot]` spellings, non-Bot actors, mismatched comment/review authors,
-missing or mismatched repository identities, non-comment/review triggers, and a
-`Fault` control for bypassing each authorization guard. Runtime conformance vectors live in
+models `pull_request` and `pull_request_target` actions `opened`, `synchronize`,
+`ready_for_review`, and `reopened`, as well as `issue_comment`,
+`pull_request_review_comment`, and `pull_request_review`. The branch-event
+exception requires a Bot sender whose login exactly matches the runtime actor
+and matching positive runtime, PR-head, and PR-base repository identities. The
+comment/review exception separately requires an allow-listed Bot sender, exact
+equality between the webhook sender and matching comment or review author,
+canonical equality between the runtime actor and sender, and matching
+repository identities. Every other case retains the write-or-higher
+collaborator permission check. The finite model includes App slug and `[bot]`
+spellings, non-Bot actors, mismatched identities, missing or mismatched
+repository identities, unsupported actions and triggers, and a `Fault` control
+for bypassing each authorization guard. Runtime conformance vectors live in
 [`checkout_pr_branch.test.cjs`](../../actions/setup/js/checkout_pr_branch.test.cjs).
 
 Run the model with the same pinned TLA+ Tools installation:
@@ -255,9 +284,11 @@ java -cp /path/to/tla2tools.jar tlc2.TLC \
 
 For each negative control, copy the `.cfg` to a temporary file, set `Fault` to
 one of `"event-bypass"`, `"sender-type-bypass"`, `"author-bypass"` (which covers
-comment and review author mismatches),
-`"actor-bypass"`, `"allowlist-bypass"`, or `"repository-bypass"`, and confirm
-TLC reports `NoUnauthorizedBotBypass`.
+comment and review author mismatches), `"actor-bypass"`, `"allowlist-bypass"`,
+`"repository-bypass"`, `"branch-event-bypass"`, `"branch-action-bypass"`,
+`"branch-sender-type-bypass"`, `"branch-sender-bypass"`, or
+`"branch-repository-bypass"`, and confirm TLC reports
+`NoUnauthorizedBotBypass`.
 
 | Predicate | Required safety condition | Architecture / threat rule | Compiler/runtime evidence |
 |---|---|---|---|
@@ -315,16 +346,62 @@ ancestry, merge correctness, signed pushes, or concurrent checkout discovery.
 These require separate refinement of [`gitutil`](../../pkg/gitutil/gitutil.go)
 and [`findRepoCheckout`](../../actions/setup/js/find_repo_checkout.cjs).
 
+## Host-side MCP compilation
+
+[`MCPCompile.tla`](MCPCompile.tla) models the compiler threat specification's
+[MCP-COMPILE-001–006](../compiler-threat-detection-spec.md#521-host-side-mcp-compilation-boundary)
+as a separate host-side boundary, not a generated workflow job. Each bounded
+request selects an MCP or trusted CLI no-emit entry point, tool, immutable
+server-startup write capability, configured actor validation and permission,
+option class, workflow validity, import availability and expansion path
+(frontmatter, body, or nested include), local image availability/requirement,
+stale lock validity, and repository-root/subdirectory/non-Git launch context.
+`Authorize`, `Prepare`, `ResolveImports`, `ResolveImages`, `Validate`, and `Finalize` enforce the
+ordering between admission, subprocess/scanner preparation, cache access,
+local-image inspection, validation, and output effects. Missing local images
+produce a warning unless image validation is required, when they produce an error.
+
+| Invariants | Boundary |
+|---|---|
+| `StartupCapability`, `ActorAuthorization`, `WritingOptionsGated`, `DeniedBeforeExecution` | Callers cannot opt into write tools; read-only compilation bypasses only the write-actor gate, while write-enabled operations retain it. Rejected requests start no compilation or scanner. |
+| `ReadOnlyMode`, `NoExternalScanners`, `NoRemoteDownloads`, `NoImagePulls`, `ReadOnlyIsolation` | Read-only requests force dedicated read-only mode, no-emit, and no update check, execute no external scanners, download no missing imports/includes, pull no images, and record no mutations on success or failure. |
+| `CacheRootConforms`, `ReadOnlyAvailability`, `ValidationPreserved` | Git checkouts use the repository-root cache, non-Git contexts use the working directory, cached valid imports remain usable from subdirectories, malformed stale output cannot invalidate generated YAML, and invalid inputs remain errors. |
+| `WriteEnabledEmission`, `TrustedNoEmitAvailability` | Authorized write-enabled compilation emits locks; trusted CLI no-emit compilation can populate imports without emitting a lock file. |
+
+`check.py` includes the secure baseline, nineteen synthetic negative controls,
+and seven reachability witnesses. Controls independently break startup authority,
+actor checks, option rejection, dedicated read-only/no-emit/update-check flags, scanner ordering,
+missing-import download prevention, diagnostic/post-processing/cache-hit write
+suppression, cache-root selection, read-only admission, validation, or
+write-enabled emission. Additional controls reproduce Docker pulling, uncached
+body/nested include fallback, stale-lock validation, and applying the stronger
+read-only policy to trusted no-emit CLI callers. Witnesses reach read-only success, cached subdirectory
+success, an uncached-import error without writes, write-enabled emission, and
+write-actor denial, plus cached nested-include success and trusted CLI no-emit
+import refresh, so blanket rejection cannot satisfy the model vacuously.
+
+Mutations abstract creation, modification, or deletion of source, lock,
+diagnostic, action-pin, attributes, import-cache, update-cache, and temporary
+include files; Docker pulls have a separate tracked effect. This
+does not model bytes, path resolution, symlinks, concurrent callers, exact Git
+discovery, scanner internals, all CLI flag combinations, or server-startup
+temporary manifest baselines. The model is not a filesystem sandbox or a proof
+that the implementation refines it. Its concrete evidence is
+[`mcp_server_compile_test.go`](../../pkg/cli/mcp_server_compile_test.go)'s
+real-binary snapshots of file inventory, bytes, modes, and modification times,
+isolated temporary-directory include tests, fake-Docker regressions, and the
+implementation and unit-test mapping in compiler threat §7.3.
+
 ## Run the machine
 
 Use Java 21, Python 3 (standard library only), the repository's Go toolchain,
 and official [TLA+ Tools v1.8.0](https://github.com/tlaplus/tlaplus/releases/tag/v1.8.0).
 The runner verifies this jar SHA-256 before executing it (the v1.8.0 release
-asset SHA-256 published by GitHub for asset `637645448`, uploaded on
-2026-10-13; the release notes publish SHA-1):
+asset SHA-256 published by GitHub for asset `644223998`, updated on
+2026-10-15; the release notes publish SHA-1):
 
 ```text
-0f56d6a813368c48008dfbecb23a73ab43a4a5e1bf09f026782a674aa9d4b3c9
+15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac
 ```
 
 When updating the release pin, verify the downloaded bytes against the release
@@ -350,7 +427,8 @@ reusable invocation naming, and declared detection modes. Twenty-one deliberatel
 broken protections (including failure-path token retention) and eight reachability
 witnesses cover authenticated push, temporary host credentials, and a blocking
 cleanup failure. The additional runtime-checkout model exhausts both job kinds
-and verifies the controls and witnesses described above.
+and verifies the controls and witnesses described above. The MCP compilation
+model adds its secure baseline, nineteen negative controls, and seven witnesses.
 
 Counterexamples include raw `tlc-trace.json`, normalized `trace.json`, and
 `events.txt`. `CompiledWorkflow` negative controls also generate `source.md` and
