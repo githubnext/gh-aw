@@ -997,7 +997,7 @@ describe("pi_models_json.cjs", () => {
       process.env.PI_CODING_AGENT_DIR = tmpDir;
 
       const reflectData = {
-        endpoints: [{ provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, base_url: "http://api-proxy:10000" }],
+        endpoints: [{ provider: "openai", configured: true, auth_type: "github-oidc/azure", port: 10000, base_url: "http://api-proxy:10000", models: ["gpt-5.4"] }],
       };
       await piModelsJson.main({
         fetchReflect: async () => ({ ok: true, reflectData }),

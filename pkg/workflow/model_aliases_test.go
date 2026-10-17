@@ -3,7 +3,9 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -457,4 +459,49 @@ func TestImportedModelAliasValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.want)
 		})
 	}
+}
+
+// TestModelAliasesEnvCarriesOnlyWorkflowAliases verifies that GH_AW_MODEL_ALIASES carries
+// only workflow-defined and imported aliases (built-ins ship with the setup action) and is
+// omitted when the workflow defines and imports none.
+func TestModelAliasesEnvCarriesOnlyWorkflowAliases(t *testing.T) {
+	t.Run("no aliases omits the variable", func(t *testing.T) {
+		for _, engine := range []string{"copilot", "claude", "codex", "pi"} {
+			lock, _ := compileModelAliasWorkflow(t, "engine: "+engine+"\n")
+			assert.NotContains(t, lock, "GH_AW_MODEL_ALIASES", "engine %s: no workflow aliases means no alias variable", engine)
+			assert.NotContains(t, lock, "GH_AW_PI_MODEL_ALIASES", "engine %s: no workflow aliases means no Pi alias variable", engine)
+		}
+	})
+
+	t.Run("workflow and imported aliases only", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte("---\nmodels:\n  team: [\"copilot/gpt-5.4*\"]\n  sonnet: [\"copilot/imported-sonnet\"]\n---\n\n# Shared\n"), 0o600))
+		path := filepath.Join(dir, "workflow.md")
+		require.NoError(t, os.WriteFile(path, []byte("---\non: workflow_dispatch\npermissions:\n  contents: read\nengine: copilot\nimports:\n  - shared.md\nmodels:\n  opus: [\"copilot/claude-opus-5*\"]\n---\n\n# Test\n"), 0o600))
+		require.NoError(t, NewCompiler().CompileWorkflow(path))
+		lockBytes, err := os.ReadFile(stringutil.MarkdownToLockFile(path))
+		require.NoError(t, err)
+		lock := string(lockBytes)
+		assert.Contains(t, lock, `GH_AW_MODEL_ALIASES: '{"opus":["copilot/claude-opus-5*"],"team":["copilot/gpt-5.4*"]}'`,
+			"only effective workflow and imported aliases are emitted; the import cannot replace built-in sonnet")
+	})
+
+	t.Run("overrides merged over built-ins reproduce the merged map", func(t *testing.T) {
+		merged := MergeImportedModelAliases([]map[string][]string{{"team": {"copilot/gpt-5.4*"}}}, map[string][]string{"opus": {"copilot/claude-opus-5*"}, "haiku": BuiltinModelAliases()["haiku"]})
+		overrides := workflowModelAliasOverrides(merged)
+		assert.Equal(t, map[string][]string{"team": {"copilot/gpt-5.4*"}, "opus": {"copilot/claude-opus-5*"}}, overrides)
+		rebuilt := BuiltinModelAliases()
+		maps.Copy(rebuilt, overrides)
+		assert.Equal(t, merged, rebuilt)
+		assert.Nil(t, workflowModelAliasOverrides(MergeImportedModelAliases(nil, nil)))
+	})
+}
+
+// TestBundledModelAliasesMatchSetupAction verifies that the setup action ships an identical
+// copy of the built-in aliases (run 'make sync-model-aliases' to refresh it).
+func TestBundledModelAliasesMatchSetupAction(t *testing.T) {
+	bundled, err := os.ReadFile(filepath.Join("..", "..", "actions", "setup", "js", "model_aliases.json"))
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal(builtinModelAliasesJSON, bundled),
+		"actions/setup/js/model_aliases.json must match pkg/workflow/data/model_aliases.json; run 'make sync-model-aliases'")
 }

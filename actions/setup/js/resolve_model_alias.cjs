@@ -585,36 +585,72 @@ async function resolveConfiguredModelWithRefresh(options) {
   }
 }
 
-/** Environment variable the compiler sets on every engine step with the merged alias map. */
+/**
+ * Environment variable the compiler sets on engine steps with the workflow-defined and
+ * imported aliases (only entries that differ from the built-ins). It is omitted when the
+ * workflow defines and imports no aliases.
+ */
 const MODEL_ALIASES_ENV_VAR = "GH_AW_MODEL_ALIASES";
 
+/** @type {Record<string, string[]>|null|undefined} */
+let builtinModelAliases;
+
 /**
- * Load the merged alias map: an explicit environment variable, then `GH_AW_MODEL_ALIASES`
- * (set by the compiler on every engine step, with or without AWF), then the AWF config
- * written by the compiler (`apiProxy.models`), then `/reflect` `model_aliases`.
+ * The built-in alias map shipped with the setup action (`model_aliases.json`, a copy of
+ * pkg/workflow/data/model_aliases.json). Returns a fresh copy, or null when the bundled
+ * file is missing or invalid.
+ * @returns {Record<string, string[]>|null}
+ */
+function loadBuiltinModelAliases() {
+  if (builtinModelAliases === undefined) {
+    builtinModelAliases = null;
+    try {
+      const aliases = JSON.parse(fs.readFileSync(path.join(__dirname, "model_aliases.json"), "utf8"))?.aliases;
+      if (aliases && typeof aliases === "object" && !Array.isArray(aliases)) builtinModelAliases = aliases;
+    } catch {
+      // No bundled built-ins.
+    }
+  }
+  return builtinModelAliases ? Object.fromEntries(Object.entries(builtinModelAliases).map(([alias, entries]) => [alias, Array.isArray(entries) ? [...entries] : entries])) : null;
+}
+
+/**
+ * Load the merged alias map: a base map overlaid with the workflow-defined and imported
+ * aliases from an explicit environment variable or `GH_AW_MODEL_ALIASES`. The base map is
+ * the AWF config written by the compiler (`apiProxy.models`, already merged), then
+ * `/reflect` `model_aliases`, then the built-in aliases bundled with the setup action
+ * (the only source when AWF is disabled).
  * @param {{ reflectData?: any, env?: NodeJS.ProcessEnv, envVar?: string }} [options]
  * @returns {Record<string, string[]>|null}
  */
 function loadModelAliasMap(options = {}) {
   const env = options.env || process.env;
   const isMap = value => value && typeof value === "object" && !Array.isArray(value);
+  let overrides = null;
   for (const envVar of [options.envVar, MODEL_ALIASES_ENV_VAR]) {
     if (!envVar || !env[envVar]) continue;
     try {
       const parsed = JSON.parse(String(env[envVar]));
-      if (isMap(parsed)) return parsed;
+      if (isMap(parsed)) {
+        overrides = parsed;
+        break;
+      }
     } catch {
       // Fall through to the next source.
     }
   }
+  let base = null;
   try {
     const configPath = env.GH_AW_AWF_CONFIG_PATH || path.join(env.GH_AW_TMP_DIR || "/tmp/gh-aw", "awf-config.json");
     const models = JSON.parse(fs.readFileSync(configPath, "utf8"))?.apiProxy?.models;
-    if (isMap(models)) return models;
+    if (isMap(models)) base = models;
   } catch {
     // Fall through to /reflect.
   }
-  return isMap(options.reflectData?.model_aliases) ? options.reflectData.model_aliases : null;
+  if (!base && isMap(options.reflectData?.model_aliases)) base = options.reflectData.model_aliases;
+  if (!base) base = loadBuiltinModelAliases();
+  if (!base && !overrides) return null;
+  return { ...base, ...overrides };
 }
 
 /**
@@ -713,6 +749,7 @@ module.exports = {
   globMatch,
   isBundledModelId,
   isLiveModelId,
+  loadBuiltinModelAliases,
   loadModelAliasMap,
   mergeParams,
   MODEL_ALIASES_ENV_VAR,

@@ -3,7 +3,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { ModelAliasResolutionError, recordModelResolution, resolveConfiguredModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
+const { loadBuiltinModelAliases, ModelAliasResolutionError, recordModelResolution, resolveConfiguredModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 const { writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { verifyPiThinkingEffort } = require("./pi_runtime.cjs");
@@ -57,6 +57,8 @@ function preparePiSubagents(options) {
     throw new Error("Cannot parse Pi sub-agent model aliases", { cause: error });
   }
   if (!aliases || typeof aliases !== "object" || Array.isArray(aliases)) throw new Error("Pi sub-agent model aliases must be an object");
+  // GH_AW_PI_MODEL_ALIASES carries only workflow-defined and imported aliases; built-ins ship with the setup action.
+  aliases = { ...loadBuiltinModelAliases(), ...aliases };
   const scopedProvider = aliasProvider(provider);
   const agents = readPiSubagents(agentDir, sdk).map(agent => {
     const requested = agent.declaredModel || parentModel;

@@ -79,9 +79,10 @@ describe("Pi sub-agent model resolution", () => {
   it("workflow-defined alias overrides built-in", () => {
     const reflectData = reflectFixtures.withCopilotModels(["claude-opus-6"]);
     frontmatter.model = "opus";
-    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify(reflectFixtures.builtinAliases()));
+    // No workflow aliases: the variable is omitted and built-ins come from the bundled file.
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", "");
     expect(prepare({ catalog: undefined, reflectData })[0].modelId).toBe("claude-opus-6");
-    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify({ ...reflectFixtures.builtinAliases(), opus: ["copilot/claude-opus-5*"] }));
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify({ opus: ["copilot/claude-opus-5*"] }));
     expect(prepare({ catalog: undefined, reflectData })[0].modelId).toBe("claude-opus-5.5");
     expect(JSON.parse(fs.readFileSync(path.join(dir, "agent/model-resolution.json"), "utf8"))).toEqual([
       { engine: "pi", role: "reader", configured_model: "opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null },

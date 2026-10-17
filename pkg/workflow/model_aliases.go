@@ -31,6 +31,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"unsafe"
 
@@ -273,19 +274,54 @@ func engineRunsSharedModelResolution(engineID string) bool {
 	return false
 }
 
-// modelAliasesEnvVar carries the merged alias map to the engine harness (see
-// MODEL_ALIASES_ENV_VAR in resolve_model_alias.cjs). It is set on every engine step,
-// with or without AWF, so the unsandboxed path resolves workflow-defined aliases too.
+// modelAliasesEnvVar carries the workflow-defined and imported aliases to the engine
+// harness (see MODEL_ALIASES_ENV_VAR in resolve_model_alias.cjs). The built-in aliases
+// ship with the setup action (actions/setup/js/model_aliases.json, a copy of
+// data/model_aliases.json) and the harness overlays this variable on them at run time.
+// It is set on every engine step that has such aliases, with or without AWF, so the
+// unsandboxed path resolves workflow-defined aliases too.
 const modelAliasesEnvVar = "GH_AW_MODEL_ALIASES"
 
-// applyModelAliasesEnv sets modelAliasesEnvVar to the merged alias map as JSON.
-func applyModelAliasesEnv(env map[string]string, data *WorkflowData) {
-	if data == nil || len(data.ModelMappings) == 0 {
+// workflowModelAliasOverrides returns the entries of the merged alias map that differ
+// from the built-ins: the workflow-defined and imported aliases that take effect. Merging
+// the built-ins with the result reproduces the merged map exactly. Returns nil when the
+// workflow defines and imports no effective aliases.
+func workflowModelAliasOverrides(merged map[string][]string) map[string][]string {
+	if len(merged) == 0 || isBuiltinOnlyAliasMap(merged) {
+		return nil
+	}
+	builtins := getBuiltinOnlyAliasMap()
+	var overrides map[string][]string
+	for alias, entries := range merged {
+		if builtin, ok := builtins[alias]; ok && slices.Equal(builtin, entries) {
+			continue
+		}
+		if overrides == nil {
+			overrides = make(map[string][]string)
+		}
+		overrides[alias] = entries
+	}
+	return overrides
+}
+
+// applyModelAliasOverridesEnv sets envVar to the workflow-defined and imported aliases as
+// JSON, or leaves it unset when there are none.
+func applyModelAliasOverridesEnv(env map[string]string, envVar string, data *WorkflowData) {
+	if data == nil {
 		return
 	}
-	aliases, err := json.Marshal(data.ModelMappings)
+	overrides := workflowModelAliasOverrides(data.ModelMappings)
+	if len(overrides) == 0 {
+		return
+	}
+	aliases, err := json.Marshal(overrides)
 	if err != nil {
 		panic(fmt.Sprintf("BUG: cannot encode model aliases: %v", err))
 	}
-	env[modelAliasesEnvVar] = string(aliases)
+	env[envVar] = string(aliases)
+}
+
+// applyModelAliasesEnv sets modelAliasesEnvVar to the workflow-defined and imported aliases.
+func applyModelAliasesEnv(env map[string]string, data *WorkflowData) {
+	applyModelAliasOverridesEnv(env, modelAliasesEnvVar, data)
 }
