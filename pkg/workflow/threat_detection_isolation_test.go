@@ -66,6 +66,8 @@ Review documentation.
 				if detection == "" {
 					t.Fatal("detection job missing")
 				}
+				// Main-provider-only credentials must not reach any detection step,
+				// including host-side redaction on a separate detection runner.
 				for _, forbidden := range []string{baseURL, apiKey, "openrouter.ai", "secrets.OPENROUTER_API_KEY"} {
 					if strings.Contains(detection, forbidden) {
 						t.Errorf("main provider setting %q leaked into compiled detection job", forbidden)

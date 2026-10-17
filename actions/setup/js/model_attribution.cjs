@@ -1,5 +1,6 @@
 "use strict";
 
+const { iterateJsonl, readJsonlFile } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { computeInferenceAIC } = require("./model_costs.cjs");
 
@@ -144,46 +145,30 @@ function getModelRouting(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp/gh-aw"
 }
 
 function readModelRoutingSession(sessionPath) {
-  const fs = require("fs");
-  let content;
-  try {
-    content = fs.readFileSync(sessionPath, "utf8");
-  } catch {
-    return [];
-  }
   const events = [];
-  for (const line of content.split("\n")) {
-    try {
-      const event = JSON.parse(line);
+  try {
+    for (const event of readJsonlFile(sessionPath)) {
       const provenance = event?.provenance;
       const agentEvent =
         (event?.type === "workflow.info" && provenance?.component === "workflow" && provenance?.phase === "agent") ||
         ((event?.type === "firewall.model_routing" || event?.type === "firewall.token_usage") && provenance?.component === "firewall" && provenance?.phase === "agent");
       if (agentEvent) events.push(event);
-    } catch {
-      // Ignore partial session records.
     }
+  } catch {
+    return [];
   }
   return events;
 }
 
 function readModelRoutingProxyRecords(ghAwDir) {
-  const fs = require("fs");
   for (const relativePath of MODEL_ROUTING_LOG_PATHS) {
-    let content;
+    const records = [];
     try {
-      content = fs.readFileSync(require("path").join(ghAwDir, relativePath), "utf8");
+      for (const record of readJsonlFile(require("path").join(ghAwDir, relativePath))) {
+        if (typeof record?._schema === "string" && record._schema.startsWith("model-routing/")) records.push(record);
+      }
     } catch {
       continue;
-    }
-    const records = [];
-    for (const line of content.split("\n")) {
-      try {
-        const record = JSON.parse(line);
-        if (typeof record?._schema === "string" && record._schema.startsWith("model-routing/")) records.push(record);
-      } catch {
-        // Ignore incomplete proxy records.
-      }
     }
     return records;
   }
@@ -346,15 +331,10 @@ function getEffectiveModelLabel(infoPath = `${process.env.GH_AW_TMP_DIR || "/tmp
 
 function recordFallbackModelFromUsage(content, env = process.env, infoPath = `${env.GH_AW_TMP_DIR || "/tmp/gh-aw"}/aw_info.json`, logger = console.warn) {
   let model = "";
-  for (const line of content.split("\n")) {
-    if (!line.includes('"model_fallback"')) continue;
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch (error) {
-      logger(`Skipping malformed AWF fallback usage record: ${getErrorMessage(error)}`);
-      continue;
-    }
+  for (const entry of iterateJsonl(content, {
+    lineFilter: line => line.includes('"model_fallback"'),
+    onError: error => logger(`Skipping malformed AWF fallback usage record: ${getErrorMessage(error)}`),
+  })) {
     if (typeof entry?._schema !== "string" || !entry._schema.startsWith("token-usage/") || !entry.model_fallback || Number(entry.status) >= 400) continue;
     const validated = validateModelIdentifier(entry.model || entry.model_fallback.model);
     if (validated) model = validated;

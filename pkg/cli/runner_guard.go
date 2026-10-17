@@ -203,12 +203,6 @@ func runnerGuardDockerArgs(imageRef, volumeMount, containerScanPath string) []st
 	}
 }
 
-// parseAndDisplayRunnerGuardOutput parses runner-guard JSON output and displays findings.
-// Returns the total number of findings found.
-func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot string) (int, error) {
-	return parseAndDisplayRunnerGuardOutputWithFindings(stdout, verbose, gitRoot, nil)
-}
-
 func parseAndDisplayRunnerGuardOutputWithFindings(stdout string, verbose bool, gitRoot string, collected *[]scanfindings.Finding) (int, error) {
 	if stdout == "" {
 		return 0, nil // No output means no findings

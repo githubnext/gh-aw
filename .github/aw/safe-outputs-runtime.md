@@ -305,6 +305,7 @@ Fields that influence permission computation (`add-comment.discussions`, `hide-c
     - `engine:` - AI engine for threat detection (engine config or `false` to disable AI detection)
     - `steps:` - Extra job steps to run before engine execution (array)
     - `post-steps:` - Extra job steps to run after engine execution (array)
+    - `ca-cert:` - Absolute host path to a CA certificate for the detection job's API proxy. Inherits `sandbox.agent.ca-cert` when unset/empty and the detection engine matches the agent engine; `false` disables inheritance. The certificate file must be created on the detection runner via `steps:` (fresh runner, not shared with the agent job). Requires AWF v0.28.10+.
     - `max-ai-credits:` - Per-run AIC budget for the detection engine (numeric only, no expressions; default `${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}`)
     - `runs-on:` - Runner override for the detection job (defaults to `agent.runs-on`)
     - `continue-on-error:` - When `true` (default), detection failures emit a warning and proceed with a `needs-review` label; when `false`, failures block safe outputs (boolean or expression)

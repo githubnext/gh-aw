@@ -14,6 +14,7 @@
 
 "use strict";
 
+const { readJsonlFile } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
@@ -29,18 +30,8 @@ function readEvalsResults() {
   }
 
   const results = [];
-  let raw;
   try {
-    raw = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8");
-  } catch {
-    return [];
-  }
-
-  for (const rawLine of raw.split("\n")) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    try {
-      const record = JSON.parse(line);
+    for (const record of readJsonlFile(EVALS_OUTPUT_PATH)) {
       if (record && typeof record === "object") {
         results.push({
           id: String(record.id ?? ""),
@@ -52,9 +43,9 @@ function readEvalsResults() {
           timestamp: String(record.timestamp ?? ""),
         });
       }
-    } catch {
-      // Malformed line — ignored.
     }
+  } catch {
+    return [];
   }
 
   return results;

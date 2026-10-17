@@ -4,10 +4,59 @@ package workflow
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 )
+
+func TestMCPDebugLoggingOnDemand(t *testing.T) {
+	for _, engine := range []string{"copilot", "claude", "codex"} {
+		t.Run(engine, func(t *testing.T) {
+			workflowPath := filepath.Join(t.TempDir(), "debug.md")
+			content := `---
+on: workflow_dispatch
+strict: false
+engine: ` + engine + `
+tools:
+  agentic-workflows: true
+mcp-scripts:
+  hello:
+    description: Say hello
+    script: return "hello";
+safe-outputs:
+  noop:
+---
+Test on-demand MCP debug logging.
+`
+			if err := os.WriteFile(workflowPath, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			compiler := NewCompiler()
+			compiler.SetSkipValidation(true)
+			data, err := compiler.ParseWorkflowFile(workflowPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			output, _, _, err := compiler.generateYAML(data, workflowPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := "DEBUG: ${{ env.DEBUG || runner.debug == '1' && '*' || '' }}"
+			if strings.Count(output, expected) != 2 {
+				t.Error("Expected gateway and MCP scripts to honor explicit DEBUG and GitHub Actions debug mode")
+			}
+			for _, forced := range []string{`export DEBUG="*"`, `DEBUG: '*'`, `"DEBUG": "*"`} {
+				if strings.Contains(output, forced) {
+					t.Errorf("Unexpected forced debug logging: %s", forced)
+				}
+			}
+			if strings.Count(output, `"DEBUG": "\${DEBUG}"`) != 2 {
+				t.Error("Expected safe outputs and agentic-workflows servers to inherit DEBUG")
+			}
+		})
+	}
+}
 
 // TestMCPServersCompilation verifies that mcp-servers configuration is properly compiled into workflows
 // TestMCPEnvVarsAlphabeticallySorted verifies that env vars in MCP configs are sorted alphabetically
@@ -507,8 +556,8 @@ This workflow tests that agentic-workflows uses the correct container in dev mod
 				}
 
 				// Verify DEBUG and GITHUB_TOKEN are present
-				if !strings.Contains(string(lockContent), `"DEBUG": "*"`) {
-					t.Error("Expected DEBUG set to literal '*' in dev mode env vars")
+				if !strings.Contains(string(lockContent), `"DEBUG": "\${DEBUG}"`) {
+					t.Error("Expected DEBUG forwarded from the environment in dev mode")
 				}
 				if !strings.Contains(string(lockContent), `"GITHUB_TOKEN"`) {
 					t.Error("Expected GITHUB_TOKEN in dev mode env vars")

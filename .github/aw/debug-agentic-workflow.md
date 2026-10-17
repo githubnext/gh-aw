@@ -220,6 +220,9 @@ telemetry-free emitted lock; no workflow was executed."
 
 ## Collect Existing Evidence
 
+Read `key_findings[].code` and follow each finding's `playbook_url`.
+For runtime codes, use the consolidated [debug playbook](debug-playbook.md).
+
 For model/endpoint errors, `model: auto` failures, or install failures after version
 pins, collect the artifacts in [Model and engine misconfiguration](#model-and-engine-misconfiguration).
 
@@ -228,10 +231,13 @@ accessible existing evidence, start from source and fixtures, not a new run.
 For a run URL, extract its ID and begin with a compact audit:
 
 ```bash
-gh aw audit RUN_ID --json
+gh aw audit RUN_ID --no-baseline --timeout 2m --output AUDIT_DIR --json
 gh aw logs WORKFLOW --json
 gh aw status
 ```
+
+Reuse `AUDIT_DIR` for follow-up collection. Check report completeness; a timeout
+can return partial JSON. Inspect findings before downloading additional evidence.
 
 Check recurrence across existing runs:
 
@@ -306,6 +312,10 @@ only for the mechanism under investigation. If a workflow itself collects logs,
 it needs `actions: read` and CLI installation before invoking `gh aw`.
 
 ## Model and engine misconfiguration
+
+Pi `not advertised`: follow [Model availability](debug-playbook.md#model-availability)
+in the consolidated playbook for `model_unavailable`/`model_availability_unknown`,
+cached `gh aw models`, same-run evidence checks, and candidate verification.
 
 For AWF 400s mentioning models or endpoints, silent cross-family sub-agent
 failures, `model: auto` failures, install-step 404s after a version pin, or

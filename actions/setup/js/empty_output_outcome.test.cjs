@@ -80,7 +80,7 @@ describe("empty output outcome", () => {
     fs.writeFileSync(path.join(rootDir, "aw_info.json"), JSON.stringify({ engine_id: "gemini" }));
     writeEvents([{ type: "session.result", data: { errors: [{ status: "error" }] } }]);
     fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
-    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), `${JSON.stringify({ event: "parse_args_error" })}\n`);
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl"), `${JSON.stringify({ event: "parse_args_error" })}\n`);
 
     const outcome = buildEmptyOutputOutcome([], rootDir);
 
@@ -446,7 +446,7 @@ describe("empty output outcome", () => {
         .map(JSON.stringify)
         .join("\n") + "\nprivate-malformed-record"
     );
-    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), [{ event: "call_start", tool: "private-tool" }, { event: "tools_call_start" }, { event: "call_complete" }].map(JSON.stringify).join("\n"));
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl"), [{ event: "call_start", tool: "private-tool" }, { event: "tools_call_start" }, { event: "call_complete" }].map(JSON.stringify).join("\n"));
     const summary = buildCompletionEvidence(rootDir).join("\n");
     expect(summary).toContain("Safe-output CLI calls observed: 1");
     expect(summary).toContain("Safe-output MCP calls observed: 1 (partial evidence: 1 malformed record)");
@@ -461,7 +461,7 @@ describe("empty output outcome", () => {
     fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
     fs.mkdirSync(path.join(rootDir, "mcp-logs"));
     const content = Array(count).fill("invalid-json").join("\n");
-    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), content);
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl"), content);
     fs.writeFileSync(path.join(rootDir, "mcp-logs/rpc-messages.jsonl"), content);
     const summary = buildCompletionEvidence(rootDir);
     expect(summary).toContain(`Safe-output CLI calls observed: 0${suffix}`);
@@ -530,7 +530,7 @@ describe("empty output outcome", () => {
 
   it("preserves CLI parse classification when the bridge exits non-zero without copying payloads", () => {
     fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
-    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), 'not JSON\n{"event":"parse_args_error","tool":"noop","error":"private payload"}\n');
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl"), 'not JSON\n{"event":"parse_args_error","tool":"noop","error":"private payload"}\n');
     fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.reason).toBe("safeoutputs_cli_error");
@@ -540,7 +540,7 @@ describe("empty output outcome", () => {
 
   it.each(["tool_error", "call_error"])("does not classify downstream %s audit events as CLI errors", event => {
     fs.mkdirSync(path.join(rootDir, "mcp-cli-audit"));
-    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl"), `${JSON.stringify({ event, tool: "create_issue" })}\n`);
+    fs.writeFileSync(path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl"), `${JSON.stringify({ event, tool: "create_issue" })}\n`);
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.reason).toBe("missing_terminal_safe_output");
     expect(outcome.details).not.toContain("safeoutputs <tool> --help");

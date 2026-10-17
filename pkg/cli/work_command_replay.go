@@ -302,10 +302,6 @@ func readWorkQueueReplayBytes(reader io.Reader, limit int64) ([]byte, error) {
 	return data, nil
 }
 
-func workQueueReplaySnapshotFromZIP(data []byte) (snapshot []byte, err error) {
-	return workQueueReplaySnapshotFromZIPLimit(data, workQueueReplayArtifactBytes)
-}
-
 func workQueueReplaySnapshotFromZIPLimit(data []byte, limit int64) (snapshot []byte, err error) {
 	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {

@@ -239,7 +239,7 @@ These variables configure the `gh aw` CLI tool. Set them in your local shell env
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `DEBUG` | disabled | npm-style namespace debug logging. `DEBUG=*` enables all output; `DEBUG=cli:*,workflow:*` selects specific namespaces. Exclusions are supported: `DEBUG=*,-workflow:test`. Also activated when `ACTIONS_RUNNER_DEBUG=true`. |
+| `DEBUG` | disabled | npm-style namespace debug logging. `DEBUG=*` enables all output; `DEBUG=cli:*,workflow:*` selects specific namespaces. Exclusions are supported: `DEBUG=*,-workflow:test`. Also activated when `ACTIONS_RUNNER_DEBUG=true` or `RUNNER_DEBUG=1`. |
 | `DEBUG_COLORS` | `1` (enabled) | Set to `0` to disable ANSI colors in debug output. Colors are automatically disabled when output is not a TTY. |
 | `ACCESSIBLE` | empty | Any non-empty value enables accessibility mode, which disables spinners and animations. Also enabled when `TERM=dumb` or `NO_COLOR` is set. |
 | `NO_COLOR` | empty | Any non-empty value disables colored output and enables accessibility mode. Follows the [no-color.org](https://no-color.org/) standard. |
@@ -249,6 +249,10 @@ These variables configure the `gh aw` CLI tool. Set them in your local shell env
 | `GH_AW_MCP_SERVER` | unset | When set, disables the automatic update check. Set automatically when `gh aw` runs as an MCP server subprocess — no manual configuration needed. |
 
 **Enabling debug logging:**
+
+Compiled workflows leave MCP debug logging disabled for normal runs. GitHub Actions debug mode (`runner.debug == '1'`, including **Re-run jobs** with **Enable debug logging**) automatically enables verbose MCP logs. An explicit workflow or job `DEBUG` value takes precedence and is forwarded to the gateway and built-in MCP servers.
+
+The built-in JavaScript MCP loggers use their server names as namespaces, including `safeoutputs` and `mcpscripts`. Patterns are comma- or whitespace-separated, support `*` wildcards, and give `-` exclusions precedence regardless of order. For example, `DEBUG=safeoutputs,mcpscripts` selects those servers, while `DEBUG=*,-safeoutputs` excludes safe-outputs diagnostics from both stderr and `server.log`. Error summaries, required audit records, and structured safe-output files are not disabled by these filters; error stack traces require a matching debug namespace.
 
 ```bash
 # All namespaces
@@ -310,7 +314,10 @@ these `GH_AW_DEFAULT_*` variables at repo, org, or enterprise scope with
 | `GH_AW_MODEL_DETECTION_COPILOT` | GitHub Copilot |
 | `GH_AW_MODEL_DETECTION_CLAUDE` | Anthropic Claude |
 | `GH_AW_MODEL_DETECTION_CODEX` | OpenAI Codex |
-| `GH_AW_MODEL_DETECTION_GEMINI` | Google Gemini |
+
+For both inline and external detection, an explicit `safe-outputs.threat-detection.engine.model` takes precedence over the inherited workflow model. If neither is configured, a compile-time `GH_AW_DEFAULT_DETECTION_MODEL` override takes precedence; otherwise detection uses `vars.GH_AW_MODEL_DETECTION_<ENGINE>`, then `vars.GH_AW_DEFAULT_MODEL_<ENGINE>`, then the engine's built-in detection default. These variables use the resolved detection engine, which can differ from the main workflow engine.
+
+Claude and Codex have no engine-specific detection default, so their fallback is the firewall's `detection` alias. Copilot's built-in detection fallback is cost-optimized (currently a mini model). The `detection` alias is resolved by the firewall at runtime and is not a pinned model. Use an explicit detection model or a model override variable to select a specific model. This does not change the [threat detection failure policy](/gh-aw/reference/threat-detection/).
 
 Set a model override as an organization variable:
 

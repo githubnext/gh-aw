@@ -555,7 +555,7 @@ func (s *onSectionCleanupState) commentPullRequestAndTriggerField(info onSection
 		return true, " # Stack filtering applied via job conditions"
 	case s.inPullRequest && strings.HasPrefix(info.trimmed, "forks:"):
 		return true, " # Fork filtering applied via job conditions"
-	case s.inForksArray && strings.HasPrefix(info.trimmed, "-"):
+	case s.inForksArray && (strings.HasPrefix(info.trimmed, "-") || info.indent > 4):
 		return true, " # Fork filtering applied via job conditions"
 	case s.inDeploymentStatus && strings.HasPrefix(info.trimmed, "state:"):
 		return true, " # State filtering compiled into if condition"

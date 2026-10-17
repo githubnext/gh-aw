@@ -17,8 +17,31 @@ describe("daily_aic_repo_memory_ledger", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     delete global.core;
     fs.rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("streams repo-memory ledger buckets and recovers after corrupt large records", () => {
+    const repoMemoryDir = path.join(directory, "memory");
+    const root = ledger.ledgerRoot(repoMemoryDir);
+    fs.mkdirSync(root, { recursive: true });
+    const entry = { version: 1, repository: "owner/repo", workflow_id: "triage", run_id: 1, aic: 7, timestamp: new Date(now).toISOString() };
+    fs.writeFileSync(path.join(root, "2026-09-23.jsonl"), "noise\n".repeat(20000) + '{"broken":"' + "x".repeat(2 * 1024 * 1024) + '"}x\n' + JSON.stringify(entry));
+    const read = vi.spyOn(fs, "readFileSync");
+    const readChunk = vi.spyOn(fs, "readSync");
+    const close = vi.spyOn(fs, "closeSync");
+    expect(ledger.readLedgerEntries({ repoMemoryDir, repository: "owner/repo", workflowId: "triage", now })).toEqual([entry]);
+    expect(read).not.toHaveBeenCalled();
+    expect(readChunk.mock.calls.length).toBeGreaterThan(2);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces unreadable repo-memory ledgers instead of undercounting usage", () => {
+    vi.spyOn(fs, "openSync").mockImplementation(() => {
+      throw Object.assign(new Error("Permission denied"), { code: "EACCES" });
+    });
+    expect(() => ledger.readLedgerEntries({ repoMemoryDir: directory, repository: "owner/repo", workflowId: "triage", now })).toThrow("Failed to read daily AIC repo-memory ledger");
   });
 
   it("reads current and previous UTC day buckets and filters by repository, workflow, and window", () => {

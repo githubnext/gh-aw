@@ -1,4 +1,5 @@
 // @ts-check
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -197,14 +198,13 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
     }
     const values = [];
     const lines = [];
-    for (const [index, raw] of content.split(/\r?\n/).entries()) {
-      if (!raw.trim()) continue;
-      try {
-        values.push(JSON.parse(raw));
-        lines.push(index + 1);
-      } catch {
+    for (const event of iterateJsonlEvents(content)) {
+      if (event.type === "json") {
+        values.push(event.value);
+        lines.push(event.lineNumber);
+      } else if (event.reason !== "blank") {
         incompleteSources.add(file);
-        report(file, "malformed_jsonl", index + 1);
+        report(file, "malformed_jsonl", event.lineNumber);
       }
     }
     recordCache.set(file, values);

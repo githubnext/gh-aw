@@ -1,5 +1,6 @@
 // @ts-check
 
+const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
@@ -105,35 +106,38 @@ function buildCompletionEvidence(rootDir = "/tmp/gh-aw") {
   }
   const summary = [`Safe-output tools: ${availability}`];
   for (const [label, relativePath, eventName] of [
-    ["CLI", "mcp-cli-audit/safeoutputs.jsonl", "call_start"],
+    ["CLI", "mcp-cli-audit/safeoutputs.audit.jsonl", "call_start"],
     ["MCP", "mcp-logs/rpc-messages.jsonl", "tools/call"],
   ]) {
     const evidence = readCompletionEvidence(rootDir, relativePath);
     let count = 0;
     let malformed = 0;
-    for (const line of (evidence.content || "").split("\n").filter(line => line.trim())) {
-      try {
-        const entry = JSON.parse(line);
-        if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
-      } catch {
+    for (const event of iterateJsonlEvents(evidence.content || "")) {
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
         malformed++;
+        continue;
       }
+      const entry = event.value;
+      if (label === "CLI" ? entry?.event === eventName : ["rpc_request", "REQUEST"].includes(entry?.event ?? entry?.type) && entry?.server_id === "safeoutputs" && (entry?.method ?? entry?.payload?.method) === eventName) count++;
     }
     summary.push(`Safe-output ${label} calls observed: ${evidence.status === "recorded" ? `${count}${malformed ? ` (partial evidence: ${malformed} malformed record${malformed === 1 ? "" : "s"})` : ""}` : `unknown (${evidence.status})`}`);
   }
   const output = readCompletionEvidence(rootDir, "safeoutputs.jsonl");
-  const lines = (output.content || "").split("\n").filter(line => line.trim());
+  let recordCount = 0;
   let malformed = 0;
-  for (const line of lines) {
-    try {
-      const item = JSON.parse(line);
-      if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
-    } catch {
+  for (const event of iterateJsonlEvents(output.content || "")) {
+    if (event.type === "invalid" && event.reason === "blank") continue;
+    recordCount++;
+    if (event.type === "invalid") {
       malformed++;
+      continue;
     }
+    const item = event.value;
+    if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.type !== "string") malformed++;
   }
   summary.push(
-    `Safe-output persistence: ${output.status === "recorded" ? `${lines.length ? "nonempty" : "empty"} (${lines.length} record${lines.length === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
+    `Safe-output persistence: ${output.status === "recorded" ? `${recordCount ? "nonempty" : "empty"} (${recordCount} record${recordCount === 1 ? "" : "s"}, ${malformed} malformed; not validation or publication evidence)` : output.status}`
   );
   return summary;
 }
@@ -197,11 +201,10 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   const redactJson = value => JSON.stringify(value, (_key, nested) => (typeof nested === "string" ? redact(nested) : nested));
   let safeoutputsCliError = false;
   try {
-    const auditPath = path.join(rootDir, "mcp-cli-audit/safeoutputs.jsonl");
+    const auditPath = path.join(rootDir, "mcp-cli-audit/safeoutputs.audit.jsonl");
     if (fs.lstatSync(auditPath).isFile()) {
-      for (const line of fs.readFileSync(auditPath, "utf8").split("\n")) {
+      for (const entry of iterateJsonl(fs.readFileSync(auditPath, "utf8"))) {
         try {
-          const entry = JSON.parse(line);
           if (["parse_args_error", "unrecognized_args"].includes(entry?.event)) {
             safeoutputsCliError = true;
             if (!failedFinalResult) reason = "safeoutputs_cli_error";
@@ -294,16 +297,12 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
     break;
   }
   if (agentNotStarted) reason = "agent_startup_failure";
-  const safeStdio = stdio
-    .split("\n")
-    .map(line => {
-      try {
-        return redactJson(JSON.parse(line));
-      } catch {
-        return redact(line);
-      }
-    })
-    .join("\n");
+  const redactedLines = [];
+  for (const event of iterateJsonlEvents(stdio)) {
+    const ending = event.rawLine.endsWith("\r\n") ? "\r\n" : event.rawLine.endsWith("\n") ? "\n" : "";
+    redactedLines.push(event.type === "json" ? redactJson(event.value) + ending : redact(event.rawLine));
+  }
+  const safeStdio = redactedLines.join("");
   const rawSourceEngine = process.env.GH_AW_ENGINE_ID === "aider" || events.some(event => event.type === "workflow.info" && event.provenance.component === "workflow" && event.data.engineId === "aider") ? "aider" : undefined;
   const engineSummary = agentNotStarted ? "" : agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);

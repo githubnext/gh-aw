@@ -3,6 +3,7 @@ import { noCoreSetOutputNonStringRule } from "./rules/no-core-setoutput-non-stri
 import { noThrowPlainObjectRule } from "./rules/no-throw-plain-object";
 import { noGithubRequestInterpolatedRouteRule } from "./rules/no-github-request-interpolated-route";
 import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
+import { noAdHocJsonlParserRule } from "./rules/no-ad-hoc-jsonl-parser";
 import { noJsonStringifyEqualityRule } from "./rules/no-json-stringify-equality";
 import { noJsonStringifySetOrMapRule } from "./rules/no-json-stringify-set-or-map";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
@@ -10,6 +11,7 @@ import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
 import { preferGetErrorMessageOverStringRule } from "./rules/prefer-get-error-message-over-string";
 import { preferNumberIsNanRule } from "./rules/prefer-number-isnan";
+import { noMapParseIntCallbackRule } from "./rules/no-map-parseint-callback";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
 import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
 import { requireFsCloseSyncRule } from "./rules/require-fs-close-sync";
@@ -77,6 +79,7 @@ const plugin = {
     "no-throw-plain-object": noThrowPlainObjectRule,
     "no-github-request-interpolated-route": noGithubRequestInterpolatedRouteRule,
     "no-json-stringify-error": noJsonStringifyErrorRule,
+    "no-ad-hoc-jsonl-parser": noAdHocJsonlParserRule,
     "no-json-stringify-equality": noJsonStringifyEqualityRule,
     "no-json-stringify-set-or-map": noJsonStringifySetOrMapRule,
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
@@ -84,6 +87,7 @@ const plugin = {
     "prefer-get-error-message": preferGetErrorMessageRule,
     "prefer-get-error-message-over-string": preferGetErrorMessageOverStringRule,
     "prefer-number-isnan": preferNumberIsNanRule,
+    "no-map-parseint-callback": noMapParseIntCallbackRule,
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
     "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
     "require-fs-close-sync": requireFsCloseSyncRule,

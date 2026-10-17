@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
@@ -142,12 +143,8 @@ function parseTokenUsageJsonl(jsonlContent) {
     entries: [],
   };
 
-  const lines = jsonlContent.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+  for (const entry of iterateJsonl(jsonlContent)) {
     try {
-      const entry = JSON.parse(trimmed);
       if (!entry || typeof entry !== "object") continue;
       const requestId = typeof entry.request_id === "string" ? entry.request_id.trim() : "";
       const eventName = typeof entry.event === "string" && entry.event ? entry.event : "token_usage";
@@ -518,12 +515,8 @@ function printAllGatewayFiles() {
  */
 function parseGatewayJsonlForDifcFiltered(jsonlContent) {
   const filteredEvents = [];
-  const lines = jsonlContent.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || !/difc_filtered/i.test(trimmed)) continue;
+  for (const entry of iterateJsonl(jsonlContent, { lineFilter: line => /difc_filtered/i.test(line) })) {
     try {
-      const entry = JSON.parse(trimmed);
       if (getRpcMessageType(entry) === "DIFC_FILTERED") {
         filteredEvents.push(entry);
       }
@@ -542,12 +535,8 @@ function parseGatewayJsonlForDifcFiltered(jsonlContent) {
  */
 function parseGatewayJsonlForTokenSteering(jsonlContent) {
   const steeringEvents = [];
-  const lines = jsonlContent.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || !trimmed.includes("token_steering")) continue;
+  for (const entry of iterateJsonl(jsonlContent, { lineFilter: line => line.includes("token_steering") })) {
     try {
-      const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
       if (eventName === "token_steering") {
         steeringEvents.push(entry);
@@ -578,13 +567,8 @@ const MODEL_ALIAS_EVENT_NAMES = new Set(["model_alias_resolution", "model_rewrit
  */
 function parseGatewayJsonlForModelAliasResolution(jsonlContent) {
   const aliasResolutionEvents = [];
-  const lines = jsonlContent.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (!trimmed.includes("model_alias") && !trimmed.includes("model_rewrite") && !trimmed.includes("MODEL_ALIAS")) continue;
+  for (const entry of iterateJsonl(jsonlContent, { lineFilter: line => line.includes("model_alias") || line.includes("model_rewrite") || line.includes("MODEL_ALIAS") })) {
     try {
-      const entry = JSON.parse(trimmed);
       const eventName = getGatewayEventName(entry);
       if (MODEL_ALIAS_EVENT_NAMES.has(eventName)) {
         aliasResolutionEvents.push(entry);
@@ -711,12 +695,8 @@ function parseRpcMessagesJsonl(jsonlContent) {
   const responses = [];
   const other = [];
 
-  const lines = jsonlContent.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
+  for (const entry of iterateJsonl(jsonlContent)) {
     try {
-      const entry = JSON.parse(trimmed);
       if (!entry || typeof entry !== "object") continue;
       const messageType = getRpcMessageType(entry);
       if (!messageType) continue;

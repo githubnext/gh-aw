@@ -21,6 +21,16 @@
     "audit_finding": "Sub-agent Failed",
     "request_status": "deviated"
   },
+  "diagnostic_routing": [
+    { "id": "model_absent", "code": "model_unavailable", "section": "Audit findings", "next_section": "Model availability" },
+    { "id": "endpoint", "code": "model_endpoint_mismatch_error", "section": "Agent, model, and proxy classifications", "next_guide": "debug-model-engine-misconfiguration.md" },
+    { "id": "completion", "code": "missing_terminal_safe_output", "section": "Completion and safe-output errors", "required": "silence is not an intentional noop" },
+    { "id": "protected_file", "code": "POLICY_FILE_PROTECTION_DENIED", "section": "Completion and safe-output errors", "required": "Respect intentional skip" },
+    { "id": "call_cap", "code": "invocation_cap_exceeded", "section": "Agent, model, and proxy classifications", "required": "exhausted run cannot recover" },
+    { "id": "threat", "code": "threat_detected", "section": "Audit findings", "next_guide": "debug-security-review.md" },
+    { "id": "projection", "code": "projection_rate_pending", "section": "Work-queue codes", "required": "pending for terminal failure" },
+    { "id": "warning_then_failure", "code": "model_availability_unknown", "section": "Audit findings", "required": "do not declare removal" }
+  ],
   "misplaced_versions": {
     "workflow": "engine:\n  id: copilot\n  version: 1.94.0\nsandbox:\n  agent:\n    version: 1.94.0\n",
     "failures": [

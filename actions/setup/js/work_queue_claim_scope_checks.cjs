@@ -1,5 +1,6 @@
 "use strict";
 
+const { iterateJsonl } = require("./jsonl_helpers.cjs");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -495,11 +496,7 @@ function registerTests({ describe, it }) {
         await scope.withClaimExecution({ assignment: first, claim_handle: "h1" }, async () => {
           logger = createManifestLogger(path.join(root, "items.jsonl"));
           logger({ type: "create_issue", number: 1 });
-          const entries = fs
-            .readFileSync(path.join(scope.claimArtifactPath(root, "h1"), "items.jsonl"), "utf8")
-            .trim()
-            .split("\n")
-            .map(line => JSON.parse(line));
+          const entries = Array.from(iterateJsonl(fs.readFileSync(path.join(scope.claimArtifactPath(root, "h1"), "items.jsonl"), "utf8").trim(), { strict: true }));
           assert.deepEqual({ dispatch_id: entries[0].dispatch_id, claim_id: entries[0].claim_id, work_id: entries[0].work_id, claim_handle: entries[0].claim_handle }, scope.claimIdentity("h1"));
         });
         await scope.withClaimExecution({ assignment: second, claim_handle: "h1" }, () => {

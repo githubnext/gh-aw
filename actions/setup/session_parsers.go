@@ -7,6 +7,7 @@ import "embed"
 //
 //go:embed js/session_cli.cjs js/unified_session.cjs js/unified_session_payload.cjs js/unified_session_render.cjs
 //go:embed js/steering_helpers.cjs js/jsonl_helpers.cjs
+//go:embed js/schema-validation.cjs js/json_schema_validation.cjs js/memory_schema_contract.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
 //go:embed js/workflow_job_durations.cjs
@@ -24,7 +25,7 @@ import "embed"
 //go:embed js/pi_session.cjs js/pi_session_redaction.cjs js/session_artifact.cjs
 //go:embed js/log_parser_bootstrap.cjs js/log_parser_format.cjs js/log_parser_shared.cjs
 //go:embed js/log_parser_step_summary_builder.cjs js/markdown_unfencing.cjs
-//go:embed js/add_mask_redaction.cjs js/json_string_scanner.cjs js/mask_value_matcher.cjs js/redact_secrets.cjs js/safe_output_redaction.cjs js/safe_outputs_config_redact.cjs js/safe_output_manifest.cjs js/safe_outputs_tools.json
+//go:embed js/add_mask_redaction.cjs js/json_string_scanner.cjs js/mask_value_matcher.cjs js/redact_secrets.cjs js/safe_output_redaction.cjs js/safe_outputs_tools.json js/safe_outputs_config_redact.cjs js/safe_output_manifest.cjs
 //go:embed js/otlp_header_helpers.cjs
 //go:embed js/work_queue_claim_scope.cjs js/work_queue_codec.cjs js/work_queue_resource_scope.cjs
 //go:embed js/work_queue_host.cjs
@@ -50,7 +51,7 @@ import "embed"
 //go:embed js/work_queue_indexes.cjs
 //go:embed js/mcp_server_core.cjs js/mcp_dependencies_manager.cjs js/mcp_enhanced_errors.cjs js/mcp_logger.cjs
 //go:embed js/mcp_handler_go.cjs js/mcp_handler_javascript.cjs js/mcp_handler_process.cjs
-//go:embed js/mcp_handler_python.cjs js/mcp_handler_shell.cjs js/mcp_scripts_validation.cjs
+//go:embed js/mcp_handler_python.cjs js/mcp_handler_shell.cjs
 //go:embed js/glob_pattern_helpers.cjs js/handler_auth.cjs js/invocation_context_helpers.cjs
 //go:embed js/read_buffer.cjs js/repo_helpers.cjs js/safe_output_helpers.cjs js/staged_preview.cjs
 //go:embed js/constants.cjs js/error_codes.cjs js/error_helpers.cjs js/model_costs.cjs js/models.json js/shim.cjs

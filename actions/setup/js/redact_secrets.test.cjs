@@ -27,9 +27,211 @@ const mockCore = {
   summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(void 0) },
 };
 global.core = mockCore;
+const { persistDetectionMasks } = require("./detection_mask_state.cjs");
 const redactScript = fs.readFileSync(path.join(__dirname, "redact_secrets.cjs"), "utf8");
 describe("redact_secrets.cjs", () => {
   let tempDir, ambientPathsSpy;
+  it("sanitizes detection results, copied firewall logs and late-created accounting files", async () => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-detection-private-value";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "DETECTION_TEST");
+    vi.stubEnv("SECRET_DETECTION_TEST", secret);
+    const root = path.join(process.env.RUNNER_TEMP, "gh-aw");
+    const detection = path.join(root, "threat-detection");
+    const source = path.join(root, "sandbox/firewall/logs/token-usage.jsonl");
+    const copied = path.join(detection, "sandbox/firewall/logs/token-usage.jsonl");
+    const audit = path.join(detection, "sandbox/firewall/audit/audit.log");
+    const rotated = path.join(detection, "sandbox/firewall/logs/access.log.1");
+    const extensionless = path.join(detection, "sandbox/firewall/audit/diagnostic");
+    for (const file of [source, copied, audit]) fs.mkdirSync(path.dirname(file), { recursive: true });
+    const result = path.join(detection, "detection_result.json");
+    const log = path.join(detection, "detection.log");
+    const summary = path.join(root, "step-summary.md");
+    const verdict = { status: "success", reason: secret, verdict: { secrets: false, prompt_injection: false, malicious_patch: false } };
+    fs.writeFileSync(result, JSON.stringify(verdict));
+    fs.writeFileSync(log, `Safe detection diagnostic: ${secret}`);
+    fs.writeFileSync(summary, `Detection summary: ${secret}`);
+    fs.writeFileSync(source, JSON.stringify({ model: secret, input_tokens: 123, output_tokens: 45 }) + "\n");
+    fs.copyFileSync(source, copied);
+    fs.writeFileSync(audit, `Firewall diagnostic: ${secret}`);
+    fs.writeFileSync(rotated, `Rotated firewall diagnostic: ${secret}`);
+    fs.writeFileSync(extensionless, `Extensionless firewall diagnostic: ${secret}`);
+
+    const options = { additionalDirectories: [path.join(detection, "sandbox/firewall")] };
+    await main(options);
+
+    for (const file of [result, log, summary, source, copied, audit, rotated, extensionless]) expect(fs.readFileSync(file, "utf8")).not.toContain(secret);
+    expect(JSON.parse(fs.readFileSync(result, "utf8"))).toEqual({ ...verdict, reason: "***REDACTED***" });
+    expect(JSON.parse(fs.readFileSync(copied, "utf8"))).toEqual({ model: "***REDACTED***", input_tokens: 123, output_tokens: 45 });
+    expect(fs.readFileSync(log, "utf8")).toContain("Safe detection diagnostic");
+
+    const usage = path.join(detection, "detection_usage.json");
+    const usageJSONL = path.join(detection, "detection_usage.jsonl");
+    fs.writeFileSync(usage, JSON.stringify({ primary_model: secret, ai_credits: 2 }));
+    fs.writeFileSync(usageJSONL, JSON.stringify({ provider: secret, ai_credits: 2 }) + "\n");
+    await main(options);
+
+    expect(JSON.parse(fs.readFileSync(usage, "utf8"))).toEqual({ primary_model: "***REDACTED***", ai_credits: 2 });
+    expect(JSON.parse(fs.readFileSync(usageJSONL, "utf8"))).toEqual({ provider: "***REDACTED***", ai_credits: 2 });
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+  it("fails closed and removes detection output when file redaction fails", async () => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-detection-private-value";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "DETECTION_TEST");
+    vi.stubEnv("SECRET_DETECTION_TEST", secret);
+    const detection = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection");
+    fs.mkdirSync(detection, { recursive: true });
+    const result = path.join(detection, "detection_result.json");
+    fs.writeFileSync(result, JSON.stringify({ reason: secret }));
+    const read = fs.readFileSync;
+    const failure = vi.spyOn(fs, "readFileSync").mockImplementation((file, ...args) => {
+      if (file === result) throw Object.assign(new Error(secret), { code: "EIO" });
+      return read(file, ...args);
+    });
+    try {
+      await main();
+    } finally {
+      failure.mockRestore();
+    }
+    expect(fs.existsSync(result)).toBe(false);
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Removed artifact source after secret redaction failed"));
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it("preserves detection-only runtime masks across separate passes without artifact state", async () => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = 'synthetic-unknown-"\\credential';
+    const root = path.join(process.env.RUNNER_TEMP, "gh-aw");
+    const detection = path.join(root, "threat-detection");
+    const firewall = path.join(detection, "sandbox/firewall/logs");
+    fs.mkdirSync(firewall, { recursive: true });
+    const log = path.join(detection, "detection.log");
+    const result = path.join(detection, "detection_result.json");
+    const copied = path.join(firewall, "access.log.1");
+    fs.writeFileSync(log, `::add-mask::${secret}\nSafe detection diagnostic: ${secret}\n`);
+    fs.writeFileSync(result, JSON.stringify({ status: "success", reason: secret }));
+    fs.writeFileSync(copied, `Firewall diagnostic: ${secret}`);
+    mockCore.exportVariable.mockImplementation((name, value) => {
+      expect(mockCore.setSecret).toHaveBeenCalledWith(secret);
+      expect(mockCore.setSecret).toHaveBeenCalledWith(value);
+      expect(mockCore.setSecret.mock.invocationCallOrder.at(-1)).toBeLessThan(mockCore.exportVariable.mock.invocationCallOrder.at(-1));
+      vi.stubEnv(name, value);
+    });
+    const options = { additionalDirectories: [path.dirname(firewall)], persistDetectionMasks };
+
+    await main(options);
+
+    expect(process.env.GH_AW_SECRET_NAMES).toBeUndefined();
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_MASKED_VALUES", JSON.stringify([secret]));
+    expect(fs.readFileSync(log, "utf8")).toBe("Safe detection diagnostic: ***\n");
+    expect(JSON.parse(fs.readFileSync(result, "utf8"))).toEqual({ status: "success", reason: "***" });
+    expect(fs.readFileSync(copied, "utf8")).toBe("Firewall diagnostic: ***");
+    const usage = path.join(detection, "detection_usage.json");
+    const usageJSONL = path.join(detection, "detection_usage.jsonl");
+    fs.writeFileSync(usage, JSON.stringify({ primary_model: secret, ai_credits: 2 }));
+    fs.writeFileSync(usageJSONL, JSON.stringify({ provider: secret, ai_credits: 2 }) + "\n");
+    // Reload the script as a separate github-script invocation, not an in-memory cache.
+    await eval(`(async () => { ${redactScript}; await main(options); })()`);
+
+    expect(JSON.parse(fs.readFileSync(usage, "utf8"))).toEqual({ primary_model: "***", ai_credits: 2 });
+    expect(JSON.parse(fs.readFileSync(usageJSONL, "utf8"))).toEqual({ provider: "***", ai_credits: 2 });
+    expect(fs.readdirSync(detection).sort()).toEqual(["detection.log", "detection_result.json", "detection_usage.json", "detection_usage.jsonl", "sandbox"]);
+    expect(fs.readdirSync(root)).toEqual(["threat-detection"]);
+    expect(mockCore.setSecret.mock.calls).toEqual([[secret], [JSON.stringify([secret])], [secret], [JSON.stringify([secret])]]);
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it.each(["read", "register", "register-state", "persist", "invalid-state", "missing-persistence"])("removes detection sources safely if runtime mask %s fails", async failureStage => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-unknown-runtime-credential";
+    const detection = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection");
+    const firewall = path.join(detection, "sandbox/firewall");
+    fs.mkdirSync(firewall, { recursive: true });
+    const log = path.join(detection, "detection.log");
+    const result = path.join(detection, "detection_result.json");
+    const copied = path.join(firewall, "access.log.1");
+    fs.writeFileSync(log, `::add-mask::${secret}\n${secret}`);
+    fs.writeFileSync(result, JSON.stringify({ reason: secret }));
+    fs.writeFileSync(copied, secret);
+    const read = fs.readFileSync;
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((file, ...args) => {
+      if (failureStage === "read" && file === log) throw Object.assign(new Error(secret), { code: "EIO" });
+      return read(file, ...args);
+    });
+    if (failureStage === "register" || failureStage === "register-state")
+      mockCore.setSecret.mockImplementation(value => {
+        if (failureStage === "register" || value === JSON.stringify([secret])) throw new Error(secret);
+      });
+    if (failureStage === "persist")
+      mockCore.exportVariable.mockImplementation(() => {
+        throw new Error(secret);
+      });
+    if (failureStage === "invalid-state") vi.stubEnv("GH_AW_DETECTION_MASKED_VALUES", JSON.stringify({ secret }));
+    try {
+      await main({ additionalDirectories: [firewall], persistDetectionMasks: failureStage === "missing-persistence" ? undefined : persistDetectionMasks });
+    } finally {
+      readSpy.mockRestore();
+    }
+    for (const file of [log, result, copied]) expect(fs.existsSync(file)).toBe(false);
+    if (failureStage !== "persist") expect(mockCore.exportVariable).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Removed artifact sources after runtime mask collection failed"));
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it.each(["compressed", "binary", "invalid-utf8", "oversized"])("excludes %s firewall byproducts without decoding or corrupting them", async kind => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-firewall-private-value";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "FIREWALL_TEST");
+    vi.stubEnv("SECRET_FIREWALL_TEST", secret);
+    const firewall = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection/sandbox/firewall");
+    fs.mkdirSync(firewall, { recursive: true });
+    const source = path.join(firewall, `${secret}.log.${kind}`);
+    const normal = path.join(firewall, "access.log.1");
+    const diagnostic = path.join(firewall, "diagnostic");
+    fs.writeFileSync(normal, `Safe firewall diagnostic: ${secret}`);
+    fs.writeFileSync(diagnostic, `UTF-8 diagnostic: \u00e9 \ud83d\ude80 ${secret}`);
+    const content = kind === "compressed" ? require("node:zlib").gzipSync(secret) : kind === "binary" ? Buffer.from(`\0${secret}`) : kind === "invalid-utf8" ? Buffer.concat([Buffer.from([0xff]), Buffer.from(secret)]) : Buffer.from(secret);
+    fs.writeFileSync(source, content);
+    if (kind === "oversized") fs.truncateSync(source, 16 * 1024 * 1024 + 1);
+    const write = vi.spyOn(fs, "writeFileSync");
+    const read = vi.spyOn(fs, "readSync");
+    try {
+      await main({ additionalDirectories: [firewall] });
+      expect(write.mock.calls.some(([file]) => file === source)).toBe(false);
+      if (kind === "oversized") expect(read.mock.calls.every(([, buffer]) => buffer.length < 16 * 1024 * 1024)).toBe(true);
+    } finally {
+      write.mockRestore();
+      read.mockRestore();
+    }
+    expect(fs.existsSync(source)).toBe(false);
+    expect(fs.readFileSync(normal, "utf8")).toBe("Safe firewall diagnostic: ***REDACTED***");
+    expect(fs.readFileSync(diagnostic, "utf8")).toBe("UTF-8 diagnostic: \u00e9 \ud83d\ude80 ***REDACTED***");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Removed unsupported artifact before upload"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it("fails closed with safe diagnostics if an unsupported firewall source cannot be removed", async () => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-firewall-private-value";
+    const firewall = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection/sandbox/firewall");
+    fs.mkdirSync(firewall, { recursive: true });
+    const source = path.join(firewall, "access.log.gz");
+    const content = require("node:zlib").gzipSync(secret);
+    fs.writeFileSync(source, content);
+    const unlink = fs.unlinkSync;
+    const cleanup = vi.spyOn(fs, "unlinkSync").mockImplementation(file => {
+      if (file === source) throw Object.assign(new Error(secret), { code: "EACCES" });
+      return unlink(file);
+    });
+    try {
+      await main({ additionalDirectories: [firewall] });
+    } finally {
+      cleanup.mockRestore();
+    }
+    expect(fs.readFileSync(source)).toEqual(content);
+    expect(mockCore.setFailed).toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=unlink, code=EACCES)");
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
   it.each(["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"])("redacts decoded OTLP passwords from artifacts and summaries using %s without setup log masks", async variable => {
     const { main, redactFilesInDir, redactStepSummaryContent } = require("./redact_secrets.cjs");
     const passwords = ['synthetic-otlp-"password\\one', "four", "12345678", "9007199254740993"];
@@ -70,7 +272,7 @@ describe("redact_secrets.cjs", () => {
     expect(JSON.parse(fs.readFileSync(scalarFile, "utf8"))).toBe("***");
     assertRedacted(redactStepSummaryContent(payload));
     expect(JSON.parse(redactStepSummaryContent("12345678\n"))).toBe("***");
-    expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(passwords[0]);
+    expect(mockCore.info).not.toHaveBeenCalled();
   });
   it("redacts decoded Grafana Cloud tokens even without an exact-value secret", () => {
     const { redactBuiltInPatterns } = require("./redact_secrets.cjs");
@@ -95,6 +297,9 @@ describe("redact_secrets.cjs", () => {
       mockCore.summary.addRaw && mockCore.summary.addRaw.mockClear(),
       mockCore.summary.write && mockCore.summary.write.mockClear(),
       delete process.env.GH_AW_SECRET_NAMES);
+    mockCore.exportVariable.mockReset();
+    mockCore.setSecret.mockReset();
+    vi.stubEnv("GH_AW_DETECTION_MASKED_VALUES", "");
     for (const variable of ["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"]) vi.stubEnv(variable, "");
   }),
     afterEach(() => {
@@ -127,7 +332,7 @@ describe("redact_secrets.cjs", () => {
       }
     }),
     describe("file handling", () => {
-      it.each(["ordinary.json", "safeoutputs.jsonl"])("logs UTF-8 input and output byte sizes without payload data for %s", filename => {
+      it.each(["ordinary.json", "safeoutputs.jsonl"])("silently redacts UTF-8 payloads in %s", filename => {
         const { processFile } = require("./redact_secrets.cjs");
         const secret = "synthetic-private-value";
         const file = path.join(tempDir, filename);
@@ -137,36 +342,38 @@ describe("redact_secrets.cjs", () => {
         expect(processFile(file, [secret])).toBeGreaterThan(0);
 
         const output = fs.readFileSync(file, "utf8");
-        const format = filename === "safeoutputs.jsonl" ? "structured" : "text";
         expect(Buffer.byteLength(content, "utf8")).toBeGreaterThan(content.length);
-        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction input: bytes=${Buffer.byteLength(content, "utf8")}`);
-        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction sizes: input_bytes=${Buffer.byteLength(content, "utf8")} output_bytes=${Buffer.byteLength(output, "utf8")} format=${format}`);
-        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain(secret);
-        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("\u00e9");
+        expect(output).not.toContain(secret);
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.warning).not.toHaveBeenCalled();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
-      it("logs equal byte sizes for unchanged artifacts", () => {
+      it("does not log unchanged artifacts", () => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "ordinary.log");
         fs.writeFileSync(file, "public");
 
         expect(processFile(file, [])).toBe(0);
 
-        expect(mockCore.info).toHaveBeenCalledWith("Secret redaction sizes: input_bytes=6 output_bytes=6 format=text");
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.warning).not.toHaveBeenCalled();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
 
-      it("logs input size before a fail-closed redaction error without reporting successful output", () => {
+      it("reports input bytes only after a fail-closed redaction error without payload data", () => {
         const { processFile } = require("./redact_secrets.cjs");
         const file = path.join(tempDir, "safeoutputs.jsonl");
-        const content = '{"body":"synthetic-private-value"';
+        const content = '{"body":"\u00e9 \ud83d\ude80 synthetic-private-value"';
         fs.writeFileSync(file, content);
 
         expect(processFile(file, ["synthetic-private-value"])).toBe(0);
 
         expect(fs.existsSync(file)).toBe(false);
-        expect(mockCore.info).toHaveBeenCalledWith(`Secret redaction input: bytes=${Buffer.byteLength(content, "utf8")}`);
-        expect(mockCore.info.mock.calls.flat().some(message => message.startsWith("Secret redaction sizes:"))).toBe(false);
-        expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("synthetic-private-value");
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=redact, code=unknown)");
+        expect(mockCore.setFailed).toHaveBeenCalledWith(`ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=${Buffer.byteLength(content, "utf8")})`);
+        expect([...mockCore.warning.mock.calls, ...mockCore.setFailed.mock.calls].flat().join("\n")).not.toContain("synthetic-private-value");
       });
 
       it.each(["safeoutputs.jsonl", "agent_output.json"])("coalesces all credential sources in executable %s payloads", filename => {
@@ -561,7 +768,7 @@ describe("redact_secrets.cjs", () => {
           expect(processFile(file, ["secret-value"], ["runtime-mask"])).toBe(0);
           expect(fs.existsSync(file)).toBe(false);
           expect(mockCore.warning).toHaveBeenCalledWith(`Secret redaction failed (stage=read, code=${code})`);
-          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed");
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=unknown)");
           expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/secret-value|runtime-mask/);
         } finally {
           read.mockRestore();
@@ -626,7 +833,7 @@ describe("redact_secrets.cjs", () => {
           expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=replace, code=ENOSPC)");
           expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=unlink, code=EPERM)");
           expect(mockCore.warning.mock.calls.flat().join("\n")).not.toMatch(/secret-value|runtime-mask/);
-          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed");
+          expect(mockCore.setFailed).toHaveBeenCalledWith("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)");
         } finally {
           write.mockRestore();
           rename.mockRestore();
@@ -701,7 +908,7 @@ describe("redact_secrets.cjs", () => {
         try {
           expect(() => processFile(file, ["secret-value"], ["runtime-mask"])).toThrow(
             expect.objectContaining({
-              message: "ERR_VALIDATION: Failed to remove artifact source after secret redaction failed",
+              message: "ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=unknown)",
               errors: [expect.objectContaining({ message: "Secret redaction failed (stage=read, code=EACCES)" }), expect.objectContaining({ message: "Secret redaction failed (stage=unlink, code=EPERM)" })],
             })
           );
@@ -770,7 +977,7 @@ describe("redact_secrets.cjs", () => {
           throw Object.assign(new Error("permission denied: secret-value"), { code });
         });
         try {
-          expect(() => processFile(file, ["secret-value"], ["runtime-mask"])).toThrow(/^ERR_VALIDATION: Failed to remove artifact source after secret redaction failed$/);
+          expect(() => processFile(file, ["secret-value"], ["runtime-mask"])).toThrow(/^ERR_VALIDATION: Failed to remove artifact source after secret redaction failed \(input_bytes=12\)$/);
           expect(fs.readFileSync(file, "utf8")).toBe("secret-value");
           expect(fs.statSync(file).mode & 0o777).toBe(0o444);
           expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("secret-value");
@@ -1036,9 +1243,18 @@ describe("redact_secrets.cjs", () => {
         expect(mockCore.setFailed).not.toHaveBeenCalled();
       });
       (it("should scan for built-in patterns even when GH_AW_SECRET_NAMES is not set", async () => {
-        (await eval(`(async () => { ${redactScript}; await main(); })()`),
-          expect(mockCore.info).toHaveBeenCalledWith(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`),
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Scanning for built-in credential patterns")));
+        const { main } = require("./redact_secrets.cjs");
+        const directory = path.join(process.env.RUNNER_TEMP, "gh-aw");
+        const artifact = path.join(directory, "token.log");
+        const token = "ghp_" + "a".repeat(36);
+        fs.mkdirSync(directory, { recursive: true });
+        fs.writeFileSync(artifact, `Token: ${token}`);
+
+        await main();
+
+        expect(fs.readFileSync(artifact, "utf8")).toBe("Token: ***REDACTED***");
+        expect(mockCore.info).not.toHaveBeenCalled();
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
       }),
         it("should redact secrets from files in /tmp using exact matching", async () => {
           const testFile = path.join(tempDir, "test.txt"),
@@ -1047,9 +1263,7 @@ describe("redact_secrets.cjs", () => {
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redactedContent = fs.readFileSync(testFile, "utf8");
-          (expect(redactedContent).toBe("Secret: ***REDACTED*** and another ***REDACTED***"),
-            expect(mockCore.info).toHaveBeenCalledWith(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Secret redaction complete")));
+          (expect(redactedContent).toBe("Secret: ***REDACTED*** and another ***REDACTED***"), expect(mockCore.info).not.toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
         }),
         it("should handle multiple file types", async () => {
           (fs.writeFileSync(path.join(tempDir, "test1.txt"), "Secret: api-key-123"),
@@ -1076,14 +1290,12 @@ describe("redact_secrets.cjs", () => {
           expect(fs.existsSync(target)).toBe(true);
           expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Removed symbolic link before artifact upload"));
         }),
-        it("should use core.info for logging hits", async () => {
+        it("should not log successful redaction hits", async () => {
           const testFile = path.join(tempDir, "test.txt"),
             secretValue = "sk-1234567890";
           (fs.writeFileSync(testFile, `Secret: ${secretValue} and ${secretValue}`), (process.env.GH_AW_SECRET_NAMES = "API_KEY"), (process.env.SECRET_API_KEY = secretValue));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret")),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processed")));
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`), expect(mockCore.info).not.toHaveBeenCalled(), expect(fs.readFileSync(testFile, "utf8")).toBe("Secret: ***REDACTED*** and ***REDACTED***"));
         }),
         it("should not log actual secret values", async () => {
           const testFile = path.join(tempDir, "test.txt"),
@@ -1124,9 +1336,7 @@ describe("redact_secrets.cjs", () => {
           const testFile = path.join(tempDir, "test.txt");
           (fs.writeFileSync(testFile, "No secrets here"), (process.env.GH_AW_SECRET_NAMES = "EMPTY_SECRET"), (process.env.SECRET_EMPTY_SECRET = ""));
           const modifiedScript = redactScript.replace('findFiles("/tmp/gh-aw", targetExtensions)', `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`);
-          (await eval(`(async () => { ${modifiedScript}; await main(); })()`),
-            expect(mockCore.info).toHaveBeenCalledWith(`Starting secret redaction in /tmp/gh-aw and ${process.env.RUNNER_TEMP}/gh-aw directories`),
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("no secrets found")));
+          (await eval(`(async () => { ${modifiedScript}; await main(); })()`), expect(mockCore.info).not.toHaveBeenCalled(), expect(mockCore.setFailed).not.toHaveBeenCalled());
         }),
         it("should handle new file extensions (.md, .mdx, .yml, .jsonl)", async () => {
           (fs.writeFileSync(path.join(tempDir, "test.md"), "# Markdown\nSecret: api-key-md123"),
@@ -1176,7 +1386,7 @@ describe("redact_secrets.cjs", () => {
           const redacted = fs.readFileSync(patchFile, "utf8");
           expect(redacted).not.toContain(ghToken);
           expect(redacted).toContain("***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         }));
     }),
     describe("built-in pattern detection", () => {
@@ -1190,7 +1400,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Using token: ***REDACTED*** in this file");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1202,7 +1412,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact long JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1220,7 +1430,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Long server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact boundary-length JWT-like GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1234,7 +1444,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Boundary server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact dash-containing GitHub Server-to-Server Token (ghs_)", async () => {
@@ -1251,7 +1461,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Dashed server token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Server-to-Server Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub OAuth Access Token (gho_)", async () => {
@@ -1263,7 +1473,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OAuth: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub OAuth Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub User Access Token (ghu_)", async () => {
@@ -1275,7 +1485,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("User token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub User Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub Fine-grained PAT (github_pat_)", async () => {
@@ -1287,7 +1497,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Fine-grained PAT: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Fine-grained PAT"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact GitHub Refresh Token (ghr_)", async () => {
@@ -1299,7 +1509,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Refresh: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Refresh Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact multiple GitHub token types in same file", async () => {
@@ -1327,7 +1537,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("DefaultEndpointsProtocol=https;AccountName=myaccount;***REDACTED***;EndpointSuffix=core.windows.net");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Azure Storage Account Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should not falsely redact plain base64 strings without AccountKey= context", async () => {
@@ -1366,7 +1576,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Google API Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact Google OAuth Access Token", async () => {
@@ -1378,7 +1588,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OAuth Token: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google OAuth Access Token"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1392,7 +1602,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("AWS Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("AWS Access Key ID"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1406,7 +1616,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OpenAI Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("OpenAI API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should redact OpenAI Project API Key", async () => {
@@ -1418,7 +1628,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("OpenAI Project Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("OpenAI Project API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1432,7 +1642,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Anthropic Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Anthropic API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1446,7 +1656,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("Linear Key: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Linear API Key"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
       });
 
@@ -1462,8 +1672,7 @@ describe("redact_secrets.cjs", () => {
           await eval(`(async () => { ${modifiedScript}; await main(); })()`);
           const redacted = fs.readFileSync(testFile, "utf8");
           expect(redacted).toBe("GitHub: ***REDACTED***\nCustom: ***REDACTED***");
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("GitHub Personal Access Token"));
-          expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret"));
+          expect(mockCore.info).not.toHaveBeenCalled();
         });
 
         it("should handle overlapping matches between built-in and custom secrets", async () => {
@@ -1642,7 +1851,7 @@ Custom secret: my-secret-123456789012`;
             const redacted = fs.readFileSync(testFile, "utf8");
             // Should be redacted since it's a valid pattern within bounds
             expect(redacted).toBe("Token: ***REDACTED***");
-            expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Google OAuth Access Token"));
+            expect(mockCore.info).not.toHaveBeenCalled();
           });
         });
         describe("AWF_RESOLVED_CONFIG", () => {

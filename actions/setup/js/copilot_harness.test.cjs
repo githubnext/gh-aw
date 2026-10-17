@@ -172,6 +172,18 @@ function withTemporaryPromptTemplate(prefix, sourceTemplateDir, promptDirResolve
 describe("copilot_harness.cjs", () => {
   describe("SDK content-filter rejection", () => {
     const content = "The model returned no content because the response was blocked by content filtering.";
+    it("skips corrupt JSONL and short-circuits without decoding later records", () => {
+      const first = JSON.stringify({ type: "assistant.message", data: { content, rte: true } });
+      const output = `[INFO] startup\r\n{"broken"\nnull\n${first}\r\n{"later":true}`;
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        expect(isCopilotContentFilterError(output)).toBe(true);
+        expect(parse.mock.calls.map(([text]) => text)).toEqual(['{"broken"', "null", first]);
+      } finally {
+        parse.mockRestore();
+      }
+    });
+
     it("classifies the observed runtime rejection and stops partial-execution retries", () => {
       const output = JSON.stringify({ type: "assistant.message", data: { content, rte: true, toolRequests: [] } });
       expect(isCopilotContentFilterError(output)).toBe(true);

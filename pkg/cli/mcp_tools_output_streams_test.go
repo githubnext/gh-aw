@@ -27,7 +27,7 @@ func TestCompileToolDevelopmentRejectsExplicitFalseChecks(t *testing.T) {
 				return mockCommandWithOutput(`[]`, "")(ctx, args...)
 			}
 			server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
-			require.NoError(t, registerCompileTool(server, mockExec, ""))
+			require.NoError(t, registerCompileTool(server, mockExec, "", true))
 			session := connectInMemory(t, server)
 			result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 				Name: "compile", Arguments: map[string]any{"dry_run": true, name: false},
@@ -54,7 +54,7 @@ func TestCompileToolDevelopmentAllowsOptionalDockerChecks(t *testing.T) {
 				return mockCommandWithOutput(`[]`, "")(ctx, args...)
 			}
 			server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
-			require.NoError(t, registerCompileTool(server, mockExec, ""))
+			require.NoError(t, registerCompileTool(server, mockExec, "", true))
 			session := connectInMemory(t, server)
 			args := map[string]any{"dry_run": true, "validate_images": enabled}
 			scanners := []string{"zizmor", "poutine", "actionlint", "runner-guard", "syft", "grype", "grant", "yamllint"}
@@ -81,7 +81,7 @@ func TestCompileToolDevelopmentPreservesBatchDiagnosticsOnFailure(t *testing.T) 
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"; printf '%s' "$2" 1>&2; exit 1`, "sh", expectedStdout, stderr)
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExec, ""))
+	require.NoError(t, registerCompileTool(server, mockExec, "", true))
 	session := connectInMemory(t, server)
 	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "compile", Arguments: map[string]any{"dry_run": true, "strict": true},
@@ -113,7 +113,7 @@ func TestCompileToolDevelopmentExposesCompilerWarningsWithJSONStdout(t *testing.
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"; printf '%s' "$2" >&2; exit 1`, "sh", stdout, stderr)
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExec, ""))
+	require.NoError(t, registerCompileTool(server, mockExec, "", true))
 	result, err := connectInMemory(t, server).CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "compile", Arguments: map[string]any{"workflows": []string{"archie"}, "dry_run": true, "strict": true},
 	})
@@ -140,7 +140,7 @@ func TestCompileToolDevelopmentPreservesCleanJSONWithStderrWarning(t *testing.T)
 	t.Parallel()
 	const stdout = `[{"workflow":"archie.md","valid":true,"errors":[],"warnings":[]}]`
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockCommandWithOutput(stdout, "⚠ informational warning\n"), ""))
+	require.NoError(t, registerCompileTool(server, mockCommandWithOutput(stdout, "⚠ informational warning\n"), "", true))
 	result, err := connectInMemory(t, server).CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "compile", Arguments: map[string]any{"workflows": []string{"archie"}, "dry_run": true},
 	})
@@ -172,7 +172,7 @@ func TestCompileToolDevelopmentAndEnvironmentArguments(t *testing.T) {
 		return mockCommandWithOutput(`[]`, "")(ctx, args...)
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExec, ""))
+	require.NoError(t, registerCompileTool(server, mockExec, "", true))
 	session := connectInMemory(t, server)
 	_, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "compile",
@@ -200,7 +200,7 @@ func TestCompileTool_UsesOnlyStdoutOnSuccess(t *testing.T) {
 	)
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
-	err := registerCompileTool(server, mockCommandWithOutput(expectedStdout, stderrNoise), "")
+	err := registerCompileTool(server, mockCommandWithOutput(expectedStdout, stderrNoise), "", true)
 	require.NoError(t, err, "registerCompileTool should succeed")
 
 	session := connectInMemory(t, server)
@@ -226,7 +226,7 @@ func TestCompileTool_AcceptsDeprecatedMaxTokensParameter(t *testing.T) {
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
-	err := registerCompileTool(server, mockExecCmd, "")
+	err := registerCompileTool(server, mockExecCmd, "", true)
 	require.NoError(t, err, "registerCompileTool should succeed")
 
 	session := connectInMemory(t, server)

@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.53
+**Version**: 1.0.54
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -22,7 +22,7 @@ The gh-aw maintainers revise this Candidate Recommendation using security-review
 
 ## 1. Scope and Conformance
 
-This specification covers `pkg/workflow/`, related `pkg/parser/` and `actions/setup/` validation, compiler-generated safe-output publishing identity, and the daily optimizer. It excludes runtime detection-job internals, external scanner ecosystems, and non-compiler repositories.
+This specification covers `pkg/workflow/`, related `pkg/parser/` and `actions/setup/` validation, compiler-generated safe-output publishing identity, the host-side MCP compilation boundary in `pkg/cli/`, and the daily optimizer. It excludes runtime detection-job internals, external scanner ecosystems, and non-compiler repositories.
 
 A conforming implementation satisfies every MUST in Sections 2–8. Rules are specification-first, secure by default, mapped bidirectionally to implementation, and auditable through version history.
 
@@ -32,7 +32,8 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
-| `1.0.53` | Unreleased | Audit-only clarification: same-repository bot checkout on `pull_request` and `pull_request_target` `ready_for_review` and `reopened` events is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
+| `1.0.54` | Unreleased | Specifies the host-side MCP compilation capability boundary: a dedicated read-only mode without startup write-tool opt-in, validation independent of stale outputs, unchanged filesystem/Docker state, cached-only remote imports and nested includes, and repository-root cache lookup. Preserves trusted CLI no-emit import population. Adds bounded TLA+ evidence; no new `CTR-*` rule or lock-file schema change. |
+| `1.0.53` | Unreleased | Adds CTR-034: formalizes pull-request fork admission by repository pattern or explicit author association, retaining same-repository defaults and separating admission from permissions and secrets. Clarifies that same-repository bot checkout on `pull_request` and `pull_request_target` `ready_for_review` and `reopened` events is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | `1.0.52` | Unreleased | Adds CTR-033: repository-list checkout requires literal `multi: true`; ordinary repository expressions retain single-checkout semantics with runtime cardinality validation in both jobs. Safe Outputs PTI-001–007 and its TLA+ model clarify a runtime patch/bundle validation-to-application integrity boundary without changing permissions or lock-file schema. |
 | `1.0.51` | Unreleased | Extends CTR-008 to reject `pull_request_target` with `on.roles` containing `read` or `all` in strict mode and permit suppression of only the corresponding warning in non-strict mode via an explicit dangerous feature flag. |
 | `1.0.50` | Unreleased | Extends CTR-032 with mandatory creating-run traceability from first publication, HTML markers for issue comments and PR descriptions, and Markdown anchor markers for PR review comments. Versioned activation markers and review-comment persistence coverage remain implementation obligations. |
@@ -83,6 +84,8 @@ Safe-output body content is untrusted even when supplied to a trusted publisher.
 
 Repository-selection expressions are runtime data, not an implicit request for repository-list expansion. Inferring multi mode from an expression or an allowlist changes authentication, visibility, path, and secondary-fetch behavior unexpectedly. CTR-033 requires explicit mode classification and generated single-selector validation. The multi-mode preflight and privileged-consumer boundary are specified by checkout behavior §3.1 and safe outputs RCR8–RCR15 and modeled in `specs/workflow-security/RuntimeRepositoryCheckout.tla`; the model does not prove parser, filesystem, or Git correctness.
 
+An MCP caller can request host-side compilation of untrusted workflow content without being authorized to change compiler-managed files. Actor permissions and server write-tool capability are separate: an actor with repository write access cannot enable writing through a tool call. Errors, external scanner preparation, automatic fixes, update checks, and import-cache population can otherwise turn nominal validation into a write path. Section 5.2.1 specifies this boundary independently of the generated-workflow `CTR-*` catalog; [`MCPCompile.tla`](workflow-security/MCPCompile.tla) models the bounded policy and operation ordering, not a filesystem sandbox or a proof of compiler refinement.
+
 ## 4. Governance and Responsibilities
 
 Maintainers own the rule catalog, its implementation mapping, and its test coverage; the daily optimizer (Section 6) reviews new candidate threats and reports coverage gaps. Every rule addition, deprecation, or mapping change MUST be reviewed against this specification in the same pull request that changes the implementation, per the Spec-to-Implementation Sync table in Section 2.
@@ -125,6 +128,7 @@ Each rule has a stable `CTR-*` ID, threat class, trigger, compiler action, diagn
 - **CTR-031 Private-to-Public Flow Opt-Out**: Reject `tools.github.private-to-public-flows` in strict mode in both its blanket and server-list forms; in non-strict mode, emit a security warning because the opt-out can expose private data through public Actions logs or agent-controlled public destinations.
 - **CTR-032 Safe-Output Execution Provenance Spoofing**: Generated built-in, custom, maintenance, and activation-time publishers MUST receive `job.check_run_id` only in the publishing step. Before publishing issue, pull request, comment, or discussion bodies, runtime publishers MUST replace supplied `gh-aw-execution` and `gh-aw-agentic-workflow` markers—including nested, variant, and unterminated comment forms and Markdown anchor forms—with trusted versioned execution metadata. Every issue comment, pull request description, and pull request review comment MUST remain traceable to the workflow run ID that created it, using the destination-specific marker contract in Section 5.1.1. Missing or invalid provenance metadata MUST fail closed.
 - **CTR-033 Explicit Checkout Expansion**: Only literal `checkout.multi: true` MUST enable repository-list expansion. Non-boolean mode values MUST fail compilation. With multi omitted or false, selectors MUST retain ordinary single-checkout behavior without list-only restrictions; literal lists MUST fail compilation, and generated agent and safe-output checkout steps MUST validate expression values as exactly one `owner/repo` slug before `actions/checkout`. Empty, malformed, wildcard, and multiple values, including duplicate slugs, MUST fail closed. Expressions MUST be passed through environment data, not executable script text. With multi enabled, the compiler MUST require a trusted scoped allowlist and literal non-root prefix and reject LFS, enabled submodules, `current`, `wiki`, and implicitly scoped Apps as specified by checkout behavior §3.1. Entries MUST NOT merge across modes, and neither mode MUST widen safe-output write authorization.
+- **CTR-034 Pull Request Fork Admission**: For `pull_request`, the compiler MUST always admit same-repository PRs. If `on.pull_request.forks` is omitted or an empty pattern list, fork PRs MUST be denied. String/list repository patterns MUST admit matching forks, and `*` MUST admit all forks. An `author-association` list MUST admit a fork PR when `github.event.pull_request.author_association` is a member of that explicit list; no association is implicit, and an empty list MUST admit no forks. The compiler MUST validate association values against GitHub's uppercase author-association enum: `OWNER`, `MEMBER`, `COLLABORATOR`, `CONTRIBUTOR`, `FIRST_TIMER`, `FIRST_TIME_CONTRIBUTOR`, `MANNEQUIN`, and `NONE`. The filter MUST NOT change GitHub Actions permissions, secret availability, or other trust controls, and MUST NOT filter non-`pull_request` events.
 
 ### 5.1.1 Creating-Run Marker Contract (CTR-032)
 
@@ -144,6 +148,21 @@ Conformance tests MUST simulate destination API filtering and inspect the stored
 ### 5.2 Compiler Response Requirements
 
 The compiler MUST produce deterministic, actionable diagnostics and either reject insecure generation or apply a safe rewrite for every active rule in Section 5.1.
+
+### 5.2.1 Host-Side MCP Compilation Boundary
+
+These requirements apply to the MCP `compile` invocation, not arbitrary CLI flag combinations or server-startup bookkeeping.
+
+| Requirement | Required behavior |
+|---|---|
+| **MCP-COMPILE-001 Startup capability** | Only server startup with `--allow-write-tools` MAY enable writing tools. Tool arguments or actor permissions MUST NOT enable that capability. Without it, `compile` MUST remain available as a read-only tool, advertise `ReadOnlyHint: true`, and bypass write-actor authorization; `add`, `update`, and `fix` MUST remain disabled. With it, those tools and write-enabled `compile` MUST retain configured actor validation and its repository write-permission floor. |
+| **MCP-COMPILE-002 Read-only invocation** | Without startup write capability, `compile` MUST automatically select the dedicated read-only compiler mode and pass `--no-emit --no-check-update`. It MUST reject `fix`, `dry_run`, and external scanner options (`zizmor`, `poutine`, `actionlint`, `runner-guard`, `syft`, `grype`, `grant`, `yamllint`) before starting the compile subprocess or scanner preparation. `dry_run` MUST NOT substitute for `--no-emit`, because development compilation emits files. |
+| **MCP-COMPILE-003 Filesystem preservation** | Read-only compilation MUST NOT create, modify, or delete compiler-managed files on success or failure. This includes workflow sources, `.lock.yml` outputs, `.invalid.yml` diagnostics, action-pin caches, `.gitattributes`, import-cache entries, and temporary remote-include files outside the repository. It MUST skip writing post-processing and diagnostic emission rather than writing and restoring files, including when outputs already exist. Container validation MUST NOT pull Docker images; it MUST use local inspection and report a missing required local image without modifying the image store. |
+| **MCP-COMPILE-004 Cached imports** | Read-only compilation MUST reuse available remote-import cache entries without rewriting them. An uncached remote import MUST produce an actionable error before download, cache insertion, or temporary-file fallback. This MUST cover frontmatter imports, body-level includes, engine-aware and manifest-aware expansion, and nested includes. Shared cache initialization MUST prefer the Git repository root over the process working directory, including when launched from a repository subdirectory; outside Git it MUST retain the working-directory fallback (`.` if that directory cannot be obtained). Import expansion and hashing MUST share that cache. |
+| **MCP-COMPILE-005 Validation preservation** | Read-only compilation MUST preserve validation of the newly generated YAML and return compilation errors without emitting diagnostic files; `--no-emit` MUST NOT convert invalid input into a successful result. No-emit validation MUST NOT consume stale on-disk lock YAML as the generated output. Tests MUST cover valid and invalid inputs, existing and absent outputs (including malformed stale locks), explicit-file and directory compilation, and cached imports with a subdirectory launch. |
+| **MCP-COMPILE-006 Write-enabled compatibility** | Explicitly write-enabled compilation MUST retain normal output emission after authorization. The stronger MCP read-only mode MUST remain separate from ordinary CLI no-emit compilation, so trusted `validate`, maintenance, and label-discovery callers can populate imports. Read-only admission MUST NOT weaken authorization for write-enabled compilation or the other writing tools. Neither mode grants additional GitHub permissions. |
+
+This contract concerns compilation-controlled filesystem and Docker image-store effects, not arbitrary external programs, concurrent filesystem changes, or all process-level temporary files. In particular, MCP server-startup manifest baselines remain independent bookkeeping. Read-only mode does not prohibit network reads to resolve branch/tag refs. The bounded model abstracts file operations as mutation events; real-binary filesystem snapshots, isolated temporary directories, and fake-Docker tests supply the concrete evidence.
 
 ### 5.3 Candidacy and Lifecycle
 
@@ -214,10 +233,24 @@ Every active rule MUST map to implementation and test coverage. References are p
 | CTR-031 Private-to-Public Flow Opt-Out | `pkg/workflow/strict_mode_private_to_public_flows_validation.go`, `pkg/workflow/compiler_validators.go` | `pkg/workflow/private_to_public_flows_test.go` |
 | CTR-032 Safe-Output Execution Provenance Spoofing | `pkg/workflow/compiler_safe_outputs_steps.go`, custom and maintenance safe-output job builders, `pkg/workflow/compiler_steering_issue.go`, `actions/setup/js/execution_provenance.cjs`, issue/PR publishers, `actions/setup/js/create_pr_review_comment.cjs`, `actions/setup/js/pr_review_buffer.cjs`, `actions/setup/js/reply_to_pr_review_comment.cjs` | `pkg/workflow/safe_outputs_job_identity_test.go`, `pkg/workflow/compiler_steering_issue_test.go`, `actions/setup/js/execution_provenance.test.cjs`, WIP and review-comment handler tests; destination-filtering coverage for Section 5.1.1 remains required |
 | CTR-033 Explicit Checkout Expansion | `pkg/workflow/checkout_config_parser.go`, `pkg/workflow/checkout_manager.go`, `pkg/workflow/checkout_step_generator.go`, `actions/setup/js/checkout_dynamic.cjs` | `pkg/workflow/checkout_multi_test.go`, checkout dynamic/policy/private/safe-output tests, `actions/setup/js/checkout_dynamic.test.cjs`, `specs/workflow-security/RuntimeRepositoryCheckout.tla` |
+| CTR-034 Pull Request Fork Admission | `pkg/workflow/filters.go`, `pkg/parser/schemas/main_workflow_schema.json` | `pkg/workflow/filters_forks_test.go`, `pkg/parser/schema_forks_test.go`, `specs/workflow-security/PullRequestForkAdmission.tla` |
 
 ### 7.2 Mapping Audit History
 
 Dated mapping-audit records are maintained in `specs/compiler-threat-detection-changelog.md`. A daily optimizer run MUST append its audit entry to that changelog, not to this specification.
+
+### 7.3 Host-Side MCP Compilation Mapping
+
+The `MCP-COMPILE-*` requirements are separate from the `CTR-*` / `T-CTR-*` generated-workflow catalogs.
+
+| Requirements | Implementation | Concrete evidence and bounded invariants |
+|---|---|---|
+| MCP-COMPILE-001–002 | `pkg/cli/mcp_server.go`, `mcp_write_tools.go`, `mcp_tools_readonly.go` | `pkg/cli/mcp_write_tools_test.go`; `MCPCompile.tla`: `StartupCapability`, `ActorAuthorization`, `WritingOptionsGated`, `ReadOnlyMode`, `NoExternalScanners`, `DeniedBeforeExecution`. |
+| MCP-COMPILE-003, MCP-COMPILE-005 | `pkg/cli/compile_pipeline.go`, `compile_validation.go`, `pkg/workflow/compiler.go`, `docker_validation.go` | `TestMCPServer_ReadOnlyCompilePreservesFiles` in `pkg/cli/mcp_server_compile_test.go` snapshots inventory, file bytes, modes, and modification times; `pkg/cli/compile_validation_no_emit_test.go`, `pkg/workflow/docker_validation_readonly_test.go`, `compiler_template_injection_both_paths_test.go`; model: `ReadOnlyIsolation`, `NoImagePulls`, `ValidationPreserved`, `ReadOnlyAvailability`. |
+| MCP-COMPILE-004 | `pkg/parser/import_cache.go`, `remote_workflow_spec.go`, `include_expander.go`, `include_processor.go`, `pkg/workflow/compiler_mutators.go`, `compiler_yaml.go` | `pkg/parser/import_cache_test.go`, `include_readonly_test.go`, `pkg/workflow/compiler_shared_cache_test.go`, `TestCompilerSharedImportCacheRoot` in `pkg/workflow/compiler_mutators_test.go`, cached/uncached and subdirectory-launch cases in the real-binary MCP test; model: `NoRemoteDownloads`, `CacheRootConforms`, `ReadOnlyAvailability`. |
+| MCP-COMPILE-006 | `pkg/cli/mcp_write_tools.go`, `mcp_tools_readonly.go`, compiler option and import-cache wiring | `pkg/cli/mcp_write_tools_test.go`, `TestMCPServer_CompileTool` in `pkg/cli/mcp_server_compile_test.go`, `pkg/workflow/compiler_shared_cache_test.go`, `pkg/parser/include_readonly_test.go`; model: `ActorAuthorization`, `WriteEnabledEmission`, `TrustedNoEmitAvailability`. |
+
+`specs/workflow-security/check.py` MUST exhaust the secure MCP configuration and verify each configured synthetic negative control and reachability witness. These checks MUST NOT substitute for the concrete filesystem-preservation tests or be reported as confirmed product vulnerabilities.
 
 ## 8. Compliance Testing
 
@@ -259,6 +292,7 @@ Each active rule MUST have at least one deterministic test that covers its prima
 | **T-CTR-046** | CTR-031 Private-to-Public Flow Opt-Out | A workflow configures `tools.github.private-to-public-flows` as `allow` or a server-ID list | Reject both forms in strict mode; emit a security warning in non-strict mode. | `CTR-031` |
 | **T-CTR-047** | CTR-032 Safe-Output Execution Provenance Spoofing | A built-in, custom, maintenance, or activation-time publisher creates an issue comment, PR description, or PR review comment/reply, including forged markers, buffered comments, cross-repository targets, and custom/disabled footers | Pass the runtime check-run ID only to the publishing step; replace supplied reserved HTML and Markdown markers with trusted metadata; fail closed on invalid or missing identity; verify that the first persisted body retains the creating `run_id` and `run_url` after destination API filtering, using HTML comments except Markdown anchors for each PR review comment. | `CTR-032` |
 | **T-CTR-048** | CTR-033 Explicit Checkout Expansion | A checkout selector is an expression or list, with multi omitted, false, true, or non-boolean; imports mix modes | Enable list controls only for literal true; validate single expression results before both jobs' checkout without list restrictions; reject literal lists without opt-in, invalid mode types, invalid single results, and missing multi policy; preserve per-mode merge identity and independent write authorization. | `CTR-033` |
+| **T-CTR-049** | CTR-034 Pull Request Fork Admission | A `pull_request` event uses omitted, pattern, wildcard, or author-association fork configuration | Admit same-repository PRs; default to denying forks; admit a fork only when a configured repository pattern or explicit author-association matches; preserve non-PR triggers and do not change permissions or secret availability. | `CTR-034` |
 
 The core tests exercise their catalog trigger and assert the expected rejection, warning, rewrite, or runtime-safe output.
 

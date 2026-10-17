@@ -44,6 +44,32 @@ const {
 } = require("./detect_agent_errors.cjs");
 
 describe("detect_agent_errors.cjs", () => {
+  it.each([
+    { log: "", outcome: "success", linked: false },
+    { log: "Assistant: Access denied by policy settings", outcome: "success", linked: false },
+    { log: "", outcome: "failure", linked: true },
+    { log: '{"type":"session.error","data":{"message":"The requested model is not supported"}}', outcome: "failure", linked: true },
+  ])("prints a playbook link only for actual errors or a failed execution: %j", async ({ log, outcome, linked }) => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-playbook-link-"));
+    const previousOutcome = process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME;
+    const previousInternalLogs = process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), log);
+      process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = outcome;
+      delete process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+      await main({ rootDir });
+      expect(stderr.mock.calls.flat().join("\n").includes("debug-playbook.md#agent-model-and-proxy-classifications")).toBe(linked);
+    } finally {
+      stderr.mockRestore();
+      if (previousOutcome === undefined) delete process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME;
+      else process.env.GH_AW_AGENTIC_EXECUTION_OUTCOME = previousOutcome;
+      if (previousInternalLogs === undefined) delete process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR;
+      else process.env.GH_AW_ENGINE_INTERNAL_LOGS_DIR = previousInternalLogs;
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   describe("model endpoint mismatch", () => {
     it.each([
       "400 Cannot translate Copilot request feature: tool_search",
@@ -85,6 +111,7 @@ describe("detect_agent_errors.cjs", () => {
         await main();
         expect(append.mock.calls[0][1]).toContain("model_endpoint_mismatch_error=true");
         expect(stderr.mock.calls.map(([message]) => message).join("")).toContain("select a model compatible with the configured endpoint and tool protocol");
+        expect(stderr.mock.calls.map(([message]) => message).join("")).toContain("debug-playbook.md#agent-model-and-proxy-classifications");
       } finally {
         for (const spy of [exists, read, append, mkdir, write, rename, stderr]) spy.mockRestore();
         if (previousOutput === undefined) delete process.env.GITHUB_OUTPUT;
@@ -302,6 +329,18 @@ describe("detect_agent_errors.cjs", () => {
       const errorOutput = String.raw`{"type":"turn.failed","error":{"message":"{\n  \"error\": {\n    \"message\": \"Invalid value: 'custom'\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"tools\",\n    \"code\": \"unknown_parameter\"\n  }\n}"}}`;
       expect(isUnsupportedModelToolsError(errorOutput)).toBe(true);
       expect(detectErrors(errorOutput).modelNotSupportedError).toBe(true);
+    });
+
+    it("skips corrupt records and stops decoding after the first custom-tools rejection", () => {
+      const first = JSON.stringify({ type: "turn.failed", error: { message: "Invalid value: 'custom'", param: "tools" } });
+      const output = `[INFO] startup\r\n{"broken"\nnull\r\n${first}\r\n{"later":true}`;
+      const parse = vi.spyOn(JSON, "parse");
+      try {
+        expect(isUnsupportedModelToolsError(output)).toBe(true);
+        expect(parse.mock.calls.map(([text]) => text)).toEqual(['{"broken"', "null", first]);
+      } finally {
+        parse.mockRestore();
+      }
     });
 
     it("classifies the raw Codex rejection when the error fields are reordered", () => {

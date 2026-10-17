@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 
+const { JsonlParser } = require("./jsonl_helpers.cjs");
 const { spawn, spawnSync } = require("node:child_process");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -9,6 +10,7 @@ const path = require("node:path");
 const { fetchAWFReflect, deriveBaseUrlFromModelsURL } = require("./awf_reflect.cjs");
 const [command, ...commandArgs] = process.argv.slice(2);
 const log = message => process.stderr.write(`[agy-harness] ${message}\n`);
+const maxPendingRecordLength = 16 * 1024 * 1024; // UTF-16 code units, including the record terminator.
 const checksums = {
   "1.3.1": "0e313b309ea58c71431ce86bb820936a3700e17e44eabce7bf2264617dc822db",
   "1.3.3": "8ee3ca32574c431285efbf4d4732f7f8d53e959370bc4a61646e4fa496f7f2b6",
@@ -103,8 +105,9 @@ const main = async () => {
     await new Promise(
       /** @param {(value?: void) => void} resolve */ (resolve, reject) => {
         const child = spawn(binary, args, { cwd: env.GH_AW_ENGINE_CWD || workspace, env, detached: true, stdio: ["pipe", "pipe", "pipe"] });
-        let buffer = "",
-          stderrTail = "",
+        const parser = new JsonlParser({ maxPendingRecordLength });
+        let outputFailure = "";
+        let stderrTail = "",
           result,
           invalid = false,
           denied = false,
@@ -153,12 +156,15 @@ const main = async () => {
           timedOut = true;
           terminate("SIGTERM");
         }, 305000);
-        const line = value => {
-          if (!value.trim()) return;
-          let event;
-          try {
-            event = JSON.parse(value);
-          } catch {
+        const consume = entry => {
+          if (entry.type === "invalid") {
+            if (entry.reason === "blank") return;
+            invalid = true;
+            terminate("SIGTERM");
+            return;
+          }
+          const event = entry.value;
+          if (!event || typeof event !== "object" || Array.isArray(event)) {
             invalid = true;
             terminate("SIGTERM");
             return;
@@ -172,19 +178,21 @@ const main = async () => {
             if (/denied|permission|rejected/i.test(step.tool_info?.error?.type || "")) denied = true;
           }
         };
-        child.stdout.setEncoding("utf8").on("data", chunk => {
-          process.stdout.write(chunk);
-          buffer += chunk;
-          if (buffer.length > 2 * 1024 * 1024) {
+        const consumeEvents = events => {
+          if (outputFailure) return;
+          try {
+            for (const event of events) consume(event);
+          } catch (error) {
+            if (!(error instanceof RangeError) || error.message !== "JSONL record exceeds maxPendingRecordLength") throw error;
+            outputFailure = `Agy output exceeds the pending JSONL record limit (${maxPendingRecordLength} UTF-16 code units)`;
             invalid = true;
             terminate("SIGTERM");
-            return;
           }
-          let newline;
-          while ((newline = buffer.indexOf("\n")) >= 0) {
-            line(buffer.slice(0, newline));
-            buffer = buffer.slice(newline + 1);
-          }
+        };
+        child.stdout.setEncoding("utf8").on("data", chunk => {
+          if (outputFailure) return;
+          process.stdout.write(chunk);
+          consumeEvents(parser.push(chunk));
         });
         child.stderr.setEncoding("utf8").on("data", chunk => {
           stderrTail = (stderrTail + chunk).slice(-4096);
@@ -215,7 +223,7 @@ const main = async () => {
           if (settled) return;
           settled = true;
           cleanup();
-          line(buffer);
+          consumeEvents(parser.finish());
           const inferred =
             Number.isSafeInteger(result?.num_turns) &&
             result.num_turns > 0 &&
@@ -225,9 +233,9 @@ const main = async () => {
             result.usage.output_tokens > 0;
           if (code !== 0 || signal || invalid || denied || interrupted || timedOut || pendingTools.size || result?.status !== "SUCCESS" || !inferred) {
             if (result?.status === "SUCCESS") {
-              process.stdout.write(JSON.stringify({ event: "result", result: { ...result, status: "ERROR", error: "Agy run was denied, interrupted, or lacked completed inference" } }) + "\n");
+              process.stdout.write(JSON.stringify({ event: "result", result: { ...result, status: "ERROR", error: outputFailure || "Agy run was denied, interrupted, or lacked completed inference" } }) + "\n");
             }
-            reject(new Error("Agy run failed, was denied, interrupted, or lacked completed inference"));
+            reject(new Error(outputFailure || "Agy run failed, was denied, interrupted, or lacked completed inference"));
           } else resolve();
         };
         child.once("exit", () => terminate("SIGTERM"));

@@ -626,7 +626,7 @@ The PR must document:
 
    a. **Run the sync-actions workflow** — go to [Actions → sync-actions](https://github.com/github/gh-aw-actions/actions/workflows/sync-actions.yml) and trigger it with the new release tag (e.g. `v1.2.3`).
 
-   b. **Merge the PR** — the sync-actions workflow will open a pull request in `github/gh-aw-actions`. Review and merge it to bring the tag into that repository.
+   b. **Merge the PR** — the sync-actions workflow will open a pull request in `github/gh-aw-actions`. Review and merge it to bring the tag into that repository. The downstream release is created as a **draft**; leave it unpublished while the `gh-aw` prerelease is being evaluated.
 
 3. **Approve the environment gate**
 
@@ -636,9 +636,11 @@ The PR must document:
 
    After floating prereleases for a few days and confirming stability, on Monday:
 
-   a. **Edit the GitHub release** — go to the [Releases page](https://github.com/github/gh-aw/releases), open the new prerelease, uncheck **This is a pre-release**, and save. This promotes the release to a stable full release.
+   a. **Publish `gh-aw-actions` first** — open the matching tag's draft on the [`github/gh-aw-actions` Releases page](https://github.com/github/gh-aw-actions/releases). Ensure **This is a pre-release** is unchecked, select **Set as the latest release**, and publish it. If it is already published, edit it to make it stable and latest. This manual step is mandatory: no cross-repository write token is maintained to publish or promote it automatically.
 
-   b. **Move `latest` to the promoted release** — GitHub resolves `latest` to the most recent non-prerelease release. Promoting the selected prerelease in step (a) updates `latest` automatically.
+   b. **Promote the same tag in `gh-aw`** — run [Actions → Promote Release to Latest](https://github.com/github/gh-aw/actions/workflows/promote-release.yml) with that exact version. The workflow refuses promotion unless `github/gh-aw-actions` already reports that tag as its published, stable latest release, then clears the `gh-aw` prerelease flag and explicitly sets it as latest.
+
+   c. **Verify alignment** — confirm that both repositories' latest releases use the same tag. The **Validate latest release alignment** CI check also verifies this on every CI run, including hourly scheduled runs without recent commits.
 
    Users who install with `version: latest` (the default) will now receive the new release.
 
@@ -664,16 +666,22 @@ Run sync-actions in github/gh-aw-actions (with new tag)
 Merge the sync-actions PR
         │
         ▼
+gh-aw-actions release remains a draft
+        │
+        ▼
 Approve the gh-aw-actions-release environment gate
         │
         ▼
 Release published as prerelease 🎉
         │
         ▼  (Monday — manual)
-Promote prerelease → full release on GitHub Releases page
+Manually publish gh-aw-actions draft as stable & latest FIRST
         │
         ▼
-'latest' now resolves to the new version ✅
+Run Promote Release to Latest in gh-aw with the same tag
+        │
+        ▼
+Both repositories' latest releases now match ✅
         │
         ▼  (same day — start next cycle)
 Launch next minor release action → new prerelease published

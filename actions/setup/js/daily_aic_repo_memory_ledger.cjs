@@ -1,5 +1,6 @@
 // @ts-check
 
+const { readJsonlFile } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { findJSONLFiles, isDailyAICUsageJSONLFile, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
@@ -45,27 +46,23 @@ function readLedgerEntries({ repoMemoryDir, repository, workflowId, now = Date.n
   const root = ledgerRoot(repoMemoryDir);
   const entriesByRun = new Map();
   for (const filePath of ledgerReadPaths(root, now)) {
-    let content = "";
     try {
-      content = fs.readFileSync(filePath, "utf8");
-    } catch {
-      continue;
-    }
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const entry = JSON.parse(trimmed);
-        if (!validEntry(entry, repository, workflowId, now)) continue;
-        const prior = entriesByRun.get(entry.run_id);
-        const entryTimestamp = Date.parse(entry.timestamp);
-        const priorTimestamp = prior ? Date.parse(prior.timestamp) : NaN;
-        if (Number.isFinite(entryTimestamp) && (!prior || !Number.isFinite(priorTimestamp) || entryTimestamp >= priorTimestamp)) {
-          entriesByRun.set(entry.run_id, entry);
+      for (const entry of readJsonlFile(filePath)) {
+        try {
+          if (!validEntry(entry, repository, workflowId, now)) continue;
+          const prior = entriesByRun.get(entry.run_id);
+          const entryTimestamp = Date.parse(entry.timestamp);
+          const priorTimestamp = prior ? Date.parse(prior.timestamp) : NaN;
+          if (Number.isFinite(entryTimestamp) && (!prior || !Number.isFinite(priorTimestamp) || entryTimestamp >= priorTimestamp)) {
+            entriesByRun.set(entry.run_id, entry);
+          }
+        } catch {
+          // Ignore malformed ledger lines.
         }
-      } catch {
-        // Ignore malformed ledger lines.
       }
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") continue;
+      throw new Error(`Failed to read daily AIC repo-memory ledger ${filePath}: ${getErrorMessage(error)}`, { cause: error });
     }
   }
   return [...entriesByRun.values()].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));

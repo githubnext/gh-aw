@@ -1,4 +1,5 @@
 // @ts-check
+const { iterateJsonlEvents } = require("../jsonl_helpers.cjs");
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -37,20 +38,18 @@ function validateSession(content, kind = "unified", format = "jsonl") {
     events = value;
   } else {
     if (kind === "unified" && !content.endsWith("\n")) throw new Error("Unified session JSONL must end with a newline");
-    const lines = content.split("\n");
-    if (lines.at(-1) === "") lines.pop();
-    for (const [index, line] of lines.entries()) {
-      if (!line.trim()) {
-        if (kind === "unified") throw new Error(`Blank unified session JSONL line ${index + 1}`);
-        continue;
-      }
-      let event;
-      try {
-        event = JSON.parse(line);
-      } catch {
+    for (const entry of iterateJsonlEvents(content)) {
+      const index = entry.lineNumber - 1;
+      const line = entry.rawLine.replace(/\n$/, "");
+      if (entry.type === "invalid") {
+        if (entry.reason === "blank") {
+          if (kind === "unified") throw new Error(`Blank unified session JSONL line ${index + 1}`);
+          continue;
+        }
         throw new Error(`Invalid session JSONL at line ${index + 1}`);
       }
-      if (kind === "unified" && /[ \t\r]/.test(line.replace(/"(?:[^"\\]|\\.)*"/g, ""))) throw new Error(`Unified session JSONL must use compact JSON at line ${index + 1}`);
+      const event = entry.value;
+      if (kind === "unified" && /\s/.test(line.replace(/"(?:[^"\\]|\\.)*"/g, ""))) throw new Error(`Unified session JSONL must use compact JSON at line ${index + 1}`);
       if (!validators.event(event)) throw new Error(`Invalid session event at line ${index + 1}: ${schemaDiagnostic(validators.event.errors)}`);
       events.push(event);
     }

@@ -51,5 +51,25 @@ func TestPRCodeQualityReviewerWorkflowPublicationContract(t *testing.T) {
 	assert.Contains(t, text, "do not call `noop` or claim the review was published")
 	assert.Contains(t, text, `| safeoutputs create_pull_request_review_comment .`)
 	assert.Contains(t, text, `| safeoutputs submit_pull_request_review .`)
+	assert.Contains(t, text, `| safeoutputs report_incomplete .`)
+	assert.Contains(t, text, "Make at most one corrected publication attempt")
+	assert.Contains(t, text, "before exhausting the five-denial budget")
+	assert.Contains(t, text, "no terminal safe output was emitted")
 	assert.NotContains(t, text, "name the exact allowlist entry needed: `tools.bash: - safeoutputs`")
+}
+
+func TestPRCodeQualityReviewerWorkflowToolContract(t *testing.T) {
+	t.Parallel()
+	repoRoot, err := gitutil.FindGitRoot()
+	require.NoError(t, err)
+	content, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "pr-code-quality-reviewer.md"))
+	require.NoError(t, err)
+
+	text := string(content)
+	assert.NotContains(t, text, "command -v safeoutputs", "Publication must not depend on an unallowed availability probe")
+	assert.NotContains(t, text, "    - command:*\n")
+	assert.Contains(t, text, "do not prepend availability probes or other commands")
+	assert.Contains(t, text, "run exactly `wc -c /tmp/gh-aw/agent/pr-review-comments.json`")
+	assert.Contains(t, text, "Use `glob` to check whether")
+	assert.Contains(t, text, "do not execute repository code, tests, package managers, or build commands")
 }

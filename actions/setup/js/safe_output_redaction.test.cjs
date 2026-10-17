@@ -48,6 +48,23 @@ describe("safe-output schema redaction", () => {
     expect(JSON.parse(masked.trim()).body).not.toContain("xxx");
   });
 
+  it.each(["\n", "\r\n"])("preserves blank lines and record boundaries while redacting multiple records (%j)", newline => {
+    const first = '{"type":"add_comment","body":"opaque"}';
+    const second = ' \t{"type":"add_comment", "body":"unchanged"}';
+    const content = newline + first + newline + " \t" + newline + second + newline;
+    expect(redact("safeoutputs.jsonl", content, ["absent"])).toBe(content);
+    expect(redact("safeoutputs.jsonl", content, ["opaque"])).toBe(newline + '{"type":"add_comment","body":"***"}' + newline + " \t" + newline + second + newline);
+  });
+
+  it.each(["", "\n", "\r\n \t\n"])("preserves empty or whitespace-only output (%j)", content => {
+    expect(redact("safeoutputs.jsonl", content, ["opaque"])).toBe(content);
+  });
+
+  it("rejects a malformed record after valid records and blank lines", () => {
+    const content = '{"type":"add_comment","body":"opaque"}\n \t\n{"type":"add_comment","body":';
+    expect(() => redact("safeoutputs.jsonl", content, ["opaque"])).toThrow("Invalid JSON safe-output record during secret redaction");
+  });
+
   it("keeps unknown custom types and fields only when redaction does not alter their routing", () => {
     const content = '{"type":"custom_job","custom_input":"opaque"}';
     expect(JSON.parse(redact("safeoutputs.jsonl", content, ["opaque"]))).toEqual({ type: "custom_job", custom_input: "***" });

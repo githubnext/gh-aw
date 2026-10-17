@@ -8,6 +8,37 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const nodeFs = require("node:fs");
 const originalMkdirSync = nodeFs.mkdirSync.bind(nodeFs);
+const originalOpenSync = nodeFs.openSync.bind(nodeFs);
+const originalReadSync = nodeFs.readSync.bind(nodeFs);
+const originalCloseSync = nodeFs.closeSync.bind(nodeFs);
+
+// Keep the suite's virtual files available through streaming reads as well.
+beforeEach(() => {
+  const files = new Map();
+  let nextFd = -100;
+  vi.spyOn(fs, "openSync").mockImplementation((file, flags, mode) => {
+    if (!vi.isMockFunction(fs.readFileSync)) return originalOpenSync(file, flags, mode);
+    const content = Buffer.from(fs.readFileSync(file, "utf8"));
+    const fd = nextFd--;
+    files.set(fd, { content, offset: 0 });
+    return fd;
+  });
+  vi.spyOn(fs, "readSync").mockImplementation((fd, buffer, offset, length, position) => {
+    const file = files.get(fd);
+    if (!file) return originalReadSync(fd, buffer, offset, length, position);
+    const start = position ?? file.offset;
+    const count = file.content.copy(buffer, offset, start, start + length);
+    if (position === null) file.offset += count;
+    return count;
+  });
+  vi.spyOn(fs, "closeSync").mockImplementation(fd => {
+    if (!files.delete(fd)) originalCloseSync(fd);
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // ---------------------------------------------------------------------------
 // Module import
@@ -4164,7 +4195,10 @@ describe("sendJobConclusionSpan", () => {
       if (p === stdioLogPath) return /** @type {fs.Stats} */ { size: stdioContent.length };
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
-    const openSpy = vi.spyOn(fs, "openSync").mockReturnValue(/** @type {number} */ MOCK_FD);
+    const openSpy = vi.spyOn(fs, "openSync").mockImplementation(p => {
+      if (p === stdioLogPath) return MOCK_FD;
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
     const readSpy = vi.spyOn(fs, "readSync").mockImplementation((_fd, buf) => {
       stdioContent.copy(/** @type {Buffer} */ buf);
       return stdioContent.length;

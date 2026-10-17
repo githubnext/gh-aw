@@ -4,6 +4,19 @@ package cli
 // Codes are part of the structured audit output contract and must not be repurposed.
 type AuditFindingCode string
 
+const auditDebugPlaybookURL = "https://github.com/github/gh-aw/blob/main/.github/aw/debug-playbook.md"
+
+func auditFindingPlaybookURL(code AuditFindingCode) string {
+	switch code {
+	case AuditFindingModelUnavailable, AuditFindingModelAvailabilityUnknown:
+		return auditDebugPlaybookURL + "#model-availability"
+	case AuditFindingSubagentModelNotObserved, AuditFindingSubagentModelUnavailable, AuditFindingSubagentFailed:
+		return "https://github.com/github/gh-aw/blob/main/.github/aw/debug-model-engine-misconfiguration.md"
+	default:
+		return auditDebugPlaybookURL + "#audit-findings"
+	}
+}
+
 const (
 	AuditFindingWorkflowFailed           AuditFindingCode = "workflow_failed"
 	AuditFindingWorkflowTimeout          AuditFindingCode = "workflow_timeout"
@@ -12,6 +25,8 @@ const (
 	AuditFindingMultipleErrors           AuditFindingCode = "multiple_errors"
 	AuditFindingMCPServerFailures        AuditFindingCode = "mcp_server_failures"
 	AuditFindingToolsNotAvailable        AuditFindingCode = "tools_not_available"
+	AuditFindingModelUnavailable         AuditFindingCode = "model_unavailable"
+	AuditFindingModelAvailabilityUnknown AuditFindingCode = "model_availability_unknown"
 	AuditFindingBlockedNetworkRequests   AuditFindingCode = "blocked_network_requests"
 	AuditFindingWorkflowSucceeded        AuditFindingCode = "workflow_succeeded"
 	AuditFindingSubagentModelNotObserved AuditFindingCode = "subagent_model_not_observed"

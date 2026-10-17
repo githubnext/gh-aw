@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { JsonlParser } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_PARSE } = require("./error_codes.cjs");
 
@@ -24,8 +25,10 @@ const { ERR_PARSE } = require("./error_codes.cjs");
  */
 class ReadBuffer {
   constructor() {
-    /** @type {Buffer|null} */
-    this._buffer = null;
+    this._parser = new JsonlParser();
+    /** @type {Generator<import("./jsonl_helpers.cjs").JsonlEvent>[]} */
+    this._lines = [];
+    this._offset = 0;
   }
 
   /**
@@ -33,7 +36,7 @@ class ReadBuffer {
    * @param {Buffer} chunk - Data chunk to append
    */
   append(chunk) {
-    this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
+    this._lines.push(this._parser.push(chunk));
   }
 
   /**
@@ -41,27 +44,28 @@ class ReadBuffer {
    * @returns {Object|null} Parsed JSON message or null if no complete message
    */
   readMessage() {
-    if (!this._buffer) {
-      return null;
+    while (this._offset < this._lines.length) {
+      const next = this._lines[this._offset].next();
+      if (next.done) {
+        delete this._lines[this._offset++];
+        if (this._offset === this._lines.length) {
+          this._lines = [];
+          this._offset = 0;
+        } else if (this._offset >= 1024 && this._offset * 2 >= this._lines.length) {
+          this._lines = this._lines.slice(this._offset);
+          this._offset = 0;
+        }
+        continue;
+      }
+      const event = next.value;
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
+        const error = event.error;
+        throw new Error(`${ERR_PARSE}: Parse error: ${getErrorMessage(error)}`, { cause: error });
+      }
+      return event.value;
     }
-
-    const index = this._buffer.indexOf("\n");
-    if (index === -1) {
-      return null;
-    }
-
-    const line = this._buffer.toString("utf8", 0, index).replace(/\r$/, "");
-    this._buffer = this._buffer.subarray(index + 1);
-
-    if (line.trim() === "") {
-      return this.readMessage(); // Skip empty lines recursively
-    }
-
-    try {
-      return JSON.parse(line);
-    } catch (error) {
-      throw new Error(`${ERR_PARSE}: Parse error: ${getErrorMessage(error)}`, { cause: error });
-    }
+    return null;
   }
 }
 

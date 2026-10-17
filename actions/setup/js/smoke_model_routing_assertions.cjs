@@ -1,6 +1,7 @@
 // @ts-check
 "use strict";
 
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * Deterministic model-routing smoke assertions.
  *
@@ -561,14 +562,9 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
  */
 function readJsonl(file, problems) {
   const records = [];
-  const lines = fs.readFileSync(file, "utf8").split("\n");
-  for (const [index, line] of lines.entries()) {
-    if (!line.trim()) continue;
-    try {
-      records.push(JSON.parse(line));
-    } catch (error) {
-      problems.push(`${file}:${index + 1} is not valid JSON: ${getErrorMessage(error)}`);
-    }
+  for (const event of iterateJsonlEvents(fs.readFileSync(file, "utf8"))) {
+    if (event.type === "json") records.push(event.value);
+    else if (event.reason !== "blank") problems.push(`${file}:${event.lineNumber} is not valid JSON: ${getErrorMessage(event.error)}`);
   }
   return records;
 }

@@ -5,6 +5,7 @@ import path from "node:path";
 import { collectUnifiedSession, mergeSessionSources, normalizeRuntimeEvent, parseEngineSession, sessionTimestamp, writeUnifiedSession } from "./unified_session.cjs";
 import { serializeSessionArtifact, writeSessionArtifact } from "./session_artifact.cjs";
 import { normalizeUnifiedSessionEvent } from "./unified_session_payload.cjs";
+import { validateSession } from "./scripts/validate_session.cjs";
 
 const req = require;
 const { writeDetectionUsageResult } = req("./generate_usage_activity_summary.cjs");
@@ -885,6 +886,32 @@ describe("Unified conclusion session", () => {
     const original = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
     writeUnifiedSession({ rootDir: root });
     expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).toBe(original);
+  });
+
+  it.each(["experiments", "usage/experiment"])("persists exact current-run assignments from %s independently of historical state", directory => {
+    const assignments = { assignments: "treatment", model_size: "large", prompt_style: "detailed" };
+    const history = [
+      { run_id: "122", timestamp: "2026-10-01T00:00:00Z", assignments: { assignments: "control", model_size: "small", prompt_style: "concise" } },
+      { run_id: "123", timestamp: "2026-10-02T00:00:00Z", assignments },
+    ];
+    const assignmentPath = `${directory}/assignments.json`;
+    write(assignmentPath, assignments);
+    write(`${directory}/state.jsonl`, history);
+    const events = writeUnifiedSession({ rootDir: root });
+    expect(events.filter(event => event.type === "experiment.assignment")).toEqual([
+      {
+        type: "experiment.assignment",
+        data: { assignments },
+        provenance: { component: "experiment", phase: "activation", path: assignmentPath, index: 0 },
+      },
+    ]);
+    expect(events.filter(event => event.type === "experiment.state").map(event => event.data)).toEqual(history.map(({ run_id, assignments }) => ({ runId: run_id, assignments })));
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted.trim().split("\n").map(JSON.parse)).toEqual(events);
+    expect(validateSession(persisted)).toBe(events.length);
+    expect(events.at(-1).data.warnings).toBe(0);
+    expect(writeUnifiedSession({ rootDir: root })).toEqual(events);
+    expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).toBe(persisted);
   });
 
   it("collects available tool and engine versions from workflow metadata", () => {

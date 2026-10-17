@@ -1,4 +1,5 @@
 // @ts-check
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 
 /**
  * Helpers that make rendered agent logs aware of GitHub Actions `::add-mask::`
@@ -307,13 +308,7 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, repl
     const redacted = isKey ? redactMaskedValues(value, maskedValues, replacementForValue) : redactValue(value);
     return redacted === value ? encoded : JSON.stringify(redacted);
   };
-  const redactJson = text => {
-    let value;
-    try {
-      value = JSON.parse(text);
-    } catch {
-      return undefined;
-    }
+  const redactJson = (text, value) => {
     // Skip quoted strings and match original numeric tokens at every depth so
     // rounding or exponent notation cannot hide a mask.
     const numericRedacted = transformJSONStrings(
@@ -327,7 +322,7 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, repl
     );
     if (numericRedacted !== text) {
       try {
-        value = JSON.parse(numericRedacted);
+        value = JSON.parse(numericRedacted.trim());
       } catch (error) {
         throw new Error("Unable to decode redacted JSON log record during secret redaction", { cause: error });
       }
@@ -351,21 +346,32 @@ function redactArtifactMaskedValues(content, maskedValues, redactJSONValue, repl
     const redacted = JSON.stringify((redactJSONValue || redactValue)(value));
     return redacted === JSON.stringify(value) ? numericRedacted : text.match(/^\s*/)[0] + redacted + text.match(/\s*$/)[0];
   };
-  const json = redactJson(content);
-  if (json !== undefined) return json;
-  return content
-    .split("\n")
-    .filter(line => !isAddMaskCommandLine(line))
-    .map(line => {
-      const jsonLine = redactJson(line);
-      if (jsonLine !== undefined) return jsonLine;
-      if (preserveLexemes) return redactMixedMaskedValues(line, maskedValues, replacement);
+  // Preserve support for complete, possibly pretty-printed JSON documents.
+  let document;
+  let validDocument = true;
+  try {
+    document = JSON.parse(content);
+  } catch {
+    validDocument = false;
+  }
+  if (validDocument) return redactJson(content, document);
+  const redactedLines = [];
+  for (const event of iterateJsonlEvents(content)) {
+    const newline = event.rawLine.endsWith("\n") ? "\n" : "";
+    const line = newline ? event.rawLine.slice(0, -1) : event.rawLine;
+    if (isAddMaskCommandLine(line.replace(/\r$/, ""))) continue;
+    if (event.type === "json") {
+      redactedLines.push(redactJson(event.rawLine, event.value));
+    } else if (preserveLexemes) {
+      redactedLines.push(redactMixedMaskedValues(line, maskedValues, replacement), newline);
+    } else {
       // Mixed or malformed logs can still contain recoverable JSON strings.
       const decoded = transformJSONStrings(line, redactString);
       const redacted = redactMaskedValues(decoded, maskedValues, replacementForValue);
-      return redactAmbiguousMaskedValues(redacted, maskedValues, replacement);
-    })
-    .join("\n");
+      redactedLines.push(redactAmbiguousMaskedValues(redacted, maskedValues, replacement), newline);
+    }
+  }
+  return redactedLines.join("");
 }
 
 module.exports = {

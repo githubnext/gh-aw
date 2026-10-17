@@ -14,6 +14,7 @@
 //   working_set: cumulative input-token traffic relative to peak invocation input
 //   friction: precomputed cost of wasted work (AIC canonical) with attribution states
 
+const { iterateJsonl, iterateLines } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
@@ -327,7 +328,7 @@ function parseFirewallLogs() {
     for (const logPath of findFiles(logDir, entry => entry.name.endsWith(".log"))) {
       try {
         const content = fs.readFileSync(logPath, "utf-8");
-        const lines = content.split("\n");
+        const lines = iterateLines(content);
 
         for (const raw of lines) {
           const line = raw.trim();
@@ -450,20 +451,7 @@ function parseSessionLogs(sessionLogDirs = ["/tmp/gh-aw/sandbox/agent/logs/copil
         const childSessions = new Map();
         const entries = [];
         const content = fs.readFileSync(eventsPath, "utf-8");
-        const lines = content.split("\n");
-
-        for (const raw of lines) {
-          const line = raw.trim();
-          if (!line || !line.startsWith("{")) {
-            continue;
-          }
-
-          let entry;
-          try {
-            entry = JSON.parse(line);
-          } catch {
-            continue;
-          }
+        for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
           if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
 
           const eventType = String(entry.type || "")
@@ -764,13 +752,8 @@ function getRpcMessageType(entry) {
  * @param {string} content
  */
 function parseGatewayJSONL(activity, content) {
-  for (const raw of content.split("\n")) {
-    const line = raw.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
+  for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
     try {
-      const entry = JSON.parse(line);
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -816,13 +799,8 @@ function parseGatewayJSONL(activity, content) {
  */
 function parseRPCMessagesJSONL(activity, content) {
   const pending = new Map();
-  for (const raw of content.split("\n")) {
-    const line = raw.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
+  for (const entry of iterateJsonl(content, { lineFilter: line => line.startsWith("{") })) {
     try {
-      const entry = JSON.parse(line);
       if (!entry || typeof entry !== "object") {
         continue;
       }
@@ -1002,19 +980,8 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
   const items = [];
   let totalItems = 0;
 
-  for (const raw of content.split("\n")) {
-    const line = raw.trim();
-    if (!line || !line.startsWith("{")) {
-      continue;
-    }
-
-    let entry;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      continue;
-    }
-
+  for (const entry of iterateJsonl(content)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const itemType = String(entry.type || "").trim();
     if (!itemType) {
       continue;

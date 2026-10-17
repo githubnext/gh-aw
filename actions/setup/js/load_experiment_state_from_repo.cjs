@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 /**
  * load_experiment_state_from_repo
  *
@@ -38,12 +39,12 @@ function isExperimentStateContentValid(content) {
   }
 
   try {
-    for (const line of content.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
+    for (const event of iterateJsonlEvents(content)) {
+      if (event.type === "invalid") {
+        if (event.reason === "blank") continue;
+        return false;
       }
-      const entry = JSON.parse(trimmed);
+      const entry = event.value;
       const isSnapshot = !!entry && typeof entry.counts === "object";
       const isRunRecord = !!entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments);
       if (!isSnapshot && !isRunRecord) {

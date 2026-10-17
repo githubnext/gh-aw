@@ -529,7 +529,7 @@ describe("mcp_cli_bridge.cjs", () => {
       );
 
       const files = fs.readdirSync(auditDir);
-      expect(files).toEqual(["server_.._name.jsonl"]);
+      expect(files).toEqual(["server_.._name.audit.jsonl"]);
       const logPath = path.join(auditDir, files[0]);
       const record = JSON.parse(fs.readFileSync(logPath, "utf8"));
       expect(record).toMatchObject({
@@ -551,10 +551,36 @@ describe("mcp_cli_bridge.cjs", () => {
     }
   });
 
+  it("redacts safeoutputs audit logs without interpreting them as executable messages", () => {
+    const { processFile } = require("./redact_secrets.cjs");
+    const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-audit-"));
+    try {
+      ensureAuditDir(auditDir);
+      auditLog("safeoutputs", { event: "call_start", tool: "private-tool", argumentBytes: 42 }, auditDir);
+      const logPath = path.join(auditDir, "safeoutputs.audit.jsonl");
+
+      expect(processFile(logPath, ["private-tool"])).toBe(1);
+
+      expect(JSON.parse(fs.readFileSync(logPath, "utf8"))).toMatchObject({
+        server: "safeoutputs",
+        event: "call_start",
+        tool: "***REDACTED***",
+        argumentBytes: 42,
+      });
+      expect(fs.existsSync(path.join(auditDir, "safeoutputs.jsonl"))).toBe(false);
+      expect(fs.statSync(logPath).mode & 0o777).toBe(0o600);
+      expect(global.core.setFailed).not.toHaveBeenCalled();
+      expect(global.core.warning).not.toHaveBeenCalled();
+      expect(global.core.info).not.toHaveBeenCalled();
+    } finally {
+      fs.rmSync(auditDir, { recursive: true, force: true });
+    }
+  });
+
   it("removes audit records older than the 24-hour retention window", () => {
     const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), "bridge-audit-"));
-    const staleLog = path.join(auditDir, "stale.jsonl");
-    const currentLog = path.join(auditDir, "current.jsonl");
+    const staleLog = path.join(auditDir, "stale.audit.jsonl");
+    const currentLog = path.join(auditDir, "current.audit.jsonl");
     try {
       fs.writeFileSync(staleLog, "{}\n");
       fs.writeFileSync(currentLog, "{}\n");
@@ -666,6 +692,21 @@ describe("mcp_cli_bridge.cjs", () => {
 
     expect(stderrChunks.join("")).toContain("Progress: 2/5");
     expect(stdoutChunks.join("")).toBe("ok\n");
+    expect(process.exitCode).toBe(0);
+  });
+
+  it("recovers adjacent SSE records after malformed data without treating framing as JSON", async () => {
+    const body = [
+      "event: message",
+      'data: {"broken":}',
+      'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"message":"working"}}',
+      ' data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ignored"}]}}',
+      'data: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"recovered"}]}}',
+      "data: [DONE]",
+    ].join("\r\n");
+    await formatResponse(body, "agenticworkflows");
+    expect(stderrChunks.join("")).toContain("working");
+    expect(stdoutChunks.join("")).toBe("recovered\n");
     expect(process.exitCode).toBe(0);
   });
 
@@ -2012,7 +2053,7 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(recordedBodies.find(b => b.method === "tools/call")).toBeUndefined();
       expect(stderrChunks.join("")).toContain("use --key value flags");
       expect(stderrChunks.join("")).not.toContain("private payload");
-      const audit = fs.readFileSync("/tmp/gh-aw/mcp-cli-audit/safeoutputs.jsonl", "utf8");
+      const audit = fs.readFileSync("/tmp/gh-aw/mcp-cli-audit/safeoutputs.audit.jsonl", "utf8");
       expect(audit).toContain('"event":"parse_args_error"');
       expect(audit).not.toContain("private payload");
     });
