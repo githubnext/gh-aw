@@ -27,6 +27,7 @@ const mockCore = {
   summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue(void 0) },
 };
 global.core = mockCore;
+const { persistDetectionMasks } = require("./detection_mask_state.cjs");
 const redactScript = fs.readFileSync(path.join(__dirname, "redact_secrets.cjs"), "utf8");
 describe("redact_secrets.cjs", () => {
   let tempDir, ambientPathsSpy;
@@ -116,7 +117,7 @@ describe("redact_secrets.cjs", () => {
       expect(mockCore.setSecret.mock.invocationCallOrder.at(-1)).toBeLessThan(mockCore.exportVariable.mock.invocationCallOrder.at(-1));
       vi.stubEnv(name, value);
     });
-    const options = { additionalDirectories: [path.dirname(firewall)] };
+    const options = { additionalDirectories: [path.dirname(firewall)], persistDetectionMasks };
 
     await main(options);
 
@@ -140,7 +141,7 @@ describe("redact_secrets.cjs", () => {
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
   });
-  it.each(["read", "register", "register-state", "persist", "invalid-state"])("removes detection sources safely if runtime mask %s fails", async failureStage => {
+  it.each(["read", "register", "register-state", "persist", "invalid-state", "missing-persistence"])("removes detection sources safely if runtime mask %s fails", async failureStage => {
     const { main } = require("./redact_secrets.cjs");
     const secret = "synthetic-unknown-runtime-credential";
     const detection = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection");
@@ -167,7 +168,7 @@ describe("redact_secrets.cjs", () => {
       });
     if (failureStage === "invalid-state") vi.stubEnv("GH_AW_DETECTION_MASKED_VALUES", JSON.stringify({ secret }));
     try {
-      await main({ additionalDirectories: [firewall] });
+      await main({ additionalDirectories: [firewall], persistDetectionMasks: failureStage === "missing-persistence" ? undefined : persistDetectionMasks });
     } finally {
       readSpy.mockRestore();
     }

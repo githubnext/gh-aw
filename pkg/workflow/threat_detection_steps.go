@@ -161,9 +161,10 @@ func (c *Compiler) buildDetectionSecretRedactionStep(data *WorkflowData, secretC
 	step.WriteString("            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n")
 	step.WriteString("            setupGlobals(core, github, context, exec, io, getOctokit);\n")
 	step.WriteString("            const { main } = require('" + SetupActionDestination + "/redact_secrets.cjs');\n")
+	step.WriteString("            const { persistDetectionMasks } = require('" + SetupActionDestination + "/detection_mask_state.cjs');\n")
 	// Directory uploads include rotated/extensionless firewall logs as well as
 	// files covered by the redactor's standard extension allowlist.
-	step.WriteString("            await main({ additionalDirectories: [" + strconv.Quote(detectionFirewallLogsDir) + "] });\n")
+	step.WriteString("            await main({ additionalDirectories: [" + strconv.Quote(detectionFirewallLogsDir) + "], persistDetectionMasks });\n")
 	return []string{step.String()}
 }
 

@@ -1979,7 +1979,8 @@ jobs:
             const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'redact_secrets.cjs'));
-            await main({ additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"] });
+            const { persistDetectionMasks } = require(path.join(actionsDir, 'detection_mask_state.cjs'));
+            await main({ additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"], persistDetectionMasks });
       - name: Parse threat detection token usage for step summary
         id: parse_detection_token_usage
         if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success'
@@ -2016,7 +2017,8 @@ jobs:
             const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'redact_secrets.cjs'));
-            await main({ additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"] });
+            const { persistDetectionMasks } = require(path.join(actionsDir, 'detection_mask_state.cjs'));
+            await main({ additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"], persistDetectionMasks });
       - name: Render detection log
         if: always() && steps.detection_guard.outputs.run_detection == 'true' && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success'
         continue-on-error: true

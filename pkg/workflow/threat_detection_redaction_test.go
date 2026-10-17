@@ -117,6 +117,8 @@ func TestDetectionRedactionOrderingAndGates(t *testing.T) {
 					}
 				}
 				assert.Contains(t, content, "/redact_secrets.cjs")
+				assert.Contains(t, content, "/detection_mask_state.cjs")
+				assert.Contains(t, content, "], persistDetectionMasks });")
 				assert.Contains(t, content, `additionalDirectories: ["/tmp/gh-aw/threat-detection/sandbox/firewall"]`)
 			})
 		}

@@ -674,9 +674,9 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
 
 /**
  * Main function
- * @param {{prepareForCustomMasking?: boolean, additionalDirectories?: string[]}} [options]
+ * @param {{prepareForCustomMasking?: boolean, additionalDirectories?: string[], persistDetectionMasks?: (values: string[]) => void}} [options]
  */
-async function main({ prepareForCustomMasking = false, additionalDirectories = [] } = {}) {
+async function main({ prepareForCustomMasking = false, additionalDirectories = [], persistDetectionMasks } = {}) {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
 
@@ -730,15 +730,11 @@ async function main({ prepareForCustomMasking = false, additionalDirectories = [
         }
       }
       for (const value of detectionMasks) masks.add(value);
-      // GITHUB_ENV is runner-private, outside artifact trees. Preserve detection
-      // masks across github-script steps after their command lines are removed.
       if (detectionMasks.size) {
-        const savedMasks = JSON.stringify([...detectionMasks]);
-        // File contents need not have been interpreted by this runner. Register
-        // both raw values and JSON state before later step setup can print it.
-        for (const value of detectionMasks) core.setSecret(value);
-        core.setSecret(savedMasks);
-        core.exportVariable(DETECTION_MASKS_ENV, savedMasks);
+        // Runner command emission belongs to the detection step, not the shared
+        // redaction dependency deployed to isolated MCP/safe-output processes.
+        if (!persistDetectionMasks) throw new Error(`${ERR_VALIDATION}: Detection mask persistence is unavailable`);
+        persistDetectionMasks([...detectionMasks]);
       }
     } catch (error) {
       for (const source of files) {
