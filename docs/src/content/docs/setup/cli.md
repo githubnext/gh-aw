@@ -317,6 +317,8 @@ gh aw doctor --repo github/gh-aw --dir ./gh-aw --require-owner-type org
 
 Use `--repo` to verify a specific repository exists and inspect the local checkout that should correspond to it. `--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`; `--dir` and `--require-owner-type` require `--repo`.
 
+For `doctor`, `--dir` selects the checkout directory and defaults to the repository name (for example, `gh-aw` for `github/gh-aw`). For workflow commands such as `add`, `compile`, and `validate`, `--dir` selects the workflow directory instead.
+
 `doctor --repo` currently accepts `owner/repo` only. To target GitHub Enterprise Server, select the host via `GH_HOST` rather than prefixing the repository with `[HOST/]`.
 
 ### Building
@@ -795,6 +797,8 @@ gh aw health issue-monster --days 90  # 90-day metrics for workflow
 ```
 
 **Options:** `--days`, `--start-date`, `--end-date`, `--logs-dir`, `--threshold`, `--repo/-r`, `--json/-j`
+
+`--logs-dir` selects the existing logs cache used for failure clustering (default: `.github/aw/logs`). Health reads this cache without downloading artifacts. The `models` command also uses `--logs-dir` for existing logs; `audit`, `logs`, and `outcomes` use `--output/-o` to select their output directory.
 
 The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an error.
 
