@@ -827,6 +827,7 @@ jobs:
         id: start-mcp-gateway
         env:
           CODEX_HOME: /tmp/gh-aw/mcp-config
+          DEBUG: ${{ env.DEBUG || runner.debug == '1' && '*' || '' }}
           GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST: ${{ vars.GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST || 'true' }}
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
           GH_AW_SAFE_OUTPUTS_CONFIG_PATH: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS_CONFIG_PATH }}
@@ -863,8 +864,6 @@ jobs:
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
           export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
-          export DEBUG="*"
-
           export GH_AW_ENGINE="codex"
           export GH_AW_MCP_CLI_SERVERS='["agenticworkflows","safeoutputs"]'
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
@@ -876,7 +875,7 @@ jobs:
 
           # Generate JSON config for MCP gateway
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_5eb9483f4586777a_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_720b551a519e3fde_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "agenticworkflows": {
@@ -885,7 +884,7 @@ jobs:
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
                 "args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"],
                 "env": {
-                  "DEBUG": "*",
+                  "DEBUG": "\${DEBUG}",
                   "GITHUB_TOKEN": "\${GITHUB_TOKEN}",
                   "GITHUB_ACTOR": "\${GITHUB_ACTOR}",
                   "GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"
@@ -922,7 +921,7 @@ jobs:
                 "entrypoint": "sh",
                 "entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"],
                 "env": {
-                  "DEBUG": "*",
+                  "DEBUG": "\${DEBUG}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
@@ -970,7 +969,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_5eb9483f4586777a_EOF
+          GH_AW_MCP_CONFIG_720b551a519e3fde_EOF
 
           # Sync converter output to writable CODEX_HOME for Codex
           mkdir -p "${CODEX_HOME}"
@@ -2087,6 +2086,7 @@ jobs:
         id: start-mcp-gateway
         env:
           CODEX_HOME: /tmp/gh-aw/mcp-config
+          DEBUG: ${{ env.DEBUG || runner.debug == '1' && '*' || '' }}
         run: |
           set -eo pipefail
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config"
@@ -2114,8 +2114,6 @@ jobs:
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
           export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
-          export DEBUG="*"
-
           export GH_AW_ENGINE="codex"
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')

@@ -40,7 +40,8 @@ const canWriteDefault = canWriteToDefaultPath();
   let originalEnv, tempConfigFile, tempOutputDir;
   (beforeEach(() => {
     ((originalEnv = { ...process.env }),
-      (tempOutputDir = path.join("/tmp", `test_safe_outputs_defaults_${Date.now()}`)),
+      (process.env.DEBUG = "safeoutputs"),
+      (tempOutputDir = path.join(process.env.RUNNER_TEMP, `test_safe_outputs_defaults_${Date.now()}`)),
       fs.mkdirSync(tempOutputDir, { recursive: !0 }),
       (tempConfigFile = path.join(tempOutputDir, "config.json")),
       fs.existsSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`) || fs.mkdirSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, { recursive: !0 }));
@@ -154,13 +155,13 @@ const canWriteDefault = canWriteToDefaultPath();
       });
     }),
     it("should create output directory even when GH_AW_SAFE_OUTPUTS is set", async () => {
-      const testOutputDir = path.join("/tmp", `test_safe_outputs_${Date.now()}_envset`),
+      const testOutputDir = path.join(process.env.RUNNER_TEMP, `test_safe_outputs_${Date.now()}_envset`),
         testOutputFile = path.join(testOutputDir, "outputs.jsonl");
       ((process.env.GH_AW_SAFE_OUTPUTS = testOutputFile),
         delete process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH,
         fs.existsSync(testOutputDir) && fs.rmSync(testOutputDir, { recursive: !0, force: !0 }),
-        fs.existsSync("/tmp/gh-aw/safeoutputs") || fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }));
-      const defaultConfigPath = path.join("/tmp/gh-aw/safeoutputs", "config.json");
+        fs.existsSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`) || fs.mkdirSync(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, { recursive: !0 }));
+      const defaultConfigPath = path.join(`${process.env.RUNNER_TEMP}/gh-aw/safeoutputs`, "config.json");
       fs.writeFileSync(defaultConfigPath, JSON.stringify({ create_issue: !0, missing_tool: !0 }));
       const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
       return new Promise((resolve, reject) => {
