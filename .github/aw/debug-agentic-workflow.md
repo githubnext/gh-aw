@@ -55,6 +55,13 @@ dispatch.
 
 ## Test Workflow Changes from a Branch
 
+Notify the user before live-test authorization: a published feature branch
+containing the reviewed Markdown and generated lock is required to live test
+workflow changes. Name the branch and exact commit; reuse the current suitable
+branch rather than creating another. A draft PR is recommended, not required,
+and a merge is not required. If publication is still needed, state that the
+agent will prepare and publish the branch before dispatch.
+
 When updated workflow files are unpublished, recommend a feature branch and
 draft PR instead of requiring a merge to the default branch or ending with a
 generic refusal. Reuse an existing suitable branch or PR. The agent prepares
@@ -84,6 +91,12 @@ protections or unresolved review findings. Do not switch refs, credentials or
 execution contexts to evade a failed gate.
 
 ## Live Debug Loop
+
+Include the published test branch and exact reviewed commit in the user-visible
+authorization packet. Notify the user that this branch is required to live test
+changes; a PR alone does not establish which revision will run. Branch
+publication is agent-owned preparation, not a substitute for live-effect
+authorization.
 
 Before each upload/dispatch, require a completed [agentic security review](debug-security-review.md) for the current source/lock hashes and valid human authorization: source/lock hashes,
 triggers/imports/pins, permissions/OIDC, declared credential sources and flows, destinations,

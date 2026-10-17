@@ -39,6 +39,66 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Skill,Task,TodoWrite",
 		},
 		{
+			name: "work queue native MCP with restricted bash",
+			tools: map[string]any{
+				"bash":       []any{"cat"},
+				"work-queue": map[string]any{"worker": true, "require-assignment": true},
+			},
+			expected: "Bash(cat),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name:     "work queue boolean true",
+			tools:    map[string]any{"work-queue": true},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name:     "work queue nil",
+			tools:    map[string]any{"work-queue": nil},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name:     "work queue empty config",
+			tools:    map[string]any{"work-queue": map[string]any{}},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name: "work queue structured MCP with restricted tools",
+			tools: map[string]any{
+				"work-queue": map[string]any{
+					"type":    "stdio",
+					"command": "server",
+					"allowed": []any{"work_queue_claim_finish"},
+				},
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue__work_queue_claim_finish",
+		},
+		{
+			name: "work queue wildcard tools",
+			tools: map[string]any{
+				"work-queue": map[string]any{"allowed": []any{"*"}},
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name: "work queue empty allowed list",
+			tools: map[string]any{
+				"work-queue": map[string]any{"allowed": []any{}},
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite",
+		},
+		{
+			name: "work queue malformed allowed list",
+			tools: map[string]any{
+				"work-queue": map[string]any{"allowed": "work_queue_claim_finish"},
+			},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite",
+		},
+		{
+			name:     "disabled work queue",
+			tools:    map[string]any{"work-queue": false},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite",
+		},
+		{
 			name: "neutral web tools",
 			tools: map[string]any{
 				"web-fetch":  nil,
