@@ -29,7 +29,6 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 		compilerYamlLog.Printf("Failed to build jobs: %v", err)
 		return fmt.Errorf("job generation could not complete; check that each configured job has valid step fields such as run, uses, and with: %w", err)
 	}
-	c.applyWebhookActorGuard(data)
 
 	compilerYamlLog.Printf("Built %d jobs successfully", len(c.jobManager.GetAllJobs()))
 

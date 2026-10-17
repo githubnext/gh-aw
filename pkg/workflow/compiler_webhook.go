@@ -26,16 +26,10 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 		return nil, err
 	}
 	data.WebhookSubscriptions = subscriptions
-	for _, subscription := range subscriptions {
-		data.WebhookActors = subscription.Dispatch.TrustedActors
-		break
-	}
 
 	// Preserve source frontmatter for metadata and hashing; only lower the trigger copy.
 	frontmatter = maps.Clone(frontmatter)
 	on = maps.Clone(on)
-	delete(on, "webhook")
-	delete(on, "webhook-auth")
 	delete(on, "security-alert")
 	for alias := range webhookTriggerAliases {
 		delete(on, alias)
@@ -81,18 +75,12 @@ func buildWebhookValidationStep(data *WorkflowData) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal webhook subscriptions: %w", err)
 	}
-	actors, err := json.Marshal(data.WebhookActors)
-	if err != nil {
-		return nil, fmt.Errorf("marshal webhook actor allowlist: %w", err)
-	}
 	return []string{
 		"      - name: Validate webhook relay\n",
 		"        id: validate-webhook\n",
 		"        if: " + webhookTriggerExpression(data) + "\n",
 		"        env:\n",
 		formatYAMLEnv("          ", "GH_AW_WEBHOOK_SUBSCRIPTIONS", string(subscriptions)),
-		formatYAMLEnv("          ", "GH_AW_WEBHOOK_ACTORS", string(actors)),
-		"          GH_AW_WEBHOOK_ACTOR: ${{ github.actor }}\n",
 		"          GH_AW_WEBHOOK_EVENT_NAME: ${{ github.event_name }}\n",
 		"        run: node \"" + SetupActionDestinationShell + "/validate_webhook.cjs\"\n",
 	}, nil

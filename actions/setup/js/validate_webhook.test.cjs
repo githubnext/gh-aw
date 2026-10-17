@@ -20,7 +20,6 @@ function subscription(overrides = {}) {
       workflow: ".github/workflows/project-items.lock.yml",
       max_payload_bytes: 65535,
       max_request_bytes: 65535,
-      trusted_actors: ["trusted-receiver[bot]"],
       context: {
         envelope: "github.event.client_payload",
         event: "github.event.client_payload.event",
@@ -36,8 +35,6 @@ function subscription(overrides = {}) {
 function environment(overrides = {}) {
   return {
     GITHUB_EVENT_NAME: "repository_dispatch",
-    GITHUB_ACTOR: "trusted-receiver[bot]",
-    GH_AW_WEBHOOK_ACTORS: JSON.stringify(["trusted-receiver[bot]"]),
     GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription()]),
     ...overrides,
   };
@@ -92,41 +89,8 @@ describe("validateWebhook", () => {
     expect(validateWebhook(null, { GITHUB_EVENT_NAME: eventName })).toEqual({ skipped: true });
   });
 
-  it("uses GITHUB_ACTOR, not trusted-looking outer or original payload senders", () => {
-    expect(() => validateWebhook(dispatch(), environment({ GITHUB_ACTOR: "attacker" }))).toThrow(/GITHUB_ACTOR/);
-  });
-
-  it("does not trust an actor claimed in the client payload", () => {
-    const event = dispatch();
-    event.client_payload.actor = "trusted-receiver[bot]";
-    expect(() => validateWebhook(event, environment({ GITHUB_ACTOR: "" }))).toThrow(/GITHUB_ACTOR/);
-  });
-
-  it("uses the selected subscription trust contract without a separate actor environment variable", () => {
-    expect(validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_ACTORS: undefined })).skipped).toBe(false);
-    const contracts = [subscription({ event: "another", dispatch: { ...subscription().dispatch, trusted_actors: ["attacker"] } }), subscription()];
-    expect(() => validateWebhook(dispatch(), environment({ GITHUB_ACTOR: "attacker", GH_AW_WEBHOOK_ACTORS: undefined, GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify(contracts) }))).toThrow(/GITHUB_ACTOR/);
-  });
-
-  it("does not let an optional separate allowlist widen the subscription actor trust", () => {
-    expect(() => validateWebhook(dispatch(), environment({ GITHUB_ACTOR: "attacker", GH_AW_WEBHOOK_ACTORS: '["attacker"]' }))).toThrow(/GITHUB_ACTOR/);
-  });
-
-  it("compares GitHub actor names case insensitively without trimming or wildcard expansion", () => {
-    expect(validateWebhook(dispatch(), environment({ GITHUB_ACTOR: "TRUSTED-receiver[bot]" })).skipped).toBe(false);
-    for (const actor of [" trusted-receiver[bot]", "trusted-receiver[bot] ", "other[bot]"]) {
-      expect(() => validateWebhook(dispatch(), environment({ GITHUB_ACTOR: actor }))).toThrow(/GITHUB_ACTOR/);
-    }
-    expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_ACTORS: '["*"]' }))).toThrow(/GITHUB_ACTOR/);
-  });
-
-  it.each(["", "{", "null", "{}", "[]", '[""]', "[1]"])("rejects malformed optional separate actor allowlist %s", value => {
-    expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_ACTORS: value }))).toThrow(/GH_AW_WEBHOOK_ACTORS/);
-  });
-
-  it.each([undefined, null, [], {}, [""], [1]])("rejects malformed or missing subscription trusted actors %j", trustedActors => {
-    const contracts = [subscription({ dispatch: { ...subscription().dispatch, trusted_actors: trustedActors } })];
-    expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify(contracts) }))).toThrow(/valid version 1 subscriptions/);
+  it("validates the envelope without a separate webhook actor policy", () => {
+    expect(validateWebhook(dispatch(), environment()).skipped).toBe(false);
   });
 
   it.each([undefined, "", "{", "null", "{}", "[]", "[null]", "[{}]"])("rejects malformed or missing subscriptions %s", value => {
@@ -140,11 +104,11 @@ describe("validateWebhook", () => {
     }
   );
 
-  it("skips native repository_dispatch routes without applying webhook authorization", () => {
+  it("skips native repository_dispatch routes without applying webhook validation", () => {
     const event = dispatch();
     event.action = "unrelated-dispatch";
     event.client_payload.dispatch = subscription().dispatch;
-    expect(validateWebhook(event, environment({ GITHUB_ACTOR: "native-dispatch-user" }))).toEqual({ skipped: true });
+    expect(validateWebhook(event, environment())).toEqual({ skipped: true });
   });
 
   it("does not let client payload routing claims override an actual matching webhook route", () => {
@@ -156,23 +120,18 @@ describe("validateWebhook", () => {
 
   it("keeps actual GitHub environment canonical over supplemental compiler bindings", () => {
     const env = environment({
-      GH_AW_WEBHOOK_EVENT_NAME: "repository_dispatch",
-      GH_AW_WEBHOOK_ACTOR: "attacker",
+      GH_AW_WEBHOOK_EVENT_NAME: "workflow_dispatch",
     });
     expect(validateWebhook(dispatch(), env).skipped).toBe(false);
-    env.GITHUB_ACTOR = "attacker";
-    env.GH_AW_WEBHOOK_ACTOR = "trusted-receiver[bot]";
-    expect(() => validateWebhook(dispatch(), env)).toThrow(/GITHUB_ACTOR/);
     env.GITHUB_EVENT_NAME = "workflow_dispatch";
+    env.GH_AW_WEBHOOK_EVENT_NAME = "repository_dispatch";
     expect(validateWebhook(null, env)).toEqual({ skipped: true });
   });
 
   it("supports compiler-owned bindings only when canonical GitHub environment is unavailable", () => {
     const env = environment({
       GITHUB_EVENT_NAME: undefined,
-      GITHUB_ACTOR: undefined,
       GH_AW_WEBHOOK_EVENT_NAME: "repository_dispatch",
-      GH_AW_WEBHOOK_ACTOR: "trusted-receiver[bot]",
     });
     expect(validateWebhook(dispatch(), env).skipped).toBe(false);
   });
@@ -311,7 +270,6 @@ describe("main", () => {
   function stubEnvironment() {
     for (const [key, value] of Object.entries(environment())) vi.stubEnv(key, value);
     vi.stubEnv("GH_AW_WEBHOOK_EVENT_NAME", undefined);
-    vi.stubEnv("GH_AW_WEBHOOK_ACTOR", undefined);
     vi.stubEnv("GITHUB_EVENT_PATH", "runner-event.json");
     vi.stubGlobal("core", { info: vi.fn() });
   }

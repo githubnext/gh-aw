@@ -39,6 +39,7 @@ function eventName(env) {
 /**
  * Validate the dispatch transport without replacing the GitHub authorization
  * context. The original webhook remains at github.event.client_payload.payload.
+ * Actor authorization uses the standard pre-activation membership check.
  * Subscription conditions are evaluated by the webhook receiver, not here.
  *
  * @param {any} event - Actual repository_dispatch event, never the inner webhook
@@ -61,9 +62,6 @@ function validateWebhook(event, env = process.env) {
         isObject(subscription.dispatch) &&
         isNonemptyString(subscription.dispatch.event_type) &&
         subscription.dispatch.event_type.length <= MAX_EVENT_TYPE_LENGTH &&
-        Array.isArray(subscription.dispatch.trusted_actors) &&
-        subscription.dispatch.trusted_actors.length > 0 &&
-        subscription.dispatch.trusted_actors.every(isNonemptyString) &&
         subscription.schema_version === 1 &&
         Array.isArray(subscription.types) &&
         subscription.types.every(isNonemptyString)
@@ -100,22 +98,6 @@ function validateWebhook(event, env = process.env) {
     reject("client_payload.event must match the webhook subscription");
   }
   const subscription = eventSubscriptions[0];
-  // Payload sender and github-script context are not authorization identities.
-  const actor = env.GITHUB_ACTOR ?? env.GH_AW_WEBHOOK_ACTOR;
-  const trustedActors = subscription.dispatch.trusted_actors;
-  if (!isNonemptyString(actor) || !trustedActors.some(allowed => allowed.toLowerCase() === actor.toLowerCase())) {
-    reject("GITHUB_ACTOR is not in the webhook actor allowlist");
-  }
-  // A separate allowlist can restrict, never widen, the subscription's trust.
-  if (env.GH_AW_WEBHOOK_ACTORS !== undefined) {
-    const actors = parseConfiguration(env.GH_AW_WEBHOOK_ACTORS, "GH_AW_WEBHOOK_ACTORS");
-    if (!Array.isArray(actors) || actors.length === 0 || !actors.every(isNonemptyString)) {
-      reject("GH_AW_WEBHOOK_ACTORS must be a non-empty actor allowlist");
-    }
-    if (!actors.some(allowed => allowed.toLowerCase() === actor.toLowerCase())) {
-      reject("GITHUB_ACTOR is not in the webhook actor allowlist");
-    }
-  }
   if (!isNonemptyString(envelope.delivery_id)) {
     reject("client_payload.delivery_id must be a non-empty string");
   }
@@ -161,7 +143,7 @@ async function main() {
   }
   const result = validateWebhook(event);
   if (!result.skipped && typeof core !== "undefined") {
-    core.info("Webhook dispatch identity and inline payload validated.");
+    core.info("Webhook envelope and inline payload validated.");
   }
   return result;
 }

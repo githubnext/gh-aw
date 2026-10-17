@@ -22,13 +22,12 @@ func TestCompileWebhookJSONContract(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte(`---
 on:
   workflow_dispatch:
+  bots: [cao-gateway]
   projects-item:
     types: [edited]
     filters:
       field:
         name: Status
-  webhook-auth:
-    actors: ["cao[bot]"]
 permissions:
   contents: read
 engine: copilot
@@ -50,7 +49,6 @@ Inspect github.event.client_payload.payload.
 	assert.Equal(t, []string{"edited"}, subscription.Types)
 	assert.Equal(t, "repository_dispatch", subscription.Dispatch.Method)
 	assert.Equal(t, workflow.WebhookDispatchEventType("webhook-test"), subscription.Dispatch.EventType)
-	assert.Equal(t, []string{"cao[bot]"}, subscription.Dispatch.TrustedActors)
 	assert.Equal(t, "github.event.client_payload.payload", subscription.Dispatch.Context.Payload)
 	require.Len(t, subscription.Conditions, 1)
 	assert.Equal(t, []string{"changes", "field_value", "field_name"}, subscription.Conditions[0].Path)
@@ -61,9 +59,12 @@ Inspect github.event.client_payload.payload.
 	require.NoError(t, err)
 	assert.Contains(t, string(output), `"webhook_subscriptions":[`)
 	assert.Contains(t, string(output), `"conditions":[{"filter":"field.name"`)
+	assert.NotContains(t, string(output), `"trusted_actors"`)
 	assert.NotContains(t, result.workflowData.On, "webhook-auth")
 	assert.NotContains(t, result.workflowData.On, "projects-item")
 	assert.Contains(t, result.workflowData.On, "workflow_dispatch")
+	assert.Equal(t, []string{"admin", "maintainer", "write"}, result.workflowData.Roles)
+	assert.Equal(t, []string{"cao-gateway"}, result.workflowData.Bots)
 }
 
 func TestCompileSecurityWebhookJSONContract(t *testing.T) {
@@ -88,8 +89,6 @@ on:
     types: [created]
     filters:
       %s: %s
-  webhook-auth:
-    actors: ["cao[bot]"]
 permissions:
   contents: read
 engine: copilot
@@ -106,12 +105,12 @@ Triage the alert without logging secret values.
 			sub := subscriptions[0]
 			assert.Equal(t, tt.event, sub.Event)
 			assert.Equal(t, workflow.WebhookDispatchEventType("security-alerts"), sub.Dispatch.EventType)
-			assert.Equal(t, []string{"cao[bot]"}, sub.Dispatch.TrustedActors)
 			assert.Equal(t, []string{"created"}, sub.Types)
 			require.Len(t, sub.Conditions, 1)
 			assert.Equal(t, tt.path, sub.Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, sub.Conditions[0].Values)
 			assert.NotContains(t, result.workflowData.On, "security-alert")
+			assert.Equal(t, []string{"admin", "maintainer", "write"}, result.workflowData.Roles)
 		})
 	}
 }

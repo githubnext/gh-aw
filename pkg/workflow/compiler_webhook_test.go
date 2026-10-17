@@ -30,15 +30,11 @@ func TestCompileWebhookTriggers(t *testing.T) {
   workflow_dispatch:
   push:
     branches: [main]
-  webhook:
-    projects_v2_item:
-      types: [edited]
-  webhook-auth:
-    actors: ["cao[bot]"]
+  projects-item:
+    types: [edited]
 `), "webhook-test.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 1)
-	assert.Equal(t, []string{"cao[bot]"}, data.WebhookActors)
 	var triggers map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
 	on := triggers["on"].(map[string]any)
@@ -52,18 +48,16 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	require.NoError(t, err)
 	var compiled map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(output), &compiled))
-	jobs := compiled["jobs"].(map[string]any)
-	for name, raw := range jobs {
-		job := raw.(map[string]any)
-		assert.Contains(t, job["if"], "github.actor == 'cao[bot]'", "unguarded job %s", name)
-		assert.Contains(t, job["if"], "github.event.action != '"+WebhookDispatchEventType("webhook-test")+"'", "job %s must preserve native triggers", name)
-	}
+	preActivation := extractJobSection(output, "pre_activation")
+	assert.Contains(t, preActivation, "check_membership.cjs")
+	assert.Contains(t, preActivation, `GH_AW_REQUIRED_ROLES: "admin,maintainer,write"`)
+	assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
 	activation := extractJobSection(output, "activation")
 	assert.Contains(t, activation, "Validate webhook relay")
 	assert.Contains(t, activation, "if: "+webhookTriggerExpression(data))
 	assert.Contains(t, activation, "GH_AW_WEBHOOK_SUBSCRIPTIONS:")
-	assert.Contains(t, activation, "GH_AW_WEBHOOK_ACTORS:")
-	assert.Contains(t, activation, "GH_AW_WEBHOOK_ACTOR: ${{ github.actor }}")
+	assert.NotContains(t, activation, "GH_AW_WEBHOOK_ACTOR")
+	assert.NotContains(t, output, "trusted_actors")
 	assert.Contains(t, activation, "validate_webhook.cjs")
 	assert.NotContains(t, activation, "toJSON(github.event")
 	require.Contains(t, activation, "Create prompt with built-in context")
@@ -85,10 +79,6 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
     types: [edited]
   security-alert:
     type: dependabot
-  webhook:
-    sub_issues: {}
-  webhook-auth:
-    actors: ["cao[bot]"]
 `), &frontmatter))
 	original, err := json.Marshal(frontmatter)
 	require.NoError(t, err)
@@ -103,10 +93,9 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.NotContains(t, lowered["on"], "webhook")
 	assert.NotContains(t, lowered["on"], "projects-item")
 	assert.NotContains(t, lowered["on"], "security-alert")
-	require.Len(t, data.WebhookSubscriptions, 3)
+	require.Len(t, data.WebhookSubscriptions, 2)
 	assert.Equal(t, "dependabot_alert", data.WebhookSubscriptions[0].Event)
 	assert.Equal(t, "projects_v2_item", data.WebhookSubscriptions[1].Event)
-	assert.Equal(t, "sub_issues", data.WebhookSubscriptions[2].Event)
 }
 
 func TestCompileFirstClassWebhookTriggers(t *testing.T) {
@@ -125,13 +114,10 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
   workflow_dispatch:
   repository_dispatch:
     types: [manual-operation]
-  webhook-auth:
-    actors: ["cao[bot]"]
 `), "first-class.md")
 			require.NoError(t, err)
 			require.Len(t, data.WebhookSubscriptions, 1)
 			assert.Equal(t, tt.event, data.WebhookSubscriptions[0].Event)
-			assert.Equal(t, []string{"cao[bot]"}, data.WebhookActors)
 			var triggers map[string]any
 			require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
 			on := triggers["on"].(map[string]any)
@@ -145,7 +131,7 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 			require.NoError(t, err)
 			activation := extractJobSection(output, "activation")
 			assert.Contains(t, activation, "Validate webhook relay")
-			assert.Contains(t, activation, "github.actor == 'cao[bot]'")
+			assert.Contains(t, extractJobSection(output, "pre_activation"), "check_membership.cjs")
 			assert.Contains(t, extractJobSection(output, "agent"), "Stage inline webhook event")
 			var compiled map[string]any
 			require.NoError(t, yaml.Unmarshal([]byte(output), &compiled))
@@ -165,42 +151,35 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 
 func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 	tests := map[string]string{
-		"unknown event": `  webhook:
+		"removed general registration": `  webhook:
     not_a_github_event: {}`,
-		"invalid action": `  webhook:
-    projects_v2_item:
-      types: [not_a_real_action]`,
-		"unknown filter": `  webhook:
-    projects_v2_item:
-      filters:
-        not-a-real-filter: test`,
-		"wrong filter type": `  webhook:
-    projects_v2_item:
-      filters:
-        item_database_id: "7"`,
-		"unavailable filter": `  webhook:
-    projects_v2_item:
-      types: [created]
-      filters:
-        field:
-          name: Status`,
-		"scalar event": `  webhook:
-    projects_v2_item: true`,
+		"removed auth": `  projects-item:
+  webhook-auth:
+    actors: ["cao[bot]"]`,
+		"invalid action": `  projects-item:
+    types: [not_a_real_action]`,
+		"unknown filter": `  projects-item:
+    filters:
+      not-a-real-filter: test`,
+		"wrong filter type": `  projects-item:
+    filters:
+      item_database_id: "7"`,
+		"unavailable filter": `  projects-item:
+    types: [created]
+    filters:
+      field:
+        name: Status`,
+		"scalar event":   `  projects-item: true`,
 		"empty webhooks": `  webhook: {}`,
 		"unrestricted dispatch": `  repository_dispatch:
-  webhook:
-    projects_v2_item: {}`,
+  projects-item: {}`,
 		"wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
-  webhook:
-    projects_v2_item: {}`,
+  projects-item: {}`,
 		"colliding dispatch": `  repository_dispatch:
     types: ["` + WebhookDispatchEventType("webhook-test") + `"]
-  webhook:
-    projects_v2_item: {}`,
-		"first-class unrestricted dispatch": `  repository_dispatch:
   projects-item: {}`,
-		"first-class wildcard dispatch": `  repository_dispatch:
+		"security wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
   security-alert:
     type: dependabot`,
@@ -215,21 +194,39 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 	for name, trigger := range tests {
 		t.Run(name, func(t *testing.T) {
 			compiler := NewCompiler()
-			_, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n"+trigger+`
-  webhook-auth:
-    actors: ["cao[bot]"]
-`), "webhook-test.md")
+			_, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n"+trigger+"\n"), "webhook-test.md")
 			require.Error(t, err)
 		})
 	}
 }
 
-func TestWebhookRequiresRelayAuthentication(t *testing.T) {
-	for _, auth := range []string{"", "  webhook-auth: {}\n", "  webhook-auth:\n    actors: []\n", "  webhook-auth:\n    actors: ['*']\n"} {
-		t.Run(auth, func(t *testing.T) {
+func TestWebhookUsesStandardAuthorization(t *testing.T) {
+	for name, policy := range map[string]string{
+		"default": "",
+		"roles":   "  roles: [admin]\n",
+		"bots":    "  bots: [cao-gateway]\n",
+		"all":     "  roles: all\n",
+	} {
+		t.Run(name, func(t *testing.T) {
 			compiler := NewCompiler()
-			_, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  webhook:\n    projects_v2_item: {}\n"+auth), "webhook-test.md")
-			require.Error(t, err)
+			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  projects-item:\n"+policy), "webhook-test.md")
+			require.NoError(t, err)
+			output, err := compiler.CompileToYAML(data, "webhook-test.md")
+			require.NoError(t, err)
+			if name == "all" {
+				assert.NotContains(t, output, "id: check_membership")
+			} else {
+				preActivation := extractJobSection(output, "pre_activation")
+				assert.Contains(t, preActivation, "check_membership.cjs")
+				assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
+				if name == "roles" {
+					assert.Contains(t, preActivation, `GH_AW_REQUIRED_ROLES: "admin"`)
+				}
+				if name == "bots" {
+					assert.Contains(t, preActivation, `GH_AW_ALLOWED_BOTS: "cao-gateway"`)
+				}
+			}
+			assert.NotContains(t, output, "GH_AW_WEBHOOK_ACTOR")
 		})
 	}
 }
@@ -239,10 +236,7 @@ func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   repository_dispatch:
     types: [manual-operation]
-  webhook:
-    projects_v2_item: {}
-  webhook-auth:
-    actors: ["cao[bot]"]
+  projects-item: {}
 `), "webhook-test.md")
 	require.NoError(t, err)
 	assert.Contains(t, data.On, "manual-operation")
@@ -252,35 +246,33 @@ func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
 func TestCompileMultipleWebhookSubscriptions(t *testing.T) {
 	compiler := NewCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
-  webhook:
-    projects_v2_item:
-      types: [edited]
-      filters:
-        project_id: PVT_example
-        field:
-          name: [Priority, Status]
-        project_number: 7
-    projects_v2:
-      types: [edited]
-      filters:
-        public: false
-  webhook-auth:
-    actors: ["cao[bot]"]
+  projects-item:
+    types: [edited]
+    filters:
+      project_id: PVT_example
+      field:
+        name: [Priority, Status]
+      project_number: 7
+  security-alert:
+    type: secret-scanning
+    types: [created]
+    filters:
+      publicly_leaked: false
 `), "webhook-test.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 2)
 	first, second := data.WebhookSubscriptions[0], data.WebhookSubscriptions[1]
-	assert.Equal(t, "projects_v2", first.Event)
-	assert.Equal(t, "projects_v2_item", second.Event)
+	assert.Equal(t, "projects_v2_item", first.Event)
+	assert.Equal(t, "secret_scanning_alert", second.Event)
 	assert.Equal(t, first.Dispatch.EventType, second.Dispatch.EventType)
-	require.Len(t, first.Conditions, 1)
-	assert.Equal(t, "boolean", first.Conditions[0].ValueType)
-	assert.Equal(t, []any{false}, first.Conditions[0].Values)
-	require.Len(t, second.Conditions, 3)
-	assert.Equal(t, []string{"changes", "field_value", "field_name"}, second.Conditions[0].Path)
-	assert.Equal(t, "equals", second.Conditions[0].Operator)
-	assert.Equal(t, "string", second.Conditions[0].ValueType)
-	assert.Equal(t, []any{"Priority", "Status"}, second.Conditions[0].Values)
+	require.Len(t, second.Conditions, 1)
+	assert.Equal(t, "boolean", second.Conditions[0].ValueType)
+	assert.Equal(t, []any{false}, second.Conditions[0].Values)
+	require.Len(t, first.Conditions, 3)
+	assert.Equal(t, []string{"changes", "field_value", "field_name"}, first.Conditions[0].Path)
+	assert.Equal(t, "equals", first.Conditions[0].Operator)
+	assert.Equal(t, "string", first.Conditions[0].ValueType)
+	assert.Equal(t, []any{"Priority", "Status"}, first.Conditions[0].Values)
 	output, err := compiler.CompileToYAML(data, "webhook-test.md")
 	require.NoError(t, err)
 	assert.Equal(t, 1, strings.Count(output, "name: Validate webhook relay"))

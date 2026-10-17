@@ -69,7 +69,7 @@ type WebhookContext struct {
 	DeliveryID string `json:"delivery_id"`
 }
 
-// WebhookDispatch is the complete routing and trust contract for a subscription.
+// WebhookDispatch is the routing contract for a subscription.
 // Repository is resolved against the repository containing the compiled workflow,
 // not the repository in the incoming webhook payload.
 type WebhookDispatch struct {
@@ -80,7 +80,6 @@ type WebhookDispatch struct {
 	Context         WebhookContext `json:"context"`
 	MaxPayloadBytes int            `json:"max_payload_bytes"`
 	MaxRequestBytes int            `json:"max_request_bytes"`
-	TrustedActors   []string       `json:"trusted_actors"`
 }
 
 // WebhookSubscription is a versioned, self-contained CAO subscription.
@@ -110,11 +109,17 @@ func WebhookDispatchEventType(workflowID string) string {
 // ParseWebhookSubscriptions validates and normalizes webhook triggers without
 // fetching or hydrating payload fields. Catalog paths are emitted for CAO.
 func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription, error) {
+	names := rawOnSectionTriggerNames(on)
+	for _, field := range []string{"webhook", "webhook-auth"} {
+		if slices.Contains(names, field) {
+			return nil, fmt.Errorf("on.%s is not supported; use on.projects-item or on.security-alert with standard on.roles/on.bots authorization", field)
+		}
+	}
 	onMap, ok := on.(map[string]any)
 	if !ok {
-		for _, name := range rawOnSectionTriggerNames(on) {
+		for _, name := range names {
 			if _, alias := webhookTriggerAliases[name]; alias || name == "security-alert" {
-				return nil, fmt.Errorf("on.%s requires mapping syntax and on.webhook-auth: {actors: [trusted-gateway-login]}", name)
+				return nil, fmt.Errorf("on.%s requires mapping syntax", name)
 			}
 		}
 		return nil, nil
@@ -124,14 +129,7 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		return nil, err
 	}
 	if len(events) == 0 {
-		if _, hasAuth := onMap["webhook-auth"]; hasAuth {
-			return nil, errors.New("on.webhook-auth requires on.webhook or a first-class webhook trigger")
-		}
 		return nil, nil
-	}
-	actors, err := parseWebhookActors(onMap["webhook-auth"])
-	if err != nil {
-		return nil, err
 	}
 	catalog, err := WebhookCatalog()
 	if err != nil {
@@ -142,7 +140,7 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		path := paths[name]
 		definition, known := catalog[name]
 		if !known {
-			return nil, fmt.Errorf("unsupported on.webhook event %q; use a native Actions trigger where available; supported webhook events: %s", name, strings.Join(sortedWebhookKeys(catalog), ", "))
+			return nil, fmt.Errorf("missing embedded webhook catalog event %q for %s", name, path)
 		}
 		config, ok := events[name].(map[string]any)
 		if !ok {
@@ -161,7 +159,7 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		if err != nil {
 			return nil, err
 		}
-		subscriptions = append(subscriptions, newWebhookSubscription(workflowID, name, types, actors, conditions))
+		subscriptions = append(subscriptions, newWebhookSubscription(workflowID, name, types, conditions))
 	}
 	return subscriptions, nil
 }
@@ -169,25 +167,12 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]string, error) {
 	events := map[string]any{}
 	paths := map[string]string{}
-	if raw, exists := onMap["webhook"]; exists {
-		configured, ok := raw.(map[string]any)
-		if !ok || len(configured) == 0 {
-			return nil, nil, errors.New("on.webhook must be a non-empty mapping of webhook event names to subscriptions")
-		}
-		events = maps.Clone(configured)
-		for event := range events {
-			paths[event] = "on.webhook." + event
-		}
-	}
 	for _, alias := range sortedWebhookKeys(webhookTriggerAliases) {
 		raw, exists := onMap[alias]
 		if !exists {
 			continue
 		}
 		event := webhookTriggerAliases[alias]
-		if _, duplicate := events[event]; duplicate {
-			return nil, nil, fmt.Errorf("on.%s and on.webhook.%s subscribe to the same event; use only one spelling", alias, event)
-		}
 		if raw == nil {
 			raw = map[string]any{}
 		}
@@ -202,9 +187,6 @@ func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]str
 		event, err := securityAlertEvent(config)
 		if err != nil {
 			return nil, nil, err
-		}
-		if _, duplicate := events[event]; duplicate {
-			return nil, nil, fmt.Errorf("on.security-alert and on.webhook.%s subscribe to the same event; use only one spelling", event)
 		}
 		config = maps.Clone(config)
 		delete(config, "type")
@@ -224,7 +206,7 @@ func securityAlertEvent(config map[string]any) (string, error) {
 	return "", errors.New("on.security-alert.type must be one of: code-scanning, dependabot, secret-scanning")
 }
 
-func newWebhookSubscription(workflowID, event string, types, actors []string, conditions []WebhookCondition) WebhookSubscription {
+func newWebhookSubscription(workflowID, event string, types []string, conditions []WebhookCondition) WebhookSubscription {
 	return WebhookSubscription{
 		SchemaVersion: 1, Event: event, Types: types, Conditions: conditions,
 		Dispatch: WebhookDispatch{
@@ -235,37 +217,9 @@ func newWebhookSubscription(workflowID, event string, types, actors []string, co
 				Envelope: "github.event.client_payload", Event: "github.event.client_payload.event",
 				Payload: "github.event.client_payload.payload", DeliveryID: "github.event.client_payload.delivery_id",
 			},
-			MaxPayloadBytes: 65535, MaxRequestBytes: 65535, TrustedActors: slices.Clone(actors),
+			MaxPayloadBytes: 65535, MaxRequestBytes: 65535,
 		},
 	}
-}
-
-func parseWebhookActors(raw any) ([]string, error) {
-	auth, ok := raw.(map[string]any)
-	if !ok || len(auth) != 1 {
-		return nil, errors.New("webhook triggers require on.webhook-auth: {actors: [trusted-gateway-login]}; dispatch payloads do not authenticate their sender")
-	}
-	value, ok := auth["actors"]
-	if !ok {
-		return nil, errors.New("on.webhook-auth only supports actors")
-	}
-	actors, err := webhookStringList(value)
-	if err != nil || len(actors) == 0 {
-		return nil, errors.New("on.webhook-auth.actors must be a non-empty list of exact GitHub actor logins")
-	}
-	for _, actor := range actors {
-		for _, char := range actor {
-			allowed := (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '[' || char == ']'
-			if !allowed {
-				return nil, fmt.Errorf("invalid on.webhook-auth actor %q; use an exact GitHub login, not a pattern or expression", actor)
-			}
-		}
-		if actor == "" || len(actor) > 100 {
-			return nil, errors.New("invalid on.webhook-auth actor: logins must contain 1 to 100 characters")
-		}
-	}
-	sort.Strings(actors)
-	return slices.Compact(actors), nil
 }
 
 func parseWebhookTypes(config map[string]any, path string, supported []string) ([]string, error) {

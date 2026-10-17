@@ -1151,6 +1151,29 @@ describe("check_membership.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
     });
 
+    it("should not authorize a dispatch from actor or sender claims in the relay envelope", async () => {
+      process.env.GH_AW_ALLOWED_BOTS = "my-app";
+      mockContext.actor = "untrusted-user";
+      mockContext.payload = {
+        sender: { login: "my-app[bot]" },
+        client_payload: {
+          actor: "my-app[bot]",
+          payload: { sender: { login: "my-app[bot]" } },
+        },
+      };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission: "none" } });
+
+      await runScript();
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "untrusted-user",
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "insufficient_permissions");
+    });
+
     it("should keep requiring installation for allowlisted bots on other events", async () => {
       mockContext.eventName = "issues";
       process.env.GH_AW_ALLOWED_BOTS = "my-app";

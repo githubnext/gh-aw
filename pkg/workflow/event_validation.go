@@ -100,8 +100,6 @@ var ghAwOnSectionKeys = map[string]bool{
 	"status-comment":                     true,
 	"steps":                              true,
 	"stop-after":                         true,
-	"webhook":                            true,
-	"webhook-auth":                       true,
 	"projects-item":                      true,
 	"security-alert":                     true,
 }

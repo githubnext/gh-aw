@@ -139,7 +139,6 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 			on: map[string]any{
 				"projects-item":     map[string]any{"types": []any{"edited"}},
 				"security-alert":    map[string]any{"type": "secret-scanning"},
-				"webhook-auth":      map[string]any{"actors": []any{"cao[bot]"}},
 				"workflow_dispatch": nil,
 				"issues":            nil,
 			},

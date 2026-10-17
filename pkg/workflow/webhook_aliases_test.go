@@ -27,8 +27,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 				"filters": map[string]any{tt.filter: tt.value},
 			}
 			on := map[string]any{
-				tt.alias:       config,
-				"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
+				tt.alias: config,
 			}
 			got, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
@@ -38,37 +37,27 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.Len(t, got[0].Conditions, 1)
 			assert.Equal(t, tt.path, got[0].Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, got[0].Conditions[0].Values)
-			assert.Equal(t, []string{"cao[bot]"}, got[0].Dispatch.TrustedActors)
-
-			generic := webhookTestOn(tt.event, config)
-			generic["webhook-auth"] = on["webhook-auth"]
-			want, err := ParseWebhookSubscriptions(generic, "first-class")
-			require.NoError(t, err)
-			assert.Equal(t, want, got)
-
 			on[tt.alias] = nil
 			all, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
-			generic["webhook"].(map[string]any)[tt.event] = map[string]any{}
-			want, err = ParseWebhookSubscriptions(generic, "first-class")
+			catalog, err := WebhookCatalog()
 			require.NoError(t, err)
-			assert.Equal(t, want, all, "null selects all cataloged activity types")
+			require.Len(t, all, 1)
+			assert.ElementsMatch(t, catalog[tt.event].Actions, all[0].Types, "null selects all cataloged activity types")
+			assert.Empty(t, all[0].Conditions)
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
-			delete(on, "webhook-auth")
-			_, err = ParseWebhookSubscriptions(on, "first-class")
-			require.ErrorContains(t, err, "on.webhook-auth")
 			for _, shorthand := range []any{tt.alias, []any{"push", tt.alias}} {
 				_, err = ParseWebhookSubscriptions(shorthand, "first-class")
-				require.ErrorContains(t, err, "requires mapping syntax and on.webhook-auth")
+				require.ErrorContains(t, err, "requires mapping syntax")
 			}
 		})
 	}
 }
 
 func TestFirstClassWebhookValidation(t *testing.T) {
-	for alias, event := range webhookTriggerAliases {
+	for alias := range webhookTriggerAliases {
 		t.Run(alias, func(t *testing.T) {
 			for name, tt := range map[string]struct {
 				config any
@@ -82,19 +71,12 @@ func TestFirstClassWebhookValidation(t *testing.T) {
 			} {
 				t.Run(name, func(t *testing.T) {
 					_, err := ParseWebhookSubscriptions(map[string]any{
-						alias:          tt.config,
-						"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
+						alias: tt.config,
 					}, "first-class")
 					require.ErrorContains(t, err, tt.want)
 					assert.Contains(t, err.Error(), "on."+alias)
 				})
 			}
-			on := webhookTestOn(event, map[string]any{})
-			on[alias] = nil
-			_, err := ParseWebhookSubscriptions(on, "first-class")
-			require.ErrorContains(t, err, "subscribe to the same event")
-			assert.Contains(t, err.Error(), "on."+alias)
-			assert.Contains(t, err.Error(), "on.webhook."+event)
 		})
 	}
 }
@@ -116,8 +98,7 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 	} {
 		t.Run(tt.alias+"/"+tt.want, func(t *testing.T) {
 			_, err := ParseWebhookSubscriptions(map[string]any{
-				tt.alias:       tt.config,
-				"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
+				tt.alias: tt.config,
 			}, "first-class")
 			require.ErrorContains(t, err, tt.want)
 			assert.Contains(t, err.Error(), "on."+tt.alias)

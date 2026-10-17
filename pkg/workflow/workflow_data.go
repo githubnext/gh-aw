@@ -75,7 +75,6 @@ type WorkflowData struct {
 	ImportInputs                   map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)
 	On                             string
 	WebhookSubscriptions           []WebhookSubscription
-	WebhookActors                  []string
 	Permissions                    string
 	Network                        string // top-level network permissions configuration
 	Concurrency                    string // workflow-level concurrency configuration

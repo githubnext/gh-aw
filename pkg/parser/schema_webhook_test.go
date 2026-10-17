@@ -11,34 +11,30 @@ func TestWebhookSchema(t *testing.T) {
 		on    map[string]any
 		valid bool
 	}{
-		"subscription": {
+		"subscription without separate auth": {
 			on: map[string]any{
-				"webhook": map[string]any{
-					"projects_v2_item": map[string]any{
-						"types":   []any{"edited"},
-						"filters": map[string]any{"project-number": 7},
-					},
+				"projects-item": map[string]any{
+					"types":   []any{"edited"},
+					"filters": map[string]any{"project_number": 7},
 				},
-				"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
 			},
 			valid: true,
 		},
-		"missing auth": {
+		"removed general registration": {
 			on: map[string]any{"webhook": map[string]any{"projects_v2_item": map[string]any{}}},
 		},
-		"auth without subscription": {
+		"removed auth": {
 			on: map[string]any{"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}}},
 		},
 		"unknown event config property": {
 			on: map[string]any{
-				"webhook":      map[string]any{"projects_v2_item": map[string]any{"typo": true}},
-				"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
+				"projects-item": map[string]any{"typo": true},
 			},
 		},
-		"empty actors": {
+		"removed auth with valid trigger": {
 			on: map[string]any{
-				"webhook":      map[string]any{"projects_v2_item": map[string]any{}},
-				"webhook-auth": map[string]any{"actors": []any{}},
+				"projects-item": nil,
+				"webhook-auth":  map[string]any{"actors": []any{"cao[bot]"}},
 			},
 		},
 	} {
@@ -70,8 +66,7 @@ func TestFirstClassWebhookSchema(t *testing.T) {
 			} {
 				t.Run(name, func(t *testing.T) {
 					on := map[string]any{
-						alias:          test.config,
-						"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
+						alias: test.config,
 					}
 					err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "first-class.md")
 					if test.valid {
@@ -81,10 +76,6 @@ func TestFirstClassWebhookSchema(t *testing.T) {
 					}
 				})
 			}
-			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-				"on": map[string]any{alias: map[string]any{}},
-			}, "first-class.md")
-			require.Error(t, err, "first-class triggers require relay authentication")
 		})
 	}
 }
@@ -113,16 +104,14 @@ func TestSecurityAlertSchema(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			on := map[string]any{
 				"security-alert": test.config,
-				"webhook-auth":   map[string]any{"actors": []any{"cao[bot]"}},
 			}
 
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "security-alert.md")
 			if test.valid {
 				require.NoError(t, err)
-				delete(on, "webhook-auth")
-				err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "security-alert.md")
+			} else {
+				require.Error(t, err)
 			}
-			require.Error(t, err)
 		})
 	}
 }
@@ -134,11 +123,7 @@ func TestRemovedFirstClassWebhookTriggers(t *testing.T) {
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-				"on": map[string]any{
-					trigger:        nil,
-					"webhook":      map[string]any{"sub_issues": map[string]any{}},
-					"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
-				},
+				"on": map[string]any{trigger: nil},
 			}, "webhook.md")
 			require.Error(t, err)
 		})

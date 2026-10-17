@@ -748,21 +748,7 @@
         {
           "type": "object",
           "description": "Complex trigger configuration with event-specific filters and options",
-          "dependencies": {
-            "webhook": ["webhook-auth"],
-            "projects-item": ["webhook-auth"],
-            "security-alert": ["webhook-auth"],
-            "webhook-auth": {
-              "anyOf": [{ "required": ["webhook"] }, { "required": ["projects-item"] }, { "required": ["security-alert"] }]
-            }
-          },
           "properties": {
-            "webhook": {
-              "type": "object",
-              "minProperties": 1,
-              "description": "GitHub webhook subscriptions delivered through a trusted repository_dispatch relay.",
-              "additionalProperties": { "$ref": "#/$defs/webhookSubscription" }
-            },
             "projects-item": {
               "$ref": "#/$defs/webhookTrigger",
               "description": "Projects v2 item events (projects_v2_item), including field changes. Projects (classic) is not supported by this trigger."
@@ -789,20 +775,6 @@
                 }
               },
               "description": "Security alert subscription selected by type, delivered through a trusted repository_dispatch relay."
-            },
-            "webhook-auth": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["actors"],
-              "properties": {
-                "actors": {
-                  "type": "array",
-                  "minItems": 1,
-                  "uniqueItems": true,
-                  "items": { "type": "string", "minLength": 1 }
-                }
-              },
-              "description": "Required allowlist of authenticated GitHub actors allowed to relay webhook deliveries."
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",

@@ -224,6 +224,10 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	if _, err := c.processWebhookTriggers(parseResult.frontmatterResult.Frontmatter, workflowData); err != nil {
 		return nil, err
 	}
+	if len(workflowData.WebhookSubscriptions) > 0 {
+		workflowData.Roles = c.extractRoles(parseResult.frontmatterResult.Frontmatter)
+		workflowData.Bots = expandBotNames(mergeBots(c.extractBots(parseResult.frontmatterResult.Frontmatter), engineSetup.importsResult.MergedBots))
+	}
 
 	// Merge features from imports
 	if len(engineSetup.importsResult.MergedFeatures) > 0 {

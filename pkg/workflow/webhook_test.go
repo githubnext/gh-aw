@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -9,12 +10,17 @@ import (
 )
 
 func webhookTestOn(event string, config map[string]any) map[string]any {
-	return map[string]any{
-		"webhook": map[string]any{event: config},
-		"webhook-auth": map[string]any{
-			"actors": []any{"cao-gateway[bot]"},
-		},
+	if event == "projects_v2_item" {
+		return map[string]any{"projects-item": config}
 	}
+	for kind, name := range securityAlertEvents {
+		if event == name {
+			security := map[string]any{"type": kind}
+			maps.Copy(security, config)
+			return map[string]any{"security-alert": security}
+		}
+	}
+	panic("unsupported test webhook event: " + event)
 }
 
 func TestWebhookSubscriptionValidation(t *testing.T) {
@@ -24,12 +30,10 @@ func TestWebhookSubscriptionValidation(t *testing.T) {
 		config map[string]any
 		want   string
 	}{
-		{"native event", "issues", map[string]any{}, "native Actions trigger"},
-		{"unknown event", "imaginary", map[string]any{}, "unsupported on.webhook event"},
 		{"unknown action", "projects_v2_item", map[string]any{"types": []any{"labeled"}}, "unsupported activity type"},
 		{"empty types", "projects_v2_item", map[string]any{"types": []any{}}, "non-empty list"},
 		{"scalar types", "projects_v2_item", map[string]any{"types": "edited"}, "non-empty list"},
-		{"unsupported property", "projects_v2_item", map[string]any{"filter": map[string]any{}}, "unsupported on.webhook"},
+		{"unsupported property", "projects_v2_item", map[string]any{"filter": map[string]any{}}, "unsupported on.projects-item"},
 		{"labels require hydration", "projects_v2_item", map[string]any{"filters": map[string]any{"labels": []any{"bug"}}}, "unsupported filter"},
 		{"wrong identifier type", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": 123}}, "expected string"},
 		{"expression is not literal", "projects_v2_item", map[string]any{"filters": map[string]any{"project_id": "${{ github.repository }}"}}, "must be literals"},
@@ -50,20 +54,15 @@ func TestWebhookSubscriptionValidation(t *testing.T) {
 	}
 }
 
-func TestWebhookTrustConfiguration(t *testing.T) {
-	for _, auth := range []any{
-		nil, true, map[string]any{}, map[string]any{"actors": []any{}},
-		map[string]any{"actors": []any{"*"}}, map[string]any{"actors": []any{"${{ github.actor }}"}},
-		map[string]any{"actors": []any{"trusted"}, "extra": true},
-	} {
-		on := webhookTestOn("projects_v2", map[string]any{})
-		on["webhook-auth"] = auth
-		if _, err := ParseWebhookSubscriptions(on, "test"); err == nil {
-			t.Fatalf("accepted invalid webhook authentication: %v", auth)
+func TestWebhookRejectsRemovedFrontmatter(t *testing.T) {
+	for _, field := range []string{"webhook", "webhook-auth"} {
+		on := webhookTestOn("projects_v2_item", map[string]any{})
+		on[field] = map[string]any{}
+		for _, input := range []any{on, map[string]any{field: nil}, field, []any{"push", field}} {
+			if _, err := ParseWebhookSubscriptions(input, "test"); err == nil || !strings.Contains(err.Error(), "on."+field+" is not supported") {
+				t.Fatalf("expected removed on.%s to fail, got %v", field, err)
+			}
 		}
-	}
-	if _, err := ParseWebhookSubscriptions(map[string]any{"webhook-auth": map[string]any{"actors": []any{"trusted"}}}, "test"); err == nil {
-		t.Fatal("authentication without webhook must fail")
 	}
 	if got, err := ParseWebhookSubscriptions(map[string]any{"push": nil}, "test"); err != nil || len(got) != 0 {
 		t.Fatalf("native events must remain unaffected: %v, %v", got, err)
@@ -77,7 +76,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 			"project_id": []any{"PVT_b", "PVT_a", "PVT_a"},
 		},
 	})
-	on["webhook"].(map[string]any)["projects_v2"] = map[string]any{}
+	on["security-alert"] = map[string]any{"type": "dependabot"}
 	first, err := ParseWebhookSubscriptions(on, "project-agent")
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +90,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 	if string(left) != string(right) {
 		t.Fatal("contract is not deterministic")
 	}
-	if len(first) != 2 || first[0].Event != "projects_v2" {
+	if len(first) != 2 || first[0].Event != "dependabot_alert" {
 		t.Fatalf("subscriptions not sorted: %+v", first)
 	}
 	sub := first[1]
@@ -101,8 +100,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 	if sub.SchemaVersion != 1 || sub.Dispatch.Repository != "${{ github.repository }}" ||
 		sub.Dispatch.Method != "repository_dispatch" || sub.Dispatch.MaxPayloadBytes != 65535 || sub.Dispatch.MaxRequestBytes != 65535 ||
 		sub.Dispatch.Context.Payload != "github.event.client_payload.payload" ||
-		sub.Dispatch.Workflow != ".github/workflows/project-agent.lock.yml" ||
-		!slices.Equal(sub.Dispatch.TrustedActors, []string{"cao-gateway[bot]"}) {
+		sub.Dispatch.Workflow != ".github/workflows/project-agent.lock.yml" {
 		t.Fatalf("incomplete dispatch contract: %+v", sub)
 	}
 	if sub.Dispatch.EventType != first[0].Dispatch.EventType ||
@@ -214,10 +212,10 @@ func TestWebhookProjectTransitionConformance(t *testing.T) {
 }
 
 func TestWebhookLabelArrayConformance(t *testing.T) {
-	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("issue_dependencies", map[string]any{
-		"types": []any{"blocked_by_added"},
+	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("code_scanning_alert", map[string]any{
+		"types": []any{"created"},
 		"filters": map[string]any{
-			"blocked_issue": map[string]any{"labels": []any{"bug", "urgent"}},
+			"assignee": []any{"octocat", "hubot"},
 		},
 	}), "dependency-agent")
 	if err != nil {
@@ -228,13 +226,13 @@ func TestWebhookLabelArrayConformance(t *testing.T) {
 		payload string
 		match   bool
 	}{
-		{`{"action":"blocked_by_added","blocked_issue":{"id":42,"labels":[{"name":"feature"},{"name":"bug"}]}}`, true},
-		{`{"action":"blocked_by_added","blocked_issue":{"id":42,"labels":[{"name":"feature"}]}}`, false},
-		{`{"action":"blocked_by_added","blocked_issue":{"labels":[]}}`, false},
-		{`{"action":"blocked_by_added","blocked_issue":{}}`, false},
-		{`{"action":"blocked_by_added","blocked_issue":{"labels":null}}`, false},
-		{`{"action":"blocked_by_added","blocked_issue":{"labels":{"x":{"name":"bug"}}}}`, false},
-		{`{"action":"blocked_by_added","blocked_issue":{"labels":[{"name":true}]}}`, false},
+		{`{"action":"created","alert":{"number":42,"assignees":[{"login":"other"},{"login":"octocat"}]}}`, true},
+		{`{"action":"created","alert":{"number":42,"assignees":[{"login":"other"}]}}`, false},
+		{`{"action":"created","alert":{"assignees":[]}}`, false},
+		{`{"action":"created","alert":{}}`, false},
+		{`{"action":"created","alert":{"assignees":null}}`, false},
+		{`{"action":"created","alert":{"assignees":{"x":{"login":"octocat"}}}}`, false},
+		{`{"action":"created","alert":{"assignees":[{"login":true}]}}`, false},
 	} {
 		var payload map[string]any
 		if err := json.Unmarshal([]byte(tt.payload), &payload); err != nil {
@@ -272,48 +270,9 @@ func TestWebhookTypedValues(t *testing.T) {
 	}
 }
 
-func TestWebhookProjectStatusConformance(t *testing.T) {
-	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("projects_v2_status_update", map[string]any{
-		"types": []any{"edited"},
-		"filters": map[string]any{
-			"project_id": "PVT_example",
-			"status": map[string]any{
-				"from": "AT_RISK",
-				"to":   "ON_TRACK",
-			},
-		},
-	}), "status-agent")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, tt := range []struct {
-		payload string
-		match   bool
-	}{
-		{`{"action":"edited","projects_v2_status_update":{"id":42,"node_id":"PVTSU_example","project_node_id":"PVT_example","status":"ON_TRACK"},"changes":{"status":{"from":"AT_RISK","to":"ON_TRACK"}}}`, true},
-		{`{"action":"edited","projects_v2_status_update":{"project_node_id":"PVT_example","status":"ON_TRACK"},"changes":{"body":{"from":"old","to":"new"}}}`, false},
-		{`{"action":"edited","projects_v2_status_update":{"project_node_id":"PVT_example"},"changes":{"status":{"from":null,"to":"ON_TRACK"}}}`, false},
-		{`{"action":"edited","projects_v2_status_update":{"project_node_id":"PVT_example"},"changes":{"status":{"from":"AT_RISK","to":"OFF_TRACK"}}}`, false},
-	} {
-		var payload map[string]any
-		if err := json.Unmarshal([]byte(tt.payload), &payload); err != nil {
-			t.Fatal(err)
-		}
-		if got := matchWebhookContract(subscriptions[0], payload); got != tt.match {
-			t.Errorf("status contract match = %v, want %v for %s", got, tt.match, tt.payload)
-		}
-	}
-	_, err = ParseWebhookSubscriptions(webhookTestOn("projects_v2_status_update", map[string]any{
-		"filters": map[string]any{"status": "ready"},
-	}), "status-agent")
-	if err == nil || !strings.Contains(err.Error(), "not one of") {
-		t.Fatalf("expected documented status enum validation, got %v", err)
-	}
-}
-
 func TestWebhookFalseDoesNotMatchMissingOrNull(t *testing.T) {
-	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("projects_v2", map[string]any{
-		"filters": map[string]any{"public": false},
+	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("secret_scanning_alert", map[string]any{
+		"filters": map[string]any{"publicly_leaked": false},
 	}), "private-project-agent")
 	if err != nil {
 		t.Fatal(err)
@@ -322,11 +281,11 @@ func TestWebhookFalseDoesNotMatchMissingOrNull(t *testing.T) {
 		payload string
 		match   bool
 	}{
-		{`{"action":"created","projects_v2":{"public":false}}`, true},
-		{`{"action":"created","projects_v2":{"public":true}}`, false},
-		{`{"action":"created","projects_v2":{"public":"false"}}`, false},
-		{`{"action":"created","projects_v2":{"public":null}}`, false},
-		{`{"action":"created","projects_v2":{}}`, false},
+		{`{"action":"created","alert":{"publicly_leaked":false}}`, true},
+		{`{"action":"created","alert":{"publicly_leaked":true}}`, false},
+		{`{"action":"created","alert":{"publicly_leaked":"false"}}`, false},
+		{`{"action":"created","alert":{"publicly_leaked":null}}`, false},
+		{`{"action":"created","alert":{}}`, false},
 		{`{"action":"created"}`, false},
 	} {
 		var payload map[string]any

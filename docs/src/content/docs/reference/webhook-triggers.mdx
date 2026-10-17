@@ -7,17 +7,16 @@ sidebar:
 
 import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json';
 
-First-class Projects v2 and security triggers, and the general `on.webhook` mapping, subscribe to cataloged GitHub webhooks that do not have a native GitHub Actions trigger. A webhook receiver, such as CAO, authenticates the delivery, evaluates the compiled subscription, and dispatches the containing workflow. gh-aw supplies the subscription contract and validates the dispatch; it does not deploy a receiver.
+`on.projects-item` and `on.security-alert` subscribe to specific GitHub webhooks that do not have a native GitHub Actions trigger. A webhook receiver, such as CAO, authenticates the delivery, evaluates the compiled subscription, and dispatches the containing workflow. gh-aw supplies the subscription contract and validates the dispatch; it does not deploy a receiver.
 
-Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. They belong directly under `on`, not under `on.webhook`.
+Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. General `on.webhook` registration and `on.webhook-auth` are not supported.
 
 ## Syntax
 
 ```aw wrap
 ---
 on:
-  webhook-auth:
-    actors: ['cao-gateway[bot]']
+  bots: [cao-gateway]
   projects-item:
     types: [edited]
     filters:
@@ -47,15 +46,14 @@ Treat the original webhook payload as untrusted input.
 
 `projects-item` supports **Projects v2 only**, not Projects (classic). Its `project_id` is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. The `field` filters describe the changed field, not the item's complete current field values. Field-transition filters apply only to `edited` deliveries containing those changes.
 
-An empty `projects-item` trigger (`projects-item:` or `projects-item: {}`) selects all cataloged activity types without filters. Every first-class trigger requires `on.webhook-auth.actors`; string shorthands cannot supply authentication and are rejected.
+An empty `projects-item` trigger (`projects-item:` or `projects-item: {}`) selects all cataloged activity types without filters. These triggers require mapping syntax under `on`; string and array shorthands are rejected. Dispatch authorization uses the standard `on.roles` and `on.bots` policy.
 
 `security-alert` requires a single `type`: `code-scanning`, `dependabot`, or `secret-scanning`. This selects exactly one alert webhook; it does **not** subscribe to other security webhooks such as secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts. The optional plural `types` selects activity types within that alert source. Omitting `types` selects all cataloged activity types for the selected alert event.
 
 ```aw wrap
 ---
 on:
-  webhook-auth:
-    actors: ['cao-gateway[bot]']
+  bots: [cao-gateway]
   security-alert:
     type: dependabot
     types: [created, reopened]
@@ -68,28 +66,15 @@ Triage the security alert. Never print or copy secret values into logs or report
 
 Secret scanning filters expose alert metadata, not secret material. The original payload can still contain sensitive values; do not log the entire payload or include secrets in agent outputs.
 
-### General webhook subscriptions
+### Subscription properties
 
-Other catalog events use `on.webhook.<event>`, for example:
-
-```yaml wrap
-on:
-  webhook-auth:
-    actors: ['cao-gateway[bot]']
-  webhook:
-    issue_dependencies:
-      types: [blocked_by_added]
-```
-
-The original event spellings, such as `on.webhook.projects_v2_item`, remain supported. First-class triggers can coexist with general subscriptions for different events; declaring the same event in both forms is a compile error. All forms produce the same versioned subscription contract with the original GitHub event name.
+`projects-item` and `security-alert` can coexist in one workflow. Each produces a separate versioned subscription with the original GitHub event name. No other webhook events can be registered through frontmatter.
 
 | Property | Required | Description |
 | --- | --- | --- |
-| `on.webhook` | No | Nonempty mapping from a supported webhook event name to a subscription object. Not required for first-class triggers. Multiple event entries are alternatives. |
 | `on.security-alert.type` | Yes, for `security-alert` | One alert source: `code-scanning`, `dependabot`, or `secret-scanning`. No other security webhook is selected implicitly. |
-| `types` | No | Nonempty list of supported activity types under a first-class trigger or `on.webhook.<event>`, matched against the original `payload.action`. Omission selects all cataloged types. Events without activity types use an empty compiled `types` array. |
-| `filters` | No | Mapping of allowlisted, typed payload selectors under a first-class trigger or `on.webhook.<event>`. Omission imposes no field conditions. |
-| `on.webhook-auth.actors` | Yes | Nonempty list of exact GitHub logins authorized to dispatch the relay route, such as `cao-gateway[bot]`. Wildcards and expressions are not accepted. |
+| `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types for that event. |
+| `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no field conditions. |
 
 Each event subscription supports only `types` and `filters`, plus the required source `type` for `security-alert`. Unknown events, activity types, filter names, invalid values, and filters unavailable for the selected activity types fail compilation.
 
@@ -101,15 +86,15 @@ All leaf conditions must match (**AND**). Accepted values within a leaf are alte
 
 Equality is case-sensitive and type-sensitive: `"Ready"` differs from `"ready"`, and `"12345"` differs from `12345`. Strings are literal values, not patterns or regular expressions. String filter values containing `${{` are rejected at compilation; Actions expressions are not supported. Integers must be within JavaScript's safe integer range, from −9,007,199,254,740,991 to 9,007,199,254,740,991. Missing or `null` fields never match, including a boolean condition set to `false`.
 
-Selectors inspect only the original delivered payload. No API lookup, hydration, or network fetch supplies missing issue labels, project fields, or other data. In particular, `projects_v2_item` does not expose the underlying issue's labels; adding a labels filter to that subscription is a compile error. Relationship events such as `issue_dependencies`, `sub_issues`, and `issue_relates_to` can filter labels only on the delivered issue objects listed in their catalog entries.
+Selectors inspect only the original delivered payload. No API lookup, hydration, or network fetch supplies missing issue labels, project fields, or other data. In particular, `projects_v2_item` does not expose the underlying issue's labels; adding a labels filter to that subscription is a compile error.
 
 ## Supported events and filters
 
-The following tables render directly from the compiler's authoritative `pkg/workflow/data/webhook_events.json` catalog. They list every supported event, activity type, filter alias, scalar type, and original payload path. Paths are relative to the original webhook `payload`, not to the dispatch envelope. “All” in the activity column means the filter has no cataloged activity restriction; a field must still exist in the delivery to match.
+The following tables render the four supported events from the compiler's authoritative `pkg/workflow/data/webhook_events.json` catalog. They list activity types, filter aliases, scalar types, and original payload paths. Other catalog entries are not available as frontmatter triggers. Paths are relative to the original webhook `payload`, not to the dispatch envelope. “All” in the activity column means the filter has no cataloged activity restriction; a field must still exist in the delivery to match.
 
 GitHub App permissions and webhook subscription availability still apply. The availability listed for each event describes GitHub's webhook delivery scope, not an Actions trigger.
 
-{Object.entries(webhookEvents).sort(([a], [b]) => a.localeCompare(b)).map(([event, definition]) => (
+{Object.entries(webhookEvents).filter(([event]) => ['projects_v2_item', 'code_scanning_alert', 'dependabot_alert', 'secret_scanning_alert'].includes(event)).sort(([a], [b]) => a.localeCompare(b)).map(([event, definition]) => (
   <section>
     <h3 id={`webhook-${event}`}><code>{event}</code></h3>
     <p>{definition.description}</p>
@@ -134,8 +119,6 @@ GitHub App permissions and webhook subscription availability still apply. The av
   </section>
 ))}
 
-The legacy `project`, `project_card`, and `project_column` events describe obsolete Projects (classic), not current GitHub Projects. They are retained because GitHub still lists them in its [webhook reference](https://docs.github.com/en/webhooks/webhook-events-and-payloads#project). New integrations use the `projects_v2` family.
-
 ## Compiled subscription contract
 
 `gh aw compile --json` exposes the normalized subscriptions in each `ValidationResult.webhook_subscriptions` array. A receiver discovers subscriptions from this output rather than interpreting workflow YAML itself.
@@ -158,7 +141,6 @@ The legacy `project`, `project_card`, and `project_column` events describe obsol
 | `dispatch.context` | Paths for the envelope, original event name, payload, and delivery ID in the GitHub context. |
 | `dispatch.max_payload_bytes` | `65535`, the maximum UTF-8 byte length of the serialized entire `client_payload`. |
 | `dispatch.max_request_bytes` | `65535`, the maximum UTF-8 byte length of the serialized entire API request, including `event_type` and the `client_payload` wrapper. |
-| `dispatch.trusted_actors` | Compiled actor allowlist from `on.webhook-auth.actors`. |
 
 For example, the `field.to.name: Ready` leaf becomes:
 
@@ -176,11 +158,11 @@ The receiver evaluates event, activity types, and conditions against the authent
 
 ## Dispatch transport
 
-The compiler lowers first-class webhook triggers and `on.webhook` to a restricted `repository_dispatch` trigger. Its `event_type` is `gh-aw-webhook-` followed by the first 24 hexadecimal characters of SHA-256 of the workflow ID. All subscriptions in one workflow share that route; different workflow IDs receive separate routes. Receivers use the emitted `dispatch.event_type`, not a shared catch-all type.
+The compiler lowers these triggers to a restricted `repository_dispatch` trigger. Its `event_type` is `gh-aw-webhook-` followed by the first 24 hexadecimal characters of SHA-256 of the workflow ID. All subscriptions in one workflow share that route; different workflow IDs receive separate routes. Receivers use the emitted `dispatch.event_type`, not a shared catch-all type.
 
 The destination is the repository containing the discovered compiled workflow. It is **not** `payload.repository`, which describes the source of the webhook and may identify a different repository. For cross-repository subscriptions, the receiver resolves `dispatch.repository` from the workflow's discovery repository.
 
-The dispatch credential must have access to the destination repository. Fine-grained tokens require repository **Contents: write** permission for this endpoint. Its actual GitHub actor must be in `on.webhook-auth.actors`.
+The dispatch credential must have access to the destination repository. Fine-grained tokens require repository **Contents: write** permission for this endpoint. The actual GitHub actor is authorized through the workflow's standard `on.roles` and `on.bots` policy. A GitHub App relay normally needs its bot name in `on.bots`, such as `bots: [cao-gateway]` for `cao-gateway[bot]`.
 
 The request to `POST /repos/{owner}/{repo}/dispatches` has this shape:
 
@@ -219,7 +201,7 @@ See GitHub's [repository dispatch API](https://docs.github.com/en/rest/repos/rep
 
 ### Existing dispatch triggers
 
-An explicit `on.repository_dispatch` can coexist with first-class webhook triggers or `on.webhook` only when its `types` are nonempty, disjoint literal event names. Unrestricted dispatch triggers, patterns, expressions, and names colliding with the compiled webhook route are rejected. Other native triggers remain independent.
+An explicit `on.repository_dispatch` can coexist with these triggers only when its `types` are nonempty, disjoint literal event names. Unrestricted dispatch triggers, patterns, expressions, and names colliding with the compiled webhook route are rejected. Other native triggers remain independent.
 
 `workflow_dispatch` is a separate manual/API trigger, not the transport emitted for webhook subscriptions. Its named inputs and required `ref` do not implement this webhook envelope or receiver contract. GitHub currently documents at most **25 top-level inputs** and **65,535 characters** for the inputs payload, rather than the byte limit used by this inline relay contract. It also requires the workflow file on the default branch. See [GitHub's `workflow_dispatch` reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
 
@@ -227,7 +209,7 @@ An explicit `on.repository_dispatch` can coexist with first-class webhook trigge
 
 The workflow retains the ordinary dispatch context: `github.event_name` is `repository_dispatch`, and `github.actor` identifies the credential that made the dispatch. gh-aw does not replace that identity with the original webhook's `sender`.
 
-Actor authorization compares complete GitHub logins case-insensitively, without trimming or wildcard matching. This differs from the case-sensitive equality used for payload filters.
+The normal pre-activation membership check authorizes that dispatch actor, using the default repository roles unless `on.roles` or `on.bots` customizes the policy. As for other triggers, `on.roles: all` disables membership checks. There is no separate webhook actor allowlist.
 
 | Data | Standard GitHub context |
 | --- | --- |
@@ -240,13 +222,11 @@ The runner's JSON event file, identified by `GITHUB_EVENT_PATH`, contains the di
 
 For an authenticated dispatch on the generated webhook route, the agent job stages this event at `/tmp/gh-aw/github-event.json` and `$RUNNER_TEMP/gh-aw/github-event.json` with file mode `0600` for the supported sandbox mount layouts. NVX includes the event in its existing temporary guest-state handoff, making `/tmp/gh-aw/github-event.json` available in the guest. A conditional prompt section identifies the file and its `client_payload.event`, `client_payload.payload`, and `client_payload.delivery_id` members, and marks the content as untrusted data. Native triggers and unrelated dispatch routes do not stage these files. The payload is not committed to the repository or uploaded as a separate artifact.
 
-The generated validation step checks the actual dispatch actor against the configured allowlist, the workflow-specific route, the envelope version, both serialized byte limits, and the original event and activity type. Invalid relay requests fail before agent execution. Other native trigger events are not treated as webhook relays.
-
-Every generated job, including custom jobs that precede activation or use `always()`, also checks the actual dispatch actor before executing a webhook relay route. This guard does not restrict unrelated native trigger routes.
+The generated validation step checks the workflow-specific route, the envelope version, both serialized byte limits, and the original event and activity type. It validates the envelope, not actor permissions; authorization remains in the standard pre-activation check. Invalid relay requests fail before agent execution. Other native trigger events are not treated as webhook relays.
 
 For `projects_v2_item`, the inline payload must contain a `projects_v2_item` object with a numeric database `id`. The relay applies a defensive positive safe-integer requirement to this ID; this is a runtime policy, not a claim about GitHub's schema bounds. Optional `node_id` and `project_node_id` fields must be nonempty strings when present but are not required by the relay; filters on absent fields do not match. For actionless events, an empty compiled `types` array does not require `payload.action`.
 
-The receiver authenticates the original GitHub webhook with its configured secret and the [`X-Hub-Signature-256` HMAC](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries). gh-aw trusts the explicitly pinned dispatch actor; it does **not** independently verify the original webhook signature. A direct dispatch made with an allowlisted actor's credentials has the same trust as a receiver dispatch. `payload.sender`, a claimed actor in `client_payload`, and the delivery ID are not authentication evidence.
+The receiver authenticates the original GitHub webhook with its configured secret and the [`X-Hub-Signature-256` HMAC](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries). gh-aw applies the workflow's normal dispatch authorization; it does **not** independently verify the original webhook signature. A direct dispatch made with an authorized credential has the same trust as a receiver dispatch. `payload.sender`, a claimed actor in `client_payload`, and the delivery ID are not authentication evidence.
 
 > [!CAUTION]
 > A verified delivery can still contain attacker-controlled titles, bodies, field names, and other text. Treat the payload as untrusted data, not instructions or executable code. Do not interpolate payload text into shell commands.

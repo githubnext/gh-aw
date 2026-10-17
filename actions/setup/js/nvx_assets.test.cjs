@@ -9,7 +9,7 @@ import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as st
 import { resolveCopilotSDKMCPConfigPath } from "./copilot_sdk_mcp_config_path.cjs";
 import { COPILOT_SDK_MCP_CONFIG_SHA256, digestCopilotSDKMCPConfig } from "./copilot_sdk_mcp_config.cjs";
 
-describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {
+describe.skipIf(process.platform === "darwin" || (process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf")))("NVX compiler asset handoff (Linux requires patchelf)", () => {
   /** @type {string} */
   let temp;
   /** @type {string} */

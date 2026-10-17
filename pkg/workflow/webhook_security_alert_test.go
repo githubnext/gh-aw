@@ -30,7 +30,6 @@ func TestSecurityAlertSubscriptions(t *testing.T) {
 			}
 			on := map[string]any{
 				"security-alert": config,
-				"webhook-auth":   map[string]any{"actors": []any{"cao[bot]"}},
 			}
 			before, err := json.Marshal(on)
 			require.NoError(t, err)
@@ -43,38 +42,24 @@ func TestSecurityAlertSubscriptions(t *testing.T) {
 			require.Len(t, sub.Conditions, 1)
 			assert.Equal(t, tt.path, sub.Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, sub.Conditions[0].Values)
-			assert.Equal(t, []string{"cao[bot]"}, sub.Dispatch.TrustedActors)
 			after, err := json.Marshal(on)
 			require.NoError(t, err)
 			assert.Equal(t, string(before), string(after))
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
-			generic := webhookTestOn(tt.event, map[string]any{
-				"types": []any{"created"}, "filters": map[string]any{tt.filter: tt.value},
-			})
-			generic["webhook-auth"] = on["webhook-auth"]
-			want, err := ParseWebhookSubscriptions(generic, "security-agent")
-			require.NoError(t, err)
-			assert.Equal(t, want, subscriptions)
-
 			on["security-alert"] = map[string]any{"type": tt.kind}
 			all, err := ParseWebhookSubscriptions(on, "security-agent")
 			require.NoError(t, err)
-			generic["webhook"].(map[string]any)[tt.event] = map[string]any{}
-			want, err = ParseWebhookSubscriptions(generic, "security-agent")
+			catalog, err := WebhookCatalog()
 			require.NoError(t, err)
-			assert.Equal(t, want, all)
+			require.Len(t, all, 1)
+			assert.Equal(t, tt.event, all[0].Event)
+			assert.ElementsMatch(t, catalog[tt.event].Actions, all[0].Types)
+			assert.Empty(t, all[0].Conditions)
 			assert.True(t, matchWebhookContract(all[0], map[string]any{"action": "created"}))
 			assert.False(t, matchWebhookContract(all[0], map[string]any{"action": "completed"}))
 
-			delete(on, "webhook-auth")
-			_, err = ParseWebhookSubscriptions(on, "security-agent")
-			require.ErrorContains(t, err, "on.webhook-auth")
-			on = webhookTestOn(tt.event, map[string]any{})
-			on["security-alert"] = map[string]any{"type": tt.kind}
-			_, err = ParseWebhookSubscriptions(on, "security-agent")
-			require.ErrorContains(t, err, "subscribe to the same event")
 		})
 	}
 }
@@ -105,7 +90,6 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, err := ParseWebhookSubscriptions(map[string]any{
 				"security-alert": tt.config,
-				"webhook-auth":   map[string]any{"actors": []any{"cao[bot]"}},
 			}, "security-agent")
 			require.ErrorContains(t, err, tt.want)
 			assert.Contains(t, err.Error(), "on.security-alert")
@@ -113,6 +97,6 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 	}
 	for _, shorthand := range []any{"security-alert", []any{"push", "security-alert"}} {
 		_, err := ParseWebhookSubscriptions(shorthand, "security-agent")
-		require.ErrorContains(t, err, "requires mapping syntax and on.webhook-auth")
+		require.ErrorContains(t, err, "requires mapping syntax")
 	}
 }
