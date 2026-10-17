@@ -1,6 +1,11 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const JOB_ID_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+
+/** @param {unknown} value */
+const isPlainObject = value => !!value && typeof value === "object" && !Array.isArray(value);
+
 /**
  * Only uniquely matched completed jobs can supply a dependency's duration.
  * Matrix and reusable-workflow groups do not have a single job duration.
@@ -13,13 +18,7 @@ async function collectJobDurations({ githubClient = global.github, runContext = 
   if (env.GH_AW_JOB_DURATIONS) {
     try {
       const cached = JSON.parse(env.GH_AW_JOB_DURATIONS);
-      if (
-        cached &&
-        typeof cached === "object" &&
-        !Array.isArray(cached) &&
-        Object.entries(cached).every(([id, duration]) => /^[A-Za-z_][A-Za-z0-9_-]*$/.test(id) && typeof duration === "number" && Number.isSafeInteger(duration) && duration >= 0)
-      )
-        return cached;
+      if (isPlainObject(cached) && Object.entries(cached).every(([id, duration]) => JOB_ID_PATTERN.test(id) && typeof duration === "number" && Number.isSafeInteger(duration) && duration >= 0)) return cached;
       warn("Unified session: invalid cached job durations; reading Actions job timing");
     } catch (error) {
       if (!(error instanceof SyntaxError)) throw error;
@@ -38,7 +37,7 @@ async function collectJobDurations({ githubClient = global.github, runContext = 
     warn("Unified session: job durations unavailable (invalid job metadata)");
     return {};
   }
-  if (!needs || typeof needs !== "object" || Array.isArray(needs) || !names || typeof names !== "object" || Array.isArray(names) || !eligible || typeof eligible !== "object" || Array.isArray(eligible)) {
+  if (!isPlainObject(needs) || !isPlainObject(names) || !isPlainObject(eligible)) {
     warn("Unified session: job durations unavailable (invalid job metadata)");
     return {};
   }
@@ -62,7 +61,7 @@ async function collectJobDurations({ githubClient = global.github, runContext = 
       jobs.push(...response.data.jobs);
       if (response.data.jobs.length < 100) break;
     }
-  } catch (error) {
+  } catch {
     // API errors can include request details; never log the response or metadata.
     warn("Unified session: job durations unavailable (Actions API request failed)");
     return {};
@@ -70,10 +69,12 @@ async function collectJobDurations({ githubClient = global.github, runContext = 
   /** @type {Record<string, number>} */
   const durations = Object.create(null);
   const knownIds = [...new Set([...Object.keys(needs), ...Object.keys(names)])];
+  /** @param {string} id */
   const displayName = id => (typeof names[id] === "string" && names[id] ? names[id] : id);
+  /** @param {string} name @param {string} display */
   const matchesName = (name, display) => name === display || name.startsWith(`${display} (`) || name.startsWith(`${display} / `);
   for (const [jobId, dependency] of Object.entries(needs)) {
-    if (eligible[jobId] !== true || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(jobId) || !["success", "failure", "cancelled"].includes(dependency?.result)) continue;
+    if (eligible[jobId] !== true || !JOB_ID_PATTERN.test(jobId) || !["success", "failure", "cancelled"].includes(dependency?.result)) continue;
     const matches = jobs.filter(job => job.name === displayName(jobId) && (job.run_attempt === undefined || job.run_attempt === attempt));
     const ambiguous = knownIds.some(id => id !== jobId && matchesName(displayName(jobId), displayName(id)));
     if (matches.length !== 1 || ambiguous) {

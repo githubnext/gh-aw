@@ -158,4 +158,41 @@ describe("workflow job durations", () => {
       expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
     });
   });
+
+  it("warns and falls back to the API when cached durations are invalid", async () => {
+    for (const cached of ['{"agent":-1}', '{"bad id":1}', "[1]", "null", "not json"]) {
+      const options = fixture();
+      options.env.GH_AW_JOB_DURATIONS = cached;
+      expect(await collectJobDurations(options)).toEqual({ agent: 2000 });
+      expect(options.warn).toHaveBeenCalledWith("Unified session: invalid cached job durations; reading Actions job timing");
+    }
+  });
+
+  it("returns valid cached durations without an API request", async () => {
+    const options = fixture();
+    options.env.GH_AW_JOB_DURATIONS = '{"agent":5}';
+    expect(await collectJobDurations(options)).toEqual({ agent: 5 });
+    expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-object job metadata", async () => {
+    for (const key of ["GH_AW_JOB_RESULTS", "GH_AW_JOB_DISPLAY_NAMES", "GH_AW_JOB_TIMING_ELIGIBLE"]) {
+      const options = fixture();
+      options.env[key] = "[]";
+      expect(await collectJobDurations(options)).toEqual({});
+      expect(options.warn).toHaveBeenCalledWith("Unified session: job durations unavailable (invalid job metadata)");
+    }
+  });
+
+  it("warns when the run context or attempt is missing", async () => {
+    const options = fixture();
+    options.env.GITHUB_RUN_ATTEMPT = "0";
+    expect(await collectJobDurations(options)).toEqual({});
+    expect(options.warn).toHaveBeenCalledWith("Unified session: job durations unavailable (missing Actions run context)");
+  });
+
+  it("skips jobs with invalid IDs or non-terminal results", async () => {
+    const options = fixture({ "bad id": { result: "success" }, agent: { result: "skipped" } }, { agent: "Agent" });
+    expect(await collectJobDurations(options)).toEqual({});
+  });
 });
