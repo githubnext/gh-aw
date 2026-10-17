@@ -458,6 +458,65 @@ exit 97
 	assert.Contains(t, string(wrapperOutput), "copilot "+cachedMinVersion)
 }
 
+func TestInstallCopilotCLIScriptLatestAppliesCopilotMinVersionToToolcache(t *testing.T) {
+	t.Parallel()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	installScript := filepath.Join(wd, "..", "..", "actions", "setup", "sh", "install_copilot_cli.sh")
+
+	for _, hasCompatibleVersion := range []bool{false, true} {
+		t.Run(fmt.Sprintf("compatible_cached=%t", hasCompatibleVersion), func(t *testing.T) {
+			t.Parallel()
+			tempDir := t.TempDir()
+			toolcache := filepath.Join(tempDir, "toolcache")
+			versions := []string{"1.0.34"}
+			if hasCompatibleVersion {
+				versions = append(versions, "1.0.35")
+			}
+			for _, version := range versions {
+				binDir := filepath.Join(toolcache, "copilot-cli", version, "x64", "bin")
+				require.NoError(t, os.MkdirAll(binDir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(binDir, "copilot"), []byte("#!/usr/bin/env bash\necho 'copilot "+version+"'\n"), 0o755))
+			}
+			fakeBinDir := filepath.Join(tempDir, "fake-bin")
+			require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "sudo"), []byte(`#!/usr/bin/env bash
+if [ "${1:-}" = "chown" ]; then exit 0; fi
+exec "$@"
+`), 0o755))
+			curlLog := filepath.Join(tempDir, "curl.log")
+			require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "curl"), []byte("#!/usr/bin/env bash\necho \"$*\" >> \""+curlLog+"\"\nexit 97\n"), 0o755))
+
+			installDir := filepath.Join(tempDir, "install-bin")
+			require.NoError(t, os.MkdirAll(installDir, 0o755))
+			cmd := exec.Command("bash", installScript, "latest")
+			cmd.Env = append(os.Environ(),
+				"RUNNER_TOOL_CACHE="+toolcache,
+				"GH_AW_COPILOT_MIN_VERSION=1.0.35",
+				"COPILOT_INSTALL_DIR="+installDir,
+				"GITHUB_PATH="+filepath.Join(tempDir, "github-path"),
+				"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
+			)
+			output, err := cmd.CombinedOutput()
+			assert.Contains(t, string(output), "Skipping candidate (below compat minimum: 1.0.34 < 1.0.35)")
+			if hasCompatibleVersion {
+				require.NoError(t, err, "%s", output)
+				wrapperOutput, err := exec.Command(filepath.Join(installDir, "copilot"), "--version").CombinedOutput()
+				require.NoError(t, err, "%s", wrapperOutput)
+				assert.Contains(t, string(wrapperOutput), "copilot 1.0.35")
+				assert.NoFileExists(t, curlLog)
+			} else {
+				require.Error(t, err, "the mocked download must fail: %s", output)
+				assert.NotContains(t, string(output), "Using cached GitHub Copilot CLI")
+				curlOutput, err := os.ReadFile(curlLog)
+				require.NoError(t, err)
+				assert.Contains(t, string(curlOutput), "/releases/latest/download/")
+				assert.NoFileExists(t, filepath.Join(installDir, "copilot"))
+			}
+		})
+	}
+}
+
 func TestInstallCopilotCLIScriptRejectsExplicitVersionBelowCopilotMinVersion(t *testing.T) {
 	t.Parallel()
 
