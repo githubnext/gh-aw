@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 )
 
 var orchestratorFrontmatterLog = logger.New("workflow:compiler_orchestrator_frontmatter")
@@ -22,6 +23,7 @@ type frontmatterParseResult struct {
 	frontmatterForValidation map[string]any
 	markdownDir              string
 	isSharedWorkflow         bool
+	document                 *aw.Document
 	// isRedirectOnly is true when the file has a redirect field but no 'on' trigger.
 	// Such files are redirect-only placeholders that point to a workflow's new location.
 	isRedirectOnly bool
@@ -84,7 +86,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	orchestratorFrontmatterLog.Printf("Starting frontmatter parsing: %s", markdownPath)
 	workflowLog.Printf("Reading file: %s", markdownPath)
 
-	cleanPath, content, contentString, result, err := c.readAndParseFrontmatter(markdownPath)
+	cleanPath, content, contentString, document, result, err := c.readAndParseFrontmatter(markdownPath)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +116,7 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	if sharedResult, handled, err := c.parseSharedOrRedirectWorkflow(cleanPath, content, result, frontmatterForValidation); err != nil {
 		return nil, err
 	} else if handled {
+		sharedResult.document = document
 		return sharedResult, nil
 	}
 
@@ -123,10 +126,12 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 
 	workflowLog.Printf("Frontmatter: %d chars, Markdown: %d chars", len(result.Frontmatter), len(result.Markdown))
 
-	return createFrontmatterParseResult(cleanPath, content, result, frontmatterForValidation), nil
+	parsed := createFrontmatterParseResult(cleanPath, content, result, frontmatterForValidation)
+	parsed.document = document
+	return parsed, nil
 }
 
-func (c *Compiler) readAndParseFrontmatter(markdownPath string) (string, []byte, string, *parser.FrontmatterResult, error) {
+func (c *Compiler) readAndParseFrontmatter(markdownPath string) (string, []byte, string, *aw.Document, *parser.FrontmatterResult, error) {
 	// Clean the path to prevent path traversal issues (gosec G304)
 	// filepath.Clean removes ".." and other problematic path elements
 	cleanPath := filepath.Clean(markdownPath)
@@ -136,7 +141,7 @@ func (c *Compiler) readAndParseFrontmatter(markdownPath string) (string, []byte,
 	if err != nil {
 		orchestratorFrontmatterLog.Printf("Failed to read file: %s, error: %v", cleanPath, err)
 		// Keep the user-facing message while avoiding exposure of os.PathError internals.
-		return "", nil, "", nil, fmt.Errorf("failed to read file: %w", frontmatterReadError{message: err.Error()})
+		return "", nil, "", nil, nil, fmt.Errorf("failed to read file: %w", frontmatterReadError{message: err.Error()})
 	}
 	contentString := string(content)
 
@@ -144,18 +149,13 @@ func (c *Compiler) readAndParseFrontmatter(markdownPath string) (string, []byte,
 
 	// Parse frontmatter and markdown
 	orchestratorFrontmatterLog.Printf("Parsing frontmatter from file: %s", cleanPath)
-	result, err := parser.ExtractFrontmatterFromContent(contentString)
+	document, err := aw.Parse(contentString)
 	if err != nil {
 		orchestratorFrontmatterLog.Printf("Frontmatter extraction failed: %v", err)
-		// Use FrontmatterStart from result if available, otherwise default to line 2 (after opening ---)
-		frontmatterStart := 2
-		if result != nil && result.FrontmatterStart > 0 {
-			frontmatterStart = result.FrontmatterStart
-		}
-		return "", nil, "", nil, c.createFrontmatterError(cleanPath, contentString, err, frontmatterStart)
+		return "", nil, "", nil, nil, c.createFrontmatterError(cleanPath, contentString, err, 2)
 	}
 
-	return cleanPath, content, contentString, result, nil
+	return cleanPath, content, contentString, document, document.FrontmatterResult(), nil
 }
 
 func (c *Compiler) parseSharedOrRedirectWorkflow(

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 )
 
 var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
@@ -275,13 +276,23 @@ func (c *Compiler) buildCallWorkflowJob(data *WorkflowData, workflowName, markdo
 	// input; GitHub Actions rejects a `uses:` step that passes an input the
 	// called workflow does not declare, so it must not be added unconditionally.
 	callJob := &Job{
-		Name:  jobName,
-		Needs: []string{"safe_outputs"},
-		If:    fmt.Sprintf("needs.safe_outputs.outputs.call_workflow_name == '%s'", workflowName),
-		Uses:  workflowPath,
-		With:  buildCallWorkflowInputs(workflowName, markdownPath, jobName),
+		Name: jobName,
+		Actions: &actions.Job{
+			If: actions.Binary{
+				Left: actions.OutputRef{
+					Job:  "safe_outputs",
+					Name: "call_workflow_name",
+				},
+				Operator: "==",
+				Right:    actions.Literal(workflowName),
+			},
+		},
+		Uses: workflowPath,
+		With: buildCallWorkflowInputs(workflowName, markdownPath, jobName),
 	}
 	if c.dryRun {
+		callJob.Actions.If = nil
+		callJob.Needs = []string{"safe_outputs"}
 		callJob.If = "false"
 	}
 	addCallWorkflowSecrets(callJob, workflowName, markdownPath)

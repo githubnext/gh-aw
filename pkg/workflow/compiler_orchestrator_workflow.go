@@ -9,6 +9,7 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/setutil"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 )
 
 var orchestratorWorkflowLog = logger.New("workflow:compiler_orchestrator_workflow")
@@ -24,6 +25,7 @@ type workflowBuildContext struct {
 	content     []byte
 	frontmatter *parser.FrontmatterResult
 	markdownDir string
+	document    *aw.Document
 
 	engineSetup  *engineSetupResult
 	toolsResult  *toolsProcessingResult
@@ -81,6 +83,7 @@ func newWorkflowBuildContext(parseResult *frontmatterParseResult) *workflowBuild
 		content:     parseResult.content,
 		frontmatter: parseResult.frontmatterResult,
 		markdownDir: parseResult.markdownDir,
+		document:    parseResult.document,
 	}
 }
 
@@ -111,6 +114,7 @@ func (c *Compiler) setupWorkflowBuildContext(ctx *workflowBuildContext) error {
 		return c.formatToolsProcessingError(ctx.cleanPath, err)
 	}
 	ctx.workflowData.WorkflowID = GetWorkflowIDFromPath(ctx.cleanPath)
+	ctx.workflowData.SourceDocument = ctx.document
 	resolveMaxDailyAICBackendIntoWorkflowData(ctx.workflowData, ctx.frontmatter.Frontmatter, engineSetup.importsResult.MergedMaxDailyAICredits)
 	return nil
 }

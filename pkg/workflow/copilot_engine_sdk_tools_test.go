@@ -263,6 +263,8 @@ func TestCopilotSDKWebFetchContractFixtureMatchesCompiler(t *testing.T) {
 on: workflow_dispatch
 permissions:
   contents: read
+safe-outputs:
+  create-issue: false
 engine:
   id: copilot
   copilot-sdk: true
