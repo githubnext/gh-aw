@@ -259,7 +259,11 @@ func appendTopLevelClaudeTools(allowedTools []string, tools map[string]any, cach
 			allowedTools = append(allowedTools, "mcp__"+string(constants.AgenticWorkflowsMCPServerID))
 		case "work-queue":
 			if !isExplicitlyDisabledTool(toolValue) {
-				allowedTools = append(allowedTools, "mcp__work-queue")
+				if mcpConfig, ok := toolValue.(map[string]any); ok {
+					allowedTools = appendGenericMCPTools(allowedTools, toolName, mcpConfig)
+				} else {
+					allowedTools = append(allowedTools, "mcp__work-queue")
+				}
 			}
 		default:
 			allowedTools = appendMCPToolPermissions(allowedTools, toolName, toolValue)
