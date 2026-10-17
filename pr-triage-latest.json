@@ -1,10 +1,10 @@
 {
-  "run_date": "2026-10-16T18:27:55Z",
-  "run_id": "38947219462",
+  "run_date": "2026-10-17T00:53:33Z",
+  "run_id": "38988296783",
   "source": "pr-triage",
   "eligible_total": 3,
-  "cooldown_skipped": 4,
-  "open_copilot_prs": 7,
+  "cooldown_skipped": 0,
+  "open_copilot_prs": 3,
   "category_counts": {
     "bug": 3
   },
@@ -121,11 +121,6 @@
       "ci_state": "unknown"
     }
   ],
-  "cooldown_skipped_prs": [
-    69437,
-    69436,
-    69432,
-    69429
-  ],
-  "notes": "Eligible PRs were limited to the three Copilot-authored open PRs outside the one-hour cooldown. The batch is dominated by bug fixes; #69162 stands out as the strongest fast-track candidate while #69046 and #56568 remain deferred pending clearer evidence or review closure."
+  "cooldown_skipped_prs": [],
+  "notes": "Eligible PRs are the three open Copilot-authored bug fixes outside the cooldown window. #69162 is the clear fast-track candidate; #69046 and #56568 remain deferred pending review closure and additional confidence signals."
 }
