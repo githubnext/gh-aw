@@ -34,7 +34,9 @@ export const noMapParseIntCallbackRule = createRule({
       if (node.type === "Identifier") {
         return node.name === "parseInt" && !isShadowed(node, "parseInt");
       }
-      return node.type === "MemberExpression" && !node.computed && node.object.type === "Identifier" && node.object.name === "Number" && !isShadowed(node, "Number") && node.property.type === "Identifier" && node.property.name === "parseInt";
+      return (
+        node.type === "MemberExpression" && !node.computed && node.object.type === "Identifier" && node.object.name === "Number" && !isShadowed(node, "Number") && node.property.type === "Identifier" && node.property.name === "parseInt"
+      );
     }
 
     return {
