@@ -1,20 +1,27 @@
 # PR Triage Summary
 
-- Run: 2026-10-15T18:30:00Z
-- Eligible PRs: 2
-- Skipped by cooldown: 2
-- Open Copilot PRs: 4
+- Run: 2026-10-17T18:25:16Z
+- Eligible PRs: 7
+- Skipped by cooldown: 0
+- Open Copilot PRs: 7
 
 ## Result
-- #69072 — fast_track — bug / medium — total 74
-- #69046 — defer — bug / medium — total 53
+- #69162 — fast_track — bug / medium — total 80
+- #69487 — fast_track — bug / medium — total 74
+- #69586 — fast_track — bug / medium — total 72
+- #69526 — fast_track — chore / medium — total 65
+- #69581 — batch_review — chore / medium — total 49
+- #56568 — defer — bug / high — total 57
+- #69507 — defer — docs / low — total 29
 
 ## Summary
-- Category distribution: bug=2
-- Risk distribution: medium=2
-- Priority distribution: high=1, medium=1
-- Recommended actions: fast_track=1, defer=1
-- Batch opportunities: none
+- Category distribution: bug=4, chore=2, docs=1
+- Risk distribution: low=1, medium=5, high=1
+- Priority distribution: high=4, medium=2, low=1
+- Recommended actions: fast_track=4, batch_review=1, defer=2, auto_merge=0, close=0
+- Batch opportunities: runtime-behavior (#69162, #69487, #69586, #56568)
 
 ## Next action
-- Route #69072 for expedited human review; keep #69046 deferred as a draft WIP with incomplete evidence.
+- Route #69162, #69487, #69586, and #69526 to expedited human review.
+- Review #69581 as a grouped dependency bump in the same batch window.
+- Keep #56568 and #69507 deferred pending stronger evidence or review closure.
