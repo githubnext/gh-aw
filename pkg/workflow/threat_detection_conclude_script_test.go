@@ -343,41 +343,58 @@ func TestConcludeThreatDetectionScript_SuccessfulInstallDelegates(t *testing.T) 
 	}
 }
 
-// TestConcludeThreatDetectionScript_SkippedDetectionIgnoresInstallOutcome verifies
-// that a skipped install does not prevent delegation when the binary is available.
-func TestConcludeThreatDetectionScript_SkippedDetectionIgnoresInstallOutcome(t *testing.T) {
-	tmpDir := t.TempDir()
-	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
-	resultFile := filepath.Join(tmpDir, "detection_result.json")
-	outputFile := filepath.Join(tmpDir, "github_output.txt")
-	callLog := filepath.Join(tmpDir, "call.log")
-	binDir := filepath.Join(tmpDir, "bin")
-
-	if err := os.MkdirAll(binDir, 0755); err != nil {
-		t.Fatalf("failed to create bin dir: %v", err)
-	}
-	stub := "#!/usr/bin/env bash\n" +
-		"echo \"$*\" >> \"$CALL_LOG\"\n" +
-		"echo \"conclusion=skipped\" >> \"$GITHUB_OUTPUT\"\n"
-	if err := os.WriteFile(filepath.Join(binDir, "threat-detect"), []byte(stub), 0755); err != nil {
-		t.Fatalf("failed to write threat-detect stub: %v", err)
-	}
-
-	cmd := exec.Command("bash", scriptPath, resultFile)
-	cmd.Env = append(os.Environ(),
-		"RUN_DETECTION=false",
-		"THREAT_DETECT_INSTALL_OUTCOME=skipped",
-		"GITHUB_OUTPUT="+outputFile,
-		"CALL_LOG="+callLog,
-		"PATH="+binDir+":"+os.Getenv("PATH"),
-	)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("script failed: %v\nOutput: %s", err, out)
-	}
-	if _, statErr := os.Stat(callLog); statErr != nil {
-		t.Fatalf("expected threat-detect conclude to run for a skipped detection: %v\nOutput: %s", statErr, out)
+// Explicit no-output skips must not invoke an unverified preinstalled detector,
+// which could inspect payloads that did not pass redaction.
+func TestConcludeThreatDetectionScript_SkippedDetectionDoesNotInvokeBinary(t *testing.T) {
+	for _, warnMode := range []string{"false", "true"} {
+		t.Run("warn="+warnMode, func(t *testing.T) {
+			dir := t.TempDir()
+			scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+			resultFile := filepath.Join(dir, "detection_result.json")
+			outputFile := filepath.Join(dir, "github_output.txt")
+			callLog := filepath.Join(dir, "call.log")
+			binDir := filepath.Join(dir, "bin")
+			if err := os.MkdirAll(binDir, 0755); err != nil {
+				t.Fatalf("failed to create bin dir: %v", err)
+			}
+			if err := os.WriteFile(resultFile, []byte("synthetic-unredacted-payload\n"), 0600); err != nil {
+				t.Fatalf("failed to write synthetic payload: %v", err)
+			}
+			stub := "#!/usr/bin/env bash\n" +
+				"echo invoked > \"$CALL_LOG\"\n" +
+				"cat \"$PAYLOAD_FILE\"\n" +
+				"exit 99\n"
+			if err := os.WriteFile(filepath.Join(binDir, "threat-detect"), []byte(stub), 0755); err != nil {
+				t.Fatalf("failed to write threat-detect stub: %v", err)
+			}
+			cmd := exec.Command("bash", scriptPath, resultFile)
+			cmd.Env = append(os.Environ(),
+				"RUN_DETECTION=false",
+				"THREAT_DETECT_INSTALL_OUTCOME=skipped",
+				"GH_AW_DETECTION_CONTINUE_ON_ERROR="+warnMode,
+				"GITHUB_OUTPUT="+outputFile,
+				"CALL_LOG="+callLog,
+				"PAYLOAD_FILE="+resultFile,
+				"PATH="+binDir+":"+os.Getenv("PATH"),
+			)
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("explicit skip should succeed without invoking the detector: %v\nOutput: %s", err, out)
+			}
+			if _, err := os.Stat(callLog); !os.IsNotExist(err) {
+				t.Fatalf("preinstalled detector must not run on an explicit skip: %v", err)
+			}
+			if len(out) != 0 {
+				t.Fatalf("explicit skip must not print payloads or diagnostics: %s", out)
+			}
+			output, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatalf("failed to read conclusion outputs: %v", err)
+			}
+			if string(output) != "conclusion=skipped\nsuccess=true\nreason=\n" {
+				t.Fatalf("unexpected explicit skip outputs: %s", output)
+			}
+		})
 	}
 }
 
