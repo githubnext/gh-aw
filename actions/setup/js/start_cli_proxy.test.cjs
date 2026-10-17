@@ -1,6 +1,5 @@
 // @ts-check
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
@@ -12,7 +11,7 @@ describe("CLI proxy diagnostic redaction", () => {
   const diagnostics = `connection refused: ${custom}\nbuiltin: ${builtin}\nretry with a different port\n`;
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-cli-proxy-test-"));
+    root = fs.mkdtempSync(path.join(__dirname, ".gh-aw-cli-proxy-test-"));
   });
 
   afterEach(() => {
@@ -26,7 +25,23 @@ describe("CLI proxy diagnostic redaction", () => {
   function runProxy(options = {}) {
     const source = fs.readFileSync(path.join(__dirname, "../sh/start_cli_proxy.sh"), "utf8");
     const tls = path.join(root, "tls");
-    fs.writeFileSync(path.join(root, "start_cli_proxy.sh"), source.replaceAll("/tmp/gh-aw/difc-proxy-tls", tls).replaceAll("/tmp/gh-aw/mcp-logs", path.join(root, "mcp-logs")));
+    const systemTemp = path.join(root, "system-temp");
+    const runnerTemp = path.join(root, "runner");
+    const privateParent = path.join(root, "private");
+    fs.mkdirSync(systemTemp);
+    fs.mkdirSync(runnerTemp);
+    const artifactRoot = path.join(options.unsafeSystemTemp ? systemTemp : runnerTemp, "gh-aw");
+    fs.mkdirSync(artifactRoot);
+    if (options.unsafeCapture) fs.symlinkSync(artifactRoot, privateParent);
+    else fs.mkdirSync(privateParent);
+    fs.writeFileSync(
+      path.join(root, "start_cli_proxy.sh"),
+      source
+        .replaceAll("/tmp/gh-aw-cli-proxy.XXXXXX", `${privateParent}/gh-aw-cli-proxy.XXXXXX`)
+        .replaceAll("/tmp/gh-aw/difc-proxy-tls", tls)
+        .replaceAll("/tmp/gh-aw/mcp-logs", path.join(root, "mcp-logs"))
+        .replace("for parent in /tmp", `for parent in "${systemTemp}"`)
+    );
     fs.copyFileSync(path.join(__dirname, "../sh/proxy_env_lib.sh"), path.join(root, "proxy_env_lib.sh"));
     if (!options.missingSanitizer) fs.symlinkSync(path.join(__dirname, "redact_cli_proxy_diagnostics.cjs"), path.join(root, "redact_cli_proxy_diagnostics.cjs"));
     executable(
@@ -34,12 +49,22 @@ describe("CLI proxy diagnostic redaction", () => {
       `printf '%s\\n' "$*" >> "$TEST_CALLS"
 case "$1" in
   run)
+    if [ "$TEST_OVERSIZED_RUN" = true ]; then
+      "$TEST_NODE" -e 'process.stdout.write("x".repeat(2 * 1024 * 1024) + process.env.GH_TOKEN)'
+    fi
     printf '%s' "$TEST_DIAGNOSTICS"
     printf '%s' "$TEST_DIAGNOSTICS" >&2
     if [ "$TEST_RUN_FAILURE" = true ]; then exit 125; fi
     touch "$TEST_TLS_DIR/ca.crt"
     ;;
   logs)
+    if [ "$TEST_NUL" = true ]; then
+      printf 'synthetic"\\\\\\000credential%%with-spaces\\n'
+    fi
+    if [ "$TEST_OVERSIZED" = true ]; then
+      "$TEST_NODE" -e 'process.stdout.write("x".repeat(2 * 1024 * 1024) + process.env.GH_TOKEN)'
+      exit 1
+    fi
     printf '%s' "$TEST_DIAGNOSTICS"
     printf '%s' "$TEST_DIAGNOSTICS" >&2
     exit 1
@@ -49,6 +74,18 @@ esac`
     );
     executable("curl", '[ "$TEST_READY" = true ]');
     executable("sleep", ":");
+    executable(
+      "rm",
+      `for directory in "$@"; do
+  if [ -f "$directory/startup.log" ]; then wc -c < "$directory/startup.log" > "$TEST_CAPTURE_SIZE"; fi
+done
+if [ "$TEST_CLEANUP_FAILURE" = true ]; then
+  printf '%s' "$GH_TOKEN"
+  printf '%s' "$GH_TOKEN" >&2
+  exit 1
+fi
+exec /bin/rm "$@"`
+    );
     if (options.captureFailure) executable("mktemp", 'printf "%s" "$TEST_DIAGNOSTICS"; printf "%s" "$TEST_DIAGNOSTICS" >&2; exit 1');
     if (options.sanitizerFailure) {
       executable("node", 'printf "%s" "$TEST_DIAGNOSTICS"; printf "%s" "$TEST_DIAGNOSTICS" >&2; exit 1');
@@ -62,7 +99,8 @@ esac`
       env: {
         ...process.env,
         PATH: `${root}:${path.dirname(process.execPath)}:${process.env.PATH}`,
-        TMPDIR: root,
+        TMPDIR: artifactRoot,
+        RUNNER_TEMP: runnerTemp,
         GH_TOKEN: custom,
         CLI_PROXY_IMAGE: options.noImage ? "" : "synthetic-proxy:latest",
         GITHUB_SERVER_URL: "https://github.com",
@@ -71,13 +109,24 @@ esac`
         TEST_TLS_DIR: tls,
         TEST_READY: options.ready ? "true" : "false",
         TEST_RUN_FAILURE: options.runFailure ? "true" : "false",
+        TEST_OVERSIZED: options.oversized ? "true" : "false",
+        TEST_OVERSIZED_RUN: options.oversizedRun ? "true" : "false",
+        TEST_NUL: options.nul ? "true" : "false",
+        TEST_NODE: process.execPath,
+        TEST_CLEANUP_FAILURE: options.cleanupFailure ? "true" : "false",
+        TEST_CAPTURE_SIZE: path.join(root, "capture-size"),
       },
     });
     const output = result.stdout + result.stderr;
     expect(output).not.toContain(custom);
     expect(output).not.toContain(builtin);
-    expect(fs.readdirSync(root).filter(name => name.startsWith("tmp."))).toEqual([]);
-    return { ...result, output, calls: fs.existsSync(path.join(root, "calls")) ? fs.readFileSync(path.join(root, "calls"), "utf8") : "" };
+    if (!options.cleanupFailure) expect(fs.readdirSync(privateParent)).toEqual([]);
+    return {
+      ...result,
+      output,
+      calls: fs.existsSync(path.join(root, "calls")) ? fs.readFileSync(path.join(root, "calls"), "utf8") : "",
+      captureSize: fs.existsSync(path.join(root, "capture-size")) ? Number(fs.readFileSync(path.join(root, "capture-size"), "utf8")) : 0,
+    };
   }
 
   it("redacts arbitrary supplied secrets, short values, multiline fragments and built-in credentials", () => {
@@ -105,6 +154,7 @@ esac`
     expect(result.status).toBe(1);
     expect(result.output).not.toContain("runtime-synthetic");
     expect(result.stdout.trimEnd().split("\n")).toHaveLength(20);
+    expect(result.output).toContain("CLI proxy failed to start within 30s");
     expect(result.output).toContain("CLI proxy startup failed (exit status 1)");
   });
 
@@ -114,6 +164,59 @@ esac`
     expect(result.output).toContain("CLI proxy ready on port 18443");
     expect(result.output).toContain("connection refused: ***");
     expect(result.calls).not.toContain("logs awmg-cli-proxy");
+  });
+
+  it("ignores TMPDIR inside the artifact tree", () => {
+    const result = runProxy({ ready: true });
+    expect(result.status).toBe(0);
+    expect(fs.readdirSync(path.join(root, "runner", "gh-aw"))).toEqual([]);
+  });
+
+  it.each([false, true])("rejects resolved capture directories inside artifact roots (system temp=%s)", unsafeSystemTemp => {
+    const result = runProxy({ unsafeCapture: true, unsafeSystemTemp });
+    expect(result.status).toBe(1);
+    expect(result.output).toBe("::error::CLI proxy diagnostics could not be captured safely\n");
+    expect(result.calls).toBe("");
+  });
+
+  it("bounds a giant single-line Docker log and withholds all truncated diagnostics", () => {
+    const result = runProxy({ oversized: true });
+    expect(result.status).toBe(1);
+    expect(result.output).toBe("::error::CLI proxy diagnostics withheld because capture exceeded its limit or failed\n");
+    expect(result.captureSize).toBe(1024 * 1024 + 1);
+    expect(result.calls.match(/rm -f awmg-cli-proxy/g)).toHaveLength(2);
+  });
+
+  it("bounds diagnostics emitted before readiness checks too", () => {
+    const result = runProxy({ ready: true, oversizedRun: true });
+    expect(result.status).toBe(1);
+    expect(result.output).toBe("::error::CLI proxy diagnostics withheld because capture exceeded its limit or failed\n");
+    expect(result.captureSize).toBe(1024 * 1024 + 1);
+    expect(result.calls).not.toContain("logs awmg-cli-proxy");
+  });
+
+  it("redacts a supplied secret split by an actual Docker log NUL", () => {
+    const result = runProxy({ nul: true });
+    expect(result.status).toBe(1);
+    expect(result.output).not.toContain("\0");
+    expect(result.output).not.toContain("credential%with-spaces");
+  });
+
+  it("preserves the last twenty physical lines when quoted and escaped secrets appear in long logs", () => {
+    const lines = Array.from({ length: 32 }, (_, index) => `line-${index} token="${custom}" escaped=${JSON.stringify(custom)}\\n`);
+    const result = runProxy({ diagnostics: `${lines.join("\n")}\n` });
+    expect(result.status).toBe(1);
+    expect(result.stdout.trimEnd().split("\n")).toHaveLength(20);
+    expect(result.output).toContain("line-31");
+    expect(result.output).not.toContain("line-0 ");
+    expect(result.output).not.toContain(JSON.stringify(custom).slice(1, -1));
+    expect(result.output).toContain("CLI proxy failed to start within 30s");
+  });
+
+  it("reports cleanup failure without publishing its secret-bearing payload", () => {
+    const result = runProxy({ ready: true, cleanupFailure: true });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe("::warning::CLI proxy diagnostic cleanup failed\n");
   });
 
   it("sanitizes readiness failure logs, reports failure and removes the container", () => {

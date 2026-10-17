@@ -3,12 +3,16 @@ const fs = require("node:fs");
 const { redactArtifactContent } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 
+const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
+
 /**
  * @param {string} content
  * @param {NodeJS.ProcessEnv} env
  * @returns {string}
  */
 function redactCliProxyDiagnostics(content, env) {
+  // Bash command substitution removes NUL bytes; normalize before matching.
+  content = content.replaceAll("\0", "");
   const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
   for (const name of (env.GH_AW_SECRET_NAMES || "")
     .split(",")
@@ -30,12 +34,33 @@ function redactCliProxyDiagnostics(content, env) {
         .filter(Boolean)
     );
   }
-  return redactArtifactContent(content, [], values).content;
+  // Artifact redaction may JSON-quote ambiguous text. Redact each physical line
+  // separately so that representation cannot hide lines from the publication cap.
+  return content
+    .split("\n")
+    .map(line => redactArtifactContent(line, [], values).content)
+    .join("\n");
+}
+
+/**
+ * @param {string} filePath
+ * @returns {string}
+ */
+function readCliProxyDiagnostics(filePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile() || stat.size > MAX_DIAGNOSTIC_BYTES) {
+      throw new Error("CLI proxy diagnostics exceed the input limit or are not a regular file");
+    }
+    return fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    throw new Error("Unable to read CLI proxy diagnostics", { cause: error });
+  }
 }
 
 if (require.main === module) {
   try {
-    const content = fs.readFileSync(process.argv[2], "utf8");
+    const content = readCliProxyDiagnostics(process.argv[2]);
     const redacted = redactCliProxyDiagnostics(content, process.env);
     process.stdout.write(redacted.trimEnd().split("\n").slice(-20).join("\n"));
   } catch {
@@ -44,4 +69,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { redactCliProxyDiagnostics };
+module.exports = { MAX_DIAGNOSTIC_BYTES, readCliProxyDiagnostics, redactCliProxyDiagnostics };
