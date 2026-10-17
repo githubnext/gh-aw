@@ -1,0 +1,11 @@
+name: Haiku printer fixture
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        type: string
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Dispatch target fixture"

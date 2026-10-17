@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,7 +74,13 @@ permissions:
 
 	activationSection := extractJobSection(yamlOut, "activation")
 	require.NotEmpty(t, activationSection)
-	assert.Contains(t, activationSection, "if: needs.pre_activation.outputs.activated == 'true'")
+	var rendered struct {
+		Jobs map[string]struct {
+			If string `yaml:"if"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(yamlOut), &rendered))
+	assert.True(t, strings.HasPrefix(rendered.Jobs["activation"].If, "needs.pre_activation.outputs.activated == 'true' && "), "activation must require successful pre-activation before evaluating other conditions")
 }
 
 func TestFormalPM10c_PreActivationJobHasNoWritePermissions(t *testing.T) {
@@ -206,13 +213,11 @@ permissions:
 ---`)
 
 	preActivationSection := extractJobSection(yamlOut, "pre_activation")
-	require.NotEmpty(t, preActivationSection)
-	assert.Contains(t, preActivationSection, `GH_AW_REQUIRED_ROLES: ""`)
+	assert.Empty(t, preActivationSection, "manual workflows without role checks do not need pre-activation")
 
 	activationSection := extractJobSection(yamlOut, "activation")
 	require.NotEmpty(t, activationSection)
-	assert.Contains(t, activationSection, "needs: pre_activation")
-	assert.Contains(t, activationSection, "needs.pre_activation.outputs.activated")
+	assert.NotContains(t, activationSection, "pre_activation", "activation must not depend on an absent job")
 }
 
 func TestFormalPM10c_PreActivationPermissionsTableDriven(t *testing.T) {

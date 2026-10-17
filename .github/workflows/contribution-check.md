@@ -247,7 +247,7 @@ If any subagent call failed (❓), also apply `outdated`.
 ## agent: `report-formatter`
 ---
 description: Groups PR verdict JSONs into Ready/Needs-look/Off-guidelines tables and returns the markdown body for the contribution check report issue
-model: kiwi
+model: gpt-6-luna
 ---
 You receive a JSON array of PR verdict objects (each with fields: `number`, `title`, `author`, `lines`, `quality`, `comment`) plus a `skipped_count` integer and a `run_url` string.
 
@@ -274,7 +274,7 @@ Return ONLY the markdown body string — no JSON wrapper, no explanation.
 ## agent: `comment-dispatcher`
 ---
 description: Filters PR verdict array to entries needing maintainer comments and returns the comment payloads
-model: kiwi
+model: gpt-6-luna
 ---
 You receive a JSON array of PR verdict objects. Each object has at minimum these fields: `number` (integer PR number) and `comment` (string, may be empty) and `quality` (string).
 
