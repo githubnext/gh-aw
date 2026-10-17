@@ -2,6 +2,9 @@
 
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
 const { restoreESLintMemory } = require("./work_queue_restore_memory.cjs");
 
 const BASE = "46b68a61c366a01d86dc319b8e689d09a48bad04";
@@ -82,6 +85,42 @@ function fixture(count = 1) {
 
 function registerTests({ describe, it }) {
   describe("read-only restore of persistent Claim and legacy ESLint memory", () => {
+    it("runs the Refiner preparation step and writes history at the exact agent-visible prompt path", async () => {
+      const source = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/eslint-refiner.md"), "utf8");
+      const script = source.match(/      script: \|\n([\s\S]*?)(?=\ntools:)/)?.[1];
+      assert.ok(script, "Refiner memory preparation script must exist");
+      const history = { legacy: { files: [] }, snapshots: [] };
+      const writes = [];
+      const directories = [];
+      const github = {};
+      const mocks = {
+        "node:fs": {
+          mkdirSync: (directory, options) => directories.push([directory, options.recursive]),
+          writeFileSync: (filename, contents, options) => writes.push([filename, contents, options.mode]),
+        },
+        "node:path": path,
+        "/runner-temp/gh-aw/actions/work_queue_restore_memory.cjs": {
+          restoreESLintMemory: async client => {
+            assert.equal(client, github);
+            return history;
+          },
+        },
+      };
+      await vm.runInNewContext(`(async () => {${script}\n})()`, {
+        require: name => {
+          assert.ok(Object.hasOwn(mocks, name), "Preparation requires only reviewed dependencies");
+          return mocks[name];
+        },
+        github,
+        process: { env: { RUNNER_TEMP: "/runner-temp" } },
+      });
+      const filename = "/tmp/gh-aw/agent/eslint-refiner-memory/history.json";
+      assert.deepEqual(directories, [["/tmp/gh-aw/agent/eslint-refiner-memory", true]]);
+      assert.deepEqual(writes, [[filename, JSON.stringify(history) + "\n", 0o400]]);
+      assert.ok(source.includes(`cat ${filename}`));
+      assert.ok(source.includes(`Read \`${filename}\``));
+    });
+
     it("restores independently addressed multi-Claim history without narrowing it or granting current Claim authority", async () => {
       const f = fixture(2);
       f.state.refs.reverse();

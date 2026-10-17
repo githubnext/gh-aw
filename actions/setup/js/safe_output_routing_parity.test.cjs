@@ -274,7 +274,27 @@ describe("real immutable Claim routing", () => {
     }
     expect(options.finalizeResults).toHaveBeenCalledTimes(1);
     expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", "delivery_pending");
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
     expect(global.getOctokit).not.toHaveBeenCalled();
+  });
+
+  it.each(["pending", "delivery_failed"])("fails an otherwise successful output pass with a %s delivery without suppressing its verified sibling", async state => {
+    activate(2, members => members.map(member => ({ type: "noop", message: member.handle, claim_handle: member.handle })));
+    const options = managerOptions({
+      finalizeResults: vi.fn(async () => ({ claims: { h1: { state }, h2: { state: "result" } } })),
+    });
+    const result = await manager.main(options);
+    expect(result.settlements).toHaveLength(2);
+    expect(result.settlements.every(settlement => settlement.success)).toBe(true);
+    expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", "delivery_pending");
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
+  });
+
+  it.each(["result", "cancelled"])("does not fail independently settled %s Claims", async state => {
+    activate(2, members => members.map(member => ({ type: "noop", message: member.handle, claim_handle: member.handle })));
+    await manager.main(managerOptions({ finalizeResults: vi.fn(async () => ({ claims: { h1: { state }, h2: { state: "result" } } })) }));
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+    expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", state === "result" ? "completed" : "completed_with_cancellations");
   });
 
   it("redacts every persisted Claim diagnostic before JSON encoding and keeps files private", async () => {

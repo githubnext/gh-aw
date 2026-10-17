@@ -39,6 +39,24 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Skill,Task,TodoWrite",
 		},
 		{
+			name: "work queue native MCP with restricted bash",
+			tools: map[string]any{
+				"bash":       []any{"cat"},
+				"work-queue": map[string]any{"worker": true, "require-assignment": true},
+			},
+			expected: "Bash(cat),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name:     "work queue boolean true",
+			tools:    map[string]any{"work-queue": true},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite,mcp__work-queue",
+		},
+		{
+			name:     "disabled work queue",
+			tools:    map[string]any{"work-queue": false},
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Skill,Task,TodoWrite",
+		},
+		{
 			name: "neutral web tools",
 			tools: map[string]any{
 				"web-fetch":  nil,
