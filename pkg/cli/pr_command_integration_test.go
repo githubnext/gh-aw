@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +23,7 @@ func TestPRTransferGitIntegrationScopesPatchAndCommitMessage(t *testing.T) {
 		t.Fatalf("WriteFile() ignored local file error = %v", err)
 	}
 
-	if err := transferPR("https://github.com/source/repo/pull/42", "target-owner/target-repo", false); err != nil {
+	if err := transferPRWithMessage(context.Background(), "https://github.com/source/repo/pull/42", "target-owner/target-repo", false, false, ""); err != nil {
 		t.Fatalf("transferPR() error = %v", err)
 	}
 
@@ -66,7 +67,7 @@ func TestPRTransferGitIntegrationCleansFailedApplyState(t *testing.T) {
 	chdirForIntegrationTest(t, repoDir)
 	ClearCurrentRepoSlugCache()
 
-	err := transferPR("https://github.com/source/repo/pull/42", "target-owner/target-repo", false)
+	err := transferPRWithMessage(context.Background(), "https://github.com/source/repo/pull/42", "target-owner/target-repo", false, false, "")
 	if err == nil || !strings.Contains(err.Error(), "could not apply patch") {
 		t.Fatalf("transferPR() error = %v, want patch apply error", err)
 	}
