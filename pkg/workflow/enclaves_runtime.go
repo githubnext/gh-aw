@@ -61,7 +61,9 @@ func validateCloudHypervisorEnclaves(workflowData *WorkflowData) error {
 			return errors.New("enclaves cloud-hypervisor runtime cannot be mixed with Docker or default enclave runtimes; set runtime: cloud-hypervisor on every enclave entry")
 		}
 		if isCloudHypervisorRuntime(workflowData) && enclave.Agent != nil {
-			return fmt.Errorf("enclaves[%d] agent runtime: cloud-hypervisor is not supported with a cloud-hypervisor primary; use a static script enclave", i)
+			if err := validateCloudHypervisorAgentAcceptance(workflowData, enclave); err != nil {
+				return fmt.Errorf("enclaves[%d] agent runtime: cloud-hypervisor is not supported with a cloud-hypervisor primary outside the experimental acceptance fixture; use a static script enclave: %w", i, err)
+			}
 		}
 		if enclave.Image != "" {
 			return fmt.Errorf("enclaves[%d].image is incompatible with runtime: cloud-hypervisor; remove the image override to use release-attested enclave artifacts", i)
@@ -92,6 +94,51 @@ func validateCloudHypervisorEnclaves(workflowData *WorkflowData) error {
 		minVersion = constants.AWFCloudHypervisorPrimaryEnclaveMinVersion
 	}
 	return validateCloudHypervisorEnclaveVersion(getFirewallConfig(workflowData), minVersion)
+}
+
+const cloudHypervisorAgentAcceptanceFeature = "cloud-hypervisor-agent-acceptance"
+
+func validateCloudHypervisorAgentAcceptance(data *WorkflowData, enclave *EnclaveConfig) error {
+	// Require a checked-in boolean opt-in, not an ambient GH_AW_FEATURES override.
+	if enabled, ok := data.Features[cloudHypervisorAgentAcceptanceFeature].(bool); !ok || !enabled {
+		return errors.New("set features.cloud-hypervisor-agent-acceptance: true only for the official acceptance fixture")
+	}
+	if data.WorkflowID != "smoke-enclave-cloud-hypervisor-copilot" ||
+		strings.TrimSpace(stripExpressionWrapper(data.If)) != "github.repository == 'github/gh-aw-firewall' && github.ref_type == 'branch'" {
+		return errors.New("agent acceptance requires workflow smoke-enclave-cloud-hypervisor-copilot and if: github.repository == 'github/gh-aw-firewall' && github.ref_type == 'branch'")
+	}
+	manualOnly := false
+	switch triggers := data.RawFrontmatter["on"].(type) {
+	case string:
+		manualOnly = triggers == "workflow_dispatch"
+	case map[string]any:
+		if len(triggers) == 1 {
+			_, manualOnly = triggers["workflow_dispatch"]
+		}
+	}
+	if !manualOnly {
+		return errors.New("agent acceptance requires on: workflow_dispatch without other triggers")
+	}
+	if len(data.Enclaves) != 1 || len(enclave.Repos) != 1 {
+		return errors.New("agent acceptance requires exactly one agent enclave with only the static public github/gh-aw-firewall repository")
+	}
+	for _, repo := range enclave.Repos {
+		if repo == nil || repo.Repo != "github/gh-aw-firewall" || repo.Sensitivity != "public" {
+			return errors.New("agent acceptance requires only the static public github/gh-aw-firewall repository")
+		}
+	}
+	if ResolveEngineID(data) != "copilot" || enclave.Agent.Engine != "copilot" ||
+		enclave.Agent.Model != "claude-sonnet-5" || enclave.Agent.Profile != "" {
+		return errors.New("agent acceptance requires a Copilot primary and agent.engine: copilot, agent.model: claude-sonnet-5 without a profile override")
+	}
+	if enclave.Timeout != 90 || enclave.MaxOutputBytes != 256 || enclave.MaxInvocations != 1 ||
+		enclave.Agent.MaxTaskBytes != 4096 || enclave.Agent.MaxModelRequests != 8 || enclave.Agent.MaxModelTokens != 2048 {
+		return errors.New("agent acceptance requires timeout: 90, max-output-bytes: 256, max-invocations: 1, agent.max-task-bytes: 4096, agent.max-model-requests: 8 and agent.max-model-tokens: 2048")
+	}
+	if firewall := getFirewallConfig(data); firewall == nil || firewall.Version != "v0.28.62" {
+		return errors.New("agent acceptance requires sandbox.agent.version: v0.28.62 and its release-attested guests; branch-built host acceptance is not a released runtime capability")
+	}
+	return nil
 }
 
 func validateCloudHypervisorEnclaveAWFArgs(args []string, primaryRuntime string) error {
