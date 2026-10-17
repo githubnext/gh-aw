@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -244,6 +245,10 @@ func runNVXPreflightFixture(t *testing.T, scriptPath string, env []string) (stri
 }
 
 func TestNVXHostPreflightExecutesAgainstFixtures(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("NVX host preflight fixtures require Linux")
+	}
+
 	artifactBytes := map[string][]byte{
 		"openvmm":   []byte("fixture-openvmm"),
 		"kernel":    []byte("fixture-kernel"),
