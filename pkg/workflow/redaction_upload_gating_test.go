@@ -156,10 +156,12 @@ func evaluateRedactionUploadGate(t *testing.T, node ConditionNode, outcomes map[
 		if node.Expression == "always()" {
 			return true
 		}
-		property, successComparison := strings.CutSuffix(node.Expression, " == 'success'")
-		require.True(t, successComparison, "unexpected comparison: %s", node.Expression)
+		property, expected, comparison := strings.Cut(node.Expression, " == '")
+		require.True(t, comparison, "unexpected comparison: %s", node.Expression)
+		expected, quoted := strings.CutSuffix(expected, "'")
+		require.True(t, quoted, "unexpected comparison: %s", node.Expression)
 		require.Contains(t, outcomes, property)
-		return outcomes[property] == "success"
+		return outcomes[property] == expected
 	default:
 		t.Fatalf("Unexpected upload gate node: %T", node)
 		return false

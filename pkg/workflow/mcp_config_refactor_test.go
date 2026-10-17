@@ -119,7 +119,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
 				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
 				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
-				`"DEBUG": "*"`,                                                // Literal value for debug logging
+				`"DEBUG": "\${DEBUG}"`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              },`,
 			},
@@ -149,7 +149,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw"`,              // workspace mount (read-write)
 				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
 				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
-				`"DEBUG": "*"`,
+				`"DEBUG": "\${DEBUG}"`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`"GITHUB_ACTOR": "\${GITHUB_ACTOR}"`,           // Actor for role-based access control
 				`"GITHUB_REPOSITORY": "\${GITHUB_REPOSITORY}"`, // Repository context
@@ -173,7 +173,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"/tmp/gh-aw:/tmp/gh-aw:rw"`,                                  // temp directory mount (read-write)
 				`"args": ["--network", "host", "-w", "\${GITHUB_WORKSPACE}"]`, // Network access + working directory
 				// Environment variables
-				`"DEBUG": "*"`, // Literal value for debug logging
+				`"DEBUG": "\${DEBUG}"`,
 				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
 				`              }`,
 			},

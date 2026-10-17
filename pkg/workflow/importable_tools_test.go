@@ -169,8 +169,8 @@ Uses imported agentic-workflows tool.
 	}
 
 	// Verify DEBUG and GITHUB_TOKEN are present
-	if !strings.Contains(workflowData, `"DEBUG": "*"`) {
-		t.Error("Expected DEBUG set to literal '*' in env vars")
+	if !strings.Contains(workflowData, `"DEBUG": "\${DEBUG}"`) {
+		t.Error("Expected DEBUG forwarded from the environment")
 	}
 	if !strings.Contains(workflowData, `"GITHUB_TOKEN"`) {
 		t.Error("Expected GITHUB_TOKEN in env vars")

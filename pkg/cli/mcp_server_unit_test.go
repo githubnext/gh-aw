@@ -155,7 +155,7 @@ func TestMCPServerUnit_CompileTool(t *testing.T) {
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "gh-aw", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExecCmd, ""), "registerCompileTool should succeed")
+	require.NoError(t, registerCompileTool(server, mockExecCmd, "", true), "registerCompileTool should succeed")
 	session := connectInMemory(t, server)
 
 	ctx := context.Background()
@@ -184,7 +184,7 @@ func TestMCPServerUnit_CompileToolProgress(t *testing.T) {
 		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' '[]'`)
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExecCmd, ""))
+	require.NoError(t, registerCompileTool(server, mockExecCmd, "", true))
 	session, getNotifications := connectInMemoryWithProgress(t, server)
 	params := &mcp.CallToolParams{Name: "compile", Arguments: map[string]any{}}
 	params.SetProgressToken("compile-progress")
@@ -204,7 +204,7 @@ func TestMCPServerUnit_CompileToolProgressOnEmptyOutputError(t *testing.T) {
 		return exec.CommandContext(ctx, "sh", "-c", "exit 1")
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, mockExecCmd, ""))
+	require.NoError(t, registerCompileTool(server, mockExecCmd, "", true))
 	session, getNotifications := connectInMemoryWithProgress(t, server)
 	params := &mcp.CallToolParams{Name: "compile", Arguments: map[string]any{}}
 	params.SetProgressToken("compile-progress")

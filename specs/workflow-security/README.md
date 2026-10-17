@@ -45,6 +45,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
 | PR checkout authorization | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Same-repository Bot branch-event authorization for supported PR actions plus the stricter allow-listed comment/review exception. |
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
+| Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -93,7 +94,7 @@ represented by a skipped state-machine slot, not a real runtime job.
 
 Reviewed baseline: `542e937dd8447172c8c484cda3a9a5716ae99245`.
 The authorities are [Security Architecture v1.1.0](../security-architecture-spec.md),
-[Compiler Threat Detection v1.0.53](../compiler-threat-detection-spec.md),
+[Compiler Threat Detection v1.0.54](../compiler-threat-detection-spec.md),
 [Checkout Behavior](../../docs/src/content/docs/specs/checkout-behavior-specification.md),
 and the [Safe Outputs specification](../../docs/src/content/docs/specs/safe-outputs-specification.md).
 Line references describe that baseline; symbols are the more durable mapping.
@@ -345,16 +346,62 @@ ancestry, merge correctness, signed pushes, or concurrent checkout discovery.
 These require separate refinement of [`gitutil`](../../pkg/gitutil/gitutil.go)
 and [`findRepoCheckout`](../../actions/setup/js/find_repo_checkout.cjs).
 
+## Host-side MCP compilation
+
+[`MCPCompile.tla`](MCPCompile.tla) models the compiler threat specification's
+[MCP-COMPILE-001–006](../compiler-threat-detection-spec.md#521-host-side-mcp-compilation-boundary)
+as a separate host-side boundary, not a generated workflow job. Each bounded
+request selects an MCP or trusted CLI no-emit entry point, tool, immutable
+server-startup write capability, configured actor validation and permission,
+option class, workflow validity, import availability and expansion path
+(frontmatter, body, or nested include), local image availability/requirement,
+stale lock validity, and repository-root/subdirectory/non-Git launch context.
+`Authorize`, `Prepare`, `ResolveImports`, `ResolveImages`, `Validate`, and `Finalize` enforce the
+ordering between admission, subprocess/scanner preparation, cache access,
+local-image inspection, validation, and output effects. Missing local images
+produce a warning unless image validation is required, when they produce an error.
+
+| Invariants | Boundary |
+|---|---|
+| `StartupCapability`, `ActorAuthorization`, `WritingOptionsGated`, `DeniedBeforeExecution` | Callers cannot opt into write tools; read-only compilation bypasses only the write-actor gate, while write-enabled operations retain it. Rejected requests start no compilation or scanner. |
+| `ReadOnlyMode`, `NoExternalScanners`, `NoRemoteDownloads`, `NoImagePulls`, `ReadOnlyIsolation` | Read-only requests force dedicated read-only mode, no-emit, and no update check, execute no external scanners, download no missing imports/includes, pull no images, and record no mutations on success or failure. |
+| `CacheRootConforms`, `ReadOnlyAvailability`, `ValidationPreserved` | Git checkouts use the repository-root cache, non-Git contexts use the working directory, cached valid imports remain usable from subdirectories, malformed stale output cannot invalidate generated YAML, and invalid inputs remain errors. |
+| `WriteEnabledEmission`, `TrustedNoEmitAvailability` | Authorized write-enabled compilation emits locks; trusted CLI no-emit compilation can populate imports without emitting a lock file. |
+
+`check.py` includes the secure baseline, nineteen synthetic negative controls,
+and seven reachability witnesses. Controls independently break startup authority,
+actor checks, option rejection, dedicated read-only/no-emit/update-check flags, scanner ordering,
+missing-import download prevention, diagnostic/post-processing/cache-hit write
+suppression, cache-root selection, read-only admission, validation, or
+write-enabled emission. Additional controls reproduce Docker pulling, uncached
+body/nested include fallback, stale-lock validation, and applying the stronger
+read-only policy to trusted no-emit CLI callers. Witnesses reach read-only success, cached subdirectory
+success, an uncached-import error without writes, write-enabled emission, and
+write-actor denial, plus cached nested-include success and trusted CLI no-emit
+import refresh, so blanket rejection cannot satisfy the model vacuously.
+
+Mutations abstract creation, modification, or deletion of source, lock,
+diagnostic, action-pin, attributes, import-cache, update-cache, and temporary
+include files; Docker pulls have a separate tracked effect. This
+does not model bytes, path resolution, symlinks, concurrent callers, exact Git
+discovery, scanner internals, all CLI flag combinations, or server-startup
+temporary manifest baselines. The model is not a filesystem sandbox or a proof
+that the implementation refines it. Its concrete evidence is
+[`mcp_server_compile_test.go`](../../pkg/cli/mcp_server_compile_test.go)'s
+real-binary snapshots of file inventory, bytes, modes, and modification times,
+isolated temporary-directory include tests, fake-Docker regressions, and the
+implementation and unit-test mapping in compiler threat §7.3.
+
 ## Run the machine
 
 Use Java 21, Python 3 (standard library only), the repository's Go toolchain,
 and official [TLA+ Tools v1.8.0](https://github.com/tlaplus/tlaplus/releases/tag/v1.8.0).
 The runner verifies this jar SHA-256 before executing it (the v1.8.0 release
-asset SHA-256 published by GitHub for asset `637645448`, uploaded on
-2026-10-13; the release notes publish SHA-1):
+asset SHA-256 published by GitHub for asset `644223998`, updated on
+2026-10-15; the release notes publish SHA-1):
 
 ```text
-0f56d6a813368c48008dfbecb23a73ab43a4a5e1bf09f026782a674aa9d4b3c9
+15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac
 ```
 
 When updating the release pin, verify the downloaded bytes against the release
@@ -380,7 +427,8 @@ reusable invocation naming, and declared detection modes. Twenty-one deliberatel
 broken protections (including failure-path token retention) and eight reachability
 witnesses cover authenticated push, temporary host credentials, and a blocking
 cleanup failure. The additional runtime-checkout model exhausts both job kinds
-and verifies the controls and witnesses described above.
+and verifies the controls and witnesses described above. The MCP compilation
+model adds its secure baseline, nineteen negative controls, and seven witnesses.
 
 Counterexamples include raw `tlc-trace.json`, normalized `trace.json`, and
 `events.txt`. `CompiledWorkflow` negative controls also generate `source.md` and

@@ -513,8 +513,8 @@ func TestRenderAgenticWorkflowsMCP_JSON_Copilot(t *testing.T) {
 		t.Error("Did not expect /usr/bin/gh mount in dev mode (gh CLI is in image)")
 	}
 	// Should have DEBUG and GITHUB_TOKEN
-	if !strings.Contains(output, `"DEBUG": "*"`) {
-		t.Error("Expected DEBUG set to literal '*' in env vars")
+	if !strings.Contains(output, `"DEBUG": "\${DEBUG}"`) {
+		t.Error("Expected DEBUG forwarded from the environment")
 	}
 	if !strings.Contains(output, `"GITHUB_TOKEN"`) {
 		t.Error("Expected GITHUB_TOKEN in env vars")

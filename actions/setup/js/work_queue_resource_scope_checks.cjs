@@ -14,6 +14,7 @@ const { authorizeWorkerClaim } = require("./finish_work_queue_claim.cjs");
 const { withClaimExecution, assertClaimAuthorized, withClaimResourceEffects, withClaimResourceVerification, closeClaimEffectChannel, currentClaimResourceEffects, isProtectedClaimResourceTarget } = require("./work_queue_claim_scope.cjs");
 const { wrapClaimEffectClient } = require("./work_queue_effect_client.cjs");
 const { newChildWork } = require("./work_queue_graph.cjs");
+const { assertGitPushAuthorized, withGitClaimEffects } = require("./work_queue_git_effects.cjs");
 
 /** @param {(request: {path: string, body: object}) => void} onMutation */
 function nativeEffectTransport(onMutation) {
@@ -770,6 +771,39 @@ function registerTests({ describe, it }) {
           assert.equal(currentClaimResourceEffects("rest.git.createRef"), null);
         });
         assert.equal(writes, bound ? 1 : 0);
+      }
+    });
+    it("authorizes trusted signed-push refs and paths without granting generic or foreign git effects", async () => {
+      const repository = { repository: REPOSITORY, host: "github.com", repository_id: "7" };
+      for (const resources of [undefined, [{ repository: REPOSITORY }], [{ ...repository, repository_id: "8" }], [{ ...repository, ref: "refs/heads/other" }], [{ ...repository, path: "other.js" }], [repository]]) {
+        const f = productionFixture(resources === undefined ? {} : { resource_scope: { version: 1, resources } });
+        let writes = 0;
+        const source = nativeEffectTransport(() => {
+          writes++;
+        });
+        const allowed = resources?.length === 1 && canonical(resources[0]) === canonical(repository);
+        await withClaimExecution({ assignment: f.assignment, claim_handle: f.member.handle, authorize: f.authorize }, async () => {
+          const client = wrapClaimEffectClient(source, { claim_handle: f.member.handle });
+          const createRef = () => client.rest.git.createRef({ owner: "owner", repo: "repo", ref: "refs/heads/mined-rule", sha: REF });
+          await assert.rejects(createRef(), scopeError);
+          const push = () => withGitClaimEffects({ github: client, repository: REPOSITORY, branch: "mined-rule" }, createRef);
+          const commit = () =>
+            withGitClaimEffects({ github: client, repository: REPOSITORY, branch: "mined-rule", paths: ["eslint-factory/rule.ts"] }, () =>
+              client.graphql("mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }", {
+                input: { branch: { repositoryNameWithOwner: REPOSITORY, branchName: "mined-rule" }, fileChanges: { additions: [{ path: "eslint-factory/rule.ts", contents: "YQ==" }] }, expectedHeadOid: REF },
+              })
+            );
+          const direct = () => assertGitPushAuthorized({ github: client, remote: "origin", branch: "mined-rule", execGitSync: () => `https://github.com/${REPOSITORY}.git\n` });
+          for (const effect of [push, commit, direct]) {
+            if (allowed) await effect();
+            else await assert.rejects(effect(), scopeError);
+          }
+          await assert.rejects(
+            withGitClaimEffects({ github: client, repository: REPOSITORY, branch: "mined-rule", paths: ["eslint-factory/rule.ts"] }, () => client.rest.git.createRef({ owner: "owner", repo: "repo", ref: "refs/heads/foreign", sha: REF }))
+          );
+          await assert.rejects(createRef(), scopeError);
+        });
+        assert.equal(writes, allowed ? 2 : 0);
       }
     });
     it("enforces frozen Work targets and no-write contracts on actual persistent SARIF uploads", async () => {

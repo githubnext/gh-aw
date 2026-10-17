@@ -24,7 +24,11 @@ args: [aw, mcp-server]
 
 ## Configuration Options
 
-Workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled by default, including dry-run calls. The operator can enable them at server startup for trusted clients and workflow sources:
+The `compile` tool uses a dedicated read-only mode with `--no-emit --no-check-update` by default: it validates workflows without modifying files, including lock files, diagnostic YAML, action pins, import caches, temporary includes, or `.gitattributes`. Remote imports and body-level includes, including nested includes, must already be cached; missing entries produce a validation error instead of downloading files. Container validation only inspects local Docker images and reports missing images without pulling them. Validation uses the newly generated YAML, not stale lock-file contents. Fixes, dry-run compilation, and external scanners require write tools.
+
+This stronger MCP mode is separate from ordinary CLI `compile --no-emit` and `validate`, which can still populate import caches. Read-only compilation is not an offline guarantee: resolving an import's branch or tag to its current SHA can require network access.
+
+Workflow-writing tools (`add`, `update`, and `fix`) are disabled by default. The operator can enable them and allow compilation to write files at server startup for trusted clients and workflow sources:
 
 ```bash wrap
 gh aw mcp-server --allow-write-tools

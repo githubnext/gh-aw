@@ -14,10 +14,84 @@ set +o histexpand
 #   CLI_PROXY_IMAGE     - Container image to use (e.g., ghcr.io/github/gh-aw-mcpg:v0.2.2)
 #   GH_TOKEN            - GitHub token passed to the proxy container
 #   GITHUB_SERVER_URL   - GitHub server URL for upstream routing
+#   GH_AW_SECRET_NAMES  - Optional comma-separated custom secret names to redact
+#   SECRET_*            - Additional supplied secret values to redact
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Do not inherit TMPDIR: it can point inside an uploaded artifact directory.
+if ! DIAGNOSTIC_DIR="$(mktemp -d /tmp/gh-aw-cli-proxy.XXXXXX 2>/dev/null)"; then
+  echo "::error::CLI proxy diagnostics could not be captured safely"
+  exit 1
+fi
+artifact_root() {
+  local parent=$1
+  if [ -d "$parent/gh-aw" ]; then
+    (cd "$parent/gh-aw" && pwd -P)
+  elif [ ! -L "$parent/gh-aw" ]; then
+    (cd "$parent" && printf '%s/gh-aw\n' "$(pwd -P)")
+  else
+    return 1
+  fi
+}
+validate_diagnostic_directory() {
+  local parent root
+  DIAGNOSTIC_DIR="$(cd "$DIAGNOSTIC_DIR" && pwd -P)" || return 1
+  for parent in /tmp "${RUNNER_TEMP:-/tmp}"; do
+    root="$(artifact_root "$parent")" || return 1
+    case "$DIAGNOSTIC_DIR/" in
+      "$root/"*) return 1 ;;
+    esac
+  done
+}
+if ! validate_diagnostic_directory 2>/dev/null; then
+  rmdir "$DIAGNOSTIC_DIR" 2>/dev/null || true
+  echo "::error::CLI proxy diagnostics could not be captured safely"
+  exit 1
+fi
+# Keep at most one extra byte to detect overflow; never publish a truncated log,
+# because a later add-mask directive may be required to redact an earlier value.
+MAX_DIAGNOSTIC_BYTES=1048576
+if ! mkfifo "$DIAGNOSTIC_DIR/capture" 2>/dev/null; then
+  rmdir "$DIAGNOSTIC_DIR" 2>/dev/null || true
+  echo "::error::CLI proxy diagnostics could not be captured safely"
+  exit 1
+fi
+(
+  head -c "$((MAX_DIAGNOSTIC_BYTES + 1))" > "$DIAGNOSTIC_DIR/startup.log" &&
+    cat > /dev/null
+) < "$DIAGNOSTIC_DIR/capture" 2>/dev/null &
+CAPTURE_PID=$!
+exec 3>&1 4>&2
+publish_diagnostics() {
+  local status=$?
+  local sanitized capture_size
+  exec 1>&3 2>&4
+  if ! wait "$CAPTURE_PID" ||
+    ! capture_size="$( { wc -c < "$DIAGNOSTIC_DIR/startup.log"; } 2>/dev/null)" ||
+    [ "$capture_size" -gt "$MAX_DIAGNOSTIC_BYTES" ]; then
+    echo "::error::CLI proxy diagnostics withheld because capture exceeded its limit or failed" >&4
+    status=1
+  elif sanitized="$(node "${SCRIPT_DIR}/redact_cli_proxy_diagnostics.cjs" "$DIAGNOSTIC_DIR/startup.log" 2>/dev/null)"; then
+    printf '%s\n' "$sanitized" >&3
+    if [ "$status" -ne 0 ]; then
+      echo "::error::CLI proxy startup failed (exit status $status)" >&4
+    fi
+  else
+    echo "::error::CLI proxy diagnostics withheld because secret redaction failed" >&4
+    status=1
+  fi
+  if ! rm -rf "$DIAGNOSTIC_DIR" >/dev/null 2>&1; then
+    echo "::warning::CLI proxy diagnostic cleanup failed" >&4
+    status=1
+  fi
+  exit "$status"
+}
+trap publish_diagnostics EXIT
+exec >"$DIAGNOSTIC_DIR/capture" 2>&1
+
 # shellcheck source=proxy_env_lib.sh
 source "${SCRIPT_DIR}/proxy_env_lib.sh"
 
@@ -88,8 +162,9 @@ for i in $(seq 1 30); do
 done
 
 if [ "$PROXY_READY" = "false" ]; then
-  echo "::error::CLI proxy failed to start within 30s"
-  docker logs awmg-cli-proxy 2>&1 | tail -20 || true
+  # Redact the complete log before truncating it for publication.
+  docker logs awmg-cli-proxy 2>&1 | head -c "$((MAX_DIAGNOSTIC_BYTES + 1))" || true
   docker rm -f awmg-cli-proxy 2>/dev/null || true
+  echo "::error::CLI proxy failed to start within 30s"
   exit 1
 fi

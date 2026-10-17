@@ -566,7 +566,7 @@ func (c *Compiler) extractAdditionalConfigurations( //nolint:largefunc // Existi
 	topSafeJobs := extractSafeJobsFromFrontmatter(frontmatter)
 
 	// Process @include directives to extract additional safe-outputs configurations
-	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(markdown, markdownDir)
+	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(markdown, markdownDir, c.getSharedImportCache())
 	if err != nil {
 		return fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
 	}
