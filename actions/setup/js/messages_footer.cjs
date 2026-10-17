@@ -500,6 +500,12 @@ function getFooterAgentFailureIssueTemplate(ctx) {
   let template;
   if (messages?.agentFailureIssue) {
     template = messages.agentFailureIssue;
+    // User templates retain unknown placeholders as scalar text, not report nodes.
+    for (const [placeholder, key] of template.matchAll(/\{(\w+)\}/g)) {
+      if (!Object.hasOwn(templateContext, key)) {
+        Object.defineProperty(templateContext, key, { value: placeholder, enumerable: true });
+      }
+    }
   } else {
     // Default footer template with link to workflow run
     template = "> Generated from [{workflow_name}]({run_url}){failure_metrics_suffix}";

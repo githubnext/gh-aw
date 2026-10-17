@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createReportIssue, renderIssueParameters, buildIssueReport } = require("./issue_report.cjs");
-const { normalizeReportTitle } = require("./report_ast.cjs");
+const { normalizeReportText, normalizeReportTitle } = require("./report_ast.cjs");
 
 const { sanitizeLabelContent } = require("./sanitize_label_content.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
@@ -995,7 +995,7 @@ async function main(config = {}) {
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
+    processedBody = sanitizeContent(normalizeReportText(processedBody), { allowedAliases: allowedMentionAliases, maxMentions });
 
     const bodyLines = processedBody.split("\n");
 

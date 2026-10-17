@@ -517,22 +517,15 @@ function buildFailureIssueSummary(options) {
 }
 
 /**
- * Generate a precise failure-match marker for failure issue bodies.
+ * Build metadata for precise failure matching in failure issue bodies.
  * @param {Object} options - Marker options
  * @param {string} options.workflowId - Workflow identifier
  * @param {string} options.branch - Triggering branch
  * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
  * @param {string[]} options.failureCategories - Sorted failure categories
  * @param {string} [options.failureCause] - Classified terminal-output failure cause
- * @returns {string} HTML comment marker
+ * @returns {{key: string, value: string}[]} Failure-match metadata fields
  */
-function generateFailureMatchMarker(options) {
-  return `<!-- gh-aw-failure-issue: true, ${buildFailureMatchMetadata(options)
-    .map(field => `${field.key}: ${field.value}`)
-    .join(", ")} -->`;
-}
-
-/** @param {Parameters<typeof generateFailureMatchMarker>[0]} options */
 function buildFailureMatchMetadata(options) {
   const { workflowId, branch, pullRequestNumber, failureCategories } = options;
   const parts = [

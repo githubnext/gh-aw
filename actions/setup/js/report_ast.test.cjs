@@ -62,6 +62,23 @@ describe("report AST", () => {
     expect(body).toContain('<summary>Evidence [1] &lt;/summary&gt;&lt;img src="x"&gt; &amp; data</summary>');
   });
 
+  it("escapes actual mentions without corrupting email addresses or action versions", () => {
+    const value = "@admin admin@example.com actions/checkout@v5 (@team/dev) @last";
+    const { body } = renderReport(report([paragraph(value), { type: "details", summary: value, children: [paragraph("Evidence")] }]));
+    expect(body).toContain("`@admin` admin@example.com actions/checkout@v5 (`@team/dev`) `@last`");
+    expect(body).toContain("<summary><code>@admin</code> admin@example.com actions/checkout@v5 (<code>@team/dev</code>) <code>@last</code></summary>");
+    expect(renderReport(report([paragraph("@first@second")])).body).toBe("`@first`@second\n");
+  });
+
+  it("validates images and escapes alt text without introducing HTML or notifications", () => {
+    const input = report([{ type: "paragraph", children: [{ type: "image", url: "https://example.com/chart(a).png", alt: "Chart ] <img> @user & data" }] }]);
+    const { body } = renderReport(input);
+    expect(body).toBe("![Chart \\] &lt;img&gt; &#64;user &amp; data](https://example.com/chart%28a%29.png)\n");
+    expect(renderReport(report(parseReportMarkdown(body))).body).toBe(body);
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+    expect(() => renderReport(report([{ type: "paragraph", children: [{ type: "image", url: "http://example.com/chart.png", alt: "Chart" }] }]))).toThrow("HTTPS");
+  });
+
   it("renders only explicit links and encodes Markdown destination delimiters", () => {
     const { body } = renderReport(report([{ type: "paragraph", children: [{ type: "link", url: "https://example.com/run(a)?q='value'", children: [{ type: "text", value: "Run [1]" }] }] }]));
     expect(body).toBe("[Run \\[1\\]](https://example.com/run%28a%29?q=%27value%27)\n");
@@ -200,6 +217,42 @@ describe("report Markdown import boundary", () => {
     expect(renderReport(report(parseReportMarkdown("First\n1\\. literal text\n\\+ literal text"))).body).toBe("First\n1\\. literal text\n\\+ literal text\n");
   });
 
+  it("preserves both Markdown hard-break forms while keeping scalar newlines literal", () => {
+    const children = parseReportMarkdown("Agent job: {job}  \nAgent job conclusion: failure\\\nFailing step: test", { context: { job: "build  \n# injected" } });
+    const input = report(children);
+    expect(children[0].children.filter(node => node.type === "hard_break")).toHaveLength(2);
+    expect(renderReport(input).body).toBe("Agent job: build \\# injected  \nAgent job conclusion: failure  \nFailing step: test\n");
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+    expect(renderReport(report(parseReportMarkdown(renderReport(input).body))).body).toBe(renderReport(input).body);
+  });
+
+  it.each(["report-secret#123", "report-secret**123**", "report-secret@user", "report-secret[run](https://example.com)"])("redacts a complete normalized fragment before tokenizing %s", secret => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "FRAGMENT_REPORT");
+    vi.stubEnv("SECRET_FRAGMENT_REPORT", secret);
+    const body = renderReport(report(parseReportMarkdown(`Before ${secret.replace("#", "&#35;")} after`))).body;
+    expect(body).not.toContain("report-secret");
+    expect(body).toContain("Before ");
+    expect(body).toContain(" after");
+  });
+
+  it("imports balanced and escaped URL parentheses and rejects non-HTTPS images", () => {
+    const source = "[Compare](https://github.com/o/r/compare/main...fix(parser)?expand=1&title=Fix(parser)) [Escaped](https://example.com/a\\(b\\)) ![Chart](https://example.com/chart(a).png) ![Unsafe](javascript:alert(1))";
+    const { body } = renderReport(report(parseReportMarkdown(source)));
+    expect(body).toBe(
+      "[Compare](https://github.com/o/r/compare/main...fix%28parser%29?expand=1&title=Fix%28parser%29) [Escaped](https://example.com/a%28b%29) ![Chart](https://example.com/chart%28a%29.png) Unsafe (link unavailable: invalid HTTPS URL)\n"
+    );
+  });
+
+  it("imports bare URLs without absorbing surrounding punctuation or escaping destinations as prose", () => {
+    const url = "https://github.com/o/r/blob/main/create_issue.cjs#L1118";
+    const source = `See (${url}), https://example.com/run(a). https://example.com/query?a=1&b=2!`;
+    const { body } = renderReport(report(parseReportMarkdown(source)));
+    expect(body).toBe(
+      `See ([https://github.com/o/r/blob/main/create\\_issue.cjs\\#L1118](${url})), [https://example.com/run(a)](https://example.com/run%28a%29). [https://example.com/query?a=1&amp;b=2](https://example.com/query?a=1&b=2)\\!\n`
+    );
+    expect(renderReport(report(parseReportMarkdown(body))).body).toBe(body);
+  });
+
   it("imports block fields explicitly and refuses missing fields or blocks in scalar positions", () => {
     expect(() => parseReportMarkdown("{missing}", { context: {} })).toThrow("Missing report template field");
     expect(() => parseReportMarkdown("{toString}", { context: {} })).toThrow("Missing report template field");
@@ -304,7 +357,7 @@ describe("semantic report nodes", () => {
   });
 
   it("renders hidden XML fields and JSON objects without letting values forge comments or fields", () => {
-    const data = { message: "literal --> <!-- forged --> &quot;", values: [false, null] };
+    const data = { message: "literal --> <!-- forged --> &quot;", values: [false, null, -1, 1e-7, -1e-7] };
     const input = report([
       { type: "xml_marker", name: "gh-aw-custom", value: "workflow, forged: true", fields: [{ key: "branch", value: "main --> <!-- injected -->, forged: true" }] },
       { type: "json_marker", name: "custom-data", data },
@@ -317,6 +370,29 @@ describe("semantic report nodes", () => {
     expect(body).toContain("workflow%2C forged: true");
     expect(body).toContain("%2C forged: true");
     expect(JSON.parse(/<!-- custom-data: (.*) -->/.exec(body)[1])).toEqual(data);
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+  });
+
+  it("preserves double-hyphen workflow IDs for existing failure metadata readers", () => {
+    const { parseHTMLCommentMetadata, isReusableFailureIssue } = require("./handle_agent_failure.cjs");
+    const markers = [
+      { type: /** @type {const} */ "xml_marker", name: /** @type {const} */ "gh-aw-agentic-workflow", value: "Nightly", fields: [{ key: "workflow_id", value: "nightly--build" }] },
+      {
+        type: /** @type {const} */ "xml_marker",
+        name: /** @type {const} */ "gh-aw-failure-issue",
+        value: "true",
+        fields: [
+          { key: "workflow_id", value: "nightly--build" },
+          { key: "failure_categories", value: "missing_tool" },
+        ],
+      },
+    ];
+    const input = { ...report([]), footer: { type: /** @type {const} */ "footer", children: [], markers } };
+    const { body } = renderReport(input);
+    expect(body).toContain("workflow_id: nightly--build");
+    expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow").workflow_id).toBe("nightly--build");
+    expect(parseHTMLCommentMetadata(body, "gh-aw-failure-issue").workflow_id).toBe("nightly--build");
+    expect(isReusableFailureIssue(body, { workflowId: "nightly--build", failureCategories: ["missing_tool"] })).toBe(true);
     expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
   });
 

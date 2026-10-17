@@ -24,7 +24,7 @@ const {
   neutralizeBotTriggers,
   neutralizeTemplateDelimiters,
   applyTruncation,
-  hardenUnicodeText,
+  canonicalizePublicationText,
 } = require("./sanitize_content_core.cjs");
 
 const { balanceCodeRegions } = require("./markdown_code_region_balancer.cjs");
@@ -124,7 +124,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   let sanitized = content;
 
   // Apply Unicode hardening first to normalize text representation
-  sanitized = hardenUnicodeText(sanitized);
+  sanitized = canonicalizePublicationText(sanitized);
 
   // Remove ANSI escape sequences and control characters early
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");

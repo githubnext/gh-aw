@@ -30,6 +30,25 @@ describe("issue report publication boundary", () => {
     });
   });
 
+  it("publishes the fully interpolated PR-permission fallback template without truncating compare URLs", async () => {
+    const { renderTemplateFromFile } = require("./messages_core.cjs");
+    const branch = "fix(parser)";
+    const url = `https://github.com/o/r/compare/main...${encodeURIComponent(branch)}?expand=1&title=${encodeURIComponent("Fix (parser)")}`;
+    const body = renderTemplateFromFile(fileURLToPath(new URL("../md/pr_permission_denied_fallback.md", import.meta.url)), {
+      main_body: "Ready to review",
+      footer: "",
+      branch_name: branch,
+      create_pr_url: url,
+      faq_url: "https://github.com/github/gh-aw",
+      patch_preview: "",
+    });
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: {} }) } } };
+    await createReportIssue(client, { owner: "o", repo: "r", title: "Fallback", body });
+    const published = client.rest.issues.create.mock.calls[0][0].body;
+    expect(published).toContain("**[Create the pull request](https://github.com/o/r/compare/main...fix%28parser%29?expand=1&title=Fix%20%28parser%29)**");
+    expect(renderIssueParameters({ title: "Fallback", body: published }).body).toBe(published);
+  });
+
   it("preserves task lists, separators, collapsed evidence, code fences, and expiration readers", () => {
     const expiresAt = new Date("2026-11-01T12:00:00Z");
     const body = [
@@ -63,7 +82,7 @@ describe("issue report publication boundary", () => {
   });
 
   it("retains managed islands, grouping, queue, provenance, and custom metadata as typed nodes", () => {
-    const metadata = { key: "cluster", summary: "keep  spaces <tag> --> &quot;quoted&quot;", source: 42 };
+    const metadata = { key: "cluster", summary: "keep  spaces <tag> --> &quot;quoted&quot;", source: 42, negative: -1, exponent: 1e-7 };
     const comments = [
       "<!-- aw-essential-start -->",
       `<!-- aw-essential-meta: ${JSON.stringify(metadata)} -->`,

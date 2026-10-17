@@ -155,7 +155,7 @@ describe("Jira safe-output handlers", () => {
     expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Use {{version}}.");
   });
 
-  it.each([false, true])("shares report normalization while preserving literal ADF (staged=%s)", async staged => {
+  it.each([false, true])("normalizes controls and secrets while preserving literal ADF (staged=%s)", async staged => {
     vi.stubEnv("GH_AW_SECRET_NAMES", "JIRA_REPORT");
     vi.stubEnv("SECRET_JIRA_REPORT", "jira-report-fixture");
     const handler = await createIssueMain({ max: 1, staged, body_footer: "Footer jira-report-fixture" });
@@ -186,7 +186,61 @@ describe("Jira safe-output handlers", () => {
     }
   });
 
-  it("rejects descriptions emptied by report normalization before making an API write", async () => {
+  it.each([false, true])("preserves multilingual spelling and literal entities (staged=%s)", async staged => {
+    const summary = "Ошибка сборки / Σφάλμα μεταγλώττισης &amp; &#x41;";
+    const description = "Сборка не удалась.\nΗ μεταγλώττιση απέτυχε.\nUse &lt;tag&gt;, &amp;amp;, &#64;user, ﬁ and Ａ.";
+    const handler = await createIssueMain({ max: 1, staged, body_footer: "Отчет / Αναφορά" });
+    const result = await handler({
+      temporary_id: "#aw_jira123",
+      project_key: "ENG",
+      issue_type: "Task",
+      summary,
+      description,
+    });
+
+    expect(result.success).toBe(true);
+    if (staged) {
+      expect(result.summary).toBe(summary);
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining(`Summary: ${summary}; Description: ${description}\n\nОтчет / Αναφορά`));
+      expect(requests).toHaveLength(0);
+    } else {
+      expect(requests[0].body.fields.summary).toBe(summary);
+      expect(requests[0].body.fields.description.content.map(paragraph => paragraph.content.map(node => node.text).join("")).join("\n")).toBe(`${description}\n\nОтчет / Αναφορά`);
+    }
+  });
+
+  it.each([false, true])("redacts secrets exposed by literal control cleanup (staged=%s)", async staged => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "JIRA_REPORT");
+    vi.stubEnv("SECRET_JIRA_REPORT", "jira-report-fixture");
+    const splitSecret = "jira-\u0000re\u200bport-\u202efixture";
+    const handler = await createIssueMain({ max: 1, staged, body_footer: `Отчет ${splitSecret}` });
+    const result = await handler({
+      temporary_id: "#aw_jira123",
+      project_key: "ENG",
+      issue_type: "Task",
+      summary: `Ошибка\rсборки ${splitSecret}`,
+      description: `Σφάλμα\u0000\r\n\t${splitSecret}\r\u001b[31me\u0000\u0301vidence\u001b[0m\u{e0041}`,
+    });
+
+    expect(result.success).toBe(true);
+    if (staged) {
+      expect(result.summary).toBe("Ошибка сборки ***");
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Σφάλμα\n\t***\névidence\n\nОтчет ***"));
+      expect(requests).toHaveLength(0);
+    } else {
+      expect(requests[0].body.fields.summary).toBe("Ошибка сборки ***");
+      expect(requests[0].body.fields.description.content).toEqual([
+        { type: "paragraph", content: [{ type: "text", text: "Σφάλμα" }] },
+        { type: "paragraph", content: [{ type: "text", text: "\t***" }] },
+        { type: "paragraph", content: [{ type: "text", text: "évidence" }] },
+        { type: "paragraph", content: [] },
+        { type: "paragraph", content: [{ type: "text", text: "Отчет ***" }] },
+      ]);
+    }
+    expect(JSON.stringify([requests, global.core.info.mock.calls])).not.toContain("jira-report-fixture");
+  });
+
+  it("rejects descriptions emptied by literal normalization before making an API write", async () => {
     const handler = await createIssueMain({ max: 1 });
     const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "Report", description: "\u0000" });
     expect(result).toMatchObject({ success: false, error: "description must be non-empty after normalization" });

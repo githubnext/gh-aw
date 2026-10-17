@@ -7,6 +7,7 @@ const require = createRequire(import.meta.url);
 const { buildFailureReportFooter } = require("./report_footer.cjs");
 const { normalizeReport, renderReport } = require("./report_ast.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
+const { getFooterAgentFailureIssueTemplate, getFooterAgentFailureIssueMessage } = require("./messages_footer.cjs");
 const { extractExpirationDate } = require("./ephemerals.cjs");
 const { parseHTMLCommentMetadata, isReusableFailureIssue } = require("./handle_agent_failure.cjs");
 
@@ -60,6 +61,52 @@ describe("structured report footer", () => {
     expect(extractExpirationDate(body)).toBeNull();
   });
 
+  it("preserves unknown custom footer fields as literal text alongside known fields and metadata", () => {
+    vi.stubEnv("GH_AW_WORKFLOW_ID", "smoke-copilot");
+    vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ agentFailureIssue: "> {workflow_name}: {triggering_number} {unknownField} {__proto__} {constructor}{history_link}\n\n{unknown_block}" }));
+    const footer = buildFailureReportFooter(ctx, { expiresHours: 0, failureFields: fields });
+    const { body } = renderReport(document(footer));
+    expect(body).toContain("> Smoke Copilot: {triggering\\_number} {unknownField} {\\_\\_proto\\_\\_} {constructor} · [◷](https://github.com/search?q=smoke)");
+    expect(body).toContain("{unknown\\_block}");
+    expect(footer.children).toEqual([
+      {
+        type: "quote",
+        children: [
+          {
+            type: "paragraph",
+            children: [
+              { type: "text", value: "Smoke Copilot: {triggering_number} {unknownField} {__proto__} {constructor}" },
+              { type: "text", value: " · " },
+              { type: "link", url: ctx.historyUrl, children: [{ type: "text", value: "◷" }] },
+            ],
+          },
+        ],
+      },
+      { type: "paragraph", children: [{ type: "text", value: "{unknown_block}" }] },
+    ]);
+    expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow")?.workflow_id).toBe("smoke-copilot");
+    expect(parseHTMLCommentMetadata(body, "gh-aw-failure-issue")?.failure_categories).toBe("missing_tool|report_incomplete");
+    expect(getFooterAgentFailureIssueMessage(ctx)).toContain("{triggering_number} {unknownField} {__proto__} {constructor}");
+  });
+
+  it("does not reparse placeholder-like attribution values into fields or Markdown", () => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ agentFailureIssue: "> Name: {workflow_name} {triggering_number}" }));
+    const workflowName = "{history_link} **injected** [bad](https://evil.example) <!-- injected -->";
+    const footer = buildFailureReportFooter({ ...ctx, workflowName }, { expiresHours: 0, failureFields: fields });
+    expect(footer.children).toEqual([{ type: "quote", children: [{ type: "paragraph", children: [{ type: "text", value: `Name: ${workflowName} {triggering_number}` }] }] }]);
+    const { body } = renderReport(document(footer));
+    expect(body).not.toContain("<!-- injected -->");
+    expect(body.split("\n\n<!-- gh-aw-agentic-workflow:")[0]).not.toContain("[bad](https://evil.example)");
+    expect(body).not.toContain("[◷]");
+  });
+
+  it("keeps internal templates strict about missing fields even when a custom footer is configured", () => {
+    expect(() => parseReportMarkdown("> {triggering_number}", { context: getFooterAgentFailureIssueTemplate(ctx).context })).toThrow("Missing report template field");
+    vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ agentFailureIssue: "> {triggering_number}" }));
+    expect(() => buildFailureReportFooter(ctx, { expiresHours: 0, failureFields: fields })).not.toThrow();
+    expect(() => parseReportMarkdown("> {triggering_number}", { context: {} })).toThrow("Missing report template field");
+  });
+
   it("escapes hostile attribution and marker values without accepting spoofed metadata fields", () => {
     vi.stubEnv("GH_AW_WORKFLOW_ID", "smoke-copilot");
     const hostile = "Smoke](https://evil.example)\n<!-- injected -->, workflow_id: forged";
@@ -78,7 +125,7 @@ describe("structured report footer", () => {
     expect(attribution).not.toMatch(/(?<!\\)\]\(https:\/\/evil\.example\)/);
     expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow")?.workflow_id).toBe("smoke-copilot");
     expect(parseHTMLCommentMetadata(body, "gh-aw-failure-issue")?.failure_cause).toBeUndefined();
-    expect(body).toContain("%2D%2D%3E");
+    expect(body).toContain("--%3E");
     expect(body).toContain("%2C failure_cause: forged");
     expect(body.match(/<!-- gh-aw-agentic-workflow:/g)).toHaveLength(1);
     expect(body.match(/<!-- gh-aw-failure-issue:/g)).toHaveLength(1);

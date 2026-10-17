@@ -80,8 +80,9 @@ All JavaScript GitHub issue creators publish through `js/issue_report.cjs`.
 calling the supplied authenticated client's issue API. Existing issue Markdown
 is imported when no document is supplied. GraphQL work-queue creation uses the
 same `renderIssueParameters` boundary, as do staged safe-output previews.
-Linear uses the Markdown renderer; Jira uses the shared report title and text
-normalization primitives directly before converting its literal description to ADF.
+Linear uses the Markdown renderer. Jira uses text-preserving normalization before
+converting its literal description to ADF, without replacing ordinary language
+characters with visually similar Latin letters.
 
 `js/report_ast.cjs` defines the typed inline and block nodes, normalization, and
 GitHub Markdown renderer. The renderer owns escaping, HTTPS link validation,
@@ -90,22 +91,26 @@ HTML/Markdown nodes and redacts diagnostic secrets before choosing delimiters.
 
 `js/failure_report.cjs` builds reports from `md/agent_failure_issue.md`.
 `js/report_markdown.cjs` imports the runtime template dialect: headings,
-paragraphs, emphasis, links, code, lists, task lists, tables, quotes, alerts,
-separators, and details.
-Source paragraph newlines use explicit `soft_break` nodes so issue bodies retain
-their line boundaries; newlines in scalar metadata still normalize to spaces.
+paragraphs, emphasis, links, images, bare HTTPS URLs, code, lists, task lists,
+tables, quotes, alerts, separators, and details. Link destinations retain balanced
+parentheses, and image sources use the same HTTPS validation as links.
+Source paragraph newlines and explicit Markdown hard breaks use typed break nodes;
+newlines in scalar metadata still normalize to spaces.
 Templates are parsed **before** scalar metadata is substituted. Diagnostic
 fragments enter through explicit block fields, with headings below the report
 sections; unsupported HTML remains literal text. New programmatic report content
 should use AST nodes rather than concatenated Markdown. Empty optional blocks
-are omitted and rendering is deterministic.
+are omitted and rendering is deterministic. Complete fragments are redacted before
+tokenization, and URL-domain policies apply to fully normalized content.
 
 `js/report_footer.cjs` builds the footer from the shared attribution template and
 model/cost metadata. Attribution, expiration, provenance, failure-match markers,
 and the detection preamble are rendered with the document, not appended afterward.
 Marker names and fields are validated; marker values cannot close an HTML comment
-or inject another metadata field. Expiration remains a checked task-list item so
-existing cleanup and deduplication readers continue to work.
+or inject another metadata field. Ordinary double hyphens in identifiers remain
+unchanged. Unknown placeholders in user-configured footer templates remain literal;
+internal templates retain strict missing-field validation. Expiration remains a
+checked task-list item so existing cleanup and deduplication readers continue to work.
 
 The issue publication importer explicitly enables typed metadata comments to
 preserve grouping, execution provenance, managed islands, and work-queue IDs.

@@ -1,6 +1,55 @@
 // @ts-check
 
-const { normalizeReportURL } = require("./report_ast.cjs");
+const { normalizeReportText, normalizeReportURL } = require("./report_ast.cjs");
+
+/**
+ * Scan destinations before substitution, so scalar values cannot close a link.
+ * @param {string} source
+ */
+function markdownLink(source) {
+  const image = source.startsWith("!");
+  const start = image ? 1 : 0;
+  if (source[start] !== "[") return undefined;
+  let labelDepth = 1;
+  let index = start + 1;
+  for (; index < source.length && source[index] !== "\n"; index++) {
+    if (source[index] === "\\") index++;
+    else if (source[index] === "[") labelDepth++;
+    else if (source[index] === "]" && --labelDepth === 0) break;
+  }
+  if (labelDepth !== 0 || source.slice(index, index + 2) !== "](") return undefined;
+  const label = source.slice(start + 1, index);
+  const destinationStart = index + 2;
+  let destinationDepth = 1;
+  for (index = destinationStart; index < source.length; index++) {
+    if (/\s/.test(source[index])) return undefined;
+    if (source[index] === "\\") index++;
+    else if (source[index] === "(") destinationDepth++;
+    else if (source[index] === ")" && --destinationDepth === 0) {
+      return { raw: source.slice(0, index + 1), label, destination: source.slice(destinationStart, index).replace(/\\([\\()])/g, "$1"), image };
+    }
+  }
+  return undefined;
+}
+
+/** @param {string} source */
+function bareURL(source) {
+  const match = /^https:\/\/[^\s<>"'`*]+/i.exec(source);
+  if (!match) return undefined;
+  let url = match[0];
+  for (;;) {
+    const previous = url;
+    url = url.replace(/[.,!?;:]+$/, "");
+    for (const [open, close] of [
+      ["(", ")"],
+      ["[", "]"],
+      ["{", "}"],
+    ]) {
+      if (url.endsWith(close) && url.split(close).length > url.split(open).length) url = url.slice(0, -1);
+    }
+    if (previous === url) return url;
+  }
+}
 
 /** @typedef {import("./report_ast.cjs").ReportInline} ReportInline */
 /** @typedef {import("./report_ast.cjs").ReportBlock} ReportBlock */
@@ -34,10 +83,13 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
   /**
    * @param {string} source
    * @param {number} [inlineDepth]
+   * @param {boolean} [inLink]
    * @returns {ReportInline[]}
    */
-  function inline(source, inlineDepth = 0) {
+  function inline(source, inlineDepth = 0, inLink = false) {
     if (inlineDepth > 16) throw new TypeError("Report inline nesting exceeds the maximum depth");
+    // Redact the complete fragment before references or formatting split a secret.
+    source = normalizeReportText(source);
     const original = source;
     /** @type {ReportInline[]} */
     const nodes = [];
@@ -48,7 +100,11 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
     };
     while (source) {
       let match;
-      if ((match = /^\n/.exec(source))) {
+      const link = markdownLink(source);
+      const autolink = bareURL(source);
+      if ((match = /^(?: {2,}|\\)\n/.exec(source))) {
+        nodes.push({ type: "hard_break" });
+      } else if ((match = /^\n/.exec(source))) {
         nodes.push({ type: "soft_break" });
       } else if ((match = /^\\([\\`*_[\]{}()#+.!|>~-])/.exec(source))) {
         text(match[1]);
@@ -67,20 +123,27 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
         if (Array.isArray(value)) throw new TypeError("Report blocks cannot appear inline");
         if (typeof value === "object") nodes.push(...value.children);
         else text(value === undefined ? match[0] : String(value));
-      } else if ((match = /^@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)(?![a-zA-Z0-9_/-])/.exec(source)) && allowedMentions.some(alias => alias.replace(/^@/, "").toLowerCase() === match[1].toLowerCase())) {
+      } else if (
+        (match = /^@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)(?![a-zA-Z0-9_/-])/.exec(source)) &&
+        !/[A-Za-z0-9]/.test(original[original.length - source.length - 1] || "") &&
+        allowedMentions.some(alias => alias.replace(/^@/, "").toLowerCase() === match[1].toLowerCase())
+      ) {
         nodes.push({ type: "mention", login: match[1] });
       } else if ((match = /^(`+)(?!`)([\s\S]*?)(?<!`)\1(?!`)/.exec(source))) {
         nodes.push({ type: "code", value: substitute(match[2]) });
-      } else if ((match = /^\[([^\]\n]*)\]\(([^)\s]+)\)/.exec(source))) {
-        const label = inline(match[1], inlineDepth + 1);
-        const url = substitute(match[2]);
+      } else if (link && (!inLink || link.image)) {
+        /** @type {ReportInline[]} */
+        const label = link.image ? [{ type: "text", value: substitute(link.label) }] : inline(link.label, inlineDepth + 1, true);
+        const url = substitute(link.destination);
         try {
-          nodes.push({ type: "link", url: normalizeReportURL(url), children: label });
+          nodes.push(link.image ? { type: "image", url: normalizeReportURL(url), alt: substitute(link.label.replace(/\\([\\`*_[\]{}()#+.!|>~-])/g, "$1")) } : { type: "link", url: normalizeReportURL(url), children: label });
         } catch (error) {
           if (!(error instanceof TypeError)) throw error;
           nodes.push(...label, { type: "text", value: " (link unavailable: invalid HTTPS URL)" });
         }
-      } else if ((match = /^<(https:\/\/[^<>\s]+)>/.exec(source))) {
+        source = source.slice(link.raw.length);
+        continue;
+      } else if (!inLink && (match = /^<(https:\/\/[^<>\s]+)>/.exec(source))) {
         const url = substitute(match[1]);
         try {
           nodes.push({ type: "link", url: normalizeReportURL(url), children: [{ type: "text", value: url }] });
@@ -88,16 +151,26 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
           if (!(error instanceof TypeError)) throw error;
           text("Link unavailable: invalid HTTPS URL");
         }
+      } else if (!inLink && autolink && !/[A-Za-z0-9_]/.test(original[original.length - source.length - 1] || "")) {
+        const url = substitute(autolink);
+        try {
+          nodes.push({ type: "link", url: normalizeReportURL(url), children: [{ type: "text", value: url }] });
+        } catch (error) {
+          if (!(error instanceof TypeError)) throw error;
+          text("Link unavailable: invalid HTTPS URL");
+        }
+        source = source.slice(autolink.length);
+        continue;
       } else if ((match = /^<sub>([\s\S]*?)<\/sub>/.exec(source))) {
-        nodes.push({ type: "subscript", children: inline(match[1], inlineDepth + 1) });
+        nodes.push({ type: "subscript", children: inline(match[1], inlineDepth + 1, inLink) });
       } else if ((match = /^~~(?=\S)([\s\S]*?\S)~~/.exec(source))) {
-        nodes.push({ type: "strike", children: inline(match[1], inlineDepth + 1) });
+        nodes.push({ type: "strike", children: inline(match[1], inlineDepth + 1, inLink) });
       } else if ((match = /^(\*{3}|_{3})(?=\S)([\s\S]*?\S)\1/.exec(source))) {
-        nodes.push({ type: "strong", children: [{ type: "emphasis", children: inline(match[2], inlineDepth + 2) }] });
+        nodes.push({ type: "strong", children: [{ type: "emphasis", children: inline(match[2], inlineDepth + 2, inLink) }] });
       } else if ((match = /^(\*\*|__)(?=\S)([\s\S]*?\S)\1/.exec(source))) {
-        nodes.push({ type: "strong", children: inline(match[2], inlineDepth + 1) });
+        nodes.push({ type: "strong", children: inline(match[2], inlineDepth + 1, inLink) });
       } else if ((match = /^([*_])(?=\S)([^*_\n]*?\S)\1/.exec(source)) && (match[1] !== "_" || !/\w/.test(original[original.length - source.length - 1] || ""))) {
-        nodes.push({ type: "emphasis", children: inline(match[2], inlineDepth + 1) });
+        nodes.push({ type: "emphasis", children: inline(match[2], inlineDepth + 1, inLink) });
       } else {
         text(source[0]);
         source = source.slice(1);

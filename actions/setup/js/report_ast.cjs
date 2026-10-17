@@ -1,6 +1,6 @@
 // @ts-check
 
-const { hardenUnicodeText } = require("./sanitize_content_core.cjs");
+const { canonicalizePublicationText } = require("./sanitize_content_core.cjs");
 const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
 const { escapeMarkdown } = require("./missing_info_formatter.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
@@ -11,7 +11,7 @@ const { createExpirationLine } = require("./ephemerals.cjs");
  * @typedef {{type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
  * @typedef {{type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
  * @typedef {{type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
- * @typedef {{type: "text" | "code", value: string} | {type: "soft_break"} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]}} ReportInline
+ * @typedef {{type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | {type: "image", url: string, alt: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]}} ReportInline
  * @typedef {{type: "paragraph", children: ReportInline[]} |
  *   {type: "heading", level: number, children: ReportInline[]} |
  *   {type: "code_block", value: string, language: string} |
@@ -39,10 +39,7 @@ function normalizeReportText(value) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
   let current = redactDiagnosticText(value);
   for (let pass = 0; pass < 16; pass++) {
-    const normalized = hardenUnicodeText(current)
-      .replace(/\r\n?/g, "\n")
-      .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
-      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+    const normalized = canonicalizePublicationText(current).replace(/\r\n?/g, "\n");
     const redacted = redactDiagnosticText(normalized);
     if (redacted === current) return redacted;
     current = redacted;
@@ -144,7 +141,11 @@ function normalizeInlines(nodes, depth, inLink = false) {
   for (const node of nodes) {
     switch (node.type) {
       case "soft_break":
-        result.push({ type: "soft_break" });
+      case "hard_break":
+        result.push({ type: node.type });
+        break;
+      case "image":
+        result.push({ type: "image", url: normalizeReportURL(node.url), alt: normalizeReportText(node.alt).replace(/\s+/g, " ") });
         break;
       case "mention":
         if (!/^[A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?$/.test(node.login)) throw new TypeError("Invalid report mention");
@@ -284,7 +285,7 @@ function normalizeBlocks(nodes, depth) {
 
 /** @param {string} value */
 function normalizeMarkerValue(value) {
-  return normalizeReportText(value).replace(/\s+/g, " ").trim().replace(/--/g, "%2D%2D").replace(/</g, "%3C").replace(/>/g, "%3E").replace(/,/g, "%2C");
+  return normalizeReportText(value).replace(/\s+/g, " ").trim().replace(/</g, "%3C").replace(/>/g, "%3E").replace(/,/g, "%2C");
 }
 
 /**
@@ -330,9 +331,9 @@ function normalizeReport(report) {
 /** @param {string} value */
 function escapeReportText(value) {
   return value
-    .split(/(@[a-zA-Z0-9][a-zA-Z0-9_/-]*)/g)
-    .map(part =>
-      /^@[a-zA-Z0-9]/.test(part)
+    .split(/((?<![A-Za-z0-9])@[a-zA-Z0-9][a-zA-Z0-9_/-]*)/g)
+    .map((part, index) =>
+      index % 2 === 1
         ? `\`${part}\``
         : escapeMarkdown(part.replace(/&/g, "&amp;"))
             .replace(/\\([()])/g, "$1")
@@ -355,6 +356,10 @@ function renderInlines(nodes) {
       switch (node.type) {
         case "soft_break":
           return "\n";
+        case "hard_break":
+          return "  \n";
+        case "image":
+          return `![${escapeMarkdown(node.alt.replace(/&/g, "&amp;")).replace(/@/g, "&#64;")}](${escapeURLDestination(node.url)})`;
         case "mention":
           return `@${node.login}`;
         case "issue_reference":
@@ -377,10 +382,15 @@ function renderInlines(nodes) {
         case "subscript":
           return `<sub>${renderInlines(node.children)}</sub>`;
         case "link":
-          return `[${renderInlines(node.children)}](${node.url.replace(/[()<>"'`]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)})`;
+          return `[${renderInlines(node.children)}](${escapeURLDestination(node.url)})`;
       }
     })
     .join("");
+}
+
+/** @param {string} url */
+function escapeURLDestination(url) {
+  return url.replace(/[()<>"'`]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 /** @param {ReportBlock[]} nodes */
@@ -397,7 +407,7 @@ function renderBlocks(nodes) {
         case "xml_marker":
           return renderXMLMarker(node);
         case "json_marker":
-          return `<!-- ${node.name}: ${JSON.stringify(node.data).replace(/[<>&-]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`)} -->`;
+          return `<!-- ${node.name}: ${JSON.stringify(node.data).replace(/[<>&]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`)} -->`;
         case "structured_data": {
           const value = JSON.stringify(node.data, null, 2);
           const fence = codeFence(value);
@@ -426,7 +436,7 @@ function renderBlocks(nodes) {
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
-            .replace(/@[a-zA-Z0-9][a-zA-Z0-9_/-]*/g, mention => `<code>${mention}</code>`)}</summary>\n\n${renderBlocks(node.children)}\n\n</details>`;
+            .replace(/(?<![A-Za-z0-9])@[a-zA-Z0-9][a-zA-Z0-9_/-]*/g, mention => `<code>${mention}</code>`)}</summary>\n\n${renderBlocks(node.children)}\n\n</details>`;
         case "table": {
           const row = cells => `| ${cells.map(cell => renderInlines(cell).replace(/(?<!\\)\|/g, "\\|")).join(" | ")} |`;
           return [row(node.headers), `| ${node.headers.map(() => "---").join(" | ")} |`, ...node.rows.map(row)].join("\n");
