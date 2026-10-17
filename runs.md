@@ -16,3 +16,4 @@
 2026-10-14: reviewed cgwalters-forge/agentic-job (7), rknightion/renovate-repair (6), Hack23/euparliamentmonitor (6); no blog; backlog 0.
 2026-10-15: discovery run; reviewed mirrors-gh-aw (6), ai-agentic-workflows (2); no blog; backlog 0.
 2026-10-16: discovery run; 3 candidates unreadable (access filtered, score 0); no blog; backlog 0.
+2026-10-17: discovery run; search returned only official/already-reviewed repos; no new candidates; no blog; backlog 0.
