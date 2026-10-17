@@ -36,6 +36,9 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	on = maps.Clone(on)
 	delete(on, "webhook")
 	delete(on, "webhook-auth")
+	for alias := range webhookTriggerAliases {
+		delete(on, alias)
+	}
 	on["repository_dispatch"] = map[string]any{"types": dispatchTypes}
 	frontmatter["on"] = on
 	data.On = c.extractTopLevelYAMLSection(frontmatter, "on")
@@ -52,17 +55,17 @@ func mergeWebhookDispatchTypes(on map[string]any, webhookType string) ([]string,
 	}
 	dispatch, ok := raw.(map[string]any)
 	if !ok || len(dispatch) != 1 {
-		return nil, errors.New("on.webhook cannot be combined with an unrestricted repository_dispatch trigger; specify disjoint literal types")
+		return nil, errors.New("webhook triggers cannot be combined with an unrestricted repository_dispatch trigger; specify disjoint literal types")
 	}
 	rawTypes, ok := dispatch["types"].([]any)
 	if !ok || len(rawTypes) == 0 {
-		return nil, errors.New("on.webhook requires repository_dispatch.types to contain disjoint literal event types")
+		return nil, errors.New("webhook triggers require repository_dispatch.types to contain disjoint literal event types")
 	}
 	types := make([]string, 0, len(rawTypes)+1)
 	for _, rawType := range rawTypes {
 		value, ok := rawType.(string)
 		if !ok || value == "" || strings.ContainsAny(value, "*?[${") || value == webhookType {
-			return nil, fmt.Errorf("on.webhook repository_dispatch type %q collides with its relay route or is not a disjoint literal type", rawType)
+			return nil, fmt.Errorf("webhook repository_dispatch type %q collides with its relay route or is not a disjoint literal type", rawType)
 		}
 		types = append(types, value)
 	}

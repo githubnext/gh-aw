@@ -81,8 +81,11 @@ func TestCompileWebhookTriggers(t *testing.T) {
 func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	var frontmatter map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(`on:
+  projects-item:
+    types: [edited]
+  dependabot-alert:
   webhook:
-    projects_v2_item: {}
+    sub_issues: {}
   webhook-auth:
     actors: ["cao[bot]"]
 `), &frontmatter))
@@ -97,6 +100,57 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.Equal(t, string(original), string(after))
 	assert.Contains(t, lowered["on"], "repository_dispatch")
 	assert.NotContains(t, lowered["on"], "webhook")
+	assert.NotContains(t, lowered["on"], "projects-item")
+	assert.NotContains(t, lowered["on"], "dependabot-alert")
+	require.Len(t, data.WebhookSubscriptions, 3)
+	assert.Equal(t, "dependabot_alert", data.WebhookSubscriptions[0].Event)
+	assert.Equal(t, "projects_v2_item", data.WebhookSubscriptions[1].Event)
+	assert.Equal(t, "sub_issues", data.WebhookSubscriptions[2].Event)
+}
+
+func TestCompileFirstClassWebhookTriggers(t *testing.T) {
+	for alias, event := range webhookTriggerAliases {
+		t.Run(alias, func(t *testing.T) {
+			compiler := NewCompiler()
+			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  "+alias+`:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [manual-operation]
+  webhook-auth:
+    actors: ["cao[bot]"]
+`), "first-class.md")
+			require.NoError(t, err)
+			require.Len(t, data.WebhookSubscriptions, 1)
+			assert.Equal(t, event, data.WebhookSubscriptions[0].Event)
+			assert.Equal(t, []string{"cao[bot]"}, data.WebhookActors)
+			var triggers map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
+			on := triggers["on"].(map[string]any)
+			assert.NotContains(t, on, alias)
+			assert.NotContains(t, on, "webhook-auth")
+			assert.Contains(t, on, "workflow_dispatch")
+			assert.Equal(t, []any{"manual-operation", WebhookDispatchEventType("first-class")}, on["repository_dispatch"].(map[string]any)["types"])
+
+			output, err := compiler.CompileToYAML(data, "first-class.md")
+			require.NoError(t, err)
+			activation := extractJobSection(output, "activation")
+			assert.Contains(t, activation, "Validate webhook relay")
+			assert.Contains(t, activation, "github.actor == 'cao[bot]'")
+			assert.Contains(t, extractJobSection(output, "agent"), "Stage inline webhook event")
+			var compiled map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(output), &compiled))
+			job := compiled["jobs"].(map[string]any)["activation"].(map[string]any)
+			var subscriptions []WebhookSubscription
+			for _, raw := range job["steps"].([]any) {
+				step := raw.(map[string]any)
+				if step["id"] == "validate-webhook" {
+					env := step["env"].(map[string]any)
+					require.NoError(t, json.Unmarshal([]byte(env["GH_AW_WEBHOOK_SUBSCRIPTIONS"].(string)), &subscriptions))
+				}
+			}
+			assert.Equal(t, data.WebhookSubscriptions, subscriptions)
+		})
+	}
 }
 
 func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
@@ -132,6 +186,14 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
     projects_v2_item: {}`,
 		"colliding dispatch": `  repository_dispatch:
     types: ["` + WebhookDispatchEventType("webhook-test") + `"]
+  webhook:
+    projects_v2_item: {}`,
+		"first-class unrestricted dispatch": `  repository_dispatch:
+  projects-item: {}`,
+		"first-class wildcard dispatch": `  repository_dispatch:
+    types: ["gh-aw-*"]
+  dependabot-alert: {}`,
+		"duplicate spelling": `  projects-item:
   webhook:
     projects_v2_item: {}`,
 	}

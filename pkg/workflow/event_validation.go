@@ -102,6 +102,14 @@ var ghAwOnSectionKeys = map[string]bool{
 	"stop-after":                         true,
 	"webhook":                            true,
 	"webhook-auth":                       true,
+	"projects":                           true,
+	"projects-item":                      true,
+	"projects-status-update":             true,
+	"code-scanning-alert":                true,
+	"dependabot-alert":                   true,
+	"secret-scanning-alert":              true,
+	"secret-scanning-alert-location":     true,
+	"secret-scanning-scan":               true,
 }
 
 // ValidateEventTypes validates that the event types in the 'on:' section of a

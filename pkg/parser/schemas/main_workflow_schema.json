@@ -750,29 +750,66 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "dependencies": {
             "webhook": ["webhook-auth"],
-            "webhook-auth": ["webhook"]
+            "projects": ["webhook-auth"],
+            "projects-item": ["webhook-auth"],
+            "projects-status-update": ["webhook-auth"],
+            "code-scanning-alert": ["webhook-auth"],
+            "dependabot-alert": ["webhook-auth"],
+            "secret-scanning-alert": ["webhook-auth"],
+            "secret-scanning-alert-location": ["webhook-auth"],
+            "secret-scanning-scan": ["webhook-auth"],
+            "webhook-auth": {
+              "anyOf": [
+                { "required": ["webhook"] },
+                { "required": ["projects"] },
+                { "required": ["projects-item"] },
+                { "required": ["projects-status-update"] },
+                { "required": ["code-scanning-alert"] },
+                { "required": ["dependabot-alert"] },
+                { "required": ["secret-scanning-alert"] },
+                { "required": ["secret-scanning-alert-location"] },
+                { "required": ["secret-scanning-scan"] }
+              ]
+            }
           },
           "properties": {
             "webhook": {
               "type": "object",
               "minProperties": 1,
               "description": "GitHub webhook subscriptions delivered through a trusted repository_dispatch relay.",
-              "additionalProperties": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "types": {
-                    "type": "array",
-                    "minItems": 1,
-                    "uniqueItems": true,
-                    "items": { "type": "string", "minLength": 1 }
-                  },
-                  "filters": {
-                    "type": "object",
-                    "minProperties": 1
-                  }
-                }
-              }
+              "additionalProperties": { "$ref": "#/$defs/webhookSubscription" }
+            },
+            "projects": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Projects v2 project events (projects_v2). Projects (classic) is not supported by this trigger."
+            },
+            "projects-item": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Projects v2 item events (projects_v2_item), including field changes. Projects (classic) is not supported by this trigger."
+            },
+            "projects-status-update": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Projects v2 status update events (projects_v2_status_update)."
+            },
+            "code-scanning-alert": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Code scanning alert events (code_scanning_alert)."
+            },
+            "dependabot-alert": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Dependabot alert events (dependabot_alert)."
+            },
+            "secret-scanning-alert": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Secret scanning alert events (secret_scanning_alert). Filters exclude secret material."
+            },
+            "secret-scanning-alert-location": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Secret scanning alert location events (secret_scanning_alert_location). Filters exclude secret material."
+            },
+            "secret-scanning-scan": {
+              "$ref": "#/$defs/webhookTrigger",
+              "description": "Secret scanning scan completion events (secret_scanning_scan)."
             },
             "webhook-auth": {
               "type": "object",
@@ -14543,6 +14580,25 @@
     }
   ],
   "$defs": {
+    "webhookSubscription": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "filters": {
+          "type": "object",
+          "minProperties": 1
+        }
+      }
+    },
+    "webhookTrigger": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/webhookSubscription" }]
+    },
     "work_queue_worker_profile": {
       "type": "object",
       "additionalProperties": false,

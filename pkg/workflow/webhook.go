@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sort"
@@ -18,6 +19,19 @@ import (
 //
 //go:embed data/webhook_events.json
 var webhookCatalogJSON []byte
+
+// webhookTriggerAliases maps first-class frontmatter triggers to wire event names.
+// Projects aliases always refer to Projects v2, never Projects (classic).
+var webhookTriggerAliases = map[string]string{
+	"projects":                       "projects_v2",
+	"projects-item":                  "projects_v2_item",
+	"projects-status-update":         "projects_v2_status_update",
+	"code-scanning-alert":            "code_scanning_alert",
+	"dependabot-alert":               "dependabot_alert",
+	"secret-scanning-alert":          "secret_scanning_alert",
+	"secret-scanning-alert-location": "secret_scanning_alert_location",
+	"secret-scanning-scan":           "secret_scanning_scan",
+}
 
 // WebhookFilter describes an allowlisted path in the original webhook payload.
 // A "*" path segment traverses array elements, never object keys.
@@ -94,23 +108,27 @@ func WebhookDispatchEventType(workflowID string) string {
 	return fmt.Sprintf("gh-aw-webhook-%x", digest[:12])
 }
 
-// ParseWebhookSubscriptions validates and normalizes on.webhook without fetching
-// or hydrating any payload fields. Catalog paths are emitted for CAO to evaluate.
+// ParseWebhookSubscriptions validates and normalizes webhook triggers without
+// fetching or hydrating payload fields. Catalog paths are emitted for CAO.
 func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription, error) {
 	onMap, ok := on.(map[string]any)
 	if !ok {
-		return nil, nil
-	}
-	raw, exists := onMap["webhook"]
-	if !exists {
-		if _, hasAuth := onMap["webhook-auth"]; hasAuth {
-			return nil, errors.New("on.webhook-auth requires on.webhook")
+		for _, name := range rawOnSectionTriggerNames(on) {
+			if _, alias := webhookTriggerAliases[name]; alias {
+				return nil, fmt.Errorf("on.%s requires mapping syntax and on.webhook-auth: {actors: [trusted-gateway-login]}", name)
+			}
 		}
 		return nil, nil
 	}
-	events, ok := raw.(map[string]any)
-	if !ok || len(events) == 0 {
-		return nil, errors.New("on.webhook must be a non-empty mapping of webhook event names to subscriptions")
+	events, paths, err := webhookTriggerConfigs(onMap)
+	if err != nil {
+		return nil, err
+	}
+	if len(events) == 0 {
+		if _, hasAuth := onMap["webhook-auth"]; hasAuth {
+			return nil, errors.New("on.webhook-auth requires on.webhook or a first-class webhook trigger")
+		}
+		return nil, nil
 	}
 	actors, err := parseWebhookActors(onMap["webhook-auth"])
 	if err != nil {
@@ -120,37 +138,64 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	if err != nil {
 		return nil, err
 	}
-	names := make([]string, 0, len(events))
-	for name := range events {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	subscriptions := make([]WebhookSubscription, 0, len(names))
-	for _, name := range names {
+	subscriptions := make([]WebhookSubscription, 0, len(events))
+	for _, name := range sortedWebhookKeys(events) {
+		path := paths[name]
 		definition, known := catalog[name]
 		if !known {
 			return nil, fmt.Errorf("unsupported on.webhook event %q; use a native Actions trigger where available; supported webhook events: %s", name, strings.Join(sortedWebhookKeys(catalog), ", "))
 		}
 		config, ok := events[name].(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("on.webhook.%s must be an object with optional types and filters", name)
+			return nil, fmt.Errorf("%s must be an object with optional types and filters", path)
 		}
 		for _, key := range sortedWebhookKeys(config) {
 			if key != "types" && key != "filters" {
-				return nil, fmt.Errorf("unsupported on.webhook.%s property %q; use types or filters", name, key)
+				return nil, fmt.Errorf("unsupported %s property %q; use types or filters", path, key)
 			}
 		}
-		types, err := parseWebhookTypes(config, name, definition.Actions)
+		types, err := parseWebhookTypes(config, path, definition.Actions)
 		if err != nil {
 			return nil, err
 		}
-		conditions, err := parseWebhookConditions(config, name, types, definition)
+		conditions, err := parseWebhookConditions(config, path, types, definition)
 		if err != nil {
 			return nil, err
 		}
 		subscriptions = append(subscriptions, newWebhookSubscription(workflowID, name, types, actors, conditions))
 	}
 	return subscriptions, nil
+}
+
+func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]string, error) {
+	events := map[string]any{}
+	paths := map[string]string{}
+	if raw, exists := onMap["webhook"]; exists {
+		configured, ok := raw.(map[string]any)
+		if !ok || len(configured) == 0 {
+			return nil, nil, errors.New("on.webhook must be a non-empty mapping of webhook event names to subscriptions")
+		}
+		events = maps.Clone(configured)
+		for event := range events {
+			paths[event] = "on.webhook." + event
+		}
+	}
+	for _, alias := range sortedWebhookKeys(webhookTriggerAliases) {
+		raw, exists := onMap[alias]
+		if !exists {
+			continue
+		}
+		event := webhookTriggerAliases[alias]
+		if _, duplicate := events[event]; duplicate {
+			return nil, nil, fmt.Errorf("on.%s and on.webhook.%s subscribe to the same event; use only one spelling", alias, event)
+		}
+		if raw == nil {
+			raw = map[string]any{}
+		}
+		events[event] = raw
+		paths[event] = "on." + alias
+	}
+	return events, paths, nil
 }
 
 func newWebhookSubscription(workflowID, event string, types, actors []string, conditions []WebhookCondition) WebhookSubscription {
@@ -172,7 +217,7 @@ func newWebhookSubscription(workflowID, event string, types, actors []string, co
 func parseWebhookActors(raw any) ([]string, error) {
 	auth, ok := raw.(map[string]any)
 	if !ok || len(auth) != 1 {
-		return nil, errors.New("on.webhook requires on.webhook-auth: {actors: [trusted-gateway-login]}; dispatch payloads do not authenticate their sender")
+		return nil, errors.New("webhook triggers require on.webhook-auth: {actors: [trusted-gateway-login]}; dispatch payloads do not authenticate their sender")
 	}
 	value, ok := auth["actors"]
 	if !ok {
@@ -197,7 +242,7 @@ func parseWebhookActors(raw any) ([]string, error) {
 	return slices.Compact(actors), nil
 }
 
-func parseWebhookTypes(config map[string]any, event string, supported []string) ([]string, error) {
+func parseWebhookTypes(config map[string]any, path string, supported []string) ([]string, error) {
 	value, exists := config["types"]
 	if !exists {
 		result := slices.Clone(supported)
@@ -209,18 +254,18 @@ func parseWebhookTypes(config map[string]any, event string, supported []string) 
 	}
 	types, err := webhookStringList(value)
 	if err != nil || len(types) == 0 {
-		return nil, fmt.Errorf("on.webhook.%s.types must be a non-empty list of supported activity types", event)
+		return nil, fmt.Errorf("%s.types must be a non-empty list of supported activity types", path)
 	}
 	for _, activity := range types {
 		if !slices.Contains(supported, activity) {
-			return nil, fmt.Errorf("unsupported activity type %q for on.webhook.%s; supported types: %s", activity, event, strings.Join(supported, ", "))
+			return nil, fmt.Errorf("unsupported activity type %q for %s; supported types: %s", activity, path, strings.Join(supported, ", "))
 		}
 	}
 	sort.Strings(types)
 	return slices.Compact(types), nil
 }
 
-func parseWebhookConditions(config map[string]any, event string, types []string, definition WebhookEvent) ([]WebhookCondition, error) {
+func parseWebhookConditions(config map[string]any, path string, types []string, definition WebhookEvent) ([]WebhookCondition, error) {
 	conditions := []WebhookCondition{}
 	raw, exists := config["filters"]
 	if !exists {
@@ -228,7 +273,7 @@ func parseWebhookConditions(config map[string]any, event string, types []string,
 	}
 	filters, ok := raw.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("on.webhook.%s.filters must be an object", event)
+		return nil, fmt.Errorf("%s.filters must be an object", path)
 	}
 	flat := map[string]any{}
 	if err := flattenWebhookFilters("", filters, flat); err != nil {
@@ -237,14 +282,14 @@ func parseWebhookConditions(config map[string]any, event string, types []string,
 	for _, name := range sortedWebhookKeys(flat) {
 		spec, supported := definition.Filters[name]
 		if !supported {
-			return nil, fmt.Errorf("unsupported filter %q for on.webhook.%s; only fields present in the delivered payload can be filtered (labels and item status may require unavailable hydration); supported filters: %s", name, event, strings.Join(sortedWebhookKeys(definition.Filters), ", "))
+			return nil, fmt.Errorf("unsupported filter %q for %s; only fields present in the delivered payload can be filtered (labels and item status may require unavailable hydration); supported filters: %s", name, path, strings.Join(sortedWebhookKeys(definition.Filters), ", "))
 		}
 		if len(spec.Actions) > 0 && !slices.ContainsFunc(types, func(activity string) bool { return slices.Contains(spec.Actions, activity) }) {
-			return nil, fmt.Errorf("filter %q for on.webhook.%s requires one of these activity types: %s", name, event, strings.Join(spec.Actions, ", "))
+			return nil, fmt.Errorf("filter %q for %s requires one of these activity types: %s", name, path, strings.Join(spec.Actions, ", "))
 		}
 		values, err := webhookFilterValues(flat[name], spec)
 		if err != nil {
-			return nil, fmt.Errorf("invalid filter %q for on.webhook.%s: %w", name, event, err)
+			return nil, fmt.Errorf("invalid filter %q for %s: %w", name, path, err)
 		}
 		conditions = append(conditions, WebhookCondition{
 			Filter: name, Path: slices.Clone(spec.Path), Operator: "equals", ValueType: spec.Type, Values: values,

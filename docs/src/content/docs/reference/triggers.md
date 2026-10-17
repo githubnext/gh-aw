@@ -17,7 +17,7 @@ on:
 
 GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for reactions, cost control, and advanced filtering.
 
-For webhook-only events, see [Webhook Triggers](../webhook-triggers/) for `on.webhook` subscriptions and the receiver dispatch contract.
+Projects v2 events use first-class `on.projects`, `on.projects-item`, and `on.projects-status-update` triggers. Security events use `on.code-scanning-alert`, `on.dependabot-alert`, and the `on.secret-scanning-*` triggers. These require a trusted webhook relay, not a native Actions event. See [Webhook Triggers](../webhook-triggers/) for syntax, payload filters, `on.webhook` subscriptions for other events, and the receiver dispatch contract.
 
 ### Dispatch Triggers (`workflow_dispatch:`)
 

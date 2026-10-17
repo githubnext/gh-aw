@@ -147,6 +147,10 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 		if name == "" {
 			continue
 		}
+		if event, ok := webhookTriggerAliases[name]; ok {
+			eventSet[event] = struct{}{}
+			continue
+		}
 
 		if strings.HasPrefix(name, "/") {
 			// Slash command shorthand, e.g. "on: /my-bot".
