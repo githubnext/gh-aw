@@ -16,8 +16,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func enableWebhookCAOConfig(t *testing.T, root string) {
+	t.Helper()
+	configPath := filepath.Join(root, workflow.RepoConfigFileName)
+	require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
+	require.NoError(t, os.WriteFile(configPath, []byte(`{"cao":{"triggers":true}}`), 0o600))
+	t.Chdir(root)
+}
+
+func TestCompileWebhookRequiresCAOOptIn(t *testing.T) {
+	for _, enabled := range []string{"", `{"cao":{"triggers":false}}`} {
+		for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [dependabot]}"} {
+			t.Run(enabled+"/"+trigger, func(t *testing.T) {
+				root := t.TempDir()
+				t.Chdir(root)
+				if enabled != "" {
+					config := filepath.Join(root, workflow.RepoConfigFileName)
+					require.NoError(t, os.MkdirAll(filepath.Dir(config), 0o755))
+					require.NoError(t, os.WriteFile(config, []byte(enabled), 0o600))
+				}
+				path := filepath.Join(root, "cao-required.md")
+				source := fmt.Sprintf("---\non:\n  %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the event.\n", trigger)
+				require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+				compiler := workflow.NewCompiler(workflow.WithNoEmit(true))
+				result := compileWorkflowFile(context.Background(), compiler, path, compileWorkflowFileOptions{noEmit: true, jsonOutput: true})
+				require.False(t, result.success)
+				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "hosted CAO server")
+				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), workflow.RepoConfigFileName)
+			})
+		}
+	}
+}
+
 func TestCompileWebhookJSONContract(t *testing.T) {
 	dir := testutil.TempDir(t, "webhook-compile-*")
+	enableWebhookCAOConfig(t, dir)
 	path := filepath.Join(dir, "webhook-test.md")
 	require.NoError(t, os.WriteFile(path, []byte(`---
 on:
@@ -26,9 +59,7 @@ on:
   projects-item:
     project_id: PVT_example
     types: [edited]
-    filters:
-      field:
-        name: Status
+    status-transitions: [{from: Todo, to: Ready}]
 permissions:
   contents: read
 engine: copilot
@@ -51,16 +82,21 @@ Inspect github.event.client_payload.payload.
 	assert.Equal(t, "repository_dispatch", subscription.Dispatch.Method)
 	assert.Equal(t, workflow.WebhookDispatchEventType("webhook-test"), subscription.Dispatch.EventType)
 	assert.Equal(t, "github.event.client_payload.payload", subscription.Dispatch.Context.Payload)
-	require.Len(t, subscription.Conditions, 2)
+	require.Len(t, subscription.Conditions, 3)
 	assert.Equal(t, []string{"changes", "field_value", "field_name"}, subscription.Conditions[0].Path)
 	assert.Equal(t, "string", subscription.Conditions[0].ValueType)
 	assert.Equal(t, "equals", subscription.Conditions[0].Operator)
 	assert.Equal(t, []any{"Status"}, subscription.Conditions[0].Values)
+	require.Len(t, subscription.AnyOf, 1)
+	require.Len(t, subscription.AnyOf[0], 2)
+	assert.Equal(t, []any{"Todo"}, subscription.AnyOf[0][0].Values)
+	assert.Equal(t, []any{"Ready"}, subscription.AnyOf[0][1].Values)
 	output, err := json.Marshal(result.validationResult)
 	require.NoError(t, err)
 	assert.Contains(t, string(output), `"webhook_subscriptions":[`)
 	assert.Contains(t, string(output), `"conditions":[{"filter":"field.name"`)
 	assert.NotContains(t, string(output), `"trusted_actors"`)
+	assert.Contains(t, string(output), `"any_of"`)
 	assert.NotContains(t, result.workflowData.On, "webhook-auth")
 	assert.NotContains(t, result.workflowData.On, "projects-item")
 	assert.Contains(t, result.workflowData.On, "workflow_dispatch")
@@ -82,11 +118,13 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 	} {
 		t.Run(tt.kind, func(t *testing.T) {
 			dir := testutil.TempDir(t, "security-webhook-compile-*")
+			enableWebhookCAOConfig(t, dir)
 			path := filepath.Join(dir, "security-alerts.md")
 			selector := "    severity: " + tt.value
 			if tt.filter != "severity" {
 				selector = fmt.Sprintf("    filters:\n      %s: %s", tt.filter, tt.value)
 			}
+
 			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(`---
 on:
   security-alert:

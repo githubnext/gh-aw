@@ -148,7 +148,7 @@ func TestWebhookCatalogIntegrity(t *testing.T) {
 	}
 }
 
-func TestWebhookSyntheticProjectTransitionPredicates(t *testing.T) {
+func TestWebhookProjectTransitionConformance(t *testing.T) {
 	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("projects_v2_item", map[string]any{
 		"types":      []any{"edited"},
 		"project_id": "PVT_example",
@@ -194,15 +194,6 @@ func TestWebhookSyntheticProjectTransitionPredicates(t *testing.T) {
 			if err := json.Unmarshal(fixture, &payload); err != nil {
 				t.Fatal(err)
 			}
-			if matchWebhookContract(subscriptions[0], payload) {
-				t.Fatal("native Projects item deliveries do not supply transition operands")
-			}
-			// Synthetic operands exercise predicate semantics, not GitHub delivery compatibility.
-			payload["changes"] = map[string]any{"field_value": map[string]any{
-				"field_name": "Status",
-				"from":       map[string]any{"name": "Todo"},
-				"to":         map[string]any{"name": "Ready"},
-			}}
 			tt.change(payload)
 			if got := matchWebhookContract(subscriptions[0], payload); got != tt.match {
 				t.Fatalf("contract match = %v, want %v", got, tt.match)

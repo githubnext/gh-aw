@@ -754,7 +754,10 @@
               "additionalProperties": false,
               "required": ["project_id"],
               "properties": {
-                "project_id": { "$ref": "#/$defs/webhookStringValues" },
+                "project_id": {
+                  "$ref": "#/$defs/webhookStringValues",
+                  "description": "Experimental. Required Projects v2 GraphQL node ID or nonempty list of IDs; sibling of types."
+                },
                 "types": {
                   "type": "array",
                   "minItems": 1,
@@ -762,6 +765,7 @@
                   "items": { "type": "string", "minLength": 1 }
                 },
                 "status-transitions": {
+                  "description": "Experimental. Paired from/to Status changes compiled to CAO-side predicates over the delivered payload. Each complete pair is an alternative; no runner admission step is added.",
                   "type": "array",
                   "minItems": 1,
                   "uniqueItems": true,
@@ -781,7 +785,7 @@
                   "properties": { "project_id": false }
                 }
               },
-              "description": "Projects v2 item events scoped to required project_id node IDs. Optional status-transitions match paired from/to Status names. Projects (classic) is not supported."
+              "description": "Experimental. Projects v2 item events requiring a hosted CAO server and aw.json cao.triggers: true. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
             },
             "security-alert": {
               "type": "object",
@@ -798,9 +802,12 @@
                       "items": { "type": "string", "enum": ["code-scanning", "dependabot", "secret-scanning"] }
                     }
                   ],
-                  "description": "Selected security alert sources. No related scan or location events are selected implicitly."
+                  "description": "Experimental. Selected security alert sources. No related scan or location events are selected implicitly."
                 },
-                "severity": { "$ref": "#/$defs/webhookStringValues" },
+                "severity": {
+                  "$ref": "#/$defs/webhookStringValues",
+                  "description": "Experimental. Source-specific severity string or nonempty list of severities; sibling of types."
+                },
                 "types": {
                   "type": "array",
                   "minItems": 1,
@@ -813,7 +820,7 @@
                   "properties": { "severity": false }
                 }
               },
-              "description": "Security alert subscriptions selected by sources, delivered through a trusted repository_dispatch relay."
+              "description": "Experimental. Security alert subscriptions requiring a hosted CAO server and aw.json cao.triggers: true. Selects only the configured sources through a trusted repository_dispatch relay."
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",

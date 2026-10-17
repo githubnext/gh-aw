@@ -20,6 +20,9 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	if len(subscriptions) == 0 {
 		return frontmatter, nil
 	}
+	if err := c.requireCAOTriggers(); err != nil {
+		return nil, err
+	}
 	dispatchType := WebhookDispatchEventType(data.WorkflowID)
 	dispatchTypes, err := mergeWebhookDispatchTypes(on, dispatchType)
 	if err != nil {

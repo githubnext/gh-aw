@@ -24,8 +24,15 @@ Inspect the inline webhook at github.event.client_payload.payload.
 `
 }
 
-func TestCompileWebhookTriggers(t *testing.T) {
+func newWebhookCompiler() *Compiler {
 	compiler := NewCompiler()
+	compiler.repoConfig = &RepoConfig{CAO: &CAOConfig{Triggers: true}}
+	compiler.repoConfigLoaded = true
+	return compiler
+}
+
+func TestCompileWebhookTriggers(t *testing.T) {
+	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   workflow_dispatch:
   push:
@@ -85,7 +92,7 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	original, err := json.Marshal(frontmatter)
 	require.NoError(t, err)
 	data := &WorkflowData{WorkflowID: "webhook-test"}
-	compiler := NewCompiler()
+	compiler := newWebhookCompiler()
 	lowered, err := compiler.processWebhookTriggers(frontmatter, data)
 	require.NoError(t, err)
 	after, err := json.Marshal(frontmatter)
@@ -112,7 +119,7 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 		"secret-scanning":    {"  security-alert:\n    sources: [secret-scanning]\n", "secret_scanning_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			compiler := NewCompiler()
+			compiler := newWebhookCompiler()
 			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n"+tt.trigger+`
   workflow_dispatch:
   repository_dispatch:
@@ -209,7 +216,7 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 
 	for name, trigger := range tests {
 		t.Run(name, func(t *testing.T) {
-			compiler := NewCompiler()
+			compiler := newWebhookCompiler()
 			_, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n"+trigger+"\n"), "webhook-test.md")
 			require.Error(t, err)
 		})
@@ -217,7 +224,7 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 }
 
 func TestCompileWebhookNativeSelectors(t *testing.T) {
-	compiler := NewCompiler()
+	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   projects-item:
     project_id: PVT_example
@@ -237,9 +244,41 @@ func TestCompileWebhookNativeSelectors(t *testing.T) {
 	output, err := compiler.CompileToYAML(data, "native-selectors.md")
 	require.NoError(t, err)
 	assert.Contains(t, output, "any_of")
+	assert.NotContains(t, output, "check_project_status_transition")
+	assert.NotContains(t, output, "status_transition_ok")
+	assert.NotContains(t, output, "GH_AW_PROJECT_STATUS_CONFIG")
 	assert.NotContains(t, data.On, "status-transitions")
 	assert.NotContains(t, data.On, "security-alert")
 	assert.Equal(t, 1, strings.Count(output, "name: Validate webhook relay"))
+}
+
+func TestWebhookStatusTransitionsDoNotAddAdmissionSteps(t *testing.T) {
+	for _, policy := range []string{"", "  roles: all\n"} {
+		t.Run(policy, func(t *testing.T) {
+			compiler := newWebhookCompiler()
+			source := webhookWorkflow("on:\n" + policy + `  projects-item:
+    project_id: PVT_example
+    status-transitions:
+      - {from: Todo, to: Ready}
+      - {from: In progress, to: Done}
+`)
+			data, err := compiler.ParseWorkflowString(source, "cao-status.md")
+			require.NoError(t, err)
+			require.Len(t, data.WebhookSubscriptions, 1)
+			require.Len(t, data.WebhookSubscriptions[0].AnyOf, 2)
+			output, err := compiler.CompileToYAML(data, "cao-status.md")
+			require.NoError(t, err)
+			assert.Contains(t, output, "any_of")
+			assert.NotContains(t, output, "check_project_status_transition")
+			assert.NotContains(t, output, "status_transition_ok")
+			assert.NotContains(t, output, "GH_AW_PROJECT_STATUS_CONFIG")
+			if policy != "" {
+				assert.NotContains(t, output, "\n  pre_activation:\n")
+			} else {
+				assert.Contains(t, extractJobSection(output, "pre_activation"), "check_membership.cjs")
+			}
+		})
+	}
 }
 
 func TestWebhookUsesStandardAuthorization(t *testing.T) {
@@ -250,7 +289,7 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 		"all":     "  roles: all\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			compiler := NewCompiler()
+			compiler := newWebhookCompiler()
 			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  projects-item:\n    project_id: PVT_example\n"+policy), "webhook-test.md")
 			require.NoError(t, err)
 			output, err := compiler.CompileToYAML(data, "webhook-test.md")
@@ -274,7 +313,7 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 }
 
 func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
-	compiler := NewCompiler()
+	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   repository_dispatch:
     types: [manual-operation]
@@ -286,7 +325,7 @@ func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
 }
 
 func TestCompileMultipleWebhookSubscriptions(t *testing.T) {
-	compiler := NewCompiler()
+	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   projects-item:
     project_id: PVT_example

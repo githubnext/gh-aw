@@ -42,10 +42,12 @@ func applyWebhookStatusTransitions(subscription *WebhookSubscription, config map
 		}
 		subscription.AnyOf = append(subscription.AnyOf, group)
 	}
-	spec := definition.Filters["field.name"]
-	subscription.Conditions = append(subscription.Conditions, WebhookCondition{
-		Filter: "field.name", Path: slices.Clone(spec.Path), Operator: "equals", ValueType: spec.Type, Values: []any{"Status"},
-	})
+	for _, field := range []struct{ name, value string }{{"field.name", "Status"}, {"field.type", "single_select"}} {
+		spec := definition.Filters[field.name]
+		subscription.Conditions = append(subscription.Conditions, WebhookCondition{
+			Filter: field.name, Path: slices.Clone(spec.Path), Operator: "equals", ValueType: spec.Type, Values: []any{field.value},
+		})
+	}
 	slices.SortFunc(subscription.Conditions, func(a, b WebhookCondition) int { return strings.Compare(a.Filter, b.Filter) })
 	if _, explicit := config["types"]; !explicit {
 		subscription.Types = []string{"edited"}

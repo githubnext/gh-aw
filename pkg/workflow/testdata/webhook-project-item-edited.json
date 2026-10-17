@@ -15,7 +15,11 @@
   "changes": {
     "field_value": {
       "field_node_id": "PVTSSF_example",
-      "field_type": "single_select"
+      "field_type": "single_select",
+      "field_name": "Status",
+      "project_number": 7,
+      "from": { "id": "todo-option", "name": "Todo" },
+      "to": { "id": "ready-option", "name": "Ready" }
     }
   }
 }

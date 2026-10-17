@@ -17,7 +17,7 @@ on:
 
 GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for reactions, cost control, and advanced filtering.
 
-Projects v2 item events use `on.projects-item` with a required top-level `project_id`. Optional paired `status-transitions` currently express predicates only: native payloads lack their operands. Security alerts use `on.security-alert.sources` to select `code-scanning`, `dependabot`, and/or `secret-scanning`, with optional `severity` beside `types`; other security webhooks are not included. These require a trusted webhook relay, not a native Actions event, and use standard `on.roles`/`on.bots` authorization. See [Webhook Triggers](../webhook-triggers/) for syntax, payload filters, and the receiver dispatch contract.
+**Experimental hosted CAO triggers:** Projects v2 item events use `on.projects-item` with a required top-level `project_id`. Optional paired `status-transitions` compiles to CAO-side predicates over delivered Status changes, without an additional admission step. Security alerts use `on.security-alert.sources` to select `code-scanning`, `dependabot`, and/or `secret-scanning`, with optional `severity` beside `types`; other security webhooks are not included. Compilation fails unless `.github/workflows/aw.json` enables `{"cao":{"triggers":true}}`. These synthetic events require a hosted CAO server and use standard `on.roles`/`on.bots` authorization. See [Webhook Triggers](../webhook-triggers/) for syntax, payload filters, and integration requirements.
 
 ### Dispatch Triggers (`workflow_dispatch:`)
 
