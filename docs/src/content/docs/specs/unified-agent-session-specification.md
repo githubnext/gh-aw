@@ -243,7 +243,7 @@ opaque because its essential fields are not defined by this specification.
 | MCP | Server, direction, RPC/call/request IDs, method, tool name, duration, sizes, status, reason, and error code/message. Failed calls reporting HTTP 429 also retain `httpStatus: 429` and the sanitized `retryHint`, including retry durations or `Retry-After` seconds/HTTP-date. No RPC arguments, response bodies, echoed queries/URLs in rate-limit diagnostics, or error context. |
 | Firewall | Host, method, status, decision, byte count, duration; steering/tracker event, level, message, reason, and request ID. |
 | Safe outputs | Operation type, repository/number, provider/identifier/URL, status, and errors; no requested title/body or arbitrary operation payload. |
-| Experiments | Run ID, assignments, and counts. |
+| Experiments | Run ID, assignments, and counts. `experiment.assignment.data.assignments` retains the complete current-run name-to-variant map, including an experiment named `assignments`; historical ledger entries remain separate `experiment.state` observations. |
 | Graders and evals | Grader IDs/names, sources, enabled flags, bounds, values, units, statuses, decisions, thresholds, errors, severity, and diagnostic messages. Manifest/result versions, run ID/attempt and counts, implementation ID/version/digest, and metric ID/value pairs are retained when supplied. Eval ID, answer, model, error, run ID, and experiment assignments are retained. No grader scripts, opaque diagnostics, or eval questions. |
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
@@ -1679,6 +1679,15 @@ symlinks, and decoded-secret/add-mask redaction have separate cases.
 `agent_session_telemetry.test.cjs` verifies canonical bootstrap persistence.
 Compiler tests cover engine artifact paths, conclusion ordering, and the usage
 upload path.
+
+Live artifact checks for [Daily News run 38875907949](https://github.com/github/gh-aw/actions/runs/38875907949)
+and [Daily Cache Strategy Analyzer run 38948382604](https://github.com/github/gh-aw/actions/runs/38948382604)
+confirmed that each published `usage/aw_session.jsonl` contains exactly one
+`experiment.assignment` matching its original experiment artifact, on both a
+successful and a failed workflow. Collector regressions cover original and
+usage-only assignment files, historical state separation, the `assignments`
+name collision, schema validity, and byte-stable repeated collection. These
+checks use completed runs; no workflow was dispatched.
 
 `agent_execution.test.cjs` verifies the existing sanitized Claude API-error/retry
 fixture, every current compiler detector classification, native nested provider

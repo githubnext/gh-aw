@@ -660,7 +660,8 @@ function normalizeUnifiedSessionEvent(event, phase) {
   if (event.type === "tool.execution_complete" && (source.is_error === true || source.result?.isError === true || source.result?.is_error === true)) data.isError = true;
   if (event.type === "experiment.assignment") {
     for (const key of Object.keys(data)) delete data[key];
-    data.assignments = structuredClone(source.assignments ?? source);
+    const assignments = source.assignments;
+    data.assignments = structuredClone(assignments && typeof assignments === "object" && !Array.isArray(assignments) ? assignments : source);
   }
   if (event.type === "grader.manifest" && Array.isArray(source.graders)) data.graders = source.graders.map(grader => selectFields(grader, GRADER_FIELDS));
   if (event.type === "grader.result") {
