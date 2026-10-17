@@ -62,7 +62,6 @@ tools:
     trusted-users:
       - pelikhan
   playwright:
-  cli-proxy: true
 lsp:
   typescript:
     command: typescript-language-server

@@ -46,6 +46,7 @@ imports:
   - uses: shared/session-artifact-check.md
     with:
       session-artifact: copilot-events
+  - shared/default-ai-credits-pricing.md
 network:
   allowed:
     - defaults
