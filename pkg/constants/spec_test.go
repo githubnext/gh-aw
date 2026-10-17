@@ -101,6 +101,32 @@ func TestSpec_Constants_JobAndServerIdentifiers(t *testing.T) {
 	}
 }
 
+func TestSpec_Constants_VersionsAndURLs(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{name: "mcp scripts version", got: constants.MCPScriptsMCPVersion, want: "1.0.0"},
+		{name: "registry", got: string(constants.DefaultMCPRegistryURL), want: "https://api.mcp.github.com/v0.1"},
+		{name: "public GitHub", got: string(constants.PublicGitHubHost), want: "https://github.com"},
+		{name: "Copilot MCP domain", got: constants.GitHubCopilotMCPDomain, want: "api.githubcopilot.com"},
+		{name: "engines docs", got: constants.DocsEnginesURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/engines.md"},
+		{name: "tools docs", got: constants.DocsToolsURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/tools.md"},
+		{name: "GitHub tools docs", got: constants.DocsGitHubToolsURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/tools.md#github-tools-github"},
+		{name: "permissions docs", got: constants.DocsPermissionsURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/permissions.md"},
+		{name: "network docs", got: constants.DocsNetworkURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/network.md"},
+		{name: "sandbox docs", got: constants.DocsSandboxURL.String(), want: "https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/sandbox.md"},
+		{name: "membership step", got: constants.CheckMembershipStepID.String(), want: "check_membership"},
+		{name: "default Copilot version", got: constants.DefaultCopilotVersion.String(), want: "1.0.98"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.got, "documented constant should retain its exact value")
+		})
+	}
+}
+
 func TestSpec_PublicAPI_GetEngineOption(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -136,6 +162,8 @@ func TestSpec_PublicAPI_GetAllEngineSecretNames(t *testing.T) {
 }
 
 func TestSpec_PublicAPI_GetWorkflowDir(t *testing.T) {
+	t.Setenv("GH_AW_WORKFLOWS_DIR", "")
+	assert.Equal(t, ".github/workflows", constants.GetWorkflowDir(), "GetWorkflowDir should use the documented default")
 	t.Setenv("GH_AW_WORKFLOWS_DIR", "custom/workflows")
 	assert.Equal(t, "custom/workflows", constants.GetWorkflowDir(), "GetWorkflowDir should honor the environment at call time")
 	t.Setenv("GH_AW_WORKFLOWS_DIR", "other/workflows")

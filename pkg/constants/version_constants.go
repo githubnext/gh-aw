@@ -68,12 +68,13 @@ const DefaultGitHubMCPServerVersion Version = "v2.0.2"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.59"
+const DefaultFirewallVersion Version = "v0.28.62"
 
 // AWFFallbackModelsMinVersion is the first AWF release with ordered request-level fallback.
 const AWFFallbackModelsMinVersion Version = "v0.28.31"
 
-// DefaultRouterVersion is the default version of the gh-aw model router image.
+// DefaultRouterVersion is the legacy gh-aw model router image version used with
+// AWF releases that predate the router image being published by gh-aw-firewall.
 const DefaultRouterVersion Version = "0.1.3"
 
 // AWFModelRoutingMinVersion is the first AWF version that exposes task routing
@@ -176,6 +177,10 @@ const AWFContainerImagesMinVersion Version = "v0.28.4"
 // "router" role in the container.images manifest. Older versions reject the
 // unknown role.
 const AWFRouterImageRoleMinVersion Version = "v0.28.21"
+
+// AWFRouterReleaseImageMinVersion is the first AWF release that publishes and
+// defaults the router image in the gh-aw-firewall registry.
+const AWFRouterReleaseImageMinVersion Version = "v0.28.62"
 
 // AWFFilesystemAllowWriteMinVersion is the minimum AWF version that added
 // filesystem.allowWrite to the AWF config file schema.
