@@ -220,7 +220,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 				}
 
 				// Validate the container image exists using docker
-				if err := validateDockerImage(containerImage, c.verbose, c.requireDocker); err != nil {
+				if err := validateDockerImageWithMode(containerImage, c.verbose, c.requireDocker, c.readOnly); err != nil {
 					errors = append(errors, fmt.Sprintf("tool '%s': %v", toolName, err))
 				}
 			}

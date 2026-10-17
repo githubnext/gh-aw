@@ -118,7 +118,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	var bodyHash string
 	if markdownPath != "" {
 		baseDir := filepath.Dir(markdownPath)
-		cache := parser.NewImportCache(baseDir)
+		cache := c.getSharedImportCache()
 
 		// computeWorkflowHash calls the parsed-content path when RawMarkdown is
 		// available (fast path), falling back to a disk read otherwise.

@@ -4,6 +4,8 @@ package workflow
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,9 +29,14 @@ func TestCompilerSetContext(t *testing.T) {
 
 func TestCompilerSetNoEmit(t *testing.T) {
 	c := NewCompiler()
+	assert.False(t, c.IsNoEmit())
 
 	c.SetNoEmit(true)
 	assert.True(t, c.noEmit)
+	assert.True(t, c.IsNoEmit())
+
+	c.SetNoEmit(false)
+	assert.False(t, c.IsNoEmit())
 }
 
 func TestCompilerSetStrictMode(t *testing.T) {
@@ -97,6 +104,37 @@ func TestCompilerSharedActionCacheAndResolver(t *testing.T) {
 	// Subsequent calls reuse the same shared instances
 	assert.Same(t, cache, c.GetSharedActionCache())
 	assert.Same(t, resolver, c.GetSharedActionResolver())
+}
+
+func TestCompilerSharedImportCacheRoot(t *testing.T) {
+	for _, gitRepo := range []bool{false, true} {
+		name := "working-directory-fallback"
+		if gitRepo {
+			name = "repository-root"
+		}
+		t.Run(name, func(t *testing.T) {
+			cwd := t.TempDir()
+			t.Chdir(cwd)
+			c := NewCompiler()
+			c.gitRoot = ""
+			root := cwd
+			if gitRepo {
+				root = t.TempDir()
+				c.gitRoot = root
+			}
+			const sha = "0123456789012345678901234567890123456789"
+			cachePath := filepath.Join(root, ".github", "aw", "imports", "owner", "repo", sha, "shared.md")
+			require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0o755))
+			require.NoError(t, os.WriteFile(cachePath, []byte("# Shared\n"), 0o600))
+
+			c.SetNoEmit(true)
+			cache := c.getSharedImportCache()
+			path, found := cache.Get("owner", "repo", "shared.md", sha)
+			require.True(t, found)
+			assert.Equal(t, cachePath, path)
+			assert.Same(t, cache, c.getSharedImportCache())
+		})
+	}
 }
 
 func TestCompilerSetPriorManifestsNilResetsMap(t *testing.T) {

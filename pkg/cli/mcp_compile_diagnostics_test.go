@@ -74,7 +74,7 @@ func structuredCompileFailure() []ValidationResult {
 func TestCompileToolPreservesStructuredFailureAfterDebugFlood(t *testing.T) {
 	t.Parallel()
 	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
-	require.NoError(t, registerCompileTool(server, compileDiagnosticChild("structured"), ""))
+	require.NoError(t, registerCompileTool(server, compileDiagnosticChild("structured"), "", true))
 	result, err := connectInMemory(t, server).CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "compile", Arguments: map[string]any{"workflows": []string{"windows"}, "dry_run": true},
 	})
@@ -101,7 +101,7 @@ func TestCompileToolBoundsHugeDebugStderr(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
-			require.NoError(t, registerCompileTool(server, compileDiagnosticChild(scenario), ""))
+			require.NoError(t, registerCompileTool(server, compileDiagnosticChild(scenario), "", true))
 			session := connectInMemory(t, server)
 			result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
 				Name: "compile", Arguments: map[string]any{"workflows": []string{"windows", "archie"}, "dry_run": true},
@@ -138,7 +138,7 @@ func TestCompileToolBoundsSpawnFailure(t *testing.T) {
 	execCmd := func(ctx context.Context, _ ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, filepath.Join(t.TempDir(), "missing-compiler"))
 	}
-	require.NoError(t, registerCompileTool(server, execCmd, ""))
+	require.NoError(t, registerCompileTool(server, execCmd, "", true))
 	result, err := connectInMemory(t, server).CallTool(context.Background(), &mcp.CallToolParams{Name: "compile", Arguments: map[string]any{"workflows": []string{"test"}}})
 	require.NoError(t, err)
 	assert.Contains(t, extractTextResult(t, result), "missing-compiler")

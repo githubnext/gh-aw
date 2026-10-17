@@ -120,7 +120,7 @@ process.stdin.on("end", () => {
           tools: [{ name: "echo", handler: handlerPath, inputSchema: { type: "object", properties: { message: { type: "string" }, fail: { type: "boolean" } } } }],
         })
       );
-      const child = spawn(process.execPath, [path.join(__dirname, "mcp_scripts_mcp_server.cjs"), configPath, "--log-dir", logDir], { timeout: 10000 });
+      const child = spawn(process.execPath, [path.join(__dirname, "mcp_scripts_mcp_server.cjs"), configPath, "--log-dir", logDir], { timeout: 10000, env: { ...process.env, DEBUG: "*" } });
       let stdout = "";
       let stderr = "";
       child.stdout.on("data", chunk => {

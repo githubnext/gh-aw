@@ -571,6 +571,8 @@ describe("essential unified session payloads", () => {
     ["safe_output.result", { type: "create_issue", number: 0, identifier: null, body: "omit" }, { type: "create_issue", number: 0, identifier: null }],
     ["eval.result", { id: "quality", answer: false, question: "omit", model: "fixture" }, { id: "quality", answer: false, model: "fixture" }],
     ["experiment.assignment", { experiment: "B" }, { assignments: { experiment: "B" } }],
+    ["experiment.assignment", { assignments: "treatment", model_size: "large" }, { assignments: { assignments: "treatment", model_size: "large" } }],
+    ["experiment.assignment", { assignments: { assignments: "treatment", model_size: "large" } }, { assignments: { assignments: "treatment", model_size: "large" } }],
   ])("normalizes essential %s fields and aliases", (type, data, expected) => {
     const original = structuredClone(data);
     const compact = normalizeUnifiedSessionEvent({ type, data });

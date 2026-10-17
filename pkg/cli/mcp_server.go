@@ -84,7 +84,7 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, allowWrit
 
 	server.AddReceivingMiddleware(mcpWriteToolsMiddleware(allowWriteTools, actor, validateActor))
 
-	if err := registerMCPTools(server, execCmd, actor, validateActor, manifestCacheFile); err != nil {
+	if err := registerMCPTools(server, execCmd, actor, validateActor, manifestCacheFile, allowWriteTools); err != nil {
 		return server
 	}
 
@@ -95,11 +95,11 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, allowWrit
 	return server
 }
 
-func registerMCPTools(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool, manifestCacheFile string) error {
+func registerMCPTools(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool, manifestCacheFile string, allowWriteTools bool) error {
 	// Register read-only tools
 	registerStatusTool(server)
 
-	if err := registerCompileTool(server, execCmd, manifestCacheFile); err != nil {
+	if err := registerCompileTool(server, execCmd, manifestCacheFile, allowWriteTools); err != nil {
 		return err
 	}
 

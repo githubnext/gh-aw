@@ -20,6 +20,7 @@ const mcpGatewayCustomEnvTransportPrefix = "GH_AW_MCP_GATEWAY_ENV_"
 const mcpGatewayReservedEnvPrefix = "GH_AW_MCP_GATEWAY_"
 const mcpGatewayCustomEnvMarker = "__GH_AW_MCP_GATEWAY_CUSTOM_ENV__"
 const mcpGatewayConfiguredAgentIDVar = "GH_AW_MCP_GATEWAY_CONFIGURED_AGENT_ID"
+const mcpDebugEnv = "${{ env.DEBUG || runner.debug == '1' && '*' || '' }}"
 
 var optionalPRHeadEnvVars = []string{
 	"GH_AW_PR_HEAD_BASE_BRANCH",
@@ -51,6 +52,7 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		mcpEnvVars[jiraBasicAuthEnvVar] = ""
 	}
 	stepEnvVars := maps.Clone(mcpEnvVars)
+	stepEnvVars["DEBUG"] = mcpDebugEnv
 	maps.Copy(stepEnvVars, jiraAPIAuthStepEnv(tools))
 	customGatewayEnvNames := sanitizedGatewayEnvNames(gatewayConfig.Env)
 	writeMCPGatewayStepEnvWithCustomGatewayEnvNames(yaml, stepEnvVars, safeOutputsInputEnvVars, gatewayConfig.Env, customGatewayEnvNames, gatewayConfig.AgentID)
@@ -380,8 +382,6 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 		}
 		yaml.WriteString("          } >> \"$GITHUB_ENV\"\n")
 	}
-	yaml.WriteString("          export DEBUG=\"*\"\n")
-	yaml.WriteString("          \n")
 	yaml.WriteString("          export GH_AW_ENGINE=\"" + engine.GetID() + "\"\n")
 	if adapterProvider, ok := engine.(MCPConfigAdapterProvider); ok {
 		if adapterFilename := adapterProvider.GetMCPConfigAdapterFilename(); adapterFilename != "" {

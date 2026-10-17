@@ -327,6 +327,7 @@ func TestInitDebugEnv(t *testing.T) {
 		name               string
 		debugEnvVal        string
 		actionsRunnerDebug string
+		runnerDebug        string
 		want               string
 	}{
 		{
@@ -348,6 +349,21 @@ func TestInitDebugEnv(t *testing.T) {
 			want:               "",
 		},
 		{
+			name:        "RUNNER_DEBUG=1 enables all loggers",
+			runnerDebug: "1",
+			want:        "*",
+		},
+		{
+			name:        "RUNNER_DEBUG=0 does not enable loggers",
+			runnerDebug: "0",
+		},
+		{
+			name:        "DEBUG takes precedence over RUNNER_DEBUG",
+			debugEnvVal: "cli:*",
+			runnerDebug: "1",
+			want:        "cli:*",
+		},
+		{
 			name:               "neither set returns empty",
 			debugEnvVal:        "",
 			actionsRunnerDebug: "",
@@ -359,6 +375,7 @@ func TestInitDebugEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("DEBUG", tt.debugEnvVal)
 			t.Setenv("ACTIONS_RUNNER_DEBUG", tt.actionsRunnerDebug)
+			t.Setenv("RUNNER_DEBUG", tt.runnerDebug)
 
 			got := initDebugEnv()
 			if got != tt.want {
