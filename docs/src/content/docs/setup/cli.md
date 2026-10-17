@@ -808,6 +808,10 @@ Filtered runs do not consume the minimum sample. Health searches backward for fi
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
+Health also reads matching `run_summary.json` files from `--logs-dir` (default: `.github/aw/logs`) for failed sub-agent invocations, including workflows whose Actions conclusion is `success`. An affected current revision has status `subagent_failures_observed` and is excluded from `healthy_workflows`; its Actions success/failure counts and success rate remain unchanged. JSON reports include `subagent_failure_count` (invocations), `subagent_failure_runs` (distinct runs), and per-workflow `subagent_failures` with run URLs, agent names, and requested models. Fleet JSON also includes `degraded_workflows`.
+
+This check does not download artifacts. Populate the cache with `gh aw logs --artifacts usage` or `gh aw audit <run-id>` before checking health. Missing, stale, or version-incompatible summaries do not establish failure-free delegation; health only reports observed cached failures. Summaries from another repository, run attempt, revision, or update time are ignored. Historical-revision failures do not degrade the current revision.
+
 Runs that never dispatched a job are excluded from these metrics: `skipped` runs (the activation condition evaluated to false, for example a comment that does not contain the workflow's command) and `action_required` runs (created by GitHub but held for manual approval, for example comment events authored by a bot actor). Including them would report command workflows as near-0% success even when every dispatched run succeeded.
 
 #### `checks`
