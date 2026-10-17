@@ -323,12 +323,6 @@ func runZizmorOnFile(lockFile string, verbose bool, strict bool) error {
 	return runZizmorOnFiles([]string{lockFile}, verbose, strict)
 }
 
-// parseAndDisplayZizmorOutput parses zizmor JSON output and displays it in the desired format
-// Returns the total number of warnings found and the number of high/critical severity findings
-func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, int, error) { //nolint:largefunc
-	return parseAndDisplayZizmorOutputWithOptions(stdout, stderr, verbose, zizmorResultOptions{})
-}
-
 func parseAndDisplayZizmorOutputWithOptions(stdout, stderr string, verbose bool, opts zizmorResultOptions) (int, int, error) { //nolint:largefunc
 	// Map findings to files for detailed display
 	fileFindings := make(map[string][]zizmorFinding)

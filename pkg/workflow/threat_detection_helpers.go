@@ -305,23 +305,21 @@ func engineCoreSecretVarNames(engineID string) []string {
 	}
 }
 
-// resolveThreatDetectionModel returns the model the detection job runs with:
-// safe-outputs.threat-detection.model, else the inherited main workflow model, else
-// the enterprise or engine default detection model, else the "detection" alias.
+// resolveThreatDetectionModel returns the explicit or inherited model when configured,
+// otherwise the enterprise override or runtime-aware engine detection default.
 func resolveThreatDetectionModel(data *WorkflowData, engineID string, engine CodingAgentEngine) string {
 	model := inheritedDetectionModel(data, engineID)
 	if data != nil && data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
 		model = data.SafeOutputs.ThreatDetection.Model
 	}
 	if model == "" {
-		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+		if engine != nil {
+			model = defaultDetectionModel(engine)
+		} else if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
 			model = defaultModel
-		} else if engine != nil {
-			model = engine.GetDefaultDetectionModel()
+		} else {
+			model = "detection"
 		}
-	}
-	if model == "" {
-		model = "detection"
 	}
 	return model
 }
@@ -343,4 +341,24 @@ func inheritedDetectionModel(data *WorkflowData, detectionEngineID string) strin
 		return data.Model
 	}
 	return ""
+}
+
+// defaultDetectionModel preserves an explicit compiler override, but lets runtime
+// organization/repository variables override the built-in detection default. The fallback
+// was accidentally removed from inline detection in a93e36ea4; sharing it here keeps inline
+// and external detection from diverging again.
+func defaultDetectionModel(engine CodingAgentEngine) string {
+	if model := compilerenv.ResolveDefaultDetectionModel(""); model != "" {
+		return model
+	}
+	model := engine.GetDefaultDetectionModel()
+	if model == "" {
+		model = "detection"
+	}
+	suffix := strings.ToUpper(engine.GetID())
+	return compilerenv.BuildModelOverrideExpression(
+		"GH_AW_MODEL_DETECTION_"+suffix,
+		"GH_AW_DEFAULT_MODEL_"+suffix,
+		model,
+	)
 }

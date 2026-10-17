@@ -51,6 +51,7 @@ negative controls and validated readable traces without live effects.
 | [`no-json-stringify-equality`](#no-json-stringify-equality) | Disallow comparing two `JSON.stringify()` results for equality |
 | [`no-json-stringify-set-or-map`](#no-json-stringify-set-or-map) | Disallow `JSON.stringify()` directly on `Set` or `Map` instances |
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
+| [`no-map-parseint-callback`](#no-map-parseint-callback) | Disallow passing `parseInt` directly as an array callback, because the element index is used as the radix |
 | [`no-misplaced-error-code-definition`](#no-misplaced-error-code-definition) | Require exported error-code constants to be defined in `error_codes.cjs` |
 | [`no-single-char-string-replace`](#no-single-char-string-replace) | Disallow `String.prototype.replace()` with a single-character string pattern, which replaces only the first occurrence |
 | [`no-string-fallback-for-non-string-message`](#no-string-fallback-for-non-string-message) | Disallow stringifying a container object instead of its non-string `.message` value in a fallback |
@@ -231,6 +232,10 @@ Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...
 
 **Safe alternative:**
 - `values.reduce((a, b) => Math.max(a, b), -Infinity)` / `values.reduce((a, b) => Math.min(a, b), Infinity)` — folds the array without expanding it into arguments, using the same identity value `Math.max()` / `Math.min()` return on an empty array so the empty-input result matches the spread form instead of throwing.
+
+### `no-map-parseint-callback`
+
+Disallow passing global `parseInt` or `Number.parseInt` directly to `.map()`, because `.map()` passes the element index as the second callback argument and `parseInt` interprets it as the radix. Use `.map(value => parseInt(value, 10))` or `.map(Number)` instead.
 
 ### `no-misplaced-error-code-definition`
 
