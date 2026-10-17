@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/syncutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -27,11 +30,11 @@ var (
 var errEmptyGhawReleaseTag = errors.New("latest gh-aw release tag was empty")
 
 const (
-	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade org PRs/issues.
+	// ghawUpgradeMarkerPrefix is the XML marker prefix embedded in upgrade PRs/issues.
 	// Full marker format: <!-- gh-aw-upgrade: vX.Y.Z -->
 	ghawUpgradeMarkerPrefix = "<!-- gh-aw-upgrade:"
 
-	// ghawUpdateMarkerPrefix is the XML marker prefix embedded in update org PRs/issues.
+	// ghawUpdateMarkerPrefix is the XML marker prefix embedded in update PRs/issues.
 	// Full marker format: <!-- gh-aw-update: vX.Y.Z -->
 	ghawUpdateMarkerPrefix = "<!-- gh-aw-update:"
 
@@ -95,7 +98,10 @@ func runOrgAPICombined(ctx context.Context, remoteHost, spinnerMessage string, a
 }
 
 func listOpenOrgItems(ctx context.Context, repo, collection string) ([]orgListItem, error) {
-	remoteHost := getHostFromOriginRemote()
+	return listOpenOrgItemsWithHost(ctx, getHostFromOriginRemote(), repo, collection)
+}
+
+func listOpenOrgItemsWithHost(ctx context.Context, remoteHost, repo, collection string) ([]orgListItem, error) {
 	items := make([]orgListItem, 0)
 	spinnerMessage := "Checking for existing items..."
 	switch collection {
@@ -168,17 +174,48 @@ func closeExistingOrgIssuesByMarker(ctx context.Context, repo, markerPrefix stri
 	}
 }
 
-// closeExistingOrgPRsByMarker finds all open PRs in repo whose body contains the
-// given marker prefix string and closes them. Errors are non-fatal.
-func closeExistingOrgPRsByMarker(ctx context.Context, repo, markerPrefix string, verbose bool) {
-	prs, err := listOpenOrgItems(ctx, repo, "pulls")
+func hasCompleteXMLMarker(body, markerPrefix string) bool {
+	for {
+		start := strings.Index(body, "<!--")
+		if start < 0 {
+			return false
+		}
+		comment, remaining, closed := strings.Cut(body[start:], "-->")
+		if !closed {
+			return false
+		}
+		if tag, matched := strings.CutPrefix(comment, markerPrefix); matched {
+			tag = strings.TrimSpace(tag)
+			if tag != "" && !strings.ContainsAny(tag, "<>") && !strings.Contains(tag, "--") {
+				return true
+			}
+		}
+		body = remaining
+	}
+}
+
+// closeExistingOrgPRsByMarker closes matching open PRs older than the replacement
+// PR. Its URL determines both the repository and host. Errors are non-fatal.
+func closeExistingOrgPRsByMarker(ctx context.Context, replacementURL, markerPrefix string, verbose bool) {
+	parsed, err := url.Parse(replacementURL)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+		orgIPLog.Printf("Skipping PR cleanup: invalid replacement PR URL")
+		return
+	}
+	owner, repoName, replacementNumber, err := parser.ParsePRURL(replacementURL)
+	if err != nil || replacementNumber <= 0 {
+		orgIPLog.Printf("Skipping PR cleanup: invalid replacement PR number or repository")
+		return
+	}
+	repo := path.Join(owner, repoName)
+	prs, err := listOpenOrgItemsWithHost(ctx, parsed.Host, repo, "pulls")
 	if err != nil {
 		orgIPLog.Printf("Failed to list open PRs in %s: %v", repo, err)
 		return
 	}
 
 	for _, pr := range prs {
-		if !strings.Contains(pr.Body, markerPrefix) {
+		if pr.Number <= 0 || pr.Number >= replacementNumber || !hasCompleteXMLMarker(pr.Body, markerPrefix) {
 			continue
 		}
 		if verbose {
@@ -186,7 +223,7 @@ func closeExistingOrgPRsByMarker(ctx context.Context, repo, markerPrefix string,
 				fmt.Sprintf("Closing outdated PR #%d in %s", pr.Number, repo),
 			))
 		}
-		if _, closeErr := runOrgAPI(ctx, getHostFromOriginRemote(), "Closing outdated PR...",
+		if _, closeErr := runOrgAPI(ctx, parsed.Host, "Closing outdated PR...",
 			"--method", "PATCH",
 			fmt.Sprintf("/repos/%s/pulls/%d", repo, pr.Number),
 			"-f", "state=closed",

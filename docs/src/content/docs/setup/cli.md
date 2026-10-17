@@ -116,6 +116,17 @@ gh aw update --create-pull-request --pr-message "Part of the quarterly automatio
 gh aw upgrade --org my-org --pr --yes --pr-message "Tracking issue: #123."
 ```
 
+### Close older update and upgrade pull requests
+
+`update` and `upgrade` accept `--close-older-prs` with `--pr` or `--create-pull-request`, including in `--repo` and `--org` modes. After successfully creating a replacement pull request, the command closes older open pull requests in the same repository carrying its XML comment marker (`<!-- gh-aw-update: ... -->` or `<!-- gh-aw-upgrade: ... -->`).
+
+Cleanup is opt-in. Update and upgrade pull requests are identified separately; unmarked pull requests, the replacement, and newer pull requests remain open. If replacement creation fails, existing pull requests remain open.
+
+```bash wrap
+gh aw update --pr --close-older-prs
+gh aw upgrade --org my-org --pr --close-older-prs --yes
+```
+
 ### Pull request auto-merge
 
 `--auto-merge` enables GitHub-native auto-merge on the created pull request. Without this flag, command behavior is unchanged.
@@ -922,7 +933,7 @@ gh aw update --org my-org --pr --auto-merge --yes  # Enable auto-merge per repos
 gh aw update --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--approve`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
+**Options:** `--dir/-d`, `--no-merge`, `--major`, `--force/-f`, `--engine/-e`, `--no-stop-after`, `--stop-after`, `--no-release-bump`, `--no-security-scanner`, `--approve`, `--create-pull-request` / `--pr`, `--close-older-prs` (requires PR creation), `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--no-compile`, `--no-redirect`, `--cool-down`, `--repo/-r`
 
 Org mode (`--org`) previews or creates workflow update pull requests across every repository in an organization. Use `--repos` to limit matches, `--create-issue` to open an issue in each repository with pending updates, and `--yes/-y` to auto-accept per-repository confirmations in CI.
 
@@ -964,7 +975,7 @@ gh aw upgrade --audit --json               # Dependency audit in JSON format
 gh aw upgrade --org my-org --create-issue --yes  # Auto-accept per-repo confirmations (required in CI)
 ```
 
-**Options:** `--dir/-d`, `--engine/-e`, `--repo/-r`, `--no-fix`, `--no-actions`, `--no-compile`, `--no-agent`, `--no-mcp`, `--no-skill`, `--disable-codemod`, `--create-pull-request` / `--pr`, `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
+**Options:** `--dir/-d`, `--engine/-e`, `--repo/-r`, `--no-fix`, `--no-actions`, `--no-compile`, `--no-agent`, `--no-mcp`, `--no-skill`, `--disable-codemod`, `--create-pull-request` / `--pr`, `--close-older-prs` (requires PR creation), `--auto-merge` (requires PR creation; see [auto-merge requirements](#pull-request-auto-merge)), `--create-issue`, `--org`, `--repos`, `--yes/-y`, `--audit`, `--json/-j`, `--approve`, `--pre-releases`
 
 The dispatcher skill is updated by default. The Copilot custom agent and setup-steps workflow are created only when a workflow uses Copilot (including when the engine is omitted), or updated if the respective file already exists. An explicit `--engine` overrides workflow engine detection. Use `--no-agent`, `--no-mcp`, or `--no-skill` to skip the corresponding files, even when they already exist.
 

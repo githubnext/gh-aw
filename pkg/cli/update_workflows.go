@@ -96,6 +96,7 @@ type UpdateWorkflowsOptions struct {
 	CoolDown               time.Duration
 	Approve                bool
 	AutoMerge              bool
+	CloseOlderPRs          bool
 	PRMessage              string
 }
 

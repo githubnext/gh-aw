@@ -71,6 +71,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
   ` + string(constants.CLIExtensionPrefix) + ` update --repo owner/repo        # Update workflows in another repository
   ` + string(constants.CLIExtensionPrefix) + ` update --create-pull-request   # Update and open a pull request
   ` + string(constants.CLIExtensionPrefix) + ` update --pr --auto-merge       # Open a pull request and enable auto-merge
+  ` + string(constants.CLIExtensionPrefix) + ` update --pr --close-older-prs  # Open a replacement pull request, then close older update PRs
   ` + string(constants.CLIExtensionPrefix) + ` update --org my-org --pr --auto-merge --yes  # Enable auto-merge for org update pull requests
   ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 0           # Disable cooldown and apply all pending releases immediately
   ` + string(constants.CLIExtensionPrefix) + ` update --cool-down 3d          # Apply a custom 3-day cooldown period`,
@@ -92,6 +93,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			prFlagAlias, _ := cmd.Flags().GetBool("pr")
 			createPR := createPRFlag || prFlagAlias
 			autoMerge, _ := cmd.Flags().GetBool("auto-merge")
+			closeOlderPRs, _ := cmd.Flags().GetBool("close-older-prs")
 			prMessage, _ := cmd.Flags().GetString("pr-message")
 			createIssue, _ := cmd.Flags().GetBool("create-issue")
 			yes, _ := cmd.Flags().GetBool("yes")
@@ -101,6 +103,9 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 			repoGlobs, _ := cmd.Flags().GetStringSlice("repos")
 
 			if err := requireAutoMergePR(autoMerge, createPR); err != nil {
+				return err
+			}
+			if err := requireCloseOlderPRsPR(closeOlderPRs, createPR); err != nil {
 				return err
 			}
 
@@ -149,6 +154,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				CoolDown:               coolDown,
 				Approve:                approveFlag,
 				AutoMerge:              autoMerge,
+				CloseOlderPRs:          closeOlderPRs,
 				PRMessage:              prMessage,
 			}
 
@@ -177,8 +183,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 				if err != nil {
 					return err
 				}
-				_, err = createPRWithChanges(cmd.Context(), "update-workflows", "chore: update workflows",
-					"Update workflows from source", prBody, verbose, opts.AutoMerge)
+				_, err = createWorkflowMaintenancePR(cmd.Context(), "update", prBody, verbose, opts.AutoMerge, opts.CloseOlderPRs)
 				return err
 			}
 			return nil
@@ -205,6 +210,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 	cmd.Flags().Bool("create-pull-request", false, "Create a pull request with the update changes")
 	cmd.Flags().Bool("pr", false, "Alias for --create-pull-request")
 	cmd.Flags().Bool("auto-merge", false, "Enable auto-merge on the created pull request (requires --pr or --create-pull-request)")
+	cmd.Flags().Bool("close-older-prs", false, "Close older gh-aw update pull requests after creating a replacement (requires --pr or --create-pull-request)")
 	addPRMessageFlag(cmd)
 	cmd.Flags().Bool("create-issue", false, "Open a GitHub issue in each org repository that has pending workflow updates (requires --org)")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept org-mode update confirmations (required in CI)")
@@ -364,22 +370,11 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 	}
 
 	if createPR {
-		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, normalizeDisplayVersion(GetVersion()))
-
 		prBody, err := updatePRBody(ctx, summary, opts)
 		if err != nil {
 			return err
 		}
-		prBody += "\n" + xmlMarker
-		if err := validatePRBody(prBody); err != nil {
-			return err
-		}
-
-		// Close stale PRs only after the replacement description is validated.
-		closeExistingOrgPRsByMarker(ctx, targetRepo, ghawUpdateMarkerPrefix, verbose)
-
-		prURL, err := createPRWithChanges(ctx, "update-workflows", "chore: update workflows",
-			"Update workflows from source", prBody, verbose, opts.AutoMerge)
+		prURL, err := createWorkflowMaintenancePR(ctx, "update", prBody, verbose, opts.AutoMerge, opts.CloseOlderPRs)
 		if prURL != "" {
 			addLabelToOrgPR(ctx, prURL, agenticWorkflowsLabel, verbose)
 		}

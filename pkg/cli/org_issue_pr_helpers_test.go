@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,6 +36,31 @@ func TestBuildOrgXMLMarker(t *testing.T) {
 
 func TestMarkerPrefixesAreDistinct(t *testing.T) {
 	assert.NotEqual(t, ghawUpgradeMarkerPrefix, ghawUpdateMarkerPrefix, "upgrade and update marker prefixes must stay distinct")
+}
+
+func TestHasCompleteXMLMarker(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		body string
+		want bool
+	}{
+		{name: "version marker", body: "<!-- gh-aw-update: v1.2.3 -->", want: true},
+		{name: "placeholder marker", body: "<!-- gh-aw-update: latest -->", want: true},
+		{name: "surrounding text", body: "Summary\n<!-- gh-aw-update: v1.2.3 -->\nFooter", want: true},
+		{name: "preceding unrelated comment", body: "<!-- unrelated -->\n<!-- gh-aw-update: v1.2.3 -->", want: true},
+		{name: "unmarked", body: "Update workflows"},
+		{name: "opposite command", body: "<!-- gh-aw-upgrade: v1.2.3 -->"},
+		{name: "stray prefix", body: "Please add <!-- gh-aw-update: to the body"},
+		{name: "unterminated marker", body: "<!-- gh-aw-update: v1.2.3"},
+		{name: "empty marker", body: "<!-- gh-aw-update: -->"},
+		{name: "nested comment", body: "<!-- example: <!-- gh-aw-update: v1.2.3 --> -->"},
+		{name: "malformed comment", body: "<!-- gh-aw-update: v1.2.3 -- ignored -->"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasCompleteXMLMarker(tc.body, ghawUpdateMarkerPrefix))
+		})
+	}
 }
 
 func TestGetGhawReleaseInfoCachesSuccessfulLookup(t *testing.T) {
@@ -150,6 +176,87 @@ func TestCloseExistingOrgIssuesByMarkerSkipsPRsAndPaginates(t *testing.T) {
 	assert.Contains(t, logText, "api --hostname github.com --method PATCH /repos/octo/repo/issues/1 -f state=closed -f state_reason=not_planned", "matching issues should be closed")
 	assert.Contains(t, logText, "api --hostname github.com --method PATCH /repos/octo/repo/issues/101 -f state=closed -f state_reason=not_planned", "matching issues on later pages should also be closed")
 	assert.NotContains(t, logText, "/repos/octo/repo/issues/3", "items flagged as pull requests must not be closed via the issues endpoint")
+}
+
+func TestCloseExistingOrgPRsByMarkerFiltersAndPaginates(t *testing.T) {
+	for _, operation := range []string{"update", "upgrade"} {
+		t.Run(operation, func(t *testing.T) {
+			dir := t.TempDir()
+			logPath := filepath.Join(dir, "gh-args.log")
+			marker, otherMarker := ghawUpdateMarkerPrefix, ghawUpgradeMarkerPrefix
+			if operation == "upgrade" {
+				marker, otherMarker = otherMarker, marker
+			}
+			page1 := []orgListItem{
+				{Number: 1, Body: buildOrgXMLMarker(marker, "v1.0.0")},
+				{Number: 200, Body: buildOrgXMLMarker(marker, "v2.0.0")},
+				{Number: 201, Body: buildOrgXMLMarker(marker, "v3.0.0")},
+				{Number: 2, Body: buildOrgXMLMarker(otherMarker, "v1.0.0")},
+				{Number: 3, Body: "unrelated PR"},
+				{Number: 0, Body: buildOrgXMLMarker(marker, "v1.0.0")},
+				{Number: 98, Body: marker + " v1.0.0"},
+				{Number: 99, Body: marker + " -->"},
+			}
+			for i := 4; len(page1) < 100; i++ {
+				page1 = append(page1, orgListItem{Number: i, Body: "no marker"})
+			}
+			page1JSON, err := json.Marshal(page1)
+			require.NoError(t, err)
+			page2JSON, err := json.Marshal([]orgListItem{{Number: 101, Body: buildOrgXMLMarker(marker, "v1.0.0")}})
+			require.NoError(t, err)
+			page1Path, page2Path := filepath.Join(dir, "page1.json"), filepath.Join(dir, "page2.json")
+			require.NoError(t, os.WriteFile(page1Path, page1JSON, 0o644))
+			require.NoError(t, os.WriteFile(page2Path, page2JSON, 0o644))
+			// One failed close must not prevent closing other obsolete PRs.
+			script := fmt.Sprintf(`#!/bin/sh
+printf '%%s\n' "$*" >> %q
+case "$*" in
+  *"/pulls?state=open&per_page=100&page=1"*) cat %q ;;
+  *"/pulls?state=open&per_page=100&page=2"*) cat %q ;;
+  *"/pulls/1 "*) exit 1 ;;
+  *"/pulls/101 "*) printf '{}' ;;
+  *) exit 1 ;;
+esac
+`, logPath, page1Path, page2Path)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755))
+			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+			closeExistingOrgPRsByMarker(context.Background(), "https://ghe.example.com/octo/repo/pull/200", marker, false)
+
+			log, err := os.ReadFile(logPath)
+			require.NoError(t, err)
+			lines := strings.Split(strings.TrimSpace(string(log)), "\n")
+			require.Len(t, lines, 4)
+			assert.Equal(t, "api --hostname ghe.example.com /repos/octo/repo/pulls?state=open&per_page=100&page=1", lines[0])
+			assert.Equal(t, "api --hostname ghe.example.com /repos/octo/repo/pulls?state=open&per_page=100&page=2", lines[1])
+			assert.Equal(t, "api --hostname ghe.example.com --method PATCH /repos/octo/repo/pulls/1 -f state=closed", lines[2])
+			assert.Equal(t, "api --hostname ghe.example.com --method PATCH /repos/octo/repo/pulls/101 -f state=closed", lines[3])
+		})
+	}
+}
+
+func TestCloseExistingOrgPRsByMarkerListErrorsAreNonFatal(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		response string
+	}{
+		{name: "API failure", response: "exit 1"},
+		{name: "invalid JSON", response: "printf 'not json'"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			logPath := filepath.Join(dir, "gh-args.log")
+			script := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$*\" >> %q\n%s\n", logPath, tc.response)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755))
+			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+			closeExistingOrgPRsByMarker(context.Background(), "https://github.com/octo/repo/pull/42", ghawUpdateMarkerPrefix, false)
+
+			log, err := os.ReadFile(logPath)
+			require.NoError(t, err)
+			assert.NotContains(t, string(log), "PATCH")
+		})
+	}
 }
 
 func TestCreateOrgIssueRetriesOnlyForMissingLabel(t *testing.T) {

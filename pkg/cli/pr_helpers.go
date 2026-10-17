@@ -30,6 +30,13 @@ func requireAutoMergePR(autoMerge, createPR bool) error {
 	return nil
 }
 
+func requireCloseOlderPRsPR(closeOlderPRs, createPR bool) error {
+	if closeOlderPRs && !createPR {
+		return errors.New("--close-older-prs requires --pr or --create-pull-request")
+	}
+	return nil
+}
+
 var switchPRBranch = switchBranch
 
 func createPRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose, autoMerge bool) (string, error) {
