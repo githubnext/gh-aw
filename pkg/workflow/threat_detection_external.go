@@ -758,7 +758,7 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 	detectionArtifactName := artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName.String()
 	steps := []string{
 		"      - name: Upload threat detection artifact\n",
-		"        if: always()\n",
+		"        if: " + detectionArtifactsRedactedCondition + "\n",
 		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/upload-artifact")),
 		"        with:\n",
 		"          name: " + detectionArtifactName + "\n",
@@ -770,9 +770,8 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 	}
 	// Include the detection AWF run's own firewall proxy/audit logs (token usage, squid
 	// logs) so detection-phase usage surfaces in the usage artifact and counts toward the
-	// AI-credits budget cap (see gh-aw#54047). These are firewall/proxy metadata, not the
-	// untrusted agent transcript, so bundling them does not introduce the secret-exfiltration
-	// risk that keeps detection.log off this artifact.
+	// AI-credits budget cap (see gh-aw#54047). These files are collected before the
+	// detection-specific redaction passes; console masking cannot sanitize artifacts.
 	if isFirewallEnabled(data) {
 		threatLog.Print("Including firewall logs in detection artifact upload")
 		steps = append(steps,
@@ -805,7 +804,7 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 	steps := []string{
 		"      - name: Conclude threat detection\n",
 		"        id: detection_conclusion\n",
-		"        if: always()\n",
+		"        if: " + detectionArtifactsRedactedCondition + "\n",
 	}
 
 	if continueOnErrorExpr != nil {

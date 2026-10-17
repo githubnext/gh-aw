@@ -12,6 +12,13 @@ GitHub Agentic Workflows includes automatic threat detection to analyze agent ou
 
 Threat detection provides an additional security layer by analyzing agent output for malicious content, scanning code changes for suspicious patterns, using workflow context to distinguish legitimate actions from threats, and running automatically after the main job completes but before safe outputs are applied.
 
+Detection sanitizes its files after firewall-log collection and custom post-steps,
+before accounting reads or renders them. A second redaction pass covers newly
+generated usage files before log rendering, result publication, and artifact
+upload. These consumers require successful detection-job redaction; a failed or
+skipped redaction blocks publication even when detection uses `continue-on-error`.
+GitHub Actions console masking does not sanitize downloadable artifact contents.
+
 **Security Architecture:**
 
 ```text

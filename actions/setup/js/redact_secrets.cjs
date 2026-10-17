@@ -64,7 +64,7 @@ class RedactionOperationError extends Error {
 /**
  * Recursively finds all files matching the specified extensions
  * @param {string} dir - Directory to search
- * @param {string[]} extensions - File extensions to match (e.g., ['.txt', '.json', '.log'])
+ * @param {string[] | null} extensions - File extensions to match, or null to include every regular file
  * @returns {string[]} Array of file paths
  */
 function findFiles(dir, extensions) {
@@ -107,7 +107,7 @@ function findFiles(dir, extensions) {
             core.warning(`Removed symbolic link before artifact upload: ${fullPath}`);
           } else if (entry.isDirectory()) {
             pending.push(fullPath);
-          } else if (entry.isFile() && extensions.includes(path.extname(entry.name).toLowerCase())) {
+          } else if (entry.isFile() && (extensions === null || extensions.includes(path.extname(entry.name).toLowerCase()))) {
             results.push(fullPath);
           }
         }
@@ -634,9 +634,9 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
 
 /**
  * Main function
- * @param {{prepareForCustomMasking?: boolean}} [options]
+ * @param {{prepareForCustomMasking?: boolean, additionalDirectories?: string[]}} [options]
  */
-async function main({ prepareForCustomMasking = false } = {}) {
+async function main({ prepareForCustomMasking = false, additionalDirectories = [] } = {}) {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GH_AW_SECRET_NAMES;
 
@@ -669,7 +669,8 @@ async function main({ prepareForCustomMasking = false } = {}) {
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch", ".html"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
     const optFiles = findFiles(`${process.env.RUNNER_TEMP}/gh-aw`, targetExtensions);
-    const files = [...new Set([...tmpFiles, ...optFiles])];
+    const additionalFiles = additionalDirectories.flatMap(dir => findFiles(dir, null));
+    const files = [...new Set([...tmpFiles, ...optFiles, ...additionalFiles])];
     // Collect before built-in/custom redaction or bootstrap removes mask commands.
     // Only sanitized sources cross the job boundary, never the raw mask values.
     const masks = new Set(getOTLPSecretValues());
