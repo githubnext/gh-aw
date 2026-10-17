@@ -392,8 +392,9 @@ async function inspectClaimDelivery(options) {
 /** @param {Record<string, any>} options */
 async function verifyBuiltinDeliveryOutput(options) {
   const { claim, message, result, github } = options;
-  // PR creation/branch updates also need pinned commit/tree evidence, not merely a visible PR.
-  if (["create_pull_request", "update_pull_request"].includes(message.type)) return { verified: false };
+  if (["create_discussion", "create_pull_request"].includes(message.type)) return require("./work_queue_native_creation_delivery.cjs").verifyNativeCreationDelivery(options);
+  // Updating branches still requires its own pinned commit/tree verifier.
+  if (message.type === "update_pull_request") return { verified: false };
   const verifiedFields = new Set(["type", "claim_handle", "claim_id", "work_id", "repo", "item_number", "issue_number", "pull_request_number", "temporary_id", ...(BUILTIN_EFFECT_FIELDS[message.type] || [])]);
   if (Object.keys(message).some(field => !verifiedFields.has(field))) return { verified: false };
   if (!result || result.staged || !github?.rest || message.data !== undefined || message.duplicate_of !== undefined) return { verified: false };

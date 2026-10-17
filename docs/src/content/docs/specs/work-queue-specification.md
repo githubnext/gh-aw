@@ -1802,6 +1802,10 @@ path and make the declared read path agree with the written path. For the ESLint
 Refiner this is `/tmp/gh-aw/agent/eslint-refiner-memory/history.json`, written
 read-only. An unreadable or missing expected file is a preparation failure, not
 an empty history; only a successfully restored empty history is empty input.
+The agent's observable failure signals are a non-zero read-command exit or
+invalid JSON. Native restoration and filesystem write errors fail preparation
+before the agent starts; an absent optional legacy history source may still
+restore successfully as empty arrays.
 History remains data, never Claim authority. Runtime/compilation regressions MUST
 cover the effective native-tool permission and the actual preparation script's
 write/read-path agreement, not just prompt wording.
@@ -2061,6 +2065,16 @@ finite attempt/deadline budget. If all delivery is independently verified, it
 may append the same immutable Result even after native release. Completion,
 agent statements, and an overall successful worker conclusion alone do not
 prove delivery.
+
+Built-in resource creation needs independent native readback, not just a
+successful handler response or an agent-supplied URL. Discussion delivery must
+verify the created discussion's immutable identity, permitted repository,
+category, and expected content. Pull-request delivery must additionally verify
+the permitted base/head repositories and refs, the expected head commit, and
+its independently read commit/tree evidence against trusted prepared mutation
+evidence. A PR number alone is not proof that the intended changes were
+published. Missing, mismatched, foreign, or unavailable evidence leaves delivery
+unverified; it must not be promoted to Result to make aggregate reporting pass.
 
 After exact native-run/attempt terminal evidence and exhausted reconciliation,
 publish `DeliveryFailure` when delivery cannot be established. Record the
