@@ -1075,6 +1075,7 @@ jobs:
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
+          DEBUG: ${{ env.DEBUG || runner.debug == '1' && '*' || '' }}
           GH_AW_ASSETS_ALLOWED_EXTS: ${{ env.GH_AW_ASSETS_ALLOWED_EXTS }}
           GH_AW_ASSETS_BRANCH: ${{ env.GH_AW_ASSETS_BRANCH }}
           GH_AW_ASSETS_MAX_SIZE_KB: ${{ env.GH_AW_ASSETS_MAX_SIZE_KB }}
@@ -1111,8 +1112,6 @@ jobs:
           export GH_AW_PR_HEAD_BASE_REF="${GH_AW_PR_HEAD_BASE_REF:-}"
           export GH_AW_PR_HEAD_REPO="${GH_AW_PR_HEAD_REPO:-}"
           export GH_AW_TARGET_REPO_SLUG="${GH_AW_TARGET_REPO_SLUG:-}"
-          export DEBUG="*"
-
           export GH_AW_ENGINE="copilot"
           export GH_AW_MCP_CLI_SERVERS='["safeoutputs","work-queue"]'
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
@@ -1122,7 +1121,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_a484e8827c2598fd_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_dd7a6147c5527c20_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "safeoutputs": {
@@ -1133,7 +1132,7 @@ jobs:
                 "entrypoint": "sh",
                 "entrypointArgs": ["-c", "sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh"],
                 "env": {
-                  "DEBUG": "*",
+                  "DEBUG": "\${DEBUG}",
                   "DEFAULT_BRANCH": "\${DEFAULT_BRANCH}",
                   "GH_AW_ASSETS_ALLOWED_EXTS": "\${GH_AW_ASSETS_ALLOWED_EXTS}",
                   "GH_AW_ASSETS_BRANCH": "\${GH_AW_ASSETS_BRANCH}",
@@ -1196,7 +1195,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_a484e8827c2598fd_EOF
+          GH_AW_MCP_CONFIG_dd7a6147c5527c20_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true

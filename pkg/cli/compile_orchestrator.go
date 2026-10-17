@@ -19,6 +19,9 @@ var compileUpdateContainerPins = updateContainerPins
 
 // CompileWorkflows compiles workflows based on the provided configuration
 func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.WorkflowData, error) { //nolint:largefunc // Existing compilation lifecycle remains centralized.
+	if config.ReadOnly {
+		config.NoEmit = true
+	}
 	config = applyWorkspaceStrictMode(applyDevelopmentCompileMode(config))
 	compileOrchestratorLog.Printf("Starting workflow compilation: files=%d, validate=%v, watch=%v, noEmit=%v",
 		len(config.MarkdownFiles), config.Validate, config.Watch, config.NoEmit)

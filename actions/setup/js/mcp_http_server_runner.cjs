@@ -169,7 +169,7 @@ async function runHttpServer(options) {
  */
 function logStartupError(error, namespace, context) {
   const errorLogger = createLogger(namespace);
-  errorLogger.debug(`=== FATAL ERROR: Failed to start HTTP Server ===`);
+  errorLogger.debugError("FATAL ERROR: Failed to start HTTP Server: ", error);
   if (error && typeof error === "object") {
     if ("constructor" in error && /** @type {any} */ error.constructor) {
       errorLogger.debug(`Error type: ${/** @type {any} */ error.constructor.name}`);

@@ -137,7 +137,8 @@ func configureCompilerFlags(compiler *workflow.Compiler, config CompileConfig) {
 	compileCompilerSetupLog.Printf("Validation enabled: %v", config.Validate)
 
 	// Set noEmit flag to validate without generating lock files
-	compiler.SetNoEmit(config.NoEmit)
+	compiler.SetNoEmit(config.NoEmit || config.ReadOnly)
+	compiler.SetReadOnly(config.ReadOnly)
 	if config.NoEmit {
 		compileCompilerSetupLog.Print("No-emit mode enabled: validating without generating lock files")
 	}

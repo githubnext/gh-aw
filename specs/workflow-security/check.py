@@ -14,7 +14,7 @@ import tempfile
 
 
 ROOT = Path(__file__).resolve().parent
-JAR_SHA256 = "0f56d6a813368c48008dfbecb23a73ab43a4a5e1bf09f026782a674aa9d4b3c9"
+JAR_SHA256 = "15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac"
 MUTATIONS = {
     "agent-write": "JobIsolation",
     "persist-credentials": "NoCredentialPersistence",
@@ -92,6 +92,36 @@ RUNTIME_CHECKOUT_WITNESSES = {
     "hosting-exception": "NoHostingException",
     "private-host": "NoPrivateHostCheckout",
     "internal-host": "NoInternalHostCheckout",
+}
+MCP_COMPILE_MUTATIONS = {
+    "caller-opt-in": "StartupCapability",
+    "actor-bypass": "ActorAuthorization",
+    "option-bypass": "WritingOptionsGated",
+    "no-emit-omitted": "ReadOnlyMode",
+    "update-check-enabled": "ReadOnlyMode",
+    "scanner-before-gate": "NoExternalScanners",
+    "missing-import-download": "NoRemoteDownloads",
+    "diagnostic-write": "ReadOnlyIsolation",
+    "post-processing-write": "ReadOnlyIsolation",
+    "cache-hit-write": "ReadOnlyIsolation",
+    "cwd-cache-root": "CacheRootConforms",
+    "read-only-denied": "ReadOnlyAvailability",
+    "validation-bypass": "ValidationPreserved",
+    "write-output-omitted": "WriteEnabledEmission",
+    "read-only-mode-omitted": "ReadOnlyMode",
+    "docker-pull": "NoImagePulls",
+    "include-cache-bypass": "NoRemoteDownloads",
+    "no-emit-cache-policy": "TrustedNoEmitAvailability",
+    "stale-lock-validation": "ReadOnlyAvailability",
+}
+MCP_COMPILE_WITNESSES = {
+    "read-only-success": "NoReadOnlySuccess",
+    "cached-subdirectory-success": "NoCachedSubdirectorySuccess",
+    "missing-import-error": "NoMissingImportError",
+    "write-enabled-success": "NoWriteEnabledSuccess",
+    "actor-denial": "NoActorDenial",
+    "nested-include-success": "NoNestedIncludeSuccess",
+    "trusted-no-emit-import-refresh": "NoTrustedNoEmitImportRefresh",
 }
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",
@@ -288,6 +318,17 @@ def check_sources(compiler, results):
     print("Source seed compiled; concrete agent-write source rejected by strict compiler.")
 
 
+def check_mcp_compile(java, jar, results):
+    cases = [run_case(java, jar, results, "secure-mcp-compile", model="MCPCompile")]
+    for fault, invariant in MCP_COMPILE_MUTATIONS.items():
+        cases.append(run_case(java, jar, results, f"mcp-compile-{fault}", fault,
+                              invariant=invariant, model="MCPCompile"))
+    for name, invariant in MCP_COMPILE_WITNESSES.items():
+        cases.append(run_case(java, jar, results, f"mcp-compile-{name}",
+                              invariant=invariant, witness=True, model="MCPCompile"))
+    return cases
+
+
 def write_examples(results, cases):
     selected = list(WITNESSES) + [
         "persist-credentials", "skip-detection", "cross-repo-token", "private-sink",
@@ -395,6 +436,7 @@ def main():
         cases.append(run_case(java, jar, results, f"runtime-checkout-{name}",
                               invariant=invariant, witness=True,
                               model="RuntimeRepositoryCheckout"))
+    cases.extend(check_mcp_compile(java, jar, results))
     current_hashes = {model: hashlib.sha256((ROOT / f"{model}.tla").read_bytes()).hexdigest()
                       for model in {case["model"] for case in cases}}
     if any(case["model_sha256"] != current_hashes[case["model"]] for case in cases):
@@ -405,7 +447,7 @@ def main():
         check_compiled_workflows(args.verifier, args.compiled_workflows, results)
     (results / "results.json").write_text(
         json.dumps({"model": "CompiledWorkflow",
-                    "additional_models": ["RuntimeRepositoryCheckout"], "bounded": True,
+                    "additional_models": ["RuntimeRepositoryCheckout", "MCPCompile"], "bounded": True,
                     "jar_sha256": JAR_SHA256, "cases": cases}, indent=2) + "\n"
     )
     if args.write_examples:

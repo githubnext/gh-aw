@@ -1,7 +1,7 @@
 // @ts-check
 "use strict";
 
-const { createLogger } = require("./mcp_logger.cjs");
+const { createLogger, debugEnabled: matchesDebugNamespace } = require("./mcp_logger.cjs");
 const { performance } = require("node:perf_hooks");
 
 /** @type {Map<string, number>} */
@@ -136,19 +136,7 @@ function queueControlErrorCode(error) {
 /** @param {string} namespace */
 function debugEnabled(namespace) {
   if (process.env.ACTIONS_RUNNER_DEBUG === "true" || process.env.RUNNER_DEBUG === "1") return true;
-  let enabled = false;
-  for (const token of (process.env.DEBUG || "").split(/[\s,]+/).filter(Boolean)) {
-    const excluded = token.startsWith("-");
-    const pattern = excluded ? token.slice(1) : token;
-    const expression = pattern
-      .split("*")
-      .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-      .join(".*");
-    if (!new RegExp("^" + expression + "$").test(namespace)) continue;
-    if (excluded) return false;
-    enabled = true;
-  }
-  return enabled;
+  return matchesDebugNamespace(namespace);
 }
 
 /**
@@ -165,7 +153,7 @@ function createWorkQueueLogger(component) {
     const now = performance.now();
     const previous = lastEmittedAt.get(namespace) ?? now;
     const elapsed = Math.max(0, Math.round(now - previous));
-    logger.debug([event, ...metadata.map(([key, value]) => `${key}=${value}`), ...(explanation ? ["--", explanation] : []), `+${elapsed}ms`].join(" "));
+    logger.diagnostic([event, ...metadata.map(([key, value]) => `${key}=${value}`), ...(explanation ? ["--", explanation] : []), `+${elapsed}ms`].join(" "));
     lastEmittedAt.set(namespace, now);
   }
   /** @param {string} event @param {Record<string, unknown>} [fields] */
