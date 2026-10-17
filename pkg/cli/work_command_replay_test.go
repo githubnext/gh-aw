@@ -389,10 +389,10 @@ func TestWorkQueueArtifactReplayZIPBoundsAndExactMember(t *testing.T) {
 		{"../" + workQueueSnapshotFile}, {"nested/" + workQueueSnapshotFile},
 		{workQueueSnapshotFile, workQueueSnapshotFile},
 	} {
-		_, err := workQueueReplaySnapshotFromZIP(workQueueReplayTestZIP(t, []byte("{}"), names...))
+		_, err := workQueueReplaySnapshotFromZIPLimit(workQueueReplayTestZIP(t, []byte("{}"), names...), workQueueReplayArtifactBytes)
 		require.Error(t, err)
 	}
-	_, err := workQueueReplaySnapshotFromZIP([]byte("not a zip"))
+	_, err := workQueueReplaySnapshotFromZIPLimit([]byte("not a zip"), workQueueReplayArtifactBytes)
 	require.Error(t, err)
 	_, err = readWorkQueueReplayBytes(strings.NewReader("oversized"), 4)
 	require.Error(t, err)
@@ -405,6 +405,6 @@ func TestWorkQueueArtifactReplayZIPBoundsAndExactMember(t *testing.T) {
 	_, err = entry.Write([]byte("private-target"))
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
-	_, err = workQueueReplaySnapshotFromZIP(buffer.Bytes())
+	_, err = workQueueReplaySnapshotFromZIPLimit(buffer.Bytes(), workQueueReplayArtifactBytes)
 	require.Error(t, err)
 }

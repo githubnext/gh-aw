@@ -181,7 +181,7 @@ func TestDryRunZizmorUsesSharedResultFilter(t *testing.T) {
 	assert.Contains(t, output, "test.lock.yml:3:1: info: [Low] self-repository")
 	assert.Contains(t, output, "test.lock.yml:4:1: error: [High] template-injection")
 	captureStderrForGuardPolicyReportTest(func() {
-		count, high, err = parseAndDisplayZizmorOutput(stdout, "", false)
+		count, high, err = parseAndDisplayZizmorOutputWithOptions(stdout, "", false, zizmorResultOptions{})
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 3, count, "ordinary compilation must not ignore secrets-outside-env")
