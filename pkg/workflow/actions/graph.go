@@ -184,7 +184,7 @@ func walkJob(job *Job, resolve func(OutputRef, int) (string, error)) error {
 		_, err := ctx.render(expr)
 		return err
 	}
-	for _, expr := range []Expression{job.If, job.ContinueOnError} {
+	for _, expr := range []Expression{job.If, job.ContinueOnError, job.TimeoutMinutesExpression} {
 		if expr != nil {
 			if err := check(expr, -1); err != nil {
 				return err
@@ -222,7 +222,7 @@ func walkStep(step Step, position int, check func(Expression, int) error) error 
 	if err != nil {
 		return err
 	}
-	for _, expr := range []Expression{opts.If, opts.ContinueOnError} {
+	for _, expr := range []Expression{opts.If, opts.ContinueOnError, opts.TimeoutMinutesExpression} {
 		if expr != nil {
 			if err := check(expr, position); err != nil {
 				return err

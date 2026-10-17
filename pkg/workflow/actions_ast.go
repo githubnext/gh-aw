@@ -114,7 +114,7 @@ func jobToActions(original *Job) (*actions.Job, error) {
 func hasActionsExecutionSettings(job *actions.Job) bool {
 	return job.Name != "" || job.RunsOn != nil || job.Permissions != nil || job.Defaults != nil ||
 		job.Concurrency != nil || job.Environment != nil || job.Strategy != nil ||
-		job.Container != nil || job.Services != nil || job.TimeoutMinutes != 0 || job.ContinueOnError != nil ||
+		job.Container != nil || job.Services != nil || job.TimeoutMinutes != 0 || job.TimeoutMinutesExpression != nil || job.ContinueOnError != nil ||
 		job.Uses != "" || len(job.With) > 0 || len(job.Secrets) > 0 || job.SecretsInherit || len(job.CallOutputs) > 0
 }
 

@@ -24,15 +24,16 @@ type Job struct {
 	Steps   []Step
 	Outputs map[OutputName]Expression
 
-	Permissions     any
-	Defaults        map[string]any
-	Concurrency     any
-	Environment     any
-	Strategy        map[string]any
-	Container       any
-	Services        map[string]any
-	TimeoutMinutes  int
-	ContinueOnError Expression
+	Permissions              any
+	Defaults                 map[string]any
+	Concurrency              any
+	Environment              any
+	Strategy                 map[string]any
+	Container                any
+	Services                 map[string]any
+	TimeoutMinutes           int
+	TimeoutMinutesExpression Expression
+	ContinueOnError          Expression
 
 	// Uses makes this a reusable-workflow call rather than a runner job.
 	Uses           string
@@ -53,13 +54,14 @@ type OutputDecl struct {
 }
 
 type StepOptions struct {
-	ID              StepID
-	Name            string
-	If              Expression
-	Env             map[string]Expression
-	ContinueOnError Expression
-	TimeoutMinutes  int
-	Outputs         []OutputDecl
+	ID                       StepID
+	Name                     string
+	If                       Expression
+	Env                      map[string]Expression
+	ContinueOnError          Expression
+	TimeoutMinutes           int
+	TimeoutMinutesExpression Expression
+	Outputs                  []OutputDecl
 }
 
 type RunStep struct {

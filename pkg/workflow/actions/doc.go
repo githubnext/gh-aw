@@ -10,6 +10,10 @@
 // Emit serializes it once. RawStep accepts authored GitHub Actions step mappings
 // and rejects non-Actions properties.
 //
+// Parse reads native workflow YAML and validates its dependency graph. Authored
+// expression strings remain opaque; explicit needs are authoritative. AW
+// Markdown source documents are modeled separately by the aw package.
+//
 // Producers declare OutputDecl on a named step and write values to GITHUB_OUTPUT.
 // Consumers use OutputRef in If, Env, With, or Secrets. Same-job references become
 // steps.<id>.outputs.<name>; cross-job references expose a job output and add a

@@ -147,6 +147,9 @@ func LowerStep(step Step, consumer JobID, resolved *Workflow) (map[string]any, e
 	if opts.TimeoutMinutes < 0 {
 		return nil, errors.New("step timeout-minutes cannot be negative")
 	}
+	if opts.TimeoutMinutes != 0 && opts.TimeoutMinutesExpression != nil {
+		return nil, errors.New("step cannot combine a literal and expression timeout-minutes")
+	}
 	fields := make(map[string]any)
 	switch value := step.(type) {
 	case RunStep:
@@ -188,6 +191,13 @@ func LowerStep(step Step, consumer JobID, resolved *Workflow) (map[string]any, e
 }
 
 func lowerStepOptions(fields map[string]any, opts StepOptions, consumer JobID, resolved *Workflow) error {
+	if opts.TimeoutMinutesExpression != nil {
+		value, err := RenderExpression(opts.TimeoutMinutesExpression, consumer, resolved, true)
+		if err != nil {
+			return err
+		}
+		fields["timeout-minutes"] = value
+	}
 	if opts.ID != "" {
 		fields["id"] = string(opts.ID)
 	}

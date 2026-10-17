@@ -22,6 +22,7 @@ type Number float64
 // Context is the escape hatch for expressions not yet modeled by the AST.
 // Its contents exclude the surrounding ${{ }} delimiters.
 type Context string
+type parsedExpression string
 type SecretRef string
 type VariableRef string
 
@@ -46,16 +47,17 @@ type Binary struct {
 
 type Not struct{ Value Expression }
 
-func (Literal) actionsExpression()     {}
-func (Boolean) actionsExpression()     {}
-func (Number) actionsExpression()      {}
-func (Context) actionsExpression()     {}
-func (SecretRef) actionsExpression()   {}
-func (VariableRef) actionsExpression() {}
-func (OutputRef) actionsExpression()   {}
-func (Call) actionsExpression()        {}
-func (Binary) actionsExpression()      {}
-func (Not) actionsExpression()         {}
+func (Literal) actionsExpression()          {}
+func (Boolean) actionsExpression()          {}
+func (Number) actionsExpression()           {}
+func (Context) actionsExpression()          {}
+func (parsedExpression) actionsExpression() {}
+func (SecretRef) actionsExpression()        {}
+func (VariableRef) actionsExpression()      {}
+func (OutputRef) actionsExpression()        {}
+func (Call) actionsExpression()             {}
+func (Binary) actionsExpression()           {}
+func (Not) actionsExpression()              {}
 
 func Secret(name string) Expression {
 	return SecretRef(name)
@@ -111,6 +113,12 @@ func (ctx expressionContext) render(expr Expression) (string, error) {
 		text := string(value)
 		if strings.TrimSpace(text) == "" || strings.ContainsAny(text, "\r\n") || strings.Contains(text, "${{") || strings.Contains(text, "}}") {
 			return "", errors.New("raw workflow expression must be nonempty, single-line, and exclude expression delimiters")
+		}
+		return text, nil
+	case parsedExpression:
+		text := string(value)
+		if strings.TrimSpace(text) == "" || strings.Contains(text, "${{") || strings.Contains(text, "}}") {
+			return "", errors.New("parsed Actions expression must be nonempty and exclude expression delimiters")
 		}
 		return text, nil
 	case OutputRef:
