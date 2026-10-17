@@ -102,6 +102,12 @@ func awfSupportsRouterImageRole(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFRouterImageRoleMinVersion)
 }
 
+// awfSupportsRouterReleaseImage returns true when AWF publishes its router image
+// in the versioned gh-aw-firewall registry.
+func awfSupportsRouterReleaseImage(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFRouterReleaseImageMinVersion)
+}
+
 // awfSupportsCloudHypervisorFilesystemAllowWrite returns true when the effective
 // AWF version supports filesystem.allowWrite for the Cloud Hypervisor microVM
 // runtime (gh-aw-firewall v0.28.6+; see AWFCloudHypervisorFilesystemAllowWriteMinVersion).
