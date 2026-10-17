@@ -11,7 +11,7 @@ const { createExpirationLine } = require("./ephemerals.cjs");
  * @typedef {{type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
  * @typedef {{type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
  * @typedef {{type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
- * @typedef {{type: "text" | "code", value: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]}} ReportInline
+ * @typedef {{type: "text" | "code", value: string} | {type: "soft_break"} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]}} ReportInline
  * @typedef {{type: "paragraph", children: ReportInline[]} |
  *   {type: "heading", level: number, children: ReportInline[]} |
  *   {type: "code_block", value: string, language: string} |
@@ -143,6 +143,9 @@ function normalizeInlines(nodes, depth, inLink = false) {
   const result = [];
   for (const node of nodes) {
     switch (node.type) {
+      case "soft_break":
+        result.push({ type: "soft_break" });
+        break;
       case "mention":
         if (!/^[A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?$/.test(node.login)) throw new TypeError("Invalid report mention");
         result.push({ type: "mention", login: node.login });
@@ -350,6 +353,8 @@ function renderInlines(nodes) {
   return nodes
     .map(node => {
       switch (node.type) {
+        case "soft_break":
+          return "\n";
         case "mention":
           return `@${node.login}`;
         case "issue_reference":

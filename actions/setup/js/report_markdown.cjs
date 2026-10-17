@@ -48,7 +48,9 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
     };
     while (source) {
       let match;
-      if ((match = /^\\([\\`*_[\]{}()#+.!|>~-])/.exec(source))) {
+      if ((match = /^\n/.exec(source))) {
+        nodes.push({ type: "soft_break" });
+      } else if ((match = /^\\([\\`*_[\]{}()#+.!|>~-])/.exec(source))) {
         text(match[1]);
       } else if ((match = /^(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s+((?:[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*)?)(\\?)#([1-9]\d*)\b/i.exec(source)) && !/\w/.test(original[original.length - source.length - 1] || "")) {
         const verb = match[1].toLowerCase();

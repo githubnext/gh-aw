@@ -92,6 +92,8 @@ HTML/Markdown nodes and redacts diagnostic secrets before choosing delimiters.
 `js/report_markdown.cjs` imports the runtime template dialect: headings,
 paragraphs, emphasis, links, code, lists, task lists, tables, quotes, alerts,
 separators, and details.
+Source paragraph newlines use explicit `soft_break` nodes so issue bodies retain
+their line boundaries; newlines in scalar metadata still normalize to spaces.
 Templates are parsed **before** scalar metadata is substituted. Diagnostic
 fragments enter through explicit block fields, with headings below the report
 sections; unsupported HTML remains literal text. New programmatic report content

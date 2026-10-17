@@ -192,6 +192,14 @@ describe("report Markdown import boundary", () => {
     expect(body).toContain("[Run](https://example.com/) · [Source](https://example.org/)");
   });
 
+  it("preserves source soft breaks without allowing scalar values to introduce new lines", () => {
+    const children = parseReportMarkdown("Body\r\nRelated to #42\n**{value}**", { context: { value: "First\n# injected" } });
+    const input = report(children);
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+    expect(renderReport(input).body).toBe("Body\nRelated to #42\n**First \\# injected**\n");
+    expect(renderReport(report(parseReportMarkdown("First\n1\\. literal text\n\\+ literal text"))).body).toBe("First\n1\\. literal text\n\\+ literal text\n");
+  });
+
   it("imports block fields explicitly and refuses missing fields or blocks in scalar positions", () => {
     expect(() => parseReportMarkdown("{missing}", { context: {} })).toThrow("Missing report template field");
     expect(() => parseReportMarkdown("{toString}", { context: {} })).toThrow("Missing report template field");

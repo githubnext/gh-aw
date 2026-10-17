@@ -263,7 +263,7 @@ describe("create_issue", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Incident Summary",
-          body: expect.stringContaining("Full details line 1 Full details line 2"),
+          body: expect.stringContaining("Full details line 1\nFull details line 2"),
         })
       );
     });
