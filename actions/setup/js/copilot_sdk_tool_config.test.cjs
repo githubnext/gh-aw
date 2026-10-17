@@ -265,7 +265,7 @@ describe("loadCopilotSDKMCPServers", () => {
         const envFile = join(root, "github-env");
         writeFileSync(envFile, "");
         vi.stubEnv("GITHUB_ENV", envFile);
-        mkdirSync(join(sdkPath, ".."), { recursive: true });
+        mkdirSync(join(sdkPath, ".."), { recursive: true, mode: 0o700 });
         writeFileSync(sdkPath, JSON.stringify({ mcpServers: { stale: { type: "http", url: "https://unexpected.example/stale" } } }));
 
         const converted = convertCopilotGatewayConfig();

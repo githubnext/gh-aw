@@ -45,15 +45,21 @@ func TestGenerateWorkQueueEventWorkflowReconcilesWorkersWithoutIssueMirroring(t 
 	worker := func(name string) *WorkflowData {
 		return &WorkflowData{Name: name, Tools: map[string]any{"work-queue": map[string]any{"worker": true}}}
 	}
-	data := []*WorkflowData{worker("Zulu worker"), worker("Alpha worker"), worker("Alpha worker"), worker("Agentic Workqueue"), nil,
+	data := []*WorkflowData{worker("Zulu worker"), worker("Alpha worker"), worker("Alpha worker"), worker(workQueueEventWorkflowName),
+		worker("Daily AIC Consumption Report (Sentry + Grafana OTel)"), worker("Worker * + [special]"), nil,
 		{Name: "Observer", Tools: map[string]any{"work-queue": true}},
 	}
+	require.True(t, WorkQueueEventsEnabled(data))
 	require.NoError(t, GenerateWorkQueueEventWorkflow(context.Background(), data, dir, nil))
 	content, err := os.ReadFile(filepath.Join(dir, workQueueEventWorkflowFilename))
 	require.NoError(t, err)
 	yaml := string(content)
-	require.Contains(t, yaml, "    workflows:\n      - \"Alpha worker\"\n      - \"Zulu worker\"\n    types: [completed]")
-	require.NotContains(t, yaml, "      - \"Agentic Workqueue\"")
+	require.Contains(t, yaml, "name: "+workQueueEventWorkflowName)
+	require.Contains(t, yaml, "  workflow_run:\n")
+	require.Contains(t, yaml, "    types: [completed]")
+	require.NotContains(t, yaml, "    workflows:")
+	require.NotContains(t, yaml, "Daily AIC Consumption Report")
+	require.NotContains(t, yaml, "Worker * + [special]")
 	require.NotContains(t, yaml, "Observer")
 	require.NotContains(t, yaml, "issue_events:")
 	require.NotContains(t, yaml, "issues: write")
@@ -62,6 +68,14 @@ func TestGenerateWorkQueueEventWorkflowReconcilesWorkersWithoutIssueMirroring(t 
 	require.Contains(t, yaml, "github.event.workflow_run.repository.id == github.repository_id")
 	require.NotContains(t, yaml, "workflow_run.head_sha")
 	require.NotContains(t, yaml, "download-artifact")
+}
+
+func TestWorkQueueEventsEnabledForWorkerNamedLikeGeneratedHandler(t *testing.T) {
+	worker := &WorkflowData{
+		Name:  workQueueEventWorkflowName,
+		Tools: map[string]any{"work-queue": map[string]any{"worker": true}},
+	}
+	require.True(t, WorkQueueEventsEnabled([]*WorkflowData{worker}))
 }
 
 func TestGenerateWorkQueueEventWorkflowSeparatesIssueAndRunEvents(t *testing.T) {
@@ -78,6 +92,6 @@ func TestGenerateWorkQueueEventWorkflowSeparatesIssueAndRunEvents(t *testing.T) 
 	require.NoError(t, err)
 	require.Contains(t, string(content), "github.event_name != 'workflow_run'")
 	require.Contains(t, string(content), "github.event_name == 'workflow_run'")
-	require.Contains(t, string(content), "      - \"Queue worker\"")
+	require.NotContains(t, string(content), "    workflows:")
 	require.Contains(t, string(content), "cancel_work_queue_closed_issue.cjs")
 }

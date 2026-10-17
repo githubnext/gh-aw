@@ -130,7 +130,7 @@ describe("trusted worker termination reconciliation", () => {
       expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
     });
 
-    it("records ambiguous binding counts without exposing native identities", async () => {
+    it("throws when two dispatches are bound to the same terminal run without exposing identities", async () => {
       const { fixture, options } = setup();
       const state = fixture.state;
       state.dispatches.set("private-duplicate-binding", structuredClone(state.dispatches.get(fixture.assignment.dispatch_id)));
@@ -163,11 +163,12 @@ describe("trusted worker termination reconciliation", () => {
     expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
   });
 
-  it.each(["rerun", "fork", "non-dispatch", "not-completed", "staged"])("does not mutate for %s events", async kind => {
+  it.each(["rerun", "fork", "non-dispatch", "self", "not-completed", "staged"])("does not mutate for %s events", async kind => {
     const { options } = setup();
     if (kind === "rerun") options.context.payload.workflow_run.run_attempt = 2;
     if (kind === "fork") options.context.payload.repository.fork = true;
     if (kind === "non-dispatch") options.context.payload.workflow_run.event = "pull_request";
+    if (kind === "self") options.context.payload.workflow_run.event = "workflow_run";
     if (kind === "not-completed") options.context.payload.workflow_run.status = "in_progress";
     if (kind === "staged") options.staged = true;
     expect(await main(options)).toMatchObject({ status: kind === "staged" ? "staged_preview" : "ignored" });
@@ -176,11 +177,36 @@ describe("trusted worker termination reconciliation", () => {
   });
 
   it("does not reconcile another reservation when the event run is not bound", async () => {
-    const { options } = setup();
+    const { options, fixture } = setup();
     options.context.payload.workflow_run.id = "100";
     expect(await main(options)).toEqual({ status: "unbound" });
     expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
     expect(options.githubClient.rest.actions.getWorkflowRunAttempt).not.toHaveBeenCalled();
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
+  });
+
+  it("recovers a uniquely correlated terminal run when its binding write was missed", async () => {
+    const { fixture, options } = setup({ bound: false, started: true });
+    options.githubClient.rest.actions.listWorkflowRuns = vi.fn().mockResolvedValue({
+      status: 200,
+      data: { workflow_runs: [fixture.nativeRun(fixture.workerContext)] },
+    });
+    expect(await main(options)).toMatchObject({ released: true });
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(true);
+    expect(options.githubClient.rest.actions.getWorkflowRunAttempt).toHaveBeenCalledWith(expect.objectContaining({ run_id: "42", attempt_number: 1 }));
+  });
+
+  it("rejects an ambiguous reverse lookup without publishing", async () => {
+    const { fixture, options, nativeRun } = setup({ bound: false, started: true });
+    const state = fixture.state;
+    const duplicate = structuredClone(state.dispatches.get(fixture.assignment.dispatch_id));
+    duplicate.dispatch_id = "private-duplicate-binding";
+    state.dispatches.set(duplicate.dispatch_id, duplicate);
+    nativeRun.display_title += ` ${duplicate.dispatch_id}`;
+    options.readWorkQueueLog.mockResolvedValue({ sha: "head", transactions: fixture.transactions, state });
+    await expect(main(options)).rejects.toThrow("work_queue_run_binding_ambiguous");
+    expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
   });
 
   it.each(["revision", "principal", "repository", "correlation", "attempt", "unavailable", "publisher"])("retains capacity on independently read %s mismatch", async kind => {

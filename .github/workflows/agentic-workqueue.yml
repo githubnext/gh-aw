@@ -31,38 +31,7 @@ on:
   issue_comment:
     types: [created]
   workflow_run:
-    # zizmor: ignore[dangerous-triggers] - Default-branch code independently verifies stored native bindings; no worker artifacts are consumed.
-    workflows:
-      - "Artifacts Usage Report"
-      - "Daily AIC Consumption Report (Sentry + Grafana OTel)"
-      - "Daily Compiler Quality Check"
-      - "Daily Evals Feature Report"
-      - "Daily Firewall Logs Collector and Reporter"
-      - "Daily Issues Report Generator"
-      - "Daily Observability Report for AWF Firewall and MCP Gateway"
-      - "Daily Regulatory Report Generator"
-      - "Daily Secrets Analysis Agent"
-      - "Daily Team Evolution Insights"
-      - "Deep Report"
-      - "ESLint Miner"
-      - "ESLint Monster"
-      - "ESLint Refiner"
-      - "Engine Conformance Agy (Experimental)"
-      - "Engine Conformance Aider"
-      - "Engine Conformance Claude"
-      - "Engine Conformance Codex"
-      - "Engine Conformance Copilot"
-      - "Engine Conformance Crush"
-      - "Engine Conformance Cursor"
-      - "Engine Conformance DeepSeek Harness"
-      - "Engine Conformance Gemini"
-      - "Engine Conformance Goose"
-      - "Engine Conformance Kiro"
-      - "Engine Conformance OpenCode"
-      - "Engine Conformance Pi"
-      - "Engine Conformance Pydantic AI"
-      - "Repository Tree Map Generator"
-      - "The Daily Repository Chronicle"
+    # zizmor: ignore[dangerous-triggers] - Default-branch code independently verifies queue correlations and native run provenance; no worker artifacts are consumed.
     types: [completed]
 
 permissions: {}
