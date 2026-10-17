@@ -107,6 +107,7 @@ describe("setup.sh isolated redaction dependencies", () => {
     const dependencies = collectTransitiveDeps(roots);
     expect(dependencies.has("otlp_header_helpers.cjs")).toBe(true);
     expect(dependencies.has("actions_secret_masking.cjs")).toBe(false);
+    expect(dependencies.has("detection_mask_state.cjs")).toBe(false);
     expect(dependencies.has("send_otlp_span.cjs")).toBe(false);
   });
 });

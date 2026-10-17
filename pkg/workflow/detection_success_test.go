@@ -533,8 +533,10 @@ Create an issue.
 			if parseStepIdx < 0 {
 				t.Fatal("Parse-and-conclude step (id: detection_conclusion) not found in detection job")
 			}
-			// continue-on-error appears AFTER the id: line, within the next 150 chars
-			stepContext := detectionSection[parseStepIdx:min(len(detectionSection), parseStepIdx+150)]
+			stepContext := detectionSection[parseStepIdx:]
+			if end := strings.Index(stepContext, "\n      - name:"); end >= 0 {
+				stepContext = stepContext[:end]
+			}
 
 			hasContinueOnErr := strings.Contains(stepContext, "continue-on-error: true")
 			if tt.wantContinueOnErr && !hasContinueOnErr {
