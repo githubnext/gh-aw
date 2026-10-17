@@ -376,9 +376,12 @@ emitted event in the same namespace within that process. The first event uses
 diagnostics and failures use the same timing.
 
 Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
-`reconciler`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
+`reconciler`, `run`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
 publication attempts, conflicts, recovery, capacity and packing limits,
 native launch and binding, independent verification, and durable settlement.
+`DEBUG=work-queue:run` traces automatic terminal-run cleanup: ignored events,
+staged previews, binding counts, release outcomes, and sanitized failure categories,
+without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
 Blocked control and launch-processing failures are always visible, even without
 `DEBUG`. Diagnostics, receipts, the step summary, and the Actions failure annotation
