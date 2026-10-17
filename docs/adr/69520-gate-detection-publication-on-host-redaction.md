@@ -1,7 +1,7 @@
 # ADR-69520: Gate Detection Publication on Host-Side Secret Redaction
 
 **Date**: 2026-10-17
-**Status**: Draft
+**Status**: Proposed
 **Deciders**: pelikhan, gh-aw maintainers
 
 ---
@@ -12,7 +12,11 @@ The threat-detection job produces its own files after the agent job finishes: de
 
 ### Decision
 
-We will run the existing `redact_secrets.cjs` redactor on the host twice inside the detection job, for both the inline and external detector paths. The first pass (`redact_detection_logs`) runs after detector results and firewall logs are collected and after custom post-steps finish. The second pass (`redact_detection_artifacts`) runs after token-usage accounting so that newly generated usage files are also sanitized. Every downstream consumer must check that redaction succeeded before it runs. Token-usage parsing requires the first pass. Log rendering, artifact upload, and detection conclusion require both passes, using `always() && steps.<id>.outcome == 'success'`. If redaction fails, is skipped, or is cancelled, publication is blocked, even in warn mode (`continue-on-error`). The redactor also accepts `additionalDirectories` and scans every regular file in them, regardless of extension, so that every copied firewall log is redacted.
+Run the existing `redact_secrets.cjs` redactor on the host twice inside the detection job, for both the inline and external detector paths. The first pass (`redact_detection_logs`) runs after detector results and firewall logs are collected and after custom post-steps finish. The second pass (`redact_detection_artifacts`) runs after token-usage accounting so that newly generated usage files are also sanitized. Token-usage parsing requires the first pass; log rendering, artifact upload, and consumption of detection results require both passes. Failed, skipped, or cancelled redaction blocks publication for an active detection run, even in warn mode (`continue-on-error`).
+
+When the detection guard explicitly reports that no analysis is needed, skip redaction and report the existing successful skipped conclusion without consuming detector output. This keeps unrelated temporary files from turning a legitimate no-output run into a CI failure. Restrict exact-value redaction secrets to the detection job's own steps and inherited environment; do not forward unrelated main-provider or safe-output credentials to a separate detection runner.
+
+Collect runtime `::add-mask::` values from `detection.log` before mutating any output. Retain those values between redaction steps through runner-private `GITHUB_ENV`, outside uploaded artifact trees, so the second pass also protects late-created accounting files. Recursively uploaded firewall files must be valid UTF-8 text no larger than 16 MiB. Remove unsupported binary, compressed, or oversized byproducts rather than rewriting or uploading unsanitized bytes; a removal failure blocks publication.
 
 ### Alternatives Considered
 
@@ -31,19 +35,19 @@ Keeping `if: always()` on consumers would preserve the current warn-mode behavio
 ### Consequences
 
 #### Positive
-- Detector verdicts, usage/accounting files, custom post-step output, and all copied firewall logs (including rotated and extensionless ones) are sanitized before they are rendered or uploaded.
+- Detector verdicts, usage/accounting files, custom post-step output, and supported copied firewall logs (including rotated and extensionless text) are sanitized before they are rendered or uploaded.
 - The inline and external detector paths now share one step ordering (collect → post-steps → redact → accounting → redact → render/upload/conclude), which reduces divergence between the two compiler branches.
-- Exact-value secrets are passed only to the host redaction steps through `GH_AW_SECRET_NAMES`/`SECRET_*`, not to the detector engine.
+- Redaction secrets are collected from effective detection inputs and passed to host redaction steps through `GH_AW_SECRET_NAMES`/`SECRET_*`. Unrelated workflow credentials are not added to the detection job.
 
 #### Negative
 - A redaction failure now blocks detection artifact upload and conclusion, even in warn mode. As a result, detection publication can now fail in cases where it previously succeeded under `always()`.
 - Each detection job gains two extra `actions/github-script` steps, and every compiled workflow lock file changes (305 locks were regenerated), which adds runtime and review churn.
-- The redaction step builds secret references from the frontmatter, the markdown, imported markdown, and the step text it has generated so far. Secrets referenced only in steps added later would not be included.
+- A legitimate no-output run must bypass file-consuming publication steps while still reporting a skipped conclusion. Merely skipping redaction without preserving that conclusion would block downstream safe outputs.
+- Binary, compressed, and oversized firewall byproducts are omitted from the diagnostic artifact. Generated runtime-mask values remain available to later steps in the detection job through runner-private environment state, but are never stored as artifact state.
 
 #### Neutral
-- Because `redact_secrets.cjs` now accepts `additionalDirectories` with an extension filter of `null` (all regular files), other callers could reuse it for full-directory scans.
 - The existing secret redactor remains hard-failing, and this ADR does not change proxy diagnostics, credential selection, or MCP enforcement.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Proposed for maintainer review with this pull request.*

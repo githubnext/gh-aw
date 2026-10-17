@@ -21,6 +21,41 @@ const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
 
 const AWF_RESOLVED_CONFIG_PATH_PATTERN = /^\/run\/awf-config-audit\/run-[a-zA-Z0-9]{6}\/awf-resolved-config\.json$/;
 const AWF_RESOLVED_CONFIG_STAGING_PATH = "/tmp/gh-aw/awf-resolved-config.json";
+const MAX_ADDITIONAL_ARTIFACT_BYTES = 16 * 1024 * 1024;
+const DETECTION_MASKS_ENV = "GH_AW_DETECTION_MASKED_VALUES";
+
+class UnsupportedArtifactInputError extends Error {}
+
+/**
+ * Bound reads before decoding recursively uploaded firewall byproducts.
+ * @param {string} filePath
+ * @returns {string}
+ */
+function readAdditionalArtifactText(filePath) {
+  const descriptor = fs.openSync(filePath, "r");
+  try {
+    const size = fs.fstatSync(descriptor).size;
+    if (size > MAX_ADDITIONAL_ARTIFACT_BYTES) throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: oversized`);
+    const bytes = Buffer.alloc(size + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = fs.readSync(descriptor, bytes, length, bytes.length - length, null);
+      if (!count) break;
+      length += count;
+    }
+    if (length > size) throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: size_changed`);
+    let text;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes.subarray(0, length));
+    } catch {
+      throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: non-text`);
+    }
+    if (/[\u0000-\u0008\u000b\u000e-\u001f]/.test(text)) throw new UnsupportedArtifactInputError(`${ERR_VALIDATION}: non-text`);
+    return text;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
 
 /**
  * @param {unknown} error
@@ -574,15 +609,16 @@ function writeProcessedFile(filePath, content, changed) {
  * @param {string[]} secretValues - Array of secret values to redact
  * @param {string[]} [maskedValues] - Runtime masks collected before any file is sanitized
  * @param {boolean} [prepareForCustomMasking] - Prepare unchanged files for configured custom redactors
+ * @param {boolean} [additionalArtifact] - Require bounded UTF-8 text for recursively uploaded files
  * @returns {number} Number of redactions made
  */
-function processFile(filePath, secretValues, maskedValues = [], prepareForCustomMasking = false) {
+function processFile(filePath, secretValues, maskedValues = [], prepareForCustomMasking = false, additionalArtifact = false) {
   /** @type {RedactionStage} */
   let stage = "read";
   /** @type {number | undefined} */
   let inputBytes;
   try {
-    const content = fs.readFileSync(filePath, "utf8");
+    const content = additionalArtifact ? readAdditionalArtifactText(filePath) : fs.readFileSync(filePath, "utf8");
     inputBytes = Buffer.byteLength(content, "utf8");
     stage = "redact";
     const structured = redactSafeOutputContent(
@@ -625,6 +661,10 @@ function processFile(filePath, secretValues, maskedValues = [], prepareForCustom
         core.warning(cleanupDiagnostic.message);
         throw new AggregateError([...diagnostics, cleanupDiagnostic], `${ERR_VALIDATION}: Failed to remove artifact source after secret redaction failed (input_bytes=${inputBytes ?? "unknown"})`);
       }
+    }
+    if (error instanceof UnsupportedArtifactInputError) {
+      core.warning(`Removed unsupported artifact before upload (reason=${error.message})`);
+      return 0;
     }
     diagnostics.forEach(diagnostic => core.warning(diagnostic.message));
     core.setFailed(`${ERR_VALIDATION}: Removed artifact source after secret redaction failed (input_bytes=${inputBytes ?? "unknown"})`);
@@ -669,26 +709,49 @@ async function main({ prepareForCustomMasking = false, additionalDirectories = [
     const targetExtensions = [".txt", ".json", ".log", ".md", ".mdx", ".yml", ".jsonl", ".patch", ".html"];
     const tmpFiles = findFiles("/tmp/gh-aw", targetExtensions);
     const optFiles = findFiles(`${process.env.RUNNER_TEMP}/gh-aw`, targetExtensions);
-    const additionalFiles = additionalDirectories.flatMap(dir => findFiles(dir, null));
+    const additionalFiles = new Set(additionalDirectories.flatMap(dir => findFiles(dir, null)));
     const files = [...new Set([...tmpFiles, ...optFiles, ...additionalFiles])];
     // Collect before built-in/custom redaction or bootstrap removes mask commands.
     // Only sanitized sources cross the job boundary, never the raw mask values.
     const masks = new Set(getOTLPSecretValues());
-    for (const file of files.filter(file => path.basename(file) === "agent-stdio.log")) {
-      try {
-        for (const value of collectAddMaskedValues(fs.readFileSync(file, "utf8"))) masks.add(value);
-      } catch (error) {
-        for (const source of files) {
-          try {
-            fs.unlinkSync(source);
-          } catch (cleanupError) {
-            if (!isErrnoCode(cleanupError, "ENOENT")) {
-              throw cleanupError;
-            }
+    try {
+      /** @type {Set<string>} */
+      const detectionMasks = new Set();
+      if (process.env[DETECTION_MASKS_ENV]) {
+        const saved = JSON.parse(process.env[DETECTION_MASKS_ENV]);
+        if (!Array.isArray(saved) || saved.some(value => typeof value !== "string")) throw new Error(`${ERR_VALIDATION}: Invalid detection mask state`);
+        for (const value of saved) detectionMasks.add(value);
+      }
+      for (const file of files.filter(file => ["agent-stdio.log", "detection.log"].includes(path.basename(file)))) {
+        const content = additionalFiles.has(file) ? readAdditionalArtifactText(file) : fs.readFileSync(file, "utf8");
+        for (const value of collectAddMaskedValues(content)) {
+          masks.add(value);
+          if (path.basename(file) === "detection.log") detectionMasks.add(value);
+        }
+      }
+      for (const value of detectionMasks) masks.add(value);
+      // GITHUB_ENV is runner-private, outside artifact trees. Preserve detection
+      // masks across github-script steps after their command lines are removed.
+      if (detectionMasks.size) {
+        const savedMasks = JSON.stringify([...detectionMasks]);
+        // File contents need not have been interpreted by this runner. Register
+        // both raw values and JSON state before later step setup can print it.
+        for (const value of detectionMasks) core.setSecret(value);
+        core.setSecret(savedMasks);
+        core.exportVariable(DETECTION_MASKS_ENV, savedMasks);
+      }
+    } catch (error) {
+      for (const source of files) {
+        try {
+          fs.unlinkSync(source);
+        } catch (cleanupError) {
+          if (!isErrnoCode(cleanupError, "ENOENT")) {
+            const cleanupDiagnostic = new RedactionOperationError("unlink", cleanupError);
+            throw cleanupDiagnostic;
           }
         }
-        throw new Error(`${ERR_VALIDATION}: Removed artifact sources after runtime mask collection failed`, { cause: error });
       }
+      throw new Error(`${ERR_VALIDATION}: Removed artifact sources after runtime mask collection failed`, { cause: error });
     }
     const maskedValues = [...masks].sort((a, b) => b.length - a.length);
     try {
@@ -700,7 +763,7 @@ async function main({ prepareForCustomMasking = false, additionalDirectories = [
     }
     // Process each file
     for (const file of files) {
-      processFile(file, secretValues, maskedValues, prepareForCustomMasking);
+      processFile(file, secretValues, maskedValues, prepareForCustomMasking, additionalFiles.has(file));
     }
   } catch (error) {
     core.setFailed(`${ERR_VALIDATION}: Secret redaction failed: ${getErrorMessage(error)}`);

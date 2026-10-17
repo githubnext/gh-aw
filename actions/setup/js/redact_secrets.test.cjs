@@ -97,6 +97,140 @@ describe("redact_secrets.cjs", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Removed artifact source after secret redaction failed"));
     for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
   });
+  it("preserves detection-only runtime masks across separate passes without artifact state", async () => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = 'synthetic-unknown-"\\credential';
+    const root = path.join(process.env.RUNNER_TEMP, "gh-aw");
+    const detection = path.join(root, "threat-detection");
+    const firewall = path.join(detection, "sandbox/firewall/logs");
+    fs.mkdirSync(firewall, { recursive: true });
+    const log = path.join(detection, "detection.log");
+    const result = path.join(detection, "detection_result.json");
+    const copied = path.join(firewall, "access.log.1");
+    fs.writeFileSync(log, `::add-mask::${secret}\nSafe detection diagnostic: ${secret}\n`);
+    fs.writeFileSync(result, JSON.stringify({ status: "success", reason: secret }));
+    fs.writeFileSync(copied, `Firewall diagnostic: ${secret}`);
+    mockCore.exportVariable.mockImplementation((name, value) => {
+      expect(mockCore.setSecret).toHaveBeenCalledWith(secret);
+      expect(mockCore.setSecret).toHaveBeenCalledWith(value);
+      expect(mockCore.setSecret.mock.invocationCallOrder.at(-1)).toBeLessThan(mockCore.exportVariable.mock.invocationCallOrder.at(-1));
+      vi.stubEnv(name, value);
+    });
+    const options = { additionalDirectories: [path.dirname(firewall)] };
+
+    await main(options);
+
+    expect(process.env.GH_AW_SECRET_NAMES).toBeUndefined();
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_MASKED_VALUES", JSON.stringify([secret]));
+    expect(fs.readFileSync(log, "utf8")).toBe("Safe detection diagnostic: ***\n");
+    expect(JSON.parse(fs.readFileSync(result, "utf8"))).toEqual({ status: "success", reason: "***" });
+    expect(fs.readFileSync(copied, "utf8")).toBe("Firewall diagnostic: ***");
+    const usage = path.join(detection, "detection_usage.json");
+    const usageJSONL = path.join(detection, "detection_usage.jsonl");
+    fs.writeFileSync(usage, JSON.stringify({ primary_model: secret, ai_credits: 2 }));
+    fs.writeFileSync(usageJSONL, JSON.stringify({ provider: secret, ai_credits: 2 }) + "\n");
+    // Reload the script as a separate github-script invocation, not an in-memory cache.
+    await eval(`(async () => { ${redactScript}; await main(options); })()`);
+
+    expect(JSON.parse(fs.readFileSync(usage, "utf8"))).toEqual({ primary_model: "***", ai_credits: 2 });
+    expect(JSON.parse(fs.readFileSync(usageJSONL, "utf8"))).toEqual({ provider: "***", ai_credits: 2 });
+    expect(fs.readdirSync(detection).sort()).toEqual(["detection.log", "detection_result.json", "detection_usage.json", "detection_usage.jsonl", "sandbox"]);
+    expect(fs.readdirSync(root)).toEqual(["threat-detection"]);
+    expect(mockCore.setSecret.mock.calls).toEqual([[secret], [JSON.stringify([secret])], [secret], [JSON.stringify([secret])]]);
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it.each(["read", "register", "register-state", "persist", "invalid-state"])("removes detection sources safely if runtime mask %s fails", async failureStage => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-unknown-runtime-credential";
+    const detection = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection");
+    const firewall = path.join(detection, "sandbox/firewall");
+    fs.mkdirSync(firewall, { recursive: true });
+    const log = path.join(detection, "detection.log");
+    const result = path.join(detection, "detection_result.json");
+    const copied = path.join(firewall, "access.log.1");
+    fs.writeFileSync(log, `::add-mask::${secret}\n${secret}`);
+    fs.writeFileSync(result, JSON.stringify({ reason: secret }));
+    fs.writeFileSync(copied, secret);
+    const read = fs.readFileSync;
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((file, ...args) => {
+      if (failureStage === "read" && file === log) throw Object.assign(new Error(secret), { code: "EIO" });
+      return read(file, ...args);
+    });
+    if (failureStage === "register" || failureStage === "register-state")
+      mockCore.setSecret.mockImplementation(value => {
+        if (failureStage === "register" || value === JSON.stringify([secret])) throw new Error(secret);
+      });
+    if (failureStage === "persist")
+      mockCore.exportVariable.mockImplementation(() => {
+        throw new Error(secret);
+      });
+    if (failureStage === "invalid-state") vi.stubEnv("GH_AW_DETECTION_MASKED_VALUES", JSON.stringify({ secret }));
+    try {
+      await main({ additionalDirectories: [firewall] });
+    } finally {
+      readSpy.mockRestore();
+    }
+    for (const file of [log, result, copied]) expect(fs.existsSync(file)).toBe(false);
+    if (failureStage !== "persist") expect(mockCore.exportVariable).not.toHaveBeenCalled();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Removed artifact sources after runtime mask collection failed"));
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it.each(["compressed", "binary", "invalid-utf8", "oversized"])("excludes %s firewall byproducts without decoding or corrupting them", async kind => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-firewall-private-value";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "FIREWALL_TEST");
+    vi.stubEnv("SECRET_FIREWALL_TEST", secret);
+    const firewall = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection/sandbox/firewall");
+    fs.mkdirSync(firewall, { recursive: true });
+    const source = path.join(firewall, `${secret}.log.${kind}`);
+    const normal = path.join(firewall, "access.log.1");
+    const diagnostic = path.join(firewall, "diagnostic");
+    fs.writeFileSync(normal, `Safe firewall diagnostic: ${secret}`);
+    fs.writeFileSync(diagnostic, `UTF-8 diagnostic: \u00e9 \ud83d\ude80 ${secret}`);
+    const content = kind === "compressed" ? require("node:zlib").gzipSync(secret) : kind === "binary" ? Buffer.from(`\0${secret}`) : kind === "invalid-utf8" ? Buffer.concat([Buffer.from([0xff]), Buffer.from(secret)]) : Buffer.from(secret);
+    fs.writeFileSync(source, content);
+    if (kind === "oversized") fs.truncateSync(source, 16 * 1024 * 1024 + 1);
+    const write = vi.spyOn(fs, "writeFileSync");
+    const read = vi.spyOn(fs, "readSync");
+    try {
+      await main({ additionalDirectories: [firewall] });
+      expect(write.mock.calls.some(([file]) => file === source)).toBe(false);
+      if (kind === "oversized") expect(read.mock.calls.every(([, buffer]) => buffer.length < 16 * 1024 * 1024)).toBe(true);
+    } finally {
+      write.mockRestore();
+      read.mockRestore();
+    }
+    expect(fs.existsSync(source)).toBe(false);
+    expect(fs.readFileSync(normal, "utf8")).toBe("Safe firewall diagnostic: ***REDACTED***");
+    expect(fs.readFileSync(diagnostic, "utf8")).toBe("UTF-8 diagnostic: \u00e9 \ud83d\ude80 ***REDACTED***");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Removed unsupported artifact before upload"));
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
+  it("fails closed with safe diagnostics if an unsupported firewall source cannot be removed", async () => {
+    const { main } = require("./redact_secrets.cjs");
+    const secret = "synthetic-firewall-private-value";
+    const firewall = path.join(process.env.RUNNER_TEMP, "gh-aw/threat-detection/sandbox/firewall");
+    fs.mkdirSync(firewall, { recursive: true });
+    const source = path.join(firewall, "access.log.gz");
+    const content = require("node:zlib").gzipSync(secret);
+    fs.writeFileSync(source, content);
+    const unlink = fs.unlinkSync;
+    const cleanup = vi.spyOn(fs, "unlinkSync").mockImplementation(file => {
+      if (file === source) throw Object.assign(new Error(secret), { code: "EACCES" });
+      return unlink(file);
+    });
+    try {
+      await main({ additionalDirectories: [firewall] });
+    } finally {
+      cleanup.mockRestore();
+    }
+    expect(fs.readFileSync(source)).toEqual(content);
+    expect(mockCore.setFailed).toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith("Secret redaction failed (stage=unlink, code=EACCES)");
+    for (const method of ["info", "warning", "error", "setFailed"]) expect(JSON.stringify(mockCore[method].mock.calls)).not.toContain(secret);
+  });
   it.each(["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"])("redacts decoded OTLP passwords from artifacts and summaries using %s without setup log masks", async variable => {
     const { main, redactFilesInDir, redactStepSummaryContent } = require("./redact_secrets.cjs");
     const passwords = ['synthetic-otlp-"password\\one', "four", "12345678", "9007199254740993"];
@@ -162,6 +296,9 @@ describe("redact_secrets.cjs", () => {
       mockCore.summary.addRaw && mockCore.summary.addRaw.mockClear(),
       mockCore.summary.write && mockCore.summary.write.mockClear(),
       delete process.env.GH_AW_SECRET_NAMES);
+    mockCore.exportVariable.mockReset();
+    mockCore.setSecret.mockReset();
+    vi.stubEnv("GH_AW_DETECTION_MASKED_VALUES", "");
     for (const variable of ["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"]) vi.stubEnv(variable, "");
   }),
     afterEach(() => {

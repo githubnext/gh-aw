@@ -66,15 +66,8 @@ Review documentation.
 				if detection == "" {
 					t.Fatal("detection job missing")
 				}
-				// Host-side redaction needs exact secret values, but no provider
-				// settings or credentials may reach the detection engine itself.
-				for _, name := range []string{"Redact secrets in detection logs", "Redact secrets in detection artifacts"} {
-					redaction := extractWorkflowStepByName(t, detection, name)
-					if !strings.Contains(redaction, "SECRET_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}") {
-						t.Fatal("host-side redaction must sanitize main-provider credentials")
-					}
-					detection = strings.Replace(detection, redaction, "", 1)
-				}
+				// Main-provider-only credentials must not reach any detection step,
+				// including host-side redaction on a separate detection runner.
 				for _, forbidden := range []string{baseURL, apiKey, "openrouter.ai", "secrets.OPENROUTER_API_KEY"} {
 					if strings.Contains(detection, forbidden) {
 						t.Errorf("main provider setting %q leaked into compiled detection job", forbidden)

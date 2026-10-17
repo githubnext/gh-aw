@@ -15,7 +15,7 @@ import (
 // These steps run after the agent job completes and analyze agent output for threats using the
 // same agentic engine with sandbox.agent and fully blocked network.
 // The detection job downloads the agent artifact to access the output files.
-func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string { //nolint:largefunc // Detection step order remains intentionally explicit.
+func (c *Compiler) buildDetectionJobSteps(data *WorkflowData, precedingSteps ...string) []string { //nolint:largefunc // Detection step order remains intentionally explicit.
 	threatLog.Print("Building threat detection steps for detection job")
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
 		return nil
@@ -108,37 +108,45 @@ func (c *Compiler) buildDetectionJobSteps(data *WorkflowData) []string { //nolin
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.PostSteps)...)
 	}
 
+	var publicationSteps []string
+	if !usingExternalDetector {
+		publicationSteps = append(publicationSteps, c.buildDetectionStepSummaryEchoStep()...)
+	}
+	publicationSteps = append(publicationSteps, c.buildRenderDetectionLogStep(data)...)
+	if usingExternalDetector {
+		publicationSteps = append(publicationSteps, c.buildUploadDetectionArtifactStep(data)...)
+		publicationSteps = append(publicationSteps, c.buildExternalDetectorConcludeStep(data)...)
+	} else {
+		publicationSteps = append(publicationSteps, c.buildUploadDetectionLogStep(data)...)
+		publicationSteps = append(publicationSteps, c.buildDetectionConclusionStep(data)...)
+	}
+	publicationSteps = append(publicationSteps, c.buildUploadSkippedDetectionEvidenceStep(data)...)
+
+	// Only forward secrets actually available to this job, including inherited
+	// workflow env and setup steps, never unrelated agent or safe-output inputs.
+	accountingSteps := c.buildDetectionTokenUsageSummaryStep(data)
+	secretContext := data.Env + "\n" + strings.Join(precedingSteps, "") + strings.Join(steps, "") + strings.Join(accountingSteps, "") + strings.Join(publicationSteps, "")
 	// Accounting renders log-derived fields, so sanitize its inputs first. Its new
 	// result files then need their own redaction pass before publication.
-	secretContext := data.FrontmatterYAML + "\n" + data.MarkdownContent + "\n" + data.ImportedMarkdown + "\n" + strings.Join(steps, "")
 	steps = append(steps, c.buildDetectionSecretRedactionStep(data, secretContext, "redact_detection_logs")...)
-	steps = append(steps, c.buildDetectionTokenUsageSummaryStep(data)...)
+	steps = append(steps, accountingSteps...)
 	steps = append(steps, c.buildDetectionSecretRedactionStep(data, secretContext, "redact_detection_artifacts")...)
-
-	if !usingExternalDetector {
-		steps = append(steps, c.buildDetectionStepSummaryEchoStep()...)
-	}
-	steps = append(steps, c.buildRenderDetectionLogStep(data)...)
-	if usingExternalDetector {
-		steps = append(steps, c.buildUploadDetectionArtifactStep(data)...)
-		steps = append(steps, c.buildExternalDetectorConcludeStep(data)...)
-	} else {
-		steps = append(steps, c.buildUploadDetectionLogStep(data)...)
-		steps = append(steps, c.buildDetectionConclusionStep(data)...)
-	}
+	steps = append(steps, publicationSteps...)
 
 	threatLog.Printf("Generated %d detection job step lines", len(steps))
 	return steps
 }
 
-const detectionLogsRedactedCondition = "always() && steps.redact_detection_logs.outcome == 'success'"
+const detectionSkippedCondition = "always() && steps.detection_guard.outputs.run_detection == 'false'"
+const detectionLogsRedactedCondition = detectionStepCondition + " && steps.redact_detection_logs.outcome == 'success'"
 const detectionArtifactsRedactedCondition = detectionLogsRedactedCondition + " && steps.redact_detection_artifacts.outcome == 'success'"
+const detectionConclusionCondition = detectionSkippedCondition + " || (" + detectionArtifactsRedactedCondition + ")"
 
 func (c *Compiler) buildDetectionSecretRedactionStep(data *WorkflowData, secretContext, id string) []string {
 	var step strings.Builder
 	step.WriteString("      - name: Redact secrets in detection " + strings.TrimPrefix(id, "redact_detection_") + "\n")
 	step.WriteString("        id: " + id + "\n")
-	step.WriteString("        if: always()\n")
+	step.WriteString("        if: " + detectionStepCondition + "\n")
 	step.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	secretReferences := CollectSecretReferences(secretContext)
 	if len(secretReferences) > 0 {
@@ -288,7 +296,8 @@ func resolveThreatDetectionContinueOnError(data *WorkflowData) (bool, *string) {
 //  1. Parsing the detection log (parse_detection_results)
 //  2. Setting the final job conclusion (detection_conclusion)
 //
-// It runs after successful redaction, even when detection execution failed.
+// It runs after successful redaction, even when detection execution failed,
+// or without redaction when the guard explicitly reports no output to analyze.
 // The RUN_DETECTION env var lets the script short-circuit with conclusion=skipped when
 // the detection guard determined there was no output to analyze.
 func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
@@ -301,7 +310,7 @@ func (c *Compiler) buildDetectionConclusionStep(data *WorkflowData) []string {
 	steps := []string{
 		"      - name: Parse and conclude threat detection\n",
 		"        id: detection_conclusion\n",
-		"        if: " + detectionArtifactsRedactedCondition + "\n",
+		"        if: " + detectionConclusionCondition + "\n",
 	}
 	// In warn mode (continue-on-error: true), add continue-on-error to the parse step so that
 	// an unexpected exception in the parse script never causes the detection job to fail. The
@@ -558,6 +567,20 @@ func (c *Compiler) buildUploadDetectionLogStep(data *WorkflowData) []string {
 	return steps
 }
 
+// No-output runs publish only compiler-generated execution evidence, never
+// downloaded payloads or logs that did not pass redaction.
+func (c *Compiler) buildUploadSkippedDetectionEvidenceStep(data *WorkflowData) []string {
+	return []string{
+		"      - name: Upload skipped detection execution evidence\n",
+		"        if: " + detectionSkippedCondition + "\n",
+		"        uses: " + c.getActionPin("actions/upload-artifact") + "\n",
+		"        with:\n",
+		"          name: " + artifactPrefixExprForAgentDownstreamJob(data) + constants.DetectionArtifactName.String() + "\n",
+		"          path: " + detectionExecutionEvidencePath + "\n",
+		"          if-no-files-found: ignore\n",
+	}
+}
+
 // buildDetectionStepSummaryEchoStep creates a step that echoes the detection engine's
 // sanitized step-summary file content. Runner console masking is only defence in depth.
 //
@@ -568,7 +591,7 @@ func (c *Compiler) buildDetectionStepSummaryEchoStep() []string {
 	summaryPath := constants.ThreatDetectionStepSummaryPath
 	return []string{
 		"      - name: Echo detection step summary\n",
-		fmt.Sprintf("        if: %s && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success'\n", detectionStepCondition),
+		"        if: " + detectionArtifactsRedactedCondition + "\n",
 		"        continue-on-error: true\n",
 		"        run: |\n",
 		fmt.Sprintf("          if [ -s %s ]; then\n", shellEscapeArg(summaryPath)),
@@ -588,7 +611,7 @@ func (c *Compiler) buildDetectionStepSummaryEchoStep() []string {
 func (c *Compiler) buildRenderDetectionLogStep(data *WorkflowData) []string {
 	steps := []string{
 		"      - name: Render detection log\n",
-		fmt.Sprintf("        if: %s && steps.redact_detection_logs.outcome == 'success' && steps.redact_detection_artifacts.outcome == 'success'\n", detectionStepCondition),
+		"        if: " + detectionArtifactsRedactedCondition + "\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        with:\n",

@@ -804,7 +804,7 @@ func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []strin
 	steps := []string{
 		"      - name: Conclude threat detection\n",
 		"        id: detection_conclusion\n",
-		"        if: " + detectionArtifactsRedactedCondition + "\n",
+		"        if: " + detectionConclusionCondition + "\n",
 	}
 
 	if continueOnErrorExpr != nil {
