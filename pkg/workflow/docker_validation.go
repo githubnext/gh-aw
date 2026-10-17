@@ -23,6 +23,7 @@
 //     remaining images are skipped without further retries
 //   - If an image cannot be pulled due to authentication (private repo), validation passes
 //   - If an image truly doesn't exist, returns an error
+//   - Read-only compilation only inspects local images and never pulls missing images
 //   - Detailed validation logging is available via debug logging when enabled
 //
 // This design ensures that `gh aw compile --validate` does not require Docker
@@ -106,6 +107,10 @@ func markDockerDaemonUnavailable() {
 // Docker is available and the image cannot be found. The caller treats these
 // as warnings.
 func validateDockerImage(image string, verbose bool, requireDocker bool) error {
+	return validateDockerImageWithMode(image, verbose, requireDocker, false)
+}
+
+func validateDockerImageWithMode(image string, verbose bool, requireDocker bool, readOnly bool) error {
 	dockerValidationLog.Printf("Validating Docker image: %s", image)
 
 	// Reject names starting with '-' to prevent argument injection
@@ -113,6 +118,26 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 		return fmt.Errorf("container image name '%s' is invalid: names must not start with '-'", image)
 	}
 
+	available, err := dockerImageValidationAvailable(image, requireDocker)
+	if err != nil || !available {
+		return err
+	}
+
+	cmd := exec.Command("docker", "image", "inspect", image)
+	inspectOutput, err := cmd.CombinedOutput()
+	if err == nil {
+		dockerValidationLog.Printf("Docker image found locally: %s", image)
+		return nil
+	}
+
+	if readOnly {
+		return fmt.Errorf("container image '%s' could not be validated locally: %s (%w). Read-only compilation does not pull images; ensure the image is already present locally and the Docker daemon is accessible", image, strings.TrimSpace(string(inspectOutput)), err)
+	}
+
+	return pullDockerImageForValidation(image, requireDocker)
+}
+
+func dockerImageValidationAvailable(image string, requireDocker bool) (bool, error) {
 	// Check if docker CLI is available on PATH.
 	// If Docker is not installed, skip validation silently — compile is a source
 	// transformation step and should not require Docker at authoring time.
@@ -120,10 +145,10 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 	_, err := exec.LookPath("docker")
 	if err != nil {
 		if requireDocker {
-			return fmt.Errorf("docker not installed - could not validate container image '%s'. Install Docker or omit the --validate-images flag to skip container image validation", image)
+			return false, fmt.Errorf("docker not installed - could not validate container image '%s'. Install Docker or omit the --validate-images flag to skip container image validation", image)
 		}
 		dockerValidationLog.Print("Docker not installed, skipping container image validation")
-		return nil
+		return false, nil
 	}
 
 	// Check if Docker daemon is actually running (cached check with short timeout).
@@ -133,22 +158,16 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 	// When requireDocker is true, return an error instead of skipping.
 	if !isDockerDaemonRunning() {
 		if requireDocker {
-			return fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or omit the --validate-images flag to skip container image validation", image)
+			return false, fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or omit the --validate-images flag to skip container image validation", image)
 		}
 		dockerValidationLog.Print("Docker daemon not running, skipping container image validation")
-		return nil
+		return false, nil
 	}
 
-	// Try to inspect the image (will succeed if image exists locally)
-	cmd := exec.Command("docker", "image", "inspect", image)
-	_, err = cmd.CombinedOutput()
+	return true, nil
+}
 
-	if err == nil {
-		// Image exists locally
-		dockerValidationLog.Printf("Docker image found locally: %s", image)
-		return nil
-	}
-
+func pullDockerImageForValidation(image string, requireDocker bool) error {
 	dockerValidationLog.Printf("Docker image not found locally, attempting to pull: %s", image)
 
 	// Image doesn't exist locally, try to pull it with retry logic
@@ -172,46 +191,8 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 
 		lastOutput = outputStr
 
-		// Check if the error is due to authentication issues for existing private repositories
-		// We need to distinguish between:
-		// 1. "repository does not exist" - should fail validation immediately
-		// 2. "authentication required" for existing repos - should pass (private repo)
-		if (strings.Contains(outputStr, "denied") ||
-			strings.Contains(outputStr, "unauthorized") ||
-			strings.Contains(outputStr, "authentication required")) &&
-			!strings.Contains(outputStr, "does not exist") &&
-			!strings.Contains(outputStr, "not found") {
-			// This is likely a private image that requires authentication
-			// Don't fail validation for private/authenticated images
-			dockerValidationLog.Printf("Image %s appears to be private/authenticated, skipping validation", image)
-			return nil
-		}
-
-		// Check if the error means the Docker daemon became unreachable mid-process.
-		// This can happen when `docker info` succeeded earlier but the daemon stopped
-		// (or was never fully operational) by the time we issue docker pull.
-		// Treat this as a daemon-unavailable condition: update the cached state so
-		// subsequent images skip immediately, emit a single warning, and return nil
-		// (or an error when requireDocker is true).
-		// Use case-insensitive matching to handle Docker version differences.
-		outputLower := strings.ToLower(outputStr)
-		if strings.Contains(outputLower, "cannot connect to the docker daemon") ||
-			strings.Contains(outputLower, "is the docker daemon running") {
-			markDockerDaemonUnavailable()
-			if requireDocker {
-				return fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or omit the --validate-images flag to skip container image validation", image)
-			}
-			dockerValidationLog.Printf("Docker daemon not reachable during pull of %s, skipping container image validation", image)
-			return nil
-		}
-
-		// Check for non-retryable errors (image doesn't exist)
-		if strings.Contains(outputStr, "does not exist") ||
-			strings.Contains(outputStr, "not found") ||
-			strings.Contains(outputStr, "manifest unknown") {
-			// These errors won't be resolved by retrying
-			dockerValidationLog.Printf("Image %s does not exist (non-retryable error)", image)
-			return fmt.Errorf("container image '%s' not found and could not be pulled: %s. Please verify the image name and tag.\n\nExample:\ntools:\n  my-tool:\n    container: \"node:20\"\n\nOr:\ntools:\n  my-tool:\n    container: \"ghcr.io/owner/image:latest\"\n\nSee: %s", image, outputStr, constants.DocsToolsURL)
+		if done, err := classifyDockerImagePullFailure(image, outputStr, requireDocker); done {
+			return err
 		}
 
 		// If not the last attempt, wait and retry (likely network error)
@@ -224,4 +205,50 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 
 	// All attempts failed with retryable errors
 	return fmt.Errorf("container image '%s' not found and could not be pulled after %d attempts: %s. Please verify the image name and tag.\n\nExample:\ntools:\n  my-tool:\n    container: \"node:20\"\n\nOr:\ntools:\n  my-tool:\n    container: \"ghcr.io/owner/image:latest\"\n\nSee: %s", image, maxAttempts, lastOutput, constants.DocsToolsURL)
+}
+
+// classifyDockerImagePullFailure reports whether validation should stop retrying.
+func classifyDockerImagePullFailure(image, outputStr string, requireDocker bool) (bool, error) {
+	// Check if the error is due to authentication issues for existing private repositories
+	// We need to distinguish between:
+	// 1. "repository does not exist" - should fail validation immediately
+	// 2. "authentication required" for existing repos - should pass (private repo)
+	if (strings.Contains(outputStr, "denied") ||
+		strings.Contains(outputStr, "unauthorized") ||
+		strings.Contains(outputStr, "authentication required")) &&
+		!strings.Contains(outputStr, "does not exist") &&
+		!strings.Contains(outputStr, "not found") {
+		// This is likely a private image that requires authentication
+		// Don't fail validation for private/authenticated images
+		dockerValidationLog.Printf("Image %s appears to be private/authenticated, skipping validation", image)
+		return true, nil
+	}
+
+	// Check if the error means the Docker daemon became unreachable mid-process.
+	// This can happen when `docker info` succeeded earlier but the daemon stopped
+	// (or was never fully operational) by the time we issue docker pull.
+	// Treat this as a daemon-unavailable condition: update the cached state so
+	// subsequent images skip immediately, emit a single warning, and return nil
+	// (or an error when requireDocker is true).
+	// Use case-insensitive matching to handle Docker version differences.
+	outputLower := strings.ToLower(outputStr)
+	if strings.Contains(outputLower, "cannot connect to the docker daemon") ||
+		strings.Contains(outputLower, "is the docker daemon running") {
+		markDockerDaemonUnavailable()
+		if requireDocker {
+			return true, fmt.Errorf("docker daemon not running - could not validate container image '%s'. Start the Docker daemon or omit the --validate-images flag to skip container image validation", image)
+		}
+		dockerValidationLog.Printf("Docker daemon not reachable during pull of %s, skipping container image validation", image)
+		return true, nil
+	}
+
+	// Check for non-retryable errors (image doesn't exist)
+	if strings.Contains(outputStr, "does not exist") ||
+		strings.Contains(outputStr, "not found") ||
+		strings.Contains(outputStr, "manifest unknown") {
+		// These errors won't be resolved by retrying
+		dockerValidationLog.Printf("Image %s does not exist (non-retryable error)", image)
+		return true, fmt.Errorf("container image '%s' not found and could not be pulled: %s. Please verify the image name and tag.\n\nExample:\ntools:\n  my-tool:\n    container: \"node:20\"\n\nOr:\ntools:\n  my-tool:\n    container: \"ghcr.io/owner/image:latest\"\n\nSee: %s", image, outputStr, constants.DocsToolsURL)
+	}
+	return false, nil
 }

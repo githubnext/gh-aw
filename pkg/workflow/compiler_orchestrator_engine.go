@@ -325,7 +325,7 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	model string,
 ) (string, *EngineConfig, string, []string, error) {
 	orchestratorEngineLog.Printf("Expanding includes for engine configurations")
-	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
+	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir, c.getSharedImportCache())
 	if err != nil {
 		orchestratorEngineLog.Printf("Failed to expand includes for engines: %v", err)
 		return "", nil, "", nil, fmt.Errorf("failed to expand includes for engines: %w", err)

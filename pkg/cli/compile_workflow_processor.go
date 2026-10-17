@@ -147,6 +147,7 @@ func compileWorkflowFile(
 	// Per-file actionlint is always disabled here; actionlint runs in batch after all files are compiled.
 	if err := CompileWorkflowDataWithValidation(ctx, compiler, workflowData, resolvedFile, CompileValidationOptions{
 		Verbose:            opts.verbose && !opts.jsonOutput,
+		NoEmit:             opts.noEmit,
 		RunZizmorPerFile:   opts.zizmor && !opts.noEmit,
 		RunPoutinePerFile:  opts.poutine && !opts.noEmit,
 		Strict:             opts.strict,

@@ -206,7 +206,7 @@ func TestMCPCompile_WriteCapability(t *testing.T) {
 			assert.False(t, result.IsError)
 			wantArgs := []string{"compile", "--validate", "--json"}
 			if !allowWrite {
-				wantArgs = append(wantArgs, "--no-emit", "--no-check-update")
+				wantArgs = append(wantArgs, "--no-emit", "--no-check-update", "--read-only")
 			}
 			wantArgs = append(wantArgs, "--strict", "--", "test")
 			assert.Equal(t, wantArgs, gotArgs)
@@ -226,6 +226,36 @@ func TestMCPCompile_ReadOnlyRejectsWritingOptions(t *testing.T) {
 			})
 			require.ErrorContains(t, err, "read-only compilation")
 			require.ErrorContains(t, err, "--allow-write-tools")
+		})
+	}
+}
+
+func TestMCPCompile_ArgumentCapabilityGates(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		args         compileArgs
+		wantScanners bool
+		wantWrites   bool
+	}{
+		{"default", compileArgs{}, false, false},
+		{"validation", compileArgs{Strict: true, ValidateImages: true, Environment: "test"}, false, false},
+		{"fix", compileArgs{Fix: true}, false, true},
+		{"dry-run", compileArgs{DryRun: true}, false, true},
+		{"zizmor", compileArgs{Zizmor: true}, true, true},
+		{"poutine", compileArgs{Poutine: true}, true, true},
+		{"actionlint", compileArgs{Actionlint: true}, true, true},
+		{"runner-guard", compileArgs{RunnerGuard: true}, true, true},
+		{"syft", compileArgs{Syft: true}, true, true},
+		{"grype", compileArgs{Grype: true}, true, true},
+		{"grant", compileArgs{Grant: true}, true, true},
+		{"yamllint", compileArgs{Yamllint: true}, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.wantScanners, tt.args.hasExternalScanners())
+			assert.Equal(t, tt.wantWrites, tt.args.requiresWriteTools())
 		})
 	}
 }

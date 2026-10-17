@@ -81,6 +81,19 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
+// IsNoEmit reports whether compilation skips generating lock files.
+func (c *Compiler) IsNoEmit() bool {
+	return c.noEmit
+}
+
+// SetReadOnly prevents compilation from populating caches or pulling images.
+func (c *Compiler) SetReadOnly(readOnly bool) {
+	c.readOnly = readOnly
+	if c.importCache != nil {
+		c.importCache.SetReadOnly(readOnly)
+	}
+}
+
 // SetApprove configures whether to skip safe update enforcement via the CLI --approve flag.
 // When true, safe update enforcement is disabled regardless of strict mode setting,
 // approving all changes.
@@ -354,7 +367,7 @@ func (c *Compiler) getSharedImportCache() *parser.ImportCache {
 		c.importCache = parser.NewImportCache(baseDir)
 		logTypes.Print("Initialized shared import cache for compiler")
 	}
-	c.importCache.SetReadOnly(c.noEmit)
+	c.importCache.SetReadOnly(c.readOnly)
 	return c.importCache
 }
 

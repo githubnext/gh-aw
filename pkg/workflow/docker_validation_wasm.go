@@ -6,6 +6,10 @@ func validateDockerImage(image string, verbose bool, requireDocker bool) error {
 	return nil
 }
 
+func validateDockerImageWithMode(image string, verbose bool, requireDocker bool, readOnly bool) error {
+	return nil
+}
+
 func isDockerDaemonRunning() bool {
 	return false
 }

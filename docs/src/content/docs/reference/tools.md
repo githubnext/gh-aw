@@ -202,7 +202,7 @@ See [GH-AW as an MCP Server](/gh-aw/reference/gh-aw-as-mcp-server/) for availabl
 
 The built-in container runs with the runner's UID and GID unless a container user is explicitly configured. This keeps downloaded logs runner-owned without widening their owner-only permissions, so the post-agent secret-redaction step can read them. Its default `HOME` is the backend container's ephemeral `/tmp`, not `/root`. Redaction failures still remove unsanitized sources and fail the step.
 
-The `compile` tool validates without modifying files by default (`--no-emit`). Remote imports must already be cached. Workflow-writing tools (`add`, `update`, and `fix`), emitted compilation, dry-run compilation, and external scanners require an explicit opt-in at server startup:
+The `compile` tool uses a dedicated read-only mode with `--no-emit` by default. Remote imports and nested body-level includes must already be cached; container validation does not pull missing Docker images. Ordinary CLI `--no-emit` compilation can still populate import caches. Workflow-writing tools (`add`, `update`, and `fix`), emitted compilation, dry-run compilation, and external scanners require an explicit opt-in at server startup:
 
 ```aw wrap
 tools:

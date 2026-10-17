@@ -8,7 +8,68 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/stretchr/testify/require"
 )
+
+func TestCompilerNoEmitImportCacheRemainsWritable(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.gitRoot = t.TempDir()
+	compiler.SetNoEmit(true)
+	cache := compiler.getSharedImportCache()
+	_, err := cache.Set("owner", "repo", "shared.md", "first-sha", []byte("first"))
+	require.NoError(t, err, "ordinary --no-emit must still populate imports")
+
+	compiler.SetReadOnly(true)
+	_, err = cache.Set("owner", "repo", "shared.md", "second-sha", []byte("second"))
+	require.ErrorContains(t, err, "read-only import cache")
+
+	compiler.SetReadOnly(false)
+	require.Same(t, cache, compiler.getSharedImportCache())
+	_, err = cache.Set("owner", "repo", "shared.md", "second-sha", []byte("second"))
+	require.NoError(t, err, "trusted no-emit validation must be able to cache changed refs")
+}
+
+func TestCompilerReadOnlyBeforeImportCacheInitialization(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.gitRoot = t.TempDir()
+	compiler.SetReadOnly(true)
+	cache := compiler.getSharedImportCache()
+	_, err := cache.Set("owner", "repo", "shared.md", "sha", []byte("content"))
+	require.ErrorContains(t, err, "read-only import cache")
+	require.NoDirExists(t, cache.GetCacheDir())
+}
+
+func TestCompilerReadOnlyBodyIncludes(t *testing.T) {
+	const sha = "0123456789abcdef0123456789abcdef01234567"
+	for _, cached := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing", true: "cached"}[cached], func(t *testing.T) {
+			repoDir := t.TempDir()
+			tempDir := t.TempDir()
+			t.Setenv("TMPDIR", tempDir)
+			workflowsDir := filepath.Join(repoDir, ".github", "workflows")
+			require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+			workflowPath := filepath.Join(workflowsDir, "test.md")
+			require.NoError(t, os.WriteFile(workflowPath, []byte("---\non: push\nengine: copilot\n---\n# Test\n@include owner/repo/shared.md@"+sha+"\n"), 0o600))
+
+			compiler := NewCompiler(WithNoEmit(true), WithSkipValidation(true))
+			compiler.gitRoot = repoDir
+			if cached {
+				_, err := compiler.getSharedImportCache().Set("owner", "repo", "shared.md", sha, []byte("Cached instructions\n"))
+				require.NoError(t, err)
+			}
+			compiler.SetReadOnly(true)
+			_, err := compiler.ParseWorkflowFile(workflowPath)
+			if cached {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "is not cached")
+			}
+			entries, err := os.ReadDir(tempDir)
+			require.NoError(t, err)
+			require.Empty(t, entries, "compiler include paths must not create temporary files")
+		})
+	}
+}
 
 func TestCompilerSharedActionCache(t *testing.T) {
 	// Create a temporary directory for test workflows

@@ -108,6 +108,11 @@ MCP_COMPILE_MUTATIONS = {
     "read-only-denied": "ReadOnlyAvailability",
     "validation-bypass": "ValidationPreserved",
     "write-output-omitted": "WriteEnabledEmission",
+    "read-only-mode-omitted": "ReadOnlyMode",
+    "docker-pull": "NoImagePulls",
+    "include-cache-bypass": "NoRemoteDownloads",
+    "no-emit-cache-policy": "TrustedNoEmitAvailability",
+    "stale-lock-validation": "ReadOnlyAvailability",
 }
 MCP_COMPILE_WITNESSES = {
     "read-only-success": "NoReadOnlySuccess",
@@ -115,6 +120,8 @@ MCP_COMPILE_WITNESSES = {
     "missing-import-error": "NoMissingImportError",
     "write-enabled-success": "NoWriteEnabledSuccess",
     "actor-denial": "NoActorDenial",
+    "nested-include-success": "NoNestedIncludeSuccess",
+    "trusted-no-emit-import-refresh": "NoTrustedNoEmitImportRefresh",
 }
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",

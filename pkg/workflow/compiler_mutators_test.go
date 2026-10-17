@@ -29,9 +29,14 @@ func TestCompilerSetContext(t *testing.T) {
 
 func TestCompilerSetNoEmit(t *testing.T) {
 	c := NewCompiler()
+	assert.False(t, c.IsNoEmit())
 
 	c.SetNoEmit(true)
 	assert.True(t, c.noEmit)
+	assert.True(t, c.IsNoEmit())
+
+	c.SetNoEmit(false)
+	assert.False(t, c.IsNoEmit())
 }
 
 func TestCompilerSetStrictMode(t *testing.T) {

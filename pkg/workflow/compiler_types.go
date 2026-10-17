@@ -25,6 +25,7 @@ type Compiler struct {
 	version                 string                   // Version of the extension
 	skipValidation          bool                     // If true, skip schema validation
 	noEmit                  bool                     // If true, validate without generating lock files
+	readOnly                bool                     // If true, prevent compilation from populating caches or pulling images
 	strictMode              bool                     // If true, enforce strict validation requirements
 	allowActionRefs         bool                     // If true, unresolved action refs are warnings instead of errors
 	approve                 bool                     // If true, approve safe update changes (skip safe update enforcement)

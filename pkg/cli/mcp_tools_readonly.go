@@ -86,6 +86,14 @@ type compileArgs struct {
 	MaxTokens      int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 }
 
+func (args compileArgs) hasExternalScanners() bool {
+	return args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint
+}
+
+func (args compileArgs) requiresWriteTools() bool {
+	return args.Fix || args.DryRun || args.hasExternalScanners()
+}
+
 // registerCompileTool registers the compile tool with the MCP server.
 // manifestCacheFile is the path to a temp JSON file containing pre-cached gh-aw-manifests
 // collected at server startup; it is passed to each compile subprocess via
@@ -143,7 +151,7 @@ Returns JSON array with validation results for each workflow:
 			return nil, nil, err
 		}
 
-		if !allowWriteTools && (args.Fix || args.DryRun || args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint) {
+		if !allowWriteTools && args.requiresWriteTools() {
 			return nil, nil, newMCPError(jsonrpc.CodeInvalidParams, "read-only compilation does not support fixes, dry-run compilation, or external scanners; restart gh aw mcp-server with --allow-write-tools for trusted clients and workflow sources", nil)
 		}
 
@@ -176,7 +184,7 @@ Returns JSON array with validation results for each workflow:
 
 		// Check if any static analysis tools are requested that require Docker images
 		// Development mode delegates requested checks to the CLI without downgrading them.
-		if !args.DryRun && (args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint) {
+		if !args.DryRun && args.hasExternalScanners() {
 			// Check if Docker images are available; if not, start downloading and return retry message
 			if err := CheckAndPrepareDockerImages(ctx, DockerImagesOptions{
 				Zizmor:      args.Zizmor,
@@ -234,7 +242,7 @@ Returns JSON array with validation results for each workflow:
 		// Always validate workflows during compilation and use JSON output for MCP.
 		cmdArgs := []string{"compile", "--validate", "--json"}
 		if !allowWriteTools {
-			cmdArgs = append(cmdArgs, "--no-emit", "--no-check-update")
+			cmdArgs = append(cmdArgs, "--no-emit", "--no-check-update", "--read-only")
 		}
 
 		// Add fix flag if requested

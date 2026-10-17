@@ -219,7 +219,7 @@ func (c *Compiler) resolveToolsConfiguration(
 	if err := ValidateToolsSection(topTools); err != nil {
 		return nil, err
 	}
-	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, true)
+	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, true, c.getSharedImportCache())
 	if err != nil {
 		orchestratorToolsLog.Printf("Failed to expand includes for tools: %v", err)
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
@@ -453,7 +453,7 @@ func (c *Compiler) resolveMarkdownArtifacts(
 	importsResult *parser.ImportsResult,
 	includedToolFiles []string,
 ) (*markdownArtifacts, error) {
-	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, false)
+	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(effectiveMarkdown, markdownDir, false, c.getSharedImportCache())
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
 	}

@@ -351,38 +351,46 @@ and [`findRepoCheckout`](../../actions/setup/js/find_repo_checkout.cjs).
 [`MCPCompile.tla`](MCPCompile.tla) models the compiler threat specification's
 [MCP-COMPILE-001–006](../compiler-threat-detection-spec.md#521-host-side-mcp-compilation-boundary)
 as a separate host-side boundary, not a generated workflow job. Each bounded
-request selects a tool, immutable server-startup write capability, configured
-actor validation and permission, an option class, workflow validity, import
-availability, and repository-root/subdirectory/non-Git launch context.
-`Authorize`, `Prepare`, `ResolveImports`, `Validate`, and `Finalize` enforce the
+request selects an MCP or trusted CLI no-emit entry point, tool, immutable
+server-startup write capability, configured actor validation and permission,
+option class, workflow validity, import availability and expansion path
+(frontmatter, body, or nested include), local image availability/requirement,
+stale lock validity, and repository-root/subdirectory/non-Git launch context.
+`Authorize`, `Prepare`, `ResolveImports`, `ResolveImages`, `Validate`, and `Finalize` enforce the
 ordering between admission, subprocess/scanner preparation, cache access,
-validation, and output effects.
+local-image inspection, validation, and output effects. Missing local images
+produce a warning unless image validation is required, when they produce an error.
 
 | Invariants | Boundary |
 |---|---|
 | `StartupCapability`, `ActorAuthorization`, `WritingOptionsGated`, `DeniedBeforeExecution` | Callers cannot opt into write tools; read-only compilation bypasses only the write-actor gate, while write-enabled operations retain it. Rejected requests start no compilation or scanner. |
-| `ReadOnlyMode`, `NoExternalScanners`, `NoRemoteDownloads`, `ReadOnlyIsolation` | Read-only requests force no-emit and no update check, execute no external scanners, download no missing imports, and record no mutations on success or failure. |
-| `CacheRootConforms`, `ReadOnlyAvailability`, `ValidationPreserved` | Git checkouts use the repository-root cache, non-Git contexts use the working directory, cached valid imports remain usable from subdirectories, and invalid inputs remain errors. |
-| `WriteEnabledEmission` | Authorized write-enabled successful compilation still emits a lock file. |
+| `ReadOnlyMode`, `NoExternalScanners`, `NoRemoteDownloads`, `NoImagePulls`, `ReadOnlyIsolation` | Read-only requests force dedicated read-only mode, no-emit, and no update check, execute no external scanners, download no missing imports/includes, pull no images, and record no mutations on success or failure. |
+| `CacheRootConforms`, `ReadOnlyAvailability`, `ValidationPreserved` | Git checkouts use the repository-root cache, non-Git contexts use the working directory, cached valid imports remain usable from subdirectories, malformed stale output cannot invalidate generated YAML, and invalid inputs remain errors. |
+| `WriteEnabledEmission`, `TrustedNoEmitAvailability` | Authorized write-enabled compilation emits locks; trusted CLI no-emit compilation can populate imports without emitting a lock file. |
 
-`check.py` includes the secure baseline, fourteen synthetic negative controls,
-and five reachability witnesses. Controls independently break startup authority,
-actor checks, option rejection, no-emit/update-check flags, scanner ordering,
+`check.py` includes the secure baseline, nineteen synthetic negative controls,
+and seven reachability witnesses. Controls independently break startup authority,
+actor checks, option rejection, dedicated read-only/no-emit/update-check flags, scanner ordering,
 missing-import download prevention, diagnostic/post-processing/cache-hit write
 suppression, cache-root selection, read-only admission, validation, or
-write-enabled emission. Witnesses reach read-only success, cached subdirectory
+write-enabled emission. Additional controls reproduce Docker pulling, uncached
+body/nested include fallback, stale-lock validation, and applying the stronger
+read-only policy to trusted no-emit CLI callers. Witnesses reach read-only success, cached subdirectory
 success, an uncached-import error without writes, write-enabled emission, and
-write-actor denial, so blanket rejection cannot satisfy the model vacuously.
+write-actor denial, plus cached nested-include success and trusted CLI no-emit
+import refresh, so blanket rejection cannot satisfy the model vacuously.
 
 Mutations abstract creation, modification, or deletion of source, lock,
-diagnostic, action-pin, attributes, import-cache, and update-cache files. This
+diagnostic, action-pin, attributes, import-cache, update-cache, and temporary
+include files; Docker pulls have a separate tracked effect. This
 does not model bytes, path resolution, symlinks, concurrent callers, exact Git
 discovery, scanner internals, all CLI flag combinations, or server-startup
 temporary manifest baselines. The model is not a filesystem sandbox or a proof
 that the implementation refines it. Its concrete evidence is
 [`mcp_server_compile_test.go`](../../pkg/cli/mcp_server_compile_test.go)'s
 real-binary snapshots of file inventory, bytes, modes, and modification times,
-plus the implementation and unit-test mapping in compiler threat §7.3.
+isolated temporary-directory include tests, fake-Docker regressions, and the
+implementation and unit-test mapping in compiler threat §7.3.
 
 ## Run the machine
 
@@ -420,7 +428,7 @@ broken protections (including failure-path token retention) and eight reachabili
 witnesses cover authenticated push, temporary host credentials, and a blocking
 cleanup failure. The additional runtime-checkout model exhausts both job kinds
 and verifies the controls and witnesses described above. The MCP compilation
-model adds its secure baseline, fourteen negative controls, and five witnesses.
+model adds its secure baseline, nineteen negative controls, and seven witnesses.
 
 Counterexamples include raw `tlc-trace.json`, normalized `trace.json`, and
 `events.txt`. `CompiledWorkflow` negative controls also generate `source.md` and
