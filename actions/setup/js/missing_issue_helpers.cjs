@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile } = require("./messages_core.cjs");
 const { generateFooterWithExpiration } = require("./ephemerals.cjs");
@@ -144,7 +146,7 @@ function buildMissingIssueHandler(options) {
           });
           const issueBody = appendConfiguredBodyFooter(sanitizeContent(`${issueBodyContent}\n\n${footer}`), config.body_footer);
 
-          const newIssue = await github.rest.issues.create({
+          const newIssue = await createReportIssue(github, {
             owner,
             repo,
             title: issueTitle,

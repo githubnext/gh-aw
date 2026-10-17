@@ -1,6 +1,8 @@
 // @ts-check
 "use strict";
 
+const { renderIssueParameters } = require("./issue_report.cjs");
+
 const { queueError } = require("./work_queue_codec.cjs");
 const { nativeId } = require("./work_queue_native.cjs");
 const { withRetry } = require("./error_recovery.cjs");
@@ -199,7 +201,7 @@ async function mutateIssues(github, operations, { sleep = delay => new Promise(r
   const selections = [];
   operations.forEach((operation, index) => {
     declarations.push(`$m${index}:${operation.type}!`);
-    variables[`m${index}`] = operation.input;
+    variables[`m${index}`] = operation.name === "createIssue" ? renderIssueParameters(operation.input) : operation.input;
     selections.push(`m${index}: ${operation.name}(input:$m${index}) { ${operation.selection} }`);
   });
   let result;

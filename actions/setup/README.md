@@ -73,6 +73,65 @@ All files are copied from the committed `js/` and `sh/` directories which contai
 
 ## Development
 
+### Structured issue reports
+
+All JavaScript GitHub issue creators publish through `js/issue_report.cjs`.
+`createReportIssue(client, parameters, report?)` renders the report AST before
+calling the supplied authenticated client's issue API. Existing issue Markdown
+is imported when no document is supplied. GraphQL work-queue creation uses the
+same `renderIssueParameters` boundary, as do staged safe-output previews.
+Linear uses the Markdown renderer. Jira uses text-preserving normalization before
+converting its literal description to ADF, without replacing ordinary language
+characters with visually similar Latin letters.
+
+`js/report_ast.cjs` defines the typed inline and block nodes, normalization, and
+GitHub Markdown renderer. The renderer owns escaping, HTTPS link validation,
+heading levels, balanced details, code fences, and whitespace. It rejects raw
+HTML/Markdown nodes and redacts diagnostic secrets before choosing delimiters.
+
+`js/failure_report.cjs` builds reports from `md/agent_failure_issue.md`.
+`js/report_markdown.cjs` imports the runtime template dialect: headings,
+paragraphs, emphasis, links, images, bare HTTPS URLs, code, lists, task lists,
+tables, quotes, alerts, separators, and details. Link destinations retain balanced
+parentheses, and image sources use the same HTTPS validation as links.
+Source paragraph newlines and explicit Markdown hard breaks use typed break nodes;
+newlines in scalar metadata still normalize to spaces.
+Templates are parsed **before** scalar metadata is substituted. Diagnostic
+fragments enter through explicit block fields, with headings below the report
+sections; unsupported HTML remains literal text. New programmatic report content
+should use AST nodes rather than concatenated Markdown. Empty optional blocks
+are omitted and rendering is deterministic. Complete fragments are redacted before
+tokenization, and URL-domain policies apply to fully normalized content.
+
+`js/report_footer.cjs` builds the footer from the shared attribution template and
+model/cost metadata. Attribution, expiration, provenance, failure-match markers,
+and the detection preamble are rendered with the document, not appended afterward.
+Marker names and fields are validated; marker values cannot close an HTML comment
+or inject another metadata field. Ordinary double hyphens in identifiers remain
+unchanged. Unknown placeholders in user-configured footer templates remain literal;
+internal templates retain strict missing-field validation. Expiration remains a
+checked task-list item so existing cleanup and deduplication readers continue to work.
+
+The issue publication importer explicitly enables typed metadata comments to
+preserve grouping, execution provenance, managed islands, and work-queue IDs.
+Diagnostic imports do not enable them. JSON metadata is serialized without HTML
+delimiters while preserving decoded values. Configured mentions use explicit
+mention nodes after the existing safe-output allowlist and budget checks; other
+text cannot create notifications. Body limits apply after rendering, including
+escaping and attribution. A repository-wide regression guards against direct
+REST issue-creation calls outside the shared publisher.
+
+Special syntax has semantic nodes rather than interpolated strings:
+`closing_reference` records the closing action, issue number, optional
+`owner/repo`, and an explicit `enabled` flag. Disabled references render an
+escaped `#`, including in PR fallback issues; scalar text never becomes an active
+closing directive. `structured_data` accepts JSON values and renders a safely
+fenced JSON block. `xml_marker` holds a validated name, scalar value, and optional
+key/value fields; `json_marker` holds an actual data object, not serialized JSON.
+Footer provenance uses the same XML-marker node and renderer. Structured data
+preserves entity-looking strings, redacts secrets, and rejects cycles, getters,
+non-finite numbers, and other values JSON would silently drop or coerce.
+
 ### JSONL runtime helpers
 
 Use `js/jsonl_helpers.cjs` instead of splitting files or maintaining chunk buffers:

@@ -1518,6 +1518,22 @@ function hardenUnicodeText(text) {
 }
 
 /**
+ * Stabilize encodings before applying policies that downstream renderers must not bypass.
+ * @param {string} text
+ * @returns {string}
+ */
+function canonicalizePublicationText(text) {
+  for (let pass = 0; pass < 16; pass++) {
+    const normalized = hardenUnicodeText(text)
+      .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+    if (normalized === text) return normalized;
+    text = normalized;
+  }
+  throw new TypeError("Publication text contains excessively nested encodings");
+}
+
+/**
  * Core sanitization function without mention filtering
  * @param {string} content - The content to sanitize
  * @param {number} [maxLength] - Maximum length of content (default: 524288)
@@ -1544,7 +1560,7 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
 
   // Apply Unicode hardening first to normalize text representation
   // This prevents Unicode-based attacks and ensures consistent processing
-  sanitized = hardenUnicodeText(sanitized);
+  sanitized = canonicalizePublicationText(sanitized);
 
   // Remove ANSI escape sequences and control characters early
   // This must happen before mention neutralization to avoid creating bare mentions
@@ -1650,5 +1666,6 @@ module.exports = {
   neutralizeTemplateDelimiters,
   applyTruncation,
   hardenUnicodeText,
+  canonicalizePublicationText,
   decodeHtmlEntities,
 };
