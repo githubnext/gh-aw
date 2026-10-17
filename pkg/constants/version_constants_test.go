@@ -25,7 +25,7 @@ func TestDefaultCLIMCPVersions(t *testing.T) {
 		{"GitHub MCP Server", DefaultGitHubMCPServerVersion, "v2.0.2"},
 		{"Firewall", DefaultFirewallVersion, "v0.28.59"},
 		{"Router", DefaultRouterVersion, "0.1.3"},
-		{"MCP Gateway", DefaultMCPGatewayVersion, "v0.4.33"},
+		{"MCP Gateway", DefaultMCPGatewayVersion, "v0.4.35"},
 		{"Threat Detect", DefaultThreatDetectVersion, "v0.5.2"},
 	}
 
