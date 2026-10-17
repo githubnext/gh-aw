@@ -35,7 +35,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 const [scripts, root, status, model] = process.argv.slice(1);
 global.core = { warning() {}, info() {} };
-const { recordCopilotModelSelection } = require(path.join(scripts, "copilot_model_selection.cjs"));
+const { recordCopilotModelSelection, persistCopilotModelSelection } = require(path.join(scripts, "copilot_model_selection.cjs"));
 const { persistAgentAwInfoCopy } = require(path.join(scripts, "parse_token_usage.cjs"));
 const { writeUnifiedSession } = require(path.join(scripts, "unified_session.cjs"));
 const runner = path.join(root, "runner");
@@ -45,6 +45,7 @@ const configured = "gemini-3.8-flash?effort=high";
 const activation = { engine_id: "copilot", model: configured };
 fs.writeFileSync(path.join(runner, "aw_info.json"), JSON.stringify(activation));
 recordCopilotModelSelection({ status, configured_model: configured, resolved_model: "gemini-3.8-flash", effective_model: model }, { GH_AW_TMP_DIR: runner });
+persistCopilotModelSelection({ GH_AW_TMP_DIR: runner });
 persistAgentAwInfoCopy(runner);
 // Upload/download only the runner-controlled metadata path; activation retains
 // the configured snapshot and an agent file must not establish attribution.
