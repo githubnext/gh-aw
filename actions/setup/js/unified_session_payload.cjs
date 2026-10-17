@@ -661,6 +661,7 @@ function normalizeUnifiedSessionEvent(event, phase) {
   if (event.type === "experiment.assignment") {
     for (const key of Object.keys(data)) delete data[key];
     const assignments = source.assignments;
+    // Only non-array objects identify the normalized wrapper; otherwise preserve the raw assignment map.
     data.assignments = structuredClone(assignments && typeof assignments === "object" && !Array.isArray(assignments) ? assignments : source);
   }
   if (event.type === "grader.manifest" && Array.isArray(source.graders)) data.graders = source.graders.map(grader => selectFields(grader, GRADER_FIELDS));
