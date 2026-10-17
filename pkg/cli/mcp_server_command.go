@@ -39,8 +39,10 @@ The server provides the following tools:
   - fix         - Apply automatic codemod-style fixes to workflow files
 
 Access Control:
-  Workflow-writing tools (add, update, fix, compile) are disabled by default.
-  The operator must explicitly enable them with --allow-write-tools. Enable this
+  Compile uses --no-emit by default and does not modify files. Fixes, dry-run
+  compilation, and external scanners require --allow-write-tools.
+  Workflow-writing tools (add, update, fix) are disabled by default.
+  The operator must explicitly enable writes with --allow-write-tools. Enable this
   only for trusted MCP clients and workflow sources: these tools can modify
   GitHub Actions workflows and invoke compiler scanners.
 
