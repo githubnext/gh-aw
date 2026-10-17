@@ -18,7 +18,7 @@ function buildFailureReport(template, title, values) {
   /** @type {import("./report_markdown.cjs").ReportContext} */
   const context = {};
   for (const [key, value] of Object.entries(values)) {
-    context[key] = key.endsWith("_context") ? parseReportMarkdown(value) : value;
+    context[key] = key.endsWith("_context") ? parseReportMarkdown(value, { minimumHeadingLevel: 4 }) : value;
   }
 
   /** @type {ReportInline[]} */
@@ -37,7 +37,7 @@ function buildFailureReport(template, title, values) {
   const evidence = [context.report_incomplete_context, context.failure_diagnostics_context].flatMap(value => (Array.isArray(value) ? value : []));
   context.runtime_evidence_context = evidence.length ? [{ type: "details", summary: "Runtime evidence", children: evidence }] : [];
 
-  return { type: "report", title, children: parseReportMarkdown(template, { context, minimumHeadingLevel: 2 }) };
+  return { type: "report", title, children: parseReportMarkdown(template, { context, minimumHeadingLevel: 3 }) };
 }
 
 module.exports = { buildFailureReport };

@@ -41,6 +41,12 @@ describe("failure report structure", () => {
         .children.filter(node => node.type === "heading")
         .map(node => node.children)
     ).toEqual([[{ type: "text", value: "What happened" }], [{ type: "text", value: "Next step" }], [{ type: "text", value: "Failure details" }]]);
+    expect(
+      normalizeReport(ast)
+        .children.filter(node => node.type === "heading")
+        .map(node => node.level)
+    ).toEqual([3, 3, 3]);
+    expect(body).not.toMatch(/^#{1,2} /m);
     expect(body).toContain("**Smoke Codex** is missing required tools.");
     expect(body).toContain("View run \\#39046125927");
     expect(body).toContain("[Workflow source]");
@@ -73,6 +79,7 @@ describe("failure report structure", () => {
     expect(body.indexOf("retrying will not help")).toBeLessThan(evidencePosition);
     expect(body.indexOf("Task completion could not be confirmed")).toBeGreaterThan(evidencePosition);
     expect(body.indexOf("Driver exit code: 1")).toBeGreaterThan(evidencePosition);
+    expect(body).toContain("#### Failure Diagnostics");
     expect(body).not.toContain("did not record a specific cause");
   });
 
@@ -88,8 +95,8 @@ describe("failure report structure", () => {
     );
     const { body } = renderReport(ast);
     expect(body).toContain("**Smoke Gemini** failed (cause unknown).");
-    expect(body).toContain("### Unexpected heading");
-    expect(body.match(/^## /gm)).toHaveLength(3);
+    expect(body).toContain("#### Unexpected heading");
+    expect(body.match(/^### /gm)).toHaveLength(3);
   });
 
   it("treats hostile workflow, branch, and prompt fields as data", () => {
@@ -103,7 +110,7 @@ describe("failure report structure", () => {
       })
     );
     const { body } = renderReport(ast);
-    expect(body.match(/^## /gm)).toHaveLength(3);
+    expect(body.match(/^### /gm)).toHaveLength(3);
     expect(body).toContain("&lt;img src=x&gt;");
     expect(body).toContain("``feature/` </details><img src=x>``");
     expect(body).toContain("````text\nDebug");
