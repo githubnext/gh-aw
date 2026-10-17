@@ -189,7 +189,7 @@ The importing workflow must either omit `engine` or use its object form, such as
 
 ### Keeping up with new models
 
-The router chooses only among models it has benchmark data for. That data is part of the router version that gh-aw pins when it compiles the workflow. When gh-aw updates the router with data for new models, run [`gh aw upgrade`](/gh-aw/guides/working-with-workflows/#upgrading-workflows) to recompile your workflows, and the new models become candidates if your settings allow them. Models that have been retired, or that your organization's Copilot plan doesn't offer, are skipped at run time.
+The router chooses only among models it has benchmark data for. That data is part of the AWF release that gh-aw pins when it compiles the workflow. When gh-aw updates AWF with data for new models, run [`gh aw upgrade`](/gh-aw/guides/working-with-workflows/#upgrading-workflows) to recompile your workflows, and the new models become candidates if your settings allow them. Models that have been retired, or that your organization's Copilot plan doesn't offer, are skipped at run time.
 
 To get the most from this, describe models with patterns in the model policy, or don't restrict them, rather than listing exact names in `allowed-models`.
 
@@ -270,7 +270,7 @@ Routing also has these requirements:
 Routing happens once per run, before the agent starts:
 
 1. A small model classifies the task by type (such as fix, refactor, or explain), scope, and complexity. It reads the workflow's prompt, including interpolated content such as the triggering issue's text, and treats that text as data, not instructions.
-2. The [router](https://github.com/githubnext/gh-aw-router) ranks the candidate models and efforts for that kind of task, using benchmark results, and chooses one according to the workflow's `goal` and `mode`.
+2. The [router](https://github.com/github/gh-aw-firewall/tree/main/containers/router) ranks the candidate models and efforts for that kind of task, using benchmark results, and chooses one according to the workflow's `goal` and `mode`.
 3. The main agent runs the whole task with the chosen model and effort.
 
 The router chooses only from the workflow's candidates, whatever the task text says. Classification runs on one of the candidates, preferring a small one, and typically costs a small fraction of an AI Credit per run. If routing can't choose a model, the run fails rather than falling back to a fixed model. Threat detection isn't routed and uses its configured detection model.
