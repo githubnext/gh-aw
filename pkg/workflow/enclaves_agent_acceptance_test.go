@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,24 +12,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const cloudHypervisorAgentAcceptanceSetupActionSHA = "26e5d7e7d2345ae4c8dfa3d9017ca2ff9bbf2c82"
+
 func cloudHypervisorAgentAcceptanceData() *WorkflowData {
 	data := cloudHypervisorEnclaveWorkflowData(false, true)
 	data.Features = map[string]any{cloudHypervisorAgentAcceptanceFeature: true}
-	data.EngineConfig = &EngineConfig{ID: "copilot"}
-	data.WorkflowID = "smoke-enclave-cloud-hypervisor-copilot"
-	data.If = "github.repository == 'github/gh-aw-firewall' && github.ref_type == 'branch'"
+	data.EngineConfig = &EngineConfig{ID: cloudHypervisorAgentAcceptanceEngine}
+	data.WorkflowID = cloudHypervisorAgentAcceptanceWorkflowID
+	data.If = cloudHypervisorAgentAcceptanceCondition
 	data.RawFrontmatter = map[string]any{"on": map[string]any{"workflow_dispatch": nil}}
 	data.SandboxConfig.Agent.Runtime = AgentRuntimeCloudHypervisor
-	data.NetworkPermissions.Firewall.Version = "v0.28.62"
+	data.NetworkPermissions.Firewall.Version = cloudHypervisorAgentAcceptanceAWFVersion
 	enclave := data.Enclaves[0]
 	enclave.Agent = &AgentEnclaveConfig{
-		Engine: "copilot", Model: "claude-sonnet-5",
-		MaxTaskBytes: 4096, MaxModelRequests: 8, MaxModelTokens: 2048,
+		Engine:           cloudHypervisorAgentAcceptanceEngine,
+		Model:            cloudHypervisorAgentAcceptanceModel,
+		MaxTaskBytes:     cloudHypervisorAgentAcceptanceMaxTaskBytes,
+		MaxModelRequests: cloudHypervisorAgentAcceptanceMaxModelRequests,
+		MaxModelTokens:   cloudHypervisorAgentAcceptanceMaxModelTokens,
 	}
-	enclave.Repos = []*EnclaveRepository{{Repo: "github/gh-aw-firewall", Sensitivity: "public"}}
-	enclave.Timeout = 90
-	enclave.MaxOutputBytes = 256
-	enclave.MaxInvocations = 1
+	enclave.Repos = []*EnclaveRepository{{Repo: cloudHypervisorAgentAcceptanceRepo, Sensitivity: "public"}}
+	enclave.Timeout = cloudHypervisorAgentAcceptanceTimeout
+	enclave.MaxOutputBytes = cloudHypervisorAgentAcceptanceMaxOutputBytes
+	enclave.MaxInvocations = cloudHypervisorAgentAcceptanceMaxInvocations
 	return data
 }
 
@@ -141,12 +147,12 @@ func TestCloudHypervisorAgentAcceptanceExactLimits(t *testing.T) {
 }
 
 func TestCompileCloudHypervisorAgentAcceptance(t *testing.T) {
-	const content = `---
+	content := fmt.Sprintf(`---
 on:
   workflow_dispatch:
-if: github.repository == 'github/gh-aw-firewall' && github.ref_type == 'branch'
+if: %s
 features:
-  cloud-hypervisor-agent-acceptance: true
+  %s: true
   action-tag: v0.92.3
 strict: false
 runs-on: ubuntu-24.04
@@ -159,30 +165,44 @@ tools:
 sandbox:
   agent:
     runtime: cloud-hypervisor
-    version: v0.28.62
+    version: %s
   mcp:
     version: v0.4.33
 enclaves:
   - agent:
-      engine: copilot
-      model: claude-sonnet-5
-      max-task-bytes: 4096
-      max-model-requests: 8
-      max-model-tokens: 2048
+      engine: %s
+      model: %s
+      max-task-bytes: %d
+      max-model-requests: %d
+      max-model-tokens: %d
     runtime: cloud-hypervisor
     repos:
-      - repo: github/gh-aw-firewall
+      - repo: %s
         sensitivity: public
-    timeout: 90
-    max-output-bytes: 256
-    max-invocations: 1
+    timeout: %d
+    max-output-bytes: %d
+    max-invocations: %d
 ---
 Run one enclave agent invocation.
-`
-	path := filepath.Join(t.TempDir(), "smoke-enclave-cloud-hypervisor-copilot.md")
+`, cloudHypervisorAgentAcceptanceCondition,
+		cloudHypervisorAgentAcceptanceFeature,
+		cloudHypervisorAgentAcceptanceAWFVersion,
+		cloudHypervisorAgentAcceptanceEngine,
+		cloudHypervisorAgentAcceptanceModel,
+		cloudHypervisorAgentAcceptanceMaxTaskBytes,
+		cloudHypervisorAgentAcceptanceMaxModelRequests,
+		cloudHypervisorAgentAcceptanceMaxModelTokens,
+		cloudHypervisorAgentAcceptanceRepo,
+		cloudHypervisorAgentAcceptanceTimeout,
+		cloudHypervisorAgentAcceptanceMaxOutputBytes,
+		cloudHypervisorAgentAcceptanceMaxInvocations)
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, cloudHypervisorAgentAcceptanceWorkflowID+".md")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	compiler := NewCompiler()
 	compiler.SetStrictMode(false)
+	compiler.gitRoot = tmpDir
+	compiler.GetSharedActionCache().Set("github/gh-aw-actions/setup", "v0.92.3", cloudHypervisorAgentAcceptanceSetupActionSHA)
 	require.NoError(t, compiler.CompileWorkflow(path))
 	lockBytes, err := os.ReadFile(stringutil.MarkdownToLockFile(path))
 	require.NoError(t, err)
@@ -198,7 +218,7 @@ Run one enclave agent invocation.
 		`--exclude-env AWF_CLOUD_HYPERVISOR_ENCLAVE_AGENT_ROOTFS`,
 		`GH_AW_AWF_VERSION: v0.28.62`,
 		`GH_AW_AWF_VERSION: ${{ steps.cloud-hypervisor-bundle.outputs.release_tag }}`,
-		`gh-aw-actions/setup@26e5d7e7d2345ae4c8dfa3d9017ca2ff9bbf2c82`,
+		"gh-aw-actions/setup@" + cloudHypervisorAgentAcceptanceSetupActionSHA,
 		`1.0.96`, `v0.4.33`,
 	} {
 		assert.Contains(t, lock, fragment)
