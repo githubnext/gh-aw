@@ -155,28 +155,74 @@ describe("Jira safe-output handlers", () => {
     expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Use {{version}}.");
   });
 
-  it("normalizes the issue AST before creating literal ADF without Markdown escaping", async () => {
+  it.each([false, true])("shares report normalization while preserving literal ADF (staged=%s)", async staged => {
     vi.stubEnv("GH_AW_SECRET_NAMES", "JIRA_REPORT");
     vi.stubEnv("SECRET_JIRA_REPORT", "jira-report-fixture");
-    const handler = await createIssueMain({ max: 1 });
+    const handler = await createIssueMain({ max: 1, staged, body_footer: "Footer jira-report-fixture" });
     const result = await handler({
       temporary_id: "#aw_jira123",
       project_key: "ENG",
       issue_type: "Task",
-      summary: "e\u0301vidence\r\nreport",
-      description: "Literal **text** <tag> @user\r\njira-report-fixture",
+      summary: "e\u0301vidence\u0000\r\nreport jira-report-fixture",
+      description: "Literal **text** <tag> @user\r\n\r\n  e\u0301vidence\u0000\t{{version}}\r\njira-report-fixture",
     });
     expect(result.success).toBe(true);
-    expect(requests[0].body.fields.summary).toBe("\u00e9vidence report");
-    expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Literal **text** <tag> @user");
-    expect(JSON.stringify(requests[0].body)).not.toContain("jira-report-fixture");
+    if (staged) {
+      expect(result.summary).toBe("\u00e9vidence report ***");
+      expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Literal **text** <tag> @user\n\n  \u00e9vidence\t{{version}}\n***\n\nFooter ***"));
+      expect(JSON.stringify(global.core.info.mock.calls)).not.toContain("jira-report-fixture");
+      expect(requests).toHaveLength(0);
+    } else {
+      expect(requests[0].body.fields.summary).toBe("\u00e9vidence report ***");
+      expect(requests[0].body.fields.description.content).toEqual([
+        { type: "paragraph", content: [{ type: "text", text: "Literal **text** <tag> @user" }] },
+        { type: "paragraph", content: [] },
+        { type: "paragraph", content: [{ type: "text", text: "  \u00e9vidence\t{{version}}" }] },
+        { type: "paragraph", content: [{ type: "text", text: "***" }] },
+        { type: "paragraph", content: [] },
+        { type: "paragraph", content: [{ type: "text", text: "Footer ***" }] },
+      ]);
+      expect(JSON.stringify(requests[0].body)).not.toContain("jira-report-fixture");
+    }
   });
 
-  it("rejects descriptions emptied by AST normalization before making an API write", async () => {
+  it("rejects descriptions emptied by report normalization before making an API write", async () => {
     const handler = await createIssueMain({ max: 1 });
     const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "Report", description: "\u0000" });
     expect(result).toMatchObject({ success: false, error: "description must be non-empty after normalization" });
     expect(requests).toHaveLength(0);
+  });
+
+  it.each([false, true])("validates normalized text and Jira limits (staged=%s)", async staged => {
+    const cases = [
+      [{ summary: "\u0000" }, "summary must be a non-empty string"],
+      [{ summary: "x".repeat(256) }, "summary must be at most 255 characters"],
+      [{ description: "" }, "description must be a non-empty string"],
+      [{ description: "\u0000" }, "description must be non-empty after normalization"],
+      [{ description: "x".repeat(32768) }, "description must be at most 32767 characters"],
+    ];
+    for (const [fields, error] of cases) {
+      const handler = await createIssueMain({ max: 1, staged });
+      const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "Report", ...fields });
+      expect(result).toMatchObject({ success: false, error });
+    }
+    expect(requests).toHaveLength(0);
+  });
+
+  it("keeps descriptions optional even with a configured footer", async () => {
+    const handler = await createIssueMain({ max: 1, body_footer: "Configured footer" });
+    const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "Report" });
+    expect(result.success).toBe(true);
+    expect(requests[0].body.fields).not.toHaveProperty("description");
+  });
+
+  it("omits a footer that would exceed the Jira description limit", async () => {
+    const handler = await createIssueMain({ max: 1, body_footer: "Configured footer" });
+    const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "x".repeat(255), description: "x".repeat(32767) });
+    expect(result.success).toBe(true);
+    expect(requests[0].body.fields.summary).toHaveLength(255);
+    expect(requests[0].body.fields.description.content[0].content[0].text).toHaveLength(32767);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Configured body footer omitted"));
   });
 
   it("adds one Jira label with additive update semantics", async () => {

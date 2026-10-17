@@ -80,8 +80,8 @@ All JavaScript GitHub issue creators publish through `js/issue_report.cjs`.
 calling the supplied authenticated client's issue API. Existing issue Markdown
 is imported when no document is supplied. GraphQL work-queue creation uses the
 same `renderIssueParameters` boundary, as do staged safe-output previews.
-Linear uses the Markdown renderer; Jira normalizes a literal-text report AST
-before converting its description to ADF.
+Linear uses the Markdown renderer; Jira uses the shared report title and text
+normalization primitives directly before converting its literal description to ADF.
 
 `js/report_ast.cjs` defines the typed inline and block nodes, normalization, and
 GitHub Markdown renderer. The renderer owns escaping, HTTPS link validation,

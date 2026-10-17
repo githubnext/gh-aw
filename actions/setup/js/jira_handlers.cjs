@@ -5,7 +5,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createJiraClient, textToADF } = require("./jira_client.cjs");
 const { appendConfiguredBodyFooter } = require("./body_footer.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
-const { normalizeReport } = require("./report_ast.cjs");
+const { normalizeReportText, normalizeReportTitle } = require("./report_ast.cjs");
 
 function requiredString(value, field, maxLength = 255) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -78,16 +78,11 @@ const createIssue = jiraHandler("jira_create_issue", async (message, client, isS
   const rawSummary = requiredString(message.summary, "summary");
   const rawDescription = optionalString(message.description, "description");
   const description = rawDescription === undefined ? undefined : requiredString(appendConfiguredBodyFooter(rawDescription, config.body_footer, { maxLength: 32767 }), "description", 32767);
-  // Jira descriptions are literal ADF text, not GitHub Markdown.
-  const report = normalizeReport({
-    type: "report",
-    title: rawSummary,
-    children: description === undefined ? [] : [{ type: "code_block", language: "text", value: description }],
-  });
-  const summary = requiredString(report.title, "summary");
-  const content = report.children[0];
-  if (description !== undefined && content?.type !== "code_block") throw new Error("description must be non-empty after normalization");
-  const normalizedDescription = content?.type === "code_block" ? requiredString(content.value, "description", 32767) : undefined;
+  const summary = requiredString(normalizeReportTitle(rawSummary), "summary");
+  // Jira descriptions share report text normalization but remain literal ADF text.
+  const normalizedDescription = description === undefined ? undefined : normalizeReportText(description).trim();
+  if (normalizedDescription !== undefined && !normalizedDescription) throw new Error("description must be non-empty after normalization");
+  if (normalizedDescription !== undefined) requiredString(normalizedDescription, "description", 32767);
 
   if (isStaged) {
     logStagedPreviewInfo(`Jira create issue — Project: ${projectKey}; Type: ${issueType}; Summary: ${summary}${normalizedDescription ? `; Description: ${normalizedDescription}` : ""}`);
