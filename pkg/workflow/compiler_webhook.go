@@ -26,8 +26,9 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 		return nil, err
 	}
 	data.WebhookSubscriptions = subscriptions
-	if len(subscriptions) > 0 {
-		data.WebhookActors = subscriptions[0].Dispatch.TrustedActors
+	for _, subscription := range subscriptions {
+		data.WebhookActors = subscription.Dispatch.TrustedActors
+		break
 	}
 
 	// Preserve source frontmatter for metadata and hashing; only lower the trigger copy.
