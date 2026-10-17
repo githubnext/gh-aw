@@ -47,6 +47,7 @@ type jobYAML struct {
 // Parse builds and validates a native Actions graph from authored or generated
 // YAML. Expressions in authored values remain opaque: their declared needs
 // edges are authoritative, rather than inferred by scanning expression text.
+// Emit retains the original source and its comments, including after AST edits.
 func Parse(content []byte) (*Workflow, error) {
 	var source workflowYAML
 	decoder := yaml.NewDecoder(bytes.NewReader(content), yaml.Strict())
@@ -87,6 +88,9 @@ func Parse(content []byte) (*Workflow, error) {
 		if _, err := lowerJob(job, resolved); err != nil {
 			return nil, fmt.Errorf("validating job %q: %w", job.ID, err)
 		}
+	}
+	if err := retainWorkflowSource(resolved, content); err != nil {
+		return nil, err
 	}
 	return resolved, nil
 }

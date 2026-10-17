@@ -37,6 +37,9 @@ func TestRepositoryWorkflowGraphs(t *testing.T) {
 			}
 			_, err = Lower(input)
 			require.NoError(t, err, "all authored steps must also lower as native GitHub Actions")
+			emitted, err := Emit(resolved)
+			require.NoError(t, err)
+			assert.Equal(t, string(content), emitted, "parsed/resolved workflows must round-trip every source byte, including comments")
 		})
 	}
 	t.Logf("Built Actions graphs for %d workflow files: %d jobs, %d dependency edges", len(files), jobs, edges)

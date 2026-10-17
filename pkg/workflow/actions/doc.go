@@ -13,6 +13,12 @@
 // Parse reads native workflow YAML and validates its dependency graph. Authored
 // expression strings remain opaque; explicit needs are authoritative. AW
 // Markdown source documents are modeled separately by the aw package.
+// Parse followed by Emit round-trips the original YAML byte-for-byte, including
+// comments, field order, quoting, and line endings. Resolve retains this source.
+// After edits, Emit reconciles changes with the original syntax, preserving
+// comments on retained nodes and moving step comments with their steps.
+// Edited regions may be reformatted; aliases are materialized to preserve
+// independent AST values. Lower remains a semantic tree without source comments.
 //
 // Producers declare OutputDecl on a named step and write values to GITHUB_OUTPUT.
 // Consumers use OutputRef in If, Env, With, or Secrets. Same-job references become

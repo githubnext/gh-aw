@@ -12,6 +12,8 @@ type Workflow struct {
 	Defaults    map[string]any
 	Concurrency any
 	Jobs        []*Job
+
+	source *workflowSource
 }
 
 type Job struct {

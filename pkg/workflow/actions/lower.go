@@ -263,6 +263,13 @@ func Emit(input *Workflow) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if input.source != nil {
+		content, err := snapshotYAMLValue(value)
+		if err != nil {
+			return "", err
+		}
+		return input.source.emit(content)
+	}
 	content, err := yaml.Marshal(value)
 	if err != nil {
 		return "", fmt.Errorf("serializing workflow YAML: %w", err)
