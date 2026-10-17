@@ -19,7 +19,7 @@
  * Environment variables:
  *   GH_AW_PI_MODEL_ID              — Pi model ID (without provider prefix)
  *   GH_AW_PI_MODEL                 — configured model (exact id or gh-aw alias, optional provider/ prefix)
- *   GH_AW_PI_MODEL_ALIASES         — merged gh-aw alias map (JSON)
+ *   GH_AW_PI_MODEL_ALIASES         — workflow-defined and imported gh-aw aliases (JSON; built-ins ship in model_aliases.json)
  *   GH_AW_PI_MODEL_FILE            — where the resolved main model id is written for the Pi CLI
  *                                    (defaults to /tmp/gh-aw/pi-model)
  *   GH_AW_PI_CONTEXT_WINDOW        — optional model context window to write into models.json

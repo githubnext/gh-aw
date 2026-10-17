@@ -626,6 +626,7 @@ function loadBuiltinModelAliases() {
 function loadModelAliasMap(options = {}) {
   const env = options.env || process.env;
   const isMap = value => value && typeof value === "object" && !Array.isArray(value);
+  /** @type {Record<string, string[]>|null} */
   let overrides = null;
   for (const envVar of [options.envVar, MODEL_ALIASES_ENV_VAR]) {
     if (!envVar || !env[envVar]) continue;
@@ -639,6 +640,7 @@ function loadModelAliasMap(options = {}) {
       // Fall through to the next source.
     }
   }
+  /** @type {Record<string, string[]>|null} */
   let base = null;
   try {
     const configPath = env.GH_AW_AWF_CONFIG_PATH || path.join(env.GH_AW_TMP_DIR || "/tmp/gh-aw", "awf-config.json");
@@ -650,7 +652,7 @@ function loadModelAliasMap(options = {}) {
   if (!base && isMap(options.reflectData?.model_aliases)) base = options.reflectData.model_aliases;
   if (!base) base = loadBuiltinModelAliases();
   if (!base && !overrides) return null;
-  return { ...base, ...overrides };
+  return { ...(base || {}), ...(overrides || {}) };
 }
 
 /**
