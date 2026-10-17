@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -311,7 +312,13 @@ func TestCallWorkflowJobYAMLOutput(t *testing.T) {
 	assert.Contains(t, yamlOutput, "secrets: inherit", "Should inherit secrets")
 	// With no markdown path the worker inputs cannot be resolved, so payload is not forwarded.
 	assert.NotContains(t, yamlOutput, "payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}", "Should not pass payload when worker inputs are unknown")
-	assert.Contains(t, yamlOutput, "if: ${{ (needs.safe_outputs.outputs.call_workflow_name == 'worker-a') }}", "Should have if condition")
+	var rendered struct {
+		Jobs map[string]struct {
+			If string `yaml:"if"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(yamlOutput), &rendered))
+	assert.Equal(t, "${{ (needs.safe_outputs.outputs.call_workflow_name == 'worker-a') }}", rendered.Jobs["call-worker-a"].If, "Should have if condition")
 
 	// Should not have runs-on (reusable workflows don't have this)
 	assert.NotContains(t, yamlOutput, "runs-on:", "Reusable workflow jobs should not have runs-on")
