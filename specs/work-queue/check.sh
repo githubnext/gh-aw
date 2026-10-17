@@ -10,9 +10,9 @@ fi
 
 SPEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${TLC_MODEL_FILTER:-}" in
-    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
+    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|ClaimDeliveryHealth|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
     *)
-        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
+        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, ClaimDeliveryHealth, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
         exit 1
         ;;
 esac
@@ -105,6 +105,16 @@ run_model BrokenCancelledClaimOutput EffectAuthorization Invariant 12 ClaimScope
 run_model BrokenMixedDAGAdmission DAGAuthorization Invariant 12 ClaimScopedWorker
 run_model SingleClaimScopeWitness NoAutomaticScope Invariant 12 ClaimScopedWorker
 run_model MixedClaimDAGWitness NoMixedDAGProgress Invariant 12 ClaimScopedWorker
+run_model DeliveryHealth "" Invariant 0 ClaimDeliveryHealth
+run_model DeliveryHealthStaged "" Invariant 0 ClaimDeliveryHealth
+run_model BrokenDeliveryFalseGreen ReportTruth Invariant 12 ClaimDeliveryHealth
+run_model BrokenDeliveryEarlyStop IndependentSiblings Invariant 12 ClaimDeliveryHealth
+run_model BrokenDeliveryReleaseResult ResultAuthority Invariant 12 ClaimDeliveryHealth
+run_model BrokenDeliveryPrematureRelease ReleaseAuthority Invariant 12 ClaimDeliveryHealth
+run_model DeliveryPendingWitness NoPendingSibling Invariant 12 ClaimDeliveryHealth
+run_model DeliveryFailedWitness NoFailedSibling Invariant 12 ClaimDeliveryHealth
+run_model DeliveryMixedWitness NoMixedSuccess Invariant 12 ClaimDeliveryHealth
+run_model DeliveryReleasedWitness NoReleasedPending Invariant 12 ClaimDeliveryHealth
 run_model ServiceFixed "" Invariant 0 QueueService
 run_model ServiceDynamic "" Invariant 0 QueueService
 run_model BrokenServiceShare ServiceDeviation Invariant 12 QueueService
@@ -130,6 +140,7 @@ run_model BrokenLifecycleVerificationBudget DeliveryFailureBudget Invariant 12 Q
 run_model LifecycleMixedDAGWitness NoMixedLifecycleWitness Invariant 12 QueueLifecycle
 run_model LifecycleActivationWitness NoActivationRecoveryWitness Invariant 12 QueueLifecycle
 run_model LifecycleConflictWitness NoConflictReservationWitness Invariant 12 QueueLifecycle
+run_model LifecycleReleasedPendingWitness NoReleasedPendingDelivery Invariant 12 QueueLifecycle
 run_model ReservationRecovery "" Invariant 0 DispatchReservationRecovery
 run_model BrokenReservationEvidence PrelaunchEvidence Invariant 12 DispatchReservationRecovery
 run_model BrokenReservationCAS StartFence Invariant 12 DispatchReservationRecovery
