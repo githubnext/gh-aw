@@ -14,6 +14,7 @@ const { backfillCommitObjects } = require("./git_helpers.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { redactSecrets, redactBuiltInPatterns } = require("./redact_secrets.cjs");
+const { withGitClaimEffects } = require("./work_queue_git_effects.cjs");
 const ERROR_CODE_PREFIX_RE = /^(?:ERR_[A-Z_]+|E\d{3}):\s*/;
 
 /**
@@ -776,6 +777,10 @@ async function pushSignedCommits({
         }
       }
 
+      if (additions.length + deletions.length > 4096) {
+        throw new PushSignedCommitsPolicyViolation(`${ERR_VALIDATION}: signed-commit payload exceeds the 4096 native file-change bound`);
+      }
+      validateSynthesizedFileChanges(additions, deletions, validationConfig);
       additionsMap.set(sha, additions);
       deletionsMap.set(sha, deletions);
     }
@@ -785,6 +790,9 @@ async function pushSignedCommits({
     let lastOid;
     for (let i = 0; i < shas.length; i++) {
       const sha = shas[i];
+      const additions = additionsMap.get(sha) || [];
+      const deletions = deletionsMap.get(sha) || [];
+      const paths = [...additions, ...deletions].map(file => file.path);
       core.info(`pushSignedCommits: processing commit ${i + 1}/${shas.length} sha=${sha}`);
 
       // Determine the expected HEAD OID for this commit.
@@ -817,12 +825,14 @@ async function pushSignedCommits({
           core.info(`pushSignedCommits: creating remote branch ${branch} at parent OID ${expectedHeadOid}`);
           try {
             assertTransportUnchanged?.();
-            await githubClient.rest.git.createRef({
-              owner,
-              repo,
-              ref: `refs/heads/${branch}`,
-              sha: expectedHeadOid,
-            });
+            await withGitClaimEffects({ github: githubClient, repository: `${owner}/${repo}`, branch, paths }, () =>
+              githubClient.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${branch}`,
+                sha: expectedHeadOid,
+              })
+            );
             core.info(`pushSignedCommits: remote branch ${branch} created successfully`);
           } catch (createRefError) {
             assertTransportUnchanged?.();
@@ -858,9 +868,6 @@ async function pushSignedCommits({
       const body = message.split("\n").slice(1).join("\n").trim();
       core.info(`pushSignedCommits: commit message headline: "${headline}"`);
 
-      const additions = additionsMap.get(sha) || [];
-      const deletions = deletionsMap.get(sha) || [];
-      validateSynthesizedFileChanges(additions, deletions, validationConfig);
       core.info(`pushSignedCommits: file changes: ${additions.length} addition(s), ${deletions.length} deletion(s)`);
 
       /** @type {any} */
@@ -873,11 +880,13 @@ async function pushSignedCommits({
 
       core.info(`pushSignedCommits: calling createCommitOnBranch mutation (expectedHeadOid=${expectedHeadOid})`);
       assertTransportUnchanged?.();
-      const result = await githubClient.graphql(
-        `mutation($input: CreateCommitOnBranchInput!) {
-          createCommitOnBranch(input: $input) { commit { oid } }
-        }`,
-        { input }
+      const result = await withGitClaimEffects({ github: githubClient, repository: `${owner}/${repo}`, branch, paths }, () =>
+        githubClient.graphql(
+          `mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) { commit { oid } }
+            }`,
+          { input }
+        )
       );
       const newOid = result && result.createCommitOnBranch && result.createCommitOnBranch.commit ? result.createCommitOnBranch.commit.oid : undefined;
       if (typeof newOid !== "string" || newOid.length === 0) {

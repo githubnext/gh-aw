@@ -35,7 +35,7 @@ steps:
     run: |
       # Download usage artifacts for the last 30 days in parallel so the main
       # forecast step reads from the local cache and produces output quickly.
-      DEBUG='*' "$GITHUB_WORKSPACE/gh-aw" forecast \
+      "$GITHUB_WORKSPACE/gh-aw" forecast \
         --repo "$REPOSITORY" \
         --days 30 \
         --sample 100 \
@@ -55,7 +55,7 @@ steps:
       mkdir -p "$output_dir"
 
       set +e
-      DEBUG='*' "$GITHUB_WORKSPACE/gh-aw" forecast \
+      "$GITHUB_WORKSPACE/gh-aw" forecast \
         --repo "$REPOSITORY" \
         --days 30 \
         --period month \

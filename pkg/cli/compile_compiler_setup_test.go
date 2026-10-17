@@ -29,6 +29,16 @@ func TestCreateAndConfigureCompiler_RegistersModelPricingResolverByDefault(t *te
 	}
 }
 
+func TestCreateAndConfigureCompiler_ReadOnly(t *testing.T) {
+	t.Parallel()
+	for _, config := range []CompileConfig{{}, {NoEmit: true}, {ReadOnly: true}} {
+		compiler := createAndConfigureCompiler(config)
+		state := reflect.ValueOf(compiler).Elem()
+		require.Equal(t, config.ReadOnly, state.FieldByName("readOnly").Bool())
+		require.Equal(t, config.NoEmit || config.ReadOnly, state.FieldByName("noEmit").Bool())
+	}
+}
+
 func TestCreateAndConfigureCompiler_GPT61SolFirewallPricing(t *testing.T) {
 	t.Parallel()
 	pricingOverlay := func(provider string) string {

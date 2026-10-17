@@ -56,7 +56,7 @@ class TransportRunnerTest(unittest.TestCase):
 
 class RuntimePinTest(unittest.TestCase):
     def test_release_pin_matches_workflow_and_documentation(self):
-        expected = "0f56d6a813368c48008dfbecb23a73ab43a4a5e1bf09f026782a674aa9d4b3c9"
+        expected = "15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac"
         self.assertEqual(check.JAR_SHA256, expected)
         workflow = (check.ROOT.parents[1] / ".github/workflows/daily-workflow-security-model.md").read_text()
         self.assertIn("https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar",
@@ -235,7 +235,7 @@ class RuntimeCheckoutModelTest(unittest.TestCase):
             self.assertEqual(report["model"], "RuntimeRepositoryCheckout")
             self.assertNotIn("checkout_mode", report)
 
-    def test_main_includes_the_runtime_baseline_controls_and_witnesses(self):
+    def test_main_includes_additional_model_baselines_controls_and_witnesses(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             jar = root / "fixture.jar"
@@ -253,12 +253,48 @@ class RuntimeCheckoutModelTest(unittest.TestCase):
                  patch.object(check, "run_case", side_effect=run_case), patch("sys.stdout"):
                 check.main()
             report = json.loads((results / "results.json").read_text())
-            self.assertEqual(report["additional_models"], ["RuntimeRepositoryCheckout"])
+            self.assertEqual(report["additional_models"], ["RuntimeRepositoryCheckout", "MCPCompile"])
             cases = {case["case"] for case in report["cases"]
                      if case["model"] == "RuntimeRepositoryCheckout"}
             self.assertEqual(cases, {"secure-runtime-checkout"} |
                              {f"runtime-checkout-{fault}" for fault in check.RUNTIME_CHECKOUT_MUTATIONS} |
                              {f"runtime-checkout-{name}" for name in check.RUNTIME_CHECKOUT_WITNESSES})
+            mcp_cases = {case["case"] for case in report["cases"]
+                         if case["model"] == "MCPCompile"}
+            self.assertEqual(mcp_cases, {"secure-mcp-compile"} |
+                             {f"mcp-compile-{fault}" for fault in check.MCP_COMPILE_MUTATIONS} |
+                             {f"mcp-compile-{name}" for name in check.MCP_COMPILE_WITNESSES})
+
+
+class MCPCompileModelTest(unittest.TestCase):
+    def test_controls_are_declared_and_check_configured_invariants(self):
+        model = (check.ROOT / "MCPCompile.tla").read_text()
+        config = (check.ROOT / "MCPCompile.cfg").read_text()
+        for fault, invariant in check.MCP_COMPILE_MUTATIONS.items():
+            with self.subTest(fault=fault):
+                self.assertIn(f'"{fault}"', model)
+                self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+                self.assertRegex(config, rf"(?m)^\s+{invariant}$")
+        for invariant in check.MCP_COMPILE_WITNESSES.values():
+            self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+            self.assertNotRegex(config, rf"(?m)^\s+{invariant}$")
+
+    def test_runner_checks_baseline_controls_and_witnesses(self):
+        with patch.object(check, "run_case", return_value={}) as run_case:
+            cases = check.check_mcp_compile("java", Path("fixture.jar"), Path("results"))
+        expected = {"secure-mcp-compile": ("none", None, False)}
+        expected.update({f"mcp-compile-{fault}": (fault, invariant, False)
+                         for fault, invariant in check.MCP_COMPILE_MUTATIONS.items()})
+        expected.update({f"mcp-compile-{name}": ("none", invariant, True)
+                         for name, invariant in check.MCP_COMPILE_WITNESSES.items()})
+        observed = {}
+        for call in run_case.call_args_list:
+            self.assertEqual(call.kwargs["model"], "MCPCompile")
+            observed[call.args[3]] = (
+                call.args[4] if len(call.args) > 4 else "none",
+                call.kwargs.get("invariant"), call.kwargs.get("witness", False))
+        self.assertEqual(observed, expected)
+        self.assertEqual(len(cases), len(expected))
 
 
 if __name__ == "__main__":

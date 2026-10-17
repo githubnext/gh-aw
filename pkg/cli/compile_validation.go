@@ -20,6 +20,7 @@ var compileValidationLog = logger.New("cli:compile_validation")
 // CompileValidationOptions holds optional validation flags for workflow compilation.
 type CompileValidationOptions struct {
 	Verbose              bool
+	NoEmit               bool
 	RunZizmorPerFile     bool
 	RunPoutinePerFile    bool
 	RunActionlintPerFile bool
@@ -42,7 +43,11 @@ func CompileWorkflowWithValidation(ctx context.Context, compiler *workflow.Compi
 		return err
 	}
 
-	// Always validate that the generated lock file is valid YAML (CLI requirement)
+	if opts.NoEmit || compiler.IsNoEmit() {
+		return nil
+	}
+
+	// Validate emitted output only; no-emit compilation validates generated YAML in memory.
 	lockFile := stringutil.MarkdownToLockFile(filePath)
 	if _, err := os.Stat(lockFile); err != nil {
 		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
@@ -115,7 +120,11 @@ func CompileWorkflowDataWithValidation(ctx context.Context, compiler *workflow.C
 		return err
 	}
 
-	// Always validate that the generated lock file is valid YAML (CLI requirement)
+	if opts.NoEmit || compiler.IsNoEmit() {
+		return nil
+	}
+
+	// Validate emitted output only; no-emit compilation validates generated YAML in memory.
 	lockFile := stringutil.MarkdownToLockFile(filePath)
 	if _, err := os.Stat(lockFile); err != nil {
 		compileValidationLog.Print("Lock file not found, skipping validation (likely no-emit mode)")
