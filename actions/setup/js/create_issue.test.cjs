@@ -163,7 +163,7 @@ describe("create_issue", () => {
           title: "Tracker regression",
         })
       );
-      expect(request.body).toContain("Issue content with <b>safe HTML</b>");
+      expect(request.body).toContain("Issue content with &lt;b&gt;safe HTML&lt;/b&gt;");
       expect(request.body).not.toContain("<script>");
       expect(request.body).toContain("(script)");
       expectExecutionProvenance(request.body);
@@ -263,7 +263,7 @@ describe("create_issue", () => {
       expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Incident Summary",
-          body: expect.stringContaining("Full details line 1\nFull details line 2"),
+          body: expect.stringContaining("Full details line 1 Full details line 2"),
         })
       );
     });
@@ -1587,6 +1587,17 @@ describe("create_issue", () => {
       expect(createCall.body).toContain("@copilot");
       expect(createCall.body).not.toContain("`@copilot`");
       expect(createCall.body).toContain("`@someone-else`");
+    });
+
+    it.each([
+      ["copilot-swe-agent", "copilot"],
+      ["org/team.name", "org/team.name"],
+    ])("preserves configured alias %s through AST rendering", async (allowed, mention) => {
+      const handler = await main({ mentions: { allowTeamMembers: false, allowContext: false, allowed: [allowed, "someone-else"], max: 1 } });
+      await handler({ title: "Configured mention", body: `Ask @${mention} and @someone-else; code \`@${mention}\` stays inert.` });
+      const body = mockGithub.rest.issues.create.mock.calls[0][0].body;
+      expect(body).toContain(`Ask @${mention} and \`@someone-else\``);
+      expect(body).toContain(`code \`@${mention}\` stays inert.`);
     });
   });
 

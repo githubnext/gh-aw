@@ -38,6 +38,7 @@ describe("Jira safe-output handlers", () => {
     delete process.env.JIRA_API_TOKEN;
     delete process.env.GH_AW_SAFE_OUTPUTS_STAGED;
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("creates Jira issues with issue type name and ADF description", async () => {
@@ -152,6 +153,30 @@ describe("Jira safe-output handlers", () => {
 
     expect(requests[0].body.fields.summary).toBe("Fix @deprecated flag");
     expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Use {{version}}.");
+  });
+
+  it("normalizes the issue AST before creating literal ADF without Markdown escaping", async () => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "JIRA_REPORT");
+    vi.stubEnv("SECRET_JIRA_REPORT", "jira-report-fixture");
+    const handler = await createIssueMain({ max: 1 });
+    const result = await handler({
+      temporary_id: "#aw_jira123",
+      project_key: "ENG",
+      issue_type: "Task",
+      summary: "e\u0301vidence\r\nreport",
+      description: "Literal **text** <tag> @user\r\njira-report-fixture",
+    });
+    expect(result.success).toBe(true);
+    expect(requests[0].body.fields.summary).toBe("\u00e9vidence report");
+    expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Literal **text** <tag> @user");
+    expect(JSON.stringify(requests[0].body)).not.toContain("jira-report-fixture");
+  });
+
+  it("rejects descriptions emptied by AST normalization before making an API write", async () => {
+    const handler = await createIssueMain({ max: 1 });
+    const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "Report", description: "\u0000" });
+    expect(result).toMatchObject({ success: false, error: "description must be non-empty after normalization" });
+    expect(requests).toHaveLength(0);
   });
 
   it("adds one Jira label with additive update semantics", async () => {

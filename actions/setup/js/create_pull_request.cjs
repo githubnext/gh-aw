@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 /** @type {typeof import("crypto")} */
@@ -387,7 +389,7 @@ async function createFallbackIssue(githubClient, repoParts, title, body, labels,
   const innerCreate = async () => {
     try {
       assertUnchanged();
-      const response = await githubClient.rest.issues.create(payload);
+      const response = await createReportIssue(githubClient, payload);
       assertUnchanged();
       return { ...response, issueRepoParts: { owner: payload.owner, repo: payload.repo } };
     } catch (error) {

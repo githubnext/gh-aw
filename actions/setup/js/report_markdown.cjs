@@ -12,10 +12,10 @@ const { normalizeReportURL } = require("./report_ast.cjs");
  * Templates are parsed before scalar substitution; values cannot introduce markup.
  * Existing diagnostic fragments are imported separately, never passed through as raw HTML.
  * @param {string} markdown
- * @param {{context?: ReportContext, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean}} [options]
+ * @param {{context?: ReportContext, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, allowedMentions?: string[]}} [options]
  * @returns {ReportBlock[]}
  */
-function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false } = {}) {
+function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
   if (depth > 16) throw new TypeError("Report template nesting exceeds the maximum depth");
   /** @param {string} key */
   function valueFor(key) {
@@ -50,11 +50,23 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
       let match;
       if ((match = /^\\([\\`*_[\]{}()#+.!|>~-])/.exec(source))) {
         text(match[1]);
+      } else if ((match = /^(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s+((?:[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*)?)(\\?)#([1-9]\d*)\b/i.exec(source)) && !/\w/.test(original[original.length - source.length - 1] || "")) {
+        const verb = match[1].toLowerCase();
+        nodes.push({
+          type: "closing_reference",
+          action: verb.startsWith("clos") ? "closes" : verb.startsWith("fix") ? "fixes" : "resolves",
+          target: { number: match[4], ...(match[2] ? { repository: match[2] } : {}) },
+          enabled: !match[3],
+        });
+      } else if ((match = /^#([1-9]\d*)\b/.exec(source))) {
+        nodes.push({ type: "issue_reference", number: match[1] });
       } else if ((match = /^\{(\w+)\}/.exec(source))) {
         const value = valueFor(match[1]);
         if (Array.isArray(value)) throw new TypeError("Report blocks cannot appear inline");
         if (typeof value === "object") nodes.push(...value.children);
         else text(value === undefined ? match[0] : String(value));
+      } else if ((match = /^@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)(?![a-zA-Z0-9_/-])/.exec(source)) && allowedMentions.some(alias => alias.replace(/^@/, "").toLowerCase() === match[1].toLowerCase())) {
+        nodes.push({ type: "mention", login: match[1] });
       } else if ((match = /^(`+)(?!`)([\s\S]*?)(?<!`)\1(?!`)/.exec(source))) {
         nodes.push({ type: "code", value: substitute(match[2]) });
       } else if ((match = /^\[([^\]\n]*)\]\(([^)\s]+)\)/.exec(source))) {
@@ -74,6 +86,12 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
           if (!(error instanceof TypeError)) throw error;
           text("Link unavailable: invalid HTTPS URL");
         }
+      } else if ((match = /^<sub>([\s\S]*?)<\/sub>/.exec(source))) {
+        nodes.push({ type: "subscript", children: inline(match[1], inlineDepth + 1) });
+      } else if ((match = /^~~(?=\S)([\s\S]*?\S)~~/.exec(source))) {
+        nodes.push({ type: "strike", children: inline(match[1], inlineDepth + 1) });
+      } else if ((match = /^(\*{3}|_{3})(?=\S)([\s\S]*?\S)\1/.exec(source))) {
+        nodes.push({ type: "strong", children: [{ type: "emphasis", children: inline(match[2], inlineDepth + 2) }] });
       } else if ((match = /^(\*\*|__)(?=\S)([\s\S]*?\S)\1/.exec(source))) {
         nodes.push({ type: "strong", children: inline(match[2], inlineDepth + 1) });
       } else if ((match = /^([*_])(?=\S)([^*_\n]*?\S)\1/.exec(source)) && (match[1] !== "_" || !/\w/.test(original[original.length - source.length - 1] || ""))) {
@@ -90,10 +108,13 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
 
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   let index = 0;
-  const nested = source => parseReportMarkdown(source, { context, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers });
+  const nested = source => parseReportMarkdown(source, { context, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, allowedMentions });
   const isFieldLine = line => /^(?:\{\w+\}\s*)+$/.test(line.trim());
   const isBlockStart = line =>
-    /^(?:#{1,6}\s|```|~~~|>|<details>\s*$|<\/details>\s*$|[-*+]\s|\d+\.\s)/.test(line) || isFieldLine(line) || (allowFlagMarkers && /^<!-- (?:gh-aw-threat-detected|gh-aw-threat-engine-error) -->$/.test(line.trim()));
+    /^(?:#{1,6}\s|```|~~~|>|<details>(?:\s*$|\s*<summary>)|<\/details>\s*$|[-*+]\s|\d+\.\s|---\s*$)/.test(line) ||
+    isFieldLine(line) ||
+    (allowMetadata && /^<!--/.test(line.trim())) ||
+    (allowFlagMarkers && /^<!-- (?:gh-aw-threat-detected|gh-aw-threat-engine-error) -->$/.test(line.trim()));
   /** @param {string} line */
   function cells(line) {
     return line
@@ -123,7 +144,28 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
         break;
       }
       let match;
-      if (context && isFieldLine(line)) {
+      if (allowMetadata && (match = /^- \[[xX]\] expires <!-- gh-aw-expires: ([^<>]+) --> on .+$/.exec(line.trim()))) {
+        nodes.push({ type: "expiration", expiresAt: match[1].trim() });
+        index++;
+      } else if (allowMetadata && (match = /^<!-- ([a-zA-Z][a-zA-Z0-9_-]*)(?:: ([\s\S]*))? -->$/.exec(line.trim()))) {
+        if (["gh-aw-execution", "aw-essential-meta"].includes(match[1])) {
+          if (match[2] === undefined) throw new TypeError("JSON report metadata requires a value");
+          nodes.push({ type: "json_marker", name: match[1], data: JSON.parse(match[2]) });
+        } else if (["gh-aw-agentic-workflow", "gh-aw-failure-issue"].includes(match[1]) && match[2] !== undefined) {
+          const [value, ...parts] = match[2].split(/,\s+(?=[a-zA-Z0-9_-]+: )/);
+          const fields = parts.map(part => {
+            const separator = part.indexOf(": ");
+            return { key: part.slice(0, separator), value: part.slice(separator + 2) };
+          });
+          nodes.push({ type: "xml_marker", name: match[1], value, fields });
+        } else {
+          nodes.push({ type: "xml_marker", name: match[1], ...(match[2] === undefined ? {} : { value: match[2] }) });
+        }
+        index++;
+      } else if (/^(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        nodes.push({ type: "separator" });
+        index++;
+      } else if (context && isFieldLine(line)) {
         for (const field of line.matchAll(/\{(\w+)\}/g)) {
           const value = valueFor(field[1]);
           if (Array.isArray(value)) nodes.push(...value);
@@ -149,10 +191,13 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
       } else if ((match = /^(#{1,6})\s+(.+)$/.exec(line))) {
         nodes.push({ type: "heading", level: Math.max(minimumHeadingLevel, match[1].length), children: inline(match[2]) });
         index++;
+      } else if ((match = /^<details>\s*<summary>(.*)<\/summary>$/.exec(line.trim()))) {
+        index++;
+        nodes.push({ type: "details", summary: substitute(match[1].replace(/^<sub>(.*)<\/sub>$/, "$1")), children: blocks(true, detailsDepth + 1) });
       } else if (line.trim() === "<details>" && /^<summary>.*<\/summary>$/.test(lines[index + 1]?.trim() || "")) {
         const summary = lines[index + 1].trim().slice("<summary>".length, -"</summary>".length);
         index += 2;
-        nodes.push({ type: "details", summary: substitute(summary), children: blocks(true, detailsDepth + 1) });
+        nodes.push({ type: "details", summary: substitute(summary.replace(/^<sub>(.*)<\/sub>$/, "$1")), children: blocks(true, detailsDepth + 1) });
       } else if (/^>/.test(line)) {
         const quoted = [];
         while (index < lines.length && /^>/.test(lines[index])) quoted.push(lines[index++].replace(/^> ?/, ""));
@@ -168,7 +213,9 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
           const content = [item[2]];
           index++;
           while (index < lines.length && /^\s{2,}\S/.test(lines[index])) content.push(lines[index++].replace(/^ {2,4}/, ""));
-          items.push(nested(content.join("\n")));
+          const task = /^\[([ xX])\] (.*)$/.exec(content[0]);
+          if (task) items.push([{ type: "task", checked: task[1] !== " ", children: inline(task[2]) }, ...nested(content.slice(1).join("\n"))]);
+          else items.push(nested(content.join("\n")));
         }
         nodes.push({ type: "list", ordered, items });
       } else if (line.includes("|") && /^\|?[\s:|-]+\|[\s:|-]*$/.test(lines[index + 1] || "")) {

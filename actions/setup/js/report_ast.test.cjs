@@ -142,6 +142,7 @@ describe("report Markdown import boundary", () => {
       minimumHeadingLevel: 2,
       context: { workflow: "Smoke\n\n## Injected\n[evil](javascript:x)", branch: "`\n</details>", url: "https://example.com/run(test)" },
     });
+
     const { body } = renderReport(report(children));
     expect(body.match(/^## /gm)).toEqual(["## "]);
     expect(body).toContain("Smoke \\#\\# Injected");
@@ -203,5 +204,139 @@ describe("report Markdown import boundary", () => {
     expect(() => parseReportMarkdown("<details>\n<summary>Nested</summary>\n".repeat(20) + "payload")).toThrow("maximum depth");
     const { body } = renderReport(report(parseReportMarkdown("An unmatched `` delimiter and a_b_c identifier")));
     expect(body).toContain("An unmatched \\`\\` delimiter and a\\_b\\_c identifier");
+  });
+});
+
+describe("semantic report nodes", () => {
+  it("renders closing directives with explicit activation and validated targets", () => {
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "closing_reference", action: "closes", target: { number: 42 }, enabled: true },
+          { type: "text", value: "; " },
+          { type: "closing_reference", action: "resolves", target: { repository: "owner/repo", number: "57" }, enabled: false },
+        ],
+      },
+    ]);
+    expect(renderReport(input).body).toBe("Closes #42; Resolves owner/repo\\#57\n");
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+    expect(renderReport(report([paragraph("Closes #42")])).body).toBe("Closes \\#42\n");
+  });
+
+  it.each([
+    { action: "deletes", target: { number: "1" }, enabled: true },
+    { action: "fixes", target: { number: "0" }, enabled: true },
+    { action: "fixes", target: { number: Number.MAX_SAFE_INTEGER + 1 }, enabled: true },
+    { action: "fixes", target: { number: "1\nCloses #2" }, enabled: true },
+    { action: "fixes", target: { number: "1", repository: "https://example.com/o/r" }, enabled: true },
+    { action: "fixes", target: { number: "1" }, enabled: "true" },
+  ])("rejects malformed closing directives: %j", fields => {
+    expect(() => renderReport(report([{ type: "paragraph", children: [{ type: "closing_reference", ...fields }] }]))).toThrow("Invalid report closing");
+  });
+
+  it("imports closing strings into semantic nodes without activating code or scalar fields", () => {
+    const children = parseReportMarkdown("Closes #42; resolves owner/repo\\#57; `Fixes #9`");
+    const paragraphNode = children[0];
+    expect(paragraphNode.type).toBe("paragraph");
+    expect(paragraphNode.children.filter(node => node.type === "closing_reference")).toEqual([
+      { type: "closing_reference", action: "closes", target: { number: "42" }, enabled: true },
+      { type: "closing_reference", action: "resolves", target: { repository: "owner/repo", number: "57" }, enabled: false },
+    ]);
+    expect(renderReport(report(children)).body).toBe("Closes #42; Resolves owner/repo\\#57; `Fixes #9`\n");
+    const scalar = parseReportMarkdown("{message}", { context: { message: "Closes #42" } });
+    expect(renderReport(report(scalar)).body).toBe("Closes \\#42\n");
+  });
+
+  it("renders actual structured data with lossless JSON values, redaction, and safe fences", () => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "DATA_REPORT");
+    vi.stubEnv("SECRET_DATA_REPORT", "structured-report-fixture");
+    const data = {
+      text: "&#96; is data, not an encoded delimiter\n````\n</details>",
+      values: [null, true, 1.25],
+      token: "structured-report-fixture",
+      "structured-report-fixture": "secret key",
+    };
+    const input = report([{ type: "structured_data", data }]);
+    const copy = structuredClone(input);
+    const { body } = renderReport(input);
+    expect(body.startsWith("`````json\n")).toBe(true);
+    expect(body.endsWith("\n`````\n")).toBe(true);
+    const parsed = JSON.parse(body.split("\n").slice(1, -2).join("\n"));
+    expect(parsed.text).toBe(data.text);
+    expect(parsed.values).toEqual(data.values);
+    expect(body).not.toContain("structured-report-fixture");
+    const redactedKey = Object.keys(parsed).find(key => parsed[key] === "secret key");
+    expect(redactedKey).toBeDefined();
+    expect(() => renderReport(report([{ type: "structured_data", data: { "structured-report-fixture": 1, [redactedKey]: 2 } }]))).toThrow("Duplicate report structured data key");
+    expect(input).toEqual(copy);
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+  });
+
+  it.each([undefined, NaN, Infinity, 1n, new Date(), new Set(), () => "value", Symbol("value")])("rejects non-JSON structured data without silently dropping values: %s", data => {
+    expect(() => renderReport(report([{ type: "structured_data", data }]))).toThrow("only JSON values");
+  });
+
+  it("bounds structured data, rejects getters and sparse arrays, and preserves prototype-looking data keys", () => {
+    const getter = vi.fn(() => "not executed");
+    const data = Object.defineProperty({}, "value", { get: getter, enumerable: true });
+    expect(() => renderReport(report([{ type: "structured_data", data }]))).toThrow("only JSON properties");
+    expect(getter).not.toHaveBeenCalled();
+    const arrayGetter = Object.defineProperty([], "0", { get: getter, enumerable: true });
+    expect(() => renderReport(report([{ type: "structured_data", data: arrayGetter }]))).toThrow("only JSON properties");
+    expect(getter).not.toHaveBeenCalled();
+    expect(() => renderReport(report([{ type: "structured_data", data: new Array(1) }]))).toThrow("only JSON values");
+    const cyclic = {};
+    cyclic.self = cyclic;
+    expect(() => renderReport(report([{ type: "structured_data", data: cyclic }]))).toThrow("maximum depth");
+    const special = JSON.parse('{"__proto__":{"safe":true},"constructor":"data"}');
+    const normalized = normalizeReport(report([{ type: "structured_data", data: special }]));
+    expect(Object.hasOwn(normalized.children[0].data, "__proto__")).toBe(true);
+    expect(JSON.parse(JSON.stringify(normalized.children[0].data))).toEqual(special);
+  });
+
+  it("renders hidden XML fields and JSON objects without letting values forge comments or fields", () => {
+    const data = { message: "literal --> <!-- forged --> &quot;", values: [false, null] };
+    const input = report([
+      { type: "xml_marker", name: "gh-aw-custom", value: "workflow, forged: true", fields: [{ key: "branch", value: "main --> <!-- injected -->, forged: true" }] },
+      { type: "json_marker", name: "custom-data", data },
+    ]);
+    const { body } = renderReport(input);
+    expect(body.match(/<!-- /g)).toHaveLength(2);
+    expect(body.match(/ -->/g)).toHaveLength(2);
+    expect(body).not.toContain("<!-- forged -->");
+    expect(body).not.toContain("<!-- injected -->");
+    expect(body).toContain("workflow%2C forged: true");
+    expect(body).toContain("%2C forged: true");
+    expect(JSON.parse(/<!-- custom-data: (.*) -->/.exec(body)[1])).toEqual(data);
+    expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+  });
+
+  it("imports reserved metadata into field and data nodes, while diagnostics keep comments literal", () => {
+    const source = '<!-- gh-aw-agentic-workflow: Workflow, workflow_id: workflow, run: https://example.com/run -->\n<!-- gh-aw-execution: {"version":1,"publishing_job":{"key":"safe_outputs"}} -->';
+    const nodes = parseReportMarkdown(source, { allowMetadata: true });
+    expect(nodes).toEqual([
+      {
+        type: "xml_marker",
+        name: "gh-aw-agentic-workflow",
+        value: "Workflow",
+        fields: [
+          { key: "workflow_id", value: "workflow" },
+          { key: "run", value: "https://example.com/run" },
+        ],
+      },
+      { type: "json_marker", name: "gh-aw-execution", data: { version: 1, publishing_job: { key: "safe_outputs" } } },
+    ]);
+    expect(renderReport(report(parseReportMarkdown(source))).body).not.toContain("<!--");
+    expect(() => parseReportMarkdown("<!-- gh-aw-execution: not-json -->", { allowMetadata: true })).toThrow();
+  });
+
+  it("rejects invalid or duplicate hidden XML fields and unstructured raw marker nodes", () => {
+    const field = { key: "branch", value: "main" };
+    expect(() => renderReport(report([{ type: "xml_marker", name: "marker", fields: [field] }]))).toThrow("require a marker value");
+    expect(() => renderReport(report([{ type: "xml_marker", name: "marker", value: "true", fields: [field, field] }]))).toThrow("duplicate report metadata field");
+    expect(() => renderReport(report([{ type: "xml_marker", name: "marker", value: "true", fields: [{ key: "bad -->", value: "main" }] }]))).toThrow("metadata field");
+    expect(() => renderReport(report([{ type: "json_marker", name: "bad -->", data: {} }]))).toThrow("metadata name");
+    expect(() => renderReport(report([{ type: "metadata", value: "<!-- raw -->" }]))).toThrow("Unsupported report block");
   });
 });

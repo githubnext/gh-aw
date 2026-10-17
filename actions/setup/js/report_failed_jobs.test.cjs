@@ -336,7 +336,10 @@ describe("getFailedNonBuiltinJobs", () => {
     const body = global.github.rest.issues.create.mock.calls[0][0].body;
     expect(body).toContain("non-fast-forward");
     expect(body).not.toMatch(/password|encoded-value|<!-- @someone -->/);
-    expect((body.match(/```/g) || []).length).toBe(2);
+    const fences = [...body.matchAll(/^(`{3,})(?:text)?$/gm)].map(match => match[1]);
+    expect(fences).toHaveLength(2);
+    expect(fences[0]).toBe(fences[1]);
+    expect(fences[0].length).toBeGreaterThan(3);
   });
 
   it("warns and preserves the failure issue when the log response is not text or bytes", async () => {

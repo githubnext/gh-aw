@@ -38,6 +38,29 @@ const RUNTIME_TO_MENTION_ALIAS_MAP = {
 };
 
 /**
+ * Expand allowlisted runtime aliases into accepted mention aliases.
+ * @param {string[]} aliases
+ * @returns {string[]}
+ */
+function expandAllowedAliases(aliases) {
+  const expanded = new Set();
+  for (const alias of aliases) {
+    if (typeof alias !== "string" || alias.length === 0) {
+      continue;
+    }
+    const normalized = alias.toLowerCase();
+    expanded.add(normalized);
+    const mentionAliases = RUNTIME_TO_MENTION_ALIAS_MAP[normalized];
+    if (Array.isArray(mentionAliases)) {
+      for (const mentionAlias of mentionAliases) {
+        expanded.add(mentionAlias.toLowerCase());
+      }
+    }
+  }
+  return [...expanded];
+}
+
+/**
  * @typedef {Object} SanitizeOptions
  * @property {number} [maxLength] - Maximum length of content (default: 524288)
  * @property {string[]} [allowedAliases] - List of aliases (@mentions) that should not be neutralized
@@ -172,29 +195,6 @@ function sanitizeContent(content, maxLengthOrOptions) {
   }
 
   /**
-   * Expand allowlisted runtime aliases into accepted mention aliases.
-   * @param {string[]} aliases
-   * @returns {string[]}
-   */
-  function expandAllowedAliases(aliases) {
-    const expanded = new Set();
-    for (const alias of aliases) {
-      if (typeof alias !== "string" || alias.length === 0) {
-        continue;
-      }
-      const normalized = alias.toLowerCase();
-      expanded.add(normalized);
-      const mentionAliases = RUNTIME_TO_MENTION_ALIAS_MAP[normalized];
-      if (Array.isArray(mentionAliases)) {
-        for (const mentionAlias of mentionAliases) {
-          expanded.add(mentionAlias.toLowerCase());
-        }
-      }
-    }
-    return [...expanded];
-  }
-
-  /**
    * Neutralize @mentions with selective filtering
    * @param {string} s - The string to process
    * @param {string[]} allowedLowercase - List of allowed aliases (lowercase)
@@ -225,4 +225,4 @@ function sanitizeContent(content, maxLengthOrOptions) {
   }
 }
 
-module.exports = { sanitizeContent, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog };
+module.exports = { sanitizeContent, expandAllowedAliases, getRedactedDomains, clearRedactedDomains, writeRedactedDomainsLog };

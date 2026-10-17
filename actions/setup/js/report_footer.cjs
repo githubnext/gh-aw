@@ -31,8 +31,8 @@ function buildFailureReportFooter(ctx, { expiresHours, failureFields, now = new 
     type: "footer",
     children: parseReportMarkdown(template, { context }),
     markers: [
-      { name: "gh-aw-agentic-workflow", value: workflow.value, fields },
-      { name: "gh-aw-failure-issue", value: "true", fields: failureFields },
+      { type: "xml_marker", name: "gh-aw-agentic-workflow", value: workflow.value, fields },
+      { type: "xml_marker", name: "gh-aw-failure-issue", value: "true", fields: failureFields },
     ],
   };
   return expiresHours ? { ...footer, expiresAt: new Date(now.getTime() + expiresHours * 60 * 60 * 1000).toISOString() } : footer;

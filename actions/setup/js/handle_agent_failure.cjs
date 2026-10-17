@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { iterateJsonl, readJsonlFileEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -928,7 +930,7 @@ gh aw audit <run-id>
   const parentBody = footer;
 
   try {
-    const newIssue = await github.rest.issues.create({
+    const newIssue = await createReportIssue(github, {
       owner,
       repo,
       title: parentTitle,
@@ -3767,7 +3769,7 @@ async function findOrCreateDailyCapRollupIssue(owner, repo) {
 
   try {
     await ensureLabelExists(owner, repo, DAILY_CAP_ROLLUP_LABEL);
-    const newIssue = await github.rest.issues.create({
+    const newIssue = await createReportIssue(github, {
       owner,
       repo,
       title: DAILY_CAP_ROLLUP_TITLE,
@@ -3852,7 +3854,7 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
       });
       core.info(`✓ Updated cascade rollup issue #${existing.number}: ${existing.html_url}`);
     } else {
-      const newRollup = await github.rest.issues.create({
+      const newRollup = await createReportIssue(github, {
         owner,
         repo,
         title: CASCADE_ROLLUP_TITLE,
@@ -5093,14 +5095,17 @@ async function main() {
           });
           core.info(`✓ Reused failure issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         } else {
-          newIssue = await github.rest.issues.create({
-            owner,
-            repo,
-            title: reportTitle,
-            body: issueBody,
-            labels: ["agentic-workflows"],
-            headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
-          });
+          newIssue = await createReportIssue(
+            github,
+            {
+              owner,
+              repo,
+              title: reportTitle,
+              labels: ["agentic-workflows"],
+              headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
+            },
+            report
+          );
           core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         }
 

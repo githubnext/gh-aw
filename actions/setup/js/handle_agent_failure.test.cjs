@@ -7678,7 +7678,7 @@ describe("handle_agent_failure", () => {
       expect(capturedBody).toContain("⚠️ Failure Cascade Detected");
       expect(capturedBody).toContain("cascade-suspected");
       expect(capturedBody).toContain("#100");
-      expect(capturedBody).toContain("[aw] Workflow 0 failed");
+      expect(capturedBody).toContain("\\[aw\\] Workflow 0 failed");
     });
 
     it("filters out non-[aw] issues from findRecentFailureIssues", async () => {

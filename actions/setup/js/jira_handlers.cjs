@@ -5,6 +5,7 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createJiraClient, textToADF } = require("./jira_client.cjs");
 const { appendConfiguredBodyFooter } = require("./body_footer.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { normalizeReport } = require("./report_ast.cjs");
 
 function requiredString(value, field, maxLength = 255) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -74,12 +75,22 @@ const createIssue = jiraHandler("jira_create_issue", async (message, client, isS
   }
   const projectKey = requiredString(message.project_key, "project_key");
   const issueType = requiredString(message.issue_type, "issue_type");
-  const summary = requiredString(message.summary, "summary");
+  const rawSummary = requiredString(message.summary, "summary");
   const rawDescription = optionalString(message.description, "description");
   const description = rawDescription === undefined ? undefined : requiredString(appendConfiguredBodyFooter(rawDescription, config.body_footer, { maxLength: 32767 }), "description", 32767);
+  // Jira descriptions are literal ADF text, not GitHub Markdown.
+  const report = normalizeReport({
+    type: "report",
+    title: rawSummary,
+    children: description === undefined ? [] : [{ type: "code_block", language: "text", value: description }],
+  });
+  const summary = requiredString(report.title, "summary");
+  const content = report.children[0];
+  if (description !== undefined && content?.type !== "code_block") throw new Error("description must be non-empty after normalization");
+  const normalizedDescription = content?.type === "code_block" ? requiredString(content.value, "description", 32767) : undefined;
 
   if (isStaged) {
-    logStagedPreviewInfo(`Jira create issue — Project: ${projectKey}; Type: ${issueType}; Summary: ${summary}${description ? `; Description: ${description}` : ""}`);
+    logStagedPreviewInfo(`Jira create issue — Project: ${projectKey}; Type: ${issueType}; Summary: ${summary}${normalizedDescription ? `; Description: ${normalizedDescription}` : ""}`);
     return {
       success: true,
       staged: true,
@@ -95,7 +106,7 @@ const createIssue = jiraHandler("jira_create_issue", async (message, client, isS
     project: { key: projectKey },
     issuetype: { name: issueType },
     summary,
-    ...(description === undefined ? {} : { description: textToADF(description) }),
+    ...(normalizedDescription === undefined ? {} : { description: textToADF(normalizedDescription) }),
   };
   const result = await client.request("/issue", { method: "POST", body: { fields } });
   if (!result || typeof result.key !== "string") {

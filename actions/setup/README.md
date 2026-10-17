@@ -73,9 +73,16 @@ All files are copied from the committed `js/` and `sh/` directories which contai
 
 ## Development
 
-### Structured failure reports
+### Structured issue reports
 
-Failure issues are built as a report AST before publication.
+All JavaScript GitHub issue creators publish through `js/issue_report.cjs`.
+`createReportIssue(client, parameters, report?)` renders the report AST before
+calling the supplied authenticated client's issue API. Existing issue Markdown
+is imported when no document is supplied. GraphQL work-queue creation uses the
+same `renderIssueParameters` boundary, as do staged safe-output previews.
+Linear uses the Markdown renderer; Jira normalizes a literal-text report AST
+before converting its description to ADF.
+
 `js/report_ast.cjs` defines the typed inline and block nodes, normalization, and
 GitHub Markdown renderer. The renderer owns escaping, HTTPS link validation,
 heading levels, balanced details, code fences, and whitespace. It rejects raw
@@ -83,7 +90,8 @@ HTML/Markdown nodes and redacts diagnostic secrets before choosing delimiters.
 
 `js/failure_report.cjs` builds reports from `md/agent_failure_issue.md`.
 `js/report_markdown.cjs` imports the runtime template dialect: headings,
-paragraphs, emphasis, links, code, lists, tables, quotes, alerts, and details.
+paragraphs, emphasis, links, code, lists, task lists, tables, quotes, alerts,
+separators, and details.
 Templates are parsed **before** scalar metadata is substituted. Diagnostic
 fragments enter through explicit block fields, with headings below the report
 sections; unsupported HTML remains literal text. New programmatic report content
@@ -96,6 +104,26 @@ and the detection preamble are rendered with the document, not appended afterwar
 Marker names and fields are validated; marker values cannot close an HTML comment
 or inject another metadata field. Expiration remains a checked task-list item so
 existing cleanup and deduplication readers continue to work.
+
+The issue publication importer explicitly enables typed metadata comments to
+preserve grouping, execution provenance, managed islands, and work-queue IDs.
+Diagnostic imports do not enable them. JSON metadata is serialized without HTML
+delimiters while preserving decoded values. Configured mentions use explicit
+mention nodes after the existing safe-output allowlist and budget checks; other
+text cannot create notifications. Body limits apply after rendering, including
+escaping and attribution. A repository-wide regression guards against direct
+REST issue-creation calls outside the shared publisher.
+
+Special syntax has semantic nodes rather than interpolated strings:
+`closing_reference` records the closing action, issue number, optional
+`owner/repo`, and an explicit `enabled` flag. Disabled references render an
+escaped `#`, including in PR fallback issues; scalar text never becomes an active
+closing directive. `structured_data` accepts JSON values and renders a safely
+fenced JSON block. `xml_marker` holds a validated name, scalar value, and optional
+key/value fields; `json_marker` holds an actual data object, not serialized JSON.
+Footer provenance uses the same XML-marker node and renderer. Structured data
+preserves entity-looking strings, redacts secrets, and rejects cycles, getters,
+non-finite numbers, and other values JSON would silently drop or coerce.
 
 ### JSONL runtime helpers
 

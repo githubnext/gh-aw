@@ -101,6 +101,6 @@ describe("structured report footer", () => {
     expect(() => renderReport(document({ ...footer, expiresAt: "not a date" }))).toThrow("expiration date");
     expect(() => renderReport(document({ ...footer, markers: [...footer.markers, ...footer.markers] }))).toThrow("Duplicate report metadata marker");
     expect(() => renderReport(document({ ...footer, markers: [{ name: "unrecognized", value: "", fields: [] }] }))).toThrow("Unsupported report metadata marker");
-    expect(() => renderReport(document({ ...footer, markers: [{ name: "gh-aw-failure-issue", value: "true", fields: [fields[0], fields[0]] }] }))).toThrow("duplicate report metadata field");
+    expect(() => renderReport(document({ ...footer, markers: [{ type: "xml_marker", name: "gh-aw-failure-issue", value: "true", fields: [fields[0], fields[0]] }] }))).toThrow("duplicate report metadata field");
   });
 });

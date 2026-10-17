@@ -46,7 +46,7 @@ describe("failure report structure", () => {
     expect(body).toContain("[Workflow source]");
     expect(body).toContain("[Previous failures]");
     expect(body).toContain("**Branch:** `copilot/bump-mcp-gateway-v0435`");
-    expect(body).toContain("[\\#69581](https://github.com/github/gh-aw/pull/69581)");
+    expect(body).toContain("[#69581](https://github.com/github/gh-aw/pull/69581)");
     expect(body).toContain("**report\\_progress**");
     expect(body.match(/<summary>Copy a debugging prompt<\/summary>/g)).toHaveLength(1);
     expect(body).not.toContain("Manually invoke the agent");

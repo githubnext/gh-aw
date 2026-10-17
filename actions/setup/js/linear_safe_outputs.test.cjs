@@ -71,6 +71,17 @@ describe("Linear safe outputs", () => {
     expect(request.variables.input.teamId).toBe("9cfb482a-81e3-4154-b5b9-2c805e70a02d");
   });
 
+  it("normalizes issue titles and renders supported Markdown through the AST", async () => {
+    fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Title" } } } }));
+    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
+    await handler({ title: " e\u0301vidence\r\n report ", body: "## Evidence\n\nDetails with <b>HTML</b>\n\n- [ ] Review" });
+    const input = JSON.parse(fetch.mock.calls[0][1].body).variables.input;
+    expect(input.title).toBe("\u00e9vidence report");
+    expect(input.description).toContain("## Evidence");
+    expect(input.description).toContain("&lt;b&gt;HTML&lt;/b&gt;");
+    expect(input.description).toContain("- [ ] Review");
+  });
+
   it("resolves friendly team identifiers by key before name", async () => {
     fetch
       .mockResolvedValueOnce(

@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { getFooterWorkflowRecompileMessage, getFooterWorkflowRecompileCommentMessage, generateXMLMarker, getDetectionCautionAlert } = require("./messages_footer.cjs");
 const fs = require("fs");
@@ -420,7 +422,7 @@ async function main() {
   issueBody += "\n\n---\n" + footer + "\n\n" + xmlMarker + "\n";
 
   try {
-    const newIssue = await github.rest.issues.create({
+    const newIssue = await createReportIssue(github, {
       owner,
       repo,
       title: RECOMPILE_ISSUE_TITLE,
