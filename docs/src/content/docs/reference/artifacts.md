@@ -528,7 +528,7 @@ an `eval.result` event in `aw_session.jsonl` inside the `usage` artifact. The ev
 retains the eval ID, answer, model, run ID, experiment assignments when supplied,
 observed timestamp, and source provenance. Raw evaluation questions are omitted.
 Skipped eval jobs do not produce synthetic results. See the
-[unified session specification](../../specs/unified-agent-session-specification/#eval-result-recording-2026-10-16-sample)
+[unified session specification](/gh-aw/specs/unified-agent-session-specification/#eval-result-recording-2026-10-16-sample)
 for live-run verification and a dated answer-distribution sample.
 
 ### Accessing evals data
