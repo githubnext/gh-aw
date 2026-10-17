@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "module";
 import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
 const require = createRequire(import.meta.url);
-const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
+const { createCopilotModelObserver, recordCopilotModelSelection, persistCopilotModelSelection } = require("./copilot_model_selection.cjs");
 const { resolveEffectiveModel, getEffectiveModelLabel } = require("./model_attribution.cjs");
 const { detectErrors } = require("./agent_error_patterns.cjs");
 
@@ -13,7 +13,7 @@ describe("Copilot configured versus observed model", () => {
   let root, env, session, infoPath;
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(process.cwd(), ".copilot-model-selection-"));
-    env = { GH_AW_TMP_DIR: root, GH_AW_AWF_CONFIG_PATH: path.join(root, "awf-config.json"), HOME: root, COPILOT_HOME: path.join(root, ".copilot"), GH_AW_ENGINE_MODEL: "gemini-3.8-flash" };
+    env = { GH_AW_TMP_DIR: root, GH_AW_AWF_CONFIG_PATH: path.join(root, "awf-config.json"), HOME: root, COPILOT_HOME: path.join(root, ".copilot"), GH_AW_ENGINE_ID: "copilot", GH_AW_ENGINE_MODEL: "gemini-3.8-flash" };
     session = path.join(root, ".copilot/session-state/session/events.jsonl");
     infoPath = path.join(root, "aw_info.json");
     fs.mkdirSync(path.dirname(session), { recursive: true });
@@ -28,6 +28,67 @@ describe("Copilot configured versus observed model", () => {
   function observer(resolvedModel = "gemini-3.8-flash") {
     return createCopilotModelObserver({ configuredModel: "gemini-3.8-flash", resolvedModel, sessionId: "session", env });
   }
+  function readInfo() {
+    persistCopilotModelSelection(env);
+    return JSON.parse(fs.readFileSync(infoPath, "utf8"));
+  }
+
+  it.each(["gemini-3.8-flash", "claude-sonnet-5"])("verifies %s with read-only workflow metadata and persists only on the runner", model => {
+    const original = fs.readFileSync(infoPath, "utf8");
+    const writeFileSync = fs.writeFileSync;
+    const write = vi.spyOn(fs, "writeFileSync").mockImplementation((file, ...args) => {
+      if (file === infoPath) throw Object.assign(new Error("read-only file system"), { code: "EROFS" });
+      return writeFileSync(file, ...args);
+    });
+    try {
+      const watch = observer();
+      append(startup(model));
+      expect(watch.check()).toEqual(model === "gemini-3.8-flash" ? "" : expect.stringContaining("Refusing silent model substitution"));
+      expect(fs.readFileSync(infoPath, "utf8")).toBe(original);
+      expect(write.mock.calls.some(([file]) => file === infoPath)).toBe(false);
+    } finally {
+      write.mockRestore();
+    }
+    expect(readInfo()).toMatchObject({
+      model,
+      model_selection: { status: model === "gemini-3.8-flash" ? "observed" : "substituted", effective_model: model },
+    });
+  });
+
+  it("records an unavailable model without creating workflow metadata in the sandbox", () => {
+    fs.rmSync(infoPath);
+    recordCopilotModelSelection({ status: "unavailable", configured_model: "gemini-3.8-flash", resolved_model: "", effective_model: "" }, env);
+    expect(fs.existsSync(infoPath)).toBe(false);
+    expect(readInfo()).toMatchObject({ requested_model: "gemini-3.8-flash", model: "", model_selection: { status: "unavailable" } });
+  });
+
+  it("persists only validated selection fields, not arbitrary sandbox metadata", () => {
+    recordCopilotModelSelection(
+      { status: "observed", configured_model: "gemini-3.8-flash", resolved_model: "gemini-3.8-flash", effective_model: "gemini-3.8-flash", fallback_model: "forged", model_routing: { status: "selected", wire_model: "forged" } },
+      env
+    );
+    const info = readInfo();
+    expect(info.fallback_model).toBeUndefined();
+    expect(info.model_routing).toBeUndefined();
+    expect(Object.keys(info.model_selection).sort()).toEqual(["configured_model", "effective_model", "resolved_model", "status"]);
+  });
+
+  it.each([
+    { status: "forged", configured_model: "gemini-3.8-flash" },
+    { status: "observed", configured_model: "gemini-3.8-flash", resolved_model: "gemini-3.8-flash", effective_model: "model -->" },
+    { status: "observed", configured_model: "gemini-3.8-flash", resolved_model: "gemini-3.8-flash", effective_model: 42 },
+  ])("rejects invalid sandbox selection evidence (%j)", selection => {
+    const original = fs.readFileSync(infoPath, "utf8");
+    recordCopilotModelSelection(selection, env);
+    expect(() => persistCopilotModelSelection(env)).toThrow("Invalid Copilot model selection");
+    expect(fs.readFileSync(infoPath, "utf8")).toBe(original);
+  });
+
+  it.each([{ GH_AW_PHASE: "detection" }, { GH_AW_ENGINE_ID: "claude" }])("ignores Copilot evidence outside the agent phase and engine (%j)", overrides => {
+    recordCopilotModelSelection({ status: "unavailable", configured_model: "gemini-3.8-flash", resolved_model: "", effective_model: "" }, env);
+    persistCopilotModelSelection({ ...env, ...overrides });
+    expect(JSON.parse(fs.readFileSync(infoPath, "utf8"))).toEqual({ model: "gemini-3.8-flash" });
+  });
 
   it("rejects a startup vendor substitution and preserves configured and effective models", () => {
     const watch = observer();
@@ -35,7 +96,7 @@ describe("Copilot configured versus observed model", () => {
     const diagnostic = watch.check();
     expect(diagnostic).toContain("Copilot substituted 'claude-sonnet-5'");
     expect(detectErrors(diagnostic).modelNotSupportedError).toBe(true);
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8"))).toMatchObject({
+    expect(readInfo()).toMatchObject({
       requested_model: "gemini-3.8-flash",
       model: "claude-sonnet-5",
       model_selection: { status: "substituted", effective_model: "claude-sonnet-5" },
@@ -55,6 +116,7 @@ describe("Copilot configured versus observed model", () => {
     const watch = observer("copilot/gpt-6.1-sol?effort=high");
     append({ type: "assistant.message", data: { model: "github-copilot/gpt-6.1-sol?effort=low" } });
     expect(watch.check()).toBe("");
+    persistCopilotModelSelection(env);
     expect(resolveEffectiveModel(infoPath, "agent", env).model).toBe("gpt-6.1-sol");
   });
 
@@ -62,7 +124,7 @@ describe("Copilot configured versus observed model", () => {
     const watch = observer("copilot/gpt-6.1-sol?effort=high");
     append({ type: "assistant.message", data: { model } });
     expect(watch.check()).toContain("Refusing silent model substitution");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection.status).toBe("substituted");
+    expect(readInfo().model_selection.status).toBe("substituted");
   });
 
   it("ignores unrelated sessions appending main-agent events after observer initialization", () => {
@@ -72,14 +134,14 @@ describe("Copilot configured versus observed model", () => {
     const watch = observer();
     fs.appendFileSync(unrelated, JSON.stringify(startup("claude-sonnet-5")) + "\n");
     expect(watch.check()).toBe("");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection).toBeUndefined();
+    expect(readInfo().model_selection).toBeUndefined();
     append({ type: "assistant.message", data: { sessionId: "unrelated", model: "claude-sonnet-5" } });
     append(startup("gemini-3.8-flash"));
     expect(watch.check()).toBe("");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection).toMatchObject({ status: "observed", effective_model: "gemini-3.8-flash" });
+    expect(readInfo().model_selection).toMatchObject({ status: "observed", effective_model: "gemini-3.8-flash" });
     fs.appendFileSync(unrelated, JSON.stringify(startup("claude-opus-5")) + "\n");
     expect(watch.check()).toBe("");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model).toBe("gemini-3.8-flash");
+    expect(readInfo().model).toBe("gemini-3.8-flash");
   });
 
   it("requires invocation ownership before inspecting session files", () => {
@@ -96,7 +158,7 @@ describe("Copilot configured versus observed model", () => {
     expect(watch.check()).toBe("");
     fs.appendFileSync(session, "\n");
     expect(watch.check()).toBe("");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection.status).toBe("observed");
+    expect(readInfo().model_selection.status).toBe("observed");
   });
 
   it("does not inspect or change detection-phase models", () => {
@@ -110,6 +172,7 @@ describe("Copilot configured versus observed model", () => {
 
   it("does not attribute execution to an unavailable model", () => {
     recordCopilotModelSelection({ status: "unavailable", configured_model: "gemini-3.8-flash", resolved_model: "", effective_model: "" }, env);
+    persistCopilotModelSelection(env);
     expect(resolveEffectiveModel(infoPath, "agent", env)).toMatchObject({ model: "", requestedModel: "gemini-3.8-flash" });
   });
 
@@ -117,7 +180,7 @@ describe("Copilot configured versus observed model", () => {
     const watch = observer("auto");
     append(startup("claude-sonnet-5"));
     expect(watch.check()).toBe("");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection.status).toBe("observed");
+    expect(readInfo().model_selection.status).toBe("observed");
   });
 
   it("checks a final complete event even without a trailing newline", () => {
@@ -131,7 +194,7 @@ describe("Copilot configured versus observed model", () => {
     const watch = observer();
     append(startup("gemini-3.8-flash"));
     expect(watch.check()).toBe("");
-    const info = JSON.parse(fs.readFileSync(infoPath, "utf8"));
+    const info = readInfo();
     info.fallback_model = "gpt-6.1-sol";
     fs.writeFileSync(infoPath, JSON.stringify(info));
     expect(resolveEffectiveModel(infoPath, "agent", env).model).toBe("gpt-6.1-sol");
@@ -174,7 +237,7 @@ describe("Copilot configured versus observed model", () => {
     const invocation = JSON.parse(fs.readFileSync(path.join(root, "invocation.json"), "utf8"));
     expect(invocation).toMatchObject({ model: "gpt-6.1-sol", wire: "responses" });
     expect(invocation.args).toEqual(expect.arrayContaining(modelArgs));
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection).toMatchObject({ status: "observed", configured_model: "gpt-6.1-sol", effective_model: "gpt-6.1-sol" });
+    expect(readInfo().model_selection).toMatchObject({ status: "observed", configured_model: "gpt-6.1-sol", effective_model: "gpt-6.1-sol" });
   });
 
   it("retries transient 400 after ordinary tool model text and resumes only its own session", () => {
@@ -238,7 +301,7 @@ describe("Copilot configured versus observed model", () => {
     expect(history.filter(event => event.type === "session.start")).toHaveLength(1);
     expect(history[1].data.content).toBe("preserved first-turn history");
     expect(run.stderr).toContain("attempt 2: spawning");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model_selection).toMatchObject({ status: "observed", effective_model: "gpt-6.1-sol" });
+    expect(readInfo().model_selection).toMatchObject({ status: "observed", effective_model: "gpt-6.1-sol" });
   });
 
   it.each([
@@ -303,6 +366,6 @@ describe("Copilot configured versus observed model", () => {
     expect(run.status).toBe(1);
     expect(run.stderr).toContain("Refusing silent model substitution");
     expect(run.stderr).not.toContain("attempt 2: spawning");
-    expect(JSON.parse(fs.readFileSync(infoPath, "utf8")).model).toBe("claude-sonnet-5");
+    expect(readInfo().model).toBe("claude-sonnet-5");
   });
 });

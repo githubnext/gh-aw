@@ -41,6 +41,10 @@ const DefaultClaudeCodeVersion Version = "2.1.296"
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
 const DefaultCopilotVersion Version = "1.0.98"
 
+// CopilotSessionIDMinVersion is the minimum Copilot CLI version that supports
+// the exact session selector injected by the model-verification harness.
+const CopilotSessionIDMinVersion Version = "1.0.35"
+
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
 const DefaultCopilotSDKVersion Version = "1.0.16"
 

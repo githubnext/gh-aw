@@ -806,6 +806,7 @@ jobs:
         env:
           GH_HOST: github.com
           GH_AW_COMPILED_VERSION: dev
+          GH_AW_COPILOT_MIN_VERSION: 1.0.35
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.62 --rootless
       - name: Install Playwright CLI
@@ -3279,6 +3280,7 @@ jobs:
         env:
           GH_HOST: github.com
           GH_AW_COMPILED_VERSION: dev
+          GH_AW_COPILOT_MIN_VERSION: 1.0.35
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.62 --rootless
       - name: Execute GitHub Copilot CLI
@@ -3639,6 +3641,7 @@ jobs:
         env:
           GH_HOST: github.com
           GH_AW_COMPILED_VERSION: dev
+          GH_AW_COPILOT_MIN_VERSION: 1.0.35
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.62 --rootless
       - name: Execute GitHub Copilot CLI

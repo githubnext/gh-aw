@@ -2036,6 +2036,9 @@ async function main(options = {}) {
     if (settlements.some(settlement => settlement.success === false && !["result", "cancelled"].includes(finalized?.claims?.[settlement.claim_handle]?.state))) {
       core.setFailed("One or more Claim-scoped safe-output passes failed; independently valid siblings were reconciled");
     }
+    if (!isStagedMode() && !settled) {
+      core.setFailed("One or more Claim deliveries remain unverified; inspect claim_results and the queue ledger before retrying. Independently valid siblings were reconciled");
+    }
     return { settlements, rejected };
   }
   // Detect staged mode before try/finally so it's accessible in the finally block.

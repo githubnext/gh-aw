@@ -265,4 +265,7 @@ NoActivationRecoveryWitness ==
   ~(\E g \in Groups : phase[g] = "bound" /\ sends[g] = 1 /\ binding[g] = 1)
 NoConflictReservationWitness ==
   ~(\E g \in Groups : phase[g] = "conflict" /\ binding[g] = 1 /\ g \notin released)
+NoReleasedPendingDelivery ==
+  ~(\E c \in Assigned : Group(c) \in released /\ Group(c) \in terminal
+                        /\ status[c] = "completed" /\ c \notin results \cup failures)
 =============================================================================

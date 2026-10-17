@@ -7,6 +7,7 @@ import (
 	actionpins "github.com/github/gh-aw/pkg/actionpins"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/workflow/aw"
 )
 
 var workflowDataLog = logger.New("workflow:workflow_data")
@@ -35,6 +36,7 @@ type SkipIfCheckFailingConfig struct {
 	AllowPending bool     // if true, pending/in-progress checks are not treated as failing (default: treat pending as failing)
 }
 type WorkflowData struct {
+	SourceDocument                 *aw.Document // Authored source before preprocessing, import merging, or defaults
 	WorkQueuePolicy                *WorkQueuePolicyConfig
 	workQueueRepoIssuesConfigured  bool
 	DryRun                         bool // Disable compiler-managed GitHub mutations while retaining local diagnostics

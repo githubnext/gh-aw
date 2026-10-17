@@ -4226,10 +4226,11 @@ process.exit(1);`
         expect(exitSpy).toHaveBeenCalledWith(1);
         expect(logs.at(-1)).toContain("not available in the workflow's live model catalog");
         expect(logs.at(-1)).not.toContain("retrieval prevented");
-        expect(JSON.parse(fs.readFileSync(path.join(tempDir, "aw_info.json"), "utf8"))).toMatchObject({
-          requested_model: "gemini-3.8-flash",
-          model: "",
-          model_selection: { status: "unavailable" },
+        expect(fs.existsSync(path.join(tempDir, "aw_info.json"))).toBe(false);
+        expect(JSON.parse(fs.readFileSync(path.join(tempDir, "sandbox/agent/logs/copilot-model-selection.json"), "utf8"))).toMatchObject({
+          configured_model: "gemini-3.8-flash",
+          effective_model: "",
+          status: "unavailable",
         });
       } finally {
         vi.unstubAllEnvs();

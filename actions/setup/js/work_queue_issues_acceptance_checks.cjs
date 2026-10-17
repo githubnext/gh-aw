@@ -369,7 +369,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
     });
 
     it("uses withRetry for a proven pre-execution creation rejection without retrying ambiguous writes", async () => {
-      const operation = { key: "work", name: "createIssue", type: "CreateIssueInput", input: {}, selection: "issue { id }" };
+      const operation = { key: "work", name: "createIssue", type: "CreateIssueInput", input: { repositoryId: "repo", title: "Work", body: "Work details" }, selection: "issue { id }" };
       let attempts = 0;
       const success = await mutateIssues(
         {

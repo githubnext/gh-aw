@@ -10,6 +10,7 @@ const { parseTokenUsageJsonl, generateTokenUsageSummary, formatAICForOutput } = 
 const { calculateWorkingSetFromJSONL } = require("./working_set_metrics.cjs");
 const { mapAWFRoutingEffort, resolveAWFModelRoutingSelection, getAWFModelRoutingPolicy } = require("./awf_model_routing.cjs");
 const { recordModelRouting, resolveEffectiveModel, validateModelIdentifier } = require("./model_attribution.cjs");
+const { persistCopilotModelSelection } = require("./copilot_model_selection.cjs");
 
 const DEFAULT_GH_AW_DIR = "/tmp/gh-aw";
 /**
@@ -550,6 +551,7 @@ async function main(copilotSessionStateDir = getGhAwPath("sandbox/agent/logs/cop
   /** @type {{routing: any, effective: any}|null} */
   let routedAttribution = null;
   try {
+    persistCopilotModelSelection();
     routedAttribution = recordModelRoutingFromArtifacts();
     const tokenUsagePaths = getReadableTokenUsagePaths(getTokenUsagePaths());
     if (tokenUsagePaths.length === 0) {

@@ -1,5 +1,5 @@
 {
-  "serverArgs": ["--disable-builtin-mcps", "--no-ask-user", "--allow-tool", "web_fetch", "--deny-tool", "workflow"],
+  "serverArgs": ["--disable-builtin-mcps", "--no-ask-user", "--allow-tool", "safeoutputs", "--allow-tool", "web_fetch", "--deny-tool", "workflow"],
   "toolConfig": {
     "version": 1,
     "capabilities": {
@@ -8,11 +8,11 @@
       "webFetch": true,
       "webSearch": false,
       "dynamicWorkflows": false,
-      "mcp": false,
+      "mcp": true,
       "cliProxy": false
     },
     "permissions": {
-      "allowedTools": ["read", "web_fetch"]
+      "allowedTools": ["read", "safeoutputs", "web_fetch"]
     },
     "explicitlyDisabledTools": ["bash", "cli-proxy", "edit", "github"]
   }

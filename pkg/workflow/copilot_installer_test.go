@@ -47,6 +47,9 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 	if !strings.Contains(installStep, `install_copilot_cli.sh" `+customVersion) {
 		t.Errorf("Expected user-specified version %q in install step, got:\n%s", customVersion, installStep)
 	}
+	if !strings.Contains(installStep, "GH_AW_COPILOT_MIN_VERSION: "+string(constants.CopilotSessionIDMinVersion)) {
+		t.Errorf("Expected Copilot CLI feature minimum in install step, got:\n%s", installStep)
+	}
 	if strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
 		t.Errorf("Expected user-specified version, not default version, in install step:\n%s", installStep)
 	}
@@ -110,7 +113,7 @@ func TestCopilotEngineWithoutVersion(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineWithWebSearchWithoutPinnedVersionOmitsMinVersion(t *testing.T) {
+func TestCopilotEngineWithWebSearchWithoutPinnedVersionIncludesMinVersion(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name:            "test-workflow",
@@ -135,15 +138,15 @@ func TestCopilotEngineWithWebSearchWithoutPinnedVersionOmitsMinVersion(t *testin
 	if installStep == "" {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
-	if strings.Contains(installStep, "GH_AW_COPILOT_MIN_VERSION:") {
-		t.Errorf("Unavailable web-search must not impose a minimum CLI version, got:\n%s", installStep)
+	if !strings.Contains(installStep, "GH_AW_COPILOT_MIN_VERSION: "+string(constants.CopilotSessionIDMinVersion)) {
+		t.Errorf("Copilot model verification requires the session selector minimum, got:\n%s", installStep)
 	}
 	if strings.Contains(installStep, "install_copilot_cli.sh\" "+string(constants.DefaultCopilotVersion)) {
 		t.Errorf("Install step must not embed an explicit version arg when engine.version is unset; got:\n%s", installStep)
 	}
 }
 
-func TestCopilotEngineWithWebSearchExpressionVersionOmitsMinVersion(t *testing.T) {
+func TestCopilotEngineWithWebSearchExpressionVersionIncludesMinVersion(t *testing.T) {
 	engine := NewCopilotEngine()
 	expressionVersion := "${{ inputs.engine-version }}"
 	workflowData := &WorkflowData{
@@ -174,8 +177,8 @@ func TestCopilotEngineWithWebSearchExpressionVersionOmitsMinVersion(t *testing.T
 	if !strings.Contains(installStep, "ENGINE_VERSION: "+expressionVersion) {
 		t.Errorf("Expected ENGINE_VERSION env var with expression, got:\n%s", installStep)
 	}
-	if strings.Contains(installStep, "GH_AW_COPILOT_MIN_VERSION:") {
-		t.Errorf("Unavailable web-search must not impose a minimum CLI version, got:\n%s", installStep)
+	if !strings.Contains(installStep, "GH_AW_COPILOT_MIN_VERSION: "+string(constants.CopilotSessionIDMinVersion)) {
+		t.Errorf("Copilot model verification requires the session selector minimum, got:\n%s", installStep)
 	}
 	if !strings.Contains(installStep, `"${ENGINE_VERSION}"`) {
 		t.Errorf(`Expected install step to pass resolved ENGINE_VERSION to script, got:\n%s`, installStep)

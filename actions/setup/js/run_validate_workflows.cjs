@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateXMLMarker } = require("./messages_footer.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
@@ -188,7 +190,7 @@ ${xmlMarker}
 `;
 
   try {
-    const newIssue = await github.rest.issues.create({
+    const newIssue = await createReportIssue(github, {
       owner,
       repo,
       title: issueTitle,

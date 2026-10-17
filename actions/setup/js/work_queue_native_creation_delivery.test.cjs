@@ -1,0 +1,358 @@
+// @ts-check
+import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+
+const require = createRequire(import.meta.url);
+const { queueFixture, REPOSITORY, WORKFLOW, REF } = require("./work_queue_lifecycle.test_helpers.cjs");
+const { withClaimExecution, closeClaimEffectChannel, recordClaimEffect } = require("./work_queue_claim_scope.cjs");
+const { authorizeWorkerClaim, finalizeWorkerResults } = require("./finish_work_queue_claim.cjs");
+const { readDeliveryControlInventory, createClaimDeliveryVerifier, verifyBuiltinDeliveryOutput } = require("./work_queue_delivery.cjs");
+const { captureDiscussionDelivery, preparePullRequestDelivery, capturePullRequestDelivery } = require("./work_queue_native_creation_delivery.cjs");
+const { settleClaimDelivery } = require("./safe_output_handler_manager.cjs");
+const { wrapClaimEffectClient } = require("./work_queue_effect_client.cjs");
+
+const TREE = "b".repeat(40);
+const COMMIT = "c".repeat(40);
+const BASE = "d".repeat(40);
+let oldEnv;
+let oldCore;
+
+beforeEach(() => {
+  oldEnv = { ...process.env };
+  oldCore = global.core;
+  global.core = Object.fromEntries(["info", "debug", "warning", "error", "setOutput", "setFailed"].map(key => [key, vi.fn()]));
+  process.env.GITHUB_REPOSITORY = REPOSITORY;
+  process.env.GITHUB_RUN_ID = "42";
+  process.env.GITHUB_RUN_ATTEMPT = "1";
+});
+
+afterEach(() => {
+  for (const key of Object.keys(process.env)) if (!Object.hasOwn(oldEnv, key)) delete process.env[key];
+  Object.assign(process.env, oldEnv);
+  global.core = oldCore;
+});
+
+function fixture(type) {
+  const queue = queueFixture({
+    bound: true,
+    count: 1,
+    workDefaults: {
+      payload: {
+        effect_contract: { version: 1, outputs: [{ type, min: 1, max: 1 }] },
+        resource_scope: {
+          version: 1,
+          resources: [
+            { host: "github.com", repository: REPOSITORY, repository_id: "7" },
+            { host: "github.com", repository: REPOSITORY, repository_id: "7", ref: "refs/heads/approved" },
+          ],
+        },
+      },
+    },
+  });
+  const assignment = queue.assignment;
+  if (!assignment) throw new Error("Missing test assignment");
+  const member = assignment.claims[0];
+  queue.append("finish", { dispatch_id: assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...queue.workerActor, dispatch_id: assignment.dispatch_id, claim_handle: member.handle });
+  const runtime = { assignment, context: queue.workerContext, githubClient: queue.githubClient, workflowRef: `${REPOSITORY}/${WORKFLOW}@${REF}`, readWorkQueueLog: queue.readWorkQueueLog };
+  const authorize = request => authorizeWorkerClaim({ ...runtime, ...request, githubClient: queue.githubClient });
+  process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify({ [type]: {} });
+  const effects = [];
+  const message = { type, claim_handle: member.handle, title: "Requested title", body: "Requested body", ...(type === "create_pull_request" ? { branch: "approved" } : {}) };
+  const result = { success: true, repo: REPOSITORY, number: 19, id: "190", url: `https://github.com/${REPOSITORY}/${type === "create_discussion" ? "discussions" : "pull"}/19` };
+  const discussion = {
+    __typename: "Discussion",
+    id: "D_19",
+    number: 19,
+    url: result.url,
+    title: "Final title",
+    body: "Final body",
+    repository: { id: "R_7", databaseId: 7, nameWithOwner: REPOSITORY },
+    category: { id: "C_1" },
+    labels: { nodes: [], pageInfo: { hasNextPage: false } },
+  };
+  const pull = {
+    id: 190,
+    number: 19,
+    html_url: result.url,
+    title: "Final title",
+    body: "Final body",
+    state: "open",
+    draft: true,
+    labels: [],
+    assignees: [],
+    head: { sha: COMMIT, ref: "approved", repo: { id: 7, full_name: REPOSITORY } },
+    base: { sha: BASE, ref: "main", repo: { id: 7, full_name: REPOSITORY } },
+  };
+  const client = queue.githubClient;
+  Object.assign(client.rest.git, {
+    getRef: vi.fn(async () => ({ data: { ref: "refs/heads/approved", object: { type: "commit", sha: COMMIT } } })),
+    getCommit: vi.fn(async () => ({ data: { sha: COMMIT, tree: { sha: TREE }, parents: [{ sha: BASE }] } })),
+    getTree: vi.fn(async () => ({ data: { sha: TREE, tree: [], truncated: false } })),
+  });
+  Object.assign(client.rest.repos, { compareCommits: vi.fn(async () => ({ data: { base_commit: { sha: BASE }, merge_base_commit: { sha: BASE }, status: "ahead", ahead_by: 1, behind_by: 0 } })) });
+  Object.assign(client.rest, { pulls: { get: vi.fn(async () => ({ data: pull })), create: vi.fn(async () => ({ data: pull })) } });
+  client.graphql = vi.fn(async () => ({ node: discussion }));
+  const execute = callback => withClaimExecution({ assignment, claim_handle: member.handle, effects, authorize }, callback);
+  const capture = async () => {
+    if (type === "create_discussion") {
+      recordClaimEffect({ repository: REPOSITORY, kind: "graphql", id: "discussion-effect", outcome: "succeeded" });
+      return captureDiscussionDelivery(result, message, {
+        repository: REPOSITORY,
+        repositoryNodeId: "R_7",
+        id: discussion.id,
+        number: 19,
+        url: result.url,
+        category: "C_1",
+        title: "Final title",
+        body: "Final body",
+        labels: [],
+        effectIds: ["discussion-effect"],
+      });
+    }
+    const wrapped = wrapClaimEffectClient(client, { claim_handle: member.handle, authorize, context: runtime.context });
+    await wrapped.rest.pulls.create({ owner: "owner", repo: "repo", title: pull.title, body: pull.body, head: "approved", base: "main", draft: true });
+    const exec = { getExecOutput: vi.fn(async (_command, args) => ({ exitCode: 0, stdout: args.at(-1) === "HEAD^{tree}" ? TREE : BASE })) };
+    const prepared = await preparePullRequestDelivery(exec, "main");
+    return capturePullRequestDelivery(
+      result,
+      message,
+      { prepared, repository: REPOSITORY, headRepository: REPOSITORY, id: "190", number: 19, url: result.url, branch: "approved", baseBranch: "main", title: pull.title, body: pull.body, draft: true, labels: [], assignees: [] },
+      wrapped
+    );
+  };
+  const settle = () =>
+    settleClaimDelivery({ assignment }, [message], [{ messageIndex: 0, success: true, result }], {
+      authorize,
+      github: client,
+      context: runtime.context,
+      effects,
+      readControlInventory: () => readDeliveryControlInventory({ ...runtime, claim_handle: member.handle }),
+    });
+  const finalize = () =>
+    finalizeWorkerResults({
+      ...runtime,
+      publishWorkQueueRequest: queue.publishWorkQueueRequest,
+      now: queue.at,
+      verifyEffects: createClaimDeliveryVerifier({ assignment, recheck: () => execute(settle) }),
+    });
+  return { queue, assignment, member, message, result, discussion, pull, client, effects, capture, settle, execute, finalize, authorize, context: runtime.context };
+}
+
+describe("native creation Claim delivery", () => {
+  it("pins the committed nonempty patch tree at the real PR handler preparation boundary", async () => {
+    const root = fs.mkdtempSync(path.join(process.cwd(), ".native-pr-boundary-"));
+    const checkout = path.join(root, "checkout");
+    const runtime = path.join(root, "runtime");
+    fs.mkdirSync(checkout);
+    fs.mkdirSync(runtime);
+    const git = args => {
+      const result = spawnSync("git", args, { cwd: checkout, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" } });
+      if (result.status !== 0) throw new Error(`Local fixture git ${args[0]} failed: ${result.stderr}`);
+      return result.stdout.trim();
+    };
+    git(["init", "-b", "main"]);
+    git(["config", "user.name", "Delivery fixture"]);
+    git(["config", "user.email", "delivery@example.test"]);
+    fs.writeFileSync(path.join(checkout, "change.txt"), "Before\n");
+    git(["add", "change.txt"]);
+    git(["commit", "-m", "Base"]);
+    const base = git(["rev-parse", "HEAD"]);
+    fs.writeFileSync(path.join(checkout, "change.txt"), "Intended patch\n");
+    git(["commit", "-am", "Prepared change"]);
+    const expectedTree = git(["rev-parse", "HEAD^{tree}"]);
+    const patch = path.join(root, "change.patch");
+    fs.writeFileSync(patch, `${git(["format-patch", "-1", "--stdout"])}\n`);
+    git(["reset", "--hard", base]);
+    git(["update-ref", "refs/remotes/origin/main", base]);
+    git(["remote", "add", "origin", "https://github.com/owner/repo.git"]);
+    const transport = require("./resolve_transport_paths.cjs");
+    const native = require("./work_queue_native_creation_delivery.cjs");
+    const originalResolve = transport.resolveTransportPaths;
+    const originalPrepare = native.preparePullRequestDelivery;
+    const handlerPath = require.resolve("./create_pull_request.cjs");
+    const originalHandlerModule = require.cache[handlerPath];
+    const globals = Object.fromEntries(["github", "context", "exec"].map(key => [key, Object.getOwnPropertyDescriptor(global, key)]));
+    const cwd = process.cwd();
+    try {
+      process.env.TMPDIR = runtime;
+      process.env.GIT_CONFIG_NOSYSTEM = "1";
+      process.env.GIT_CONFIG_GLOBAL = "/dev/null";
+      process.env.RUNNER_TEMP = runtime;
+      process.env.GITHUB_WORKSPACE = checkout;
+      process.env.GITHUB_TOKEN = "";
+      process.env.GITHUB_REPOSITORY_ID = "7";
+      process.env.GITHUB_JOB = "safe_outputs";
+      process.env.GH_AW_JOB_CHECK_RUN_ID = "789";
+      process.env.GH_AW_WORKFLOW_ID = "native-pr-boundary";
+      process.env.GH_AW_PROMPTS_DIR = path.resolve(cwd, "../md");
+      delete process.env.GH_AW_CI_TRIGGER_TOKEN;
+      global.core.startGroup = vi.fn();
+      global.core.endGroup = vi.fn();
+      global.core.summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn(async () => {}) };
+      let prepared;
+      native.preparePullRequestDelivery = async (exec, branch) => {
+        expect(git(["status", "--porcelain"])).toBe("");
+        expect(git(["show", "HEAD:change.txt"])).toBe("Intended patch");
+        prepared = await originalPrepare(exec, branch);
+        expect(prepared).toEqual({ tree: expectedTree, base });
+        return prepared;
+      };
+      transport.resolveTransportPaths = () => ({ patchPath: patch, bundlePath: undefined });
+      delete require.cache[handlerPath];
+      const f = fixture("create_pull_request");
+      global.context = f.context;
+      global.exec = {
+        exec: vi.fn(async (_command, args) => {
+          if (args.some(arg => ["fetch", "push", "ls-remote"].includes(arg))) return 0;
+          git(args);
+          return 0;
+        }),
+        getExecOutput: vi.fn(async (_command, args) => ({ exitCode: 0, stdout: args.some(arg => ["fetch", "push", "ls-remote"].includes(arg)) ? "" : git(args), stderr: "" })),
+      };
+      f.client.rest.git.getRef.mockImplementation(async () => ({ data: { ref: "refs/heads/approved", object: { type: "commit", sha: git(["rev-parse", "HEAD"]) } } }));
+      f.client.rest.git.getCommit.mockImplementation(async ({ commit_sha }) => ({ data: { sha: commit_sha, tree: { sha: git(["rev-parse", `${commit_sha}^{tree}`]) }, parents: [{ sha: base }] } }));
+      f.client.rest.git.getTree.mockImplementation(async ({ tree_sha }) => ({ data: { sha: tree_sha, tree: [], truncated: false } }));
+      f.client.rest.repos.compareCommits.mockImplementation(async ({ head }) => ({
+        data: { base_commit: { sha: base }, merge_base_commit: { sha: git(["merge-base", base, head]) }, status: "ahead", ahead_by: Number(git(["rev-list", "--count", `${base}..${head}`])), behind_by: 0 },
+      }));
+      f.client.rest.pulls.create.mockImplementation(async parameters => {
+        expect(prepared).toEqual({ tree: expectedTree, base });
+        Object.assign(f.pull, parameters, { head: { sha: git(["rev-parse", "HEAD"]), ref: "approved", repo: { full_name: REPOSITORY, id: 7 } }, base: { sha: base, ref: "main", repo: { full_name: REPOSITORY, id: 7 } } });
+        return { data: f.pull };
+      });
+      process.chdir(checkout);
+      await f.execute(async () => {
+        global.github = wrapClaimEffectClient(f.client, { claim_handle: f.member.handle, authorize: f.authorize, context: f.context });
+        const handler = await require("./create_pull_request.cjs").main({ base_branch: "main", preserve_branch_name: true, signed_commits: false, footer: false });
+        const result = await handler(f.message, {});
+        expect(result.success, JSON.stringify(result)).toBe(true);
+        const proof = await verifyBuiltinDeliveryOutput({ claim: f.member, message: f.message, result, github: f.client, effects: f.effects });
+        expect(proof.verified).toBe(true);
+        expect(proof.evidence.tree).toBe(expectedTree);
+      });
+    } finally {
+      process.chdir(cwd);
+      transport.resolveTransportPaths = originalResolve;
+      native.preparePullRequestDelivery = originalPrepare;
+      if (originalHandlerModule) require.cache[handlerPath] = originalHandlerModule;
+      else delete require.cache[handlerPath];
+      for (const [key, descriptor] of Object.entries(globals)) {
+        if (descriptor) Object.defineProperty(global, key, descriptor);
+        else delete global[key];
+      }
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["create_discussion", "create_pull_request"])("settles %s through the actual manager verifier and publishes a protected Result", async type => {
+    const f = fixture(type);
+    await f.execute(async () => {
+      await f.capture();
+      expect(closeClaimEffectChannel()).toBeDefined();
+      const delivery = await f.settle();
+      expect(delivery.verification, delivery.reason).toBe("verified");
+      expect(delivery.descriptor.outputs[0].resource.kind).toBe(type === "create_discussion" ? "discussion" : "pull_request");
+    });
+    const finalized = await f.finalize();
+    expect(finalized.claims.h1.state).toBe("result");
+    expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("verified");
+  });
+
+  it.each(["create_discussion", "create_pull_request"])("does not accept %s handler success or a copied private receipt as delivery proof", async type => {
+    const f = fixture(type);
+    await f.execute(async () => {
+      expect((await verifyBuiltinDeliveryOutput({ claim: f.member, message: f.message, result: f.result, github: f.client })).verified).toBe(false);
+      await f.capture();
+      expect((await verifyBuiltinDeliveryOutput({ claim: f.member, message: f.message, result: structuredClone(f.result), github: f.client })).verified).toBe(false);
+    });
+    f.discussion.body = "Tampered";
+    f.pull.head.sha = BASE;
+    const finalized = await f.finalize();
+    expect(finalized.claims.h1.state).toBe("pending");
+    expect(f.queue.state.works.get(f.member.work_id).barrier).not.toBe("verified");
+  });
+
+  it.each(["id", "repository", "category", "title", "body", "labels", "unavailable"])("rejects mismatched discussion %s evidence", async mismatch => {
+    const f = fixture("create_discussion");
+    await f.execute(async () => {
+      await f.capture();
+      if (mismatch === "repository") f.discussion.repository.id = "R_foreign";
+      else if (mismatch === "category") f.discussion.category.id = "C_foreign";
+      else if (mismatch === "labels") f.discussion.labels.pageInfo.hasNextPage = true;
+      else if (mismatch === "unavailable") f.client.graphql.mockRejectedValue(new Error("Unavailable"));
+      else f.discussion[mismatch] = "Different";
+      expect((await f.settle()).verification).toBe("unknown");
+    });
+  });
+
+  it.each(["identity", "repository", "head", "base", "tree", "commit", "ancestry", "ref", "unavailable"])("rejects mismatched PR %s evidence without deriving no effects", async mismatch => {
+    const f = fixture("create_pull_request");
+    await f.execute(async () => {
+      await f.capture();
+      if (mismatch === "identity") f.pull.id = 191;
+      if (mismatch === "repository") f.pull.head.repo.id = 8;
+      if (mismatch === "head") f.pull.head.ref = "foreign";
+      if (mismatch === "base") f.pull.base.ref = "foreign";
+      if (mismatch === "tree") f.client.rest.git.getTree.mockResolvedValue({ data: { sha: BASE, tree: [], truncated: false } });
+      if (mismatch === "commit") f.client.rest.git.getCommit.mockResolvedValue({ data: { sha: COMMIT, tree: { sha: BASE }, parents: [{ sha: BASE }] } });
+      if (mismatch === "ancestry") f.client.rest.repos.compareCommits.mockResolvedValue({ data: { base_commit: { sha: BASE }, merge_base_commit: { sha: REF }, status: "diverged", ahead_by: 1, behind_by: 1 } });
+      if (mismatch === "ref") f.client.rest.git.getRef.mockResolvedValue({ data: { ref: "refs/heads/approved", object: { type: "commit", sha: BASE } } });
+      if (mismatch === "unavailable") f.client.rest.git.getCommit.mockRejectedValue(new Error("Unavailable"));
+      const delivery = await f.settle();
+      expect(delivery.verification).toBe("unknown");
+      expect(delivery.disposition).not.toBe("none");
+    });
+  });
+
+  it("leaves a PR unverified when native capture cannot validate its trusted prepared tree", async () => {
+    const f = fixture("create_pull_request");
+    await f.execute(async () => {
+      f.client.rest.git.getCommit.mockResolvedValue({ data: { sha: COMMIT, tree: { sha: BASE }, parents: [{ sha: BASE }] } });
+      await f.capture();
+      f.client.rest.git.getCommit.mockResolvedValue({ data: { sha: COMMIT, tree: { sha: TREE }, parents: [{ sha: BASE }] } });
+      expect((await f.settle()).verification).toBe("unknown");
+    });
+  });
+
+  it.each([false, true])("independently accounts for a signed commit with foreign ancestry=%s", async foreign => {
+    const f = fixture("create_pull_request");
+    await f.execute(async () => {
+      await f.capture();
+      f.client.graphql.mockResolvedValue({ createCommitOnBranch: { commit: { oid: foreign ? REF : COMMIT } } });
+      const wrapped = wrapClaimEffectClient(f.client, { claim_handle: f.member.handle, authorize: f.authorize, context: f.context });
+      await wrapped.graphql("mutation NativeCommit($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }", {
+        input: { branch: { repositoryNameWithOwner: REPOSITORY, branchName: "approved" }, expectedHeadOid: BASE, message: { headline: "Prepared change" }, fileChanges: {} },
+      });
+      expect(f.effects.at(-1).commit).toBe(foreign ? REF : COMMIT);
+      const delivery = await f.settle();
+      expect(delivery.verification).toBe(foreign ? "unknown" : "verified");
+    });
+  });
+
+  it.each([false, true])("covers only native PR-label updates with an independently matching parent=%s", async foreign => {
+    const f = fixture("create_pull_request");
+    await f.execute(async () => {
+      await f.capture();
+      recordClaimEffect({ repository: REPOSITORY, kind: "issue", number: 19, expected: { labels: [] }, outcome: "succeeded" });
+      f.client.rest.issues = {
+        get: vi.fn(async () => ({ data: { id: 191, number: 19, labels: [], pull_request: { url: `https://api.github.com/repos/${REPOSITORY}/pulls/${foreign ? 20 : 19}` } } })),
+      };
+      const delivery = await f.settle();
+      expect(delivery.verification).toBe(foreign ? "unknown" : "verified");
+    });
+  });
+
+  it.each(["create_discussion", "create_pull_request"])("rejects changed input, a foreign repository, and a foreign original %s Claim", async type => {
+    const f = fixture(type);
+    await f.execute(async () => {
+      await f.capture();
+      for (const overrides of [{ message: { ...f.message, body: "Changed input" } }, { message: { ...f.message, repo: "foreign/repo" } }, { claim: { ...f.member, claim_id: "foreign" } }]) {
+        const proof = await verifyBuiltinDeliveryOutput({ claim: f.member, message: f.message, result: f.result, github: f.client, ...overrides });
+        expect(proof.verified).toBe(false);
+      }
+    });
+  });
+});

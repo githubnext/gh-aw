@@ -22,6 +22,8 @@ profiles; those configurations do not override AW's singleton default.
 effect/admission authority, not AW enrollment or authentication implementation.
 `DispatchReservationRecovery` refines never-started reservations separately
 from the existing launch and worker models.
+`ClaimDeliveryHealth` isolates aggregate delivery reporting from independently
+verified Claim results and native reservation release.
 
 The original `WorkQueue.tla` is retained as historical model evidence for
 [issue #64852](https://github.com/github/gh-aw/issues/64852). Its best-effort
@@ -99,6 +101,67 @@ expected verdicts, including guarded witnesses and mutation controls. Prior
 `IssueExisting`, `IssueCreated`, `IssueDefaultOpen`, and `IssuePRStaysOpen`
 configurations also passed. Reports remain in the ignored local validation
 cache; these results apply only to the bounded models, not live execution.
+
+## Claim delivery health and native capacity
+
+`ClaimDeliveryHealth.tla` models two original Claims whose handler passes all
+succeed. Trusted per-Claim reconciliation can still return pending or failed
+delivery, a verified Result, or cancellation. The manager processes both siblings
+before reporting aggregate health: only Results/cancellations permit non-staged
+success. Failure preserves independently valid sibling Results; it neither
+creates new ledger facts nor permits effect replay. A pending or failed member
+maps to the existing aggregate `delivery_pending` outcome, not proof that its
+ledger barrier is still retryable.
+
+The staged configuration records previews only, with no Results, cancellations
+or native release. Non-staged native release requires separate abstract exact
+terminal evidence and cannot create Results. Receipt verification is an input
+premise, not inferred from handler success, elapsed time, or workflow conclusion.
+`QueueLifecycle.tla` also retains its independent terminal/release transitions;
+the new witness reaches released capacity while a completed Claim still lacks
+Result or DeliveryFailure.
+
+| Configuration | Expected result |
+|---|---|
+| `DeliveryHealth.cfg` | Exhaust `Safety` for non-staged aggregate reporting and independent release. |
+| `DeliveryHealthStaged.cfg` | Exhaust `Safety` without publishing terminal facts. |
+| `BrokenDeliveryFalseGreen.cfg` | `ReportTruth` rejects successful reporting with unverified delivery. |
+| `BrokenDeliveryEarlyStop.cfg` | `IndependentSiblings` rejects stopping before processing every sibling. |
+| `BrokenDeliveryReleaseResult.cfg` | `ResultAuthority` rejects a Release that fabricates Results. |
+| `BrokenDeliveryPrematureRelease.cfg` | `ReleaseAuthority` rejects release without terminal evidence. |
+| `DeliveryPendingWitness.cfg`, `DeliveryFailedWitness.cfg` | Reach failure with one unverified member and one successful Result. |
+| `DeliveryMixedWitness.cfg` | Reach successful mixed Result/cancellation without cancelling the Result. |
+| `DeliveryReleasedWitness.cfg` | Reach released capacity with pending delivery and a preserved sibling Result. |
+| `LifecycleReleasedPendingWitness.cfg` | Reach terminal release with a completed, unresolved Claim in `QueueLifecycle`. |
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=ClaimDeliveryHealth bash specs/work-queue/check.sh
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=QueueLifecycle TLC_CONFIG_FILTER=LifecycleReleasedPendingWitness \
+  bash specs/work-queue/check.sh
+```
+
+Official TLC 2.19 with Java 21 exhausted 73 non-staged states at depth 6 and
+6 staged states at depth 5. All four mutations produced their exact named
+invariant violations; all five witnesses (including the lifecycle witness)
+reached their guarded targets without a safety failure. Reports remain in the
+ignored repository-local validation cache. The runner regression checks exact
+verdicts and rejects safety/tool failures as witness evidence.
+
+This focused model does not check handler execution, native API identities,
+durable publication/CAS, delivery retry budgets, late receipt recovery, crashes
+or fairness. It adds no liveness guarantee and does not prove runtime refinement.
+`QueueLifecycle` retains broader launch/delivery transitions and its original
+safety configurations. Native tool permissions and preparation-path agreement
+are compiler/runtime regression obligations, not modeled capabilities.
+
+The hosted Refiner staged test
+[39051960708](https://github.com/github/gh-aw/actions/runs/39051960708) exercised
+history preparation and Claude startup, but failed at the conclusion after the
+agent reported the missing queue tools/assignment deliberately removed by
+dry-run. Neither this finite model nor that startup evidence establishes native
+Claim processing or successful delivery; no assignment guard was bypassed.
 
 ## Abandoned dispatcher reservation recovery
 
@@ -1267,7 +1330,7 @@ JAVA_BIN=/path/to/java \
 bash specs/work-queue/check.sh
 ```
 
-The runner checks every registered configuration across the nine models,
+The runner checks every registered configuration across the current and historical models,
 including the historical configurations below. Positive configurations require
 exhaustive successful termination; negative controls and guarded witnesses
 require their exact named diagnostic and exit status, not a parse/tooling failure.

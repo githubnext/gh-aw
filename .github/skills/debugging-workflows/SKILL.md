@@ -36,10 +36,13 @@ for bounded in-scope debug iterations without repeated approval. Re-review every
 changed source/lock revision; any compiler security warning invalidates the grant
 and requires fresh authorization after resolution.
 
-For workflow updates, recommend publishing the reviewed Markdown and generated
-lock on a feature branch and opening a draft PR, then testing that explicit
-reviewed ref rather than requiring a merge or simply refusing because the
-changes are unpublished. Reuse an existing suitable branch or PR. The agent
+For workflow updates, notify the user before live-test authorization that a
+published feature branch containing the reviewed Markdown and generated lock is
+required to live test the changes. Name the branch and exact commit being tested;
+reuse an existing suitable branch or PR. A draft PR is recommended, not required,
+and a merge is not required. If the branch is unpublished, explain that the agent
+will publish it before testing rather than treating unpublished changes as a
+terminal blocker. The agent
 owns authorized preparation, compilation, publication and testing; the user
 owns the required live-effect authorization. Follow the shared
 [branch-testing path](../../aw/debug-agentic-workflow.md#test-workflow-changes-from-a-branch).

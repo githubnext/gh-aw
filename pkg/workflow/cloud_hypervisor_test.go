@@ -357,6 +357,7 @@ func TestCloudHypervisorAWFConfigJSON(t *testing.T) {
 	assert.Contains(t, jsonStr, `"agentTimeout":60`)
 	assert.Contains(t, jsonStr, `"cloudHypervisor":{"previewEnabled":true,"mountPolicy":"workspace-and-tool-cache","vcpuCount":2,"memoryMib":4096}`)
 	assert.Contains(t, jsonStr, `"allowWrite":["/tmp/gh-aw/agent","/tmp/gh-aw/sandbox/agent/logs","/workspace","/workspace/.awf-home"]`)
+	assert.NotContains(t, jsonStr, "/tmp/gh-aw/aw_info.json")
 }
 
 func TestCloudHypervisorValidationArcDindIncompatible(t *testing.T) {

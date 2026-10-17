@@ -405,13 +405,14 @@ describe("parse_token_usage", () => {
       process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
       process.env.GH_AW_ENGINE_ID = "copilot";
       process.env.GH_AW_ENGINE_MODEL = "gemini-3.8-flash";
-      const selection = { status, configured_model: "gemini-3.8-flash?effort=high", effective_model: effectiveModel };
+      const selection = { status, configured_model: "gemini-3.8-flash", resolved_model: status === "unavailable" ? "" : "gemini-3.8-flash", effective_model: effectiveModel };
+      const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+      fs.mkdirSync(path.dirname(selectionPath), { recursive: true });
+      fs.writeFileSync(selectionPath, JSON.stringify(selection));
       fs.writeFileSync(
         path.join(tmpDir, "aw_info.json"),
         JSON.stringify({
-          model: effectiveModel,
-          requested_model: selection.configured_model,
-          model_selection: selection,
+          model: "gemini-3.8-flash",
           ...(fallbackModel ? { fallback_model: fallbackModel } : {}),
         })
       );
@@ -449,6 +450,27 @@ describe("parse_token_usage", () => {
           requested_model: "gemini-3.8-flash",
           model_selection: selection,
           model_routing: { status: "selected", wire_model: "gemini-3.8-flash" },
+        });
+      }
+    });
+
+    test("persists Copilot observations without routing or usage telemetry before snapshotting runner metadata", async () => {
+      process.env.GH_AW_TMP_DIR = tmpDir;
+      const infoPath = path.join(tmpDir, "aw_info.json");
+      fs.writeFileSync(infoPath, JSON.stringify({ engine_id: "copilot", model: "auto", workflow_name: "runner-owned" }));
+      const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+      fs.mkdirSync(path.dirname(selectionPath), { recursive: true });
+      fs.writeFileSync(selectionPath, JSON.stringify({ status: "observed", configured_model: "auto", resolved_model: "auto", effective_model: "gpt-6.1-sol" }));
+
+      await main();
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+        expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).toMatchObject({
+          model: "gpt-6.1-sol",
+          requested_model: "auto",
+          workflow_name: "runner-owned",
+          model_selection: { status: "observed", effective_model: "gpt-6.1-sol" },
         });
       }
     });
