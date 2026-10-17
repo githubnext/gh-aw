@@ -34,6 +34,7 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 - `.github/aw/create-shared-agentic-workflow.md`
 - `.github/aw/debug-agentic-workflow.md`
 - `.github/aw/debug-model-engine-misconfiguration.md`
+- `.github/aw/debug-playbook.md`
 - `.github/aw/debug-security-review.md`
 - `.github/aw/dependabot.md`
 - `.github/aw/deployment-status.md`
