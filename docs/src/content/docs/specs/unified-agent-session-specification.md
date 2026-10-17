@@ -1699,6 +1699,30 @@ workflow failed downstream despite its observed agent exit code being zero;
 the entry preserves that distinction. Claude and Pi lacked a final exit-code
 observation, so their entries omit it.
 
+#### Eval result recording: 2026-10-16 sample
+
+Read-only inspection of completed live runs compared the `evals` artifact's
+`evals.jsonl` with `eval.result` events in the `usage` artifact's
+`aw_session.jsonl`. Local replay through the current collector preserved the
+same results. No new workflows were dispatched.
+
+| Workflow and existing run | YES | NO | UNKNOWN | Recorded answers |
+| --- | ---: | ---: | ---: | ---: |
+| [Smoke Copilot](https://github.com/github/gh-aw/actions/runs/38826296309) | 0 | 2 | 1 | 3 |
+| [Design Decision Gate](https://github.com/github/gh-aw/actions/runs/38980042038) | 0 | 0 | 3 | 3 |
+| Total | 0 (0%) | 2 (33.3%) | 4 (66.7%) | 6 |
+
+This is a six-answer sample from two runs, not a repository-wide distribution
+or a workflow success rate. `UNKNOWN` remains an observed answer, not a pass.
+Every result appeared exactly once with its ID, answer, model, run attribution,
+available experiment assignments, timestamp, and eval provenance intact; raw
+question text was excluded. A separate
+[Smoke Copilot run with skipped evals](https://github.com/github/gh-aw/actions/runs/38901218081)
+contained no fabricated eval results and contributed nothing to the denominator.
+All three saved unified sessions passed schema validation. Both executed runs
+had an unrelated `invalid_model_inventory` collection warning; eval result
+collection was complete.
+
 ### 9.6 Mechanical contract checks (Informative)
 
 `scripts/session_schemas.test.cjs`, relative to `actions/setup/js/`, checks

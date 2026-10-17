@@ -521,7 +521,15 @@ gh run download <run-id> -n usage
 
 The `evals` artifact is uploaded by the evals job only when the workflow frontmatter declares one or more `evals` entries. It is not present on runs without evals and contains:
 
-- `evals.jsonl` — Per-question BinEval evaluation results (YES/NO records) produced by running the declared evaluation questions against the agent output
+- `evals.jsonl` — Per-question BinEval evaluation results (`YES`, `NO`, or `UNKNOWN`) produced by running the declared evaluation questions against the agent output. `UNKNOWN` means the available evidence does not support a `YES` or `NO` answer; it is not a passing result.
+
+The conclusion job downloads these results and records each current-run result as
+an `eval.result` event in `aw_session.jsonl` inside the `usage` artifact. The event
+retains the eval ID, answer, model, run ID, experiment assignments when supplied,
+observed timestamp, and source provenance. Raw evaluation questions are omitted.
+Skipped eval jobs do not produce synthetic results. See the
+[unified session specification](../../specs/unified-agent-session-specification/#eval-result-recording-2026-10-16-sample)
+for live-run verification and a dated answer-distribution sample.
 
 ### Accessing evals data
 
@@ -539,6 +547,25 @@ The `gh aw audit` command exposes an `--evals` flag that skips runs without eval
 # Audit only runs that contain evals results
 gh aw audit <run-id> --evals
 ```
+
+### Counting answers in the unified session
+
+Download the `usage` artifact and count only `eval.result` events, not the
+separate `evals.jsonl` copy as well:
+
+```bash
+gh run download <run-id> -n usage -D usage
+jq -s '
+  [.[] | select(.type == "eval.result") | .data.answer] as $answers
+  | {total: ($answers | length),
+     YES: ([$answers[] | select(. == "YES")] | length),
+     NO: ([$answers[] | select(. == "NO")] | length),
+     UNKNOWN: ([$answers[] | select(. == "UNKNOWN")] | length)}
+' usage/aw_session.jsonl
+```
+
+The denominator is recorded eval answers, not workflow runs. A skipped eval job
+contributes zero answers. Keep `UNKNOWN` separate from both `YES` and `NO`.
 
 ## Grader files
 
