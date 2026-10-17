@@ -36,6 +36,7 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	on = maps.Clone(on)
 	delete(on, "webhook")
 	delete(on, "webhook-auth")
+	delete(on, "security-alert")
 	for alias := range webhookTriggerAliases {
 		delete(on, alias)
 	}

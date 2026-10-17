@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,20 +67,27 @@ Inspect github.event.client_payload.payload.
 }
 
 func TestCompileSecurityWebhookJSONContract(t *testing.T) {
-	dir := testutil.TempDir(t, "security-webhook-compile-*")
-	path := filepath.Join(dir, "security-alerts.md")
-	require.NoError(t, os.WriteFile(path, []byte(`---
+	for _, tt := range []struct {
+		kind   string
+		event  string
+		filter string
+		path   []string
+		value  string
+	}{
+		{"code-scanning", "code_scanning_alert", "severity", []string{"alert", "rule", "severity"}, "error"},
+		{"dependabot", "dependabot_alert", "severity", []string{"alert", "security_advisory", "severity"}, "critical"},
+		{"secret-scanning", "secret_scanning_alert", "secret_type", []string{"alert", "secret_type"}, "github_personal_access_token"},
+	} {
+		t.Run(tt.kind, func(t *testing.T) {
+			dir := testutil.TempDir(t, "security-webhook-compile-*")
+			path := filepath.Join(dir, "security-alerts.md")
+			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(`---
 on:
-  code-scanning-alert:
-    types: [created]
-  dependabot-alert:
+  security-alert:
+    type: %s
     types: [created]
     filters:
-      severity: critical
-  secret-scanning-alert:
-    types: [created]
-  secret-scanning-alert-location:
-  secret-scanning-scan:
+      %s: %s
   webhook-auth:
     actors: ["cao[bot]"]
 permissions:
@@ -87,23 +95,23 @@ permissions:
 engine: copilot
 ---
 Triage the alert without logging secret values.
-`), 0600))
-	compiler := workflow.NewCompiler(workflow.WithNoEmit(true))
-	result := compileWorkflowFile(context.Background(), compiler, path, compileWorkflowFileOptions{
-		noEmit: true, jsonOutput: true,
-	})
-	require.True(t, result.success, "%+v", result.validationResult.Errors)
-	subscriptions := result.validationResult.WebhookSubscriptions
-	require.Len(t, subscriptions, 5)
-	for i, event := range []string{
-		"code_scanning_alert", "dependabot_alert", "secret_scanning_alert",
-		"secret_scanning_alert_location", "secret_scanning_scan",
-	} {
-		assert.Equal(t, event, subscriptions[i].Event)
-		assert.Equal(t, workflow.WebhookDispatchEventType("security-alerts"), subscriptions[i].Dispatch.EventType)
-		assert.Equal(t, []string{"cao[bot]"}, subscriptions[i].Dispatch.TrustedActors)
+`, tt.kind, tt.filter, tt.value)), 0600))
+			compiler := workflow.NewCompiler(workflow.WithNoEmit(true))
+			result := compileWorkflowFile(context.Background(), compiler, path, compileWorkflowFileOptions{
+				noEmit: true, jsonOutput: true,
+			})
+			require.True(t, result.success, "%+v", result.validationResult.Errors)
+			subscriptions := result.validationResult.WebhookSubscriptions
+			require.Len(t, subscriptions, 1)
+			sub := subscriptions[0]
+			assert.Equal(t, tt.event, sub.Event)
+			assert.Equal(t, workflow.WebhookDispatchEventType("security-alerts"), sub.Dispatch.EventType)
+			assert.Equal(t, []string{"cao[bot]"}, sub.Dispatch.TrustedActors)
+			assert.Equal(t, []string{"created"}, sub.Types)
+			require.Len(t, sub.Conditions, 1)
+			assert.Equal(t, tt.path, sub.Conditions[0].Path)
+			assert.Equal(t, []any{tt.value}, sub.Conditions[0].Values)
+			assert.NotContains(t, result.workflowData.On, "security-alert")
+		})
 	}
-	require.Len(t, subscriptions[1].Conditions, 1)
-	assert.Equal(t, []string{"alert", "security_advisory", "severity"}, subscriptions[1].Conditions[0].Path)
-	assert.Equal(t, []any{"critical"}, subscriptions[1].Conditions[0].Values)
 }

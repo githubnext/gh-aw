@@ -67,6 +67,18 @@ afterEach(() => {
 });
 
 describe("validateWebhook", () => {
+  it.each(["code_scanning_alert", "dependabot_alert", "secret_scanning_alert"])("accepts only the selected security alert event %s", selectedEvent => {
+    const selected = subscription({ event: selectedEvent, types: ["created"], conditions: [] });
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) });
+    const event = { ...dispatch(), client_payload: { ...dispatch().client_payload, event: selectedEvent, payload: { action: "created" } } };
+    expect(validateWebhook(event, env)).toEqual({ skipped: false, event: selectedEvent, delivery_id: "delivery-123" });
+    for (const otherEvent of ["code_scanning_alert", "dependabot_alert", "secret_scanning_alert", "secret_scanning_alert_location", "secret_scanning_scan", "security_advisory", "repository_vulnerability_alert"]) {
+      if (otherEvent === selectedEvent) continue;
+      event.client_payload.event = otherEvent;
+      expect(() => validateWebhook(event, env)).toThrow(/client_payload.event must match the webhook subscription/);
+    }
+  });
+
   it("validates inline webhook without modifying either GitHub identity or original payload", () => {
     const event = dispatch();
     const before = JSON.stringify(event);

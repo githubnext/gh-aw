@@ -16,14 +16,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 		value  any
 		path   []string
 	}{
-		{"projects", "projects_v2", "edited", "project_id", "PVT_example", []string{"projects_v2", "node_id"}},
 		{"projects-item", "projects_v2_item", "edited", "project_id", "PVT_example", []string{"projects_v2_item", "project_node_id"}},
-		{"projects-status-update", "projects_v2_status_update", "created", "status", "ON_TRACK", []string{"projects_v2_status_update", "status"}},
-		{"code-scanning-alert", "code_scanning_alert", "created", "severity", "error", []string{"alert", "rule", "severity"}},
-		{"dependabot-alert", "dependabot_alert", "created", "severity", "critical", []string{"alert", "security_advisory", "severity"}},
-		{"secret-scanning-alert", "secret_scanning_alert", "created", "secret_type", "github_personal_access_token", []string{"alert", "secret_type"}},
-		{"secret-scanning-alert-location", "secret_scanning_alert_location", "created", "location_type", "commit", []string{"location", "type"}},
-		{"secret-scanning-scan", "secret_scanning_scan", "completed", "repository", "octo/repo", []string{"repository", "full_name"}},
 	}
 	require.Len(t, webhookTriggerAliases, len(tests))
 	for _, tt := range tests {
@@ -112,7 +105,6 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 		config map[string]any
 		want   string
 	}{
-		{"projects", map[string]any{"types": []any{"moved"}}, "unsupported activity type"},
 		{"projects-item", map[string]any{"types": []any{"moved"}}, "unsupported activity type"},
 		{"projects-item", map[string]any{"filters": map[string]any{"labels": "bug"}}, "unsupported filter"},
 		{"projects-item", map[string]any{
@@ -121,8 +113,6 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 				"field": map[string]any{"to": map[string]any{"name": "Ready"}},
 			},
 		}, "requires one of"},
-		{"secret-scanning-alert", map[string]any{"filters": map[string]any{"secret": "not-a-secret"}}, "unsupported filter"},
-		{"secret-scanning-alert-location", map[string]any{"filters": map[string]any{"secret": "not-a-secret"}}, "unsupported filter"},
 	} {
 		t.Run(tt.alias+"/"+tt.want, func(t *testing.T) {
 			_, err := ParseWebhookSubscriptions(map[string]any{

@@ -83,7 +83,8 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal([]byte(`on:
   projects-item:
     types: [edited]
-  dependabot-alert:
+  security-alert:
+    type: dependabot
   webhook:
     sub_issues: {}
   webhook-auth:
@@ -101,7 +102,7 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.Contains(t, lowered["on"], "repository_dispatch")
 	assert.NotContains(t, lowered["on"], "webhook")
 	assert.NotContains(t, lowered["on"], "projects-item")
-	assert.NotContains(t, lowered["on"], "dependabot-alert")
+	assert.NotContains(t, lowered["on"], "security-alert")
 	require.Len(t, data.WebhookSubscriptions, 3)
 	assert.Equal(t, "dependabot_alert", data.WebhookSubscriptions[0].Event)
 	assert.Equal(t, "projects_v2_item", data.WebhookSubscriptions[1].Event)
@@ -109,10 +110,18 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 }
 
 func TestCompileFirstClassWebhookTriggers(t *testing.T) {
-	for alias, event := range webhookTriggerAliases {
-		t.Run(alias, func(t *testing.T) {
+	for name, tt := range map[string]struct {
+		trigger string
+		event   string
+	}{
+		"projects-item":   {"  projects-item:\n", "projects_v2_item"},
+		"code-scanning":   {"  security-alert:\n    type: code-scanning\n", "code_scanning_alert"},
+		"dependabot":      {"  security-alert:\n    type: dependabot\n", "dependabot_alert"},
+		"secret-scanning": {"  security-alert:\n    type: secret-scanning\n", "secret_scanning_alert"},
+	} {
+		t.Run(name, func(t *testing.T) {
 			compiler := NewCompiler()
-			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  "+alias+`:
+			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n"+tt.trigger+`
   workflow_dispatch:
   repository_dispatch:
     types: [manual-operation]
@@ -121,12 +130,13 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 `), "first-class.md")
 			require.NoError(t, err)
 			require.Len(t, data.WebhookSubscriptions, 1)
-			assert.Equal(t, event, data.WebhookSubscriptions[0].Event)
+			assert.Equal(t, tt.event, data.WebhookSubscriptions[0].Event)
 			assert.Equal(t, []string{"cao[bot]"}, data.WebhookActors)
 			var triggers map[string]any
 			require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
 			on := triggers["on"].(map[string]any)
-			assert.NotContains(t, on, alias)
+			assert.NotContains(t, on, "projects-item")
+			assert.NotContains(t, on, "security-alert")
 			assert.NotContains(t, on, "webhook-auth")
 			assert.Contains(t, on, "workflow_dispatch")
 			assert.Equal(t, []any{"manual-operation", WebhookDispatchEventType("first-class")}, on["repository_dispatch"].(map[string]any)["types"])
@@ -192,7 +202,12 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
   projects-item: {}`,
 		"first-class wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
-  dependabot-alert: {}`,
+  security-alert:
+    type: dependabot`,
+		"security duplicate spelling": `  security-alert:
+    type: code-scanning
+  webhook:
+    code_scanning_alert: {}`,
 		"duplicate spelling": `  projects-item:
   webhook:
     projects_v2_item: {}`,

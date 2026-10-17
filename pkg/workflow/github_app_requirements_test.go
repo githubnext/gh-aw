@@ -137,22 +137,14 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 		{
 			name: "first-class Projects v2 and security triggers use wire event names",
 			on: map[string]any{
-				"projects":                       nil,
-				"projects-item":                  map[string]any{"types": []any{"edited"}},
-				"projects-status-update":         nil,
-				"code-scanning-alert":            nil,
-				"dependabot-alert":               nil,
-				"secret-scanning-alert":          nil,
-				"secret-scanning-alert-location": nil,
-				"secret-scanning-scan":           nil,
-				"webhook-auth":                   map[string]any{"actors": []any{"cao[bot]"}},
-				"workflow_dispatch":              nil,
-				"issues":                         nil,
+				"projects-item":     map[string]any{"types": []any{"edited"}},
+				"security-alert":    map[string]any{"type": "secret-scanning"},
+				"webhook-auth":      map[string]any{"actors": []any{"cao[bot]"}},
+				"workflow_dispatch": nil,
+				"issues":            nil,
 			},
 			want: []string{
-				"code_scanning_alert", "dependabot_alert", "issues",
-				"projects_v2", "projects_v2_item", "projects_v2_status_update",
-				"secret_scanning_alert", "secret_scanning_alert_location", "secret_scanning_scan",
+				"issues", "projects_v2_item", "secret_scanning_alert",
 			},
 		},
 		{

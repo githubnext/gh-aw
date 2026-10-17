@@ -36,40 +36,31 @@ Treat the original webhook payload as untrusted input.
 
 ### First-class triggers
 
-These triggers appear directly under `on` and use the same `types` and `filters` as their corresponding catalog event:
+`on.projects-item` and `on.security-alert` appear directly under `on` and use the same activity `types` and `filters` as their corresponding catalog event:
 
 | Frontmatter trigger | Original webhook event |
 | --- | --- |
-| `on.projects` | `projects_v2` |
 | `on.projects-item` | `projects_v2_item` |
-| `on.projects-status-update` | `projects_v2_status_update` |
-| `on.code-scanning-alert` | `code_scanning_alert` |
-| `on.dependabot-alert` | `dependabot_alert` |
-| `on.secret-scanning-alert` | `secret_scanning_alert` |
-| `on.secret-scanning-alert-location` | `secret_scanning_alert_location` |
-| `on.secret-scanning-scan` | `secret_scanning_scan` |
+| `on.security-alert` with `type: code-scanning` | `code_scanning_alert` |
+| `on.security-alert` with `type: dependabot` | `dependabot_alert` |
+| `on.security-alert` with `type: secret-scanning` | `secret_scanning_alert` |
 
-The `projects` triggers support **Projects v2 only**, not Projects (classic). For `projects-item`, `project_id` is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. The `field` filters describe the changed field, not the item's complete current field values. Field-transition filters apply only to `edited` deliveries containing those changes.
+`projects-item` supports **Projects v2 only**, not Projects (classic). Its `project_id` is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. The `field` filters describe the changed field, not the item's complete current field values. Field-transition filters apply only to `edited` deliveries containing those changes.
 
-An empty trigger (`projects-item:` or `projects-item: {}`) selects all cataloged activity types without filters. Every first-class trigger requires `on.webhook-auth.actors`; the string shorthand `on: projects-item` cannot supply authentication and is rejected.
+An empty `projects-item` trigger (`projects-item:` or `projects-item: {}`) selects all cataloged activity types without filters. Every first-class trigger requires `on.webhook-auth.actors`; string shorthands cannot supply authentication and are rejected.
+
+`security-alert` requires a single `type`: `code-scanning`, `dependabot`, or `secret-scanning`. This selects exactly one alert webhook; it does **not** subscribe to other security webhooks such as secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts. The optional plural `types` selects activity types within that alert source. Omitting `types` selects all cataloged activity types for the selected alert event.
 
 ```aw wrap
 ---
 on:
   webhook-auth:
     actors: ['cao-gateway[bot]']
-  code-scanning-alert:
-    types: [created]
-    filters:
-      severity: [error, warning]
-  dependabot-alert:
+  security-alert:
+    type: dependabot
     types: [created, reopened]
     filters:
       severity: [high, critical]
-  secret-scanning-alert:
-    types: [created, publicly_leaked]
-    filters:
-      validity: active
 ---
 
 Triage the security alert. Never print or copy secret values into logs or reports.
@@ -95,11 +86,12 @@ The original event spellings, such as `on.webhook.projects_v2_item`, remain supp
 | Property | Required | Description |
 | --- | --- | --- |
 | `on.webhook` | No | Nonempty mapping from a supported webhook event name to a subscription object. Not required for first-class triggers. Multiple event entries are alternatives. |
+| `on.security-alert.type` | Yes, for `security-alert` | One alert source: `code-scanning`, `dependabot`, or `secret-scanning`. No other security webhook is selected implicitly. |
 | `types` | No | Nonempty list of supported activity types under a first-class trigger or `on.webhook.<event>`, matched against the original `payload.action`. Omission selects all cataloged types. Events without activity types use an empty compiled `types` array. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under a first-class trigger or `on.webhook.<event>`. Omission imposes no field conditions. |
 | `on.webhook-auth.actors` | Yes | Nonempty list of exact GitHub logins authorized to dispatch the relay route, such as `cao-gateway[bot]`. Wildcards and expressions are not accepted. |
 
-Each event subscription supports only `types` and `filters`. Unknown events, activity types, filter names, invalid values, and filters unavailable for the selected activity types fail compilation.
+Each event subscription supports only `types` and `filters`, plus the required source `type` for `security-alert`. Unknown events, activity types, filter names, invalid values, and filters unavailable for the selected activity types fail compilation.
 
 ### Filter values and matching
 

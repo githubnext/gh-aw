@@ -23,14 +23,13 @@ var webhookCatalogJSON []byte
 // webhookTriggerAliases maps first-class frontmatter triggers to wire event names.
 // Projects aliases always refer to Projects v2, never Projects (classic).
 var webhookTriggerAliases = map[string]string{
-	"projects":                       "projects_v2",
-	"projects-item":                  "projects_v2_item",
-	"projects-status-update":         "projects_v2_status_update",
-	"code-scanning-alert":            "code_scanning_alert",
-	"dependabot-alert":               "dependabot_alert",
-	"secret-scanning-alert":          "secret_scanning_alert",
-	"secret-scanning-alert-location": "secret_scanning_alert_location",
-	"secret-scanning-scan":           "secret_scanning_scan",
+	"projects-item": "projects_v2_item",
+}
+
+var securityAlertEvents = map[string]string{
+	"code-scanning":   "code_scanning_alert",
+	"dependabot":      "dependabot_alert",
+	"secret-scanning": "secret_scanning_alert",
 }
 
 // WebhookFilter describes an allowlisted path in the original webhook payload.
@@ -114,7 +113,7 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	onMap, ok := on.(map[string]any)
 	if !ok {
 		for _, name := range rawOnSectionTriggerNames(on) {
-			if _, alias := webhookTriggerAliases[name]; alias {
+			if _, alias := webhookTriggerAliases[name]; alias || name == "security-alert" {
 				return nil, fmt.Errorf("on.%s requires mapping syntax and on.webhook-auth: {actors: [trusted-gateway-login]}", name)
 			}
 		}
@@ -195,7 +194,34 @@ func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]str
 		events[event] = raw
 		paths[event] = "on." + alias
 	}
+	if raw, exists := onMap["security-alert"]; exists {
+		config, ok := raw.(map[string]any)
+		if !ok {
+			return nil, nil, errors.New("on.security-alert must be an object with a required type and optional types and filters")
+		}
+		event, err := securityAlertEvent(config)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, duplicate := events[event]; duplicate {
+			return nil, nil, fmt.Errorf("on.security-alert and on.webhook.%s subscribe to the same event; use only one spelling", event)
+		}
+		config = maps.Clone(config)
+		delete(config, "type")
+		events[event] = config
+		paths[event] = "on.security-alert"
+	}
 	return events, paths, nil
+}
+
+func securityAlertEvent(config map[string]any) (string, error) {
+	kind, ok := config["type"].(string)
+	if ok {
+		if event, supported := securityAlertEvents[kind]; supported {
+			return event, nil
+		}
+	}
+	return "", errors.New("on.security-alert.type must be one of: code-scanning, dependabot, secret-scanning")
 }
 
 func newWebhookSubscription(workflowID, event string, types, actors []string, conditions []WebhookCondition) WebhookSubscription {
