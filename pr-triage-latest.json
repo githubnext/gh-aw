@@ -1,67 +1,107 @@
 {
-  "run_date": "2026-10-17T00:53:33Z",
-  "run_id": "38988296783",
+  "run_date": "2026-10-17T06:34:11Z",
+  "run_id": "39010250803",
   "source": "pr-triage",
-  "eligible_total": 3,
+  "eligible_total": 7,
   "cooldown_skipped": 0,
-  "open_copilot_prs": 3,
+  "open_copilot_prs": 7,
   "category_counts": {
-    "bug": 3
+    "bug": 4,
+    "chore": 2,
+    "docs": 1
   },
   "risk_counts": {
-    "medium": 2,
+    "low": 1,
+    "medium": 5,
     "high": 1
   },
   "priority_counts": {
-    "high": 1,
-    "medium": 2
+    "high": 4,
+    "medium": 2,
+    "low": 1
   },
   "action_counts": {
     "auto_merge": 0,
-    "fast_track": 1,
-    "batch_review": 0,
+    "fast_track": 4,
+    "batch_review": 1,
     "defer": 2,
     "close": 0
   },
-  "batches": [
-    {
-      "id": "pr-batch:copilot-bugfix",
-      "prs": [
-        69162,
-        69046,
-        56568
-      ]
-    }
-  ],
+  "batches": [],
   "selected_candidates": [
     {
       "number": 69162,
       "title": "Harden Copilot CLI and Cloud Hypervisor compatibility",
       "category": "bug",
       "risk": "medium",
-      "priority_score": 79,
+      "priority_score": 80,
       "score_breakdown": {
         "impact": 38,
-        "urgency": 22,
-        "quality": 19
+        "urgency": 25,
+        "quality": 17
       },
       "action": "fast_track",
       "review_state": "pending",
       "ci_state": "passing"
     },
     {
-      "number": 69046,
-      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
+      "number": 69487,
+      "title": "Resolve model aliases the same way on every engine",
       "category": "bug",
       "risk": "medium",
-      "priority_score": 51,
+      "priority_score": 74,
       "score_breakdown": {
-        "impact": 25,
-        "urgency": 18,
-        "quality": 8
+        "impact": 35,
+        "urgency": 20,
+        "quality": 19
       },
-      "action": "defer",
-      "review_state": "in_progress",
+      "action": "fast_track",
+      "review_state": "draft",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69586,
+      "title": "Protect behavior-defined engine session capture",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 72,
+      "score_breakdown": {
+        "impact": 35,
+        "urgency": 20,
+        "quality": 17
+      },
+      "action": "fast_track",
+      "review_state": "draft",
+      "ci_state": "failing"
+    },
+    {
+      "number": 69526,
+      "title": "Bump gh-aw-firewall default to v0.28.62",
+      "category": "chore",
+      "risk": "medium",
+      "priority_score": 65,
+      "score_breakdown": {
+        "impact": 30,
+        "urgency": 18,
+        "quality": 17
+      },
+      "action": "fast_track",
+      "review_state": "pending",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69581,
+      "title": "Bump MCP Gateway to v0.4.35",
+      "category": "chore",
+      "risk": "medium",
+      "priority_score": 49,
+      "score_breakdown": {
+        "impact": 15,
+        "urgency": 15,
+        "quality": 19
+      },
+      "action": "batch_review",
+      "review_state": "draft",
       "ci_state": "passing"
     },
     {
@@ -69,15 +109,30 @@
       "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
       "category": "bug",
       "risk": "high",
-      "priority_score": 52,
+      "priority_score": 57,
       "score_breakdown": {
-        "impact": 30,
+        "impact": 35,
         "urgency": 12,
         "quality": 10
       },
       "action": "defer",
       "review_state": "changes_requested",
       "ci_state": "unknown"
+    },
+    {
+      "number": 69507,
+      "title": "docs(specs): model routing analytics design",
+      "category": "docs",
+      "risk": "low",
+      "priority_score": 29,
+      "score_breakdown": {
+        "impact": 9,
+        "urgency": 5,
+        "quality": 15
+      },
+      "action": "defer",
+      "review_state": "draft",
+      "ci_state": "passing"
     }
   ],
   "prs": [
@@ -89,22 +144,61 @@
       "draft": false,
       "category": "bug",
       "risk": "medium",
-      "priority_score": 79,
+      "priority_score": 80,
       "action": "fast_track",
       "review_state": "pending",
       "ci_state": "passing"
     },
     {
-      "number": 69046,
-      "title": "[WIP] Fix failing GitHub Actions job 'agent'",
+      "number": 69487,
+      "title": "Resolve model aliases the same way on every engine",
+      "state": "open",
+      "user": "Copilot",
+      "draft": true,
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 74,
+      "action": "fast_track",
+      "review_state": "draft",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69586,
+      "title": "Protect behavior-defined engine session capture",
+      "state": "open",
+      "user": "Copilot",
+      "draft": true,
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 72,
+      "action": "fast_track",
+      "review_state": "draft",
+      "ci_state": "failing"
+    },
+    {
+      "number": 69526,
+      "title": "Bump gh-aw-firewall default to v0.28.62",
       "state": "open",
       "user": "Copilot",
       "draft": false,
-      "category": "bug",
+      "category": "chore",
       "risk": "medium",
-      "priority_score": 51,
-      "action": "defer",
-      "review_state": "in_progress",
+      "priority_score": 65,
+      "action": "fast_track",
+      "review_state": "pending",
+      "ci_state": "passing"
+    },
+    {
+      "number": 69581,
+      "title": "Bump MCP Gateway to v0.4.35",
+      "state": "open",
+      "user": "Copilot",
+      "draft": true,
+      "category": "chore",
+      "risk": "medium",
+      "priority_score": 49,
+      "action": "batch_review",
+      "review_state": "draft",
       "ci_state": "passing"
     },
     {
@@ -115,12 +209,25 @@
       "draft": false,
       "category": "bug",
       "risk": "high",
-      "priority_score": 52,
+      "priority_score": 57,
       "action": "defer",
       "review_state": "changes_requested",
       "ci_state": "unknown"
+    },
+    {
+      "number": 69507,
+      "title": "docs(specs): model routing analytics design",
+      "state": "open",
+      "user": "Copilot",
+      "draft": true,
+      "category": "docs",
+      "risk": "low",
+      "priority_score": 29,
+      "action": "defer",
+      "review_state": "draft",
+      "ci_state": "passing"
     }
   ],
   "cooldown_skipped_prs": [],
-  "notes": "Eligible PRs are the three open Copilot-authored bug fixes outside the cooldown window. #69162 is the clear fast-track candidate; #69046 and #56568 remain deferred pending review closure and additional confidence signals."
+  "notes": "Eligible PRs are the seven open Copilot-authored items outside the one-hour cooldown. Fast-track work centers on runtime compatibility, model resolution, and session trust changes; the remaining docs and dependency bumps are lower urgency or explicitly draft-only."
 }
