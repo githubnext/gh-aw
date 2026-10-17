@@ -38,6 +38,18 @@ function withCopilotModels(models) {
 }
 
 /**
+ * Derived: remove models from the configured Copilot endpoint (for example gpt-5-mini,
+ * which the recording lists, to exercise an alias whose exact id is not live).
+ * @param {string[]} models
+ */
+function withoutCopilotModels(models) {
+  const reflect = ddgReflect();
+  const endpoint = reflect.endpoints.find(entry => entry.provider === "copilot");
+  endpoint.models = endpoint.models.filter(model => !models.includes(model));
+  return reflect;
+}
+
+/**
  * Derived: incomplete discovery. The recorded file with `models_fetch_complete: false`
  * and the Copilot endpoint's model list cleared (`models: null`), the shape AWF reports
  * when the upstream /models fetch fails. No recorded run with this shape exists.
@@ -65,4 +77,4 @@ function withGeminiModels(models) {
   return reflect;
 }
 
-module.exports = { ddgReflect, builtinAliases, withCopilotModels, incompleteDiscovery, withGeminiModels };
+module.exports = { ddgReflect, builtinAliases, withCopilotModels, withoutCopilotModels, incompleteDiscovery, withGeminiModels };

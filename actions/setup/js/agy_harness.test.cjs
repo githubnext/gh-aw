@@ -39,6 +39,17 @@ describe("agy_harness.cjs resolveAgyModel", () => {
     expect(records()).toEqual([{ engine: "agy", role: "main", configured_model: "gemini/flash", resolved_model: "gemini-3.9-flash", provider: "gemini", status: "resolved", cause: null }]);
   });
 
+  // The recorded alias map predates the built-in gemini-3.8-flash alias, so the test adds the
+  // built-in definition; gemini-3.8-flash is then both an alias and a live slug.
+  it("a live exact slug wins over an alias with the same name", async () => {
+    const aliases = { "gemini-3.8-flash": ["copilot/gemini-3.8*flash*", "google/gemini-3.8*flash*", "gemini/gemini-3.8*flash*"] };
+    const live = withAliases(reflectFixtures.withGeminiModels(["gemini-3.8-flash-lite", ...geminiModels]), aliases);
+    expect(await resolve("gemini-3.8-flash", live)).toBe("gemini-3.8-flash");
+    expect(records().at(-1)).toEqual({ engine: "agy", role: "main", configured_model: "gemini-3.8-flash", resolved_model: "gemini-3.8-flash", provider: "gemini", status: "exact", cause: null });
+    const absent = withAliases(reflectFixtures.withGeminiModels(["gemini-3.5-pro", "gemini-3.8-flash-lite"]), aliases);
+    expect(await resolve("gemini-3.8-flash", absent)).toBe("gemini-3.8-flash-lite");
+  });
+
   it("rejects provider/model syntax after resolution", async () => {
     await expect(resolve("gemini/gemini-3.8-flash", reflectFixtures.withGeminiModels(geminiModels))).rejects.toThrow("Agy requires a native model slug");
   });

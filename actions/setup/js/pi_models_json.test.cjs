@@ -719,6 +719,21 @@ describe("pi_models_json.cjs", () => {
       expect(records()).toEqual([{ engine: "pi", role: "main", configured_model: "copilot/claude-opus-5", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);
     });
 
+    // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
+    // "absent" case removes it from a copy of the recording.
+    it("a live exact id wins over an alias with the same name", async () => {
+      for (const model of ["copilot/gpt-5-mini", "gpt-5-mini"]) {
+        configure(model);
+        await run([reflectFixtures.ddgReflect()]).promise;
+        expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("gpt-5-mini");
+        expect(records()).toEqual([{ engine: "pi", role: "main", configured_model: model, resolved_model: "gpt-5-mini", provider: "copilot", status: "exact", cause: null }]);
+      }
+      configure("gpt-5-mini");
+      await run([reflectFixtures.withoutCopilotModels(["gpt-5-mini"])]).promise;
+      expect(fs.readFileSync(process.env.GH_AW_PI_MODEL_FILE, "utf8")).toBe("gpt-5.4-mini");
+      expect(records().at(-1)).toMatchObject({ configured_model: "gpt-5-mini", resolved_model: "gpt-5.4-mini", status: "resolved" });
+    });
+
     it("workflow-defined alias overrides built-in", async () => {
       const reflect = reflectFixtures.withCopilotModels(["claude-opus-6"]);
       configure("copilot/opus");

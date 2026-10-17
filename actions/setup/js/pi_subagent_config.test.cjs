@@ -88,6 +88,21 @@ describe("Pi sub-agent model resolution", () => {
     ]);
   });
 
+  // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect of run
+  // 38945917145; the "absent" case removes it from a copy of the recording.
+  it("a live exact id wins over an alias with the same name", () => {
+    vi.stubEnv("GH_AW_PI_MODEL_ALIASES", JSON.stringify(reflectFixtures.builtinAliases()));
+    for (const model of ["copilot/gpt-5-mini", "gpt-5-mini"]) {
+      frontmatter.model = model;
+      expect(prepare({ catalog: undefined, reflectData: reflectFixtures.ddgReflect() })[0]).toMatchObject({ model: "aw-gateway/gpt-5-mini", modelId: "gpt-5-mini" });
+      expect(JSON.parse(fs.readFileSync(path.join(dir, "agent/model-resolution.json"), "utf8"))).toEqual([
+        { engine: "pi", role: "reader", configured_model: model, resolved_model: "gpt-5-mini", provider: "copilot", status: "exact", cause: null },
+      ]);
+    }
+    frontmatter.model = "gpt-5-mini";
+    expect(prepare({ catalog: undefined, reflectData: reflectFixtures.withoutCopilotModels(["gpt-5-mini"]) })[0].modelId).toBe("gpt-5.4-mini");
+  });
+
   // Incomplete discovery is derived from the recorded /reflect of run 38945917145
   // (models_fetch_complete: false, Copilot models: null); no recorded run has this shape.
   it("incomplete discovery passes exact ids through and fails aliases with catalog_unavailable", () => {

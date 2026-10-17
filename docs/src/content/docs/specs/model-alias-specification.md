@@ -531,10 +531,10 @@ Resolution runs at runtime, in the engine harness, before the harness launches t
 
 1. A configured model MAY carry a provider prefix (`copilot/opus`). When it does, the part after the prefix is looked up as the alias key, and only catalogue entries for that provider are considered. The harness's configured provider scopes an unprefixed alias in the same way.
 2. An alias, and any glob inside its entries, resolves to the newest live match (Section 8.4).
-3. An exact model id (not an alias key) MUST NOT be rewritten. Harnesses that check exact ids before launch fail with `model_unavailable` when the id is not listed; others pass it to the engine unchanged.
+3. An exact model id MUST NOT be rewritten. A configured value whose id, after removing its provider prefix, exactly matches a live model id in that provider's `/reflect` catalogue is an exact id, even when an alias has the same name (for example `gpt-5-mini` or `gemini-3.8-flash`); the alias map is used only when there is no exact live match. Harnesses that check exact ids before launch fail with `model_unavailable` when the id is not listed; others pass it to the engine unchanged.
 4. Parameters such as `?effort=` carry through as in Section 8.5.
 5. `auto` keeps each engine's own meaning (a Copilot gateway sentinel on Pi and Codex, Claude's own selection on Claude).
-6. When an alias does not resolve, the step fails before the engine starts with cause `model_unavailable`. When the catalogue is incomplete (`models_fetch_complete` is not true, or the provider has no model list), the step refetches `/reflect` once; exact ids still pass through, and aliases fail with `catalog_unavailable`.
+6. When an alias does not resolve, the step fails before the engine starts with cause `model_unavailable`. When the catalogue is incomplete (`models_fetch_complete` is not true, or the provider has no model list), the step refetches `/reflect` once; exact ids still pass through, and aliases fail with `catalog_unavailable`. A value that is both an alias name and a model id counts as an alias here, because the incomplete catalogue cannot show that the id is live.
 
 The harness logs the configured and resolved model and writes a runner record to `agent/model-resolution.json`, projected into the unified session as `model.resolution`. Engines without the shared step (Gemini and declarative engines) receive the configured model unchanged, and the compiler warns when such an engine is given an alias.
 
@@ -993,7 +993,7 @@ Model parameters are compile-time configuration values and are not derived from 
 
 ### Version 1.3.0 (Draft)
 
-- **Added**: §8.8 runtime resolution: every alias-capable engine harness runs one shared step, provider-prefixed aliases (`copilot/opus`) are scoped to that provider, exact ids are never rewritten, and failures use `model_unavailable` / `catalog_unavailable`.
+- **Added**: §8.8 runtime resolution: every alias-capable engine harness runs one shared step, provider-prefixed aliases (`copilot/opus`) are scoped to that provider, exact ids are never rewritten (a live exact id wins over an alias with the same name), and failures use `model_unavailable` / `catalog_unavailable`.
 - **Added**: Reserved `models:` keys (§7.1); workflow-defined aliases in the main workflow are merged last (§10.1).
 - **Fixed**: §14 mapping for V-MAF-020, which named `claude_engine.go` and a non-existent `codex_tools.go`.
 

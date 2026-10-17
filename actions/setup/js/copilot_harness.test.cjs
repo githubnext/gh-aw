@@ -4139,6 +4139,15 @@ process.exit(1);`
         expect(process.env.COPILOT_MODEL).toBe("claude-opus-5.5");
       });
 
+      // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
+      // "absent" case removes it from a copy of the recording.
+      it("a live exact id wins over an alias with the same name", async () => {
+        expect((await resolve("copilot/gpt-5-mini", [reflectFixtures.ddgReflect()])).resolved).toBe("gpt-5-mini");
+        expect((await resolve("gpt-5-mini", [reflectFixtures.ddgReflect()])).resolved).toBe("gpt-5-mini");
+        expect(records()).toEqual([{ engine: "copilot", role: "main", configured_model: "gpt-5-mini", resolved_model: "gpt-5-mini", provider: null, status: "exact", cause: null }]);
+        expect((await resolve("gpt-5-mini", [reflectFixtures.withoutCopilotModels(["gpt-5-mini"])])).resolved).toBe("gpt-5.4-mini");
+      });
+
       it("workflow-defined alias overrides built-in", async () => {
         const reflect = reflectFixtures.withCopilotModels(["claude-opus-6"]);
         expect((await resolve("opus", [reflect])).resolved).toBe("claude-opus-6");

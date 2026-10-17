@@ -239,6 +239,18 @@ describe("codex_harness.cjs", () => {
       expect(await resolve("copilot/gpt-5.6-sol", reflectFixtures.ddgReflect())).toBe("gpt-5.6-sol");
     });
 
+    // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
+    // "absent" case removes it from a copy of the recording.
+    it("a live exact id wins over an alias with the same name", async () => {
+      expect(await resolve("copilot/gpt-5-mini", reflectFixtures.ddgReflect())).toBe("gpt-5-mini");
+      const env = envFor();
+      expect(await resolve("gpt-5-mini", reflectFixtures.ddgReflect(), { env })).toBe("gpt-5-mini");
+      expect(JSON.parse(fs.readFileSync(path.join(env.GH_AW_TMP_DIR, "agent/model-resolution.json"), "utf8"))).toEqual([
+        { engine: "codex", role: "main", configured_model: "gpt-5-mini", resolved_model: "gpt-5-mini", provider: "copilot", status: "exact", cause: null },
+      ]);
+      expect(await resolve("gpt-5-mini", reflectFixtures.withoutCopilotModels(["gpt-5-mini"]))).toBe("gpt-5.4-mini");
+    });
+
     it("keeps copilot/auto as the Copilot gateway sentinel", async () => {
       expect(await resolve("copilot/auto", reflectFixtures.ddgReflect())).toBe("auto");
     });

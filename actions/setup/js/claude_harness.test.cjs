@@ -178,6 +178,16 @@ describe("claude_harness.cjs", () => {
         expect((await buildClaudeChildEnv(reflect, envFor("auto"), () => {})).ANTHROPIC_MODEL).toBe("claude-haiku-5.5");
       });
 
+      // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
+      // "absent" case removes it from a copy of the recording.
+      it("a live exact id wins over an alias with the same name", async () => {
+        for (const model of ["copilot/gpt-5-mini", "gpt-5-mini"]) {
+          expect((await buildClaudeChildEnv(reflectFixtures.ddgReflect(), envFor(model), () => {})).ANTHROPIC_MODEL).toBe("gpt-5-mini");
+          expect(records().at(-1)).toEqual({ engine: "claude", role: "main", configured_model: model, resolved_model: "gpt-5-mini", provider: "copilot", status: "exact", cause: null });
+        }
+        expect((await buildClaudeChildEnv(reflectFixtures.withoutCopilotModels(["gpt-5-mini"]), envFor("gpt-5-mini"), () => {})).ANTHROPIC_MODEL).toBe("gpt-5.4-mini");
+      });
+
       it("workflow-defined alias overrides built-in", async () => {
         const reflect = reflectFixtures.withCopilotModels(["claude-opus-6"]);
         expect((await buildClaudeChildEnv(reflect, envFor("opus"), () => {})).ANTHROPIC_MODEL).toBe("claude-opus-6");

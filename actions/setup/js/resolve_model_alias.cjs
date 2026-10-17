@@ -391,6 +391,23 @@ function buildProviderCatalog(options) {
 }
 
 /**
+ * Whether `modelId` (no provider prefix, no parameters) exactly names a live catalogue
+ * entry, either bare or behind one provider prefix (`copilot/gpt-5-mini`, `models/...`).
+ * @param {string} modelId
+ * @param {string[]} catalog
+ * @returns {boolean}
+ */
+function isLiveModelId(modelId, catalog) {
+  if (!modelId) return false;
+  return catalog.some(entry => {
+    const entryBase = splitModelIdentifier(entry).base;
+    if (entryBase === modelId) return true;
+    const slash = entryBase.indexOf("/");
+    return slash >= 0 && entryBase.slice(slash + 1) === modelId;
+  });
+}
+
+/**
  * @typedef {{
  *   configuredModel: string,
  *   resolvedModel: string,
@@ -406,7 +423,10 @@ function buildProviderCatalog(options) {
  * - a gh-aw alias (built-in or workflow-defined), optionally behind a `provider/` prefix,
  *   resolves to the newest live match in the `/reflect` catalogue;
  * - a provider prefix (or the engine's `provider`) limits the lookup to that provider;
- * - exact ids are never rewritten;
+ * - exact ids are never rewritten: a value whose id (after removing the provider prefix)
+ *   exactly matches a live id in that provider's catalogue is returned unchanged even when
+ *   an alias has the same name (for example `gpt-5-mini`); the alias map is used only when
+ *   there is no exact live match;
  * - `?effort=` and other parameters carry through.
  *
  * `resolvedModel` keeps the configured form: a provider-prefixed alias resolves to a
@@ -446,6 +466,11 @@ function resolveConfiguredModel(options) {
   }
 
   const catalog = scope ? buildProviderCatalog({ reflectData: options.reflectData, catalog: options.catalog, provider: scope }) : Array.isArray(options.catalog) ? options.catalog : buildCatalogFromReflect(options.reflectData);
+  if (isLiveModelId(aliasKey, catalog)) {
+    // A live exact id wins over an alias with the same name (for example gpt-5-mini).
+    logger(`${logPrefix}: '${configuredModel}' is a live model id${scope ? ` (provider=${scope})` : ""}; not resolving it as an alias`);
+    return exact;
+  }
   if (catalog.length === 0) {
     // Do not silently forward a known alias unchanged: the API proxy rejects unresolved
     // aliases with a misleading "no AI credits pricing" error instead of surfacing the
@@ -638,6 +663,7 @@ module.exports = {
   buildProviderCatalog,
   canonicalModelProvider,
   globMatch,
+  isLiveModelId,
   loadModelAliasMap,
   mergeParams,
   MODEL_RESOLUTION_RECORD_PATH,

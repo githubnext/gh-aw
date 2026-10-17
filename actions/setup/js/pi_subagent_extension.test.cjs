@@ -255,8 +255,7 @@ process.stdin.on("end", () => {
       const parentPrompt = writeInlineSubAgents(source, dir, dir, "pi");
       expect(parentPrompt).not.toContain("## agent:");
       stagePiArtifacts(process.env.PI_CODING_AGENT_DIR);
-      // gpt-5-mini is a built-in alias (copilot/gpt-5*mini*), so it resolves to the newest live match.
-      const expected = ["claude-haiku-4.5", "gpt-5.4-mini", "gpt-4o-mini"];
+      const expected = ["claude-haiku-4.5", "gpt-5-mini", "gpt-4o-mini"];
       const sdk = {
         parseFrontmatter: content => {
           const [, header, body] = content.split("---");
@@ -276,7 +275,7 @@ process.stdin.on("end", () => {
         agentDir: process.env.PI_CODING_AGENT_DIR,
         sdk,
         provider: "github-copilot",
-        catalog: [...expected, "gpt-5-mini"].map(model => `github-copilot/${model}`),
+        catalog: [...expected, "gpt-5.4-mini"].map(model => `github-copilot/${model}`),
         gateway: true,
         parentModel: "github-copilot/gpt-5.3-codex",
       });
