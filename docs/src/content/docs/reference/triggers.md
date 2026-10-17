@@ -17,6 +17,8 @@ on:
 
 GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for reactions, cost control, and advanced filtering.
 
+For webhook-only events, see [Webhook Triggers](../webhook-triggers/) for `on.webhook` subscriptions and the receiver dispatch contract.
+
 ### Dispatch Triggers (`workflow_dispatch:`)
 
 Run workflows manually from the GitHub UI, API, or via `gh aw run`/`gh aw trial`. [Full syntax reference](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).

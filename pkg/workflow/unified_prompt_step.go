@@ -77,6 +77,9 @@ func (c *Compiler) collectPromptSections(data *WorkflowData) []PromptSection { /
 		Content: tempFolderPromptFile,
 		IsFile:  true,
 	})
+	if section := webhookPromptSection(data); section != nil {
+		sections = append(sections, *section)
+	}
 
 	// 2. Markdown generation instructions (always included)
 	unifiedPromptLog.Print("Adding markdown section")

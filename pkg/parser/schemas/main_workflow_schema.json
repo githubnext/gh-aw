@@ -748,7 +748,46 @@
         {
           "type": "object",
           "description": "Complex trigger configuration with event-specific filters and options",
+          "dependencies": {
+            "webhook": ["webhook-auth"],
+            "webhook-auth": ["webhook"]
+          },
           "properties": {
+            "webhook": {
+              "type": "object",
+              "minProperties": 1,
+              "description": "GitHub webhook subscriptions delivered through a trusted repository_dispatch relay.",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "types": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": { "type": "string", "minLength": 1 }
+                  },
+                  "filters": {
+                    "type": "object",
+                    "minProperties": 1
+                  }
+                }
+              }
+            },
+            "webhook-auth": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["actors"],
+              "properties": {
+                "actors": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": { "type": "string", "minLength": 1 }
+                }
+              },
+              "description": "Required allowlist of authenticated GitHub actors allowed to relay webhook deliveries."
+            },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
               "oneOf": [

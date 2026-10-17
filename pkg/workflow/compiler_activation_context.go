@@ -76,6 +76,11 @@ func (c *Compiler) newActivationJobBuildContext(
 		return nil, err
 	}
 	c.addActivationSetupAndWorkflowCallSteps(ctx, setupActionRef)
+	webhookSteps, err := buildWebhookValidationStep(data)
+	if err != nil {
+		return nil, err
+	}
+	ctx.steps = append(ctx.steps, webhookSteps...)
 	// Experiment variants must be selected before the aw_info step, which reads
 	// steps.pick-experiment.outputs.<name> when engine.model references an experiment.
 	c.addActivationExperimentSteps(ctx)

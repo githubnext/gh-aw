@@ -221,6 +221,9 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	if err := c.extractYAMLSections(parseResult.frontmatterResult.Frontmatter, workflowData); err != nil {
 		return nil, fmt.Errorf("failed to extract YAML sections: %w", err)
 	}
+	if _, err := c.processWebhookTriggers(parseResult.frontmatterResult.Frontmatter, workflowData); err != nil {
+		return nil, err
+	}
 
 	// Merge features from imports
 	if len(engineSetup.importsResult.MergedFeatures) > 0 {
