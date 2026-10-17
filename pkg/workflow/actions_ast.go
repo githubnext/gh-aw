@@ -8,23 +8,23 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/workflow/pipeline"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/goccy/go-yaml"
 )
 
-// resolvePipeline bridges legacy jobs to the typed graph. Legacy YAML remains
+// resolveActions bridges existing jobs to the typed graph. Existing YAML remains
 // untouched; only typed contributions are lowered, using the existing renderer.
 // Commit changes only after every job has resolved and lowered successfully.
-func (jm *JobManager) resolvePipeline() error {
-	ir := &pipeline.Pipeline{}
+func (jm *JobManager) resolveActions() error {
+	ir := &actions.Workflow{}
 	for _, name := range jm.jobOrder {
-		job, err := jobToPipeline(jm.jobs[name])
+		job, err := jobToActions(jm.jobs[name])
 		if err != nil {
 			return err
 		}
 		ir.Jobs = append(ir.Jobs, job)
 	}
-	resolved, err := pipeline.Resolve(ir)
+	resolved, err := actions.Resolve(ir)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (jm *JobManager) resolvePipeline() error {
 			if _, legacy := original.Outputs[string(key)]; legacy {
 				continue
 			}
-			rendered, err := renderPipelineScalar(value, irJob.ID, resolved)
+			rendered, err := renderActionsScalar(value, irJob.ID, resolved)
 			if err != nil {
 				return err
 			}
@@ -53,11 +53,11 @@ func (jm *JobManager) resolvePipeline() error {
 			}
 			job.Outputs[string(key)] = rendered
 		}
-		if typed := original.Pipeline; typed != nil {
-			if err := lowerPipelineContribution(&job, typed, irJob.ID, resolved); err != nil {
-				return fmt.Errorf("lowering pipeline job %q: %w", name, err)
+		if typed := original.Actions; typed != nil {
+			if err := lowerActionsContribution(&job, typed, irJob.ID, resolved); err != nil {
+				return fmt.Errorf("lowering Actions workflow job %q: %w", name, err)
 			}
-			job.Pipeline = nil
+			job.Actions = nil
 		}
 		if err := validateJobDefinition(&job); err != nil {
 			return err
@@ -68,28 +68,28 @@ func (jm *JobManager) resolvePipeline() error {
 	return nil
 }
 
-func jobToPipeline(original *Job) (*pipeline.Job, error) {
+func jobToActions(original *Job) (*actions.Job, error) {
 	name := original.Name
-	job := &pipeline.Job{ID: pipeline.JobID(name), Outputs: make(map[pipeline.OutputName]pipeline.Expression)}
+	job := &actions.Job{ID: actions.JobID(name), Outputs: make(map[actions.OutputName]actions.Expression)}
 	for _, dep := range original.Needs {
-		job.Needs = append(job.Needs, pipeline.JobID(dep))
+		job.Needs = append(job.Needs, actions.JobID(dep))
 	}
 	for key, value := range original.Outputs {
 		// Existing output bindings are opaque; their declarations still let
 		// typed consumers validate and depend on them.
-		job.Outputs[pipeline.OutputName(key)] = pipeline.Literal(value)
+		job.Outputs[actions.OutputName(key)] = actions.Literal(value)
 	}
-	typed := original.Pipeline
+	typed := original.Actions
 	if typed == nil {
 		return job, nil
 	}
 	if typed.ID != "" && typed.ID != job.ID {
-		return nil, fmt.Errorf("typed pipeline job id %q does not match job %q", typed.ID, name)
+		return nil, fmt.Errorf("typed Actions workflow job id %q does not match job %q", typed.ID, name)
 	}
-	if typed.Name != "" || typed.RunsOn != nil || len(typed.Fields) > 0 {
+	if hasActionsExecutionSettings(typed) {
 		return nil, fmt.Errorf("job %q must set name, runs-on, and native fields on the enclosing job, not its typed contribution", name)
 	}
-	job.Condition = typed.Condition
+	job.If = typed.If
 	job.Env = typed.Env
 	job.Needs = append(job.Needs, typed.Needs...)
 	for key, value := range typed.Outputs {
@@ -104,22 +104,29 @@ func jobToPipeline(original *Job) (*pipeline.Job, error) {
 			return nil, fmt.Errorf("indexing legacy steps in job %q: %w", name, err)
 		}
 		for _, fields := range steps {
-			job.Steps = append(job.Steps, pipeline.RawStep{Fields: fields})
+			job.Steps = append(job.Steps, actions.RawStep{Fields: fields})
 		}
 	}
 	job.Steps = append(job.Steps, typed.Steps...)
 	return job, nil
 }
 
-func lowerPipelineContribution(job *Job, typed *pipeline.Job, id pipeline.JobID, resolved *pipeline.Pipeline) error {
+func hasActionsExecutionSettings(job *actions.Job) bool {
+	return job.Name != "" || job.RunsOn != nil || job.Permissions != nil || job.Defaults != nil ||
+		job.Concurrency != nil || job.Environment != nil || job.Strategy != nil ||
+		job.Container != nil || job.Services != nil || job.TimeoutMinutes != 0 || job.ContinueOnError != nil ||
+		job.Uses != "" || len(job.With) > 0 || len(job.Secrets) > 0 || job.SecretsInherit || len(job.CallOutputs) > 0
+}
+
+func lowerActionsContribution(job *Job, typed *actions.Job, id actions.JobID, resolved *actions.Workflow) error {
 	if job.Uses != "" && (len(typed.Steps) > 0 || len(typed.Env) > 0) {
 		return errors.New("reusable workflow job cannot declare typed steps or env")
 	}
-	if typed.Condition != nil {
+	if typed.If != nil {
 		if job.If != "" {
 			return errors.New("cannot set both a legacy and typed job condition")
 		}
-		rendered, err := pipeline.RenderExpression(typed.Condition, id, resolved, false)
+		rendered, err := actions.RenderExpression(typed.If, id, resolved, false)
 		if err != nil {
 			return err
 		}
@@ -130,7 +137,7 @@ func lowerPipelineContribution(job *Job, typed *pipeline.Job, id pipeline.JobID,
 		if _, exists := job.Env[key]; exists {
 			return fmt.Errorf("cannot set both a legacy and typed environment value %q", key)
 		}
-		rendered, err := renderPipelineScalar(value, id, resolved)
+		rendered, err := renderActionsScalar(value, id, resolved)
 		if err != nil {
 			return err
 		}
@@ -141,7 +148,7 @@ func lowerPipelineContribution(job *Job, typed *pipeline.Job, id pipeline.JobID,
 	}
 	job.Steps = slices.Clone(job.Steps)
 	for _, step := range typed.Steps {
-		fields, err := pipeline.LowerStep(step, id, resolved)
+		fields, err := actions.LowerStep(step, id, resolved)
 		if err != nil {
 			return err
 		}
@@ -154,8 +161,8 @@ func lowerPipelineContribution(job *Job, typed *pipeline.Job, id pipeline.JobID,
 	return nil
 }
 
-func renderPipelineScalar(value pipeline.Expression, id pipeline.JobID, resolved *pipeline.Pipeline) (string, error) {
-	rendered, err := pipeline.RenderExpression(value, id, resolved, true)
+func renderActionsScalar(value actions.Expression, id actions.JobID, resolved *actions.Workflow) (string, error) {
+	rendered, err := actions.RenderExpression(value, id, resolved, true)
 	if err != nil {
 		return "", err
 	}

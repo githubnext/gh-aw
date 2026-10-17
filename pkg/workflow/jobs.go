@@ -11,7 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
-	"github.com/github/gh-aw/pkg/workflow/pipeline"
+	"github.com/github/gh-aw/pkg/workflow/actions"
 )
 
 var jobLog = logger.New("workflow:jobs")
@@ -65,10 +65,10 @@ type Job struct {
 	Steps                      []string
 	Needs                      []string // Job dependencies (needs clause)
 	Outputs                    map[string]string
-	// Pipeline contributes typed steps after Steps, and typed conditions,
+	// Actions contributes typed steps after Steps, and typed conditions,
 	// environment values, and output bindings. It is lowered after all job
 	// augmentation so output references can derive dependencies centrally.
-	Pipeline *pipeline.Job
+	Actions *actions.Job
 
 	// Reusable workflow call properties
 	Uses           string            // Path to reusable workflow (e.g., ./.github/workflows/reusable.yml)

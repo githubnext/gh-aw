@@ -43,8 +43,8 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 		return fmt.Errorf("job dependency validation expected each needs entry to reference an existing job id (for example, needs: build): %w", err)
 	}
 
-	if err := c.jobManager.resolvePipeline(); err != nil {
-		return fmt.Errorf("pipeline resolution failed: %w", err)
+	if err := c.jobManager.resolveActions(); err != nil {
+		return fmt.Errorf("resolving GitHub Actions workflow: %w", err)
 	}
 
 	// Validate no duplicate steps within jobs (compiler bug detection)

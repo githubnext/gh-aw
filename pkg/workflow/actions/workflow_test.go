@@ -1,4 +1,4 @@
-package pipeline
+package actions
 
 import (
 	"strings"
@@ -9,19 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func outputPipeline() *Pipeline {
-	return &Pipeline{
-		Name: "Typed workflow",
-		Envelope: map[string]any{
-			"on":          map[string]any{"workflow_dispatch": map[string]any{}},
-			"permissions": map[string]any{},
-		},
+func outputWorkflow() *Workflow {
+	return &Workflow{
+		Name:        "Typed workflow",
+		On:          map[string]any{"workflow_dispatch": map[string]any{}},
+		Permissions: map[string]any{},
 		Jobs: []*Job{
 			{
 				ID: "setup", RunsOn: "ubuntu-latest",
 				Steps: []Step{RunStep{
 					StepOptions: StepOptions{ID: "produce", Outputs: []OutputDecl{{Name: "value"}}},
-					Script:      "printf 'value=ready\\n' >> \"$GITHUB_OUTPUT\"\n",
+					Run:         "printf 'value=ready\\n' >> \"$GITHUB_OUTPUT\"\n",
 				}},
 			},
 			{
@@ -29,12 +27,12 @@ func outputPipeline() *Pipeline {
 				Steps: []Step{ActionStep{
 					StepOptions: StepOptions{
 						ID: "consume", Name: "Read output",
-						Condition: Binary{
+						If: Binary{
 							Left:     OutputRef{Job: "setup", Step: "produce", Name: "value"},
 							Operator: "==", Right: Literal("ready"),
 						},
 						Env: map[string]Expression{
-							"VALUE": Coalesce(OutputRef{Job: "setup", Step: "produce", Name: "value"}, Literal("fallback")),
+							"VALUE": Or(OutputRef{Job: "setup", Step: "produce", Name: "value"}, Literal("fallback")),
 							"TOKEN": Secret("API_TOKEN"),
 						},
 					},
@@ -49,7 +47,7 @@ func outputPipeline() *Pipeline {
 }
 
 func TestEmitRoundTrip(t *testing.T) {
-	input := outputPipeline()
+	input := outputWorkflow()
 	content, err := Emit(input)
 	require.NoError(t, err)
 	var actual map[string]any
@@ -92,16 +90,16 @@ jobs:
 }
 
 func TestSameJobOutputsAndScopedIDs(t *testing.T) {
-	input := outputPipeline()
+	input := outputWorkflow()
 	input.Jobs[1].Steps = []Step{RunStep{
 		StepOptions: StepOptions{ID: "produce"},
-		Script:      "echo unrelated",
+		Run:         "echo unrelated",
 	}}
 	input.Jobs[0].Steps = append(input.Jobs[0].Steps, RunStep{
 		StepOptions: StepOptions{
 			Env: map[string]Expression{"VALUE": OutputRef{Job: "setup", Step: "produce", Name: "value"}},
 		},
-		Script: "echo \"$VALUE\"",
+		Run: "echo \"$VALUE\"",
 	})
 	content, err := Emit(input)
 	require.NoError(t, err)
@@ -111,7 +109,7 @@ func TestSameJobOutputsAndScopedIDs(t *testing.T) {
 }
 
 func TestResolvePreservesExplicitEdgesAndBindings(t *testing.T) {
-	input := outputPipeline()
+	input := outputWorkflow()
 	input.Jobs[0].Outputs = map[OutputName]Expression{
 		"public": OutputRef{Job: "setup", Step: "produce", Name: "value"},
 	}
@@ -129,63 +127,63 @@ func TestResolvePreservesExplicitEdgesAndBindings(t *testing.T) {
 func TestResolveInvalidGraphs(t *testing.T) {
 	tests := []struct {
 		name   string
-		change func(*Pipeline)
+		change func(*Workflow)
 		want   string
 	}{
-		{"duplicate job", func(p *Pipeline) { p.Jobs = append(p.Jobs, p.Jobs[0]) }, "duplicate pipeline job"},
-		{"invalid job", func(p *Pipeline) { p.Jobs[0].ID = "bad.job" }, "invalid job id"},
-		{"nil job", func(p *Pipeline) { p.Jobs = append(p.Jobs, nil) }, "job cannot be nil"},
-		{"nil step", func(p *Pipeline) { p.Jobs[0].Steps = append(p.Jobs[0].Steps, nil) }, "step cannot be nil"},
-		{"duplicate step", func(p *Pipeline) { p.Jobs[0].Steps = append(p.Jobs[0].Steps, p.Jobs[0].Steps[0]) }, "duplicate pipeline step"},
-		{"duplicate raw step", func(p *Pipeline) {
+		{"duplicate job", func(p *Workflow) { p.Jobs = append(p.Jobs, p.Jobs[0]) }, "duplicate workflow job"},
+		{"invalid job", func(p *Workflow) { p.Jobs[0].ID = "bad.job" }, "invalid job id"},
+		{"nil job", func(p *Workflow) { p.Jobs = append(p.Jobs, nil) }, "job cannot be nil"},
+		{"nil step", func(p *Workflow) { p.Jobs[0].Steps = append(p.Jobs[0].Steps, nil) }, "step cannot be nil"},
+		{"duplicate step", func(p *Workflow) { p.Jobs[0].Steps = append(p.Jobs[0].Steps, p.Jobs[0].Steps[0]) }, "duplicate workflow step"},
+		{"duplicate raw step", func(p *Workflow) {
 			p.Jobs[0].Steps = append(p.Jobs[0].Steps, RawStep{Fields: map[string]any{"id": "produce", "run": "echo test"}})
-		}, "duplicate pipeline step"},
-		{"invalid raw step id", func(p *Pipeline) {
+		}, "duplicate workflow step"},
+		{"invalid raw step id", func(p *Workflow) {
 			p.Jobs[0].Steps = append(p.Jobs[0].Steps, RawStep{Fields: map[string]any{"id": 1, "run": "echo test"}})
 		}, "id must be a string"},
-		{"unknown needs", func(p *Pipeline) { p.Jobs[0].Needs = []JobID{"missing"} }, "non-existent job"},
-		{"explicit cycle", func(p *Pipeline) { p.Jobs[0].Needs = []JobID{"agent"} }, "cycle detected"},
-		{"self cycle", func(p *Pipeline) { p.Jobs[0].Needs = []JobID{"setup"} }, "cycle detected"},
-		{"missing producer", func(p *Pipeline) { p.Jobs = p.Jobs[1:] }, "unknown producer job"},
-		{"unknown step output", func(p *Pipeline) {
+		{"unknown needs", func(p *Workflow) { p.Jobs[0].Needs = []JobID{"missing"} }, "non-existent job"},
+		{"explicit cycle", func(p *Workflow) { p.Jobs[0].Needs = []JobID{"agent"} }, "cycle detected"},
+		{"self cycle", func(p *Workflow) { p.Jobs[0].Needs = []JobID{"setup"} }, "cycle detected"},
+		{"missing producer", func(p *Workflow) { p.Jobs = p.Jobs[1:] }, "unknown producer job"},
+		{"unknown step output", func(p *Workflow) {
 			p.Jobs[1].Env = map[string]Expression{"VALUE": OutputRef{Job: "setup", Step: "produce", Name: "missing"}}
 		}, "undeclared step output"},
-		{"unknown job output", func(p *Pipeline) {
+		{"unknown job output", func(p *Workflow) {
 			p.Jobs[1].Env = map[string]Expression{"VALUE": OutputRef{Job: "setup", Name: "missing"}}
 		}, "unknown output"},
-		{"same job output", func(p *Pipeline) {
+		{"same job output", func(p *Workflow) {
 			p.Jobs[0].Outputs = map[OutputName]Expression{"public": Literal("value")}
 			p.Jobs[0].Env = map[string]Expression{"VALUE": OutputRef{Job: "setup", Name: "public"}}
 		}, "cannot consume its own job output"},
-		{"anonymous output", func(p *Pipeline) {
-			p.Jobs[0].Steps = []Step{RunStep{StepOptions: StepOptions{Outputs: []OutputDecl{{Name: "value"}}}, Script: "echo test"}}
+		{"anonymous output", func(p *Workflow) {
+			p.Jobs[0].Steps = []Step{RunStep{StepOptions: StepOptions{Outputs: []OutputDecl{{Name: "value"}}}, Run: "echo test"}}
 		}, "anonymous step"},
-		{"duplicate output", func(p *Pipeline) {
+		{"duplicate output", func(p *Workflow) {
 			step := p.Jobs[0].Steps[0].(RunStep)
 			step.Outputs = append(step.Outputs, step.Outputs[0])
 			p.Jobs[0].Steps[0] = step
 		}, "duplicate output"},
-		{"forward reference", func(p *Pipeline) {
+		{"forward reference", func(p *Workflow) {
 			p.Jobs[0].Steps = append([]Step{RunStep{
 				StepOptions: StepOptions{Env: map[string]Expression{"VALUE": OutputRef{Job: "setup", Step: "produce", Name: "value"}}},
-				Script:      "echo \"$VALUE\"",
+				Run:         "echo \"$VALUE\"",
 			}}, p.Jobs[0].Steps...)
 		}, "before it runs"},
-		{"self step reference", func(p *Pipeline) {
+		{"self step reference", func(p *Workflow) {
 			step := p.Jobs[0].Steps[0].(RunStep)
 			step.Env = map[string]Expression{"VALUE": OutputRef{Job: "setup", Step: "produce", Name: "value"}}
 			p.Jobs[0].Steps[0] = step
 		}, "before it runs"},
-		{"job condition reads local step", func(p *Pipeline) {
-			p.Jobs[0].Condition = OutputRef{Job: "setup", Step: "produce", Name: "value"}
+		{"job condition reads local step", func(p *Workflow) {
+			p.Jobs[0].If = OutputRef{Job: "setup", Step: "produce", Name: "value"}
 		}, "before it runs"},
-		{"binding collision", func(p *Pipeline) {
+		{"binding collision", func(p *Workflow) {
 			p.Jobs[0].Outputs = map[OutputName]Expression{"aw_7_produce_value": Literal("other")}
 		}, "conflicts with an explicit output"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := outputPipeline()
+			input := outputWorkflow()
 			tt.change(input)
 			_, err := Resolve(input)
 			require.ErrorContains(t, err, tt.want)
@@ -196,9 +194,9 @@ func TestResolveInvalidGraphs(t *testing.T) {
 }
 
 func TestNestedReferencesDeriveEdges(t *testing.T) {
-	input := outputPipeline()
+	input := outputWorkflow()
 	input.Jobs[1].Steps = nil
-	input.Jobs[1].Condition = Not{Value: Binary{
+	input.Jobs[1].If = Not{Value: Binary{
 		Left: Call{Name: "contains", Args: []Expression{
 			Concat(Variable("PREFIX"), OutputRef{Job: "setup", Step: "produce", Name: "value"}),
 			Literal("don't"),
@@ -208,7 +206,7 @@ func TestNestedReferencesDeriveEdges(t *testing.T) {
 	resolved, err := Resolve(input)
 	require.NoError(t, err)
 	assert.Equal(t, []JobID{"setup"}, resolved.Jobs[1].Needs)
-	value, err := RenderExpression(input.Jobs[1].Condition, "agent", resolved, true)
+	value, err := RenderExpression(input.Jobs[1].If, "agent", resolved, true)
 	require.NoError(t, err)
 	assert.Contains(t, value, "'don''t'")
 	assert.Contains(t, value, "vars.PREFIX")
@@ -218,31 +216,29 @@ func TestNestedReferencesDeriveEdges(t *testing.T) {
 func TestLowerRejectsInvalidShapes(t *testing.T) {
 	tests := []struct {
 		name   string
-		change func(*Pipeline)
+		change func(*Workflow)
 		want   string
 	}{
-		{"envelope", func(p *Pipeline) { p.Envelope["jobs"] = "override" }, "cannot override"},
-		{"job field", func(p *Pipeline) { p.Jobs[0].Fields = map[string]any{"steps": "override"} }, "cannot override"},
-		{"reusable", func(p *Pipeline) { p.Jobs[0].Fields = map[string]any{"uses": "./worker.yml"} }, "cannot declare"},
-		{"empty run", func(p *Pipeline) { p.Jobs[1].Steps = []Step{RunStep{}} }, "nonempty script"},
-		{"run interpolation", func(p *Pipeline) {
-			p.Jobs[1].Steps = []Step{RunStep{Script: `echo "${{ github.event.issue.title }}"`}}
+		{"reusable", func(p *Workflow) { p.Jobs[0].Uses = "./.github/workflows/worker.yml" }, "cannot declare"},
+		{"empty run", func(p *Workflow) { p.Jobs[1].Steps = []Step{RunStep{}} }, "nonempty script"},
+		{"run interpolation", func(p *Workflow) {
+			p.Jobs[1].Steps = []Step{RunStep{Run: `echo "${{ github.event.issue.title }}"`}}
 		}, "pass Actions expressions through env"},
-		{"empty action", func(p *Pipeline) { p.Jobs[1].Steps = []Step{ActionStep{}} }, "nonempty uses"},
-		{"empty raw", func(p *Pipeline) { p.Jobs[1].Steps = []Step{RawStep{}} }, "cannot be empty"},
-		{"negative timeout", func(p *Pipeline) {
-			p.Jobs[1].Steps = []Step{RunStep{StepOptions: StepOptions{TimeoutMinutes: -1}, Script: "echo test"}}
+		{"empty action", func(p *Workflow) { p.Jobs[1].Steps = []Step{ActionStep{}} }, "nonempty uses"},
+		{"empty raw", func(p *Workflow) { p.Jobs[1].Steps = []Step{RawStep{}} }, "cannot be empty"},
+		{"negative timeout", func(p *Workflow) {
+			p.Jobs[1].Steps = []Step{RunStep{StepOptions: StepOptions{TimeoutMinutes: -1}, Run: "echo test"}}
 		}, "cannot be negative"},
-		{"raw multiline expression", func(p *Pipeline) { p.Jobs[1].Condition = Context("always()\nfoo") }, "single-line"},
-		{"raw delimiters", func(p *Pipeline) { p.Jobs[1].Condition = Context("${{ always() }}") }, "exclude expression delimiters"},
-		{"invalid operator", func(p *Pipeline) {
-			p.Jobs[1].Condition = Binary{Left: Boolean(true), Operator: ";", Right: Boolean(false)}
-		}, "unsupported pipeline expression operator"},
-		{"nil expression", func(p *Pipeline) { p.Jobs[1].Env = map[string]Expression{"VALUE": nil} }, "cannot be nil"},
+		{"raw multiline expression", func(p *Workflow) { p.Jobs[1].If = Context("always()\nfoo") }, "single-line"},
+		{"raw delimiters", func(p *Workflow) { p.Jobs[1].If = Context("${{ always() }}") }, "exclude expression delimiters"},
+		{"invalid operator", func(p *Workflow) {
+			p.Jobs[1].If = Binary{Left: Boolean(true), Operator: ";", Right: Boolean(false)}
+		}, "unsupported workflow expression operator"},
+		{"nil expression", func(p *Workflow) { p.Jobs[1].Env = map[string]Expression{"VALUE": nil} }, "cannot be nil"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := outputPipeline()
+			input := outputWorkflow()
 			tt.change(input)
 			_, err := Emit(input)
 			require.ErrorContains(t, err, tt.want)
@@ -251,7 +247,7 @@ func TestLowerRejectsInvalidShapes(t *testing.T) {
 }
 
 func TestRawStepPreservesNativeFields(t *testing.T) {
-	input := &Pipeline{Name: "raw", Jobs: []*Job{{
+	input := &Workflow{Name: "raw", Jobs: []*Job{{
 		ID: "build", RunsOn: "ubuntu-latest",
 		Steps: []Step{RawStep{Fields: map[string]any{
 			"uses":            "owner/action@sha",

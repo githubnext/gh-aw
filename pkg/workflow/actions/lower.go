@@ -1,4 +1,4 @@
-package pipeline
+package actions
 
 import (
 	"errors"
@@ -11,17 +11,29 @@ import (
 )
 
 // Lower resolves the graph and creates a deterministic YAML value tree.
-func Lower(input *Pipeline) (yaml.MapSlice, error) {
+func Lower(input *Workflow) (yaml.MapSlice, error) {
 	resolved, err := Resolve(input)
 	if err != nil {
 		return nil, err
 	}
 	root := yaml.MapSlice{{Key: "name", Value: resolved.Name}}
-	for _, key := range sortedKeys(resolved.Envelope) {
-		if key == "name" || key == "jobs" {
-			return nil, fmt.Errorf("pipeline envelope cannot override typed field %q", key)
+	for _, item := range []yaml.MapItem{
+		{Key: "run-name", Value: optionalString(resolved.RunName)},
+		{Key: "on", Value: resolved.On},
+		{Key: "permissions", Value: resolved.Permissions},
+		{Key: "defaults", Value: optionalMap(resolved.Defaults)},
+		{Key: "concurrency", Value: resolved.Concurrency},
+	} {
+		if item.Value != nil {
+			root = append(root, item)
 		}
-		root = append(root, yaml.MapItem{Key: key, Value: resolved.Envelope[key]})
+	}
+	if len(resolved.Env) > 0 {
+		env, err := lowerValues(resolved.Env, "", resolved)
+		if err != nil {
+			return nil, err
+		}
+		root = append(root, yaml.MapItem{Key: "env", Value: env})
 	}
 	jobs := slices.Clone(resolved.Jobs)
 	slices.SortFunc(jobs, func(a, b *Job) int {
@@ -37,16 +49,19 @@ func Lower(input *Pipeline) (yaml.MapSlice, error) {
 	for _, job := range jobs {
 		fields, err := lowerJob(job, resolved)
 		if err != nil {
-			return nil, fmt.Errorf("lowering pipeline job %q: %w", job.ID, err)
+			return nil, fmt.Errorf("lowering workflow job %q: %w", job.ID, err)
 		}
 		jobMap = append(jobMap, yaml.MapItem{Key: string(job.ID), Value: fields})
 	}
 	return append(root, yaml.MapItem{Key: "jobs", Value: jobMap}), nil
 }
 
-func lowerJob(job *Job, resolved *Pipeline) (map[string]any, error) {
+func lowerJob(job *Job, resolved *Workflow) (map[string]any, error) {
 	fields, err := nativeJobFields(job)
 	if err != nil {
+		return nil, err
+	}
+	if err := lowerJobExpressions(fields, job, resolved); err != nil {
 		return nil, err
 	}
 	if job.Name != "" {
@@ -62,8 +77,8 @@ func lowerJob(job *Job, resolved *Pipeline) (map[string]any, error) {
 		}
 		fields["needs"] = needs
 	}
-	if job.Condition != nil {
-		value, err := RenderExpression(job.Condition, job.ID, resolved, true)
+	if job.If != nil {
+		value, err := RenderExpression(job.If, job.ID, resolved, true)
 		if err != nil {
 			return nil, err
 		}
@@ -102,29 +117,29 @@ func lowerJob(job *Job, resolved *Pipeline) (map[string]any, error) {
 }
 
 func nativeJobFields(job *Job) (map[string]any, error) {
-	fields := maps.Clone(job.Fields)
-	if fields == nil {
-		fields = make(map[string]any)
+	if err := validateJob(job); err != nil {
+		return nil, err
 	}
-	for _, key := range []string{"name", "runs-on", "needs", "if", "env", "steps", "outputs"} {
-		if _, exists := fields[key]; exists {
-			return nil, fmt.Errorf("native job fields cannot override typed field %q", key)
+	fields := make(map[string]any)
+	for key, value := range map[string]any{
+		"permissions": job.Permissions, "defaults": optionalMap(job.Defaults),
+		"concurrency": job.Concurrency, "environment": job.Environment,
+		"strategy": optionalMap(job.Strategy), "container": job.Container,
+		"services": optionalMap(job.Services), "uses": optionalString(job.Uses),
+	} {
+		if value != nil {
+			fields[key] = value
 		}
 	}
-	if uses, exists := fields["uses"]; exists {
-		if ref, ok := uses.(string); !ok || ref == "" {
-			return nil, errors.New("reusable workflow uses must be a nonempty string")
-		}
-		if len(job.Steps) > 0 || job.RunsOn != nil || len(job.Env) > 0 {
-			return nil, errors.New("reusable workflow job cannot declare steps, runs-on, or env")
-		}
+	if job.TimeoutMinutes > 0 {
+		fields["timeout-minutes"] = job.TimeoutMinutes
 	}
 	return fields, nil
 }
 
-// LowerStep is also used by the legacy compiler bridge, retaining its existing
+// LowerStep is also used by the compiler, retaining its existing
 // field ordering, action-pin comments, and runner-specific rendering.
-func LowerStep(step Step, consumer JobID, resolved *Pipeline) (map[string]any, error) {
+func LowerStep(step Step, consumer JobID, resolved *Workflow) (map[string]any, error) {
 	opts, err := options(step)
 	if err != nil {
 		return nil, err
@@ -135,13 +150,13 @@ func LowerStep(step Step, consumer JobID, resolved *Pipeline) (map[string]any, e
 	fields := make(map[string]any)
 	switch value := step.(type) {
 	case RunStep:
-		if value.Script == "" {
+		if value.Run == "" {
 			return nil, errors.New("run step requires a nonempty script")
 		}
-		if strings.Contains(value.Script, "${{") {
+		if strings.Contains(value.Run, "${{") {
 			return nil, errors.New("typed run steps must pass Actions expressions through env instead of interpolating them into scripts")
 		}
-		fields["run"] = value.Script
+		fields["run"] = value.Run
 		if value.Shell != "" {
 			fields["shell"] = value.Shell
 		}
@@ -154,15 +169,15 @@ func LowerStep(step Step, consumer JobID, resolved *Pipeline) (map[string]any, e
 		}
 		fields["uses"] = value.Uses
 		if len(value.With) > 0 {
-			with, err := lowerValues(value.With, consumer, resolved)
+			with, err := lowerInputs(value.With, consumer, resolved)
 			if err != nil {
 				return nil, err
 			}
 			fields["with"] = with
 		}
 	case RawStep:
-		if len(value.Fields) == 0 {
-			return nil, errors.New("raw pipeline step cannot be empty")
+		if err := validateRawStep(value.Fields); err != nil {
+			return nil, err
 		}
 		return maps.Clone(value.Fields), nil
 	}
@@ -172,15 +187,15 @@ func LowerStep(step Step, consumer JobID, resolved *Pipeline) (map[string]any, e
 	return fields, nil
 }
 
-func lowerStepOptions(fields map[string]any, opts StepOptions, consumer JobID, resolved *Pipeline) error {
+func lowerStepOptions(fields map[string]any, opts StepOptions, consumer JobID, resolved *Workflow) error {
 	if opts.ID != "" {
 		fields["id"] = string(opts.ID)
 	}
 	if opts.Name != "" {
 		fields["name"] = opts.Name
 	}
-	if opts.Condition != nil {
-		value, err := RenderExpression(opts.Condition, consumer, resolved, true)
+	if opts.If != nil {
+		value, err := RenderExpression(opts.If, consumer, resolved, true)
 		if err != nil {
 			return err
 		}
@@ -194,34 +209,53 @@ func lowerStepOptions(fields map[string]any, opts StepOptions, consumer JobID, r
 		fields["env"] = env
 	}
 	if opts.ContinueOnError != nil {
-		fields["continue-on-error"] = *opts.ContinueOnError
+		value, err := RenderExpression(opts.ContinueOnError, consumer, resolved, true)
+		if err != nil {
+			return err
+		}
+		fields["continue-on-error"] = value
 	}
+
 	if opts.TimeoutMinutes > 0 {
 		fields["timeout-minutes"] = opts.TimeoutMinutes
 	}
 	return nil
 }
 
-func lowerValues(values map[string]Expression, consumer JobID, resolved *Pipeline) (map[string]any, error) {
+func optionalString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func optionalMap(value map[string]any) any {
+	if value == nil {
+		return nil
+	}
+	return value
+}
+
+func lowerValues(values map[string]Expression, consumer JobID, resolved *Workflow) (map[string]any, error) {
 	result := make(map[string]any, len(values))
 	for _, key := range sortedKeys(values) {
 		value, err := RenderExpression(values[key], consumer, resolved, true)
 		if err != nil {
-			return nil, fmt.Errorf("pipeline value %q: %w", key, err)
+			return nil, fmt.Errorf("workflow value %q: %w", key, err)
 		}
 		result[key] = value
 	}
 	return result, nil
 }
 
-func Emit(input *Pipeline) (string, error) {
+func Emit(input *Workflow) (string, error) {
 	value, err := Lower(input)
 	if err != nil {
 		return "", err
 	}
 	content, err := yaml.Marshal(value)
 	if err != nil {
-		return "", fmt.Errorf("serializing pipeline YAML: %w", err)
+		return "", fmt.Errorf("serializing workflow YAML: %w", err)
 	}
 	return string(content), nil
 }

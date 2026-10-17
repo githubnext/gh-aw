@@ -1,4 +1,4 @@
-package pipeline
+package actions
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var errInvalidStep = errors.New("pipeline step cannot be nil or an unsupported type")
+var errInvalidStep = errors.New("workflow step cannot be nil or an unsupported type")
 
 type producer struct {
 	index   int
@@ -22,8 +22,8 @@ type resolver struct {
 
 // Resolve returns a copy with output-derived needs and job-output bindings.
 // It validates explicit edges too, and leaves the input unchanged on failure.
-func Resolve(input *Pipeline) (*Pipeline, error) {
-	result, graph, err := indexPipeline(input)
+func Resolve(input *Workflow) (*Workflow, error) {
+	result, graph, err := indexWorkflow(input)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func Resolve(input *Pipeline) (*Pipeline, error) {
 			return graph.resolveRef(job, ref, position)
 		}
 		if err := walkJob(job, resolve); err != nil {
-			return nil, fmt.Errorf("pipeline job %q: %w", job.ID, err)
+			return nil, fmt.Errorf("workflow job %q: %w", job.ID, err)
 		}
 	}
 	for _, job := range result.Jobs {
@@ -50,9 +50,12 @@ func Resolve(input *Pipeline) (*Pipeline, error) {
 	return result, nil
 }
 
-func indexPipeline(input *Pipeline) (*Pipeline, *resolver, error) {
+func indexWorkflow(input *Workflow) (*Workflow, *resolver, error) {
 	if input == nil {
-		return nil, nil, errors.New("pipeline cannot be nil")
+		return nil, nil, errors.New("workflow cannot be nil")
+	}
+	if err := walkWorkflowEnv(input.Env); err != nil {
+		return nil, nil, err
 	}
 	result := *input
 	result.Jobs = make([]*Job, 0, len(input.Jobs))
@@ -60,15 +63,18 @@ func indexPipeline(input *Pipeline) (*Pipeline, *resolver, error) {
 	steps := make(map[JobID]map[StepID]producer, len(input.Jobs))
 	for _, original := range input.Jobs {
 		if original == nil {
-			return nil, nil, errors.New("pipeline job cannot be nil")
+			return nil, nil, errors.New("workflow job cannot be nil")
 		}
 		if err := validateIdentifier("job id", string(original.ID)); err != nil {
 			return nil, nil, err
 		}
 		if _, exists := jobs[original.ID]; exists {
-			return nil, nil, fmt.Errorf("duplicate pipeline job id %q", original.ID)
+			return nil, nil, fmt.Errorf("duplicate workflow job id %q", original.ID)
 		}
 		job := *original
+		if err := validateCallOutputs(&job); err != nil {
+			return nil, nil, err
+		}
 		job.Needs = slices.Clone(original.Needs)
 		job.Outputs = maps.Clone(original.Outputs)
 		if job.Outputs == nil {
@@ -97,7 +103,8 @@ func (graph *resolver) resolveRef(job *Job, ref OutputRef, position int) (string
 		if ref.Job == job.ID {
 			return "", fmt.Errorf("job %q cannot consume its own job output %q; reference the producing step instead", job.ID, ref.Name)
 		}
-		if _, exists := target.Outputs[ref.Name]; !exists {
+		_, declared := target.Outputs[ref.Name]
+		if !declared && !slices.ContainsFunc(target.CallOutputs, func(output OutputDecl) bool { return output.Name == ref.Name }) {
 			return "", fmt.Errorf("job %q references unknown output %q on job %q", job.ID, ref.Name, ref.Job)
 		}
 		job.Needs = append(job.Needs, ref.Job)
@@ -138,7 +145,7 @@ func indexSteps(job *Job) (map[StepID]producer, error) {
 			return nil, err
 		}
 		if _, exists := index[opts.ID]; exists {
-			return nil, fmt.Errorf("duplicate pipeline step id %q in job %q", opts.ID, job.ID)
+			return nil, fmt.Errorf("duplicate workflow step id %q in job %q", opts.ID, job.ID)
 		}
 		outputs := make(map[OutputName]bool)
 		for _, output := range opts.Outputs {
@@ -177,17 +184,21 @@ func walkJob(job *Job, resolve func(OutputRef, int) (string, error)) error {
 		_, err := ctx.render(expr)
 		return err
 	}
-	if job.Condition != nil {
-		if err := check(job.Condition, -1); err != nil {
-			return err
+	for _, expr := range []Expression{job.If, job.ContinueOnError} {
+		if expr != nil {
+			if err := check(expr, -1); err != nil {
+				return err
+			}
 		}
 	}
-	for _, key := range sortedKeys(job.Env) {
-		if err := validateIdentifier("environment variable", key); err != nil {
-			return err
-		}
-		if err := check(job.Env[key], -1); err != nil {
-			return err
+	if err := walkEnv(job.Env, -1, check); err != nil {
+		return err
+	}
+	for _, values := range []map[string]Expression{job.With, job.Secrets} {
+		for _, key := range sortedKeys(values) {
+			if err := check(values[key], -1); err != nil {
+				return err
+			}
 		}
 	}
 	for _, name := range sortedOutputNames(job.Outputs) {
@@ -199,30 +210,73 @@ func walkJob(job *Job, resolve func(OutputRef, int) (string, error)) error {
 		}
 	}
 	for i, step := range job.Steps {
-		opts, err := options(step)
-		if err != nil {
+		if err := walkStep(step, i, check); err != nil {
 			return err
 		}
-		if opts.Condition != nil {
-			if err := check(opts.Condition, i); err != nil {
+	}
+	return nil
+}
+
+func walkStep(step Step, position int, check func(Expression, int) error) error {
+	opts, err := options(step)
+	if err != nil {
+		return err
+	}
+	for _, expr := range []Expression{opts.If, opts.ContinueOnError} {
+		if expr != nil {
+			if err := check(expr, position); err != nil {
 				return err
 			}
 		}
-		for _, key := range sortedKeys(opts.Env) {
-			if err := validateIdentifier("environment variable", key); err != nil {
-				return err
-			}
-			if err := check(opts.Env[key], i); err != nil {
+	}
+	if err := walkEnv(opts.Env, position, check); err != nil {
+		return err
+	}
+	if action, ok := step.(ActionStep); ok {
+		for _, key := range sortedKeys(action.With) {
+			if err := check(action.With[key], position); err != nil {
 				return err
 			}
 		}
-		if action, ok := step.(ActionStep); ok {
-			for _, key := range sortedKeys(action.With) {
-				if err := check(action.With[key], i); err != nil {
-					return err
-				}
-			}
+	}
+	return nil
+}
+
+func walkEnv(env map[string]Expression, position int, check func(Expression, int) error) error {
+	for _, key := range sortedKeys(env) {
+		if err := validateIdentifier("environment variable", key); err != nil {
+			return err
 		}
+		if err := check(env[key], position); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func walkWorkflowEnv(env map[string]Expression) error {
+	ctx := expressionContext{resolve: func(OutputRef) (string, error) {
+		return "", errors.New("workflow env cannot reference job or step outputs; use job env instead")
+	}}
+	return walkEnv(env, -1, func(expr Expression, _ int) error {
+		_, err := ctx.render(expr)
+		return err
+	})
+}
+
+func validateCallOutputs(job *Job) error {
+	if len(job.CallOutputs) > 0 && job.Uses == "" {
+		return errors.New("call outputs require a reusable workflow uses reference")
+	}
+	seen := make(map[OutputName]bool)
+	for _, output := range job.CallOutputs {
+		if err := validateIdentifier("output name", string(output.Name)); err != nil {
+			return err
+		}
+		if seen[output.Name] {
+			return fmt.Errorf("duplicate reusable workflow output %q on job %q", output.Name, job.ID)
+		}
+		seen[output.Name] = true
 	}
 	return nil
 }
@@ -270,11 +324,11 @@ func sortedOutputNames(values map[OutputName]Expression) []OutputName {
 	return slices.Sorted(maps.Keys(values))
 }
 
-// RenderExpression lowers an expression in a resolved pipeline. Call Resolve
+// RenderExpression lowers an expression in a resolved workflow. Call Resolve
 // first so cross-job bindings and dependency validation have been completed.
-func RenderExpression(expr Expression, consumer JobID, resolved *Pipeline, wrap bool) (string, error) {
+func RenderExpression(expr Expression, consumer JobID, resolved *Workflow, wrap bool) (string, error) {
 	if resolved == nil {
-		return "", errors.New("rendering pipeline expressions requires a resolved pipeline")
+		return "", errors.New("rendering workflow expressions requires a resolved workflow")
 	}
 	ctx := expressionContext{resolve: func(ref OutputRef) (string, error) {
 		if ref.Step != "" && ref.Job == consumer {
@@ -292,7 +346,7 @@ func RenderExpression(expr Expression, consumer JobID, resolved *Pipeline, wrap 
 				}
 			}
 		}
-		return "", fmt.Errorf("unresolved pipeline output reference %s/%s/%s", ref.Job, ref.Step, ref.Name)
+		return "", fmt.Errorf("unresolved workflow output reference %s/%s/%s", ref.Job, ref.Step, ref.Name)
 	}}
 	if wrap {
 		return ctx.value(expr)

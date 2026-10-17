@@ -1,20 +1,23 @@
-package pipeline
+package actions
 
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
 
 // Expression is shared by conditions, environment values, and action inputs.
-// Only Literal is emitted without an Actions expression wrapper in value fields.
+// Environment values wrap everything except Literal in an Actions expression.
+// Inputs also preserve Boolean and Number literals as native YAML scalars.
 type Expression interface {
-	pipelineExpression()
+	actionsExpression()
 }
 
 type Literal string
 type Boolean bool
+type Number float64
 
 // Context is the escape hatch for expressions not yet modeled by the AST.
 // Its contents exclude the surrounding ${{ }} delimiters.
@@ -43,15 +46,16 @@ type Binary struct {
 
 type Not struct{ Value Expression }
 
-func (Literal) pipelineExpression()     {}
-func (Boolean) pipelineExpression()     {}
-func (Context) pipelineExpression()     {}
-func (SecretRef) pipelineExpression()   {}
-func (VariableRef) pipelineExpression() {}
-func (OutputRef) pipelineExpression()   {}
-func (Call) pipelineExpression()        {}
-func (Binary) pipelineExpression()      {}
-func (Not) pipelineExpression()         {}
+func (Literal) actionsExpression()     {}
+func (Boolean) actionsExpression()     {}
+func (Number) actionsExpression()      {}
+func (Context) actionsExpression()     {}
+func (SecretRef) actionsExpression()   {}
+func (VariableRef) actionsExpression() {}
+func (OutputRef) actionsExpression()   {}
+func (Call) actionsExpression()        {}
+func (Binary) actionsExpression()      {}
+func (Not) actionsExpression()         {}
 
 func Secret(name string) Expression {
 	return SecretRef(name)
@@ -61,9 +65,8 @@ func Variable(name string) Expression {
 	return VariableRef(name)
 }
 
-// Coalesce uses Actions' truthiness semantics (empty, false, zero, and null
-// select the fallback), rather than Azure's null/empty-only coalesce semantics.
-func Coalesce(value, fallback Expression) Expression {
+// Or selects the fallback for falsy values using the Actions || operator.
+func Or(value, fallback Expression) Expression {
 	return Binary{Left: value, Operator: "||", Right: fallback}
 }
 
@@ -89,6 +92,11 @@ func (ctx expressionContext) render(expr Expression) (string, error) {
 		return quote(string(value)), nil
 	case Boolean:
 		return strconv.FormatBool(bool(value)), nil
+	case Number:
+		if math.IsNaN(float64(value)) || math.IsInf(float64(value), 0) {
+			return "", errors.New("expression numbers must be finite")
+		}
+		return strconv.FormatFloat(float64(value), 'g', -1, 64), nil
 	case SecretRef:
 		if err := validateIdentifier("secret name", string(value)); err != nil {
 			return "", err
@@ -102,29 +110,18 @@ func (ctx expressionContext) render(expr Expression) (string, error) {
 	case Context:
 		text := string(value)
 		if strings.TrimSpace(text) == "" || strings.ContainsAny(text, "\r\n") || strings.Contains(text, "${{") || strings.Contains(text, "}}") {
-			return "", errors.New("raw pipeline expression must be nonempty, single-line, and exclude expression delimiters")
+			return "", errors.New("raw workflow expression must be nonempty, single-line, and exclude expression delimiters")
 		}
 		return text, nil
 	case OutputRef:
 		return ctx.resolve(value)
 	case Call:
-		if err := validateIdentifier("expression function", value.Name); err != nil {
-			return "", err
-		}
-		args := make([]string, 0, len(value.Args))
-		for _, arg := range value.Args {
-			rendered, err := ctx.render(arg)
-			if err != nil {
-				return "", err
-			}
-			args = append(args, rendered)
-		}
-		return value.Name + "(" + strings.Join(args, ", ") + ")", nil
+		return ctx.renderCall(value)
 	case Binary:
 		switch value.Operator {
 		case "==", "!=", "<", "<=", ">", ">=", "&&", "||":
 		default:
-			return "", fmt.Errorf("unsupported pipeline expression operator %q", value.Operator)
+			return "", fmt.Errorf("unsupported workflow expression operator %q", value.Operator)
 		}
 		left, err := ctx.render(value.Left)
 		if err != nil {
@@ -142,8 +139,26 @@ func (ctx expressionContext) render(expr Expression) (string, error) {
 		}
 		return "!(" + inner + ")", nil
 	default:
-		return "", errors.New("pipeline expression cannot be nil or an unsupported type")
+		return "", errors.New("workflow expression cannot be nil or an unsupported type")
 	}
+}
+
+func (ctx expressionContext) renderCall(value Call) (string, error) {
+	switch strings.ToLower(value.Name) {
+	case "contains", "startswith", "endswith", "format", "join", "tojson", "fromjson",
+		"hashfiles", "success", "always", "cancelled", "failure":
+	default:
+		return "", fmt.Errorf("unsupported GitHub Actions expression function %q", value.Name)
+	}
+	args := make([]string, 0, len(value.Args))
+	for _, arg := range value.Args {
+		rendered, err := ctx.render(arg)
+		if err != nil {
+			return "", err
+		}
+		args = append(args, rendered)
+	}
+	return value.Name + "(" + strings.Join(args, ", ") + ")", nil
 }
 
 func (ctx expressionContext) value(expr Expression) (string, error) {
