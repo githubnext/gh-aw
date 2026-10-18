@@ -370,6 +370,8 @@ function codeFence(value) {
 
 /** @param {ReportInline[]} nodes */
 function renderInlines(nodes) {
+  // Serialization-only runs must catch secrets, controls, and mentions split across
+  // provenance boundaries and choose valid code fences without changing the AST.
   /** @type {ReportInline[]} */
   const renderingNodes = [];
   for (const node of nodes) {

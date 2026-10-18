@@ -84,11 +84,11 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
   const markdown = parts
     .map(part => {
       if (typeof part === "string") return part;
-      if (part.type === "body_slot") {
-        let key = "gh_aw_issue_body";
+      if (part.type !== "quote_line") {
+        let key = part.type === "body_slot" ? "gh_aw_issue_body" : `gh_aw_issue_diagnostics_${Object.keys(blockSlots).length}`;
         while (literalMarkdown.includes(`{${key}}`)) key += "_";
-        blockSlots[key] = part.children;
-        return `{${key}}`;
+        blockSlots[key] = part.type === "diagnostic_sections" ? part.buildChildren() : part.children;
+        return part.type === "body_slot" ? `{${key}}` : `\n\n{${key}}\n\n`;
       }
       let key = `gh_aw_issue_footer_${Object.keys(inlineSlots).length}`;
       while (literalMarkdown.includes(`{${key}}`)) key += "_";
@@ -97,7 +97,9 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
     })
     .join("");
   // Parse wrappers and adjacent quote lines together, while Claim values remain typed.
-  const children = parseReportMarkdown(stripExecutionProvenance(markdown), { inlineSlots, blockSlots, minimumHeadingLevel: 2, allowMetadata: true, allowedMentions, agentTainted: false });
+  const consumedSlots = new Set();
+  const children = parseReportMarkdown(stripExecutionProvenance(markdown), { inlineSlots, blockSlots, onBlockSlot: key => consumedSlots.add(key), minimumHeadingLevel: 2, allowMetadata: true, allowedMentions, agentTainted: false });
+  if (Object.keys(blockSlots).some(key => !consumedSlots.has(key))) throw new TypeError("Issue body wrappers must preserve report content slots; check bodyHeader and bodyFooter for code fences");
 
   children.push(...parseReportMarkdown(appendExecutionProvenance("", workflowName, runUrl), { minimumHeadingLevel: 2, allowMetadata: true, agentTainted: false }));
   /** @type {import("./report_ast.cjs").Report} */

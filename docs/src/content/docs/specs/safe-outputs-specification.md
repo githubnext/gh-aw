@@ -2097,6 +2097,17 @@ The attributed issue builder parses agent content separately and inserts typed
 blocks into the framework template. Agent delimiters cannot close framework
 wrappers or consume the generated footer. Normalization MUST retain provenance and
 MUST NOT merge inline nodes across provenance boundaries.
+Serialization MAY inspect adjacent text or code as a complete run without
+mutating the AST, but MUST reapply normalization and secret redaction before
+escaping or choosing code fences. This prevents split secrets, controls, or
+mentions from becoming active output.
+
+Agent-authored missing-tool, missing-data, no-op, and incomplete-report diagnostics
+in generated footers MUST remain tainted. Their framework section labels,
+attribution, expiration, and metadata retain independent framework provenance.
+Issue builders MUST reject wrappers that prevent typed content slots from being
+consumed, including paired code-fence wrappers, rather than publish placeholder
+text or silently lose agent content.
 
 The runtime helper `redactReport(report, shouldRedact)` applies an additional,
 trusted-code policy to normalized block and inline nodes. A selected agent block
@@ -2106,7 +2117,18 @@ task, or table instead of leaving broken Markdown fragments. Framework nodes are
 not policy candidates, and mixed-origin subtrees MUST NOT be replaced wholesale.
 Their children are traversed instead; tainted inline slots in framework or
 mixed-origin paragraphs receive an inline notice without removing framework labels.
-The transform includes preamble and footer nodes and does not mutate the input.
+Consecutive selected inline siblings produce one notice per matching run, but the
+policy MUST still be evaluated for every candidate. Framework content or an
+unmatched sibling separates runs. The transform includes preamble and footer
+nodes and does not mutate the input.
+
+The report node's `agentTainted` flag also describes its title. A tainted title,
+including one with missing provenance, is offered to the same predicate as a
+normalized `{type: "text", value: title, agentTainted: true}` node. A selected title
+becomes the fixed `Content redacted.` title, and the report node is marked
+framework-origin so repeated redaction does not revisit it. Child provenance
+remains independent and unchanged. Framework titles and unmatched tainted titles
+are retained; ordinary title sanitization and secret redaction still apply.
 
 `buildIssueReport` and `buildIssueBodyReport` accept this predicate as the optional
 `redact` builder option. This is an internal runtime API, not an agent tool field

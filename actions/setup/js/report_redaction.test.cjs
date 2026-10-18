@@ -203,6 +203,54 @@ describe("report node provenance", () => {
 });
 
 describe("coarse report redaction", () => {
+  it("selects a tainted title as a text node and publishes a fixed framework title", async () => {
+    const policy = vi.fn(node => node.type === "text" && node.value === "Private title");
+    const input = buildIssueReport("Private title", "Visible body");
+    const copy = structuredClone(input);
+    const redacted = redactReport(input, policy);
+    expect(policy).toHaveBeenCalledWith({ type: "text", value: "Private title", agentTainted: true });
+    expect(redacted).toMatchObject({ title: "Content redacted.", agentTainted: false, children: input.children });
+    expect(input).toEqual(copy);
+    expect(redactReport(redacted, policy)).toEqual(redacted);
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: { number: 42 } }) } } };
+    await createReportIssue(client, { owner: "o", repo: "r", title: "Private title" }, redacted);
+    expect(client.rest.issues.create).toHaveBeenCalledWith({ owner: "o", repo: "r", title: "Content redacted.", body: "Visible body\n" });
+    expect(buildIssueReport("Private title", "Visible body", { redact: policy })).toEqual(redacted);
+  });
+
+  it("preserves unmatched and framework titles and does not revisit a replacement title", () => {
+    const selective = node => node.type === "code_block";
+    expect(buildIssueReport("Visible title", "Body", { redact: selective }).title).toBe("Visible title");
+    const frameworkPolicy = vi.fn(() => true);
+    const framework = buildIssueReport("Framework title", "Framework body", { agentTainted: false, redact: frameworkPolicy });
+    expect(framework.title).toBe("Framework title");
+    expect(frameworkPolicy).not.toHaveBeenCalled();
+    const redacted = redactReport(buildIssueReport("Private title", ""), () => true);
+    const repeatedPolicy = vi.fn(() => true);
+    expect(redactReport(redacted, repeatedPolicy)).toEqual(redacted);
+    expect(repeatedPolicy).not.toHaveBeenCalled();
+  });
+
+  it("treats missing title provenance as tainted without changing unmatched child provenance", () => {
+    const input = report([paragraph("Agent body")]);
+    const policy = vi.fn(node => node.type === "text" && node.value === "Report");
+    const redacted = redactReport(input, policy);
+    expect(policy).toHaveBeenCalledWith({ type: "text", value: "Report", agentTainted: true });
+    expect(redacted).toMatchObject({ title: "Content redacted.", agentTainted: false, children: normalizeReport(input).children });
+    expect(redactReport(redacted, () => true).children).toEqual([paragraph("Content redacted.", false)]);
+  });
+
+  it.each([true, false, undefined])("retains normal secret redaction for a title with provenance %s", agentTainted => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TITLE_REDACTION_TEST");
+    vi.stubEnv("SECRET_TITLE_REDACTION_TEST", "title-redaction-secret-fixture");
+    const input = { ...report([]), title: "Title title-redaction-secret-fixture", agentTainted };
+    const policy = vi.fn(() => false);
+    const redacted = redactReport(input, policy);
+    expect(renderReport(redacted).title).not.toContain("title-redaction-secret-fixture");
+    for (const [node] of policy.mock.calls) expect(node.value).not.toContain("title-redaction-secret-fixture");
+    expect(redactReport(redacted, policy)).toEqual(redacted);
+  });
+
   it("replaces complete selected paragraphs, tables, code blocks, and details, keeping safe siblings", () => {
     const input = buildIssueReport(
       "Report",
@@ -228,13 +276,14 @@ describe("coarse report redaction", () => {
     ]);
     const policy = vi.fn(() => true);
     const redacted = redactReport(input, policy);
-    expect(policy.mock.calls.map(([node]) => node.type)).toEqual(["paragraph", "paragraph"]);
+    expect(policy.mock.calls.map(([node]) => node.type)).toEqual(["text", "paragraph", "paragraph"]);
     expect(renderReport(redacted).body).toBe("<details>\n<summary>Framework evidence</summary>\n\nKeep framework text\n\n- Content redacted.\n- Content redacted.\n\n</details>\n");
   });
 
-  it("covers preambles, footer children, and typed footer markers without altering title or expiration", () => {
+  it("covers preambles, footer children, and typed footer markers without altering framework title or expiration", () => {
     const input = {
       ...report([]),
+      agentTainted: false,
       preamble: [paragraph("Preamble", true)],
       footer: {
         type: "footer",
@@ -290,6 +339,43 @@ describe("coarse report redaction", () => {
     expect(redactReport(redacted, node => node.type === "code")).toEqual(redacted);
   });
 
+  it("coalesces each consecutive inline matching run while evaluating every candidate", () => {
+    const inlineSlots = {
+      agent: [
+        { type: "text", value: "private before ", agentTainted: true },
+        { type: "code", value: "private code", agentTainted: true },
+        { type: "text", value: " private after", agentTainted: true },
+      ],
+      other: [
+        { type: "code", value: "other code", agentTainted: true },
+        { type: "text", value: " other text", agentTainted: true },
+      ],
+    };
+    const children = parseReportMarkdown("Framework label: {agent} / {other} suffix", { agentTainted: false, inlineSlots });
+    const input = { ...report(children), agentTainted: false };
+    const policy = vi.fn(() => true);
+    const redacted = redactReport(input, policy);
+    expect(policy.mock.calls.map(([node]) => node)).toEqual([...inlineSlots.agent, ...inlineSlots.other]);
+    expect(renderReport(redacted).body).toBe("Framework label: Content redacted. / Content redacted. suffix\n");
+    expect(redactReport(redacted, policy)).toEqual(redacted);
+    expect(policy).toHaveBeenCalledTimes(5);
+  });
+
+  it("keeps separate inline notices when an unmatched tainted node separates matches", () => {
+    const children = parseReportMarkdown("Framework label: {agent}", {
+      agentTainted: false,
+      inlineSlots: {
+        agent: [
+          { type: "code", value: "private before", agentTainted: true },
+          { type: "text", value: " visible ", agentTainted: true },
+          { type: "code", value: "private after", agentTainted: true },
+        ],
+      },
+    });
+    const redacted = redactReport(report(children), node => node.type === "code");
+    expect(renderReport(redacted).body).toBe("Framework label: Content redacted. visible Content redacted.\n");
+  });
+
   it("does not swallow framework descendants when an agent-origin ancestor would match", () => {
     const input = report([
       {
@@ -342,6 +428,19 @@ describe("attributed issue provenance", () => {
   });
 
   afterEach(() => Reflect.set(global, "context", previousContext));
+
+  it("redacts a selected issue-body title through publication while retaining unmatched titles", async () => {
+    const options = { repo: { owner: "owner", repo: "repo" }, footer: false };
+    const selective = node => node.type === "text" && node.value === "Private title";
+    const redacted = buildIssueBodyReport("Private title", "Visible body", { ...options, redact: selective });
+    expect(redacted).toMatchObject({ title: "Content redacted.", agentTainted: false });
+    expect(buildIssueBodyReport("Visible title", "Visible body", { ...options, redact: selective }).title).toBe("Visible title");
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: { number: 42 } }) } } };
+    await createReportIssue(client, { owner: "owner", repo: "repo", title: "Private title" }, redacted);
+    expect(client.rest.issues.create.mock.calls[0][0].title).toBe("Content redacted.");
+    expect(client.rest.issues.create.mock.calls[0][0].body).toContain("Visible body");
+    expect(redactReport(redacted, selective)).toEqual(redacted);
+  });
 
   it("keeps body nodes tainted inside framework wrappers and protects attribution, expiration, and metadata", () => {
     const policy = vi.fn(() => true);

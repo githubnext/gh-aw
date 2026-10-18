@@ -2,4 +2,4 @@
 "gh-aw": patch
 ---
 
-Track agent-origin provenance in the issue-body AST and add optional whole-block redaction policies that preserve framework attribution, wrappers, and metadata without relaxing existing sanitization.
+Track agent-origin provenance in the issue-body AST and add optional coarse redaction policies for titles, body content, and agent-authored footer diagnostics while preserving framework attribution and metadata without relaxing existing sanitization.

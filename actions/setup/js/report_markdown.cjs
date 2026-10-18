@@ -61,11 +61,12 @@ function bareURL(source) {
  * Templates are parsed before scalar substitution; values cannot introduce markup.
  * Existing diagnostic fragments are imported separately, never passed through as raw HTML.
  * Inline slots do not enable scalar template substitution in surrounding Markdown.
+ * onBlockSlot observes actual typed insertions, not literal placeholder text.
  * @param {string} markdown
- * @param {{context?: ReportContext, inlineSlots?: Record<string, ReportInline[]>, blockSlots?: Record<string, ReportBlock[]>, agentTainted?: boolean, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, allowedMentions?: string[]}} [options]
+ * @param {{context?: ReportContext, inlineSlots?: Record<string, ReportInline[]>, blockSlots?: Record<string, ReportBlock[]>, onBlockSlot?: (key: string) => void, agentTainted?: boolean, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, allowedMentions?: string[]}} [options]
  * @returns {ReportBlock[]}
  */
-function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, agentTainted, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
+function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
   if (depth > 16) throw new TypeError("Report template nesting exceeds the maximum depth");
   if (agentTainted !== undefined && typeof agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
   /**
@@ -197,7 +198,8 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, agent
 
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   let index = 0;
-  const nested = source => parseReportMarkdown(source, { context, inlineSlots, blockSlots, agentTainted, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, allowedMentions });
+  const nested = source =>
+    parseReportMarkdown(source, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, allowedMentions });
   const blockSlot = line => /^\{(\w+)\}$/.exec(line.trim())?.[1];
   const isBlockSlot = line => blockSlots && Object.hasOwn(blockSlots, blockSlot(line) ?? "");
   const isFieldLine = line => /^(?:\{\w+\}\s*)+$/.test(line.trim()) && (!inlineSlots || [...line.matchAll(/\{(\w+)\}/g)].some(field => !Object.hasOwn(inlineSlots, field[1])));
@@ -238,7 +240,8 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, agent
       let match;
       const slot = blockSlot(line);
       if (blockSlots && slot !== undefined && Object.hasOwn(blockSlots, slot)) {
-        nodes.push(...blockSlots[slot]);
+        nodes.push(...blockSlots[slot].map(node => ({ ...node })));
+        onBlockSlot?.(slot);
         index++;
       } else if (allowMetadata && (match = /^- \[[xX]\] expires <!-- gh-aw-expires: ([^<>]+) --> on .+$/.exec(line.trim()))) {
         nodes.push(fromSource({ type: "expiration", expiresAt: match[1].trim() }));

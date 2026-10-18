@@ -35,7 +35,8 @@ function redactionNotice() {
  * An inline match replaces its containing agent paragraph, heading, task, or table.
  * Framework and mixed-origin containers are traversed, never selected.
  * Missing provenance is tainted.
- * This is an additional body policy, not a substitute for normal sanitization.
+ * Tainted titles are offered as text nodes; selected titles become framework text.
+ * This is an additional content policy, not a substitute for normal sanitization.
  * @param {Report} report
  * @param {ReportRedactionPolicy} shouldRedact
  * @returns {Report}
@@ -49,18 +50,23 @@ function redactReport(report, shouldRedact) {
    */
   function inlines(nodes) {
     let redacted = false;
-    const result = nodes.map(node => {
+    let matching = false;
+    /** @type {ReportInline[]} */
+    const result = [];
+    for (const node of nodes) {
       if (isAgentSubtree(node) && shouldRedact(node)) {
         redacted = true;
-        return inlineRedactionNotice();
+        if (!matching) result.push(inlineRedactionNotice());
+        matching = true;
+        continue;
       }
+      matching = false;
       if ("children" in node) {
         const children = inlines(node.children);
         redacted ||= children.redacted;
-        return { ...node, children: children.nodes };
-      }
-      return node;
-    });
+        result.push({ ...node, children: children.nodes });
+      } else result.push(node);
+    }
     return { nodes: result, redacted };
   }
   /**
@@ -95,8 +101,10 @@ function redactReport(report, shouldRedact) {
       }
     });
   }
+  const titleRedacted = normalized.agentTainted !== false && shouldRedact({ type: "text", value: normalized.title, agentTainted: true });
   const result = {
     ...normalized,
+    ...(titleRedacted ? { title: "Content redacted.", agentTainted: false } : {}),
     children: blocks(normalized.children),
     ...(normalized.preamble ? { preamble: blocks(normalized.preamble) } : {}),
   };

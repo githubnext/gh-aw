@@ -138,6 +138,69 @@ describe("report AST", () => {
     expect(renderReport(input).body).toContain("`one two`");
   });
 
+  it.each(["text", "code"])("redacts complete %s rendering runs without changing provenance", type => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_PROVENANCE");
+    vi.stubEnv("SECRET_RENDER_PROVENANCE", "render-provenance-secret-fixture");
+    for (const values of [
+      ["render-provenance-", "se", "cret-fixture"],
+      ["render-provenance-&", "#115;", "ecret-fixture"],
+    ]) {
+      const children = values.map((value, index) => ({ type, value, ...(index === 1 ? {} : { agentTainted: index === 2 }) }));
+      const input = report([{ type: "paragraph", children }]);
+      const copy = structuredClone(input);
+      const normalized = normalizeReport(input);
+      expect(normalized.children[0].children).toEqual(children);
+      const body = renderReport(input).body;
+      expect(body).not.toContain("render-provenance-");
+      expect(body).not.toContain("secret-fixture");
+      expect(input).toEqual(copy);
+      expect(normalizeReport(normalized)).toEqual(normalized);
+    }
+  });
+
+  it.each([
+    ["@", "octocat"],
+    ["&", "#64;octocat"],
+    ["&", "#x1b;[31m@octocat"],
+  ])("neutralizes mentions and controls split across text provenance: %s + %s", (prefix, suffix) => {
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: prefix, agentTainted: false },
+          { type: "text", value: suffix, agentTainted: true },
+        ],
+      },
+    ]);
+    expect(renderReport(input).body).toBe("`@octocat`\n");
+    expect(normalizeReport(input).children[0].children).toHaveLength(2);
+  });
+
+  it("uses one valid code span across provenance boundaries without merging AST nodes", () => {
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "Value: ", agentTainted: false },
+          { type: "code", value: "prefix`", agentTainted: false },
+          { type: "code", value: "`suffix", agentTainted: true },
+        ],
+      },
+    ]);
+    const copy = structuredClone(input);
+    const body = renderReport(input).body;
+    expect(body).toBe("Value: ```prefix``suffix```\n");
+    expect(parseReportMarkdown(body)[0]).toEqual({
+      type: "paragraph",
+      children: [
+        { type: "text", value: "Value: " },
+        { type: "code", value: "prefix``suffix" },
+      ],
+    });
+    expect(normalizeReport(input).children[0].children).toEqual(input.children[0].children);
+    expect(input).toEqual(copy);
+  });
+
   it("escapes ordered-list syntax in literal paragraphs and refuses nested links", () => {
     expect(renderReport(report([paragraph("1. not a list")])).body).toBe("1\\. not a list\n");
     expect(() =>
