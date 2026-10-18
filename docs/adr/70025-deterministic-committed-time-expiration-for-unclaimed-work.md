@@ -1,51 +1,58 @@
 # ADR-70025: Deterministic Committed-Time Expiration for Unclaimed Work Queue Entries
 
 **Date**: 2026-10-18
-**Status**: Draft
-**Deciders**: pelikhan, Unknown (TODO: verify reviewers)
+**Status**: Proposed (implemented in PR #70025; maintainer acceptance pending)
+**Decision owner**: @pelikhan, the PR author. Formal architecture approval is not implied by this record.
 
 ---
 
 ### Context
 
-Work queue entries that are never claimed currently stay eligible for scheduling forever, so stale Work accumulates and can be granted long after it stops being useful. The work queue is an event-sourced log: state is a projection rebuilt by replaying committed operations (`Replay`). It is also compacted into checkpoints and implemented twice, once in Go (`pkg/workqueue`) and once in JavaScript (`actions/setup/js/work_queue_*.cjs`), and the two must produce identical projections. Any expiration mechanism therefore has to give the same result on every replaying machine, survive checkpoint/suffix replay, and stay identical across both implementations. It also must not weaken the authority of Claims that are already running (native reservations, fairness charges, delivery fencing, Results).
+Without a deadline, unclaimed Work can remain eligible indefinitely and be granted after it stops being useful. The requested scope is expiration of unclaimed Work, not leases for running Claims. The work queue is an event-sourced log: state is a projection rebuilt by replaying committed operations (`Replay`). It is compacted into checkpoints and implemented in both Go (`pkg/workqueue`) and JavaScript (`actions/setup/js/work_queue_*.cjs`). Expiration must produce identical historical projections across readers, clock changes, and checkpoint/suffix replay, without weakening Claim authority, native reservations, fairness charges, delivery fencing, or Results.
 
 ### Decision
 
-We will add an optional, immutable `expires_at` deadline (Unix milliseconds) to Work definitions. Expiration will be evaluated against a monotonic **committed-time watermark** (the maximum `At` of committed events), not the wall clock. When the watermark reaches the deadline (inclusive), Work that is still `available` and is not in `pending`/`failed` delivery moves deterministically to `cancelled` with reason `work_expired`. The watermark is stored in checkpoints so that replaying a checkpoint plus its suffix matches a full replay. Live readers (CLI `work` commands, scheduler/activation) get a throwaway current-time view through `ReplayAt` / `expirationView`, which must never be used to build checkpoints. Before publishing a Claim grant, the selected deadline is checked again against `max(now, watermark)`, so expired Work is not granted. Running Claims never expire.
+Add an optional, immutable `expires_at` deadline to Work definitions: a nonnegative safe-integer Unix-millisecond timestamp; omission means no expiration. Historical replay advances a monotonic **committed-time watermark**, the maximum committed `QueueCommit.at`, before and after each commit. At `watermark >= expires_at`, Work that is `available` and outside `pending`/`failed` delivery becomes `cancelled` with reason `work_expired`. This is a derived transition, not a synthetic `WorkCancellation` record. The immutable deadline and committed time supply its authority without a redundant cancellation commit or external timer.
+
+Checkpoints persist the maximum in `last_at`, not merely the final prefix timestamp, and preserve deadlines and derived cancellations. Restoration also takes the maximum from retained receipt timestamps and the checkpoint envelope time, including for older checkpoints. Backdated commits cannot lower the watermark or resurrect expired Work.
+
+Live readers use disposable trusted-time views through `ReplayAt`, `replayTransactions(asOf)`, or `expirationView`; these views must never become checkpoint authority. Publication rechecks selected deadlines against `max(now, watermark)` even if HEAD has not changed and regenerates a candidate when a deadline has elapsed. This is a trusted decision-time check, not a hard UTC publication fence.
+
+Running Claims remain authoritative after their Work deadlines. Claim cancellation can return Work to availability, where it expires at the current watermark. Pending or failed retained delivery continues to fence expiration; verified retained delivery can expose elapsed Work to expiration instead of another Claim. Expiration neither releases native reservations nor refunds charges, fabricates Results, satisfies dependencies, or removes FIFO history and stable request identity.
 
 ### Alternatives Considered
 
 #### Alternative 1: Wall-clock evaluation during replay
 
-Each reader could compare `expires_at` with `time.Now()` while replaying. This is the simplest option, but then the projection depends on when and where it is replayed. That breaks determinism, checkpoint/suffix equivalence, and Go/JS parity checks, so we rejected it. The PR still uses the wall clock, but only for disposable live views and the pre-publication recheck.
+Each reader could compare `expires_at` with its wall clock while replaying. That would make historical projections depend on when and where they are read, breaking deterministic replay and checkpoint/suffix equivalence. Wall-clock evaluation is therefore limited to disposable live views and the pre-publication recheck, rather than historical replay.
 
 #### Alternative 2: Explicit expiration operations (sweeper / garbage-collection commits)
 
-A scheduled job or the scheduler could append explicit `Cancel` operations for Work past its deadline. This keeps replay purely event-driven and would not need a new watermark field. We rejected it because it needs a separate deadline service with its own liveness and authority, and because Work stays grantable until the sweeper runs. [TODO: verify whether this was evaluated by the author]
+Explicit `WorkCancellation` records, produced by a sweeper or the scheduler, were considered during the investigation. They keep cancellation directly recorded in the event log, but make expiration depend on an additional successful publication and add redundant records for a consequence already determined by the deadline and committed time. Without a separate selection-time check, Work remains grantable until that cancellation is committed. The derived transition avoids this extra publication dependency while retaining explicit cancellation for other authorized reasons.
 
 #### Alternative 3: Lease/timeout on running Claims as well
 
-Deadlines could also apply to running Claims, releasing their native reservations on timeout. The PR explicitly rules this out because it would weaken Claim authority and could release capacity or fabricate outcomes without verified evidence. The TLA+ mutation `BrokenExpirationRelease`/`BrokenExpirationClaim` configurations encode this as a violation.
+Lease-like expiration of running Claims was also considered and excluded from this scope. Elapsed time does not prove physical worker quiescence or authorize native-capacity release. Such a design would need a separate draining/fencing protocol and termination evidence; simply timing out Claims would weaken existing authority. The `BrokenExpirationRelease` and `BrokenExpirationClaim` model configurations check that timeout-only release and expiration of running Claims violate the selected safety contract.
 
 ### Consequences
 
 #### Positive
-- Stale unclaimed Work stops being schedulable and stops blocking dependency refresh, without a separate cleanup service.
+- Stale unclaimed Work stops being schedulable without a separate cleanup service; cancellation does not falsely satisfy its dependents.
 - Historical replay stays deterministic and machine-independent, and checkpoints keep the watermark, so checkpoint and suffix replay stay equivalent.
-- Running Claims, fairness charges, native reservations, and Results are unaffected, which keeps existing safety guarantees.
-- Bounded formal evidence (`specs/work-queue/WorkExpiration.tla`, 34,023 states at depth 6, mutation controls) backs the safety properties.
+- Expiration preserves running Claim authority, fairness charges, native reservations, Results, FIFO history, and stable requests.
+- The [expiration model](../../specs/work-queue/WorkExpiration.tla) supplies bounded safety evidence: 34,023 distinct states at depth 6, with five negative mutations and two safety-guarded witnesses. It is not an unbounded proof, runtime refinement, or liveness theorem.
 
 #### Negative
-- Expiration only moves forward when new events are committed. Without new commits, the persisted projection does not record Work as expired, and readers depend on the current-time view. The PR states there is no hard UTC publication fence.
-- Old readers must be upgraded before deadline-bearing Work is published, because the protocol uses closed-schema validation (new `expires_at` in 7 generated schemas).
+- Historical expiration advances only with committed time. Without queue activity, no timer publishes automatically; live readers use disposable time views. Clock skew, uncommitted clock rollback, or a deadline crossed during Git publication prevent a hard UTC fence.
+- Old readers must be upgraded before deadline-bearing Work is published because the protocol uses closed-schema validation.
 - The logic is duplicated in Go and JavaScript (`expiration.go` / `work_queue_expiration.cjs`), which adds to the parity maintenance burden.
 - Deadlines are immutable. Changing one means creating a new Work node identity (`work_conflict`).
+- Finite-deadline Work can lose eligibility before service; conditional eventual-service guarantees do not promise a grant or completion before expiration.
 
 #### Neutral
-- There are now two projection flavours: committed-time `Replay` (authoritative, checkpointable) and `ReplayAt` (live, disposable). Callers must pick the right one.
-- `expires_at` is exposed through the CLI (`--expires-at`), graph, staged-plan, and MCP submission paths, and documented in the work-queue reference and specification.
+- There are two projection flavours: committed-time replay (authoritative, checkpointable) and explicit live-time views (disposable). Callers must keep them separate.
+- `expires_at` is exposed through CLI (`--expires-at`), graph, staged-plan, and MCP submission paths. The [reference](../src/content/docs/reference/work-queue.md#work-expiration) and [specification](../src/content/docs/specs/work-queue-specification.md#unclaimed-work-expiration) define the shared Go/JavaScript contract.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+Implementation: [PR #70025](https://github.com/github/gh-aw/pull/70025). Verification scope and model limits: [expiration model evidence](../../specs/work-queue/README.md#unclaimed-work-expiration-model).
