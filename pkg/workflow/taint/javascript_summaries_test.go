@@ -60,7 +60,10 @@ func TestJavaScriptFastSummaryEffects(t *testing.T) {
 		{"error retains source", `console.log(require("./actions/setup/js/error_helpers.cjs").getErrorMessage({message:process.env.TOKEN}))`, true, false, true},
 		{"error predicate", `console.log(require("./actions/setup/js/error_helpers.cjs").isLockedError({message:process.env.TOKEN,status:403}))`, false, false, false},
 		{"OTLP returns credentials", `console.log(require("./actions/setup/js/otlp_header_helpers.cjs").getOTLPSecretValues())`, true, false, true},
+		{"OTLP runner masks retain credentials", `console.log(require("./actions/setup/js/otlp_header_helpers.cjs").getOTLPRunnerMaskValues())`, true, false, true},
+		{"OTLP reexported runner masks retain credentials", `console.log(require("./actions/setup/js/actions_secret_masking.cjs").getOTLPRunnerMaskValues())`, true, false, true},
 		{"OTLP warning callback", `global.core={warning: ()=>console.error(process.env.TOKEN)}; require("./actions/setup/js/otlp_header_helpers.cjs").getOTLPSecretValues()`, true, false, false},
+		{"OTLP runner masks warning callback", `global.core={warning: ()=>console.error(process.env.TOKEN)}; require("./actions/setup/js/otlp_header_helpers.cjs").getOTLPRunnerMaskValues()`, true, false, false},
 		{"OTLP excludes unrelated env", `console.log(require("./actions/setup/js/otlp_header_helpers.cjs").getAuthorizationSecretValues("public"))`, false, false, false},
 	}
 	sources := make([]string, len(tests))

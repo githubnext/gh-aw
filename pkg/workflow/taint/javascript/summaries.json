@@ -2,20 +2,22 @@
   "version": 1,
   "modules": {
     "actions/setup/js/actions_secret_masking.cjs": {
-      "sha256": "a9d96b61b72cc766bedde6aafe16fc2335b808e2db280713c9ae5f888317cc39",
+      "sha256": "eb2700fa689629952dc12a2ea6b5e4f67e8d324a69d4879c066562a343f628a1",
       "dependencies": ["actions/setup/js/otlp_header_helpers.cjs"],
       "exports": {
         "escapeWorkflowCommandValue": "escaped-command-value",
         "maskSecret": "mask-secret",
-        "getOTLPSecretValues": "otlp-values"
+        "getOTLPSecretValues": "otlp-values",
+        "getOTLPRunnerMaskValues": "otlp-values"
       }
     },
     "actions/setup/js/otlp_header_helpers.cjs": {
-      "sha256": "f4aeb96dc67e9c0e6e1ea11505836cca18e1c446c2c2713e94cf9b11a3dae275",
+      "sha256": "10fa229aac00bf745fffdc45350ff0169a30f9402f979c5063c17dc9d5022c82",
       "exports": {
         "parseOTLPHeaders": "argument-object",
         "getAuthorizationSecretValues": "argument-array",
-        "getOTLPSecretValues": "otlp-values"
+        "getOTLPSecretValues": "otlp-values",
+        "getOTLPRunnerMaskValues": "otlp-values"
       }
     },
     "actions/setup/js/git_auth_env.cjs": {
