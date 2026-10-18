@@ -81,7 +81,10 @@ func TestWebhookManifestCompilation(t *testing.T) {
 					require.Len(t, manifest.WebhookSubscriptions, 2)
 				}
 				for _, subscription := range manifest.WebhookSubscriptions {
-					assert.Equal(t, 1, subscription.SchemaVersion)
+					assert.Equal(t, 2, subscription.SchemaVersion)
+					assert.Equal(t, WebhookBatch{Mode: "same-event", DeduplicateBy: "delivery_id"}, subscription.Dispatch.Batch)
+					assert.Equal(t, "github.event.client_payload.aw_context.webhook.deliveries", subscription.Dispatch.Context.Deliveries)
+					assert.Equal(t, "aw_context.items", subscription.Dispatch.Context.Items)
 					assert.Equal(t, WebhookDispatchEventType(name), subscription.Dispatch.EventType)
 					assert.Equal(t, ".github/workflows/"+name+".lock.yml", subscription.Dispatch.Workflow)
 					assert.Equal(t, "${{ github.repository }}", subscription.Dispatch.Repository)

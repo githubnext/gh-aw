@@ -46,6 +46,17 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_webhook_batch_context",
+			content:     "Items: ${{ toJSON(github.aw.context.items) }}, event: ${{ github.aw.context.webhook.event }}",
+			expectError: false,
+		},
+		{
+			name:           "webhook_payloads_are_not_implicitly_allowlisted",
+			content:        "${{ toJSON(github.aw.context.webhook) }} ${{ github.aw.context.webhook.deliveries[0].payload }}",
+			expectError:    true,
+			expectedErrors: []string{"toJSON(github.aw.context.webhook)", "github.aw.context.webhook.deliveries[0].payload"},
+		},
+		{
 			name:        "allowed_needs_task_outputs_text",
 			content:     "Task output: ${{ steps.sanitized.outputs.text }}",
 			expectError: false,

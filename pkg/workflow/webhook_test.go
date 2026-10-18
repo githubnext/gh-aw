@@ -97,10 +97,12 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 	if !slices.Equal(sub.Types, []string{"created", "edited"}) || len(sub.Conditions[0].Values) != 2 {
 		t.Fatalf("values not canonicalized: %+v", sub)
 	}
-	if sub.SchemaVersion != 1 || sub.Dispatch.Repository != "${{ github.repository }}" ||
+	if sub.SchemaVersion != 2 || sub.Dispatch.Repository != "${{ github.repository }}" ||
 		sub.Dispatch.Method != "repository_dispatch" || sub.Dispatch.MaxPayloadBytes != 65535 || sub.Dispatch.MaxRequestBytes != 65535 ||
-		sub.Dispatch.Context.Payload != "github.event.client_payload.payload" ||
 		sub.Dispatch.PayloadProjection != nil ||
+		sub.Dispatch.Context.Deliveries != "github.event.client_payload.aw_context.webhook.deliveries" ||
+		sub.Dispatch.Context.Items != "aw_context.items" ||
+		sub.Dispatch.Batch.Mode != "same-event" || sub.Dispatch.Batch.DeduplicateBy != "delivery_id" ||
 		sub.Dispatch.Workflow != ".github/workflows/project-agent.lock.yml" {
 		t.Fatalf("incomplete dispatch contract: %+v", sub)
 	}

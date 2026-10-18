@@ -63,9 +63,16 @@ type WebhookCondition struct {
 // WebhookContext maps the inline envelope into the standard GitHub context.
 type WebhookContext struct {
 	Envelope   string `json:"envelope"`
+	AWContext  string `json:"aw_context"`
 	Event      string `json:"event"`
-	Payload    string `json:"payload"`
-	DeliveryID string `json:"delivery_id"`
+	Deliveries string `json:"deliveries"`
+	Items      string `json:"items"`
+}
+
+// WebhookBatch declares receiver-side homogeneous batching and delivery identity.
+type WebhookBatch struct {
+	Mode          string `json:"mode"`
+	DeduplicateBy string `json:"deduplicate_by"`
 }
 
 // WebhookDispatch is the routing contract for a subscription.
@@ -78,6 +85,7 @@ type WebhookDispatch struct {
 	Workflow          string                    `json:"workflow"`
 	PayloadProjection *WebhookPayloadProjection `json:"payload_projection,omitempty"`
 	Context           WebhookContext            `json:"context"`
+	Batch             WebhookBatch              `json:"batch"`
 	MaxPayloadBytes   int                       `json:"max_payload_bytes"`
 	MaxRequestBytes   int                       `json:"max_request_bytes"`
 }
@@ -286,15 +294,18 @@ func webhookStringValues(raw any, path string) ([]string, error) {
 
 func newWebhookSubscription(workflowID, event string, types []string, conditions []WebhookCondition) WebhookSubscription {
 	subscription := WebhookSubscription{
-		SchemaVersion: 1, Event: event, Types: types, Conditions: conditions,
+		SchemaVersion: 2, Event: event, Types: types, Conditions: conditions,
 		Dispatch: WebhookDispatch{
 			Repository: "${{ github.repository }}", Method: "repository_dispatch",
 			EventType: WebhookDispatchEventType(workflowID),
 			Workflow:  constants.WorkflowsDirSlash + workflowID + ".lock.yml",
 			Context: WebhookContext{
-				Envelope: "github.event.client_payload", Event: "github.event.client_payload.event",
-				Payload: "github.event.client_payload.payload", DeliveryID: "github.event.client_payload.delivery_id",
+				Envelope: "github.event.client_payload", AWContext: "github.event.client_payload.aw_context",
+				Event:      "github.event.client_payload.aw_context.webhook.event",
+				Deliveries: "github.event.client_payload.aw_context.webhook.deliveries",
+				Items:      "aw_context.items",
 			},
+			Batch:           WebhookBatch{Mode: "same-event", DeduplicateBy: "delivery_id"},
 			MaxPayloadBytes: 65535, MaxRequestBytes: 65535,
 		},
 	}

@@ -20,7 +20,9 @@ engine: copilot
 ---
 # Webhook workflow
 
-Inspect the inline webhook at github.event.client_payload.payload.
+Inspect the batched webhooks in aw_context.webhook.deliveries.
+Items: ${{ toJSON(github.aw.context.items) }}
+Event: ${{ github.aw.context.webhook.event }}
 `
 }
 
@@ -79,10 +81,15 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.Contains(t, agent, `cp -- "$GITHUB_EVENT_PATH" "${RUNNER_TEMP}/gh-aw/github-event.json"`)
 	assert.NotContains(t, activation, `cp -- "$GITHUB_EVENT_PATH"`)
 	assert.Contains(t, activation, "Read the projected repository_dispatch event from /tmp/gh-aw/github-event.json")
-	assert.Contains(t, activation, "client_payload.payload")
-	assert.Contains(t, activation, "canonical API URL at client_payload.payload.url")
+	assert.Contains(t, activation, "canonical API URL at each delivery's payload.url")
 	assert.Contains(t, activation, "authenticated GitHub App client")
+	assert.Contains(t, activation, "client_payload.aw_context.webhook.deliveries")
+	assert.Contains(t, activation, "context.items")
+	assert.Contains(t, activation, "Handle every item")
 	assert.Contains(t, activation, "GH_AW_WEBHOOK_TRIGGER:")
+	assert.Contains(t, activation, "toJSON(fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').items)")
+	assert.Contains(t, activation, "fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.event")
+	assert.NotContains(t, activation, "${{ github.aw.context.")
 }
 
 func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {

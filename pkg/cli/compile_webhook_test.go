@@ -67,7 +67,7 @@ engine: copilot
 ---
 # Webhook workflow
 
-Inspect github.event.client_payload.payload.
+Inspect the batch in aw_context.webhook.deliveries and unique aw_context.items.
 `), 0600))
 	compiler := workflow.NewCompiler()
 	result := compileWorkflowFile(context.Background(), compiler, path, compileWorkflowFileOptions{
@@ -77,12 +77,15 @@ Inspect github.event.client_payload.payload.
 	require.True(t, result.validationResult.Valid)
 	require.Len(t, result.validationResult.WebhookSubscriptions, 1)
 	subscription := result.validationResult.WebhookSubscriptions[0]
-	assert.Equal(t, 1, subscription.SchemaVersion)
+	assert.Equal(t, 2, subscription.SchemaVersion)
 	assert.Equal(t, "projects_v2_item", subscription.Event)
 	assert.Equal(t, []string{"edited"}, subscription.Types)
 	assert.Equal(t, "repository_dispatch", subscription.Dispatch.Method)
 	assert.Equal(t, workflow.WebhookDispatchEventType("webhook-test"), subscription.Dispatch.EventType)
-	assert.Equal(t, "github.event.client_payload.payload", subscription.Dispatch.Context.Payload)
+	assert.Equal(t, "github.event.client_payload.aw_context.webhook.deliveries", subscription.Dispatch.Context.Deliveries)
+	assert.Equal(t, "github.event.client_payload.aw_context", subscription.Dispatch.Context.AWContext)
+	assert.Equal(t, "aw_context.items", subscription.Dispatch.Context.Items)
+	assert.Equal(t, workflow.WebhookBatch{Mode: "same-event", DeduplicateBy: "delivery_id"}, subscription.Dispatch.Batch)
 	require.Len(t, subscription.Conditions, 3)
 	assert.Equal(t, []string{"changes", "field_value", "field_name"}, subscription.Conditions[0].Path)
 	assert.Equal(t, "string", subscription.Conditions[0].ValueType)

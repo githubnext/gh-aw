@@ -785,7 +785,7 @@
                   "properties": { "project_id": false }
                 }
               },
-              "description": "Experimental. Projects v2 item events requiring a hosted CAO server and aw.json webhook-triggers: true. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
+              "description": "Experimental. Batched Projects v2 item events requiring a hosted CAO server and aw.json webhook-triggers: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
             },
             "security-alert": {
               "type": "object",
@@ -820,7 +820,7 @@
                   "properties": { "severity": false }
                 }
               },
-              "description": "Experimental. Security alert subscriptions requiring a hosted CAO server and aw.json webhook-triggers: true. Selects only the configured sources through a trusted repository_dispatch relay."
+              "description": "Experimental. Batched security alert subscriptions requiring a hosted CAO server and aw.json webhook-triggers: true. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",

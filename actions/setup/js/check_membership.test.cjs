@@ -1134,11 +1134,14 @@ describe("check_membership.cjs", () => {
         action: "gh-aw-webhook-test",
         sender: { login: "cao-gateway[bot]" },
         client_payload: {
-          schema_version: 1,
-          event,
-          delivery_id: "test-delivery",
+          schema_version: 2,
           actor: "cao-gateway[bot]",
-          payload: { sender: { login: "admin-user" }, role: "admin" },
+          aw_context: {
+            webhook: {
+              event,
+              deliveries: [{ delivery_id: "test-delivery", payload: { sender: { login: "admin-user" }, role: "admin" } }],
+            },
+          },
         },
       };
       mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission, role_name: role } });

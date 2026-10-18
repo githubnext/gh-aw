@@ -427,6 +427,38 @@ describe("generate_aw_info.cjs", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse aw_context input as JSON"));
   });
 
+  it("exposes normalized webhook arrays in aw_info and expression outputs without requiring caller-run fields", async () => {
+    const deliveries = [
+      { delivery_id: "first", payload: { action: "edited", projects_v2_item: { id: 1 }, private: "do-not-log-payload" } },
+      { delivery_id: "second", payload: { action: "created", projects_v2_item: { id: 2 } } },
+      { delivery_id: "third", payload: { action: "edited", projects_v2_item: { id: 1 } } },
+    ];
+    const raw = { webhook: { event: "projects_v2_item", deliveries: [...deliveries, deliveries[0]] }, items: [{ item_number: "forged" }], item_number: "first-item-must-not-be-selected" };
+    const expected = {
+      webhook: { event: "projects_v2_item", deliveries },
+      items: [1, 2].map(number => ({ item_type: "projects_v2_item", item_number: String(number), repo: "", project_id: "" })),
+    };
+    for (const payload of [{ client_payload: { schema_version: 2, aw_context: raw } }, { inputs: { aw_context: JSON.stringify({ repo: "org/repo", run_id: "1", workflow_id: "parent", ...raw }) } }]) {
+      vi.clearAllMocks();
+      await main(mockCore, { ...mockContext, eventName: "repository_dispatch", payload });
+      const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+      expect(info.context).toMatchObject(expected);
+      expect(info.context.item_number).toBe("");
+      const [, json] = mockCore.setOutput.mock.calls.find(([key]) => key === "aw_context");
+      expect(JSON.parse(json)).toMatchObject(expected);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+      expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("forged");
+      expect(mockCore.info.mock.calls.flat().join("\n")).not.toContain("do-not-log-payload");
+    }
+  });
+
+  it("fails malformed webhook arrays instead of returning an empty context", async () => {
+    const payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [] } } } };
+    await expect(main(mockCore, { ...mockContext, payload })).rejects.toThrow(/non-empty array/);
+    expect(mockCore.setOutput).not.toHaveBeenCalledWith("aw_context", expect.anything());
+    expect(fs.existsSync(awInfoPath)).toBe(false);
+  });
+
   it("should reject aw_context with nested objects", async () => {
     const contextWithNested = {
       ...mockContext,

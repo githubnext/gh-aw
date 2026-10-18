@@ -14,6 +14,7 @@ const { parseRepoSlug, validateTargetRepo, parseAllowedRepos } = require("./repo
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { buildAwContext } = require("./aw_context.cjs");
+const { redactWebhookPayloads } = require("./webhook_context.cjs");
 const { SAFE_OUTPUT_E001, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 
 /**
@@ -138,7 +139,7 @@ async function main(config = {}) {
 
     // If in staged mode, preview without executing
     if (isStaged || isStagedMode(toolConfig)) {
-      logStagedPreviewInfo(`Would dispatch repository_dispatch event: event_type="${eventType}" to ${targetRepoSlug}, client_payload=${JSON.stringify(clientPayload)}`);
+      logStagedPreviewInfo(`Would dispatch repository_dispatch event: event_type="${eventType}" to ${targetRepoSlug}, client_payload=${JSON.stringify({ ...clientPayload, aw_context: redactWebhookPayloads(clientPayload.aw_context) })}`);
       dispatchCounts[toolName] = currentCount + 1;
       return {
         success: true,

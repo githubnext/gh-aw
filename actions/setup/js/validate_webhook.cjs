@@ -4,6 +4,7 @@
 const fs = require("fs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
 const MAX_DISPATCH_REQUEST_BYTES = 65535;
@@ -38,13 +39,14 @@ function eventName(env) {
 
 /**
  * Validate the dispatch transport without replacing the GitHub authorization
- * context. The gateway may project only part of the source webhook payload.
+ * context. Same-kind deliveries are carried in client_payload.aw_context.webhook.
+ * The gateway may project only part of each source webhook payload.
  * Actor authorization uses the standard pre-activation membership check.
  * Subscription conditions are evaluated by the webhook receiver, not here.
  *
  * @param {any} event - Actual repository_dispatch event, never the inner webhook
  * @param {NodeJS.ProcessEnv} [env]
- * @returns {{skipped: boolean, event?: string, delivery_id?: string}}
+ * @returns {{skipped: boolean, event?: string, delivery_ids?: string[]}}
  */
 function validateWebhook(event, env = process.env) {
   if (eventName(env) !== "repository_dispatch") {
@@ -62,12 +64,12 @@ function validateWebhook(event, env = process.env) {
         isObject(subscription.dispatch) &&
         isNonemptyString(subscription.dispatch.event_type) &&
         subscription.dispatch.event_type.length <= MAX_EVENT_TYPE_LENGTH &&
-        subscription.schema_version === 1 &&
+        subscription.schema_version === WEBHOOK_SCHEMA_VERSION &&
         Array.isArray(subscription.types) &&
         subscription.types.every(isNonemptyString)
     )
   ) {
-    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 1 subscriptions");
+    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions");
   }
 
   if (!isObject(event) || !isNonemptyString(event.action) || event.action.length > MAX_EVENT_TYPE_LENGTH) {
@@ -90,61 +92,27 @@ function validateWebhook(event, env = process.env) {
   if (Buffer.byteLength(JSON.stringify({ event_type: event.action, client_payload: envelope }), "utf8") > MAX_DISPATCH_REQUEST_BYTES) {
     reject("repository_dispatch request must be less than 65536 bytes including event_type and client_payload");
   }
-  if (envelope.schema_version !== 1) {
-    reject("client_payload.schema_version must match subscription version 1");
+  if (envelope.schema_version !== WEBHOOK_SCHEMA_VERSION) {
+    reject("client_payload.schema_version must match subscription version 2");
   }
-  const eventSubscriptions = matching.filter(subscription => subscription.event === envelope.event);
+  if (Object.keys(envelope).some(key => !["schema_version", "aw_context"].includes(key))) {
+    reject("client_payload accepts only schema_version and aw_context; singleton webhook envelopes are unsupported");
+  }
+  const normalized = normalizeWebhookContext(envelope.aw_context, env);
+  if (!normalized) {
+    reject("client_payload.aw_context.webhook is required");
+  }
+  const eventSubscriptions = matching.filter(subscription => subscription.event === normalized.webhook.event);
   if (eventSubscriptions.length !== 1) {
-    reject("client_payload.event must match the webhook subscription");
+    reject("aw_context.webhook.event must match the webhook subscription");
   }
   const subscription = eventSubscriptions[0];
-  if (!isNonemptyString(envelope.delivery_id)) {
-    reject("client_payload.delivery_id must be a non-empty string");
-  }
-  if (!isObject(envelope.payload)) {
-    reject("client_payload.payload must be an inline webhook object");
-  }
-  if (envelope.payload.action !== undefined) {
-    if (!isNonemptyString(envelope.payload.action)) {
-      reject("webhook payload action must be a non-empty string when present");
-    }
-    if (subscription.types.length > 0 && !subscription.types.includes(envelope.payload.action)) {
+  for (const delivery of normalized.webhook.deliveries) {
+    if (delivery.payload.action !== undefined && subscription.types.length > 0 && !subscription.types.includes(delivery.payload.action)) {
       reject("webhook payload action does not match the subscription types");
     }
   }
-  if (["code_scanning_alert", "dependabot_alert"].includes(envelope.event)) {
-    let baseURL;
-    try {
-      baseURL = new URL(env.GITHUB_API_URL || "https://api.github.com");
-    } catch (error) {
-      throw new Error(`${ERR_VALIDATION}: Webhook validation failed: GITHUB_API_URL must be a valid URL`, { cause: error });
-    }
-    if (!isNonemptyString(envelope.payload.url)) {
-      reject("security alert payload must contain only a canonical GitHub API alert URL");
-    }
-    let alertURL;
-    try {
-      alertURL = new URL(envelope.payload.url);
-    } catch {
-      reject("security alert payload must contain only a canonical GitHub API alert URL");
-    }
-    const apiPath = `${baseURL.pathname.replace(/\/$/, "")}/repos/`;
-    const alertPath = envelope.event === "code_scanning_alert" ? /\/code-scanning\/alerts\/\d+$/ : /\/dependabot\/alerts\/\d+$/;
-    if (
-      Object.keys(envelope.payload).length !== 1 ||
-      alertURL.protocol !== "https:" ||
-      alertURL.origin !== baseURL.origin ||
-      !alertURL.pathname.startsWith(apiPath) ||
-      !alertPath.test(alertURL.pathname) ||
-      alertURL.username !== "" ||
-      alertURL.password !== "" ||
-      alertURL.search !== "" ||
-      alertURL.hash !== ""
-    ) {
-      reject("security alert payload must contain only a canonical GitHub API alert URL");
-    }
-  }
-  return { skipped: false, event: envelope.event, delivery_id: envelope.delivery_id };
+  return { skipped: false, event: normalized.webhook.event, delivery_ids: normalized.webhook.deliveries.map(delivery => delivery.delivery_id) };
 }
 
 /**
@@ -166,7 +134,7 @@ async function main() {
   }
   const result = validateWebhook(event);
   if (!result.skipped && typeof core !== "undefined") {
-    core.info("Webhook envelope and inline payload validated.");
+    core.info(`Webhook batch validated (${result.delivery_ids?.length} unique deliveries).`);
   }
   return result;
 }
