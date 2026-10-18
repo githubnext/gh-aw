@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.58
+**Version**: 1.0.59
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -280,7 +280,9 @@ The in-process registry in `pkg/workflow/lint` defines rules only against parsed
 | CTR-033 | `checkout-mode` | Repository-list expansion requires literal boolean opt-in. Literal lists cannot use single mode; multi mode requires an authored literal non-root prefix and nonempty scoped allowlist and cannot enable LFS, submodules, current identity, or wiki expansion. Missing prerequisites defer for unresolved imports. Does not prove runtime selector trust, repository visibility, App scope, or merged authorization. | `pkg/workflow/lint/checkout_policy.go`, `ast_policy_test.go` |
 | CTR-034 | `fork-association` | Explicit fork association admission uses GitHub's uppercase enum; empty lists and repository wildcard patterns are valid. Does not reconstruct generated same-repository/fork admission guards or infer secret availability. | `pkg/workflow/lint/fork_policy.go`, `ast_policy_test.go` |
 
-`pkg/workflow/lint/repository_workflows_test.go` applies the registered checks to repository lock files and companion AW documents. `pkg/cli/lint_workflow_test.go` exercises default execution and preserves diagnostics from independent rules even when another rule fails.
+`pkg/workflow/lint/repository_workflows_test.go` applies the registered checks to repository lock files and companion AW documents. `pkg/workflow/lint/rule_contract_test.go` requires positive and negative fixtures for every registered rule and supported AST, including strict/non-strict AW severity, read-only inputs, and repeatable diagnostics. `pkg/cli/lint_workflow_test.go` exercises default execution and preserves diagnostics from independent rules even when another rule fails.
+
+Secret-leak coverage diagnostics remain available from the AST runner. The CLI hides these warnings in normal text/JSON output and restores them with `--debug`; it MUST NOT hide error findings, analysis failures, or other rules' warnings. Presentation filtering is not additional analysis coverage or evidence of safety. JavaScript object-rest modeling preserves member provenance rather than tainting every copied member from a credential-bearing sibling.
 
 Source-only checks accept an AW AST independently or as a companion and skip native Actions without that evidence. They inspect authored frontmatter only; they do not recursively load imports or reconstruct compiler/CLI policy overrides. Version-check, private-to-public, install-scripts, and network-scope findings follow authored strict policy; conditional imports and bare allowed-label wildcards are always errors. Blanket write grants follow the same authored strict policy, while invalid OIDC read grants are always errors. Push-target findings remain warnings regardless of strict mode and defer when imports may supply constraints. Explicit domain allowances mixed with `defaults` do not hide a bare wildcard from network-scope, unlike the compiler's existing early-default acceptance.
 
