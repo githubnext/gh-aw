@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"slices"
 	"strings"
 	"sync"
 
@@ -38,11 +37,6 @@ var copilotClaudeModelIDs = []string{
 	"claude-sonnet-4.6",
 	"claude-sonnet-5",
 	"claude-sonnet-5.5",
-}
-
-// CopilotClaudeModelIDs returns a copy of the Copilot Claude model ids known to the compiler.
-func CopilotClaudeModelIDs() []string {
-	return slices.Clone(copilotClaudeModelIDs)
 }
 
 // claudeCopilotModelOverrides maps each Anthropic model id to the Copilot model id for
