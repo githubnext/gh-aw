@@ -44,6 +44,42 @@ This directory retains executable specifications and formal evidence, not a
 second current user guide. The historical material below is model provenance,
 not supported deployment guidance.
 
+## Unclaimed Work expiration model
+
+`WorkExpiration.tla` isolates optional immutable Work deadlines from Claim
+authority. Its finite universe has two Work nodes, timestamps 0–2, at most four
+committed events and one abstract checkpoint. Each event advances the maximum
+committed time and expires only available Work outside pending/failed delivery.
+It includes grant, finish, retained finish, Claim cancellation, verified
+delivery, exact terminal evidence and reservation release. Expiry before a
+grant and a grant before expiry are distinct causal outcomes.
+
+`ExpirationSafety` checks no expired grants, unchanged Claim history, immutable
+charges, completion/Result preservation, native release authority, monotonic
+committed time, full replay and checkpoint/suffix equivalence. Checkpoints retain
+the expiration watermark. Five mutation configurations require their exact
+named violations: expired grants, timeout-only native release, expired running
+Claims, timestamp rollback and checkpoint watermark loss. Two safety-guarded
+witnesses reach a running Claim past its deadline and a checkpoint with expired
+Work.
+
+Official TLC 2.19 (pinned jar SHA below), Java 21, exhausted **34,023 distinct
+states at depth 6** for `WorkExpiration.cfg`. All eight configurations produced
+their exact expected verdicts. Reproduce with:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=WorkExpiration bash specs/work-queue/check.sh
+```
+
+This is bounded safety evidence, not an unbounded proof, runtime refinement,
+JSON/checkpoint codec proof, or a wall-clock/GitHub timing guarantee. Identity,
+immutable deadlines and exact terminal observations are trusted premises.
+The model abstracts retry counts, DAG structure, publication contention and
+physical pruning. The native conformance tests cover those runtime boundaries
+separately. No liveness property promises service before a finite expiration;
+the existing `QueueService` result remains conditional on continuous eligibility.
+
 ## Retained Claim completion model
 
 `FairWorkQueue.tla` models optional `keep_open: boolean` on the finish request

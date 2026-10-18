@@ -73,11 +73,15 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 
 	tests := []struct {
 		name       string
+		engine     string
 		mutate     string
 		execution  string
 		wantFailed string
 	}{
 		{name: "success", execution: "success"},
+		{name: "pi success", engine: "pi", execution: "success"},
+		{name: "gemini success", engine: "gemini", execution: "success"},
+		{name: "pi interrupted before noop", engine: "pi", execution: "success", mutate: `fs.unlinkSync(process.env.CONFORMANCE_SAFE_OUTPUTS);`, wantFailed: "staged-safe-output"},
 		{name: "failed agent", execution: "failure", wantFailed: "agent-execution"},
 		{name: "timed out agent", execution: "cancelled", wantFailed: "agent-execution"},
 		{name: "missing result", execution: "success", mutate: `fs.unlinkSync(resultPath);`, wantFailed: "result-schema"},
@@ -102,13 +106,17 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			engine := test.engine
+			if engine == "" {
+				engine = "copilot"
+			}
 			directory := t.TempDir()
 			root := filepath.Join(directory, "agent")
 			host := filepath.Join(directory, "host")
 			env := []string{
-				"CONFORMANCE_ENGINE=copilot", "CONFORMANCE_ROOT=" + root,
+				"CONFORMANCE_ENGINE=" + engine, "CONFORMANCE_ROOT=" + root,
 				"CONFORMANCE_STATE=" + host, "CONFORMANCE_EXECUTION=" + test.execution,
-				"ENGINE_CONFORMANCE_SENTINEL=conformance-copilot",
+				"ENGINE_CONFORMANCE_SENTINEL=conformance-" + engine,
 				"GITHUB_STEP_SUMMARY=" + filepath.Join(directory, "summary.md"),
 				"CONFORMANCE_SAFE_OUTPUTS=" + filepath.Join(host, "safeoutputs.jsonl"),
 			}
@@ -417,10 +425,13 @@ func TestEngineConformanceCatalogCoverage(t *testing.T) {
 			require.EqualValues(t, 10, source["timeout-minutes"])
 			budget := 5
 			switch id {
-			case "claude", "codex", "deepseek-harness":
+			case "claude", "codex", "copilot", "deepseek-harness", "pi":
 				budget = 50
 			}
 			require.EqualValues(t, budget, source["max-ai-credits"])
+			if id == "copilot" || id == "pi" {
+				require.EqualValues(t, 30, source["max-turns"], "credit headroom must retain the bounded turn limit")
+			}
 			if id == "codex" {
 				require.Equal(t, "openai/gpt-6.1-sol", source["model"], "Codex must select a model whose pricing can be compiled into the firewall configuration")
 			}

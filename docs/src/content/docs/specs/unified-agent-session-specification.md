@@ -3,9 +3,9 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.11.0"
+version: "1.12.0"
 status: Draft
-publication_date: "2026-10-16"
+publication_date: "2026-10-18"
 editors:
   - name: GitHub Agentic Workflows Team
     organization: GitHub
@@ -13,9 +13,9 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.11.0<br>
+**Version**: 1.12.0<br>
 **Status**: Draft<br>
-**Publication Date**: 2026-10-16<br>
+**Publication Date**: 2026-10-18<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
 **This Version**: [unified-agent-session-specification](/gh-aw/specs/unified-agent-session-specification/)<br>
 **Latest Version**: This document
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.11.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 1.12.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -247,7 +247,7 @@ opaque because its essential fields are not defined by this specification.
 | Graders and evals | Grader IDs/names, sources, enabled flags, bounds, values, units, statuses, decisions, thresholds, errors, severity, and diagnostic messages. Manifest/result versions, run ID/attempt and counts, implementation ID/version/digest, and metric ID/value pairs are retained when supplied. Eval ID, answer, model, error, run ID, and experiment assignments are retained. No grader scripts, opaque diagnostics, or eval questions. |
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
-| Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
+| Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields, plus AWF's ranked choices, pool counts, request endpoints, telemetry availability, HTTP status, and failure phase when supplied. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
 | Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. Text and Markdown summaries display it as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`, `rootWorkflowId`, and `rootRunId`. |
 | Skills | Activation inventory records installed skill name, relative source, scope, SHA-256 content digest, and declared purpose, without skill content. Exact-name and cross-scope collisions retain names, kinds, and source identifiers: current sources are workspace-relative paths, while overwritten frontmatter installations use ordinal identifiers such as `frontmatter-1`. Observed engine invocations retain the selected skill name, path, source, trigger, model, and turn when supplied; a declared or installed skill is not proof of invocation. |
 
@@ -749,6 +749,29 @@ schema, stage, purpose, attempt, classifier model and effort, objective,
 provider, labels, mode, classifier attempts, degraded-classification state,
 selected ID/provider/model/effort, wire model, endpoint, router, latency, code,
 request ID, routed outcome, deviations, requested model, and requested effort.
+It also retains the following AWF metadata when the source record supplies it,
+accepting each snake_case source spelling and its camelCase equivalent:
+
+| Field | AWF source | Meaning |
+| --- | --- | --- |
+| `rankedChoices` | `ranked_choices` | Route choices in AWF order. Each entry has a one-based `rank` equal to its array position, `model`, and `effort` as supplied, including an explicit `null`. `id` appears only when supplied. |
+| `eligibleChoices` | `eligible_choices` | Count of choices remaining after inventory and policy filtering. |
+| `catalogueOverlap` | `catalogue_overlap` | Count of routing-table choices present in the live catalogue. |
+| `selectedEndpoint` | `selected_endpoint` | Selected endpoint, including on request records. The existing `endpoint` field is unchanged. |
+| `requestedEndpoint` | `requested_endpoint` | Endpoint requested by the harness. |
+| `upstreamEndpoint` | `upstream_endpoint` | Endpoint sent upstream; never substituted from the requested endpoint. |
+| `unavailable` | `unavailable` | Request-telemetry dimensions AWF did not observe, such as `model` and `effort`. It is not a list of unavailable models. |
+| `status` | `status` | Observed HTTP status, independent of `outcome`. |
+| `phase` | `phase` | AWF failure phase, such as `primary` or `bootstrap`; distinct from the provenance phase. |
+
+The collector MUST NOT sort, deduplicate, truncate, or otherwise reorder ranked
+choices, and MUST NOT infer counts from their length. Absent fields MUST remain
+absent: no inferred count, manufactured endpoint, zero, empty array, or `null`
+placeholder is added. Supplied zeros, `null` efforts, and empty arrays are
+retained. Candidate entries MUST contain only rank, optional ID, model, and
+effort; per-candidate predictions or explanations MUST NOT be recorded.
+`conversation_sha256`, `detail`, `method`, `pathname`, their camelCase aliases,
+and other free-form or payload-bearing fields MUST be excluded.
 
 #### Model/endpoint mismatch
 
@@ -1569,7 +1592,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-065–T-UAS-066 | Unified file through both publication sinks and the conversation renderer; colliding source IDs; overlapping accounting; hostile/secret text; exhausted summary budget | Known runtime types remain visible, scopes and accounting remain independent, private prompts/payloads stay omitted, output is bounded and safely redacted, source artifact remains intact. |
 | T-UAS-067 | Repeated native/canonical/detector error observations, live timeout evidence, final-zero and missing exits, malformed or duplicate aggregate records, quoted errors and tool failures | One deterministic `agent.execution` record with distinct native codes/types, stable categories, observed exit precedence, unchanged error evidence, and matching JS/Go reader validation. |
 | T-UAS-068 | Goose stream messages/deltas, tool requests/results, cumulative completion usage, source-second timestamps, malformed records, error-only and partial sessions | Exact supported content and IDs, observed outcomes only, no duplicated snapshots or invented partial results, explicit diagnostics. |
-| T-UAS-070 | Firewall token usage with supplied or absent purpose/path/initiator; `usage.report` alias | Supplied routing metadata survives projection; consumers treat absent purpose as unknown, not agent. |
+| T-UAS-070 | Firewall token usage with supplied or absent purpose/path/initiator; `usage.report` alias; recorded AWF selection, request, and failure records in snake_case and camelCase, with and without ranked choices, pool counts, endpoints, `unavailable`, status, and phase, and with private fields | Supplied routing metadata survives projection; consumers treat absent purpose as unknown, not agent; ranked choices keep source order with one-based ranks; absent fields stay absent; private fields and nested candidate payloads are excluded; projection is idempotent. |
 | T-UAS-071 | Firewall token usage with supplied, absent, or malformed `steering`; AI-credit, token, and time steering event-log entries | Type and threshold survive projection, malformed notices are dropped, steering events keep threshold and request ID, and absent notices remain unrecorded rather than undelivered. |
 | T-UAS-073 | Copilot built-in and declared sub-agents with distinct display names, provider-qualified SDK model IDs, declared concrete and alias models, and sessions without `agentName` | Rows keyed by `agentName` with sorted `display_names`, one audit row per definition and one logs row per definition and effort, bare served model IDs without aliases, unchanged counts and credits, and display-name rows when `agentName` is absent. |
 | T-UAS-074 | `agent/model-resolution.json` with resolved, exact, and failed records for main and sub-agent roles; empty, non-array, malformed, and contract-violating records | One `model.resolution` event per record in array order with `model_resolution` provenance and only the contract fields; invalid sources emit collection warnings and no events. |
@@ -2094,6 +2117,11 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 1.12.0 — Draft (2026-10-18)
+
+- Retained AWF ranked choices, eligible-choice and catalogue-overlap counts, selected, requested, and upstream endpoints, request-telemetry `unavailable` dimensions, HTTP status, and failure phase in `firewall.model_routing` when supplied (T-UAS-070).
+- Retained serialization-format version 1.
 
 ### Version 1.11.0 — Draft (2026-10-16)
 

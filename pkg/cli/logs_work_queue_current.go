@@ -160,7 +160,7 @@ func replayCurrentWorkQueueSnapshot(data []byte) (currentWorkQueueEnvelope, work
 	if err != nil {
 		return envelope, state, role, currentWorkQueueDiagnosticError("ledger", err)
 	}
-	state, err = workqueue.Replay(commits)
+	state, err = workqueue.ReplayAt(commits, *envelope.CapturedAt)
 	if err != nil {
 		return envelope, state, role, currentWorkQueueDiagnosticError("chain", err)
 	}

@@ -154,6 +154,14 @@ describe("report AST", () => {
 });
 
 describe("report Markdown import boundary", () => {
+  it("imports typed inline slots inside quotes without enabling scalar template substitution", () => {
+    const children = parseReportMarkdown("<details><summary>Report {unknown}</summary>\n\n> Before {unknown}\n> {claim}\n> After\n\n</details>\n\n{toString}\n\n`{unknown}`", {
+      inlineSlots: { claim: [{ type: "code", value: "`@user {unknown}`" }] },
+    });
+    expect(children[0]).toMatchObject({ type: "details", children: [{ type: "quote", children: [{ type: "paragraph" }] }] });
+    expect(renderReport(report(children)).body).toBe("<details>\n<summary>Report {unknown}</summary>\n\n> Before {unknown}\n> `` `@user {unknown}` ``\n> After\n\n</details>\n\n{toString}\n\n`{unknown}`\n");
+  });
+
   it("parses template structure before substituting hostile scalar values", () => {
     const children = parseReportMarkdown("## What happened\n\n**{workflow}** failed.\n\n**Branch:** `{branch}`\n\n[Run]({url})", {
       minimumHeadingLevel: 2,

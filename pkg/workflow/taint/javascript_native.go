@@ -26,14 +26,24 @@ type TypeScriptParser struct {
 	once            sync.Once
 	gate            chan struct{}
 	cache           map[[32]byte]*JavaScriptNode
+	failures        map[[32]byte]error
 }
 
 func (p *TypeScriptParser) Parse(ctx context.Context, source string) (*JavaScriptNode, error) {
-	if err := ctx.Err(); err != nil {
+	results, err := p.ParseBatch(ctx, []string{source})
+	if err != nil {
 		return nil, err
 	}
-	if len(source) > 1024*1024 {
-		return nil, errors.New("JavaScript source exceeds analysis size limit")
+	result, exists := sliceAt(results, 0)
+	if !exists {
+		return nil, errors.New("native TypeScript compiler returned an invalid batch")
+	}
+	return result.Node, result.Err
+}
+
+func (p *TypeScriptParser) ParseBatch(ctx context.Context, sources []string) ([]JavaScriptParseResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	p.once.Do(func() { p.gate = make(chan struct{}, 1) })
 	select {
@@ -45,9 +55,95 @@ func (p *TypeScriptParser) Parse(ctx context.Context, source string) (*JavaScrip
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	key := sha256.Sum256([]byte(source))
-	if tree := p.cache[key]; tree != nil {
-		return tree, nil
+	var pending []string
+	size := 0
+	seen := make(map[[32]byte]bool)
+	for _, source := range sources {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		key := sha256.Sum256([]byte(source))
+		if len(source) > 1024*1024 || p.cache[key] != nil || p.failures[key] != nil || seen[key] {
+			continue
+		}
+		if len(pending) == 64 || size+len(source) > 2*1024*1024 {
+			if err := p.cacheNativeBatch(ctx, pending); err != nil {
+				return p.failedBatch(sources, err)
+			}
+			pending, size = nil, 0
+			seen = make(map[[32]byte]bool)
+		}
+		pending = append(pending, source)
+		size += len(source)
+		seen[key] = true
+	}
+	if err := p.cacheNativeBatch(ctx, pending); err != nil {
+		return p.failedBatch(sources, err)
+	}
+	return p.batchResults(sources), nil
+}
+
+func (p *TypeScriptParser) cacheNativeBatch(ctx context.Context, sources []string) error {
+	if len(sources) == 0 {
+		return nil
+	}
+	results, err := p.parseNativeBatch(ctx, sources)
+	if err != nil {
+		return err
+	}
+	if p.cache == nil {
+		p.cache = make(map[[32]byte]*JavaScriptNode)
+	}
+	if p.failures == nil {
+		p.failures = make(map[[32]byte]error)
+	}
+	for i, result := range results {
+		source, exists := sliceAt(sources, i)
+		if !exists {
+			return errors.New("native TypeScript compiler returned an invalid batch")
+		}
+		key := sha256.Sum256([]byte(source))
+		if result.Err != nil {
+			p.failures[key] = result.Err
+		} else {
+			p.cache[key] = result.Node
+		}
+	}
+	return nil
+}
+
+func (p *TypeScriptParser) failedBatch(sources []string, err error) ([]JavaScriptParseResult, error) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
+	}
+	if p.failures == nil {
+		p.failures = make(map[[32]byte]error)
+	}
+	for _, source := range sources {
+		key := sha256.Sum256([]byte(source))
+		if p.cache[key] == nil && p.failures[key] == nil {
+			p.failures[key] = err
+		}
+	}
+	return p.batchResults(sources), nil
+}
+
+func (p *TypeScriptParser) batchResults(sources []string) []JavaScriptParseResult {
+	results := make([]JavaScriptParseResult, 0, len(sources))
+	for _, source := range sources {
+		key := sha256.Sum256([]byte(source))
+		result := JavaScriptParseResult{Node: p.cache[key], Err: p.failures[key]}
+		if len(source) > 1024*1024 {
+			result.Err = errors.New("JavaScript source exceeds analysis size limit")
+		}
+		results = append(results, result)
+	}
+	return results
+}
+
+func (p *TypeScriptParser) parseNativeBatch(ctx context.Context, sources []string) ([]JavaScriptParseResult, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	if p.ModuleDirectory == "" {
 		return nil, errors.New("JavaScript analysis requires an explicit native compiler module directory")
@@ -67,8 +163,8 @@ func (p *TypeScriptParser) Parse(ctx context.Context, source string) (*JavaScrip
 	// the parser process. Only platform executable lookup variables are needed.
 	cmd.Env = append([]string{}, p.Environment...)
 	request, err := json.Marshal(struct {
-		Source string `json:"source"`
-	}{source})
+		Sources []string `json:"sources"`
+	}{sources})
 	if err != nil {
 		return nil, errors.New("could not encode native compiler request")
 	}
@@ -80,13 +176,24 @@ func (p *TypeScriptParser) Parse(ctx context.Context, source string) (*JavaScrip
 		}
 		return nil, errors.New("native TypeScript AST unavailable or source could not be parsed; install the pinned native-preview module and Node.js")
 	}
-	var tree JavaScriptNode
-	if err := json.Unmarshal(output, &tree); err != nil || tree.Kind != "SourceFile" {
+	var response []struct {
+		Tree  *JavaScriptNode `json:"tree"`
+		Error string          `json:"error"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil || len(response) != len(sources) {
 		return nil, errors.New("native TypeScript compiler returned an invalid AST")
 	}
-	if p.cache == nil {
-		p.cache = make(map[[32]byte]*JavaScriptNode)
+	results := make([]JavaScriptParseResult, 0, len(sources))
+	for _, item := range response {
+		var result JavaScriptParseResult
+		if item.Error != "" {
+			result.Err = errors.New("native TypeScript AST unavailable or source could not be parsed")
+		} else if item.Tree == nil || item.Tree.Kind != "SourceFile" {
+			return nil, errors.New("native TypeScript compiler returned an invalid AST")
+		} else {
+			result.Node = item.Tree
+		}
+		results = append(results, result)
 	}
-	p.cache[key] = &tree
-	return &tree, nil
+	return results, nil
 }

@@ -4,9 +4,15 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { main, matchingWork, closedIssue, readIssuesConfig } = require("./cancel_work_queue_closed_issue.cjs");
 const { registerQueueLedgerClient } = require("./work_queue_git_transport.cjs");
+const { publishWorkQueueRequest, readWorkQueueLog } = require("./work_queue_store.cjs");
+const { newState, replayTransactions, serializeProjection, serializeTransactionLog } = require("./work_queue_replay.cjs");
+const { legacyCheckpoint } = require("./work_queue_checkpoint_regression_helpers.cjs");
+const { reservationCounts } = require("./work_queue_scheduler.cjs");
+const { fakeGitHub } = require("./work_queue_store_checks.cjs");
+const { administrator, bind, evidence, finish, genesis, grant, operationCommit, reconciler, submission } = require("./work_queue_test_helpers.cjs");
 
 const resource = { kind: "issue", host: "github.com", repository: "owner/repo", repository_id: "12", resource_id: "34", number: "7" };
-const work = { work_id: "work_1", backing_issue: resource, state: "available" };
+const work = { work_id: "work_1", backing_issue: resource, state: "available", depends_on: [] };
 const context = {
   repo: { owner: "owner", repo: "repo" },
   issue: { number: 7 },
@@ -32,8 +38,8 @@ afterEach(() => {
 });
 
 function fixture(initialWork = work) {
-  const state = { works: new Map([[initialWork.work_id, initialWork]]), requests: new Map() };
-  const confirmed = { works: new Map([[initialWork.work_id, initialWork]]), requests: new Map() };
+  const state = { ...newState(), works: new Map([[initialWork.work_id, initialWork]]) };
+  const confirmed = { ...newState(), works: new Map([[initialWork.work_id, initialWork]]) };
   const githubClient = {
     rest: {
       issues: { get: vi.fn(async () => ({ data: { id: 34, number: 7, state: "closed" } })), listComments: vi.fn(async () => ({ data: [] })), createComment: vi.fn(async () => ({})) },
@@ -62,6 +68,23 @@ function fixture(initialWork = work) {
   };
   registerQueueLedgerClient(githubClient, githubClient);
   return { githubClient, options, state, confirmed, publishWorkQueueRequest };
+}
+
+function expiringWorkLog() {
+  const log = [genesis()];
+  log.push(submission(log, ["expiring"], { transform: node => ({ ...node, subject: resource, expires_at: 50 }) }));
+  return log;
+}
+
+function publisherFixture(log, at = 100) {
+  const fake = fakeGitHub(log);
+  const { options, githubClient } = fixture();
+  fake.githubClient.rest.issues = githubClient.rest.issues;
+  options.githubClient = fake.githubClient;
+  options.authenticatePublisher.mockResolvedValue({ ...trusted, principal: administrator.principal });
+  options.readWorkQueueLog = vi.fn(readWorkQueueLog);
+  options.publishWorkQueueRequest = vi.fn(args => publishWorkQueueRequest({ ...args, now: () => at, sleepFn: async () => {} }));
+  return { ...fake, options, readState: () => replayTransactions(fake.log()) };
 }
 
 describe("closed backing Issue cancellation", () => {
@@ -344,5 +367,165 @@ describe("closed backing Issue cancellation", () => {
     const secondComment = second.githubClient.rest.issues.createComment.mock.calls[0][0].body;
     expect(firstRequest.id).not.toBe(secondRequest.id);
     expect(firstComment.match(/gh-aw-issue-closure:[^ ]+/)[0]).not.toBe(secondComment.match(/gh-aw-issue-closure:[^ ]+/)[0]);
+  });
+});
+
+describe("closed Issue expiration with the checked publisher", () => {
+  it.each([50, 100])("does not publish a conflicting cancellation or confirm wall-clock-only expiration at %s", async at => {
+    const event = publisherFixture(expiringWorkLog(), at);
+    const before = event.log();
+    expect(await main(event.options)).toEqual({ status: "pending" });
+    expect(event.options.publishWorkQueueRequest).toHaveBeenCalledOnce();
+    expect(event.state.updates).toBe(0);
+    expect(event.log()).toEqual(before);
+    expect([...event.readState().works.values()][0]).toMatchObject({ state: "available", barrier: "none" });
+    expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("never treats an as-of expiration view as committed terminal proof", async () => {
+    const log = expiringWorkLog();
+    const event = publisherFixture(log);
+    event.options.readWorkQueueLog = vi.fn(async args => {
+      const checked = await readWorkQueueLog(args);
+      return { ...checked, state: replayTransactions(checked.transactions, 100) };
+    });
+    expect(await main(event.options)).toEqual({ status: "pending" });
+    expect(event.options.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect([...event.readState().works.values()][0].state).toBe("available");
+    expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+  });
+
+  it("confirms committed derived expiration without inventing an explicit cancellation receipt", async () => {
+    const log = expiringWorkLog();
+    log.push(operationCommit(log, "clock", "control", [{ kind: "Control", control: "grants_paused", value: false, reason: "time_observed" }], administrator, 50));
+    const event = publisherFixture(log);
+    const expired = [...event.readState().works.values()][0];
+    expect(expired).toMatchObject({ state: "cancelled", cancellation_reason: "work_expired" });
+    expect(expired.cancellation_commit_id).toBeUndefined();
+    expect(await main(event.options)).toEqual({ status: "cancelled", publishedNow: false });
+    expect(event.options.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(event.state.updates).toBe(0);
+    expect(event.githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("already cancelled in the work queue ledger; this Issue closure did not change it");
+    expect([...event.readState().works.values()][0].cancellation_commit_id).toBeUndefined();
+  });
+
+  it("confirms expiration established by recovered legacy checkpoint receipts after a backdated admission", async () => {
+    const history = [genesis()];
+    history.push(operationCommit(history, "clock", "control", [{ kind: "Control", control: "grants_paused", value: false, reason: "time_observed" }], administrator, 4000));
+    history.push(submission(history, ["legacy"], { at: 2000 }));
+    const event = publisherFixture(history, 4000);
+    const prior = "c".repeat(40);
+    const git = event.githubClient.rest.git;
+    const source = event.refs.get("work-queue");
+    const getCommit = git.getCommit;
+    git.getCommit = args => getCommit({ ...args, commit_sha: args.commit_sha === prior ? source : args.commit_sha });
+    event.refs.set("work-queue", prior);
+    const checkpoint = legacyCheckpoint(history, prior, administrator, 2000);
+    const log = [...checkpoint, submission(checkpoint, ["expiring"], { at: 2000, id: "backdated-admission", transform: node => ({ ...node, subject: resource, expires_at: 3500 }) })];
+    const blob = await git.createBlob({ content: serializeTransactionLog(log), encoding: "utf-8" });
+    const tree = await git.createTree({ tree: [{ path: "work-queue.jsonl", mode: "100644", type: "blob", sha: blob.data.sha }] });
+    const head = await git.createCommit({ tree: tree.data.sha, parents: [prior] });
+    event.refs.set("work-queue", head.data.sha);
+    const checked = await readWorkQueueLog({ githubClient: event.githubClient, ...context.repo });
+    expect(checked.state.time_watermark).toBe(4000);
+    expect(checked.state.transactions.every(commit => commit.at < 3500)).toBe(true);
+    expect(checked.state.historicalTransactions.some(commit => commit.at === 4000)).toBe(true);
+    const expired = matchingWork(checked.state, resource);
+    expect(expired).toMatchObject({ state: "cancelled", cancellation_reason: "work_expired" });
+    expect(expired.cancellation_commit_id).toBeUndefined();
+    expect(await main(event.options)).toEqual({ status: "cancelled", publishedNow: false });
+    expect(event.options.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(event.state.updates).toBe(0);
+    expect(event.githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("already cancelled in the work queue ledger; this Issue closure did not change it");
+    expect(event.log()).toEqual(log);
+    expect(matchingWork(event.readState(), resource).cancellation_commit_id).toBeUndefined();
+  });
+
+  it("recognizes expiration committed while closure publication is refreshing its checked history", async () => {
+    const event = publisherFixture(expiringWorkLog());
+    const publish = event.options.publishWorkQueueRequest;
+    event.options.publishWorkQueueRequest = vi.fn(async args => {
+      const current = event.log();
+      event.install([...current, operationCommit(current, "clock", "control", [{ kind: "Control", control: "grants_paused", value: false, reason: "time_observed" }], administrator, 50)]);
+      return publish(args);
+    });
+    expect(await main(event.options)).toEqual({ status: "cancelled", publishedNow: false });
+    expect(event.state.updates).toBe(0);
+    expect(event.githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("this Issue closure did not change it");
+    expect([...event.readState().works.values()][0].cancellation_commit_id).toBeUndefined();
+  });
+
+  it("retains explicit closure cancellation before the deadline and recovers the stable request", async () => {
+    const event = publisherFixture(expiringWorkLog(), 49);
+    event.state.ambiguousOnce = true;
+    expect(await main(event.options)).toEqual({ status: "cancelled", publishedNow: false });
+    expect(event.state.updates).toBe(1);
+    const cancelled = [...event.readState().works.values()][0];
+    expect(cancelled.cancellation_reason).toBe("related_issue_closed");
+    expect(cancelled.cancellation_commit_id).toBeTruthy();
+    expect(event.githubClient.rest.issues.createComment.mock.calls[0][0].body).toContain("Cancellation was recorded");
+    expect(event.log()).toHaveLength(3);
+  });
+
+  it("still explicitly cancels a running Claim after the deadline without releasing native capacity or changing fairness charges", async () => {
+    let log = expiringWorkLog();
+    const decision = grant(log);
+    log.push(decision.commit);
+    log = bind(log, decision.assignments[0].dispatch_id);
+    const event = publisherFixture(log);
+    const before = event.readState();
+    expect(await main(event.options)).toEqual({ status: "cancelled", publishedNow: true });
+    const after = event.readState();
+    const cancelled = [...after.works.values()][0];
+    expect(cancelled).toMatchObject({ cancellation_reason: "related_issue_closed", cancellation_commit_id: after.tip });
+    expect([...after.claims.values()][0]).toMatchObject({ state: "cancelled", terminal_commit_id: after.tip });
+    expect(reservationCounts(after, "default", "").native).toBe(reservationCounts(before, "default", "").native);
+    expect(reservationCounts(after, "default", "").native).toBe(1);
+    expect(serializeProjection(after).clocks).toEqual(serializeProjection(before).clocks);
+  });
+
+  it.each(["pending", "failed"])("does not turn a retained %s delivery barrier into expiration", async barrier => {
+    let log = expiringWorkLog();
+    const decision = grant(log);
+    log.push(decision.commit);
+    const dispatchId = decision.assignments[0].dispatch_id;
+    log = bind(log, dispatchId);
+    log.push(finish(log, dispatchId, "h1", "completed", { at: 40, keep_open: true }));
+    if (barrier === "failed") {
+      const state = replayTransactions(log);
+      const claim = [...state.claims.values()][0];
+      const dispatch = state.dispatches.get(dispatchId);
+      log.push(
+        operationCommit(
+          log,
+          "delivery-failed",
+          "delivery_failure",
+          [
+            {
+              kind: "DeliveryFailure",
+              work_id: claim.work_id,
+              claim_id: claim.claim_id,
+              completion_id: state.works.get(claim.work_id).completion_id,
+              reason: "verification_exhausted",
+              disposition: "none",
+              evidence: evidence(state, dispatch, "terminal_run", 45, { run_id: dispatch.run.run_id, run_attempt: 1, status: "completed", conclusion: "failure", attempts: 5, effects: "none", receipt: "closed-issue-delivery" }),
+            },
+          ],
+          reconciler,
+          45
+        )
+      );
+    }
+    const event = publisherFixture(log);
+    if (barrier === "pending") {
+      await expect(main(event.options)).rejects.toMatchObject({ code: "work_terminal" });
+      expect(event.state.updates).toBe(0);
+      expect(event.githubClient.rest.issues.createComment).not.toHaveBeenCalled();
+      expect([...event.readState().works.values()][0]).toMatchObject({ state: "available", barrier });
+    } else {
+      expect(await main(event.options)).toEqual({ status: "cancelled", publishedNow: true });
+      expect([...event.readState().works.values()][0]).toMatchObject({ cancellation_reason: "related_issue_closed", barrier });
+    }
+    expect(reservationCounts(event.readState(), "default", "").native).toBe(1);
   });
 });

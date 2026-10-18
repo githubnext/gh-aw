@@ -363,6 +363,39 @@ The protocol remains version 3, but older closed-schema readers reject these
 extensions. Existing logs need no migration; no automatic reader upgrade or
 fallback to an older deployment is supported.
 
+## Work expiration
+
+Submitted Work may include `expires_at`, an absolute Unix-millisecond timestamp
+from 0 through 9007199254740991. Native `submit-work` accepts the same value as
+`--expires-at`; `submit-graph` and `work_queue_submit` accept it on each node.
+Omitting it on a new node means no expiration. The deadline is immutable:
+resubmission preserves it, and changing it requires a new node identity.
+
+At or after the deadline, unclaimed Work becomes cancelled with reason
+`work_expired` and cannot receive a Claim. Replay uses the maximum committed
+timestamp, preserved through checkpoints; live operator reads additionally
+evaluate current time, and activation reads evaluate `captured_at`. Historical
+replay does not invalidate a Claim that was valid at its original decision.
+Wall-clock-only views are not durable until queue activity advances committed
+time; no background timer is implied.
+
+Running Claims can still complete after their Work deadline. Expiration never
+releases a native reservation, refunds fairness charges, deletes history, or
+unblocks dependencies. Pending or failed delivery remains protected, including
+`keep_open` completion; verified retained delivery expires elapsed Work instead
+of re-queuing it. Claim leases and hard real-time execution deadlines are not
+supported. Upgrade all closed-schema version-3 readers before using the field;
+existing Work without it needs no migration.
+
+Historical checkpoints created before expiration support remain verifiable,
+including when their commit timestamps decrease. New compaction preserves the
+maximum committed time; compatibility verification does not rewrite old
+snapshots or relax integrity checks.
+
+Closed-Issue synchronization recognizes committed `work_expired` outcomes
+without requiring a synthetic cancellation commit ID. A wall-clock-only
+expiration view is not a committed outcome.
+
 ## Runtime debug logging
 
 The JavaScript runtime uses the shared logger framework to write opt-in,
@@ -481,6 +514,13 @@ separately. If delivery is uncertain after Completion, effects are not rerun.
 Verification within configured bounds produces Result or DeliveryFailure, an
 explicit terminal delivery failure.
 
+Trusted delivery processing reuses the selected queue client for Claim
+authorization, independent queue-control inventory and Result publication.
+Fresh Claim-scoped resource clients do not replace that queue transport or its
+verified Git-history cache on each bounded readback attempt. Resource readback
+remains Claim-scoped, and neither cached Git objects nor a successful handler
+replace fresh ledger and native-run validation.
+
 Bounded reconciliation also checks never-started reservations. When the exact
 originating run attempt is authenticated and terminal, a fresh ledger check
 must still show `reserved` with no sender or native run. Trusted prelaunch
@@ -498,6 +538,8 @@ other job must have completed; the current conclusion job must be uniquely
 identified and active. The ledger records `worker_termination` evidence with a
 digest of that job inventory, not a claim that the native run has completed.
 Only that original run may publish this release evidence.
+The evidence principal comes from the independently validated native run, not
+an optional principal field on a logical worker profile.
 
 This releases the worker execution slot while the conclusion job finishes
 diagnostics and Issue projection. It is not a strict cap on native Actions runs
@@ -616,6 +658,7 @@ initialize Policy over an invalid log.
 | `dispatch-next --pool POOL --max-claims N --max-dispatches N` | Commit the next assignments selected by deterministic fair scheduling and their reservations. Does not send a workflow-dispatch POST. |
 | `dispatch DISPATCHER [--wait] [--dry-run]` | Use the GitHub CLI to start one verified dispatcher at the repository's default-branch snapshot revision. Its trusted controls grant and launch eligible assignments; it does not directly assign a Claim to a worker. |
 | `control`, `cancel-work` | Apply authorized pause, cutover, or cancellation decisions without refunding accounted service or force-releasing a reservation for a possible native run. |
+| `clear --reason CODE [--dry-run] [--hard]` | Local operator only; refuses CI. Normally cancels cancellable unfinished snapshot Work atomically while preserving history and pending retained deliveries. `--hard` resets only a paused, fully settled queue and explicitly forgets identities and fairness debt. |
 | `cancel-claim --claim-id ID[,ID...] --reason CODE` | Atomically revoke the exact current Claims' authority and terminally cancel their Work. Does not retry work, impersonate a worker, or stop a native run. |
 | `reprioritize --work-id ID[,ID...] --priority 1..5 --reason CODE` | Apply an administrator-only, compare-and-set priority override to future grants of available Work. Preserves admitted definitions, FIFO positions, retry boundaries, and accumulated fairness charges. |
 | `evidence`, `reconcile --dispatch-id ID` | Inspect authenticated run evidence and reconcile exact termination. Uncertainty retains reserved capacity. |
@@ -678,6 +721,116 @@ durable binding. The hint remains available after queue compaction. Unverified
 responses never become native evidence. Reconciliation must still verify the
 exact repository, workflow, revision, principal, attempt and dispatch token before
 binding; uncertainty alone never releases the reservation.
+
+### Clear unfinished Work
+
+```bash
+gh aw work-queue --repo owner/repo clear --reason operator_clear \
+  --request-id incident-clear --dry-run --json
+gh aw work-queue --repo owner/repo clear --reason operator_clear \
+  --request-id incident-clear
+```
+
+`clear` publishes existing `WorkCancellation` operations rather than deleting or
+resetting the ledger. It cancels available Work, including dependency-blocked or
+retry-delayed Work, and fences the current Claims of claimed Work. Available
+Work with pending delivery from a completed `keep_open` Claim is excluded from
+the target set, so its delivery can settle without blocking cancellation of
+unrelated backlog. Completed Work is not cancelled, including Work with pending
+or failed delivery verification or unknown effects. Delivery barriers, historical
+Claims, admission identities, provenance, and fairness charges remain intact.
+Resubmitting the same admitted identity does not create a fresh task or authorize
+duplicate effects.
+
+Both `clear` and `clear --hard`, including their `--dry-run` previews, refuse
+CI environments before authentication or queue access. Detection uses the
+repository's existing nonempty `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS`,
+and `COPILOT_AGENT_SESSION_ID` environment variables. There is no CI bypass flag.
+
+Both modes check the authenticated user's repository permissions and require
+**maintain** or **admin** access; write, triage, and read access are insufficient.
+The role is checked again before publication. Queue audit records retain the
+existing `administrator` actor role; other administrator-only commands do not
+gain maintainer access.
+
+Every new mutation prints a queue preview to stderr with the repository, branch,
+snapshot, Work counts and IDs, cancellation/removal targets, retained Work,
+and unreleased native reservations, then asks for explicit confirmation.
+Hard reset also warns about identity loss and repeated effects. Declining,
+prompt failure, or non-TTY stdin leaves the queue unchanged. There is no `--yes`
+or force bypass. JSON results remain on stdout. Read-only previews, no-ops, and
+recovery of accepted requests do not prompt.
+
+The command also requires a sanitized reason:
+1–128 ASCII characters, starting with a letter or digit and containing only
+letters, digits, `_`, `.`, `:`, or `-`. `--dry-run` authenticates and validates the
+snapshot through the authoritative cancellation rules but makes no writes and
+does not reserve the request ID. A preview is not a lock: the real invocation
+reads a fresh snapshot.
+
+Cancellation is all-or-nothing and must fit the installed Policy's operation
+limit, which is at most 256 targeted Work. Larger target sets fail without
+cancelling anything; use `cancel-work` with explicit IDs in bounded batches instead.
+Concurrent completion or a changed selected Claim fails the entire publication.
+A queue-incarnation replacement between selection and publication also fails,
+including during publication retries; reusing Work IDs in the replacement queue
+does not make the original selection valid there. New admissions after selection
+are not included. The command does not change admission or grant controls; pause
+them separately with `control` when an operational drain requires a stable backlog.
+
+Retrying an accepted `--request-id` with the same reason recovers its original
+target set, including after compaction, rather than cancelling newly admitted
+Work. A different reason, actor, or incompatible prior request fails explicitly.
+If no cancellable Work remains, the command is a no-op and does not record the
+request ID, including when only pending retained deliveries remain.
+JSON output reports the snapshot tip, target IDs, retained completed Work,
+`pending_deliveries_retained` and unreleased reservation counts, and the
+publication when one exists.
+
+Native runs are not stopped, and their reservations are never force-released.
+Keep using `reconcile` with definitive native evidence. Successful cancellation
+does not mean that all effects are settled or that the queue is quiescent for a
+Policy update.
+
+#### Hard reset
+
+`clear --hard --reason CODE --request-id ID` replaces the active ledger with a
+fresh queue, not a checkpoint. It requires both admission and grants to be
+paused already, every native reservation to be released, no open Claims, and
+no pending or failed delivery barriers or uncertain effects. These conditions
+are checked against the exact snapshot used for publication. A concurrent
+write, including a change while confirmation is open, fails the reset rather
+than automatically resetting a newer snapshot. Confirmation is bound to the
+exact previewed Git revision.
+`--dry-run` validates and previews the reset without publishing it.
+
+```bash
+gh aw work-queue --repo owner/repo control --name admission_paused \
+  --paused=true --reason operator_pause
+gh aw work-queue --repo owner/repo control --name grants_paused \
+  --paused=true --reason operator_pause
+gh aw work-queue --repo owner/repo clear --hard --reason operator_reset \
+  --request-id incident-reset --dry-run
+```
+
+> [!CAUTION]
+> Hard reset forgets Work, Claim and request identities, retry history,
+> observations, historical worker revisions, and accumulated fairness debt.
+> Old task identities can be submitted again and already-settled effects can
+> repeat. Use ordinary `clear` to cancel work without losing deduplication,
+> or `compact` to reduce the ledger without changing its meaning.
+
+The new queue retains the current Policy, current worker routes and their
+availability, and credential generation. Admission and grants remain paused
+until explicitly resumed. The reset is one fast-forward Git publication:
+the prior ledger remains readable at the returned `prior_git_sha` in Git
+ancestry. It is not erased from repository history. Neither mode stops native
+runs or manufactures settlement evidence.
+
+Reuse the same request ID and reason to recover an accepted hard reset, even
+after compaction or later submissions; a retry never clears those later
+submissions. The production queue's unresolved obligations are not bypassed
+by `--hard`.
 
 ### Replay an Actions snapshot
 

@@ -44,11 +44,15 @@ features:
 # Daily Go Test Stubs — Aider
 
 You are an automated coding agent that improves Go test coverage by finding untested packages and adding
-minimal test stubs. Aider has no MCP client; all safe-output events must be written as JSONL lines to
+minimal test stubs. Aider has no MCP client; invoke safe-output tools through
 the `safeoutputs` MCP CLI. Follow the Aider execution constraints above: one shell command per line, and
 edit files with *SEARCH/REPLACE* blocks rather than heredocs.
 
 ## Step 1 — Find packages with no test files
+
+No source files need to be attached before starting. Your first reply must put
+this discovery command in a fenced `bash` block. Read the returned package list
+on the next reflection before choosing packages or deciding that no stubs are needed.
 
 ```bash
 for pkg in $(find . -name '*.go' -not -name '*_test.go' -not -path './vendor/*' -not -path './.git/*' | sed 's|/[^/]*\.go$||' | sort -u); do [ -z "$(find "$pkg" -maxdepth 1 -name '*_test.go')" ] && echo "$pkg"; done | head -5
