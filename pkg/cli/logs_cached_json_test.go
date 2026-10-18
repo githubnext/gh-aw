@@ -1005,14 +1005,31 @@ func TestBuildLogsDataPreservesCachedRunRecord(t *testing.T) {
 }
 
 func TestHydrateProcessedRunWithCachedAuditLedger(t *testing.T) {
-	transactionsAdded := 2
-	processedRun := processedRunFromCachedData(RunData{RunID: 42}, &AuditData{
-		Ledger: &LedgerActivity{TransactionsAdded: &transactionsAdded},
-	}, t.TempDir())
+	for _, tt := range []struct {
+		name          string
+		schemaVersion int
+		wantLedger    bool
+	}{
+		{name: "current schema", schemaVersion: auditSchemaVersion, wantLedger: true},
+		{name: "missing schema"},
+		{name: "stale schema", schemaVersion: auditSchemaVersion - 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			transactionsAdded := 2
+			processedRun := processedRunFromCachedData(RunData{RunID: 42}, &AuditData{
+				SchemaVersion: tt.schemaVersion,
+				Ledger:        &LedgerActivity{TransactionsAdded: &transactionsAdded},
+			}, t.TempDir())
 
-	hydrated := hydrateProcessedRunWithCachedAudit(processedRun)
+			hydrated := hydrateProcessedRunWithCachedAudit(processedRun)
 
-	require.NotNil(t, hydrated.Ledger)
-	require.NotNil(t, hydrated.Ledger.TransactionsAdded)
-	assert.Equal(t, 2, *hydrated.Ledger.TransactionsAdded)
+			if !tt.wantLedger {
+				assert.Nil(t, hydrated.Ledger)
+				return
+			}
+			require.NotNil(t, hydrated.Ledger)
+			require.NotNil(t, hydrated.Ledger.TransactionsAdded)
+			assert.Equal(t, 2, *hydrated.Ledger.TransactionsAdded)
+		})
+	}
 }
