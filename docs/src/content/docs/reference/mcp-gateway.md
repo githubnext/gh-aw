@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.17.0
+**Version**: 1.18.0
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -233,6 +233,11 @@ Each server configuration MUST support:
 
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
+
+The `stdioServerConfig.container` schema field accepts an image reference with an optional tag and an optional digest: `image[:tag][@sha256:<64 hex>]`. The `@sha256:<64 hex>` suffix is valid with or without a tag and MUST contain exactly 64 hexadecimal characters (`0-9`, `a-f`, or `A-F`) after `sha256:`. References without a digest remain valid.
+
+> [!NOTE]
+> Runtime support for digest-pinned images requires the upstream MCP Gateway validation fix and a gateway release containing it. Acceptance by the gh-aw schemas alone does not update the gateway binary or enable runtime support.
 
 **Note**: The `command` field is NOT supported. Stdio servers MUST use the `container` field to specify a containerized MCP server. Direct command execution is not supported by this specification.
 
@@ -2308,6 +2313,11 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.18.0 (Draft)
+
+- **Changed**: `stdioServerConfig.container` accepts an optional `@sha256:<64 hex>` suffix, with or without a tag (Section 4.1.2)
+- **Updated**: JSON Schema — relaxed the container image pattern in both canonical schema copies; runtime support still requires the upstream gateway fix and release
 
 ### Version 1.17.0 (Draft)
 
