@@ -6,7 +6,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 
 const require = createRequire(import.meta.url);
-const { getBundlePreApplyFiles, getBundleValidationBase } = require("./push_to_pull_request_branch.cjs");
+const { getBundlePreApplyFiles, getBundleValidationBase, resolveBundleTrustedBase } = require("./push_to_pull_request_branch.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 
 global.core = {
@@ -79,7 +79,10 @@ describe("push_to_pull_request_branch bundle integration", () => {
     [false, false],
     [true, false],
     [false, true],
-  ])("excludes trusted base changes while counting agent changes (conflict: %s, reverted change: %s)", async (conflict, revertedChange) => {
+    [false, false, true],
+    [true, false, true],
+    [false, true, true],
+  ])("excludes trusted base changes while counting agent changes (conflict: %s, reverted change: %s, advanced base: %s)", async (conflict, revertedChange, baseAdvanced = false) => {
     const repo = createRepo("push-pr-validation-base-");
     tempDirs.push(repo);
     const git = args => execGit(args, { cwd: repo });
@@ -119,7 +122,24 @@ describe("push_to_pull_request_branch bundle integration", () => {
     git(["commit", "-m", "agent work"]);
 
     const exec = createExecApi(repo);
-    const { ref: baseline, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", trustedBase);
+    let trustedTip = trustedBase;
+    if (baseAdvanced) {
+      git(["checkout", "main"]);
+      writeRepoFile(repo, "later.txt", "later base work\n");
+      git(["add", "."]);
+      git(["commit", "-m", "base advances after agent merge"]);
+      trustedTip = git(["rev-parse", "HEAD"]).stdout.trim();
+      git(["checkout", "feature"]);
+    }
+    const compareCommits = vi.fn(async ({ base, head }) => {
+      expect(base).toBe(trustedTip);
+      const ancestor = execGit(["merge-base", "--is-ancestor", head, base], { cwd: repo, allowFailure: true });
+      return { data: { status: ancestor.status === 0 ? "behind" : "diverged" } };
+    });
+    const recognizedBase = await resolveBundleTrustedBase(exec, {}, oldHead, "HEAD", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" });
+    expect(recognizedBase).toBe(trustedBase);
+    expect(compareCommits).toHaveBeenCalledTimes(baseAdvanced ? 1 : 0);
+    const { ref: baseline, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", recognizedBase);
     expect(baseline).not.toBe(oldHead);
     const files = await getBundlePreApplyFiles(exec, {}, baseline, "HEAD", conflictedFiles);
     expect(files.sort()).toEqual(conflict ? ["agent.txt", "conflict.txt"] : ["agent.txt"]);

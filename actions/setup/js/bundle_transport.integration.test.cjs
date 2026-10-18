@@ -6,7 +6,7 @@ import os from "os";
 import path from "path";
 
 const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions } = require("./git_helpers.cjs");
-const { resolveTrustedBaseTip, getBundleValidationBase, getBundlePreApplyFiles } = require("./push_to_pull_request_branch.cjs");
+const { resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase, getBundlePreApplyFiles } = require("./push_to_pull_request_branch.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 
 const gitEnv = () => {
@@ -108,6 +108,46 @@ describe("offline bundle transport with real Git", () => {
     const candidate = addCommit("shared.txt", "agent resolution\n");
     return { oldHead, trustedBase, candidate };
   }
+
+  it("recognizes the newest merged base without fetching an advanced trusted tip", async () => {
+    git(source, ["checkout", "-b", "feature"]);
+    const oldHead = addCommit("existing.txt", "PR work\n");
+    git(source, ["checkout", "main"]);
+    const olderBase = addCommit("older.txt", "older upstream\n");
+    git(source, ["checkout", "feature"]);
+    git(source, ["merge", "--no-ff", "main", "-m", "merge older base"]);
+    git(source, ["checkout", "main"]);
+    const mergedBase = addCommit("package.json", '{"upstream":true}\n');
+    git(source, ["checkout", "feature"]);
+    addCommit("agent.txt", "agent work\n");
+    git(source, ["merge", "--no-ff", "main", "-m", "merge newer base"]);
+    const bundle = path.join(root, "agent.bundle");
+    git(source, ["bundle", "create", bundle, "feature", `^${oldHead}`]);
+    const target = path.join(root, "target");
+    git(root, ["clone", source, target]);
+    git(source, ["checkout", "main"]);
+    const trustedTip = addCommit("later.txt", "base advances after agent finishes\n");
+    const exec = execApi(target);
+    await importLocalBundle(exec, bundle, "refs/heads/feature", "refs/bundles/test");
+    const before = packInventory(target);
+    expect(await resolveTrustedBaseTip(exec, {}, "main")).toBe(trustedTip);
+    const compareCommits = vi.fn(async ({ base, head }) => {
+      expect(base).toBe(trustedTip);
+      const result = spawnSync("git", ["merge-base", "--is-ancestor", head, base], { cwd: source, env: gitEnv() });
+      return { data: { status: result.status === 0 ? "behind" : "diverged" } };
+    });
+    const recognized = await resolveBundleTrustedBase(exec, {}, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" });
+    expect(recognized).toBe(mergedBase);
+    expect(compareCommits.mock.calls.some(([args]) => args.head === olderBase)).toBe(false);
+    const baseline = await getBundleValidationBase(exec, {}, oldHead, "refs/bundles/test", recognized);
+    const files = await getBundlePreApplyFiles(exec, {}, baseline.ref, "refs/bundles/test", baseline.conflictedFiles);
+    expect(files).toEqual(["agent.txt"]);
+    expect(checkFileProtectionPostApply(files, { protected_files: ["package.json"] }).action).toBe("allow");
+    const absent = await exec.getExecOutput("git", ["cat-file", "-e", trustedTip], { ...offlineGitOptions(), ignoreReturnCode: true });
+    expect(absent.exitCode).not.toBe(0);
+    expect(packInventory(target)).toEqual(before);
+    expect(exec.calls.some(args => args[0] === "fetch")).toBe(false);
+  });
 
   it.each([false, true])("does not lazily transfer blobs while inspecting a partial clone (old Git guard: %s)", async emulateOldGit => {
     const { oldHead, trustedBase, candidate } = mergeFixture();

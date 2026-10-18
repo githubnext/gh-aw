@@ -202,6 +202,58 @@ async function resolveTrustedBaseTip(exec, gitOptions, baseRef) {
 }
 
 /**
+ * Recognize a newly merged base ancestor using only the pinned remote tip as
+ * provenance. Topological order prefers newer parents regardless of merge order
+ * or commit timestamps. All object inspection stays offline.
+ *
+ * @param {{ getExecOutput: Function }} exec
+ * @param {Record<string, unknown>} gitOptions
+ * @param {string} oldHead
+ * @param {string} candidate
+ * @param {string} trustedTip
+ * @param {typeof github} githubClient
+ * @param {{ owner: string, repo: string }} repoParts
+ * @returns {Promise<string>}
+ */
+async function resolveBundleTrustedBase(exec, gitOptions, oldHead, candidate, trustedTip, githubClient, repoParts) {
+  if (!trustedTip) return "";
+  const opts = { ...offlineGitOptions(gitOptions), ignoreReturnCode: true };
+  try {
+    const tipAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedTip, candidate], opts);
+    if (tipAncestor.exitCode === 0) return trustedTip;
+
+    const merges = await exec.getExecOutput("git", ["rev-list", "--merges", "--parents", `${oldHead}..${candidate}`], opts);
+    if (merges.exitCode !== 0) return "";
+    const parents = new Set(
+      merges.stdout
+        .trim()
+        .split("\n")
+        .flatMap(line => line.split(" ").slice(1))
+        .filter(sha => /^[0-9a-f]{40}$/.test(sha))
+    );
+    if (!parents.size) return "";
+    const ordered = await exec.getExecOutput("git", ["rev-list", "--topo-order", ...parents, "--not", oldHead], opts);
+    if (ordered.exitCode !== 0) return "";
+    for (const parent of ordered.stdout.trim().split("\n")) {
+      if (!parents.has(parent)) continue;
+      try {
+        // Comparing tip...parent reports "behind" when parent is an ancestor.
+        const { data } = await githubClient.rest.repos.compareCommits({ ...repoParts, base: trustedTip, head: parent, per_page: 1 });
+        if (data.status === "behind" || data.status === "identical") return parent;
+      } catch {
+        // A parent may exist only in the bundle, or comparison may be unavailable.
+        core.debug("Bundle validation: merge parent comparison unavailable");
+      }
+    }
+  } catch {
+    // Missing local history must not trigger a fetch or expose remote diagnostics.
+    core.debug("Bundle validation: merged base history unavailable");
+  }
+  core.debug("Bundle validation: no trusted merged base ancestor confirmed; using PR-head validation");
+  return "";
+}
+
+/**
  * Measure the expanded blob size of files changed by the applied agent commits.
  * Deleted files contribute zero bytes because no new content is being introduced.
  *
@@ -1122,7 +1174,7 @@ async function main(config = {}) {
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
-          const trustedBase = signedCommits ? "" : await resolveTrustedBaseTip(exec, baseGitOpts, pullRequest.base?.ref);
+          const trustedTip = signedCommits ? "" : await resolveTrustedBaseTip(exec, baseGitOpts, pullRequest.base?.ref);
           const bundleGitOpts = offlineGitOptions(baseGitOpts);
           await ensureFullHistoryForBundle(
             exec,
@@ -1140,6 +1192,7 @@ async function main(config = {}) {
 
           await importLocalBundle(exec, bundleFilePath, `refs/heads/${branchName}`, bundleRef, baseGitOpts);
           core.info(`Imported local bundle to ${bundleRef}`);
+          const trustedBase = await resolveBundleTrustedBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedTip, githubClient, repoParts);
           const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
@@ -1821,4 +1874,4 @@ async function main(config = {}) {
   });
 }
 
-module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip };
+module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip, resolveBundleTrustedBase };
