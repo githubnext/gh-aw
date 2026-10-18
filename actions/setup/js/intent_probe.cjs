@@ -100,16 +100,15 @@ function validateCreatePullRequestIntent(entry) {
  * @returns {string|null}
  */
 function validateCreateIssueIntent(entry) {
-  const rawResolvedTitle = resolveIssueTitleForValidation(entry);
-  const body = normalizeProbeValue(entry.body);
+  const title = normalizeProbeValue(resolveIssueTitleForValidation(entry));
   const titleField = typeof entry.title === "string" && entry.title.trim() ? "title" : "body";
-  const looksLikeProbeTitle = isTrivialProbeValue(rawResolvedTitle, titleField);
+  const looksLikeProbeTitle = isTrivialProbeValue(title, titleField) || ["test title", "placeholder title", "dummy title", "example title"].includes(title);
 
-  if (looksLikeProbeTitle && (body === "" || isTrivialProbeValue(body, "body"))) {
+  if (looksLikeProbeTitle) {
     return (
       "Refusing to record an exploratory issue. " +
       "create_issue is for a real intended issue only and successful calls can lead to an externally visible issue. " +
-      "Do not use placeholder titles or bodies like 'test'. " +
+      "Replace the placeholder title with a descriptive title for the real issue before retrying. " +
       "If you are not ready to open the real issue, use noop or report_incomplete instead."
     );
   }
