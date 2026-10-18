@@ -343,6 +343,16 @@ func (b Branch) publish(ctx context.Context, snapshot branchSnapshot, next []Que
 // Authenticate derives operator identity from the credential, not command flags,
 // Git authors, submitted actor fields, or an untrusted Actions environment.
 func (b Branch) Authenticate(ctx context.Context, role string) (Actor, error) {
+	return b.authenticate(ctx, role, false)
+}
+
+// AuthenticateClear authorizes repository maintainers and administrators for
+// clear operations, retaining the queue's administrator actor for audit records.
+func (b Branch) AuthenticateClear(ctx context.Context) (Actor, error) {
+	return b.authenticate(ctx, "administrator", true)
+}
+
+func (b Branch) authenticate(ctx context.Context, role string, allowMaintain bool) (Actor, error) {
 	b, err := b.withClient()
 	if err != nil {
 		return Actor{}, err
@@ -359,15 +369,20 @@ func (b Branch) Authenticate(ctx context.Context, role string) (Actor, error) {
 	var repository struct {
 		FullName    string `json:"full_name"`
 		Permissions struct {
-			Push  bool `json:"push"`
-			Admin bool `json:"admin"`
+			Push     bool `json:"push"`
+			Admin    bool `json:"admin"`
+			Maintain bool `json:"maintain"`
 		} `json:"permissions"`
 	}
 	if err := b.client.DoWithContext(ctx, http.MethodGet, "repos/"+b.Remote, nil, &repository); err != nil {
 		return Actor{}, err
 	}
+	canAdminister := repository.Permissions.Admin || allowMaintain && repository.Permissions.Maintain
 	if !decimalIdentity(user.ID.String()) || !strings.EqualFold(repository.FullName, b.Remote) ||
-		!repository.Permissions.Push || role == "administrator" && !repository.Permissions.Admin {
+		!repository.Permissions.Push || role == "administrator" && !canAdminister {
+		if allowMaintain {
+			return Actor{}, queueError("actor_unauthorized", "authenticated repository maintain or admin permission is required to clear a queue")
+		}
 		return Actor{}, queueError("actor_unauthorized", "authenticated repository writer/administrator permission is required")
 	}
 	return Actor{Role: role, Principal: user.ID.String(), Repository: repository.FullName}, nil
@@ -455,6 +470,8 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 // PublishFromSnapshot rejects replacement ledgers before applying intent selected
 // from an existing snapshot. Same-ledger appends and verified checkpoints remain
 // eligible, including across CAS retries and uncertain acknowledgments.
+// Snapshot cancellations allow repository maintainers as well as administrators;
+// other request kinds retain their existing authorization requirements.
 func (b Branch) PublishFromSnapshot(ctx context.Context, actor Actor, request Request, selected []QueueCommit) (Publication, error) {
 	if len(selected) == 0 {
 		return Publication{}, queueError("queue_missing", "snapshot publication requires an existing queue")
@@ -463,7 +480,7 @@ func (b Branch) PublishFromSnapshot(ctx context.Context, actor Actor, request Re
 }
 
 func (b Branch) publishRequest(ctx context.Context, actor Actor, request Request, previous []QueueCommit) (Publication, error) {
-	b, err := b.authenticatePublication(ctx, actor, request)
+	b, err := b.authenticatePublication(ctx, actor, request, len(previous) > 0 && request.Kind == "cancel_work")
 	if err != nil {
 		return Publication{}, err
 	}
@@ -509,12 +526,12 @@ func (b Branch) publishRequest(ctx context.Context, actor Actor, request Request
 	return Publication{}, errors.New("queue publication exhausted retries")
 }
 
-func (b Branch) authenticatePublication(ctx context.Context, actor Actor, request Request) (Branch, error) {
+func (b Branch) authenticatePublication(ctx context.Context, actor Actor, request Request, allowMaintain bool) (Branch, error) {
 	b, err := b.withClient()
 	if err != nil {
 		return b, err
 	}
-	authenticated, err := b.Authenticate(ctx, actor.Role)
+	authenticated, err := b.authenticate(ctx, actor.Role, allowMaintain)
 	if err != nil || !sameJSON(authenticated, actor) {
 		if err != nil {
 			return b, err

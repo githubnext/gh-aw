@@ -661,7 +661,21 @@ CI environments before authentication or queue access. Detection uses the
 repository's existing nonempty `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS`,
 and `COPILOT_AGENT_SESSION_ID` environment variables. There is no CI bypass flag.
 
-The command requires repository administrator permission and a sanitized reason:
+Both modes check the authenticated user's repository permissions and require
+**maintain** or **admin** access; write, triage, and read access are insufficient.
+The role is checked again before publication. Queue audit records retain the
+existing `administrator` actor role; other administrator-only commands do not
+gain maintainer access.
+
+Every new mutation prints a queue preview to stderr with the repository, branch,
+snapshot, Work counts and IDs, cancellation/removal targets, retained Work,
+and unreleased native reservations, then asks for explicit confirmation.
+Hard reset also warns about identity loss and repeated effects. Declining,
+prompt failure, or non-TTY stdin leaves the queue unchanged. There is no `--yes`
+or force bypass. JSON results remain on stdout. Read-only previews, no-ops, and
+recovery of accepted requests do not prompt.
+
+The command also requires a sanitized reason:
 1–128 ASCII characters, starting with a letter or digit and containing only
 letters, digits, `_`, `.`, `:`, or `-`. `--dry-run` authenticates and validates the
 snapshot through the authoritative cancellation rules but makes no writes and
@@ -699,7 +713,9 @@ fresh queue, not a checkpoint. It requires both admission and grants to be
 paused already, every native reservation to be released, no open Claims, and
 no pending or failed delivery barriers or uncertain effects. These conditions
 are checked against the exact snapshot used for publication. A concurrent
-write fails the reset rather than automatically resetting a newer snapshot.
+write, including a change while confirmation is open, fails the reset rather
+than automatically resetting a newer snapshot. Confirmation is bound to the
+exact previewed Git revision.
 `--dry-run` validates and previews the reset without publishing it.
 
 ```bash

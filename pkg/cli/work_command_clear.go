@@ -26,7 +26,9 @@ func workClearCommand() *cobra.Command {
 		Use: "clear", Short: "Terminally cancel unfinished snapshot Work atomically; preserve history and native reservations",
 		Long: "Terminally cancel available and claimed Work without pending deliveries\n" +
 			"in one queue snapshot. Pending keep-open deliveries are retained.\n\n" +
-			"Requires repository administrator permission and --reason CODE. --dry-run\n" +
+			"Requires repository maintain or admin permission and --reason CODE.\n" +
+			"Mutations show a queue preview and require interactive confirmation;\n" +
+			"there is no confirmation bypass. Non-TTY input refuses to clear. --dry-run\n" +
 			"validates and previews the same cancellation without publishing anything.\n" +
 			"Completed Work, delivery barriers, audit history, admission identities, and\n" +
 			"fairness debt are retained. Native runs are not stopped and reservations\n" +
@@ -47,7 +49,8 @@ func workClearCommand() *cobra.Command {
 			"generation are retained; old worker revisions, Work/Claim/request identities,\n" +
 			"and fairness debt are forgotten. Old records remain in Git ancestry.\n" +
 			"WARNING: --hard permits resubmitting old identities and repeating settled\n" +
-			"effects; it is not compaction. Use a stable --request-id for retries.\n\n" +
+			"effects; it is not compaction. A queue change after the hard-clear preview\n" +
+			"fails without resetting the newer snapshot. Use a stable --request-id.\n\n" +
 			"All clear modes, including --dry-run, refuse to run in CI.",
 		Args: cobra.NoArgs,
 		RunE: workRunClear,
@@ -71,11 +74,7 @@ func workRunClear(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	branch := workBranch(cmd)
-	hard, _ := cmd.Flags().GetBool("hard")
-	if hard {
-		return workRunHardClear(cmd, branch, id, reason)
-	}
-	actor, err := branch.Authenticate(cmd.Context(), "administrator")
+	actor, err := branch.AuthenticateClear(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -86,6 +85,10 @@ func workRunClear(cmd *cobra.Command, _ []string) error {
 	state, err := workqueue.Replay(commits)
 	if err != nil {
 		return err
+	}
+	hard, _ := cmd.Flags().GetBool("hard")
+	if hard {
+		return workRunHardClear(cmd, branch, id, reason, state)
 	}
 	params, err := workClearIntent(state, reason, id)
 	if err != nil {
@@ -128,11 +131,23 @@ func workClearReport(state workqueue.Projection, params workqueue.OperationsPara
 	return result, nil
 }
 
-func workRunHardClear(cmd *cobra.Command, branch workqueue.Branch, id, reason string) error {
+func workRunHardClear(cmd *cobra.Command, branch workqueue.Branch, id, reason string, state workqueue.Projection) error {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
-	result, err := branch.HardClear(cmd.Context(), id, reason, dryRun)
+	result, err := branch.HardClear(cmd.Context(), id, reason, true)
 	if err != nil {
 		return err
+	}
+	if !dryRun && result.Status != "already_committed" {
+		if state.Tip != result.PriorTip {
+			return errors.New("hard_clear_conflict: queue changed before confirmation preview; nothing was reset")
+		}
+		if err := workConfirmClear(cmd, branch, state, nil, true); err != nil {
+			return err
+		}
+		result, err = branch.HardClearFromSnapshot(cmd.Context(), id, reason, result.PriorGitSHA)
+		if err != nil {
+			return err
+		}
 	}
 	action := "Hard cleared active ledger"
 	if result.Status == "already_committed" {
@@ -157,6 +172,15 @@ func workPublishClear(cmd *cobra.Command, branch workqueue.Branch, actor workque
 	action := "Would cancel"
 	result.Status = "dry_run"
 	if !dryRun {
+		state, err := workqueue.Replay(commits)
+		if err != nil {
+			return err
+		}
+		if _, accepted := state.Requests[result.RequestID]; !accepted {
+			if err := workConfirmClear(cmd, branch, state, result.WorkIDs, false); err != nil {
+				return err
+			}
+		}
 		published, err := branch.PublishFromSnapshot(cmd.Context(), actor, request, commits)
 		if err != nil {
 			return err

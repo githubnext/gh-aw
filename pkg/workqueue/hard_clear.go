@@ -26,7 +26,20 @@ type HardClearResult struct {
 // HardClear replaces only a settled, paused queue, retaining its prior ledger in
 // the Git parent. It never retries a conflicting reset against a newer snapshot.
 func (b Branch) HardClear(ctx context.Context, requestID, reason string, dryRun bool) (HardClearResult, error) {
-	_, actor, session, err := b.withAuthenticatedLedgerSession(ctx, "administrator")
+	return b.hardClear(ctx, requestID, reason, dryRun, "")
+}
+
+// HardClearFromSnapshot resets only the exact Git snapshot the operator previewed.
+// An already accepted request is recovered without resetting any newer Work.
+func (b Branch) HardClearFromSnapshot(ctx context.Context, requestID, reason, priorGitSHA string) (HardClearResult, error) {
+	if !revisionPattern.MatchString(priorGitSHA) {
+		return HardClearResult{}, queueError("hard_clear_snapshot_invalid", "hard clear requires the previewed Git revision")
+	}
+	return b.hardClear(ctx, requestID, reason, false, priorGitSHA)
+}
+
+func (b Branch) hardClear(ctx context.Context, requestID, reason string, dryRun bool, expectedGitSHA string) (HardClearResult, error) {
+	_, actor, session, err := b.withAuthenticatedLedgerSessionAccess(ctx, "administrator", true)
 	if err != nil {
 		return HardClearResult{}, err
 	}
@@ -45,6 +58,9 @@ func (b Branch) HardClear(ctx context.Context, requestID, reason string, dryRun 
 	}
 	if recovered, ok, err := recoverHardClear(state, actor, requestID, reason); ok || err != nil {
 		return recovered, err
+	}
+	if expectedGitSHA != "" && snapshot.head != expectedGitSHA {
+		return HardClearResult{}, queueError("hard_clear_conflict", "queue changed since confirmation preview; no newer snapshot was reset")
 	}
 	next, result, err := prepareHardClear(state, actor, requestID, reason, snapshot.head)
 	if err != nil {

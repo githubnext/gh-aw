@@ -17,11 +17,23 @@ import (
 
 func workClearOperatorEnvironment(t *testing.T, admin bool) {
 	t.Helper()
+	role := "write"
+	if admin {
+		role = "admin"
+	}
+	workClearRoleEnvironment(t, role)
+}
+
+func workClearRoleEnvironment(t *testing.T, role string) func(string) {
+	t.Helper()
 	for _, name := range []string{"CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS", "COPILOT_AGENT_SESSION_ID"} {
 		t.Setenv(name, "")
 	}
 	t.Setenv("GH_HOST", "github.com")
 	t.Setenv("GH_TOKEN", "test-token")
+	originalConfirm := workClearConfirmAction
+	t.Cleanup(func() { workClearConfirmAction = originalConfirm })
+	workClearConfirmAction = func(string, string, string) (bool, error) { return true, nil }
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
 	http.DefaultTransport = workAPIRoundTripper(func(r *http.Request) (*http.Response, error) {
@@ -33,7 +45,9 @@ func workClearOperatorEnvironment(t *testing.T, admin bool) {
 		case "/user":
 			result = map[string]any{"id": 1001}
 		case "/repos/owner/repo":
-			result = map[string]any{"full_name": "owner/repo", "permissions": map[string]bool{"push": true, "admin": admin}}
+			result = map[string]any{"full_name": "owner/repo", "permissions": map[string]bool{
+				"push": role == "write" || role == "maintain" || role == "admin", "admin": role == "admin", "maintain": role == "maintain",
+			}}
 		default:
 			t.Fatalf("clear attempted unexpected API read: %s", r.URL.Path)
 		}
@@ -44,6 +58,7 @@ func workClearOperatorEnvironment(t *testing.T, admin bool) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}},
 			Body: io.NopCloser(bytes.NewReader(data)), Request: r}, nil
 	})
+	return func(next string) { role = next }
 }
 
 func workClearExecute(t *testing.T, extra ...string) (workClearResult, error) {
