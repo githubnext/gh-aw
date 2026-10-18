@@ -11,32 +11,35 @@ import (
 )
 
 type workClearResult struct {
-	Status               string                 `json:"status"`
-	RequestID            string                 `json:"request_id"`
-	SnapshotTip          string                 `json:"snapshot_tip"`
-	WorkIDs              []string               `json:"work_ids"`
-	CompletedRetained    int                    `json:"completed_retained"`
-	ReservationsRetained int                    `json:"reservations_retained"`
-	Publication          *workqueue.Publication `json:"publication,omitempty"`
+	Status                    string                 `json:"status"`
+	RequestID                 string                 `json:"request_id"`
+	SnapshotTip               string                 `json:"snapshot_tip"`
+	WorkIDs                   []string               `json:"work_ids"`
+	CompletedRetained         int                    `json:"completed_retained"`
+	PendingDeliveriesRetained int                    `json:"pending_deliveries_retained"`
+	ReservationsRetained      int                    `json:"reservations_retained"`
+	Publication               *workqueue.Publication `json:"publication,omitempty"`
 }
 
 func workClearCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "clear", Short: "Terminally cancel unfinished snapshot Work atomically; preserve history and native reservations",
-		Long: "Terminally cancel all available and claimed Work in one queue snapshot.\n\n" +
+		Long: "Terminally cancel available and claimed Work without pending deliveries\n" +
+			"in one queue snapshot. Pending keep-open deliveries are retained.\n\n" +
 			"Requires repository administrator permission and --reason CODE. --dry-run\n" +
 			"validates and previews the same cancellation without publishing anything.\n" +
 			"Completed Work, delivery barriers, audit history, admission identities, and\n" +
 			"fairness debt are retained. Native runs are not stopped and reservations\n" +
 			"are not released; reconcile them separately using definitive evidence.\n\n" +
-			"The snapshot must fit the installed operation limit (at most 256 Work);\n" +
+			"The targets must fit the installed operation limit (at most 256 Work);\n" +
 			"otherwise nothing is cancelled. Use cancel-work in bounded batches for\n" +
 			"larger backlogs. New admissions are not included and admission/grants are\n" +
 			"not paused. Use control to pause them separately when draining a queue.\n" +
-			"A concurrent completion or stale selected Claim fails the whole action.\n" +
+			"A concurrent completion, stale selected Claim, or replacement ledger\n" +
+			"fails the whole action, including on publication retries.\n" +
 			"Retry an accepted --request-id with the same reason to recover only its\n" +
-			"original cancellation, never to sweep newly admitted Work. An empty\n" +
-			"snapshot is a no-op and does not reserve the request ID.\n\n" +
+			"original cancellation, never to sweep newly admitted Work. A snapshot\n" +
+			"with no cancellable Work is a no-op and does not reserve the request ID.\n\n" +
 			"--hard instead resets the active ledger to a fresh, paused queue. Both\n" +
 			"admission and grants must already be paused, all native reservations\n" +
 			"released, and all effects settled. Unresolved or failed delivery blocks\n" +
@@ -93,7 +96,7 @@ func workRunClear(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if len(result.WorkIDs) == 0 {
-		return workPrint(cmd, result, "No unfinished Work in snapshot; history, completed Work, and native reservations retained; no request recorded")
+		return workPrint(cmd, result, "No cancellable Work in snapshot; history, completed Work, pending deliveries, and native reservations retained; no request recorded")
 	}
 	return workPublishClear(cmd, branch, actor, commits, params, result)
 }
@@ -106,6 +109,11 @@ func workClearReport(state workqueue.Projection, params workqueue.OperationsPara
 	for _, dispatch := range state.Dispatches {
 		if !dispatch.Released {
 			result.ReservationsRetained++
+		}
+	}
+	for _, work := range state.Works {
+		if work.Barrier == "pending" {
+			result.PendingDeliveriesRetained++
 		}
 	}
 	for _, operation := range params.Operations {
@@ -149,7 +157,7 @@ func workPublishClear(cmd *cobra.Command, branch workqueue.Branch, actor workque
 	action := "Would cancel"
 	result.Status = "dry_run"
 	if !dryRun {
-		published, err := branch.Publish(cmd.Context(), actor, request)
+		published, err := branch.PublishFromSnapshot(cmd.Context(), actor, request, commits)
 		if err != nil {
 			return err
 		}
@@ -159,7 +167,7 @@ func workPublishClear(cmd *cobra.Command, branch workqueue.Branch, actor workque
 			action, result.Status = "Confirmed original cancellation of", "already_committed"
 		}
 	}
-	return workPrint(cmd, result, fmt.Sprintf("%s %d snapshot Work; completed Work and history retained; native runs not stopped or released; admission/grants unchanged; request=%s",
+	return workPrint(cmd, result, fmt.Sprintf("%s %d snapshot Work; completed Work, pending deliveries, and history retained; native runs not stopped or released; admission/grants unchanged; request=%s",
 		action, len(result.WorkIDs), workQueueText(result.RequestID)))
 }
 
@@ -169,7 +177,7 @@ func workClearIntent(state workqueue.Projection, reason, requestID string) (work
 	}
 	targets := []workOperatorTarget{}
 	for id, work := range state.Works {
-		if work.State == "available" || work.State == "claimed" {
+		if (work.State == "available" || work.State == "claimed") && work.Barrier != "pending" {
 			target := workOperatorTarget{WorkID: id}
 			if work.State == "claimed" {
 				target.ClaimID = work.ClaimID

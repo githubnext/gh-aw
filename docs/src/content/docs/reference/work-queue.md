@@ -615,7 +615,7 @@ initialize Policy over an invalid log.
 | `dispatch-next --pool POOL --max-claims N --max-dispatches N` | Commit the next assignments selected by deterministic fair scheduling and their reservations. Does not send a workflow-dispatch POST. |
 | `dispatch DISPATCHER [--wait] [--dry-run]` | Use the GitHub CLI to start one verified dispatcher at the repository's default-branch snapshot revision. Its trusted controls grant and launch eligible assignments; it does not directly assign a Claim to a worker. |
 | `control`, `cancel-work` | Apply authorized pause, cutover, or cancellation decisions without refunding accounted service or force-releasing a reservation for a possible native run. |
-| `clear --reason CODE [--dry-run] [--hard]` | Local operator only; refuses CI. Normally cancels unfinished snapshot Work atomically while preserving history. `--hard` resets only a paused, fully settled queue and explicitly forgets identities and fairness debt. |
+| `clear --reason CODE [--dry-run] [--hard]` | Local operator only; refuses CI. Normally cancels cancellable unfinished snapshot Work atomically while preserving history and pending retained deliveries. `--hard` resets only a paused, fully settled queue and explicitly forgets identities and fairness debt. |
 | `cancel-claim --claim-id ID[,ID...] --reason CODE` | Atomically revoke the exact current Claims' authority and terminally cancel their Work. Does not retry work, impersonate a worker, or stop a native run. |
 | `reprioritize --work-id ID[,ID...] --priority 1..5 --reason CODE` | Apply an administrator-only, compare-and-set priority override to future grants of available Work. Preserves admitted definitions, FIFO positions, retry boundaries, and accumulated fairness charges. |
 | `evidence`, `reconcile --dispatch-id ID` | Inspect authenticated run evidence and reconcile exact termination. Uncertainty retains reserved capacity. |
@@ -647,11 +647,14 @@ gh aw work-queue --repo owner/repo clear --reason operator_clear \
 
 `clear` publishes existing `WorkCancellation` operations rather than deleting or
 resetting the ledger. It cancels available Work, including dependency-blocked or
-retry-delayed Work, and fences the current Claims of claimed Work. Completed
-Work is not cancelled, including Work with pending or failed delivery verification
-or unknown effects. Delivery barriers, historical Claims, admission identities,
-provenance, and fairness charges remain intact. Resubmitting the same admitted
-identity does not create a fresh task or authorize duplicate effects.
+retry-delayed Work, and fences the current Claims of claimed Work. Available
+Work with pending delivery from a completed `keep_open` Claim is excluded from
+the target set, so its delivery can settle without blocking cancellation of
+unrelated backlog. Completed Work is not cancelled, including Work with pending
+or failed delivery verification or unknown effects. Delivery barriers, historical
+Claims, admission identities, provenance, and fairness charges remain intact.
+Resubmitting the same admitted identity does not create a fresh task or authorize
+duplicate effects.
 
 Both `clear` and `clear --hard`, including their `--dry-run` previews, refuse
 CI environments before authentication or queue access. Detection uses the
@@ -666,19 +669,23 @@ does not reserve the request ID. A preview is not a lock: the real invocation
 reads a fresh snapshot.
 
 Cancellation is all-or-nothing and must fit the installed Policy's operation
-limit, which is at most 256 Work. Larger snapshots fail without cancelling
-anything; use `cancel-work` with explicit IDs in bounded batches instead.
+limit, which is at most 256 targeted Work. Larger target sets fail without
+cancelling anything; use `cancel-work` with explicit IDs in bounded batches instead.
 Concurrent completion or a changed selected Claim fails the entire publication.
-New admissions after selection are not included. The command does not change
-admission or grant controls; pause them separately with `control` when an
-operational drain requires a stable backlog.
+A queue-incarnation replacement between selection and publication also fails,
+including during publication retries; reusing Work IDs in the replacement queue
+does not make the original selection valid there. New admissions after selection
+are not included. The command does not change admission or grant controls; pause
+them separately with `control` when an operational drain requires a stable backlog.
 
 Retrying an accepted `--request-id` with the same reason recovers its original
 target set, including after compaction, rather than cancelling newly admitted
 Work. A different reason, actor, or incompatible prior request fails explicitly.
-An empty unfinished snapshot is a no-op and does not record the request ID.
-JSON output reports the snapshot tip, target IDs, retained completed Work and
-unreleased reservation counts, and the publication when one exists.
+If no cancellable Work remains, the command is a no-op and does not record the
+request ID, including when only pending retained deliveries remain.
+JSON output reports the snapshot tip, target IDs, retained completed Work,
+`pending_deliveries_retained` and unreleased reservation counts, and the
+publication when one exists.
 
 Native runs are not stopped, and their reservations are never force-released.
 Keep using `reconcile` with definitive native evidence. Successful cancellation

@@ -449,6 +449,20 @@ func extending(previous, current []QueueCommit) bool {
 // discards selections, handles, charges and clocks and recovers uncertain ref
 // acknowledgments by stable request identity before constructing another grant.
 func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publication, error) {
+	return b.publishRequest(ctx, actor, request, nil)
+}
+
+// PublishFromSnapshot rejects replacement ledgers before applying intent selected
+// from an existing snapshot. Same-ledger appends and verified checkpoints remain
+// eligible, including across CAS retries and uncertain acknowledgments.
+func (b Branch) PublishFromSnapshot(ctx context.Context, actor Actor, request Request, selected []QueueCommit) (Publication, error) {
+	if len(selected) == 0 {
+		return Publication{}, queueError("queue_missing", "snapshot publication requires an existing queue")
+	}
+	return b.publishRequest(ctx, actor, request, selected)
+}
+
+func (b Branch) publishRequest(ctx context.Context, actor Actor, request Request, previous []QueueCommit) (Publication, error) {
 	b, err := b.authenticatePublication(ctx, actor, request)
 	if err != nil {
 		return Publication{}, err
@@ -458,7 +472,7 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 		return Publication{}, err
 	}
 	defer cleanup()
-	var last []QueueCommit
+	last := previous
 	var pendingErr error
 	for attempt := range maxRetries {
 		prefix, err := b.readPublicationPrefix(ctx, actor, request, last)
@@ -486,7 +500,7 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 			last = prefix.commits
 		}
 		if attempt == maxRetries-1 {
-			return b.recoverPublicationAcknowledgment(ctx, actor, request, err)
+			return b.recoverPublicationAcknowledgment(ctx, actor, request, last, err)
 		}
 		if err := waitForPublicationRetry(ctx, attempt); err != nil {
 			return Publication{}, err
@@ -529,8 +543,8 @@ func (b Branch) readPublicationPrefix(ctx context.Context, actor Actor, request 
 	if err != nil {
 		return publicationPrefix{}, err
 	}
-	if len(previous) > 0 && (snapshot.head == "" || !extending(previous, commits)) {
-		return publicationPrefix{}, queueError("ledger_nonextending", "queue history was deleted or rewritten during publication")
+	if err := b.checkPublicationExtension(ctx, previous, commits); err != nil {
+		return publicationPrefix{}, err
 	}
 	var initial *QueueCommit
 	if snapshot.head == "" {
@@ -551,6 +565,29 @@ func (b Branch) readPublicationPrefix(ctx context.Context, actor Actor, request 
 		}
 	}
 	return publicationPrefix{commits: commits, snapshot: snapshot, initial: initial, state: state}, nil
+}
+
+func (b Branch) checkPublicationExtension(ctx context.Context, previous, current []QueueCommit) error {
+	if len(previous) == 0 {
+		return nil
+	}
+	for !extending(previous, current) {
+		root, err := firstQueueCommit(current)
+		if err != nil || !isCheckpoint(root) {
+			return queueError("ledger_nonextending", "queue history was deleted or rewritten during publication")
+		}
+		// The current read verified checkpoint ancestry. Walk its bound history
+		// when intervening appends or compactions separate it from the selection.
+		checkpoint, err := decodeCheckpointOperation(root)
+		if err != nil {
+			return err
+		}
+		current, _, err = b.readAt(ctx, checkpoint.PriorGitSHA, false, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type publicationCandidate struct {
@@ -614,8 +651,13 @@ func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, re
 	return candidate, nil
 }
 
-func (b Branch) recoverPublicationAcknowledgment(ctx context.Context, actor Actor, request Request, pendingErr error) (Publication, error) {
+func (b Branch) recoverPublicationAcknowledgment(ctx context.Context, actor Actor, request Request, previous []QueueCommit, pendingErr error) (Publication, error) {
 	current, _, readErr := b.read(ctx)
+	if readErr == nil {
+		if err := b.checkPublicationExtension(ctx, previous, current); err != nil {
+			return Publication{}, err
+		}
+	}
 	if readErr == nil && len(current) > 0 {
 		projection, replayErr := Replay(current)
 		if replayErr == nil {

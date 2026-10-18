@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,6 +81,11 @@ func workClearAppend(t *testing.T, commits []workqueue.QueueCommit, actor workqu
 
 func workClearMixedFixture(t *testing.T, failed bool) (workqueue.Projection, []workqueue.QueueCommit, string) {
 	t.Helper()
+	return workClearMixedFixtureWithKeepOpen(t, failed, false)
+}
+
+func workClearMixedFixtureWithKeepOpen(t *testing.T, failed, keepOpen bool) (workqueue.Projection, []workqueue.QueueCommit, string) {
+	t.Helper()
 	state, commits, _ := workOperatorFixture(t, true)
 	var dispatch *workqueue.DispatchState
 	for _, item := range state.Dispatches {
@@ -105,7 +111,7 @@ func workClearMixedFixture(t *testing.T, failed bool) (workqueue.Projection, []w
 	worker.Role, worker.Workflow, worker.RunID, worker.RunAttempt = "worker", profile.Workflow, "202", 1
 	worker.DispatchID, worker.ClaimHandle = dispatch.DispatchID, "h1"
 	commits = workClearAppend(t, commits, worker, "finish", "finish", workqueue.FinishParameters{
-		DispatchID: dispatch.DispatchID, ClaimHandle: "h1", Outcome: "completed",
+		DispatchID: dispatch.DispatchID, ClaimHandle: "h1", Outcome: "completed", KeepOpen: keepOpen,
 	}, 6000)
 	completedID := dispatch.Claims[0].WorkID
 	state, err := workqueue.Replay(commits)
@@ -169,6 +175,81 @@ func TestWorkClearPreservesHistoryAndUnresolvedEffects(t *testing.T) {
 			retry, err := workClearExecute(t)
 			if err != nil || retry.Status != "already_committed" || queue.pushes(t) != 1 {
 				t.Fatalf("clear retry did not recover acknowledgment: %+v %v", retry, err)
+			}
+		})
+	}
+}
+
+func TestWorkClearPreservesPendingKeepOpenDelivery(t *testing.T) {
+	for _, pendingOnly := range []bool{false, true} {
+		t.Run(strconv.FormatBool(pendingOnly), func(t *testing.T) {
+			workClearOperatorEnvironment(t, true)
+			before, commits, retainedID := workClearMixedFixtureWithKeepOpen(t, false, true)
+			if before.Works[retainedID].State != "available" || before.Works[retainedID].Barrier != "pending" {
+				t.Fatal("fixture did not retain a pending keep-open completion")
+			}
+			for _, reservations := range []int{0, 2} {
+				reportState := before
+				reportState.Dispatches = map[string]*workqueue.DispatchState{}
+				for index := range reservations {
+					reportState.Dispatches[strconv.Itoa(index)] = &workqueue.DispatchState{}
+				}
+				report, err := workClearReport(reportState, workqueue.OperationsParameters{}, "report-only")
+				if err != nil || report.PendingDeliveriesRetained != 1 || report.ReservationsRetained != reservations {
+					t.Fatalf("retained delivery count depended on reservations: %+v %v", report, err)
+				}
+			}
+			if pendingOnly {
+				params, err := workClearIntent(before, "prior_clear", "prior-clear")
+				if err != nil {
+					t.Fatal(err)
+				}
+				commits = workClearAppend(t, commits, workqueue.Actor{Role: "administrator", Principal: "1001", Repository: "owner/repo"},
+					"prior-clear", "cancel_work", params, 9000)
+				before, err = workqueue.Replay(commits)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			data, err := workqueue.Serialize(commits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			queue := newWorkQueueGitRemote(t, string(data))
+			preview, err := workClearExecute(t, "--dry-run")
+			wantStatus, wantSelected := "dry_run", 3
+			if pendingOnly {
+				wantStatus, wantSelected = "no_work", 0
+			}
+			if err != nil || preview.Status != wantStatus || len(preview.WorkIDs) != wantSelected ||
+				preview.PendingDeliveriesRetained != 1 || preview.CompletedRetained != 0 ||
+				preview.ReservationsRetained != 1 || slices.Contains(preview.WorkIDs, retainedID) ||
+				queue.pushes(t) != 0 || queue.read(t) != string(data) {
+				t.Fatalf("pending keep-open delivery broke preview: %+v %v", preview, err)
+			}
+			result, err := workClearExecute(t)
+			wantStatus, wantPushes := "cancelled", 1
+			if pendingOnly {
+				wantStatus, wantPushes = "no_work", 0
+			}
+			if err != nil || result.Status != wantStatus || result.PendingDeliveriesRetained != 1 ||
+				!slices.Equal(result.WorkIDs, preview.WorkIDs) || queue.pushes(t) != wantPushes {
+				t.Fatalf("pending keep-open delivery broke clear: %+v %v", result, err)
+			}
+			after := workClearRead(t, queue)
+			if after.Stats.Available != 1 || after.Stats.Claimed != 0 || after.Stats.Cancelled != 3 ||
+				after.Stats.Completed != 0 {
+				t.Fatalf("clear did not preserve only the retained delivery: %+v", after.Stats)
+			}
+			assertWorkClearEqual(t, before.Works[retainedID], after.Works[retainedID])
+			assertWorkClearEqual(t, before.Claims[before.Works[retainedID].ClaimID], after.Claims[before.Works[retainedID].ClaimID])
+			assertWorkClearEqual(t, before.Dispatches, after.Dispatches)
+			assertWorkClearEqual(t, before.Clocks, after.Clocks)
+			if pendingOnly {
+				assertWorkClearEqual(t, before, after)
+				if _, ok := after.Requests["clear-action"]; ok || result.Publication != nil {
+					t.Fatal("pending-only no-op recorded a clear request")
+				}
 			}
 		})
 	}
@@ -337,6 +418,89 @@ func TestWorkClearConcurrentCompletionFailsAtomically(t *testing.T) {
 	latest, err := workqueue.Replay(changed)
 	if err != nil || latest.Stats.Cancelled != 0 {
 		t.Fatal("failed atomic clear cancelled a sibling")
+	}
+}
+
+func TestWorkClearRejectsResetReadmissionBeforePublication(t *testing.T) {
+	for _, compact := range []bool{false, true} {
+		t.Run(strconv.FormatBool(compact), func(t *testing.T) {
+			workClearOperatorEnvironment(t, true)
+			before, commits, ids := workOperatorFixture(t, false)
+			data, err := workqueue.Serialize(commits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			queue := newWorkQueueGitRemote(t, string(data))
+			transport := http.DefaultTransport
+			authentications, resetPushes := 0, 0
+			var replacement string
+			http.DefaultTransport = workAPIRoundTripper(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path == "/user" {
+					authentications++
+					if authentications == 2 {
+						// Publish reauthenticates after clear has captured and validated its selection.
+						actor := workqueue.Actor{Role: "administrator", Principal: "1001", Repository: "owner/repo"}
+						paused := workClearAppend(t, commits, actor, "pause-before-reset", "control",
+							workqueue.OperationsParameters{Operations: []workqueue.Operation{
+								mustWorkQueueOperation(t, map[string]any{"kind": "Control", "control": "admission_paused", "value": true, "reason": "reset"}),
+								mustWorkQueueOperation(t, map[string]any{"kind": "Control", "control": "grants_paused", "value": true, "reason": "reset"}),
+							}}, 3000)
+						pausedData, err := workqueue.Serialize(paused)
+						if err != nil {
+							t.Fatal(err)
+						}
+						queue.write(t, string(pausedData))
+						branch := workqueue.Branch{Remote: "owner/repo", Name: workqueue.DefaultBranch}
+						if _, err := branch.HardClear(context.Background(), "hard-reset", "operator_reset", false); err != nil {
+							t.Fatal(err)
+						}
+						reset, err := workqueue.Parse([]byte(queue.read(t)))
+						if err != nil {
+							t.Fatal(err)
+						}
+						at := reset[len(reset)-1].At
+						reset = workClearAppend(t, reset, actor, "resume-after-reset", "control",
+							workqueue.OperationsParameters{Operations: []workqueue.Operation{
+								mustWorkQueueOperation(t, map[string]any{"kind": "Control", "control": "admission_paused", "value": false, "reason": "resume"}),
+								mustWorkQueueOperation(t, map[string]any{"kind": "Control", "control": "grants_paused", "value": false, "reason": "resume"}),
+							}}, at)
+						nodes := []workqueue.WorkDefinition{}
+						for _, id := range ids {
+							nodes = append(nodes, before.Works[id].WorkDefinition)
+						}
+						reset = workClearAppend(t, reset, actor, "submit", "submit", workqueue.SubmitParameters{Nodes: nodes}, at)
+						resetData, err := workqueue.Serialize(reset)
+						if err != nil {
+							t.Fatal(err)
+						}
+						queue.write(t, string(resetData))
+						if compact {
+							if _, err := branch.Compact(context.Background()); err != nil {
+								t.Fatal(err)
+							}
+						}
+						replacement, resetPushes = queue.read(t), queue.pushes(t)
+					}
+				}
+				return transport.RoundTrip(r)
+			})
+			if _, err := workClearExecute(t); err == nil || !strings.HasPrefix(err.Error(), "ledger_nonextending:") {
+				t.Fatalf("clear accepted a replacement queue before its initial publication read: %v", err)
+			}
+			after := workClearRead(t, queue)
+			if replacement == "" || queue.read(t) != replacement || queue.pushes(t) != resetPushes ||
+				after.Stats.Available != len(ids) || after.Stats.Cancelled != 0 {
+				t.Fatalf("clear changed readmitted Work: %+v", after.Stats)
+			}
+			if _, ok := after.Requests["clear-action"]; ok {
+				t.Fatal("clear appended a cancellation to the replacement queue")
+			}
+			for _, id := range ids {
+				if after.Works[id].State != "available" {
+					t.Fatalf("readmitted Work %s was cancelled", id)
+				}
+			}
+		})
 	}
 }
 
