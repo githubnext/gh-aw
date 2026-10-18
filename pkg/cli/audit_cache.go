@@ -13,7 +13,7 @@ import (
 
 type auditCacheSource string
 
-const auditSchemaVersion = 7
+const auditSchemaVersion = 8
 
 const (
 	auditCacheSourceFull auditCacheSource = "full"
@@ -85,7 +85,7 @@ func writeLogsAuditFiles(processedRuns []ProcessedRun, verbose bool) {
 func writeLogsAuditFile(processedRun ProcessedRun, processedRuns []ProcessedRun, verbose bool) {
 	runOutputDir := processedRun.Run.LogsPath
 	var auditData AuditData
-	ok := processedRun.cachedAudit != nil
+	ok := processedRun.cachedAudit != nil && processedRun.cachedAudit.SchemaVersion == auditSchemaVersion
 	if ok {
 		auditData = *processedRun.cachedAudit
 	} else {
@@ -122,7 +122,7 @@ func hydrateProcessedRunsWithCachedAudit(processedRuns []ProcessedRun) []Process
 }
 
 func hydrateProcessedRunWithCachedAudit(processedRun ProcessedRun) ProcessedRun {
-	if processedRun.cachedAudit == nil {
+	if processedRun.cachedAudit == nil || processedRun.cachedAudit.SchemaVersion != auditSchemaVersion {
 		return processedRun
 	}
 	audit := processedRun.cachedAudit
