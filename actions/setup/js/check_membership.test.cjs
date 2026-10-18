@@ -1118,6 +1118,43 @@ describe("check_membership.cjs", () => {
     });
   });
 
+  describe.each(["projects_v2_item", "code_scanning_alert", "dependabot_alert"])("webhook relay %s role checks", event => {
+    it.each([
+      ["read", "read", false],
+      ["read", "triage", false],
+      ["write", "write", true],
+      ["write", "maintain", true],
+      ["admin", "admin", true],
+    ])("checks the dispatch actor with permission %s and role %s", async (permission, role, authorized) => {
+      process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write";
+      process.env.GH_AW_ALLOWED_BOTS = "cao-gateway";
+      mockContext.eventName = "repository_dispatch";
+      mockContext.actor = "dispatch-user";
+      mockContext.payload = {
+        action: "gh-aw-webhook-test",
+        sender: { login: "cao-gateway[bot]" },
+        client_payload: {
+          schema_version: 1,
+          event,
+          delivery_id: "test-delivery",
+          actor: "cao-gateway[bot]",
+          payload: { sender: { login: "admin-user" }, role: "admin" },
+        },
+      };
+      mockGithub.rest.repos.getCollaboratorPermissionLevel.mockResolvedValue({ data: { permission, role_name: role } });
+
+      await runScript();
+
+      expect(mockGithub.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledExactlyOnceWith({
+        owner: "testorg",
+        repo: "testrepo",
+        username: "dispatch-user",
+      });
+      expect(mockCore.setOutput).toHaveBeenCalledWith("is_team_member", String(authorized));
+      expect(mockCore.setOutput).toHaveBeenCalledWith("result", authorized ? "authorized" : "insufficient_permissions");
+    });
+  });
+
   describe("repository_dispatch GitHub App actors", () => {
     beforeEach(() => {
       process.env.GH_AW_REQUIRED_ROLES = "admin,maintainer,write";

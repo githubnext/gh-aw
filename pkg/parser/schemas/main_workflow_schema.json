@@ -2369,7 +2369,7 @@
               }
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Projects-item and security-alert webhook triggers require write access or higher; only admin, maintainer, maintain, and write are allowed. For other triggers, use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",

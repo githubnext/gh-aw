@@ -259,7 +259,7 @@ func TestCompileWebhookNativeSelectors(t *testing.T) {
 }
 
 func TestWebhookStatusTransitionsDoNotAddAdmissionSteps(t *testing.T) {
-	for _, policy := range []string{"", "  roles: all\n"} {
+	for _, policy := range []string{"", "  roles: write\n"} {
 		t.Run(policy, func(t *testing.T) {
 			compiler := newWebhookCompiler()
 			source := webhookWorkflow("on:\n" + policy + `  projects-item:
@@ -278,11 +278,7 @@ func TestWebhookStatusTransitionsDoNotAddAdmissionSteps(t *testing.T) {
 			assert.NotContains(t, output, "check_project_status_transition")
 			assert.NotContains(t, output, "status_transition_ok")
 			assert.NotContains(t, output, "GH_AW_PROJECT_STATUS_CONFIG")
-			if policy != "" {
-				assert.NotContains(t, output, "\n  pre_activation:\n")
-			} else {
-				assert.Contains(t, extractJobSection(output, "pre_activation"), "check_membership.cjs")
-			}
+			assert.Contains(t, extractJobSection(output, "pre_activation"), "check_membership.cjs")
 		})
 	}
 }
@@ -297,21 +293,21 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()
 			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  projects-item:\n    project_id: PVT_example\n"+policy), "webhook-test.md")
+			if name == "all" {
+				require.ErrorContains(t, err, "require on.roles with write access or higher")
+				return
+			}
 			require.NoError(t, err)
 			output, err := compiler.CompileToYAML(data, "webhook-test.md")
 			require.NoError(t, err)
-			if name == "all" {
-				assert.NotContains(t, output, "id: check_membership")
-			} else {
-				preActivation := extractJobSection(output, "pre_activation")
-				assert.Contains(t, preActivation, "check_membership.cjs")
-				assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
-				if name == "roles" {
-					assert.Contains(t, preActivation, `GH_AW_REQUIRED_ROLES: "admin"`)
-				}
-				if name == "bots" {
-					assert.Contains(t, preActivation, `GH_AW_ALLOWED_BOTS: "cao-gateway"`)
-				}
+			preActivation := extractJobSection(output, "pre_activation")
+			assert.Contains(t, preActivation, "check_membership.cjs")
+			assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
+			if name == "roles" {
+				assert.Contains(t, preActivation, `GH_AW_REQUIRED_ROLES: "admin"`)
+			}
+			if name == "bots" {
+				assert.Contains(t, preActivation, `GH_AW_ALLOWED_BOTS: "cao-gateway"`)
 			}
 			assert.NotContains(t, output, "GH_AW_WEBHOOK_ACTOR")
 		})

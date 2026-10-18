@@ -102,7 +102,7 @@ func (c *Compiler) configureGHESCompatibility() {
 //   - validateToolConfiguration: safe-outputs, GitHub tools, dispatches, and resources
 func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath string) error {
 	if len(workflowData.WebhookSubscriptions) > 0 {
-		if err := c.requireWebhookTriggers(); err != nil {
+		if err := c.requireWebhookTriggers(workflowData.Roles); err != nil {
 			return formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
 	}

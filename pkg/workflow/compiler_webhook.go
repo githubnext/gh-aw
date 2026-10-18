@@ -20,7 +20,7 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	if len(subscriptions) == 0 {
 		return frontmatter, nil
 	}
-	if err := c.requireWebhookTriggers(); err != nil {
+	if err := c.requireWebhookTriggers(c.extractRoles(frontmatter)); err != nil {
 		return nil, err
 	}
 	dispatchType := WebhookDispatchEventType(data.WorkflowID)

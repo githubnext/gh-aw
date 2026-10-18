@@ -4,8 +4,10 @@ package workflow
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,6 +68,87 @@ func TestWebhookOptInCannotBeBypassedByPreparsedData(t *testing.T) {
 	compiler.gitRoot = t.TempDir()
 	err = compiler.CompileWorkflowData(data, filepath.Join(t.TempDir(), "preparsed.md"))
 	require.ErrorContains(t, err, "hosted CAO server")
+}
+
+func TestWebhookMinimumRoles(t *testing.T) {
+	for name, trigger := range map[string]string{
+		"projects":   "projects-item: {project_id: PVT_example}",
+		"code":       "security-alert: {sources: [code-scanning]}",
+		"dependabot": "security-alert: {sources: [dependabot]}",
+	} {
+		for _, tt := range []struct {
+			roles string
+			valid bool
+		}{
+			{"", true},
+			{"write", true},
+			{"[write]", true},
+			{"maintain", true},
+			{"maintainer", true},
+			{"[admin]", true},
+			{"[admin, maintain, write]", true},
+			{"all", false},
+			{"read", false},
+			{"triage", false},
+			{"[admin, write, read]", false},
+			{"[write, triage]", false},
+		} {
+			for _, strict := range []bool{true, false} {
+				t.Run(fmt.Sprintf("%s/%s/strict=%t", name, tt.roles, strict), func(t *testing.T) {
+					roleConfig := ""
+					if tt.roles != "" {
+						roleConfig = "  roles: " + tt.roles + "\n"
+					}
+					source := webhookWorkflow(fmt.Sprintf("strict: %t\non:\n  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n  bots: [cao-gateway]\n%s  %s\n", strict, roleConfig, trigger))
+					compiler := newWebhookCompiler()
+					data, err := compiler.ParseWorkflowString(source, "webhook-roles.md")
+					if !tt.valid {
+						require.ErrorContains(t, err, "require on.roles with write access or higher")
+						assert.Contains(t, err.Error(), "[admin, maintainer, write]")
+						return
+					}
+					require.NoError(t, err)
+					output, err := compiler.CompileToYAML(data, "webhook-roles.md")
+					require.NoError(t, err)
+					preActivation := extractJobSection(output, "pre_activation")
+					assert.Contains(t, preActivation, "check_membership.cjs")
+					assert.Contains(t, preActivation, fmt.Sprintf("GH_AW_REQUIRED_ROLES: %q", strings.Join(data.Roles, ",")))
+					assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
+					assert.True(t, compiler.needsRoleCheck(data, map[string]any{"on": map[string]any{"workflow_dispatch": nil}}))
+				})
+			}
+		}
+	}
+}
+
+func TestWebhookMinimumRolesCannotBeBypassedByPreparsedData(t *testing.T) {
+	for _, roles := range [][]string{nil, {}, {"all"}, {"read"}, {"triage"}, {"write", "read"}, {"admin", "all"}, {"unknown"}} {
+		t.Run(fmt.Sprint(roles), func(t *testing.T) {
+			data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("strict: false\non:\n  projects-item: {project_id: PVT_example}\n"), "preparsed-roles.md")
+			require.NoError(t, err)
+			data.Roles = roles
+			_, err = newWebhookCompiler().CompileToYAML(data, "preparsed-roles.md")
+			require.ErrorContains(t, err, "require on.roles with write access or higher")
+			path := filepath.Join(t.TempDir(), "preparsed-roles.md")
+			err = newWebhookCompiler().CompileWorkflowData(data, path)
+			require.ErrorContains(t, err, "require on.roles with write access or higher")
+			_, err = os.Stat(filepath.Join(filepath.Dir(path), "preparsed-roles.lock.yml"))
+			require.True(t, os.IsNotExist(err), "invalid roles must not produce a lock file")
+		})
+	}
+}
+
+func TestWebhookMinimumRolesDoesNotRestrictNativeTriggers(t *testing.T) {
+	for _, roles := range []string{"all", "read", "triage", "[write, read]"} {
+		t.Run(roles, func(t *testing.T) {
+			compiler := NewCompiler()
+			source := webhookWorkflow("on:\n  issues: {types: [opened]}\n  roles: " + roles + "\n")
+			data, err := compiler.ParseWorkflowString(source, "native-roles.md")
+			require.NoError(t, err)
+			_, err = compiler.CompileToYAML(data, "native-roles.md")
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestWebhookRepoConfigValidation(t *testing.T) {

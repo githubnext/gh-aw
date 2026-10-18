@@ -362,6 +362,10 @@ func (c *Compiler) needsRoleCheck(data *WorkflowData, frontmatter map[string]any
 	if data.DryRun {
 		return true
 	}
+	if len(data.WebhookSubscriptions) > 0 {
+		roleLog.Print("Role check needed: hosted webhook trigger")
+		return true
+	}
 	// If user explicitly specified "roles: all", no permission checks needed
 	if rolesAreAll(data.Roles) {
 		roleLog.Print("Role check not needed: roles set to 'all'")

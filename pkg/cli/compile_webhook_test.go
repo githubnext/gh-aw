@@ -129,6 +129,26 @@ func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
 	}
 }
 
+func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
+	for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [code-scanning, dependabot]}"} {
+		for _, roles := range []string{"all", "read", "triage", "[admin, write, read]"} {
+			t.Run(trigger+"/"+roles, func(t *testing.T) {
+				dir := t.TempDir()
+				enableWebhookTriggers(t, dir)
+				path := filepath.Join(dir, "weak-roles.md")
+				source := fmt.Sprintf("---\nstrict: false\non:\n  workflow_dispatch:\n  bots: [cao-gateway]\n  roles: %s\n  %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the event.\n", roles, trigger)
+				require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+				result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+				require.False(t, result.success)
+				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "require on.roles with write access or higher")
+				assert.Empty(t, result.validationResult.WebhookSubscriptions)
+				_, err := os.Stat(filepath.Join(dir, "weak-roles.lock.yml"))
+				require.True(t, os.IsNotExist(err), "invalid roles must not produce a lock file")
+			})
+		}
+	}
+}
+
 func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 	for _, tt := range []struct {
 		kind   string
