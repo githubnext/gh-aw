@@ -1,5 +1,16 @@
 package taint
 
+func jsModuleLocalNames(source *JavaScriptNode) map[string]struct{} {
+	body := &JavaScriptNode{}
+	for _, statement := range source.Statements {
+		switch statement.Kind {
+		case "VariableStatement", "FunctionDeclaration":
+			body.Statements = append(body.Statements, statement)
+		}
+	}
+	return jsLocalNames(&JavaScriptNode{Body: body})
+}
+
 func jsLocalNames(fn *JavaScriptNode) map[string]struct{} {
 	result := make(map[string]struct{})
 	var binding func(*JavaScriptNode)

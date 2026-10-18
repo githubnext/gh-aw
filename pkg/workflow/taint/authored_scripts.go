@@ -254,13 +254,13 @@ func (a *analyzer) authoredScriptEnvironment(ctx context.Context, document *aw.D
 	if err != nil {
 		return nil, err
 	}
-	sandbox, err := optionalField[map[string]any](document.Frontmatter, "sandbox", "workflow")
-	if err != nil {
-		return nil, err
+	sandbox, ok := document.Frontmatter["sandbox"].(map[string]any)
+	if !ok {
+		return bindings, nil
 	}
-	agent, err := optionalField[map[string]any](sandbox, "agent", "sandbox")
-	if err != nil {
-		return nil, err
+	agent, ok := sandbox["agent"].(map[string]any)
+	if !ok {
+		return bindings, nil
 	}
 	return a.authoredEnvironmentOverlay(ctx, agent, "sandbox.agent.env", parent, bindings)
 }

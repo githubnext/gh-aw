@@ -168,7 +168,7 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 	case "SourceFile":
 		// CommonJS declarations are module-local, even when they shadow a
 		// runtime global whose object is shared with other modules.
-		for name := range jsLocalNames(&JavaScriptNode{Body: n}) {
+		for name := range jsModuleLocalNames(n) {
 			delete(j.env, name)
 		}
 		fallthrough
