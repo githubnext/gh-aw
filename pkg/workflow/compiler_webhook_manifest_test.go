@@ -24,7 +24,7 @@ func TestWebhookManifestCompilation(t *testing.T) {
       - {from: In progress, to: Done}
 `,
 		"security": `  security-alert:
-    sources: [code-scanning, dependabot, secret-scanning]
+    sources: [code-scanning, dependabot]
     types: [created]
     filters:
       alert_number: 42
@@ -76,6 +76,10 @@ func TestWebhookManifestCompilation(t *testing.T) {
 				assert.NotContains(t, manifestLine, `"webhook_subscriptions"`)
 			} else {
 				assert.Contains(t, manifestLine, `"webhook_subscriptions":[`)
+				assert.NotContains(t, manifestLine, "secret_scanning")
+				if name == "security" {
+					require.Len(t, manifest.WebhookSubscriptions, 2)
+				}
 				for _, subscription := range manifest.WebhookSubscriptions {
 					assert.Equal(t, 1, subscription.SchemaVersion)
 					assert.Equal(t, WebhookDispatchEventType(name), subscription.Dispatch.EventType)

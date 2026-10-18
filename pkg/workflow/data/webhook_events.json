@@ -585,26 +585,6 @@
       "ghsa_id": { "path": ["alert", "ghsa_id"], "type": "string", "description": "GitHub security advisory identifier." }
     }
   },
-  "secret_scanning_alert": {
-    "actions": ["assigned", "created", "metadata_created", "metadata_removed", "publicly_leaked", "reopened", "resolved", "unassigned", "validated"],
-    "description": "A secret scanning alert changed. Filters deliberately exclude secret material.",
-    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#secret_scanning_alert",
-    "availability": ["repository", "organization", "app"],
-    "filters": {
-      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
-      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
-      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
-      "alert_number": { "path": ["alert", "number"], "type": "integer", "description": "Repository-scoped alert number." },
-      "secret_type": { "path": ["alert", "secret_type"], "type": "string", "description": "Secret detector identifier, not the secret value." },
-      "secret_category": { "path": ["alert", "secret_category"], "type": "string", "description": "Secret detector category.", "enum": ["default", "generic"] },
-      "validity": { "path": ["alert", "validity"], "type": "string", "description": "Secret validity.", "enum": ["active", "inactive", "unknown"] },
-      "resolution": { "path": ["alert", "resolution"], "type": "string", "description": "Alert resolution reason.", "enum": ["false_positive", "wont_fix", "revoked", "used_in_tests", "pattern_deleted", "pattern_edited"] },
-      "publicly_leaked": { "path": ["alert", "publicly_leaked"], "type": "boolean", "description": "Whether the secret was publicly leaked." },
-      "multi_repo": { "path": ["alert", "multi_repo"], "type": "boolean", "description": "Whether the secret appears in multiple repositories." },
-      "push_protection_bypassed": { "path": ["alert", "push_protection_bypassed"], "type": "boolean", "description": "Whether push protection was bypassed." },
-      "assignee": { "path": ["alert", "assigned_to", "login"], "type": "string", "description": "Alert assignee login." }
-    }
-  },
   "secret_scanning_alert_location": {
     "actions": ["created"],
     "description": "A new location was detected for a secret scanning alert. Filters exclude secret material.",

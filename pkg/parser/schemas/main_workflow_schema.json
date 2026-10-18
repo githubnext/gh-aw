@@ -794,12 +794,12 @@
               "properties": {
                 "sources": {
                   "oneOf": [
-                    { "type": "string", "enum": ["code-scanning", "dependabot", "secret-scanning"] },
+                    { "type": "string", "enum": ["code-scanning", "dependabot"] },
                     {
                       "type": "array",
                       "minItems": 1,
                       "uniqueItems": true,
-                      "items": { "type": "string", "enum": ["code-scanning", "dependabot", "secret-scanning"] }
+                      "items": { "type": "string", "enum": ["code-scanning", "dependabot"] }
                     }
                   ],
                   "description": "Experimental. Selected security alert sources. No related scan or location events are selected implicitly."

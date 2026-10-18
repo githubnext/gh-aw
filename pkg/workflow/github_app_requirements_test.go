@@ -115,13 +115,12 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 			name: "selected Projects and security events",
 			on: map[string]any{
 				"projects-item":  map[string]any{"project_id": "PVT_example"},
-				"security-alert": map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}},
+				"security-alert": map[string]any{"sources": []any{"code-scanning", "dependabot"}},
 			},
 			want: map[string]string{
-				"organization_projects":  "read",
-				"security_events":        "read",
-				"vulnerability_alerts":   "read",
-				"secret_scanning_alerts": "read",
+				"organization_projects": "read",
+				"security_events":       "read",
+				"vulnerability_alerts":  "read",
 			},
 		},
 		{
@@ -130,6 +129,13 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 				"security-alert": map[string]any{"sources": []any{"dependabot"}},
 			},
 			want: map[string]string{"vulnerability_alerts": "read"},
+		},
+		{
+			name: "removed secret scanning source grants no permissions",
+			on: map[string]any{
+				"security-alert": map[string]any{"sources": []any{"dependabot", "secret-scanning"}},
+			},
+			want: nil,
 		},
 		{
 			name: "native events need no webhook permissions",
@@ -179,13 +185,20 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 			name: "first-class Projects v2 and security triggers use wire event names",
 			on: map[string]any{
 				"projects-item":     map[string]any{"project_id": "PVT_example", "types": []any{"edited"}},
-				"security-alert":    map[string]any{"sources": []any{"secret-scanning", "dependabot"}},
+				"security-alert":    map[string]any{"sources": []any{"code-scanning", "dependabot"}},
 				"workflow_dispatch": nil,
 				"issues":            nil,
 			},
 			want: []string{
-				"dependabot_alert", "issues", "projects_v2_item", "secret_scanning_alert",
+				"code_scanning_alert", "dependabot_alert", "issues", "projects_v2_item",
 			},
+		},
+		{
+			name: "removed secret scanning source yields no webhook events",
+			on: map[string]any{
+				"security-alert": map[string]any{"sources": []any{"secret-scanning"}},
+			},
+			want: nil,
 		},
 		{
 			name: "pull_request_target maps to pull_request",

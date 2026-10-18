@@ -18,7 +18,6 @@ func TestSecurityAlertSubscriptions(t *testing.T) {
 	}{
 		{"code-scanning", "code_scanning_alert", "severity", "error", []string{"alert", "rule", "severity"}},
 		{"dependabot", "dependabot_alert", "severity", "critical", []string{"alert", "security_advisory", "severity"}},
-		{"secret-scanning", "secret_scanning_alert", "secret_type", "github_personal_access_token", []string{"alert", "secret_type"}},
 	}
 	require.Len(t, securityAlertEvents, len(tests))
 	for _, tt := range tests {
@@ -81,6 +80,9 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		"blank source":             {map[string]any{"sources": " "}, "on.security-alert.sources"},
 		"unknown source":           {map[string]any{"sources": "security_advisory"}, "on.security-alert.sources"},
 		"known and unknown source": {map[string]any{"sources": []any{"dependabot", "secret-scanning-scan"}}, "on.security-alert.sources"},
+		"removed secret source":    {map[string]any{"sources": "secret-scanning"}, "must select only code-scanning or dependabot"},
+		"removed secret list":      {map[string]any{"sources": []any{"secret-scanning"}}, "must select only code-scanning or dependabot"},
+		"mixed removed source":     {map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}}, "must select only code-scanning or dependabot"},
 		"mixed sources":            {map[string]any{"sources": []any{"dependabot", true}}, "on.security-alert.sources"},
 		"scan event":               {map[string]any{"sources": "secret-scanning-scan"}, "on.security-alert.sources"},
 		"location event": {map[string]any{
@@ -88,7 +90,7 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		}, "on.security-alert.sources"},
 		"removed type":                   {map[string]any{"sources": "dependabot", "type": "dependabot"}, "unsupported on.security-alert property"},
 		"unsupported property":           {map[string]any{"sources": "dependabot", "typo": true}, "unsupported on.security-alert property"},
-		"wrong action":                   {map[string]any{"sources": "secret-scanning", "types": []any{"completed"}}, "unsupported activity type"},
+		"wrong action":                   {map[string]any{"sources": "dependabot", "types": []any{"completed"}}, "unsupported activity type"},
 		"wrong source action":            {map[string]any{"sources": "code-scanning", "types": []any{"publicly_leaked"}}, "unsupported activity type"},
 		"empty actions":                  {map[string]any{"sources": "dependabot", "types": []any{}}, "non-empty list"},
 		"unsupported filter":             {map[string]any{"sources": "dependabot", "filters": map[string]any{"not-a-filter": true}}, "unsupported filter"},
@@ -97,8 +99,7 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		"empty severity":                 {map[string]any{"sources": "dependabot", "severity": ""}, "non-empty string"},
 		"invalid severity":               {map[string]any{"sources": "dependabot", "severity": "error"}, "not one of"},
 		"incompatible source severities": {map[string]any{"sources": []any{"code-scanning", "dependabot"}, "severity": "critical"}, "not one of"},
-		"secret severity":                {map[string]any{"sources": "secret-scanning", "severity": "high"}, "unsupported filter"},
-		"secret material":                {map[string]any{"sources": "secret-scanning", "filters": map[string]any{"secret": "not-a-secret"}}, "unsupported filter"},
+		"secret material":                {map[string]any{"sources": "dependabot", "filters": map[string]any{"secret": "not-a-secret"}}, "unsupported filter"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := ParseWebhookSubscriptions(map[string]any{
@@ -117,13 +118,13 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 
 func TestSecurityAlertMultipleSources(t *testing.T) {
 	on := map[string]any{"security-alert": map[string]any{
-		"sources": []any{"secret-scanning", "dependabot", "code-scanning"},
+		"sources": []any{"dependabot", "code-scanning"},
 		"types":   []any{"created"},
 	}}
 	subscriptions, err := ParseWebhookSubscriptions(on, "security-agent")
 	require.NoError(t, err)
-	require.Len(t, subscriptions, 3)
-	expected := []string{"code_scanning_alert", "dependabot_alert", "secret_scanning_alert"}
+	require.Len(t, subscriptions, 2)
+	expected := []string{"code_scanning_alert", "dependabot_alert"}
 	for i, subscription := range subscriptions {
 		assert.Equal(t, expected[i], subscription.Event)
 		assert.Equal(t, []string{"created"}, subscription.Types)

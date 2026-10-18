@@ -191,16 +191,15 @@ func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *
   projects-item:
     project_id: PVT_example
   security-alert:
-    sources: [code-scanning, dependabot, secret-scanning]
+    sources: [code-scanning, dependabot]
 `,
 			wantPermissions: map[string]string{
-				"contents":               "read",
-				"organization_projects":  "read",
-				"security_events":        "read",
-				"vulnerability_alerts":   "read",
-				"secret_scanning_alerts": "read",
+				"contents":              "read",
+				"organization_projects": "read",
+				"security_events":       "read",
+				"vulnerability_alerts":  "read",
 			},
-			wantEvents: []string{"code_scanning_alert", "dependabot_alert", "projects_v2_item", "secret_scanning_alert"},
+			wantEvents: []string{"code_scanning_alert", "dependabot_alert", "projects_v2_item"},
 		},
 		{
 			name: "Dependabot only",

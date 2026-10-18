@@ -115,6 +115,9 @@ func TestWebhookCatalogIntegrity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, ok := catalog["secret_scanning_alert"]; ok {
+		t.Fatal("removed secret scanning alert must not have a trigger catalog entry")
+	}
 	for _, required := range []string{"projects_v2", "projects_v2_item", "projects_v2_status_update", "issue_dependencies", "issue_relates_to", "sub_issues"} {
 		if _, ok := catalog[required]; !ok {
 			t.Errorf("missing documented webhook event %s", required)
@@ -271,28 +274,24 @@ func TestWebhookTypedValues(t *testing.T) {
 }
 
 func TestWebhookFalseDoesNotMatchMissingOrNull(t *testing.T) {
-	subscriptions, err := ParseWebhookSubscriptions(webhookTestOn("secret_scanning_alert", map[string]any{
-		"filters": map[string]any{"publicly_leaked": false},
-	}), "private-project-agent")
-	if err != nil {
-		t.Fatal(err)
-	}
+	subscription := newWebhookSubscription("boolean-filter-test", "test_event", []string{"created"}, []WebhookCondition{{
+		Filter: "enabled", Path: []string{"enabled"}, Operator: "equals", ValueType: "boolean", Values: []any{false},
+	}})
 	for _, tt := range []struct {
 		payload string
 		match   bool
 	}{
-		{`{"action":"created","alert":{"publicly_leaked":false}}`, true},
-		{`{"action":"created","alert":{"publicly_leaked":true}}`, false},
-		{`{"action":"created","alert":{"publicly_leaked":"false"}}`, false},
-		{`{"action":"created","alert":{"publicly_leaked":null}}`, false},
-		{`{"action":"created","alert":{}}`, false},
+		{`{"action":"created","enabled":false}`, true},
+		{`{"action":"created","enabled":true}`, false},
+		{`{"action":"created","enabled":"false"}`, false},
+		{`{"action":"created","enabled":null}`, false},
 		{`{"action":"created"}`, false},
 	} {
 		var payload map[string]any
 		if err := json.Unmarshal([]byte(tt.payload), &payload); err != nil {
 			t.Fatal(err)
 		}
-		if got := matchWebhookContract(subscriptions[0], payload); got != tt.match {
+		if got := matchWebhookContract(subscription, payload); got != tt.match {
 			t.Errorf("boolean contract match = %v, want %v for %s", got, tt.match, tt.payload)
 		}
 	}

@@ -50,13 +50,12 @@ Treat the original webhook payload as untrusted input.
 | `on.projects-item` | `projects_v2_item` |
 | `on.security-alert` with `sources: [code-scanning]` | `code_scanning_alert` |
 | `on.security-alert` with `sources: [dependabot]` | `dependabot_alert` |
-| `on.security-alert` with `sources: [secret-scanning]` | `secret_scanning_alert` |
 
 `projects-item` supports **Projects v2 only**, not Projects (classic). Its required `project_id`, a sibling of `types`, is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. It accepts a nonempty string or nonempty list of node IDs. `filters.project_id` is not supported. The `field` filters describe the changed field, not the item's complete current field values.
 
 The minimal Projects trigger is `projects-item: {project_id: PVT_kwDOExample}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax under `on`; string and array shorthands are rejected. Dispatch authorization uses the standard `on.roles` and `on.bots` policy.
 
-`security-alert` requires `sources`: one source name or a nonempty list selecting `code-scanning`, `dependabot`, and/or `secret-scanning`. Only selected alert webhooks are included, not secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts. `security-alert.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
+`security-alert` requires `sources`: one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alert.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
 
 ```aw wrap
 ---
@@ -71,9 +70,9 @@ on:
 Triage the security alert. Never print or copy secret values into logs or reports.
 ```
 
-Secret scanning filters expose alert metadata, not secret material. The original payload can still contain sensitive values; do not log the entire payload or include secrets in agent outputs.
+Webhook payloads can contain sensitive values; do not log the entire payload or include secrets in agent outputs.
 
-`severity` is a sibling of `types`, not a field inside `filters`. It uses each source's cataloged severity values: code scanning uses `none`, `note`, `warning`, or `error`; Dependabot uses `low`, `medium`, `high`, or `critical`. Secret scanning has no severity selector. Every selected source must support the supplied activities and filters; use separate workflows when source-specific selectors are incompatible.
+`severity` is a sibling of `types`, not a field inside `filters`. It uses each source's cataloged severity values: code scanning uses `none`, `note`, `warning`, or `error`; Dependabot uses `low`, `medium`, `high`, or `critical`. Every selected source must support the supplied activities and filters; use separate workflows when source-specific selectors are incompatible.
 
 ### Experimental status transitions
 
@@ -101,7 +100,7 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 | --- | --- | --- |
 | `on.projects-item.project_id` | Yes, for `projects-item` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
 | `on.projects-item.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
-| `on.security-alert.sources` | Yes, for `security-alert` | Source name or nonempty list selecting `code-scanning`, `dependabot`, and/or `secret-scanning`. No other security webhook is selected implicitly. |
+| `on.security-alert.sources` | Yes, for `security-alert` | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Secret scanning is unsupported; no other security webhook is selected implicitly. |
 | `on.security-alert.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
 | `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no additional field conditions. |
@@ -120,11 +119,11 @@ Selectors inspect only the original delivered payload. No API lookup, hydration,
 
 ## Supported events and filters
 
-The following tables render the four supported events from the compiler's authoritative `pkg/workflow/data/webhook_events.json` catalog. They list activity types, filter aliases, scalar types, and original payload paths. Other catalog entries are not available as frontmatter triggers. Paths are relative to the original webhook `payload`, not to the dispatch envelope. “All” in the activity column means the filter has no cataloged activity restriction; a field must still exist in the delivery to match.
+The following tables render the three supported events from the compiler's authoritative `pkg/workflow/data/webhook_events.json` catalog. They list activity types, filter aliases, scalar types, and original payload paths. Other catalog entries are not available as frontmatter triggers. Paths are relative to the original webhook `payload`, not to the dispatch envelope. “All” in the activity column means the filter has no cataloged activity restriction; a field must still exist in the delivery to match.
 
 GitHub App permissions and webhook subscription availability still apply. The availability listed for each event describes GitHub's webhook delivery scope, not an Actions trigger.
 
-{Object.entries(webhookEvents).filter(([event]) => ['projects_v2_item', 'code_scanning_alert', 'dependabot_alert', 'secret_scanning_alert'].includes(event)).sort(([a], [b]) => a.localeCompare(b)).map(([event, definition]) => (
+{Object.entries(webhookEvents).filter(([event]) => ['projects_v2_item', 'code_scanning_alert', 'dependabot_alert'].includes(event)).sort(([a], [b]) => a.localeCompare(b)).map(([event, definition]) => (
   <section>
     <h3 id={`webhook-${event}`}><code>{event}</code></h3>
     <p>{definition.description}</p>

@@ -88,10 +88,9 @@ func ComputeGitHubAppManifestPermissions(frontmatterPermissions any, safeOutputs
 // These are separate from permissions granted to the workflow's GITHUB_TOKEN.
 func ComputeGitHubAppManifestWebhookPermissions(onValue any) map[string]string {
 	eventPermissions := map[string]PermissionScope{
-		"projects_v2_item":      PermissionOrganizationProj,
-		"code_scanning_alert":   PermissionSecurityEvents,
-		"dependabot_alert":      PermissionVulnerabilityAlerts,
-		"secret_scanning_alert": PermissionSecretScanningAlerts,
+		"projects_v2_item":    PermissionOrganizationProj,
+		"code_scanning_alert": PermissionSecurityEvents,
+		"dependabot_alert":    PermissionVulnerabilityAlerts,
 	}
 
 	result := make(map[string]string)

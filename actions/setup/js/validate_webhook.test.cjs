@@ -64,7 +64,7 @@ afterEach(() => {
 });
 
 describe("validateWebhook", () => {
-  it.each(["code_scanning_alert", "dependabot_alert", "secret_scanning_alert"])("accepts only the selected security alert event %s", selectedEvent => {
+  it.each(["code_scanning_alert", "dependabot_alert"])("accepts only the selected security alert event %s", selectedEvent => {
     const selected = subscription({ event: selectedEvent, types: ["created"], conditions: [] });
     const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) });
     const event = { ...dispatch(), client_payload: { ...dispatch().client_payload, event: selectedEvent, payload: { action: "created" } } };

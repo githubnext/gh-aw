@@ -27,9 +27,8 @@ var webhookTriggerAliases = map[string]string{
 }
 
 var securityAlertEvents = map[string]string{
-	"code-scanning":   "code_scanning_alert",
-	"dependabot":      "dependabot_alert",
-	"secret-scanning": "secret_scanning_alert",
+	"code-scanning": "code_scanning_alert",
+	"dependabot":    "dependabot_alert",
 }
 
 // WebhookFilter describes an allowlisted path in the original webhook payload.
@@ -232,7 +231,7 @@ func securityAlertSourceEvents(config map[string]any) ([]string, error) {
 	for _, source := range sources {
 		event, supported := securityAlertEvents[source]
 		if !supported {
-			return nil, errors.New("on.security-alert.sources must select only code-scanning, dependabot, or secret-scanning")
+			return nil, errors.New("on.security-alert.sources must select only code-scanning or dependabot")
 		}
 		events = append(events, event)
 	}

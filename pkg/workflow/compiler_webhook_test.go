@@ -119,7 +119,6 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 		"status-transitions": {"  projects-item:\n    project_id: PVT_example\n    status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
 		"code-scanning":      {"  security-alert:\n    sources: [code-scanning]\n", "code_scanning_alert"},
 		"dependabot":         {"  security-alert:\n    sources: [dependabot]\n", "dependabot_alert"},
-		"secret-scanning":    {"  security-alert:\n    sources: [secret-scanning]\n", "secret_scanning_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()
@@ -207,6 +206,10 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
     types: ["gh-aw-*"]
   security-alert:
     sources: [dependabot]`,
+		"removed secret scanning": `  security-alert:
+    sources: [secret-scanning]`,
+		"mixed removed secret scanning": `  security-alert:
+    sources: [code-scanning, dependabot, secret-scanning]`,
 		"security duplicate spelling": `  security-alert:
     sources: [code-scanning]
   webhook:
@@ -235,11 +238,11 @@ func TestCompileWebhookNativeSelectors(t *testing.T) {
       - {from: Todo, to: Ready}
       - {from: In progress, to: Done}
   security-alert:
-    sources: [code-scanning, dependabot, secret-scanning]
+    sources: [code-scanning, dependabot]
     types: [created]
 `), "native-selectors.md")
 	require.NoError(t, err)
-	require.Len(t, data.WebhookSubscriptions, 4)
+	require.Len(t, data.WebhookSubscriptions, 3)
 	project := data.WebhookSubscriptions[2]
 	assert.Equal(t, "projects_v2_item", project.Event)
 	assert.Equal(t, []string{"edited"}, project.Types)
@@ -351,20 +354,19 @@ func TestCompileMultipleWebhookSubscriptions(t *testing.T) {
         name: [Priority, Status]
       project_number: 7
   security-alert:
-    sources: [secret-scanning]
+    sources: [dependabot]
     types: [created]
-    filters:
-      publicly_leaked: false
+    severity: critical
 `), "webhook-test.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 2)
-	first, second := data.WebhookSubscriptions[0], data.WebhookSubscriptions[1]
+	first, second := data.WebhookSubscriptions[1], data.WebhookSubscriptions[0]
 	assert.Equal(t, "projects_v2_item", first.Event)
-	assert.Equal(t, "secret_scanning_alert", second.Event)
+	assert.Equal(t, "dependabot_alert", second.Event)
 	assert.Equal(t, first.Dispatch.EventType, second.Dispatch.EventType)
 	require.Len(t, second.Conditions, 1)
-	assert.Equal(t, "boolean", second.Conditions[0].ValueType)
-	assert.Equal(t, []any{false}, second.Conditions[0].Values)
+	assert.Equal(t, "string", second.Conditions[0].ValueType)
+	assert.Equal(t, []any{"critical"}, second.Conditions[0].Values)
 	require.Len(t, first.Conditions, 3)
 	assert.Equal(t, []string{"changes", "field_value", "field_name"}, first.Conditions[0].Path)
 	assert.Equal(t, "equals", first.Conditions[0].Operator)

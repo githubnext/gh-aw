@@ -111,6 +111,24 @@ Inspect github.event.client_payload.payload.
 	assert.Equal(t, result.validationResult.WebhookSubscriptions, manifest.WebhookSubscriptions)
 }
 
+func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
+	for _, sources := range []string{"secret-scanning", "[secret-scanning]", "[code-scanning, dependabot, secret-scanning]"} {
+		t.Run(sources, func(t *testing.T) {
+			dir := t.TempDir()
+			enableWebhookTriggers(t, dir)
+			path := filepath.Join(dir, "unsupported-secret.md")
+			source := fmt.Sprintf("---\non:\n  security-alert:\n    sources: %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the alert.\n", sources)
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+			require.False(t, result.success)
+			assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "value must be one of 'code-scanning', 'dependabot'")
+			assert.Empty(t, result.validationResult.WebhookSubscriptions)
+			_, err := os.Stat(filepath.Join(dir, "unsupported-secret.lock.yml"))
+			require.True(t, os.IsNotExist(err), "invalid sources must not produce a lock file")
+		})
+	}
+}
+
 func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 	for _, tt := range []struct {
 		kind   string
@@ -121,7 +139,6 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 	}{
 		{"code-scanning", "code_scanning_alert", "severity", []string{"alert", "rule", "severity"}, "error"},
 		{"dependabot", "dependabot_alert", "severity", []string{"alert", "security_advisory", "severity"}, "critical"},
-		{"secret-scanning", "secret_scanning_alert", "secret_type", []string{"alert", "secret_type"}, "github_personal_access_token"},
 	} {
 		t.Run(tt.kind, func(t *testing.T) {
 			dir := testutil.TempDir(t, "security-webhook-compile-*")

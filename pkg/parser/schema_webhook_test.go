@@ -103,8 +103,10 @@ func TestSecurityAlertSchema(t *testing.T) {
 	}{
 		"code-scanning":    {map[string]any{"sources": "code-scanning"}, true},
 		"dependabot":       {map[string]any{"sources": "dependabot"}, true},
-		"secret-scanning":  {map[string]any{"sources": "secret-scanning"}, true},
-		"multiple sources": {map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}}, true},
+		"secret-scanning":  {map[string]any{"sources": "secret-scanning"}, false},
+		"secret list":      {map[string]any{"sources": []any{"secret-scanning"}}, false},
+		"mixed secret":     {map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}}, false},
+		"multiple sources": {map[string]any{"sources": []any{"code-scanning", "dependabot"}}, true},
 		"with severity": {map[string]any{
 			"sources": []any{"dependabot"}, "types": []any{"created"}, "severity": []any{"high", "critical"},
 		}, true},

@@ -103,7 +103,7 @@ func TestWebhookExperimentalNotices(t *testing.T) {
 	for name, events := range map[string][]string{
 		"native":   nil,
 		"projects": {"projects_v2_item"},
-		"security": {"dependabot_alert", "secret_scanning_alert"},
+		"security": {"dependabot_alert", "code_scanning_alert"},
 		"both":     {"projects_v2_item", "code_scanning_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
