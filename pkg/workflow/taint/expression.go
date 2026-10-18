@@ -1,45 +1,34 @@
 package taint
 
 import (
-	"fmt"
+	"context"
 	"strings"
 
 	"github.com/rhysd/actionlint"
 )
 
-// interpolate uses the Actions lexer, including its quoted-string handling, so
-// literal '}}' and doubled single quotes cannot truncate an expression.
 func (a *analyzer) interpolate(text, path string, bindings scope, replace func(int, value) string) (string, value, error) {
 	var rendered strings.Builder
 	var sources value
-	count := 0
-	for {
-		start := strings.Index(text, "${{")
-		if start < 0 {
-			rendered.WriteString(text)
-			return rendered.String(), sources, nil
-		}
-		rendered.WriteString(text[:start])
-		body := text[start+3:]
-		lexer := actionlint.NewExprLexer(body)
-		node, err := actionlint.NewExprParser().Parse(lexer)
-		if err != nil || lexer.Offset() < 2 || lexer.Offset() > len(body) {
-			return "", nil, fmt.Errorf("invalid Actions expression at %s", path)
-		}
-		end := lexer.Offset()
-		if body[end-2:end] != "}}" {
-			return "", nil, fmt.Errorf("unterminated Actions expression at %s", path)
-		}
+	count, offset := 0, 0
+	err := visitInterpolations(context.Background(), text, path, func(start, end, _ int, node actionlint.ExprNode) error {
+		rendered.WriteString(text[offset:start])
 		current := a.expression(node, path, bindings)
 		sources = union(sources, current)
 		if replace != nil {
 			rendered.WriteString(replace(count, current))
 		} else {
-			rendered.WriteString(text[start : start+3+end])
+			rendered.WriteString(text[start:end])
 		}
-		text = body[end:]
+		offset = end
 		count++
+		return nil
+	})
+	if err != nil {
+		return "", nil, err
 	}
+	rendered.WriteString(text[offset:])
+	return rendered.String(), sources, nil
 }
 
 func (a *analyzer) text(text, path string, bindings scope) (value, error) {
