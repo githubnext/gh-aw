@@ -123,6 +123,45 @@ class ModelRunnerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("TLC_MODEL_FILTER must be", result.stderr)
 
+    def test_delivery_recovery_configs_require_exact_verdicts(self):
+        model = "ClaimDeliveryRecovery"
+        for config in ("DeliveryRecovery", "DeliveryRecoveryProgress"):
+            result = self.run_model(config, "Model checking completed. No error", model=model)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        for config, invariant in (
+            ("BrokenRecoveryPrincipal", "CleanupAuthority"),
+            ("BrokenRecoveryDeadline", "FailureBudget"),
+            ("BrokenRecoveryEvidence", "FailureAuthority"),
+            ("BrokenRecoveryEffects", "UnknownEffects"),
+            ("BrokenRecoveryCAS", "PublicationFence"),
+            ("BrokenRecoveryArtifact", "ResultAuthority"),
+            ("BrokenRecoveryMetadata", "NativeReadbackAgreement"),
+            ("BrokenRecoveryForeignMetadata", "NativeReadbackAgreement"),
+            ("BrokenRecoveryReplay", "NoReplay"),
+            ("BrokenRecoveryRetained", "RetainedFence"),
+            ("RecoveryReleasedWitness", "NoReleasedRecovery"),
+            ("RecoveryEnrichedWitness", "NoEnrichedResult"),
+            ("RecoveryRetainedWitness", "NoRetainedRecovery"),
+            ("RecoveryUnavailableWitness", "NoUnavailablePending"),
+        ):
+            with self.subTest(config=config):
+                accepted = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(accepted.returncode, 0, accepted.stderr)
+                rejected = self.run_model(config, "Invariant Safety is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+
+    def test_released_recovery_control_requires_temporal_counterexample(self):
+        model = "ClaimDeliveryRecovery"
+        message = "Temporal properties were violated"
+        for config in ("BrokenRecoveryReleased", "BrokenRecoveryUnfair"):
+            accepted = self.run_model(config, message, 13, model=model)
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            for output, status in ((message, 0), (message, 12),
+                                   ("Invariant Safety is violated", 12), ("Parsing failed", 151)):
+                with self.subTest(config=config, output=output, status=status):
+                    rejected = self.run_model(config, output, status, model=model)
+                    self.assertNotEqual(rejected.returncode, 0)
+
     def test_default_evidence_and_java_extraction_stay_repository_local(self):
         result = self.run_model("WorkerEvolution", "Model checking completed. No error", default_results=True)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -141,6 +180,7 @@ class ModelRunnerTests(unittest.TestCase):
     def test_all_new_configs_are_registered_with_real_invariants(self):
         runner = (SPEC / "check.sh").read_text()
         for model, pattern in (("ClaimDeliveryHealth", r"(?:Delivery|BrokenDelivery).*\.cfg"),
+                               ("ClaimDeliveryRecovery", r"(?:DeliveryRecovery.*|BrokenRecovery.*|Recovery(?:Released|Enriched|Retained|Unavailable)Witness)\.cfg"),
                                ("QueueLifecycle", r"LifecycleReleasedPendingWitness\.cfg"),
                                ("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),
                                ("WorkerEvolution", r"(?:WorkerEvolution|BrokenEvolution|Evolution).*\.cfg"),
@@ -150,16 +190,20 @@ class ModelRunnerTests(unittest.TestCase):
             if model == "WorkerDeploymentBoundary":
                 source += "\n" + (SPEC / "WorkerEvolution.tla").read_text()
             configurations = [path for path in SPEC.glob("*.cfg") if re.fullmatch(pattern, path.name)]
+            if model == "ClaimDeliveryHealth":
+                configurations = [path for path in configurations if not path.stem.startswith("DeliveryRecovery")]
             self.assertTrue(configurations)
             for path in configurations:
                 with self.subTest(config=path.stem):
                     registration = re.search(rf"^run_model {path.stem} (.+)$", runner, re.MULTILINE)
                     self.assertIsNotNone(registration)
-                    self.assertTrue(registration.group(1).endswith(model))
+                    self.assertEqual(registration.group(1).split()[3], model)
                     match = re.search(r"^INVARIANTS? (.+)$", path.read_text(), re.MULTILINE)
                     self.assertIsNotNone(match)
                     for invariant in match.group(1).split():
                         self.assertRegex(source, rf"(?m)^{invariant} ==")
+                    for prop in re.findall(r"^PROPERTY (.+)$", path.read_text(), re.MULTILINE):
+                        self.assertRegex(source, rf"(?m)^{prop} ==")
 
 
 if __name__ == "__main__":
