@@ -82,6 +82,8 @@ Register new built-in checks in `lint.Default()`. Structural rules can inspect t
 
 The default registry also checks action pinning (`action-pin`, CTR-002), direct shell-template injection (`template-injection`, CTR-006), workflow-run trigger scope (`workflow-run-scope`, CTR-021), and specified job timeouts (`job-timeout`, CTR-026). These are observable subsets of the [compiler threat specification](https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md#74-actions-ast-lint-coverage), not replacements for compiler or runtime conformance checks. Authorization, engine policy, guarded checkout provenance, and runtime publisher integrity require evidence beyond a standalone Actions AST.
 
+Additional checks cover explicit blanket write grants and invalid OIDC read permissions (`permission-scope`, CTR-001 subset), disabled AW version integrity checks (`version-check`, CTR-018), conditional configuration imports (`conditional-import`, CTR-020), and AW private-to-public flow opt-outs (`private-to-public`, CTR-031). The three source-only checks use authored companion frontmatter, not reconstructed Actions properties or recursively loaded imports. They skip native Actions without source evidence.
+
 ## Job Types
 
 The compilation process generates specialized jobs based on workflow configuration:

@@ -163,5 +163,9 @@ func Default() *Runner {
 		JobTimeoutRule(),
 		TemplateInjectionRule(),
 		WorkflowRunScopeRule(),
+		PermissionScopeRule(),
+		VersionCheckRule(),
+		ConditionalImportRule(),
+		PrivateToPublicRule(),
 	}}
 }

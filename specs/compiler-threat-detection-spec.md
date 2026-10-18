@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.55
+**Version**: 1.0.56
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.56` | Unreleased | Adds explicit permission-scope/OIDC AST checks (CTR-001 subset) and authored AW source checks for disabled version integrity, conditional imports, and private-to-public opt-outs (CTR-018/020/031). These do not infer job authorization, imported policy, or missing source metadata. No new `CTR-*` rule or lock-file schema change. |
 | `1.0.55` | Unreleased | Maps independent Actions/AW AST lint checks to observable subsets of CTR-002, CTR-006, CTR-017, CTR-021, and CTR-026. Existing compiler and runtime conformance requirements remain authoritative; no new `CTR-*` rule or lock-file schema change. |
 | `1.0.54` | Unreleased | Specifies the host-side MCP compilation capability boundary: a dedicated read-only mode without startup write-tool opt-in, validation independent of stale outputs, unchanged filesystem/Docker state, cached-only remote imports and nested includes, and repository-root cache lookup. Preserves trusted CLI no-emit import population. Adds bounded TLA+ evidence; no new `CTR-*` rule or lock-file schema change. |
 | `1.0.53` | Unreleased | Adds CTR-034: formalizes pull-request fork admission by repository pattern or explicit author association, retaining same-repository defaults and separating admission from permissions and secrets. Clarifies that same-repository bot checkout on `pull_request` and `pull_request_target` `ready_for_review` and `reopened` events is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
@@ -259,15 +260,21 @@ The in-process registry in `pkg/workflow/lint` supplements compiler validation b
 
 | Threat rule | AST lint rule | Observable invariant | Implementation and evidence |
 |---|---|---|---|
+| CTR-001 | `permission-scope` | Explicit declarations avoid blanket `write-all` grants and invalid OIDC `id-token: read`. Scoped writes and OIDC issuance are not automatically violations; authorization remains outside this check. | `pkg/workflow/lint/permission_scope.go`, `permission_scope_test.go` |
 | CTR-002 | `action-pin` | Remote actions and reusable workflows use immutable commit references; Docker actions use immutable digests. Local references are not remote supply-chain pins. | `pkg/workflow/lint/integrity.go`, `integrity_test.go` |
 | CTR-006 | `template-injection` | Known attacker-controlled expression strings are not interpolated directly into executable `run` text. Passing values through environment data is not direct template injection. | `pkg/workflow/lint/template_injection.go`, `template_injection_test.go` |
 | CTR-017 | `secret-leak` | Symbolic secrets do not reach modeled disclosure sinks through expression, environment, output, shell, or file flows. Coverage warnings identify unmodeled paths. | `pkg/workflow/lint/secrets.go`, `pkg/workflow/taint/`, `pkg/workflow/taint/taint_test.go` |
+| CTR-018 | `version-check` | An authored AW document does not explicitly disable version integrity checking. | `pkg/workflow/lint/source_policy.go`, `source_policy_test.go` |
+| CTR-020 | `conditional-import` | Authored AW configuration import entries do not contain `if`; runtime prompt conditionals are unaffected. | `pkg/workflow/lint/source_policy.go`, `source_policy_test.go` |
 | CTR-021 | `workflow-run-scope` | `workflow_run` selects workflows and has branch scope, with strict/non-strict severity policy. | `pkg/workflow/lint/workflow_run_scope.go`, `workflow_run_scope_test.go` |
 | CTR-026 | `job-timeout` | A specified job timeout is a positive integer literal, not a runtime expression. Native Actions omission is not an invented requirement to specify a timeout. | `pkg/workflow/lint/integrity.go`, `integrity_test.go` |
+| CTR-031 | `private-to-public` | Authored AW GitHub tool configuration does not opt out of private-to-public flow protection, in blanket or server-list form. | `pkg/workflow/lint/source_policy.go`, `source_policy_test.go` |
 
 `pkg/workflow/lint/repository_workflows_test.go` applies the registered checks to repository lock files and companion AW documents. `pkg/cli/lint_workflow_test.go` exercises default execution and preserves diagnostics from independent rules even when another rule fails.
 
-Further AST candidates need additional policy or semantic evidence before becoming default rules. CTR-001 requires job-purpose and authorization policy to distinguish agent privileges from intended safe-output writes. CTR-004/005/011/019 require trusted command identification and proof of sandbox, output-route, firewall, or success-gating semantics. CTR-008/028/030/033/034 require checkout or trigger provenance and guarded-expression reasoning, not textual substring matching. CTR-003/010/012-016/018/020/023/031 depend on source configuration or manifests that need not survive in Actions YAML. CTR-007/009/013/014/022/025/027/029/032 include content, shell/subprocess, or runtime obligations that an Actions AST alone cannot prove. In particular, CTR-032 marker persistence requires destination API evidence; host-side `MCP-COMPILE-*` filesystem and capability boundaries are not generated-workflow properties.
+Source-only checks require a companion AW document and skip native Actions without that evidence. They inspect authored frontmatter only; they do not recursively load imports or reconstruct compiler/CLI policy overrides. Version-check and private-to-public findings follow authored strict policy; conditional imports are always errors. Blanket write grants follow the same authored strict policy, while invalid OIDC read grants are always errors.
+
+Further AST candidates need additional policy or semantic evidence before becoming default rules. Full CTR-001 authorization requires job-purpose policy to distinguish agent privileges from intended safe-output writes, beyond the explicit declarations checked here. CTR-004/005/011/019 require trusted command identification and proof of sandbox, output-route, firewall, or success-gating semantics. CTR-008/028/030/033/034 require checkout or trigger provenance and guarded-expression reasoning, not textual substring matching. CTR-003/010/012-016/023 depend on source configuration or manifests that need not survive in Actions YAML. CTR-007/009/013/014/022/025/027/029/032 include content, shell/subprocess, or runtime obligations that an Actions AST alone cannot prove. In particular, CTR-032 marker persistence requires destination API evidence; host-side `MCP-COMPILE-*` filesystem and capability boundaries are not generated-workflow properties.
 
 ## 8. Compliance Testing
 

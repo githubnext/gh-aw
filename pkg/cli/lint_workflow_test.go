@@ -125,6 +125,16 @@ func TestBuiltInThreatRulesCLI(t *testing.T) {
 			workflow: "on:\n  workflow_run:\n    branches: [main]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n",
 			ruleID:   "workflow-run-scope", severity: workflowlint.Error,
 		},
+		{
+			name:     "blanket write scopes",
+			workflow: "permissions: write-all\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n",
+			ruleID:   "permission-scope", severity: workflowlint.Warning,
+		},
+		{
+			name:     "invalid OIDC read grant",
+			workflow: "permissions:\n  id-token: read\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n",
+			ruleID:   "permission-scope", severity: workflowlint.Error,
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), "test.lock.yml")
@@ -146,6 +156,43 @@ func TestBuiltInThreatRulesCLI(t *testing.T) {
 			assert.Equal(t, tt.ruleID, diagnostics[0].RuleID)
 			assert.Equal(t, tt.severity, diagnostics[0].Severity)
 			assert.Equal(t, file, diagnostics[0].File)
+		})
+	}
+}
+
+func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
+	for _, tt := range []struct {
+		ruleID string
+		source string
+		path   string
+		level  workflowlint.Severity
+	}{
+		{"version-check", "strict: false\ncheck-for-updates: false", "check-for-updates", workflowlint.Warning},
+		{"conditional-import", "imports:\n  - path: shared/a.md\n    if: false", "imports[0].if", workflowlint.Error},
+		{"private-to-public", "tools:\n  github:\n    private-to-public-flows: allow", "tools.github.private-to-public-flows", workflowlint.Error},
+	} {
+		t.Run(tt.ruleID, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "test.lock.yml")
+			require.NoError(t, os.WriteFile(file, []byte("jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "test.md"), []byte("---\n"+tt.source+"\n---\nA prompt.\n"), 0o600))
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=" + tt.ruleID, "--json", file})
+			err := cmd.Execute()
+			if tt.level == workflowlint.Error {
+				require.ErrorContains(t, err, "workflow lint found 1 error")
+			} else {
+				require.NoError(t, err)
+			}
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, tt.ruleID, diagnostics[0].RuleID)
+			assert.Equal(t, tt.path, diagnostics[0].Path)
+			assert.Equal(t, tt.level, diagnostics[0].Severity)
 		})
 	}
 }

@@ -79,21 +79,7 @@ func checkActionPins(ctx context.Context, input Input) ([]Diagnostic, error) {
 }
 
 func integrityPinSeverity(input Input) (Severity, error) {
-	if input.Document == nil {
-		return Warning, nil
-	}
-	value, exists := input.Document.Frontmatter["strict"]
-	if !exists {
-		return Error, nil
-	}
-	strict, ok := value.(bool)
-	if !ok {
-		return "", errors.New("action-pin requires AW strict to be a boolean; correct the frontmatter before linting")
-	}
-	if strict {
-		return Error, nil
-	}
-	return Warning, nil
+	return sourcePolicySeverity(input, "action-pin")
 }
 
 func integrityReference(uses string, reusable bool) string {

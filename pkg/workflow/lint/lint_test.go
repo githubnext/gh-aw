@@ -18,7 +18,10 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 	for _, rule := range runner.Rules() {
 		ruleIDs = append(ruleIDs, rule.ID)
 	}
-	assert.ElementsMatch(t, []string{"secret-leak", "action-pin", "job-timeout", "template-injection", "workflow-run-scope"}, ruleIDs)
+	assert.ElementsMatch(t, []string{
+		"secret-leak", "action-pin", "job-timeout", "template-injection", "workflow-run-scope",
+		"permission-scope", "version-check", "conditional-import", "private-to-public",
+	}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")
 	require.NoError(t, err)
 	assert.Len(t, selected.Rules(), 1)
