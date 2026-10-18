@@ -822,11 +822,11 @@
               "description": "Experimental. Batched security alerts from optionally selected repositories. Requires a hosted CAO server, on.webhook-gateway: true, and aw.json webhook-gateway: true."
             },
             "jira-issue": {
-              "$ref": "#/$defs/webhookProviderIssue",
+              "$ref": "#/$defs/webhookJiraIssue",
               "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires both webhook gateway opt-ins and an approved provider bridge; does not register webhooks or grant source access."
             },
             "linear-issue": {
-              "$ref": "#/$defs/webhookProviderIssue",
+              "$ref": "#/$defs/webhookLinearIssue",
               "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires both webhook gateway opt-ins and an approved provider bridge; does not register webhooks or grant source access."
             },
             "azure-devops-issue": {
@@ -14596,24 +14596,63 @@
     }
   ],
   "$defs": {
-    "webhookProviderIssue": {
+    "webhookProviderIssueTypes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"] },
+      "description": "Experimental. GitHub-style normalized activities, not provider-native action names. Missing transition evidence never matches lifecycle or label activities."
+    },
+    "webhookProviderSelectorValues": {
+      "oneOf": [{ "type": "string" }, { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }]
+    },
+    "webhookJiraIssue": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["project"],
       "properties": {
-        "types": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": { "type": "string", "enum": ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"] },
-          "description": "GitHub-style normalized activities, not provider-native action names. Missing transition evidence never matches lifecycle or label activities."
+        "types": { "$ref": "#/$defs/webhookProviderIssueTypes" },
+        "project": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Required Jira project key or nonempty list of keys; sibling of types."
         },
-        "filters": { "type": "object", "minProperties": 1 }
+        "issue_id": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "issue_key": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "labels": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "status": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "resolution": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "sender": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+      }
+    },
+    "webhookLinearIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["organization-id"],
+      "properties": {
+        "types": { "$ref": "#/$defs/webhookProviderIssueTypes" },
+        "organization-id": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Required literal Linear organization ID or nonempty list of IDs; sibling of types."
+        },
+        "team-id": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Optional literal Linear team model ID or nonempty list of IDs. Matches delivered data.teamId without API resolution."
+        },
+        "issue_id": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "labels": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "sender": { "$ref": "#/$defs/webhookProviderSelectorValues" }
       }
     },
     "webhookAzureDevOpsIssue": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["project_id"],
       "properties": {
+        "project_id": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Required Azure DevOps project ID or nonempty list of IDs; sibling of types."
+        },
+        "collection_id": { "$ref": "#/$defs/webhookProviderSelectorValues" },
         "types": {
           "type": "array",
           "minItems": 1,
@@ -14624,7 +14663,24 @@
           "$ref": "#/$defs/webhookStringValues",
           "description": "Literal terminal state name or nonempty list from the project's work item process. Required for closed/reopened; no state names are assumed."
         },
-        "filters": { "type": "object", "minProperties": 1 }
+        "state": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "from": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+            "to": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+          }
+        },
+        "tags": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "from": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+            "to": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+          }
+        }
       },
       "allOf": [
         {

@@ -51,6 +51,13 @@ func addProviderIssueConfigs(on, events map[string]any, paths map[string]string)
 }
 
 func providerIssueConfig(config map[string]any, path, event string, definition WebhookEvent) (map[string]any, []string, error) {
+	var err error
+	if definition.Provider != "" {
+		config, err = providerIssueSelectors(config, path, event)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	if event != "azure_devops_issue" {
 		return config, nil, nil
 	}
@@ -74,6 +81,45 @@ func providerIssueConfig(config map[string]any, path, event string, definition W
 		})
 	}
 	return config, closedStates, nil
+}
+
+func providerIssueSelectors(config map[string]any, path, event string) (map[string]any, error) {
+	scope := map[string]string{
+		"jira_issue": "project", "linear_issue": "organization-id", "azure_devops_issue": "project_id",
+	}[event]
+	if _, exists := config["filters"]; exists {
+		return nil, fmt.Errorf("%s.filters is not supported; put selectors directly under %s, including required %s", path, path, scope)
+	}
+	rawScope, exists := config[scope]
+	if !exists {
+		return nil, fmt.Errorf("%s.%s is required", path, scope)
+	}
+	values, err := webhookStringValues(rawScope, path+"."+scope)
+	if err != nil {
+		return nil, err
+	}
+	selectors := maps.Clone(config)
+	selectors[scope] = values
+	if event == "linear_issue" {
+		if raw, exists := selectors["team-id"]; exists {
+			selectors["team-id"], err = webhookStringValues(raw, path+".team-id")
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	normalized := map[string]any{"filters": selectors}
+	if raw, exists := config["types"]; exists {
+		normalized["types"] = raw
+		delete(selectors, "types")
+	}
+	if event == "azure_devops_issue" {
+		if raw, exists := config["closed-states"]; exists {
+			normalized["closed-states"] = raw
+			delete(selectors, "closed-states")
+		}
+	}
+	return normalized, nil
 }
 
 func applyProviderIssueNormalization(subscription *WebhookSubscription, definition WebhookEvent, closedStates []string, path string) error {

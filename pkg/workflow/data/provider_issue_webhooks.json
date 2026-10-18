@@ -41,8 +41,8 @@
     "availability": ["Linear organization", "Linear team"],
     "filters": {
       "issue_id": { "path": ["data", "id"], "type": "string", "description": "Immutable Linear issue ID." },
-      "organization_id": { "path": ["organizationId"], "type": "string", "description": "Linear organization ID." },
-      "team_id": { "path": ["data", "teamId"], "type": "string", "description": "Issue team ID, when delivered." },
+      "organization-id": { "path": ["organizationId"], "type": "string", "description": "Required Linear organization ID; configured beside types." },
+      "team-id": { "path": ["data", "teamId"], "type": "string", "description": "Optional Linear team model ID, when delivered; configured beside organization-id." },
       "labels": { "path": ["data", "labelIds", "*"], "type": "string", "description": "A current label ID, not its name and not necessarily the changed label." },
       "sender": { "path": ["actor", "id"], "type": "string", "description": "Actor ID, when present; not dispatch authorization." }
     }
