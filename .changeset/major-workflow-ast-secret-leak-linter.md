@@ -10,4 +10,6 @@ Add permission-scope checks for blanket write grants and invalid OIDC reads, plu
 
 Model value-free shell predicates, no-op builtins, and presence-only alternate expansions without spurious secret-flow warnings. Scope file-coverage warnings to possible modeled secret flows rather than unrelated public file operations. Preserve disclosures through tracing, nested commands, and parameter-expansion errors; include script-relative locations for unmodeled command warnings.
 
+Add opt-in JavaScript taint analysis using the Go TypeScript compiler through its pinned, upstream-exported native-preview AST client. Track symbolic environment, stdin, arguments, objects, local modules, files, and disclosure sinks without executing analyzed programs. Require explicit compiler/source configuration, report unsupported flows as coverage gaps, and do not invent secret-bearing output at unresolved boundaries.
+
 **Breaking change:** `gh aw lint` now runs built-in AST rules by default, so workflows that previously passed actionlint-only linting may report AST findings and return a nonzero exit status. Review and fix those findings, or run `actionlint` directly on the generated `.lock.yml` files to retain actionlint-only behavior. `gh aw lint --rules=...` selects AST rules and skips actionlint; it is not an actionlint-only mode.
