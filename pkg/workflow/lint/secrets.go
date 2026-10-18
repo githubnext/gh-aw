@@ -40,7 +40,7 @@ func SecretLeakRule() Rule {
 			}
 			for _, gap := range result.Gaps {
 				diagnostics = append(diagnostics, Diagnostic{
-					Severity: Warning, Path: gap.Path,
+					Severity: Warning, Path: gap.Path, Line: gap.Line,
 					Message: "Incomplete secret-leak analysis: " + gap.Reason,
 				})
 			}

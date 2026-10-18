@@ -83,3 +83,30 @@ jobs:
 	assert.NotContains(t, diagnostics[0].Message, "TOKEN")
 	assert.Contains(t, diagnostics[1].Message, "Incomplete")
 }
+
+func TestSecretRuleCoverageWarningLocation(t *testing.T) {
+	workflow, err := actions.Parse([]byte(`
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: |
+          : "${TOKEN:?credential required}"
+          test -n "$TOKEN"
+          unknown "$TOKEN"
+          unknown "$TOKEN"
+`))
+	require.NoError(t, err)
+	runner, err := New(SecretLeakRule())
+	require.NoError(t, err)
+	diagnostics, err := runner.Run(context.Background(), Input{Workflow: workflow})
+	require.NoError(t, err)
+	require.Len(t, diagnostics, 1)
+	assert.Equal(t, Warning, diagnostics[0].Severity)
+	assert.Equal(t, "jobs.test.steps[0].run", diagnostics[0].Path)
+	assert.Equal(t, 3, diagnostics[0].Line)
+	assert.Equal(t, "Incomplete secret-leak analysis: external command data flow is not modeled", diagnostics[0].Message)
+	assert.Empty(t, diagnostics[0].Related)
+}

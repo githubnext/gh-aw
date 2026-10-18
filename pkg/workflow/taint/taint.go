@@ -55,9 +55,12 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%s: secret-tainted value reaches %s at %s", f.RuleID, f.Site.Kind, where)
 }
 
+// CoverageGap identifies incomplete analysis without including script contents.
+// Line, when present, is relative to the run script.
 type CoverageGap struct {
 	Path   string
 	Reason string
+	Line   int
 }
 
 type Result struct {
@@ -98,6 +101,15 @@ func union(values ...value) value {
 
 type scope map[string]value
 
+func (s scope) hasSources() bool {
+	for _, sources := range s {
+		if len(sources) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (s scope) lookup(ref string) value {
 	ref = strings.ToLower(ref)
 	var result value
@@ -137,10 +149,19 @@ func (a *analyzer) emit(site Site, sources value) {
 }
 
 func (a *analyzer) gap(path, reason string) {
-	gap := CoverageGap{Path: path, Reason: reason}
-	if !slices.Contains(a.result.Gaps, gap) {
-		a.result.Gaps = append(a.result.Gaps, gap)
+	a.gapAt(path, 0, reason)
+}
+
+func (a *analyzer) gapAt(path string, line int, reason string) {
+	for i, gap := range a.result.Gaps {
+		if gap.Path == path && gap.Reason == reason {
+			if line > 0 && (gap.Line == 0 || line < gap.Line) {
+				a.result.Gaps[i].Line = line
+			}
+			return
+		}
 	}
+	a.result.Gaps = append(a.result.Gaps, CoverageGap{Path: path, Reason: reason, Line: line})
 }
 
 func (a *analyzer) source(ref, path string, bindings scope) value {
