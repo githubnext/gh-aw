@@ -16,6 +16,7 @@ type JavaScriptNode struct {
 	Initializer         *JavaScriptNode   `json:"initializer"`
 	DeclarationList     *JavaScriptNode   `json:"declarationList"`
 	Body                *JavaScriptNode   `json:"body"`
+	Block               *JavaScriptNode   `json:"block"`
 	Left                *JavaScriptNode   `json:"left"`
 	Right               *JavaScriptNode   `json:"right"`
 	OperatorToken       *JavaScriptNode   `json:"operatorToken"`
@@ -70,6 +71,7 @@ type JavaScriptInput struct {
 	Files         map[string][]Source
 	Literals      map[string][]Source
 	CaptureStdout bool
+	ArgvOffset    int
 }
 
 type JavaScriptResult struct {

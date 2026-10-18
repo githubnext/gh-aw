@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"maps"
 	"path"
-	"slices"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -49,16 +48,17 @@ func (s *shell) javascriptCommand(cmd *syntax.CallExpr, captured bool, stdin val
 		return nil, false
 	}
 	name := literalShellWord(command)
+	line := int(command.Pos().Line())
 	if name != "node" && name != "nodejs" && !s.javascriptExecutable(command) {
 		return nil, false
 	}
 	if s.a.rule.JavaScript == nil || s.a.rule.JavaScript.Parser == nil {
-		if len(stdin) == 0 && len(s.javascriptArguments(cmd.Args[1:])) == 0 && !s.vars.hasSources() {
+		if len(stdin) == 0 && len(s.javascriptArguments(cmd.Args[1:])) == 0 {
 			return nil, true
 		}
-		s.a.gap(s.path, "JavaScript analysis unavailable; configure the pinned native TypeScript compiler module")
-		// Keep stdout tainted until this boundary can actually be inspected.
-		return union(stdin, s.javascriptArguments(cmd.Args[1:])), true
+		s.a.gapAt(s.path, line, "JavaScript analysis unavailable; configure the pinned native TypeScript compiler module")
+		// No output transformation is known across an unavailable boundary.
+		return nil, true
 	}
 	input := JavaScriptInput{
 		Name: s.path, Env: make(map[string][]Source), Stdin: stdin,
@@ -70,10 +70,12 @@ func (s *shell) javascriptCommand(cmd *syntax.CallExpr, captured bool, stdin val
 	}
 	arg := 1
 	inline := false
+	printExpression := false
 	if word, ok := sliceAt(cmd.Args, arg); ok {
 		switch literalShellWord(word) {
 		case "-e", "--eval", "-p", "--print":
 			inline = true
+			printExpression = literalShellWord(word) == "-p" || literalShellWord(word) == "--print"
 			arg++
 		case "--":
 			arg++
@@ -81,30 +83,34 @@ func (s *shell) javascriptCommand(cmd *syntax.CallExpr, captured bool, stdin val
 	}
 	entry, exists := sliceAt(cmd.Args, arg)
 	if !exists {
-		s.a.gap(s.path, "JavaScript entry point is unresolved")
-		return union(stdin, s.javascriptArguments(cmd.Args[1:])), true
+		s.a.gapAt(s.path, line, "JavaScript entry point is unresolved")
+		return nil, true
 	}
 	texts, known := s.javascriptWordTexts(entry)
 	text, exists := sliceAt(texts, 0)
 	if !known || !exists || len(texts) != 1 || strings.HasPrefix(text, "-") {
-		s.a.gap(s.path, "JavaScript entry point or interpreter options are unresolved")
-		return union(stdin, s.javascriptArguments(cmd.Args[1:])), true
+		s.a.gapAt(s.path, line, "JavaScript entry point or interpreter options are unresolved")
+		return nil, true
 	}
 	for _, word := range cmd.Args[arg+1:] {
 		input.Args = append(input.Args, s.word(word))
 	}
 	if inline {
 		input.Source = text
+		input.ArgvOffset = 1
+		if printExpression {
+			input.Source = "console.log(" + text + ")"
+		}
 	} else {
 		sourcePath, ok := s.javascriptSourcePath(text)
 		if !ok {
-			s.a.gap(s.path, "JavaScript repository entry point is unresolved; configure verified runtime source paths")
-			return union(stdin, s.javascriptArguments(cmd.Args[1:])), true
+			s.a.gapAt(s.path, line, "JavaScript repository entry point is unresolved; configure verified runtime source paths")
+			return nil, true
 		}
-		source, err := fs.ReadFile(s.a.rule.JavaScript.Files, sourcePath)
+		source, err := javascriptReadSource(s.a.rule.JavaScript.Files, sourcePath)
 		if err != nil {
-			s.a.gap(s.path, "JavaScript repository entry point source is unavailable")
-			return union(stdin, s.javascriptArguments(cmd.Args[1:])), true
+			s.a.gapAt(s.path, line, "JavaScript repository entry point source is unavailable")
+			return nil, true
 		}
 		input.Source = string(source)
 		// Resolve relative module imports from the repository source location,
@@ -112,14 +118,14 @@ func (s *shell) javascriptCommand(cmd *syntax.CallExpr, captured bool, stdin val
 		j := newJavaScript(s.a, input, s.a.rule.JavaScript)
 		j.file = sourcePath
 		if err := j.run(); err != nil {
-			s.a.gap(s.path, "JavaScript entry point could not be analyzed")
+			s.a.failure = err
 		}
 		s.javascriptFiles(j.files)
 		return j.stdout, true
 	}
 	j := newJavaScript(s.a, input, s.a.rule.JavaScript)
 	if err := j.run(); err != nil {
-		s.a.gap(s.path, "JavaScript entry point could not be analyzed")
+		s.a.failure = err
 	}
 	s.javascriptFiles(j.files)
 	return j.stdout, true
@@ -181,13 +187,8 @@ func (s *shell) javascriptSourcePath(name string) (string, bool) {
 	if options.Files == nil {
 		return "", false
 	}
-	prefixes := slices.Sorted(maps.Keys(options.RuntimePaths))
-	slices.SortFunc(prefixes, func(a, b string) int { return len(b) - len(a) })
-	for _, prefix := range prefixes {
-		if suffix, ok := strings.CutPrefix(name, strings.TrimSuffix(prefix, "/")+"/"); ok {
-			name = path.Join(options.RuntimePaths[prefix], suffix)
-			return name, fs.ValidPath(name)
-		}
+	if mapped, ok := javascriptRuntimePath(options.RuntimePaths, name); ok {
+		return mapped, fs.ValidPath(mapped)
 	}
 	name = path.Clean(path.Join(s.workingDirectory, name))
 	return name, fs.ValidPath(name)
@@ -239,11 +240,22 @@ func javascriptLocator(word *syntax.Word) bool {
 	}
 	part, _ := sliceAt(word.Parts, 0)
 	sub, ok := part.(*syntax.CmdSubst)
-	if !ok {
+	if !ok || len(sub.Stmts) != 1 {
 		return false
 	}
 	fallback, valid := false, true
 	syntax.Walk(sub, func(node syntax.Node) bool {
+		if node == nil {
+			return false
+		}
+		if binary, ok := node.(*syntax.BinaryCmd); ok && binary.Op.String() != "||" {
+			valid = false
+		}
+		if redirect, ok := node.(*syntax.Redirect); ok {
+			if redirect.N == nil || redirect.N.Value != "2" || redirect.Op.String() != ">" || literalShellWord(redirect.Word) != "/dev/null" {
+				valid = false
+			}
+		}
 		call, ok := node.(*syntax.CallExpr)
 		if !ok {
 			switch node.(type) {

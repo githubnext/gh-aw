@@ -23,16 +23,28 @@ type TypeScriptParser struct {
 	ModuleDirectory string
 	NodeExecutable  string
 	Environment     []string
-	mu              sync.Mutex
+	once            sync.Once
+	gate            chan struct{}
 	cache           map[[32]byte]*JavaScriptNode
 }
 
 func (p *TypeScriptParser) Parse(ctx context.Context, source string) (*JavaScriptNode, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if len(source) > 1024*1024 {
 		return nil, errors.New("JavaScript source exceeds analysis size limit")
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.once.Do(func() { p.gate = make(chan struct{}, 1) })
+	select {
+	case p.gate <- struct{}{}:
+		defer func() { <-p.gate }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	key := sha256.Sum256([]byte(source))
 	if tree := p.cache[key]; tree != nil {
 		return tree, nil

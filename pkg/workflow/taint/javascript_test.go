@@ -43,6 +43,9 @@ func TestNativeJavaScriptTaint(t *testing.T) {
 		{"object alias", `const data={credential:process.env.TOKEN}; const alias=data; console.log(alias.credential);`, Log, false},
 		{"object safe member", `const data={credential:process.env.TOKEN, safe:"ok"}; console.log(data.safe);`, "", false},
 		{"local function", `function transform(x){return JSON.stringify(x)} console.log(transform(process.env.TOKEN));`, Log, false},
+		{"rest with fewer arguments", `function f(a,b,...rest){console.log(rest)} f();`, "", false},
+		{"rest with zero arguments", `function f(...rest){console.log(rest)} f();`, "", false},
+		{"tainted rest arguments", `function f(a,...rest){console.log(rest)} f("safe",process.env.TOKEN);`, Log, false},
 		{"arrow callback", `process.stdin.on("data", chunk => console.log(chunk));`, Log, false},
 		{"authentication", `fetch("https://example.test", {headers:{Authorization:process.env.TOKEN}});`, "", false},
 		{"authentication and safe body", `fetch("https://example.test", {headers:{"x-api-key":process.env.TOKEN}, body:"ok"});`, "", false},
@@ -58,7 +61,18 @@ func TestNativeJavaScriptTaint(t *testing.T) {
 		{"output", `core.setOutput("token", process.env.TOKEN);`, Output, false},
 		{"file roundtrip", `const fs=require("fs"); fs.writeFileSync("token.txt", process.env.TOKEN); console.log(fs.readFileSync("token.txt","utf8"));`, Log, false},
 		{"unknown call", `unknown(process.env.TOKEN);`, "", true},
-		{"unknown transform retains taint", `console.log(unknown(process.env.TOKEN));`, Log, true},
+		{"unknown transform stays incomplete", `console.log(unknown(process.env.TOKEN));`, "", true},
+		{"stdin closure mutation", `let data=""; process.stdin.on("data", x => {data += x}); process.stdin.on("end", () => console.log(data));`, Log, false},
+		{"mutated object alias", `const data={}; const alias=data; alias.token=process.env.TOKEN; console.log(data.token);`, Log, false},
+		{"computed property write", `const data={}; data[unknown]=process.env.TOKEN; console.log(data.token);`, Log, false},
+		{"cyclic object", `const data={}; data.self=data; data.token=process.env.TOKEN; console.log(data);`, Log, false},
+		{"unrelated catch", `try { unknown("safe"); } catch (err) { console.error(err); }`, "", true},
+		{"caught throw is not log", `try { throw process.env.TOKEN; } catch {}`, "", false},
+		{"caught throw logged", `try { throw process.env.TOKEN; } catch (err) { console.error(err); }`, Log, false},
+		{"uncaught throw", `throw process.env.TOKEN;`, Log, false},
+		{"unrelated caught value", `try { const token=process.env.TOKEN; throw "safe"; } catch (err) { console.error(err); }`, "", false},
+		{"nested caught throw", `try { try { throw process.env.TOKEN } finally {} } catch {}`, "", false},
+		{"rethrown value", `try { throw process.env.TOKEN } catch (err) { throw err }`, Log, false},
 		{"unknown external module", `require("unavailable").consume(process.env.TOKEN);`, "", true},
 		{"dynamic import", `require(process.env.MODULE).consume(process.env.TOKEN);`, "", true},
 		{"function not executed", `function unused(){console.log(process.env.TOKEN)}`, "", false},
@@ -121,6 +135,8 @@ func TestJavaScriptWorkflowEntryPoints(t *testing.T) {
 	}
 	tests := []string{
 		"      - env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: node -e 'console.log(process.env.TOKEN)'\n",
+		"      - env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: node -p 'process.env.TOKEN'\n",
+		"      - env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: node -e 'console.log(process.argv[1])' \"$TOKEN\"\n",
 		"      - shell: node {0}\n        run: console.log('${{ secrets.TOKEN }}')\n",
 		"      - env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: printf '%s' \"$TOKEN\" | node helpers/leak.cjs\n",
 		"      - uses: actions/github-script@v9\n        with:\n          script: console.log('${{ secrets.TOKEN }}')\n",
@@ -135,4 +151,25 @@ func TestJavaScriptWorkflowEntryPoints(t *testing.T) {
 		require.NotEmpty(t, result.Findings, "%s", steps)
 		assert.Empty(t, result.Gaps)
 	}
+}
+
+func TestJavaScriptReusablePolicy(t *testing.T) {
+	options := nativeJavaScriptOptions(t)
+	rule := Rule{
+		ID:       "custom-flow",
+		IsSource: func(ref string) bool { return ref == "process.env.token" },
+		IsSink:   func(site Site) bool { return site.Kind == Network },
+		IsJavaScriptFilter: func(n *JavaScriptNode) bool {
+			return n.Kind == "CallExpression" && n.Expression != nil && n.Expression.Kind == "Identifier" && n.Expression.Text == "approved"
+		},
+	}
+	result, err := AnalyzeJavaScript(JavaScriptInput{
+		Name:   "entry.cjs",
+		Source: `console.log(process.env.TOKEN); fetch("https://example.test",{body:approved(process.env.TOKEN)}); fetch("https://example.test",{body:process.env.TOKEN});`,
+	}, rule, *options)
+	require.NoError(t, err)
+	assert.Empty(t, result.Gaps)
+	require.Len(t, result.Findings, 1)
+	assert.Equal(t, Network, result.Findings[0].Site.Kind)
+	assert.Equal(t, "custom-flow", result.Findings[0].RuleID)
 }

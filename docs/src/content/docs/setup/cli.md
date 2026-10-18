@@ -466,7 +466,7 @@ gh aw lint --rules secret-leak                      # Check existing workflows f
 gh aw lint --rules secret-leak --json               # Emit structured diagnostics
 ```
 
-**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`
+**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--javascript-module`, `--javascript-root`, `--javascript-runtime-path`
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
 
@@ -496,7 +496,26 @@ Unknown file reads produce secret-flow coverage warnings when they could select 
 
 The linter reads a companion `.md` file when present to check AW prompt expressions as well as the compiled graph. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Error diagnostics produce a nonzero exit status. Unsupported shells, shell parse failures, recursive functions, and secret-bearing data passed to unmodeled external commands produce explicit coverage warnings; warnings alone do not fail the command.
 
-Analysis is conservative within Bash/sh control flow and can report infeasible paths. It does not execute or inspect external actions, sourced scripts, JavaScript/Python/PowerShell programs, dynamically constructed shell code, or arbitrary filesystem operations. Imported runtime prompt files are not recursively loaded. Authentication arguments are treated as intentional credential use; endpoint trust is not inferred. A clean result is not proof that a workflow cannot leak secrets.
+Analysis is conservative within Bash/sh control flow and can report infeasible paths. It does not execute analyzed code or inspect external actions, sourced shell scripts, Python/PowerShell programs, dynamically constructed shell code, or arbitrary filesystem operations. JavaScript inspection requires the explicit configuration below. Imported runtime prompt files are not recursively loaded. Authentication arguments are treated as intentional credential use; endpoint trust is not inferred. A clean result is not proof that a workflow cannot leak secrets.
+
+##### Optional native JavaScript analysis
+
+`--javascript-module` enables JavaScript secret-flow analysis using Microsoft's Go TypeScript compiler through the upstream-exported, **unstable** `@typescript/native-preview/unstable/sync` and AST APIs. The exact supported package version is `7.0.0-dev.20260707.2`. Node.js 22.12 or newer and its platform-native compiler executable must already be installed; the CLI does not download dependencies or assume its own developer `node_modules` directory exists.
+
+For a gh-aw source checkout, install the optional pinned dependency and supply absolute paths:
+
+```bash wrap
+npm ci --prefix /path/to/gh-aw/pkg/workflow/taint/javascript --ignore-scripts
+gh aw lint --rules secret-leak --json \
+  --javascript-module /path/to/gh-aw/pkg/workflow/taint/javascript \
+  --javascript-root /path/to/repository
+```
+
+The checker follows literal `node`/`nodejs` file and `--eval` invocations, `--print` expressions, `shell: node {0}`, `actions/github-script` scripts, and available relative CommonJS/ES module imports. It tracks symbolic environment/argument/stdin sources, aliases, object members, local function calls, selected stdin callbacks, JSON/string transformations, and known file writes/reads. Logging, summaries, outputs, and non-authentication request fields are disclosure sinks. Comparison/presence results remove values; masking and encoding do not.
+
+`--javascript-root` bounds source reads to the supplied repository, including symlink confinement. Repeated `--javascript-runtime-path 'runner-directory=repository-relative-directory'` flags can map generated runtime asset paths to **operator-verified matching source**. For example, only when the workflow uses the exact checkout's gh-aw setup assets, pass `--javascript-runtime-path '${RUNNER_TEMP}/gh-aw/actions=actions/setup/js'`. This mapping loads and analyzes source; it does not declare any helper safe. Unknown interpreter paths are not identified by basename.
+
+Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits produce explicit incomplete-analysis warnings. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, the existing Bash analysis remains active and reports unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. The model is partial, and does not prove whole-program JavaScript safety.
 
 ### Testing
 

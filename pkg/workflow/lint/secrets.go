@@ -17,10 +17,16 @@ func SecretLeakRule() Rule {
 			}
 			var result taint.Result
 			var err error
+			rule := taint.SecretLeakRule()
+			if input.JavaScript != nil {
+				options := *input.JavaScript
+				options.Context = ctx
+				rule.JavaScript = &options
+			}
 			if input.Document != nil {
-				result, err = taint.AnalyzeDocument(input.Document, input.Workflow, taint.SecretLeakRule())
+				result, err = taint.AnalyzeDocument(input.Document, input.Workflow, rule)
 			} else {
-				result, err = taint.CheckSecretLeaks(input.Workflow)
+				result, err = taint.Analyze(input.Workflow, rule)
 			}
 			if err != nil {
 				return nil, err

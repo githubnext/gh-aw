@@ -22,13 +22,13 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 	case "require":
 		if len(args) != 1 || !first.literal {
 			j.gap(n, "dynamic JavaScript module resolution is not modeled")
-			return all
+			return jsValue{}
 		}
 		return j.loadModule(n, first.text)
 	case "fs.readFileSync", "fs.readFile", "fs.promises.readFile":
 		if !hasFirst {
 			j.gap(n, "JavaScript file read target is unresolved")
-			return all
+			return jsValue{}
 		}
 		var sources value
 		if first.literal {
@@ -38,9 +38,6 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 				sources = j.files[path.Clean(first.text)]
 			}
 		} else {
-			for _, v := range j.files {
-				sources = union(sources, v)
-			}
 			j.gap(n, "JavaScript file read target is unresolved")
 		}
 		v := jsValue{sources: sources}
@@ -90,7 +87,14 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 		return jsValue{}
 	case "Boolean":
 		return jsValue{}
-	case "JSON.parse", "JSON.stringify", "String", "Number", "Buffer.from", "Buffer.concat", "Object.values", "Object.entries":
+	case "JSON.parse":
+		if j.catchDepth > 0 {
+			j.thrown = union(j.thrown, all.taint())
+		}
+		return all
+	case "JSON.stringify", "String", "Number", "Buffer.from", "Buffer.concat", "Object.values", "Object.entries":
+		return all
+	case "Error", "TypeError", "RangeError", "SyntaxError":
 		return all
 	case "path.join", "path.resolve", "path.posix.join":
 		parts := make([]string, 0, len(args))
@@ -126,9 +130,9 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 		}
 	}
 	// Unknown calls may consume captured environment/stdin as well as args.
-	// Retain propagated taint, but never certify them as safe authentication.
+	// Neither a safe transformation nor a secret-bearing return is known.
 	j.gap(n, "JavaScript call or callback data flow is not modeled")
-	return jsUnion(callee, all)
+	return jsValue{}
 }
 
 func (j *javascript) writeStdout(n *JavaScriptNode, sources value) {

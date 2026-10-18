@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/github/gh-aw/pkg/workflow/aw"
 	workflowlint "github.com/github/gh-aw/pkg/workflow/lint"
+	"github.com/github/gh-aw/pkg/workflow/taint"
 )
 
 type workflowLintDiagnostic struct {
@@ -19,7 +20,7 @@ type workflowLintDiagnostic struct {
 	workflowlint.Diagnostic
 }
 
-func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.Runner, output io.Writer, jsonOutput bool) error {
+func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.Runner, output io.Writer, jsonOutput bool, javascript ...*taint.JavaScriptOptions) error {
 	diagnostics := make([]workflowLintDiagnostic, 0)
 	var failures []error
 	for _, file := range files {
@@ -27,7 +28,7 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 			failures = append(failures, err)
 			break
 		}
-		current, err := lintWorkflowFile(ctx, file, runner)
+		current, err := lintWorkflowFile(ctx, file, runner, javascript...)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s: %w", file, err))
 		}
@@ -58,7 +59,7 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 	return errors.Join(failures...)
 }
 
-func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Runner) ([]workflowlint.Diagnostic, error) {
+func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Runner, javascript ...*taint.JavaScriptOptions) ([]workflowlint.Diagnostic, error) {
 	content, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -70,6 +71,9 @@ func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Run
 		return nil, errors.New("could not parse workflow Actions AST")
 	}
 	input := workflowlint.Input{Workflow: workflow}
+	if len(javascript) > 0 {
+		input.JavaScript = javascript[0]
+	}
 	// A companion AW source adds prompt analysis without recompiling or changing
 	// the on-disk execution graph. Native Actions files need no companion.
 	source, readErr := os.ReadFile(strings.TrimSuffix(file, ".lock.yml") + ".md")
