@@ -82,6 +82,19 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("claude-sonnet-4.6");
   });
 
+  it("resolves Linter Miner main and sub-agent models against its advertised catalog", () => {
+    const workflow = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/linter-miner.md"), "utf8");
+    const models = [...workflow.matchAll(/^model: (.+)$/gm)].map(match => match[1]);
+    const reflectData = {
+      endpoints: [{ configured: true, provider: "copilot", models: ["claude-haiku-4.5", "claude-haiku-5.5", "claude-opus-5.5", "claude-sonnet-5", "claude-sonnet-5.5"] }],
+    };
+    expect(models).toHaveLength(4);
+    for (const configuredModel of models) {
+      const resolved = resolveConfiguredCopilotModel({ configuredModel, aliasMap: ALIAS_MAP, reflectData });
+      expect(reflectData.endpoints[0].models).toContain(resolved);
+    }
+  });
+
   it("throws ModelAliasResolutionError for a known alias when the catalog is empty", () => {
     const logs = [];
     expect(() =>
