@@ -115,6 +115,73 @@ describe("Claim-scoped safe-output footers", () => {
     }
   });
 
+  it.each([false, true])("preserves paired body-header and body-footer wrappers with footer=%s", footer => {
+    const previousContext = global.context;
+    Reflect.set(global, "context", { repo: { owner: "owner", repo: "repo" }, runId: 123, payload: {} });
+    vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ bodyHeader: "<details><summary>Full report</summary>", footer: "> Custom" }));
+    try {
+      const report = withClaimExecution({ assignment, claim_handle: "h2" }, () => buildIssueBodyReport("Finding", "## Evidence\n\nIssue content", { repo: { owner: "owner", repo: "repo" }, bodyFooter: "</details>", footer }));
+      expect(report.children[0]).toMatchObject({
+        type: "details",
+        summary: "Full report",
+        children: [{ type: "heading" }, { type: "paragraph", children: [{ type: "text", value: "Issue content" }] }, ...(footer ? [{ type: "quote" }] : [])],
+      });
+      const { body } = reportAST.renderReport(report);
+      const wrapper = footer
+        ? "<details>\n<summary>Full report</summary>\n\n### Evidence\n\nIssue content\n\n> Custom\n> Work `work-two` · Claim `claim-two`\n\n</details>"
+        : "<details>\n<summary>Full report</summary>\n\n### Evidence\n\nIssue content\n\n</details>";
+      expect(body.startsWith(wrapper + "\n\n<!-- gh-aw-workflow-id:")).toBe(true);
+      expect(body).not.toContain("&lt;/details&gt;");
+      expect(body.match(/<!-- gh-aw-execution:/g)).toHaveLength(1);
+    } finally {
+      Reflect.set(global, "context", previousContext);
+    }
+  });
+
+  it.each([
+    ["> Custom {workflow_name}", "> Custom Worker"],
+    ["> First paragraph\n>\n> Second paragraph", "> First paragraph\n>\n> Second paragraph"],
+  ])("keeps Claim attribution and run-again hints in the same quote for %s", (footer, renderedFooter) => {
+    const previousContext = global.context;
+    Reflect.set(global, "context", { repo: { owner: "owner", repo: "repo" }, runId: 123, payload: {} });
+    vi.stubEnv("GH_AW_WORKFLOW_NAME", "Worker");
+    vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ footer }));
+    vi.stubEnv("GH_AW_COMMANDS", '["retry"]');
+    vi.stubEnv("GH_AW_LABEL_COMMANDS", '["retry-worker"]');
+    try {
+      const body = withClaimExecution({ assignment, claim_handle: "h2" }, () => formatIssueBody("Issue content", { repo: { owner: "owner", repo: "repo" } }));
+      const footerEnd = body.indexOf("\n\n<!-- gh-aw-workflow-id:");
+      expect(body.slice(0, footerEnd)).toBe(
+        `Issue content\n\n${renderedFooter}\n> Work \`work-two\` · Claim \`claim-two\`\n> <sub>Comment &lt;em&gt;/retry&lt;/em&gt; to run again</sub>\n> <sub>Add label &lt;em&gt;retry-worker&lt;/em&gt; to run again</sub>`
+      );
+    } finally {
+      Reflect.set(global, "context", previousContext);
+    }
+  });
+
+  it("keeps Claim values typed without interpreting literal body placeholders or colliding with inline slots", () => {
+    const previousContext = global.context;
+    Reflect.set(global, "context", { repo: { owner: "owner", repo: "repo" }, runId: 123, payload: {} });
+    const member = { ...assignment.claims[0], work_id: "`@copilot <b>{workflow_name}</b>`", claim_id: "claim``[link](https://example.com)" };
+    const special = { ...assignment, claims: [member] };
+    try {
+      const report = withClaimExecution({ assignment: special, claim_handle: "h1" }, () =>
+        buildIssueBodyReport("Finding", "{gh_aw_issue_footer_0}\n\n&#123;gh_aw_issue_footer_0_&#125;\n\n{unknown}{toString}\n\n`{in_code}`\n\n@allowed @blocked", {
+          repo: { owner: "owner", repo: "repo" },
+          allowedMentions: ["allowed"],
+        })
+      );
+      expect(JSON.stringify(report)).toContain(JSON.stringify({ type: "code", value: member.work_id }));
+      expect(JSON.stringify(report)).toContain(JSON.stringify({ type: "code", value: member.claim_id }));
+      const { body } = reportAST.renderReport(report);
+      expect(body).toContain("{gh\\_aw\\_issue\\_footer\\_0}\n\n{gh\\_aw\\_issue\\_footer\\_0\\_}\n\n{unknown}{toString}\n\n`{in_code}`\n\n@allowed `@blocked`");
+      expect(body).toContain("> Work `` `@copilot <b>{workflow_name}</b>` `` · Claim ```claim``[link](https://example.com)```");
+      expect(body.match(/> Work /g)).toHaveLength(1);
+    } finally {
+      Reflect.set(global, "context", previousContext);
+    }
+  });
+
   it("builds the complete issue AST before rendering Claim attribution, headers, expiration, and provenance once", () => {
     const previousContext = global.context;
     const previousCore = global.core;
@@ -133,7 +200,10 @@ describe("Claim-scoped safe-output footers", () => {
         })
       );
       expect(render).not.toHaveBeenCalled();
-      expect(report.preamble).toHaveLength(2);
+      expect(report.children.slice(0, 2)).toEqual([
+        { type: "paragraph", children: [{ type: "text", value: "Disclosure" }] },
+        { type: "paragraph", children: [{ type: "text", value: "Header" }] },
+      ]);
       expect(JSON.stringify(report)).toContain('"type":"code","value":"work-two"');
       const { body } = reportAST.renderReport(report);
       expect(render).toHaveBeenCalledExactlyOnceWith(report);

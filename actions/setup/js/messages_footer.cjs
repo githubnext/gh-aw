@@ -20,26 +20,22 @@ const { getEffectiveModelLabel, resolveEffectiveModel, validateModelIdentifier }
 const { currentClaimHandle, claimIdentity } = require("./work_queue_claim_scope.cjs");
 const reportAST = require("./report_ast.cjs");
 
-/** @typedef {string | import("./report_ast.cjs").ReportBlock} FooterPart */
+/** @typedef {{type: "quote_line", children: import("./report_ast.cjs").ReportInline[]}} FooterQuoteLine */
+/** @typedef {string | FooterQuoteLine} FooterPart */
 
-/** @returns {import("./report_ast.cjs").ReportBlock[]} */
+/** @returns {FooterQuoteLine[]} */
 function buildWorkQueueClaimFooter() {
   const handle = currentClaimHandle();
   if (!handle) return [];
   const { work_id, claim_id } = claimIdentity(handle);
   return [
     {
-      type: "quote",
+      type: "quote_line",
       children: [
-        {
-          type: "paragraph",
-          children: [
-            { type: "text", value: "Work " },
-            { type: "code", value: work_id },
-            { type: "text", value: " · Claim " },
-            { type: "code", value: claim_id },
-          ],
-        },
+        { type: "text", value: "Work " },
+        { type: "code", value: work_id },
+        { type: "text", value: " · Claim " },
+        { type: "code", value: claim_id },
       ],
     },
   ];
@@ -51,7 +47,7 @@ function buildWorkQueueClaimFooter() {
  * @param {FooterPart[]} parts
  */
 function renderFooterParts(parts) {
-  return parts.map(part => (typeof part === "string" ? part : reportAST.renderReport({ type: "report", title: "Footer", children: [part] }).body.trimEnd())).join("");
+  return parts.map(part => (typeof part === "string" ? part : reportAST.renderReport({ type: "report", title: "Footer", children: [{ type: "quote", children: [{ type: "paragraph", children: part.children }] }] }).body.trimEnd())).join("");
 }
 
 /**

@@ -169,6 +169,54 @@ describe("issue report publication boundary", () => {
     expect(client.rest.issues.create.mock.calls.every(([request]) => request === parameters)).toBe(true);
   });
 
+  it.each([
+    ["owner", parameters => (parameters.owner = "other-owner")],
+    ["repo", parameters => (parameters.repo = "other-repo")],
+    ["header value", parameters => (parameters.headers.authorization = "other-token")],
+    ["added header", parameters => (parameters.headers.host = "other.example")],
+    ["replaced headers", parameters => (parameters.headers = { authorization: "other-token" })],
+    ["deleted headers", parameters => delete parameters.headers],
+  ])("rejects changed prepared issue %s before rendering or publishing stale attribution", (_name, mutate) => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const report = buildIssueReport("Report", "[Workflow run](https://github.com/o/r/actions/runs/42)\n\n<!-- gh-aw-workflow-id: o/r/workflow -->");
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report", headers: { authorization: "original-token" } }, report);
+    const client = { rest: { issues: { create: vi.fn() } } };
+    expect(parameters.body).toContain("https://github.com/o/r/actions/runs/42");
+    expect(parameters.body).toContain("<!-- gh-aw-workflow-id: o/r/workflow -->");
+    mutate(parameters);
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    parameters.body = "Changed body";
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    expect(() => createReportIssue(client, parameters, report)).toThrow("Prepared issue target or headers changed");
+    expect(render).toHaveBeenCalledExactlyOnceWith(report);
+    expect(client.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects headers added after preparation", () => {
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report" });
+    const client = { rest: { issues: { create: vi.fn() } } };
+    parameters.headers = { authorization: "new-token" };
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    expect(client.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("snapshots shared headers while allowing equivalent headers and issue assignment updates", async () => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const headers = { authorization: "original-token", "X-GitHub-Api-Version": "2022-11-28" };
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report", headers, labels: [], assignees: [] });
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: {} }) } } };
+    parameters.headers = { "X-GitHub-Api-Version": "2022-11-28", authorization: "original-token" };
+    parameters.labels = ["bug"];
+    parameters.assignees = ["user"];
+    await createReportIssue(client, parameters);
+    expect(client.rest.issues.create).toHaveBeenCalledExactlyOnceWith(parameters);
+    parameters.headers = headers;
+    headers.authorization = "changed-token";
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
   it("does not trust modified or copied prepared content", async () => {
     const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
     const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: {} }) } } };

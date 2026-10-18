@@ -1,12 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { isDeepStrictEqual } = require("node:util");
 const reportAST = require("./report_ast.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 // Reuse only this boundary's unchanged output, never caller-supplied lookalikes.
-/** @type {WeakMap<object, {title: string, body: string}>} */
+/** @type {WeakMap<object, {rendered: {title: string, body: string}, owner?: string, repo?: string, headers: Record<string, string | number | undefined>}>} */
 const renderedIssues = new WeakMap();
 
 /**
@@ -22,7 +23,7 @@ function buildIssueReport(title, body, { allowedMentions = [] } = {}) {
 }
 
 /**
- * @template {{title: string, body?: string}} T
+ * @template {{title: string, body?: string, owner?: string, repo?: string, headers?: Record<string, string | number | undefined>}} T
  * @param {T} parameters
  * @param {import("./report_ast.cjs").Report} [report]
  * @returns {T & {title: string, body: string}}
@@ -31,7 +32,7 @@ function renderIssueParameters(parameters, report = buildIssueReport(parameters.
   const rendered = reportAST.renderReport(report);
   if (rendered.body.length > 65536) throw new Error(`${ERR_VALIDATION}: Issue body exceeds GitHub's maximum length of 65536 characters including attribution`);
   const result = { ...parameters, ...rendered };
-  renderedIssues.set(result, rendered);
+  renderedIssues.set(result, { rendered, owner: result.owner, repo: result.repo, headers: { ...result.headers } });
   return result;
 }
 
@@ -42,7 +43,12 @@ function renderIssueParameters(parameters, report = buildIssueReport(parameters.
  * @param {import("./report_ast.cjs").Report} [report]
  */
 function createReportIssue(client, parameters, report) {
-  const rendered = renderedIssues.get(parameters);
+  const cached = renderedIssues.get(parameters);
+  // Re-rendering existing Markdown cannot repair attribution bound to another target.
+  if (cached && (cached.owner !== parameters.owner || cached.repo !== parameters.repo || !isDeepStrictEqual(cached.headers, parameters.headers ?? {}))) {
+    throw new Error(`${ERR_VALIDATION}: Prepared issue target or headers changed; build and render a fresh report for the intended target before publishing`);
+  }
+  const rendered = cached?.rendered;
   if (!report && rendered && rendered.title === parameters.title && rendered.body === parameters.body) {
     return client.rest.issues.create(parameters);
   }

@@ -85,6 +85,8 @@ headers, Claim attribution nodes, expiration, and trusted execution provenance.
 Pass the object returned by `renderIssueParameters` directly to `createReportIssue`
 to reuse its rendered content for publication and retries. Changing its title or
 body, or copying the object, requires validation and rendering again.
+Changing a prepared request's owner, repo, or headers is rejected before any API
+write; build and render a fresh complete report for the intended target instead.
 Linear uses the Markdown renderer. Jira uses text-preserving normalization before
 converting its literal description to ADF, without replacing ordinary language
 characters with visually similar Latin letters.
