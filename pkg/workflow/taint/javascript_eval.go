@@ -3,31 +3,37 @@ package taint
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"maps"
+	"path"
 	"strconv"
 	"strings"
 )
 
 type javascript struct {
-	a       *analyzer
-	input   JavaScriptInput
-	options *JavaScriptOptions
-	env     map[string]jsValue
-	stdin   value
-	stdout  value
-	files   map[string][]Source
-	file    string
-	modules map[string]jsValue
-	active  map[*jsFunction]bool
-	returns jsValue
-	budget  int
+	a          *analyzer
+	input      JavaScriptInput
+	options    *JavaScriptOptions
+	env        map[string]jsValue
+	stdin      value
+	stdout     value
+	files      map[string][]Source
+	file       string
+	modules    map[string]jsValue
+	loading    map[string]struct{}
+	active     map[*jsFunction]bool
+	returns    jsValue
+	budget     int
+	failure    error
+	catchDepth int
+	thrown     value
 }
 
 func newJavaScript(a *analyzer, input JavaScriptInput, options *JavaScriptOptions) *javascript {
 	j := &javascript{
 		a: a, input: input, options: options, stdin: input.Stdin,
 		file: input.Name, files: maps.Clone(input.Files), budget: 100000,
-		modules: make(map[string]jsValue), active: make(map[*jsFunction]bool),
+		modules: make(map[string]jsValue), loading: make(map[string]struct{}), active: make(map[*jsFunction]bool),
 	}
 	if j.files == nil {
 		j.files = make(map[string][]Source)
@@ -38,7 +44,7 @@ func newJavaScript(a *analyzer, input JavaScriptInput, options *JavaScriptOption
 
 func (j *javascript) globals() map[string]jsValue {
 	env := make(map[string]jsValue)
-	for _, name := range []string{"process", "console", "JSON", "Buffer", "String", "Boolean", "Number", "Object", "Array", "require", "fetch", "core", "github", "context", "exec"} {
+	for _, name := range []string{"process", "console", "JSON", "Buffer", "String", "Boolean", "Number", "Object", "Array", "Error", "TypeError", "RangeError", "SyntaxError", "require", "fetch", "core", "github", "context", "exec"} {
 		env[name] = jsValue{ref: name}
 	}
 	env["module"] = jsValue{fields: map[string]jsValue{"exports": {fields: make(map[string]jsValue)}}}
@@ -47,9 +53,20 @@ func (j *javascript) globals() map[string]jsValue {
 	for name, sources := range j.input.Env {
 		processEnv.fields[name] = jsValue{sources: sources}
 	}
+	for prefix := range j.optionsRuntimePaths() {
+		if suffix, ok := strings.CutPrefix(prefix, "${"); ok {
+			if name, _, ok := strings.Cut(suffix, "}"); ok && len(j.input.Env[name]) == 0 {
+				processEnv.fields[name] = jsValue{literal: true, text: "${" + name + "}"}
+			}
+		}
+	}
 	argv := jsValue{ref: "process.argv", fields: make(map[string]jsValue)}
+	offset := j.input.ArgvOffset
+	if offset == 0 {
+		offset = 2
+	}
 	for i, sources := range j.input.Args {
-		argv.fields[jsIndex(i+2)] = jsValue{sources: sources}
+		argv.fields[jsIndex(i+offset)] = jsValue{sources: sources}
 	}
 	env["process"] = jsValue{ref: "process", fields: map[string]jsValue{"env": processEnv, "argv": argv}}
 	return env
@@ -67,11 +84,18 @@ func (j *javascript) run() error {
 	}
 	tree, err := j.parse(j.input.Source)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
 		j.gap(nil, "JavaScript AST unavailable; check syntax, Node.js, and the pinned native TypeScript compiler module")
 		return nil
 	}
+	if tree == nil || tree.Kind != "SourceFile" {
+		j.gap(nil, "JavaScript parser returned an invalid AST")
+		return nil
+	}
 	j.eval(tree)
-	return nil
+	return j.failure
 }
 
 func (j *javascript) parse(source string) (*JavaScriptNode, error) {
@@ -87,11 +111,18 @@ func (j *javascript) gap(n *JavaScriptNode, reason string) {
 	if n != nil {
 		line = n.Line
 	}
-	j.a.gapAt(j.input.Name+".javascript", line, reason)
+	j.a.gapAt(j.scriptPath(), line, reason)
 }
 
 func (j *javascript) emit(n *JavaScriptNode, kind Kind, sources value) {
-	j.a.emit(Site{Kind: kind, Path: j.input.Name, Line: n.Line}, sources)
+	j.a.emit(Site{Kind: kind, Path: j.scriptPath(), Line: n.Line}, sources)
+}
+
+func (j *javascript) scriptPath() string {
+	if j.file != j.input.Name && fs.ValidPath(j.file) {
+		return j.input.Name + ".javascript[" + j.file + "]"
+	}
+	return j.input.Name + ".javascript"
 }
 
 func (j *javascript) key(n *JavaScriptNode) string {
@@ -104,6 +135,10 @@ func (j *javascript) key(n *JavaScriptNode) string {
 
 func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST dispatch keeps conservative fallback visible.
 	if n == nil {
+		return jsValue{}
+	}
+	if j.options != nil && j.options.Context != nil && j.options.Context.Err() != nil {
+		j.failure = j.options.Context.Err()
 		return jsValue{}
 	}
 	j.budget--
@@ -131,6 +166,12 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		j.bind(n.Name, v)
 		return v
 	case "Identifier":
+		if n.Text == "__dirname" {
+			return jsValue{literal: true, text: path.Dir(j.file)}
+		}
+		if n.Text == "__filename" {
+			return jsValue{literal: true, text: j.file}
+		}
 		v := j.env[n.Text]
 		v.sources = union(v.sources, j.a.source(n.Text, j.input.Name, nil))
 		v.sources = union(v.sources, j.input.Literals[n.Text])
@@ -239,23 +280,30 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		j.eval(n.ElseStatement)
 		return jsValue{}
 	case "TryStatement":
+		previousThrows := j.thrown
+		if n.CatchClause != nil {
+			j.thrown = nil
+			j.catchDepth++
+		}
 		j.eval(n.TryBlock)
 		if n.CatchClause != nil {
-			// Exceptions may contain the text being parsed or transformed.
-			var sources value
-			for _, v := range j.env {
-				sources = union(sources, v.taint())
-			}
+			j.catchDepth--
+			caught := j.thrown
+			j.thrown = previousThrows
 			if n.CatchClause.VariableDeclaration != nil {
-				j.bind(n.CatchClause.VariableDeclaration.Name, jsValue{sources: sources})
+				j.bind(n.CatchClause.VariableDeclaration.Name, jsValue{sources: caught})
 			}
-			j.eval(n.CatchClause.Body)
+			j.eval(n.CatchClause.Block)
 		}
 		j.eval(n.FinallyBlock)
 		return jsValue{}
 	case "ThrowStatement":
 		v := j.eval(n.Expression)
-		j.emit(n, Log, v.taint())
+		if j.catchDepth > 0 {
+			j.thrown = union(j.thrown, v.taint())
+		} else {
+			j.emit(n, Log, v.taint())
+		}
 		return v
 	case "TemplateExpression", "TemplateSpan":
 		return j.children(n)
@@ -284,7 +332,7 @@ func (j *javascript) children(n *JavaScriptNode) jsValue {
 	var values []jsValue
 	for _, child := range []*JavaScriptNode{
 		n.Expression, n.Initializer, n.DeclarationList, n.Body, n.Left, n.Right, n.Condition,
-		n.WhenTrue, n.WhenFalse, n.ThenStatement, n.ElseStatement, n.TryBlock, n.FinallyBlock, n.Incrementor, n.Operand,
+		n.WhenTrue, n.WhenFalse, n.ThenStatement, n.ElseStatement, n.TryBlock, n.FinallyBlock, n.Incrementor, n.Operand, n.Block,
 	} {
 		values = append(values, j.eval(child))
 	}
@@ -303,17 +351,24 @@ func (j *javascript) functionValue(n *JavaScriptNode) jsValue {
 func (j *javascript) invoke(n *JavaScriptNode, fn *jsFunction, args []jsValue) jsValue {
 	if len(j.active) > 32 || j.active[fn] {
 		j.gap(n, "recursive JavaScript call is not modeled")
-		return jsUnion(args...)
+		return jsValue{}
 	}
 	env, file, returns := j.env, j.file, j.returns
 	j.env, j.file, j.returns = maps.Clone(fn.env), fn.file, jsValue{}
+	shadowed := jsLocalNames(fn.node)
+	for name := range shadowed {
+		delete(j.env, name)
+	}
 	for i, parameter := range fn.node.Parameters {
 		v := j.eval(parameter.Initializer)
 		if arg, ok := sliceAt(args, i); ok {
 			v = jsUnionPreserving(v, arg)
 		}
 		if jsHasKind(parameter.Other, "DotDotDotToken") {
-			v = jsUnion(args[i:]...)
+			v = jsValue{}
+			if i < len(args) {
+				v = jsUnion(args[i:]...)
+			}
 		}
 		j.bind(parameter.Name, v)
 	}
@@ -324,8 +379,20 @@ func (j *javascript) invoke(n *JavaScriptNode, fn *jsFunction, args []jsValue) j
 	if fn.node.Body != nil && fn.node.Body.Kind != "Block" {
 		result = jsUnionPreserving(result, body)
 	}
+	for name, previous := range fn.env {
+		if _, local := shadowed[name]; !local {
+			fn.env[name] = jsUnionPreserving(previous, j.env[name])
+		}
+	}
 	j.env, j.file, j.returns = env, file, returns
 	return result
+}
+
+func (j *javascript) optionsRuntimePaths() map[string]string {
+	if j.options == nil {
+		return nil
+	}
+	return j.options.RuntimePaths
 }
 
 func jsRefModule(ref string) string {

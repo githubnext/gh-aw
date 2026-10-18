@@ -333,7 +333,7 @@ func (a *analyzer) action(fields map[string]any, path string, bindings, files sc
 	if err != nil {
 		return err
 	}
-	if actionName(uses) == "actions/github-script" {
+	if actionName(uses) == "actions/github-script" && a.rule.JavaScript != nil {
 		if script, ok := inputs["script"].(string); ok {
 			if err := a.javascriptInline(script, path+".with.script", bindings, files, false); err != nil {
 				return err

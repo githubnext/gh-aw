@@ -1,12 +1,14 @@
 package taint
 
 import (
+	"context"
+	"errors"
 	"io/fs"
 	"path"
 	"strings"
 )
 
-func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue {
+func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue { //nolint:largefunc // Keep source resolution and module initialization at one boundary.
 	module := jsRefModule(name)
 	switch module {
 	case "fs", "fs/promises", "path", "http", "https", "child_process", "os", "util", "crypto", "stream", "readline":
@@ -17,26 +19,26 @@ func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue {
 	case "@actions/core":
 		return jsValue{ref: "core"}
 	}
-	if !strings.HasPrefix(name, "./") && !strings.HasPrefix(name, "../") {
+	target, mapped := javascriptRuntimePath(j.optionsRuntimePaths(), name)
+	if !mapped && !strings.HasPrefix(name, "./") && !strings.HasPrefix(name, "../") {
 		j.gap(n, "external JavaScript module data flow is not modeled")
 		return jsValue{}
 	}
-	target := path.Clean(path.Join(path.Dir(j.file), name))
+	if !mapped {
+		target = path.Clean(path.Join(path.Dir(j.file), name))
+	}
 	if !fs.ValidPath(target) || j.options.Files == nil {
 		j.gap(n, "JavaScript repository module source is unavailable")
 		return jsValue{}
-	}
-	if v, ok := j.modules[target]; ok {
-		return v
 	}
 	if len(j.modules) >= 64 {
 		j.gap(n, "JavaScript module traversal limit reached")
 		return jsValue{}
 	}
-	source, err := fs.ReadFile(j.options.Files, target)
+	source, err := javascriptReadSource(j.options.Files, target)
 	if err != nil && path.Ext(target) == "" {
 		for _, candidate := range []string{target + ".cjs", target + ".js", path.Join(target, "index.js")} {
-			source, err = fs.ReadFile(j.options.Files, candidate)
+			source, err = javascriptReadSource(j.options.Files, candidate)
 			if err == nil {
 				target = candidate
 				break
@@ -47,16 +49,28 @@ func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue {
 		j.gap(n, "JavaScript repository module source is unavailable")
 		return jsValue{}
 	}
+	if _, active := j.loading[target]; active {
+		j.gap(n, "cyclic JavaScript module initialization is not modeled")
+		return jsValue{}
+	}
+	if v, ok := j.modules[target]; ok {
+		return v
+	}
 	tree, err := j.parse(string(source))
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			j.failure = err
+			return jsValue{}
+		}
 		j.gap(n, "JavaScript repository module AST is unavailable")
 		return jsValue{}
 	}
 	env, file := j.env, j.file
-	j.env, j.file = j.globals(), target
-	// A cyclic module gets an explicit gap, not an assumed-safe export.
-	j.modules[target] = jsValue{}
+	j.file = target
+	j.env = j.globals()
+	j.loading[target] = struct{}{}
 	j.eval(tree)
+	delete(j.loading, target)
 	result := j.env["module"].property("exports")
 	j.modules[target] = result
 	j.env, j.file = env, file

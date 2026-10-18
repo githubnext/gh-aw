@@ -9,6 +9,7 @@ const fields = [
   "initializer",
   "declarationList",
   "body",
+  "block",
   "left",
   "right",
   "operatorToken",

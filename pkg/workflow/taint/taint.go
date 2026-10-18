@@ -135,6 +135,7 @@ type analyzer struct {
 	rule        Rule
 	result      Result
 	promptScope scope
+	failure     error
 }
 
 func (a *analyzer) emit(site Site, sources value) {

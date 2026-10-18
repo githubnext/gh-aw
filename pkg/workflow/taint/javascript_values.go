@@ -48,9 +48,15 @@ func jsUnion(values ...jsValue) jsValue {
 func (v jsValue) property(key string) jsValue {
 	if current, ok := v.fields[key]; ok {
 		current.sources = union(current.sources, v.sources)
+		if current.ref == "" && v.ref != "" {
+			current.ref = v.ref + "." + key
+		}
+		if key != "*" {
+			current.sources = union(current.sources, v.fields["*"].taint())
+		}
 		return current
 	}
-	result := jsValue{sources: v.sources}
+	result := jsValue{sources: union(v.sources, v.fields["*"].taint())}
 	if key == "*" {
 		result.sources = v.taint()
 	}
@@ -109,18 +115,20 @@ func jsUnionPreserving(a, b jsValue) jsValue {
 }
 
 func jsMerge(a, b jsValue, seen map[[2]uintptr]bool) jsValue {
-	if b.ref == "" && b.fn == nil && len(b.fields) == 0 && !b.literal && len(b.sources) == 0 {
+	if b.ref == "" && b.fn == nil && b.fields == nil && !b.literal && len(b.sources) == 0 {
 		return a
 	}
-	if a.ref == "" && a.fn == nil && len(a.fields) == 0 && !a.literal && len(a.sources) == 0 {
+	if a.ref == "" && a.fn == nil && a.fields == nil && !a.literal && len(a.sources) == 0 {
 		return b
 	}
 	a.sources = union(a.sources, b.sources)
 	pair := [2]uintptr{reflect.ValueOf(a.fields).Pointer(), reflect.ValueOf(b.fields).Pointer()}
-	if pair[0] != 0 && pair[0] == pair[1] || seen[pair] {
-		return a
+	if pair[0] != 0 || pair[1] != 0 {
+		if pair[0] != 0 && pair[0] == pair[1] || seen[pair] {
+			return a
+		}
+		seen[pair] = true
 	}
-	seen[pair] = true
 	if a.fields != nil || b.fields != nil {
 		if a.fields == nil {
 			a.fields = b.fields

@@ -56,6 +56,9 @@ func (a *analyzer) script(text string, fields map[string]any, path string, bindi
 		s.trace = s.initialTrace
 		before := s.size()
 		s.stmts(tree.Stmts, false, nil)
+		if a.failure != nil {
+			return a.failure
+		}
 		if s.size() == before {
 			break
 		}

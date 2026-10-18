@@ -12,6 +12,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/github/gh-aw/pkg/workflow/aw"
+	"github.com/github/gh-aw/pkg/workflow/taint"
 )
 
 type Severity string
@@ -25,7 +26,8 @@ type Input struct {
 	Workflow *actions.Workflow
 	// Document optionally supplies authored AW fields, including the prompt.
 	// Workflow must be the compiled form, not a projection of raw frontmatter.
-	Document *aw.Document
+	Document   *aw.Document
+	JavaScript *taint.JavaScriptOptions
 }
 
 type Diagnostic struct {
