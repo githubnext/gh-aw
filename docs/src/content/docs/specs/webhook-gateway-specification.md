@@ -53,6 +53,20 @@ The following inventory is exhaustive. Other entries in an internal webhook cata
 
 Provider source scopes are mandatory root fields beside `types`: Jira `project` matches `issue.fields.project.key`; Linear `organization-id` matches `organizationId`; Azure `project_id` matches `resourceContainers.project.id`. Linear also accepts optional root `team-id`, matched against `data.teamId`. These fields and other allowlisted provider selectors are **flat trigger properties**; a `filters` wrapper is rejected for all three providers. Source selection does not grant provider access.
 
+### Provider webhook configuration
+
+Provider webhooks target the HTTPS endpoint of a separately approved receiver, not a GitHub Actions workflow URL. Frontmatter does not create that endpoint or register subscriptions. Registration MUST stay within reviewed source enrollment and use the emitted `native_events`, not normalized activity names such as `closed` or `labeled`.
+
+| Provider | Official configuration links | Configuration and declaration binding |
+| --- | --- | --- |
+| Jira Cloud | [Administration UI setup](https://support.atlassian.com/jira-cloud-administration/docs/manage-webhooks/) and [registration/event reference](https://developer.atlassian.com/cloud/jira/platform/webhooks/) | An administrator with **Administer Jira** configures **Settings > System > Advanced > WebHooks**. Select the required issue-created, issue-updated, and/or issue-deleted events. Required `project` is the Jira project key; the receiver checks the delivered `issue.fields.project.key`, even when provider-side project filtering is configured. |
+| Linear | [Webhook configuration guide](https://linear.app/developers/webhooks) and [API settings](https://linear.app/settings/api) | A workspace administrator, or an OAuth application with the documented admin scope, configures a webhook for **Issues**, not issue-label definitions. Bind required `organization-id` to the delivered organization ID and optional `team-id` to the team model ID. Team names/keys and implicit `LINEAR_TEAM_ID` secret defaults from safe outputs are not resolved by these triggers. |
+| Azure DevOps | [Web Hooks service-hook setup](https://learn.microsoft.com/en-us/azure/devops/service-hooks/services/webhooks?view=azure-devops) and [native event reference](https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#work-item) | Configure the project's **Project settings > Service hooks > Create subscription > Web Hooks** subscriptions for the required work-item events. Required `project_id` is the project ID in `resourceContainers.project.id`, not its display name. **Resource details to send: All** preserves available fields; it does not manufacture missing old/new deltas. `closed-states` names come from that project's configured work item process. |
+
+The provider's registration privileges do not change the workflow's dispatch authorization. The receiver MUST implement the provider's documented authentication controls, including [Jira signed admin webhook verification](https://developer.atlassian.com/cloud/jira/platform/webhooks/#secure-admin-webhooks), [Linear signature and timestamp verification](https://linear.app/developers/webhooks#securing-webhooks), or the authentication configured for the Azure HTTPS service hook. GitHub webhook headers and payload sender claims are not substitutes for provider authentication.
+
+Retained payload data MUST supply the identities, required source selectors, and transition evidence specified below. Minimal/snapshot-only deliveries can lack that evidence; a successful provider connectivity test does not prove normalized lifecycle or label matching, source authorization, or hosted end-to-end acceptance.
+
 ### Activity types and filters
 
 | Event family | Supported `types` |
