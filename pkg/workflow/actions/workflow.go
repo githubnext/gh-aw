@@ -34,6 +34,7 @@ type Job struct {
 	Container                any
 	Services                 map[string]any
 	TimeoutMinutes           int
+	TimeoutMinutesSet        bool // Preserves an explicit zero separately from an absent literal timeout.
 	TimeoutMinutesExpression Expression
 	ContinueOnError          Expression
 
