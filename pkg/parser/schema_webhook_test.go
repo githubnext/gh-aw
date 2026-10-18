@@ -12,12 +12,11 @@ func TestWebhookSchema(t *testing.T) {
 		valid bool
 	}{
 		"subscription without separate auth": {
-			on: map[string]any{
-				"projects-item": map[string]any{
-					"project_id": "PVT_example",
-					"types":      []any{"edited"},
-					"filters":    map[string]any{"project_number": 7},
-				},
+			on: map[string]any{"gateway": map[string]any{"projects-items": map[string]any{
+				"project_id": "PVT_example",
+				"types":      []any{"edited"},
+				"filters":    map[string]any{"project_number": 7},
+			}},
 			},
 			valid: true,
 		},
@@ -28,14 +27,13 @@ func TestWebhookSchema(t *testing.T) {
 			on: map[string]any{"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}}},
 		},
 		"unknown event config property": {
-			on: map[string]any{
-				"projects-item": map[string]any{"project_id": "PVT_example", "typo": true},
-			},
+			on: map[string]any{"gateway": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "typo": true}}},
 		},
 		"removed auth with valid trigger": {
 			on: map[string]any{
-				"projects-item": map[string]any{"project_id": "PVT_example"},
-				"webhook-auth":  map[string]any{"actors": []any{"cao[bot]"}},
+
+				"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
+				"gateway":      map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}},
 			},
 		},
 	} {
@@ -51,7 +49,7 @@ func TestWebhookSchema(t *testing.T) {
 }
 
 func TestFirstClassWebhookSchema(t *testing.T) {
-	for _, alias := range []string{"projects-item"} {
+	for _, alias := range []string{"projects-items"} {
 		t.Run(alias, func(t *testing.T) {
 			for name, test := range map[string]struct {
 				config any
@@ -82,7 +80,7 @@ func TestFirstClassWebhookSchema(t *testing.T) {
 			} {
 				t.Run(name, func(t *testing.T) {
 					on := map[string]any{
-						alias: test.config,
+						"gateway": map[string]any{alias: test.config},
 					}
 					err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "first-class.md")
 					if test.valid {
@@ -132,9 +130,9 @@ func TestSecurityAlertSchema(t *testing.T) {
 			"sources": "dependabot", "filters": map[string]any{"severity": "high"},
 		}, false},
 	} {
-		for _, alias := range []string{"security-alert", "security-alerts"} {
+		for _, alias := range []string{"security-alerts"} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
-				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{alias: test.config}}, "security-alert.md")
+				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway": map[string]any{alias: test.config}}}, "security-alert.md")
 				if test.valid {
 					require.NoError(t, err)
 				} else {
@@ -146,7 +144,7 @@ func TestSecurityAlertSchema(t *testing.T) {
 }
 
 func TestSecurityAlertRepositorySchema(t *testing.T) {
-	for _, alias := range []string{"security-alert", "security-alerts"} {
+	for _, alias := range []string{"security-alerts"} {
 		for name, test := range map[string]struct {
 			repos any
 			valid bool
@@ -172,7 +170,7 @@ func TestSecurityAlertRepositorySchema(t *testing.T) {
 			"newline":            {[]any{"bar/baz\n"}, false},
 		} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
-				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{alias: map[string]any{"repos": test.repos}}}, "security-repos.md")
+				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway": map[string]any{alias: map[string]any{"repos": test.repos}}}}, "security-repos.md")
 				if test.valid {
 					require.NoError(t, err)
 				} else {
@@ -181,10 +179,6 @@ func TestSecurityAlertRepositorySchema(t *testing.T) {
 			})
 		}
 	}
-	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-		"on": map[string]any{"security-alert": map[string]any{}, "security-alerts": map[string]any{}},
-	}, "duplicate-security.md")
-	require.Error(t, err)
 }
 
 func TestWebhookStatusTransitionsSchema(t *testing.T) {
@@ -210,9 +204,9 @@ func TestWebhookStatusTransitionsSchema(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-				"on": map[string]any{"projects-item": map[string]any{
+				"on": map[string]any{"gateway": map[string]any{"projects-items": map[string]any{
 					"project_id": "PVT_example", "status-transitions": test.transitions,
-				}},
+				}}},
 			}, "status-transitions.md")
 			if test.valid {
 				require.NoError(t, err)
@@ -234,5 +228,29 @@ func TestRemovedFirstClassWebhookTriggers(t *testing.T) {
 			}, "webhook.md")
 			require.Error(t, err)
 		})
+	}
+}
+
+func TestWebhookGatewayNamespaceSchema(t *testing.T) {
+	for name, on := range map[string]any{
+		"null":              map[string]any{"gateway": nil},
+		"scalar":            map[string]any{"gateway": "projects-items"},
+		"empty":             map[string]any{"gateway": map[string]any{}},
+		"list":              map[string]any{"gateway": []any{"security-alerts"}},
+		"unknown":           map[string]any{"gateway": map[string]any{"unknown": map[string]any{}}},
+		"nested roles":      map[string]any{"gateway": map[string]any{"roles": "write", "security-alerts": map[string]any{}}},
+		"singular project":  map[string]any{"gateway": map[string]any{"projects-item": map[string]any{"project_id": "PVT_example"}}},
+		"singular security": map[string]any{"gateway": map[string]any{"security-alert": map[string]any{}}},
+		"string shorthand":  "gateway",
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "gateway.md"))
+		})
+	}
+	for _, name := range []string{"projects-item", "projects-items", "security-alert", "security-alerts"} {
+		for _, on := range []any{name, map[string]any{name: map[string]any{}},
+			map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{}}, name: map[string]any{}}} {
+			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "legacy.md"))
+		}
 	}
 }

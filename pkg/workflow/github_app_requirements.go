@@ -8,7 +8,6 @@
 package workflow
 
 import (
-	"slices"
 	"sort"
 	"strings"
 )
@@ -220,20 +219,16 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 }
 
 func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
-	if event, ok := webhookTriggerAliases[name]; ok {
-		return []string{event}, true
-	}
-	if !slices.Contains(securityAlertTriggerNames, name) {
+	if name != "gateway" {
 		return nil, false
 	}
-	on, ok := onValue.(map[string]any)
-	if !ok {
-		return nil, false
+	subscriptions, err := ParseWebhookSubscriptions(onValue, "")
+	if err != nil {
+		return nil, true
 	}
-	config, ok := on[name].(map[string]any)
-	if !ok {
-		return nil, false
+	events := make([]string, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		events = append(events, subscription.Event)
 	}
-	events, err := securityAlertSourceEvents(config, "on."+name)
-	return events, err == nil
+	return events, true
 }

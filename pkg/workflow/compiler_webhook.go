@@ -33,12 +33,7 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	// Preserve source frontmatter for metadata and hashing; only lower the trigger copy.
 	frontmatter = maps.Clone(frontmatter)
 	on = maps.Clone(on)
-	for _, name := range securityAlertTriggerNames {
-		delete(on, name)
-	}
-	for alias := range webhookTriggerAliases {
-		delete(on, alias)
-	}
+	delete(on, "gateway")
 	on["repository_dispatch"] = map[string]any{"types": dispatchTypes}
 	frontmatter["on"] = on
 	data.On = c.extractTopLevelYAMLSection(frontmatter, "on")

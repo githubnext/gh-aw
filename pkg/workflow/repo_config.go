@@ -156,8 +156,8 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
-	// WebhookTriggers enables experimental synthetic triggers requiring a hosted CAO server.
-	WebhookTriggers bool
+	// WebhookGateway enables experimental on.gateway triggers requiring a hosted CAO server.
+	WebhookGateway bool
 
 	// WorkQueue holds optional scheduling overrides, never identities or credentials.
 	WorkQueue json.RawMessage
@@ -276,7 +276,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
-		WebhookTriggers          bool                          `json:"webhook-triggers,omitempty"`
+		WebhookGateway           bool                          `json:"webhook-gateway,omitempty"`
 		Strict                   bool                          `json:"strict,omitempty"`
 		GHES                     bool                          `json:"ghes,omitempty"`
 		RequireSelfHostedRunners bool                          `json:"require_self_hosted_runners,omitempty"`
@@ -298,7 +298,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 		return fmt.Errorf("%w: %w", errWorkQueueConfig, err)
 	}
 
-	r.WebhookTriggers = raw.WebhookTriggers
+	r.WebhookGateway = raw.WebhookGateway
 	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners
@@ -391,6 +391,9 @@ func LoadRepoConfig(gitRoot string) (*RepoConfig, error) {
 
 	var sections map[string]json.RawMessage
 	if json.Unmarshal(data, &sections) == nil {
+		if _, obsolete := sections["webhook-triggers"]; obsolete {
+			return nil, fmt.Errorf("%s: webhook-triggers has been renamed to webhook-gateway; use {\"webhook-gateway\":true} to enable on.gateway", RepoConfigFileName)
+		}
 		if settings, configured := sections["work_queue"]; configured {
 			if _, err := workqueue.ParseSettings(settings); err != nil {
 				return nil, fmt.Errorf("%s: %w: %w", RepoConfigFileName, errWorkQueueConfig, err)

@@ -743,58 +743,66 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
+          "not": { "enum": ["gateway", "projects-item", "projects-items", "security-alert", "security-alerts"] },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
           "type": "object",
           "description": "Complex trigger configuration with event-specific filters and options",
-          "not": { "required": ["security-alert", "security-alerts"] },
           "properties": {
-            "projects-item": {
+            "projects-item": false,
+            "projects-items": false,
+            "security-alert": false,
+            "security-alerts": false,
+            "gateway": {
               "type": "object",
+              "minProperties": 1,
               "additionalProperties": false,
-              "required": ["project_id"],
+              "description": "Experimental. Hosted webhook gateway events. Requires aw.json webhook-gateway: true. Standard on.roles and on.bots authorize the dispatch actor.",
               "properties": {
-                "project_id": {
-                  "$ref": "#/$defs/webhookStringValues",
-                  "description": "Experimental. Required Projects v2 GraphQL node ID or nonempty list of IDs; sibling of types."
-                },
-                "types": {
-                  "type": "array",
-                  "minItems": 1,
-                  "uniqueItems": true,
-                  "items": { "type": "string", "minLength": 1 }
-                },
-                "status-transitions": {
-                  "description": "Experimental. Paired from/to Status changes compiled to CAO-side predicates over the delivered payload. Each complete pair is an alternative; no runner admission step is added.",
-                  "type": "array",
-                  "minItems": 1,
-                  "uniqueItems": true,
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["from", "to"],
-                    "properties": {
-                      "from": { "type": "string", "minLength": 1, "pattern": "\\S" },
-                      "to": { "type": "string", "minLength": 1, "pattern": "\\S" }
-                    }
-                  }
-                },
-                "filters": {
+                "projects-items": {
                   "type": "object",
-                  "minProperties": 1,
-                  "properties": { "project_id": false }
+                  "additionalProperties": false,
+                  "required": ["project_id"],
+                  "properties": {
+                    "project_id": {
+                      "$ref": "#/$defs/webhookStringValues",
+                      "description": "Experimental. Required Projects v2 GraphQL node ID or nonempty list of IDs; sibling of types."
+                    },
+                    "types": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "status-transitions": {
+                      "description": "Experimental. Paired from/to Status changes compiled to CAO-side predicates over the delivered payload. Each complete pair is an alternative; no runner admission step is added.",
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["from", "to"],
+                        "properties": {
+                          "from": { "type": "string", "minLength": 1, "pattern": "\\S" },
+                          "to": { "type": "string", "minLength": 1, "pattern": "\\S" }
+                        }
+                      }
+                    },
+                    "filters": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "properties": { "project_id": false }
+                    }
+                  },
+                  "description": "Experimental. Batched Projects v2 item events requiring a hosted CAO server and aw.json webhook-gateway: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
+                },
+                "security-alerts": {
+                  "$ref": "#/$defs/webhookSecurityAlert",
+                  "description": "Experimental. Batched security alerts from optionally selected repositories. Requires a hosted CAO server and aw.json webhook-gateway: true."
                 }
-              },
-              "description": "Experimental. Batched Projects v2 item events requiring a hosted CAO server and aw.json webhook-triggers: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
-            },
-            "security-alert": {
-              "$ref": "#/$defs/webhookSecurityAlert",
-              "description": "Experimental. Alias of security-alerts. Configure only one spelling."
-            },
-            "security-alerts": {
-              "$ref": "#/$defs/webhookSecurityAlert",
-              "description": "Experimental. Batched security alerts from optionally selected repositories. Requires a hosted CAO server and aw.json webhook-triggers: true."
+              }
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
@@ -14594,7 +14602,7 @@
           "properties": { "severity": false, "repos": false }
         }
       },
-      "description": "Experimental. Batched security alert subscriptions requiring a hosted CAO server and aw.json webhook-triggers: true. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
+      "description": "Experimental. Batched security alert subscriptions under on.gateway requiring a hosted CAO server and aw.json webhook-gateway: true. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
     },
     "webhookStringValues": {
       "oneOf": [

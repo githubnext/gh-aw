@@ -16,7 +16,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 		value  any
 		path   []string
 	}{
-		{"projects-item", "projects_v2_item", "edited", "project_id", "PVT_example", []string{"projects_v2_item", "project_node_id"}},
+		{"projects-items", "projects_v2_item", "edited", "project_id", "PVT_example", []string{"projects_v2_item", "project_node_id"}},
 	}
 	require.Len(t, webhookTriggerAliases, len(tests))
 	for _, tt := range tests {
@@ -27,7 +27,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 				tt.filter: tt.value,
 			}
 			on := map[string]any{
-				tt.alias: config,
+				"gateway": map[string]any{tt.alias: config},
 			}
 			got, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.Len(t, got[0].Conditions, 1)
 			assert.Equal(t, tt.path, got[0].Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, got[0].Conditions[0].Values)
-			on[tt.alias] = map[string]any{"project_id": tt.value}
+			on["gateway"].(map[string]any)[tt.alias] = map[string]any{"project_id": tt.value}
 			all, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
 			catalog, err := WebhookCatalog()
@@ -48,7 +48,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
-			for _, shorthand := range []any{tt.alias, []any{"push", tt.alias}} {
+			for _, shorthand := range []any{"gateway", []any{"push", "gateway"}} {
 				_, err = ParseWebhookSubscriptions(shorthand, "first-class")
 				require.ErrorContains(t, err, "requires mapping syntax")
 			}
@@ -74,10 +74,10 @@ func TestFirstClassWebhookValidation(t *testing.T) {
 						config["project_id"] = "PVT_example"
 					}
 					_, err := ParseWebhookSubscriptions(map[string]any{
-						alias: tt.config,
+						"gateway": map[string]any{alias: tt.config},
 					}, "first-class")
 					require.ErrorContains(t, err, tt.want)
-					assert.Contains(t, err.Error(), "on."+alias)
+					assert.Contains(t, err.Error(), "on.gateway."+alias)
 				})
 			}
 		})
@@ -90,9 +90,9 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 		config map[string]any
 		want   string
 	}{
-		{"projects-item", map[string]any{"types": []any{"moved"}}, "unsupported activity type"},
-		{"projects-item", map[string]any{"filters": map[string]any{"labels": "bug"}}, "unsupported filter"},
-		{"projects-item", map[string]any{
+		{"projects-items", map[string]any{"types": []any{"moved"}}, "unsupported activity type"},
+		{"projects-items", map[string]any{"filters": map[string]any{"labels": "bug"}}, "unsupported filter"},
+		{"projects-items", map[string]any{
 			"types": []any{"created"},
 			"filters": map[string]any{
 				"field": map[string]any{"to": map[string]any{"name": "Ready"}},
@@ -102,10 +102,10 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 		t.Run(tt.alias+"/"+tt.want, func(t *testing.T) {
 			tt.config["project_id"] = "PVT_example"
 			_, err := ParseWebhookSubscriptions(map[string]any{
-				tt.alias: tt.config,
+				"gateway": map[string]any{tt.alias: tt.config},
 			}, "first-class")
 			require.ErrorContains(t, err, tt.want)
-			assert.Contains(t, err.Error(), "on."+tt.alias)
+			assert.Contains(t, err.Error(), "on.gateway."+tt.alias)
 		})
 	}
 
@@ -129,8 +129,39 @@ func TestFirstClassWebhookRequiresProjectID(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := ParseWebhookSubscriptions(map[string]any{"projects-item": config}, "project-agent")
+			_, err := ParseWebhookSubscriptions(map[string]any{"gateway": map[string]any{"projects-items": config}}, "project-agent")
 			require.ErrorContains(t, err, "project_id")
 		})
+	}
+}
+
+func TestWebhookGatewayRejectsInvalidNamespace(t *testing.T) {
+	for name, gateway := range map[string]any{
+		"null": nil, "scalar": "projects-items", "boolean": true,
+		"list": []any{"projects-items"}, "empty": map[string]any{},
+		"native event":      map[string]any{"issues": nil},
+		"unknown":           map[string]any{"typo": map[string]any{}},
+		"singular projects": map[string]any{"projects-item": map[string]any{"project_id": "PVT_example"}},
+		"singular security": map[string]any{"security-alert": map[string]any{}},
+		"nested roles":      map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}, "roles": "all"},
+		"nested bots":       map[string]any{"security-alerts": map[string]any{}, "bots": []any{"cao-gateway"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway": gateway}, "gateway")
+			require.ErrorContains(t, err, "on.gateway")
+			assert.Empty(t, subscriptions)
+			assert.Empty(t, NormalizeGitHubAppWebhookEvents(map[string]any{"gateway": gateway}))
+		})
+	}
+}
+
+func TestWebhookGatewayRejectsFlatTriggers(t *testing.T) {
+	for _, name := range []string{"projects-item", "projects-items", "security-alert", "security-alerts"} {
+		for _, input := range []any{name, []any{"push", name}, map[string]any{name: map[string]any{}},
+			map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{}}, name: nil}} {
+			subscriptions, err := ParseWebhookSubscriptions(input, "legacy")
+			require.ErrorContains(t, err, "use on.gateway.projects-items or on.gateway.security-alerts")
+			assert.Empty(t, subscriptions)
+		}
 	}
 }

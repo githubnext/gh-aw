@@ -8,37 +8,28 @@ import (
 	"strings"
 )
 
-var securityAlertTriggerNames = []string{"security-alert", "security-alerts"}
-
-func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string) error {
-	if _, singular := on["security-alert"]; singular {
-		if _, plural := on["security-alerts"]; plural {
-			return errors.New("on.security-alert and on.security-alerts are aliases; configure only one")
-		}
+func addSecurityAlertConfigs(gateway, events map[string]any, paths map[string]string) error {
+	raw, exists := gateway["security-alerts"]
+	if !exists {
+		return nil
 	}
-	for _, name := range securityAlertTriggerNames {
-		raw, exists := on[name]
-		if !exists {
-			continue
-		}
-		path := "on." + name
-		config, ok := raw.(map[string]any)
-		if !ok {
-			return fmt.Errorf("%s must be an object with optional sources, repos, types, severity, and filters", path)
-		}
-		selected, err := securityAlertSourceEvents(config, path)
-		if err != nil {
-			return err
-		}
-		config, err = promoteWebhookFilters(config, path, "severity")
-		if err != nil {
-			return err
-		}
-		delete(config, "sources")
-		for _, event := range selected {
-			events[event] = config
-			paths[event] = path
-		}
+	const path = "on.gateway.security-alerts"
+	config, ok := raw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("%s must be an object with optional sources, repos, types, severity, and filters", path)
+	}
+	selected, err := securityAlertSourceEvents(config, path)
+	if err != nil {
+		return err
+	}
+	config, err = promoteWebhookFilters(config, path, "severity")
+	if err != nil {
+		return err
+	}
+	delete(config, "sources")
+	for _, event := range selected {
+		events[event] = config
+		paths[event] = path
 	}
 	return nil
 }

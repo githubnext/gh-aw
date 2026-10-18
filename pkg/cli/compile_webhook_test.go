@@ -20,13 +20,13 @@ func enableWebhookTriggers(t *testing.T, root string) {
 	t.Helper()
 	configPath := filepath.Join(root, workflow.RepoConfigFileName)
 	require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
-	require.NoError(t, os.WriteFile(configPath, []byte(`{"webhook-triggers":true}`), 0o600))
+	require.NoError(t, os.WriteFile(configPath, []byte(`{"webhook-gateway":true}`), 0o600))
 	t.Chdir(root)
 }
 
 func TestCompileWebhookRequiresOptIn(t *testing.T) {
-	for _, enabled := range []string{"", `{"webhook-triggers":false}`} {
-		for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [dependabot]}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
+	for _, enabled := range []string{"", `{"webhook-gateway":false}`} {
+		for _, trigger := range []string{"gateway: {projects-items: {project_id: PVT_example}}", "gateway: {security-alerts: {sources: [dependabot]}}", "gateway: {security-alerts: {repos: [bar/baz, \"foo/*\"]}}"} {
 			t.Run(enabled+"/"+trigger, func(t *testing.T) {
 				root := t.TempDir()
 				t.Chdir(root)
@@ -43,7 +43,7 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 				require.False(t, result.success)
 				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "hosted CAO server")
 				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), workflow.RepoConfigFileName)
-				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), `{"webhook-triggers":true}`)
+				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), `{"webhook-gateway":true}`)
 			})
 		}
 	}
@@ -57,10 +57,11 @@ func TestCompileWebhookJSONContract(t *testing.T) {
 on:
   workflow_dispatch:
   bots: [cao-gateway]
-  projects-item:
-    project_id: PVT_example
-    types: [edited]
-    status-transitions: [{from: Todo, to: Ready}]
+  gateway:
+    projects-items:
+      project_id: PVT_example
+      types: [edited]
+      status-transitions: [{from: Todo, to: Ready}]
 permissions:
   contents: read
 engine: copilot
@@ -120,7 +121,7 @@ func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
 			dir := t.TempDir()
 			enableWebhookTriggers(t, dir)
 			path := filepath.Join(dir, "unsupported-secret.md")
-			source := fmt.Sprintf("---\non:\n  security-alert:\n    sources: %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the alert.\n", sources)
+			source := fmt.Sprintf("---\non:\n  gateway:\n    security-alerts:\n      sources: %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the alert.\n", sources)
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.False(t, result.success)
@@ -133,7 +134,7 @@ func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
 }
 
 func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
-	for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [code-scanning, dependabot]}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
+	for _, trigger := range []string{"gateway: {projects-items: {project_id: PVT_example}}", "gateway: {security-alerts: {sources: [code-scanning, dependabot]}}", "gateway: {security-alerts: {repos: [bar/baz, \"foo/*\"]}}"} {
 		for _, roles := range []string{"all", "read", "triage", "[admin, write, read]"} {
 			t.Run(trigger+"/"+roles, func(t *testing.T) {
 				dir := t.TempDir()
@@ -167,16 +168,17 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 			dir := testutil.TempDir(t, "security-webhook-compile-*")
 			enableWebhookTriggers(t, dir)
 			path := filepath.Join(dir, "security-alerts.md")
-			selector := "    severity: " + tt.value
+			selector := "      severity: " + tt.value
 			if tt.filter != "severity" {
-				selector = fmt.Sprintf("    filters:\n      %s: %s", tt.filter, tt.value)
+				selector = fmt.Sprintf("      filters:\n        %s: %s", tt.filter, tt.value)
 			}
 
 			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(`---
 on:
-  security-alert:
-    sources: [%s]
-    types: [created]
+  gateway:
+    security-alerts:
+      sources: [%s]
+      types: [created]
 %s
 permissions:
   contents: read
@@ -199,18 +201,19 @@ Triage the alert without logging secret values.
 			assert.Equal(t, tt.path, sub.Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, sub.Conditions[0].Values)
 			assert.NotContains(t, result.workflowData.On, "security-alert")
+			assert.NotContains(t, result.workflowData.On, "gateway")
 			assert.Equal(t, []string{"admin", "maintainer", "write"}, result.workflowData.Roles)
 		})
 	}
 }
 
 func TestCompileSecurityAlertRepositories(t *testing.T) {
-	for _, alias := range []string{"security-alert", "security-alerts"} {
+	for _, alias := range []string{"security-alerts"} {
 		t.Run(alias, func(t *testing.T) {
 			root := t.TempDir()
 			enableWebhookTriggers(t, root)
 			path := filepath.Join(root, "security-repos.md")
-			source := fmt.Sprintf("---\non:\n  %s:\n    repos:\n      - bar/baz\n      - foo/*\npermissions:\n  contents: read\nengine: copilot\n---\nTriage every unique alert.\n", alias)
+			source := fmt.Sprintf("---\non:\n  gateway:\n    %s:\n      repos:\n        - bar/baz\n        - foo/*\npermissions:\n  contents: read\nengine: copilot\n---\nTriage every unique alert.\n", alias)
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.True(t, result.success, "%+v", result.validationResult.Errors)
@@ -236,12 +239,12 @@ func TestCompileSecurityAlertRepositories(t *testing.T) {
 
 func TestCompileSecurityAlertRejectsInvalidRepositories(t *testing.T) {
 	for _, trigger := range []string{
-		`security-alerts: {repos: []}`,
-		`security-alerts: {repos: ["*/*"]}`,
-		`security-alerts: {repos: ["foo/prefix*"]}`,
-		`security-alerts: {repos: [bar/baz], sources: [secret-scanning]}`,
-		"security-alerts: {repos: [bar/baz]}\n  security-alert: {sources: [dependabot]}",
-		`projects-item: {project_id: PVT_example, repos: [bar/baz]}`,
+		`gateway: {security-alerts: {repos: []}}`,
+		`gateway: {security-alerts: {repos: ["*/*"]}}`,
+		`gateway: {security-alerts: {repos: ["foo/prefix*"]}}`,
+		`gateway: {security-alerts: {repos: [bar/baz], sources: [secret-scanning]}}`,
+		`gateway: {security-alerts: {repos: [bar/baz]}, security-alert: {sources: [dependabot]}}`,
+		`gateway: {projects-items: {project_id: PVT_example, repos: [bar/baz]}}`,
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			root := t.TempDir()
@@ -255,6 +258,34 @@ func TestCompileSecurityAlertRejectsInvalidRepositories(t *testing.T) {
 			assert.Empty(t, result.validationResult.WebhookSubscriptions)
 			_, err := os.Stat(filepath.Join(root, "invalid-repos.lock.yml"))
 			require.True(t, os.IsNotExist(err), "invalid repository selections must not emit a lock file")
+		})
+	}
+}
+
+func TestCompileWebhookGatewayRejectsObsoleteSyntax(t *testing.T) {
+	for _, on := range []string{
+		"  projects-item: {project_id: PVT_example}",
+		"  projects-items: {project_id: PVT_example}",
+		"  security-alert: {sources: [dependabot]}",
+		"  security-alerts: {sources: [dependabot]}",
+		"  gateway: {}",
+		"  gateway: {projects-item: {project_id: PVT_example}}",
+		"  gateway: {security-alert: {sources: [dependabot]}}",
+		"  gateway: {security-alerts: {}, roles: all}",
+		"  gateway: {security-alerts: {}}\n  security-alert: {sources: [dependabot]}",
+	} {
+		t.Run(on, func(t *testing.T) {
+			root := t.TempDir()
+			enableWebhookTriggers(t, root)
+			path := filepath.Join(root, "obsolete-gateway.md")
+			source := "---\non:\n" + on + "\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+			require.False(t, result.success)
+			assert.NotEmpty(t, result.validationResult.Errors)
+			assert.Empty(t, result.validationResult.WebhookSubscriptions)
+			_, err := os.Stat(filepath.Join(root, "obsolete-gateway.lock.yml"))
+			require.True(t, os.IsNotExist(err), "obsolete declarations must not emit a lock file")
 		})
 	}
 }

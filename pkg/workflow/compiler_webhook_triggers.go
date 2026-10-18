@@ -10,14 +10,14 @@ func (c *Compiler) requireWebhookTriggers(roles []string) error {
 	if err != nil {
 		return fmt.Errorf("cannot enable hosted CAO triggers: %w", err)
 	}
-	if config == nil || !config.WebhookTriggers {
-		return fmt.Errorf("on.projects-item and on.security-alert/on.security-alerts are experimental synthetic webhook events that must be triggered by a hosted CAO server; enable them by setting {\"webhook-triggers\":true} in %s", RepoConfigFileName)
+	if config == nil || !config.WebhookGateway {
+		return fmt.Errorf("on.gateway triggers are experimental synthetic webhook events that must be triggered by a hosted CAO server; enable them by setting {\"webhook-gateway\":true} in %s", RepoConfigFileName)
 	}
 	return validateWebhookTriggerRoles(roles)
 }
 
 func validateWebhookTriggerRoles(roles []string) error {
-	const message = "on.projects-item and on.security-alert/on.security-alerts require on.roles with write access or higher; use [admin, maintainer, write] or a stricter subset"
+	const message = "on.gateway triggers require on.roles with write access or higher; use [admin, maintainer, write] or a stricter subset"
 	if len(roles) == 0 {
 		return errors.New(message)
 	}

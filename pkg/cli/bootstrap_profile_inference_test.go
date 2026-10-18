@@ -188,12 +188,12 @@ func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *
 		{
 			name: "projects and selected security alerts",
 			triggers: `on:
-  projects-item:
-    project_id: PVT_example
-  security-alert:
-    sources: [code-scanning, dependabot]
-`,
-			wantPermissions: map[string]string{
+  gateway:
+    projects-items:
+      project_id: PVT_example
+    security-alerts:
+      sources: [code-scanning, dependabot]
+`, wantPermissions: map[string]string{
 				"contents":              "read",
 				"organization_projects": "read",
 				"security_events":       "read",
@@ -204,10 +204,10 @@ func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *
 		{
 			name: "Dependabot only",
 			triggers: `on:
-  security-alert:
-    sources: [dependabot]
-`,
-			wantPermissions: map[string]string{
+  gateway:
+    security-alerts:
+      sources: [dependabot]
+`, wantPermissions: map[string]string{
 				"contents":             "read",
 				"vulnerability_alerts": "read",
 			},
@@ -216,10 +216,10 @@ func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *
 		{
 			name: "plural multi-repository security alerts",
 			triggers: `on:
-  security-alerts:
-    repos: [bar/baz, "foo/*"]
-`,
-			wantPermissions: map[string]string{
+  gateway:
+    security-alerts:
+      repos: [bar/baz, "foo/*"]
+`, wantPermissions: map[string]string{
 				"contents": "read", "security_events": "read", "vulnerability_alerts": "read",
 			},
 			wantEvents: []string{"code_scanning_alert", "dependabot_alert"},

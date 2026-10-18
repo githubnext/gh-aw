@@ -17,30 +17,34 @@ import (
 func TestWebhookManifestCompilation(t *testing.T) {
 	for name, trigger := range map[string]string{
 		"native": "  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n",
-		"projects": `  projects-item:
-    project_id: [PVT_one, PVT_two]
-    status-transitions:
-      - {from: Todo, to: Ready}
-      - {from: In progress, to: Done}
+		"projects": `  gateway:
+    projects-items:
+      project_id: [PVT_one, PVT_two]
+      status-transitions:
+        - {from: Todo, to: Ready}
+        - {from: In progress, to: Done}
 `,
-		"security": `  security-alert:
-    sources: [code-scanning, dependabot]
-    types: [created]
-    filters:
-      alert_number: 42
+		"security": `  gateway:
+    security-alerts:
+      sources: [code-scanning, dependabot]
+      types: [created]
+      filters:
+        alert_number: 42
 `,
-		"multi-repo": `  security-alerts:
-    repos: [bar/baz, "foo/*"]
+		"multi-repo": `  gateway:
+    security-alerts:
+      repos: [bar/baz, "foo/*"]
 `,
 		"combined": `  workflow_dispatch:
-  projects-item:
-    project_id: PVT_one
-    types: [edited]
-    status-transitions: [{from: Todo, to: "Ready\nfor review"}]
-  security-alert:
-    sources: [dependabot]
-    types: [created, reopened]
-    severity: [high, critical]
+  gateway:
+    projects-items:
+      project_id: PVT_one
+      types: [edited]
+      status-transitions: [{from: Todo, to: "Ready\nfor review"}]
+    security-alerts:
+      sources: [dependabot]
+      types: [created, reopened]
+      severity: [high, critical]
 `,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -48,7 +52,7 @@ func TestWebhookManifestCompilation(t *testing.T) {
 			compiler := NewCompiler()
 			compiler.gitRoot = root
 			if name != "native" {
-				writeWebhookTriggerConfig(t, root, `{"webhook-triggers":true}`)
+				writeWebhookTriggerConfig(t, root, `{"webhook-gateway":true}`)
 			}
 			path := filepath.Join(root, name+".md")
 			source := webhookWorkflow("on:\n" + trigger)

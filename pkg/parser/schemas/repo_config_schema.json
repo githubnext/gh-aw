@@ -17,10 +17,10 @@
     }
   },
   "properties": {
-    "webhook-triggers": {
+    "webhook-gateway": {
       "type": "boolean",
       "default": false,
-      "description": "Experimental. Enable synthetic projects-item and security-alert triggers delivered through repository_dispatch by a hosted CAO server. Disabled unless explicitly true. This setting does not deploy a server or grant dispatch authority."
+      "description": "Experimental. Enable synthetic on.gateway.projects-items and on.gateway.security-alerts triggers delivered through repository_dispatch by a hosted CAO server. Disabled unless explicitly true. This setting does not deploy a server or grant dispatch authority."
     },
     "work_queue": {
       "description": "Global scheduling and backing Issue/label overrides. AW supplies authorization and approved worker routes. Missing settings use one pool, concurrency 16, pending limit 4096 and three attempts with 30-second backoff.",
