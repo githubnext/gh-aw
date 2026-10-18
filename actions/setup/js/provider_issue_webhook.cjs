@@ -55,6 +55,7 @@ function nativeIssueEvent(event, payload) {
   return native;
 }
 
+// Receiver-side evidence only; runner context accepts minimal notifications.
 function resolveProviderIssueItem(event, payload) {
   const native = nativeIssueEvent(event, payload);
   if (event === "jira_issue") {
@@ -187,9 +188,11 @@ function validProviderIssueSubscription(subscription) {
 }
 
 function matchesProviderIssueSubscription(subscription, payload) {
-  return (
-    subscription.native_events.includes(nativeIssueEvent(subscription.event, payload)) && providerIssueActivities(subscription.event, payload, subscription.activity_normalization).some(activity => subscription.types.includes(activity))
-  );
+  const [created, updated, deleted, restored] = PROVIDER_ISSUE_EVENTS[subscription.event];
+  return payload.type.some(activity => {
+    const native = activity === "opened" ? created : activity === "deleted" ? deleted : activity === "restored" ? restored : updated;
+    return subscription.native_events.includes(native) && subscription.types.includes(activity);
+  });
 }
 
 module.exports = { isProviderIssueEvent, resolveProviderIssueItem, providerIssueActivities, validProviderIssueSubscription, matchesProviderIssueSubscription };

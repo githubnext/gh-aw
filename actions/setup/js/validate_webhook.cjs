@@ -5,6 +5,7 @@ const fs = require("fs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
+const { WEBHOOK_PAYLOAD_POLICY } = require("./webhook_resource.cjs");
 const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
@@ -59,7 +60,7 @@ function matchesRepositorySelector(repo, selectors) {
 /**
  * Validate the dispatch transport without replacing the GitHub authorization
  * context. Same-kind deliveries are carried in client_payload.aw_context.webhook.
- * The gateway may project only part of each source webhook payload.
+ * The gateway forwards only resource URLs and normalized event types.
  * Actor authorization uses the standard pre-activation membership check.
  * Subscription conditions are evaluated by the webhook receiver, not here.
  *
@@ -84,13 +85,16 @@ function validateWebhook(event, env = process.env) {
         isNonemptyString(subscription.dispatch.event_type) &&
         subscription.dispatch.event_type.length <= MAX_EVENT_TYPE_LENGTH &&
         subscription.schema_version === WEBHOOK_SCHEMA_VERSION &&
+        isObject(subscription.dispatch.payload_projection) &&
+        Object.keys(subscription.dispatch.payload_projection).length === 1 &&
+        subscription.dispatch.payload_projection.policy === WEBHOOK_PAYLOAD_POLICY &&
         Array.isArray(subscription.types) &&
         subscription.types.every(isNonemptyString) &&
         hasValidRepositorySelectors(subscription) &&
         (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription))
     )
   ) {
-    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions");
+    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions with resource-url-types/v1 projection");
   }
 
   if (!isObject(event) || !isNonemptyString(event.action) || event.action.length > MAX_EVENT_TYPE_LENGTH) {
@@ -119,6 +123,9 @@ function validateWebhook(event, env = process.env) {
   if (Object.keys(envelope).some(key => !["schema_version", "aw_context"].includes(key))) {
     reject("client_payload accepts only schema_version and aw_context; singleton webhook envelopes are unsupported");
   }
+  if (isObject(envelope.aw_context) && Object.keys(envelope.aw_context).some(key => key !== "webhook")) {
+    reject("gateway aw_context accepts only webhook; resource details and derived items must not be supplied");
+  }
   const normalized = normalizeWebhookContext(envelope.aw_context, env);
   if (!normalized) {
     reject("client_payload.aw_context.webhook is required");
@@ -136,8 +143,8 @@ function validateWebhook(event, env = process.env) {
       if (!matchesProviderIssueSubscription(subscription, delivery.payload)) {
         reject("provider issue activity does not match the subscription types or native events");
       }
-    } else if (delivery.payload.action !== undefined && subscription.types.length > 0 && !subscription.types.includes(delivery.payload.action)) {
-      reject("webhook payload action does not match the subscription types");
+    } else if (subscription.types.length > 0 && !delivery.payload.type.some(type => subscription.types.includes(type))) {
+      reject("webhook payload type does not match the subscription types");
     }
   }
   return { skipped: false, event: normalized.webhook.event, delivery_ids: normalized.webhook.deliveries.map(delivery => delivery.delivery_id) };

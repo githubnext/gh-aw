@@ -11,6 +11,8 @@ sidebar:
 
 **Subscription and transport schema:** Numeric version `2`.
 
+**Required payload projection:** `resource-url-types/v1`.
+
 This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.webhook-gateway`. It covers five frontmatter triggers and six event families, not arbitrary webhook registration. It is unrelated to the MCP gateway.
 
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
@@ -42,11 +44,11 @@ Dispatch actors MUST satisfy standard `on.roles` and `on.bots` authorization. Al
 
 The following inventory is exhaustive. Other entries in an internal webhook catalog do not become supported frontmatter triggers.
 
-| Experimental trigger | Subscription `event` | Native event discriminator | Expected delivery data |
+| Experimental trigger | Subscription `event` | Native event discriminator | Required original receiver data (never forwarded) |
 | --- | --- | --- | --- |
-| `on.projects-items` | `projects_v2_item` | GitHub `X-GitHub-Event`; native `payload.action` | Native Projects v2 item object; positive safe-integer `projects_v2_item.id`. `project_node_id` supplies the required project selector. |
-| `on.security-alerts`, source `code-scanning` | `code_scanning_alert` | GitHub event and native alert action, evaluated before projection | Original alert for receiver filtering; only its canonical code-scanning API URL is forwarded to the runner. |
-| `on.security-alerts`, source `dependabot` | `dependabot_alert` | GitHub event and native alert action, evaluated before projection | Original alert for receiver filtering; only its canonical Dependabot API URL is forwarded to the runner. |
+| `on.projects-items` | `projects_v2_item` | GitHub `X-GitHub-Event`; native `payload.action` | Native Projects v2 item object; positive safe-integer `projects_v2_item.id`. `project_node_id` supplies the required project selector. Reviewed project enrollment supplies the canonical item URL's owner and project number. |
+| `on.security-alerts`, source `code-scanning` | `code_scanning_alert` | GitHub event and native alert action, evaluated before projection | Original alert for receiver filtering; `alert.url` supplies the canonical code-scanning API resource URL. |
+| `on.security-alerts`, source `dependabot` | `dependabot_alert` | GitHub event and native alert action, evaluated before projection | Original alert for receiver filtering; `alert.url` supplies the canonical Dependabot API resource URL. |
 | `on.jira-issue` | `jira_issue` | `payload.webhookEvent` | Native Jira issue object, decimal-string `issue.id`, HTTPS REST `issue.self`, matching project key, and delivered system-field changelog evidence for lifecycle/label changes. |
 | `on.linear-issue` | `linear_issue` | `payload.type: "Issue"` and native `payload.action` | Native `data`, immutable `data.id`, matching `organizationId` and optional team ID, and `updatedFrom` for changed-property evidence. `IssueLabel` definition events do not qualify. |
 | `on.azure-devops-issue` | `azure_devops_issue` | `payload.eventType` | Native work item resource, collection and matching project identity, and delivered state/tag deltas. Updated resources use `workItemId`, not an update ID. |
@@ -65,7 +67,7 @@ Provider webhooks target the HTTPS endpoint of a separately approved receiver, n
 
 The provider's registration privileges do not change the workflow's dispatch authorization. The receiver MUST implement the provider's documented authentication controls, including [Jira signed admin webhook verification](https://developer.atlassian.com/cloud/jira/platform/webhooks/#secure-admin-webhooks), [Linear signature and timestamp verification](https://linear.app/developers/webhooks#securing-webhooks), or the authentication configured for the Azure HTTPS service hook. GitHub webhook headers and payload sender claims are not substitutes for provider authentication.
 
-Retained payload data MUST supply the identities, required source selectors, and transition evidence specified below. Minimal/snapshot-only deliveries can lack that evidence; a successful provider connectivity test does not prove normalized lifecycle or label matching, source authorization, or hosted end-to-end acceptance.
+Incoming provider deliveries to the receiver MUST supply the identities, required source selectors, and transition evidence specified below. Minimal/snapshot-only native deliveries can lack that evidence; a successful provider connectivity test does not prove normalized lifecycle or label matching, source authorization, or hosted end-to-end acceptance. The receiver MUST project these deliveries before dispatch: **no provider resource body or transition evidence is forwarded to the workflow**.
 
 ### Activity types and filters
 
@@ -89,7 +91,7 @@ Security `repos` selectors are optional literal `owner/repo` or `owner/*` values
 
 ### Provider normalization policies
 
-External issue types are gh-aw activities, not invented provider-native webhook actions. Payloads MUST retain their native discriminators; a bridge MUST NOT insert a GitHub-style `action`.
+External issue types are gh-aw activities, not invented provider-native webhook actions. The receiver MUST classify the original native discriminators without inserting a GitHub-style `action` into the source object. It forwards the resulting activities in `payload.type`, not the original discriminator, entity object, or changelog. Linear's original `type: "Issue"` is not the forwarded activity array.
 
 | Policy | Native inventory | Lifecycle and label evidence |
 | --- | --- | --- |
@@ -97,7 +99,7 @@ External issue types are gh-aw activities, not invented provider-native webhook 
 | `linear-issue/v1` | Entity `Issue`, actions `create`, `update`, `remove` | Create maps to `opened`, remove to `deleted`, update to `edited`. An explicit `updatedFrom` change to `completedAt`/`canceledAt` must establish a known open-to-terminal or terminal-to-open transition across both timestamps. `updatedFrom.labelIds` and current `data.labelIds` provide set differences. |
 | `azure-devops-issue/v1` | `workitem.created`, `workitem.updated`, `workitem.deleted`, `workitem.restored` | Created/deleted/restored map to `opened`/`deleted`/`restored`; updates include `edited`. `System.State.oldValue/newValue` must cross the explicitly configured terminal-state set. `System.Tags.oldValue/newValue` must both be strings; semicolon-separated, trimmed sets provide label differences. |
 
-For Jira labels, additions require `fromString: null`, a nonempty `toString`, and exactly that label in the current array. Clearing requires nonempty `fromString`, `toString: null`, and an empty current array. Both require a system `labels` changelog. The runtime does not assume a lossless encoding for ambiguous multi-label replacements. The complete evidence rules and provider documentation are in [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/#native-events-and-normalized-activities).
+For Jira labels, additions require `fromString: null`, a nonempty `toString`, and exactly that label in the current array. Clearing requires nonempty `fromString`, `toString: null`, and an empty current array. Both require a system `labels` changelog. The normalization policy does not assume a lossless encoding for ambiguous multi-label replacements. The complete evidence rules and provider documentation are in [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/#native-events-and-normalized-activities).
 
 Azure `closed-states` MUST be a nonempty literal state name or list when selecting `closed` or `reopened`. No process-independent terminal names are assumed. Moving between terminal states does not close/reopen again. Missing old/new deltas, snapshot-only updates, and ambiguous changes do not match lifecycle/label activities; a valid native update still matches `edited`. Deletion is not closure, and restoration is not reopening.
 
@@ -116,11 +118,14 @@ The compiler publishes identical normalized declarations through each compiled l
 | `repos` | Optional approved-source selection for security alerts only. |
 | `provider`, `native_events` | External issues only: provider name and sorted, deduplicated required native events/actions. Linear actions are always scoped to entity `Issue`. |
 | `activity_normalization` | External issues only: the exact supported `policy`, plus Azure `closed_states` when configured. Unsupported policies MUST be rejected. |
-| `dispatch` | Destination, workflow-specific route, optional security projection, context mapping, homogeneous batching, and byte limits. |
+| `dispatch` | Destination, workflow-specific route, required minimal projection, context mapping, homogeneous batching, and byte limits. |
+| `dispatch.payload_projection.policy` | Exact policy `resource-url-types/v1`, required for every event family. Unknown or missing projection policies MUST remain nonactivating. |
 
 The receiver MUST authenticate and authorize the source, select the family, derive normalized activities when applicable, and evaluate selectors, shared conditions, and complete `any_of` groups against each original delivery **before** projection or batching. A condition MUST NOT be assembled across deliveries.
 
-For security alerts, `dispatch.payload_projection` copies `["alert", "url"]` to `["url"]`. No other source fields are forwarded. External issues and Projects use their native payload objects. Subscription metadata or source payloads MUST NOT supply gateway authority.
+Every `dispatch.payload_projection` is exactly `{"policy":"resource-url-types/v1"}`. It requires a closed `{"url": "<canonical resource URL>", "type": ["<activity>"]}` notification. GitHub types contain the single original action; provider types contain all distinct activities established by the declared normalization policy, including `edited` for updates. Receivers SHOULD sort provider activities for deterministic retry payloads. Source-only fields MUST NOT be forwarded, including when a workflow's selectors use them.
+
+The batch envelope remains numeric version `2`; the explicit projection policy versions its per-delivery data boundary. Earlier native-body Projects/provider payloads, URL-only security payloads without types, and `source_path`/`target_path` projection declarations are unsupported. Receivers MUST NOT silently ignore the new policy or fall back to forwarding native bodies. Subscription metadata or source payloads MUST NOT supply gateway authority.
 
 ## Dispatch envelope
 
@@ -138,12 +143,8 @@ The receiver sends `POST /repos/{owner}/{repo}/dispatches` to the repository con
           {
             "delivery_id": "<stable original delivery identity>",
             "payload": {
-              "webhookEvent": "jira:issue_created",
-              "issue": {
-                "id": "10001",
-                "self": "https://example.atlassian.net/rest/api/3/issue/10001",
-                "fields": { "project": { "key": "APP" } }
-              }
+              "url": "https://example.atlassian.net/rest/api/3/issue/10001",
+              "type": ["opened"]
             }
           }
         ]
@@ -153,7 +154,7 @@ The receiver sends `POST /repos/{owner}/{repo}/dispatches` to the repository con
 }
 ```
 
-`client_payload` MUST contain only `schema_version` and `aw_context`. `aw_context.webhook` MUST contain only `event` and a nonempty `deliveries` array. Each delivery MUST contain only a nonempty `delivery_id` and inline object `payload`; per-delivery family overrides are forbidden. A one-delivery batch still uses the array.
+`client_payload` MUST contain only `schema_version` and `aw_context`. At gateway ingress, `aw_context` MUST contain only `webhook`; supplied `items`, provenance, or resource-detail side channels are rejected. `aw_context.webhook` MUST contain only `event` and a nonempty `deliveries` array. Each delivery MUST contain only a nonempty `delivery_id` and inline object `payload`; per-delivery family overrides are forbidden. A one-delivery batch still uses the array. Outside the restricted gateway route, compiler-managed child-workflow context can carry normal caller metadata and runtime-derived `items`, but it MUST preserve the same minimal delivery payloads.
 
 The family MUST be homogeneous and match exactly one compiled subscription on that route. Repeated IDs with deeply equal forwarded payloads collapse in first-seen order; conflicting duplicates fail the entire batch. Distinct updates to one resource remain separate deliveries. Input order is preserved without implying chronological order.
 
@@ -171,27 +172,29 @@ An explicit native `repository_dispatch` trigger can coexist only with nonempty,
 
 ## Expected per-delivery payloads
 
-The following extracts show fields consumed by the runner. They are not complete upstream provider schemas or instructions to strip external issue bodies. Real Projects/external deliveries retain the original payload; security alerts alone use the explicit URL-only projection. All supplied identities are illustrative.
+These are the complete permitted payload shapes, not abbreviated native bodies. Every payload MUST contain exactly `url` and `type`. `type` MUST be a nonempty array of distinct supported activities; GitHub families require exactly one activity. Titles, descriptions, actors, labels, severities, source objects, changelogs, and arbitrary state objects MUST NOT be included. All supplied identities are illustrative.
+
+Every URL MUST be canonical HTTPS without credentials, query strings, or fragments. Its serialized value MUST equal the URL parser's canonical representation. The runner validates references without fetching them; URLs are not arbitrary overflow pointers or authorization evidence.
 
 ### Projects v2 item
 
 ```json title="projects_v2_item.payload.json"
 {
-  "action": "edited",
-  "projects_v2_item": {
-    "id": 123,
-    "project_node_id": "PVT_example"
-  }
+  "url": "https://api.github.com/orgs/owner/projectsV2/7/items/123",
+  "type": ["edited"]
 }
 ```
 
-`id` MUST be a positive JavaScript-safe integer. Optional `node_id` and `project_node_id` MUST be nonempty strings when present. The project selector requires a matching `project_node_id` at the receiver even though identity-only runner validation permits omission. Supplied `repository` MUST contain nonempty `full_name`. Status predicates additionally require their cataloged changed-field paths; this extract alone does not match a status transition.
+The canonical [Projects item API URL](https://docs.github.com/en/rest/projects/items) identifies `/orgs/{owner}/projectsV2/{project_number}/items/{item_id}` or `/users/{owner}/projectsV2/{project_number}/items/{item_id}` under `GITHUB_API_URL`, including its Enterprise prefix. Project and item numbers MUST be positive decimal strings without leading zeroes. The receiver MUST bind the selected project node ID to reviewed owner/project-number enrollment metadata; it MUST NOT guess a URL from an opaque GraphQL ID. Missing URL bindings remain nonactivating.
+
+The receiver checks the original `projects_v2_item.project_node_id` and delivered Status evidence before projection. Neither those node IDs nor old/new Status names are forwarded. The workflow resolves project fields and current item data through an authenticated GitHub client.
 
 ### Code scanning alert
 
 ```json title="code_scanning_alert.payload.json"
 {
-  "url": "https://api.github.com/repos/owner/repo/code-scanning/alerts/42"
+  "url": "https://api.github.com/repos/owner/repo/code-scanning/alerts/42",
+  "type": ["created"]
 }
 ```
 
@@ -199,73 +202,49 @@ The following extracts show fields consumed by the runner. They are not complete
 
 ```json title="dependabot_alert.payload.json"
 {
-  "url": "https://api.github.com/repos/owner/repo/dependabot/alerts/42"
+  "url": "https://api.github.com/repos/owner/repo/dependabot/alerts/42",
+  "type": ["created"]
 }
 ```
 
-Security payloads MUST contain exactly one `url` property: a canonical HTTPS API URL matching `GITHUB_API_URL`, including an Enterprise API prefix when configured, the selected alert family, and a positive decimal alert number. Credentials, query strings, fragments, actions, severities, repository objects, and complete alert bodies MUST NOT be included. The receiver filters the original action/severity before projection; the runner does not reconstruct those omitted fields or fetch the URL.
+Security URLs MUST match `GITHUB_API_URL`, including an Enterprise API prefix when configured, the selected alert family, and a positive decimal alert number. The receiver copies `alert.url` and wraps the original `action` in the `type` array after original-payload filtering. The runner rechecks the selected activity and explicit `repos` selectors, but does not receive severity, dependency, advisory, or code-location data.
 
 ### Jira issue
 
 ```json title="jira_issue.payload.json"
 {
-  "webhookEvent": "jira:issue_updated",
-  "issue": {
-    "id": "10001",
-    "self": "https://example.atlassian.net/rest/api/3/issue/10001",
-    "fields": { "project": { "key": "APP" }, "labels": ["bug"] }
-  },
-  "changelog": {
-    "items": [
-      { "fieldtype": "jira", "field": "resolution", "from": null, "to": "10000" },
-      { "fieldtype": "jira", "field": "labels", "fromString": null, "toString": "bug" }
-    ]
-  }
+  "url": "https://example.atlassian.net/rest/api/3/issue/10001",
+  "type": ["closed", "edited", "labeled"]
 }
 ```
 
-This update matches `edited`, `closed`, and `labeled`, and supplies project `APP` for the required root `project` selector. Identity requires positive decimal-string `issue.id` and HTTPS `issue.self` identifying `/rest/api/2/issue/...` or `/rest/api/3/issue/...`, without credentials, query, or fragment. A status-only update does not establish closure.
+The receiver derives activities from the original native issue event and system-field changelog and verifies the required project selector there. It copies `issue.self`, which MUST identify `/rest/api/2/issue/{id}` or `/rest/api/3/issue/{id}` with the same positive decimal ID as the original `issue.id` and an approved Jira origin. Project keys, resolution IDs, labels, and changelog values are not forwarded. A status-only update does not establish `closed`.
 
 ### Linear issue
 
 ```json title="linear_issue.payload.json"
 {
-  "type": "Issue",
-  "action": "update",
-  "organizationId": "organization-uuid",
-  "data": {
-    "id": "issue-uuid",
-    "teamId": "team-uuid",
-    "completedAt": "2026-10-01T12:00:00Z",
-    "canceledAt": null,
-    "labelIds": ["label-uuid"]
-  },
-  "updatedFrom": { "completedAt": null, "labelIds": [] }
+  "url": "https://linear.app/workspace/issue/APP-42/example-issue",
+  "type": ["closed", "edited", "labeled"]
 }
 ```
 
-This update matches `edited`, `closed`, and `labeled`. `data.id` and `organizationId` MUST be nonempty strings. The required root `organization-id` selects this organization; optional root `team-id` selects the delivered `data.teamId`. Unchanged terminal properties use the current value; missing evidence is not treated as null. Native `IssueLabel` events, unrelated model types, and unknown actions are rejected.
+The canonical URL MUST be a workspace-qualified `https://linear.app/{workspace}/issue/{identifier}` link, optionally followed by its readable issue slug. The identifier is a team prefix followed by a positive decimal issue number. Unqualified `/issue/APP-42` links are ambiguous across workspaces and are rejected. The receiver MUST bind the URL to the authenticated original Issue and its enrolled organization; a workspace URL slug is not an organization ID or authorization grant.
+
+The receiver checks `organizationId`, optional `data.teamId`, and `updatedFrom` evidence before projection. Those fields, immutable issue UUIDs, label IDs, and completion timestamps are not forwarded. The workflow uses the identifier with an authenticated [Linear GraphQL client](https://linear.app/developers/graphql), not an invented REST endpoint, to retrieve accessible issue data.
 
 ### Azure DevOps work item
 
 ```json title="azure_devops_issue.payload.json"
 {
-  "eventType": "workitem.updated",
-  "resource": {
-    "workItemId": 42,
-    "fields": {
-      "System.State": { "oldValue": "Active", "newValue": "Done" },
-      "System.Tags": { "oldValue": "", "newValue": "bug" }
-    }
-  },
-  "resourceContainers": {
-    "collection": { "id": "collection-uuid" },
-    "project": { "id": "project-uuid" }
-  }
+  "url": "https://dev.azure.com/organization/_apis/wit/workItems/42",
+  "type": ["closed", "edited", "labeled"]
 }
 ```
 
-This update matches `edited` and `labeled`, and `closed` when `Done` is in `closed-states`. The required root `project_id` selects `resourceContainers.project.id`; missing project data does not match that selector. Resource identity requires a positive safe-integer work item ID and nonempty collection ID. Update payload `resource.id` may identify an update/revision and MUST NOT replace `workItemId`; the implemented exception is a declared version `"1.0"` snapshot update without `resource.revision`. Non-update events may use `resource.id`.
+The URL MUST identify a work item, not an update/revision or recycle-bin record. Supported API shapes are `https://dev.azure.com/{organization}/[project/]_apis/wit/workItems/{id}` and `https://{organization}.visualstudio.com/{collection}/[project/]_apis/wit/workItems/{id}`. The optional project path segment uses a project ID or URL-encoded project name. The receiver MUST bind the canonical resource URL and positive decimal work item ID to the reviewed collection/project.
+
+The required root `project_id` is checked against original `resourceContainers.project.id`. Original updates require `resource.workItemId`, not `resource.id`, except declared version `"1.0"` snapshot updates without `resource.revision`; non-update events may use `resource.id`. The receiver derives `closed` only from delivered old/new state evidence crossing configured `closed-states`. It MUST NOT forward native update URLs, container objects, state/tag deltas, or work item fields.
 
 ## Derived context and responsibility boundary
 
@@ -273,11 +252,13 @@ The runner derives `aw_context.items` rather than trusting a sender-supplied ite
 
 | Family | `item_number` | Identity namespace and additional fields |
 | --- | --- | --- |
-| Projects | String form of the database item ID | Family and database ID; `project_id` when present, `repo` when delivered. |
+| Projects | Decimal item ID from the URL | Family, project API URL in `source`, item ID; `url` and empty `repo`. |
 | Security alerts | Decimal alert number from the validated URL | Family, case-insensitive source `repo`, alert number; canonical `url`. |
-| Jira | Decimal-string `issue.id` | Family, REST URL origin in `source`, issue ID; `url` and empty `repo`. |
-| Linear | Immutable `data.id` | Family, organization ID in `source`, issue ID; empty `repo`. |
-| Azure DevOps | String form of the work item ID | Family, collection ID in `source`, work item ID; empty `repo`. |
+| Jira | Decimal issue ID from the URL | Family, REST URL origin in `source`, issue ID; `url` and empty `repo`. |
+| Linear | Issue identifier from the URL | Family, workspace URL in `source`, identifier; `url` and empty `repo`. Readable title slugs do not change identity. |
+| Azure DevOps | Decimal work item ID from the URL | Family, collection URL in `source`, work item ID; `url` and empty `repo`. An optional project path segment does not change collection identity. |
+
+These identities are derived references, not extra sender-supplied resource metadata. Renamed workspace/collection aliases or moved Linear issue identifiers are not resolved by the runner; any cross-alias reconciliation requires authenticated workflow reads. Project node IDs, Linear organization/team/issue UUIDs, and Azure collection/project UUIDs require provider-authenticated resolution when needed.
 
 The agent MUST handle every intended item explicitly, not silently use the first resource. External IDs are not GitHub issue numbers or implicit safe-output targets. The ordinary `github.actor` remains the dispatch credential's actor, not the source webhook sender.
 
@@ -285,12 +266,17 @@ The agent MUST handle every intended item explicitly, not silently use the first
 | --- | --- |
 | Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata and restricted dispatch routing. External providers do not create GitHub App webhook/permission requirements. |
 | Approved receiver | Verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch with an authorized destination credential. Keep administrative grants separate from untrusted metadata. |
-| Runner | Validate route, schema, sizes, family, each identity/projection, explicit security repository selectors, and supported provider normalization policy/activity evidence. Invalid elements fail the whole batch. |
+| Runner | Validate route, schema, projection policy, sizes, closed payload shape, URL-derived identity, selected activities/native registration, and explicit security repository selectors. It does not fetch resource details or re-derive source transitions. Invalid elements fail the whole batch. |
+| Workflow | Resolve any additional resource data through configured provider-authenticated clients so the provider enforces access. Handle denied/deleted resources without falling back to native webhook bodies. |
 | Standard authorization gate | Authorize the actual GitHub dispatch actor through role and bot rules before agent execution. It does not authenticate original provider signatures. |
 
-The runner does not independently enforce all original-payload `conditions`/`any_of` filters. In particular, security action/severity checks are receiver-side because those fields are projected out. A correctly shaped URL or provider identity is not proof of source authorization.
+The runner does not independently enforce original-payload `conditions`/`any_of` filters or lifecycle/label evidence. Those belong to the authenticated receiver before projection; selected forwarded activities are rechecked on the runner. Activities describe the delivered event, not an assurance of current state. A correctly shaped URL is not proof of source authorization or provider access.
 
-Raw webhook bodies MUST be treated as untrusted, potentially sensitive data, not instructions or shell fragments. Runtime context files preserve deliveries; generated metadata/unified-session caller logs redact their bodies. Additional data requires provider-specific authenticated clients; GitHub credentials do not authorize Jira, Linear, or Azure DevOps access.
+Raw webhook bodies MUST NOT enter the dispatch payload, staged event, `aw_info.json`, prompt, or child-workflow context. Runtime files preserve only the minimal notifications; metadata/unified-session caller logs continue to redact delivery payloads. URLs and fetched data remain untrusted data, not instructions or shell fragments.
+
+The workflow MUST use an authenticated GitHub App client for additional GitHub data and provider-specific authenticated clients for external issues. GitHub credentials do not authorize Jira, Linear, or Azure DevOps access. Clients MUST use configured trusted API endpoints and their existing resource authorization, not attach credentials to arbitrary notification URLs or follow credential-bearing redirects. A notification is not a fallback data cache when authenticated retrieval is forbidden, unavailable, or returns a deleted resource.
+
+Triggers do not provision provider credentials, tools, or read permissions. Workflows without an authorized reader MUST report unresolved or denied resources rather than infer unavailable details.
 
 Receiver deployment, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility are not implemented by these declarations. Secret scanning, Projects (classic), arbitrary webhook event names, and legacy singleton payload envelopes are unsupported.
 

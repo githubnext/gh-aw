@@ -93,9 +93,11 @@ type WebhookDispatch struct {
 
 // WebhookPayloadProjection limits the source payload fields forwarded by CAO.
 type WebhookPayloadProjection struct {
-	SourcePath []string `json:"source_path"`
-	TargetPath []string `json:"target_path"`
+	Policy string `json:"policy"`
 }
+
+// WebhookPayloadProjectionPolicy versions the closed per-delivery notification.
+const WebhookPayloadProjectionPolicy = "resource-url-types/v1"
 
 // WebhookSubscription is the compiler's versioned filter and routing declaration.
 type WebhookSubscription struct {
@@ -301,12 +303,13 @@ func webhookStringValues(raw any, path string) ([]string, error) {
 }
 
 func newWebhookSubscription(workflowID, event string, types []string, conditions []WebhookCondition) WebhookSubscription {
-	subscription := WebhookSubscription{
+	return WebhookSubscription{
 		SchemaVersion: 2, Event: event, Types: types, Conditions: conditions,
 		Dispatch: WebhookDispatch{
 			Repository: "${{ github.repository }}", Method: "repository_dispatch",
-			EventType: WebhookDispatchEventType(workflowID),
-			Workflow:  constants.WorkflowsDirSlash + workflowID + ".lock.yml",
+			EventType:         WebhookDispatchEventType(workflowID),
+			Workflow:          constants.WorkflowsDirSlash + workflowID + ".lock.yml",
+			PayloadProjection: &WebhookPayloadProjection{Policy: WebhookPayloadProjectionPolicy},
 			Context: WebhookContext{
 				Envelope: "github.event.client_payload", AWContext: "github.event.client_payload.aw_context",
 				Event:      "github.event.client_payload.aw_context.webhook.event",
@@ -317,13 +320,6 @@ func newWebhookSubscription(workflowID, event string, types []string, conditions
 			MaxPayloadBytes: 65535, MaxRequestBytes: 65535,
 		},
 	}
-	if event == "code_scanning_alert" || event == "dependabot_alert" {
-		subscription.Dispatch.PayloadProjection = &WebhookPayloadProjection{
-			SourcePath: []string{"alert", "url"},
-			TargetPath: []string{"url"},
-		}
-	}
-	return subscription
 }
 
 func parseWebhookTypes(config map[string]any, path string, supported []string) ([]string, error) {

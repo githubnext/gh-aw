@@ -184,7 +184,7 @@ describe("call_workflow handler factory", () => {
 
   it.each([false, true])("forwards unique webhook arrays without logging bodies, staged=%s", async staged => {
     const previous = context.payload;
-    const first = { delivery_id: "a", payload: { action: "edited", projects_v2_item: { id: 1 }, private: "do-not-log-webhook" } };
+    const first = { delivery_id: "a", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } };
     context.payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [first, first] } } } };
     try {
       const handler = await main({ workflows: ["worker-a"], staged });

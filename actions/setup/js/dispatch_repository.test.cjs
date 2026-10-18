@@ -264,7 +264,7 @@ describe("dispatch_repository", () => {
     });
 
     it.each([false, true])("forwards unique webhook context without previewing bodies, staged=%s", async staged => {
-      const first = { delivery_id: "a", payload: { action: "edited", projects_v2_item: { id: 1 }, private: "do-not-log-webhook" } };
+      const first = { delivery_id: "a", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } };
       mockContext.payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [first, first] } } } };
       const handler = await main({ staged, tools: { deploy: { event_type: "deploy", repository: "test-owner/test-repo" } } });
       const result = await handler({ tool_name: "deploy" }, {});

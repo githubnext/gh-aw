@@ -194,17 +194,35 @@ function providerEnvironment(event, types, nativeEvents, normalization = {}) {
   return {
     GITHUB_EVENT_NAME: "repository_dispatch",
     GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([
-      { event, provider, types, native_events: nativeEvents, schema_version: 2, activity_normalization: { policy: `${provider}-issue/v1`, ...normalization }, dispatch: { event_type: "gh-aw-webhook-provider" } },
+      {
+        event,
+        provider,
+        types,
+        native_events: nativeEvents,
+        schema_version: 2,
+        activity_normalization: { policy: `${provider}-issue/v1`, ...normalization },
+        dispatch: { event_type: "gh-aw-webhook-provider", payload_projection: { policy: "resource-url-types/v1" } },
+      },
     ]),
   };
 }
 
 describe("provider issue batch transport", () => {
+  function notification(event, type = ["edited"], source = "a") {
+    const urls = {
+      jira_issue: `https://workspace-${source}.atlassian.net/rest/api/2/issue/123`,
+      linear_issue: `https://linear.app/workspace-${source}/issue/APP-123`,
+      azure_devops_issue: `https://dev.azure.com/collection-${source}/_apis/wit/workItems/123`,
+    };
+    return { url: urls[event], type };
+  }
+
   it.each([
-    ["jira_issue", jira("jira:issue_created"), "jira:issue_created"],
-    ["linear_issue", linear("create"), "create"],
-    ["azure_devops_issue", azure("workitem.created"), "workitem.created"],
-  ])("validates %s without replacing native actions or payloads", (event, payload, native) => {
+    ["jira_issue", "jira:issue_created"],
+    ["linear_issue", "create"],
+    ["azure_devops_issue", "workitem.created"],
+  ])("validates %s minimal notifications without fetching resource bodies", (event, native) => {
+    const payload = notification(event, ["opened"]);
     const dispatch = providerDispatch(event, [payload]);
     const before = JSON.stringify(dispatch);
     expect(validateWebhook(dispatch, providerEnvironment(event, ["opened"], [native])).skipped).toBe(false);
@@ -214,11 +232,9 @@ describe("provider issue batch transport", () => {
     expect(() => validateWebhook(dispatch, mismatched)).toThrow(/activity/);
   });
 
-  it.each([
-    ["jira_issue", jira(), { ...jira(), issue: { ...jira().issue, self: "https://other.atlassian.net/rest/api/2/issue/123" } }],
-    ["linear_issue", linear(), { ...linear(), organizationId: "workspace-b" }],
-    ["azure_devops_issue", azure(), { ...azure(), resourceContainers: { collection: { id: "collection-b" } } }],
-  ])("deduplicates %s identities by immutable source and issue, independently of deliveries", (event, payload, otherSource) => {
+  it.each(["jira_issue", "linear_issue", "azure_devops_issue"])("deduplicates %s by URL-derived source and issue, independently of deliveries", event => {
+    const payload = notification(event);
+    const otherSource = notification(event, ["edited"], "b");
     const raw = providerDispatch(event, [payload, otherSource, payload]).client_payload.aw_context;
     raw.items = [{ item_type: "issue", item_number: "forged", repo: "forged/repo" }];
     const result = normalizeWebhookContext(raw);
@@ -233,19 +249,20 @@ describe("provider issue batch transport", () => {
   });
 
   it("does not trust a forged GitHub-style action in a provider payload", () => {
-    const payload = { ...jira(), action: "closed" };
-    expect(() => validateWebhook(providerDispatch("jira_issue", [payload]), providerEnvironment("jira_issue", ["closed"], ["jira:issue_updated"]))).toThrow(/activity/);
+    const payload = { ...notification("jira_issue"), action: "closed" };
+    expect(() => validateWebhook(providerDispatch("jira_issue", [payload]), providerEnvironment("jira_issue", ["closed"], ["jira:issue_updated"]))).toThrow(/accepts only/);
   });
 
   it("requires every delivery to satisfy a selected activity", () => {
-    const closed = linear("update", { completedAt: "2026-10-01T00:00:00Z" }, { completedAt: null });
+    const original = linear("update", { completedAt: "2026-10-01T00:00:00Z" }, { completedAt: null });
+    const closed = notification("linear_issue", providerIssueActivities("linear_issue", original));
     const env = providerEnvironment("linear_issue", ["closed"], ["update"]);
     expect(validateWebhook(providerDispatch("linear_issue", [closed]), env).skipped).toBe(false);
-    expect(() => validateWebhook(providerDispatch("linear_issue", [closed, linear()]), env)).toThrow(/activity/);
+    expect(() => validateWebhook(providerDispatch("linear_issue", [closed, notification("linear_issue")]), env)).toThrow(/activity/);
   });
 
   it("checks the selected native registration as well as normalized activities", () => {
-    const dispatch = providerDispatch("linear_issue", [linear("create")]);
+    const dispatch = providerDispatch("linear_issue", [notification("linear_issue", ["opened"])]);
     expect(() => validateWebhook(dispatch, providerEnvironment("linear_issue", ["opened"], ["update"]))).toThrow(/activity/);
   });
 
@@ -254,6 +271,14 @@ describe("provider issue batch transport", () => {
     const subscriptions = JSON.parse(env.GH_AW_WEBHOOK_SUBSCRIPTIONS);
     delete subscriptions[0].activity_normalization;
     env.GH_AW_WEBHOOK_SUBSCRIPTIONS = JSON.stringify(subscriptions);
-    expect(() => validateWebhook(providerDispatch("linear_issue", [linear("create")]), env)).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
+    expect(() => validateWebhook(providerDispatch("linear_issue", [notification("linear_issue", ["opened"])]), env)).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
+  });
+
+  it.each([
+    ["jira_issue", jira()],
+    ["linear_issue", linear()],
+    ["azure_devops_issue", azure()],
+  ])("rejects full native %s bodies rather than stripping them after admission", (event, payload) => {
+    expect(() => normalizeWebhookContext(providerDispatch(event, [notification(event), payload]).client_payload.aw_context)).toThrow(/accepts only/);
   });
 });

@@ -429,14 +429,14 @@ describe("generate_aw_info.cjs", () => {
 
   it("exposes normalized webhook arrays in aw_info and expression outputs without requiring caller-run fields", async () => {
     const deliveries = [
-      { delivery_id: "first", payload: { action: "edited", projects_v2_item: { id: 1 }, private: "do-not-log-payload" } },
-      { delivery_id: "second", payload: { action: "created", projects_v2_item: { id: 2 } } },
-      { delivery_id: "third", payload: { action: "edited", projects_v2_item: { id: 1 } } },
+      { delivery_id: "first", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } },
+      { delivery_id: "second", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/2", type: ["created"] } },
+      { delivery_id: "third", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } },
     ];
     const raw = { webhook: { event: "projects_v2_item", deliveries: [...deliveries, deliveries[0]] }, items: [{ item_number: "forged" }], item_number: "first-item-must-not-be-selected" };
     const expected = {
       webhook: { event: "projects_v2_item", deliveries },
-      items: [1, 2].map(number => ({ item_type: "projects_v2_item", item_number: String(number), repo: "", project_id: "" })),
+      items: [1, 2].map(number => ({ item_type: "projects_v2_item", item_number: String(number), repo: "", source: "https://api.github.com/orgs/org/projectsV2/1", url: `https://api.github.com/orgs/org/projectsV2/1/items/${number}` })),
     };
     for (const payload of [{ client_payload: { schema_version: 2, aw_context: raw } }, { inputs: { aw_context: JSON.stringify({ repo: "org/repo", run_id: "1", workflow_id: "parent", ...raw }) } }]) {
       vi.clearAllMocks();

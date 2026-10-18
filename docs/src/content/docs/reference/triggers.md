@@ -21,6 +21,8 @@ GitHub Agentic Workflows supports all standard GitHub Actions triggers plus addi
 
 **Experimental external issue triggers:** `on.jira-issue`, `on.linear-issue`, and `on.azure-devops-issue` use GitHub-style activity names derived from native provider events and delivered transition evidence. Jira requires `project`, Linear requires `organization-id` and accepts optional `team-id`, and Azure DevOps requires `project_id`, all beside `types` without a `filters` wrapper. They share the workflow/repository opt-ins and write-minimum dispatch authorization above, but require a separately approved provider bridge and provider-specific credentials. Azure closure requires explicit `closed-states`; Jira label normalization is limited to unambiguous single-label changes. See [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/) for supported activities, selectors, and receiver requirements.
 
+All gateway families forward only canonical resource URLs and event activity arrays, never native resource bodies. Workflows resolve any additional data with provider-authenticated clients so the provider enforces access. See the [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-specification/) for the closed payload contract.
+
 ### Dispatch Triggers (`workflow_dispatch:`)
 
 Run workflows manually from the GitHub UI, API, or via `gh aw run`/`gh aw trial`. [Full syntax reference](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).

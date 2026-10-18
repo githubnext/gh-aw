@@ -53,7 +53,7 @@ Omitting `types` selects all cataloged activities, except Azure `closed`/`reopen
 
 ## Native events and normalized activities
 
-`opened`, `closed`, and `labeled` below are **gh-aw normalization names**, not webhook action names advertised by these providers. The bridge must derive them from the original delivery before applying `types`; the runtime independently checks the same evidence. Original payloads are not rewritten to add an `action`.
+`opened`, `closed`, and `labeled` below are **gh-aw normalization names**, not webhook action names advertised by these providers. The bridge derives them from the authenticated original delivery before applying `types` and projection. The runner checks the forwarded activity list and selected native registration, not the omitted source evidence. Original native payloads are not rewritten to add an `action` and are never forwarded.
 
 | Provider | Documented native issue events | Normalized mapping |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ For `System.Tags`, both old and new strings must be present. Semicolon-separated
 
 ## Supported selectors
 
-These tables are generated from the compiler's provider catalog. Each selector name is a trigger property, not a child of `filters`; the mandatory scope selectors are listed above. Payload paths are relative to each original `delivery.payload`. A `*` path segment traverses array elements.
+These tables are generated from the compiler's provider catalog. Each selector name is a trigger property, not a child of `filters`; the mandatory scope selectors are listed above. Payload paths refer to the **original native webhook received by the receiver**, not the minimal forwarded `deliveries[].payload`. A `*` path segment traverses array elements.
 
 {Object.entries(providerIssueEvents).sort(([a], [b]) => a.localeCompare(b)).map(([event, definition]) => (
 
@@ -126,9 +126,14 @@ Provider subscriptions use the existing numeric `schema_version: 2` declaration 
 | `native_events`                        | Sorted, deduplicated native events needed by the selected activities. For Linear these are `Issue` entity action names.     |
 | `activity_normalization.policy`        | Versioned policy: `jira-issue/v1`, `linear-issue/v1`, or `azure-devops-issue/v1`, with the evidence rules above.            |
 | `activity_normalization.closed_states` | Azure-only explicit terminal state names, when configured.                                                                  |
+| `dispatch.payload_projection.policy` | Required `resource-url-types/v1`: only canonical resource URL and normalized activity array are forwarded. |
 
-Each batch contains one normalized issue family. `deliveries[].payload` preserves the original provider object; Linear retains its native `action: create/update/remove`. Repeated delivery IDs collapse, conflicting duplicates fail, and unique affected items are independently deduplicated by provider family, source, and immutable issue ID. Updates to one issue remain distinct deliveries.
+Each batch contains one normalized issue family. Every `deliveries[].payload` is a closed `{"url":"<canonical resource URL>","type":["<normalized activity>"]}` notification, not the original provider object. An update can contain several types, such as `["closed","edited","labeled"]`, without including resolution values, label IDs, or changelog data. The receiver authenticates, classifies, and filters the original native delivery before projection. Linear's native `type: "Issue"` and `action: create/update/remove` do not appear in the forwarded object.
 
-Normalized items have `item_type`, string `item_number`, `source`, and `repo: ""`. `source` is the Jira REST URL origin, Linear organization ID, or Azure collection ID. Jira also carries its HTTPS REST resource `url`. Azure update identities use `resource.workItemId`, not an update/revision ID; version 1.0 snapshot payloads may use `resource.id`. Provider identities are never implicit GitHub issue numbers or safe-output targets.
+Repeated delivery IDs collapse, conflicting duplicates fail, and affected references are independently deduplicated by provider family and URL-derived source/resource identity. Updates to one reference remain distinct deliveries. Normalized items have `item_type`, string `item_number`, `url`, `source`, and `repo: ""`. `source` is the Jira REST origin, Linear workspace URL, or Azure collection URL; `item_number` is the decimal issue/work item ID or Linear issue identifier from that URL. Provider UUIDs are not forwarded, and cross-alias/moved-identifier reconciliation requires authenticated workflow reads. These identities are never implicit GitHub issue numbers or safe-output targets.
 
-Provider authentication and source authorization belong to the receiver: for example, [Jira signed admin webhooks](https://developer.atlassian.com/cloud/jira/platform/webhooks/#secure-admin-webhooks), [Linear signature and timestamp verification](https://linear.app/developers/webhooks#securing-webhooks), and [Azure HTTPS service-hook configuration](https://learn.microsoft.com/en-us/azure/devops/service-hooks/services/webhooks?view=azure-devops). The GitHub dispatch actor remains independently authorized by standard role/bot checks. Use provider-specific authenticated clients to read additional data; GitHub credentials do not authorize access to Jira, Linear, or Azure DevOps.
+The [gateway specification](/gh-aw/specs/webhook-gateway-specification/#expected-per-delivery-payloads) defines accepted canonical URL forms and all six minimal payloads. Unqualified Linear issue links are rejected because identifiers can collide between workspaces; Azure links must identify work items rather than updates/revisions. Earlier native-body payloads and missing/unknown projection policies are rejected, not treated as compatibility fallbacks. The version 2 batch envelope is unchanged.
+
+Provider authentication and source authorization belong to the receiver: for example, [Jira signed admin webhooks](https://developer.atlassian.com/cloud/jira/platform/webhooks/#secure-admin-webhooks), [Linear signature and timestamp verification](https://linear.app/developers/webhooks#securing-webhooks), and [Azure HTTPS service-hook configuration](https://learn.microsoft.com/en-us/azure/devops/service-hooks/services/webhooks?view=azure-devops). The GitHub dispatch actor remains independently authorized by standard role/bot checks.
+
+**All additional resource data must be resolved inside the workflow using provider-authenticated clients so the provider enforces access.** This includes titles, descriptions, labels, actors, current state, and provider UUIDs. GitHub credentials do not authorize Jira, Linear, or Azure DevOps access. Use configured trusted API endpoints; do not send credentials to arbitrary notification URLs or redirects. Denied or deleted resources do not permit fallback to cached native webhook bodies.

@@ -103,11 +103,8 @@ func TestWebhookManifestCompilation(t *testing.T) {
 						assert.Empty(t, subscription.Repos)
 						assert.NotContains(t, manifestLine, `"repos"`)
 					}
-					if subscription.Event == "code_scanning_alert" || subscription.Event == "dependabot_alert" {
-						require.NotNil(t, subscription.Dispatch.PayloadProjection)
-						assert.Equal(t, []string{"alert", "url"}, subscription.Dispatch.PayloadProjection.SourcePath)
-						assert.Equal(t, []string{"url"}, subscription.Dispatch.PayloadProjection.TargetPath)
-					}
+					require.NotNil(t, subscription.Dispatch.PayloadProjection)
+					assert.Equal(t, WebhookPayloadProjectionPolicy, subscription.Dispatch.PayloadProjection.Policy)
 				}
 			}
 			encoded, err := manifest.ToJSON()

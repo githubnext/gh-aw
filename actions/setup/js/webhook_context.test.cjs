@@ -7,7 +7,7 @@ const { normalizeWebhookContext, redactWebhookPayloads } = require("./webhook_co
 const { buildAwContext } = require("./aw_context.cjs");
 
 function project(deliveryID, id, action = "edited") {
-  return { delivery_id: deliveryID, payload: { action, projects_v2_item: { id, project_node_id: "PVT_one" } } };
+  return { delivery_id: deliveryID, payload: { url: `https://api.github.com/orgs/org/projectsV2/1/items/${id}`, type: [action] } };
 }
 
 function contextFor(event, deliveries) {
@@ -32,8 +32,8 @@ describe("normalizeWebhookContext", () => {
     const result = normalizeWebhookContext(raw);
     expect(result.webhook.deliveries.map(value => value.delivery_id)).toEqual(["a", "b", "c"]);
     expect(result.items).toEqual([
-      { item_type: "projects_v2_item", item_number: "1", project_id: "PVT_one", repo: "" },
-      { item_type: "projects_v2_item", item_number: "2", project_id: "PVT_one", repo: "" },
+      { item_type: "projects_v2_item", item_number: "1", source: "https://api.github.com/orgs/org/projectsV2/1", repo: "", url: project("a", 1).payload.url },
+      { item_type: "projects_v2_item", item_number: "2", source: "https://api.github.com/orgs/org/projectsV2/1", repo: "", url: project("b", 2).payload.url },
     ]);
     expect(result).not.toHaveProperty("item_number");
     expect(JSON.stringify(raw)).toBe(before);
@@ -42,7 +42,7 @@ describe("normalizeWebhookContext", () => {
 
   it.each(["code_scanning_alert", "dependabot_alert"])("scopes %s identities to the source repository", event => {
     const source = event === "dependabot_alert" ? "dependabot" : "code-scanning";
-    const alert = (deliveryID, repo, number) => ({ delivery_id: deliveryID, payload: { url: `https://api.github.com/repos/${repo}/${source}/alerts/${number}` } });
+    const alert = (deliveryID, repo, number) => ({ delivery_id: deliveryID, payload: { url: `https://api.github.com/repos/${repo}/${source}/alerts/${number}`, type: ["created"] } });
     const result = normalizeWebhookContext(contextFor(event, [alert("a", "org/one", 1), alert("b", "org/two", 1), alert("c", "ORG/ONE", 1)]));
     expect(result.items).toEqual([
       { item_type: event, item_number: "1", repo: "org/one", url: alert("a", "org/one", 1).payload.url },
@@ -52,7 +52,7 @@ describe("normalizeWebhookContext", () => {
   });
 
   it.each(["undefined", "null", "0", "-1", "1.5", "", "01"])("rejects invalid security alert URL identity %j", number => {
-    const raw = contextFor("dependabot_alert", [{ delivery_id: "a", payload: { url: `https://api.github.com/repos/org/repo/dependabot/alerts/${number}` } }]);
+    const raw = contextFor("dependabot_alert", [{ delivery_id: "a", payload: { url: `https://api.github.com/repos/org/repo/dependabot/alerts/${number}`, type: ["created"] } }]);
     expect(() => normalizeWebhookContext(raw)).toThrow(/canonical GitHub API alert URL/);
   });
 
@@ -66,12 +66,12 @@ describe("normalizeWebhookContext", () => {
     "https://api.github.com/repos/org/repo/other/code-scanning/alerts/1",
     "https://api.github.com/repos/org%2Frepo/repo/code-scanning/alerts/1",
   ])("rejects noncanonical, cross-kind or cross-host security alert URL %#", url => {
-    const raw = contextFor("code_scanning_alert", [{ delivery_id: "a", payload: { url } }]);
+    const raw = contextFor("code_scanning_alert", [{ delivery_id: "a", payload: { url, type: ["created"] } }]);
     expect(() => normalizeWebhookContext(raw)).toThrow(/canonical GitHub API alert URL/);
   });
 
   it("reports invalid API configuration without including its value", () => {
-    const raw = contextFor("dependabot_alert", [{ delivery_id: "a", payload: { url: "https://api.github.com/repos/o/r/dependabot/alerts/1" } }]);
+    const raw = contextFor("dependabot_alert", [{ delivery_id: "a", payload: { url: "https://api.github.com/repos/o/r/dependabot/alerts/1", type: ["created"] } }]);
     expect(() => normalizeWebhookContext(raw, { GITHUB_API_URL: "private-invalid-value" })).toThrow("GITHUB_API_URL must be a valid URL");
     expect(() => normalizeWebhookContext(raw, { GITHUB_API_URL: "private-invalid-value" })).not.toThrow(/private-invalid-value/);
   });
@@ -122,7 +122,7 @@ describe("redactWebhookPayloads", () => {
     const decoded = serialized ? JSON.parse(safe) : safe;
     expect(decoded).toEqual({ ...raw, webhook: { event: raw.webhook.event, deliveries: [{ delivery_id: "a" }] } });
     expect(redactWebhookPayloads(safe)).toEqual(safe);
-    expect(raw.webhook.deliveries[0].payload.projects_v2_item.id).toBe(1);
+    expect(raw.webhook.deliveries[0].payload).toEqual(project("a", 1).payload);
   });
 
   it.each([null, {}, { repo: "org/native" }, '{"repo":"org/native"}', "not-json"])("preserves native context %#", value => {

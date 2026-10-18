@@ -99,7 +99,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 	}
 	if sub.SchemaVersion != 2 || sub.Dispatch.Repository != "${{ github.repository }}" ||
 		sub.Dispatch.Method != "repository_dispatch" || sub.Dispatch.MaxPayloadBytes != 65535 || sub.Dispatch.MaxRequestBytes != 65535 ||
-		sub.Dispatch.PayloadProjection != nil ||
+		sub.Dispatch.PayloadProjection == nil || sub.Dispatch.PayloadProjection.Policy != WebhookPayloadProjectionPolicy ||
 		sub.Dispatch.Context.Deliveries != "github.event.client_payload.aw_context.webhook.deliveries" ||
 		sub.Dispatch.Context.Items != "aw_context.items" ||
 		sub.Dispatch.Batch.Mode != "same-event" || sub.Dispatch.Batch.DeduplicateBy != "delivery_id" ||
@@ -124,9 +124,7 @@ func TestSecurityAlertPayloadProjection(t *testing.T) {
 				t.Fatalf("expected one subscription, got %d", len(subscriptions))
 			}
 			projection := subscriptions[0].Dispatch.PayloadProjection
-			if projection == nil ||
-				!slices.Equal(projection.SourcePath, []string{"alert", "url"}) ||
-				!slices.Equal(projection.TargetPath, []string{"url"}) {
+			if projection == nil || projection.Policy != WebhookPayloadProjectionPolicy {
 				t.Fatalf("unexpected security alert payload projection: %+v", projection)
 			}
 		})
