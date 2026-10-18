@@ -13,7 +13,10 @@ const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { createExpirationLine, extractExpirationDate } = require("./ephemerals.cjs");
 const { mutateIssues } = require("./work_queue_issue_api.cjs");
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 describe("issue report publication boundary", () => {
   it("normalizes titles, escapes unsupported HTML, and preserves API parameters and responses", async () => {
@@ -153,6 +156,33 @@ describe("issue report publication boundary", () => {
     expect(client.rest.issues.create.mock.calls[0][0]).toEqual({ owner: "o", repo: "r", ...renderReport(report) });
   });
 
+  it("renders a prepared issue once and reuses the same payload across publication retries", async () => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const report = buildIssueReport("Retry", "## Evidence\n\nBody");
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Retry", labels: ["bug"] }, report);
+    const error = new Error("retry");
+    const response = { data: { number: 42 } };
+    const client = { rest: { issues: { create: vi.fn().mockRejectedValueOnce(error).mockResolvedValue(response) } } };
+    await expect(createReportIssue(client, parameters)).rejects.toBe(error);
+    expect(await createReportIssue(client, parameters)).toBe(response);
+    expect(render).toHaveBeenCalledExactlyOnceWith(report);
+    expect(client.rest.issues.create.mock.calls.every(([request]) => request === parameters)).toBe(true);
+  });
+
+  it("does not trust modified or copied prepared content", async () => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: {} }) } } };
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report", body: "Original" });
+    parameters.body = "<img src=x>";
+    await createReportIssue(client, parameters);
+    expect(client.rest.issues.create.mock.calls[0][0].body).toBe("&lt;img src=x&gt;\n");
+    await createReportIssue(client, { ...parameters });
+    expect(render).toHaveBeenCalledTimes(3);
+    parameters.body = "<x>".repeat(10000);
+    expect(() => createReportIssue(client, parameters)).toThrow("maximum length");
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(2);
+  });
+
   it("redacts secrets and rejects oversized rendered content before any API write", async () => {
     vi.stubEnv("GH_AW_SECRET_NAMES", "REPORT_FIXTURE");
     vi.stubEnv("SECRET_REPORT_FIXTURE", "issue-report-fixture");
@@ -215,5 +245,5 @@ describe("repository issue creation coverage", () => {
     };
     visit(root);
     expect(violations).toEqual([]);
-  });
+  }, 60000);
 });

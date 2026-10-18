@@ -7058,7 +7058,13 @@ describe("handle_agent_failure", () => {
 
       vi.resetModules();
       const { main: mainFn } = require("./handle_agent_failure.cjs");
-      await mainFn();
+      const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+      try {
+        await mainFn();
+        expect(render).toHaveBeenCalledTimes(1);
+      } finally {
+        render.mockRestore();
+      }
 
       // report_incomplete overrides the hasCompletedDespiteJobFailure exemption
       expect(createIssueMock).toHaveBeenCalled();

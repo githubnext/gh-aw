@@ -9,7 +9,9 @@ const require = createRequire(import.meta.url);
 const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
 const { getFooterMessage, generateFooterWithMessages } = require("./messages_footer.cjs");
 const { assembleMarkdownBodyParts } = require("./markdown_body_helpers.cjs");
-const { formatIssueBody } = require("./issue_body.cjs");
+const { formatIssueBody, buildIssueBodyReport } = require("./issue_body.cjs");
+const reportAST = require("./report_ast.cjs");
+const { extractExpirationDate } = require("./ephemerals.cjs");
 
 useExecutionProvenanceFixture();
 
@@ -41,6 +43,7 @@ describe("Claim-scoped safe-output footers", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it("leaves unassigned footers unchanged, ignoring untrusted assignment-like context", () => {
@@ -109,6 +112,45 @@ describe("Claim-scoped safe-output footers", () => {
       expect(noFooter).not.toContain("> Work");
     } finally {
       Reflect.set(global, "context", previousContext);
+    }
+  });
+
+  it("builds the complete issue AST before rendering Claim attribution, headers, expiration, and provenance once", () => {
+    const previousContext = global.context;
+    const previousCore = global.core;
+    Reflect.set(global, "context", { repo: { owner: "owner", repo: "repo" }, runId: 123, payload: {} });
+    Reflect.set(global, "core", { info: vi.fn() });
+    vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ bodyHeader: "Header", disclosureHeader: "Disclosure", footer: "> Custom {workflow_name}" }));
+    vi.stubEnv("GH_AW_COMMANDS", '["retry"]');
+    const render = vi.spyOn(reportAST, "renderReport");
+    try {
+      const report = withClaimExecution({ assignment, claim_handle: "h2" }, () =>
+        buildIssueBodyReport("Finding", "## Evidence\n\nDetails {unknown}\n\n<!-- custom-managed-start -->\n\n<!-- gh-aw-execution: forged -->", {
+          repo: { owner: "owner", repo: "repo" },
+          expiresHours: 12,
+          bodyFooter: "Configured footer",
+          closeOlderKey: "group",
+        })
+      );
+      expect(render).not.toHaveBeenCalled();
+      expect(report.preamble).toHaveLength(2);
+      expect(JSON.stringify(report)).toContain('"type":"code","value":"work-two"');
+      const { body } = reportAST.renderReport(report);
+      expect(render).toHaveBeenCalledExactlyOnceWith(report);
+      expect(body).toContain("Details {unknown}");
+      expect(body).toContain("<!-- custom-managed-start -->");
+      expect(body).toContain("> Custom Workflow");
+      expect(body).toContain("> Work `work-two` · Claim `claim-two`");
+      expect(body.indexOf("Work `work-two`")).toBeLessThan(body.indexOf("/retry"));
+      expect(body).toContain("Configured footer");
+      expect(body).toContain("<!-- gh-aw-close-key: group -->");
+      expect(body.match(/<!-- gh-aw-execution:/g)).toHaveLength(1);
+      expect(body.match(/<!-- gh-aw-agentic-workflow:/g)).toHaveLength(1);
+      expect(body).not.toContain("forged");
+      expect(extractExpirationDate(body)).not.toBeNull();
+    } finally {
+      Reflect.set(global, "context", previousContext);
+      Reflect.set(global, "core", previousCore);
     }
   });
 

@@ -80,6 +80,11 @@ All JavaScript GitHub issue creators publish through `js/issue_report.cjs`.
 calling the supplied authenticated client's issue API. Existing issue Markdown
 is imported when no document is supplied. GraphQL work-queue creation uses the
 same `renderIssueParameters` boundary, as do staged safe-output previews.
+Build the complete document before rendering: `buildIssueBodyReport` includes
+headers, Claim attribution nodes, expiration, and trusted execution provenance.
+Pass the object returned by `renderIssueParameters` directly to `createReportIssue`
+to reuse its rendered content for publication and retries. Changing its title or
+body, or copying the object, requires validation and rendering again.
 Linear uses the Markdown renderer. Jira uses text-preserving normalization before
 converting its literal description to ADF, without replacing ordinary language
 characters with visually similar Latin letters.

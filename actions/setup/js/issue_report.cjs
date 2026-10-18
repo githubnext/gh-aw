@@ -1,9 +1,13 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { renderReport } = require("./report_ast.cjs");
+const reportAST = require("./report_ast.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+
+// Reuse only this boundary's unchanged output, never caller-supplied lookalikes.
+/** @type {WeakMap<object, {title: string, body: string}>} */
+const renderedIssues = new WeakMap();
 
 /**
  * Import existing issue Markdown at the publication boundary. Metadata is opt-in
@@ -24,9 +28,11 @@ function buildIssueReport(title, body, { allowedMentions = [] } = {}) {
  * @returns {T & {title: string, body: string}}
  */
 function renderIssueParameters(parameters, report = buildIssueReport(parameters.title, parameters.body ?? "")) {
-  const rendered = renderReport(report);
+  const rendered = reportAST.renderReport(report);
   if (rendered.body.length > 65536) throw new Error(`${ERR_VALIDATION}: Issue body exceeds GitHub's maximum length of 65536 characters including attribution`);
-  return { ...parameters, ...rendered };
+  const result = { ...parameters, ...rendered };
+  renderedIssues.set(result, rendered);
+  return result;
 }
 
 /**
@@ -36,6 +42,10 @@ function renderIssueParameters(parameters, report = buildIssueReport(parameters.
  * @param {import("./report_ast.cjs").Report} [report]
  */
 function createReportIssue(client, parameters, report) {
+  const rendered = renderedIssues.get(parameters);
+  if (!report && rendered && rendered.title === parameters.title && rendered.body === parameters.body) {
+    return client.rest.issues.create(parameters);
+  }
   return client.rest.issues.create(renderIssueParameters(parameters, report));
 }
 

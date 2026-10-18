@@ -18,32 +18,40 @@ const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 const { getEffectiveModelLabel, resolveEffectiveModel, validateModelIdentifier } = require("./model_attribution.cjs");
 const { currentClaimHandle, claimIdentity } = require("./work_queue_claim_scope.cjs");
-const { renderReport } = require("./report_ast.cjs");
+const reportAST = require("./report_ast.cjs");
 
-function getWorkQueueClaimFooter() {
+/** @typedef {string | import("./report_ast.cjs").ReportBlock} FooterPart */
+
+/** @returns {import("./report_ast.cjs").ReportBlock[]} */
+function buildWorkQueueClaimFooter() {
   const handle = currentClaimHandle();
-  if (!handle) return "";
+  if (!handle) return [];
   const { work_id, claim_id } = claimIdentity(handle);
-  return renderReport({
-    type: "report",
-    title: "Work queue attribution",
-    children: [
-      {
-        type: "quote",
-        children: [
-          {
-            type: "paragraph",
-            children: [
-              { type: "text", value: "Work " },
-              { type: "code", value: work_id },
-              { type: "text", value: " · Claim " },
-              { type: "code", value: claim_id },
-            ],
-          },
-        ],
-      },
-    ],
-  }).body.trimEnd();
+  return [
+    {
+      type: "quote",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            { type: "text", value: "Work " },
+            { type: "code", value: work_id },
+            { type: "text", value: " · Claim " },
+            { type: "code", value: claim_id },
+          ],
+        },
+      ],
+    },
+  ];
+}
+
+/**
+ * Compatibility renderer for string-only, non-issue publishers.
+ * Issue documents consume the parts directly without rendering fragments.
+ * @param {FooterPart[]} parts
+ */
+function renderFooterParts(parts) {
+  return parts.map(part => (typeof part === "string" ? part : reportAST.renderReport({ type: "report", title: "Footer", children: [part] }).body.trimEnd())).join("");
 }
 
 /**
@@ -206,6 +214,15 @@ function getAICFromEnv() {
  * @returns {string} Footer message
  */
 function getFooterMessage(ctx) {
+  return renderFooterParts(getFooterMessageParts(ctx));
+}
+
+/**
+ * Keep programmatic attribution as nodes until the complete document is rendered.
+ * @param {FooterContext} ctx
+ * @returns {FooterPart[]}
+ */
+function getFooterMessageParts(ctx) {
   const messages = getMessages();
 
   const {
@@ -286,16 +303,17 @@ function getFooterMessage(ctx) {
       if (hints) hints += "\n";
       hints += `> <sub>Add label <em>{label_command}</em> to run again</sub>`;
     }
-    const renderedHints = [getWorkQueueClaimFooter(), renderTemplate(hints, templateContext)].filter(Boolean).join("\n");
-    if (!renderedHints) return "";
+    const claim = buildWorkQueueClaimFooter();
+    const renderedHints = renderTemplate(hints, templateContext);
+    if (!claim.length && !renderedHints) return [];
     const separator = renderedFooter && !renderedFooter.endsWith("\n") ? "\n" : "";
-    return separator + renderedHints;
+    return [separator, ...claim, ...(claim.length && renderedHints ? ["\n"] : []), renderedHints];
   };
 
   // Use custom footer template if configured
   if (messages?.footer) {
     const renderedCustomFooter = renderTemplate(messages.footer, templateContext);
-    return renderedCustomFooter + getFooterHints(renderedCustomFooter);
+    return [renderedCustomFooter, ...getFooterHints(renderedCustomFooter)];
   }
 
   // Default footer template - includes emoji prefix when available
@@ -320,7 +338,7 @@ function getFooterMessage(ctx) {
     defaultFooter += " · [◷]({history_url})";
   }
   const renderedDefaultFooter = renderTemplate(defaultFooter, templateContext);
-  return renderedDefaultFooter + getFooterHints(renderedDefaultFooter);
+  return [renderedDefaultFooter, ...getFooterHints(renderedDefaultFooter)];
 }
 
 /**
@@ -739,6 +757,22 @@ function getAgenticWorkflowMetadata(workflowName, runUrl) {
  * @returns {string} Complete footer text
  */
 function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options) {
+  return renderFooterParts(buildGeneratedFooterParts(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options));
+}
+
+/**
+ * @param {string} workflowName
+ * @param {string} runUrl
+ * @param {string} workflowSource
+ * @param {string} workflowSourceURL
+ * @param {number|undefined} triggeringIssueNumber
+ * @param {number|undefined} triggeringPRNumber
+ * @param {number|undefined} triggeringDiscussionNumber
+ * @param {string|null|undefined} [historyUrl]
+ * @param {GenerateFooterOptions} [options]
+ * @returns {FooterPart[]}
+ */
+function buildGeneratedFooterParts(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options) {
   // Determine triggering number (issue takes precedence, then PR, then discussion)
   let triggeringNumber;
   /** @type {"issue"|"PR"|"discussion"|undefined} */
@@ -815,29 +849,29 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     // ignore errors so the rest of the footer is always preserved
   }
 
-  // Attribution footer line comes after any guard notices
   // Attribution footer line comes after any guard notices. Only add the separating
   // blank line when guard notices are present, otherwise the footer would start with
   // stray blank lines that render as a large gap after the body.
-  let footer = guardNotices ? guardNotices.trim() + "\n\n" + getFooterMessage(ctx) : getFooterMessage(ctx);
+  const parts = [...(guardNotices ? [guardNotices.trim() + "\n\n"] : []), ...getFooterMessageParts(ctx)];
+  let suffix = "";
 
   // Add installation instructions if source is available
   const installMessage = getFooterInstallMessage(ctx);
   if (installMessage) {
-    footer += "\n>\n" + installMessage;
+    suffix += "\n>\n" + installMessage;
   }
 
   // Add missing tools and data sections if available
   const missingInfoSections = getMissingInfoSections();
   if (missingInfoSections) {
-    footer += missingInfoSections;
+    suffix += missingInfoSections;
   }
 
   // Add XML comment marker for traceability
-  footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+  suffix += "\n\n" + generateXMLMarker(workflowName, runUrl);
 
-  footer += "\n";
-  return footer;
+  parts.push(suffix + "\n");
+  return parts;
 }
 
 module.exports = {
@@ -852,5 +886,6 @@ module.exports = {
   getAgenticWorkflowMetadata,
   getFooterAgentFailureCommentMessage,
   generateFooterWithMessages,
+  buildGeneratedFooterParts,
   generateXMLMarker,
 };
