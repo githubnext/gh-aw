@@ -223,6 +223,56 @@ describe("native queue launch fencing and conservative recovery", () => {
     expect(reconciliationCandidates({ dispatches }, "default", 1, 1)).toHaveLength(1);
   });
 
+  it("retains released pending keep-open barriers after Work ownership changes", () => {
+    const retained = {
+      dispatch_id: "retained",
+      pool: "default",
+      state: "bound",
+      run: { run_id: "42" },
+      released: true,
+      claims: [{ claim_id: "original", work_id: "work", handle: "h1" }],
+    };
+    const ordinary = {
+      dispatch_id: "ordinary",
+      pool: "default",
+      state: "bound",
+      run: { run_id: "43" },
+      released: true,
+      claims: [{ claim_id: "old", work_id: "other", handle: "h2" }],
+    };
+    const projection = {
+      dispatches: new Map([
+        [retained.dispatch_id, retained],
+        [ordinary.dispatch_id, ordinary],
+      ]),
+      claims: new Map([
+        ["original", { state: "completed", keep_open: true, barrier: "pending" }],
+        ["old", { state: "completed", barrier: "pending" }],
+      ]),
+      works: new Map([
+        ["work", { claim_id: "regrant", barrier: "pending" }],
+        ["other", { claim_id: "new-owner", barrier: "pending" }],
+      ]),
+    };
+
+    expect(reconciliationCandidates(projection, "default", 16)).toEqual([retained]);
+  });
+
+  it.each([undefined, false])("does not run delivery expiry from reconciliation when opt-in is %s", async expireUnverified => {
+    const { fixture, options } = setup({ bound: true, count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    const finalizer = require("./finish_work_queue_claim.cjs");
+    const finalize = vi.spyOn(finalizer, "finalizeWorkerResults");
+    try {
+      await reconcileQueue({ ...options, ...(expireUnverified === undefined ? {} : { expireUnverified }) });
+      expect(finalize).not.toHaveBeenCalled();
+      expect(fixture.state.works.get(member.work_id).barrier).toBe("pending");
+    } finally {
+      finalize.mockRestore();
+    }
+  });
+
   it("rotates bounded reconciliation sweeps so every outstanding dispatch is revisited", () => {
     const dispatches = new Map(
       Array.from({ length: 17 }, (_, index) => {

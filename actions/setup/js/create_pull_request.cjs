@@ -2507,7 +2507,7 @@ ${issueSafeFallbackFooter}`;
           throw new Error(`Pull request body exceeds GitHub's maximum length of ${MAX_GITHUB_BODY_LENGTH} characters`);
         }
         transport.assertUnchanged();
-        const preparedDelivery = await preparePullRequestDelivery(exec, baseBranch);
+        const preparedDelivery = await preparePullRequestDelivery(exec, baseBranch, defaultBaseBranch);
         const { data: pullRequest } = await createOrUpdatePullRequest({
           assertTransportUnchanged: transport.assertUnchanged,
           githubClient,
@@ -2767,6 +2767,7 @@ ${issueSafeFallbackFooter}`;
             headRepository: pushRepo,
             branch: branchName,
             baseBranch,
+            transportBaseBranch: defaultBaseBranch,
             title,
             body,
             draft,

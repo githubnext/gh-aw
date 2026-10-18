@@ -26,7 +26,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { parseIntTemplatable } = require("./templatable.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const { getDefaultTargetRepo, parseRepoSlug } = require("./repo_helpers.cjs");
-const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile, writeSafeOutputErrorReport } = require("./safe_output_manifest.cjs");
+const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile, writeSafeOutputErrorReport, SAFE_OUTPUT_ERRORS_FILE_PATH, CLAIM_DELIVERY_ERRORS_FILE_NAME } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
@@ -1860,10 +1860,11 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
  * report must never mask the original failure, so errors are swallowed.
  *
  * @param {{errorCode?: string, message?: string, failures?: Array<{type?: string, errorCode?: string, error?: string}>}} report
+ * @param {string} [filePath]
  */
-function recordSafeOutputFailure(report) {
+function recordSafeOutputFailure(report, filePath) {
   try {
-    writeSafeOutputErrorReport({ status: "failure", ...report });
+    writeSafeOutputErrorReport({ status: "failure", ...report }, filePath);
   } catch (error) {
     core.warning(`Failed to write safe output error report: ${getErrorMessage(error)}`);
   }
@@ -2029,6 +2030,28 @@ async function main(options = {}) {
     const cancelled = states.filter(state => state === "cancelled").length;
     const outcome = isStagedMode() ? "staged_preview" : !settled ? "delivery_pending" : cancelled === states.length ? "cancelled" : cancelled ? "completed_with_cancellations" : "completed";
     core.setOutput("work_queue_outcome", outcome);
+    if (!isStagedMode()) {
+      for (const settlement of settlements) {
+        const result = finalized?.claims?.[settlement.claim_handle];
+        if (["result", "cancelled"].includes(result?.state)) continue;
+        await withClaimExecution({ ...scope, claim_handle: settlement.claim_handle, authorize: options.authorize }, () =>
+          recordSafeOutputFailure(
+            {
+              errorCode: "claim_delivery_unverified",
+              message: `Claim delivery state: ${result?.state || "pending"}; effects: ${result?.effects || "unknown"}`,
+              failures: [
+                {
+                  type: "claim_delivery",
+                  errorCode: result?.reason || (result?.state === "delivery_failed" ? "delivery_failed" : "verification_unresolved"),
+                  error: settlement.delivery?.reason || settlement.error || "Independent delivery verification is unavailable",
+                },
+              ],
+            },
+            nodePath.join(nodePath.dirname(SAFE_OUTPUT_ERRORS_FILE_PATH), CLAIM_DELIVERY_ERRORS_FILE_NAME)
+          )
+        );
+      }
+    }
     if (rejected.length) {
       core.setOutput("claim_scope_errors", JSON.stringify(rejected));
       core.setFailed(`${rejected.length} safe-output message(s) have invalid Claim scope`);
@@ -2037,7 +2060,7 @@ async function main(options = {}) {
       core.setFailed("One or more Claim-scoped safe-output passes failed; independently valid siblings were reconciled");
     }
     if (!isStagedMode() && !settled) {
-      core.setFailed("One or more Claim deliveries remain unverified; inspect claim_results and the queue ledger before retrying. Independently valid siblings were reconciled");
+      core.setFailed("One or more Claim deliveries remain unverified; inspect the safe-outputs-items Claim diagnostics and the queue ledger before retrying. Independently valid siblings were reconciled");
     }
     return { settlements, rejected };
   }

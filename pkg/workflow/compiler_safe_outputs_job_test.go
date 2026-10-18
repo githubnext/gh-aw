@@ -1020,6 +1020,22 @@ func TestJobOutputs(t *testing.T) {
 	assert.Equal(t, "${{ steps.process_safe_outputs.outputs.status }}", job.Outputs["process_safe_outputs_status"])
 }
 
+func TestWorkQueueOutcomeOutputIsWorkerOnly(t *testing.T) {
+	for _, worker := range []bool{false, true} {
+		outputs := map[string]string{}
+		addConditionalHandlerManagerOutputs(&WorkflowData{
+			SafeOutputs: &SafeOutputsConfig{},
+			Tools:       map[string]any{"work-queue": map[string]any{"worker": worker}},
+		}, outputs)
+		if worker {
+			assert.Equal(t, "${{ steps.process_safe_outputs.outputs.work_queue_outcome }}", outputs["work_queue_outcome"])
+		} else {
+			assert.NotContains(t, outputs, "work_queue_outcome")
+		}
+		assert.NotContains(t, outputs, "claim_results", "raw handler results must not become job outputs")
+	}
+}
+
 // TestJobDependencies tests that job dependencies are correctly set
 func TestJobDependencies(t *testing.T) {
 	tests := []struct {
@@ -1818,6 +1834,7 @@ func TestSafeOutputClaimArtifactsRequireWorkerAndSuccessfulRedaction(t *testing.
 				require.Contains(t, content, "/tmp/gh-aw/claims/*/safe-output-items.jsonl")
 				require.Contains(t, content, "/tmp/gh-aw/claims/*/temporary-id-map.json")
 				require.Contains(t, content, "/tmp/gh-aw/claims/*/safe-output-errors.json")
+				require.Contains(t, content, "/tmp/gh-aw/claims/*/claim-delivery-errors.json")
 				require.Contains(t, content, "id: redact_secrets")
 				require.Contains(t, content, "steps.redact_secrets.outcome == 'success'")
 				require.Contains(t, content, "SECRET_PRIVATE_TOKEN: ${{ secrets.PRIVATE_TOKEN }}")
