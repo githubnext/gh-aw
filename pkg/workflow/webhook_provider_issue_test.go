@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -66,10 +67,21 @@ func TestProviderIssueExperimentalNotice(t *testing.T) {
 			require.NoError(t, err)
 			var output bytes.Buffer
 			NewCompiler().emitExperimentalFeatureWarningsTo(&WorkflowData{WebhookSubscriptions: subscriptions}, &output)
-			assert.Contains(t, output.String(), "external issue provider triggers")
+			assert.Contains(t, output.String(), "Using experimental feature: on."+alias+" (approved webhook bridge required)")
 			assert.NotContains(t, output.String(), "on.security-alerts")
 			assert.Equal(t, event, subscriptions[0].Event)
 		})
+	}
+	on := map[string]any{"webhook-gateway": true}
+	for alias := range providerIssueTriggers {
+		on[alias] = providerIssueOn(alias, map[string]any{})[alias]
+	}
+	subscriptions, err := ParseWebhookSubscriptions(on, "all-providers")
+	require.NoError(t, err)
+	var output bytes.Buffer
+	NewCompiler().emitExperimentalFeatureWarningsTo(&WorkflowData{WebhookSubscriptions: subscriptions}, &output)
+	for alias := range providerIssueTriggers {
+		assert.Equal(t, 1, strings.Count(output.String(), "Using experimental feature: on."+alias+" ("))
 	}
 }
 
@@ -210,6 +222,7 @@ func TestProviderIssueCatalogNativeMappings(t *testing.T) {
 		t.Run(alias, func(t *testing.T) {
 			definition := catalog[event]
 			require.NotEmpty(t, definition.Provider)
+			assert.True(t, strings.HasPrefix(definition.Description, "Experimental. "), "every provider catalog description must mark its trigger experimental")
 			assert.Len(t, definition.NativeEvents, len(definition.Actions))
 			for _, activity := range definition.Actions {
 				require.NotEmpty(t, definition.NativeEvents[activity], "every activity must identify a real provider event")
