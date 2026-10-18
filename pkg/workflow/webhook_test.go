@@ -161,7 +161,11 @@ func TestWebhookCatalogIntegrity(t *testing.T) {
 		}
 	}
 	for name, event := range catalog {
-		if !strings.HasPrefix(event.Source, "https://docs.github.com/") || event.Description == "" || len(event.Availability) == 0 {
+		authority := map[string]string{
+			"": "https://docs.github.com/", "jira": "https://developer.atlassian.com/",
+			"linear": "https://linear.app/developers/", "azure-devops": "https://learn.microsoft.com/en-us/azure/devops/",
+		}[event.Provider]
+		if authority == "" || !strings.HasPrefix(event.Source, authority) || event.Description == "" || len(event.Availability) == 0 {
 			t.Errorf("missing provenance/availability for %s", name)
 		}
 		for filter, spec := range event.Filters {

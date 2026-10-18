@@ -11,6 +11,8 @@ import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json'
 
 Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. General `on.webhook` registration and `on.webhook-auth` are not supported.
 
+External issue subscriptions use `on.jira-issue`, `on.linear-issue`, or `on.azure-devops-issue` with the same opt-ins and dispatch authorization. Their normalized activities, provider authentication requirements, and transition-evidence limitations are documented in [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/). The GitHub event and payload details below apply to Projects and security alerts.
+
 > [!WARNING]
 > Webhook gateway triggers and their options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
 
@@ -126,7 +128,7 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 
 ### Subscription properties
 
-`projects-items` and `security-alerts` can coexist inside one `on` mapping with a shared `webhook-gateway: true` flag. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Each uses the original GitHub event name. No other webhook events can be registered through frontmatter.
+`projects-items`, `security-alerts`, and the three external issue provider triggers can coexist inside one `on` mapping with a shared `webhook-gateway: true` flag. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Each GitHub subscription uses the original GitHub event name; external issues use the normalized provider families documented separately. No arbitrary webhook events can be registered through frontmatter.
 
 | Property | Required | Description |
 | --- | --- | --- |
@@ -201,8 +203,11 @@ Each compiled `.lock.yml` embeds the normalized subscriptions in the `webhook_su
 | Field | Meaning |
 | --- | --- |
 | `schema_version` | Contract version; currently `2` (batched transport). Version 1 singleton contracts are not accepted. |
-| `event` | Original GitHub webhook event name, corresponding to `X-GitHub-Event`. |
-| `types` | Allowed original payload activity types. An empty array means the event has no activity types. |
+| `event` | Original GitHub webhook event name, or the normalized external issue provider family. |
+| `types` | Allowed original GitHub payload activities or normalized external issue activities. An empty array means the event has no activity types. |
+| `provider` | External issues only: `jira`, `linear`, or `azure-devops`. |
+| `native_events` | External issues only: native provider events/actions required by the selected normalized activities. |
+| `activity_normalization` | External issues only: versioned policy and optional Azure `closed_states`; see the provider reference. |
 | `repos` | Optional top-level source repository selector array for security alerts, lowercased, sorted, and deduplicated. Absent when omitted in frontmatter; never an implicit global wildcard or dispatch destination. |
 | `conditions` | Array of typed equality conditions. All must match. |
 | `conditions[].filter` | Human-readable catalog alias, such as `field.to.name`. |
@@ -333,6 +338,8 @@ The normal pre-activation membership check authorizes that dispatch actor. Webho
 The runner's JSON event file, identified by `GITHUB_EVENT_PATH`, contains the complete dispatch batch. It is not replaced or rewritten during deduplication. The normalized context is stored as `context` in `/tmp/gh-aw/aw_info.json` and propagated to compiler-managed child workflows. Prompt expressions can use `${{ toJSON(github.aw.context.items) }}` and `${{ github.aw.context.webhook.event }}`; delivery bodies remain file data rather than automatically allowlisted prompt expressions.
 
 `items` contains unique affected resources, not an arbitrary first event. Each element has `item_type` (the original webhook name), string `item_number` (project item database ID or alert number), and `repo` (source repository full name, empty when absent for project events). Projects items also have `project_id` (project node ID, empty when absent). Security items include `url`; their repository and alert number are derived from that URL, never from a forwarded alert body. Project item identity uses its database ID; alert identity uses the webhook source, case-insensitive source repository, and repository-scoped alert number. Different alert numbers or repositories remain separate. Sender-supplied `items` are replaced by this derived array. Scalar `item_type`/`item_number`/comment targets remain empty for batches; handlers and safe outputs must target each intended resource explicitly.
+
+External issue items instead use the normalized provider family as `item_type`, an immutable provider ID as `item_number`, an explicit source namespace, and empty `repo`. See [provider identity and normalization](/gh-aw/reference/provider-issue-triggers/#manifest-and-batch-context) for the source boundaries and supported transition evidence.
 
 For an authenticated dispatch on the generated webhook route, the agent job stages the original event at `/tmp/gh-aw/github-event.json` and `$RUNNER_TEMP/gh-aw/github-event.json` with file mode `0600` for supported sandbox mount layouts. NVX includes the event in its existing temporary guest-state handoff. A conditional prompt identifies both the raw batch and the normalized context, instructs the agent to handle every item, and marks payloads as untrusted. Native triggers and unrelated dispatch routes do not stage webhook files. Raw webhook bodies are omitted from generated metadata logs and unified-session caller-context logs; they remain in runner context files and any workflow artifacts carrying those files, not in the repository.
 

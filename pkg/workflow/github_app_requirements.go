@@ -228,6 +228,9 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	}
 	events := make([]string, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
+		if subscription.Provider != "" {
+			continue
+		}
 		if (name == "projects-items") == (subscription.Event == "projects_v2_item") {
 			events = append(events, subscription.Event)
 		}

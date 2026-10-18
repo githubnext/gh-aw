@@ -2,6 +2,7 @@
 
 const { isDeepStrictEqual } = require("node:util");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { isProviderIssueEvent, resolveProviderIssueItem } = require("./provider_issue_webhook.cjs");
 
 const WEBHOOK_SCHEMA_VERSION = 2;
 const WEBHOOK_EVENTS = new Set(["projects_v2_item", "code_scanning_alert", "dependabot_alert"]);
@@ -57,6 +58,9 @@ function resolveSecurityAlertItem(event, payload, env) {
 }
 
 function resolveWebhookItem(event, payload, env) {
+  if (isProviderIssueEvent(event)) {
+    return resolveProviderIssueItem(event, payload);
+  }
   if (event === "projects_v2_item") {
     const item = payload.projects_v2_item;
     if (!isObject(item)) {
@@ -79,14 +83,14 @@ function resolveWebhookItem(event, payload, env) {
  *
  * @param {any} awContext
  * @param {NodeJS.ProcessEnv} [env]
- * @returns {{webhook: {event: string, deliveries: {delivery_id: string, payload: any}[]}, items: {item_type: string, item_number: string, repo: string, project_id?: string, url?: string}[]} | null}
+ * @returns {{webhook: {event: string, deliveries: {delivery_id: string, payload: any}[]}, items: {item_type: string, item_number: string, repo: string, project_id?: string, url?: string, source?: string}[]} | null}
  */
 function normalizeWebhookContext(awContext, env = process.env) {
   if (!isObject(awContext) || !Object.hasOwn(awContext, "webhook")) {
     return null;
   }
   const webhook = awContext.webhook;
-  if (!isObject(webhook) || !WEBHOOK_EVENTS.has(webhook.event)) {
+  if (!isObject(webhook) || (!WEBHOOK_EVENTS.has(webhook.event) && !isProviderIssueEvent(webhook.event))) {
     reject("aw_context.webhook.event must be a supported webhook event");
   }
   if (Object.keys(webhook).some(key => !["event", "deliveries"].includes(key))) {
@@ -113,7 +117,8 @@ function normalizeWebhookContext(awContext, env = process.env) {
       reject("duplicate webhook delivery_id has conflicting payloads");
     }
     if (!prior) deliveries.set(delivery.delivery_id, { delivery_id: delivery.delivery_id, payload: delivery.payload });
-    const identity = JSON.stringify([item.item_type, item.item_type === "projects_v2_item" ? "" : item.repo.toLowerCase(), item.item_number]);
+    const source = "source" in item ? item.source : item.repo.toLowerCase();
+    const identity = JSON.stringify([item.item_type, item.item_type === "projects_v2_item" ? "" : source, item.item_number]);
     if (!items.has(identity)) items.set(identity, item);
   }
   return { webhook: { event: webhook.event, deliveries: [...deliveries.values()] }, items: [...items.values()] };

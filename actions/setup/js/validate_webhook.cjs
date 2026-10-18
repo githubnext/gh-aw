@@ -5,6 +5,7 @@ const fs = require("fs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
+const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
 const MAX_DISPATCH_REQUEST_BYTES = 65535;
@@ -85,7 +86,8 @@ function validateWebhook(event, env = process.env) {
         subscription.schema_version === WEBHOOK_SCHEMA_VERSION &&
         Array.isArray(subscription.types) &&
         subscription.types.every(isNonemptyString) &&
-        hasValidRepositorySelectors(subscription)
+        hasValidRepositorySelectors(subscription) &&
+        (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription))
     )
   ) {
     reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions");
@@ -130,7 +132,11 @@ function validateWebhook(event, env = process.env) {
     reject("security alert source repository does not match the subscription repos");
   }
   for (const delivery of normalized.webhook.deliveries) {
-    if (delivery.payload.action !== undefined && subscription.types.length > 0 && !subscription.types.includes(delivery.payload.action)) {
+    if (isProviderIssueEvent(subscription.event)) {
+      if (!matchesProviderIssueSubscription(subscription, delivery.payload)) {
+        reject("provider issue activity does not match the subscription types or native events");
+      }
+    } else if (delivery.payload.action !== undefined && subscription.types.length > 0 && !subscription.types.includes(delivery.payload.action)) {
       reject("webhook payload action does not match the subscription types");
     }
   }
