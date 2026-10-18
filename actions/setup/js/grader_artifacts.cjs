@@ -1,0 +1,85 @@
+// @ts-check
+
+const fs = require("fs");
+const path = require("path");
+const { computeGraders, buildGradersSummaryBody } = require("./trace_graders.cjs");
+const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
+
+/** @returns {any[]} */
+function readGraderEnvironment() {
+  const prefix = "GH_AW_GRADER_MANIFEST";
+  const countText = process.env[`${prefix}_CHUNKS`];
+  if (countText === undefined) return [];
+  const count = Number(countText);
+  if (!Number.isSafeInteger(count) || count < 1 || count > 10000) throw new Error(`invalid ${prefix}_CHUNKS`);
+  const chunks = [];
+  for (let index = 0; index < count; index++) {
+    const chunk = process.env[`${prefix}_${index}`];
+    if (chunk === undefined) throw new Error(`missing ${prefix}_${index}`);
+    chunks.push(chunk);
+  }
+  try {
+    const manifest = JSON.parse(chunks.join(""));
+    if (!manifest || !Array.isArray(manifest.graders)) throw new Error("expected a graders array");
+    return manifest.graders;
+  } catch (error) {
+    throw new Error("cannot parse grader manifest configuration", { cause: error });
+  }
+}
+
+/**
+ * Persistence boundary, not a grader: computation receives only the supplied log.
+ * @param {import("./types/unified_session").UnifiedSession} session
+ * @param {string} usageDirectory
+ * @param {any[]} graders
+ * @returns {import("./types/unified_session").UnifiedSession}
+ */
+function writeGraderArtifacts(session, usageDirectory, graders) {
+  const { manifest, output } = computeGraders(session, graders);
+  const directory = path.join(usageDirectory, "graders");
+  try {
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, "grader_manifest.json"), JSON.stringify(manifest, null, 2), { mode: 0o600 });
+    fs.writeFileSync(path.join(directory, "grader_results.json"), JSON.stringify(output, null, 2), { mode: 0o600 });
+  } catch (error) {
+    throw new Error(`cannot persist grader results in ${directory}`, { cause: error });
+  }
+  /** @type {Array<{type: "grader.manifest" | "grader.result", data: Record<string, any>, file: string}>} */
+  const records = [
+    { type: "grader.manifest", data: manifest, file: "grader_manifest.json" },
+    { type: "grader.result", data: output, file: "grader_results.json" },
+  ];
+  const events = records.map(({ type, data, file }) => ({
+    ...normalizeUnifiedSessionEvent({ type, data }, "conclusion"),
+    provenance: { component: "grader", phase: "conclusion", path: `usage/graders/${file}`, index: 0 },
+  }));
+  const previous = session.filter(event => event.type.startsWith("grader."));
+  const collected = session
+    .filter(event => !event.type.startsWith("grader."))
+    .map(event => {
+      if (event.type !== "session.collection") return event;
+      return {
+        ...event,
+        data: {
+          ...event.data,
+          sources: [...(Array.isArray(event.data.sources) ? event.data.sources : []).filter(source => source.component !== "grader"), ...events.map(({ provenance: { component, phase, path } }) => ({ component, phase, path, events: 1 }))],
+          absentComponents: (Array.isArray(event.data.absentComponents) ? event.data.absentComponents : []).filter(component => component !== "grader"),
+          untimedEvents: (typeof event.data.untimedEvents === "number" ? event.data.untimedEvents : 0) - previous.filter(event => event.timestamp === undefined).length + events.length,
+        },
+      };
+    });
+  return [...collected, ...events];
+}
+
+/** @param {import("./types/unified_session").UnifiedSession} session */
+async function publishGraderSummary(session) {
+  const results = session.find(event => event.type === "grader.result")?.data.results;
+  if (!Array.isArray(results)) return;
+  for (const result of results) {
+    if (result.error) global.core.warning(`Grader ${result.id}: ${result.error}`);
+  }
+  global.core.summary.addDetails("Graders", buildGradersSummaryBody(results));
+  await global.core.summary.write({ overwrite: false });
+}
+
+module.exports = { readGraderEnvironment, writeGraderArtifacts, publishGraderSummary };

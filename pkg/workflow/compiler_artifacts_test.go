@@ -603,9 +603,7 @@ permissions:
   contents: read
 engine: copilot
 strict: false
-graders:
-  custom:
-    script: return 1
+graders: {}
 safe-outputs:
   create-issue:
 ---
@@ -654,8 +652,6 @@ Body.
 		"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
 		"/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl",
 		constants.AWFResolvedConfigFilePath.String(),
-		"/tmp/gh-aw/agent/graders/grader_manifest.json",
-		"/tmp/gh-aw/agent/graders/grader_results.json",
 		"if-no-files-found: ignore",
 		"continue-on-error: true",
 	} {
@@ -663,9 +659,7 @@ Body.
 			t.Errorf("Expected %q in fallback upload step, got:\n%s", expected, uploadSection)
 		}
 	}
-	if strings.Contains(uploadSection, constants.OperationalValueEvaluatorFilename.String()) {
-		t.Errorf("Fallback upload must not include an operational-value evaluator for inline-only graders, got:\n%s", uploadSection)
-	}
+	assert.NotContains(t, uploadSection, "/graders/")
 
 	// The fallback artifact must be uploaded before the (large, failure-prone) agent artifact.
 	uploadIdx := strings.Index(lockYAML, "- name: Upload agent output fallback artifact")
@@ -698,9 +692,7 @@ engine: copilot
 strict: false
 runner:
   topology: arc-dind
-graders:
-  custom:
-    script: return 1
+graders: {}
 safe-outputs:
   create-issue:
 ---
@@ -730,7 +722,6 @@ safe-outputs:
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl",
 		"${{ runner.temp }}/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl",
 		"${{ runner.temp }}/gh-aw/awf-resolved-config.json",
-		"${{ runner.temp }}/gh-aw/agent/graders/grader_manifest.json",
 	} {
 		assert.Contains(t, uploadSection, expected)
 	}

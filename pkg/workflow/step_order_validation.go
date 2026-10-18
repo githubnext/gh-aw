@@ -252,9 +252,7 @@ func isUnderSecretRedactionRoot(artifactPath string) bool {
 // that is NOT text-scanned by the redact_secrets step, but is nevertheless explicitly
 // permitted in artifact uploads.
 //
-// In addition to binary git bundles, the archived operational-value evaluator is
-// allowed because the compiler freezes its trusted repository bytes and records
-// their digest for replay. Redacting that archive would invalidate its provenance.
+// Binary git bundles are not text-scanned.
 func isKnownUnscannedButAllowedForUpload(artifactPath string) bool {
 	normalizedPath, _ := normalizeArtifactPathForRedaction(artifactPath)
 	isUnderGhAwDir := isUnderSecretRedactionRoot(normalizedPath) ||
@@ -262,6 +260,5 @@ func isKnownUnscannedButAllowedForUpload(artifactPath string) bool {
 	if !isUnderGhAwDir {
 		return false
 	}
-	operationalValueEvaluatorPath, _ := normalizeArtifactPathForRedaction(constants.GradersDirSlash + constants.OperationalValueEvaluatorFilename.String())
-	return path.Ext(normalizedPath) == ".bundle" || normalizedPath == operationalValueEvaluatorPath
+	return path.Ext(normalizedPath) == ".bundle"
 }

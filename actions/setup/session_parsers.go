@@ -10,6 +10,7 @@ import "embed"
 //go:embed js/schema-validation.cjs js/json_schema_validation.cjs js/memory_schema_contract.cjs
 //go:embed js/skill_inventory.cjs
 //go:embed js/unified_session_order.cjs js/unified_session_otel.cjs
+//go:embed js/trace_graders.cjs js/grader_session.cjs js/grader_artifacts.cjs js/trajectory_graders.cjs js/builtin_graders.json js/working_set_metrics.cjs
 //go:embed js/workflow_job_durations.cjs
 //go:embed js/mcp_configuration.cjs js/symlink_guard.cjs
 //go:embed js/mcp_rate_limit.cjs

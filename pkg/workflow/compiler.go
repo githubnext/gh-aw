@@ -120,10 +120,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 
-	if err := c.prepareOperationalValueGrader(workflowData, markdownPath); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
-	}
-
 	if err := validateRepoMemoryLedgerIsolation(workflowData); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}

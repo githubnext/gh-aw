@@ -18,8 +18,10 @@ These rules override conflicting upstream guidance.
   uses `${{ github.token }}` for inference, without a PAT or `COPILOT_GITHUB_TOKEN`.
 - Before inventing workflow/shared-component/tool/safe-output patterns, inspect
   `https://github.com/gm3dmo/the-power` through GitHub APIs or `gh` for prior art.
-- Before finalizing an `operational-value` grader, use `/operational-value-designer`
-  to derive its contract from the target workflow.
+- Graders are reviewed built-ins that compute only over the in-memory unified
+  session in conclusion. Never add custom `script`, `run`, or `operational-value`
+  graders. Use `/operational-value-designer` to define outcome evidence before
+  proposing a new pure built-in.
 
 ## Repository-Wide Debugging and Optimization
 

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -11,22 +10,19 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
-	"github.com/github/gh-aw/pkg/gitutil"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/workflow"
 )
 
 type extractedResource struct {
-	path              string
-	isGraderEvaluator bool
+	path string
 }
 
 type resourceDownloader func(ctx context.Context, owner, repo, filePath, ref string) ([]byte, error)
 
 // extractResourceEntries extracts file paths from the top-level "resources" frontmatter
-// field and validated grader evaluator paths.
+// field.
 // Returns an error if any entry contains GitHub Actions expression syntax (e.g. "${{"),
 // since macros are not permitted in resource paths.
 func extractResourceEntries(content string) ([]extractedResource, error) {
@@ -55,20 +51,6 @@ func extractResourceEntries(content string) ([]extractedResource, error) {
 		}
 	}
 
-	graders, err := workflow.ParseGradersFromFrontmatter(result.Frontmatter)
-	if err != nil {
-		return nil, err
-	}
-	if graders != nil {
-		// Include evaluator paths even for disabled graders so package resources stay
-		// complete and gh aw update can restore them if the grader is later re-enabled.
-		for _, grader := range graders.Graders {
-			if grader != nil && grader.Run != "" {
-				resources = append(resources, extractedResource{path: grader.Run, isGraderEvaluator: true})
-			}
-		}
-	}
-
 	// Reject entries that contain GitHub Actions expression syntax — macros are not allowed.
 	unique := make([]extractedResource, 0, len(resources))
 	seen := make(map[string]int, len(resources))
@@ -77,8 +59,7 @@ func extractResourceEntries(content string) ([]extractedResource, error) {
 		if strings.Contains(p, "${{") {
 			return nil, fmt.Errorf("resources entry %q contains GitHub Actions expression syntax (${{) which is not allowed; use static paths only", p)
 		}
-		if existingIndex, exists := seen[p]; exists {
-			unique[existingIndex].isGraderEvaluator = unique[existingIndex].isGraderEvaluator || resource.isGraderEvaluator
+		if _, exists := seen[p]; exists {
 			continue
 		}
 		seen[p] = len(unique)
@@ -136,7 +117,6 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 
 	// Resources are resolved relative to the source workflow's directory in the remote repo.
 	workflowBaseDir := getParentDir(spec.WorkflowPath)
-	var gitRoot string
 
 	for _, resource := range resourcePaths {
 		resourcePath := resource.path
@@ -149,22 +129,8 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 			continue
 		}
 
-		// Resolve the remote file path. Explicitly local grader evaluators follow ordinary
-		// resource behavior; workspace-relative grader evaluators install at their exact
-		// repository-relative run path.
 		var remoteFilePath string
-		isRepoRootAnchoredGraderEvaluator := resource.isGraderEvaluator && !strings.HasPrefix(resourcePath, "./")
-		if isRepoRootAnchoredGraderEvaluator {
-			// Repository-root anchored evaluators are resolved from the repository root,
-			// not the declaring package's directory: the ".github/workflows" convention
-			// still maps onto the workflow's own directory (which may itself live under a
-			// package), but any other repository-root path (e.g. ".github/graders/...")
-			// must be fetched from the true repository root regardless of package nesting.
-			remoteFilePath = resourcePath
-			if strings.HasPrefix(remoteFilePath, constants.WorkflowsDirSlash) && workflowBaseDir != "" {
-				remoteFilePath = path.Join(workflowBaseDir, strings.TrimPrefix(remoteFilePath, constants.WorkflowsDirSlash))
-			}
-		} else if rest, ok := strings.CutPrefix(resourcePath, "/"); ok {
+		if rest, ok := strings.CutPrefix(resourcePath, "/"); ok {
 			remoteFilePath = rest
 		} else if workflowBaseDir != "" {
 			remoteFilePath = path.Join(workflowBaseDir, strings.TrimPrefix(resourcePath, "./"))
@@ -184,16 +150,6 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 			continue
 		}
 		targetBaseDir := targetDir
-		if isRepoRootAnchoredGraderEvaluator {
-			if gitRoot == "" {
-				gitRoot, err = gitutil.FindGitRootFrom(targetDir)
-				if err != nil {
-					return fmt.Errorf("failed to resolve repository root for grader resource %q: %w", resourcePath, err)
-				}
-			}
-			targetBaseDir = gitRoot
-			localRelPath = filepath.FromSlash(resourcePath)
-		}
 		targetPath := filepath.Join(targetBaseDir, localRelPath)
 
 		if err := fileutil.ValidatePathWithinBase(targetBaseDir, targetPath); err != nil {
@@ -204,12 +160,9 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 		}
 
 		// Check whether the target file already exists.
-		fileExists := false
-		if fileutil.FileExists(targetPath) {
-			fileExists = true
-			// Shared evaluators may be referenced by multiple workflows in one package.
-			// Their conflict handling is deferred until the source content can be compared.
-			if !force && !resource.isGraderEvaluator {
+		fileExists := fileutil.FileExists(targetPath)
+		if fileExists {
+			if !force {
 				isMarkdown := strings.HasSuffix(strings.ToLower(targetPath), ".md")
 				if isMarkdown {
 					// For markdown files, allow same-source overwrites.
@@ -241,17 +194,6 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 			}
 			continue
 		}
-		if fileExists && !force && resource.isGraderEvaluator {
-			existingContent, readErr := os.ReadFile(targetPath)
-			if readErr != nil {
-				return fmt.Errorf("failed to read existing grader resource %q: %w", targetPath, readErr)
-			}
-			if bytes.Equal(existingContent, fileContent) {
-				continue
-			}
-			return fmt.Errorf("resource %q already exists at %s; remove the file or use --force to overwrite", resourcePath, targetPath)
-		}
-
 		// For markdown resources, embed the source field for future conflict detection.
 		if strings.HasSuffix(strings.ToLower(remoteFilePath), ".md") {
 			depSourceString := path.Join(spec.RepoSlug, remoteFilePath) + "@" + ref

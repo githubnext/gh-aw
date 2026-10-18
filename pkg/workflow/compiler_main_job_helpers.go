@@ -433,14 +433,6 @@ func augmentPermissionsForLedger(data *WorkflowData, permissions string) string 
 	return permissions
 }
 
-func operationalValueGraderEnabled(data *WorkflowData) bool {
-	if data == nil || data.Graders == nil {
-		return false
-	}
-	grader, ok := data.Graders.Graders["operational-value"]
-	return ok && (grader.Enabled == nil || *grader.Enabled)
-}
-
 // augmentPermissionsForDevMode adds contents: read to permissions when the compiler is in
 // dev or script mode and the actions folder checkout is needed.
 //

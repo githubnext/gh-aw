@@ -720,7 +720,7 @@ function buildExperimentAttributes(assignments) {
 /**
  * Build summary attributes and per-result events from valid deterministic grader output.
  * Free-form grader messages, details, and errors are intentionally excluded because
- * custom graders may derive them from trace content containing sensitive values.
+ * they may contain trace content with sensitive values.
  *
  * @param {any} graderOutput
  * @param {number} eventTimeMs
@@ -2103,7 +2103,7 @@ function readAgentRuntimeMetrics(engineId = "") {
  * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
  *                                    provides `input_tokens`, `output_tokens`,
  *                                    `cache_read_tokens`, and `cache_write_tokens` counters
- * - `/tmp/gh-aw/agent/graders/grader_results.json` – deterministic grader
+ * - `/tmp/gh-aw/usage/graders/grader_results.json` – deterministic grader
  *                                    summary attributes and per-result span events
  *
  * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
@@ -2477,7 +2477,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
+  const graderTelemetry = jobName === "conclusion" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/usage/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
   const evalTelemetry = jobName === "evals" ? buildEvalTelemetry(readJSONLIfExists("/tmp/gh-aw/evals.jsonl"), endMs) : { attributes: [], events: [] };
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({

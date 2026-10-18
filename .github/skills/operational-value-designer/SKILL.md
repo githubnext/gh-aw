@@ -8,6 +8,26 @@ metadata:
 
 # Operational Value Designer
 
+## Current grading boundary
+
+Custom executable graders are no longer supported. Do not create or enable
+`graders.operational-value`, `script`, or `run` configurations. The Bash
+deliverables below are historical design guidance, not supported runtime
+integration instructions.
+
+New metrics must be reviewed built-in implementations receiving only the
+redacted in-memory unified session and non-executable configuration. They run
+in conclusion after collection; they cannot read files, invoke processes, use
+credentials, or fetch evidence. Reuse `createSessionLookups` for statistics
+and event lookups, and return `unavailable` when required observations are
+absent. Do not substitute activity metrics for operational outcomes.
+
+Preserve historical evaluator files and prior results unless explicitly
+retiring their workflow configuration. Any evaluator change must remain paired
+with its workflow and pass `verify-operational-value-contract-change.sh`.
+
+## Historical design methodology
+
 Design the smallest deterministic grader that measures whether one workflow run produced its intended operational outcome. Put domain knowledge in the evaluator, not in generic runtime infrastructure.
 
 Operational value is demonstrated progress toward the workflow's intended real-world or repository outcome. It is not agent activity, token usage, output volume, tool usage, or an agent's claim that it succeeded.

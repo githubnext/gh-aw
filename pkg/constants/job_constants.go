@@ -135,12 +135,10 @@ const SafeOutputsFilename Filename = "safeoutputs.jsonl"
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename Filename = "agent_usage.json"
 
-// GradersDirName is the directory name holding grader manifest and results files. The agent
-// job writes them under /tmp/gh-aw/agent/graders/ and the conclusion job mirrors them into
-// the graders/ subdirectory of the usage artifact.
+// GradersDirName holds the manifest and results computed by the conclusion job.
 const GradersDirName ArtifactName = "graders"
 
-// GraderManifestFilename is the filename of the grader manifest JSON written to /tmp/gh-aw/agent/graders/
+// GraderManifestFilename is the filename of the grader manifest in the usage artifact.
 // by trace_graders.cjs. Lists which graders were configured and their enabled state.
 const GraderManifestFilename Filename = "grader_manifest.json"
 
@@ -148,14 +146,8 @@ const GraderManifestFilename Filename = "grader_manifest.json"
 // by trace_graders.cjs. Contains deterministic metric values computed from trace files.
 const GraderResultsFilename Filename = "grader_results.json"
 
-// GraderPayloadFilename is the filename of the preprocessed trace payload consumed by graders.
-const GraderPayloadFilename Filename = "grader_payload.json"
-
-// OperationalValueEvaluatorFilename is the filename of the frozen operational-value evaluator archived with a run.
-const OperationalValueEvaluatorFilename Filename = "operational_value_evaluator.sh"
-
-// GradersDir is the subdirectory under TmpGhAwAgentDir where grader output files are written.
-const GradersDir = TmpGhAwDir + "/agent/graders"
+// GradersDir is the directory where conclusion writes grader output files.
+const GradersDir = TmpGhAwDir + "/usage/graders"
 
 // GradersDirSlash is GradersDir with a trailing slash.
 const GradersDirSlash = GradersDir + "/"

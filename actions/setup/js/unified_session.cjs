@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { isSessionEvent } = require("./agent_session.cjs");
 const { hasCopilotConversation, deduplicateCopilotFallback, normalizeCopilotSession } = require("./copilot_session.cjs");
-const { collectAddMaskedValues, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
+const { collectAddMaskedValues, serializeSessionArtifact, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeUnifiedSessionEvent, normalizeModelInventoryData, evalResultRunId } = require("./unified_session_payload.cjs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -711,27 +711,42 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
 }
 
 /**
- * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, jobDurations?: Record<string, number>}} [options]
- * @returns {SessionEvent[]}
+ * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, jobDurations?: Record<string, number>, graders?: any[]}} [options]
+ * @returns {import("./types/unified_session").UnifiedSession}
  */
 function writeUnifiedSession(options = {}) {
   const outputPath = options.outputPath ?? path.join(options.rootDir ?? "/tmp/gh-aw", "usage/aw_session.jsonl");
   try {
-    const { events, maskedValues } = collectUnifiedSession(options);
+    const collected = collectUnifiedSession(options);
+    const maskedValues = collected.maskedValues;
+    let events = collected.events;
+    if (options.graders !== undefined) {
+      // Grade the exact redacted representation that is published, without
+      // rereading the session or any of its source files.
+      const session = [];
+      for (const entry of iterateJsonlEvents(serializeSessionArtifact(events, maskedValues))) {
+        if (entry.type === "json") session.push(entry.value);
+        else if (entry.reason !== "blank") throw new Error(`${ERR_VALIDATION}: Invalid serialized unified session`);
+      }
+      events = require("./grader_artifacts.cjs").writeGraderArtifacts(session, path.dirname(outputPath), options.graders);
+    }
     writeSessionArtifact(outputPath, events, maskedValues);
     return events;
   } catch (error) {
-    removeFailedSessionArtifacts([outputPath], error);
+    const graderFiles = options.graders === undefined ? [] : ["grader_manifest.json", "grader_results.json"].map(file => path.join(path.dirname(outputPath), "graders", file));
+    removeFailedSessionArtifacts([outputPath, ...graderFiles], error);
     throw error;
   }
 }
 
-/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>}} [options] @returns {Promise<void>} */
+/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>, graders?: any[]}} [options] @returns {Promise<void>} */
 async function main(options = {}) {
   const jobDurations = options.jobDurations ?? (await require("./workflow_job_durations.cjs").collectJobDurations({ warn: message => global.core.warning(message) }));
-  writeUnifiedSession({ ...options, jobDurations });
+  const { readGraderEnvironment, publishGraderSummary } = require("./grader_artifacts.cjs");
+  const events = writeUnifiedSession({ ...options, jobDurations, graders: options.graders ?? readGraderEnvironment() });
   const { publishUnifiedSessionSummary } = require("./unified_session_render.cjs");
   await publishUnifiedSessionSummary(options.outputPath ?? path.join(options.rootDir ?? "/tmp/gh-aw", "usage/aw_session.jsonl"));
+  await publishGraderSummary(events);
 }
 
 if (require.main === module) {

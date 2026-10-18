@@ -583,8 +583,7 @@ func isPackageResourceDestination(destination string) bool {
 	return strings.EqualFold(destination, constants.GithubDir+"CODEOWNERS") ||
 		strings.HasPrefix(destination, constants.GithubDir+"ISSUE_TEMPLATE/") ||
 		strings.HasPrefix(destination, constants.GithubDir+"aw/") ||
-		isSharedWorkflowScriptDestination(destination) ||
-		workflow.IsValidOperationalValueEvaluatorRunPath(destination)
+		isSharedWorkflowScriptDestination(destination)
 }
 
 func isSharedWorkflowScriptDestination(destination string) bool {

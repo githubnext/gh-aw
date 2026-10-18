@@ -6,6 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+Graders now run in conclusion as pure computation over the redacted in-memory
+unified session. Ten fast built-ins are enabled by default; other built-ins
+require explicit opt-in. Custom JavaScript and Bash graders (`script`, `run`,
+and `operational-value`) are removed for security: delete these configurations
+and use registered built-ins. Recompile workflows to move grading out of the
+agent job. Read schema-version-2 results from `usage/graders/`; CLI replay now
+accepts unified-session JSONL or a JSON event array instead of legacy trace
+payloads.
+
 MCP workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled
 by default. Operators can enable them for trusted clients and workflow sources
 with `gh aw mcp-server --allow-write-tools`; `--validate-actor` additionally

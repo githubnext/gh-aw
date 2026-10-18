@@ -799,19 +799,19 @@ The command and its output formats may change.
 
 #### `graders`
 
-Run one grader declared by a local workflow against a saved run payload or JSON
-from standard input. Operational-value evaluators use the same one-shot request
-shape as workflow execution and return an ordered metric array. The command
-executes either Bash embedded in `graders.operational-value.script` or a Bash
-file referenced by `graders.operational-value.run`; operational-value graders
-require standard input because historical replay is not supported.
+Run one enabled built-in grader against a unified session from a saved run's
+`usage` artifact or from standard input. Input accepts unified-session JSONL
+or a JSON event array. The ten fast built-ins are available without explicit
+frontmatter configuration. Only built-in graders are supported; custom
+JavaScript and Bash evaluators are rejected.
 
-JavaScript graders (built-in and custom) require Node.js 20+ with the permission model; the CLI picks `--permission` or `--experimental-permission` as supported and never runs a grader without permissions enabled.
+Replay requires Node.js 20+ with the permission model. The CLI picks
+`--permission` or `--experimental-permission` as supported, restricts reads to
+the staged runtime modules, and passes the session in memory to the grader.
 
 ```bash wrap
 gh aw graders run weekly-research loops 123456789
-cat payload.json | gh aw graders run weekly-research loops
-cat request.json | gh aw graders run daily-file-diet operational-value
+cat aw_session.jsonl | gh aw graders run weekly-research loops
 ```
 
 **Options:** `--repo/-r`

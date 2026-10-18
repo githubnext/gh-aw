@@ -20,13 +20,13 @@ func NewGradersCommand() *cobra.Command {
 func newGradersRunCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <workflow-id> <grader-id> [run-id]",
-		Short: "Run one workflow grader with a JSON payload",
-		Long: `Run one grader declared by a local workflow. When run-id is provided, the
-preprocessed payload is downloaded from the run's agent artifact. Otherwise,
-the JSON payload is read from standard input. Operational-value graders execute
-either embedded Bash from the script field or a Bash file referenced by run.`,
+		Short: "Run one workflow grader with a unified session log",
+		Long: `Run one built-in grader enabled by a local workflow. When run-id is provided,
+the unified session is downloaded from the run's usage artifact. Otherwise,
+read the unified session from standard input as JSONL or a JSON event array.
+Graders are pure computations; custom scripts and evaluators are not supported.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` graders run weekly-research loops 123456789
-  cat payload.json | ` + string(constants.CLIExtensionPrefix) + ` graders run weekly-research loops`,
+  cat aw_session.jsonl | ` + string(constants.CLIExtensionPrefix) + ` graders run weekly-research loops`,
 		Args: cobra.RangeArgs(2, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var runID int64

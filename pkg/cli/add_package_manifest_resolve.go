@@ -6,7 +6,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -93,10 +92,6 @@ func resolveRepositoryPackageProjectFile(ctx context.Context, owner, repo, packa
 
 func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref, host, repoSlug string, nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
-	// Shared across every manifest node so that multiple imported manifests referencing the
-	// same repository-root grader evaluator are deduplicated instead of being reported as
-	// conflicting duplicate install destinations by validateUniqueResolvedPackageFiles.
-	seenGraderEvaluators := make(map[string]string)
 	for _, node := range nodes {
 		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, repositoryPackageIdentifier(repoSlug, node.PackagePath))
 		if err != nil {
@@ -110,10 +105,6 @@ func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref
 		}
 		assets.installationSources = append(assets.installationSources, nodeInstallables...)
 		nodeResources := normalizePackageResourcePaths(node.Manifest.Resources, node.PackagePath)
-		nodeResources, err = appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, nodeResources, nodeInstallables, seenGraderEvaluators)
-		if err != nil {
-			return nil, err
-		}
 		assets.resourceFiles = append(assets.resourceFiles, nodeResources...)
 
 		nodeExtensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, repositoryPackageExtensionFilesOptions{
@@ -134,65 +125,6 @@ func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref
 		assets.warnings = append(assets.warnings, nodeExtensionFiles.warnings...)
 	}
 	return assets, nil
-}
-
-// appendPackageGraderEvaluatorResources discovers grader evaluator resources referenced by the
-// given installable package workflows and appends them to resourceFiles. seen tracks previously
-// resolved evaluator destinations across the entire manifest graph (i.e. across every call for
-// every node), so that multiple manifest nodes referencing the identical repository-root
-// evaluator are deduplicated instead of tripping the later duplicate-destination validation,
-// while still rejecting genuinely conflicting sources for the same destination.
-func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref, host string, resourceFiles []resolvedPackageResource, installationSources []resolvedPackageInstallable, seen map[string]string) ([]resolvedPackageResource, error) {
-	for _, resource := range resourceFiles {
-		seen[packageResourceDestinationKey(resource.DestinationPath)] = resource.SourcePath
-	}
-	addPackageManifestLog.Printf("resolving grader evaluators from %d installable package source(s)", len(installationSources))
-	for _, installable := range installationSources {
-		if !strings.HasSuffix(strings.ToLower(installable.SourcePath), ".md") {
-			continue
-		}
-		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, installable.SourcePath, ref, host)
-		if err != nil {
-			if isRepositoryFileNotFound(err) {
-				addPackageManifestLog.Printf("skipping grader evaluator resource discovery for unavailable package workflow %q: %v", installable.SourcePath, err)
-				continue
-			}
-			return nil, fmt.Errorf("failed to read package workflow %q while resolving grader evaluator resources: %w", installable.SourcePath, err)
-		}
-		entries, err := extractResourceEntries(string(content))
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse package workflow %q grader resources: %w", installable.SourcePath, err)
-		}
-		for _, entry := range entries {
-			if !entry.isGraderEvaluator {
-				continue
-			}
-			resource := packageGraderEvaluatorResource(installable, entry.path)
-			key := packageResourceDestinationKey(resource.DestinationPath)
-			if previousSource, exists := seen[key]; exists {
-				if previousSource != resource.SourcePath {
-					return nil, fmt.Errorf("package workflows reference multiple grader evaluator resources for %q: %q and %q", resource.DestinationPath, previousSource, resource.SourcePath)
-				}
-				continue
-			}
-			seen[key] = resource.SourcePath
-			resourceFiles = append(resourceFiles, resource)
-		}
-	}
-	return resourceFiles, nil
-}
-
-func packageGraderEvaluatorResource(installable resolvedPackageInstallable, runPath string) resolvedPackageResource {
-	if localPath, ok := strings.CutPrefix(runPath, "./"); ok {
-		return resolvedPackageResource{
-			SourcePath:      path.Join(path.Dir(installable.SourcePath), localPath),
-			DestinationPath: path.Join(path.Dir(installable.DestinationPath), localPath),
-		}
-	}
-	return resolvedPackageResource{
-		SourcePath:      runPath,
-		DestinationPath: runPath,
-	}
 }
 
 func splitRepositoryPackageSlug(repoSlug string) (string, string, error) {
