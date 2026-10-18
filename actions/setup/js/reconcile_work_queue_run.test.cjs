@@ -93,10 +93,12 @@ describe("inline trusted worker termination", () => {
   });
 
   it("does not borrow another run's reservation", async () => {
-    const { options } = setup();
+    const { options, fixture } = setup();
     options.context.runId = "100";
     expect(await main(options)).toEqual({ status: "unbound" });
     expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
+    expect(options.githubClient.rest.actions.getWorkflowRunAttempt).not.toHaveBeenCalled();
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
   });
 
   it.each(["revision", "principal", "repository", "correlation", "attempt", "unavailable", "publisher"])("retains capacity on independent %s mismatch", async kind => {
@@ -199,6 +201,26 @@ describe("scheduled work queue recovery", () => {
     expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
   });
 
+  it.each([true, false])("recovers a renamed worker's missed binding without releasing active execution when terminal=%s", async terminal => {
+    const { fixture, options, nativeRun } = setup({ bound: false, started: true });
+    options.context = { ...fixture.dispatcherContext, job: "work_queue_compaction" };
+    const publisher = fixture.nativeRun(fixture.dispatcherContext);
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+    nativeRun.name = "Renamed worker * + [special]";
+    if (terminal) {
+      nativeRun.status = "completed";
+      nativeRun.conclusion = "cancelled";
+    }
+    options.githubClient.rest.actions.listWorkflowRuns = vi.fn().mockResolvedValue({ status: 200, data: { workflow_runs: [nativeRun] } });
+    const result = await maintenance(options);
+    expect(result.results[0].released).toBe(terminal);
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id)).toMatchObject({ run: { run_id: "42", run_attempt: 1 }, released: terminal });
+    expect(options.githubClient.rest.actions.listWorkflowRuns).toHaveBeenCalledWith(expect.objectContaining({ workflow_id: WORKFLOW, event: "workflow_dispatch", head_sha: REF }));
+    expect(options.githubClient.rest.actions.getWorkflowRunAttempt).toHaveBeenCalledWith(expect.objectContaining({ run_id: "42", attempt_number: 1 }));
+    expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
+  });
+
   it("reports unresolved native reads without releasing or cancelling the run", async () => {
     const { options } = setup();
     options.githubClient.rest.actions.getWorkflowRunAttempt.mockRejectedValue(new Error("private API error"));
@@ -258,6 +280,19 @@ describe("privacy-preserving termination logging", () => {
     expect(output()).toContain("run.jobs.quiescent jobs=3");
     expect(output()).toContain("run.reconcile.complete released=true claims=2");
     for (const sensitive of [canary, fixture.assignment.dispatch_id, fixture.assignment.claims[0].work_id, fixture.assignment.claims[0].handle, REF, REPOSITORY]) expect(output()).not.toContain(sensitive);
+  });
+
+  it("rejects duplicate bindings without exposing native identities", async () => {
+    const { fixture, options } = setup();
+    const state = fixture.state;
+    state.dispatches.set("private-duplicate-binding", structuredClone(state.dispatches.get(fixture.assignment.dispatch_id)));
+    options.readWorkQueueLog.mockResolvedValue({ sha: "head", transactions: fixture.transactions, state });
+    await expect(main(options)).rejects.toThrow("work_queue_run_binding_ambiguous");
+    expect(output()).toContain("run.binding.checked candidates=2");
+    expect(output()).toContain("run.binding.ambiguous");
+    expect(output()).not.toContain("private-duplicate-binding");
+    expect(output()).not.toContain(fixture.assignment.dispatch_id);
+    expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
   });
 
   it("sanitizes API errors without swallowing the failure", async () => {

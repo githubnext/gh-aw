@@ -37,6 +37,21 @@ func buildHealthFailureClusters(runs []WorkflowRun, config HealthConfig) ([]Fail
 }
 
 func enrichHealthFailureFromCache(data *RunData, run WorkflowRun, config HealthConfig) {
+	summary, dir := loadHealthRunSummary(run, config)
+	if summary == nil {
+		return
+	}
+	pr := ProcessedRun{
+		Run: summary.Run, JobDetails: summary.JobDetails, MCPFailures: summary.MCPFailures,
+		MissingTools: summary.MissingTools, MissingData: summary.MissingData, FirewallAnalysis: summary.FirewallAnalysis,
+	}
+	var agg logsAggregate
+	data.FailureKind = agg.classifyRunFailure(pr)
+	data.FailureSignals = failureSignalsForRun(pr)
+	data.LogsPath = dir
+}
+
+func loadHealthRunSummary(run WorkflowRun, config HealthConfig) (*RunSummary, string) {
 	root := config.LogsDir
 	if root == "" {
 		root = defaultLogsOutputDir
@@ -44,22 +59,15 @@ func enrichHealthFailureFromCache(data *RunData, run WorkflowRun, config HealthC
 	dir := filepath.Join(root, "run-"+strconv.FormatInt(run.DatabaseID, 10))
 	summary, ok := loadRunSummary(dir, config.Verbose)
 	if !ok {
-		return // Cache loader logs missing or invalid evidence; retain metadata-only grouping.
+		return nil, dir // Cache loader logs missing or invalid evidence.
 	}
 	cached := summary.Run
 	if summary.RunID != run.DatabaseID || cached.DatabaseID != run.DatabaseID ||
 		run.URL == "" || cached.URL != run.URL || cached.Status != run.Status || cached.Conclusion != run.Conclusion ||
 		cached.HeadSha != run.HeadSha || cached.WorkflowPath != run.WorkflowPath ||
-		cached.Attempt != run.Attempt || !cached.UpdatedAt.Equal(run.UpdatedAt) {
-		healthLog.Printf("Ignoring stale failure evidence for run %d", run.DatabaseID)
-		return
+		cached.Repository != run.Repository || cached.Attempt != run.Attempt || !cached.UpdatedAt.Equal(run.UpdatedAt) {
+		healthLog.Printf("Ignoring stale health evidence for run %d", run.DatabaseID)
+		return nil, dir
 	}
-	pr := ProcessedRun{
-		Run: cached, JobDetails: summary.JobDetails, MCPFailures: summary.MCPFailures,
-		MissingTools: summary.MissingTools, MissingData: summary.MissingData, FirewallAnalysis: summary.FirewallAnalysis,
-	}
-	var agg logsAggregate
-	data.FailureKind = agg.classifyRunFailure(pr)
-	data.FailureSignals = failureSignalsForRun(pr)
-	data.LogsPath = dir
+	return summary, dir
 }

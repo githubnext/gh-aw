@@ -157,10 +157,7 @@ env:
 `
 
 	compiler := NewCompiler(WithNoEmit(true))
-	workflowData, err := compiler.ParseWorkflowString(workflow, "test.md")
-	require.NoError(t, err)
-
-	_, err = compiler.CompileToYAML(workflowData, "test.md")
+	_, err := compiler.ParseWorkflowString(workflow, "test.md")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "env.PLAYWRIGHT_BROWSERS_PATH")
 	assert.Contains(t, err.Error(), "unavailable outside jobs: runner")

@@ -45,7 +45,8 @@ func TestGenerateWorkQueueEventWorkflowDoesNotSubscribeToWorkerCompletions(t *te
 	worker := func(name string) *WorkflowData {
 		return &WorkflowData{Name: name, Tools: map[string]any{"work-queue": map[string]any{"worker": true}}}
 	}
-	data := []*WorkflowData{worker("Zulu worker"), worker("Alpha worker"), worker("Alpha worker"), worker("Agentic Workqueue"), nil,
+	data := []*WorkflowData{worker("Zulu worker"), worker("Alpha worker"), worker("Alpha worker"), worker(workQueueEventWorkflowName),
+		worker("Daily AIC Consumption Report (Sentry + Grafana OTel)"), worker("Worker * + [special]"), nil,
 		{Name: "Observer", Tools: map[string]any{"work-queue": true}},
 	}
 	require.NoError(t, GenerateWorkQueueEventWorkflow(context.Background(), data, dir, nil))

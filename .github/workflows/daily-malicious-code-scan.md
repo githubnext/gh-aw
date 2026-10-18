@@ -345,7 +345,7 @@ Begin your daily malicious code scan now. Analyze all code changes from the last
 ## agent: `suspicious-pattern-classifier`
 ---
 description: Classify a single file diff against six malicious-code threat categories and return matches with evidence.
-model: kiwi
+model: gpt-6-luna
 ---
 You receive one file path and its diff or content. Decide which of these six categories match and return a JSON array.
 
@@ -368,7 +368,7 @@ Return JSON only: `[{"category":"...","evidence":"<short quote or line>","line":
 ## agent: `threat-scorer`
 ---
 description: Assign a 0-10 threat score and severity bucket to a single suspicious-code finding.
-model: kiwi
+model: gpt-6-luna
 ---
 You receive one finding: `{category, evidence, file, confidence}`.
 

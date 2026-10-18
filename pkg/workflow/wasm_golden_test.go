@@ -209,6 +209,7 @@ func TestWasmGolden_CompileFixtures(t *testing.T) {
 				WithSkipValidation(true),
 				WithWorkflowIdentifier(testName),
 			)
+			compiler.gitRoot = absFixturesDir
 
 			wd, err := compiler.ParseWorkflowString(string(content), fixture)
 			if err != nil {
