@@ -14,7 +14,11 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 	runner := Default()
 	_, err := New(runner.Rules()...)
 	require.NoError(t, err, "built-in rule registrations must satisfy the same contract as extensions")
-	assert.Len(t, runner.Rules(), 1)
+	var ruleIDs []string
+	for _, rule := range runner.Rules() {
+		ruleIDs = append(ruleIDs, rule.ID)
+	}
+	assert.ElementsMatch(t, []string{"secret-leak", "action-pin", "job-timeout", "template-injection", "workflow-run-scope"}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")
 	require.NoError(t, err)
 	assert.Len(t, selected.Rules(), 1)

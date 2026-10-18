@@ -157,5 +157,11 @@ func sortDiagnostics(diagnostics []Diagnostic) {
 }
 
 func Default() *Runner {
-	return &Runner{rules: []Rule{SecretLeakRule()}}
+	return &Runner{rules: []Rule{
+		SecretLeakRule(),
+		ActionPinRule(),
+		JobTimeoutRule(),
+		TemplateInjectionRule(),
+		WorkflowRunScopeRule(),
+	}}
 }
