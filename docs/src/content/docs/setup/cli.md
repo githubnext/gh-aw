@@ -454,18 +454,29 @@ All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` a
 
 #### `lint`
 
-Lint existing `.lock.yml` workflow files from disk with actionlint only. This command does not recompile Markdown workflows, and skips `zizmor`/`poutine`.
+Lint existing `.lock.yml` workflow files from disk with actionlint by default. Use `--rules` to run the built-in Actions/AW AST linter instead, without external scanner dependencies. Neither mode recompiles Markdown workflows or runs `zizmor`/`poutine`.
 
 ```bash wrap
 gh aw lint                                          # Lint all .github/workflows/*.lock.yml
 gh aw lint .github/workflows/foo.lock.yml           # Lint a specific lock file
 gh aw lint --dir .github/workflows                  # Lint all lock files in a directory
 gh aw lint --shellcheck --pyflakes                  # Enable actionlint script integrations
+gh aw lint --list-rules                             # List built-in AST rules
+gh aw lint --rules secret-leak                      # Check existing workflows for secret disclosures
+gh aw lint --rules secret-leak --json               # Emit structured diagnostics
 ```
 
-**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`
+**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
+
+`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint.
+
+The `secret-leak` rule tracks symbolic secret references, `github.token`, and known app-token action outputs through environment scopes, shell assignments, step outputs, and dependent job outputs. It detects disclosures to logs, step summaries, workflow outputs, request URLs/bodies, known publication inputs, cache keys, and artifacts containing modeled secret-bearing files. Authentication headers, token inputs, and the reusable workflow `secrets:` channel are not disclosure sinks. Boolean comparisons and predicates filter secret values; formatting, JSON serialization, encoding, and `add-mask` registration do not sanitize subsequent uses.
+
+The linter reads a companion `.md` file when present to check AW prompt expressions as well as the compiled graph. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Error diagnostics produce a nonzero exit status. Unsupported shells, shell parse failures, recursive functions, and secret-bearing data passed to unmodeled external commands produce explicit coverage warnings; warnings alone do not fail the command.
+
+Analysis is conservative within Bash/sh control flow and can report infeasible paths. It does not execute or inspect external actions, sourced scripts, JavaScript/Python/PowerShell programs, dynamically constructed shell code, or arbitrary filesystem operations. Imported runtime prompt files are not recursively loaded. Authentication arguments are treated as intentional credential use; endpoint trust is not inferred. A clean result is not proof that a workflow cannot leak secrets.
 
 ### Testing
 

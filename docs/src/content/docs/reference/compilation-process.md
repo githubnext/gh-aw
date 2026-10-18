@@ -72,6 +72,14 @@ See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
 | **4 Action Pinning** | Pins all actions to SHAs: check cache → GitHub API → embedded pins → add version comment (e.g., `actions/checkout@sha # v6`) |
 | **5 YAML Generation** | Assembles final `.lock.yml`: header with metadata, Mermaid dependency graph, alphabetical jobs, embedded original prompt |
 
+### Actions/AW AST Lint Rules
+
+`pkg/workflow/lint` provides an in-process rule registry independent of external scanners and Go source-code linters. A `lint.Rule` declares an ID, description, default severity, and `Check(context.Context, lint.Input)` callback. `lint.Input` contains a native Actions execution AST and an optional AW source document. Checks return structured diagnostics and errors without mutating either AST. The runner validates registrations, selects rule IDs, sorts diagnostics deterministically, and continues other rules after a check failure.
+
+Register new built-in checks in `lint.Default()`. Structural rules can inspect the AST directly. Data-flow rules can use `pkg/workflow/taint.Analyze` with a `taint.Rule` defining `IsSource`, `IsSink`, optional whole-expression `IsFilter`, and known action credential outputs. Taint results retain symbolic source provenance. The `secret-leak` lint rule adapts these results to common diagnostics and reports coverage gaps separately from findings.
+
+`taint.AnalyzeDocument` checks an AW prompt against its compiled Actions graph; compile source documents through `Compiler.CompileDocument` rather than treating AW frontmatter as native YAML. The repository regression test applies the registered rules to existing compiled agentic workflows and their companion source documents. CLI checks are opt-in through [`gh aw lint --rules secret-leak`](/gh-aw/setup/cli/#lint); compilation and the default actionlint mode retain their existing behavior.
+
 ## Job Types
 
 The compilation process generates specialized jobs based on workflow configuration:
