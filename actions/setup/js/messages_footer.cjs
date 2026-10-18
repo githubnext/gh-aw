@@ -23,7 +23,7 @@ const reportAST = require("./report_ast.cjs");
 /** @typedef {{type: "quote_line", children: import("./report_ast.cjs").ReportInline[]}} FooterQuoteLine */
 /** @typedef {string | FooterQuoteLine} FooterPart */
 
-/** @returns {FooterQuoteLine[]} */
+/** @returns {[] | [FooterQuoteLine]} */
 function buildWorkQueueClaimFooter() {
   const handle = currentClaimHandle();
   if (!handle) return [];
@@ -44,10 +44,15 @@ function buildWorkQueueClaimFooter() {
 /**
  * Compatibility renderer for string-only, non-issue publishers.
  * Issue documents consume the parts directly without rendering fragments.
+ * The only generated node is the current Claim line; keep literal templates untouched.
  * @param {FooterPart[]} parts
  */
 function renderFooterParts(parts) {
-  return parts.map(part => (typeof part === "string" ? part : reportAST.renderReport({ type: "report", title: "Footer", children: [{ type: "quote", children: [{ type: "paragraph", children: part.children }] }] }).body.trimEnd())).join("");
+  const claims = parts.filter(part => typeof part !== "string");
+  if (claims.length > 1) throw new TypeError("Footer must contain at most one Claim line");
+  const claim = claims[0];
+  const renderedClaim = claim ? reportAST.renderReport({ type: "report", title: "Footer", children: [{ type: "quote", children: [{ type: "paragraph", children: claim.children }] }] }).body.trimEnd() : "";
+  return parts.map(part => (typeof part === "string" ? part : renderedClaim)).join("");
 }
 
 /**
