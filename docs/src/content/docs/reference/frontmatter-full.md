@@ -24494,9 +24494,9 @@ import-schema:
 # (optional)
 model: "example-value"
 
-# Deterministic built-in graders computed from the in-memory unified session in
-# conclusion. Fast built-ins run by default. Custom scripts and evaluators are not
-# supported.
+# Pure graders over the unified session. Fast built-ins run in conclusion by
+# default; custom JavaScript runs only in a separate, restricted graders job after
+# conclusion.
 # (optional)
 graders:
   {}

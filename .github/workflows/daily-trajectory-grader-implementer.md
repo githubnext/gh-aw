@@ -104,8 +104,9 @@ The file must include:
 
 1. YAML frontmatter with a single `graders.<selected-id>` entry.
 2. Only non-executable configuration for an ID already registered in
-   `pkg/workflow/graders_config.go`. Custom IDs, `script`, and `run` are
-   forbidden. If the selected ID has no built-in implementation, call `noop`
+   `pkg/workflow/graders_config.go`. This catalog uses built-ins, not custom
+   scripts (which run in a separate job). Bash `run` is unsupported.
+   If the selected ID has no built-in implementation, call `noop`
    explaining that runtime implementation is required and stop.
 3. `name`, `unit`, `direction`, and any useful `min`/`max` metadata in the
    grader entry.

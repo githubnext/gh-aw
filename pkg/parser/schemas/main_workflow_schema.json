@@ -14286,47 +14286,12 @@
       "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
     },
     "graders": {
-      "description": "Deterministic built-in graders computed from the in-memory unified session in conclusion. Fast built-ins run by default. Custom scripts and evaluators are not supported.",
+      "description": "Pure graders over the unified session. Fast built-ins run in conclusion by default; custom JavaScript runs only in a separate, restricted graders job after conclusion.",
       "type": "object",
       "propertyNames": {
-        "enum": [
-          "tool-success-rate",
-          "tool-failure-count",
-          "retries",
-          "loops",
-          "trajectory-efficiency",
-          "execution-step-count",
-          "execution-duration",
-          "working-set-rebuild-factor",
-          "context-growth",
-          "artifact-production",
-          "policy-near-miss",
-          "skill-constraint-coverage",
-          "exploration-error",
-          "exploitation-error",
-          "state-revisit-probability-rep",
-          "recurrence-determinism",
-          "recurrence-laminarity",
-          "recurrence-trapping-time",
-          "recurrence-rate",
-          "event-entropy-rate",
-          "lempel-ziv-trajectory-complexity",
-          "tool-output-consumption-rate",
-          "end-to-end-lineage-completeness",
-          "action-provenance-coverage",
-          "premature-termination-gap",
-          "evidence-saturation-stopping-lag",
-          "dependency-order-violation-rate",
-          "objective-coverage",
-          "grounding-accuracy",
-          "tool-wise-score",
-          "trajectory-ndtw",
-          "code-search-recall",
-          "code-read-precision",
-          "code-edit-precision",
-          "process-alignment-fitness"
-        ],
-        "description": "Only built-in grader IDs are supported."
+        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+        "not": { "const": "operational-value" },
+        "description": "Built-in ID or custom JavaScript grader ID. Legacy operational-value evaluators are unsupported."
       },
       "additionalProperties": {
         "oneOf": [
@@ -14375,6 +14340,12 @@
                 "type": "object",
                 "description": "Optional grader-specific config object.",
                 "additionalProperties": true
+              },
+              "script": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 262144,
+                "description": "Synchronous JavaScript body for a custom grader. Receives session, config, and helpers; runs only in the separate restricted graders job. Cannot override a built-in."
               }
             }
           }

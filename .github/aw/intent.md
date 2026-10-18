@@ -71,7 +71,7 @@ Operational value is the degree to which the workflow's intended repository outc
 3. Turn no-op conditions into the zero rule, and uncertainties into explicit missing-evidence behavior.
 4. Define when evidence matures and which repositories and matching rules are accepted.
 
-Evals and operational value answer different questions. PromptPex evals test whether output follows the intended behavior for representative scenarios; operational value measures whether the intended repository outcome was attained for a real run. Use the `operational-value-designer` skill to freeze the evidence and metric contract. Custom executable `operational-value` graders are unsupported: a new grader must be a reviewed pure built-in whose evidence is already present in the unified session.
+Evals and operational value answer different questions. PromptPex evals test whether output follows the intended behavior for representative scenarios; operational value measures whether the intended repository outcome was attained for a real run. Use the `operational-value-designer` skill to freeze the evidence and metric contract. Bash/file-based `operational-value` evaluators are unsupported. Use a pure built-in in conclusion or a distinct custom JavaScript grader in the isolated graders job, with all evidence already present in the unified session.
 
 ## Infer Trace Graders from Intent
 

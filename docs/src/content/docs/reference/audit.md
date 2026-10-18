@@ -114,6 +114,13 @@ artifact, including with `--artifacts usage`; historical agent and fallback
 artifact layouts remain readable. The same object appears per run in
 `gh aw logs --json`.
 
+When the usage manifest registers custom grader IDs, audit also downloads the
+optional standalone `graders` artifact and uses its combined built-in/custom
+results, even with `--artifacts usage`. Built-in-only runs make no extra request.
+Cached reports are refreshed when custom results become available. Missing
+optional artifacts retain built-in results; discovery/download failures are
+reported. Audit reads results as data and never executes custom graders.
+
 ### Audit finding codes
 
 Every `key_findings` entry includes a stable `code` for downstream automation. Titles and descriptions are human-readable and may change; consumers must use `code` to identify a finding type. Existing codes are not repurposed.

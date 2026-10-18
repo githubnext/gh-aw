@@ -148,10 +148,17 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 	graderArtifacts := make([]string, 0, 2)
 	for _, name := range names {
 		if artifactMatchesFilter(name, []string{
-			constants.AgentArtifactName.String(),
-			constants.AgentOutputFallbackArtifactName.String(),
+			constants.UsageArtifactName.String(),
+			constants.GradersArtifactName.String(),
 		}) {
 			graderArtifacts = append(graderArtifacts, name)
+		}
+	}
+	if len(graderArtifacts) == 0 {
+		for _, name := range names {
+			if artifactMatchesFilter(name, []string{constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()}) {
+				graderArtifacts = append(graderArtifacts, name)
+			}
 		}
 	}
 	if len(graderArtifacts) == 0 {

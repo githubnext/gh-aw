@@ -697,6 +697,10 @@ When multiple targets run concurrently, `--count` limits the combined number of 
 
 `--evals` and `--graders` each pull in a matching artifact set automatically: `--evals` includes results from `evals.jsonl`, `--graders` includes deterministic grader results and their artifacts. `--audit` generates `audit.json` in each downloaded run's cache directory (comparisons use only the runs downloaded in that invocation). `--ignore-workflow-runs` excludes specific run IDs (or `slug/ID` values, where the slug is informational and matching uses the numeric ID) from an otherwise matching set.
 
+The `graders` artifact set includes conclusion's built-in results in `usage`
+and the optional combined `graders` artifact from the separate custom-grader job,
+with workflow-call-prefixed and historical agent artifacts supported.
+
 `--max-storage` bounds total logs cache size in MB after pruning non-essential data. It defaults to 1024 MB (1 GB); `--max-storage 0` disables the limit. Concurrent in-flight downloads can temporarily exceed this soft budget. `--prune-older-runs` additionally removes the oldest completed runs when that pruning alone can't satisfy `--max-storage`. `--max-github-api-rate-limit` pauses (single target) or stops (multiple targets) further downloads once the given number of core API requests have been used — pass a positive value for an absolute budget or a negative value to reserve that many requests from the current rate limit. `--drain3-weights` points `--train` at an existing `drain3_weights.json` to seed pattern training instead of starting from scratch.
 
 `--cached-jsonl` reuses compatible, schema-versioned run records and workflow-run discovery responses. It writes exactly one JSON value per line, appending every complete `gh run list` payload before downloading artifacts and available GitHub API rate-limit reports after collection. Each enriched `run` record includes job execution data, sanitized MCP tool-call metadata, and available engine, model, runtime, and component versions for downstream dashboards. Raw tool errors, arguments, responses, and artifact bodies are excluded. Discovered runs therefore remain available when a timeout or API limit interrupts processing. Records from incompatible schema versions are ignored. Use `gh aw json-schema logs-jsonl` to generate the schema for each JSON Lines item.
@@ -799,11 +803,12 @@ The command and its output formats may change.
 
 #### `graders`
 
-Run one enabled built-in grader against a unified session from a saved run's
+Run one enabled built-in or custom JavaScript grader against a unified session from a saved run's
 `usage` artifact or from standard input. Input accepts unified-session JSONL
 or a JSON event array. The ten fast built-ins are available without explicit
-frontmatter configuration. Only built-in graders are supported; custom
-JavaScript and Bash evaluators are rejected.
+frontmatter configuration. Custom JavaScript uses a separate restricted worker
+with the same in-memory interface as the downstream graders job. Bash and
+file-based evaluators are rejected.
 
 Replay requires Node.js 20+ with the permission model. The CLI picks
 `--permission` or `--experimental-permission` as supported, restricts reads to

@@ -5,7 +5,15 @@ const { runBuiltinGrader } = require("./trace_graders.cjs");
 
 const input = JSON.parse(fs.readFileSync(0, "utf8"));
 const grader = input.grader;
-if (grader.source !== "builtin" || Object.hasOwn(grader, "script") || Object.hasOwn(grader, "run")) {
-  throw new Error("custom graders are not supported");
+if (Object.hasOwn(grader, "run")) throw new Error("Bash and file-based graders are not supported");
+let result;
+if (grader.source === "inline") {
+  const { runCustomGraders } = require("./custom_graders.cjs");
+  result = runCustomGraders(input.payload, [grader]).output.results.find(result => result.id === grader.id);
+} else if (grader.source === "builtin" && !Object.hasOwn(grader, "script")) {
+  result = runBuiltinGrader(grader.id, input.payload, grader);
+} else {
+  throw new Error("unsupported grader source");
 }
-process.stdout.write(`${JSON.stringify(runBuiltinGrader(grader.id, input.payload, grader), null, 2)}\n`);
+process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+if (result.status === "error") process.exitCode = 1;

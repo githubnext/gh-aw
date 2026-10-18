@@ -4,9 +4,10 @@ description: Pure deterministic metrics from the unified agent session
 ---
 
 Graders compute metrics without model calls, file reads, subprocesses, or
-network access. They run in the **conclusion job**, after observations from
+network access. Built-ins run in the **conclusion job**, after observations from
 agent execution, safe outputs, experiments, and evals have been collected and
-redacted in memory.
+redacted in memory. Custom JavaScript runs only in a separate **graders job**
+after conclusion publishes that session.
 
 :::caution[Experimental]
 Graders and their result format are experimental.
@@ -54,8 +55,43 @@ graders:
 
 Supported fields are `enabled`, `name`, `description`, `unit`, `direction`,
 `threshold`, `min`, `max`, and `config`. Disabling every default is valid.
-Only built-in IDs are accepted. Custom graders, `script`, `run`, and legacy
-`operational-value` evaluators are not supported, even in disabled entries.
+Custom IDs additionally require `script`. Built-in implementations cannot be
+overridden. Bash, `run`, file-based scripts, and legacy `operational-value`
+evaluators remain unsupported, even in disabled entries.
+
+## Custom JavaScript
+
+Use a distinct ID and a synchronous JavaScript body:
+
+```yaml
+graders:
+  documentation-reads:
+    unit: calls
+    direction: higher_is_better
+    threshold: 1
+    script: |
+      const { toolCalls } = helpers.createSessionLookups(session);
+      return toolCalls.filter(call => call.name === "view").length;
+```
+
+Scripts receive `session`, `config`, and `helpers.createSessionLookups(session)`.
+The helper exposes `stats`, `eventsOfType(type)`, `toolCalls`, scoped
+`toolCallsById`, and a session-derived trajectory projection (`trace`).
+Inputs are immutable snapshots. Return a finite number, `null` for unavailable
+evidence, or an object with `value` and optional `message`, `details`, and
+`diagnostics`. Async results are rejected. Scripts are limited to 256 KiB.
+
+The compiler generates a fresh hosted job with read-only repository access,
+no inherited deployment environment, and no inference, App, or OIDC credentials.
+Each script runs in its own restricted Node process with an empty environment,
+bounded memory/output, a five-second VM timeout, and a seven-second process
+timeout. File, network, process, clock, random, module, and timer APIs are not
+exposed. A VM alone is not a security boundary; job and process isolation also
+limit authority. Work-queue participant workflows do not publish this input and
+cannot register custom graders.
+
+Conclusion receives only custom IDs, never executable grader source.
+User-provided conclusion steps and customization of `jobs.graders` are rejected.
 
 ## Opt-in trajectory graders
 
@@ -94,7 +130,14 @@ The collector passes the redacted session array directly to `computeGraders`.
 and concrete accounting statistics. Graders never reread the persisted session
 or source logs.
 
-Replay one enabled built-in using the same implementation:
+When custom graders are registered, the separate `graders` artifact contains a
+combined manifest and results, preserving built-in outcomes. Executable source
+is omitted from this artifact. Audit automatically downloads it when the usage
+manifest registers custom IDs, including for `--artifacts usage` and cached
+reports. If it is not available, audit retains built-in results. Download
+failures are reported rather than hidden.
+
+Replay one enabled built-in or custom grader using the same implementation:
 
 ```bash
 gh aw graders run weekly-research loops 123456789

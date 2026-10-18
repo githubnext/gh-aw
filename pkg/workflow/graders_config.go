@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -97,6 +98,7 @@ type GraderDefinition struct {
 	Max         *float64       // theoretical maximum
 	Min         *float64       // theoretical minimum
 	Config      map[string]any // arbitrary config passed to grader at runtime
+	Script      string         // JavaScript executed only in the isolated graders job
 }
 
 // GradersConfig holds the configuration for deterministic graders declared
@@ -137,7 +139,26 @@ func (gc *GradersConfig) EnabledGraderIDs() []string {
 			result = append(result, bid)
 		}
 	}
+	var custom []string
+	for id := range enabledSet {
+		if _, builtin := builtinGraderMetaByID[id]; !builtin {
+			custom = append(custom, id)
+		}
+	}
+	sort.Strings(custom)
+	result = append(result, custom...)
 	return result
+}
+
+// CustomGraderIDs returns enabled custom graders in stable order.
+func (gc *GradersConfig) CustomGraderIDs() []string {
+	var ids []string
+	for _, id := range gc.EnabledGraderIDs() {
+		if _, builtin := builtinGraderMetaByID[id]; !builtin {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // DefaultGraderIDs contains only linear-time built-ins. Trajectory analyses that
@@ -201,12 +222,18 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 			return nil, fmt.Errorf("graders has invalid id %q: must match %s", id, graderIDPattern.String())
 		}
 
-		meta, isBuiltin := builtinGraderMetaByID[id]
-		if !isBuiltin {
-			return nil, fmt.Errorf("graders.%s is not supported: custom graders are disabled for security; use a built-in grader: %s", id, strings.Join(BuiltinGraderIDs, ", "))
+		if id == "operational-value" {
+			return nil, errors.New("graders.operational-value is not supported; Bash and file-based evaluators cannot run as session graders")
 		}
-		def := builtinDefFromMeta(meta)
+		meta, isBuiltin := builtinGraderMetaByID[id]
+		def := &GraderDefinition{ID: id, Name: id}
+		if isBuiltin {
+			def = builtinDefFromMeta(meta)
+		}
 		if entryRaw == nil {
+			if !isBuiltin {
+				return nil, fmt.Errorf("graders.%s requires a JavaScript script over the in-memory session", id)
+			}
 			cfg.Graders[id] = def
 			continue
 		}
@@ -218,6 +245,12 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 
 		if err := parseGraderEntryFields(def, entry, id); err != nil {
 			return nil, err
+		}
+		if !isBuiltin && def.Script == "" {
+			return nil, fmt.Errorf("graders.%s requires a JavaScript script over the in-memory session", id)
+		}
+		if !isBuiltin && def.Threshold != nil && def.Direction == "" {
+			return nil, fmt.Errorf("graders.%s.direction is required when a custom grader declares a threshold", id)
 		}
 
 		cfg.Graders[id] = def
@@ -256,10 +289,20 @@ func builtinDefFromMeta(meta *BuiltinGraderMeta) *GraderDefinition {
 func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id string) error { //nolint:largefunc
 	for key := range entry {
 		switch key {
-		case "enabled", "name", "description", "unit", "direction", "threshold", "max", "min", "config":
+		case "enabled", "name", "description", "unit", "direction", "threshold", "max", "min", "config", "script":
 		default:
-			return fmt.Errorf("graders.%s.%s is not supported; graders accept built-in configuration only, not executable code", id, key)
+			return fmt.Errorf("graders.%s.%s is not supported; use data-only built-in configuration or an inline JavaScript script for a custom grader", id, key)
 		}
+	}
+	if raw, exists := entry["script"]; exists {
+		if _, builtin := builtinGraderMetaByID[id]; builtin {
+			return fmt.Errorf("graders.%s.script cannot override a built-in grader; choose a custom grader ID", id)
+		}
+		script, valid := raw.(string)
+		if !valid || strings.TrimSpace(script) == "" || len(script) > 256*1024 {
+			return fmt.Errorf("graders.%s.script must be nonempty JavaScript of at most 256 KiB", id)
+		}
+		def.Script = script
 	}
 	if v, ok := entry["enabled"]; ok {
 		b, ok := v.(bool)

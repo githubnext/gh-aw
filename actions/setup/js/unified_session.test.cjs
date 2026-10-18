@@ -79,6 +79,19 @@ describe("Unified conclusion session", () => {
     }
   });
 
+  it("records custom IDs without executing code found in collected evidence", () => {
+    const marker = path.join(root, "must-not-exist");
+    const script = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "executed")`;
+    write("graders/grader_manifest.json", { graders: [{ id: "custom-count", source: "inline", script }] });
+    write("agent-session.jsonl", [{ type: "assistant.message", data: { content: script } }]);
+    const events = writeUnifiedSession({ rootDir: root, graders: [], customGraderIds: ["custom-count"] });
+    const manifest = events.find(event => event.type === "grader.manifest").data;
+    expect(manifest.customGraders).toEqual(["custom-count"]);
+    expect(manifest.graders.every(grader => grader.source === "builtin" && !Object.hasOwn(grader, "script"))).toBe(true);
+    expect(fs.existsSync(marker)).toBe(false);
+    expect(validateSession(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8"))).toBe(events.length);
+  });
+
   it("persists dependency job outcomes without outputs or invented timing", () => {
     process.env.GH_AW_JOB_RESULTS = JSON.stringify({
       safe_outputs: { result: "failure", outputs: { token: "PRIVATE_OUTPUT" } },

@@ -711,7 +711,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
 }
 
 /**
- * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, jobDurations?: Record<string, number>, graders?: any[]}} [options]
+ * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, jobDurations?: Record<string, number>, graders?: any[], customGraderIds?: string[]}} [options]
  * @returns {import("./types/unified_session").UnifiedSession}
  */
 function writeUnifiedSession(options = {}) {
@@ -728,7 +728,7 @@ function writeUnifiedSession(options = {}) {
         if (entry.type === "json") session.push(entry.value);
         else if (entry.reason !== "blank") throw new Error(`${ERR_VALIDATION}: Invalid serialized unified session`);
       }
-      events = require("./grader_artifacts.cjs").writeGraderArtifacts(session, path.dirname(outputPath), options.graders);
+      events = require("./grader_artifacts.cjs").writeGraderArtifacts(session, path.dirname(outputPath), options.graders, options.customGraderIds);
     }
     writeSessionArtifact(outputPath, events, maskedValues);
     return events;
@@ -739,11 +739,12 @@ function writeUnifiedSession(options = {}) {
   }
 }
 
-/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>, graders?: any[]}} [options] @returns {Promise<void>} */
+/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>, graders?: any[], customGraderIds?: string[]}} [options] @returns {Promise<void>} */
 async function main(options = {}) {
   const jobDurations = options.jobDurations ?? (await require("./workflow_job_durations.cjs").collectJobDurations({ warn: message => global.core.warning(message) }));
-  const { readGraderEnvironment, publishGraderSummary } = require("./grader_artifacts.cjs");
-  const events = writeUnifiedSession({ ...options, jobDurations, graders: options.graders ?? readGraderEnvironment() });
+  const { readGraderManifestEnvironment, publishGraderSummary } = require("./grader_artifacts.cjs");
+  const manifest = options.graders === undefined ? readGraderManifestEnvironment() : { graders: options.graders };
+  const events = writeUnifiedSession({ ...options, jobDurations, graders: manifest.graders, customGraderIds: options.customGraderIds ?? manifest.customGraders });
   const { publishUnifiedSessionSummary } = require("./unified_session_render.cjs");
   await publishUnifiedSessionSummary(options.outputPath ?? path.join(options.rootDir ?? "/tmp/gh-aw", "usage/aw_session.jsonl"));
   await publishGraderSummary(events);

@@ -58,7 +58,6 @@ func TestRunGraderFromUnifiedSession(t *testing.T) {
 
 func TestRunGraderRejectsCustomCode(t *testing.T) {
 	for _, entry := range []string{
-		"custom:\n    script: return 1",
 		"operational-value:\n    run: evaluator.sh",
 		"loops:\n    script: return 1",
 	} {
@@ -73,6 +72,26 @@ func TestRunGraderRejectsCustomCode(t *testing.T) {
 			assert.Empty(t, output.String())
 		})
 	}
+}
+
+func TestRunCustomGraderFromUnifiedSession(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  custom-count:\n    script: return helpers.createSessionLookups(session).stats.toolCallCount + config.offset\n    config:\n      offset: 3\n---\nTest.\n")
+	var output bytes.Buffer
+	require.NoError(t, runGrader(context.Background(), graderRunConfig{
+		Workflow: workflowID, GraderID: "custom-count", Input: strings.NewReader("[]"), Output: &output,
+	}))
+	var result struct {
+		ID     string
+		Value  float64
+		Source string
+	}
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, "custom-count", result.ID)
+	assert.Equal(t, "inline", result.Source)
+	assert.InDelta(t, 3.0, result.Value, 1e-9)
 }
 
 func TestLoadGraderRunDefinitionResolvesImports(t *testing.T) {

@@ -1,6 +1,6 @@
 // This file provides command-line interface functionality for gh-aw.
-// This file (audit_report_graders.go) reads the grader results produced by the agent job
-// (grader_results.json, mirrored into the usage artifact by the conclusion job) and exposes
+// This file (audit_report_graders.go) reads built-in conclusion results and the
+// optional combined artifact produced by the isolated custom graders job, and exposes
 // them for display in the audit command and in the audit JSON report.
 
 package cli
@@ -73,22 +73,22 @@ type graderManifestEntry struct {
 }
 
 type graderManifestDocument struct {
-	Graders []graderManifestEntry `json:"graders"`
+	Graders       []graderManifestEntry `json:"graders"`
+	CustomGraders []string              `json:"customGraders"`
 }
 
 // graderArtifactDirCandidates returns the directories, relative to a run's log directory,
-// that may contain grader output files. The order reflects preference: the compact usage
-// artifact first (it is downloaded for every run), then the dedicated graders artifact,
+// that may contain grader output files. The order reflects preference: the complete
+// dedicated graders artifact first, then the compact usage artifact,
 // then the unified agent artifact, then a flattened run root.
 func graderArtifactDirCandidates(runDir string) []string {
 	usage := constants.UsageArtifactName.String()
 	graders := constants.GradersDirName.String()
-	candidates := []string{
+	candidates := append(customGraderArtifactDirs(runDir),
 		filepath.Join(runDir, usage, graders),
-		filepath.Join(runDir, graders),
 		filepath.Join(runDir, "agent", graders),
 		runDir,
-	}
+	)
 
 	// workflow_call runs prefix artifact names with a hash, e.g. "{hash}-usage".
 	entries, err := os.ReadDir(runDir)
@@ -103,11 +103,23 @@ func graderArtifactDirCandidates(runDir string) []string {
 		if strings.HasSuffix(name, "-"+usage) {
 			candidates = append(candidates, filepath.Join(runDir, name, graders))
 		}
-		if strings.HasSuffix(name, "-"+graders) {
-			candidates = append(candidates, filepath.Join(runDir, name))
-		}
 	}
 	return candidates
+}
+
+func customGraderArtifactDirs(runDir string) []string {
+	graders := constants.GradersArtifactName.String()
+	dirs := []string{filepath.Join(runDir, graders)}
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return dirs
+	}
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasSuffix(entry.Name(), "-"+graders) {
+			dirs = append(dirs, filepath.Join(runDir, entry.Name()))
+		}
+	}
+	return dirs
 }
 
 // findGraderFile returns the first existing path for filename across the known grader

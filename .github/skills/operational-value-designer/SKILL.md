@@ -10,14 +10,16 @@ metadata:
 
 ## Current grading boundary
 
-Custom executable graders are no longer supported. Do not create or enable
-`graders.operational-value`, `script`, or `run` configurations. The Bash
+Bash/file-based graders are not supported. Do not create or enable
+`graders.operational-value` or `run` configurations. The Bash
 deliverables below are historical design guidance, not supported runtime
 integration instructions.
 
-New metrics must be reviewed built-in implementations receiving only the
-redacted in-memory unified session and non-executable configuration. They run
-in conclusion after collection; they cannot read files, invoke processes, use
+New metrics must receive only the redacted in-memory unified session and
+data configuration. Use a reviewed built-in in conclusion or a distinct custom
+JavaScript `script` in the isolated downstream graders job. Custom scripts
+receive `session`, `config`, and `helpers.createSessionLookups(session)`;
+they cannot read files, invoke processes, use
 credentials, or fetch evidence. Reuse `createSessionLookups` for statistics
 and event lookups, and return `unavailable` when required observations are
 absent. Do not substitute activity metrics for operational outcomes.

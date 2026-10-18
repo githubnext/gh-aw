@@ -134,10 +134,15 @@ function computeGraders(session, graders = []) {
   const manifest = { version: GRADER_VERSION, graders: withDefaultGraders(graders) };
   const lookups = createSessionLookups(session);
   const results = manifest.graders.filter(grader => grader.enabled).map(grader => runBuiltinGrader(grader.id, session, grader, lookups));
+  return { manifest, output: buildGraderOutput(results, lookups) };
+}
+
+/** @param {GraderResult[]} results @param {SessionLookups} lookups */
+function buildGraderOutput(results, lookups) {
   const info = lookups.eventsOfType("workflow.info")[0]?.data;
   const evals = lookups.eventsOfType("eval.result").map(event => event.data);
   const byQuestion = Object.fromEntries(evals.filter(record => typeof record.id === "string").map(record => [record.id, record.answer]));
-  const output = {
+  return {
     version: GRADER_VERSION,
     run: {
       id: String(info?.runId ?? ""),
@@ -161,7 +166,6 @@ function computeGraders(session, graders = []) {
     },
     results,
   };
-  return { manifest, output };
 }
 
 /** @param {any} value @returns {string} */
@@ -196,6 +200,7 @@ function hasComputedValue(result) {
 
 module.exports = {
   computeGraders,
+  buildGraderOutput,
   createSessionLookups,
   runBuiltinGrader,
   withDefaultGraders,

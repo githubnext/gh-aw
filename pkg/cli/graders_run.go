@@ -47,6 +47,7 @@ type graderRunDefinition struct {
 	Direction   string         `json:"direction"`
 	Threshold   *float64       `json:"threshold"`
 	Config      map[string]any `json:"config,omitempty"`
+	Script      string         `json:"script,omitempty"`
 }
 
 func runGrader(ctx context.Context, config graderRunConfig) error {
@@ -72,14 +73,18 @@ func loadGraderRunDefinition(workflowArg, graderID string) (graderRunDefinition,
 	}
 	definition := data.Graders.Graders[graderID]
 	if definition == nil {
-		return graderRunDefinition{}, fmt.Errorf("workflow %s does not enable built-in grader %q", workflowPath, graderID)
+		return graderRunDefinition{}, fmt.Errorf("workflow %s does not enable grader %q", workflowPath, graderID)
 	}
 	if definition.Enabled != nil && !*definition.Enabled {
 		return graderRunDefinition{}, fmt.Errorf("grader %q is disabled in workflow %s", graderID, workflowPath)
 	}
+	source := "builtin"
+	if definition.Script != "" {
+		source = "inline"
+	}
 	return graderRunDefinition{
-		ID: graderID, Name: definition.Name, Description: definition.Description, Source: "builtin", Unit: definition.Unit,
-		Direction: definition.Direction, Threshold: definition.Threshold, Config: definition.Config,
+		ID: graderID, Name: definition.Name, Description: definition.Description, Source: source, Unit: definition.Unit,
+		Direction: definition.Direction, Threshold: definition.Threshold, Config: definition.Config, Script: definition.Script,
 	}, nil
 }
 
@@ -187,7 +192,7 @@ func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payloa
 		return fmt.Errorf("failed to stage grader runtime: %w", err)
 	}
 	defer os.RemoveAll(directory)
-	for _, name := range []string{"trace_graders.cjs", "grader_session.cjs", "trajectory_graders.cjs", "builtin_graders.json", "working_set_metrics.cjs"} {
+	for _, name := range []string{"trace_graders.cjs", "grader_session.cjs", "trajectory_graders.cjs", "builtin_graders.json", "working_set_metrics.cjs", "custom_graders.cjs", "custom_grader_worker.cjs"} {
 		content, err := setup.SessionParserSources.ReadFile("js/" + name)
 		if err != nil {
 			return fmt.Errorf("cannot load grader runtime %s: %w", name, err)
@@ -213,7 +218,12 @@ func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payloa
 	}
 	commandCtx, cancel := context.WithTimeout(ctx, graderJSTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(commandCtx, nodePath, permissionFlag, "--allow-fs-read="+directory, filepath.Join(directory, "graders_run.cjs"))
+	args := []string{permissionFlag, "--allow-fs-read=" + directory}
+	if grader.Source == "inline" {
+		args = append(args, "--allow-child-process")
+	}
+	args = append(args, filepath.Join(directory, "graders_run.cjs"))
+	cmd := exec.CommandContext(commandCtx, nodePath, args...)
 	cmd.Env = []string{}
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Stdout = output

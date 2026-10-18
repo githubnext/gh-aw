@@ -5,11 +5,10 @@ const path = require("path");
 const { computeGraders, buildGradersSummaryBody } = require("./trace_graders.cjs");
 const { normalizeUnifiedSessionEvent } = require("./unified_session_payload.cjs");
 
-/** @returns {any[]} */
-function readGraderEnvironment() {
-  const prefix = "GH_AW_GRADER_MANIFEST";
+/** @param {string} [prefix] @returns {any} */
+function readGraderManifestEnvironment(prefix = "GH_AW_GRADER_MANIFEST") {
   const countText = process.env[`${prefix}_CHUNKS`];
-  if (countText === undefined) return [];
+  if (countText === undefined) return { graders: [] };
   const count = Number(countText);
   if (!Number.isSafeInteger(count) || count < 1 || count > 10000) throw new Error(`invalid ${prefix}_CHUNKS`);
   const chunks = [];
@@ -21,10 +20,18 @@ function readGraderEnvironment() {
   try {
     const manifest = JSON.parse(chunks.join(""));
     if (!manifest || !Array.isArray(manifest.graders)) throw new Error("expected a graders array");
-    return manifest.graders;
+    if (manifest.customGraders !== undefined && (!Array.isArray(manifest.customGraders) || !manifest.customGraders.every(id => typeof id === "string" && /^[a-z][a-z0-9-]{0,63}$/.test(id)))) {
+      throw new Error("expected custom grader IDs");
+    }
+    return manifest;
   } catch (error) {
     throw new Error("cannot parse grader manifest configuration", { cause: error });
   }
+}
+
+/** @returns {any[]} */
+function readGraderEnvironment() {
+  return readGraderManifestEnvironment().graders;
 }
 
 /**
@@ -32,10 +39,13 @@ function readGraderEnvironment() {
  * @param {import("./types/unified_session").UnifiedSession} session
  * @param {string} usageDirectory
  * @param {any[]} graders
+ * @param {string[]} [customGraderIds]
  * @returns {import("./types/unified_session").UnifiedSession}
  */
-function writeGraderArtifacts(session, usageDirectory, graders) {
-  const { manifest, output } = computeGraders(session, graders);
+function writeGraderArtifacts(session, usageDirectory, graders, customGraderIds = []) {
+  const computed = computeGraders(session, graders);
+  const manifest = { ...computed.manifest, ...(customGraderIds.length ? { customGraders: customGraderIds } : {}) };
+  const output = computed.output;
   const directory = path.join(usageDirectory, "graders");
   try {
     fs.mkdirSync(directory, { recursive: true });
@@ -82,4 +92,4 @@ async function publishGraderSummary(session) {
   await global.core.summary.write({ overwrite: false });
 }
 
-module.exports = { readGraderEnvironment, writeGraderArtifacts, publishGraderSummary };
+module.exports = { readGraderEnvironment, readGraderManifestEnvironment, writeGraderArtifacts, publishGraderSummary };

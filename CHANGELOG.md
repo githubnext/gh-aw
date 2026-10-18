@@ -8,12 +8,18 @@ All notable changes to this project will be documented in this file.
 
 Graders now run in conclusion as pure computation over the redacted in-memory
 unified session. Ten fast built-ins are enabled by default; other built-ins
-require explicit opt-in. Custom JavaScript and Bash graders (`script`, `run`,
-and `operational-value`) are removed for security: delete these configurations
-and use registered built-ins. Recompile workflows to move grading out of the
+require explicit opt-in. Custom JavaScript runs only in a separate restricted
+`graders` job, using immutable `session`, `config`, and `helpers` inputs.
+Conclusion never receives custom executable definitions or user-provided steps.
+Bash/file-based graders (`run` and `operational-value`) are removed: migrate to
+pure JavaScript with a distinct custom ID or use registered built-ins.
+Recompile workflows to move grading out of the
 agent job. Read schema-version-2 results from `usage/graders/`; CLI replay now
 accepts unified-session JSONL or a JSON event array instead of legacy trace
-payloads.
+payloads. Custom results use a separate combined `graders` artifact, downloaded
+conditionally by audit when custom IDs are registered, including cached reports.
+The logs `graders` artifact set includes both jobs' results and supports
+workflow-call-prefixed artifacts.
 
 MCP workflow-writing tools (`add`, `update`, `fix`, and `compile`) are disabled
 by default. Operators can enable them for trusted clients and workflow sources

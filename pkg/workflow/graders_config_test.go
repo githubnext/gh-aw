@@ -51,7 +51,6 @@ func TestParseGradersOverrides(t *testing.T) {
 func TestParseGradersRejectsExecutableConfiguration(t *testing.T) {
 	for _, graders := range []map[string]any{
 		{"custom": nil},
-		{"custom": map[string]any{"script": "return 1"}},
 		{"custom": map[string]any{"enabled": false}},
 		{"operational-value": map[string]any{"run": "evaluator.sh"}},
 		{"operational-value": map[string]any{"script": "#!/bin/bash\necho 1"}},
@@ -128,7 +127,7 @@ func TestGraderEnvironmentRoundTrip(t *testing.T) {
 	assert.NotContains(t, env, "${{")
 	var actual graderManifest
 	require.NoError(t, json.Unmarshal(graderEnvironmentPayload(env, "GH_AW_GRADER_MANIFEST"), &actual))
-	assert.Equal(t, buildGraderManifest(cfg), &actual)
+	assert.Equal(t, buildGraderManifest(cfg, false), &actual)
 	assert.NotContains(t, env, "GH_AW_GRADER_EXEC")
 }
 
@@ -172,4 +171,79 @@ func TestMergeImportedGradersFrontmatter(t *testing.T) {
 	require.NoError(t, err)
 	assert.InDelta(t, 8.0, *cfg.Graders["loops"].Threshold, 1e-9)
 	assert.Contains(t, cfg.EnabledGraderIDs(), "recurrence-determinism")
+}
+
+func TestCustomGraderManifestPartition(t *testing.T) {
+	cfg, err := ParseGradersFromFrontmatter(map[string]any{"graders": map[string]any{
+		"custom-z": map[string]any{"script": "return '${{ secrets.DO_NOT_EVALUATE }}'.length"},
+		"custom-a": map[string]any{"script": "return 1"},
+		"disabled": map[string]any{"script": "throw Error('disabled')", "enabled": false},
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"custom-a", "custom-z"}, cfg.CustomGraderIDs())
+	builtin, err := graderEnvironment(cfg)
+	require.NoError(t, err)
+	assert.NotContains(t, builtin, "return")
+	assert.NotContains(t, builtin, "script")
+	assert.Contains(t, builtin, `"customGraders":["custom-a","custom-z"]`)
+	custom, err := graderEnvironmentForJob(cfg, true)
+	require.NoError(t, err)
+	assert.NotContains(t, custom, "${{")
+	assert.Contains(t, custom, "GH_AW_CUSTOM_GRADER_MANIFEST")
+	assert.Len(t, buildGraderManifest(cfg, true).Graders, 2)
+}
+
+func TestCustomGradersRunAfterConclusionWithoutCredentials(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "test.md")
+	const source = "return helpers.createSessionLookups(session).stats.toolCallCount"
+	require.NoError(t, os.WriteFile(file, []byte("---\non: workflow_dispatch\nengine: copilot\nstrict: false\nenvironment: production\ngraders:\n  custom-count:\n    script: "+source+"\n---\nTest.\n"), 0o600))
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetEnvironmentOverride("debug")
+	require.NoError(t, compiler.CompileWorkflow(file))
+	content, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
+	require.NoError(t, err)
+	conclusion := extractJobSection(string(content), "conclusion")
+	custom := extractJobSection(string(content), "graders")
+	assert.NotContains(t, conclusion, source)
+	assert.NotContains(t, conclusion, "custom_graders.cjs")
+	assert.NotContains(t, conclusion, "GH_AW_CUSTOM_GRADER")
+	assert.Contains(t, conclusion, `"customGraders":["custom-count"]`)
+	assert.Contains(t, custom, source)
+	assert.Contains(t, custom, "custom_graders.cjs")
+	assert.Contains(t, custom, "needs:\n      - activation\n      - conclusion")
+	assert.NotContains(t, custom, "        permissions:")
+	assert.Contains(t, custom, "contents: read")
+	assert.Contains(t, custom, "runs-on: ubuntu-latest")
+	assert.Contains(t, custom, "Download unified session")
+	assert.Contains(t, custom, "Upload custom grader results")
+	for _, forbidden := range []string{"id-token:", "write", "environment:", "COPILOT_GITHUB_TOKEN", "GH_AW_OTLP", "actions/create-github-app-token", "persist-credentials: true"} {
+		assert.NotContains(t, custom, forbidden)
+	}
+
+	assert.NotContains(t, conclusion, "needs: [graders")
+	job, ok := compiler.jobManager.GetJob("conclusion")
+	require.True(t, ok)
+	assert.NotContains(t, job.Needs, "graders")
+	assert.Contains(t, conclusion, "environment: \"debug\"")
+}
+
+func TestCustomGradersJobCannotBeCustomized(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "test.md")
+	const content = "---\non: workflow_dispatch\nstrict: false\ngraders:\n  custom-count:\n    script: return 1\njobs:\n  graders:\n    permissions:\n      issues: write\n---\nTest.\n"
+	require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+	require.ErrorContains(t, NewCompiler(WithVersion("dev")).CompileWorkflow(file), "jobs.graders is compiler-owned")
+}
+
+func TestConclusionRejectsUserProvidedSteps(t *testing.T) {
+	for _, field := range []string{"steps", "pre-steps", "setup-steps"} {
+		t.Run(field, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "test.md")
+			content := "---\non: workflow_dispatch\nstrict: false\njobs:\n  conclusion:\n    " + field + ":\n      - run: node -e 'throw Error(\"must not run\")'\n---\nTest.\n"
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+			require.ErrorContains(t, NewCompiler(WithVersion("dev")).CompileWorkflow(file), "jobs.conclusion cannot run user-provided steps")
+		})
+	}
 }

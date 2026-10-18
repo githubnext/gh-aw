@@ -68,6 +68,7 @@ const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const UploadCodeCoverageJobName JobName = "upload_code_coverage"
 const ConclusionJobName JobName = "conclusion"
+const GradersJobName JobName = "graders"
 const UnlockJobName JobName = "unlock"
 
 // AgentFailureStepName is the generated conclusion step that reports agent failures.
@@ -90,6 +91,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(UploadCodeScanningJobName):  {},
 	string(UploadCodeCoverageJobName):  {},
 	string(ConclusionJobName):          {},
+	string(GradersJobName):             {},
 	string(UnlockJobName):              {},
 }
 
@@ -113,6 +115,9 @@ const DetectionArtifactName ArtifactName = "detection"
 
 // EvalsArtifactName is the artifact name for the BinEval evaluation results.
 const EvalsArtifactName ArtifactName = "evals"
+
+// GradersArtifactName contains combined results from the isolated custom graders job.
+const GradersArtifactName ArtifactName = "graders"
 
 // EvalsResultFilename is the filename of the evaluation results JSONL file.
 const EvalsResultFilename Filename = "evals.jsonl"

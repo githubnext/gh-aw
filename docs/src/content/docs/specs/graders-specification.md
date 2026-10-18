@@ -7,7 +7,7 @@ sidebar:
 
 # Graders Specification
 
-**Version**: 0.3.0
+**Version**: 0.4.0
 **Status**: Draft Specification
 **Feature Status**: Experimental
 
@@ -62,12 +62,10 @@ graders:
 
 Supported per-grader fields are `enabled`, `name`, `description`, `unit`,
 `direction`, `threshold`, `min`, `max`, and `config`. These fields carry data
-only. Unknown IDs and unsupported fields MUST fail validation, including when
-the entry is disabled.
-
-Custom graders, inline JavaScript, Bash evaluators, `script`, `run`, and the
-reserved legacy `operational-value` grader MUST be rejected. There is no
-workflow-provided executable extension point.
+only. Custom IDs MUST additionally declare an inline JavaScript `script`, limited
+to 256 KiB. Built-in IDs MUST NOT accept scripts or implementation overrides.
+Unsupported fields, Bash evaluators, file-based scripts, `run`, and the reserved
+legacy `operational-value` ID MUST fail validation, even when disabled.
 
 Disabling a default with `enabled: false` MUST persist through manifest
 normalization and replay. Disabling all defaults is valid.
@@ -96,7 +94,7 @@ The full registry is documented in the [Graders Reference](/gh-aw/experimental/t
 
 ## 5. Execution and artifacts
 
-Grading MUST execute in the **conclusion job**, after agent, detection,
+Built-in grading MUST execute in the **conclusion job**, after agent, detection,
 safe-output, experiment, and eval observations have been collected into the
 unified session. The caller MUST redact the in-memory session before grading.
 Graders MUST NOT run in the agent job or reread raw logs.
@@ -114,12 +112,37 @@ implementation identity, numeric value or null, unit, status, and threshold
 outcome. Individual computation failures MUST be recorded as errors and surfaced
 in conclusion, not converted into successful scores.
 
-No evaluator scripts, executable payloads, or grader-specific credentials are
-packaged or passed to grading.
+Conclusion MUST NOT receive or execute workflow-provided JavaScript.
+Its manifest MAY register custom grader IDs, but MUST NOT contain custom
+executable definitions. User-provided conclusion steps MUST be rejected.
+
+Custom JavaScript MUST run only in a separate **graders job**, downstream of a
+successful conclusion and its published `usage` artifact. This job MUST use a
+fresh hosted runner, read-only repository access, no inherited deployment
+environment, and no App, inference, or OIDC credential minting. Work-queue
+participants without a published conclusion session MUST reject custom graders.
+Authors MUST NOT customize this compiler-owned job.
+
+Each custom script MUST receive immutable in-memory session/configuration
+snapshots and session-derived lookup helpers, with no host-object bindings.
+Scripts MUST be synchronous and return a finite number, null, or a result object
+with a finite/null `value`. File, module, environment, process, network, clock,
+randomness, and timer capabilities MUST NOT be exposed. Separate restricted Node
+processes MUST bound memory, output, and execution time; VM isolation alone is
+insufficient.
+
+The separate `graders` artifact MUST contain combined built-in and custom
+results and data-only metadata, without overwriting built-in outcomes or
+replacing the conclusion session. Custom implementation identity MUST include a
+source digest. Audit MUST conditionally retrieve this artifact when the usage
+manifest registers custom IDs, support workflow-call prefixes, and refresh
+cached reports when results appear. Missing optional results MUST preserve
+built-in results; actual discovery/download errors MUST be surfaced.
 
 ## 6. Local replay
 
-`gh aw graders run` MUST use the same pure built-in implementation as conclusion.
+`gh aw graders run` MUST use the same pure built-in implementation as conclusion
+or the same isolated custom runtime as the graders job.
 The CLI owns input parsing and optional download of the run's `usage` artifact.
 It accepts unified-session JSONL or a JSON event array, not legacy trace payloads
 or executable evaluator requests.
@@ -131,7 +154,7 @@ The grader itself still receives only the session and data configuration.
 ## 7. Experiment metric references
 
 Experiment metrics MAY reference `grader:<id>` or `graders.<id>.value`.
-The ID MUST resolve to an enabled built-in, including automatically enabled
+The ID MUST resolve to an enabled built-in or custom grader, including automatically enabled
 defaults. Unknown, disabled, or empty references MUST fail validation.
 
 `gh aw experiments analyze` reads persisted assignments and grader results.
@@ -147,7 +170,9 @@ See the [Experiments Specification](/gh-aw/experimental/experiments-specificatio
 Conforming implementations MUST cover:
 
 - Default activation, explicit opt-ins, and disabling all defaults.
-- Rejection of custom IDs and executable configuration at all entry points.
+- Rejection of built-in overrides, Bash/file evaluators, and unsupported fields.
+- Custom source exclusion from conclusion and isolated downstream execution.
+- Optional custom-artifact discovery, missing-artifact fallback, and cache refresh.
 - Determinism, immutable inputs, and absence of grader file or process I/O.
 - Shared lookups, tool correlation, duplicate accounting, and phase isolation.
 - Conclusion-only execution after unified-session collection and redaction.
@@ -157,6 +182,12 @@ Conforming implementations MUST cover:
 - Grader-backed experiment reference validation.
 
 ## 9. Change log
+
+### Version 0.4.0
+
+- Restores pure custom JavaScript in an isolated downstream job.
+- Keeps all user-provided JavaScript out of conclusion.
+- Adds conditional audit downloads of combined custom-results artifacts.
 
 ### Version 0.3.0
 

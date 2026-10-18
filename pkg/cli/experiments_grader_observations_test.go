@@ -23,6 +23,29 @@ func graderResult(id, status, value string) graderArtifactResult {
 	return graderArtifactResult{ID: id, Status: status, Value: json.RawMessage(value)}
 }
 
+func TestExperimentsDownloadSeparateGraderArtifactsBeforeLegacy(t *testing.T) {
+	for _, prefix := range []string{"", "a1b2c3-"} {
+		t.Run(prefix, func(t *testing.T) {
+			calls := installSessionTestGH(t, map[string]map[string]string{
+				"agent":            {},
+				prefix + "usage":   {},
+				prefix + "graders": customGraderArtifactFixture(t),
+			})
+			t.Setenv("SESSION_TEST_NAMES", "agent\n"+prefix+"usage\n"+prefix+"graders")
+			t.Setenv("SESSION_TEST_DOWNLOAD_ERROR", "agent")
+			source := &githubGraderRunArtifactSource{baseDir: t.TempDir(), owner: "owner", repo: "repo"}
+			result := source.downloadGraderArtifact(context.Background(), 123, "123")
+			require.Empty(t, result.ExclusionReason)
+			require.NotNil(t, result.Artifact)
+			require.Len(t, result.Artifact.Results, 2)
+			content, err := os.ReadFile(calls)
+			require.NoError(t, err)
+			assert.Contains(t, string(content), "--name "+prefix+"graders")
+			assert.NotContains(t, string(content), "--name agent")
+		})
+	}
+}
+
 func TestResolveGraderMetricReferences(t *testing.T) {
 	t.Parallel()
 	enabled := true
