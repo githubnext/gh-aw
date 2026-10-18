@@ -402,7 +402,8 @@ describe("real immutable Claim routing", () => {
   });
 
   it.each(["pending", "delivery_failed"])("fails an otherwise successful output pass with a %s delivery without suppressing its verified sibling", async state => {
-    activate(2, members => members.map(member => ({ type: "noop", message: member.handle, claim_handle: member.handle })));
+    const fixture = activate(2, members => members.map(member => ({ type: "noop", message: member.handle, claim_handle: member.handle })));
+    await scope.withClaimExecution({ assignment: fixture.assignment, claim_handle: "h1", authorize }, () => manifest.writeSafeOutputErrorReport({ message: "Original handler failure" }));
     const options = managerOptions({
       finalizeResults: vi.fn(async () => ({ claims: { h1: { state }, h2: { state: "result" } } })),
     });
@@ -411,6 +412,17 @@ describe("real immutable Claim routing", () => {
     expect(result.settlements.every(settlement => settlement.success)).toBe(true);
     expect(global.core.setOutput).toHaveBeenCalledWith("work_queue_outcome", "delivery_pending");
     expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
+    const worker = scope.readClaimScopeContext().assignment;
+    const directory = scope.claimArtifactPath(root, "h1", worker);
+    const report = JSON.parse(fs.readFileSync(path.join(directory, "claim-delivery-errors.json"), "utf8"));
+    expect(report).toMatchObject({
+      claim_handle: "h1",
+      errorCode: "claim_delivery_unverified",
+      message: `Claim delivery state: ${state}; effects: unknown`,
+      failures: [{ type: "claim_delivery", errorCode: "verification_unresolved" }],
+    });
+    expect(fs.statSync(path.join(directory, "claim-delivery-errors.json")).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(fs.readFileSync(path.join(directory, "safe-output-errors.json"), "utf8")).message).toBe("Original handler failure");
   });
 
   it.each(["result", "cancelled"])("does not fail independently settled %s Claims", async state => {

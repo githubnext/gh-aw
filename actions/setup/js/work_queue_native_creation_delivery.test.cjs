@@ -261,6 +261,53 @@ describe("native creation Claim delivery", () => {
     expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("verified");
   });
 
+  it("settles the enriched PR message emitted by the safe-output transport", async () => {
+    const f = fixture("create_pull_request");
+    Object.assign(f.message, { head_repo: REPOSITORY, base_branch: "main", base_commit: BASE });
+    await f.execute(async () => {
+      await f.capture();
+      expect((await f.settle()).verification).toBe("verified");
+    });
+    expect((await f.finalize()).claims.h1.state).toBe("result");
+    expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("verified");
+  });
+
+  it("independently checks an older transport base against the prepared PR base", async () => {
+    const f = fixture("create_pull_request");
+    Object.assign(f.message, { head_repo: REPOSITORY, base_branch: "main", base_commit: REF });
+    f.client.rest.repos.compareCommits.mockImplementation(async ({ base }) => ({
+      data: { base_commit: { sha: base }, merge_base_commit: { sha: base }, status: "ahead", ahead_by: 1, behind_by: 0 },
+    }));
+    await f.execute(async () => {
+      await f.capture();
+      expect((await f.settle()).verification).toBe("verified");
+      expect(f.client.rest.repos.compareCommits).toHaveBeenCalledWith(expect.objectContaining({ base: REF, head: BASE }));
+    });
+  });
+
+  it.each([{ head_repo: "foreign/repo" }, { head_repo: null }, { base_branch: "foreign" }, { base_branch: null }, { base_commit: "not-a-commit" }, { base_commit: null }, { unexpected_transport_field: "untrusted" }])(
+    "rejects captured but invalid PR transport metadata %j",
+    async metadata => {
+      const f = fixture("create_pull_request");
+      Object.assign(f.message, metadata);
+      await f.execute(async () => {
+        await f.capture();
+        expect((await f.settle()).verification).toBe("unknown");
+        expect(f.client.rest.pulls.get).not.toHaveBeenCalled();
+      });
+    }
+  );
+
+  it("rejects a valid-looking transport base without independent ancestry", async () => {
+    const f = fixture("create_pull_request");
+    f.message.base_commit = REF;
+    await f.execute(async () => {
+      await f.capture();
+      expect((await f.settle()).verification).toBe("unknown");
+      expect(f.client.rest.pulls.get).not.toHaveBeenCalled();
+    });
+  });
+
   it.each(["create_discussion", "create_pull_request"])("does not accept %s handler success or a copied private receipt as delivery proof", async type => {
     const f = fixture(type);
     await f.execute(async () => {

@@ -240,7 +240,16 @@ async function cancelBeforeLaunch(options) {
 
 function reconciliationCandidates(projection, pool, limit, runNumber) {
   const candidates = [...projection.dispatches.values()]
-    .filter(dispatch => !dispatch.released && (pool === undefined || dispatch.pool === pool))
+    .filter(
+      dispatch =>
+        (pool === undefined || dispatch.pool === pool) &&
+        (!dispatch.released ||
+          dispatch.claims?.some(member => {
+            const claim = projection.claims.get(member.claim_id);
+            const work = projection.works.get(member.work_id);
+            return claim?.state === "completed" && work?.claim_id === member.claim_id && (claim.keep_open ? claim.barrier : work.barrier) === "pending";
+          }))
+    )
     .sort((left, right) => {
       const runPriority = Number(!!right.run) - Number(!!left.run);
       if (runPriority !== 0) return runPriority;
@@ -263,8 +272,9 @@ async function reconcileQueue(options) {
   for (const dispatch of candidates) {
     const assignment = assignmentForDispatch(latest.projection, dispatch.dispatch_id);
     try {
-      if (dispatch.state !== "reserved" && typeof options.verifyEffects === "function") await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment });
-      results.push({ dispatch_id: dispatch.dispatch_id, ...(await reconcileDispatch({ ...options, assignment })) });
+      const reservation = await reconcileDispatch({ ...options, assignment });
+      const delivery = dispatch.state !== "reserved" && (dispatch.run || reservation.released) ? await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment, expireUnverified: true }) : undefined;
+      results.push({ dispatch_id: dispatch.dispatch_id, ...reservation, ...(delivery ? { delivery } : {}) });
     } catch (error) {
       log.failure("queue.reconcile.dispatch_failed", error);
       results.push({ dispatch_id: dispatch.dispatch_id, state: "launch_unresolved", released: false });

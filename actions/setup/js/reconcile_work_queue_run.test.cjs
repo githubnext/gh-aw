@@ -59,6 +59,23 @@ describe("inline trusted worker termination", () => {
     expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => ["Result", "DeliveryFailure"].includes(operation.kind))).toBe(false);
   });
 
+  it("uses the authenticated bound principal for logical AW profiles without a stored principal", async () => {
+    const { fixture, options } = setup({
+      workerPrincipal: "22",
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = "b".repeat(64);
+      },
+    });
+    expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).profile).not.toHaveProperty("principal");
+    await expect(main(options)).resolves.toMatchObject({ released: true });
+    const release = fixture.transactions.at(-1).operations.find(operation => operation.kind === "Release");
+    expect(release.evidence.principal).toBe("22");
+    expect(JSON.parse(JSON.stringify(release.evidence))).toEqual(release.evidence);
+  });
+
   it("enforces retry exhaustion", async () => {
     const { fixture, options } = setup({
       configurePolicy: policy => {
@@ -177,6 +194,59 @@ describe("inline trusted worker termination", () => {
 });
 
 describe("scheduled work queue recovery", () => {
+  it.each([false, true])("settles an expired pending delivery after inline release with keep_open=%s without replay or Result", async keepOpen => {
+    const { fixture, options, nativeRun } = setup({ count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append(
+      "finish",
+      { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed", keep_open: keepOpen },
+      { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle }
+    );
+    await main(options);
+    expect(fixture.state.works.get(member.work_id).barrier).toBe("pending");
+    options.context = { ...fixture.dispatcherContext, job: "work_queue_compaction" };
+    const publisher = fixture.nativeRun(fixture.dispatcherContext);
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+    options.now = fixture.at + fixture.policy.pools.default.reconciliation.deadline_ms;
+    options.publishWorkQueueRequest = vi.fn(async args => fixture.append(args.request.kind, args.request.parameters, args.actor, args.request.id, options.now));
+    nativeRun.status = "completed";
+    nativeRun.conclusion = "failure";
+    const result = await maintenance(options);
+    expect(result).toMatchObject({ reconciled: 1, results: [{ released: true, delivery: { claims: { h1: { state: "delivery_failed", effects: "unknown" } } } }] });
+    const operations = fixture.transactions.flatMap(commit => commit.operations);
+    expect(operations.filter(operation => operation.kind === "DeliveryFailure")).toHaveLength(1);
+    expect(operations.some(operation => operation.kind === "Result")).toBe(false);
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ barrier: "failed", disposition: "unknown" });
+    const transactions = fixture.transactions.length;
+    expect(await maintenance(options)).toMatchObject({ reconciled: 0 });
+    expect(fixture.transactions).toHaveLength(transactions);
+    expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["active", "deadline", "unavailable", "principal", "revision"])("keeps a released pending delivery unresolved for %s evidence", async kind => {
+    const { fixture, options, nativeRun } = setup({ count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    await main(options);
+    options.context = { ...fixture.dispatcherContext, job: "work_queue_compaction" };
+    const publisher = fixture.nativeRun(fixture.dispatcherContext);
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+    options.now = fixture.at + fixture.policy.pools.default.reconciliation.deadline_ms - (kind === "deadline" ? 2 : 0);
+    if (kind !== "active") {
+      nativeRun.status = "completed";
+      nativeRun.conclusion = "success";
+    }
+    if (kind === "principal") nativeRun.actor = { id: "99" };
+    if (kind === "revision") nativeRun.head_sha = "b".repeat(40);
+    if (kind === "unavailable") options.githubClient.rest.actions.getWorkflowRunAttempt.mockRejectedValue(new Error("Unavailable"));
+    if (["unavailable", "principal", "revision"].includes(kind)) await expect(maintenance(options)).rejects.toThrow("work_queue_maintenance_reconciliation_unresolved");
+    else expect(await maintenance(options)).toMatchObject({ reconciled: 1, results: [{ released: true, delivery: { claims: { h1: { state: "pending" } } } }] });
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ barrier: "pending" });
+    expect(fixture.transactions.flatMap(commit => commit.operations).some(operation => ["Result", "DeliveryFailure"].includes(operation.kind))).toBe(false);
+  });
+
   it("does not read native runs when no reservations are held", async () => {
     const { options } = setup({ granted: false, bound: false });
     await expect(maintenance(options)).resolves.toMatchObject({ reconciled: 0, results: [] });
