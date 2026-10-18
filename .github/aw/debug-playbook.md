@@ -218,11 +218,11 @@ Check producer/version, record location, completeness.
 
 ## Work-queue codes
 
-Follow [queue playbook](work-queue.md); read-only status/artifacts first.
+Follow [queue playbook](work-queue.md); inspect read-only status/artifacts.
 Check repo/branch/tip, epoch, request fingerprint, Work/Claim/Delivery IDs,
-run binding, verified receipts. Pending projection does not prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs for
-different work, or bypass immutable profiles/effect scopes.
+run binding, verified receipts. Pending != failure.
+Never rewrite history, fabricate evidence, reuse credentials/request IDs across work,
+or bypass immutable profiles/effect scopes.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -246,7 +246,7 @@ different work, or bypass immutable profiles/effect scopes.
 | `publication_conflict`, `publication_invalid`, `publication_unresolved` | Git tip, CAS, published commit. | Reread/reconcile before retry; publication may have succeeded. |
 | `checkpoint_invalid`, `credential_generation_reused` | Checkpoint proof/ancestry; unique credential generation. | Recover verified checkpoint/authorized new generation; no stale authority. |
 | `dispatch_invalid`, `dispatch_missing`, `launch_started`, `launch_unresolved` | Reservation, receipt, possibly started child. | Reconcile immutable dispatch identity; no duplicate launch. |
-| `delivery_conflict`, `delivery_barrier_conflict`, `delivery_contract_required`, `delivery_evidence_required`, `evidence_invalid`, `evidence_required`, `terminal_evidence_required`, `nonlaunch_evidence_required` | Barrier/contract; authoritative receipts. | Supply verified matching evidence; never force terminal state. |
+| `claim_delivery_unverified`, `delivery_failed`, `verification_unresolved`, `delivery_conflict`, `delivery_barrier_conflict`, `delivery_contract_required`, `delivery_evidence_required`, `evidence_invalid`, `evidence_required`, `terminal_evidence_required`, `nonlaunch_evidence_required` | Barrier/contract, Claim state/effects; independent receipts. | Reconcile verified evidence before retry; never force terminal state. |
 | `result_invalid`, `completion_conflict`, `cancellation_conflict`, `ownership_terminal`, `work_terminal`, `work_missing` | Work/ownership state; finish/result intent. | Respect terminal transitions; reconcile duplicate/conflicting completion/cancellation. |
 | `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts, open claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
 | `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
