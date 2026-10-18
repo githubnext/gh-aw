@@ -105,6 +105,47 @@ func TestComputeGitHubAppManifestPermissionsWriteAllShorthandExcludesAppOnlyScop
 	}
 }
 
+func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
+	tests := []struct {
+		name string
+		on   any
+		want map[string]string
+	}{
+		{
+			name: "selected Projects and security events",
+			on: map[string]any{
+				"projects-item":  map[string]any{"project_id": "PVT_example"},
+				"security-alert": map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}},
+			},
+			want: map[string]string{
+				"organization_projects":  "read",
+				"security_events":        "read",
+				"vulnerability_alerts":   "read",
+				"secret_scanning_alerts": "read",
+			},
+		},
+		{
+			name: "only selected security source",
+			on: map[string]any{
+				"security-alert": map[string]any{"sources": []any{"dependabot"}},
+			},
+			want: map[string]string{"vulnerability_alerts": "read"},
+		},
+		{
+			name: "native events need no webhook permissions",
+			on:   map[string]any{"issues": nil, "workflow_dispatch": nil},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ComputeGitHubAppManifestWebhookPermissions(tt.on); !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("ComputeGitHubAppManifestWebhookPermissions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 	tests := []struct {
 		name string

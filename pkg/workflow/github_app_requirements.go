@@ -83,6 +83,34 @@ func ComputeGitHubAppManifestPermissions(frontmatterPermissions any, safeOutputs
 	return result
 }
 
+// ComputeGitHubAppManifestWebhookPermissions derives the receiving GitHub App
+// permissions required for the selected webhook events in a workflow's "on" value.
+// These are separate from permissions granted to the workflow's GITHUB_TOKEN.
+func ComputeGitHubAppManifestWebhookPermissions(onValue any) map[string]string {
+	eventPermissions := map[string]PermissionScope{
+		"projects_v2_item":      PermissionOrganizationProj,
+		"code_scanning_alert":   PermissionSecurityEvents,
+		"dependabot_alert":      PermissionVulnerabilityAlerts,
+		"secret_scanning_alert": PermissionSecretScanningAlerts,
+	}
+
+	result := make(map[string]string)
+	for _, event := range NormalizeGitHubAppWebhookEvents(onValue) {
+		scope, ok := eventPermissions[event]
+		if !ok {
+			continue
+		}
+		key, supported := GitHubAppManifestPermissionKey(scope)
+		if supported {
+			result[key] = "read"
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 // nonWebhookOnTriggers lists workflow "on:" triggers that Actions supports but that
 // are not deliverable to a GitHub App webhook subscription: they are driven by
 // Actions scheduling/dispatch/composition, not by a webhook event delivered to an
