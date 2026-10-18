@@ -2431,6 +2431,9 @@ index 0000000..abc1234
             expect(result.success).toBe(true);
             expect(pushSpy).toHaveBeenCalledWith(expect.objectContaining({ baseRef: "remote-head", signedCommits: false }));
             expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${validationTree}..HEAD`], expect.any(Object));
+            if (baseAdvanced) {
+              expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", "remote-head..HEAD"], expect.any(Object));
+            }
           }
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"], expect.objectContaining({ silent: true }));
           if (baseAdvanced) {
@@ -2440,8 +2443,11 @@ index 0000000..abc1234
             expect(mockGithub.rest.repos.compareCommits).not.toHaveBeenCalled();
           }
           expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
+          if (!mergeTreeFailure && expectedError !== "protected files" && expectedError !== "Patch size") {
+            expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["diff", "--name-only", "--no-renames", "-z", `${baseAdvanced ? "remote-head" : validationTree}..refs/bundles/push-feature-branch`], expect.any(Object));
+          }
           if (expectedError === "bundle modifies protected files") {
-            const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
+            const historyExclusions = mergeTreeFailure || baseAdvanced ? ["remote-head"] : ["remote-head", trustedBase];
             expect(mockExec.getExecOutput).toHaveBeenCalledWith(
               "git",
               ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature-branch", "--not", ...historyExclusions],
@@ -2449,7 +2455,7 @@ index 0000000..abc1234
             );
           }
           if (expectedError === "octopus merge") {
-            const historyExclusions = mergeTreeFailure ? ["remote-head"] : ["remote-head", trustedBase];
+            const historyExclusions = mergeTreeFailure || baseAdvanced ? ["remote-head"] : ["remote-head", trustedBase];
             expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["rev-list", "--min-parents=3", "refs/bundles/push-feature-branch", "--not", ...historyExclusions], expect.any(Object));
           }
           if (expectedError === "Changed content size") {

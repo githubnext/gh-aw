@@ -37,6 +37,7 @@ const { buildManualBranchApplyCommands, withTransientPushRetry } = require("./cr
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "push_to_pull_request_branch";
+const MAX_BUNDLE_PARENT_COMPARISONS = 4;
 const MISSING_BRANCH_ERROR_TEMPLATE = branchName => `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
 const MISSING_REMOTE_REF_PATTERNS = [
   "couldn't find remote ref",
@@ -202,9 +203,10 @@ async function resolveTrustedBaseTip(exec, gitOptions, baseRef) {
 }
 
 /**
- * Recognize a newly merged base ancestor using only the pinned remote tip as
- * provenance. Topological order prefers newer parents regardless of merge order
- * or commit timestamps. All object inspection stays offline.
+ * Recognize a newly merged ancestor of the pinned remote tip for size checks.
+ * Reachability does not prove a historical base-branch tip: only the exact pinned
+ * tip can exempt protected files or history. Topological order prefers newer
+ * parents without relying on timestamps. All object inspection stays offline.
  *
  * @param {{ getExecOutput: Function }} exec
  * @param {Record<string, unknown>} gitOptions
@@ -234,15 +236,23 @@ async function resolveBundleTrustedBase(exec, gitOptions, oldHead, candidate, tr
     if (!parents.size) return "";
     const ordered = await exec.getExecOutput("git", ["rev-list", "--topo-order", ...parents, "--not", oldHead], opts);
     if (ordered.exitCode !== 0) return "";
+    let comparisonAttempts = 0;
     for (const parent of ordered.stdout.trim().split("\n")) {
       if (!parents.has(parent)) continue;
+      if (comparisonAttempts >= MAX_BUNDLE_PARENT_COMPARISONS) {
+        core.debug("Bundle validation: merge parent comparison budget exhausted");
+        break;
+      }
+      comparisonAttempts++;
       try {
         // Comparing tip...parent reports "behind" when parent is an ancestor.
         const { data } = await githubClient.rest.repos.compareCommits({ ...repoParts, base: trustedTip, head: parent, per_page: 1 });
         if (data.status === "behind" || data.status === "identical") return parent;
-      } catch {
-        // A parent may exist only in the bundle, or comparison may be unavailable.
+      } catch (error) {
         core.debug("Bundle validation: merge parent comparison unavailable");
+        // Only a missing parent is candidate-specific; other failures stop this optional check.
+        if (typeof error === "object" && error !== null && "status" in error && error.status === 404) continue;
+        break;
       }
     }
   } catch {
@@ -1121,6 +1131,7 @@ async function main(config = {}) {
     let pushedCommitSha = "";
     let rangeBaseRef = branchRemoteRef;
     let validationBaseRef = branchRemoteRef;
+    let protectionBaseRef = branchRemoteRef;
     let validationConflictFiles = [];
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
@@ -1202,10 +1213,18 @@ async function main(config = {}) {
           } else {
             core.info("Bundle validation baseline uses PR head");
           }
-          const agentHistoryExclusions = [rangeBaseRef];
-          if (trustedBaseInValidationBase) agentHistoryExclusions.push(trustedBase);
+          const sizeHistoryExclusions = [rangeBaseRef];
+          if (trustedBaseInValidationBase) sizeHistoryExclusions.push(trustedBase);
+          // An ancestor may be an intermediate side-branch state that was reverted
+          // before reaching the base branch. Only the pinned tip has state provenance.
+          const hasTrustedBaseState = trustedBaseInValidationBase && trustedBase === trustedTip;
+          protectionBaseRef = hasTrustedBaseState ? validationBaseRef : rangeBaseRef;
+          const agentHistoryExclusions = hasTrustedBaseState ? sizeHistoryExclusions : [rangeBaseRef];
+          if (trustedBaseInValidationBase && !hasTrustedBaseState) {
+            core.info("Bundle file protection uses PR head: merged ancestor is not the pinned base tip");
+          }
           if (deferBundleValidation) {
-            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
+            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...sizeHistoryExclusions], bundleGitOpts);
             const validation = validatePatch(agentPatchStream.stdout);
             if (validation.error) return validation.error;
             if (validation.fallbackFiles.length) return await createProtectedFilesFallbackIssue(validation.fallbackFiles);
@@ -1217,14 +1236,14 @@ async function main(config = {}) {
           // patch artifact under-detects files (for example, merge-resolution
           // content preserved only by the bundle transport).
           {
-            let bundleFiles = await getBundlePreApplyFiles(exec, bundleGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
+            let bundleFiles = await getBundlePreApplyFiles(exec, bundleGitOpts, protectionBaseRef, bundleRef, validationConflictFiles);
             if (deferBundleValidation) {
               const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
               if (octopus.stdout.trim()) {
                 return { success: false, error: "Cannot validate agent-created octopus merge commits in the bundle. Use two-parent merges instead." };
               }
-              // Preserve protection for agent commits that change then revert a
-              // file, without attributing trusted base-branch commits to the agent.
+              // Preserve changes that were later reverted. Ancestor reachability
+              // alone must not exempt side-branch commits from file protection.
               const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
               bundleFiles = [...new Set([...bundleFiles, ...history.stdout.split("\0").filter(Boolean)])];
             }
@@ -1384,7 +1403,7 @@ async function main(config = {}) {
           }
         }
       } // end else (patch path)
-      if (!hasBundleFile) validationBaseRef = rangeBaseRef;
+      if (!hasBundleFile) validationBaseRef = protectionBaseRef = rangeBaseRef;
       core.info(`Apply transport completed; signed-push base ref: ${rangeBaseRef}`);
 
       // POST-APPLY FILE PROTECTION: Verify actual files written match policy.
@@ -1396,9 +1415,10 @@ async function main(config = {}) {
         const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${validationBaseRef}..HEAD`], hasBundleFile ? offlineGitOptions(baseGitOpts) : baseGitOpts);
         const actualFiles = [...new Set([...diffResult.stdout.split("\0").filter(Boolean), ...validationConflictFiles])];
         agentChangedFiles = actualFiles;
-        if (actualFiles.length > 0) {
-          core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
-          const postApplyProtection = checkFileProtectionPostApply(actualFiles, config);
+        const protectionFiles = protectionBaseRef === validationBaseRef ? actualFiles : await getBundlePreApplyFiles(exec, baseGitOpts, protectionBaseRef, "HEAD", validationConflictFiles);
+        if (protectionFiles.length > 0) {
+          core.info(`Post-apply verification: ${protectionFiles.length} file(s) actually modified`);
+          const postApplyProtection = checkFileProtectionPostApply(protectionFiles, config);
           if (postApplyProtection.action === "deny") {
             const filesStr = postApplyProtection.files.join(", ");
             const msg = `SECURITY: Post-apply file-protection check failed. ` + `The patch applied files that were not detected by the pre-apply parser: ${filesStr}. ` + `This may indicate a patch-parser bypass attempt. Aborting push.`;
@@ -1412,7 +1432,8 @@ async function main(config = {}) {
             await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
             return await createProtectedFilesFallbackIssue(postApplyProtection.files);
           }
-
+        }
+        if (actualFiles.length > 0) {
           const changedBlobSizeBytes = getChangedBlobSizeBytes(baseGitOpts, actualFiles);
           const changedBlobSizeKb = Math.ceil(changedBlobSizeBytes / 1024);
           core.info(`Changed content size: ${changedBlobSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);

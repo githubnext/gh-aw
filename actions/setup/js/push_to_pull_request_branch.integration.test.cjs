@@ -45,18 +45,22 @@ function writeRepoFile(repoDir, relativePath, content) {
 }
 
 function createExecApi(cwd) {
-  return {
+  const api = {
     async getExecOutput(command, args = [], options = {}) {
       if (command !== "git") {
         throw new Error(`unexpected command: ${command}`);
       }
-      const result = execGit(args, { cwd, allowFailure: true });
+      const result = execGit(args, { cwd, env: { ...process.env, ...options.env }, allowFailure: true });
       if (result.status !== 0 && !options.ignoreReturnCode) {
         throw new Error(result.stderr || result.stdout);
       }
       return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
     },
+    async exec(command, args = [], options = {}) {
+      return (await api.getExecOutput(command, args, options)).exitCode;
+    },
   };
+  return api;
 }
 
 function fetchBaseCommit(targetRepo, sourceRepo, baseSha, branchName) {
@@ -82,7 +86,7 @@ describe("push_to_pull_request_branch bundle integration", () => {
     [false, false, true],
     [true, false, true],
     [false, true, true],
-  ])("excludes trusted base changes while counting agent changes (conflict: %s, reverted change: %s, advanced base: %s)", async (conflict, revertedChange, baseAdvanced = false) => {
+  ])("excludes base changes from size but requires tip provenance for protection (conflict: %s, reverted change: %s, advanced base: %s)", async (conflict, revertedChange, baseAdvanced = false) => {
     const repo = createRepo("push-pr-validation-base-");
     tempDirs.push(repo);
     const git = args => execGit(args, { cwd: repo });
@@ -150,9 +154,22 @@ describe("push_to_pull_request_branch bundle integration", () => {
     expect(Buffer.byteLength(agentPatch)).toBeLessThan(1024);
     expect(files.reduce((size, file) => size + fs.statSync(path.join(repo, file)).size, 0)).toBeLessThan(1024);
     expect(git(["rev-list", "--count", "--merges", `${oldHead}..HEAD`]).stdout.trim()).toBe("1");
-    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", oldHead, trustedBase]).stdout.split("\0").filter(Boolean);
-    expect([...new Set(historyFiles)].sort()).toEqual(revertedChange ? ["agent.txt", "package.json"] : conflict ? ["agent.txt", "conflict.txt"] : ["agent.txt"]);
-    expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe(revertedChange ? "deny" : "allow");
+    const historyExclusions = baseAdvanced ? [oldHead] : [oldHead, trustedBase];
+    const historyFiles = git(["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "HEAD", "--not", ...historyExclusions])
+      .stdout.split("\0")
+      .filter(Boolean);
+    expect([...new Set(historyFiles)].sort()).toEqual(
+      baseAdvanced
+        ? conflict
+          ? ["agent.txt", "conflict.txt", "package.json", "upstream.txt"]
+          : ["agent.txt", "package.json", "upstream.txt"]
+        : revertedChange
+          ? ["agent.txt", "package.json"]
+          : conflict
+            ? ["agent.txt", "conflict.txt"]
+            : ["agent.txt"]
+    );
+    expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe(revertedChange || baseAdvanced ? "deny" : "allow");
   });
 
   it.each([false, true])("detects protected changes made and restored only in agent merge commits (octopus: %s)", async octopus => {
@@ -212,6 +229,110 @@ describe("push_to_pull_request_branch bundle integration", () => {
     expect(historyFiles).toContain("package.json");
     expect(historyFiles).not.toContain("upstream.txt");
     expect(checkFileProtectionPostApply([...files, ...historyFiles], { protected_files: ["package.json"] }).action).toBe("deny");
+  });
+
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+  ])("rejects unsigned bundles importing a non-tip side ancestor (side reverted: %s, agent reverted: %s)", async (sideReverted, agentReverted) => {
+    const sourceRepo = createRepo("push-pr-side-ancestor-source-");
+    const targetRepo = createRepo("push-pr-side-ancestor-target-");
+    tempDirs.push(sourceRepo, targetRepo);
+    const git = args => execGit(args, { cwd: sourceRepo });
+    writeRepoFile(sourceRepo, "package.json", "{}\n");
+    git(["add", "."]);
+    git(["commit", "-m", "common base"]);
+    git(["branch", "-M", "main"]);
+    git(["checkout", "-b", "feature"]);
+    writeRepoFile(sourceRepo, "existing.txt", "existing PR\n");
+    git(["add", "."]);
+    git(["commit", "-m", "existing PR"]);
+    const oldHead = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "-b", "side", "main"]);
+    writeRepoFile(sourceRepo, "package.json", '{"scripts":{"review-regression":"echo regression"}}\n');
+    git(["commit", "-am", "A adds protected script"]);
+    const added = git(["rev-parse", "HEAD"]).stdout.trim();
+    writeRepoFile(sourceRepo, "package.json", "{}\n");
+    git(["commit", "-am", "B removes protected script"]);
+    const removed = git(["rev-parse", "HEAD"]).stdout.trim();
+    git(["checkout", "main"]);
+    git(["merge", "--no-ff", "side", "-m", "merge side after script removal"]);
+    const trustedTip = git(["rev-parse", "HEAD"]).stdout.trim();
+    expect(git(["show", "main:package.json"]).stdout).toBe("{}\n");
+    expect(git(["rev-list", "--first-parent", "main"]).stdout).not.toContain(added);
+    const mergedAncestor = sideReverted ? removed : added;
+    git(["checkout", "-b", "candidate", "feature"]);
+    git(["merge", "--no-ff", mergedAncestor, "-m", "merge intermediate side state"]);
+    if (agentReverted) {
+      writeRepoFile(sourceRepo, "package.json", "{}\n");
+      git(["commit", "-am", "agent restores protected file"]);
+    }
+    writeRepoFile(sourceRepo, "agent.txt", "small agent change\n");
+    git(["add", "."]);
+    git(["commit", "-m", "agent change"]);
+    const candidate = git(["rev-parse", "HEAD"]).stdout.trim();
+    const bundlePath = path.join(sourceRepo, ".git", "candidate.bundle");
+    const patchPath = path.join(sourceRepo, ".git", "candidate.patch");
+    git(["bundle", "create", bundlePath, "HEAD", `^${oldHead}`]);
+    fs.writeFileSync(patchPath, git(["format-patch", "--stdout", `${oldHead}..HEAD`]).stdout);
+    execGit(["fetch", sourceRepo, "main:refs/remotes/origin/main", "feature:refs/remotes/origin/feature"], { cwd: targetRepo });
+    execGit(["remote", "add", "origin", sourceRepo], { cwd: targetRepo });
+    const exec = createExecApi(targetRepo);
+    exec.getExecOutput = vi.fn(exec.getExecOutput);
+    const originalEnv = { ...process.env };
+    const originalGlobals = { exec: global.exec, github: global.github, context: global.context };
+    const paths = require("./resolve_transport_paths.cjs");
+    const transportPaths = vi.spyOn(paths, "resolveTransportPaths").mockReturnValue({ patchPath, bundlePath });
+    const push = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockRejectedValue(new Error("Unexpected push"));
+    try {
+      process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+      process.env.GITHUB_WORKSPACE = targetRepo;
+      global.exec = exec;
+      global.context = { repo: { owner: "test-owner", repo: "test-repo" }, payload: { pull_request: { number: 123 } } };
+      const compareCommits = vi.fn(async ({ base, head }) => {
+        expect(base).toBe(trustedTip);
+        const result = execGit(["merge-base", "--is-ancestor", head, base], { cwd: sourceRepo, allowFailure: true });
+        return { data: { status: result.status === 0 ? "behind" : "diverged" } };
+      });
+      global.github = {
+        rest: {
+          pulls: {
+            get: vi.fn().mockResolvedValue({
+              data: {
+                head: { ref: "feature", sha: oldHead, repo: { full_name: "test-owner/test-repo", fork: false } },
+                base: { ref: "main", repo: { full_name: "test-owner/test-repo" } },
+                labels: [],
+              },
+            }),
+          },
+          repos: { get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }), compareCommits },
+        },
+      };
+      delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
+      const handler = await require("./push_to_pull_request_branch.cjs").main({ signed_commits: false, check_branch_protection: false, protected_files: ["package.json"] });
+      const result = await handler({ branch: "feature" }, {});
+      expect(result).toMatchObject({ success: false, skipped: true });
+      expect(result.error).toContain(`${agentReverted ? "patch" : "bundle"} modifies protected files (package.json)`);
+      expect(compareCommits).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", base: trustedTip, head: mergedAncestor, per_page: 1 });
+      if (!agentReverted) {
+        expect(exec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature", "--not", oldHead], expect.any(Object));
+      }
+      expect(execGit(["rev-parse", "feature"], { cwd: targetRepo }).stdout.trim()).toBe(oldHead);
+      expect(execGit(["rev-parse", "origin/feature"], { cwd: targetRepo }).stdout.trim()).toBe(oldHead);
+      expect(execGit(["show", `${candidate}:package.json`], { cwd: targetRepo }).stdout).toBe(sideReverted || agentReverted ? "{}\n" : '{"scripts":{"review-regression":"echo regression"}}\n');
+      expect(exec.getExecOutput.mock.calls.filter(([, args]) => args[0] === "fetch").map(([, args]) => args)).toEqual([["fetch", "origin", "feature:refs/remotes/origin/feature"]]);
+      expect(push).not.toHaveBeenCalled();
+    } finally {
+      transportPaths.mockRestore();
+      push.mockRestore();
+      Object.assign(global, originalGlobals);
+      for (const key of Object.keys(process.env)) {
+        if (!(key in originalEnv)) delete process.env[key];
+      }
+      Object.assign(process.env, originalEnv);
+      delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
+    }
   });
 
   it.each(["text", "binary", "modify/delete"])("keeps protected %s conflict resolutions in the validation file set", async kind => {

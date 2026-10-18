@@ -143,6 +143,9 @@ describe("offline bundle transport with real Git", () => {
     const files = await getBundlePreApplyFiles(exec, {}, baseline.ref, "refs/bundles/test", baseline.conflictedFiles);
     expect(files).toEqual(["agent.txt"]);
     expect(checkFileProtectionPostApply(files, { protected_files: ["package.json"] }).action).toBe("allow");
+    // Reachability permits the size baseline, not a protected-file exemption.
+    const protectionFiles = await getBundlePreApplyFiles(exec, {}, oldHead, "refs/bundles/test", baseline.conflictedFiles);
+    expect(checkFileProtectionPostApply(protectionFiles, { protected_files: ["package.json"] }).action).toBe("deny");
     const absent = await exec.getExecOutput("git", ["cat-file", "-e", trustedTip], { ...offlineGitOptions(), ignoreReturnCode: true });
     expect(absent.exitCode).not.toBe(0);
     expect(packInventory(target)).toEqual(before);
