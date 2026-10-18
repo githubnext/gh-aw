@@ -196,10 +196,11 @@ engine:
         let reportedError = false;
         let maxTurnsHit = false;
         let sessionID;
-        const finishedParts = new Set();
-        const finishedMessages = new Set();
+        const finishedSteps = new Set();
+        const finishedMessageParts = new Map();
         const observedMCPFailures = new Set();
         const runtimeEnv = { ...process.env, OPENCODE_CONFIG_CONTENT: JSON.stringify(config) };
+        delete runtimeEnv.PWD;
         const result = await runProcess({
           command,
           args: [...commandArgs, "--model", `awf-proxy/${model}`],
@@ -218,14 +219,15 @@ engine:
             if (!isOpenCodeEvent(entry)) return;
             if (entry.sessionID) sessionID = entry.sessionID;
             if (entry?.type === "error" && entry.error) reportedError = true;
-            if (maxTurns !== undefined && entry.type === "tool_use" && entry.part.state.status === "error" && entry.part.state.error === "Tools are disabled after the maximum agent steps") {
+            if (maxTurns !== undefined && entry.type === "tool_use" && entry.part?.state?.status === "error" && entry.part.state.error === "Tools are disabled after the maximum agent steps") {
               maxTurnsHit = true;
             }
             if (entry?.type !== "step_finish") return;
-            if (typeof entry.part.messageID === "string") finishedMessages.add(entry.part.messageID);
-            const identity = typeof entry.part?.id === "string" ? JSON.stringify([entry.sessionID, entry.part.id]) : undefined;
-            if (identity !== undefined && finishedParts.has(identity)) return;
-            if (identity !== undefined) finishedParts.add(identity);
+            const messageIdentity = typeof entry.part.messageID === "string" ? JSON.stringify([entry.sessionID, entry.part.messageID]) : undefined;
+            const identity = messageIdentity ?? (typeof entry.part.id === "string" ? JSON.stringify([entry.sessionID, "part", entry.part.id]) : undefined);
+            if (identity !== undefined && finishedSteps.has(identity)) return;
+            if (identity !== undefined) finishedSteps.add(identity);
+            if (messageIdentity !== undefined) finishedMessageParts.set(messageIdentity, { id: entry.part.id, messageID: entry.part.messageID });
             turns++;
             if (maxTurns !== undefined && turns >= maxTurns && entry.part?.reason === "tool-calls") {
               maxTurnsHit = true;
@@ -257,19 +259,30 @@ engine:
             timeout: 60000,
             maxBuffer: 64 * 1024 * 1024,
           }, (error, stdout) => {
-            if (error) return reject(new Error("Unable to export the OpenCode session for step reconciliation"));
+            if (error) {
+              const diagnostics = [];
+              if (Number.isSafeInteger(error.code) || (typeof error.code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code))) diagnostics.push(`code=${error.code}`);
+              if (typeof error.signal === "string" && /^SIG[A-Z0-9]{1,16}$/.test(error.signal)) diagnostics.push(`signal=${error.signal}`);
+              if (error.killed === true) diagnostics.push("killed=true");
+              const detail = diagnostics.length ? ` (${diagnostics.join(", ")})` : "";
+              return reject(new Error(`Unable to export the OpenCode session for step reconciliation${detail}`, { cause: error }));
+            }
             try { resolve(JSON.parse(stdout)); } catch {
               reject(new Error("Failed to parse the OpenCode session export"));
             }
           });
         });
-        const steps = getOpenCodeSessionSteps(exported, sessionID);
+        const records = getOpenCodeSessionSteps(exported, sessionID);
+        const steps = records.filter(entry => entry.type === "step_finish");
         if (!steps.length) throw new Error("OpenCode session export contains no completed model steps");
-        for (const entry of steps) {
-          if (finishedMessages.has(entry.part.messageID)) continue;
+        for (const entry of records) {
+          if (entry.type === "step_finish") {
+            const observedPart = finishedMessageParts.get(JSON.stringify([entry.sessionID, entry.part.messageID]));
+            if (observedPart) entry.part = { ...entry.part, id: observedPart.id, messageID: observedPart.messageID };
+          }
           process.stdout.write(JSON.stringify(entry) + "\n");
         }
-        if (maxTurns !== undefined && steps.length >= maxTurns && steps[maxTurns - 1].part.reason === "tool-calls") {
+        if (maxTurns !== undefined && steps.slice(maxTurns - 1).some(entry => entry.part.reason === "tool-calls")) {
           process.stdout.write(JSON.stringify({ type: "opencode.max_turns", timestamp: Date.now(), data: { maxTurns } }) + "\n");
           throw new Error("OpenCode max-turns limit reached");
         }
@@ -346,12 +359,15 @@ when authoritative context/output limits are available.
 Actions summaries, unified session artifacts, and local session reconstruction
 share the JSONL parser. Text, reasoning, correlated tool calls/results, structured
 errors, timestamps, per-step cost, and input/output/cache token usage are retained.
-The v2 CLI can omit step events while reconciling completed parts. After a
-successful run, the harness captures `session export --standalone` with a
-60-second/64-MiB bound and emits only missing completed-step metadata, never the
-export's user messages or provider state. Export failures fail explicitly rather
-than silently losing usage. Native maximum-step tool rejections also fail even
-when the CLI returns zero.
+The v2 CLI can omit step events or their usage while reconciling completed parts.
+After a successful run, the harness captures `session export --standalone` with a
+60-second/64-MiB bound and emits only safe completed-step and settled compaction
+accounting, retaining observed part identities so usage is merged without extra
+turns. It never emits the export's user messages or provider state. Export
+failures retain their cause and report only safe exit-code/signal diagnostics
+rather than captured output. Native maximum-step tool rejections also fail even
+when the CLI returns zero. Both run and export discard inherited `PWD` so the
+configured working directory controls native repository discovery.
 The parser accepts v1 and v2 tool identities and exit metadata so older session
 artifacts remain readable. Native JavaScript/npm plugins are not gh-aw Agent
 Plugins and are not advertised as supported by this sample. Existing v1 plugins

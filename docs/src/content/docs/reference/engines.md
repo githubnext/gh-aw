@@ -149,8 +149,10 @@ JSONL session events for summaries and unified session artifacts. It installs
 OpenCode 2 from `@opencode/cli` and runs with `--standalone`, avoiding the shared
 background service. Copilot routing
 requires AWF; direct Anthropic/OpenAI BYOK is available with the sandbox disabled.
-Bounded private session exports recover completed-step usage omitted by v2's
-JSONL stream without publishing exported prompts or provider state.
+Bounded private session exports merge completed-step and settled compaction
+usage omitted by v2's JSONL stream without publishing exported prompts or
+provider state. Compaction contributes accounting without extra assistant turns;
+v2 reasoning tokens are included in output totals and retained separately.
 Runtime configuration overlays preserve supported repository JSON/JSONC settings,
 including v1 configuration through OpenCode's compatibility layer. Gateway servers
 use native v2 `mcp.servers` with Code Mode disabled to retain direct MCP tools.
