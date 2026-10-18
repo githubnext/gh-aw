@@ -18,6 +18,8 @@ env:
 
 engine:
   id: copilot
+  # GPT delegates need Responses while the auto-selected Claude main uses Chat Completions.
+  copilot-sdk: true
   agent: contribution-checker
   max-continuations: 25
 
