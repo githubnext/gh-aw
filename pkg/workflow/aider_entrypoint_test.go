@@ -37,6 +37,9 @@ func TestAiderEntrypointAcceptsOnlyShellConfirmations(t *testing.T) {
     return (7, "command failed") if command == "fail" else (0, "command output")
 
 class Coder:
+    def get_chat_files_messages(self):
+        return []
+
     def run_shell_commands(self):
         return ""
 
