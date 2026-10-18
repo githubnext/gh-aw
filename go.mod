@@ -35,6 +35,7 @@ require (
 	golang.org/x/tools v0.52.0
 	gonum.org/v1/gonum v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
+	mvdan.cc/sh/v3 v3.14.1
 )
 
 require (

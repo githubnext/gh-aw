@@ -282,7 +282,8 @@ async function finalizeWorkerResults(options = {}) {
         results[member.handle] = { state: work.barrier === "verified" ? "result" : "delivery_failed", effects: effects ?? "unknown" };
         continue;
       }
-      if (typeof options.verifyEffects !== "function") {
+      // Without a verifier, only an explicit expiry opt-in may settle this barrier.
+      if (typeof options.verifyEffects !== "function" && options.expireUnverified !== true) {
         results[member.handle] = { state: "pending", effects: "unknown", reason: "verification_unavailable" };
         continue;
       }
@@ -309,6 +310,11 @@ async function finalizeWorkerResults(options = {}) {
       const verificationStarted = Date.now();
       integer(work.completion_at, 0, Number.MAX_SAFE_INTEGER, "Completion timestamp");
       const remainingDeadline = policy.deadline_ms - Math.max(0, (options.now ?? verificationStarted) - work.completion_at);
+      // An explicit expiry opt-in still waits for the Completion deadline before closing the barrier.
+      if (typeof options.verifyEffects !== "function" && remainingDeadline > 0) {
+        results[member.handle] = { state: "pending", effects: "unknown", reason: "verification_unavailable" };
+        continue;
+      }
       for (; attempts < policy.max_attempts && Date.now() - verificationStarted < remainingDeadline; attempts++) {
         log.debug("delivery.verifier.attempt", { attempt: attempts + 1 });
         try {

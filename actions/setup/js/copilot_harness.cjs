@@ -1294,13 +1294,17 @@ async function main() {
     return;
   }
   modelRoutingSelection = routingResult.selection;
+  // Model-selection evidence records the requested identifier: `auto` for routed runs,
+  // otherwise the configured model or alias (or the fallback) before alias resolution.
+  let selectionConfiguredModel = configuredCopilotModel;
   if (modelRoutingSelection) {
+    selectionConfiguredModel = "auto";
     if (!copilotSDKMode) {
       resolvedArgs = applyCopilotRoutingArgs(resolvedArgs, modelRoutingSelection);
       if (configuredWireAPI) process.env.COPILOT_PROVIDER_WIRE_API = configuredWireAPI;
     }
   } else {
-    applyModelFallback(process.env, "COPILOT_MODEL", log);
+    selectionConfiguredModel = applyModelFallback(process.env, "COPILOT_MODEL", log) || configuredCopilotModel;
     await applyCopilotModelAliasResolution({
       awfReflectData,
       logger: log,
@@ -1523,7 +1527,7 @@ async function main() {
 
           // Redact --prompt / -p value from logs to avoid leaking prompt content
           const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
-          const modelObserver = !verifyModel ? { check: () => "" } : createCopilotModelObserver({ configuredModel: configuredCopilotModel, resolvedModel: process.env.COPILOT_MODEL || "", sessionId, logger: log });
+          const modelObserver = !verifyModel ? { check: () => "" } : createCopilotModelObserver({ configuredModel: selectionConfiguredModel, resolvedModel: process.env.COPILOT_MODEL || "", sessionId, logger: log });
           // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
           // already started the sidecar; the driver only opens an SDK client connection.
           const result = await runProcess({

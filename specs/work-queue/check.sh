@@ -10,9 +10,9 @@ fi
 
 SPEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${TLC_MODEL_FILTER:-}" in
-    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|ClaimDeliveryHealth|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
+    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|ClaimDeliveryHealth|ClaimDeliveryRecovery|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
     *)
-        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, ClaimDeliveryHealth, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
+        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, ClaimDeliveryHealth, ClaimDeliveryRecovery, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
         exit 1
         ;;
 esac
@@ -115,6 +115,26 @@ run_model DeliveryPendingWitness NoPendingSibling Invariant 12 ClaimDeliveryHeal
 run_model DeliveryFailedWitness NoFailedSibling Invariant 12 ClaimDeliveryHealth
 run_model DeliveryMixedWitness NoMixedSuccess Invariant 12 ClaimDeliveryHealth
 run_model DeliveryReleasedWitness NoReleasedPending Invariant 12 ClaimDeliveryHealth
+run_model DeliveryRecovery "" Invariant 0 ClaimDeliveryRecovery
+run_model DeliveryRecoveryProgress "" Invariant 0 ClaimDeliveryRecovery
+run_model BrokenRecoveryReleased EventualSettlement Temporal 13 ClaimDeliveryRecovery \
+    "Temporal properties were violated"
+run_model BrokenRecoveryUnfair EventualSettlement Temporal 13 ClaimDeliveryRecovery \
+    "Temporal properties were violated"
+run_model BrokenRecoveryPrincipal CleanupAuthority Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryDeadline FailureBudget Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryEvidence FailureAuthority Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryEffects UnknownEffects Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryCAS PublicationFence Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryArtifact ResultAuthority Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryMetadata NativeReadbackAgreement Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryForeignMetadata NativeReadbackAgreement Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryReplay NoReplay Invariant 12 ClaimDeliveryRecovery
+run_model BrokenRecoveryRetained RetainedFence Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryReleasedWitness NoReleasedRecovery Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryEnrichedWitness NoEnrichedResult Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryRetainedWitness NoRetainedRecovery Invariant 12 ClaimDeliveryRecovery
+run_model RecoveryUnavailableWitness NoUnavailablePending Invariant 12 ClaimDeliveryRecovery
 run_model ServiceFixed "" Invariant 0 QueueService
 run_model ServiceDynamic "" Invariant 0 QueueService
 run_model BrokenServiceShare ServiceDeviation Invariant 12 QueueService

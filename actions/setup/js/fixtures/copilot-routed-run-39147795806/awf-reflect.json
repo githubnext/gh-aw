@@ -1,0 +1,554 @@
+{
+  "endpoints": [
+    {
+      "provider": "copilot",
+      "port": 10002,
+      "base_url": "http://api-proxy:10002",
+      "configured": true,
+      "models": [
+        "claude-haiku-4.5",
+        "claude-haiku-5.5",
+        "claude-opus-5.5",
+        "claude-sonnet-5",
+        "claude-sonnet-5.5",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0613",
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-4-o-preview",
+        "gpt-4.1",
+        "gpt-4.1-2025-04-14",
+        "gpt-41-copilot",
+        "gpt-4o",
+        "gpt-4o-2024-05-13",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-11-20",
+        "gpt-4o-mini",
+        "gpt-4o-mini-2024-07-18",
+        "gpt-5-mini",
+        "gpt-5.3-codex",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        "gpt-5.5",
+        "gpt-5.6-luna",
+        "gpt-5.6-luna-utility",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-6-astra",
+        "gpt-6-luna",
+        "gpt-6-sol",
+        "gpt-6.1-sol",
+        "grok-4.5",
+        "grok-4.6",
+        "grok-4.7",
+        "mai-code-1.1-flash",
+        "text-embedding-3-small",
+        "text-embedding-3-small-inference",
+        "text-embedding-ada-002",
+        "trajectory-compaction"
+      ],
+      "model_metadata": [
+        { "id": "claude-haiku-4.5", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01", "pricing": { "default": { "input": 1, "output": 5, "cachedInput": 0.1, "cacheWrite": 1.25 } } },
+        {
+          "id": "claude-haiku-5.5",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 0.1, "output": 0.5, "cachedInput": 0.01, "cacheWrite": 0.12, "threshold": 100000 }, "long_context": { "input": 0.5, "output": 2.5, "cachedInput": 0.05, "cacheWrite": 0.62, "threshold": 936000 } }
+        },
+        {
+          "id": "claude-opus-5.5",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 4, "output": 20, "cachedInput": 0.2, "cacheWrite": 5, "threshold": 200000 }, "long_context": { "input": 4, "output": 20, "cachedInput": 0.2, "cacheWrite": 5, "threshold": 1000000 } }
+        },
+        {
+          "id": "claude-sonnet-5",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 2, "output": 10, "cachedInput": 0.2, "cacheWrite": 2.5, "threshold": 200000 }, "long_context": { "input": 2, "output": 10, "cachedInput": 0.2, "cacheWrite": 2.5, "threshold": 936000 } }
+        },
+        {
+          "id": "claude-sonnet-5.5",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 2, "output": 10, "cachedInput": 0.1, "cacheWrite": 2.5, "threshold": 200000 }, "long_context": { "input": 2, "output": 10, "cachedInput": 0.1, "cacheWrite": 2.5, "threshold": 936000 } }
+        },
+        { "id": "gpt-3.5-turbo", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-3.5-turbo-0613", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01", "pricing": { "default": { "input": 2.5, "output": 10, "cachedInput": 1.25, "cacheWrite": 0 } } },
+        { "id": "gpt-4-0613", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01", "pricing": { "default": { "input": 2.5, "output": 10, "cachedInput": 1.25, "cacheWrite": 0 } } },
+        { "id": "gpt-4-o-preview", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4.1", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4.1-2025-04-14", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-41-copilot", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01", "pricing": { "default": { "input": 2, "output": 8, "cachedInput": 0.5, "cacheWrite": 0 } } },
+        { "id": "gpt-4o", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4o-2024-05-13", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4o-2024-08-06", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4o-2024-11-20", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4o-mini", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-4o-mini-2024-07-18", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "gpt-5-mini", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01", "pricing": { "default": { "input": 0.25, "output": 2, "cachedInput": 0.02, "cacheWrite": 0 } } },
+        {
+          "id": "gpt-5.3-codex",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 1.75, "output": 14, "cachedInput": 0.17, "cacheWrite": 0, "threshold": 272000 } }
+        },
+        {
+          "id": "gpt-5.4",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 2.5, "output": 15, "cachedInput": 0.25, "cacheWrite": 0, "threshold": 272000 }, "long_context": { "input": 5, "output": 22.5, "cachedInput": 0.5, "cacheWrite": 0, "threshold": 922000 } }
+        },
+        {
+          "id": "gpt-5.4-mini",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 0.75, "output": 4.5, "cachedInput": 0.07, "cacheWrite": 0, "threshold": 272000 } }
+        },
+        {
+          "id": "gpt-5.5",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 5, "output": 30, "cachedInput": 0.5, "cacheWrite": 0, "threshold": 272000 }, "long_context": { "input": 10, "output": 45, "cachedInput": 1, "cacheWrite": 0, "threshold": 922000 } }
+        },
+        {
+          "id": "gpt-5.6-luna",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 0.2, "output": 1.2, "cachedInput": 0.02, "cacheWrite": 0.25, "threshold": 200000 }, "long_context": { "input": 0.4, "output": 1.8, "cachedInput": 0.04, "cacheWrite": 0.5, "threshold": 922000 } }
+        },
+        { "id": "gpt-5.6-luna-utility", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        {
+          "id": "gpt-5.6-sol",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 4, "output": 20, "cachedInput": 0.4, "cacheWrite": 5, "threshold": 272000 }, "long_context": { "input": 8, "output": 30, "cachedInput": 0.8, "cacheWrite": 10, "threshold": 922000 } }
+        },
+        {
+          "id": "gpt-5.6-terra",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 2, "output": 12, "cachedInput": 0.2, "cacheWrite": 2.5, "threshold": 272000 }, "long_context": { "input": 4, "output": 18, "cachedInput": 0.4, "cacheWrite": 5, "threshold": 922000 } }
+        },
+        {
+          "id": "gpt-6-astra",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 10, "output": 50, "cachedInput": 1, "cacheWrite": 12.5, "threshold": 272000 }, "long_context": { "input": 20, "output": 75, "cachedInput": 2, "cacheWrite": 25, "threshold": 1050000 } }
+        },
+        {
+          "id": "gpt-6-luna",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": {
+            "default": { "input": 0.1, "output": 0.5, "cachedInput": 0.01, "cacheWrite": 0.12, "threshold": 272000 },
+            "long_context": { "input": 0.2, "output": 0.75, "cachedInput": 0.02, "cacheWrite": 0.25, "threshold": 872000 }
+          }
+        },
+        {
+          "id": "gpt-6-sol",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 2, "output": 10, "cachedInput": 0.2, "cacheWrite": 2.5, "threshold": 272000 }, "long_context": { "input": 4, "output": 15, "cachedInput": 0.4, "cacheWrite": 5, "threshold": 872000 } }
+        },
+        {
+          "id": "gpt-6.1-sol",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 2, "output": 10, "cachedInput": 0.1, "cacheWrite": 2.5, "threshold": 272000 }, "long_context": { "input": 4, "output": 15, "cachedInput": 0.2, "cacheWrite": 5, "threshold": 922000 } }
+        },
+        {
+          "id": "grok-4.5",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "wire_api": "responses",
+          "pricing": { "default": { "input": 2, "output": 6, "cachedInput": 0.5, "cacheWrite": 0, "threshold": 200000 }, "long_context": { "input": 4, "output": 12, "cachedInput": 1, "cacheWrite": 0, "threshold": 500000 } }
+        },
+        {
+          "id": "grok-4.6",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "wire_api": "responses",
+          "pricing": { "default": { "input": 2, "output": 6, "cachedInput": 0.5, "cacheWrite": 0, "threshold": 200000 }, "long_context": { "input": 4, "output": 12, "cachedInput": 1, "cacheWrite": 0, "threshold": 500000 } }
+        },
+        {
+          "id": "grok-4.7",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "wire_api": "responses",
+          "pricing": { "default": { "input": 2, "output": 6, "cachedInput": 0.5, "cacheWrite": 0, "threshold": 200000 }, "long_context": { "input": 4, "output": 12, "cachedInput": 1, "cacheWrite": 0, "threshold": 500000 } }
+        },
+        {
+          "id": "mai-code-1.1-flash",
+          "source": "provider",
+          "observed_at": "2026-10-18T17:05:38.926Z",
+          "api_version": "2026-07-01",
+          "pricing": { "default": { "input": 0.2, "output": 1.2, "cachedInput": 0.02, "cacheWrite": 0.25, "threshold": 128000 } }
+        },
+        { "id": "text-embedding-3-small", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "text-embedding-3-small-inference", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "text-embedding-ada-002", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01" },
+        { "id": "trajectory-compaction", "source": "provider", "observed_at": "2026-10-18T17:05:38.926Z", "api_version": "2026-07-01", "wire_api": "completions" }
+      ],
+      "automatic_model_selection": {
+        "model": "auto",
+        "constraint_field": "model_provider",
+        "model_providers": ["anthropic", "openai", "google"],
+        "preserves_backend": true,
+        "requires_advertised_endpoints": true,
+        "candidates": {
+          "anthropic": {
+            "messages": ["claude-sonnet-5.5", "claude-sonnet-5", "claude-opus-5.5", "claude-haiku-5.5", "claude-haiku-4.5"],
+            "chat/completions": ["claude-sonnet-5.5", "claude-sonnet-5", "claude-opus-5.5", "claude-haiku-5.5", "claude-haiku-4.5"],
+            "responses": []
+          },
+          "openai": {
+            "messages": [],
+            "chat/completions": ["gpt-5.4", "gpt-5-mini"],
+            "responses": ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-6-sol", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5-mini"]
+          },
+          "google": { "messages": [], "chat/completions": [], "responses": [] }
+        }
+      },
+      "routing_models": [
+        { "model_id": "claude-haiku-4.5", "source": "provider", "supported_endpoints": ["/chat/completions", "/v1/messages"], "supported_reasoning_efforts": [], "context_window_tokens": 200000, "candidate_metadata_complete": true },
+        {
+          "model_id": "claude-haiku-5.5",
+          "source": "provider",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1000000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-opus-5.5",
+          "source": "provider",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1000000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-sonnet-5",
+          "source": "provider",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1000000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "claude-sonnet-5.5",
+          "source": "provider",
+          "supported_endpoints": ["/v1/messages", "/chat/completions"],
+          "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1000000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-3.5-turbo",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 16384,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-3.5-turbo-0613",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 16384,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 32768,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4-0613",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 32768,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4-o-preview",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4.1",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4.1-2025-04-14",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-41-copilot",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": null,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4o",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4o-2024-05-13",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4o-2024-08-06",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4o-2024-11-20",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4o-mini",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-4o-mini-2024-07-18",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 128000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-5-mini",
+          "source": "provider",
+          "supported_endpoints": ["/chat/completions", "/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["low", "medium", "high"],
+          "context_window_tokens": 264000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.3-codex",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["low", "medium", "high", "xhigh"],
+          "context_window_tokens": 400000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.4",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "/chat/completions", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.4-mini",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh"],
+          "context_window_tokens": 400000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.5",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.6-luna",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.6-luna-utility",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "gpt-5.6-sol",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-5.6-terra",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6-astra",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6-luna",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1000000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6-sol",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1000000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "gpt-6.1-sol",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+          "context_window_tokens": 1050000,
+          "candidate_metadata_complete": true
+        },
+        { "model_id": "grok-4.5", "source": "provider", "supported_endpoints": ["/responses"], "supported_reasoning_efforts": ["low", "medium", "high"], "context_window_tokens": 500000, "candidate_metadata_complete": true },
+        { "model_id": "grok-4.6", "source": "provider", "supported_endpoints": ["/responses"], "supported_reasoning_efforts": ["low", "medium", "high", "xhigh"], "context_window_tokens": 500000, "candidate_metadata_complete": true },
+        { "model_id": "grok-4.7", "source": "provider", "supported_endpoints": ["/responses"], "supported_reasoning_efforts": ["low", "medium", "high", "xhigh"], "context_window_tokens": 500000, "candidate_metadata_complete": true },
+        {
+          "model_id": "mai-code-1.1-flash",
+          "source": "provider",
+          "supported_endpoints": ["/responses", "ws:/responses"],
+          "supported_reasoning_efforts": ["low", "medium", "high"],
+          "context_window_tokens": 256000,
+          "candidate_metadata_complete": true
+        },
+        {
+          "model_id": "text-embedding-3-small",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": null,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "text-embedding-3-small-inference",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": null,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "text-embedding-ada-002",
+          "source": "provider",
+          "supported_endpoints": [],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": null,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        },
+        {
+          "model_id": "trajectory-compaction",
+          "source": "provider",
+          "supported_endpoints": ["/chat/completions"],
+          "supported_reasoning_efforts": [],
+          "context_window_tokens": 262144,
+          "candidate_metadata_complete": false,
+          "candidate_metadata_reason": "Model is not enabled in the Copilot model picker"
+        }
+      ],
+      "models_url": "http://api-proxy:10002/models",
+      "credential_kind": "github_token",
+      "selected_scheme": "Bearer",
+      "inference_credential_source": "github_token",
+      "inference_selected_scheme": "Bearer",
+      "integration_id_source": "github_copilot_integration_id"
+    }
+  ],
+  "routing": { "status": "selected", "selection": { "provider": "copilot", "model": "github-copilot/gpt-5.6-luna", "wire_model": "gpt-5.6-luna", "effort": "max", "endpoint": "/responses" } }
+}

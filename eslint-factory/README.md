@@ -54,6 +54,7 @@ negative controls and validated readable traces without live effects.
 | [`no-map-parseint-callback`](#no-map-parseint-callback) | Disallow passing `parseInt` directly as an array callback, because the element index is used as the radix |
 | [`no-misplaced-error-code-definition`](#no-misplaced-error-code-definition) | Require exported error-code constants to be defined in `error_codes.cjs` |
 | [`no-single-char-string-replace`](#no-single-char-string-replace) | Disallow `String.prototype.replace()` with a single-character string pattern, which replaces only the first occurrence |
+| [`no-split-filter-trim-without-trim-map`](#no-split-filter-trim-without-trim-map) | Require split values to be trimmed before filtering out empty entries |
 | [`no-string-fallback-for-non-string-message`](#no-string-fallback-for-non-string-message) | Disallow stringifying a container object instead of its non-string `.message` value in a fallback |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
@@ -236,6 +237,10 @@ Disallow spreading an array of unknown size into `Math.min(...)` / `Math.max(...
 ### `no-map-parseint-callback`
 
 Disallow passing global `parseInt` or `Number.parseInt` directly to `.map()`, because `.map()` passes the element index as the second callback argument and `parseInt` interprets it as the radix. Use `.map(value => parseInt(value, 10))` or `.map(Number)` instead.
+
+### `no-split-filter-trim-without-trim-map`
+
+Disallow filtering delimiter-separated `.split()` results by whether `value.trim()` is nonempty without trimming the retained values. For example, `.split(",").filter(value => value.trim())` removes blank entries but preserves whitespace in the others. Use `.split(",").map(value => value.trim()).filter(Boolean)` instead.
 
 ### `no-misplaced-error-code-definition`
 

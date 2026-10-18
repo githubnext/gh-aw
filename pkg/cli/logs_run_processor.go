@@ -298,6 +298,9 @@ func cachedJSONDownloadResult(run WorkflowRun, cachedRuns cachedLogsRuns, filter
 		return DownloadResult{}, false
 	}
 	cachedAudit := cachedRuns[run.DatabaseID].Audit
+	if cachedAudit != nil && cachedAudit.SchemaVersion != auditSchemaVersion {
+		return DownloadResult{}, false
+	}
 	logsOrchestratorLog.Printf("Cache hit for run %d from cached JSONL; skipping artifact download and processing", run.DatabaseID)
 	return DownloadResult{
 		RunAnalysis: RunAnalysis{Run: run},
