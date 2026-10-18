@@ -71,6 +71,21 @@ This action copies files from `actions/setup/`, including:
 
 All files are copied from the committed `js/` and `sh/` directories which contain the source of truth for all JavaScript and shell scripts.
 
+## OTLP credential masking
+
+Setup registers runner masks before sending its OTLP span. Full header strings
+remain masked. Individual plain header values are masked only when they contain
+at least eight characters and are not entirely digits. This policy also applies
+to percent-encoded values after decoding, so placeholders such as `X-No-Auth=true`
+do not register a standalone `true` mask that suppresses boolean job outputs.
+
+Bearer and Basic credentials retain the four-character minimum, including bare
+tokens and decoded Basic-auth passwords. JavaScript setup covers
+`OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ALL_HEADERS`, and headers in
+`GH_AW_OTLP_ENDPOINTS`, including disabled endpoints. Artifact and step-summary
+redaction keep the broader four-character collection policy for plain header
+values; the runner-mask policy does not reduce that redaction.
+
 ## Development
 
 ### Structured issue reports
