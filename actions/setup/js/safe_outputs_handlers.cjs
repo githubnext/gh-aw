@@ -2185,7 +2185,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (createIssueConfig.require_temporary_id === true && !entry.temporary_id) {
       return buildIntentErrorResponse(buildMissingTemporaryIdError("create_issue", "create-issue"));
     }
-    const intentValidationError = validateCreateIssueIntent(entry);
+    const intentValidationError = validateCreateIssueIntent(entry, createIssueTitlePrefix);
     if (intentValidationError) {
       return buildIntentErrorResponse(intentValidationError);
     }
