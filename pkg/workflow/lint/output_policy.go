@@ -74,18 +74,9 @@ func checkPushTarget(ctx context.Context, input Input) ([]Diagnostic, error) {
 	}
 	// Imported configuration can supply the missing constraints. Without a
 	// resolved source graph their absence is not evidence of an unsafe target.
-	switch imports := input.Document.Frontmatter["imports"].(type) {
-	case nil:
-	case []any:
-		if len(imports) > 0 {
-			return nil, nil
-		}
-	case []string:
-		if len(imports) > 0 {
-			return nil, nil
-		}
-	default:
-		return nil, errors.New("push-target requires an imports list to determine whether constraints may be inherited")
+	pending, err := authoredImportsPending(input)
+	if err != nil || pending {
+		return nil, err
 	}
 	return []Diagnostic{{
 		Path:    "safe-outputs.push-to-pull-request-branch.target",

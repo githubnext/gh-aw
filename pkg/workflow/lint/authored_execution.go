@@ -38,6 +38,9 @@ func checkAuthoredActionPins(ctx context.Context, input Input) ([]Diagnostic, er
 			check(block.Fields, block.FieldPath("uses"), true)
 		}
 		for _, step := range block.Steps {
+			if err := ctx.Err(); err != nil {
+				return diagnostics, errors.Join(append(failures, err)...)
+			}
 			check(step.Fields, step.Path+".uses", false)
 		}
 	}

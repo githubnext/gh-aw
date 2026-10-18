@@ -12,6 +12,8 @@ Add permission-scope checks for blanket write grants and invalid OIDC reads, plu
 
 Convert further compiler policies into default source linters: enabled Node install hooks, bare safe-output label allowlists, bare network allowances, and unconstrained wildcard PR push targets. Preserve valid domain/label patterns, legacy push constraint aliases, literal required-label names, and import uncertainty; do not infer missing firewall configuration or effective runtime policy.
 
+Add AST-only checks for shell/proxy tool-policy contradictions and cache isolation, sandbox bypasses/internal overrides, option-prefixed container image operands, explicit checkout expansion prerequisites, and fork author-association values. Keep runtime authorization, engine capabilities, selector trust, and provenance outside these observable subsets.
+
 Model value-free shell predicates, no-op builtins, and presence-only alternate expansions without spurious secret-flow warnings. Scope file-coverage warnings to possible modeled secret flows rather than unrelated public file operations. Preserve disclosures through tracing, nested commands, and parameter-expansion errors; include script-relative locations for unmodeled command warnings.
 
 Add opt-in JavaScript taint analysis using the Go TypeScript compiler through its pinned, upstream-exported native-preview AST client. Track symbolic environment, stdin, arguments, objects, local modules, files, and disclosure sinks without executing analyzed programs. Require explicit compiler/source configuration, report unsupported flows as coverage gaps, and do not invent secret-bearing output at unresolved boundaries.

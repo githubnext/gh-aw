@@ -42,6 +42,7 @@ func AnalyzeAuthoredDocument(ctx context.Context, document *aw.Document, rule Ru
 		}
 		persisted, files := make(scope), make(scope)
 		failures = append(failures, a.authoredDisplay(block, bindings))
+		failures = append(failures, a.authoredWorkflowInputs(ctx, block, bindings))
 		promptDone := block.Path != ""
 		for _, step := range block.Steps {
 			if ctx.Err() != nil {
@@ -68,6 +69,37 @@ func AnalyzeAuthoredDocument(ctx context.Context, document *aw.Document, rule Ru
 		}
 	}
 	return a.result, errors.Join(failures...)
+}
+
+func (a *analyzer) authoredWorkflowInputs(ctx context.Context, block aw.ExecutionBlock, bindings scope) error {
+	if block.Path == "" || block.Fields["uses"] == nil {
+		return nil
+	}
+	uses, err := optionalField[string](block.Fields, "uses", block.Path)
+	if err != nil {
+		return err
+	}
+	inputs, err := optionalField[map[string]any](block.Fields, "with", block.Path)
+	if err != nil {
+		return err
+	}
+	for _, key := range slices.Sorted(maps.Keys(inputs)) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		switch inputs[key].(type) {
+		case nil, string, bool, int, int64, uint64, float64:
+		default:
+			return fmt.Errorf("AW workflow input must be a scalar at %s", block.FieldPath("with"))
+		}
+		path := block.FieldPath("with") + "." + key
+		sources, err := a.text(fmt.Sprint(inputs[key]), path, bindings)
+		if err != nil {
+			return err
+		}
+		a.emit(Site{Kind: WorkflowInput, Path: path, Uses: uses, Input: key}, sources)
+	}
+	return nil
 }
 
 func (a *analyzer) authoredDisplay(block aw.ExecutionBlock, bindings scope) error {

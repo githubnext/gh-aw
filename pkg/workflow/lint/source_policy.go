@@ -11,6 +11,7 @@ func sourcePolicySeverity(input Input, ruleID string) (Severity, error) {
 	if input.Document == nil {
 		return Warning, nil
 	}
+
 	value, exists := input.Document.Frontmatter["strict"]
 	if !exists {
 		return Error, nil
@@ -23,6 +24,22 @@ func sourcePolicySeverity(input Input, ruleID string) (Severity, error) {
 		return Error, nil
 	}
 	return Warning, nil
+}
+
+func authoredImportsPending(input Input) (bool, error) {
+	if input.Document == nil {
+		return false, nil
+	}
+	switch imports := input.Document.Frontmatter["imports"].(type) {
+	case nil:
+		return false, nil
+	case []any:
+		return len(imports) > 0, nil
+	case []string:
+		return len(imports) > 0, nil
+	default:
+		return false, errors.New("authored policy requires an imports list to determine whether configuration may be inherited")
+	}
 }
 
 // VersionCheckRule inspects authored policy, not the presence of a generated

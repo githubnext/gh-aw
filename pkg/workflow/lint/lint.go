@@ -204,5 +204,10 @@ func Default() *Runner {
 		AllowedLabelsRule(),
 		NetworkScopeRule(),
 		PushTargetRule(),
+		ToolScopeRule(),
+		SandboxConfigRule(),
+		ImageArgumentRule(),
+		CheckoutModeRule(),
+		ForkAssociationRule(),
 	}}
 }

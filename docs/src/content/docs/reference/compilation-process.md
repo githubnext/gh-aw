@@ -86,6 +86,8 @@ The default registry also checks action pinning (`action-pin`, CTR-002), direct 
 
 Additional checks cover explicit blanket write grants and invalid OIDC read permissions (`permission-scope`, CTR-001 subset), disabled AW version integrity checks (`version-check`, CTR-018), conditional configuration imports (`conditional-import`, CTR-020), AW private-to-public flow opt-outs (`private-to-public`, CTR-031), enabled Node install hooks (`install-scripts`, CTR-014), bare label-allowlist wildcards (`allowed-labels`, CTR-015), explicit bare network allowances (`network-scope`, CTR-011 subset), and unconstrained wildcard PR push targets (`push-target`, CTR-012 subset). AW-only checks use the authored AST directly or as a companion, not reconstructed Actions properties or recursively loaded imports, and skip native Actions without source evidence. Push-target defers missing-constraint findings when imports may supply constraints.
 
+Further AST-only rules check authored shell/proxy contradictions and cache isolation (`tool-scope`, CTR-003 subset), explicit sandbox bypasses and internal overrides (`sandbox-config`, CTR-004 subset), option-prefixed image operands (`image-argument`, CTR-013 subset), explicit checkout expansion and literal prerequisites (`checkout-mode`, CTR-033 subset), and fork author-association enum values (`fork-association`, CTR-034 subset). These do not infer engine capabilities, runtime selector trust, repository visibility, or generated admission guards.
+
 ## Job Types
 
 The compilation process generates specialized jobs based on workflow configuration:
