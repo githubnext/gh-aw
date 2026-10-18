@@ -103,9 +103,10 @@ func TestWorkClearHardRefusesUnpausedAndUnsettledQueues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if scenario == "missing" {
+			switch scenario {
+			case "missing":
 				data = nil
-			} else if scenario == "malformed" {
+			case "malformed":
 				data = []byte("malformed\n")
 			}
 			queue := newWorkQueueGitRemote(t, string(data))

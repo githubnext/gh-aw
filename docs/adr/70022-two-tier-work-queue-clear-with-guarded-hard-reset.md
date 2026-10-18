@@ -1,56 +1,64 @@
 # ADR-70022: Two-Tier Work-Queue Clear with a Guarded Hard Reset
 
 **Date**: 2026-10-18
-**Status**: Draft (PR #70022 is not yet accepted)
-**Deciders**: Not recorded; pending maintainer review of PR #70022.
+**Status**: Proposed (implemented in PR #70022; maintainer acceptance pending)
+**Deciders**: No deciders were recorded in the generated draft. This record does not assert maintainer approval.
 
 ---
 
 ### Context
 
-The Git-backed work queue (`pkg/workqueue`) is an append-only ledger. Its entries record Work, Claims, delivery barriers, admission identities, fairness charges, and native reservations. Operators had `cancel-work` for individual items and `control` for pausing admission or grants. They had no single operation to empty a queue. Emptying a queue carries two separate risks. Cancelling unfinished Work must not destroy the audit trail or reconciliation evidence for effects that are still in flight. Discarding the ledger completely would forget task and request identities, so old submissions could be accepted again and settled effects could repeat. Concurrent admissions and lost publication acknowledgments also make retries risky: a retried clear must never sweep Work admitted after the original request.
+The Git-backed work queue (`pkg/workqueue`) is an append-only ledger recording Work, Claims, delivery barriers, admission identities, fairness charges, and native reservations. Existing `cancel-work` and `control` commands support targeted cancellation and pausing, but not a single queue-wide clear.
+
+Cancelling unfinished Work must preserve the audit trail and reconciliation evidence for effects still in flight. A fresh ledger instead forgets task and request identities, allowing old submissions and already-settled effects to repeat. These are distinct administrative operations, not interchangeable forms of compaction. Concurrent admissions and lost publication acknowledgments also require retries to recover the original accepted operation without sweeping later Work.
 
 ### Decision
 
-We will add an administrator-only `gh aw work-queue clear --reason CODE` command with two modes:
+PR #70022 implements `gh aw work-queue clear --reason CODE` with two modes:
 
-1. **Default (history-preserving) clear.** The command builds one atomic `cancel_work` request that terminally cancels every `available` or `claimed` Work in the snapshot. It reuses existing cancellation operations and fences each claimed item on its current Claim. Completed Work, unresolved delivery barriers, admission identities, provenance, fairness charges, and native reservations are retained. If the snapshot contains more Work than the installed policy's atomic operation limit allows, the command fails and cancels nothing.
-2. **`--hard` reset.** `Branch.HardClear` (`pkg/workqueue/hard_clear.go`) replaces the active ledger with a fresh `Genesis` commit. It then adds control requests that pause admission and grants and carry over the credential generation, followed by deployment requests that keep currently unavailable workers unavailable. The reset is allowed only when admission and grants are already paused, every native reservation has been released, and no Claim is open, no delivery barrier is pending or failed, and no effect is uncertain. Publication uses compare-and-swap and is never retried against a newer snapshot. The prior ledger stays reachable as the Git parent, and its SHA is returned. The reset intentionally forgets task and request identities, observations, historical worker revisions, and fairness debt.
+1. **History-preserving clear (default).** One atomic `cancel_work` request terminally cancels all `available` and `claimed` Work selected from the snapshot, including dependency-blocked and retry-delayed Work. Existing `WorkCancellation` rules fence claimed items on their selected Claims. Completed Work, unresolved deliveries, historical Claims, admission identities, provenance, fairness charges, and native reservations remain intact. The request must fit the installed Policy's operation limit (at most 256 Work); otherwise nothing is cancelled. Concurrent completion or a changed selected Claim fails the whole action. Later admissions are not added to the target set. Admission and grant controls are unchanged; operators pause them separately when draining requires a stable backlog. An empty unfinished snapshot is a no-op that records no request ID.
+2. **Guarded hard reset (`--hard`).** `Branch.HardClear` replaces the active ledger with fresh `Genesis`, control requests, and availability-preserving deployment requests in one Git publication. It requires an existing, valid ledger with admission and grants already paused, every native reservation released, no open Claims or claimed Work, no pending or failed delivery barriers (including retained historical Claims), and no uncertain Work effects. Available Work may be discarded once these obligations are settled; the backlog need not first be cancelled. Current Policy, current worker routes and availability, and credential generation carry over. Admission and grants remain paused until explicitly resumed. Work/Claim/request identities, retry history, observations, historical worker revisions, and fairness debt are forgotten. The fast-forward-only publication uses the checked snapshot as its Git parent and an exact ref lease, retaining the prior ledger at the returned `prior_git_sha`. A conflicting publication fails rather than resetting a newer snapshot.
 
-Both modes, including `--dry-run` previews, refuse to run in CI before any authentication, read, or write. A stable `--request-id` recovers only the original accepted operation. For a hard reset, the request ID and prior SHA are encoded in the new policy epoch, so recovery still works after checkpointing.
+Both modes require authenticated repository administrator permission and a sanitized reason code: 1–128 ASCII characters, starting with a letter or digit and containing only letters, digits, `_`, `.`, `:`, or `-`. `--dry-run` authenticates and validates without publishing or reserving a request ID; it does not lock the snapshot. Both modes, including previews, refuse CI before authentication or queue access when any of `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS`, or `COPILOT_AGENT_SESSION_ID` is nonempty. There is no CI bypass flag.
+
+A stable `--request-id`, reused by the same administrator with the same reason, recovers only the accepted cancellation or reset, including after checkpointing or later admissions. Incompatible reuse fails. Hard-reset recovery records the request-ID hash and prior Git SHA in the policy epoch and verifies the reset's control-request fingerprints; it does not perform another reset after a lost acknowledgment. This recovery depends on retaining that reset's evidence: a subsequent hard reset intentionally forgets earlier request identities.
+
+Neither mode stops native runs or force-releases reservations. Cancellation is not proof of settlement; definitive native evidence and separate reconciliation remain necessary. Hard reset is not a repair path for a missing or malformed ledger and cannot bypass unresolved production obligations.
 
 ### Alternatives Considered
 
-#### Alternative 1: Implement hard clear with existing ledger compaction/checkpointing
+The following alternatives describe the tradeoffs assessed in this record, not prior maintainer decisions.
 
-Compaction already rewrites the ledger into a smaller form, so it could have been extended to drop Work. This was rejected because compaction preserves semantics: it keeps identities and fairness state. Using it to discard state would blur the boundary between a safe maintenance operation and a destructive reset. A separate fresh-Genesis path makes the loss of identities explicit and keeps the old ledger intact in Git ancestry.
+#### Use compaction/checkpointing for hard clear
 
-#### Alternative 2: Offer only the history-preserving cancel-all (no hard mode)
+Compaction reduces ledger size while preserving identities and fairness state. Extending it to discard Work would blur the distinction between semantics-preserving maintenance and destructive reset. A separate fresh-Genesis path makes identity loss explicit while preserving Git ancestry.
 
-Only atomic cancellation would avoid any loss of identities or debt. However, cancelled Work, request identities, and fairness debt would remain in the ledger forever, so operators could never return a queue to a clean state, for example after test runs or a corrupted policy history. Adding a hard mode with strict preconditions (paused, fully settled) and explicit warnings covers that need without making destructive behavior the default.
+#### Offer cancel-all only
 
-#### Alternative 3: Batch cancellation across multiple requests for large queues
+Atomic cancellation alone avoids identity loss but cannot provide a clean identity/accounting state after, for example, test runs. An explicit hard mode supports that distinct need, with strict settlement preconditions and warnings, without making destructive behavior the default.
 
-Splitting large snapshots across several requests would remove the 256-operation ceiling. It was rejected because cancellation would no longer be atomic: a failure partway through would leave the queue partially cleared, and later batches could race with new admissions. The command instead fails and directs operators to pause the queue and use `cancel-work` in bounded batches.
+#### Automatically batch large cancellations
+
+Multiple requests would avoid the atomic operation ceiling, but partial failure would leave a partially cleared queue and complicate concurrency and retry semantics. `clear` instead fails as a whole; operators can pause admission/grants and use explicit IDs with `cancel-work` in bounded batches when atomicity is not required.
 
 ### Consequences
 
 #### Positive
-- Operators have one auditable command to drain unfinished Work without losing completed Work, provenance, or reconciliation evidence.
-- The hard reset cannot discard evidence for in-flight or uncertain effects. Its preconditions require a paused, fully settled queue, and the prior ledger is still recoverable through Git ancestry.
-- Idempotent request IDs combined with compare-and-swap publication prevent duplicate cancellation or reset sweeps, even after lost acknowledgments or checkpoints.
-- Refusing to run in CI, before any I/O, keeps automated workflows from accidentally invoking a destructive command.
+- Default clear cancels unfinished Work atomically without discarding deduplication or reconciliation evidence.
+- Hard reset retains current configuration and Git ancestry while refusing unresolved native or delivery obligations.
+- Stable request recovery prevents retries from sweeping later admissions; CI detection prevents accidental invocation in recognized CI environments.
 
 #### Negative
-- After a hard reset, old task and request identities can be resubmitted, and settled effects can repeat. Operators must handle this risk themselves; the tool only warns about it.
-- Default clear is capped by the policy's atomic operation limit (at most 256 Work), so large queues need manual, batched `cancel-work`.
-- Recovering a hard clear depends on a specific encoding (the `hard_clear_<hash>_<sha>` policy epoch and fixed control-request indices). Future changes to Genesis or control layouts must preserve this encoding.
-- Neither mode stops native runs. Operators must reconcile reservations separately before a hard reset can succeed.
+- Hard reset permits identity reuse and repeated settled effects; warnings and administrator authorization do not eliminate that risk. Retaining ancestry also means this is not data erasure.
+- Large backlogs require explicit, non-atomic cancellation batches. Native-run cleanup remains a separate operational responsibility.
+- Hard-reset recovery depends on the `hard_clear_<hash>_<sha>` policy-epoch encoding and fixed control-request indices; future Genesis, control, and checkpoint changes must preserve compatibility.
 
 #### Neutral
-- Policy, current worker routes and availability, and the credential generation carry over into the fresh ledger; historical worker revisions do not.
-- The implementation lives in new clear-specific files (`pkg/cli/work_command_clear.go`, `pkg/workqueue/hard_clear.go`). The shared command file changes only to register the new command.
+- Existing `cancel-work`, `control`, and semantics-preserving `compact` remain available; no workflow activation or native-run cancellation is added.
+- Implementation is in `pkg/cli/work_command_clear.go` and `pkg/workqueue/hard_clear.go`, with regression coverage for atomicity, authorization, CI refusal, settlement, concurrency, ancestry retention, and recovery.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+Implementation: [PR #70022](https://github.com/github/gh-aw/pull/70022). Operational reference: [Clear unfinished Work](../src/content/docs/reference/work-queue.md#clear-unfinished-work).
+
+Provenance: generated by the adr-writer agent for the [Design Decision Gate](https://github.com/github/gh-aw/pull/70022#issuecomment-6255775474) in [commit ffae694310](https://github.com/github/gh-aw/commit/ffae694310a7900bbc3f719d42e5fc02d9b26ba2), then completed against the implementation. Maintainer acceptance remains pending.

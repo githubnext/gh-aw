@@ -2,8 +2,11 @@ package workqueue
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func hardClearFixture(t *testing.T) []QueueCommit {
@@ -91,6 +94,71 @@ func TestHardClearRetryDoesNotDeleteLaterAdmissions(t *testing.T) {
 	}
 	if _, err := branch.HardClear(context.Background(), "after-hard", "operator_clear", false); err == nil {
 		t.Fatal("hard clear reused a submission request ID")
+	}
+}
+
+func TestHardClearRecoversOriginalCredentialGenerationAfterCheckpoint(t *testing.T) {
+	actor := testActor("administrator")
+	commits := testOperations(t, hardClearFixture(t), actor, "rotate-before-clear", "control",
+		mustOp(t, map[string]any{"kind": "Control", "control": "credential_generation", "value": "rotated_before_clear", "reason": "operator_rotate"}))
+	state, err := Replay(commits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	priorGitSHA := strings.Repeat("a", 40)
+	reset, _, err := prepareHardClear(state, actor, "hard-action", "operator_clear", priorGitSHA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err = Replay(reset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.CredentialGeneration != "rotated_before_clear" {
+		t.Fatal("hard clear did not retain the current credential generation")
+	}
+	for index, name := range []string{"admission_paused", "grants_paused", "credential_generation"} {
+		id := fmt.Sprintf("hard_clear_%s_control_%d", hashBytes([]byte("hard-action")), index)
+		receipt := state.Requests[id]
+		if len(receipt.Operations) != 1 {
+			t.Fatalf("hard clear changed stable control receipt %s", id)
+		}
+		var control struct {
+			Name string `json:"control"`
+		}
+		if err := json.Unmarshal(receipt.Operations[0], &control); err != nil {
+			t.Fatal(err)
+		}
+		if control.Name != name {
+			t.Fatalf("control receipt %s identifies %s, want %s", id, control.Name, name)
+		}
+	}
+	reset = testOperations(t, reset, actor, "rotate-after-clear", "control",
+		mustOp(t, map[string]any{"kind": "Control", "control": "credential_generation", "value": "rotated_after_clear", "reason": "operator_rotate"}))
+	for _, compact := range []bool{false, true} {
+		t.Run(fmt.Sprintf("checkpoint=%t", compact), func(t *testing.T) {
+			current := reset
+			if compact {
+				current, err = CompactCheckpoint(current, strings.Repeat("b", 40), actor, time.Now().UnixMilli()+1)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			state, err := Replay(current)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, ok, err := recoverHardClear(state, actor, "hard-action", "operator_clear")
+			if err != nil || !ok || result.Status != "already_committed" || result.PriorGitSHA != priorGitSHA || result.Changed {
+				t.Fatalf("hard clear did not recover its original credential generation: %+v %t %v", result, ok, err)
+			}
+			if state.CredentialGeneration != "rotated_after_clear" {
+				t.Fatal("hard-clear recovery changed the later credential generation")
+			}
+			if _, _, err := recoverHardClear(state, actor, "hard-action", "different"); err == nil {
+				t.Fatal("hard-clear recovery accepted a different reason")
+			}
+		})
 	}
 }
 

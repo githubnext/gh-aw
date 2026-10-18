@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -135,7 +135,7 @@ func workClearMixedFixture(t *testing.T, failed bool) (workqueue.Projection, []w
 
 func TestWorkClearPreservesHistoryAndUnresolvedEffects(t *testing.T) {
 	for _, failed := range []bool{false, true} {
-		t.Run(fmt.Sprint(failed), func(t *testing.T) {
+		t.Run(strconv.FormatBool(failed), func(t *testing.T) {
 			workClearOperatorEnvironment(t, true)
 			before, commits, completedID := workClearMixedFixture(t, failed)
 			data, err := workqueue.Serialize(commits)
@@ -239,9 +239,10 @@ func TestWorkClearNoopAndRefusals(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if scenario == "missing" {
+			switch scenario {
+			case "missing":
 				data = nil
-			} else if scenario == "malformed" {
+			case "malformed":
 				data = []byte("not a valid ledger\n")
 			}
 			queue := newWorkQueueGitRemote(t, string(data))
@@ -261,32 +262,6 @@ func TestWorkClearNoopAndRefusals(t *testing.T) {
 				t.Fatal("refused/no-op clear modified the queue")
 			}
 		})
-	}
-}
-
-func TestWorkClearReasonMatchesSharedContract(t *testing.T) {
-	data, err := os.ReadFile("../../specs/work-queue/fixtures/reason-validation.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var fixture struct {
-		Pattern string `json:"pattern"`
-		Cases   []struct {
-			Name   string `json:"name"`
-			Reason string `json:"reason"`
-			Valid  bool   `json:"valid"`
-		} `json:"cases"`
-	}
-	if err := json.Unmarshal(data, &fixture); err != nil {
-		t.Fatal(err)
-	}
-	if workClearReasonPattern.String() != fixture.Pattern || len(fixture.Cases) == 0 {
-		t.Fatal("clear reason validation drifted from the queue contract")
-	}
-	for _, test := range fixture.Cases {
-		if workClearReasonPattern.MatchString(test.Reason) != test.Valid {
-			t.Fatalf("clear reason disagrees with shared fixture %s", test.Name)
-		}
 	}
 }
 
@@ -374,7 +349,7 @@ func TestWorkClearRecoveryAfterCheckpointDoesNotSweepNewWork(t *testing.T) {
 	}
 	commits = workClearAppend(t, commits, actor, "clear-action", "cancel_work", params, 4000)
 	for _, compact := range []bool{false, true} {
-		t.Run(fmt.Sprint(compact), func(t *testing.T) {
+		t.Run(strconv.FormatBool(compact), func(t *testing.T) {
 			history := commits
 			if compact {
 				var err error

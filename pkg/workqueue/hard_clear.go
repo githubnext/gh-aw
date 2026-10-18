@@ -96,12 +96,19 @@ func validateHardClearState(state Projection) error {
 	return nil
 }
 
+// This index is part of accepted hard-clear request IDs, including checkpoint receipts.
+const hardClearCredentialGenerationControlIndex = 2
+
 func hardClearControls(reason, generation string) (OperationsParameters, error) {
 	params := OperationsParameters{Operations: []Operation{}}
 	for _, control := range []struct {
 		name  string
 		value any
-	}{{"admission_paused", true}, {"grants_paused", true}, {"credential_generation", generation}} {
+	}{
+		{"admission_paused", true},
+		{"grants_paused", true},
+		hardClearCredentialGenerationControlIndex: {"credential_generation", generation},
+	} {
 		operation, err := Op(map[string]any{"kind": "Control", "control": control.name, "value": control.value, "reason": reason})
 		if err != nil {
 			return params, err
@@ -114,7 +121,7 @@ func hardClearControls(reason, generation string) (OperationsParameters, error) 
 func prepareHardClear(state Projection, actor Actor, requestID, reason, priorGitSHA string) ([]QueueCommit, HardClearResult, error) {
 	result := HardClearResult{RequestID: requestID, PriorGitSHA: priorGitSHA, PriorTip: state.Tip,
 		WorkRemoved: len(state.Works), HistoryInGit: true, IdentityReset: true}
-	if !reasonPattern.MatchString(reason) {
+	if !ValidReason(reason) {
 		return nil, result, queueError("reason_invalid", "reason must be a bounded sanitized code")
 	}
 	if err := validateHardClearState(state); err != nil {
@@ -213,7 +220,7 @@ func recoverHardClear(state Projection, actor Actor, requestID, reason string) (
 		return HardClearResult{}, false, queueError("request_reuse", "request does not identify this administrator's accepted hard clear")
 	}
 	var generation string
-	control := state.Requests[hardClearControlID(requestID, 2)]
+	control := state.Requests[hardClearControlID(requestID, hardClearCredentialGenerationControlIndex)]
 	for _, operation := range control.Operations {
 		var value struct {
 			Value string `json:"value"`

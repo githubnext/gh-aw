@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/github/gh-aw/pkg/workqueue"
 	"github.com/spf13/cobra"
 )
-
-var workClearReasonPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$`)
 
 type workClearResult struct {
 	Status               string                 `json:"status"`
@@ -63,7 +60,7 @@ func workRunClear(cmd *cobra.Command, _ []string) error {
 		return errors.New("clear_ci_forbidden: work-queue clear refuses to run in CI, including --hard and --dry-run; use an interactive operator environment")
 	}
 	reason, _ := cmd.Flags().GetString("reason")
-	if !workClearReasonPattern.MatchString(reason) {
+	if !workqueue.ValidReason(reason) {
 		return errors.New("reason_invalid: --reason must be a sanitized code of 1..128 characters, starting with a letter or digit and containing only letters, digits, or _.:-")
 	}
 	id, err := workRequestID(cmd)
