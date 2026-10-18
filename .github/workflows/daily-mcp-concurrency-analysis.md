@@ -17,7 +17,7 @@ imports:
     expires: 3d
     title-prefix: "[mcp-concurrency] "
 - shared/safe-output-app.md
-- uses: shared/mcp/serena.md
+- uses: shared/mcp/serena-go.md
   with:
     languages:
     - go

@@ -11,7 +11,7 @@ sidebar:
 
 ### Recommended: Import shared workflow
 
-The preferred way to add Serena is to copy the file [`shared/mcp/serena.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena.md) into your repo and import it into your workflow, which configures the complete MCP server automatically:
+The preferred way to add Serena is to copy [`shared/mcp/serena.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena.md) into your repo and import it. For Go analysis, also copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) and import that wrapper to provision its language server:
 
 ```aw wrap
 ---
@@ -21,16 +21,16 @@ engine: copilot
 
 permissions:
   contents: read
-# NOTE: first copy `shared/mcp/serena.md` into your repository before importing it
+# NOTE: first copy both shared Serena files into your repository
 
 imports:
-  - uses: shared/mcp/serena.md
+  - uses: shared/mcp/serena-go.md
     with:
       languages: ["go", "typescript"]
 ---
 ```
 
-For Go-only workflows, use the convenience wrapper (copy [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) into your repository before importing it):
+For workflows analyzing Go, copy both shared files and use the [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) wrapper. It sets up Go from `go.mod`, installs pinned `gopls` in the mounted runner tool cache, and checks semantic-symbol readiness before MCP startup. The container sees that cache read-only; no extra host mounts are added.
 
 ```aw wrap
 ---
@@ -40,12 +40,14 @@ engine: copilot
 
 permissions:
   contents: read
-# NOTE: first copy `shared/mcp/serena-go.md` into your repository before importing it
+# NOTE: first copy both `shared/mcp/serena.md` and `shared/mcp/serena-go.md`
 
 imports:
   - shared/mcp/serena-go.md
 ---
 ```
+
+For mixed-language workflows, pass `languages: ["go", "typescript"]` to the Go wrapper. The default is `["go"]`; existing runtime PATH entries are preserved for other language servers.
 
 ### Example: Code Analysis
 
@@ -57,9 +59,7 @@ permissions:
   contents: read
 
 imports:
-  - uses: shared/mcp/serena.md
-    with:
-      languages: ["go"]
+  - shared/mcp/serena-go.md
 
 tools:
   github:
@@ -132,7 +132,7 @@ Pre-create the cache directory (`mkdir -p /tmp/gh-aw/cache-memory/serena`) for f
 
 ## Troubleshooting
 
-**Language server not found:** Install required dependencies (e.g., `go install golang.org/x/tools/gopls@latest` for Go).
+**Go language server not found:** Use the Go wrapper above rather than the base Serena import. It provisions `gopls` before agent startup in a directory covered by Serena's mounts. A runner's default `GOPATH/bin` is not necessarily visible inside the container. If setup or a semantic request fails, report the error and stop semantic tasks; do not install tools ad hoc or substitute text-only analysis.
 
 **Memory permission issues:** Ensure cache directory exists with proper permissions: `mkdir -p /tmp/gh-aw/cache-memory/serena && chmod 755 /tmp/gh-aw/cache-memory/serena`
 
