@@ -18,11 +18,29 @@ These rules override conflicting upstream guidance.
   uses `${{ github.token }}` for inference, without a PAT or `COPILOT_GITHUB_TOKEN`.
 - Before inventing workflow/shared-component/tool/safe-output patterns, inspect
   `https://github.com/gm3dmo/the-power` through GitHub APIs or `gh` for prior art.
-- Graders compute only over the in-memory unified session. Built-ins run in
-  conclusion; custom JavaScript `script` definitions run only in a separate
-  restricted graders job. Never add Bash, `run`, or `operational-value`
-  evaluators, override a built-in, or inject user steps into conclusion.
-  Use `/operational-value-designer` to define outcome evidence first.
+
+## Session Graders
+
+Ten fast built-ins run by default in conclusion after session collection.
+Configure them with `graders.<builtin-id>.threshold`, `enabled`, or data-only
+`config`; expensive built-ins require opt-in.
+
+For custom outcomes, use `graders.<distinct-id>.script` with a synchronous
+JavaScript body over immutable `session`, `config`, and `helpers` inputs.
+Reuse `helpers.createSessionLookups(session)` for stats and event/tool lookups.
+Return a finite number, `null` for unavailable evidence, or an object with
+`value`; do not emit legacy metric arrays. The script limit is 256 KiB.
+
+The compiler owns the isolated downstream `graders` job. Never add Bash, `run`,
+file-backed or `operational-value` evaluators, override built-in implementations,
+customize `jobs.graders`, or inject user steps into `jobs.conclusion`.
+Collect required evidence before session publication; graders cannot fetch it.
+Use [operational-value-designer](../skills/operational-value-designer/SKILL.md)
+for executable examples and evidence/fixture design.
+
+Audit optionally retrieves registered custom results from the `graders`
+artifact; `logs --graders` and `--artifacts graders` include both it and `usage`.
+Custom results never replace conclusion's published session.
 
 ## Repository-Wide Debugging and Optimization
 

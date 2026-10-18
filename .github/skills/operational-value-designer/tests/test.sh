@@ -7,12 +7,16 @@ repo_root=$(CDPATH='' cd -- "$skill_dir/../../.." && pwd)
 work_dir=$(mktemp -d "$repo_root/.operational-value-designer-test.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
 
-grep -Fq 'Choose `script` for compact, workflow-specific Bash' "$skill_dir/SKILL.md"
-grep -Fq 'Choose `run` when the Bash is large enough to obscure the workflow' "$skill_dir/SKILL.md"
-grep -Fq '65,536 UTF-8 bytes, inclusive' "$skill_dir/SKILL.md"
-grep -Fq '4,096 Unicode characters, inclusive' "$skill_dir/SKILL.md"
-grep -Fq '`run` does not reduce the generated workflow size' "$skill_dir/SKILL.md"
-grep -Fq 'comment the workflow intent and the meaning of every emitted metric' "$skill_dir/SKILL.md"
+grep -Fq 'graders.<distinct-id>.script' "$skill_dir/SKILL.md"
+grep -Fq '256 KiB (262,144 UTF-8 bytes, inclusive)' "$skill_dir/SKILL.md"
+grep -Fq 'helpers.createSessionLookups(session)' "$skill_dir/SKILL.md"
+grep -Fq 'Return a finite number, `null`, or an object with `value`' "$skill_dir/SKILL.md"
+grep -Fq 'ordered array of metric objects' "$skill_dir/SKILL.md"
+grep -Fq 'in an isolated downstream `graders` job' "$skill_dir/SKILL.md"
+if grep -Eq '^  operational-value:|^    run:|#!/usr/bin/env bash|65,536|4,096' "$skill_dir/SKILL.md"; then
+    printf 'unsupported grader syntax remains in skill guidance\n' >&2
+    exit 1
+fi
 grep -Fq 'ultimate operational condition' "$skill_dir/SKILL.md"
 grep -Fq 'Select the furthest downstream rung that satisfies all three' "$skill_dir/SKILL.md"
 grep -Fq 'observable at grading time, attributable to this run or its exact subject, and independently verifiable' "$skill_dir/SKILL.md"
@@ -20,6 +24,49 @@ grep -Fq 'why stronger downstream effects are unavailable' "$skill_dir/SKILL.md"
 grep -Fq 'Never reward output merely for existing' "$skill_dir/SKILL.md"
 grep -Fq 'Missing evidence for the selected rung returns `null`; it never causes runtime fallback to a weaker rung' "$skill_dir/SKILL.md"
 
+for guidance in \
+    AGENTS.md \
+    .github/aw/instructions.md \
+    .github/aw/intent.md \
+    .github/aw/create-agentic-workflow.md \
+    .github/aw/update-agentic-workflow.md \
+    .github/skills/developer-internals/SKILL.md
+do
+    grep -Fq 'graders.<distinct-id>.script' "$repo_root/$guidance"
+done
+
+node - "$repo_root" <<'NODE'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const root = process.argv[2];
+const text = fs.readFileSync(path.join(root, ".github/skills/operational-value-designer/SKILL.md"), "utf8");
+const scripts = [...text.matchAll(/^    script: \|\n((?:      [^\n]*\n|\n)+)/gm)];
+assert.equal(scripts.length, 1, "the documented custom grader must remain executable");
+const script = scripts[0][1].replace(/^      /gm, "");
+const { runCustomGraders } = require(path.join(root, "actions/setup/js/custom_graders.cjs"));
+const config = { repository: "OWNER/REPO", issueNumber: 123 };
+const event = data => ({ type: "safe_output.result", data, provenance: { source: "safe_output", job: "safe_outputs" } });
+const result = { type: "add_comment", repo: "OWNER/REPO", number: 123, url: "https://github.com/OWNER/REPO/issues/123#issuecomment-1" };
+for (const [name, session, value, configuration = config] of [
+  ["attained", [event(result)], 1],
+  ["missed", [event({ ...result, number: 456 })], 0],
+  ["unavailable", [], null],
+  ["malformed", [event({ ...result, number: "123" })], null],
+  ["empty-repository", [event({ ...result, repo: "" })], null],
+  ["invalid-issue", [event({ ...result, number: 0 })], null],
+  ["invalid-target", [event(result)], null, { ...config, repository: "" }],
+]) {
+  const graders = [{ id: "comment-target-match", source: "inline", direction: "higher_is_better", threshold: 1, config: configuration, script }];
+  const first = runCustomGraders(session, graders).output.results[0];
+  const second = runCustomGraders(session, graders).output.results[0];
+  assert.equal(first.value, value, name);
+  assert.equal(first.status, value === null ? "unavailable" : value === 1 ? "pass" : "fail", name);
+  assert.deepEqual(first, second, `${name} must be deterministic`);
+}
+NODE
+
+# Retain regression coverage for historical shell evaluators, not current authoring.
 evaluator_path=$("$skill_dir/scripts/operational-value-evaluator-path.sh" daily-file-diet)
 [[ $evaluator_path == .github/graders/daily-file-diet-operational-value.sh ]]
 if "$skill_dir/scripts/operational-value-evaluator-path.sh" ../escape >/dev/null 2>&1; then

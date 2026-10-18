@@ -67,11 +67,11 @@ See [evals.md](evals.md) for BinEval syntax and question constraints.
 Operational value is the degree to which the workflow's intended repository outcome is attained for the opportunity assigned to a run, demonstrated by accepted repository evidence. Infer it from the IntentSpec rather than from execution quality, output volume, or the agent's own assessment:
 
 1. Turn the actors, subject, and activation conditions into a stable per-run opportunity.
-2. Turn the required effects and success conditions into accepted repository evidence and one direct attainment metric in `[0,1]`.
+2. Turn the required effects and success conditions into accepted recorded evidence and one direct attainment metric in its native unit and scale.
 3. Turn no-op conditions into the zero rule, and uncertainties into explicit missing-evidence behavior.
 4. Define when evidence matures and which repositories and matching rules are accepted.
 
-Evals and operational value answer different questions. PromptPex evals test whether output follows the intended behavior for representative scenarios; operational value measures whether the intended repository outcome was attained for a real run. Use the `operational-value-designer` skill to freeze the evidence and metric contract. Bash/file-based `operational-value` evaluators are unsupported. Use a pure built-in in conclusion or a distinct custom JavaScript grader in the isolated graders job, with all evidence already present in the unified session.
+Evals and operational value answer different questions. PromptPex evals test whether output follows the intended behavior for representative scenarios; operational value measures whether the intended repository outcome was attained for a real run. Use the [operational-value-designer skill](../skills/operational-value-designer/SKILL.md) to freeze the evidence and metric contract. A custom metric uses `graders.<distinct-id>.script`, a synchronous body receiving `session`, `config`, and `helpers`. Reuse `helpers.createSessionLookups(session)` and return a finite number, `null`, or an object with `value`, not a metric array. All evidence must already be in the immutable unified session; missing observations require `null`, not runtime file/API reads. Built-ins run in conclusion; custom JavaScript runs only in the isolated downstream graders job. Bash, `run`, file-backed scripts, and the `operational-value` grader ID are unsupported.
 
 ## Infer Trace Graders from Intent
 
