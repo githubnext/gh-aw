@@ -856,7 +856,16 @@
         "classifierAttempts": { "$ref": "#/definitions/JsonValue" },
         "deviations": { "$ref": "#/definitions/JsonValue" },
         "requestedModel": { "$ref": "#/definitions/JsonValue" },
-        "requestedEffort": { "$ref": "#/definitions/JsonValue" }
+        "requestedEffort": { "$ref": "#/definitions/JsonValue" },
+        "rankedChoices": { "type": "array", "items": { "$ref": "#/definitions/ModelRoutingRankedChoice" }, "description": "AWF route choices in rank order; ranks are one-based array positions." },
+        "eligibleChoices": { "$ref": "#/definitions/JsonValue" },
+        "catalogueOverlap": { "$ref": "#/definitions/JsonValue" },
+        "selectedEndpoint": { "$ref": "#/definitions/JsonValue" },
+        "requestedEndpoint": { "$ref": "#/definitions/JsonValue" },
+        "upstreamEndpoint": { "$ref": "#/definitions/JsonValue" },
+        "unavailable": { "type": "array", "items": { "type": "string" }, "description": "Request-telemetry dimensions AWF did not observe, such as `model` and `effort`; not unavailable models." },
+        "status": { "$ref": "#/definitions/JsonValue", "description": "Observed HTTP status, independent of `outcome`." },
+        "phase": { "$ref": "#/definitions/JsonValue", "description": "AWF failure phase, such as `primary` or `bootstrap`; not the collection provenance phase." }
       },
       "additionalProperties": false
     },
@@ -871,6 +880,12 @@
         "appliedEffort": { "$ref": "#/definitions/JsonValue" },
         "failureCode": { "$ref": "#/definitions/JsonValue" }
       },
+      "additionalProperties": false
+    },
+    "ModelRoutingRankedChoice": {
+      "type": "object",
+      "properties": { "rank": { "type": "number" }, "id": { "type": "string" }, "model": { "type": "string" }, "effort": { "type": ["string", "null"] } },
+      "required": ["rank"],
       "additionalProperties": false
     },
     "ModelSelectionData": {

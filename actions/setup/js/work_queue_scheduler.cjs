@@ -6,6 +6,7 @@ const { createHash } = require("node:crypto");
 const { canonical, canonicalBytes, closed, identity, integer, utf8Compare, queueError } = require("./work_queue_codec.cjs");
 const { indexesFor, schedulingState, updateIndexes } = require("./work_queue_indexes.cjs");
 const { executionProfile } = require("./work_queue_deployment.cjs");
+const { workExpired } = require("./work_queue_expiration.cjs");
 
 function gcd(a, b) {
   while (b !== 0n) [a, b] = [b, a % b];
@@ -94,6 +95,7 @@ function reservationCounts(state, pool, key) {
 function eligibility(state, work, at, capacitySnapshot) {
   const { poolPolicy } = require("./work_queue_policy.cjs");
   const { dependencyStatus } = require("./work_queue_graph.cjs");
+  if (workExpired(work, Math.max(at, state.time_watermark ?? 0)) || work.cancellation_reason === "work_expired") return { ready: false, reason: "work_expired", observations: [] };
   if (work.state !== "available") return { ready: false, reason: `ownership_${work.state}`, observations: [] };
   if (["pending", "failed"].includes(work.barrier)) return { ready: false, reason: `delivery_${work.barrier}`, observations: [] };
   const policy = poolPolicy(state, work.pool);
@@ -127,6 +129,7 @@ function planNext(state, pool, at) {
   let pending = 0;
   for (const id of indexes.available.get(pool) || []) {
     const work = state.works.get(id);
+    if (workExpired(work, Math.max(at, state.time_watermark ?? 0))) continue;
     pending++;
     const dependency = eligibility(state, work, at, { logical: capacity.logical, account: capacity.accounts.get(work.fairness_key) || 0 });
     if (!dependency.ready) continue;

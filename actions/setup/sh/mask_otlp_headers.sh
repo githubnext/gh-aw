@@ -14,7 +14,9 @@ set +o histexpand
 # Up to three levels of masking are applied to each headers string:
 #   1. The entire comma-separated header pairs string.
 #   2. Each individual header value extracted from the pairs, so that a token
-#      appearing without its header name prefix is also redacted.
+#      appearing without its header name prefix is also redacted. Only non-numeric
+#      values of at least 8 characters are masked individually, avoiding boolean
+#      and short placeholder values that would suppress unrelated job outputs.
 #   3. For Authorization-style "Bearer <token>" credentials, the raw token after
 #      stripping the "Bearer " scheme prefix, so it is masked even when it appears
 #      without the scheme (e.g. in downstream tool logs).
@@ -55,7 +57,9 @@ mask_headers() {
   mapfile -t _pairs < <(printf '%s' "$_headers" | tr ',' '\n')
   for _pair in "${_pairs[@]}"; do
     _val="${_pair#*=}"
-    emit_mask "$_val"
+    if [[ "${#_val}" -ge 8 && ! "$_val" =~ ^[0-9]+$ ]]; then
+      emit_mask "$_val"
+    fi
     _no_bearer="${_val#Bearer }"
     if [ "$_no_bearer" != "$_val" ]; then
       emit_mask "$_no_bearer"

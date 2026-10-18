@@ -31,7 +31,7 @@ require("./shim.cjs");
 const { appendFileSync } = require("fs");
 const { nowMs } = require("./performance_now.cjs");
 const { getActionInput } = require("./action_input_utils.cjs");
-const { maskSecret, getOTLPSecretValues } = require("./actions_secret_masking.cjs");
+const { maskSecret, getOTLPRunnerMaskValues } = require("./actions_secret_masking.cjs");
 
 /**
  * Append a key=value line to a GitHub Actions file (GITHUB_OUTPUT or GITHUB_ENV)
@@ -167,7 +167,7 @@ async function run() {
 
   const endpoints = process.env.GH_AW_OTLP_ENDPOINTS;
   const parsedEndpoints = parseOTLPEndpoints();
-  for (const secret of getOTLPSecretValues()) maskSecret(secret);
+  for (const secret of getOTLPRunnerMaskValues()) maskSecret(secret);
   if (endpoints) {
     const primaryEndpoint = getPrimaryOTLPEndpoint(endpoints);
     const currentEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
