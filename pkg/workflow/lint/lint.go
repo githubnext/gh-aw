@@ -218,5 +218,8 @@ func Default() *Runner {
 		ImageArgumentRule(),
 		CheckoutModeRule(),
 		ForkAssociationRule(),
+		PullRequestTargetRolesRule(),
+		SafeOutputShellExpansionRule(),
+		FirewallSSLBumpRule(),
 	}}
 }

@@ -94,6 +94,8 @@ Additional checks cover explicit blanket write grants and invalid OIDC read perm
 
 Further AST-only rules check authored shell/proxy contradictions and cache isolation (`tool-scope`, CTR-003 subset), explicit sandbox bypasses and internal overrides (`sandbox-config`, CTR-004 subset), option-prefixed image operands (`image-argument`, CTR-013 subset), explicit checkout expansion and literal prerequisites (`checkout-mode`, CTR-033 subset), and fork author-association enum values (`fork-association`, CTR-034 subset). These do not infer engine capabilities, runtime selector trust, repository visibility, or generated admission guards.
 
+Three source-policy checks cover explicit `pull_request_target` admission through `read`/`all` roles (`pull-request-target-roles`, CTR-008 subset), blocked lexical expansions in authored safe-output run scripts (`safe-output-shell-expansion`, CTR-009), and firewall URL filters without SSL inspection (`firewall-ssl-bump`, CTR-011 subset). The shell rule and compiler validation share `pkg/workflow/shellpattern` to prevent detector drift. The roles rule preserves strict rejection and scoped non-strict warning suppression; shell and firewall prerequisite violations are errors in either mode. Missing SSL policy defers when imports may supply it. These rules do not reconstruct generated checkout or publishing provenance.
+
 ## Job Types
 
 The compilation process generates specialized jobs based on workflow configuration:

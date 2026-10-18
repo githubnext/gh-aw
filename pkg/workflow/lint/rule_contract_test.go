@@ -133,6 +133,24 @@ func builtInRuleContracts() map[string]ruleContract {
 			safe:    "on:\n  pull_request:\n    forks:\n      author-association: [OWNER]\n",
 			path:    "on.pull_request.forks.author-association",
 		},
+		"pull-request-target-roles": {
+			targets: AWAST, strictPolicy: true,
+			unsafe: "on:\n  pull_request_target:\n  roles: [read]\ncheckout: false\n",
+			safe:   "on:\n  pull_request_target:\n  roles: [write]\ncheckout: false\n",
+			path:   "on.roles",
+		},
+		"safe-output-shell-expansion": {
+			targets: AWAST,
+			unsafe:  "safe-outputs:\n  steps:\n    - run: value=$(cat /tmp/value)\n",
+			safe:    "safe-outputs:\n  steps:\n    - run: cat /tmp/value\n",
+			path:    "safe-outputs.steps[0].run",
+		},
+		"firewall-ssl-bump": {
+			targets: AWAST,
+			unsafe:  "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: false\n",
+			safe:    "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: true\n",
+			path:    "network.firewall.allow-urls",
+		},
 	}
 }
 
