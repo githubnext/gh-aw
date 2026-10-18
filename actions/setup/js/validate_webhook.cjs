@@ -38,7 +38,7 @@ function eventName(env) {
 
 /**
  * Validate the dispatch transport without replacing the GitHub authorization
- * context. The original webhook remains at github.event.client_payload.payload.
+ * context. The gateway may project only part of the source webhook payload.
  * Actor authorization uses the standard pre-activation membership check.
  * Subscription conditions are evaluated by the webhook receiver, not here.
  *
@@ -104,21 +104,44 @@ function validateWebhook(event, env = process.env) {
   if (!isObject(envelope.payload)) {
     reject("client_payload.payload must be an inline webhook object");
   }
-  if ((subscription.types.length > 0 || envelope.payload.action !== undefined) && !isNonemptyString(envelope.payload.action)) {
-    reject("webhook payload action must be a non-empty string");
-  }
-  if (subscription.types.length > 0 && !subscription.types.includes(envelope.payload.action)) {
-    reject("webhook payload action does not match the subscription types");
-  }
-  if (envelope.event === "projects_v2_item") {
-    const item = envelope.payload.projects_v2_item;
-    if (!isObject(item)) {
-      reject("projects_v2_item webhook payload must contain a projects_v2_item object");
+  if (envelope.payload.action !== undefined) {
+    if (!isNonemptyString(envelope.payload.action)) {
+      reject("webhook payload action must be a non-empty string when present");
     }
-    // Database IDs follow the runtime's positive safe-integer policy. GraphQL
-    // node IDs are optional in GitHub's webhook schema, not required filter data.
-    if (!Number.isSafeInteger(item.id) || item.id <= 0 || (item.node_id !== undefined && !isNonemptyString(item.node_id)) || (item.project_node_id !== undefined && !isNonemptyString(item.project_node_id))) {
-      reject("projects_v2_item must contain a positive integer id; node_id and project_node_id must be non-empty strings when present");
+    if (subscription.types.length > 0 && !subscription.types.includes(envelope.payload.action)) {
+      reject("webhook payload action does not match the subscription types");
+    }
+  }
+  if (["code_scanning_alert", "dependabot_alert"].includes(envelope.event)) {
+    let baseURL;
+    try {
+      baseURL = new URL(env.GITHUB_API_URL || "https://api.github.com");
+    } catch (error) {
+      throw new Error(`${ERR_VALIDATION}: Webhook validation failed: GITHUB_API_URL must be a valid URL`, { cause: error });
+    }
+    if (!isNonemptyString(envelope.payload.url)) {
+      reject("security alert payload must contain only a canonical GitHub API alert URL");
+    }
+    let alertURL;
+    try {
+      alertURL = new URL(envelope.payload.url);
+    } catch {
+      reject("security alert payload must contain only a canonical GitHub API alert URL");
+    }
+    const apiPath = `${baseURL.pathname.replace(/\/$/, "")}/repos/`;
+    const alertPath = envelope.event === "code_scanning_alert" ? /\/code-scanning\/alerts\/\d+$/ : /\/dependabot\/alerts\/\d+$/;
+    if (
+      Object.keys(envelope.payload).length !== 1 ||
+      alertURL.protocol !== "https:" ||
+      alertURL.origin !== baseURL.origin ||
+      !alertURL.pathname.startsWith(apiPath) ||
+      !alertPath.test(alertURL.pathname) ||
+      alertURL.username !== "" ||
+      alertURL.password !== "" ||
+      alertURL.search !== "" ||
+      alertURL.hash !== ""
+    ) {
+      reject("security alert payload must contain only a canonical GitHub API alert URL");
     }
   }
   return { skipped: false, event: envelope.event, delivery_id: envelope.delivery_id };

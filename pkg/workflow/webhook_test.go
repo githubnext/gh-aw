@@ -100,6 +100,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 	if sub.SchemaVersion != 1 || sub.Dispatch.Repository != "${{ github.repository }}" ||
 		sub.Dispatch.Method != "repository_dispatch" || sub.Dispatch.MaxPayloadBytes != 65535 || sub.Dispatch.MaxRequestBytes != 65535 ||
 		sub.Dispatch.Context.Payload != "github.event.client_payload.payload" ||
+		sub.Dispatch.PayloadProjection != nil ||
 		sub.Dispatch.Workflow != ".github/workflows/project-agent.lock.yml" {
 		t.Fatalf("incomplete dispatch contract: %+v", sub)
 	}
@@ -108,6 +109,37 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 		len(sub.Dispatch.EventType) > 100 {
 		t.Fatal("dispatch identity does not scope subscriptions to one workflow")
 	}
+}
+
+func TestSecurityAlertPayloadProjection(t *testing.T) {
+	for _, event := range []string{"code_scanning_alert", "dependabot_alert"} {
+		t.Run(event, func(t *testing.T) {
+			subscriptions, err := ParseWebhookSubscriptions(map[string]any{
+				"security-alert": map[string]any{"sources": eventSourceForTest(event)},
+			}, "security-agent")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(subscriptions) != 1 {
+				t.Fatalf("expected one subscription, got %d", len(subscriptions))
+			}
+			projection := subscriptions[0].Dispatch.PayloadProjection
+			if projection == nil ||
+				!slices.Equal(projection.SourcePath, []string{"alert", "url"}) ||
+				!slices.Equal(projection.TargetPath, []string{"url"}) {
+				t.Fatalf("unexpected security alert payload projection: %+v", projection)
+			}
+		})
+	}
+}
+
+func eventSourceForTest(event string) string {
+	for source, name := range securityAlertEvents {
+		if name == event {
+			return source
+		}
+	}
+	return ""
 }
 
 func TestWebhookCatalogIntegrity(t *testing.T) {

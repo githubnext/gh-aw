@@ -87,6 +87,11 @@ func TestWebhookManifestCompilation(t *testing.T) {
 					assert.Equal(t, "${{ github.repository }}", subscription.Dispatch.Repository)
 					assert.Equal(t, 65535, subscription.Dispatch.MaxPayloadBytes)
 					assert.Equal(t, 65535, subscription.Dispatch.MaxRequestBytes)
+					if subscription.Event == "code_scanning_alert" || subscription.Event == "dependabot_alert" {
+						require.NotNil(t, subscription.Dispatch.PayloadProjection)
+						assert.Equal(t, []string{"alert", "url"}, subscription.Dispatch.PayloadProjection.SourcePath)
+						assert.Equal(t, []string{"url"}, subscription.Dispatch.PayloadProjection.TargetPath)
+					}
 				}
 			}
 			encoded, err := manifest.ToJSON()

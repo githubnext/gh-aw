@@ -78,8 +78,10 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.Contains(t, agent, `cp -- "$GITHUB_EVENT_PATH" /tmp/gh-aw/github-event.json`)
 	assert.Contains(t, agent, `cp -- "$GITHUB_EVENT_PATH" "${RUNNER_TEMP}/gh-aw/github-event.json"`)
 	assert.NotContains(t, activation, `cp -- "$GITHUB_EVENT_PATH"`)
-	assert.Contains(t, activation, "Read the original repository_dispatch event from /tmp/gh-aw/github-event.json")
+	assert.Contains(t, activation, "Read the projected repository_dispatch event from /tmp/gh-aw/github-event.json")
 	assert.Contains(t, activation, "client_payload.payload")
+	assert.Contains(t, activation, "canonical API URL at client_payload.payload.url")
+	assert.Contains(t, activation, "authenticated GitHub App client")
 	assert.Contains(t, activation, "GH_AW_WEBHOOK_TRIGGER:")
 }
 

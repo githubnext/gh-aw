@@ -72,13 +72,20 @@ type WebhookContext struct {
 // Repository is resolved against the repository containing the compiled workflow,
 // not the repository in the incoming webhook payload.
 type WebhookDispatch struct {
-	Repository      string         `json:"repository"`
-	Method          string         `json:"method"`
-	EventType       string         `json:"event_type"`
-	Workflow        string         `json:"workflow"`
-	Context         WebhookContext `json:"context"`
-	MaxPayloadBytes int            `json:"max_payload_bytes"`
-	MaxRequestBytes int            `json:"max_request_bytes"`
+	Repository        string                    `json:"repository"`
+	Method            string                    `json:"method"`
+	EventType         string                    `json:"event_type"`
+	Workflow          string                    `json:"workflow"`
+	PayloadProjection *WebhookPayloadProjection `json:"payload_projection,omitempty"`
+	Context           WebhookContext            `json:"context"`
+	MaxPayloadBytes   int                       `json:"max_payload_bytes"`
+	MaxRequestBytes   int                       `json:"max_request_bytes"`
+}
+
+// WebhookPayloadProjection limits the source payload fields forwarded by CAO.
+type WebhookPayloadProjection struct {
+	SourcePath []string `json:"source_path"`
+	TargetPath []string `json:"target_path"`
 }
 
 // WebhookSubscription is the compiler's versioned filter and routing declaration.
@@ -278,7 +285,7 @@ func webhookStringValues(raw any, path string) ([]string, error) {
 }
 
 func newWebhookSubscription(workflowID, event string, types []string, conditions []WebhookCondition) WebhookSubscription {
-	return WebhookSubscription{
+	subscription := WebhookSubscription{
 		SchemaVersion: 1, Event: event, Types: types, Conditions: conditions,
 		Dispatch: WebhookDispatch{
 			Repository: "${{ github.repository }}", Method: "repository_dispatch",
@@ -291,6 +298,13 @@ func newWebhookSubscription(workflowID, event string, types []string, conditions
 			MaxPayloadBytes: 65535, MaxRequestBytes: 65535,
 		},
 	}
+	if event == "code_scanning_alert" || event == "dependabot_alert" {
+		subscription.Dispatch.PayloadProjection = &WebhookPayloadProjection{
+			SourcePath: []string{"alert", "url"},
+			TargetPath: []string{"url"},
+		}
+	}
+	return subscription
 }
 
 func parseWebhookTypes(config map[string]any, path string, supported []string) ([]string, error) {

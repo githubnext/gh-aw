@@ -35,6 +35,7 @@ function subscription(overrides = {}) {
 function environment(overrides = {}) {
   return {
     GITHUB_EVENT_NAME: "repository_dispatch",
+    GITHUB_API_URL: "https://api.github.com",
     GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription()]),
     ...overrides,
   };
@@ -67,7 +68,10 @@ describe("validateWebhook", () => {
   it.each(["code_scanning_alert", "dependabot_alert"])("accepts only the selected security alert event %s", selectedEvent => {
     const selected = subscription({ event: selectedEvent, types: ["created"], conditions: [] });
     const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) });
-    const event = { ...dispatch(), client_payload: { ...dispatch().client_payload, event: selectedEvent, payload: { action: "created" } } };
+    const event = {
+      ...dispatch(),
+      client_payload: { ...dispatch().client_payload, event: selectedEvent, payload: { url: `https://api.github.com/repos/owner/repo/${selectedEvent === "dependabot_alert" ? "dependabot" : "code-scanning"}/alerts/1` } },
+    };
     expect(validateWebhook(event, env)).toEqual({ skipped: false, event: selectedEvent, delivery_id: "delivery-123" });
     for (const otherEvent of ["code_scanning_alert", "dependabot_alert", "secret_scanning_alert", "secret_scanning_alert_location", "secret_scanning_scan", "security_advisory", "repository_vulnerability_alert"]) {
       if (otherEvent === selectedEvent) continue;
@@ -76,7 +80,7 @@ describe("validateWebhook", () => {
     }
   });
 
-  it("validates inline webhook without modifying either GitHub identity or original payload", () => {
+  it("validates projected webhook without modifying either GitHub identity or payload", () => {
     const event = dispatch();
     const before = JSON.stringify(event);
     expect(validateWebhook(event, environment())).toEqual({ skipped: false, event: "projects_v2_item", delivery_id: "delivery-123" });
@@ -173,16 +177,18 @@ describe("validateWebhook", () => {
     ["payload", undefined, /inline webhook object/],
     ["payload", [], /inline webhook object/],
     ["payload", "https://example.com/payload.json", /inline webhook object/],
-    ["payload", {}, /action must be a non-empty/],
+    ["payload", {}, undefined],
     ["payload", { action: "" }, /action must be a non-empty/],
     ["payload", { action: 1 }, /action must be a non-empty/],
     ["payload", { action: "deleted" }, /subscription types/],
-    ["payload", { action: "created" }, /projects_v2_item object/],
-    ["payload", { action: "created", projects_v2_item: [] }, /projects_v2_item object/],
   ])("rejects malformed envelope field %s=%j", (key, value, message) => {
     const event = dispatch();
     event.client_payload[key] = value;
-    expect(() => validateWebhook(event, environment())).toThrow(message);
+    if (message) {
+      expect(() => validateWebhook(event, environment())).toThrow(message);
+    } else {
+      expect(validateWebhook(event, environment()).skipped).toBe(false);
+    }
   });
 
   it("supports actionless webhook events represented by empty compiled types", () => {
@@ -195,16 +201,9 @@ describe("validateWebhook", () => {
     expect(() => validateWebhook(event, env)).toThrow(/non-empty string/);
   });
 
-  it.each([{ id: undefined }, { id: "123" }, { id: 0 }, { id: -1 }, { id: 1.2 }, { id: Number.MAX_SAFE_INTEGER + 1 }, { node_id: "" }, { project_node_id: null }])("rejects malformed or missing project item fields %#", overrides => {
+  it("accepts projected project context without requiring the full source payload", () => {
     const event = dispatch();
-    Object.assign(event.client_payload.payload.projects_v2_item, overrides);
-    expect(() => validateWebhook(event, environment())).toThrow(/positive integer id/);
-  });
-
-  it("does not require project item fields marked optional by the webhook schema", () => {
-    const event = dispatch();
-    delete event.client_payload.payload.projects_v2_item.node_id;
-    delete event.client_payload.payload.projects_v2_item.project_node_id;
+    event.client_payload.payload = { project_id: "PVT_project", item_id: "PVTI_item" };
     expect(validateWebhook(event, environment()).skipped).toBe(false);
   });
 
@@ -219,6 +218,38 @@ describe("validateWebhook", () => {
     const conditions = [{ filter: "project_id", path: ["projects_v2_item", "project_node_id"], operator: "equals", value_type: "string", values: ["PVT_different"] }];
     const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ conditions })]) });
     expect(validateWebhook(dispatch(), env).skipped).toBe(false);
+  });
+
+  it.each([
+    [{}, /canonical GitHub API alert URL/],
+    [{ url: "https://example.com/repos/o/r/alerts/1" }, /canonical GitHub API alert URL/],
+    [{ url: "http://api.github.com/repos/o/r/alerts/1" }, /canonical GitHub API alert URL/],
+    [{ url: "https://api.github.com/repos/o/r/issues/1" }, /canonical GitHub API alert URL/],
+    [{ url: "https://api.github.com/repos/o/r/alerts/1", extra: true }, /canonical GitHub API alert URL/],
+  ])("rejects a security alert payload that is not only a canonical API URL", (payload, message) => {
+    const selected = subscription({ event: "dependabot_alert", types: ["created"] });
+    const event = {
+      ...dispatch(),
+      client_payload: { ...dispatch().client_payload, event: "dependabot_alert", payload },
+    };
+    expect(() => validateWebhook(event, environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) }))).toThrow(message);
+  });
+
+  it("accepts enterprise GitHub API alert URLs", () => {
+    const selected = subscription({ event: "code_scanning_alert", types: ["created"] });
+    const event = {
+      ...dispatch(),
+      client_payload: {
+        ...dispatch().client_payload,
+        event: "code_scanning_alert",
+        payload: { url: "https://github.example.com/api/v3/repos/o/r/code-scanning/alerts/1" },
+      },
+    };
+    const env = environment({
+      GITHUB_API_URL: "https://github.example.com/api/v3",
+      GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]),
+    });
+    expect(validateWebhook(event, env).skipped).toBe(false);
   });
 
   it("accepts 10 client_payload root keys but rejects 11", () => {
