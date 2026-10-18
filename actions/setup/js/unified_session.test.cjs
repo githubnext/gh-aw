@@ -1074,7 +1074,7 @@ describe("Unified conclusion session", () => {
 
   it("normalizes the runner snapshot of routed Copilot CLI run 39147795806 into workflow.info", async () => {
     // Records from the run's agent artifact, with the harness selection carrying the routed request `auto`.
-    const fixtureDir = path.join(path.dirname(new URL(import.meta.url).pathname), "fixtures", "copilot-routed-run-39147795806");
+    const fixtureDir = path.join(import.meta.dirname, "fixtures", "copilot-routed-run-39147795806");
     const fixture = name => fs.readFileSync(path.join(fixtureDir, name), "utf8");
     write("aw_info.json", fixture("aw_info.json"));
     write("agent/awf-routing-outcome.json", fixture("awf-routing-outcome.json"));
