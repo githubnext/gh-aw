@@ -1,27 +1,21 @@
 # PR Triage Summary
 
-- Run: 2026-10-17T18:25:16Z
-- Eligible PRs: 7
-- Skipped by cooldown: 0
-- Open Copilot PRs: 7
+- Run: 2026-10-18T12:30:06Z
+- Eligible PRs: 2
+- Skipped by cooldown: 6
+- Open Copilot PRs: 8
 
 ## Result
-- #69162 — fast_track — bug / medium — total 80
-- #69487 — fast_track — bug / medium — total 74
-- #69586 — fast_track — bug / medium — total 72
-- #69526 — fast_track — chore / medium — total 65
-- #69581 — batch_review — chore / medium — total 49
+- #69586 — batch_review — bug / medium — total 65
 - #56568 — defer — bug / high — total 57
-- #69507 — defer — docs / low — total 29
 
 ## Summary
-- Category distribution: bug=4, chore=2, docs=1
-- Risk distribution: low=1, medium=5, high=1
-- Priority distribution: high=4, medium=2, low=1
-- Recommended actions: fast_track=4, batch_review=1, defer=2, auto_merge=0, close=0
-- Batch opportunities: runtime-behavior (#69162, #69487, #69586, #56568)
+- Category distribution: bug=2
+- Risk distribution: medium=1, high=1
+- Priority distribution: medium=2
+- Recommended actions: batch_review=1, defer=1, auto_merge=0, fast_track=0, close=0
+- Batch opportunities: none (only 2 eligible PRs)
 
 ## Next action
-- Route #69162, #69487, #69586, and #69526 to expedited human review.
-- Review #69581 as a grouped dependency bump in the same batch window.
-- Keep #56568 and #69507 deferred pending stronger evidence or review closure.
+- Review #69586 as a focused bug-fix candidate in the next batch window, with draft state and a failing analyzer check noted.
+- Keep #56568 deferred pending stronger evidence or a formal human review resolution because it remains in changes-requested state.

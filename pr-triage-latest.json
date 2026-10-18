@@ -1,28 +1,15 @@
 {
-  "run_date": "2026-10-18T06:34:39Z",
-  "run_id": "39104401108",
+  "run_date": "2026-10-18T12:30:06Z",
+  "run_id": "39127398803",
   "source": "pr-triage",
   "eligible_total": 2,
   "cooldown_skipped": 6,
   "open_copilot_prs": 8,
   "skipped_prs": [69868, 69866, 69848, 69831, 69813, 69772],
-  "category_counts": {
-    "bug": 2
-  },
-  "risk_counts": {
-    "medium": 1,
-    "high": 1
-  },
-  "priority_counts": {
-    "medium": 2
-  },
-  "action_counts": {
-    "auto_merge": 0,
-    "fast_track": 0,
-    "batch_review": 1,
-    "defer": 1,
-    "close": 0
-  },
+  "category_counts": {"bug": 2},
+  "risk_counts": {"medium": 1, "high": 1},
+  "priority_counts": {"medium": 2},
+  "action_counts": {"auto_merge": 0, "fast_track": 0, "batch_review": 1, "defer": 1, "close": 0},
   "selected_candidates": [
     {
       "number": 69586,
@@ -75,7 +62,7 @@
       "ci_state": "unknown"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-18T06:34:39Z",
+  "cooldown_cutoff_utc": "2026-10-18T11:30:06Z",
   "notes": [
     "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
     "Newer PRs #69868, #69866, #69848, #69831, #69813, and #69772 were skipped due to recency."
