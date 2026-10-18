@@ -10,9 +10,9 @@ fi
 
 SPEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${TLC_MODEL_FILTER:-}" in
-    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|ClaimDeliveryHealth|ClaimDeliveryRecovery|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary) ;;
+    ""|WorkQueue|FairWorkQueue|ClaimScopedWorker|ClaimDeliveryHealth|ClaimDeliveryRecovery|QueueService|QueueLifecycle|DispatchReservationRecovery|IssueProjection|IssueClosureCancellation|QueueBootstrap|WorkerEvolution|WorkerDeploymentBoundary|WorkExpiration) ;;
     *)
-        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, ClaimDeliveryHealth, ClaimDeliveryRecovery, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, or WorkerDeploymentBoundary when set." >&2
+        echo "TLC_MODEL_FILTER must be WorkQueue, FairWorkQueue, ClaimScopedWorker, ClaimDeliveryHealth, ClaimDeliveryRecovery, QueueService, QueueLifecycle, DispatchReservationRecovery, IssueProjection, IssueClosureCancellation, QueueBootstrap, WorkerEvolution, WorkerDeploymentBoundary, or WorkExpiration when set." >&2
         exit 1
         ;;
 esac
@@ -56,6 +56,14 @@ run_model() {
 }
 
 run_model WorkQueue
+run_model WorkExpiration "" Invariant 0 WorkExpiration
+run_model BrokenExpirationGrant GrantAuthority Invariant 12 WorkExpiration
+run_model BrokenExpirationRelease ReservationAuthority Invariant 12 WorkExpiration
+run_model BrokenExpirationClaim ClaimAuthority Invariant 12 WorkExpiration
+run_model BrokenExpirationWatermark CommittedTimeMonotonicity Invariant 12 WorkExpiration
+run_model BrokenExpirationCheckpoint ProjectionSoundness Invariant 12 WorkExpiration
+run_model ExpirationRunningWitness NoRunningPastExpiry Invariant 12 WorkExpiration
+run_model ExpirationCheckpointWitness NoCheckpointExpiry Invariant 12 WorkExpiration
 run_model Recovery
 run_model QueueOrdering
 run_model BrokenCAS TerminalPersistence

@@ -271,14 +271,14 @@ func CompactCheckpoint(commits []QueueCommit, priorGitSHA string, actor Actor, a
 	if err != nil {
 		return nil, err
 	}
-	if actor.Repository != state.Repository || at < ordered[len(ordered)-1].At || at > MaxTimestamp {
+	if actor.Repository != state.Repository || at < state.timeWatermark || at > MaxTimestamp {
 		return nil, queueError("checkpoint_invalid", "checkpoint repository or time is invalid")
 	}
 	data, err := Serialize(commits)
 	if err != nil {
 		return nil, err
 	}
-	snapshot, err := checkpointState(ordered, state, ordered[len(ordered)-1].At)
+	snapshot, err := checkpointState(ordered, state, state.timeWatermark)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +345,7 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 		return invalid()
 	}
 	state := snapshot.Projection
+	state.timeWatermark = snapshot.LastAt
 	if err := validateDeploymentCheckpoint(state, snapshot.Requests); err != nil {
 		return invalid()
 	}
@@ -430,6 +431,7 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 			At: receipt.At, Operations: receipt.Events,
 		}
 		state.RequestOrder = append(state.RequestOrder, receipt.RequestID)
+		state.timeWatermark = max(state.timeWatermark, receipt.At)
 	}
 	if len(state.WorkCreators) != len(state.Works) {
 		return invalid()
@@ -660,6 +662,7 @@ func restoreCheckpoint(commit QueueCommit) (Projection, error) {
 	if state.LedgerBytes+remainingHeadroom(state) > state.Policy.Limits.LedgerBytes+state.Policy.Limits.RecoveryBytes {
 		return invalid()
 	}
+	state.advanceExpiration(commit.At)
 	return state, nil
 }
 

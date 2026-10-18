@@ -472,6 +472,10 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 		if candidate.settled {
 			return candidate.publication, nil
 		}
+		if expiringGrant(prefix.state, candidate.publication.Commit.Operations, time.Now().UnixMilli()) {
+			pendingErr = queueError("work_expired", "a selected Work expired before publication; refresh the fair prefix")
+			continue
+		}
 		_, err = b.publish(ctx, prefix.snapshot, candidate.commits)
 		if err == nil {
 			candidate.publication.Changed = true

@@ -215,6 +215,33 @@ function nativeTarget(number = "7") {
 
 function registerTests({ describe, it }) {
   describe("checked current-only Git queue CAS store", () => {
+    it("regenerates a fair prefix when selected Work expires before writing an unchanged HEAD", async () => {
+      const log = [genesis()];
+      log.push(submission(log, ["old", "fresh"], { transform: (work, index) => (index === 0 ? { ...work, expires_at: 150 } : work) }));
+      const fake = fakeGitHub(log);
+      const request = newRequest("deadline-race", "dispatch_next", dispatcher, { pool: "default", max_claims: 1, max_dispatches: 1, max_bytes: 49152 });
+      let at = 100;
+      let generations = 0;
+      const result = await publishWorkQueueRequest(
+        options(fake, request, dispatcher, {
+          now: () => at,
+          generateOperations: (state, stable, actor, time, id, observations) => {
+            generations++;
+            const decision = generateRequestOperations(state, stable, actor, time, id, observations);
+            at = 150;
+            return decision;
+          },
+        })
+      );
+      assert.equal(generations, 2);
+      assert.equal(fake.state.updates, 1);
+      assert.equal(result.publishedNow, true);
+      const state = replayTransactions(fake.log());
+      assert.equal(state.works.get(log[1].operations[0].work_id).cancellation_reason, "work_expired");
+      assert.equal([...state.claims.values()][0].work_id, log[1].operations[1].work_id);
+      assert.equal(state.claims.size, 1);
+      assert.equal(state.requests.get(request.id).at, 150);
+    });
     it("validates canonical trusted principals before no-op generation or any queue API probe", async () => {
       const parameters = { pool: "default", max_claims: 1, max_dispatches: 1, max_bytes: 49152 };
       const request = newRequest("principal-no-op", "dispatch_next", dispatcher, parameters);

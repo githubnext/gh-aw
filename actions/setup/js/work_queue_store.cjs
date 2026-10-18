@@ -579,6 +579,7 @@ async function publishWorkQueueRequest({
     }
     let sha;
     try {
+      if (require("./work_queue_expiration.cjs").expiringGrant(current.state, checked.commit.operations, now)) continue;
       sha = await writeCandidate({ githubClient, owner, repo, current, transactions: checked.transactions });
     } catch (error) {
       log.failure("request.publish.write_failed", error);

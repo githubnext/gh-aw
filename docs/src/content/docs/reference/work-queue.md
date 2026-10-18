@@ -363,6 +363,30 @@ The protocol remains version 3, but older closed-schema readers reject these
 extensions. Existing logs need no migration; no automatic reader upgrade or
 fallback to an older deployment is supported.
 
+## Work expiration
+
+Submitted Work may include `expires_at`, an absolute Unix-millisecond timestamp
+from 0 through 9007199254740991. Native `submit-work` accepts the same value as
+`--expires-at`; `submit-graph` and `work_queue_submit` accept it on each node.
+Omitting it on a new node means no expiration. The deadline is immutable:
+resubmission preserves it, and changing it requires a new node identity.
+
+At or after the deadline, unclaimed Work becomes cancelled with reason
+`work_expired` and cannot receive a Claim. Replay uses the maximum committed
+timestamp, preserved through checkpoints; live operator reads additionally
+evaluate current time, and activation reads evaluate `captured_at`. Historical
+replay does not invalidate a Claim that was valid at its original decision.
+Wall-clock-only views are not durable until queue activity advances committed
+time; no background timer is implied.
+
+Running Claims can still complete after their Work deadline. Expiration never
+releases a native reservation, refunds fairness charges, deletes history, or
+unblocks dependencies. Pending or failed delivery remains protected, including
+`keep_open` completion; verified retained delivery expires elapsed Work instead
+of re-queuing it. Claim leases and hard real-time execution deadlines are not
+supported. Upgrade all closed-schema version-3 readers before using the field;
+existing Work without it needs no migration.
+
 ## Runtime debug logging
 
 The JavaScript runtime uses the shared logger framework to write opt-in,
