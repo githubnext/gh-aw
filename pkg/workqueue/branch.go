@@ -36,6 +36,7 @@ type Branch struct {
 	client              *api.RESTClient
 	ledger              *queueGit
 	ledgerRequestFn     func(context.Context, string, string, any, any) error
+	publicationNow      func() int64
 }
 
 func (b Branch) validate() error {
@@ -217,7 +218,7 @@ func (b Branch) verifyCheckpointHistory(ctx context.Context, head string, commit
 		if tip != checkpoint.PriorTip {
 			return invalid()
 		}
-		reconstructed, err := CompactCheckpoint(previous, parent, root.Actor, root.At)
+		reconstructed, err := reconstructCheckpoint(previous, parent, root.Actor, root.At, checkpoint.StateSHA256)
 		if err != nil {
 			return invalid()
 		}
@@ -425,7 +426,7 @@ func extending(previous, current []QueueCommit) bool {
 		if err == nil &&
 			encodeErr == nil && op.HistorySHA256 == hashBytes(data) &&
 			op.PriorTip == tip {
-			reconstructed, err := CompactCheckpoint(oldOrder, op.PriorGitSHA, root.Actor, root.At)
+			reconstructed, err := reconstructCheckpoint(oldOrder, op.PriorGitSHA, root.Actor, root.At, op.StateSHA256)
 			if err != nil {
 				return false
 			}
@@ -471,6 +472,15 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 		}
 		if candidate.settled {
 			return candidate.publication, nil
+		}
+		// Regenerate immediately with fresh time to exclude expired Work from the next
+		// candidate; no ref write was attempted here, so contention backoff is unnecessary.
+		if expiringGrant(prefix.state, candidate.publication.Commit.Operations, b.publicationTime()) {
+			if prefix.snapshot.head != "" {
+				last = prefix.commits
+			}
+			pendingErr = queueError("work_expired", "a selected Work expired before publication; refresh the fair prefix")
+			continue
 		}
 		_, err = b.publish(ctx, prefix.snapshot, candidate.commits)
 		if err == nil {
@@ -559,12 +569,19 @@ type publicationCandidate struct {
 	settled     bool
 }
 
+func (b Branch) publicationTime() int64 {
+	if b.publicationNow != nil {
+		return b.publicationNow()
+	}
+	return time.Now().UnixMilli()
+}
+
 func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, request Request, prefix publicationPrefix, pendingErr error) (publicationCandidate, error) {
 	if existing, ok := prefix.state.Requests[request.ID]; ok && prefix.initial == nil {
 		if existing.Request.Fingerprint != request.Fingerprint || !sameJSON(existing.Actor, actor) {
 			return publicationCandidate{}, queueError("request_reuse", "request identity has different accepted meaning")
 		}
-		_, commit, decision, err := BuildCandidate(prefix.commits, actor, request, time.Now().UnixMilli())
+		_, commit, decision, err := BuildCandidate(prefix.commits, actor, request, b.publicationTime())
 		return publicationCandidate{publication: Publication{Commit: commit, Decision: decision}, settled: true}, err
 	}
 	if err := validateRequestRole(actor, request.Kind); err != nil {
@@ -605,7 +622,7 @@ func (b Branch) preparePublicationCandidate(ctx context.Context, actor Actor, re
 		candidate.publication.Decision = Decision{Tip: prefix.state.Tip, Operations: prefix.initial.Operations, Assignments: []Assignment{}}
 	} else {
 		candidate.commits, candidate.publication.Commit, candidate.publication.Decision, err =
-			buildCandidateWithObservations(prefix.commits, actor, request, time.Now().UnixMilli(), observations)
+			buildCandidateWithObservations(prefix.commits, actor, request, b.publicationTime(), observations)
 	}
 	if err != nil {
 		return publicationCandidate{}, err
@@ -621,7 +638,7 @@ func (b Branch) recoverPublicationAcknowledgment(ctx context.Context, actor Acto
 		if replayErr == nil {
 			if existing, ok := projection.Requests[request.ID]; ok &&
 				existing.Request.Fingerprint == request.Fingerprint && sameJSON(existing.Actor, actor) {
-				_, committed, decision, err := BuildCandidate(current, actor, request, time.Now().UnixMilli())
+				_, committed, decision, err := BuildCandidate(current, actor, request, b.publicationTime())
 				return Publication{Commit: committed, Decision: decision}, err
 			}
 		}
