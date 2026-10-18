@@ -260,11 +260,15 @@ func generateSuccessFindings(run WorkflowRun, metrics MetricsData, errors []Vali
 		Description: fmt.Sprintf("Completed in %d turns with no reported workflow errors", metrics.Turns),
 		Impact:      "No action needed",
 	}
-	if metrics.ErrorCount > 0 {
+	switch {
+	case metrics.ErrorCount > 0 && metrics.SubagentFailureCount > 0:
+		finding.Title = "Parent Workflow Completed Successfully"
+		finding.Description = fmt.Sprintf("Parent workflow completed in %d turns with %d reported error(s), but %d sub-agent invocation(s) failed", metrics.Turns, metrics.ErrorCount, metrics.SubagentFailureCount)
+		finding.Impact = "Review reported errors despite the successful workflow conclusion; parent success does not establish recovery or completion of failed delegated work; review sub-agent failures"
+	case metrics.ErrorCount > 0:
 		finding.Description = fmt.Sprintf("Workflow completed in %d turns with %d reported error(s)", metrics.Turns, metrics.ErrorCount)
 		finding.Impact = "Review reported errors despite the successful workflow conclusion"
-	}
-	if metrics.SubagentFailureCount > 0 {
+	case metrics.SubagentFailureCount > 0:
 		finding.Title = "Parent Workflow Completed Successfully"
 		finding.Description = fmt.Sprintf("Parent workflow completed in %d turns, but %d sub-agent invocation(s) failed", metrics.Turns, metrics.SubagentFailureCount)
 		finding.Impact = "Parent success does not establish recovery or completion of failed delegated work; review sub-agent failures"

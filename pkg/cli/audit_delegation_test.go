@@ -51,8 +51,8 @@ func TestAuditDelegationFailureReporting(t *testing.T) {
 			assert.Equal(t, 2, failures)
 			require.NotNil(t, success)
 			assert.Equal(t, "Parent Workflow Completed Successfully", success.Title)
-			assert.Contains(t, success.Description, "8 turns, but 3 sub-agent invocation(s) failed")
-			assert.Contains(t, success.Impact, "does not establish recovery")
+			assert.Equal(t, "Parent workflow completed in 8 turns, but 3 sub-agent invocation(s) failed", success.Description)
+			assert.Equal(t, "Parent success does not establish recovery or completion of failed delegated work; review sub-agent failures", success.Impact)
 			assert.NotContains(t, success.Description, "no errors")
 			assert.NotEqual(t, "No action needed", success.Impact)
 			assertRecommendationExists(t, data.Recommendations, "high", "verify recovery")
@@ -89,7 +89,9 @@ func TestAuditWithoutDelegationFailures(t *testing.T) {
 		success := findFindingByCategory(data.KeyFindings, "success")
 		require.NotNil(t, success)
 		assert.Equal(t, AuditFindingWorkflowSucceeded, success.Code)
+		assert.Equal(t, "Workflow Completed Successfully", success.Title)
 		assert.Equal(t, "Completed in 8 turns with no reported workflow errors", success.Description)
+		assert.Equal(t, "No action needed", success.Impact)
 	}
 }
 
@@ -115,6 +117,25 @@ func TestAuditSuccessWithReportedErrorsIsQualified(t *testing.T) {
 	t.Parallel()
 	findings := generateSuccessFindings(WorkflowRun{Conclusion: "success"}, MetricsData{Turns: 8, ErrorCount: 1}, nil)
 	require.Len(t, findings, 1)
-	assert.Contains(t, findings[0].Description, "1 reported error(s)")
-	assert.NotEqual(t, "No action needed", findings[0].Impact)
+	assert.Equal(t, "Workflow Completed Successfully", findings[0].Title)
+	assert.Equal(t, "Workflow completed in 8 turns with 1 reported error(s)", findings[0].Description)
+	assert.Equal(t, "Review reported errors despite the successful workflow conclusion", findings[0].Impact)
+}
+
+func TestAuditSuccessWithReportedErrorsAndDelegationFailuresIsQualified(t *testing.T) {
+	t.Parallel()
+	findings := generateSuccessFindings(WorkflowRun{Conclusion: "success"}, MetricsData{
+		Turns:                8,
+		ErrorCount:           2,
+		SubagentFailureCount: 3,
+	}, nil)
+	require.Len(t, findings, 1)
+	assert.Equal(t, AuditFindingWorkflowSucceeded, findings[0].Code)
+	assert.Equal(t, "Parent Workflow Completed Successfully", findings[0].Title)
+	assert.Contains(t, findings[0].Description, "8 turns")
+	assert.Contains(t, findings[0].Description, "2 reported error(s)")
+	assert.Contains(t, findings[0].Description, "3 sub-agent invocation(s) failed")
+	assert.Contains(t, findings[0].Impact, "Review reported errors")
+	assert.Contains(t, findings[0].Impact, "does not establish recovery or completion of failed delegated work")
+	assert.Contains(t, findings[0].Impact, "review sub-agent failures")
 }
