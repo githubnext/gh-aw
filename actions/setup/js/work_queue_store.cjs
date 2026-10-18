@@ -579,6 +579,8 @@ async function publishWorkQueueRequest({
     }
     let sha;
     try {
+      // Regenerate immediately with fresh time to exclude expired Work from the next
+      // candidate; no ref write was attempted here, so contention backoff is unnecessary.
       if (require("./work_queue_expiration.cjs").expiringGrant(current.state, checked.commit.operations, now)) continue;
       sha = await writeCandidate({ githubClient, owner, repo, current, transactions: checked.transactions });
     } catch (error) {

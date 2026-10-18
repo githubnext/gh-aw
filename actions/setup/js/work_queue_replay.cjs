@@ -1320,6 +1320,8 @@ function replayOrdered(ordered) {
       }
       updateIndexes(state, operation);
     }
+    // Operations may admit Work or make it expirable by cancelling a Claim or
+    // verifying retained delivery; the pre-operation pass cannot cover these changes.
     advanceExpiration(state, commit.at);
     if (expected && claimIndex !== expected.operations.length) throw queueError("packing_invalid", "Claim commit omitted an admissible member of the fair prefix");
     if (!expected && commit.request.kind === "dispatch_next") throw queueError("request_invalid", "no-grant evaluation cannot consume a stable request identity");

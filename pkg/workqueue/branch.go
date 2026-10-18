@@ -472,6 +472,8 @@ func (b Branch) Publish(ctx context.Context, actor Actor, request Request) (Publ
 		if candidate.settled {
 			return candidate.publication, nil
 		}
+		// Regenerate immediately with fresh time to exclude expired Work from the next
+		// candidate; no ref write was attempted here, so contention backoff is unnecessary.
 		if expiringGrant(prefix.state, candidate.publication.Commit.Operations, time.Now().UnixMilli()) {
 			pendingErr = queueError("work_expired", "a selected Work expired before publication; refresh the fair prefix")
 			continue

@@ -228,6 +228,8 @@ func (state *Projection) replayCommit(commit QueueCommit, ordinal int, epochs, g
 	} else if commit.Request.Kind == "dispatch_next" {
 		return queueError("request_invalid", "no-grant evaluation must not consume request identity")
 	}
+	// Operations may admit Work or make it expirable by cancelling a Claim or
+	// verifying retained delivery; the pre-operation pass cannot cover these changes.
 	state.advanceExpiration(commit.At)
 	if err := state.accountReplayCommit(commit, hasAdmission, hasObservations); err != nil {
 		return err
