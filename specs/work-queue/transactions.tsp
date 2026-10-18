@@ -261,7 +261,7 @@ model CompletionOperation {
 }
 @jsonSchema
 model Evidence {
-  kind: "prelaunch" | "nonlaunch" | "terminal_run" | "delivery" | "reconciliation";
+  kind: "prelaunch" | "nonlaunch" | "terminal_run" | "worker_termination" | "delivery" | "reconciliation";
   source: "trusted_publisher" | "github_api" | "trusted_activation" | "verified_receipts";
   repository: Identity;
   workflow: Identity;

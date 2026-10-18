@@ -45,7 +45,7 @@ func NewHealthCommand() *cobra.Command {
 
 Shows health metrics for workflows including:
 - Current-revision success/failure rates from recent runs
-- Revision-aware recovery evidence and shared failure clusters
+- Revision-aware recovery evidence, shared failure clusters, and cached sub-agent failures
 - Trend indicators (↑ improving, → stable, ↓ degrading)
 - Average execution duration
 - Warnings when success rate drops below threshold
@@ -106,7 +106,7 @@ func addHealthFlags(cmd *cobra.Command) {
 	cmd.Flags().String("end-date", "", "Include runs created at or before this UTC date, RFC3339 timestamp, or relative time (default: now)")
 	cmd.MarkFlagsMutuallyExclusive("days", "start-date")
 	cmd.Flags().Float64("threshold", 80.0, "Success rate threshold for warnings (percentage)")
-	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering (no artifact downloads)")
+	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering and sub-agent failures (no artifact downloads)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 }
@@ -222,6 +222,8 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 		{"Total Runs", strconv.Itoa(health.TotalRuns)},
 		{"Successful", strconv.Itoa(health.SuccessCount)},
 		{"Failed", strconv.Itoa(health.FailureCount)},
+		{"Sub-agent Failures", strconv.Itoa(health.SubagentFailureCount)},
+		{"Runs with Failed Sub-agents", strconv.Itoa(health.SubagentFailureRuns)},
 		{"Success Rate", health.DisplayRate},
 		{"Trend", health.Trend},
 		{"Avg Duration", health.DisplayDur},
@@ -231,14 +233,7 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 	fmt.Fprint(os.Stderr, console.RenderStruct(details))
 	fmt.Fprintln(os.Stderr, "")
 
-	// Display warning if below threshold
-	if health.BelowThresh {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Success rate (%.1f%%) is below threshold (%.1f%%)", health.SuccessRate, config.Threshold)))
-	} else if health.Status == "healthy" || health.Status == "recovery_observed" {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Success rate (%.1f%%) is above threshold (%.1f%%)", health.SuccessRate, config.Threshold)))
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Current revision has insufficient evidence for a healthy status"))
-	}
+	displayDetailedHealthStatus(health, config.Threshold)
 
 	if err := renderHealthCollection(os.Stderr, health.Collection); err != nil {
 		return err
@@ -246,7 +241,22 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 	if err := renderHealthRevisions(os.Stderr, health.Revisions); err != nil {
 		return err
 	}
+	if err := renderHealthSubagentFailures(os.Stderr, health); err != nil {
+		return err
+	}
 	return renderFailureReportToWriter(os.Stderr, health.FailureClusters, health.FailureInvestigation, "", config.Verbose)
+}
+
+func displayDetailedHealthStatus(health WorkflowHealth, threshold float64) {
+	if health.SubagentFailureCount > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d sub-agent invocation(s) failed across %d run(s); Actions success rate does not establish healthy delegation", health.SubagentFailureCount, health.SubagentFailureRuns)))
+	} else if health.BelowThresh {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Success rate (%.1f%%) is below threshold (%.1f%%)", health.SuccessRate, threshold)))
+	} else if health.Status == "healthy" || health.Status == "recovery_observed" {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Success rate (%.1f%%) is above threshold (%.1f%%)", health.SuccessRate, threshold)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Current revision has insufficient evidence for a healthy status"))
+	}
 }
 
 // outputHealthJSON outputs health summary in JSON format
@@ -269,14 +279,17 @@ func outputHealthTable(summary HealthSummary, threshold float64) error {
 	fmt.Fprintln(os.Stderr, "")
 
 	// Display summary message
+	if summary.DegradedWorkflows > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) have failed sub-agent invocations across %d run(s)", summary.DegradedWorkflows, summary.SubagentFailureRuns)))
+	}
 	if summary.BelowThreshold > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) below %.0f%% success threshold", summary.BelowThreshold, threshold)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run '%s health <workflow-name>' for details", string(constants.CLIExtensionPrefix))))
-	} else if summary.InsufficientWorkflows == 0 && (summary.Collection == nil || !summary.Collection.Partial) {
+	} else if summary.DegradedWorkflows == 0 && summary.InsufficientWorkflows == 0 && (summary.Collection == nil || !summary.Collection.Partial) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All evaluated workflows above %.0f%% success threshold", threshold)))
 	} else if summary.InsufficientWorkflows > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflows have insufficient current-revision evidence", summary.InsufficientWorkflows)))
-	} else {
+	} else if summary.Collection != nil && summary.Collection.Partial {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Health collection is partial; see collection limits"))
 	}
 
@@ -285,6 +298,9 @@ func outputHealthTable(summary HealthSummary, threshold float64) error {
 	}
 	for _, health := range summary.Workflows {
 		if err := renderHealthRevisions(os.Stderr, health.Revisions); err != nil {
+			return err
+		}
+		if err := renderHealthSubagentFailures(os.Stderr, health); err != nil {
 			return err
 		}
 	}

@@ -35,7 +35,7 @@ async function releaseAssignment(options, assignment, evidence) {
   if (validated.dispatch.released) return { state: "released", released: true };
   const trustedContext = await authenticatePublisher({ ...options, role: "reconciler" });
   const operations = [
-    ...cancellationOperations(latest.projection, assignment, evidence.checked_at, evidence.kind === "terminal_run" ? "native_run_terminal" : "definitive_nonlaunch"),
+    ...cancellationOperations(latest.projection, assignment, evidence.checked_at, evidence.kind === "terminal_run" ? "native_run_terminal" : evidence.kind === "worker_termination" ? "worker_termination" : "definitive_nonlaunch"),
     { kind: "Release", dispatch_id: assignment.dispatch_id, evidence },
   ];
   try {
