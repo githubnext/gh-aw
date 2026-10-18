@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -51,7 +52,8 @@ exit "$ACTIONLINT_TEST_EXIT"
 		{name: "secret disclosure", run: "echo '${{ secrets.TOKEN }}'", exit: "0", wantASTError: true},
 		{name: "actionlint failure", run: "echo safe", exit: "2", wantToolError: true},
 		{name: "both fail", run: "echo '${{ secrets.TOKEN }}'", exit: "2", wantASTError: true, wantToolError: true},
-		{name: "coverage warning", run: "unknown '${{ secrets.TOKEN }}'", exit: "0", wantASTWarning: true},
+		{name: "coverage warning hidden", run: "unknown '${{ secrets.TOKEN }}'", exit: "0"},
+		{name: "debug coverage warning", run: "unknown '${{ secrets.TOKEN }}'", exit: "0", flags: []string{"--debug"}, wantASTWarning: true},
 		{name: "script integrations", run: "echo '${{ secrets.TOKEN }}'", exit: "0", flags: []string{"--shellcheck", "--pyflakes"}, wantASTError: true},
 		{name: "template injection", run: "echo '${{ github.event.issue.title }}'", exit: "0", wantASTError: true, wantRule: "template-injection"},
 	} {
@@ -78,6 +80,8 @@ exit "$ACTIONLINT_TEST_EXIT"
 			}
 			if tt.wantASTWarning {
 				assert.Contains(t, output.String(), "warning [secret-leak]")
+			} else {
+				assert.NotContains(t, output.String(), "warning [secret-leak]")
 			}
 			if tt.wantToolError {
 				require.ErrorContains(t, runErr, "actionlint failed with exit code 2")
@@ -87,7 +91,7 @@ exit "$ACTIONLINT_TEST_EXIT"
 			}
 			args, err := os.ReadFile(argsPath)
 			require.NoError(t, err, "actionlint must run even when AST lint fails")
-			if len(tt.flags) == 0 {
+			if !slices.Contains(tt.flags, "--shellcheck") {
 				assert.Contains(t, string(args), "-shellcheck=\n")
 				assert.Contains(t, string(args), "-pyflakes=\n")
 			} else {
