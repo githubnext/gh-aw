@@ -168,6 +168,40 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
 });
 
 describe("setup.sh SAFE_OUTPUTS_FILES", () => {
+  it("renders Claim-scoped footers from the deployed bundle without source-directory dependencies", () => {
+    const runnerRoot = resolve(__dirname, `.setup-safeoutputs-bundle-${process.pid}`);
+    mkdirSync(runnerRoot);
+    try {
+      const deploymentBlock = setupShContent.slice(setupShContent.indexOf("# Copy safe-outputs files"), setupShContent.indexOf("# Copy configure_git_credentials.sh"));
+      execFileSync("bash", ["-ec", `create_dir() { mkdir -p "$1"; }\ndebug_log() { :; }\n${deploymentBlock}`], {
+        env: { ...process.env, GH_AW_ROOT: runnerRoot, JS_SOURCE_DIR: __dirname },
+      });
+      execFileSync(
+        process.execPath,
+        [
+          "-e",
+          `
+            const assert = require("node:assert/strict");
+            const { getFooterMessage } = require("./messages_footer.cjs");
+            const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
+            const assignment = {
+              version: 3, dispatch_id: "dispatch", request_id: "request", commit_id: "commit",
+              policy_epoch: "policy", pool: "default", worker_profile: "default",
+              claims: [{ handle: "h1", claim_id: "claim-one", work_id: "work-one", work: {}, result_refs: [] }],
+            };
+            const context = { workflowName: "Worker", runUrl: "https://github.com/owner/repo/actions/runs/123" };
+            const footer = withClaimExecution({ assignment, claim_handle: "h1" }, () => getFooterMessage(context));
+            assert.ok(footer.includes("> Work \`work-one\` · Claim \`claim-one\`"));
+            assert.ok(!getFooterMessage(context).includes("> Work "));
+          `,
+        ],
+        { cwd: resolve(runnerRoot, "safeoutputs") }
+      );
+    } finally {
+      rmSync(runnerRoot, { recursive: true, force: true });
+    }
+  });
+
   it("deploys the queue workflow-dispatch transport", () => {
     expect(safeOutputsFiles).toContain("dispatch_workflow_transport.cjs");
   });
