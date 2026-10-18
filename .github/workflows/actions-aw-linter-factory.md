@@ -126,7 +126,8 @@ Repository: ${{ github.repository }}. Run: ${{ github.run_id }}.
 
 ## 4. Validate and publish
 
-1. Run `make fmt`, `go test ./pkg/workflow/lint ./pkg/workflow/actions ./pkg/workflow/aw ./pkg/workflow/taint`,
+1. Run `make fmt-go` (Go-only formatting; no npm dependencies),
+   `go test ./pkg/workflow/lint ./pkg/workflow/actions ./pkg/workflow/aw ./pkg/workflow/taint`,
    and `make build`. Inspect the diff for scope and security before publishing.
 2. Use `./gh-aw lint --list-rules` to verify registration. Run
    `./gh-aw lint --rules <rule-id> --json .github/workflows` with the selected
