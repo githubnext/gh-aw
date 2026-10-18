@@ -52,3 +52,6 @@ metrics/latest.json now dated 2026-10-16 but collection_status=partial (0.81h co
 
 ## Run 2026-10-17T12:50Z
 metrics/latest.json now fresh (2026-10-17) but partial: 6.97h coverage, quality/effectiveness/safe-output outcomes null (logs gateway deadline). Ranking still deferred (no scoreable data); no discussion/issue filed.
+
+## Run 2026-10-18T12:50Z
+metrics/latest.json now fresh (2026-10-18) but partial: 0 workflows with executed-run counts, safe-output values null. Ranking deferred; no discussion/issue filed.
