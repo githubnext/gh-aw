@@ -5,13 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
-
-var compilerYamlHeaderLog = logger.New("workflow:compiler_yaml:header")
 
 func collectDetectionPolicyForManifest(data *WorkflowData) *GHAWManifestDetectionPolicy {
 	policy := &GHAWManifestDetectionPolicy{Mode: "disabled"}
@@ -88,9 +85,8 @@ func (c *Compiler) generateLockMetadataHeader(yaml *strings.Builder, data *Workf
 
 func (c *Compiler) generateManifestHeader(yaml *strings.Builder, data *WorkflowData, secrets, actions []string) error {
 	// Embed the gh-aw-manifest immediately after gh-aw-metadata for easy machine parsing.
-	// The manifest records all secrets, external actions, container images, and frontmatter
-	// skills detected at compile time so that subsequent compilations can perform safe update
-	// enforcement.
+	// The manifest records safe-update inventory and normalized webhook declarations
+	// for CAO discovery without interpreting generated workflow steps.
 	manifest := NewGHAWManifest(secrets, actions, data.ActionResolutionFailures, data.DockerImagePins, data.Redirect, data.Skills, data.Plugins, data.RawFrontmatter["on"])
 	if data.ParsedFrontmatter != nil {
 		manifest.ThreatDetectionSuppressions = data.ParsedFrontmatter.ThreatDetectionSuppressions
@@ -104,11 +100,12 @@ func (c *Compiler) generateManifestHeader(yaml *strings.Builder, data *WorkflowD
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	manifest.MCPServers = collectMCPServersForManifest(data)
 	manifest.ThreatDetection = collectDetectionPolicyForManifest(data)
-	if manifestJSON, err := manifest.ToJSON(); err == nil {
-		fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
-	} else {
-		compilerYamlHeaderLog.Printf("Failed to serialize gh-aw-manifest: %v. Safe update mode will not be available for future compilations of this workflow.", err)
+	manifest.WebhookSubscriptions = data.WebhookSubscriptions
+	manifestJSON, err := manifest.ToJSON()
+	if err != nil {
+		return fmt.Errorf("cannot generate gh-aw-manifest header: %w", err)
 	}
+	fmt.Fprintf(yaml, "# gh-aw-manifest: %s\n", manifestJSON) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	return nil
 }
 

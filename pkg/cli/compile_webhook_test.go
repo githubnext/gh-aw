@@ -69,9 +69,9 @@ engine: copilot
 
 Inspect github.event.client_payload.payload.
 `), 0600))
-	compiler := workflow.NewCompiler(workflow.WithNoEmit(true))
+	compiler := workflow.NewCompiler()
 	result := compileWorkflowFile(context.Background(), compiler, path, compileWorkflowFileOptions{
-		noEmit: true, jsonOutput: true,
+		jsonOutput: true,
 	})
 	require.True(t, result.success, "%+v", result.validationResult.Errors)
 	require.True(t, result.validationResult.Valid)
@@ -103,6 +103,12 @@ Inspect github.event.client_payload.payload.
 	assert.Contains(t, result.workflowData.On, "workflow_dispatch")
 	assert.Equal(t, []string{"admin", "maintainer", "write"}, result.workflowData.Roles)
 	assert.Equal(t, []string{"cao-gateway"}, result.workflowData.Bots)
+	lock, err := os.ReadFile(filepath.Join(dir, "webhook-test.lock.yml"))
+	require.NoError(t, err)
+	manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(lock))
+	require.NoError(t, err)
+	require.NotNil(t, manifest)
+	assert.Equal(t, result.validationResult.WebhookSubscriptions, manifest.WebhookSubscriptions)
 }
 
 func TestCompileSecurityWebhookJSONContract(t *testing.T) {

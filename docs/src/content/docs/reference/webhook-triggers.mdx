@@ -161,7 +161,9 @@ The present runtime also expects the original payload inline. RFC-033 persists a
 
 ### Compiler declaration
 
-`gh aw compile --json` exposes the normalized subscriptions in each `ValidationResult.webhook_subscriptions` array. A receiver discovers subscriptions from this output rather than interpreting workflow YAML itself.
+Each compiled `.lock.yml` embeds the normalized subscriptions in the `webhook_subscriptions` array of its single-line `# gh-aw-manifest: {...}` JSON header. CAO can read that header without parsing workflow steps or the source frontmatter. The array is omitted for workflows without webhook triggers. It contains the full event, activity, typed condition, paired transition, dispatch route/context, and transport-limit declaration described below.
+
+`gh aw compile --json` exposes the same declarations in each `ValidationResult.webhook_subscriptions` array. Both surfaces contain discovery metadata, not subscription approval or dispatch authority.
 
 | Field | Meaning |
 | --- | --- |
