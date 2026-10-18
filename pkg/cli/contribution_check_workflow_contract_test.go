@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 )
 
 func TestContributionCheckWorkflowSafeOutputContract(t *testing.T) {
@@ -55,12 +57,27 @@ func TestContributionCheckWorkflowAllowsRequiredShellCommands(t *testing.T) {
 	lockContent, err := os.ReadFile(lockPath)
 	require.NoError(t, err, "Should read compiled contribution-check workflow")
 
-	lockText := string(lockContent)
-	for _, token := range []string{
-		"--allow-tool '\\''shell(git:*)'\\''",
-		"--allow-tool '\\''shell(jq)'\\''",
-		"--allow-tool '\\''shell(safeoutputs:*)'\\''",
-	} {
-		assert.Containsf(t, lockText, token, "Compiled workflow must contain %s", token)
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Env map[string]string
+			}
+		}
 	}
+	require.NoError(t, yaml.Unmarshal(lockContent, &workflow))
+	for _, step := range workflow.Jobs["agent"].Steps {
+		if config := step.Env["GH_AW_COPILOT_SDK_TOOL_CONFIG"]; config != "" {
+			var tools struct {
+				Permissions struct {
+					AllowedTools []string `json:"allowedTools"`
+				} `json:"permissions"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(config), &tools))
+			for _, tool := range []string{"shell(git:*)", "shell(jq)", "shell(safeoutputs:*)"} {
+				assert.Contains(t, tools.Permissions.AllowedTools, tool)
+			}
+			return
+		}
+	}
+	t.Fatal("Agent job must configure Copilot SDK tool permissions")
 }

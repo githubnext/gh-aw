@@ -1059,6 +1059,9 @@
             "error_count": {
               "type": "integer"
             },
+            "subagent_failure_count": {
+              "type": "integer"
+            },
             "warning_count": {
               "type": "integer"
             }

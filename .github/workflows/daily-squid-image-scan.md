@@ -132,6 +132,32 @@ features:
 Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
 `/tmp/gh-aw/agent/image-scan/compile-output.txt`.
 
+### Read the scan with permitted tools
+
+The log can exceed 500 KB. Use native `grep` with line numbers to locate
+`Running (syft|grype|grant)` and `syft scanned`, then native `view` with
+`view_range` to read successive ranges through the end of the scan. Read every
+finding, including lower severities, license results, and scanner errors; a
+truncated tool response or a severity summary is not the complete evidence.
+Keep using the absolute log path, without changing directories.
+
+These shell commands are supported by the existing allowlist: the first gives
+the line count for pagination, and the second counts findings per image
+reference and severity without discarding the image tag:
+
+```bash
+wc -l /tmp/gh-aw/agent/image-scan/compile-output.txt
+grep -oE '^[^[:space:]]+:1:1: (error|warning|info): \[[A-Za-z]+\]' /tmp/gh-aw/agent/image-scan/compile-output.txt | sort | uniq -c
+```
+
+Do not use `cd`, `cut`, `sed`, `awk`, `python`, `python3`, `jq`, or ad hoc
+scripts for analysis; they are not permitted. If a required read is unavailable
+or denied, stop analysis and report the operational failure with the configured
+safe outputs. Do not retry with another unapproved command, report a clean scan,
+or close legacy findings without complete scan evidence.
+
+### Analysis and reporting
+
 1. Read `compile-output.txt`.
 2. Treat [Container CVE burn-down](https://github.com/github/gh-aw/issues/52657)
      as the tracker index only. Keep its summary to one row per image family
