@@ -124,6 +124,7 @@ func parseJob(id JobID, source *jobYAML) (*Job, error) {
 			var minutes int64
 			minutes, err = strconv.ParseInt(fmt.Sprint(source.TimeoutMinutes), 10, 0)
 			job.TimeoutMinutes = int(minutes)
+			job.TimeoutMinutesSet = true
 		}
 		if err != nil {
 			return nil, fmt.Errorf("invalid timeout-minutes: %w", err)

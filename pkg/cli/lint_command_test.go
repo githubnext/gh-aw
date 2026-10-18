@@ -26,6 +26,10 @@ func TestNewLintCommand(t *testing.T) {
 	)
 	require.NotNil(t, cmd.Flags().Lookup("shellcheck"), "lint command should have a --shellcheck flag")
 	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
+	require.NotNil(t, cmd.Flags().Lookup("debug"), "lint command should expose coverage warnings with --debug")
+	debug, err := cmd.Flags().GetBool("debug")
+	require.NoError(t, err)
+	assert.False(t, debug)
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
 		"lint command should include built-in ignore for gh-aw permission extension")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "vulnerability-alerts"`,
@@ -46,7 +50,7 @@ func TestResolveLockFilesForLint(t *testing.T) {
 	tempDir := t.TempDir()
 	lockA := filepath.Join(tempDir, "a.lock.yml")
 	lockB := filepath.Join(tempDir, "b.lock.yml")
-	nonLock := filepath.Join(tempDir, "workflow.md")
+	nonLock := filepath.Join(tempDir, "workflow.txt")
 
 	require.NoError(t, os.WriteFile(lockA, []byte("name: a"), 0o644), "should create lock file a")
 	require.NoError(t, os.WriteFile(lockB, []byte("name: b"), 0o644), "should create lock file b")
@@ -84,6 +88,6 @@ func TestResolveLockFilesForLint(t *testing.T) {
 		t.Parallel()
 		_, err := resolveLockFilesForLint([]string{nonLock}, tempDir)
 		require.Error(t, err, "should reject non-lock file path")
-		require.ErrorContains(t, err, "is not a .lock.yml file or directory", "error should explain allowed path types")
+		require.ErrorContains(t, err, "is not a .md, .yml, or .yaml workflow file or directory", "error should explain allowed path types")
 	})
 }

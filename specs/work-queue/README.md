@@ -24,6 +24,8 @@ effect/admission authority, not AW enrollment or authentication implementation.
 from the existing launch and worker models.
 `ClaimDeliveryHealth` isolates aggregate delivery reporting from independently
 verified Claim results and native reservation release.
+`ClaimDeliveryRecovery` refines released pending-delivery recovery, private
+receipt loss, authenticated cleanup and conditional maintenance progress.
 
 The original `WorkQueue.tla` is retained as historical model evidence for
 [issue #64852](https://github.com/github/gh-aw/issues/64852). Its best-effort
@@ -162,6 +164,82 @@ history preparation and Claude startup, but failed at the conclusion after the
 agent reported the missing queue tools/assignment deliberately removed by
 dry-run. Neither this finite model nor that startup evidence establishes native
 Claim processing or successful delivery; no assignment guard was bypassed.
+
+## Released Claim delivery recovery
+
+`ClaimDeliveryRecovery.tla` starts after Completion and the original external
+effects, with two immutable Claims: one ordinary and one `keep_open`. Protected
+creation receipts may be available or lost; artifacts cannot recreate them.
+It explores eight PR transport classes, including enriched routing, a verified
+ancestor base, foreign routing, malformed/unrelated commits and unknown fields.
+Native observations distinguish unavailable, active, identity-mismatched, rerun
+and exact terminal evidence. These are semantic predicate abstractions, not
+implementations of SHA ancestry, GitHub reads or private WeakMap proofs.
+
+The model separates inline quiescence/release from native terminality and
+delivery. Cleanup uses the authenticated credential principal even though the
+logical profile has none. Maintenance rotates one Claim per step, includes
+released original pending barriers, and prepares failure proposals separately
+from checked publication. Results and retained re-grants can race with a stale
+proposal. Publication rechecks the original owner and pending exclusive barrier;
+expiry checks the durable deadline at publication, records unknown effects,
+and never reconstructs a Result or replays effects.
+
+`DeliveryRecovery.cfg` checks `Safety` over both Claims and deadline ticks
+0 through 2. `DeliveryRecoveryProgress.cfg` also checks `EventualSettlement`
+under `FairSpec`: weak fairness of clock advancement, rotating maintenance and
+each prepared failure publication, **conditional on eventually stable exact
+terminal observations**. Fair publication assumes eventual ledger writability
+and successful conflict retries. These assumptions do not follow from a
+schedule, timeout, successful workflow, or capacity release.
+
+The controls require exact named invariant violations for missing profile
+principal use, early expiry, foreign/active/unavailable terminal evidence,
+unknown-as-none effects, stale publication, artifact-derived proofs, rejected
+corroborated routing, accepted foreign metadata, effect replay and failed
+retained re-grants. `BrokenRecoveryReleased.cfg` must instead violate the
+temporal property when released candidates are omitted despite the same
+fairness assumptions. `BrokenRecoveryUnfair.cfg` demonstrates failure without
+the fairness assumptions. Four witnesses check `Safety` before their
+deliberately false reachability predicates: released recovery without private
+receipts, enriched native Result, an independently failed sibling plus verified
+retained re-grant, and released capacity still pending under unavailable reads.
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  TLC_MODEL_FILTER=ClaimDeliveryRecovery bash specs/work-queue/check.sh
+python3 -B specs/work-queue/verify_models_test.py
+```
+
+Official TLC 2.19 with Java 21 exhausted **36,660 distinct states at depth 16**
+for each positive configuration. All 18 configurations returned their expected
+verdicts: two positive checks, ten invariant mutations, two temporal controls,
+and four safety-guarded witnesses. The released-candidate counterexample reaches
+exact terminal evidence, capacity release and deadline exhaustion, then rotates
+maintenance forever without preparing a failure; the fixed model excludes that
+behavior under the stated fairness assumptions. Without fairness, even a
+prepared sibling failure can remain unpublished forever.
+
+The related regression run also exhausted both `ClaimDeliveryHealth` positives
+(73 and 6 states), both `QueueLifecycle` positives (496 and 207,612 states), and
+`FairKeepOpen` (83,865 states); every registered control/witness in those first
+two modules returned its exact expected verdict. The runner's 11 unit tests
+check verdict handling, not protocol correctness. The existing 16-case
+Go/JavaScript deadline-parity test separately confirms real replay checks for
+deadline/attempt exhaustion and unknown/none/partial evidence dispositions.
+
+This is bounded safety and conditional temporal evidence, not an unbounded
+proof or runtime refinement. It omits actual Git CAS, arbitrary wire records,
+native identity validation internals, API consistency, deadline timestamp
+encoding, retry/backoff arithmetic, scanner/redaction behavior and disabled
+maintenance. Its fixed two-Claim dispatch does not model changing candidate
+populations or the runtime run-number/rotation mapping. The ordinary Work
+barrier and retained Claim barrier are abstracted as separate Claim-indexed
+obligations; their runtime storage paths require regression coverage. The
+existing `QueueLifecycle` model separately checks the finite verification-attempt
+budget, and `ClaimDeliveryHealth` checks staged isolation and aggregate reporting.
+Existing historical verification counts elsewhere in this guide are not results
+for this new refinement.
 
 ## Abandoned dispatcher reservation recovery
 

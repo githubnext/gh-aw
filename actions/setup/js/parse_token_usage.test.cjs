@@ -475,6 +475,86 @@ describe("parse_token_usage", () => {
       }
     });
 
+    describe("routed Copilot CLI run 39147795806", () => {
+      // Unmodified records from the run's agent artifact (JSON reformatted only).
+      const fixtureDir = path.join(__dirname, "fixtures", "copilot-routed-run-39147795806");
+      const realSelection = fs.readFileSync(path.join(fixtureDir, "copilot-model-selection.json"), "utf8");
+
+      function setupRoutedRun(selectionContent) {
+        process.env.GH_AW_TMP_DIR = tmpDir;
+        process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
+        process.env.GH_AW_ENGINE_ID = "copilot";
+        process.env.GITHUB_STEP_SUMMARY = path.join(tmpDir, "step-summary.md");
+        const proxyLogs = path.join(tmpDir, "sandbox/firewall/logs/api-proxy-logs");
+        fs.mkdirSync(proxyLogs, { recursive: true });
+        fs.mkdirSync(path.join(tmpDir, "agent"), { recursive: true });
+        fs.copyFileSync(path.join(fixtureDir, "aw_info.json"), path.join(tmpDir, "aw_info.json"));
+        fs.copyFileSync(path.join(fixtureDir, "awf-routing-outcome.json"), path.join(tmpDir, "agent/awf-routing-outcome.json"));
+        fs.copyFileSync(path.join(fixtureDir, "model-routing.jsonl"), path.join(proxyLogs, "model-routing.jsonl"));
+        fs.copyFileSync(path.join(fixtureDir, "token-usage.jsonl"), path.join(proxyLogs, "token-usage.jsonl"));
+        const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+        fs.mkdirSync(path.dirname(selectionPath), { recursive: true });
+        fs.writeFileSync(selectionPath, selectionContent);
+      }
+
+      function expectRoutingAndUsage() {
+        for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+          expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).toMatchObject({
+            engine_id: "copilot",
+            model: "gpt-5.6-luna",
+            requested_model: "auto",
+            model_routing: { status: "selected", wire_model: "gpt-5.6-luna", effort: "max", endpoint: "/responses" },
+          });
+        }
+        const summaryText = originalReadFileSync(path.join(tmpDir, "step-summary.md"), "utf8");
+        expect(summaryText).toContain(DEFAULT_SUMMARY_TITLE);
+        expect(summaryText).toContain("| **Total** | | **95,891** | **1,299** |");
+        expect(JSON.parse(originalReadFileSync(path.join(tmpDir, "agent_usage.json"), "utf8"))).toMatchObject({
+          primary_model: "gpt-5.6-luna",
+          model_routing: { status: "selected", wire_model: "gpt-5.6-luna" },
+        });
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model", "gpt-5.6-luna");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("model_routing_status", "selected");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("primary_model", "gpt-5.6-luna");
+        expect(mockCore.setOutput).toHaveBeenCalledWith("aic", expect.any(String));
+      }
+
+      test.each([
+        ["the real empty configured_model record", realSelection, "Invalid Copilot model selection"],
+        ["an empty file", "", "Unexpected end of JSON input"],
+        ["malformed JSON", "{", "JSON"],
+      ])("records routing and usage when Copilot model selection persistence fails (%s)", async (_name, selectionContent, diagnostic) => {
+        setupRoutedRun(selectionContent);
+
+        await main();
+
+        expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/^ERR_PARSE: Cannot record Copilot model selection: /));
+        expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(diagnostic));
+        expectRoutingAndUsage();
+        for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+          expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8"))).not.toHaveProperty("model_selection");
+        }
+      });
+
+      test("persists the corrected routed selection with routing and usage", async () => {
+        setupRoutedRun(JSON.stringify({ ...JSON.parse(realSelection), configured_model: "auto" }));
+
+        await main();
+
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        expectRoutingAndUsage();
+        for (const relative of ["aw_info.json", "agent/aw_info.json", "runtime/aw_info.json"]) {
+          expect(JSON.parse(originalReadFileSync(path.join(tmpDir, relative), "utf8")).model_selection).toEqual({
+            status: "observed",
+            configured_model: "auto",
+            resolved_model: "gpt-5.6-luna",
+            effective_model: "gpt-5.6-luna",
+          });
+        }
+      });
+    });
+
     test("does not trust selected routing from sandbox-writable reflect data", async () => {
       process.env.GH_AW_TMP_DIR = tmpDir;
       process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";

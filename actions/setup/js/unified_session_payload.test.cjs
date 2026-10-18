@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { normalizeUnifiedSessionEvent, normalizeModelInventoryData } from "./unified_session_payload.cjs";
 import { mergeSessionSources } from "./unified_session.cjs";
 import { generatePlainTextSummary, generateCopilotCliStyleSummary, convertCopilotEventsToLegacyLogEntries } from "./log_parser_shared.cjs";
@@ -926,5 +928,303 @@ describe("essential unified session payloads", () => {
     expect(output).toContain("ERR_SAFE_OUTPUT");
     expect(output).toContain("ERR_TARGET");
     expect(output).toContain("type=add_comment");
+  });
+});
+
+describe("AWF model routing candidate and request metadata", () => {
+  const GOLDEN_DIR = fileURLToPath(new URL("../../../pkg/cli/testdata/model_routing_golden/", import.meta.url));
+  const ROUTING_LOG = "sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl";
+  const NEW_FIELDS = ["rankedChoices", "eligibleChoices", "catalogueOverlap", "selectedEndpoint", "requestedEndpoint", "upstreamEndpoint", "unavailable", "status", "phase"];
+  const SOURCE_FIELDS = {
+    rankedChoices: ["ranked_choices", "rankedChoices"],
+    eligibleChoices: ["eligible_choices", "eligibleChoices"],
+    catalogueOverlap: ["catalogue_overlap", "catalogueOverlap"],
+    selectedEndpoint: ["selected_endpoint", "selectedEndpoint"],
+    requestedEndpoint: ["requested_endpoint", "requestedEndpoint"],
+    upstreamEndpoint: ["upstream_endpoint", "upstreamEndpoint"],
+    unavailable: ["unavailable"],
+    status: ["status"],
+    phase: ["phase"],
+  };
+  const readJsonl = file =>
+    fs
+      .readFileSync(file, "utf8")
+      .split("\n")
+      .filter(line => line.trim())
+      .map(line => JSON.parse(line));
+  const readRoutingLog = name => readJsonl(`${GOLDEN_DIR}${name}/${ROUTING_LOG}`);
+  const camelize = record => Object.fromEntries(Object.entries(record).map(([key, value]) => [key === "_schema" ? "schema" : key.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase()), value]));
+  const SPELLINGS = [
+    ["snake_case", record => structuredClone(record)],
+    ["camelCase", camelize],
+  ];
+  const routingEvent = record => ({ type: "firewall.model_routing", ...(record.timestamp !== undefined ? { timestamp: record.timestamp } : {}), data: record });
+  // Normalize once, checking input immutability, idempotence, and JSON round trips.
+  const project = event => {
+    const original = structuredClone(event);
+    const projected = normalizeUnifiedSessionEvent(event, "agent");
+    expect(event).toEqual(original);
+    expect(normalizeUnifiedSessionEvent(structuredClone(projected), "agent")).toEqual(projected);
+    expect(JSON.parse(JSON.stringify(projected))).toEqual(projected);
+    return projected;
+  };
+  const withoutNewFields = record => Object.fromEntries(Object.entries(record).filter(([key]) => !Object.values(SOURCE_FIELDS).flat().includes(key)));
+  const ranked = choices => choices.map((choice, index) => ({ rank: index + 1, ...choice }));
+
+  // Minimized, sanitized copies from smoke-copilot-routed run 38984582061 (commit 354b5c3),
+  // artifact `usage`, path `agent/model-routing.jsonl`, schema model-routing/v0.28.59.
+  // conversation_sha256, interaction_id, github_repository, and github_workflow_ref were removed.
+  const SMOKE_SELECTION = {
+    _schema: "model-routing/v0.28.59",
+    timestamp: "2026-10-17T00:05:52.673Z",
+    event: "model_routing",
+    stage: "selection",
+    objective: { goal: "cost", mode: "economy" },
+    provider: "copilot",
+    selected_provider: "copilot",
+    wire_model: "gpt-5.6-luna",
+    endpoint: "/responses",
+    labels: { task_type: "chore", scope: "local", task_complexity: "trivial" },
+    mode: "economy",
+    classifier_model: "github-copilot/gpt-5.6-luna",
+    classifier_effort: "high",
+    router: { name: "gh-aw-router", version: "0.1.3" },
+    ranked_choices: [
+      { model: "github-copilot/gpt-5.6-luna", effort: "high" },
+      { model: "github-copilot/gpt-5.6-luna", effort: "xhigh" },
+      { model: "github-copilot/gpt-5.6-luna", effort: "max" },
+      { model: "github-copilot/gpt-5.6-luna", effort: "medium" },
+      { model: "github-copilot/gpt-5.4-mini", effort: "xhigh" },
+      { model: "github-copilot/gpt-5.4-mini", effort: "high" },
+      { model: "github-copilot/gpt-5.4-mini", effort: "medium" },
+      { model: "github-copilot/gpt-5.6-luna", effort: "low" },
+      { model: "github-copilot/gpt-5.4-mini", effort: "low" },
+      { model: "github-copilot/claude-haiku-4.5", effort: null },
+      { model: "github-copilot/gpt-5.6-luna", effort: "none" },
+      { model: "github-copilot/gpt-5.4-mini", effort: "none" },
+    ],
+    selected_id: "choice-0007",
+    selected_model: "github-copilot/gpt-5.6-luna",
+    selected_effort: "high",
+    degraded_classification: false,
+    degraded_reason: null,
+    classifier_attempts: 1,
+    eligible_choices: 12,
+    catalogue_overlap: 12,
+    latency_ms: 4212,
+  };
+  const SMOKE_REQUEST = {
+    _schema: "model-routing/v0.28.59",
+    timestamp: "2026-10-17T00:06:03.778Z",
+    event: "model_routing",
+    stage: "request",
+    routed: "as_selected",
+    deviations: [],
+    unavailable: [],
+    method: "POST",
+    pathname: "/responses",
+    provider: "copilot",
+    requested_model: "gpt-5.6-luna",
+    requested_effort: "high",
+    selected_provider: "copilot",
+    selected_model: "gpt-5.6-luna",
+    selected_effort: "high",
+    selected_endpoint: "/responses",
+    requested_endpoint: "/responses",
+    upstream_endpoint: "/responses",
+    request_id: "3e8b8c51-1a07-46a5-a21f-c8ecea381bf4",
+    outcome: "completed",
+    status: 200,
+  };
+  // Recorded raw AWF logs: run 37728959715 (model-routing/v0.28.44) and run 38174216426 (model-routing/v0.28.51).
+  const CODEX = readRoutingLog("codex-routed-provider-unavailable");
+  const BUDGET = readRoutingLog("copilot-budget-exhausted-steering");
+  const recorded = (records, predicate) => {
+    const record = records.find(predicate);
+    expect(record).toBeDefined();
+    return record;
+  };
+  const CODEX_SELECTION = recorded(CODEX, record => record.stage === "selection");
+  const BUDGET_SELECTION = recorded(BUDGET, record => record.stage === "selection");
+  const CODEX_REQUEST = recorded(CODEX, record => record.request_id === "ff510188-891a-4ad1-97eb-a12c47c2d7fc");
+  const BUDGET_REQUEST = recorded(BUDGET, record => record.request_id === "2698b73b-55b7-4c97-8d6d-8d7c88b69461");
+  const CODEX_FAILURE = recorded(CODEX, record => record.timestamp === "2026-10-08T04:47:41.353Z");
+  const BUDGET_FAILURE = recorded(BUDGET, record => record.timestamp === "2026-10-11T20:59:12.712Z");
+
+  it.each(SPELLINGS)("preserves recorded AWF selection rankings and pool counts in source order (%s)", (_, spell) => {
+    const smoke = project(routingEvent(spell(SMOKE_SELECTION)));
+    expect(smoke.data.rankedChoices).toEqual([
+      { rank: 1, model: "github-copilot/gpt-5.6-luna", effort: "high" },
+      { rank: 2, model: "github-copilot/gpt-5.6-luna", effort: "xhigh" },
+      { rank: 3, model: "github-copilot/gpt-5.6-luna", effort: "max" },
+      { rank: 4, model: "github-copilot/gpt-5.6-luna", effort: "medium" },
+      { rank: 5, model: "github-copilot/gpt-5.4-mini", effort: "xhigh" },
+      { rank: 6, model: "github-copilot/gpt-5.4-mini", effort: "high" },
+      { rank: 7, model: "github-copilot/gpt-5.4-mini", effort: "medium" },
+      { rank: 8, model: "github-copilot/gpt-5.6-luna", effort: "low" },
+      { rank: 9, model: "github-copilot/gpt-5.4-mini", effort: "low" },
+      { rank: 10, model: "github-copilot/claude-haiku-4.5", effort: null },
+      { rank: 11, model: "github-copilot/gpt-5.6-luna", effort: "none" },
+      { rank: 12, model: "github-copilot/gpt-5.4-mini", effort: "none" },
+    ]);
+    expect(smoke.data.rankedChoices.some(choice => Object.hasOwn(choice, "id"))).toBe(false);
+    expect(smoke.data).toMatchObject({ eligibleChoices: 12, catalogueOverlap: 12, endpoint: "/responses", selectedId: "choice-0007" });
+    expect(smoke.data).not.toHaveProperty("selectedEndpoint");
+
+    for (const [record, count] of [
+      [CODEX_SELECTION, 23],
+      [BUDGET_SELECTION, 6],
+    ]) {
+      const projected = project(routingEvent(spell(record)));
+      expect(projected.data.rankedChoices).toHaveLength(count);
+      expect(projected.data.rankedChoices.map(choice => choice.rank)).toEqual(Array.from({ length: count }, (_, index) => index + 1));
+      expect(projected.data.rankedChoices.map(({ model, effort }) => ({ model, effort }))).toEqual(record.ranked_choices);
+      expect(projected.data).toMatchObject({ eligibleChoices: count, catalogueOverlap: count });
+    }
+
+    // Contract-compatibility variant: AWF route choices carry an `id` (routing-controller.js createSelection),
+    // but current persistence does not emit it. A supplied ID is kept; none is invented.
+    const withIds = structuredClone(SMOKE_SELECTION);
+    withIds.ranked_choices[0].id = "choice-0007";
+    const projected = project(routingEvent(spell(withIds)));
+    expect(projected.data.rankedChoices[0]).toEqual({ rank: 1, id: "choice-0007", model: "github-copilot/gpt-5.6-luna", effort: "high" });
+    expect(projected.data.rankedChoices.slice(1).some(choice => Object.hasOwn(choice, "id"))).toBe(false);
+
+    // A supplied selected endpoint on a selection is retained exactly; an empty ranking and zero counts stay supplied values.
+    const supplied = project(routingEvent(spell({ ...SMOKE_SELECTION, selected_endpoint: "/chat/completions", ranked_choices: [], eligible_choices: 0, catalogue_overlap: 0 })));
+    expect(supplied.data).toMatchObject({ endpoint: "/responses", selectedEndpoint: "/chat/completions", rankedChoices: [], eligibleChoices: 0, catalogueOverlap: 0 });
+  });
+
+  it.each(SPELLINGS)("preserves recorded AWF request endpoints HTTP status and unavailable metadata (%s)", (_, spell) => {
+    for (const [record, status, outcome] of [
+      [SMOKE_REQUEST, 200, "completed"],
+      [CODEX_REQUEST, 400, "failed"],
+      [BUDGET_REQUEST, 403, "rejected"],
+    ]) {
+      const projected = project(routingEvent(spell(record)));
+      expect(projected.data).toMatchObject({
+        selectedEndpoint: "/responses",
+        requestedEndpoint: "/responses",
+        upstreamEndpoint: "/responses",
+        unavailable: [],
+        status,
+        outcome,
+        requestId: record.request_id,
+        routed: record.routed,
+        deviations: record.deviations,
+        requestedModel: record.requested_model,
+        requestedEffort: record.requested_effort,
+        selectedModel: record.selected_model,
+        selectedEffort: record.selected_effort,
+      });
+      expect(projected.data).not.toHaveProperty("endpoint");
+      const { unavailable: _unavailable, ...withoutUnavailable } = record;
+      expect(project(routingEvent(spell(withoutUnavailable))).data).not.toHaveProperty("unavailable");
+    }
+    // AWF lists unobserved telemetry dimensions, not unavailable models; the array is kept as supplied.
+    const unobserved = project(routingEvent(spell({ ...SMOKE_REQUEST, unavailable: ["model", "effort"] })));
+    expect(unobserved.data.unavailable).toEqual(["model", "effort"]);
+  });
+
+  it.each(SPELLINGS)("preserves recorded AWF failure phase independently of collection provenance (%s)", (_, spell) => {
+    for (const [record, code] of [
+      [CODEX_FAILURE, "provider_unavailable"],
+      [BUDGET_FAILURE, "ai_credits_limit_exceeded"],
+    ]) {
+      const event = routingEvent(spell(record));
+      const projected = project(event);
+      expect(projected.timestamp).toBe(record.timestamp);
+      expect(projected.data).toEqual({ schema: record._schema, stage: "failure", phase: "primary", code });
+      const [merged] = mergeSessionSources([{ component: "firewall", phase: "agent", path: ROUTING_LOG, events: [structuredClone(event)] }]);
+      expect(merged.provenance).toMatchObject({ component: "firewall", phase: "agent", path: ROUTING_LOG });
+      expect(merged.data.phase).toBe("primary");
+      expect(merged.timestamp).toBe(record.timestamp);
+      const { phase: _phase, ...withoutPhase } = record;
+      expect(project(routingEvent(spell(withoutPhase))).data).not.toHaveProperty("phase");
+    }
+  });
+
+  it.each(SPELLINGS)("leaves absent AWF routing metadata absent for older session records (%s)", (_, spell) => {
+    // Already-projected model-routing/v0.28.51 selection from copilot-budget-exhausted-steering/usage/aw_session.jsonl.
+    const session = readJsonl(`${GOLDEN_DIR}copilot-budget-exhausted-steering/usage/aw_session.jsonl`);
+    const older = session.find(event => event.type === "firewall.model_routing" && event.timestamp === "2026-10-11T20:58:04.898Z");
+    expect(older.data.stage).toBe("selection");
+    const { provenance: _provenance, ...olderEvent } = older;
+    const projectedOlder = project(olderEvent);
+    expect(projectedOlder.data).toEqual(older.data);
+    for (const field of NEW_FIELDS) expect(Object.hasOwn(projectedOlder.data, field)).toBe(false);
+
+    // Compatibility variants: the real selection, request, and failure inputs with the new fields omitted.
+    for (const record of [SMOKE_SELECTION, CODEX_SELECTION, SMOKE_REQUEST, CODEX_REQUEST, BUDGET_REQUEST, CODEX_FAILURE, BUDGET_FAILURE]) {
+      const full = project(routingEvent(spell(record)));
+      const stripped = project(routingEvent(spell(withoutNewFields(record))));
+      for (const field of NEW_FIELDS) expect(Object.hasOwn(stripped.data, field)).toBe(false);
+      expect(stripped.data).toEqual(Object.fromEntries(Object.entries(full.data).filter(([key]) => !NEW_FIELDS.includes(key))));
+    }
+  });
+
+  it.each(SPELLINGS)("excludes private AWF routing fields while retaining only candidate metadata (%s)", (_, spell) => {
+    // Privacy-test sentinels in real AWF field names; these values are not recorded telemetry.
+    const sentinels = { conversation_sha256: "PRIVACY_TEST_CONVERSATION_SHA256", detail: "PRIVACY_TEST_DETAIL", method: "PRIVACY_TEST_METHOD", pathname: "PRIVACY_TEST_PATHNAME" };
+    const selection = { ...SMOKE_SELECTION, ...sentinels };
+    // Privacy variant: unexpected nested candidate properties must not be copied through.
+    selection.ranked_choices = selection.ranked_choices.map(choice => ({ ...choice, predicted_success: 0.9, explanation: "PRIVACY_TEST_EXPLANATION", payload: { prompt: "PRIVACY_TEST_PROMPT" } }));
+    // AWF controller failure shape (routing-controller.js, stage "failure" with `detail`), not a recorded run.
+    const controllerFailure = {
+      _schema: "model-routing/v0.28.59",
+      timestamp: "2026-10-17T00:05:52.700Z",
+      event: "model_routing",
+      stage: "failure",
+      objective: { goal: "cost", mode: "economy" },
+      code: "routing_configuration_error",
+      catalogue_overlap: 12,
+      latency_ms: 10,
+      ...sentinels,
+    };
+    for (const [record, expected] of [
+      [selection, project(routingEvent(spell(SMOKE_SELECTION))).data],
+      [{ ...SMOKE_REQUEST, ...sentinels }, project(routingEvent(spell(SMOKE_REQUEST))).data],
+      [{ ...CODEX_FAILURE, ...sentinels }, project(routingEvent(spell(CODEX_FAILURE))).data],
+      [controllerFailure, { schema: "model-routing/v0.28.59", stage: "failure", objective: { goal: "cost", mode: "economy" }, code: "routing_configuration_error", catalogueOverlap: 12, latencyMs: 10 }],
+    ]) {
+      const projected = project(routingEvent(spell(record)));
+      expect(projected.data).toEqual(expected);
+      const serialized = JSON.stringify(projected);
+      expect(serialized).not.toContain("PRIVACY_TEST");
+      for (const key of ["conversation_sha256", "conversationSha256", "detail", "method", "pathname", "predicted_success", "explanation", "payload"]) expect(serialized).not.toContain(`"${key}"`);
+      for (const choice of projected.data.rankedChoices ?? []) expect(Object.keys(choice).every(key => ["rank", "id", "model", "effort"].includes(key))).toBe(true);
+    }
+  });
+
+  it("projects recorded model-routing goldens with only the intended metadata additions", () => {
+    const validate = createSessionValidator("unified").event;
+    const cases = fs.readdirSync(GOLDEN_DIR).filter(name => fs.existsSync(`${GOLDEN_DIR}${name}/${ROUTING_LOG}`));
+    expect(cases).toEqual(expect.arrayContaining(["codex-routed-provider-unavailable", "copilot-budget-exhausted-steering"]));
+    const sessionRouting = name => {
+      const file = `${GOLDEN_DIR}${name}/usage/aw_session.jsonl`;
+      return fs.existsSync(file) ? readJsonl(file).filter(event => event.type === "firewall.model_routing") : [];
+    };
+    for (const name of cases) {
+      const raw = readRoutingLog(name).map(record => ({ record, event: routingEvent(record) }));
+      const sessions = sessionRouting(name).map(({ provenance: _provenance, ...event }) => ({ record: event.data, event }));
+      for (const { record, event } of [...raw, ...sessions]) {
+        const projected = project(event);
+        for (const field of NEW_FIELDS) {
+          const alias = SOURCE_FIELDS[field].find(key => Object.hasOwn(record, key));
+          expect(Object.hasOwn(projected.data, field), `${name} ${field}`).toBe(alias !== undefined);
+          if (alias === undefined) continue;
+          if (field === "rankedChoices") expect(projected.data.rankedChoices).toEqual(ranked(record[alias].map(({ model, effort }) => ({ model, effort }))));
+          else expect(projected.data[field]).toEqual(record[alias]);
+        }
+        const [published] = serializeSessionArtifact(mergeSessionSources([{ component: "firewall", phase: "agent", path: ROUTING_LOG, events: [event] }]))
+          .trim()
+          .split("\n")
+          .map(line => JSON.parse(line));
+        expect(validate(published), `${name}: ${JSON.stringify(validate.errors)}`).toBe(true);
+        expect(published.data).toEqual(projected.data);
+      }
+      // Already-projected sessions gain nothing they did not supply.
+      for (const { event } of sessions.filter(({ record }) => !Object.hasOwn(record, "_schema"))) expect(project(event).data).toEqual(event.data);
+    }
   });
 });
