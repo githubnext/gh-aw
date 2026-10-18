@@ -45,6 +45,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
 | PR checkout authorization | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Same-repository Bot branch-event authorization for supported PR actions plus the stricter allow-listed comment/review exception. |
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
+| Bundle Git operations | [`SafeOutputGit.tla`](SafeOutputGit.tla) | Explicit prerequisite recovery, offline optional discovery, bounded comparison/history work, credential roles, and separate size/protection provenance. |
 | Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
 
 The `issue` effect creates at most one validated issue in the main public
@@ -152,7 +153,8 @@ reported. An already completed remote effect is not rolled back if a later
 completion check fails. Diagnostic safety and zero full-artifact hashes around
 an unrelated local command are abstract obligations, not measurements of Node.
 
-Run both baselines, all negative controls, and all reachability witnesses with
+Run both transport baselines and the Git-operation profiles below, including
+all negative controls and reachability witnesses, with
 the pinned TLA+ runtime described below. The runner rejects incorrect tooling
 status or invariant names and automatically removes temporary configurations,
 TLC states, and traces:
@@ -198,7 +200,86 @@ rollback remain implementation obligations covered by
 `transport_integrity_git.test.cjs`, `error_recovery.test.cjs`, and
 `create_or_update_pull_request.test.cjs` under `actions/setup/js/`.
 The existing `check.py` and its checked-in examples cover the job and runtime
-repository-list checkout models; `check_transport.py` checks transport separately.
+repository-list checkout models; `check_transport.py` checks transport and Git
+operations separately. Use `--model transport` or `--model git` to select one.
+
+## Safe-output bundle Git operations
+
+[`SafeOutputGit.tla`](SafeOutputGit.tla) models the unsigned push-to-PR bundle
+path in Safe Outputs
+[BGO-001–008](../../docs/src/content/docs/specs/safe-outputs-specification.md#bundle-git-operations-and-validation-baselines).
+Prerequisite recovery and optional baseline discovery are distinct stages.
+Missing prerequisites fail by default; only trusted literal opt-in permits
+recovery with the validated head-repository credential. Metadata discovery uses
+the target checkout's credential instead, and never imports remote objects.
+The recovery flag never authorizes downloads during optional discovery.
+
+An exact pinned tip merged locally bypasses REST. Otherwise, bounded parent
+discovery compares against that pinned tip. Only `behind`/`identical` establishes
+an ancestor size baseline; `ahead` and candidate-specific 404 can continue
+within the request budget. Authorization, rate-limit, service, transport, timeout,
+and unknown failures stop comparison discovery. An inconclusive exact-tip
+ancestry probe can still enter bounded parent discovery without downloading
+the tip. Missing required local data, unsupported operations, time/output
+limits, history overflow, and budget exhaustion fall back to PR-head validation
+when the remaining checks cannot establish a baseline.
+A successful validation tree is required before an exemption is used. A
+non-tip ancestor never exempts protected history, including A-add/B-remove or
+reverted changes, even when it reduces size accounting. Exact-tip exemptions
+still do not excuse agent-authored protected changes.
+
+The runner exhausts all combinations of `AllowFullHistoryFetch` and `Shallow`.
+It requires exhaustive success for these four secure profiles, then the exact
+named counterexample for each synthetic fault:
+
+| Fault | Expected invariant |
+|---|---|
+| `implicit-recovery` | `RecoveryOptIn` |
+| `optional-fetch` / `lazy-fetch` | `NoOptionalMaterialization` |
+| `wrong-recovery-token` | `RecoveryAuthentication` |
+| `wrong-metadata-token` | `MetadataAuthentication` |
+| `unbounded-local` | `BoundedLocalInspection` |
+| `unbounded-history` | `BoundedHistory` |
+| `unbounded-comparisons` | `BoundedComparisons` |
+| `retry-global-error` | `NoGlobalFailureRetry` |
+| `comparison-retry` | `NoComparisonRetries` |
+| `unbounded-request` | `BoundedRequests` |
+| `ancestor-exemption` | `ProtectionProvenance` |
+| `unsafe-diagnostics` | `SafeDiagnostics` |
+
+The wrong-recovery-token control runs with opt-in enabled; the others use the
+default-deny shallow profile. Secure profiles additionally check shallow
+preservation, exact-tip zero-comparison behavior, conservative fallback, and
+protected-change rejection before publication. With `Fault = "none"`, the runner
+appends each of `NoAncestorBaseline`, `NoExactTipBaseline`, `NoRecovery`,
+`NoConservativeFallback`, `NoSafePublication`, `NoProtectedRejection`, and
+`NoMissingParentContinuation`. These false invariants witness effective ancestor
+and exact-tip baselines, successful opted-in recovery, fallback, valid
+publication, protected-history rejection, and a request following a 404,
+respectively. They prevent success from consisting only of rejected operations.
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  python3 specs/workflow-security/check_transport.py --model git
+```
+
+`SafeOutputGit.cfg` matches the implementation's four-comparison budget and
+100-record history limit. Finite boundary classes exercise both the 100th and
+101st records, and the over-budget fault attempts a fifth comparison.
+The implementation also uses a 5-second deadline per optional Git
+command/request and 1 MiB per process output stream.
+The model abstracts elapsed time/output into finite success, missing-data,
+timeout, and overflow outcomes. It checks decision boundaries, not real time,
+process termination, byte counts, Git parsing/DAG correctness, merge correctness,
+actual credential grants or restoration, signed delivery, ordinary PR-head
+fetch/push operations, or implementation refinement. Pinned refs, local ancestry
+answers, REST reachability responses, and protected-history classifications are
+assumed accurate inputs to the abstraction. The job-level model covers
+credential lifetime; runtime conformance for exact thresholds, subprocess
+termination, abort signals, and shallow/partial-clone preservation remains in
+`push_to_pull_request_branch_comparisons.test.cjs`,
+`push_to_pull_request_branch.integration.test.cjs`, and
+`bundle_transport.integration.test.cjs` under `actions/setup/js/`.
 
 ## Runtime repository-list checkout
 
@@ -345,6 +426,9 @@ parsing, symlink confinement, `.git` indirection, submodules, object graph
 ancestry, merge correctness, signed pushes, or concurrent checkout discovery.
 These require separate refinement of [`gitutil`](../../pkg/gitutil/gitutil.go)
 and [`findRepoCheckout`](../../actions/setup/js/find_repo_checkout.cjs).
+The separate [bundle Git-operation model](#safe-output-bundle-git-operations)
+specifies privileged recovery and optional validation-baseline decisions without
+adding remote access to the credential-free agent's `GitOperation` transition.
 
 ## Host-side MCP compilation
 
