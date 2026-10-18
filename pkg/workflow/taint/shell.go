@@ -22,6 +22,7 @@ type shell struct {
 	markers          scope
 	functions        map[string]*syntax.Stmt
 	active           map[string]bool
+	expandedArgs     map[*syntax.Word]value
 	trace            bool
 	initialTrace     bool
 	workingDirectory string
@@ -60,7 +61,8 @@ func (a *analyzer) parseShell(text string, fields map[string]any, path string, b
 		a: a, path: path, bindings: bindings, persisted: persisted,
 		files: files, vars: make(scope), markers: make(scope),
 		functions: make(map[string]*syntax.Stmt), active: make(map[string]bool),
-		constants: make(map[string]string), constantValues: make(map[string]map[string]struct{}),
+		expandedArgs: make(map[*syntax.Word]value),
+		constants:    make(map[string]string), constantValues: make(map[string]map[string]struct{}),
 		constantUnknown: make(map[string]bool),
 	}
 	id, err := optionalField[string](fields, "id", path)
@@ -128,6 +130,9 @@ func (s *shell) size() int {
 func (s *shell) word(word *syntax.Word) value {
 	if word == nil {
 		return nil
+	}
+	if sources, expanded := s.expandedArgs[word]; expanded {
+		return sources
 	}
 	var result value
 	syntax.Walk(word, func(node syntax.Node) bool {
@@ -300,7 +305,13 @@ func (s *shell) stmt(stmt *syntax.Stmt, captured bool, stdin value) value {
 				s.a.gap(s.path, "dynamic file targets are not modeled")
 			}
 			for _, target := range targets {
-				stdin = union(stdin, s.files[target])
+				files, modeled := s.readPaths(target)
+				if !modeled {
+					s.a.gap(s.path, "file patterns could not be modeled")
+				}
+				for _, file := range files {
+					stdin = union(stdin, s.files[file])
+				}
 			}
 		case "<<", "<<-", "<<<": //nolint:generatedyamlheredoc // This analyzes authored heredocs; it does not generate shell.
 			stdin = union(stdin, s.word(redir.Hdoc), s.word(redir.Word))
@@ -308,43 +319,48 @@ func (s *shell) stmt(stmt *syntax.Stmt, captured bool, stdin value) value {
 	}
 	out := s.command(stmt.Cmd, captured || redirected, stdin)
 	for _, redir := range stmt.Redirs {
-		switch redir.Op.String() {
-		case ">", ">>", "&>", "&>>":
-			if redir.N == nil || redir.N.Value == "1" || strings.HasPrefix(redir.Op.String(), "&") {
-				target := wordText(redir.Word, s.constants)
-				if !specialTarget(target) {
-					targets, known := s.paths(redir.Word)
-					if !known {
-						s.a.gap(s.path, "dynamic file targets are not modeled")
-					}
-					for _, target := range targets {
-						s.write(target, out, commandOutputName(stmt.Cmd, s.markers), int(stmt.Pos().Line()))
-					}
-					continue
-				}
-				payload := commandOutputName(stmt.Cmd, s.markers)
-				if payload == "" {
-					for _, source := range stmt.Redirs {
-						if source.Hdoc != nil {
-							payload = heredocOutputName(source.Hdoc, s.constants, s.markers)
-							if payload != "" {
-								break
-							}
-						}
-					}
-				}
-				s.write(target, out, payload, int(stmt.Pos().Line()))
-			}
-		case ">&":
-			if staticWord(redir.Word) == "2" {
-				s.a.emit(Site{Kind: Log, Path: s.path, Line: int(stmt.Pos().Line())}, out)
-			}
-		}
+		s.redirectOutput(stmt, redir, out)
 	}
 	if redirected {
 		return nil
 	}
 	return out
+}
+
+func (s *shell) redirectOutput(stmt *syntax.Stmt, redir *syntax.Redirect, out value) {
+	switch redir.Op.String() {
+	case ">", ">>", "&>", "&>>":
+		if redir.N != nil && redir.N.Value != "1" && !strings.HasPrefix(redir.Op.String(), "&") {
+			return
+		}
+		target := wordText(redir.Word, s.constants)
+		if !specialTarget(target) {
+			targets, known := s.paths(redir.Word)
+			if !known {
+				s.a.gap(s.path, "dynamic file targets are not modeled")
+			}
+			for _, target := range targets {
+				s.write(target, out, commandOutputName(stmt.Cmd, s.markers), int(stmt.Pos().Line()))
+			}
+			return
+		}
+		payload := commandOutputName(stmt.Cmd, s.markers)
+		if payload == "" {
+			for _, source := range stmt.Redirs {
+				if source.Hdoc != nil {
+					payload = heredocOutputName(source.Hdoc, s.constants, s.markers)
+					if payload != "" {
+						break
+					}
+				}
+			}
+		}
+		s.write(target, out, payload, int(stmt.Pos().Line()))
+	case ">&":
+		if staticWord(redir.Word) == "2" {
+			s.a.emit(Site{Kind: Log, Path: s.path, Line: int(stmt.Pos().Line())}, out)
+		}
+	}
 }
 
 func (s *shell) pathFor(path string) string {
@@ -370,6 +386,24 @@ func (s *shell) paths(word *syntax.Word) ([]string, bool) {
 		}
 	}
 	return paths, known
+}
+
+func (s *shell) readPaths(pattern string) ([]string, bool) {
+	if !strings.ContainsAny(pattern, "*?[") {
+		return []string{pattern}, true
+	}
+	var matches []string
+	for file := range s.files {
+		matched, err := filepath.Match(filepath.ToSlash(pattern), filepath.ToSlash(file))
+		if err != nil {
+			return nil, false
+		}
+		if matched {
+			matches = append(matches, file)
+		}
+	}
+	slices.Sort(matches)
+	return matches, true
 }
 
 func (s *shell) command(command syntax.Command, captured bool, stdin value) value { //nolint:largefunc // Shell node cases share one stream and scope model.
@@ -483,6 +517,10 @@ func (s *shell) call(cmd *syntax.CallExpr, captured bool, stdin value) value {
 	child.constants = maps.Clone(s.constants)
 	child.constantValues = cloneConstantValues(s.constantValues)
 	child.constantUnknown = maps.Clone(s.constantUnknown)
+	child.expandedArgs = maps.Clone(s.expandedArgs)
+	for _, arg := range cmd.Args[1:] {
+		child.expandedArgs[arg] = s.word(arg)
+	}
 	for _, assign := range cmd.Assigns {
 		child.assign(assign)
 		if child.trace {
@@ -553,7 +591,13 @@ func (s *shell) callCommand(cmd *syntax.CallExpr, captured bool, stdin value) va
 				s.a.gap(s.path, "dynamic file targets are not modeled")
 			}
 			for _, target := range targets {
-				out = union(out, s.files[target])
+				files, modeled := s.readPaths(target)
+				if !modeled {
+					s.a.gap(s.path, "file patterns could not be modeled")
+				}
+				for _, file := range files {
+					out = union(out, s.files[file])
+				}
 			}
 		}
 		if name == "tee" {
@@ -610,14 +654,7 @@ func (s *shell) env(cmd *syntax.CallExpr, stdin value) value {
 			clear(child.constantValues)
 			clear(child.constantUnknown)
 		case "-u", "--unset":
-			commandIndex++
-			if nameWord, ok := sliceAt(args, commandIndex); ok {
-				name := staticWord(nameWord)
-				delete(child.vars, name)
-				delete(child.constants, name)
-				delete(child.constantValues, name)
-				delete(child.constantUnknown, name)
-			}
+			commandIndex = unsetEnvironmentVariable(&child, args, commandIndex)
 		case "--":
 			commandIndex++
 			goto command
@@ -639,6 +676,10 @@ command:
 		return child.environmentOutput()
 	}
 	commandArgs := &syntax.CallExpr{Args: args[commandIndex:]}
+	child.expandedArgs = maps.Clone(s.expandedArgs)
+	for _, arg := range commandArgs.Args[1:] {
+		child.expandedArgs[arg] = s.word(arg)
+	}
 	commandWord, ok := sliceAt(commandArgs.Args, 0)
 	if ok && !knownShellCommand(staticWord(commandWord)) {
 		for _, sources := range child.vars {
@@ -649,6 +690,18 @@ command:
 		}
 	}
 	return child.call(commandArgs, true, stdin)
+}
+
+func unsetEnvironmentVariable(child *shell, args []*syntax.Word, index int) int {
+	index++
+	if nameWord, ok := sliceAt(args, index); ok {
+		name := staticWord(nameWord)
+		delete(child.vars, name)
+		delete(child.constants, name)
+		delete(child.constantValues, name)
+		delete(child.constantUnknown, name)
+	}
+	return index
 }
 
 func (s *shell) setEnvironmentArgument(name string, word *syntax.Word) {
@@ -705,12 +758,29 @@ func (s *shell) network(args []*syntax.Word, line int, stdin value) {
 			index++
 			continue
 		}
+		if arg == "--post-file" {
+			if file, ok := sliceAt(args, index+1); ok {
+				index++
+				request = union(request, s.networkFileBody(file))
+			}
+			continue
+		}
+		if file, found := strings.CutPrefix(arg, "--post-file="); found {
+			request = union(request, s.networkFileBodyValue(file))
+			continue
+		}
 		if strings.HasPrefix(arg, "--user=") || strings.HasPrefix(arg, "--oauth2-bearer=") {
 			continue
 		}
+		if arg == "-T" || arg == "--upload-file" {
+			if file, ok := sliceAt(args, index+1); ok {
+				index++
+				request = union(request, s.networkFileBody(file))
+			}
+			continue
+		}
 		if arg == "-d" || arg == "--data" || arg == "--data-binary" ||
-			arg == "--data-urlencode" || arg == "--json" || arg == "-F" ||
-			arg == "--form" || arg == "-T" || arg == "--upload-file" {
+			arg == "--data-urlencode" || arg == "--json" || arg == "-F" || arg == "--form" {
 			if body, ok := sliceAt(args, index+1); ok {
 				index++
 				request = union(request, s.networkBody(body, stdin))
@@ -719,8 +789,12 @@ func (s *shell) network(args []*syntax.Word, line int, stdin value) {
 		}
 		if strings.HasPrefix(arg, "--data=") || strings.HasPrefix(arg, "--data-binary=") ||
 			strings.HasPrefix(arg, "--data-urlencode=") || strings.HasPrefix(arg, "--json=") ||
-			strings.HasPrefix(arg, "--form=") || strings.HasPrefix(arg, "--upload-file=") {
+			strings.HasPrefix(arg, "--form=") {
 			request = union(request, s.networkBody(word, stdin))
+			continue
+		}
+		if file, found := strings.CutPrefix(arg, "--upload-file="); found {
+			request = union(request, s.networkFileBodyValue(file))
 			continue
 		}
 		request = union(request, s.word(word))
@@ -756,11 +830,48 @@ func (s *shell) networkBody(word *syntax.Word, stdin value) value {
 				contents = union(contents, stdin)
 				continue
 			}
-			contents = union(contents, s.files[s.pathFor(target)])
+			files, modeled := s.readPaths(s.pathFor(target))
+			if !modeled {
+				s.a.gap(s.path, "dynamic network upload files are not modeled")
+			}
+			for _, file := range files {
+				contents = union(contents, s.files[file])
+			}
 		}
 		return contents
 	}
 	return s.word(word)
+}
+
+func (s *shell) networkFileBody(word *syntax.Word) value {
+	texts, known := wordTexts(word, s.constants, s.constantValues, s.constantUnknown)
+	var contents value
+	for _, text := range texts {
+		if containsMarker(text, s.markers) {
+			known = false
+			continue
+		}
+		contents = union(contents, s.networkFileBodyValue(text))
+	}
+	if !known {
+		s.a.gap(s.path, "dynamic network upload files are not modeled")
+	}
+	return contents
+}
+
+func (s *shell) networkFileBodyValue(path string) value {
+	if path == "" {
+		return nil
+	}
+	files, modeled := s.readPaths(s.pathFor(path))
+	if !modeled {
+		s.a.gap(s.path, "dynamic network upload files are not modeled")
+	}
+	var contents value
+	for _, file := range files {
+		contents = union(contents, s.files[file])
+	}
+	return contents
 }
 
 func knownShellCommand(name string) bool {
@@ -948,7 +1059,7 @@ func commandOutputName(command syntax.Command, markers scope) string {
 			}
 			if found {
 				key = strings.TrimSpace(key)
-				if strings.Contains(key, "$") || containsMarker(key, markers) {
+				if strings.ContainsAny(key, "$%") || containsMarker(key, markers) {
 					return ""
 				}
 				return key + "="
@@ -993,7 +1104,7 @@ func heredocOutputName(word *syntax.Word, constants map[string]string, markers s
 		return ""
 	}
 	key = strings.TrimSpace(key)
-	if strings.Contains(key, "$") || containsMarker(key, markers) {
+	if strings.ContainsAny(key, "$%") || containsMarker(key, markers) {
 		return ""
 	}
 	return key + "="

