@@ -666,6 +666,8 @@ QueueCommit, replay advances a monotonic expiration watermark to the maximum
 of its previous value and `QueueCommit.at`, then applies expiration. This is a
 derived transition justified by the immutable deadline and causal committed
 time, not a synthetic `WorkCancellation` operation or a separate timer log.
+If an authorized explicit `WorkCancellation` repeats that outcome, replay MUST
+still retain the accepted operation in checkpoint state.
 The watermark MUST survive checkpoint compaction; the checkpoint envelope's
 own `at` also advances it. Backdated suffix commits cannot resurrect Work or
 grant a newly admitted node whose deadline has already elapsed at that watermark.
@@ -679,6 +681,9 @@ durable cancellation record. A fresh historical replay without a newer commit
 need not reproduce a prior wall-clock view. Selection MUST exclude elapsed
 Work even when the caller has not materialized that view, and publication
 MUST recheck selected deadlines before writing its candidate.
+Admission checks MUST use the same trusted decision-time expiration view as
+candidate generation. Expiration-only publication retries MUST preserve the
+previously observed append-only history, just as contention retries do.
 
 Expiration applies only when Work is available. A running Claim can finish
 after its Work deadline; its authorization and native reservation are unchanged.
@@ -1477,6 +1482,14 @@ Checkpoint `last_at` preserves the maximum committed expiration time, not merely
 the final prefix timestamp. Compaction MUST reject a checkpoint timestamp below
 that watermark. It MUST preserve optional Work deadlines and already-derived
 expiration cancellations; it MUST NOT checkpoint a speculative live-time view.
+An omitted compaction timestamp MUST default to at least that watermark.
+
+Readers MUST continue verifying supported pre-expiration checkpoints whose
+`last_at` recorded the final prefix timestamp. The legacy derivation applies
+only to history without deadline-bearing Work and MUST preserve exact snapshot,
+digest, and Git-ancestry verification rather than rewriting published state.
+Restoration still recovers the expiration watermark from retained committed
+timestamps. New writers MUST use the monotonic watermark rule.
 
 ### 7.11 Guarantees and non-guarantees
 

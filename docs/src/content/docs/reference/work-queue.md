@@ -387,6 +387,15 @@ of re-queuing it. Claim leases and hard real-time execution deadlines are not
 supported. Upgrade all closed-schema version-3 readers before using the field;
 existing Work without it needs no migration.
 
+Historical checkpoints created before expiration support remain verifiable,
+including when their commit timestamps decrease. New compaction preserves the
+maximum committed time; compatibility verification does not rewrite old
+snapshots or relax integrity checks.
+
+Closed-Issue synchronization recognizes committed `work_expired` outcomes
+without requiring a synthetic cancellation commit ID. A wall-clock-only
+expiration view is not a committed outcome.
+
 ## Runtime debug logging
 
 The JavaScript runtime uses the shared logger framework to write opt-in,

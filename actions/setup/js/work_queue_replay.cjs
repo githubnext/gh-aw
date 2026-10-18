@@ -560,6 +560,7 @@ function applyLifecycle(state, operation, commit) {
       if (work.state === "cancelled") {
         const cancelled = state.cancellations.get(work.work_id) ?? (work.cancellation_reason === "work_expired" ? { kind: "WorkCancellation", work_id: work.work_id, reason: "work_expired" } : undefined);
         if (!cancelled || canonical(cancelled) !== canonical(operation)) throw queueError("cancellation_conflict", "terminal cancellation metadata is immutable");
+        state.cancellations.set(work.work_id, operation);
         break;
       }
       if (work.state === "claimed") {
@@ -737,8 +738,7 @@ function replayTransactions(transactions, asOf) {
   const state = replayOrdered(causalChain(transactions));
   if (asOf !== undefined) {
     advanceExpiration(state, asOf);
-    state.stats.available = [...state.works.values()].filter(work => work.state === "available").length;
-    state.stats.cancelled = [...state.works.values()].filter(work => work.state === "cancelled").length;
+    projectViews(state);
   }
   return state;
 }
@@ -1447,14 +1447,24 @@ function serializeTransactionLog(transactions) {
   return ordered.length ? ordered.map(commit => canonical(commit)).join("\n") + "\n" : "";
 }
 
-function compactTransactions(transactions, priorGitSHA, actor, at = Date.now()) {
+function compactTransactions(transactions, priorGitSHA, actor, at) {
+  return checkpointTransactions(transactions, priorGitSHA, actor, at, false);
+}
+
+function checkpointTransactions(transactions, priorGitSHA, actor, at, legacy) {
   const validated = replayTransactions(transactions);
   if (priorGitSHA === undefined) return validated.transactions;
-  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(priorGitSHA) || actor?.role !== "administrator" || actor.repository !== validated.repository || !Number.isSafeInteger(at) || at < validated.time_watermark || at > Number.MAX_SAFE_INTEGER)
+  if (at === undefined) at = Math.max(Date.now(), validated.time_watermark);
+  let lastAt = validated.time_watermark;
+  if (legacy) {
+    if ([...validated.works.values()].some(work => work.expires_at !== undefined)) throw queueError("checkpoint_invalid", "deadline-bearing history requires the committed time watermark");
+    lastAt = validated.transactions.at(-1).at;
+  }
+  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(priorGitSHA) || actor?.role !== "administrator" || actor.repository !== validated.repository || !Number.isSafeInteger(at) || at < lastAt || at > Number.MAX_SAFE_INTEGER)
     throw queueError("checkpoint_invalid", "checkpoint requires an administrator, valid time and prior Git commit SHA");
   const history = serializeTransactionLog(validated.transactions);
   const history_sha256 = createHash("sha256").update(history, "utf8").digest("hex");
-  const state = checkpointSnapshot(validated, validated.time_watermark);
+  const state = checkpointSnapshot(validated, lastAt);
   const state_sha256 = digest(state);
   const requests_compressed = deflateRawSync(Buffer.from(canonical(state.requests), "utf8")).toString("base64");
   const { requests: _, ...projection } = state;
@@ -1483,7 +1493,23 @@ function prepareCheckpoint(source, priorGitSHA, actor, at) {
   const ordered = causalChain(transactions);
   const root = ordered[0];
   const administrator = actor ?? { role: "administrator", principal: root.actor.principal, repository: root.actor.repository };
-  return compactTransactions(transactions, priorGitSHA, administrator, at ?? ordered.at(-1).at);
+  return compactTransactions(transactions, priorGitSHA, administrator, at ?? replayOrdered(ordered).time_watermark);
+}
+
+// Only history verification may reproduce the pre-expiration final-timestamp
+// hash. New checkpoints always use the committed watermark.
+function reconstructCheckpoint(transactions, priorGitSHA, actor, at, expectedStateSHA) {
+  const root = causalChain(transactions)[0];
+  const administrator = actor ?? { role: "administrator", principal: root.actor.principal, repository: root.actor.repository };
+  for (const legacy of [false, true]) {
+    try {
+      const checkpoint = checkpointTransactions(transactions, priorGitSHA, administrator, at, legacy);
+      if (checkpoint[0].operations[0].state_sha256 === expectedStateSHA) return checkpoint;
+    } catch (error) {
+      if (error?.code !== "checkpoint_invalid") throw error;
+    }
+  }
+  throw queueError("checkpoint_invalid", "checkpoint does not match its Git parent history");
 }
 
 function appendCommit(transactions, commit) {
@@ -1585,6 +1611,7 @@ module.exports = {
   parseTransactionRecords,
   planDispatchWithObservations,
   prepareCheckpoint,
+  reconstructCheckpoint,
   proposedCommitId,
   planNext,
   quiescent,

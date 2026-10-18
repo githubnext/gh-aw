@@ -215,6 +215,78 @@ function nativeTarget(number = "7") {
 
 function registerTests({ describe, it }) {
   describe("checked current-only Git queue CAS store", () => {
+    it("admits a new submission after elapsed Work frees the pending quota without changing historical state", async () => {
+      const policy = defaultPolicy({ repository: "owner/repo", principal: "1001" });
+      policy.limits.pending_nodes = 1;
+      const log = [genesis(policy)];
+      log.push(submission(log, ["elapsed"], { transform: work => ({ ...work, expires_at: 150 }) }));
+      const elapsedId = log[1].operations[0].work_id;
+      const historical = replayTransactions(log);
+      const before = canonical(serializeProjection(historical));
+      const node = newWork({ task: "new submission" }, "next-graph", "next", "default", policy, 150);
+      const request = newRequest("admit-after-expiration", "submit", producer, { nodes: [node] });
+      const fake = fakeGitHub(log);
+      let clockReads = 0;
+      let generations = 0;
+      const result = await publishWorkQueueRequest(
+        options(fake, request, producer, {
+          now: () => {
+            clockReads++;
+            assert.equal(clockReads, 1, "admission and generation must share one decision timestamp");
+            return 150;
+          },
+          generateOperations: (current, stable, actor, at, id, observations) => {
+            generations++;
+            assert.equal(at, 150);
+            assert.equal(canonical(serializeProjection(current)), before, "publisher admission mutated its historical input state");
+            assert.equal(current.time_watermark, historical.time_watermark);
+            assert.equal(current.works.get(elapsedId).state, "available");
+            const decision = generateRequestOperations(current, stable, actor, at, id, observations);
+            assert.equal(canonical(serializeProjection(current)), before, "generation mutated its historical input state");
+            assert.equal(current.time_watermark, historical.time_watermark);
+            return decision;
+          },
+        })
+      );
+      assert.equal(clockReads, 1);
+      assert.equal(generations, 1);
+      assert.equal(result.publishedNow, true);
+      assert.equal(result.commit.at, 150);
+      assert.equal(fake.state.updates, 1);
+      assert.equal(result.state.works.get(elapsedId).cancellation_reason, "work_expired");
+      assert.equal(result.state.works.get(node.work_id).state, "available");
+      assert.equal(serializeTransactionLog(fake.log().slice(0, log.length)), serializeTransactionLog(log));
+      assert.equal(canonical(serializeProjection(replayTransactions(fake.log().slice(0, log.length)))), before);
+      const recovered = await publishWorkQueueRequest(
+        options(fake, request, producer, {
+          now: () => assert.fail("stable recovery must precede admission and time reads"),
+          generateOperations: () => assert.fail("stable recovery must not regenerate"),
+        })
+      );
+      assert.equal(recovered.recovered, true);
+      assert.equal(recovered.commit.id, result.commit.id);
+      assert.equal(fake.state.updates, 1);
+    });
+    it("retains the pending quota until an existing Work actually expires", async () => {
+      const policy = defaultPolicy({ repository: "owner/repo", principal: "1001" });
+      policy.limits.pending_nodes = 1;
+      const log = [genesis(policy)];
+      log.push(submission(log, ["pending"], { transform: work => ({ ...work, expires_at: 150 }) }));
+      const node = newWork({ task: "too early" }, "next-graph", "next", "default", policy, 149);
+      const request = newRequest("admission-before-expiration", "submit", producer, { nodes: [node] });
+      const fake = fakeGitHub(log);
+      await assert.rejects(
+        publishWorkQueueRequest(
+          options(fake, request, producer, {
+            now: () => 149,
+            generateOperations: () => assert.fail("failed admission must precede generation"),
+          })
+        ),
+        { code: "resource_limit" }
+      );
+      assert.equal(fake.state.updates, 0);
+      assert.equal(serializeTransactionLog(fake.log()), serializeTransactionLog(log));
+    });
     it("regenerates a fair prefix when selected Work expires before writing an unchanged HEAD", async () => {
       const log = [genesis()];
       log.push(submission(log, ["old", "fresh"], { transform: (work, index) => (index === 0 ? { ...work, expires_at: 150 } : work) }));
