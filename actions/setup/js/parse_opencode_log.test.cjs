@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseOpenCodeLog, isOpenCodeEvent } from "./parse_opencode_log.cjs";
+import { parseOpenCodeLog, isOpenCodeEvent, getOpenCodeMCPFailures, getOpenCodeSessionSteps } from "./parse_opencode_log.cjs";
 import { parseCustomLog } from "./parse_custom_log.cjs";
 import { parseEngineSession, mergeSessionSources, writeUnifiedSession } from "./unified_session.cjs";
 import { opencodeCiExcerpt, opencodeCiStreamErrors } from "./fixtures/opencode_ci_sessions.cjs";
@@ -13,6 +13,80 @@ const record = (type, part, extra = {}) => ({ type, timestamp, sessionID, part: 
 const jsonl = records => records.map(value => JSON.stringify(value)).join("\n");
 
 describe("OpenCode JSON session parser", () => {
+  it("recovers only completed assistant-step metadata from v2 exports", () => {
+    const steps = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [
+          { type: "user", text: "Never publish this prompt." },
+          { type: "assistant", id: "pending", time: { created: timestamp } },
+          { type: "assistant", id: "completed", finish: "stop", time: { completed: new Date(timestamp).toISOString() }, tokens: { input: 10, output: 2, cache: { read: 5 } }, cost: 0.01, providerState: { private: true } },
+        ],
+      },
+      sessionID
+    );
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({ type: "step_finish", sessionID, timestamp, part: { messageID: "completed", reason: "stop", tokens: { input: 10 }, cost: 0.01 } });
+    expect(JSON.stringify(steps)).not.toContain("prompt");
+    expect(JSON.stringify(steps)).not.toContain("providerState");
+    expect(parseOpenCodeLog(jsonl(steps)).logEntries.at(-1)).toMatchObject({ type: "session.result", data: { numTurns: 1, usage: { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 5 }, totalCostUsd: 0.01 } });
+  });
+
+  it("rejects invalid v2 session exports instead of inventing completion metadata", () => {
+    for (const exported of [null, {}, { info: { id: "other" }, messages: [] }, { info: { id: sessionID }, messages: null }, { info: { id: sessionID }, messages: [{ type: "assistant", id: "bad", time: { completed: "not-a-date" } }] }]) {
+      expect(() => getOpenCodeSessionSteps(exported, sessionID)).toThrow("OpenCode session export");
+    }
+  });
+
+  it.each([0, 2])("correlates v2 tools using partID and id, retaining nested exit metadata: %s", exit => {
+    const first = {
+      type: "tool_use",
+      timestamp,
+      sessionID,
+      part: {
+        partID: "prt_v2_first",
+        id: "call_v2",
+        sessionID,
+        messageID: "msg_v2",
+        type: "tool",
+        tool: "shell",
+        state: {
+          status: "completed",
+          input: { command: "make build" },
+          output: "build output\n",
+          metadata: { metadata: { exit }, content: [{ type: "text", text: "build output\n" }], rawInput: '{"command":"make build"}' },
+          time: { start: timestamp, end: timestamp + 30 },
+        },
+      },
+    };
+    const replay = { ...first, part: { ...first.part, partID: "prt_v2_replay" } };
+    const content = jsonl([first, replay, record("step_finish", { reason: "stop", tokens: { input: 10, output: 2, reasoning: 0, cache: { read: 5, write: 0 } } })]);
+    const result = parseOpenCodeLog(content);
+    const starts = result.logEntries.filter(event => event.type === "tool.execution_start");
+    const completions = result.logEntries.filter(event => event.type === "tool.execution_complete");
+    expect(starts).toHaveLength(1);
+    expect(starts[0]).toMatchObject({ id: "prt_v2_first", parentId: "msg_v2", data: { toolCallId: "call_v2", toolName: "shell" } });
+    expect(completions).toHaveLength(1);
+    expect(completions[0]).toMatchObject({ id: "prt_v2_first", data: { toolCallId: "call_v2", exitCode: exit, success: exit === 0, output: "build output\n", durationMs: 30, metadata: first.part.state.metadata } });
+    expect(parseEngineSession(content, "opencode")).toEqual(result.logEntries);
+    expect(parseCustomLog(content).logEntries).toEqual(result.logEntries);
+    expect(parseOpenCodeLog(jsonl(result.logEntries)).logEntries).toEqual(result.logEntries);
+  });
+
+  it("retains v2 failed tool errors and does not confuse the tool call ID with its part ID", () => {
+    const tool = record("tool_use", { partID: "prt_v2_error", id: "call_v2_error", tool: "github_search", state: { status: "error", input: {}, error: "Request rejected", metadata: { rawInput: "{}" } } });
+    const result = parseOpenCodeLog(jsonl([tool]));
+    expect(result.logEntries.find(event => event.type === "tool.execution_complete")).toMatchObject({ id: "prt_v2_error", data: { toolCallId: "call_v2_error", success: false, error: "Request rejected" } });
+    expect(result.logEntries.find(event => event.type === "tool.execution_complete").data).not.toHaveProperty("exitCode");
+  });
+
+  it("recognizes only structured v2 MCP connection failure diagnostics", () => {
+    const prefix = "timestamp=2026-10-18T15:00:00.000Z level=WARN fiber=#1";
+    expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server=github status="{\\"status\\":\\"failed\\"}"`)).toEqual(["github"]);
+    expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server="server with spaces"`)).toEqual(["server with spaces"]);
+    for (const content of ["", "mcp connect failed server=github", `${prefix} message="mcp connected" server=github`, `${prefix} message="mcp connect failed"`]) expect(getOpenCodeMCPFailures(content)).toEqual([]);
+  });
+
   it("preserves text, reasoning, tools, errors, timestamps and per-step usage", () => {
     const records = [
       record("step_start", { type: "step-start" }),

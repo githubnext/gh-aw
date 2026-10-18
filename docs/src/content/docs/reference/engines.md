@@ -145,11 +145,17 @@ native dsh JSON transcript format.
 
 The OpenCode sample routes `copilot`, `anthropic`, and `openai`/`codex` models
 through the selected AWF endpoint, retains configured MCP tools, and uses native
-JSONL session events for summaries and unified session artifacts. Copilot routing
+JSONL session events for summaries and unified session artifacts. It installs
+OpenCode 2 from `@opencode/cli` and runs with `--standalone`, avoiding the shared
+background service. Copilot routing
 requires AWF; direct Anthropic/OpenAI BYOK is available with the sandbox disabled.
-Runtime configuration overlays preserve repository JSON/JSONC settings; OpenCode
-may add a missing `$schema` field. Runtime overrides disable
-automatic updates, sharing, default plugins, and LSP downloads; native npm plugins
+Bounded private session exports recover completed-step usage omitted by v2's
+JSONL stream without publishing exported prompts or provider state.
+Runtime configuration overlays preserve supported repository JSON/JSONC settings,
+including v1 configuration through OpenCode's compatibility layer. Gateway servers
+use native v2 `mcp.servers` with Code Mode disabled to retain direct MCP tools.
+Runtime overrides disable automatic updates and sharing. V2 does not run language
+servers, and v1 plugins require porting to its new plugin API. Native npm plugins
 are not gh-aw Agent Plugins. The shared definition documents these limitations.
 
 The Goose sample pins CLI v1.53.0 and verifies its Linux archive checksum. It

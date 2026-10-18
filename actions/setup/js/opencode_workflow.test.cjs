@@ -13,11 +13,21 @@ function engineScript(key) {
   return block.split(/\n(?= {0,5}\S)/)[0].replace(/^ {6}/gm, "");
 }
 
-async function harness({ env = {}, endpoints, processResult = {}, events = [], mcp, stderrLines = [] } = {}) {
+async function harness({
+  env = {},
+  endpoints,
+  processResult = {},
+  events = [{ type: "text", sessionID: "ses", part: { text: "Finished." } }],
+  mcp,
+  stderrLines = [],
+  sessionExport = { info: { id: "ses" }, messages: [{ type: "assistant", id: "default", finish: "stop", time: { completed: 1000 } }] },
+  exportError,
+  exportOutput,
+} = {}) {
   const stdout = [];
   const stderr = [];
   const process = {
-    argv: ["node", "harness", "opencode", "run", "--format", "json", "--agent", "build"],
+    argv: ["node", "harness", "opencode", "run", "--standalone", "--format", "json", "--agent", "build", "--log-level", "info"],
     env: { OPENCODE_MODEL: "copilot/auto", GH_AW_LLM_PROVIDER: "github", AWF_REFLECT_ENABLED: "1", GH_AW_PROMPT: "/prompt.txt", GITHUB_WORKSPACE: "/workspace", ...env },
     stdout: { write: value => stdout.push(value) },
     stderr: { write: value => stderr.push(value) },
@@ -30,13 +40,15 @@ async function harness({ env = {}, endpoints, processResult = {}, events = [], m
   });
   const readFileSync = vi.fn(file => {
     if (file === "/prompt.txt") return "Secret prompt; $(do-not-execute) --flag\n";
-    if (file === "/mcp.json") return JSON.stringify(mcp ?? { mcp: {} });
+    if (file === "/mcp.json") return JSON.stringify(mcp ?? { mcp: { servers: {} } });
     throw new Error(`Unexpected file ${file}`);
   });
+  const execFile = vi.fn((command, args, options, callback) => callback(exportError, exportOutput ?? JSON.stringify(sessionExport)));
   await vm.runInNewContext(engineScript("harness-script"), {
     process,
     require: name => {
       if (name === "fs") return { readFileSync };
+      if (name === "child_process") return { execFile };
       if (name === "./process_runner.cjs") return { runProcess };
       if (name === "./parse_opencode_log.cjs") return req(name);
       if (name === "./awf_reflect.cjs")
@@ -51,20 +63,27 @@ async function harness({ env = {}, endpoints, processResult = {}, events = [], m
     },
   });
   const options = runProcess.mock.calls[0]?.[0];
-  return { process, options, config: options ? JSON.parse(options.env.OPENCODE_CONFIG_CONTENT) : undefined, stdout: stdout.join(""), stderr: stderr.join(""), readFileSync };
+  return { process, options, config: options ? JSON.parse(options.env.OPENCODE_CONFIG_CONTENT) : undefined, stdout: stdout.join(""), stderr: stderr.join(""), readFileSync, execFile };
 }
 
 describe("OpenCode shared workflow harness", () => {
   it.each([
-    ["copilot/auto", "github", "@ai-sdk/openai-compatible"],
-    ["anthropic/claude-sonnet-4-5", "anthropic", "@ai-sdk/anthropic"],
-    ["openai/gpt-5", "openai", "@ai-sdk/openai-compatible"],
-    ["codex/gpt-5", "openai", "@ai-sdk/openai-compatible"],
+    ["copilot/auto", "github", "@opencode/ai/providers/openai-compatible"],
+    ["anthropic/claude-sonnet-4-5", "anthropic", "@opencode/ai/providers/anthropic"],
+    ["openai/gpt-5", "openai", "@opencode/ai/providers/openai-compatible"],
+    ["codex/gpt-5", "openai", "@opencode/ai/providers/openai-compatible"],
   ])("routes %s through its selected provider with an explicit model", async (model, provider, sdk) => {
     const result = await harness({ env: { OPENCODE_MODEL: model, GH_AW_LLM_PROVIDER: provider } });
     expect(result.process.exitCode).toBeUndefined();
-    expect(result.config.provider["awf-proxy"]).toMatchObject({ npm: sdk, options: { baseURL: "http://127.0.0.1:10002/v1", apiKey: "awf-proxy" } });
-    expect(result.config.enabled_providers).toEqual(["awf-proxy"]);
+    expect(result.config.providers["awf-proxy"]).toMatchObject({ package: sdk, settings: { baseURL: "http://127.0.0.1:10002/v1", apiKey: "awf-proxy" } });
+    expect(result.config.experimental.policies).toEqual([
+      { action: "provider.use", resource: "*", effect: "deny" },
+      { action: "provider.use", resource: "awf-proxy", effect: "allow" },
+    ]);
+    expect(result.config.update).toBe("disable");
+    expect(result.config.permissions).toEqual([{ action: "*", resource: "*", effect: "allow" }]);
+    for (const legacy of ["provider", "agent", "permission", "enabled_providers", "disabled_providers", "autoupdate"]) expect(result.config).not.toHaveProperty(legacy);
+    expect(result.options.args).toContain("--standalone");
     expect(result.options.args.slice(-2)).toEqual(["--model", `awf-proxy/${model.slice(model.indexOf("/") + 1)}`]);
     expect(result.options.stdin).toContain("Secret prompt");
     expect(result.options.args.join(" ")).not.toContain("Secret prompt");
@@ -82,25 +101,28 @@ describe("OpenCode shared workflow harness", () => {
 
   it("preserves remote MCP credentials in the runtime overlay without modifying repository config", async () => {
     const mcp = { github: { type: "remote", url: "http://gateway/mcp/github", headers: { Authorization: "Bearer fixture" }, oauth: false } };
-    const result = await harness({ env: { GH_AW_MCP_CONFIG: "/mcp.json" }, mcp: { mcp } });
-    expect(result.config.mcp).toEqual(mcp);
+    const result = await harness({ env: { GH_AW_MCP_CONFIG: "/mcp.json" }, mcp: { mcp: { servers: mcp } } });
+    expect(result.config.mcp.servers).toEqual(mcp);
     expect(result.readFileSync.mock.calls.map(call => call[0])).toEqual(["/mcp.json", "/prompt.txt"]);
     expect(result.stderr).not.toContain("Bearer fixture");
   });
 
-  it("fails explicitly on malformed MCP configuration", async () => {
-    const result = await harness({ env: { GH_AW_MCP_CONFIG: "/mcp.json" }, mcp: { mcpServers: {} } });
+  it.each([{ mcpServers: {} }, { mcp: {} }, { mcp: { servers: [] } }, { mcp: { servers: null } }, { mcp: null }])("fails explicitly on malformed MCP configuration: %j", async mcp => {
+    const result = await harness({ env: { GH_AW_MCP_CONFIG: "/mcp.json" }, mcp });
     expect(result.process.exitCode).toBe(1);
-    expect(result.stderr).toContain("must contain an mcp object");
+    expect(result.stderr).toContain("must contain an mcp.servers object");
   });
 
   it("converts configured MCP startup and tool timeout units", async () => {
     const result = await harness({
       env: { GH_AW_MCP_CONFIG: "/mcp.json", GH_AW_STARTUP_TIMEOUT: "240", GH_AW_TOOL_TIMEOUT: "90" },
-      mcp: { mcp: { github: { type: "remote", url: "http://gateway/mcp/github", oauth: false } } },
+      mcp: { mcp: { servers: { github: { type: "remote", url: "http://gateway/mcp/github", oauth: false } } } },
     });
-    expect(result.config.mcp.github.timeout).toBe(240000);
-    expect(result.config.experimental.mcp_timeout).toBe(90000);
+    expect(result.config.mcp.timeout).toEqual({ startup: 240000, catalog: 240000, execution: 90000 });
+    expect(result.config.mcp.servers.github).not.toHaveProperty("timeout");
+    expect(result.config.experimental).not.toHaveProperty("mcp_timeout");
+    const nativeOnly = await harness({ env: { GH_AW_STARTUP_TIMEOUT: "240", GH_AW_TOOL_TIMEOUT: "90" } });
+    expect(nativeOnly.config.mcp.timeout).toEqual(result.config.mcp.timeout);
     const invalid = await harness({ env: { GH_AW_TOOL_TIMEOUT: "not-a-number" } });
     expect(invalid.process.exitCode).toBe(1);
     expect(invalid.stderr).toContain("positive timeout in seconds");
@@ -122,7 +144,7 @@ describe("OpenCode shared workflow harness", () => {
   it("enforces max-turns only when the limit requires another tool-calling turn", async () => {
     const event = { type: "step_finish", sessionID: "ses", part: { id: "finish", reason: "tool-calls" } };
     const result = await harness({ env: { GH_AW_MAX_TURNS: "1" }, events: [event, event] });
-    expect(result.config.agent.build.steps).toBe(1);
+    expect(result.config.agents.build.steps).toBe(1);
     expect(result.options.runtimeGuard.shouldTerminate()).toMatchObject({ terminate: true });
     expect(result.process.exitCode).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({ type: "opencode.max_turns", data: { maxTurns: 1 } });
@@ -157,11 +179,85 @@ describe("OpenCode shared workflow harness", () => {
   it("supports direct BYOK without pretending Copilot can use a GitHub token as an API key", async () => {
     const result = await harness({ env: { AWF_REFLECT_ENABLED: "0", GH_AW_LLM_PROVIDER: "openai", OPENCODE_MODEL: "openai/gpt-5", OPENAI_API_KEY: "secret-fixture" } });
     expect(result.process.exitCode).toBeUndefined();
-    expect(result.config.provider["awf-proxy"].options).toEqual({ baseURL: "https://api.openai.com/v1", apiKey: "secret-fixture" });
+    expect(result.config.providers["awf-proxy"].settings).toEqual({ baseURL: "https://api.openai.com/v1", apiKey: "secret-fixture" });
     expect(result.stderr).not.toContain("secret-fixture");
     const github = await harness({ env: { AWF_REFLECT_ENABLED: "0" } });
     expect(github.process.exitCode).toBe(1);
     expect(github.stderr).toContain("Copilot routing requires the AWF sandbox");
+  });
+
+  it("rejects v2 MCP startup failures without relying on a nonzero CLI exit", async () => {
+    const result = await harness({
+      stderrLines: ['timestamp=2026-10-18T15:00:00.000Z level=WARN fiber=#1 message="mcp connect failed" role=server server=github status="{\\"status\\":\\"failed\\",\\"error\\":\\"Connection refused\\"}"'],
+    });
+    expect(result.process.exitCode).toBe(1);
+    expect(result.stderr).toContain("MCP server(s) failed to start: github");
+    expect(JSON.parse(result.stdout)).toMatchObject({ type: "opencode.mcp_failure", data: { serverName: "github" } });
+  });
+
+  it("reconciles missing completed steps without publishing the native export's prompt", async () => {
+    const result = await harness({
+      events: [{ type: "step_finish", sessionID: "ses", part: { id: "live", messageID: "first", reason: "tool-calls" } }],
+      sessionExport: {
+        info: { id: "ses" },
+        messages: [
+          { type: "user", text: "Secret exported prompt." },
+          { type: "assistant", id: "first", finish: "tool-calls", time: { completed: 1000 }, tokens: { input: 10 } },
+          { type: "assistant", id: "second", finish: "stop", time: { completed: 2000 }, tokens: { input: 20 }, cost: 0.01, providerState: { secret: "private provider state" } },
+        ],
+      },
+    });
+    expect(result.process.exitCode).toBeUndefined();
+    expect(result.execFile.mock.calls[0].slice(0, 2)).toEqual(["opencode", ["session", "export", "--standalone", "ses"]]);
+    expect(result.execFile.mock.calls[0][2]).toMatchObject({ timeout: 60000, maxBuffer: 64 * 1024 * 1024, env: result.options.env });
+    expect(JSON.parse(result.stdout)).toMatchObject({ type: "step_finish", timestamp: 2000, part: { messageID: "second", reason: "stop", tokens: { input: 20 }, cost: 0.01 } });
+    for (const secret of ["Secret exported prompt.", "private provider state"]) {
+      expect(result.stdout).not.toContain(secret);
+      expect(result.stderr).not.toContain(secret);
+    }
+  });
+
+  it("fails explicitly on session export errors or malformed exports without leaking their content", async () => {
+    for (const options of [
+      { exportError: new Error("Secret exported prompt.") },
+      { exportOutput: "Secret exported prompt." },
+      { sessionExport: { info: { id: "wrong" }, messages: [] } },
+      { sessionExport: { info: { id: "ses" }, messages: [] } },
+    ]) {
+      const result = await harness(options);
+      expect(result.process.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("OpenCode session");
+      expect(result.stderr).not.toContain("Secret exported prompt.");
+    }
+    const empty = await harness({ events: [] });
+    expect(empty.process.exitCode).toBe(1);
+    expect(empty.stderr).toContain("produced no session events");
+    expect(empty.execFile).not.toHaveBeenCalled();
+  });
+
+  it("rejects the native v2 maximum-step tool error even without step_finish events", async () => {
+    const result = await harness({
+      env: { GH_AW_MAX_TURNS: "1" },
+      events: [{ type: "tool_use", sessionID: "ses", part: { partID: "part", id: "call", tool: "shell", state: { status: "error", error: "Tools are disabled after the maximum agent steps" } } }],
+    });
+    expect(result.process.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({ type: "opencode.max_turns", data: { maxTurns: 1 } });
+    expect(result.execFile).not.toHaveBeenCalled();
+  });
+
+  it("enforces max-turns from reconciled steps when the CLI omitted live step events", async () => {
+    const result = await harness({
+      env: { GH_AW_MAX_TURNS: "1" },
+      sessionExport: { info: { id: "ses" }, messages: [{ type: "assistant", id: "first", finish: "tool-calls", time: { completed: 1000 } }] },
+    });
+    expect(result.process.exitCode).toBe(1);
+    expect(
+      result.stdout
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line).type)
+    ).toEqual(["step_finish", "opencode.max_turns"]);
   });
 });
 
@@ -183,7 +279,9 @@ describe("OpenCode MCP adapter", () => {
       }),
     });
     expect(writeSecureOutput.mock.calls[0][0]).toBe("/tmp/gh-aw/opencode-mcp.json");
-    expect(JSON.parse(writeSecureOutput.mock.calls[0][1])).toEqual({ mcp: { github: { type: "remote", url: "http://host.docker.internal:80/mcp/github", headers: { Authorization: "Bearer fixture" }, enabled: true, oauth: false } } });
+    expect(JSON.parse(writeSecureOutput.mock.calls[0][1])).toEqual({
+      mcp: { servers: { github: { type: "remote", url: "http://host.docker.internal:80/mcp/github", headers: { Authorization: "Bearer fixture" }, disabled: false, codemode: false, oauth: false } } },
+    });
   });
 
   it("does not silently accept a malformed gateway server", () => {
