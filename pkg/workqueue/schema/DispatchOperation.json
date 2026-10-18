@@ -144,6 +144,9 @@
               "const": "terminal_run"
             },
             {
+              "const": "worker_termination"
+            },
+            {
               "const": "delivery"
             },
             {

@@ -624,6 +624,22 @@ workflows, renaming the existing branch/log, and deploying recompiled workflows
 before resuming. Both branch names or both log filenames together are ambiguous
 and fail closed. Logs/audit retain read compatibility for historical artifacts.
 
+## Inline worker termination
+
+Normal cleanup runs in the existing compiled conclusion job after all other jobs.
+The authenticated original run may publish `worker_termination` evidence with a
+digest of a complete, quiescent original-attempt job inventory. This releases
+worker execution capacity while conclusion finishes; it does not claim the native
+run is completed or settle delivery barriers. Both native replayers reject this
+evidence from a different run, attempt, workflow or principal.
+
+Hard-cancelled workers use bounded reconciliation in the existing scheduled queue
+maintenance job, retaining the stricter exact native-terminal proof. There is no
+per-worker completion-triggered workflow. Upgrade closed-schema readers before
+publishing the new evidence variant. Cross-language worker-termination tests
+cover the new release boundary; existing native-terminal formal models continue
+to cover the recovery path, not the inline job-inventory receipt check.
+
 ## Current wire contract and schema checks
 
 [`transactions.tsp`](transactions.tsp) defines the current version-3

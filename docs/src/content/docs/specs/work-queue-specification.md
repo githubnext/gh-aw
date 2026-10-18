@@ -143,7 +143,8 @@ survives. Documentation can get another turn later, and the combined review
 continues to wait for it. With one task, the queue attaches outputs to that task
 automatically; with several, the worker must say which task each output belongs to.
 Each assigned task still counts as its own turn for fairness. A shared run keeps
-its worker reservation until the run has demonstrably stopped.
+its worker reservation until trusted finalization proves its task-producing
+jobs have stopped, or recovery independently observes the native run terminated.
 
 ### What happens when the day does not go to plan
 
@@ -1068,6 +1069,8 @@ stateDiagram-v2
     Unresolved --> Bound: Later authenticated run evidence
     Unresolved --> Released: Later definitive nonlaunch evidence
     Bound --> Terminal: Exact native run and attempt terminated
+    Bound --> Quiescent: Original worker finalizer verifies all other jobs completed
+    Quiescent --> Released: Close open Claims and release inline
     Terminal --> Released: Close open Claims and release once
     Released --> [*]
     note right of Unresolved
@@ -1081,7 +1084,46 @@ stateDiagram-v2
 
 A group's first Claim creates its native reservation; all its Claims reference one `dispatch_id`. Record `Dispatch(started)` once for that group before the single API call. Record `Dispatch(bound, run_id)` for the actual worker run, binding every immutable assigned Claim. Retries reconcile the group and must not split it or launch one copy per Claim.
 
-A native reservation remains outstanding while launch is uncertain or its run is queued/running, even after some Claims finish. Individual Completion or ClaimCancellation closes that Claim's logical slot, not the worker slot. Native release requires trusted run termination or definitive nonlaunch. A terminal worker cancels only still-open Claims; it must preserve previously completed Claims.
+A worker reservation remains outstanding while launch is uncertain or task-producing
+jobs may still execute, even after some Claims finish. Individual Completion or
+ClaimCancellation closes that Claim's logical slot, not the worker slot. Release
+requires verified inline worker quiescence, trusted native termination, or
+definitive nonlaunch. Termination cancels only still-open Claims and preserves
+previously completed Claims.
+
+Normal cleanup MUST be a trusted step in the worker's existing `conclusion` job
+inside its compiled lock file, not a per-worker `workflow_run` observer or an
+additional runner job. The compiler MUST make conclusion depend on all other
+jobs and run with `always()`. The finalizer MUST authenticate its own original
+attempt, repository identity, workflow, immutable revision, principal and
+dispatch correlation. It MUST read a bounded, complete original-attempt job
+inventory, uniquely identify its active conclusion job, and verify that all
+other jobs are completed with conclusions. Missing non-skipped dependencies,
+ambiguous identities, active jobs, pagination exhaustion and unavailable API
+evidence MUST retain the reservation.
+
+The finalizer publishes `Release` with `kind: worker_termination`,
+`source: github_api`, the exact bound run/attempt and a receipt digest of the
+verified job inventory. This evidence MUST omit native `status` and
+`conclusion`; it does not assert that the enclosing run has completed. Both
+replayers MUST restrict its publisher to the same original bound run,
+workflow, repository and principal. It permits only reservation release and
+closure of still-open Claims, never Result, DeliveryFailure or replay of effects.
+No Claim-scoped effects or queue controls may execute afterward; conclusion
+diagnostics and observational Issue projection may finish.
+
+Capacity therefore bounds worker execution rather than native runs still
+finishing trusted conclusion work. This deliberate overlap avoids another
+Actions run per worker. Older closed-schema readers MUST be upgraded before
+this evidence variant is published; historical records remain unchanged.
+
+Hard cancellation, runner loss or failed finalizer setup may skip inline
+cleanup. The existing scheduled agentic maintenance queue-compaction job MUST
+first reconcile a bounded rotating batch using the normal native-terminal
+reconciler, with `actions: read` and `contents: write`. It MUST NOT request
+cancellation of active workers, infer termination from elapsed time, or replay
+uncertain effects. Existing dispatcher/operator reconciliation remains the
+fallback when scheduled maintenance is disabled.
 
 A dispatcher crash after reservation must leave a recoverable reservation.
 Recording `Dispatch(started)` atomically selects one trusted sender run/attempt
@@ -1158,7 +1200,8 @@ an administrative force-release shortcut while a run may still execute.
 | Reserved, no start marker | CAS-commit a start marker and send once, or commit definitive prelaunch cancellation and cancel still-open Claims/release atomically |
 | Reserved, exact originating publisher attempt terminal | Bounded automatic recovery may CAS-cancel prelaunch after a fresh no-marker check; retain on unavailable/mismatched origin evidence or a concurrent start |
 | Started/uncertain, no binding | Validate and bind an actual run; otherwise retain reservation and report unresolved/conflict |
-| Bound, queued/running | Observe or request cancellation; neither request nor lease expiry releases the slot |
+| Bound, queued/running | Retain unless the original trusted conclusion step proves job quiescence; cancellation requests and lease expiry never release |
+| Bound, worker jobs quiescent | Original worker conclusion step atomically closes still-open Claims and releases with job-inventory receipt evidence |
 | Bound, terminal | Cancel still-open Claims, reconcile completed members' result barriers, and release with exact run/attempt terminal evidence |
 | Definitive nonlaunch | Persist rejection evidence, cancel still-open Claims with backoff/attempt exhaustion handling, and release once; never refund grants |
 
@@ -1167,12 +1210,12 @@ is valid only while no marker exists. Releases do not wait for delivery-barrier
 success, since a terminal native run consumes no slot; Result/DeliveryFailure
 recovery can continue afterward.
 
-Native capacity, Claim closure, delivery verification, and the Actions conclusion
-MUST remain separate health dimensions. Exact terminal evidence permits Release
+Worker capacity, Claim closure, delivery verification, and the Actions conclusion
+MUST remain separate health dimensions. Exact terminal or inline quiescence evidence permits Release
 even when completed members still have pending or failed delivery. Release MUST
 NOT create a Result, clear a DeliveryFailure, refund service debt, or authorize
 replaying effects. Conversely, a successful Actions conclusion or completed Claim
-MUST NOT release an unobserved native reservation. The operator view SHOULD
+MUST NOT release a reservation without native-terminal or trusted finalizer evidence. The operator view SHOULD
 report each dimension instead of reducing queue health to green workflow runs.
 
 When a timeout is observed and the log remains writable, record `Dispatch(uncertain)` with a sanitized reason code. A crash may leave only `started`: offline inspection must label it unbound/possibly in progress, not invent a precise failure cause. Both states retain the reservation until trusted reconciliation establishes binding or nonlaunch.
