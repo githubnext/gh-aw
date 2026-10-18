@@ -1,61 +1,39 @@
 {
-  "run_date": "2026-10-18T00:59:10Z",
-  "run_id": "39084659182",
+  "run_date": "2026-10-18T06:34:39Z",
+  "run_id": "39104401108",
   "source": "pr-triage",
-  "eligible_total": 3,
-  "cooldown_skipped": 1,
-  "open_copilot_prs": 4,
-  "skipped_prs": [
-    69772
-  ],
+  "eligible_total": 2,
+  "cooldown_skipped": 6,
+  "open_copilot_prs": 8,
+  "skipped_prs": [69868, 69866, 69848, 69831, 69813, 69772],
   "category_counts": {
-    "bug": 3
+    "bug": 2
   },
   "risk_counts": {
-    "medium": 2,
+    "medium": 1,
     "high": 1
   },
   "priority_counts": {
-    "high": 1,
     "medium": 2
   },
   "action_counts": {
     "auto_merge": 0,
-    "fast_track": 1,
+    "fast_track": 0,
     "batch_review": 1,
     "defer": 1,
     "close": 0
   },
   "selected_candidates": [
     {
-      "number": 69487,
-      "title": "Resolve model aliases the same way on every engine",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 74,
-      "score_breakdown": {
-        "impact": 35,
-        "urgency": 20,
-        "quality": 19
-      },
-      "action": "fast_track",
-      "review_state": "draft",
-      "ci_state": "passing"
-    },
-    {
       "number": 69586,
       "title": "Protect behavior-defined engine session capture",
       "category": "bug",
       "risk": "medium",
       "priority_score": 65,
-      "score_breakdown": {
-        "impact": 34,
-        "urgency": 18,
-        "quality": 13
-      },
+      "score_breakdown": {"impact": 34, "urgency": 18, "quality": 13},
       "action": "batch_review",
       "review_state": "draft",
-      "ci_state": "failing"
+      "ci_state": "unknown"
     },
     {
       "number": 56568,
@@ -63,30 +41,13 @@
       "category": "bug",
       "risk": "high",
       "priority_score": 57,
-      "score_breakdown": {
-        "impact": 33,
-        "urgency": 12,
-        "quality": 12
-      },
+      "score_breakdown": {"impact": 33, "urgency": 12, "quality": 12},
       "action": "defer",
       "review_state": "changes_requested",
       "ci_state": "unknown"
     }
   ],
   "prs": [
-    {
-      "number": 69487,
-      "title": "Resolve model aliases the same way on every engine",
-      "state": "open",
-      "user": "Copilot",
-      "draft": true,
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 74,
-      "action": "fast_track",
-      "review_state": "draft",
-      "ci_state": "passing"
-    },
     {
       "number": 69586,
       "title": "Protect behavior-defined engine session capture",
@@ -98,7 +59,7 @@
       "priority_score": 65,
       "action": "batch_review",
       "review_state": "draft",
-      "ci_state": "failing"
+      "ci_state": "unknown"
     },
     {
       "number": 56568,
@@ -114,8 +75,9 @@
       "ci_state": "unknown"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-18T00:59:10Z",
+  "cooldown_cutoff_utc": "2026-10-18T06:34:39Z",
   "notes": [
-    "PR #69772 skipped by 1h cooldown; updated within the last hour."
+    "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
+    "Newer PRs #69868, #69866, #69848, #69831, #69813, and #69772 were skipped due to recency."
   ]
 }
