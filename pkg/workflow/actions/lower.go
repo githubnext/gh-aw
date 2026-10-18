@@ -131,7 +131,7 @@ func nativeJobFields(job *Job) (map[string]any, error) {
 			fields[key] = value
 		}
 	}
-	if job.TimeoutMinutes > 0 {
+	if job.TimeoutMinutes > 0 || job.TimeoutMinutesSet {
 		fields["timeout-minutes"] = job.TimeoutMinutes
 	}
 	return fields, nil
