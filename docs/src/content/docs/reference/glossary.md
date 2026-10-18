@@ -1437,7 +1437,7 @@ Checking workflow files for errors, security issues, and best practices. Occurs 
 
 ### `gh aw lint`
 
-A CLI command that runs actionlint on existing `.lock.yml` workflow files without recompiling the source Markdown. Unlike `gh aw compile --actionlint`, it reads lock files directly from disk, skipping `zizmor` and `poutine`. Supports `--shellcheck` and `--pyflakes` flags to enable script integrations for shell and Python analysis. Useful for fast local feedback after manual lock-file edits. See [CLI Reference](/gh-aw/setup/cli/).
+A CLI command that runs all registered built-in Actions/AW AST rules and actionlint on existing `.lock.yml` workflow files without recompiling the source Markdown. `--rules secret-leak` selects the AST taint checker without external actionlint; `--list-rules` lists registered checks and `--json` emits structured AST diagnostics. The default mode supports actionlint's `--shellcheck` and `--pyflakes` integrations. Neither mode runs `zizmor` or `poutine`. See [CLI Reference](/gh-aw/setup/cli/).
 
 ### yamllint
 

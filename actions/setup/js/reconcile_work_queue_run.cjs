@@ -84,9 +84,9 @@ async function main(options = {}) {
     if (dispatch.released) return { dispatch_id: assignment.dispatch_id, state: "released", released: true };
     const publisher = await authenticatePublisher({ ...configured, role: "reconciler" });
     const expected = expectedWorkerRun(assignment, profile, context, publisher.repository, dispatchPrincipal(dispatch));
-    validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, publisher.repository, runId), { ...expected, run_id: runId });
+    const proof = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, publisher.repository, runId), { ...expected, run_id: runId });
     const receipt = await quiescenceReceipt(configured, runId);
-    const evidence = lifecycleEvidence(assignment, profile, publisher.repository, "worker_termination", "github_api", options.now ?? Date.now(), { run_id: runId, run_attempt: 1, receipt });
+    const evidence = lifecycleEvidence(assignment, profile, publisher.repository, "worker_termination", "github_api", options.now ?? Date.now(), { run_id: runId, run_attempt: 1, receipt, principal: proof.principal });
     const result = await releaseAssignment(configured, assignment, evidence);
     log.debug("run.reconcile.complete", { released: result.released, claims: assignment.claims.length });
     configured.core?.info("Work queue worker reservation released; delivery remains independent");
@@ -99,9 +99,9 @@ async function main(options = {}) {
 
 async function maintenance(options = {}) {
   const configured = { ...options, context: options.context || global.context, githubClient: options.githubClient || global.github, core: options.core || global.core };
-  const result = await reconcileQueue({ ...configured, requestCancellation: false });
+  const result = await reconcileQueue({ ...configured, requestCancellation: false, expireUnverified: true });
   const released = result.results.filter(entry => entry.released).length;
-  const unresolved = result.results.filter(entry => ["launch_unresolved", "run_binding_conflict"].includes(entry.state)).length;
+  const unresolved = result.results.filter(entry => ["launch_unresolved", "run_binding_conflict"].includes(entry.state) || Object.values(entry.delivery?.claims || {}).some(claim => claim.reason === "verification_unresolved")).length;
   log.diagnostic("maintenance.reconcile.complete", { reconciled: result.reconciled, released, unresolved });
   if (unresolved) throw new Error("work_queue_maintenance_reconciliation_unresolved");
   return result;

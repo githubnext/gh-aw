@@ -2402,6 +2402,7 @@ jobs:
       process_safe_outputs_items_warnings: ${{ steps.process_safe_outputs.outputs.items_warnings }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_status: ${{ steps.process_safe_outputs.outputs.status }}
+      work_queue_outcome: ${{ steps.process_safe_outputs.outputs.work_queue_outcome }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2558,6 +2559,7 @@ jobs:
             /tmp/gh-aw/claims/*/safe-output-items.jsonl
             /tmp/gh-aw/claims/*/temporary-id-map.json
             /tmp/gh-aw/claims/*/safe-output-errors.json
+            /tmp/gh-aw/claims/*/claim-delivery-errors.json
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '1' }}
 

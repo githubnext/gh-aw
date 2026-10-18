@@ -67,7 +67,8 @@ function queueFixture(options = {}) {
   const assignment = options.granted === false ? null : assignmentOnly([...replayTransactions(transactions).dispatches.values()][0]);
   const binding = { run_id: "42", run_attempt: 1, repository: REPOSITORY, workflow: WORKFLOW, ref: REF, principal: workerPrincipal, event: "workflow_dispatch" };
   if ((options.started || options.bound) && !assignment) throw new Error("fixture_assignment_required");
-  if (assignment && (options.started || options.bound)) append("dispatch", { operations: [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "started", sender: dispatcher }] }, dispatcher);
+  if (assignment && (options.started || options.bound))
+    append("dispatch", { operations: [{ kind: "Dispatch", dispatch_id: assignment.dispatch_id, state: "started", sender: dispatcher, ...(policy.authorization === "aw" ? { credential_principal: workerPrincipal } : {}) }] }, dispatcher);
   if (assignment && options.bound)
     append(
       "dispatch",

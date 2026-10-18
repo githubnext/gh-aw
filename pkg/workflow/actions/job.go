@@ -9,7 +9,7 @@ func validateJob(job *Job) error {
 	if job.TimeoutMinutes < 0 {
 		return errors.New("job timeout-minutes cannot be negative")
 	}
-	if job.TimeoutMinutes != 0 && job.TimeoutMinutesExpression != nil {
+	if (job.TimeoutMinutes != 0 || job.TimeoutMinutesSet) && job.TimeoutMinutesExpression != nil {
 		return errors.New("job cannot combine a literal and expression timeout-minutes")
 	}
 	if job.SecretsInherit && len(job.Secrets) > 0 {
@@ -29,7 +29,7 @@ func validateJob(job *Job) error {
 	}
 	if len(job.Steps) > 0 || job.RunsOn != nil || len(job.Env) > 0 || len(job.Outputs) > 0 ||
 		job.Defaults != nil || job.Environment != nil || job.Container != nil || job.Services != nil ||
-		job.TimeoutMinutes != 0 || job.TimeoutMinutesExpression != nil || job.ContinueOnError != nil {
+		job.TimeoutMinutes != 0 || job.TimeoutMinutesSet || job.TimeoutMinutesExpression != nil || job.ContinueOnError != nil {
 		return errors.New("reusable workflow job cannot declare runner properties such as steps, runs-on, env, or outputs")
 	}
 	return nil

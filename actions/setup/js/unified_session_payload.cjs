@@ -350,6 +350,15 @@ const EVENT_FIELDS = {
     requestedModel: ["requested_model", "requestedModel"],
     requestedEffort: ["requested_effort", "requestedEffort"],
     outcome: ["outcome"],
+    rankedChoices: ["ranked_choices", "rankedChoices"],
+    eligibleChoices: ["eligible_choices", "eligibleChoices"],
+    catalogueOverlap: ["catalogue_overlap", "catalogueOverlap"],
+    selectedEndpoint: ["selected_endpoint", "selectedEndpoint"],
+    requestedEndpoint: ["requested_endpoint", "requestedEndpoint"],
+    upstreamEndpoint: ["upstream_endpoint", "upstreamEndpoint"],
+    unavailable: ["unavailable"],
+    status: ["status"],
+    phase: ["phase"],
   },
   "safe_output.request": SAFE_OUTPUT_FIELDS,
   "safe_output.result": SAFE_OUTPUT_FIELDS,
@@ -528,6 +537,24 @@ function normalizeModelInventoryData(value) {
 }
 
 /**
+ * AWF persists route choices in rank order; keep only the position, optional ID, model, and supplied effort.
+ * @param {any} choices
+ * @returns {import("./types/unified_session").ModelRoutingRankedChoice[] | undefined}
+ */
+function normalizeRankedChoices(choices) {
+  if (!Array.isArray(choices)) return undefined;
+  return choices.map((choice, index) => {
+    /** @type {import("./types/unified_session").ModelRoutingRankedChoice} */
+    const entry = { rank: index + 1 };
+    if (choice === null || typeof choice !== "object" || Array.isArray(choice)) return entry;
+    if (typeof choice.id === "string") entry.id = choice.id;
+    if (typeof choice.model === "string") entry.model = choice.model;
+    if (typeof choice.effort === "string" || choice.effort === null) entry.effort = choice.effort;
+    return entry;
+  });
+}
+
+/**
  * Compact known payloads without truncating text or changing native parser traces.
  * Unknown extension data remains opaque for forward compatibility.
  * @param {SessionEvent} event
@@ -543,6 +570,18 @@ function normalizeUnifiedSessionEvent(event, phase) {
     const inventory = normalizeModelInventoryData(source);
     if (inventory === undefined) throw new Error(`${ERR_VALIDATION}: Model inventory snapshot must contain valid endpoint model collections`);
     Object.assign(data, inventory);
+  }
+  if (event.type === "firewall.model_routing") {
+    if (Object.hasOwn(data, "rankedChoices")) {
+      const rankedChoices = normalizeRankedChoices(data.rankedChoices);
+      if (rankedChoices === undefined) delete data.rankedChoices;
+      else data.rankedChoices = rankedChoices;
+    }
+    // AWF lists unobserved request-telemetry dimensions here, not unavailable models.
+    if (Object.hasOwn(data, "unavailable") && !(Array.isArray(data.unavailable) && data.unavailable.every(value => typeof value === "string"))) delete data.unavailable;
+    for (const key of ["eligibleChoices", "catalogueOverlap", "selectedEndpoint", "requestedEndpoint", "upstreamEndpoint", "status", "phase"]) {
+      if (data[key] !== null && typeof data[key] === "object") delete data[key];
+    }
   }
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;

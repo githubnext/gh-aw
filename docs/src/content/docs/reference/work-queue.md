@@ -509,11 +509,17 @@ Result or authorizes replaying effects.
 Hard cancellation, runner loss, setup failures and unavailable or mismatched
 evidence can prevent inline cleanup. The existing scheduled
 `agentics-maintenance.yml` queue-compaction job first reconciles a bounded,
-rotating batch of stranded reservations. It never cancels active native runs;
+rotating batch of stranded reservations and pending Claim deliveries, including
+deliveries whose reservations were already released. It never cancels active native runs;
 bound workers release only after their exact original native attempt is
 independently observed completed. Dispatcher and operator reconciliation remain
 available. If maintenance is disabled, those paths provide the fallback.
 Cleanup latency after hard cancellation follows the maintenance schedule.
+After the configured delivery deadline, an independently authenticated terminal
+worker attempt permits DeliveryFailure even when its private in-memory verifier
+is no longer available. Effects remain `unknown`, not `none`; maintenance never
+manufactures Result from an output manifest or reruns the worker's effects.
+Unavailable or mismatched native evidence leaves delivery pending.
 
 Upgrade readers before publishing the new closed-schema `worker_termination`
 evidence variant; historical records and terminal-run recovery remain valid.
@@ -527,6 +533,11 @@ secrets from decoded fields, and default to one-day retention. Final uploads
 fail closed: if redaction fails, the upload does not proceed. Protected
 in-memory verification evidence remains separate, and the unused on-disk
 delivery receipt is removed.
+
+The `safe_outputs` job exposes `work_queue_outcome`. Unverified Claims also
+persist their delivery state, effects disposition, and reconciliation reason
+in their scoped `claim-delivery-errors.json` within `safe-outputs-items`, even when
+the handler successfully created its output.
 
 Only queue workers receive the upload paths and final redaction step.
 Repository references are not anonymized. Opaque masks registered only in the
