@@ -234,6 +234,11 @@ Each server configuration MUST support:
 *Required for stdio servers (containerized execution)  
 **Required for HTTP servers
 
+The `stdioServerConfig.container` schema field accepts an image reference with an optional tag and an optional digest: `image[:tag][@sha256:<64 hex>]`. The `@sha256:<64 hex>` suffix is valid with or without a tag and MUST contain exactly 64 hexadecimal characters (`0-9`, `a-f`, or `A-F`) after `sha256:`. References without a digest remain valid.
+
+> [!NOTE]
+> Runtime support for digest-pinned images requires the upstream MCP Gateway validation fix and a gateway release containing it. Acceptance by the gh-aw schemas alone does not update the gateway binary or enable runtime support.
+
 **Note**: The `command` field is NOT supported. Stdio servers MUST use the `container` field to specify a containerized MCP server. Direct command execution is not supported by this specification.
 
 #### 4.1.3 Gateway Configuration Fields
@@ -2311,9 +2316,9 @@ Content-Type: application/json
 
 ### Version 1.18.0 (Draft)
 
-- **Changed**: `stdioServerConfig.container` accepts an optional `@sha256:<64 hex>` digest suffix, with or without a tag
-- **Updated**: JSON Schema — container image patterns accept digest-pinned references
-- **Note**: Runtime support requires the corresponding fix and release in `github/gh-aw-mcpg`; existing digest-stripping compatibility behavior is unchanged
+- **Changed**: `stdioServerConfig.container` accepts an optional `@sha256:<64 hex>` suffix, with or without a tag (Section 4.1.2)
+- **Updated**: JSON Schema — container image patterns in both canonical schema copies accept digest-pinned references
+- **Note**: The schema change does not update the gateway binary. Runtime support requires the corresponding fix and release in `github/gh-aw-mcpg`; existing digest-stripping compatibility behavior is unchanged
 
 ### Version 1.17.0 (Draft)
 
