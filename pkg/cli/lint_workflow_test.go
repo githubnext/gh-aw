@@ -7,11 +7,87 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDefaultWorkflowLintCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test binaries use a POSIX shell")
+	}
+	dir := actionlintTestDir(t)
+	script := `#!/bin/sh
+if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
+  printf '1.7.12\n'
+  exit 0
+fi
+printf '%s\n' "$@" > "$ACTIONLINT_TEST_ARGS"
+printf '[]\n'
+exit "$ACTIONLINT_TEST_EXIT"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "actionlint"), []byte(script), 0o755))
+	t.Setenv("PATH", dir)
+	originalVersion, originalStats := actionlintVersion, actionlintStats
+	actionlintVersion, actionlintStats = "", nil
+	t.Cleanup(func() { actionlintVersion, actionlintStats = originalVersion, originalStats })
+	for _, tt := range []struct {
+		name           string
+		run            string
+		exit           string
+		flags          []string
+		wantASTError   bool
+		wantASTWarning bool
+		wantToolError  bool
+	}{
+		{name: "safe", run: "echo safe", exit: "0"},
+		{name: "secret disclosure", run: "echo '${{ secrets.TOKEN }}'", exit: "0", wantASTError: true},
+		{name: "actionlint failure", run: "echo safe", exit: "2", wantToolError: true},
+		{name: "both fail", run: "echo '${{ secrets.TOKEN }}'", exit: "2", wantASTError: true, wantToolError: true},
+		{name: "coverage warning", run: "unknown '${{ secrets.TOKEN }}'", exit: "0", wantASTWarning: true},
+		{name: "script integrations", run: "echo '${{ secrets.TOKEN }}'", exit: "0", flags: []string{"--shellcheck", "--pyflakes"}, wantASTError: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			file := filepath.Join(dir, tt.name+".lock.yml")
+			require.NoError(t, os.WriteFile(file, []byte("jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: "+tt.run+"\n"), 0o600))
+			argsPath := file + ".args"
+			t.Setenv("ACTIONLINT_TEST_ARGS", argsPath)
+			t.Setenv("ACTIONLINT_TEST_EXIT", tt.exit)
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs(append(tt.flags, file))
+			var runErr error
+			testutil.CaptureStderr(t, func() { runErr = cmd.Execute() })
+			if tt.wantASTError {
+				require.ErrorContains(t, runErr, "workflow lint found 1 error")
+				assert.Contains(t, output.String(), "error [secret-leak]")
+			}
+			if tt.wantASTWarning {
+				assert.Contains(t, output.String(), "warning [secret-leak]")
+			}
+			if tt.wantToolError {
+				require.ErrorContains(t, runErr, "actionlint failed with exit code 2")
+			}
+			if !tt.wantASTError && !tt.wantToolError {
+				require.NoError(t, runErr)
+			}
+			args, err := os.ReadFile(argsPath)
+			require.NoError(t, err, "actionlint must run even when AST lint fails")
+			if len(tt.flags) == 0 {
+				assert.Contains(t, string(args), "-shellcheck=\n")
+				assert.Contains(t, string(args), "-pyflakes=\n")
+			} else {
+				assert.NotContains(t, string(args), "-shellcheck=")
+				assert.NotContains(t, string(args), "-pyflakes=")
+			}
+		})
+	}
+}
 
 func TestBuiltInWorkflowLintCommand(t *testing.T) {
 	dir := t.TempDir()

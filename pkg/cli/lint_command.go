@@ -40,11 +40,11 @@ func NewLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lint [lock-file-or-directory]...",
 		Short: "Lint existing .lock.yml workflow files",
-		Long: `Lint existing .lock.yml workflow files from disk using actionlint by default.
+		Long: `Lint existing .lock.yml workflow files from disk using built-in Actions/AW AST rules and actionlint.
 
 This command does not recompile Markdown workflows and does not run zizmor or poutine.
 By default, shellcheck and pyflakes integrations are disabled for generated run scripts.
-Use --rules to run built-in Actions/AW AST rules instead of external actionlint.`,
+All registered AST rules run by default. Use --rules to select AST rules and skip external actionlint.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` lint                                  # Lint all .lock.yml workflows in the default directory
   ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/foo.lock.yml    # Lint a specific lock file
   ` + string(constants.CLIExtensionPrefix) + ` lint --dir custom-workflows/            # Lint all lock files in a custom directory
@@ -57,7 +57,7 @@ Use --rules to run built-in Actions/AW AST rules instead of external actionlint.
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("shellcheck", false, "Enable shellcheck integration in actionlint")
 	cmd.Flags().Bool("pyflakes", false, "Enable pyflakes integration in actionlint")
-	cmd.Flags().StringSlice("rules", nil, "Run selected built-in AST rules instead of actionlint (empty selects all)")
+	cmd.Flags().StringSlice("rules", nil, "Select built-in AST rules and skip actionlint (default: all AST rules plus actionlint; empty selects all)")
 	cmd.Flags().Bool("list-rules", false, "List available built-in AST lint rules")
 	cmd.Flags().Bool("json", false, "Emit structured diagnostics (requires --rules)")
 	// The root routes help to stderr. Structured lint reports belong on stdout.
@@ -105,17 +105,19 @@ func runLintCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	lintCommandLog.Printf("Resolved %d lock file(s) for linting", len(lockFiles))
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	workflowLintErr := runWorkflowLint(cmd.Context(), lockFiles, selected, cmd.OutOrStdout(), jsonOutput)
 	if cmd.Flags().Changed("rules") {
-		jsonOutput, _ := cmd.Flags().GetBool("json")
-		return runWorkflowLint(cmd.Context(), lockFiles, selected, cmd.OutOrStdout(), jsonOutput)
+		return workflowLintErr
 	}
 	initActionlintStats()
 	defer displayActionlintSummary()
-	return runActionlintOnFilesWithOptions(cmd.Context(), lockFiles, verbose, true, actionlintRunOptions{
+	actionlintErr := runActionlintOnFilesWithOptions(cmd.Context(), lockFiles, verbose, true, actionlintRunOptions{
 		IncludeShellcheck: includeShellcheck,
 		IncludePyflakes:   includePyflakes,
 		IgnorePatterns:    defaultGhAwActionlintIgnorePatterns,
 	})
+	return errors.Join(workflowLintErr, actionlintErr)
 }
 
 func resolveLockFilesForLint(inputs []string, workflowDir string) ([]string, error) {

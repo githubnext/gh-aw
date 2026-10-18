@@ -454,7 +454,7 @@ All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` a
 
 #### `lint`
 
-Lint existing `.lock.yml` workflow files from disk with actionlint by default. Use `--rules` to run the built-in Actions/AW AST linter instead, without external scanner dependencies. Neither mode recompiles Markdown workflows or runs `zizmor`/`poutine`.
+Lint existing `.lock.yml` workflow files from disk with all registered built-in Actions/AW AST rules and actionlint by default. Use `--rules` to select AST rules and skip external actionlint. Neither mode recompiles Markdown workflows or runs `zizmor`/`poutine`.
 
 ```bash wrap
 gh aw lint                                          # Lint all .github/workflows/*.lock.yml
@@ -470,7 +470,7 @@ gh aw lint --rules secret-leak --json               # Emit structured diagnostic
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
 
-`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint.
+`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
 The `secret-leak` rule tracks symbolic secret references, `github.token`, and known app-token action outputs through environment scopes, shell assignments, step outputs, and dependent job outputs. It detects disclosures to logs, step summaries, workflow outputs, request URLs/bodies, known publication inputs, cache keys, and artifacts containing modeled secret-bearing files. Authentication headers, token inputs, and the reusable workflow `secrets:` channel are not disclosure sinks. Boolean comparisons and predicates filter secret values; formatting, JSON serialization, encoding, and `add-mask` registration do not sanitize subsequent uses.
 

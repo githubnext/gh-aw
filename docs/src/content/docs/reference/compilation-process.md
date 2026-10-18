@@ -78,7 +78,7 @@ See [Imports Reference](/gh-aw/reference/imports/) for complete merge semantics.
 
 Register new built-in checks in `lint.Default()`. Structural rules can inspect the AST directly. Data-flow rules can use `pkg/workflow/taint.Analyze` with a `taint.Rule` defining `IsSource`, `IsSink`, optional whole-expression `IsFilter`, and known action credential outputs. Taint results retain symbolic source provenance. The `secret-leak` lint rule adapts these results to common diagnostics and reports coverage gaps separately from findings.
 
-`taint.AnalyzeDocument` checks an AW prompt against its compiled Actions graph; compile source documents through `Compiler.CompileDocument` rather than treating AW frontmatter as native YAML. The repository regression test applies the registered rules to existing compiled agentic workflows and their companion source documents. CLI checks are opt-in through [`gh aw lint --rules secret-leak`](/gh-aw/setup/cli/#lint); compilation and the default actionlint mode retain their existing behavior.
+`taint.AnalyzeDocument` checks an AW prompt against its compiled Actions graph; compile source documents through `Compiler.CompileDocument` rather than treating AW frontmatter as native YAML. The repository regression test applies the registered rules to existing compiled agentic workflows and their companion source documents. [`gh aw lint`](/gh-aw/setup/cli/#lint) runs all registered AST rules alongside actionlint by default; `--rules secret-leak` selects specific AST rules without external actionlint. Compilation retains its existing behavior.
 
 ## Job Types
 
