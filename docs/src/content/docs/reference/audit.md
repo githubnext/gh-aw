@@ -112,6 +112,8 @@ Every `key_findings` entry includes a stable `code` for downstream automation. T
 
 The top-level `schema_version` identifies the audit cache and JSON contract version. Cached reports with an older version are regenerated before use.
 
+Parent workflow success does not imply successful delegation. `metrics.error_count` retains its workflow-error meaning; `metrics.subagent_failure_count` separately counts observed failed sub-agent invocations and is omitted when zero. A successful run with failed delegation retains its Actions conclusion and `workflow_succeeded` finding, but the finding qualifies parent success, includes the failed invocation count, and recommends reviewing recovery. Failed invocations remain counted even when a later retry succeeds; parent success alone does not establish recovery.
+
 | Code | Finding |
 |---|---|
 | `workflow_failed` | The workflow failed |
@@ -124,7 +126,8 @@ The top-level `schema_version` identifies the audit cache and JSON contract vers
 | `model_unavailable` | Pi rejected a model at startup and the same run's complete provider inventory confirms it was not advertised |
 | `model_availability_unknown` | Pi rejected a model at startup, but saved reflection cannot confirm its absence |
 | `blocked_network_requests` | The firewall blocked network requests |
-| `workflow_succeeded` | The workflow completed successfully |
+| `workflow_succeeded` | The parent workflow completed successfully; the description qualifies any observed delegated failures |
+| `subagent_failed` | One or more invocations of a sub-agent failed, regardless of the parent conclusion |
 | `threat_detection_job_failed` | The `detection` job failed |
 | `threat_detected` | The detection artifact identified one or more threats |
 | `agentic_resource_heavy_for_domain` | Resource use was high for the inferred task domain |
