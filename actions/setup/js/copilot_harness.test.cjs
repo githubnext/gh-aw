@@ -4259,3 +4259,124 @@ process.exit(1);`
     });
   });
 });
+
+describe("Copilot CLI model-selection evidence through harness startup", () => {
+  // Derived from the agent artifact of run 39147795806: awf-reflect.json keeps the copilot endpoint and routing selection
+  // (unconfigured provider endpoints and unrelated top-level reflect metadata are omitted).
+  const fixtureDir = path.join(path.dirname(require.resolve("./copilot_harness.cjs")), "fixtures", "copilot-routed-run-39147795806");
+  const { persistCopilotModelSelection } = require("./copilot_model_selection.cjs");
+  const tempDirs = [];
+
+  afterEach(() => {
+    for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  function runHarness(envOverrides, { routed, providerPort = 0, sdk = false }) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-selection-startup-"));
+    tempDirs.push(tmpDir);
+    const preloadPath = path.join(tmpDir, "reflect-preload.cjs");
+    const stubPath = path.join(tmpDir, "copilot-stub.cjs");
+    const argsPath = path.join(tmpDir, "stub-args.json");
+    const reflect = JSON.parse(fs.readFileSync(path.join(fixtureDir, "awf-reflect.json"), "utf8"));
+    if (!routed) delete reflect.routing;
+    if (providerPort) Object.assign(reflect.endpoints[0], { base_url: `http://127.0.0.1:${providerPort}`, models_url: `http://127.0.0.1:${providerPort}/models` });
+    fs.writeFileSync(path.join(tmpDir, "reflect.json"), JSON.stringify(reflect));
+    fs.writeFileSync(
+      preloadPath,
+      `const body = require("fs").readFileSync(${JSON.stringify(path.join(tmpDir, "reflect.json"))}, "utf8");
+require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))}).fetchAWFReflect = async () => ({ ok: true, reflectData: JSON.parse(body) });
+if (${providerPort} && process.argv[1].endsWith("copilot_harness.cjs")) require("net").createServer(socket => socket.end()).listen(${providerPort}, "127.0.0.1").unref();`
+    );
+    fs.writeFileSync(
+      stubPath,
+      `const fs = require("fs");
+const path = require("path");
+const args = process.argv.slice(2);
+fs.writeFileSync(${JSON.stringify(argsPath)}, JSON.stringify(args));
+if (args.includes("--session-id")) {
+  const model = args.includes("--model") ? args[args.lastIndexOf("--model") + 1] : process.env.COPILOT_MODEL;
+  const dir = path.join(process.env.COPILOT_HOME, "session-state", args[args.indexOf("--session-id") + 1]);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.appendFileSync(path.join(dir, "events.jsonl"), JSON.stringify({ type: "assistant.message", data: { model, content: "done" } }) + "\\n");
+}
+process.stdout.write("done\\n");`
+    );
+    // SDK sidecar double: listens on the requested --port until the harness stops it.
+    const sidecarPath = path.join(tmpDir, "copilot-sidecar.cjs");
+    fs.writeFileSync(sidecarPath, `#!/usr/bin/env node\nconst args = process.argv.slice(2);\nrequire("net").createServer(socket => socket.end()).listen(Number(args[args.indexOf("--port") + 1]), "127.0.0.1");\n`, { mode: 0o755 });
+    const env = { ...harnessChildEnv, GH_AW_TMP_DIR: tmpDir, COPILOT_HOME: path.join(tmpDir, "copilot-home"), GH_AW_HARNESS_MAX_RETRIES: "0", GH_AW_HARNESS_STALL_WARNING_MS: "0", NODE_OPTIONS: `--require ${preloadPath}` };
+    for (const key of ["COPILOT_MODEL", "GH_AW_MODEL_FALLBACK", "GH_AW_MODEL_ROUTING", "AWF_REFLECT_ENABLED", "GH_AW_SKIP_REFLECT", "COPILOT_SDK_URI", "GH_AW_PHASE", "GH_AW_SAFE_OUTPUTS", "COPILOT_PROVIDER_WIRE_API", "GH_AW_MODEL_ALIASES"])
+      delete env[key];
+    Object.assign(env, envOverrides);
+    const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, ...(sdk ? [stubPath, sidecarPath] : [stubPath, "--prompt", "Hello"])], {
+      cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+      env,
+      encoding: "utf8",
+      timeout: 20000,
+    });
+    const selectionPath = path.join(tmpDir, "sandbox/agent/logs/copilot-model-selection.json");
+    return {
+      tmpDir,
+      result,
+      args: fs.existsSync(argsPath) ? JSON.parse(fs.readFileSync(argsPath, "utf8")) : null,
+      selection: fs.existsSync(selectionPath) ? JSON.parse(fs.readFileSync(selectionPath, "utf8")) : null,
+    };
+  }
+
+  async function freePort() {
+    const server = require("net").createServer();
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address();
+    await new Promise(resolve => server.close(resolve));
+    return port;
+  }
+
+  function persistFor(tmpDir) {
+    fs.copyFileSync(path.join(fixtureDir, "aw_info.json"), path.join(tmpDir, "aw_info.json"));
+    persistCopilotModelSelection({ GH_AW_TMP_DIR: tmpDir, GH_AW_ENGINE_ID: "copilot" });
+    return JSON.parse(fs.readFileSync(path.join(tmpDir, "aw_info.json"), "utf8"));
+  }
+
+  it("records configured_model auto for a routed CLI run with COPILOT_MODEL unset", () => {
+    const { tmpDir, result, args, selection } = runHarness({ AWF_REFLECT_ENABLED: "1", GH_AW_MODEL_ROUTING: "1" }, { routed: true });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(args.slice(args.indexOf("--model"), args.indexOf("--model") + 2)).toEqual(["--model", "gpt-5.6-luna"]);
+    expect(selection).toEqual({ status: "observed", configured_model: "auto", resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" });
+    expect(persistFor(tmpDir)).toMatchObject({
+      model: "gpt-5.6-luna",
+      requested_model: "auto",
+      model_selection: { status: "observed", configured_model: "auto", resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" },
+    });
+  });
+
+  it("records the fallback configured model when COPILOT_MODEL is unset", () => {
+    const { tmpDir, result, args, selection } = runHarness({ GH_AW_SKIP_REFLECT: "true", GH_AW_MODEL_FALLBACK: "gpt-5.6-luna" }, { routed: false });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain("applied GH_AW_MODEL_FALLBACK to COPILOT_MODEL");
+    expect(args).not.toContain("--reasoning-effort");
+    expect(selection).toEqual({ status: "observed", configured_model: "gpt-5.6-luna", resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" });
+    expect(persistFor(tmpDir)).toMatchObject({ model: "gpt-5.6-luna", model_selection: { configured_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" } });
+  });
+
+  it("keeps an explicit configured model for a non-routed CLI run", () => {
+    const { result, selection } = runHarness({ GH_AW_SKIP_REFLECT: "true", COPILOT_MODEL: "gpt-5.6-luna", GH_AW_MODEL_FALLBACK: "claude-sonnet-5" }, { routed: false });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(selection).toEqual({ status: "observed", configured_model: "gpt-5.6-luna", resolved_model: "gpt-5.6-luna", effective_model: "gpt-5.6-luna" });
+  });
+
+  it.each([true, false])("does not create a CLI selection record in SDK mode (routed=%s)", async routed => {
+    const [providerPort, sdkPort] = [await freePort(), await freePort()];
+    const { result, args, selection } = runHarness(
+      { AWF_REFLECT_ENABLED: "1", ...(routed ? { GH_AW_MODEL_ROUTING: "1" } : { COPILOT_MODEL: "gpt-5.6-luna" }), COPILOT_SDK_URI: `http://127.0.0.1:${sdkPort}` },
+      { routed, providerPort, sdk: true }
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toContain("copilot-sdk driver mode: starting sidecar");
+    expect(args).not.toContain("--session-id");
+    expect(selection).toBeNull();
+  });
+});

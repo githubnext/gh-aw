@@ -550,8 +550,14 @@ async function appendStepSummarySection(title, markdown, workingSet = null) {
 async function main(copilotSessionStateDir = getGhAwPath("sandbox/agent/logs/copilot-session-state")) {
   /** @type {{routing: any, effective: any}|null} */
   let routedAttribution = null;
+  // Invalid selection evidence is not persisted; its error is reported after routing attribution and usage accounting.
+  let selectionError = "";
   try {
     persistCopilotModelSelection();
+  } catch (error) {
+    selectionError = getErrorMessage(error);
+  }
+  try {
     routedAttribution = recordModelRoutingFromArtifacts();
     const tokenUsagePaths = getReadableTokenUsagePaths(getTokenUsagePaths());
     if (tokenUsagePaths.length === 0) {
@@ -644,6 +650,7 @@ async function main(copilotSessionStateDir = getGhAwPath("sandbox/agent/logs/cop
     core.setFailed(`${ERR_PARSE}: ${getErrorMessage(error)}`);
   } finally {
     persistAgentAwInfoCopy();
+    if (selectionError) core.setFailed(`${ERR_PARSE}: ${selectionError}`);
   }
 }
 
