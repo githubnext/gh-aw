@@ -126,15 +126,16 @@ type OverviewData struct {
 
 // MetricsData contains execution metrics
 type MetricsData struct {
-	TokenUsage     int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
-	AIC            float64                `json:"aic,omitempty"`
-	AmbientContext *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
-	WorkingSet     *WorkingSetMetrics     `json:"working_set,omitempty" console:"-"`
-	Friction       *FrictionCostSummary   `json:"-" console:"-"`
-	ActionMinutes  float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
-	Turns          int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
-	ErrorCount     int                    `json:"error_count" console:"header:Errors"`
-	WarningCount   int                    `json:"warning_count" console:"header:Warnings"`
+	TokenUsage           int                    `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
+	AIC                  float64                `json:"aic,omitempty"`
+	AmbientContext       *AmbientContextMetrics `json:"ambient_context,omitempty" console:"title:Ambient Context,omitempty"`
+	WorkingSet           *WorkingSetMetrics     `json:"working_set,omitempty" console:"-"`
+	Friction             *FrictionCostSummary   `json:"-" console:"-"`
+	ActionMinutes        float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
+	Turns                int                    `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount           int                    `json:"error_count" console:"header:Errors"`
+	SubagentFailureCount int                    `json:"subagent_failure_count,omitempty" console:"header:Sub-agent Failures,omitempty"`
+	WarningCount         int                    `json:"warning_count" console:"header:Warnings"`
 }
 
 // JobData is the audit report rendering of a job.
@@ -399,6 +400,12 @@ func buildAuditMetrics(processedRun ProcessedRun, metrics LogMetrics) (MetricsDa
 	}
 	if run.Conclusion == "failure" && metricsData.ErrorCount == 0 {
 		metricsData.ErrorCount = 1
+	}
+	if processedRun.TokenUsage != nil {
+		// DeclaredSubagentModels mirrors requests and must not be counted again.
+		for _, request := range processedRun.TokenUsage.SubagentModelRequests {
+			metricsData.SubagentFailureCount += request.FailedCount
+		}
 	}
 
 	fallbackMetrics, inferredEngineID := lookupFallbackMetrics(run.LogsPath, metricsData)

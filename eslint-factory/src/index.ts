@@ -67,6 +67,7 @@ import { noSingleCharStringReplaceRule } from "./rules/no-single-char-string-rep
 import { noAsyncForEachCallbackRule } from "./rules/no-async-foreach-callback";
 import { noUnguardedAsyncTimerCallbackRule } from "./rules/no-unguarded-async-timer-callback";
 import { requireFiniteCheckBeforeDateToIsoStringRule } from "./rules/require-finite-check-before-date-toisostring";
+import { noSplitFilterTrimWithoutTrimMapRule } from "./rules/no-split-filter-trim-without-trim-map";
 
 const plugin = {
   meta: {
@@ -141,6 +142,7 @@ const plugin = {
     "no-single-char-string-replace": noSingleCharStringReplaceRule,
     "no-unguarded-async-timer-callback": noUnguardedAsyncTimerCallbackRule,
     "no-async-foreach-callback": noAsyncForEachCallbackRule,
+    "no-split-filter-trim-without-trim-map": noSplitFilterTrimWithoutTrimMapRule,
     "require-finite-check-before-date-toisostring": requireFiniteCheckBeforeDateToIsoStringRule,
   },
 };
