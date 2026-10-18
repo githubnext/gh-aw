@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { createReportIssue } = require("./issue_report.cjs");
+const { createReportIssue, renderIssueParameters } = require("./issue_report.cjs");
 
 const { iterateJsonl, readJsonlFileEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
@@ -10,7 +10,7 @@ const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
 const { getDetectionCautionAlert, getFooterAgentFailureCommentMessage } = require("./messages.cjs");
 const { renderTemplate, renderTemplateFromFile, getPromptPath, renderFilesList } = require("./messages_core.cjs");
 const { buildFailureReport } = require("./failure_report.cjs");
-const { normalizeReportTitle, renderReport } = require("./report_ast.cjs");
+const { normalizeReportTitle } = require("./report_ast.cjs");
 const { buildFailureReportFooter } = require("./report_footer.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
@@ -5071,7 +5071,8 @@ async function main() {
 
         const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
         report.preamble = parseReportMarkdown(detectionCaution, { allowFlagMarkers: true });
-        const { title: reportTitle, body: issueBody } = renderReport(report);
+        const request = renderIssueParameters({ owner, repo, title: issueTitle, labels: ["agentic-workflows"], headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION } }, report);
+        const { title: reportTitle, body: issueBody } = request;
 
         let newIssue;
         if (failureIssue) {
@@ -5088,17 +5089,7 @@ async function main() {
           });
           core.info(`✓ Reused failure issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         } else {
-          newIssue = await createReportIssue(
-            github,
-            {
-              owner,
-              repo,
-              title: reportTitle,
-              labels: ["agentic-workflows"],
-              headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
-            },
-            report
-          );
+          newIssue = await createReportIssue(github, request);
           core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         }
 

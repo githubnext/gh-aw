@@ -71,6 +71,21 @@ This action copies files from `actions/setup/`, including:
 
 All files are copied from the committed `js/` and `sh/` directories which contain the source of truth for all JavaScript and shell scripts.
 
+## OTLP credential masking
+
+Setup registers runner masks before sending its OTLP span. Full header strings
+remain masked. Individual plain header values are masked only when they contain
+at least eight characters and are not entirely digits. This policy also applies
+to percent-encoded values after decoding, so placeholders such as `X-No-Auth=true`
+do not register a standalone `true` mask that suppresses boolean job outputs.
+
+Bearer and Basic credentials retain the four-character minimum, including bare
+tokens and decoded Basic-auth passwords. JavaScript setup covers
+`OTEL_EXPORTER_OTLP_HEADERS`, `GH_AW_OTLP_ALL_HEADERS`, and headers in
+`GH_AW_OTLP_ENDPOINTS`, including disabled endpoints. Artifact and step-summary
+redaction keep the broader four-character collection policy for plain header
+values; the runner-mask policy does not reduce that redaction.
+
 ## Development
 
 ### Structured issue reports
@@ -80,6 +95,13 @@ All JavaScript GitHub issue creators publish through `js/issue_report.cjs`.
 calling the supplied authenticated client's issue API. Existing issue Markdown
 is imported when no document is supplied. GraphQL work-queue creation uses the
 same `renderIssueParameters` boundary, as do staged safe-output previews.
+Build the complete document before rendering: `buildIssueBodyReport` includes
+headers, Claim attribution nodes, expiration, and trusted execution provenance.
+Pass the object returned by `renderIssueParameters` directly to `createReportIssue`
+to reuse its rendered content for publication and retries. Changing its title or
+body, or copying the object, requires validation and rendering again.
+Changing a prepared request's owner, repo, or headers is rejected before any API
+write; build and render a fresh complete report for the intended target instead.
 Linear uses the Markdown renderer. Jira uses text-preserving normalization before
 converting its literal description to ADF, without replacing ordinary language
 characters with visually similar Latin letters.
