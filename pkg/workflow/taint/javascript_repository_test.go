@@ -34,4 +34,22 @@ func TestNativeRepositoryJavaScriptHelpers(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, parser.cache, sha256.Sum256(contents), "actual helper AST must be reached, not allowlisted")
 	}
+
+}
+
+func TestNativeRepositoryJavaScriptMaskRegistration(t *testing.T) {
+	options := nativeJavaScriptOptions(t)
+	root, err := os.OpenRoot(filepath.Join("..", "..", ".."))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, root.Close()) })
+	options.Files = root.FS()
+	secret := []Source{{Reference: "secrets.token", Path: "env.TOKEN"}}
+	result, err := AnalyzeJavaScript(JavaScriptInput{
+		Name:   "entry.cjs",
+		Source: `require("./actions/setup/js/actions_secret_masking.cjs").maskSecret(process.env.TOKEN);`,
+		Env:    map[string][]Source{"TOKEN": secret},
+	}, SecretLeakRule(), *options)
+	require.NoError(t, err)
+	assert.Empty(t, result.Findings)
+	assert.NotEmpty(t, result.Gaps, "unresolved globals and optional fallback machinery remain incomplete")
 }
