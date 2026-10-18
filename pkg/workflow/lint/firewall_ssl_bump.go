@@ -2,7 +2,7 @@ package lint
 
 import (
 	"context"
-	"errors"
+	"strings"
 )
 
 func FirewallSSLBumpRule() Rule {
@@ -15,35 +15,79 @@ func FirewallSSLBumpRule() Rule {
 
 func checkFirewallSSLBump(ctx context.Context, input Input) ([]Diagnostic, error) {
 	source, err := authoredPolicyMapping(ctx, input)
-	if err != nil || source == nil || source["network"] == "defaults" {
+	if err != nil || source == nil {
 		return nil, err
 	}
-	network, err := policyMapping(source["network"], "network")
-	if err != nil {
-		return nil, err
-	}
-	firewall, err := policyMapping(network["firewall"], "network.firewall")
-	if err != nil {
-		return nil, err
-	}
-	raw, exists := firewall["allow-urls"]
-	if !exists {
-		return nil, nil
-	}
-	urls, err := policyStrings(ctx, raw, "network.firewall.allow-urls")
-	if len(urls) == 0 {
-		return nil, err
-	}
-	enabled, specified := firewall["ssl-bump"]
-	if specified {
-		if _, ok := enabled.(bool); !ok {
-			return nil, errors.Join(err, errors.New("firewall-ssl-bump requires a literal boolean at network.firewall.ssl-bump"))
-		}
-		if enabled == true {
+	var diagnostics []Diagnostic
+	if source["network"] != "defaults" {
+		network, err := policyMapping(source["network"], "network")
+		if err != nil {
 			return nil, err
 		}
+		if _, legacy := network["firewall"]; legacy {
+			diagnostics = append(diagnostics, Diagnostic{Path: "network.firewall",
+				Message: "network.firewall is unsupported by the compiler; remove this legacy block and use network.allowed for domain policy. Advanced URL filtering uses sandbox.agent.args with --ssl-bump and --allow-urls in non-strict mode",
+			})
+		}
 	}
-	return []Diagnostic{{Path: "network.firewall.allow-urls",
-		Message: "Firewall URL filters require SSL inspection to enforce HTTPS path restrictions; set network.firewall.ssl-bump to true",
-	}}, err
+	if shorthand, ok := source["sandbox"].(string); ok && (shorthand == "awf" || shorthand == "default") {
+		return diagnostics, nil
+	}
+	sandbox, err := policyMapping(source["sandbox"], "sandbox")
+	if err != nil {
+		return diagnostics, err
+	}
+	switch sandbox["agent"].(type) {
+	case nil, string, bool:
+		return diagnostics, nil
+	}
+	agent, err := policyMapping(sandbox["agent"], "sandbox.agent")
+	if err != nil {
+		return diagnostics, err
+	}
+	raw, exists := agent["args"]
+	if !exists {
+		return diagnostics, nil
+	}
+	args, err := policyStrings(ctx, raw, "sandbox.agent.args")
+	if err != nil {
+		return diagnostics, err
+	}
+	missingInspection, err := firewallURLFiltersNeedInspection(ctx, args)
+	if err != nil {
+		return diagnostics, err
+	}
+	if missingInspection {
+		diagnostics = append(diagnostics, Diagnostic{Path: "sandbox.agent.args",
+			Message: "Firewall URL filters require SSL inspection to enforce HTTPS path restrictions; add --ssl-bump alongside --allow-urls in sandbox.agent.args (internal overrides require non-strict mode)",
+		})
+	}
+	return diagnostics, nil
+}
+
+func firewallURLFiltersNeedInspection(ctx context.Context, args []string) (bool, error) {
+	var filters, inspection, expectingURL bool
+	for _, arg := range args {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		if expectingURL {
+			expectingURL = false
+			if strings.TrimSpace(arg) != "" && !strings.HasPrefix(arg, "--") {
+				filters = true
+				continue
+			}
+		}
+		switch {
+		case arg == "--":
+			return filters && !inspection, nil
+		case arg == "--ssl-bump":
+			inspection = true
+		case arg == "--allow-urls":
+			expectingURL = true
+		case strings.HasPrefix(arg, "--allow-urls="):
+			filters = filters || strings.TrimSpace(strings.TrimPrefix(arg, "--allow-urls=")) != ""
+		}
+	}
+	return filters && !inspection, nil
 }

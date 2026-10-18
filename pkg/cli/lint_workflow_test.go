@@ -180,7 +180,8 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 		{"push-target", "safe-outputs:\n  push-to-pull-request-branch:\n    target: '*'", "safe-outputs.push-to-pull-request-branch.target", workflowlint.Warning},
 		{"pull-request-target-roles", "on: {pull_request_target: null, roles: read}", "on.roles", workflowlint.Error},
 		{"safe-output-shell-expansion", "safe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}", "safe-outputs.steps[0].run", workflowlint.Error},
-		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['https://example.com/path']}}", "network.firewall.allow-urls", workflowlint.Error},
+		{"firewall-ssl-bump", "strict: false\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", "sandbox.agent.args", workflowlint.Error},
+		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: true}}", "network.firewall", workflowlint.Error},
 	} {
 		t.Run(tt.ruleID, func(t *testing.T) {
 			dir := t.TempDir()
@@ -209,7 +210,7 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 }
 
 func TestThreatPolicyRulesCLIInputModes(t *testing.T) {
-	const source = "---\non: {pull_request_target: null, roles: read}\nsafe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}\nnetwork: {firewall: {allow-urls: ['https://PRIVATE_VALUE/path']}}\n---\nA prompt.\n"
+	const source = "---\non: {pull_request_target: null, roles: read}\nsafe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}\nsandbox: {agent: {args: [--allow-urls, 'https://PRIVATE_VALUE/path']}}\n---\nA prompt.\n"
 	const rules = "--rules=pull-request-target-roles,safe-output-shell-expansion,firewall-ssl-bump"
 	const compiled = "on: pull_request_target\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: value=$(ordinary-step)\n"
 	for _, extension := range []string{".md", ".lock.yml", ".yaml"} {

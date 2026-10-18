@@ -169,9 +169,9 @@ func builtInRuleContracts() map[string]ruleContract {
 		"firewall-ssl-bump": {
 			threatRuleID: "CTR-011",
 			targets:      AWAST,
-			unsafe:       "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: false\n",
-			safe:         "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: true\n",
-			path:         "network.firewall.allow-urls",
+			unsafe:       "strict: false\nsandbox:\n  agent:\n    args: [--allow-urls, https://example.com/path]\n",
+			safe:         "strict: false\nsandbox:\n  agent:\n    args: [--ssl-bump, --allow-urls, https://example.com/path]\n",
+			path:         "sandbox.agent.args",
 		},
 	}
 }
@@ -240,11 +240,11 @@ func ruleContractInput(t *testing.T, source string, target ASTTargets, nonstrict
 		require.NoError(t, err)
 		return Input{Workflow: workflow}
 	}
-	if nonstrict {
-		source = "strict: false\n" + source
-	}
 	document, err := aw.Parse("---\n" + source + "---\nPublic contract-test prompt.\n")
 	require.NoError(t, err)
+	if nonstrict {
+		document.Frontmatter["strict"] = false
+	}
 	return Input{Document: document}
 }
 

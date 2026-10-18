@@ -85,15 +85,30 @@ func TestFirewallSSLBumpPolicy(t *testing.T) {
 		name, source string
 		finding      bool
 	}{
-		{"missing prerequisite", "network: {firewall: {allow-urls: ['https://example.com/path']}}", true},
-		{"explicit refusal", "network: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: false}}", true},
-		{"nonstrict still invalid", "strict: false\nnetwork: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: false}}", true},
-		{"imports do not supply firewall settings", "imports: [shared.md]\nnetwork: {firewall: {allow-urls: ['https://example.com/path']}}", true},
-		{"malformed unrelated imports do not hide missing SSL", "imports: PRIVATE_VALUE\nnetwork: {firewall: {allow-urls: ['https://example.com/path']}}", true},
-		{"explicit contradiction with imports", "imports: [shared.md]\nnetwork: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: false}}", true},
-		{"enabled", "network: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: true}}", false},
-		{"empty filters", "network: {firewall: {allow-urls: [], ssl-bump: false}}", false},
-		{"no filters", "network: {firewall: {ssl-bump: false}}", false},
+		{"missing prerequisite", "sandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", true},
+		{"equals URL argument", "sandbox: {agent: {args: ['--allow-urls=https://example.com/path']}}", true},
+		{"nonstrict remains error", "strict: false\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", true},
+		{"imports do not hide authored flags", "imports: [shared.md]\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", true},
+		{"malformed unrelated imports do not hide missing SSL", "imports: PRIVATE_VALUE\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", true},
+		{"network defaults do not hide args", "network: defaults\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", true},
+		{"enabled", "sandbox: {agent: {args: [--ssl-bump, --allow-urls, 'https://example.com/path']}}", false},
+		{"enabled after filters", "sandbox: {agent: {args: [--allow-urls, 'https://example.com/path', --ssl-bump]}}", false},
+		{"empty filters", "sandbox: {agent: {args: [--allow-urls, '']}}", false},
+		{"empty equals filters", "sandbox: {agent: {args: ['--allow-urls=']}}", false},
+		{"missing filter operand", "sandbox: {agent: {args: [--allow-urls]}}", false},
+		{"missing operand before SSL flag", "sandbox: {agent: {args: [--allow-urls, --ssl-bump]}}", false},
+		{"empty operand before another filter", "sandbox: {agent: {args: [--allow-urls, '', --allow-urls, 'https://example.com/path']}}", true},
+		{"no filters", "sandbox: {agent: {args: [--log-level, debug]}}", false},
+		{"empty args", "sandbox: {agent: {args: []}}", false},
+		{"AWF shorthand", "sandbox: awf", false},
+		{"default shorthand", "sandbox: default", false},
+		{"agent shorthand", "sandbox: {agent: awf}", false},
+		{"disabled sandbox", "sandbox: {agent: false}", false},
+		{"MCP args are not AWF args", "sandbox: {mcp: {args: [--allow-urls, 'https://example.com/path']}}", false},
+		{"option terminator", "sandbox: {agent: {args: [--, --allow-urls, 'https://example.com/path']}}", false},
+		{"SSL after terminator does not satisfy filters", "sandbox: {agent: {args: [--allow-urls, 'https://example.com/path', --, --ssl-bump]}}", true},
+		{"flag substring is not a flag", "sandbox: {agent: {args: ['--label=--allow-urls=https://example.com/path']}}", false},
+		{"SSL substring does not enable inspection", "sandbox: {agent: {args: ['--label=--ssl-bump', --allow-urls, 'https://example.com/path']}}", true},
 		{"defaults shorthand", "network: defaults", false},
 		{"omitted", "on: workflow_dispatch", false},
 	} {
@@ -104,8 +119,26 @@ func TestFirewallSSLBumpPolicy(t *testing.T) {
 				return
 			}
 			require.Len(t, diagnostics, 1)
-			assert.Equal(t, "network.firewall.allow-urls", diagnostics[0].Path)
+			assert.Equal(t, "sandbox.agent.args", diagnostics[0].Path)
 			assert.Equal(t, Error, diagnostics[0].Severity)
+		})
+	}
+}
+
+func TestFirewallSSLBumpLegacyMigration(t *testing.T) {
+	for _, legacy := range []string{
+		"false", "null", "PRIVATE_VALUE", "{}", "{allow-urls: ['PRIVATE_VALUE']}",
+		"{allow-urls: ['PRIVATE_VALUE'], ssl-bump: true}",
+	} {
+		t.Run(legacy, func(t *testing.T) {
+			diagnostics := runThreatPolicy(t, "firewall-ssl-bump", "network: {firewall: "+legacy+"}")
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, "network.firewall", diagnostics[0].Path)
+			assert.Equal(t, Error, diagnostics[0].Severity)
+			assert.Contains(t, diagnostics[0].Message, "unsupported")
+			assert.Contains(t, diagnostics[0].Message, "remove this legacy block")
+			assert.NotContains(t, diagnostics[0].Message, "network.firewall.ssl-bump")
+			assert.NotContains(t, diagnostics[0].Message, "PRIVATE_VALUE")
 		})
 	}
 }
@@ -129,10 +162,10 @@ func TestThreatPolicyFailuresAndValueFreeDiagnostics(t *testing.T) {
 		{"safe-output-shell-expansion", "safe-outputs: {steps: PRIVATE_VALUE}"},
 		{"safe-output-shell-expansion", "safe-outputs: {steps: [PRIVATE_VALUE, {run: '$(PRIVATE_VALUE)'}]}"},
 		{"safe-output-shell-expansion", "safe-outputs: {steps: [{run: [PRIVATE_VALUE]}]}"},
-		{"firewall-ssl-bump", "network: {firewall: PRIVATE_VALUE}"},
-		{"firewall-ssl-bump", "network: {firewall: {allow-urls: PRIVATE_VALUE}}"},
-		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['PRIVATE_VALUE', 7]}}"},
-		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['PRIVATE_VALUE'], ssl-bump: 'true'}}"},
+		{"firewall-ssl-bump", "sandbox: PRIVATE_VALUE"},
+		{"firewall-ssl-bump", "sandbox: {agent: [PRIVATE_VALUE]}"},
+		{"firewall-ssl-bump", "sandbox: {agent: {args: PRIVATE_VALUE}}"},
+		{"firewall-ssl-bump", "sandbox: {agent: {args: ['PRIVATE_VALUE', 7]}}"},
 	} {
 		t.Run(tt.rule+"/"+tt.fields, func(t *testing.T) {
 			document, err := aw.Parse("---\n" + tt.fields + "\n---\n")
@@ -161,7 +194,7 @@ func TestThreatPolicySourceEvidence(t *testing.T) {
 	diagnostics, err := runner.Run(context.Background(), Input{Workflow: workflow})
 	require.NoError(t, err)
 	assert.Empty(t, diagnostics, "native Actions cannot imply AW safe-output or admission policy")
-	document, err := aw.Parse("---\non: {pull_request_target: null, roles: read}\nsafe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}\nnetwork: {firewall: {allow-urls: ['PRIVATE_VALUE']}}\n---\n")
+	document, err := aw.Parse("---\non: {pull_request_target: null, roles: read}\nsafe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}\nsandbox: {agent: {args: [--allow-urls, 'PRIVATE_VALUE']}}\n---\n")
 	require.NoError(t, err)
 	diagnostics, err = runner.Run(context.Background(), Input{Workflow: workflow, Document: document})
 	require.NoError(t, err)
@@ -172,7 +205,7 @@ func TestThreatPolicySourceEvidence(t *testing.T) {
 }
 
 func TestRoleWarningSuppressionIsScoped(t *testing.T) {
-	document, err := aw.Parse("---\nstrict: false\nfeatures: {dangerously-allow-roles-read-and-pull-request-target: true}\non: {pull_request_target: null, roles: read}\nsafe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}\nnetwork: {firewall: {allow-urls: ['PRIVATE_VALUE']}}\n---\n")
+	document, err := aw.Parse("---\nstrict: false\nfeatures: {dangerously-allow-roles-read-and-pull-request-target: true}\non: {pull_request_target: null, roles: read}\nsafe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}\nsandbox: {agent: {args: [--allow-urls, 'PRIVATE_VALUE']}}\n---\n")
 	require.NoError(t, err)
 	runner, err := Default().Select("pull-request-target-roles", "safe-output-shell-expansion", "firewall-ssl-bump")
 	require.NoError(t, err)
