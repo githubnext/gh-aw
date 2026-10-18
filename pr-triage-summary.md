@@ -1,6 +1,6 @@
 # PR Triage Summary
 
-- Run: 2026-10-18T12:30:06Z
+- Run: 2026-10-18T18:25:15Z
 - Eligible PRs: 2
 - Skipped by cooldown: 6
 - Open Copilot PRs: 8

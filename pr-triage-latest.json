@@ -1,6 +1,6 @@
 {
-  "run_date": "2026-10-18T12:30:06Z",
-  "run_id": "39127398803",
+  "run_date": "2026-10-18T18:25:15Z",
+  "run_id": "39153922024",
   "source": "pr-triage",
   "eligible_total": 2,
   "cooldown_skipped": 6,
@@ -62,7 +62,7 @@
       "ci_state": "unknown"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-18T11:30:06Z",
+  "cooldown_cutoff_utc": "2026-10-18T17:25:15Z",
   "notes": [
     "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
     "Newer PRs #69868, #69866, #69848, #69831, #69813, and #69772 were skipped due to recency."
