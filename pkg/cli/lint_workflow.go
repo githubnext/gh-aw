@@ -97,9 +97,9 @@ func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Run
 		source, readErr := os.ReadFile(base + ".md")
 		switch {
 		case readErr == nil:
-			input.Document, err = aw.Parse(string(source))
-			if err != nil {
-				failures = append(failures, errors.New("could not parse companion AW document"))
+			document, parseErr := aw.Parse(string(source))
+			if parseErr == nil {
+				input.Document = document
 			}
 		case !errors.Is(readErr, os.ErrNotExist):
 			failures = append(failures, fmt.Errorf("reading companion AW document: %w", readErr))
