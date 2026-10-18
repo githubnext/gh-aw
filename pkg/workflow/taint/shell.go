@@ -15,23 +15,24 @@ import (
 var shellLog = logger.New("workflow:taint:shell")
 
 type shell struct {
-	a                *analyzer
-	path             string
-	step             string
-	bindings         scope
-	persisted        scope
-	files            scope
-	vars             scope
-	markers          scope
-	functions        map[string]*syntax.Stmt
-	active           map[string]bool
-	expandedArgs     map[*syntax.Word]value
-	trace            bool
-	initialTrace     bool
-	workingDirectory string
-	constants        map[string]string
-	constantValues   map[string]map[string]struct{}
-	constantUnknown  map[string]bool
+	a                     *analyzer
+	path                  string
+	step                  string
+	bindings              scope
+	persisted             scope
+	files                 scope
+	vars                  scope
+	markers               scope
+	functions             map[string]*syntax.Stmt
+	active                map[string]bool
+	expandedArgs          map[*syntax.Word]value
+	trace                 bool
+	initialTrace          bool
+	workingDirectory      string
+	constants             map[string]string
+	constantValues        map[string]map[string]struct{}
+	constantUnknown       map[string]bool
+	javascriptExecutables map[string]struct{}
 }
 
 type constantState struct {
@@ -40,6 +41,9 @@ type constantState struct {
 }
 
 func (a *analyzer) script(text string, fields map[string]any, path string, bindings, persisted, files scope) error {
+	if name, ok := fields["shell"].(string); ok && (name == "node" || name == "node {0}") {
+		return a.javascriptInline(text, path, bindings, files, false)
+	}
 	s, tree, err := a.parseShell(text, fields, path, bindings, persisted, files)
 	if err != nil {
 		return err
@@ -117,6 +121,7 @@ func (a *analyzer) parseShell(text string, fields map[string]any, path string, b
 		a.gap(path, "shell syntax could not be analyzed")
 		return nil, nil, nil
 	}
+	s.javascriptExecutables = javascriptExecutables(tree)
 	return s, tree, nil
 }
 
@@ -582,6 +587,9 @@ func (s *shell) callCommand(cmd *syntax.CallExpr, captured bool, stdin value) va
 	}
 	if body := s.functions[name]; body != nil {
 		return s.function(name, body, cmd.Args[1:], captured, stdin)
+	}
+	if out, handled := s.javascriptCommand(cmd, captured, stdin); handled {
+		return out
 	}
 	var out value
 	switch name {

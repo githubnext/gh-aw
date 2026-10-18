@@ -1,0 +1,91 @@
+package taint
+
+import (
+	"context"
+	"io/fs"
+)
+
+// JavaScriptNode is a projection of the native TypeScript compiler's AST.
+// Unrecognized syntax is retained in Other, never dropped by the parser.
+type JavaScriptNode struct {
+	Kind                string            `json:"kind"`
+	Text                string            `json:"text"`
+	Line                int               `json:"line"`
+	Name                *JavaScriptNode   `json:"name"`
+	Expression          *JavaScriptNode   `json:"expression"`
+	Initializer         *JavaScriptNode   `json:"initializer"`
+	DeclarationList     *JavaScriptNode   `json:"declarationList"`
+	Body                *JavaScriptNode   `json:"body"`
+	Left                *JavaScriptNode   `json:"left"`
+	Right               *JavaScriptNode   `json:"right"`
+	OperatorToken       *JavaScriptNode   `json:"operatorToken"`
+	Condition           *JavaScriptNode   `json:"condition"`
+	WhenTrue            *JavaScriptNode   `json:"whenTrue"`
+	WhenFalse           *JavaScriptNode   `json:"whenFalse"`
+	ThenStatement       *JavaScriptNode   `json:"thenStatement"`
+	ElseStatement       *JavaScriptNode   `json:"elseStatement"`
+	TryBlock            *JavaScriptNode   `json:"tryBlock"`
+	CatchClause         *JavaScriptNode   `json:"catchClause"`
+	FinallyBlock        *JavaScriptNode   `json:"finallyBlock"`
+	VariableDeclaration *JavaScriptNode   `json:"variableDeclaration"`
+	ArgumentExpression  *JavaScriptNode   `json:"argumentExpression"`
+	ModuleSpecifier     *JavaScriptNode   `json:"moduleSpecifier"`
+	ImportClause        *JavaScriptNode   `json:"importClause"`
+	NamedBindings       *JavaScriptNode   `json:"namedBindings"`
+	PropertyName        *JavaScriptNode   `json:"propertyName"`
+	Incrementor         *JavaScriptNode   `json:"incrementor"`
+	Operand             *JavaScriptNode   `json:"operand"`
+	Statements          []*JavaScriptNode `json:"statements"`
+	Declarations        []*JavaScriptNode `json:"declarations"`
+	Arguments           []*JavaScriptNode `json:"arguments"`
+	Parameters          []*JavaScriptNode `json:"parameters"`
+	Elements            []*JavaScriptNode `json:"elements"`
+	Properties          []*JavaScriptNode `json:"properties"`
+	TemplateSpans       []*JavaScriptNode `json:"templateSpans"`
+	Clauses             []*JavaScriptNode `json:"clauses"`
+	Other               []*JavaScriptNode `json:"other"`
+}
+
+type JavaScriptParser interface {
+	Parse(context.Context, string) (*JavaScriptNode, error)
+}
+
+// JavaScriptOptions enables native AST analysis explicitly. Files is the
+// repository source filesystem, not the runner's filesystem. RuntimePaths maps
+// operator-verified runner asset directories to corresponding repository paths.
+// Without a mapping, generated/dynamic paths remain unresolved.
+type JavaScriptOptions struct {
+	Context      context.Context
+	Parser       JavaScriptParser
+	Files        fs.FS
+	RuntimePaths map[string]string
+}
+
+type JavaScriptInput struct {
+	Name          string
+	Source        string
+	Env           map[string][]Source
+	Stdin         []Source
+	Args          [][]Source
+	Files         map[string][]Source
+	Literals      map[string][]Source
+	CaptureStdout bool
+}
+
+type JavaScriptResult struct {
+	Result
+	Stdout []Source
+	Files  map[string][]Source
+}
+
+// AnalyzeJavaScript never executes the input or resolves a secret value.
+// Sources are caller-provided symbolic bindings (plus Rule.IsSource), sinks
+// reuse Rule.IsSink, and Rule.IsJavaScriptFilter declassifies whole expressions.
+func AnalyzeJavaScript(input JavaScriptInput, rule Rule, options JavaScriptOptions) (JavaScriptResult, error) {
+	a := &analyzer{rule: rule}
+	j := newJavaScript(a, input, &options)
+	if err := j.run(); err != nil {
+		return JavaScriptResult{}, err
+	}
+	return JavaScriptResult{Result: a.result, Stdout: j.stdout, Files: j.files}, nil
+}

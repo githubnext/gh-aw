@@ -72,11 +72,13 @@ type Result struct {
 // Filters must apply to the entire expression, not merely one of its children.
 // ActionSources names credential outputs produced by a known action.
 type Rule struct {
-	ID            string
-	IsSource      func(reference string) bool
-	IsSink        func(Site) bool
-	IsFilter      func(actionlint.ExprNode) bool
-	ActionSources func(uses string) []string
+	ID                 string
+	IsSource           func(reference string) bool
+	IsSink             func(Site) bool
+	IsFilter           func(actionlint.ExprNode) bool
+	ActionSources      func(uses string) []string
+	JavaScript         *JavaScriptOptions
+	IsJavaScriptFilter func(*JavaScriptNode) bool
 }
 
 type value []Source
