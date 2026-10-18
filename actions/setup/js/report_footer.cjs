@@ -18,8 +18,8 @@ function buildFailureReportFooter(ctx, { expiresHours, failureFields, now = new 
     type: "inline_slot",
     children: ctx.historyUrl
       ? [
-          { type: "text", value: " · " },
-          { type: "link", url: ctx.historyUrl, children: [{ type: "text", value: "◷" }] },
+          { type: "text", value: " · ", agentTainted: false },
+          { type: "link", url: ctx.historyUrl, children: [{ type: "text", value: "◷", agentTainted: false }], agentTainted: false },
         ]
       : [],
   };
@@ -29,10 +29,11 @@ function buildFailureReportFooter(ctx, { expiresHours, failureFields, now = new 
   /** @type {import("./report_ast.cjs").ReportFooter} */
   const footer = {
     type: "footer",
-    children: parseReportMarkdown(template, { context }),
+    agentTainted: false,
+    children: parseReportMarkdown(template, { context, agentTainted: false }),
     markers: [
-      { type: "xml_marker", name: "gh-aw-agentic-workflow", value: workflow.value, fields },
-      { type: "xml_marker", name: "gh-aw-failure-issue", value: "true", fields: failureFields },
+      { type: "xml_marker", name: "gh-aw-agentic-workflow", value: workflow.value, fields, agentTainted: false },
+      { type: "xml_marker", name: "gh-aw-failure-issue", value: "true", fields: failureFields, agentTainted: false },
     ],
   };
   return expiresHours ? { ...footer, expiresAt: new Date(now.getTime() + expiresHours * 60 * 60 * 1000).toISOString() } : footer;

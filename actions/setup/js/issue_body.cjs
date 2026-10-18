@@ -11,9 +11,10 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { appendExecutionProvenance, stripExecutionProvenance } = require("./execution_provenance.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { normalizeReportText, renderReport } = require("./report_ast.cjs");
+const { redactReport } = require("./report_redaction.cjs");
 
 /**
- * @typedef {{repo: {owner: string, repo: string}, footer?: boolean, bodyFooter?: string, expiresHours?: number, closeOlderKey?: string, allowedMentions?: string[]}} IssueBodyOptions
+ * @typedef {{repo: {owner: string, repo: string}, footer?: boolean, bodyFooter?: string, expiresHours?: number, closeOlderKey?: string, allowedMentions?: string[], redact?: import("./report_redaction.cjs").ReportRedactionPolicy}} IssueBodyOptions
  */
 
 /**
@@ -34,7 +35,7 @@ function formatIssueBody(body, options) {
  * @param {IssueBodyOptions} options
  * @returns {import("./report_ast.cjs").Report}
  */
-function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, expiresHours = 0, closeOlderKey, allowedMentions = [] }) {
+function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, expiresHours = 0, closeOlderKey, allowedMentions = [], redact }) {
   const workflowName = process.env.GH_AW_WORKFLOW_NAME ?? "Workflow";
   const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE ?? "";
   const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL ?? "";
@@ -45,8 +46,9 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
   const disclosureHeader = getDisclosureHeader({ workflowName, runUrl });
   const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
   const trackerIDComment = getTrackerID("markdown");
-  /** @type {import("./messages_footer.cjs").FooterPart[]} */
-  const parts = [[detectionCaution, disclosureHeader, bodyHeader, body, trackerIDComment].filter(Boolean).join("\n\n")];
+  const bodyNodes = parseReportMarkdown(stripExecutionProvenance(body), { minimumHeadingLevel: 2, allowMetadata: true, allowedMentions, agentTainted: true });
+  /** @type {(import("./messages_footer.cjs").FooterPart | {type: "body_slot", children: import("./report_ast.cjs").ReportBlock[]})[]} */
+  const parts = [[detectionCaution, disclosureHeader, bodyHeader].filter(Boolean).join("\n\n"), "\n\n", { type: "body_slot", children: bodyNodes }, "\n\n", trackerIDComment];
 
   if (footer) {
     const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
@@ -74,23 +76,33 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
   if (callerWorkflowId) parts.push("\n\n", generateWorkflowCallIdMarker(callerWorkflowId));
   if (closeOlderKey) parts.push("\n\n", generateCloseKeyMarker(closeOlderKey));
 
-  const literalMarkdown = normalizeReportText(stripExecutionProvenance(parts.filter(part => typeof part === "string").join("")));
+  const literalMarkdown = normalizeReportText(stripExecutionProvenance(body + parts.filter(part => typeof part === "string").join("")));
   /** @type {Record<string, import("./report_ast.cjs").ReportInline[]>} */
   const inlineSlots = {};
+  /** @type {Record<string, import("./report_ast.cjs").ReportBlock[]>} */
+  const blockSlots = {};
   const markdown = parts
     .map(part => {
       if (typeof part === "string") return part;
+      if (part.type === "body_slot") {
+        let key = "gh_aw_issue_body";
+        while (literalMarkdown.includes(`{${key}}`)) key += "_";
+        blockSlots[key] = part.children;
+        return `{${key}}`;
+      }
       let key = `gh_aw_issue_footer_${Object.keys(inlineSlots).length}`;
       while (literalMarkdown.includes(`{${key}}`)) key += "_";
-      inlineSlots[key] = part.children;
+      inlineSlots[key] = part.children.map(node => ({ ...node, agentTainted: false }));
       return `> {${key}}`;
     })
     .join("");
   // Parse wrappers and adjacent quote lines together, while Claim values remain typed.
-  const children = parseReportMarkdown(stripExecutionProvenance(markdown), { inlineSlots, minimumHeadingLevel: 2, allowMetadata: true, allowedMentions });
+  const children = parseReportMarkdown(stripExecutionProvenance(markdown), { inlineSlots, blockSlots, minimumHeadingLevel: 2, allowMetadata: true, allowedMentions, agentTainted: false });
 
-  children.push(...parseReportMarkdown(appendExecutionProvenance("", workflowName, runUrl), { minimumHeadingLevel: 2, allowMetadata: true }));
-  return { type: "report", title, children };
+  children.push(...parseReportMarkdown(appendExecutionProvenance("", workflowName, runUrl), { minimumHeadingLevel: 2, allowMetadata: true, agentTainted: false }));
+  /** @type {import("./report_ast.cjs").Report} */
+  const report = { type: "report", title, agentTainted: true, children };
+  return redact ? redactReport(report, redact) : report;
 }
 
 module.exports = { formatIssueBody, buildIssueBodyReport };

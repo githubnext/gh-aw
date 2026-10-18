@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.12<br>
+**Version**: 1.29.13<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-14<br>
+**Publication Date**: 2026-10-18<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -2082,6 +2082,45 @@ Test Case 3: Context Inclusion
 7. Truncation
 
 **Requirement CS3**: Sanitization MUST be idempotent: `sanitize(sanitize(content)) === sanitize(content)`
+
+#### Issue-body tree provenance and coarse redaction
+
+The issue publication AST records optional `agentTainted` provenance on report,
+footer, block, and inline nodes. `true` identifies agent-origin content; `false`
+identifies framework-origin structure or metadata. Missing provenance MUST be
+treated as agent-tainted. The flag describes the node itself, not its descendants:
+a framework-owned `details` wrapper can contain agent-tainted paragraphs.
+
+Only trusted builders MAY assign framework provenance. Agent body text, including
+HTML comments or JSON containing `agentTainted: false`, MUST NOT set node provenance.
+The attributed issue builder parses agent content separately and inserts typed
+blocks into the framework template. Agent delimiters cannot close framework
+wrappers or consume the generated footer. Normalization MUST retain provenance and
+MUST NOT merge inline nodes across provenance boundaries.
+
+The runtime helper `redactReport(report, shouldRedact)` applies an additional,
+trusted-code policy to normalized block and inline nodes. A selected agent block
+is replaced by a framework-generated `Content redacted.` paragraph, removing the
+entire subtree. An inline match removes its containing agent paragraph, heading,
+task, or table instead of leaving broken Markdown fragments. Framework nodes are
+not policy candidates, and mixed-origin subtrees MUST NOT be replaced wholesale.
+Their children are traversed instead; tainted inline slots in framework or
+mixed-origin paragraphs receive an inline notice without removing framework labels.
+The transform includes preamble and footer nodes and does not mutate the input.
+
+`buildIssueReport` and `buildIssueBodyReport` accept this predicate as the optional
+`redact` builder option. This is an internal runtime API, not an agent tool field
+or a workflow frontmatter option. Without a predicate, publication behavior is
+unchanged. Framework provenance MUST NOT bypass secret redaction, node validation,
+URL validation, or rendering escapes.
+
+Community reports motivating this separation fall into three clusters:
+
+| Cluster | Reports | Boundary |
+| --- | --- | --- |
+| Overly strict URL filtering | [#17513](https://github.com/github/gh-aw/issues/17513), [#33970](https://github.com/github/gh-aw/issues/33970) | Readable citations versus URL-based exfiltration; this AST support does not relax the configured URL policy. |
+| HTML and code fidelity | [#18829](https://github.com/github/gh-aw/issues/18829), [#29009](https://github.com/github/gh-aw/issues/29009) | Literal code, typed presentation elements, and arbitrary HTML require different handling; provenance does not enable raw HTML nodes. |
+| Hidden metadata loss | [#18992](https://github.com/github/gh-aw/issues/18992), [#67174](https://github.com/github/gh-aw/issues/67174) | Agent payloads remain distinct from framework markers; typed metadata does not grant agent comments framework trust. |
 
 **Detailed Transformation Specifications**:
 

@@ -206,8 +206,8 @@ describe("Claim-scoped safe-output footers", () => {
           allowedMentions: ["allowed"],
         })
       );
-      expect(JSON.stringify(report)).toContain(JSON.stringify({ type: "code", value: member.work_id }));
-      expect(JSON.stringify(report)).toContain(JSON.stringify({ type: "code", value: member.claim_id }));
+      expect(JSON.stringify(report)).toContain(JSON.stringify({ type: "code", value: member.work_id, agentTainted: false }));
+      expect(JSON.stringify(report)).toContain(JSON.stringify({ type: "code", value: member.claim_id, agentTainted: false }));
       const { body } = reportAST.renderReport(report);
       expect(body).toContain("{gh\\_aw\\_issue\\_footer\\_0}\n\n{gh\\_aw\\_issue\\_footer\\_0\\_}\n\n{unknown}{toString}\n\n`{in_code}`\n\n@allowed `@blocked`");
       expect(body).toContain("> Work `` `@copilot <b>{workflow_name}</b>` `` · Claim ```claim``[link](https://example.com)```");
@@ -236,8 +236,8 @@ describe("Claim-scoped safe-output footers", () => {
       );
       expect(render).not.toHaveBeenCalled();
       expect(report.children.slice(0, 2)).toEqual([
-        { type: "paragraph", children: [{ type: "text", value: "Disclosure" }] },
-        { type: "paragraph", children: [{ type: "text", value: "Header" }] },
+        { type: "paragraph", children: [{ type: "text", value: "Disclosure", agentTainted: false }], agentTainted: false },
+        { type: "paragraph", children: [{ type: "text", value: "Header", agentTainted: false }], agentTainted: false },
       ]);
       expect(JSON.stringify(report)).toContain('"type":"code","value":"work-two"');
       const { body } = reportAST.renderReport(report);

@@ -4,6 +4,7 @@
 const { isDeepStrictEqual } = require("node:util");
 const reportAST = require("./report_ast.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
+const { redactReport } = require("./report_redaction.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
 // Reuse only this boundary's unchanged output, never caller-supplied lookalikes.
@@ -15,11 +16,13 @@ const renderedIssues = new WeakMap();
  * here, not in diagnostic fragments; it remains typed and cannot close comments.
  * @param {string} title
  * @param {string} body
- * @param {{allowedMentions?: string[]}} [options]
+ * @param {{allowedMentions?: string[], agentTainted?: boolean, redact?: import("./report_redaction.cjs").ReportRedactionPolicy}} [options]
  * @returns {import("./report_ast.cjs").Report}
  */
-function buildIssueReport(title, body, { allowedMentions = [] } = {}) {
-  return { type: "report", title, children: parseReportMarkdown(body, { minimumHeadingLevel: 2, allowMetadata: true, allowedMentions }) };
+function buildIssueReport(title, body, { allowedMentions = [], agentTainted = true, redact } = {}) {
+  /** @type {import("./report_ast.cjs").Report} */
+  const report = { type: "report", title, agentTainted, children: parseReportMarkdown(body, { minimumHeadingLevel: 2, allowMetadata: true, allowedMentions, agentTainted }) };
+  return redact ? redactReport(report, redact) : report;
 }
 
 /**

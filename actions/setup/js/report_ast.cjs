@@ -6,13 +6,14 @@ const { escapeMarkdown } = require("./missing_info_formatter.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
 
 /**
+ * @typedef {{agentTainted?: boolean}} ReportProvenance
  * @typedef {null | boolean | number | string | ReportData[] | {[key: string]: ReportData}} ReportData
  * @typedef {{key: string, value: string}} ReportMarkerField
- * @typedef {{type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
- * @typedef {{type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
- * @typedef {{type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
- * @typedef {{type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | {type: "image", url: string, alt: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]}} ReportInline
- * @typedef {{type: "paragraph", children: ReportInline[]} |
+ * @typedef {ReportProvenance & {type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
+ * @typedef {ReportProvenance & {type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
+ * @typedef {ReportProvenance & {type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
+ * @typedef {ReportProvenance & ({type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | {type: "image", url: string, alt: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]})} ReportInline
+ * @typedef {ReportProvenance & ({type: "paragraph", children: ReportInline[]} |
  *   {type: "heading", level: number, children: ReportInline[]} |
  *   {type: "code_block", value: string, language: string} |
  *   {type: "list", ordered: boolean, items: ReportBlock[][]} |
@@ -25,14 +26,25 @@ const { createExpirationLine } = require("./ephemerals.cjs");
  *   {type: "structured_data", data: ReportData} |
  *   ReportXMLMarker | ReportJSONMarker |
  *   {type: "expiration", expiresAt: string} |
- *   {type: "marker", name: "gh-aw-threat-detected" | "gh-aw-threat-engine-error"}} ReportBlock
+ *   {type: "marker", name: "gh-aw-threat-detected" | "gh-aw-threat-engine-error"})} ReportBlock
  * @typedef {ReportXMLMarker & {name: "gh-aw-agentic-workflow" | "gh-aw-failure-issue", value: string, fields: ReportMarkerField[]}} ReportMarker
- * @typedef {{type: "footer", children: ReportBlock[], expiresAt?: string, markers: ReportMarker[]}} ReportFooter
- * @typedef {{type: "report", title: string, children: ReportBlock[], preamble?: ReportBlock[], footer?: ReportFooter}} Report
+ * @typedef {ReportProvenance & {type: "footer", children: ReportBlock[], expiresAt?: string, markers: ReportMarker[]}} ReportFooter
+ * @typedef {ReportProvenance & {type: "report", title: string, children: ReportBlock[], preamble?: ReportBlock[], footer?: ReportFooter}} Report
  */
 
 const ALERT_KINDS = new Set(["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"]);
 const MAX_DEPTH = 16;
+
+/**
+ * Provenance describes this node, not its descendants. Missing provenance is tainted.
+ * @param {ReportProvenance} node
+ * @returns {ReportProvenance}
+ */
+function normalizeReportProvenance(node) {
+  if (node.agentTainted === undefined) return {};
+  if (typeof node.agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
+  return { agentTainted: node.agentTainted };
+}
 
 /** @param {string} value */
 function normalizeReportText(value) {
@@ -126,7 +138,7 @@ function normalizeXMLMarker(node) {
   });
   const value = node.value === undefined ? undefined : fields !== undefined ? normalizeMarkerValue(node.value) : normalizeReportText(node.value).trim().replace(/,/g, "%2C");
   if (value?.includes("\n")) throw new TypeError("Report metadata must fit on one line");
-  return { type: "xml_marker", name: node.name, ...(value === undefined ? {} : { value }), ...(fields ? { fields } : {}) };
+  return { type: "xml_marker", name: node.name, ...(value === undefined ? {} : { value }), ...(fields ? { fields } : {}), ...normalizeReportProvenance(node) };
 }
 
 /**
@@ -139,6 +151,8 @@ function normalizeInlines(nodes, depth, inLink = false) {
   /** @type {ReportInline[]} */
   const result = [];
   for (const node of nodes) {
+    const provenance = normalizeReportProvenance(node);
+    const start = result.length;
     switch (node.type) {
       case "soft_break":
       case "hard_break":
@@ -173,7 +187,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
         const value = normalizeReportText(node.value).replace(/\s+/g, " ");
         if (!value) break;
         const previous = result.at(-1);
-        if ((node.type === "text" || node.type === "code") && previous?.type === node.type) previous.value = (previous.value + value).replace(/\s+/g, " ");
+        if (previous?.type === node.type && previous.agentTainted === node.agentTainted) previous.value = (previous.value + value).replace(/\s+/g, " ");
         else result.push({ type: node.type, value });
         break;
       }
@@ -191,6 +205,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
       default:
         throw new TypeError("Unsupported report inline node");
     }
+    for (let index = start; index < result.length; index++) Object.assign(result[index], provenance);
   }
   return result;
 }
@@ -205,6 +220,8 @@ function normalizeBlocks(nodes, depth) {
   /** @type {ReportBlock[]} */
   const result = [];
   for (const node of nodes) {
+    const provenance = normalizeReportProvenance(node);
+    const start = result.length;
     switch (node.type) {
       case "paragraph":
       case "task":
@@ -279,6 +296,7 @@ function normalizeBlocks(nodes, depth) {
       default:
         throw new TypeError("Unsupported report block node");
     }
+    for (let index = start; index < result.length; index++) Object.assign(result[index], provenance);
   }
   return result;
 }
@@ -301,7 +319,7 @@ function normalizeFooter(footer) {
   });
   if (new Set(markers.map(marker => marker.name)).size !== markers.length) throw new TypeError("Duplicate report metadata marker");
   /** @type {ReportFooter} */
-  const result = { type: "footer", children: normalizeBlocks(footer.children, 0), markers };
+  const result = { type: "footer", children: normalizeBlocks(footer.children, 0), markers, ...normalizeReportProvenance(footer) };
   if (footer.expiresAt !== undefined) {
     const date = new Date(footer.expiresAt);
     if (Number.isNaN(date.getTime())) throw new TypeError("Invalid report expiration date");
@@ -325,6 +343,7 @@ function normalizeReport(report) {
     children: normalizeBlocks(report.children, 0),
     ...(report.preamble ? { preamble: normalizeBlocks(report.preamble, 0) } : {}),
     ...(report.footer ? { footer: normalizeFooter(report.footer) } : {}),
+    ...normalizeReportProvenance(report),
   };
 }
 
@@ -351,7 +370,14 @@ function codeFence(value) {
 
 /** @param {ReportInline[]} nodes */
 function renderInlines(nodes) {
-  return nodes
+  /** @type {ReportInline[]} */
+  const renderingNodes = [];
+  for (const node of nodes) {
+    const previous = renderingNodes.at(-1);
+    if ((node.type === "text" || node.type === "code") && previous?.type === node.type) renderingNodes[renderingNodes.length - 1] = { ...previous, value: normalizeReportText(previous.value + node.value).replace(/\s+/g, " ") };
+    else renderingNodes.push(node);
+  }
+  return renderingNodes
     .map(node => {
       switch (node.type) {
         case "soft_break":
