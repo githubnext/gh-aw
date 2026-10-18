@@ -42,6 +42,8 @@ type WebhookFilter struct {
 
 // WebhookEvent describes a webhook not available as a native Actions trigger.
 type WebhookEvent struct {
+	Provider     string                   `json:"provider,omitempty"`
+	NativeEvents map[string]string        `json:"native_events,omitempty"`
 	Actions      []string                 `json:"actions"`
 	Description  string                   `json:"description"`
 	Source       string                   `json:"source"`
@@ -97,11 +99,14 @@ type WebhookPayloadProjection struct {
 
 // WebhookSubscription is the compiler's versioned filter and routing declaration.
 type WebhookSubscription struct {
-	SchemaVersion int                `json:"schema_version"`
-	Event         string             `json:"event"`
-	Types         []string           `json:"types"`
-	Repos         []string           `json:"repos,omitempty"`
-	Conditions    []WebhookCondition `json:"conditions"`
+	Provider              string                        `json:"provider,omitempty"`
+	NativeEvents          []string                      `json:"native_events,omitempty"`
+	ActivityNormalization *WebhookActivityNormalization `json:"activity_normalization,omitempty"`
+	SchemaVersion         int                           `json:"schema_version"`
+	Event                 string                        `json:"event"`
+	Types                 []string                      `json:"types"`
+	Repos                 []string                      `json:"repos,omitempty"`
+	Conditions            []WebhookCondition            `json:"conditions"`
 	// AnyOf requires a complete group to match, in addition to Conditions.
 	AnyOf    [][]WebhookCondition `json:"any_of,omitempty"`
 	Dispatch WebhookDispatch      `json:"dispatch"`
@@ -112,6 +117,9 @@ func WebhookCatalog() (map[string]WebhookEvent, error) {
 	var catalog map[string]WebhookEvent
 	if err := json.Unmarshal(webhookCatalogJSON, &catalog); err != nil {
 		return nil, fmt.Errorf("invalid embedded webhook catalog: %w", err)
+	}
+	if err := addProviderIssueCatalog(catalog); err != nil {
+		return nil, err
 	}
 	return catalog, nil
 }
@@ -163,10 +171,15 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 	for _, key := range sortedWebhookKeys(config) {
 		supported := key == "types" || key == "filters" ||
 			(event == "projects_v2_item" && key == "status-transitions") ||
-			(event != "projects_v2_item" && key == "repos")
+			((event == "code_scanning_alert" || event == "dependabot_alert") && key == "repos") ||
+			(event == "azure_devops_issue" && key == "closed-states")
 		if !supported {
 			return WebhookSubscription{}, fmt.Errorf("unsupported %s property %q", path, key)
 		}
+	}
+	config, closedStates, err := providerIssueConfig(config, path, event, definition)
+	if err != nil {
+		return WebhookSubscription{}, err
 	}
 	types, err := parseWebhookTypes(config, path, definition.Actions)
 	if err != nil {
@@ -184,6 +197,9 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 	if err := applyWebhookStatusTransitions(&subscription, config, definition); err != nil {
 		return WebhookSubscription{}, err
 	}
+	if err := applyProviderIssueNormalization(&subscription, definition, closedStates, path); err != nil {
+		return WebhookSubscription{}, err
+	}
 	return subscription, nil
 }
 
@@ -197,8 +213,8 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	onMap, ok := on.(map[string]any)
 	if !ok {
 		for _, name := range rawOnSectionTriggerNames(on) {
-			if name == "webhook-gateway" || name == "projects-items" || name == "security-alerts" {
-				return nil, errors.New("webhook triggers require mapping syntax with on.webhook-gateway: true and on.projects-items or on.security-alerts")
+			if isWebhookTrigger(name) || name == "webhook-gateway" {
+				return nil, errors.New("webhook triggers require mapping syntax with on.webhook-gateway: true")
 			}
 		}
 		return nil, nil
@@ -207,8 +223,8 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	if _, exists := onMap["webhook-gateway"]; exists && !valid {
 		return nil, errors.New("on.webhook-gateway must be a boolean; set it to true to enable webhook triggers")
 	}
-	for _, name := range []string{"projects-items", "security-alerts"} {
-		if _, exists := onMap[name]; exists && !enabled {
+	for _, name := range sortedWebhookKeys(onMap) {
+		if isWebhookTrigger(name) && !enabled {
 			return nil, fmt.Errorf("on.%s requires on.webhook-gateway: true in this workflow", name)
 		}
 	}
@@ -241,6 +257,7 @@ func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string
 	if err := addSecurityAlertConfigs(on, events, paths); err != nil {
 		return nil, nil, err
 	}
+	addProviderIssueConfigs(on, events, paths)
 	return events, paths, nil
 }
 

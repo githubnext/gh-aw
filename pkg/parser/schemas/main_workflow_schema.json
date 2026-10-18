@@ -743,7 +743,7 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
-          "not": { "enum": ["gateway", "webhook-gateway", "projects-item", "projects-items", "security-alert", "security-alerts"] },
+          "not": { "enum": ["gateway", "webhook-gateway", "projects-item", "projects-items", "security-alert", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue"] },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
@@ -757,6 +757,18 @@
             "security-alerts": {
               "required": ["webhook-gateway"],
               "properties": { "webhook-gateway": { "const": true } }
+            },
+            "jira-issue": {
+              "required": ["webhook-gateway"],
+              "properties": { "webhook-gateway": { "const": true } }
+            },
+            "linear-issue": {
+              "required": ["webhook-gateway"],
+              "properties": { "webhook-gateway": { "const": true } }
+            },
+            "azure-devops-issue": {
+              "required": ["webhook-gateway"],
+              "properties": { "webhook-gateway": { "const": true } }
             }
           },
           "properties": {
@@ -765,7 +777,7 @@
             "gateway": false,
             "webhook-gateway": {
               "type": "boolean",
-              "description": "Experimental. Must be true in each workflow using on.projects-items or on.security-alerts. Also requires aw.json webhook-gateway: true. Does not grant gateway authority."
+              "description": "Experimental. Must be true in each workflow using webhook triggers, including external issue providers. Also requires aw.json webhook-gateway: true. Does not grant gateway authority."
             },
             "projects-items": {
               "type": "object",
@@ -808,6 +820,18 @@
             "security-alerts": {
               "$ref": "#/$defs/webhookSecurityAlert",
               "description": "Experimental. Batched security alerts from optionally selected repositories. Requires a hosted CAO server, on.webhook-gateway: true, and aw.json webhook-gateway: true."
+            },
+            "jira-issue": {
+              "$ref": "#/$defs/webhookProviderIssue",
+              "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires both webhook gateway opt-ins and an approved provider bridge; does not register webhooks or grant source access."
+            },
+            "linear-issue": {
+              "$ref": "#/$defs/webhookProviderIssue",
+              "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires both webhook gateway opt-ins and an approved provider bridge; does not register webhooks or grant source access."
+            },
+            "azure-devops-issue": {
+              "$ref": "#/$defs/webhookAzureDevOpsIssue",
+              "description": "Experimental. Azure DevOps work item webhooks with payload-derived lifecycle and tag activities. Closed/reopened require explicit closed-states. Requires both webhook gateway opt-ins and an approved provider bridge."
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
@@ -14572,6 +14596,46 @@
     }
   ],
   "$defs": {
+    "webhookProviderIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"] },
+          "description": "GitHub-style normalized activities, not provider-native action names. Missing transition evidence never matches lifecycle or label activities."
+        },
+        "filters": { "type": "object", "minProperties": 1 }
+      }
+    },
+    "webhookAzureDevOpsIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted", "restored"] }
+        },
+        "closed-states": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Literal terminal state name or nonempty list from the project's work item process. Required for closed/reopened; no state names are assumed."
+        },
+        "filters": { "type": "object", "minProperties": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["types"],
+            "properties": { "types": { "contains": { "enum": ["closed", "reopened"] } } }
+          },
+          "then": { "required": ["closed-states"] }
+        }
+      ]
+    },
     "webhookSecurityAlert": {
       "type": "object",
       "additionalProperties": false,

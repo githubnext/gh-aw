@@ -304,7 +304,7 @@ function normalizeLegacyWorkQueueContext(awContext, rawClaim) {
  *   experiments: string,
  *   allow_bot_authored_trigger_comment: boolean,
  *   webhook?: {event: string, deliveries: {delivery_id: string, payload: any}[]},
- *   items?: {item_type: string, item_number: string, repo: string, project_id?: string, url?: string}[]
+ *   items?: {item_type: string, item_number: string, repo: string, project_id?: string, url?: string, source?: string}[]
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
