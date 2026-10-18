@@ -110,6 +110,10 @@ func TestFirewallSSLBumpPolicy(t *testing.T) {
 		{"flag substring is not a flag", "sandbox: {agent: {args: ['--label=--allow-urls=https://example.com/path']}}", false},
 		{"SSL substring does not enable inspection", "sandbox: {agent: {args: ['--label=--ssl-bump', --allow-urls, 'https://example.com/path']}}", true},
 		{"defaults shorthand", "network: defaults", false},
+		{"explicit refusal", "sandbox: {agent: {args: ['--ssl-bump=false', '--allow-urls', 'https://example.com/path']}}", true},
+		{"explicit true", "sandbox: {agent: {args: ['--allow-urls=https://example.com/path', '--ssl-bump=true']}}", false},
+		{"later SSL disablement", "sandbox: {agent: {args: [--ssl-bump, --allow-urls, 'https://example.com/path', '--ssl-bump=false']}}", true},
+		{"later SSL enablement", "sandbox: {agent: {args: ['--ssl-bump=false', --allow-urls, 'https://example.com/path', '--ssl-bump=true']}}", false},
 		{"omitted", "on: workflow_dispatch", false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -166,6 +170,7 @@ func TestThreatPolicyFailuresAndValueFreeDiagnostics(t *testing.T) {
 		{"firewall-ssl-bump", "sandbox: {agent: [PRIVATE_VALUE]}"},
 		{"firewall-ssl-bump", "sandbox: {agent: {args: PRIVATE_VALUE}}"},
 		{"firewall-ssl-bump", "sandbox: {agent: {args: ['PRIVATE_VALUE', 7]}}"},
+		{"firewall-ssl-bump", "sandbox: {agent: {args: ['--allow-urls', {value: PRIVATE_VALUE}]}}"},
 	} {
 		t.Run(tt.rule+"/"+tt.fields, func(t *testing.T) {
 			document, err := aw.Parse("---\n" + tt.fields + "\n---\n")

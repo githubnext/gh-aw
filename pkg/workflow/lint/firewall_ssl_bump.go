@@ -81,8 +81,10 @@ func firewallURLFiltersNeedInspection(ctx context.Context, args []string) (bool,
 		switch {
 		case arg == "--":
 			return filters && !inspection, nil
-		case arg == "--ssl-bump":
+		case arg == "--ssl-bump", arg == "--ssl-bump=true":
 			inspection = true
+		case arg == "--ssl-bump=false":
+			inspection = false
 		case arg == "--allow-urls":
 			expectingURL = true
 		case strings.HasPrefix(arg, "--allow-urls="):

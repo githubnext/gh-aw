@@ -36,6 +36,15 @@ func TestFirewallLintSourceToCompiler(t *testing.T) {
 			fields: "strict: false\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path', --ssl-bump]}}\n",
 		},
 		{
+			name:   "compilable explicit SSL enablement",
+			fields: "strict: false\nsandbox: {agent: {args: ['--allow-urls=https://example.com/path', '--ssl-bump=true']}}\n",
+		},
+		{
+			name:   "later SSL disablement remains a lint violation",
+			fields: "strict: false\nsandbox: {agent: {args: [--ssl-bump, --allow-urls, 'https://example.com/path', '--ssl-bump=false']}}\n",
+			path:   "sandbox.agent.args",
+		},
+		{
 			name:         "legacy missing SSL requires migration",
 			fields:       "strict: false\nnetwork: {firewall: {allow-urls: ['https://example.com/path']}}\n",
 			path:         "network.firewall",
