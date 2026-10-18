@@ -5,6 +5,23 @@ const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { createJiraClient, textToADF } = require("./jira_client.cjs");
 const { appendConfiguredBodyFooter } = require("./body_footer.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
+const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
+
+function normalizeJiraText(value) {
+  let current = redactDiagnosticText(value);
+  for (let pass = 0; pass < 16; pass++) {
+    // ADF text is literal: preserve language characters and entity-looking strings.
+    const normalized = current
+      .replace(/\r\n?/g, "\n")
+      .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u00ad\u034f\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]|\uDB40[\uDC00-\uDC7F]/g, "")
+      .normalize("NFC");
+    const redacted = redactDiagnosticText(normalized);
+    if (redacted === current) return redacted;
+    current = redacted;
+  }
+  throw new TypeError("Jira text contains excessively nested controls");
+}
 
 function requiredString(value, field, maxLength = 255) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -74,12 +91,16 @@ const createIssue = jiraHandler("jira_create_issue", async (message, client, isS
   }
   const projectKey = requiredString(message.project_key, "project_key");
   const issueType = requiredString(message.issue_type, "issue_type");
-  const summary = requiredString(message.summary, "summary");
+  const rawSummary = requiredString(message.summary, "summary");
   const rawDescription = optionalString(message.description, "description");
   const description = rawDescription === undefined ? undefined : requiredString(appendConfiguredBodyFooter(rawDescription, config.body_footer, { maxLength: 32767 }), "description", 32767);
+  const summary = requiredString(normalizeJiraText(rawSummary).replace(/\s+/g, " ").trim(), "summary");
+  const normalizedDescription = description === undefined ? undefined : normalizeJiraText(description).trim();
+  if (normalizedDescription !== undefined && !normalizedDescription) throw new Error("description must be non-empty after normalization");
+  if (normalizedDescription !== undefined) requiredString(normalizedDescription, "description", 32767);
 
   if (isStaged) {
-    logStagedPreviewInfo(`Jira create issue — Project: ${projectKey}; Type: ${issueType}; Summary: ${summary}${description ? `; Description: ${description}` : ""}`);
+    logStagedPreviewInfo(`Jira create issue — Project: ${projectKey}; Type: ${issueType}; Summary: ${summary}${normalizedDescription ? `; Description: ${normalizedDescription}` : ""}`);
     return {
       success: true,
       staged: true,
@@ -95,7 +116,7 @@ const createIssue = jiraHandler("jira_create_issue", async (message, client, isS
     project: { key: projectKey },
     issuetype: { name: issueType },
     summary,
-    ...(description === undefined ? {} : { description: textToADF(description) }),
+    ...(normalizedDescription === undefined ? {} : { description: textToADF(normalizedDescription) }),
   };
   const result = await client.request("/issue", { method: "POST", body: { fields } });
   if (!result || typeof result.key !== "string") {

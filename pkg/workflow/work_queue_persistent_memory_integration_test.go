@@ -24,6 +24,7 @@ func TestWorkQueueESLintRefinerPersistentSnapshotCompilation(t *testing.T) {
 	var frontmatter map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(parts[1]), &frontmatter))
 	require.NotContains(t, frontmatter["tools"], "repo-memory")
+	require.NotContains(t, frontmatter["tools"], "cli-proxy")
 	outputs := frontmatter["safe-outputs"].(map[string]any)
 	require.NotContains(t, outputs, "scripts")
 	require.NotContains(t, outputs, "claim-adapters")
@@ -69,6 +70,12 @@ func TestWorkQueueESLintRefinerPersistentSnapshotCompilation(t *testing.T) {
 	require.Contains(t, result, "create_issue")
 	require.Contains(t, result, "work_queue_restore_memory.cjs")
 	require.Contains(t, result, "Restore legacy and immutable Claim memory read-only")
+	require.Contains(t, result, `const directory = \"/tmp/gh-aw/agent/eslint-refiner-memory\";`)
+	require.Contains(t, result, "cat /tmp/gh-aw/agent/eslint-refiner-memory/history.json")
+	require.Contains(t, result, "mcp__work-queue")
+	require.Contains(t, result, "mcp__safeoutputs")
+	require.NotContains(t, result, "Bash(work-queue:*)")
+	require.NotContains(t, result, "cat /tmp/gh-aw/eslint-refiner-memory/history.json")
 	require.NotContains(t, result, "push_repo_memory.cjs")
 }
 

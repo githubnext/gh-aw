@@ -34,6 +34,16 @@ func TestWorkQueuePolicySchema(t *testing.T) {
 	}, "worker.md"))
 }
 
+func TestWorkQueueSchemaRejectsAllowedTools(t *testing.T) {
+	for _, allowed := range []any{[]any{"work_queue_claim_finish"}, []any{"*"}, []any{}} {
+		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+			"on": "workflow_dispatch", "tools": map[string]any{
+				"work-queue": map[string]any{"allowed": allowed},
+			},
+		}, "worker.md"))
+	}
+}
+
 func TestWorkQueuePolicyRepositorySchema(t *testing.T) {
 	for _, repository := range []string{"owner/repo", "${{ github.repository }}", "${{ inputs.repository }}", "${{ github.event.repository.full_name }}", "not-a-repository"} {
 		t.Run(repository, func(t *testing.T) {

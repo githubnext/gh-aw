@@ -16,6 +16,8 @@
  * Fails the activation job when validation fails.
  */
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
@@ -188,7 +190,7 @@ async function reportBlockedVersionIssue(compiledVersion) {
 
     const newIssue = await withRetry(
       () =>
-        github.rest.issues.create({
+        createReportIssue(github, {
           owner,
           repo,
           title,

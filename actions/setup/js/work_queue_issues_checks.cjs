@@ -812,7 +812,7 @@ function registerTests({ describe, it, beforeEach, afterEach }) {
       };
       const batch = await mutateIssues(
         client,
-        [0, 1].map(key => ({ key, name: "createIssue", type: "CreateIssueInput", input: {}, selection: "issue { id }" }))
+        [0, 1].map(key => ({ key, name: "createIssue", type: "CreateIssueInput", input: { repositoryId: "repo", title: `Work ${key}`, body: "Work details" }, selection: "issue { id }" }))
       );
       assert.equal(batch.results[0].pending, false);
       assert.equal(batch.results[1].pending, true);

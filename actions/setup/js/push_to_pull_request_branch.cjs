@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 /** @type {typeof import("fs")} */
 const fs = require("fs");
 const { withTransportIntegrity } = require("./transport_integrity.cjs");
@@ -934,7 +936,7 @@ async function main(config = {}) {
         const { data: issue } = await withRetry(
           () => {
             transport.assertUnchanged();
-            return githubClient.rest.issues.create({
+            return createReportIssue(githubClient, {
               owner: repoParts.owner,
               repo: repoParts.repo,
               title: issueTitle,

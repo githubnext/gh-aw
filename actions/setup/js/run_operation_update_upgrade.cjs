@@ -2,6 +2,8 @@
 /// <reference types="@actions/github-script" />
 // @safe-outputs-exempt SEC-004 — PR/issue body values in this handler are static internal templates (plus allowlisted changed-file paths), not untrusted user content.
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
 
@@ -356,7 +358,7 @@ ${AUTO_UPGRADE_ISSUE_MARKER}
   core.info(`Creating upgrade notification issue: "${issueTitle}"`);
   let createdIssue;
   try {
-    createdIssue = await github.rest.issues.create({
+    createdIssue = await createReportIssue(github, {
       owner,
       repo,
       title: issueTitle,
@@ -368,7 +370,7 @@ ${AUTO_UPGRADE_ISSUE_MARKER}
     const errorAny = /** @type {any} */ error;
     if (errorAny?.status === 422) {
       core.warning("Failed to create issue with label 'agentic-workflows'; retrying without labels");
-      createdIssue = await github.rest.issues.create({
+      createdIssue = await createReportIssue(github, {
         owner,
         repo,
         title: issueTitle,

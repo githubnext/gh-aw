@@ -1,12 +1,18 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { iterateJsonl, readJsonlFileEvents, iterateLines } = require("./jsonl_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
-const { getDetectionCautionAlert, getFooterAgentFailureIssueMessage, getFooterAgentFailureCommentMessage, generateXMLMarker } = require("./messages.cjs");
+const { getDetectionCautionAlert, getFooterAgentFailureCommentMessage } = require("./messages.cjs");
 const { renderTemplate, renderTemplateFromFile, getPromptPath, renderFilesList } = require("./messages_core.cjs");
+const { buildFailureReport } = require("./failure_report.cjs");
+const { normalizeReportTitle, renderReport } = require("./report_ast.cjs");
+const { buildFailureReportFooter } = require("./report_footer.cjs");
+const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { getCurrentBranch } = require("./get_current_branch.cjs");
 const { createExpirationLine, extractExpirationDate, generateFooterWithExpiration } = require("./ephemerals.cjs");
 const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
@@ -459,75 +465,83 @@ function buildModelEndpointMismatchContext(mismatch, detectionJobResult = proces
  * @returns {string}
  */
 function buildFailureIssueTitle(options) {
-  const { workflowName } = options;
-  if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily AI credits budget`;
-  if (options.hasDailyAICGuardrailError) return `[aw] ${workflowName} could not verify daily AI credits`;
-  if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
-  if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
-  if (options.hasEngineRateLimit429) return `[aw] ${workflowName} hit engine rate limit (HTTP 429)`;
+  return normalizeReportTitle(`[aw] ${options.workflowName}: ${buildFailureIssueSummary(options)}`);
+}
+
+/** @param {Parameters<typeof buildFailureIssueTitle>[0]} options */
+function buildFailureIssueSummary(options) {
+  if (options.hasDailyAICExceeded) return "exceeded daily AI credits budget";
+  if (options.hasDailyAICGuardrailError) return "could not verify daily AI credits";
+  if (options.maxAICreditsExceeded) return "exceeded max AI credits";
+  if (options.aiCreditsRateLimitError) return "hit AI credits rate limit";
+  if (options.hasEngineRateLimit429) return "hit engine rate limit (HTTP 429)";
   // Missing model pricing is surfaced by the proxy as HTTP 400, so prefer the
   // specialized title before falling back to the generic transport-level error.
   if (options.missingModelPricingError) {
     const modelSuffix = options.missingModelPricingModelName ? ` (${options.missingModelPricingModelName})` : "";
-    return `[aw] ${workflowName} has no AI credits pricing for model${modelSuffix}`;
+    return `has no AI credits pricing for model${modelSuffix}`;
   }
-  if (options.hasModelEndpointMismatch) return `[aw] ${workflowName} has model/endpoint mismatch`;
-  if (options.modelNotSupportedError) return `[aw] ${workflowName} has an unavailable configured model`;
+  if (options.hasModelEndpointMismatch) return "has model/endpoint mismatch";
+  if (options.modelNotSupportedError) return "has an unavailable configured model";
   // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
   // budget state that should take precedence when both classes are detected.
-  if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
+  if (options.http400ResponseError) return "hit HTTP 400 bad request";
   // Unknown model pricing is a configuration error that may also trigger a timeout;
   // report it explicitly so the title is not misleadingly "timed out".
-  if (options.unknownModelAICredits) return `[aw] ${workflowName} has unknown model pricing`;
-  if (options.hasAppTokenMintingFailed) return `[aw] ${workflowName} failed to mint GitHub App token`;
-  if (options.hasLockdownCheckFailed) return `[aw] ${workflowName} failed lockdown check`;
-  if (options.hasOAuthTokenCheckFailed) return `[aw] ${workflowName} has OAuth token misconfiguration`;
-  if (options.hasStaleLockFileFailed) return `[aw] ${workflowName} has stale lock file`;
-  if (options.shellExpansionGuardRejected) return `[aw] ${workflowName} hit shell expansion guard rejection`;
-  if (options.copilotOrgBillingError) return `[aw] ${workflowName} hit Copilot organization billing error`;
+  if (options.unknownModelAICredits) return "has unknown model pricing";
+  if (options.hasAppTokenMintingFailed) return "failed to mint GitHub App token";
+  if (options.hasLockdownCheckFailed) return "failed lockdown check";
+  if (options.hasOAuthTokenCheckFailed) return "has OAuth token misconfiguration";
+  if (options.hasStaleLockFileFailed) return "has stale lock file";
+  if (options.shellExpansionGuardRejected) return "hit shell expansion guard rejection";
+  if (options.copilotOrgBillingError) return "hit Copilot organization billing error";
   if (options.copilotAgentNotFound) {
-    const agentName = sanitizeContent(options.copilotAgentNotFound, COPILOT_AGENT_NOT_FOUND_AGENT_MAX_LENGTH).replace(/\s+/g, " ").trim();
-    return `[aw] ${workflowName} could not find configured Copilot agent "${agentName}"`;
+    const agentName = Array.from(normalizeReportTitle(options.copilotAgentNotFound)).slice(0, COPILOT_AGENT_NOT_FOUND_AGENT_MAX_LENGTH).join("");
+    return `could not find configured Copilot agent "${agentName}"`;
   }
-  if (options.transportWedge) return `[aw] ${workflowName} stalled on an MCP tool call`;
-  if (options.isTimedOut) return `[aw] ${workflowName} timed out`;
-  if (options.hasToolDenialsExceeded) return `[aw] ${workflowName} exceeded tool denial limit`;
-  if (options.hasCacheMissMisconfiguration) return `[aw] ${workflowName} has cache-memory miss misconfiguration`;
+  if (options.transportWedge) return "stalled on an MCP tool call";
+  if (options.isTimedOut) return "timed out";
+  if (options.hasToolDenialsExceeded) return "exceeded tool denial limit";
+  if (options.hasCacheMissMisconfiguration) return "has cache-memory miss misconfiguration";
   const terminalOutputFailureTitle =
     typeof options.terminalOutputFailureCause === "string" && Object.hasOwn(EMPTY_OUTPUT_FAILURE_CAUSES, options.terminalOutputFailureCause) ? EMPTY_OUTPUT_FAILURE_CAUSES[options.terminalOutputFailureCause] : "";
-  if (terminalOutputFailureTitle) return `[aw] ${workflowName} ${terminalOutputFailureTitle}`;
+  if (terminalOutputFailureTitle) return options.terminalOutputFailureCause === "unknown" ? "failed (cause unknown)" : terminalOutputFailureTitle;
   const emptyOutputCauseTitle = typeof options.emptyOutputCause === "string" && Object.prototype.hasOwnProperty.call(EMPTY_OUTPUT_CAUSES, options.emptyOutputCause) ? EMPTY_OUTPUT_CAUSES[options.emptyOutputCause] : "";
-  if (emptyOutputCauseTitle) return `[aw] ${workflowName} ${emptyOutputCauseTitle}`;
-  if (options.hasReportIncomplete) return `[aw] ${workflowName} reported incomplete result`;
-  if (options.hasMissingSafeOutputs) return `[aw] ${workflowName} produced no safe outputs`;
-  if (options.hasMissingTool) return `[aw] ${workflowName} is missing required tool`;
-  if (options.hasMissingData) return `[aw] ${workflowName} is missing required data`;
-  if (options.hasAssignmentErrors) return `[aw] ${workflowName} failed to assign agent`;
-  return `[aw] ${workflowName} failed`;
+  if (emptyOutputCauseTitle) return emptyOutputCauseTitle;
+  if (options.hasReportIncomplete) return "reported incomplete result";
+  if (options.hasMissingSafeOutputs) return "produced no safe outputs";
+  if (options.hasMissingTool) return "is missing required tools";
+  if (options.hasMissingData) return "is missing required data";
+  if (options.hasAssignmentErrors) return "failed to assign agent";
+  return "failed";
 }
 
 /**
- * Generate a precise failure-match marker for failure issue bodies.
+ * Build metadata for precise failure matching in failure issue bodies.
  * @param {Object} options - Marker options
  * @param {string} options.workflowId - Workflow identifier
  * @param {string} options.branch - Triggering branch
  * @param {number|undefined} options.pullRequestNumber - Triggering pull request number
  * @param {string[]} options.failureCategories - Sorted failure categories
  * @param {string} [options.failureCause] - Classified terminal-output failure cause
- * @returns {string} HTML comment marker
+ * @returns {{key: string, value: string}[]} Failure-match metadata fields
  */
-function generateFailureMatchMarker(options) {
+function buildFailureMatchMetadata(options) {
   const { workflowId, branch, pullRequestNumber, failureCategories } = options;
-  const parts = ["gh-aw-failure-issue: true", `workflow_id: ${workflowId}`, `branch: ${branch || ""}`, `failure_categories: ${failureCategories.join("|")}`];
+  const parts = [
+    { key: "workflow_id", value: workflowId },
+    { key: "branch", value: branch || "" },
+    { key: "failure_categories", value: failureCategories.join("|") },
+  ];
 
   if (typeof options.failureCause === "string" && Object.hasOwn(EMPTY_OUTPUT_FAILURE_CAUSES, options.failureCause)) {
-    parts.push(`failure_cause: ${options.failureCause}`);
+    parts.push({ key: "failure_cause", value: options.failureCause });
   }
   if (pullRequestNumber) {
-    parts.push(`pull_request: ${pullRequestNumber}`);
+    parts.push({ key: "pull_request", value: String(pullRequestNumber) });
   }
 
-  return `<!-- ${parts.join(", ")} -->`;
+  return parts;
 }
 
 /**
@@ -909,7 +923,7 @@ gh aw audit <run-id>
   const parentBody = footer;
 
   try {
-    const newIssue = await github.rest.issues.create({
+    const newIssue = await createReportIssue(github, {
       owner,
       repo,
       title: parentTitle,
@@ -1903,7 +1917,7 @@ function buildFailureDiagnosticsContext({ failureCategories, failingStep, agentC
   } else if (checkoutError) {
     context += "Runtime checkout validation above is the failure cause.\n\n";
   } else {
-    context += "The runtime did not record a specific cause. Check the linked run for failure details.\n\n";
+    context += "No additional engine error was captured. Check the reported failure signals and linked run for details.\n\n";
   }
   if (attributionUnavailable) {
     context += `<details>\n<summary>Why step details are unavailable</summary>\n\n${attributionUnavailable}\n\n</details>\n\n`;
@@ -3748,7 +3762,7 @@ async function findOrCreateDailyCapRollupIssue(owner, repo) {
 
   try {
     await ensureLabelExists(owner, repo, DAILY_CAP_ROLLUP_LABEL);
-    const newIssue = await github.rest.issues.create({
+    const newIssue = await createReportIssue(github, {
       owner,
       repo,
       title: DAILY_CAP_ROLLUP_TITLE,
@@ -3833,7 +3847,7 @@ async function detectAndHandleFailureCascade(owner, repo, triggeringIssueNumber)
       });
       core.info(`✓ Updated cascade rollup issue #${existing.number}: ${existing.html_url}`);
     } else {
-      const newRollup = await github.rest.issues.create({
+      const newRollup = await createReportIssue(github, {
         owner,
         repo,
         title: CASCADE_ROLLUP_TITLE,
@@ -4385,8 +4399,7 @@ async function main() {
     });
     const actionFailureIssueExpiresHours = getActionFailureIssueExpiresHours();
 
-    // Sanitize workflow name for title
-    const sanitizedWorkflowName = sanitizeContent(workflowName, { maxLength: 100 });
+    const normalizedWorkflowName = Array.from(normalizeReportTitle(workflowName)).slice(0, 100).join("");
     let transportWedge = false;
     if (agentConclusion === "failure") {
       try {
@@ -4412,7 +4425,7 @@ async function main() {
     );
     const hasReportedIncomplete = hasReportIncomplete && reportItems.some(item => item?.type === "report_incomplete");
     const issueTitle = buildFailureIssueTitle({
-      workflowName: sanitizedWorkflowName,
+      workflowName: normalizedWorkflowName,
       hasModelEndpointMismatch,
       modelNotSupportedError,
       transportWedge,
@@ -4980,11 +4993,13 @@ async function main() {
         // Build optimize token consumption context (shown when a guardrail was the failure root cause)
         const optimizeTokenConsumptionContext = buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl });
 
-        // Create template context with sanitized workflow name
         const templateContext = {
-          workflow_name: sanitizedWorkflowName,
+          workflow_name: workflowName,
+          failure_summary: issueTitle.slice(`[aw] ${normalizedWorkflowName}: `.length),
           workflow_id: workflowID,
           run_url: runUrl,
+          run_id: extractRunId(runUrl) || "logs",
+          history_url: historyUrl || "",
           workflow_source_url: workflowSourceURL || "#",
           branch: currentBranch,
           pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
@@ -5032,10 +5047,8 @@ async function main() {
           optimize_token_consumption_context: optimizeTokenConsumptionContext,
         };
 
-        // Render the issue template
-        const issueBodyContent = renderTemplate(issueTemplate, templateContext);
+        const report = buildFailureReport(issueTemplate, issueTitle, templateContext);
 
-        // Generate footer for the issue using templated message
         const ctx = {
           workflowName,
           runUrl,
@@ -5045,28 +5058,20 @@ async function main() {
           aiCredits,
         };
         core.info(`Generating failure issue footer with aiCredits context: ${aiCredits || "(none)"}`);
-        const footer = getFooterAgentFailureIssueMessage(ctx);
-        const failureMatchMarker = generateFailureMatchMarker({
-          workflowId: workflowID,
-          branch: currentBranch,
-          pullRequestNumber: pullRequest?.number,
-          failureCategories,
-          failureCause: terminalOutputFailureCause,
-        });
-
-        // Add expiration marker inside the quoted footer section using helper
-        const footerWithExpires = generateFooterWithExpiration({
-          footerText: footer,
+        report.footer = buildFailureReportFooter(ctx, {
           expiresHours: actionFailureIssueExpiresHours,
-          suffix: `\n\n${generateXMLMarker(workflowName, runUrl)}\n${failureMatchMarker}`,
+          failureFields: buildFailureMatchMetadata({
+            workflowId: workflowID,
+            branch: currentBranch,
+            pullRequestNumber: pullRequest?.number,
+            failureCategories,
+            failureCause: terminalOutputFailureCause,
+          }),
         });
 
-        // Prepend detection caution alert (when present) so it appears first in the issue body
         const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-
-        // Combine issue body with footer
-        const bodyLines = detectionCaution ? [detectionCaution, "", issueBodyContent, "", footerWithExpires] : [issueBodyContent, "", footerWithExpires];
-        const issueBody = bodyLines.join("\n");
+        report.preamble = parseReportMarkdown(detectionCaution, { allowFlagMarkers: true });
+        const { title: reportTitle, body: issueBody } = renderReport(report);
 
         let newIssue;
         if (failureIssue) {
@@ -5075,7 +5080,7 @@ async function main() {
             owner,
             repo,
             issue_number: failureIssue.number,
-            title: issueTitle,
+            title: reportTitle,
             body: issueBody,
             labels,
             state: "open",
@@ -5083,14 +5088,17 @@ async function main() {
           });
           core.info(`✓ Reused failure issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         } else {
-          newIssue = await github.rest.issues.create({
-            owner,
-            repo,
-            title: issueTitle,
-            body: issueBody,
-            labels: ["agentic-workflows"],
-            headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
-          });
+          newIssue = await createReportIssue(
+            github,
+            {
+              owner,
+              repo,
+              title: reportTitle,
+              labels: ["agentic-workflows"],
+              headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION },
+            },
+            report
+          );
           core.info(`✓ Created new issue #${newIssue.data.number}: ${newIssue.data.html_url}`);
         }
 
@@ -5141,6 +5149,7 @@ module.exports = {
   buildTimeoutContext,
   shouldBuildEngineFailureContext,
   isReusableFailureIssue,
+  parseHTMLCommentMetadata,
   isIssueWritePermissionError,
   setFailureIssueOutputs,
   buildAssignCopilotFailureContext,

@@ -25,6 +25,7 @@ describe("Linear safe outputs", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     delete process.env.GH_AW_LINEAR_TOKEN;
     delete process.env.LINEAR_PROJECT_ID;
     delete process.env.LINEAR_TEAM_ID;
@@ -69,6 +70,36 @@ describe("Linear safe outputs", () => {
     const request = JSON.parse(fetch.mock.calls[0][1].body);
     expect(request.query).toBe(LINEAR_CREATE_ISSUE);
     expect(request.variables.input.teamId).toBe("9cfb482a-81e3-4154-b5b9-2c805e70a02d");
+  });
+
+  it("normalizes issue titles and renders supported Markdown through the AST", async () => {
+    fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Title" } } } }));
+    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
+    await handler({ title: " e\u0301vidence\r\n report ", body: "## Evidence\n\nDetails with <b>HTML</b>\n\n- [ ] Review" });
+    const input = JSON.parse(fetch.mock.calls[0][1].body).variables.input;
+    expect(input.title).toBe("\u00e9vidence report");
+    expect(input.description).toContain("## Evidence");
+    expect(input.description).toContain("&lt;b&gt;HTML&lt;/b&gt;");
+    expect(input.description).toContain("- [ ] Review");
+  });
+
+  it("normalizes source fragments before URL policy and preserves chart images at publication", async () => {
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "github.com");
+    vi.stubEnv("GH_AW_SECRET_NAMES", "LINEAR_REPORT");
+    vi.stubEnv("SECRET_LINEAR_REPORT", "report-secret#123");
+    fetch.mockResolvedValueOnce(response({ data: { issueCreate: { success: true, issue: { id: "id", identifier: "ENG-1", title: "Title" } } } }));
+    const handler = await createIssue({ team_id: "9cfb482a-81e3-4154-b5b9-2c805e70a02d" });
+    await handler({
+      title: "Title",
+      body: "Agent job: build  \nConclusion: failure\nreport-secret&#35;123 https:/&amp;amp;amp;amp;amp;ZeroWidthSpace;/outside.invalid\n\n![Chart](https://github.com/o/r/chart(a).png)\n\nSee https://github.com/o/r/create_issue.cjs#L1118.",
+    });
+    const description = JSON.parse(fetch.mock.calls[0][1].body).variables.input.description;
+    expect(description).not.toContain("report-secret");
+    expect(description).not.toContain("https://outside.invalid");
+    expect(description).not.toContain("ZeroWidthSpace");
+    expect(description).toContain("Agent job: build  \nConclusion: failure");
+    expect(description).toContain("![Chart](https://github.com/o/r/chart%28a%29.png)");
+    expect(description).toContain("](https://github.com/o/r/create_issue.cjs#L1118).");
   });
 
   it("resolves friendly team identifiers by key before name", async () => {

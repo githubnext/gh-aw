@@ -1167,6 +1167,14 @@ is valid only while no marker exists. Releases do not wait for delivery-barrier
 success, since a terminal native run consumes no slot; Result/DeliveryFailure
 recovery can continue afterward.
 
+Native capacity, Claim closure, delivery verification, and the Actions conclusion
+MUST remain separate health dimensions. Exact terminal evidence permits Release
+even when completed members still have pending or failed delivery. Release MUST
+NOT create a Result, clear a DeliveryFailure, refund service debt, or authorize
+replaying effects. Conversely, a successful Actions conclusion or completed Claim
+MUST NOT release an unobserved native reservation. The operator view SHOULD
+report each dimension instead of reducing queue health to green workflow runs.
+
 When a timeout is observed and the log remains writable, record `Dispatch(uncertain)` with a sanitized reason code. A crash may leave only `started`: offline inspection must label it unbound/possibly in progress, not invent a precise failure cause. Both states retain the reservation until trusted reconciliation establishes binding or nonlaunch.
 
 Disable blind transport retries for the non-idempotent dispatch POST. A timeout after `Dispatch(started)` is an uncertain launch, not a retryable queue-publication conflict. Reuse bounded backoff for safe reads/compare-and-swap conflicts, fail fast on schema/auth errors, and reconcile uncertain writes before attempting another mutation.
@@ -1779,6 +1787,56 @@ creating Completion/ClaimCancellation; it does not require a Completion that
 has not yet been written. Read-only previews retain the canonical handle and
 `staged_preview` status without authorizing effects or publishing terminal facts.
 
+#### Worker tool and preparation readiness
+
+A declared worker-mode queue tool MUST be reachable through the engine's
+effective tool permissions and selected transport, including restricted-tool
+configurations. Declaring an MCP server without allowing its native tools is not
+worker readiness. Native structured MCP calls SHOULD be preferred over embedding
+JSON in shell arguments; do not broaden the shell allowlist to bypass a denied
+wrapper. Explicitly disabled queue tools MUST remain disabled. Neither transport
+nor successful startup supplies a missing immutable assignment or native binding.
+
+Preparation MUST place required historical input in an agent-visible mounted
+path and make the declared read path agree with the written path. For the ESLint
+Refiner this is `/tmp/gh-aw/agent/eslint-refiner-memory/history.json`, written
+read-only. An unreadable or missing expected file is a preparation failure, not
+an empty history; only a successfully restored empty history is empty input.
+The agent's observable failure signals are a non-zero read-command exit or
+invalid JSON. Native restoration and filesystem write errors fail preparation
+before the agent starts; an absent optional legacy history source may still
+restore successfully as empty arrays.
+History remains data, never Claim authority. Runtime/compilation regressions MUST
+cover the effective native-tool permission and the actual preparation script's
+write/read-path agreement, not just prompt wording.
+
+#### Aggregate delivery health
+
+After processing each original Claim independently, trusted safe-output
+processing MUST reconcile independently valid siblings before deciding its
+aggregate outcome. Successful handler returns alone MUST NOT make that pass
+successful: every non-staged member must finish in trusted `result` or
+`cancelled` state. Pending, failed, missing, or unrecognized delivery state MUST
+fail the pass and expose per-Claim evidence in `claim_results`. Such failure is
+an operational signal, not a new queue transaction or authorization to retry
+effects. It MUST NOT suppress a valid sibling's Result or roll it back.
+
+For otherwise valid messages and successful handlers, the outcome mapping is:
+
+| Trusted member states after reconciliation | `work_queue_outcome` | Aggregate pass |
+|---|---|---|
+| All `result` | `completed` | Successful |
+| All `cancelled` | `cancelled` | Successful |
+| Only `result`/`cancelled`, both present | `completed_with_cancellations` | Successful |
+| Any unresolved state, including delivery failure | `delivery_pending` | Failed |
+| Staged preview | `staged_preview` | No delivery-success assertion or terminal facts |
+
+Scope errors and handler failures still fail by their existing rules. The
+`delivery_pending` label includes terminal delivery failure in this aggregate
+interface; inspect per-Claim ledger facts to distinguish failure from pending
+verification. Do not rewrite historical failed/pending barriers to match a
+workflow conclusion.
+
 Safe outputs are partitioned by resolved handle. Temporary-ID namespaces,
 prepared mutations, verification evidence, and Result descriptors retain that
 same scope; a handler cannot borrow another member's authorization or silently
@@ -2007,6 +2065,16 @@ finite attempt/deadline budget. If all delivery is independently verified, it
 may append the same immutable Result even after native release. Completion,
 agent statements, and an overall successful worker conclusion alone do not
 prove delivery.
+
+Built-in resource creation needs independent native readback, not just a
+successful handler response or an agent-supplied URL. Discussion delivery must
+verify the created discussion's immutable identity, permitted repository,
+category, and expected content. Pull-request delivery must additionally verify
+the permitted base/head repositories and refs, the expected head commit, and
+its independently read commit/tree evidence against trusted prepared mutation
+evidence. A PR number alone is not proof that the intended changes were
+published. Missing, mismatched, foreign, or unavailable evidence leaves delivery
+unverified; it must not be promoted to Result to make aggregate reporting pass.
 
 After exact native-run/attempt terminal evidence and exhausted reconciliation,
 publish `DeliveryFailure` when delivery cannot be established. Record the
@@ -2414,6 +2482,24 @@ There is no timeout-based escape hatch.
 | Completion exists, Result absent | Preserve ownership, inspect delivery without replaying effects, then publish Result or guarded DeliveryFailure |
 | Result exists | Preserve it and its declared dependency semantics; an incident does not roll back successful siblings |
 
+#### Worker health verification
+
+Test updated workflow Markdown and generated locks from a published reviewed
+branch, identifying the exact commit; a PR or merge is not required. Retain the
+separate live-effect authorization and native assignment/run-binding gates.
+Branch selection alone does not change an installed immutable worker revision.
+Never fabricate an assignment, replay uncertain effects, or modify production
+Policy merely to make a test proceed.
+
+A hosted strict-dry-run startup test is not an end-to-end queue test: dry-run
+removes queue tools/mutations and stages safe outputs. Successful history
+restoration and agent startup establish only those boundaries. If the worker
+then reports missing assignment/tools and the conclusion fails, record that
+failure; do not convert it into delivery success or weaken the assignment guard.
+Full queue-health verification additionally requires the approved native worker
+revision, trusted original Claim/run binding, per-Claim settlement evidence, and
+independent terminal-run evidence for capacity release.
+
 #### GitHub Actions outage
 
 An Actions/API/runner outage does not establish that queued or running workers
@@ -2810,6 +2896,24 @@ outcomes described in the [reproduction guide](https://github.com/github/gh-aw/b
 It does not model no-write task contracts or establish runtime handler coverage,
 schema/transport conformance, scheduler fairness, or an unbounded liveness proof.
 
+`ClaimDeliveryHealth.tla` separately checks aggregate health with two independently
+processed Claims, assuming successful handler passes. It distinguishes pending
+and failed delivery from trusted Results/cancellations, checks staged isolation,
+and requires sibling processing before a non-staged success/failure report.
+Its Release transition requires abstract exact terminal evidence and cannot
+manufacture Results. Two positive configurations exhaust 79 distinct states;
+four mutations detect false-green reporting, early sibling abandonment,
+release-created Results, and premature release. Four safety-guarded witnesses
+reach pending/failed members with successful siblings, mixed result/cancellation
+success, and released capacity with pending delivery.
+
+The additional `QueueLifecycle` witness reaches a completed member whose native
+reservation is released after terminal evidence while its Result/failure barrier
+remains unresolved. These are finite safety/reachability checks, not evidence of
+eventual reconciliation, actual API authentication, handler correctness, compiler
+tool wiring, or hosted delivery. See the
+[delivery-health reproduction guide](https://github.com/github/gh-aw/blob/main/specs/work-queue/README.md#claim-delivery-health-and-native-capacity).
+
 #### Independent fairness release gate
 
 The independent release gate requires recurring unit-service opportunities,
@@ -2982,6 +3086,8 @@ unexecuted formal, supported-host, performance, or deployment-security gate.
 | Work/Issue/PR DAG, observations, Result/DeliveryFailure and replacements | Implemented with atomic graph admission, typed bounded observations, immutable resource bindings and verified Result barriers. Native and runtime tests cover stale/error observations, mixed outcomes, delivery deadlines and safe replacements; actual external API availability/rate behavior is not established by injected clients |
 | Immutable arrays, actual run binding and conservative native recovery | Implemented with bounded arrays, attempt-1 authority, private authenticated evidence, one sender marker and conservative uncertain-launch retention. Local native/SDK recovery tests pass; hosted immutable-SHA dispatch compatibility remains a separate gate |
 | Abandoned prelaunch reservations | JavaScript reconciliation includes reserved groups, authenticates the exact originating publisher attempt, and uses fresh-prefix/CAS-guarded prelaunch cancellation. Mocked native regressions cover active/mismatched/unavailable evidence, later publisher attempts without worker rerun authority, automatic retry launch, and both start-marker race boundaries. `DispatchReservationRecovery` exhausts 11,665 states; four exact mutation controls and three safety-guarded witnesses cover evidence, CAS, no refund/resend, sibling recovery and new retry grants. API authentication, actual Git CAS, retry timing and hosted recovery remain outside this bounded evidence |
+| Aggregate delivery health and independent native release | Safe-output processing fails non-staged unsettled delivery even after successful handlers, after reconciling valid siblings. Local regressions cover pending/failed delivery, result/cancelled siblings, and staged compatibility. `ClaimDeliveryHealth` exhausts 79 positive states with four exact mutation controls and four guarded witnesses; `QueueLifecycle` adds a terminal-release/pending-delivery witness. These checks do not prove live effect delivery or eventual recovery |
+| Worker readiness and hosted startup scope | Claude grants declared native queue MCP access under restricted tools while preserving explicit disablement; Refiner history uses the agent-visible path and structured native calls. Permission/compiler integration tests and a mocked execution of the actual preparation script cover these fixes. Hosted staged diagnostic [39051960708](https://github.com/github/gh-aw/actions/runs/39051960708) at `c1bd9d7775b7f60df94a77303db8b0f91323ddde` restored history and started Claude, then failed its conclusion for missing queue assignment/tools deliberately suppressed by dry-run. Native queue execution and delivery were not verified |
 | Universal Claim-scoped outputs, independent outcomes and custom/deferred paths | Built-in, custom/raw, prepared code/tree, GraphQL/REST, native asset, persistent-memory and queue-control paths are wired through scoped authorization and independent native readback. The joined queue and safe-output regression suite passes 3,206 tests in 86 files with eight skips. Real single-/multi-Claim entrypoints cover private execution after ambient flag changes, selectors, per-member minimum/maximum counts, retained factory fences, preparation, artifact identities/receipts and independent finalization. This is local path coverage, not proof of arbitrary external effect atomicity or exactly-once delivery |
 | Disabled-queue safe-output compatibility | Modified legacy integration surfaces were reviewed against the PR base. Regression coverage preserves ordinary payloads, parsing, global counts, custom inputs, dispatch conversion, diagnostics and patch discovery; a collector differential matches 24 of 24 baseline cases. Stray role/assignment metadata cannot activate the queue, while an existing private Claim frame remains enforced. The joined suite above includes existing ordinary safe-output tests; finite cases do not prove equivalence for every possible input |
 | Compiler/MCP/operator/explain/trace and workflow examples | Implemented with current-only operator/snapshot/intent validation and credential-free observers/previews. Earlier native/probe/compiler/parser, operator and WASM checks pass. Main at `303b402810` is merged; all 328 workflows compile and isolated drift checking passes. Three generated lock conflicts were regenerated from merged sources, not hand-edited. Compiler DryRun disables queue tools and mutation jobs. The onboarding Policy is exercised by the real runtime validator and uses supported empty-key/size bounds. Closed Claim-adapter parsing preserves exact numbers; log writers surface original/short-write failures |

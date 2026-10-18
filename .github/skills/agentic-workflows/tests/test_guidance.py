@@ -21,6 +21,22 @@ def checklist(text):
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_live_test_branch_notification(self):
+        for path in (
+            DEBUG_GUIDE,
+            ROOT / ".github/aw/debug-security-review.md",
+            ROOT / ".github/skills/debugging-workflows/SKILL.md",
+        ):
+            with self.subTest(path=path):
+                text = path.read_text()
+                self.assertRegex(text, r"[Nn]otify the user before")
+                self.assertRegex(text, r"published feature branch")
+                self.assertRegex(text, r"required to live test")
+                self.assertIn("exact", text)
+                self.assertIn("commit", text)
+                self.assertIn("A draft PR is recommended, not required,", text)
+                self.assertIn("and a merge is not required.", text)
+
     def test_debug_playbook_agent_consumption_budget(self):
         guide = (ROOT / ".github/aw/debug-playbook.md").read_text()
         self.assertLessEqual(len(guide.split()), 2800)

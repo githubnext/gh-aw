@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
+const { createReportIssue } = require("./issue_report.cjs");
+
 const { getErrorMessage, isRateLimitError } = require("./error_helpers.cjs");
 const { resolveExecutionOwnerRepo } = require("./repo_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
@@ -134,7 +136,7 @@ async function main() {
   const sectionLines = sections.flatMap(section => ["<details>", `<summary>${section.heading}</summary>`, "", section.body, "", "</details>", ""]);
   const body = [...headerLines, ...sectionLines].join("\n");
 
-  const createdIssue = await github.rest.issues.create({
+  const createdIssue = await createReportIssue(github, {
     owner,
     repo,
     title: ISSUE_TITLE,

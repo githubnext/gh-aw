@@ -145,6 +145,19 @@ run releases its reservation only after exact reconciliation; a completed Claim
 still needs independently verified output delivery before its Result settles.
 Do not redispatch uncertain effects or delete the ledger to recover capacity.
 
+If `explain` reports `native_capacity_blocked` after workers have ended, inspect
+each original reservation with `work-queue evidence --dispatch-id DISPATCH_ID`
+and release it with `work-queue reconcile --dispatch-id DISPATCH_ID`. Reconciliation
+checks exact native termination; it neither launches workers nor proves delivery.
+Issue labels can lag the ledger. Pending or failed Claim delivery fails safe-output
+processing even when the resource-writing handler succeeded.
+
+The Claude-based refiner uses native MCP tools for structured queue and safe-output
+arguments, preserving its restricted Bash allowlist. Its preparation step writes
+read-only history under `/tmp/gh-aw/agent/eslint-refiner-memory/history.json`,
+inside the agent-visible directory. Missing history is a preparation failure,
+not evidence that no earlier memory exists.
+
 The queue performance suite enforces a two-probe warm-read budget for registered,
 unchanged string-token clients and replay budgets against a representative
 checkpoint. To include an already captured live ledger without

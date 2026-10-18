@@ -89,6 +89,35 @@ class ModelRunnerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("No configuration matches", result.stderr)
 
+    def test_delivery_health_configs_require_exact_verdicts(self):
+        model = "ClaimDeliveryHealth"
+        for config in ("DeliveryHealth", "DeliveryHealthStaged"):
+            result = self.run_model(config, "Model checking completed. No error", model=model)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        for config, invariant in (
+            ("BrokenDeliveryFalseGreen", "ReportTruth"),
+            ("BrokenDeliveryEarlyStop", "IndependentSiblings"),
+            ("BrokenDeliveryReleaseResult", "ResultAuthority"),
+            ("BrokenDeliveryPrematureRelease", "ReleaseAuthority"),
+            ("DeliveryPendingWitness", "NoPendingSibling"),
+            ("DeliveryFailedWitness", "NoFailedSibling"),
+            ("DeliveryMixedWitness", "NoMixedSuccess"),
+            ("DeliveryReleasedWitness", "NoReleasedPending"),
+        ):
+            with self.subTest(config=config):
+                result = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                rejected = self.run_model(config, "Invariant Safety is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+        result = self.run_model("LifecycleReleasedPendingWitness",
+                                "Invariant NoReleasedPendingDelivery is violated", 12,
+                                model="QueueLifecycle")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rejected = self.run_model("LifecycleReleasedPendingWitness",
+                                  "Invariant ResultSoundness is violated", 12,
+                                  model="QueueLifecycle")
+        self.assertNotEqual(rejected.returncode, 0)
+
     def test_unknown_model_is_rejected(self):
         result = self.run_model("WorkerEvolution", "", model="missing-model")
         self.assertNotEqual(result.returncode, 0)
@@ -111,7 +140,9 @@ class ModelRunnerTests(unittest.TestCase):
 
     def test_all_new_configs_are_registered_with_real_invariants(self):
         runner = (SPEC / "check.sh").read_text()
-        for model, pattern in (("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),
+        for model, pattern in (("ClaimDeliveryHealth", r"(?:Delivery|BrokenDelivery).*\.cfg"),
+                               ("QueueLifecycle", r"LifecycleReleasedPendingWitness\.cfg"),
+                               ("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),
                                ("WorkerEvolution", r"(?:WorkerEvolution|BrokenEvolution|Evolution).*\.cfg"),
                                ("WorkerDeploymentBoundary", r"(?:WorkerDeploymentBoundary|BrokenBoundary|Boundary).*\.cfg"),
                                ("QueueBootstrap", r"(?:BrokenBootstrapHost|BrokenBootstrapEnrollment|BootstrapTrustedAW).*\.cfg")):

@@ -25,6 +25,8 @@ wasm_golden/
 2. The output is compared byte-for-byte against the corresponding `.golden` file
 3. The Node.js wasm test (`scripts/test-wasm-golden.mjs`) also builds the actual wasm binary and verifies its output matches the same golden files
 
+`fixtures/.github/workflows/` supplies the repository configuration and dispatch target required by the fixtures. The Go golden compiler uses `fixtures/` as its repository root; the Node.js runner reads the same files from its fixture working directory. Keep these inputs self-contained rather than relying on the enclosing checkout's configuration.
+
 ## Common tasks
 
 ### Regenerate golden files after compiler changes

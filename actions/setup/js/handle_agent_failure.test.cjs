@@ -472,7 +472,7 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("### Runtime Checkout Rejected");
       expect(rendered).toContain("org/b is not permitted by allowed-repos");
       expect(rendered).toContain("Update the explicit repository list");
-      expect(rendered).not.toContain("The runtime did not record a specific cause.");
+      expect(rendered).not.toContain("No additional engine error was captured.");
     });
 
     it("includes the last failed agent step when available", async () => {
@@ -579,7 +579,7 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("Failing step:** `Run agent`");
       expect(rendered).not.toContain("agent-generated root cause");
       expect(rendered).not.toContain("log excerpt");
-      expect(rendered).toContain("The runtime did not record a specific cause.");
+      expect(rendered).toContain("No additional engine error was captured.");
     });
 
     it("includes the first failing startup step for a recorded not_started agent", async () => {
@@ -687,7 +687,7 @@ describe("handle_agent_failure", () => {
 
       expect(result).toContain("Failing step:** `Run agent`");
       expect(result).toContain("**Driver exit code:** `1`");
-      expect(result).not.toContain("The runtime did not record a specific cause.");
+      expect(result).not.toContain("No additional engine error was captured.");
     });
 
     it("states when no cause was captured", () => {
@@ -697,7 +697,7 @@ describe("handle_agent_failure", () => {
         engineFailureContext: "",
       });
 
-      expect(result).toContain("The runtime did not record a specific cause.");
+      expect(result).toContain("No additional engine error was captured.");
     });
 
     it("keeps the job, step, and exit code together in one compact section", () => {
@@ -781,7 +781,7 @@ describe("handle_agent_failure", () => {
 
     try {
       await main();
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] unknown hit AI credits rate limit" }));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] unknown: hit AI credits rate limit" }));
     } finally {
       fs.rmSync(path.dirname(agentOutputPath), { recursive: true, force: true });
       delete process.env.GH_AW_AGENT_OUTPUT;
@@ -819,26 +819,26 @@ describe("handle_agent_failure", () => {
     };
 
     const cases = [
-      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow exceeded daily AI credits budget" },
-      { flag: "hasDailyAICGuardrailError", expected: "[aw] Test Workflow could not verify daily AI credits" },
-      { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow exceeded max AI credits" },
-      { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow hit AI credits rate limit" },
-      { flag: "hasEngineRateLimit429", expected: "[aw] Test Workflow hit engine rate limit (HTTP 429)" },
-      { flag: "http400ResponseError", expected: "[aw] Test Workflow hit HTTP 400 bad request" },
-      { flag: "unknownModelAICredits", expected: "[aw] Test Workflow has unknown model pricing" },
-      { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow failed to mint GitHub App token" },
-      { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow failed lockdown check" },
-      { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow has stale lock file" },
-      { flag: "shellExpansionGuardRejected", expected: "[aw] Test Workflow hit shell expansion guard rejection" },
-      { flag: "isTimedOut", expected: "[aw] Test Workflow timed out" },
-      { flag: "hasToolDenialsExceeded", expected: "[aw] Test Workflow exceeded tool denial limit" },
-      { flag: "hasCacheMissMisconfiguration", expected: "[aw] Test Workflow has cache-memory miss misconfiguration" },
-      { flag: "hasReportIncomplete", expected: "[aw] Test Workflow reported incomplete result" },
-      { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow produced no safe outputs" },
-      { flag: "hasMissingTool", expected: "[aw] Test Workflow is missing required tool" },
-      { flag: "hasMissingData", expected: "[aw] Test Workflow is missing required data" },
-      { flag: "hasAssignmentErrors", expected: "[aw] Test Workflow failed to assign agent" },
-      { flag: "copilotOrgBillingError", expected: "[aw] Test Workflow hit Copilot organization billing error" },
+      { flag: "hasDailyAICExceeded", expected: "[aw] Test Workflow: exceeded daily AI credits budget" },
+      { flag: "hasDailyAICGuardrailError", expected: "[aw] Test Workflow: could not verify daily AI credits" },
+      { flag: "maxAICreditsExceeded", expected: "[aw] Test Workflow: exceeded max AI credits" },
+      { flag: "aiCreditsRateLimitError", expected: "[aw] Test Workflow: hit AI credits rate limit" },
+      { flag: "hasEngineRateLimit429", expected: "[aw] Test Workflow: hit engine rate limit (HTTP 429)" },
+      { flag: "http400ResponseError", expected: "[aw] Test Workflow: hit HTTP 400 bad request" },
+      { flag: "unknownModelAICredits", expected: "[aw] Test Workflow: has unknown model pricing" },
+      { flag: "hasAppTokenMintingFailed", expected: "[aw] Test Workflow: failed to mint GitHub App token" },
+      { flag: "hasLockdownCheckFailed", expected: "[aw] Test Workflow: failed lockdown check" },
+      { flag: "hasStaleLockFileFailed", expected: "[aw] Test Workflow: has stale lock file" },
+      { flag: "shellExpansionGuardRejected", expected: "[aw] Test Workflow: hit shell expansion guard rejection" },
+      { flag: "isTimedOut", expected: "[aw] Test Workflow: timed out" },
+      { flag: "hasToolDenialsExceeded", expected: "[aw] Test Workflow: exceeded tool denial limit" },
+      { flag: "hasCacheMissMisconfiguration", expected: "[aw] Test Workflow: has cache-memory miss misconfiguration" },
+      { flag: "hasReportIncomplete", expected: "[aw] Test Workflow: reported incomplete result" },
+      { flag: "hasMissingSafeOutputs", expected: "[aw] Test Workflow: produced no safe outputs" },
+      { flag: "hasMissingTool", expected: "[aw] Test Workflow: is missing required tools" },
+      { flag: "hasMissingData", expected: "[aw] Test Workflow: is missing required data" },
+      { flag: "hasAssignmentErrors", expected: "[aw] Test Workflow: failed to assign agent" },
+      { flag: "copilotOrgBillingError", expected: "[aw] Test Workflow: hit Copilot organization billing error" },
     ];
 
     it.each(cases)("returns expected title for isolated $flag", ({ flag, expected }) => {
@@ -846,36 +846,36 @@ describe("handle_agent_failure", () => {
     });
 
     it("falls back to generic failed title when no specific condition matches", () => {
-      expect(buildFailureIssueTitle(baseOptions)).toBe("[aw] Test Workflow failed");
-      expect(buildFailureIssueTitle({ ...baseOptions, transportWedge: true })).toBe("[aw] Test Workflow stalled on an MCP tool call");
+      expect(buildFailureIssueTitle(baseOptions)).toBe("[aw] Test Workflow: failed");
+      expect(buildFailureIssueTitle({ ...baseOptions, transportWedge: true })).toBe("[aw] Test Workflow: stalled on an MCP tool call");
     });
 
     it.each([
-      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
-      ["engine_driver_failure", "[aw] Test Workflow engine driver failed before emitting a terminal safe output"],
-      ["safeoutputs_cli_error", "[aw] Test Workflow failed to invoke safeoutputs CLI"],
-      ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
-      ["invalid_safe_outputs", "[aw] Test Workflow produced no valid safe outputs"],
+      ["agent_startup_failure", "[aw] Test Workflow: failed before agent execution started"],
+      ["engine_driver_failure", "[aw] Test Workflow: engine driver failed before emitting a terminal safe output"],
+      ["safeoutputs_cli_error", "[aw] Test Workflow: failed to invoke safeoutputs CLI"],
+      ["missing_terminal_safe_output", "[aw] Test Workflow: finished without a terminal safe output"],
+      ["invalid_safe_outputs", "[aw] Test Workflow: produced no valid safe outputs"],
     ])("distinguishes %s from generic incompletion", (emptyOutputCause, title) => {
       expect(buildFailureIssueTitle({ ...baseOptions, hasReportIncomplete: true, emptyOutputCause })).toBe(title);
     });
 
     it.each([
-      ["agent_startup_failure", "[aw] Test Workflow failed before agent execution started"],
-      ["engine_outage", "[aw] Test Workflow experienced an engine outage"],
-      ["request_rejection", "[aw] Test Workflow had a request rejected"],
-      ["prompt_exhaustion", "[aw] Test Workflow reported incomplete result"],
-      ["missing_terminal_safe_output", "[aw] Test Workflow finished without a terminal safe output"],
-      ["unknown", "[aw] Test Workflow finished without a clear failure cause"],
+      ["agent_startup_failure", "[aw] Test Workflow: failed before agent execution started"],
+      ["engine_outage", "[aw] Test Workflow: experienced an engine outage"],
+      ["request_rejection", "[aw] Test Workflow: had a request rejected"],
+      ["prompt_exhaustion", "[aw] Test Workflow: reported incomplete result"],
+      ["missing_terminal_safe_output", "[aw] Test Workflow: finished without a terminal safe output"],
+      ["unknown", "[aw] Test Workflow: failed (cause unknown)"],
     ])("uses the classified terminal-output cause %s in the issue title", (terminalOutputFailureCause, title) => {
       expect(buildFailureIssueTitle({ ...baseOptions, terminalOutputFailureCause })).toBe(title);
     });
 
     it.each([
-      [1, [], [], "[aw] Test Workflow finished without a clear failure cause"],
-      [137, [], [], "[aw] Test Workflow finished without a clear failure cause"],
-      [139, [], [], "[aw] Test Workflow finished without a clear failure cause"],
-      [1, ["capi_server_error"], [502], "[aw] Test Workflow experienced an engine outage"],
+      [1, [], [], "[aw] Test Workflow: failed (cause unknown)"],
+      [137, [], [], "[aw] Test Workflow: failed (cause unknown)"],
+      [139, [], [], "[aw] Test Workflow: failed (cause unknown)"],
+      [1, ["capi_server_error"], [502], "[aw] Test Workflow: experienced an engine outage"],
     ])("uses runtime evidence rather than a bare driver exit %s to choose an outage title", (exitCode, categories, errorCodes, title) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
       const { tmpdir } = require("os");
@@ -898,43 +898,43 @@ describe("handle_agent_failure", () => {
           emptyOutputCause: "missing_terminal_safe_output",
           terminalOutputFailureCause: "prompt_exhaustion",
         })
-      ).toBe("[aw] Test Workflow reported incomplete result");
+      ).toBe("[aw] Test Workflow: reported incomplete result");
     });
 
     it("prefers unknownModelAICredits over isTimedOut when both are true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow has unknown model pricing");
+      expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow: has unknown model pricing");
     });
 
     it("prefers shellExpansionGuardRejected over isTimedOut when both are true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, shellExpansionGuardRejected: true, isTimedOut: true })).toBe("[aw] Test Workflow hit shell expansion guard rejection");
+      expect(buildFailureIssueTitle({ ...baseOptions, shellExpansionGuardRejected: true, isTimedOut: true })).toBe("[aw] Test Workflow: hit shell expansion guard rejection");
     });
 
     it("returns missing model pricing title with model name when missingModelPricingError is true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5" })).toBe("[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)");
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5" })).toBe("[aw] Test Workflow: has no AI credits pricing for model (claude-opus-5)");
     });
 
     it("returns missing model pricing title without model name when model name is empty", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "" })).toBe("[aw] Test Workflow has no AI credits pricing for model");
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "" })).toBe("[aw] Test Workflow: has no AI credits pricing for model");
     });
 
     it("sanitizes Copilot agent-not-found title content", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, copilotAgentNotFound: "agent` @octo\npayload" })).toBe('[aw] Test Workflow could not find configured Copilot agent "agent` ``@octo`` payload"');
+      expect(buildFailureIssueTitle({ ...baseOptions, copilotAgentNotFound: "agent` @octo\npayload" })).toBe('[aw] Test Workflow: could not find configured Copilot agent "agent` @octo payload"');
     });
 
     it("prefers missingModelPricingError over unknownModelAICredits when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", unknownModelAICredits: true })).toBe(
-        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+        "[aw] Test Workflow: has no AI credits pricing for model (claude-opus-5)"
       );
     });
 
     it("prefers missingModelPricingError over http400ResponseError when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", http400ResponseError: true })).toBe(
-        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+        "[aw] Test Workflow: has no AI credits pricing for model (claude-opus-5)"
       );
     });
 
     it("aiCreditsRateLimitError takes precedence over hasEngineRateLimit429 when both are true", () => {
-      expect(buildFailureIssueTitle({ ...baseOptions, aiCreditsRateLimitError: true, hasEngineRateLimit429: true })).toBe("[aw] Test Workflow hit AI credits rate limit");
+      expect(buildFailureIssueTitle({ ...baseOptions, aiCreditsRateLimitError: true, hasEngineRateLimit429: true })).toBe("[aw] Test Workflow: hit AI credits rate limit");
     });
   });
 
@@ -1784,7 +1784,7 @@ describe("handle_agent_failure", () => {
       expect(updateIssueMock).toHaveBeenCalledWith(
         expect.objectContaining({
           issue_number: 42,
-          title: "[aw] Test Workflow produced no safe outputs",
+          title: "[aw] Test Workflow: produced no safe outputs",
           labels: ["agentic-workflows"],
           state: "open",
         })
@@ -1932,7 +1932,7 @@ describe("handle_agent_failure", () => {
       expect(body.match(/\*\*Driver exit code:\*\*/g)).toHaveLength(1);
       expect(body.match(/### Failure Diagnostics/g)).toHaveLength(1);
       expect(body).toContain("Completion signal: agent reported incomplete (reason and details excluded)");
-      expect(body).toContain("_Only runtime metadata is shown; agent-generated text is excluded._");
+      expect(body).toContain(`${existingIssue ? "_" : "*"}Only runtime metadata is shown; agent-generated text is excluded.${existingIssue ? "_" : "*"}`);
       expect(body).toContain("The workflow recorded a `report_incomplete` signal");
       expect(body).not.toContain("agent-generated diagnostic");
       expect(body).not.toContain("infrastructure_error");
@@ -1962,7 +1962,7 @@ describe("handle_agent_failure", () => {
             items: [
               {
                 number: 42,
-                title: "[aw] Test Workflow failed",
+                title: "[aw] Test Workflow: failed",
                 html_url: "https://github.com/owner/repo/issues/42",
                 body: buildWorkflowMarkerOnlyIssueBody(),
               },
@@ -2161,7 +2161,7 @@ describe("handle_agent_failure", () => {
             items: [
               {
                 number: 42,
-                title: "[aw] Test Workflow failed",
+                title: "[aw] Test Workflow: failed",
                 html_url: "https://github.com/owner/repo/issues/42",
                 body: buildExistingIssueBody({
                   workflowId,
@@ -2216,13 +2216,13 @@ describe("handle_agent_failure", () => {
                   items: [
                     {
                       number: 42,
-                      title: "[aw] Test Workflow failed",
+                      title: "[aw] Test Workflow: failed",
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({ branch: "feature/other", categories: ["missing_safe_outputs"] }),
                     },
                     {
                       number: 43,
-                      title: "[aw] Test Workflow failed",
+                      title: "[aw] Test Workflow: failed",
                       html_url: "https://github.com/owner/repo/issues/43",
                       body: buildExistingIssueBody({ branch: "feature/current", categories: ["agent_failure"] }),
                     },
@@ -2369,7 +2369,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow timed out");
+      expect(createCall.title).toBe("[aw] Test Workflow: timed out");
     });
 
     it("uses shell expansion guard title instead of timeout when both flags are present", async () => {
@@ -2406,7 +2406,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow hit shell expansion guard rejection");
+      expect(createCall.title).toBe("[aw] Test Workflow: hit shell expansion guard rejection");
       expect(createCall.body).toContain("SHELL GUARD TEMPLATE");
       expect(createCall.body).not.toContain("TIMEOUT TEMPLATE");
     });
@@ -2439,7 +2439,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow produced no safe outputs");
+      expect(createCall.title).toBe("[aw] Test Workflow: produced no safe outputs");
     });
 
     it("uses a precise report incomplete title", async () => {
@@ -2472,7 +2472,7 @@ describe("handle_agent_failure", () => {
 
       expect(createIssueMock).toHaveBeenCalledOnce();
       const createCall = createIssueMock.mock.calls[0][0];
-      expect(createCall.title).toBe("[aw] Test Workflow reported incomplete result");
+      expect(createCall.title).toBe("[aw] Test Workflow: reported incomplete result");
     });
 
     it.each([
@@ -2517,13 +2517,13 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).toHaveBeenCalledOnce();
       const { title, body } = createIssueMock.mock.calls[0][0];
       if (budgetExceeded) {
-        expect(title).toBe("[aw] Test Workflow exceeded max AI credits");
+        expect(title).toBe("[aw] Test Workflow: exceeded max AI credits");
         expect(body).toContain("AI Credits Budget Exceeded");
         expect(body).toContain("failure_categories: max_ai_credits_exceeded");
         expect(body).not.toContain("Copilot organization billing is unavailable");
         expect(body).not.toContain("copilot_org_billing_error");
       } else {
-        expect(title).toBe("[aw] Test Workflow hit Copilot organization billing error");
+        expect(title).toBe("[aw] Test Workflow: hit Copilot organization billing error");
         expect(body).toContain("Copilot organization billing is unavailable");
         expect(body).not.toContain("max_ai_credits_exceeded");
       }
@@ -2610,7 +2610,7 @@ describe("handle_agent_failure", () => {
                   items: [
                     {
                       number: 42,
-                      title: "[aw] Test Workflow failed",
+                      title: "[aw] Test Workflow: failed",
                       html_url: "https://github.com/owner/repo/issues/42",
                       body: buildExistingIssueBody({
                         branch: "feature/current",
@@ -2941,8 +2941,11 @@ describe("handle_agent_failure", () => {
       const commentTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_comment.md"), "utf8");
       const issueTemplate = fs.readFileSync(path.join(__dirname, "../md/agent_failure_issue.md"), "utf8");
 
-      for (const template of [commentTemplate, issueTemplate]) {
-        const rendered = renderTemplate(template, templateContext);
+      const { buildFailureReport } = require("./failure_report.cjs");
+      const { renderReport } = require("./report_ast.cjs");
+      const issueContext = Object.fromEntries(Array.from(issueTemplate.matchAll(/\{(\w+)\}/g), match => [match[1], ""]));
+      const issueReport = buildFailureReport(issueTemplate, "[aw] Test Workflow: reported incomplete result", { ...issueContext, ...templateContext });
+      for (const rendered of [renderTemplate(commentTemplate, templateContext), renderReport(issueReport).body]) {
         expect(rendered).not.toContain(reportIncompleteMarker);
         expect(rendered).toContain("The workflow recorded a `report_incomplete` signal");
         expect(rendered).toContain("completion could not be confirmed");
@@ -6893,7 +6896,7 @@ describe("handle_agent_failure", () => {
       };
       const { main: mainFn } = require("./handle_agent_failure.cjs");
       await mainFn();
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: `[aw] Test Workflow ${titleSuffix}` }));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: `[aw] Test Workflow: ${titleSuffix}` }));
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain(reason);
       expect(categories).not.toContain("agent_failure");
@@ -6971,7 +6974,7 @@ describe("handle_agent_failure", () => {
       };
       const { main: mainFn } = require("./handle_agent_failure.cjs");
       await mainFn();
-      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow reported incomplete result" }));
+      expect(createIssueMock).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow: reported incomplete result" }));
       const categories = JSON.parse(fs.readFileSync("/tmp/gh-aw/failure_categories.json", "utf8"));
       expect(categories).toContain("report_incomplete");
       expect(categories).not.toContain(reason);
@@ -7011,7 +7014,7 @@ describe("handle_agent_failure", () => {
       };
       const { main: mainFn } = require("./handle_agent_failure.cjs");
       await mainFn();
-      expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow reported incomplete result" }));
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "[aw] Test Workflow: reported incomplete result" }));
       const body = create.mock.calls[0][0].body;
       expect(body).toContain("Failing step:** `Post Run agent`");
       expect(body).not.toContain("Failing step:** `Start MCP Gateway`");
@@ -7675,7 +7678,7 @@ describe("handle_agent_failure", () => {
       expect(capturedBody).toContain("⚠️ Failure Cascade Detected");
       expect(capturedBody).toContain("cascade-suspected");
       expect(capturedBody).toContain("#100");
-      expect(capturedBody).toContain("[aw] Workflow 0 failed");
+      expect(capturedBody).toContain("\\[aw\\] Workflow 0 failed");
     });
 
     it("filters out non-[aw] issues from findRecentFailureIssues", async () => {
