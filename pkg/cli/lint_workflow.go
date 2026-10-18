@@ -20,7 +20,16 @@ type workflowLintDiagnostic struct {
 	workflowlint.Diagnostic
 }
 
-func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.Runner, output io.Writer, jsonOutput bool, javascript ...*taint.JavaScriptOptions) error {
+type workflowLintOptions struct {
+	JavaScript *taint.JavaScriptOptions
+	Debug      bool
+}
+
+func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.Runner, output io.Writer, jsonOutput bool, options ...workflowLintOptions) error {
+	var configuration workflowLintOptions
+	if len(options) > 0 {
+		configuration = options[0]
+	}
 	diagnostics := make([]workflowLintDiagnostic, 0)
 	var failures []error
 	for _, file := range files {
@@ -28,11 +37,14 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 			failures = append(failures, err)
 			break
 		}
-		current, err := lintWorkflowFile(ctx, file, runner, javascript...)
+		current, err := lintWorkflowFile(ctx, file, runner, configuration.JavaScript)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s: %w", file, err))
 		}
 		for _, diagnostic := range current {
+			if diagnostic.RuleID == "secret-leak" && diagnostic.Severity == workflowlint.Warning && !configuration.Debug {
+				continue
+			}
 			diagnostics = append(diagnostics, workflowLintDiagnostic{File: file, Diagnostic: diagnostic})
 		}
 	}

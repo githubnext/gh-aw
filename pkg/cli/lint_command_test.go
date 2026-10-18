@@ -26,6 +26,10 @@ func TestNewLintCommand(t *testing.T) {
 	)
 	require.NotNil(t, cmd.Flags().Lookup("shellcheck"), "lint command should have a --shellcheck flag")
 	require.NotNil(t, cmd.Flags().Lookup("pyflakes"), "lint command should have a --pyflakes flag")
+	require.NotNil(t, cmd.Flags().Lookup("debug"), "lint command should expose coverage warnings with --debug")
+	debug, err := cmd.Flags().GetBool("debug")
+	require.NoError(t, err)
+	assert.False(t, debug)
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "copilot-requests"`,
 		"lint command should include built-in ignore for gh-aw permission extension")
 	assert.Contains(t, defaultGhAwActionlintIgnorePatterns, `unknown permission scope "vulnerability-alerts"`,

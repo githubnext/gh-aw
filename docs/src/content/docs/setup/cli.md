@@ -464,9 +464,10 @@ gh aw lint --shellcheck --pyflakes                  # Enable actionlint script i
 gh aw lint --list-rules                             # List built-in AST rules
 gh aw lint --rules secret-leak                      # Check existing workflows for secret disclosures
 gh aw lint --rules secret-leak --json               # Emit structured diagnostics
+gh aw lint --rules secret-leak --debug              # Include incomplete-analysis warnings
 ```
 
-**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--javascript-module`, `--javascript-root`, `--javascript-runtime-path`
+**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--debug`, `--javascript-module`, `--javascript-root`, `--javascript-runtime-path`
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
 
@@ -490,7 +491,7 @@ In Bash/sh, recognized `test`/`[` string and file predicates and the `:`, `true`
 
 Unknown file reads produce secret-flow coverage warnings when they could select a modeled secret-bearing file or involve a secret-bearing filename. Unknown output targets warn when the output or filename is tainted; unrelated public file operations do not introduce secret-flow warnings.
 
-The linter reads a companion `.md` file when present to check AW prompt expressions as well as the compiled graph. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Error diagnostics produce a nonzero exit status. Unsupported shells, shell parse failures, recursive functions, and secret-bearing data passed to unmodeled external commands produce explicit coverage warnings; warnings alone do not fail the command.
+The linter reads a companion `.md` file when present to check AW prompt expressions as well as the compiled graph. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Error diagnostics produce a nonzero exit status. Secret-leak output includes only errors by default. `--debug` includes coverage warnings for unsupported shells, parse failures, recursion, and unmodeled secret-bearing flows in text and JSON output; these warnings do not fail the command. Other rules' diagnostic severities are unchanged. Library callers retain all coverage diagnostics regardless of CLI presentation.
 
 Analysis is conservative within Bash/sh control flow and can report infeasible paths. It does not execute analyzed code or inspect external actions, sourced shell scripts, Python/PowerShell programs, dynamically constructed shell code, or arbitrary filesystem operations. JavaScript inspection requires the explicit configuration below. Imported runtime prompt files are not recursively loaded. Authentication arguments are treated as intentional credential use; endpoint trust is not inferred. A clean result is not proof that a workflow cannot leak secrets.
 
@@ -511,7 +512,7 @@ The checker follows literal `node`/`nodejs` file and `--eval` invocations, `--pr
 
 `--javascript-root` bounds source reads to the supplied repository, including symlink confinement. Repeated `--javascript-runtime-path 'runner-directory=repository-relative-directory'` flags can map generated runtime asset paths to **operator-verified matching source**. For example, only when the workflow uses the exact checkout's gh-aw setup assets, pass `--javascript-runtime-path '${RUNNER_TEMP}/gh-aw/actions=actions/setup/js'`. This mapping loads and analyzes source; it does not declare any helper safe. Unknown interpreter paths are not identified by basename.
 
-Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits produce explicit incomplete-analysis warnings. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, the existing Bash analysis remains active and reports unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. The model is partial, and does not prove whole-program JavaScript safety.
+Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits retain explicit incomplete-analysis warnings, visible with `--debug`. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, the existing Bash analysis remains active and records unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. An empty errors-only report does not imply complete coverage or whole-program JavaScript safety.
 
 ### Testing
 

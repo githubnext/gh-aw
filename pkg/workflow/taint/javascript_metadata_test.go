@@ -131,6 +131,33 @@ func TestNativeJavaScriptNetworkWitness(t *testing.T) {
 				assert.Equal(t, Network, finding.Site.Kind)
 				assert.Equal(t, secret, finding.Sources)
 			}
+
+		})
+	}
+}
+
+func TestNativeJavaScriptObjectRestPrecision(t *testing.T) {
+	options := nativeJavaScriptOptions(t)
+	secret := []Source{{Reference: "github.token", Path: "env.GH_TOKEN"}}
+	for _, tt := range []struct {
+		name, source string
+		disclose     bool
+	}{
+		{"public timeout with secret env", `const options={env:{GH_TOKEN:process.env.GH_TOKEN},timeout:60000}; const {suppressLogs=false,...spawnOptions}=options; console.error(spawnOptions.timeout);`, false},
+		{"secret timeout remains tainted", `const options={env:{GH_TOKEN:process.env.GH_TOKEN},timeout:process.env.GH_TOKEN}; const {suppressLogs=false,...spawnOptions}=options; console.error(spawnOptions.timeout);`, true},
+		{"rest credential remains tainted", `const options={env:{GH_TOKEN:process.env.GH_TOKEN},timeout:60000}; const {timeout,...rest}=options; console.error(rest.env.GH_TOKEN);`, true},
+		{"excluded credential is not rest", `const options={token:process.env.GH_TOKEN,timeout:60000}; const {token,...rest}=options; console.error(rest);`, false},
+		{"opaque rest retains unknown source", `const options=JSON.parse(process.env.GH_TOKEN); const {token,...rest}=options; console.error(rest.timeout);`, true},
+		{"computed exclusion", `const options={token:process.env.GH_TOKEN,timeout:60000}; const key="token"; const {[key]:token,...rest}=options; console.error(rest);`, false},
+		{"rest is shallow copy", `const options={env:{}}; const {...rest}=options; rest.env.token=process.env.GH_TOKEN; console.error(options.env.token);`, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := AnalyzeJavaScript(JavaScriptInput{
+				Name: "rest.cjs", Source: tt.source, Env: map[string][]Source{"GH_TOKEN": secret},
+			}, SecretLeakRule(), *options)
+			require.NoError(t, err)
+			assert.Empty(t, result.Gaps)
+			assert.Equal(t, tt.disclose, len(result.Findings) != 0, "%+v", result)
 		})
 	}
 }

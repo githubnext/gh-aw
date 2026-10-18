@@ -1,6 +1,7 @@
 package taint
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 )
@@ -89,22 +90,7 @@ func (j *javascript) bind(node *JavaScriptNode, assigned jsValue) {
 		old := j.env[node.Text]
 		j.env[node.Text] = jsUnionPreserving(old, assigned)
 	case "ObjectBindingPattern", "ArrayBindingPattern":
-		for i, child := range node.Elements {
-			key := jsIndex(i)
-			if node.Kind == "ObjectBindingPattern" {
-				key = jsName(child.PropertyName)
-				if key == "" {
-					key = jsName(child.Name)
-				}
-			}
-			// Rest bindings may select any member, not just their local name.
-			if jsHasKind(child.Other, "DotDotDotToken") {
-				key = "*"
-			}
-			v := assigned.property(key)
-			v = jsUnionPreserving(v, j.eval(child.Initializer))
-			j.bind(child.Name, v)
-		}
+		j.bindPattern(node, assigned)
 	case "PropertyAccessExpression", "ElementAccessExpression":
 		base := j.eval(node.Expression)
 		key := jsName(node.Name)
@@ -121,6 +107,44 @@ func (j *javascript) bind(node *JavaScriptNode, assigned jsValue) {
 		}
 	default:
 		j.gap(node, "JavaScript assignment target is not modeled")
+	}
+}
+
+func (j *javascript) bindPattern(node *JavaScriptNode, assigned jsValue) {
+	excluded := make(map[string]struct{})
+	for i, child := range node.Elements {
+		key := jsIndex(i)
+		rest := jsHasKind(child.Other, "DotDotDotToken")
+		if node.Kind == "ObjectBindingPattern" {
+			if rest {
+				v := jsValue{sources: assigned.sources, fields: make(map[string]jsValue)}
+				// Object rest copies own fields, not their union. Nested
+				// objects still alias the original, as JavaScript requires.
+				maps.Copy(v.fields, assigned.fields)
+				for key := range excluded {
+					delete(v.fields, key)
+				}
+				j.bind(child.Name, v)
+				continue
+			}
+			key = jsName(child.PropertyName)
+			if child.PropertyName != nil && child.PropertyName.Kind == "ComputedPropertyName" {
+				var known bool
+				key, known = j.key(child.PropertyName.Expression)
+				if !known {
+					j.bind(child.Name, j.eval(child.Initializer))
+					continue
+				}
+			} else if key == "" {
+				key = jsName(child.Name)
+			}
+			excluded[key] = struct{}{}
+		}
+		if rest {
+			key = "*"
+		}
+		v := jsUnionPreserving(assigned.property(key), j.eval(child.Initializer))
+		j.bind(child.Name, v)
 	}
 }
 

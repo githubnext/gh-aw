@@ -60,6 +60,7 @@ All registered AST rules run by default. Use --rules to select AST rules and ski
 	cmd.Flags().StringSlice("rules", nil, "Select built-in AST rules and skip actionlint (default: all AST rules plus actionlint; empty selects all)")
 	cmd.Flags().Bool("list-rules", false, "List available built-in AST lint rules")
 	cmd.Flags().Bool("json", false, "Emit structured diagnostics (requires --rules)")
+	cmd.Flags().Bool("debug", false, "Include secret-leak analysis coverage warnings for investigation")
 	registerJavaScriptLintFlags(cmd)
 	// The root routes help to stderr. Structured lint reports belong on stdout.
 	cmd.SetOut(os.Stdout)
@@ -107,12 +108,15 @@ func runLintCommand(cmd *cobra.Command, args []string) (resultErr error) {
 	}
 	lintCommandLog.Printf("Resolved %d lock file(s) for linting", len(lockFiles))
 	jsonOutput, _ := cmd.Flags().GetBool("json")
+	debug, _ := cmd.Flags().GetBool("debug")
 	javascript, closeJavaScript, err := javascriptLintOptions(cmd)
 	if err != nil {
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, closeJavaScript()) }()
-	workflowLintErr := runWorkflowLint(cmd.Context(), lockFiles, selected, cmd.OutOrStdout(), jsonOutput, javascript)
+	workflowLintErr := runWorkflowLint(cmd.Context(), lockFiles, selected, cmd.OutOrStdout(), jsonOutput, workflowLintOptions{
+		JavaScript: javascript, Debug: debug,
+	})
 	if cmd.Flags().Changed("rules") {
 		return workflowLintErr
 	}

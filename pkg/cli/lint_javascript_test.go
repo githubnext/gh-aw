@@ -61,11 +61,14 @@ func TestJavaScriptLintCLI(t *testing.T) {
 		module  string
 		want    workflowlint.Severity
 		message string
+		debug   bool
 	}{
-		{"safe authentication", `fetch("https://example.test", {headers:{Authorization:process.env.TOKEN}})`, module, "", ""},
-		{"leak", `console.log(process.env.TOKEN)`, module, workflowlint.Error, "reaches log"},
-		{"unknown", `unknown(process.env.TOKEN)`, module, workflowlint.Warning, "not modeled"},
-		{"unavailable module", `console.log(process.env.TOKEN)`, t.TempDir(), workflowlint.Warning, "AST unavailable"},
+		{"safe authentication", `fetch("https://example.test", {headers:{Authorization:process.env.TOKEN}})`, module, "", "", false},
+		{"leak", `console.log(process.env.TOKEN)`, module, workflowlint.Error, "reaches log", false},
+		{"unknown hidden", `unknown(process.env.TOKEN)`, module, "", "", false},
+		{"unknown debug", `unknown(process.env.TOKEN)`, module, workflowlint.Warning, "not modeled", true},
+		{"unavailable module hidden", `console.log(process.env.TOKEN)`, t.TempDir(), "", "", false},
+		{"unavailable module debug", `console.log(process.env.TOKEN)`, t.TempDir(), workflowlint.Warning, "AST unavailable", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			content := "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - env:\n          TOKEN: ${{ secrets.TOKEN }}\n        shell: node {0}\n        run: |\n          " + tt.source + "\n"
@@ -74,7 +77,11 @@ func TestJavaScriptLintCLI(t *testing.T) {
 			var output bytes.Buffer
 			cmd.SetOut(&output)
 			cmd.SetErr(&output)
-			cmd.SetArgs([]string{"--rules", "secret-leak", "--json", "--javascript-module", tt.module, file})
+			args := []string{"--rules", "secret-leak", "--json", "--javascript-module", tt.module, file}
+			if tt.debug {
+				args = append(args, "--debug")
+			}
+			cmd.SetArgs(args)
 			err := cmd.Execute()
 			if tt.want == workflowlint.Error {
 				require.ErrorContains(t, err, "workflow lint found")
