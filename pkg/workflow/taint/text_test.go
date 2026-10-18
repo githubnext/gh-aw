@@ -2,7 +2,6 @@ package taint
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -97,7 +96,7 @@ func TestAnalyzeTextCancellationAndBindings(t *testing.T) {
 		return true
 	}
 	_, err = AnalyzeText(ctx, "${{ secrets.TOKEN }}", "run", rule, nil)
-	require.True(t, errors.Is(err, context.Canceled))
+	require.ErrorIs(t, err, context.Canceled)
 
 	_, err = AnalyzeText(context.Background(), "", "run", Rule{}, nil)
 	require.ErrorContains(t, err, "source predicate")

@@ -52,53 +52,8 @@ func checkTemplateInjection(ctx context.Context, input Input) ([]Diagnostic, err
 			return checker.diagnostics, err
 		}
 		for i, step := range job.Steps {
-			if err := ctx.Err(); err != nil {
-				return checker.diagnostics, err
-			}
 			stepPath := fmt.Sprintf("%s.steps[%d]", path, i)
-			var script string
-			env := bindings
-			switch value := step.(type) {
-			case actions.RunStep:
-				script = value.Run
-				env, err = checker.environment(ctx, value.Env, stepPath+".env", job.ID, resolved, bindings)
-			case actions.RawStep:
-				run, exists := value.Fields["run"]
-				if !exists {
-					continue
-				}
-				var ok bool
-				script, ok = run.(string)
-				if !ok {
-					return checker.diagnostics, fmt.Errorf("run script must be a string at %s.run", stepPath)
-				}
-				env, err = checker.rawEnvironment(ctx, value.Fields["env"], stepPath+".env", bindings)
-			case actions.ActionStep:
-				continue
-			default:
-				return checker.diagnostics, fmt.Errorf("unsupported step at %s", stepPath)
-			}
-			if err != nil {
-				return checker.diagnostics, err
-			}
-			// Interpolation happens before every shell/interpreter starts, even
-			// within apparent quotes, comments, or quoted heredoc bodies.
-			expressions, err := checker.text(ctx, script, stepPath+".run", env)
-			for _, expression := range expressions {
-				if len(expression.Sources) == 0 {
-					continue
-				}
-				related := make([]RelatedLocation, 0, len(expression.Sources))
-				for _, source := range expression.Sources {
-					related = append(related, RelatedLocation{Path: source.Path})
-				}
-				checker.diagnostics = append(checker.diagnostics, Diagnostic{
-					Path: stepPath + ".run", Line: expression.Line, Related: slices.Compact(related),
-					Message: "Attacker-controlled Actions value is interpolated into executable script text; " +
-						"bind it through env and use a quoted variable expansion instead",
-				})
-			}
-			if err != nil {
+			if err := checker.step(ctx, step, stepPath, job.ID, resolved, bindings); err != nil {
 				return checker.diagnostics, err
 			}
 		}
@@ -110,6 +65,56 @@ func checkTemplateInjection(ctx context.Context, input Input) ([]Diagnostic, err
 type templateInjectionChecker struct {
 	rule        taint.Rule
 	diagnostics []Diagnostic
+}
+
+func (c *templateInjectionChecker) step(ctx context.Context, step actions.Step, path string, job actions.JobID, workflow *actions.Workflow, bindings map[string][]taint.Source) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	var script string
+	var env map[string][]taint.Source
+	var err error
+	switch value := step.(type) {
+	case actions.RunStep:
+		script = value.Run
+		env, err = c.environment(ctx, value.Env, path+".env", job, workflow, bindings)
+	case actions.RawStep:
+		run, exists := value.Fields["run"]
+		if !exists {
+			return nil
+		}
+		var ok bool
+		script, ok = run.(string)
+		if !ok {
+			return fmt.Errorf("run script must be a string at %s.run", path)
+		}
+		env, err = c.rawEnvironment(ctx, value.Fields["env"], path+".env", bindings)
+	case actions.ActionStep:
+		return nil
+	default:
+		return fmt.Errorf("unsupported step at %s", path)
+	}
+	if err != nil {
+		return err
+	}
+	// Interpolation happens before every shell/interpreter starts, even
+	// within apparent quotes, comments, or quoted heredoc bodies.
+	expressions, err := c.text(ctx, script, path+".run", env)
+	for _, expression := range expressions {
+		if len(expression.Sources) == 0 {
+			continue
+		}
+		related := make([]RelatedLocation, 0, len(expression.Sources))
+		for _, source := range expression.Sources {
+			related = append(related, RelatedLocation{Path: source.Path})
+		}
+		c.diagnostics = append(c.diagnostics, Diagnostic{
+			Path: path + ".run", Line: expression.Line, Related: slices.Compact(related),
+			Message: "Attacker-controlled Actions value is interpolated into executable script text; " +
+				"bind it through env and use a quoted variable expansion instead",
+		})
+	}
+	return err
 }
 
 func (c *templateInjectionChecker) text(ctx context.Context, text, path string, bindings map[string][]taint.Source) ([]taint.TextExpression, error) {
@@ -218,14 +223,10 @@ func templateInjectionSource(reference string) bool {
 	parts := strings.Split(strings.ToLower(reference), ".")
 	for _, source := range sources {
 		fields := strings.Split(source, ".")
-		matches := true
-		for i := range min(len(parts), len(fields)) {
-			if parts[i] != fields[i] && parts[i] != "*" && fields[i] != "*" {
-				matches = false
-				break
-			}
-		}
-		if matches {
+		length := min(len(parts), len(fields))
+		if slices.EqualFunc(parts[:length], fields[:length], func(part, field string) bool {
+			return part == field || part == "*" || field == "*"
+		}) {
 			return true
 		}
 	}
