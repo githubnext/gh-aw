@@ -472,6 +472,8 @@ By default, shellcheck and pyflakes integrations are disabled to reduce noise fo
 
 `--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
+**Migration from actionlint-only linting:** the default now also enforces registered AST rules and may fail on findings that actionlint did not report. Review those findings, or run `actionlint` directly on the generated `.lock.yml` files to retain actionlint-only behavior. `--rules` selects AST rules and skips actionlint; it does not provide an actionlint-only mode.
+
 | Built-in rule | Checks |
 |---|---|
 | `action-pin` | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |

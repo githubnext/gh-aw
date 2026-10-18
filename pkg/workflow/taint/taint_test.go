@@ -53,12 +53,37 @@ func TestSecretLeakSinksAndFilters(t *testing.T) {
 		{"curl body", `curl -d "$TOKEN" https://example.test`, Network, 1},
 		{"authentication", `curl --oauth2-bearer "$TOKEN" https://example.test`, "", 0},
 		{"xtrace authentication", `set -x; curl --oauth2-bearer "$TOKEN" https://example.test`, Log, 1},
+		{"fixed point does not carry later tracing", `copy="$TOKEN"; curl --oauth2-bearer "$copy" https://example.test; set -x`, "", 0},
+		{"xtrace can be disabled", `set -x; echo "$TOKEN"; set +x; echo "$TOKEN"`, Log, 1},
+		{"xtrace option can be disabled", `set -o xtrace; echo "$TOKEN"; set +o xtrace; echo "$TOKEN"`, Log, 1},
+		{"trace state is isolated between branches", `if true; then set -x; else curl --oauth2-bearer "$TOKEN" https://example.test; fi`, "", 0},
+		{"trace state merges after branches", `if true; then set -x; fi; curl --oauth2-bearer "$TOKEN" https://example.test`, Log, 1},
+		{"trace state is isolated between case arms", `case value in value) set -x;; other) curl --oauth2-bearer "$TOKEN" https://example.test;; esac`, "", 0},
+		{"trace state flows through logical command", `set -x && curl --oauth2-bearer "$TOKEN" https://example.test`, Log, 1},
 		{"api key authentication", `curl -H "x-goog-api-key: $TOKEN" https://example.test`, "", 0},
 		{"non-authentication header", `curl -H "X-Data: $TOKEN" https://example.test`, Network, 1},
 		{"stderr", `echo "$TOKEN" >&2`, Log, 1},
 		{"stderr-only redirection", `echo "$TOKEN" 2>/dev/null`, Log, 1},
 		{"mask registration", `echo "::add-mask::$TOKEN"`, "", 0},
+		{"printf mask registration", `printf '::add-mask::%s\n' "$TOKEN"`, "", 0},
+		{"mask-looking content with other output", `printf '::add-mask::dummy\n%s\n' "$TOKEN"`, Log, 1},
 		{"mask is not sanitizer", `echo "::add-mask::$TOKEN"; echo "$TOKEN"`, Log, 1},
+		{"assignment-only redirection", `VALUE=ok > result.txt`, "", 0},
+		{"target constant reassignment", `FILE=/dev/null; FILE=token.txt; printf '%s' "$TOKEN" > "$FILE"; cat token.txt`, Log, 1},
+		{"export preserves literal target", `FILE=token.txt; export FILE; echo "$TOKEN" > "$FILE"; cat token.txt`, Log, 1},
+		{"branch first constant target", `if true; then FILE=first.txt; else FILE=second.txt; fi; echo "$TOKEN" > "$FILE"; cat first.txt`, Log, 1},
+		{"branch second constant target", `if true; then FILE=first.txt; else FILE=second.txt; fi; echo "$TOKEN" > "$FILE"; cat second.txt`, Log, 1},
+		{"prefix environment", `COPY="$TOKEN" printenv COPY`, Log, 1},
+		{"prefix environment is restored", `COPY="$TOKEN" true; echo "$COPY"`, "", 0},
+		{"env local environment", `env COPY="$TOKEN" printenv COPY`, Log, 1},
+		{"env command does not print environment", `env COPY="$TOKEN" true`, "", 0},
+		{"function aggregate parameters", `show() { printf '%s\n' "$@"; }; show "$TOKEN"`, Log, 1},
+		{"function star parameters", `show() { echo "$*"; }; show "$TOKEN"`, Log, 1},
+		{"nested function parameters", `show() { echo "$@"; }; relay() { show "$1"; }; relay "$TOKEN"`, Log, 1},
+		{"function arguments expand before positional binding", `show() { echo "$@"; }; swap() { show "$2" "$1"; }; swap "$TOKEN" clean`, Log, 1},
+		{"pipeline network body", `printf '%s' "$TOKEN" | curl --data-binary @- https://example.test`, Network, 1},
+		{"upload tracked file", `printf '%s' "$TOKEN" > payload.txt; curl --data-binary @payload.txt https://example.test`, Network, 1},
+		{"summary preserves mask-looking content", `echo "::add-mask::$TOKEN" >> "$GITHUB_STEP_SUMMARY"`, Summary, 1},
 		{"discard", `echo "$TOKEN" > /dev/null`, "", 0},
 		{"file only", `echo "$TOKEN" > token.txt`, "", 0},
 		{"single quotes", `echo '$TOKEN'`, "", 0},
@@ -84,6 +109,54 @@ func TestSecretLeakSinksAndFilters(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestShellInvocationTraceOptions(t *testing.T) {
+	result := checkSteps(t, `      - shell: "bash -x {0}"
+        env:
+          TOKEN: ${{ secrets.TEST_TOKEN }}
+        run: curl --oauth2-bearer "$TOKEN" https://example.test
+`)
+	require.Len(t, result.Findings, 1, "%+v", result.Findings)
+	assert.Equal(t, Log, result.Findings[0].Site.Kind)
+}
+
+func TestEnvCommandExecutionIsNotEnvironmentListing(t *testing.T) {
+	result := checkSteps(t, `      - env:
+          TOKEN: ${{ secrets.TEST_TOKEN }}
+        run: |
+          env true
+          env GOOS=linux go build ./...
+`)
+	assert.Empty(t, result.Findings, "%+v", result.Findings)
+	require.Len(t, result.Gaps, 1, "%+v", result.Gaps)
+	assert.Contains(t, result.Gaps[0].Reason, "env command")
+}
+
+func TestPersistedEnvironmentRecordsAndUnknownNames(t *testing.T) {
+	result := checkSteps(t, `      - env:
+          TOKEN: ${{ secrets.TEST_TOKEN }}
+        run: |
+          {
+            echo 'COPY<<EOF'
+            echo "$TOKEN"
+            echo EOF
+          } >> "$GITHUB_ENV"
+      - run: echo "$COPY"
+`)
+	require.Empty(t, result.Gaps)
+	require.Len(t, result.Findings, 1)
+	assert.Equal(t, Log, result.Findings[0].Site.Kind)
+
+	result = checkSteps(t, `      - env:
+          TOKEN: ${{ secrets.TEST_TOKEN }}
+        run: |
+          echo "$NAME=$TOKEN" >> "$GITHUB_ENV"
+          F=$(mktemp)
+          echo "$TOKEN" > "$F"
+`)
+	assert.Empty(t, result.Findings)
+	require.Len(t, result.Gaps, 2, "%+v", result.Gaps)
 }
 
 func TestActionsExpressionTaint(t *testing.T) {
@@ -168,6 +241,35 @@ jobs:
 	}
 }
 
+func TestPersistedEnvironmentIsAvailableToJobOutputs(t *testing.T) {
+	workflow, err := actions.Parse([]byte(`
+jobs:
+  producer:
+    runs-on: ubuntu-latest
+    outputs:
+      credential: ${{ env.COPY }}
+    steps:
+      - env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: printf '%s\n' "COPY=$TOKEN" >> "$GITHUB_ENV"
+  consumer:
+    needs: producer
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          FORWARDED: ${{ needs.producer.outputs.credential }}
+        run: echo "$FORWARDED"
+`))
+	require.NoError(t, err)
+	result, err := CheckSecretLeaks(workflow)
+	require.NoError(t, err)
+	require.Empty(t, result.Gaps)
+	require.Len(t, result.Findings, 2, "%+v", result.Findings)
+	kinds := []Kind{result.Findings[0].Site.Kind, result.Findings[1].Site.Kind}
+	assert.Contains(t, kinds, Output)
+	assert.Contains(t, kinds, Log)
+}
+
 func TestActionSinksAndCredentialOutputs(t *testing.T) {
 	result := checkSteps(t, `      - id: app
         uses: actions/create-github-app-token@v2
@@ -242,12 +344,136 @@ func TestGroupedOutputsAndArtifactPaths(t *testing.T) {
 	assert.Equal(t, ActionInput, result.Findings[2].Site.Kind)
 }
 
+func TestWorkingDirectoryArtifactPatternsAndExclusions(t *testing.T) {
+	tests := []struct {
+		name         string
+		patterns     string
+		wantArtifact bool
+	}{
+		{"recursive match", "**/*.txt", true},
+		{"excluded secret file", "subdir\n!subdir/token.txt", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflow, err := actions.Parse([]byte(fmt.Sprintf(`
+defaults:
+  run:
+    shell: bash
+    working-directory: subdir
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: printf '%%s' "$TOKEN" > token.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          path: %q
+`, tt.patterns)))
+			require.NoError(t, err)
+			result, err := CheckSecretLeaks(workflow)
+			require.NoError(t, err)
+			require.Empty(t, result.Gaps)
+			if tt.wantArtifact {
+				require.Len(t, result.Findings, 1, "%+v", result.Findings)
+				assert.Equal(t, Artifact, result.Findings[0].Site.Kind)
+			} else {
+				assert.Empty(t, result.Findings)
+			}
+		})
+	}
+}
+
+func TestInheritedWindowsShellReportsCoverageGap(t *testing.T) {
+	workflow, err := actions.Parse([]byte(`
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: Write-Output $env:TOKEN
+`))
+	require.NoError(t, err)
+	result, err := CheckSecretLeaks(workflow)
+	require.NoError(t, err)
+	require.Empty(t, result.Findings)
+	require.Len(t, result.Gaps, 1)
+	assert.Contains(t, result.Gaps[0].Reason, "only bash and sh")
+}
+
+func TestRunShellDefaultPrecedence(t *testing.T) {
+	workflow, err := actions.Parse([]byte(`
+defaults:
+  run:
+    shell: pwsh
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: echo "$TOKEN"
+      - shell: pwsh
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: Write-Output $env:TOKEN
+`))
+	require.NoError(t, err)
+	result, err := CheckSecretLeaks(workflow)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	assert.Equal(t, Log, result.Findings[0].Site.Kind)
+	require.Len(t, result.Gaps, 1)
+	assert.Contains(t, result.Gaps[0].Reason, "only bash and sh")
+}
+
+func TestEffectiveWorkingDirectoryPrecedence(t *testing.T) {
+	workflow, err := actions.Parse([]byte(`
+defaults:
+  run:
+    working-directory: workflow-dir
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: job-dir
+    steps:
+      - env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: printf '%s' "$TOKEN" > token.txt
+      - working-directory: step-dir
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+        run: printf '%s' "$TOKEN" > token.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          path: job-dir/token.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          path: step-dir/token.txt
+`))
+	require.NoError(t, err)
+	result, err := CheckSecretLeaks(workflow)
+	require.NoError(t, err)
+	require.Empty(t, result.Gaps)
+	require.Len(t, result.Findings, 2, "%+v", result.Findings)
+	for _, finding := range result.Findings {
+		assert.Equal(t, Artifact, finding.Site.Kind)
+	}
+}
+
 func TestPromptEnvironmentAlias(t *testing.T) {
 	document, err := aw.Parse("---\non: workflow_dispatch\n---\nUse ${{ env.CREDENTIAL }}.\n")
 	require.NoError(t, err)
 	workflow, err := actions.Parse([]byte(`
 jobs:
-  agent:
+  activation:
     runs-on: ubuntu-latest
     env:
       CREDENTIAL: ${{ secrets.TOKEN }}
@@ -259,6 +485,28 @@ jobs:
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	assert.Equal(t, Prompt, result.Findings[0].Site.Kind)
+}
+
+func TestPromptDoesNotUseAgentEnvironment(t *testing.T) {
+	document, err := aw.Parse("---\non: workflow_dispatch\n---\nUse ${{ env.CREDENTIAL }}.\n")
+	require.NoError(t, err)
+	workflow, err := actions.Parse([]byte(`
+jobs:
+  activation:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo safe
+  agent:
+    runs-on: ubuntu-latest
+    env:
+      CREDENTIAL: ${{ secrets.TOKEN }}
+    steps:
+      - run: echo safe
+`))
+	require.NoError(t, err)
+	result, err := AnalyzeDocument(document, workflow, SecretLeakRule())
+	require.NoError(t, err)
+	assert.Empty(t, result.Findings)
 }
 
 func TestTypedASTAndAWPrompt(t *testing.T) {

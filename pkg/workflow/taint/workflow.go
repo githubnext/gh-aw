@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/github/gh-aw/pkg/workflow/aw"
 )
@@ -134,38 +135,135 @@ func (a *analyzer) job(job *actions.Job, workflow *actions.Workflow, outputs sco
 	}
 	persisted := make(scope)
 	files := make(scope)
-	for i, step := range job.Steps {
-		fields, err := actions.LowerStep(step, job.ID, workflow)
-		if err != nil {
-			return err
-		}
-		if err := a.step(fields, fmt.Sprintf("%s.steps[%d]", path, i), env, persisted, files); err != nil {
-			return err
-		}
+	if err := a.jobSteps(job, workflow, path, env, persisted, files); err != nil {
+		return err
 	}
-	for _, name := range slices.Sorted(maps.Keys(job.Outputs)) {
-		text, err := actions.RenderExpression(job.Outputs[name], job.ID, workflow, true)
-		if err != nil {
-			return err
-		}
-		field := path + ".outputs." + string(name)
-		sources, err := a.text(text, field, env)
-		if err != nil {
-			return err
-		}
-		outputs["needs."+strings.ToLower(string(job.ID))+".outputs."+strings.ToLower(string(name))] = sources
-		a.emit(Site{Kind: Output, Path: field}, sources)
+	outputBindings := maps.Clone(env)
+	maps.Copy(outputBindings, persisted)
+	if err := a.jobOutputs(job, workflow, path, outputs, outputBindings); err != nil {
+		return err
 	}
 	sources, err := a.text(job.Name, path+".name", env)
 	if err != nil {
 		return err
 	}
 	a.emit(Site{Kind: Display, Path: path + ".name"}, sources)
-	if job.ID == "agent" {
+	if job.ID == actions.JobID(constants.ActivationJobName) {
 		a.promptScope = maps.Clone(env)
 		maps.Copy(a.promptScope, persisted)
 	}
 	return nil
+}
+
+func (a *analyzer) jobSteps(job *actions.Job, workflow *actions.Workflow, path string, env, persisted, files scope) error {
+	workflowRunDefaults := runDefaults(workflow.Defaults)
+	jobRunDefaults := runDefaults(job.Defaults)
+	for i, step := range job.Steps {
+		fields, err := actions.LowerStep(step, job.ID, workflow)
+		if err != nil {
+			return err
+		}
+		stepPath := fmt.Sprintf("%s.steps[%d]", path, i)
+		if _, exists := fields["shell"]; !exists {
+			shell := inheritedRunSetting("shell", jobRunDefaults, workflowRunDefaults, runnerShell(job.RunsOn))
+			if shell == unknownRunSetting {
+				shell = "unknown"
+			}
+			fields["shell"] = shell
+		}
+		if _, exists := fields["working-directory"]; !exists {
+			workingDirectory := inheritedRunSetting("working-directory", jobRunDefaults, workflowRunDefaults, "")
+			if workingDirectory == unknownRunSetting {
+				a.gap(stepPath+".run", "working directory could not be modeled")
+			} else if workingDirectory != "" {
+				fields["working-directory"] = workingDirectory
+			}
+		}
+		if err := a.step(fields, stepPath, env, persisted, files); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *analyzer) jobOutputs(job *actions.Job, workflow *actions.Workflow, path string, outputs, outputBindings scope) error {
+	for _, name := range slices.Sorted(maps.Keys(job.Outputs)) {
+		text, err := actions.RenderExpression(job.Outputs[name], job.ID, workflow, true)
+		if err != nil {
+			return err
+		}
+		field := path + ".outputs." + string(name)
+		sources, err := a.text(text, field, outputBindings)
+		if err != nil {
+			return err
+		}
+		outputs["needs."+strings.ToLower(string(job.ID))+".outputs."+strings.ToLower(string(name))] = sources
+		a.emit(Site{Kind: Output, Path: field}, sources)
+	}
+	return nil
+}
+
+func runDefaults(defaults map[string]any) map[string]any {
+	raw, exists := defaults["run"]
+	if exists {
+		run, ok := raw.(map[string]any)
+		if !ok {
+			return map[string]any{"shell": unknownRunSetting, "working-directory": unknownRunSetting}
+		}
+		return run
+	}
+	return nil
+}
+
+const unknownRunSetting = "\x00unknown"
+
+func inheritedRunSetting(key string, jobDefaults, workflowDefaults map[string]any, fallback string) string {
+	for _, defaults := range []map[string]any{jobDefaults, workflowDefaults} {
+		if value, exists := defaults[key]; exists {
+			text, ok := value.(string)
+			if !ok {
+				return unknownRunSetting
+			}
+			if text != "" {
+				return text
+			}
+		}
+	}
+	return fallback
+}
+
+func runnerShell(runsOn any) string {
+	var labels []string
+	switch value := runsOn.(type) {
+	case string:
+		labels = append(labels, value)
+	case []any:
+		for _, label := range value {
+			labels = append(labels, fmt.Sprint(label))
+		}
+	default:
+		return "unknown"
+	}
+	windows, unix := false, false
+	for _, label := range labels {
+		label = strings.ToLower(label)
+		if strings.Contains(label, "${{") {
+			return "unknown"
+		}
+		if strings.Contains(label, "windows") {
+			windows = true
+		}
+		if strings.Contains(label, "ubuntu") || strings.Contains(label, "linux") || strings.Contains(label, "macos") {
+			unix = true
+		}
+	}
+	if windows {
+		return "pwsh"
+	}
+	if unix {
+		return "bash"
+	}
+	return "unknown"
 }
 
 func (a *analyzer) inputs(inputs map[string]actions.Expression, site Site, job actions.JobID, workflow *actions.Workflow, bindings scope) error {
@@ -243,11 +341,10 @@ func (a *analyzer) action(fields map[string]any, path string, bindings, files sc
 		a.emit(Site{Kind: ActionInput, Path: path + ".with." + key, Uses: uses, Input: key}, sources)
 		if actionName(uses) == "actions/upload-artifact" && key == "path" {
 			var contents value
+			patterns := strings.Split(fmt.Sprint(inputs[key]), "\n")
 			for file, sources := range files {
-				for pattern := range strings.SplitSeq(fmt.Sprint(inputs[key]), "\n") {
-					if artifactContains(strings.TrimSpace(pattern), file) {
-						contents = union(contents, sources)
-					}
+				if artifactIncludes(patterns, file) {
+					contents = union(contents, sources)
 				}
 			}
 			a.emit(Site{Kind: Artifact, Path: path + ".with.path", Uses: uses, Input: key}, contents)

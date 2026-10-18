@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,30 +12,60 @@ import (
 )
 
 type shell struct {
-	a         *analyzer
-	path      string
-	step      string
-	bindings  scope
-	persisted scope
-	files     scope
-	vars      scope
-	markers   scope
-	functions map[string]*syntax.Stmt
-	active    map[string]bool
-	trace     bool
-	constants map[string]string
+	a                *analyzer
+	path             string
+	step             string
+	bindings         scope
+	persisted        scope
+	files            scope
+	vars             scope
+	markers          scope
+	functions        map[string]*syntax.Stmt
+	active           map[string]bool
+	trace            bool
+	initialTrace     bool
+	workingDirectory string
+	constants        map[string]string
+	constantValues   map[string]map[string]struct{}
+	constantUnknown  map[string]bool
+}
+
+type constantState struct {
+	values  map[string]map[string]struct{}
+	unknown map[string]bool
 }
 
 func (a *analyzer) script(text string, fields map[string]any, path string, bindings, persisted, files scope) error {
+	s, tree, err := a.parseShell(text, fields, path, bindings, persisted, files)
+	if err != nil {
+		return err
+	}
+	if s == nil {
+		return nil
+	}
+	// Iterate to a fixed point because assignments can feed later commands.
+	for {
+		s.trace = s.initialTrace
+		before := s.size()
+		s.stmts(tree.Stmts, false, nil)
+		if s.size() == before {
+			break
+		}
+	}
+	return nil
+}
+
+func (a *analyzer) parseShell(text string, fields map[string]any, path string, bindings, persisted, files scope) (*shell, *syntax.File, error) {
 	s := &shell{
 		a: a, path: path, bindings: bindings, persisted: persisted,
 		files: files, vars: make(scope), markers: make(scope),
 		functions: make(map[string]*syntax.Stmt), active: make(map[string]bool),
-		constants: make(map[string]string),
+		constants: make(map[string]string), constantValues: make(map[string]map[string]struct{}),
+		constantUnknown: make(map[string]bool),
 	}
 	id, err := optionalField[string](fields, "id", path)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	s.step = id
 	for key, sources := range bindings {
@@ -53,32 +84,35 @@ func (a *analyzer) script(text string, fields map[string]any, path string, bindi
 		return marker
 	})
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	shellName, err := optionalField[string](fields, "shell", path)
 	if err != nil {
-		return err
+		a.gap(path, "shell could not be determined")
+		return nil, nil, nil
 	}
 	if shellName != "" && shellName != "bash" && shellName != "sh" &&
 		!strings.HasPrefix(shellName, "bash ") && !strings.HasPrefix(shellName, "sh ") {
 		a.gap(path, "only bash and sh run scripts are modeled")
-		return nil
+		return nil, nil, nil
+	}
+	s.initialTrace = shellInvocationTraces(shellName)
+	s.trace = s.initialTrace
+	s.workingDirectory, err = optionalField[string](fields, "working-directory", path)
+	if err != nil {
+		a.gap(path, "working directory could not be modeled")
+		s.workingDirectory = ""
+	}
+	if strings.Contains(s.workingDirectory, "${{") {
+		a.gap(path, "working directory could not be modeled")
+		s.workingDirectory = ""
 	}
 	tree, parseErr := syntax.NewParser().Parse(strings.NewReader(rendered), "")
 	if parseErr != nil {
 		a.gap(path, "shell syntax could not be analyzed")
-		return nil
+		return nil, nil, nil
 	}
-	// Monotone local assignments keep both sides of branches and loop-carried
-	// values. Iterate to a fixed point; do not clear taint on reassignment.
-	for {
-		before := s.size()
-		s.stmts(tree.Stmts, false, nil)
-		if s.size() == before {
-			break
-		}
-	}
-	return nil
+	return s, tree, nil
 }
 
 func (s *shell) size() int {
@@ -124,6 +158,8 @@ func (s *shell) word(word *syntax.Word) value {
 			child := *s
 			child.vars = maps.Clone(s.vars)
 			child.constants = maps.Clone(s.constants)
+			child.constantValues = cloneConstantValues(s.constantValues)
+			child.constantUnknown = maps.Clone(s.constantUnknown)
 			result = union(result, child.stmts(n.Stmts, true, nil))
 			return false
 		}
@@ -136,18 +172,112 @@ func (s *shell) assign(assign *syntax.Assign) {
 	if assign.Name == nil {
 		return
 	}
+	if assign.Value == nil && assign.Array == nil {
+		return
+	}
 	assigned := s.word(assign.Value)
 	s.vars[assign.Name.Value] = union(s.vars[assign.Name.Value], assigned)
-	if _, exists := s.constants[assign.Name.Value]; !exists && len(assigned) == 0 {
-		if text := wordText(assign.Value, s.constants); !strings.Contains(text, "$") {
-			s.constants[assign.Name.Value] = text
-		}
+	texts, known := wordTexts(assign.Value, s.constants, s.constantValues, s.constantUnknown)
+	if known && len(assigned) == 0 && assign.Array == nil {
+		s.setConstants(assign.Name.Value, texts, false)
+	} else if len(assigned) == 0 {
+		s.setConstants(assign.Name.Value, texts, true)
+	} else {
+		s.setConstants(assign.Name.Value, nil, true)
 	}
 	if assign.Array != nil {
 		for _, elem := range assign.Array.Elems {
 			s.vars[assign.Name.Value] = union(s.vars[assign.Name.Value], s.word(elem.Value))
 		}
 	}
+}
+
+func (s *shell) setConstants(name string, values []string, unknown bool) {
+	unique := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		unique[value] = struct{}{}
+	}
+	if len(unique) == 0 {
+		delete(s.constantValues, name)
+		delete(s.constants, name)
+	} else {
+		s.constantValues[name] = unique
+		if len(unique) == 1 && !unknown {
+			for value := range unique {
+				s.constants[name] = value
+			}
+		} else {
+			delete(s.constants, name)
+		}
+	}
+	if unknown {
+		s.constantUnknown[name] = true
+	} else {
+		delete(s.constantUnknown, name)
+	}
+}
+
+func (s *shell) constantState() constantState {
+	return constantState{
+		values:  cloneConstantValues(s.constantValues),
+		unknown: maps.Clone(s.constantUnknown),
+	}
+}
+
+func (s *shell) restoreConstants(state constantState) {
+	s.constantValues = cloneConstantValues(state.values)
+	s.constantUnknown = maps.Clone(state.unknown)
+	s.constants = make(map[string]string)
+	for name, values := range state.values {
+		if len(values) == 1 && !state.unknown[name] {
+			for value := range values {
+				s.constants[name] = value
+			}
+		}
+	}
+}
+
+func mergeConstantStates(states ...constantState) constantState {
+	merged := constantState{
+		values: make(map[string]map[string]struct{}), unknown: make(map[string]bool),
+	}
+	names := make(map[string]struct{})
+	for _, state := range states {
+		for name := range state.values {
+			names[name] = struct{}{}
+		}
+		for name := range state.unknown {
+			names[name] = struct{}{}
+		}
+	}
+	for name := range names {
+		values := make(map[string]struct{})
+		unknown := false
+		for _, state := range states {
+			current := state.values[name]
+			if len(current) == 0 || state.unknown[name] {
+				unknown = true
+			}
+			for value := range current {
+				values[value] = struct{}{}
+			}
+		}
+		if len(values) > 0 {
+			merged.values[name] = values
+		}
+		if unknown {
+			merged.unknown[name] = true
+		}
+	}
+	return merged
+}
+
+func cloneConstantValues(values map[string]map[string]struct{}) map[string]map[string]struct{} {
+	cloned := make(map[string]map[string]struct{}, len(values))
+	for name, candidates := range values {
+		cloned[name] = maps.Clone(candidates)
+	}
+	return cloned
 }
 
 func (s *shell) stmts(stmts []*syntax.Stmt, captured bool, stdin value) value {
@@ -165,7 +295,13 @@ func (s *shell) stmt(stmt *syntax.Stmt, captured bool, stdin value) value {
 		case ">", ">>", ">&", "&>", "&>>":
 			redirected = redirected || redir.N == nil || redir.N.Value == "1" || strings.HasPrefix(redir.Op.String(), "&")
 		case "<":
-			stdin = union(stdin, s.files[wordText(redir.Word, s.constants)])
+			targets, known := s.paths(redir.Word)
+			if !known {
+				s.a.gap(s.path, "dynamic file targets are not modeled")
+			}
+			for _, target := range targets {
+				stdin = union(stdin, s.files[target])
+			}
 		case "<<", "<<-", "<<<": //nolint:generatedyamlheredoc // This analyzes authored heredocs; it does not generate shell.
 			stdin = union(stdin, s.word(redir.Hdoc), s.word(redir.Word))
 		}
@@ -175,7 +311,29 @@ func (s *shell) stmt(stmt *syntax.Stmt, captured bool, stdin value) value {
 		switch redir.Op.String() {
 		case ">", ">>", "&>", "&>>":
 			if redir.N == nil || redir.N.Value == "1" || strings.HasPrefix(redir.Op.String(), "&") {
-				s.write(wordText(redir.Word, s.constants), out, commandText(stmt.Cmd), int(stmt.Pos().Line()))
+				target := wordText(redir.Word, s.constants)
+				if !specialTarget(target) {
+					targets, known := s.paths(redir.Word)
+					if !known {
+						s.a.gap(s.path, "dynamic file targets are not modeled")
+					}
+					for _, target := range targets {
+						s.write(target, out, commandOutputName(stmt.Cmd, s.markers), int(stmt.Pos().Line()))
+					}
+					continue
+				}
+				payload := commandOutputName(stmt.Cmd, s.markers)
+				if payload == "" {
+					for _, source := range stmt.Redirs {
+						if source.Hdoc != nil {
+							payload = heredocOutputName(source.Hdoc, s.constants, s.markers)
+							if payload != "" {
+								break
+							}
+						}
+					}
+				}
+				s.write(target, out, payload, int(stmt.Pos().Line()))
 			}
 		case ">&":
 			if staticWord(redir.Word) == "2" {
@@ -187,6 +345,31 @@ func (s *shell) stmt(stmt *syntax.Stmt, captured bool, stdin value) value {
 		return nil
 	}
 	return out
+}
+
+func (s *shell) pathFor(path string) string {
+	if filepath.IsAbs(path) || s.workingDirectory == "" {
+		return filepath.Clean(path)
+	}
+	return filepath.Clean(filepath.Join(s.workingDirectory, path))
+}
+
+func (s *shell) paths(word *syntax.Word) ([]string, bool) {
+	texts, known := wordTexts(word, s.constants, s.constantValues, s.constantUnknown)
+	paths := make([]string, 0, len(texts))
+	seen := make(map[string]struct{}, len(texts))
+	for _, text := range texts {
+		if text == "" || containsMarker(text, s.markers) {
+			known = false
+			continue
+		}
+		path := s.pathFor(text)
+		if _, exists := seen[path]; !exists {
+			paths = append(paths, path)
+			seen[path] = struct{}{}
+		}
+	}
+	return paths, known
 }
 
 func (s *shell) command(command syntax.Command, captured bool, stdin value) value { //nolint:largefunc // Shell node cases share one stream and scope model.
@@ -203,18 +386,53 @@ func (s *shell) command(command syntax.Command, captured bool, stdin value) valu
 		child := *s
 		child.vars = maps.Clone(s.vars)
 		child.constants = maps.Clone(s.constants)
+		child.constantValues = cloneConstantValues(s.constantValues)
+		child.constantUnknown = maps.Clone(s.constantUnknown)
 		return child.stmts(cmd.Stmts, captured, stdin)
 	case *syntax.BinaryCmd:
 		if cmd.Op.String() == "|" || cmd.Op.String() == "|&" {
+			trace := s.trace
+			constants := s.constantState()
 			left := s.stmt(cmd.X, true, stdin)
-			return s.stmt(cmd.Y, captured, left)
+			s.trace = trace
+			right := s.stmt(cmd.Y, captured, left)
+			s.trace = trace
+			s.restoreConstants(constants)
+			return right
 		}
-		return union(s.stmt(cmd.X, captured, stdin), s.stmt(cmd.Y, captured, stdin))
+		left := s.stmt(cmd.X, captured, stdin)
+		leftTrace := s.trace
+		leftConstants := s.constantState()
+		s.restoreConstants(leftConstants)
+		s.trace = leftTrace
+		right := s.stmt(cmd.Y, captured, stdin)
+		rightTrace := s.trace
+		rightConstants := s.constantState()
+		s.trace = leftTrace || rightTrace
+		s.restoreConstants(mergeConstantStates(leftConstants, rightConstants))
+		return union(left, right)
 	case *syntax.IfClause:
-		result := union(s.stmts(cmd.Cond, captured, stdin), s.stmts(cmd.Then, captured, stdin))
-		if cmd.Else != nil {
-			result = union(result, s.command(cmd.Else, captured, stdin))
+		if len(cmd.Cond) == 0 {
+			return s.stmts(cmd.Then, captured, stdin)
 		}
+		result := s.stmts(cmd.Cond, captured, stdin)
+		trace := s.trace
+		constants := s.constantState()
+		then := s.stmts(cmd.Then, captured, stdin)
+		thenTrace := s.trace
+		thenConstants := s.constantState()
+		s.restoreConstants(constants)
+		s.trace = trace
+		var otherwise value
+		if cmd.Else != nil {
+			otherwise = s.command(cmd.Else, captured, stdin)
+		} else {
+			s.restoreConstants(constants)
+		}
+		otherwiseConstants := s.constantState()
+		s.trace = thenTrace || s.trace
+		s.restoreConstants(mergeConstantStates(thenConstants, otherwiseConstants))
+		result = union(result, then, otherwise)
 		return result
 	case *syntax.ForClause:
 		if loop, ok := cmd.Loop.(*syntax.WordIter); ok {
@@ -222,14 +440,31 @@ func (s *shell) command(command syntax.Command, captured bool, stdin value) valu
 				s.vars[loop.Name.Value] = union(s.vars[loop.Name.Value], s.word(item))
 			}
 		}
-		return s.stmts(cmd.Do, captured, stdin)
+		constants := s.constantState()
+		result := s.stmts(cmd.Do, captured, stdin)
+		s.restoreConstants(mergeConstantStates(constants, s.constantState()))
+		return result
 	case *syntax.WhileClause:
-		return union(s.stmts(cmd.Cond, captured, stdin), s.stmts(cmd.Do, captured, stdin))
+		result := s.stmts(cmd.Cond, captured, stdin)
+		constants := s.constantState()
+		result = union(result, s.stmts(cmd.Do, captured, stdin))
+		s.restoreConstants(mergeConstantStates(constants, s.constantState()))
+		return result
 	case *syntax.CaseClause:
 		var result value
+		constants := s.constantState()
+		trace := s.trace
+		traceAfterBranches := trace
+		states := []constantState{constants}
 		for _, item := range cmd.Items {
+			s.trace = trace
 			result = union(result, s.stmts(item.Stmts, captured, stdin))
+			traceAfterBranches = traceAfterBranches || s.trace
+			states = append(states, s.constantState())
+			s.restoreConstants(constants)
 		}
+		s.trace = traceAfterBranches
+		s.restoreConstants(mergeConstantStates(states...))
 		return result
 	case *syntax.FuncDecl:
 		if cmd.Name != nil {
@@ -239,7 +474,29 @@ func (s *shell) command(command syntax.Command, captured bool, stdin value) valu
 	return nil
 }
 
-func (s *shell) call(cmd *syntax.CallExpr, captured bool, stdin value) value { //nolint:largefunc // Keep command-specific stream semantics together.
+func (s *shell) call(cmd *syntax.CallExpr, captured bool, stdin value) value {
+	if len(cmd.Args) == 0 || len(cmd.Assigns) == 0 {
+		return s.callCommand(cmd, captured, stdin)
+	}
+	child := *s
+	child.vars = maps.Clone(s.vars)
+	child.constants = maps.Clone(s.constants)
+	child.constantValues = cloneConstantValues(s.constantValues)
+	child.constantUnknown = maps.Clone(s.constantUnknown)
+	for _, assign := range cmd.Assigns {
+		child.assign(assign)
+		if child.trace {
+			child.a.emit(Site{Kind: Log, Path: child.path, Line: int(assign.Pos().Line())}, child.word(assign.Value))
+		}
+	}
+	withoutAssignments := *cmd
+	withoutAssignments.Assigns = nil
+	out := child.callCommand(&withoutAssignments, captured, stdin)
+	s.trace = child.trace
+	return out
+}
+
+func (s *shell) callCommand(cmd *syntax.CallExpr, captured bool, stdin value) value { //nolint:largefunc // Keep command-specific stream semantics together.
 	if len(cmd.Args) == 0 {
 		for _, assign := range cmd.Assigns {
 			if s.trace {
@@ -273,18 +530,15 @@ func (s *shell) call(cmd *syntax.CallExpr, captured bool, stdin value) value { /
 	switch name {
 	case "echo", "printf":
 		out = args
-		for index, arg := range cmd.Args {
-			if index == 1 && strings.HasPrefix(staticWord(arg), "::add-mask::") {
-				return nil
-			}
+		if !captured && isMaskRegistration(cmd) {
+			out = nil
 		}
-	case "env", "printenv":
-		if len(cmd.Args) == 1 || name == "env" {
+	case "env":
+		out = s.env(cmd, stdin)
+	case "printenv":
+		if len(cmd.Args) == 1 {
 			for _, sources := range s.vars {
 				out = union(out, sources)
-			}
-			for _, assign := range cmd.Assigns {
-				out = union(out, s.word(assign.Value))
 			}
 		} else {
 			for _, arg := range cmd.Args[1:] {
@@ -294,32 +548,36 @@ func (s *shell) call(cmd *syntax.CallExpr, captured bool, stdin value) value { /
 	case "cat", "head", "tail", "base64", "openssl", "jq", "sed", "awk", "tr", "cut", "tee":
 		out = union(args, stdin)
 		for _, arg := range cmd.Args[1:] {
-			out = union(out, s.files[wordText(arg, s.constants)])
+			targets, known := s.paths(arg)
+			if !known {
+				s.a.gap(s.path, "dynamic file targets are not modeled")
+			}
+			for _, target := range targets {
+				out = union(out, s.files[target])
+			}
 		}
 		if name == "tee" {
 			for _, arg := range cmd.Args[1:] {
-				if target := wordText(arg, s.constants); target != "" && !strings.HasPrefix(target, "-") {
-					s.write(target, stdin, "", line)
+				targets, known := s.paths(arg)
+				if !known && len(stdin) > 0 {
+					s.a.gap(s.path, "dynamic file targets are not modeled")
+				}
+				for _, target := range targets {
+					if target != "" && !strings.HasPrefix(target, "-") {
+						s.write(target, stdin, "", line)
+					}
 				}
 			}
 		}
 	case "curl", "wget":
-		s.network(cmd.Args[1:], line)
+		s.network(cmd.Args[1:], line, stdin)
 	case "set":
 		if len(cmd.Args) == 1 {
 			for _, sources := range s.vars {
 				out = union(out, sources)
 			}
 		}
-		previous := ""
-		for _, arg := range cmd.Args[1:] {
-			flag := staticWord(arg)
-			if strings.HasPrefix(flag, "-") && strings.Contains(flag, "x") ||
-				previous == "-o" && flag == "xtrace" {
-				s.trace = true
-			}
-			previous = flag
-		}
+		s.trace = applyTraceOptions(s.trace, cmd.Args[1:])
 	default:
 		if len(args)+len(stdin) > 0 {
 			s.a.gap(s.path, "external command data flow is not modeled")
@@ -331,38 +589,414 @@ func (s *shell) call(cmd *syntax.CallExpr, captured bool, stdin value) value { /
 	return out
 }
 
-func (s *shell) network(args []*syntax.Word, line int) {
-	credential, header := false, false
-	for _, word := range args {
-		arg := staticWord(word)
-		if credential {
-			credential = false
-			continue
+func (s *shell) env(cmd *syntax.CallExpr, stdin value) value {
+	child := *s
+	child.vars = maps.Clone(s.vars)
+	child.constants = maps.Clone(s.constants)
+	child.constantValues = cloneConstantValues(s.constantValues)
+	child.constantUnknown = maps.Clone(s.constantUnknown)
+	args := cmd.Args[1:]
+	commandIndex := 0
+	for commandIndex < len(args) {
+		word, ok := sliceAt(args, commandIndex)
+		if !ok {
+			break
 		}
-		if header {
-			header = false
-			if !authenticationHeader(arg) {
-				s.a.emit(Site{Kind: Network, Path: s.path, Line: line}, s.word(word))
+		text := staticWord(word)
+		switch text {
+		case "-i", "--ignore-environment":
+			clear(child.vars)
+			clear(child.constants)
+			clear(child.constantValues)
+			clear(child.constantUnknown)
+		case "-u", "--unset":
+			commandIndex++
+			if nameWord, ok := sliceAt(args, commandIndex); ok {
+				name := staticWord(nameWord)
+				delete(child.vars, name)
+				delete(child.constants, name)
+				delete(child.constantValues, name)
+				delete(child.constantUnknown, name)
+			}
+		case "--":
+			commandIndex++
+			goto command
+		default:
+			if name, _, ok := strings.Cut(text, "="); ok && name != "" {
+				child.setEnvironmentArgument(name, word)
+			} else if strings.HasPrefix(text, "-") {
+				s.a.gap(s.path, "env options are not fully modeled")
+			} else {
+				goto command
+			}
+		}
+		commandIndex++
+	}
+	return child.environmentOutput()
+
+command:
+	if commandIndex >= len(args) {
+		return child.environmentOutput()
+	}
+	commandArgs := &syntax.CallExpr{Args: args[commandIndex:]}
+	commandWord, ok := sliceAt(commandArgs.Args, 0)
+	if ok && !knownShellCommand(staticWord(commandWord)) {
+		for _, sources := range child.vars {
+			if len(sources) > 0 {
+				s.a.gap(s.path, "env command environment data flow is not modeled")
+				break
+			}
+		}
+	}
+	return child.call(commandArgs, true, stdin)
+}
+
+func (s *shell) setEnvironmentArgument(name string, word *syntax.Word) {
+	s.vars[name] = s.word(word)
+	literals, known := wordTexts(word, s.constants, s.constantValues, s.constantUnknown)
+	values := make([]string, 0, len(literals))
+	for _, literal := range literals {
+		if _, value, found := strings.Cut(literal, "="); found {
+			values = append(values, value)
+		}
+	}
+	if len(s.vars[name]) > 0 {
+		s.setConstants(name, nil, true)
+	} else if known {
+		s.setConstants(name, values, false)
+	} else {
+		s.setConstants(name, literals, true)
+	}
+}
+
+func (s *shell) environmentOutput() value {
+	var out value
+	for _, sources := range s.vars {
+		out = union(out, sources)
+	}
+	return out
+}
+
+func (s *shell) network(args []*syntax.Word, line int, stdin value) {
+	var request value
+	for index := 0; index < len(args); index++ {
+		word, ok := sliceAt(args, index)
+		if !ok {
+			break
+		}
+		arg := staticWord(word)
+		if arg == "-H" || arg == "--header" {
+			if header, ok := sliceAt(args, index+1); ok {
+				index++
+				if !authenticationHeader(staticWord(header)) {
+					request = union(request, s.word(header))
+				}
 			}
 			continue
 		}
-		if arg == "-H" || arg == "--header" {
-			header = true
+		if header, found := strings.CutPrefix(arg, "--header="); found {
+			if !authenticationHeader(header) {
+				request = union(request, s.word(word))
+			}
 			continue
 		}
-		if arg == "-u" || arg == "--user" || arg == "--oauth2-bearer" || arg == "--password" || arg == "--http-password" {
-			credential = true
+		if arg == "-u" || arg == "--user" || arg == "--oauth2-bearer" ||
+			arg == "--password" || arg == "--http-password" {
+			index++
 			continue
 		}
-		if text, ok := strings.CutPrefix(arg, "--header="); ok && authenticationHeader(text) {
+		if strings.HasPrefix(arg, "--user=") || strings.HasPrefix(arg, "--oauth2-bearer=") {
 			continue
 		}
-		if strings.HasPrefix(arg, "--user=") || strings.HasPrefix(arg, "--oauth2-bearer=") ||
-			strings.HasPrefix(arg, "--password=") || strings.HasPrefix(arg, "--http-password=") {
+		if arg == "-d" || arg == "--data" || arg == "--data-binary" ||
+			arg == "--data-urlencode" || arg == "--json" || arg == "-F" ||
+			arg == "--form" || arg == "-T" || arg == "--upload-file" {
+			if body, ok := sliceAt(args, index+1); ok {
+				index++
+				request = union(request, s.networkBody(body, stdin))
+			}
 			continue
 		}
-		s.a.emit(Site{Kind: Network, Path: s.path, Line: line}, s.word(word))
+		if strings.HasPrefix(arg, "--data=") || strings.HasPrefix(arg, "--data-binary=") ||
+			strings.HasPrefix(arg, "--data-urlencode=") || strings.HasPrefix(arg, "--json=") ||
+			strings.HasPrefix(arg, "--form=") || strings.HasPrefix(arg, "--upload-file=") {
+			request = union(request, s.networkBody(word, stdin))
+			continue
+		}
+		request = union(request, s.word(word))
 	}
+	s.a.emit(Site{Kind: Network, Path: s.path, Line: line}, request)
+}
+
+func (s *shell) networkBody(word *syntax.Word, stdin value) value {
+	text := staticWord(word)
+	if _, body, found := strings.Cut(text, "="); found {
+		text = body
+	}
+	if body, found := strings.CutPrefix(text, "@"); found {
+		if body == "-" {
+			return stdin
+		}
+		texts, known := wordTexts(word, s.constants, s.constantValues, s.constantUnknown)
+		for _, target := range texts {
+			if containsMarker(target, s.markers) {
+				known = false
+			}
+		}
+		if !known {
+			s.a.gap(s.path, "dynamic network upload files are not modeled")
+		}
+		var contents value
+		for _, target := range texts {
+			if _, body, found := strings.Cut(target, "="); found {
+				target = body
+			}
+			target, _ = strings.CutPrefix(target, "@")
+			if target == "-" {
+				contents = union(contents, stdin)
+				continue
+			}
+			contents = union(contents, s.files[s.pathFor(target)])
+		}
+		return contents
+	}
+	return s.word(word)
+}
+
+func knownShellCommand(name string) bool {
+	switch name {
+	case "echo", "printf", "env", "printenv", "cat", "head", "tail", "base64", "openssl",
+		"jq", "sed", "awk", "tr", "cut", "tee", "curl", "wget", "set", "true", "false":
+		return true
+	default:
+		return false
+	}
+}
+
+func isMaskRegistration(cmd *syntax.CallExpr) bool {
+	if len(cmd.Args) < 2 {
+		return false
+	}
+	command, ok := sliceAt(cmd.Args, 0)
+	if !ok {
+		return false
+	}
+	switch staticWord(command) {
+	case "echo":
+		argument, ok := sliceAt(cmd.Args, 1)
+		if !ok {
+			return false
+		}
+		text := staticWord(argument)
+		return len(cmd.Args) == 2 && strings.HasPrefix(text, "::add-mask::") &&
+			!strings.ContainsAny(text, "\r\n")
+	case "printf":
+		if len(cmd.Args) != 3 {
+			return false
+		}
+		formatWord, ok := sliceAt(cmd.Args, 1)
+		if !ok {
+			return false
+		}
+		valueWord, ok := sliceAt(cmd.Args, 2)
+		if !ok {
+			return false
+		}
+		format := staticWord(formatWord)
+		return (format == "::add-mask::%s" || format == "::add-mask::%s\\n") &&
+			!strings.ContainsAny(staticWord(valueWord), "\r\n")
+	default:
+		return false
+	}
+}
+
+func shellInvocationTraces(shellName string) bool {
+	fields := strings.Fields(shellName)
+	tracing := false
+	for index := 1; index < len(fields); index++ {
+		flag, ok := sliceAt(fields, index)
+		if !ok {
+			break
+		}
+		if flag == "-o" || flag == "+o" {
+			if next, ok := sliceAt(fields, index+1); ok && next == "xtrace" {
+				tracing = flag == "-o"
+				index++
+			}
+		} else if strings.HasPrefix(flag, "-") && strings.Contains(flag[1:], "x") {
+			tracing = true
+		} else if strings.HasPrefix(flag, "+") && strings.Contains(flag[1:], "x") {
+			tracing = false
+		}
+	}
+	return tracing
+}
+
+func applyTraceOptions(current bool, args []*syntax.Word) bool {
+	for index := 0; index < len(args); index++ {
+		word, ok := sliceAt(args, index)
+		if !ok {
+			break
+		}
+		flag := staticWord(word)
+		if flag == "-o" || flag == "+o" {
+			if next, ok := sliceAt(args, index+1); ok && staticWord(next) == "xtrace" {
+				current = flag == "-o"
+			}
+			index++
+		} else if strings.HasPrefix(flag, "-") && strings.Contains(flag[1:], "x") {
+			current = true
+		} else if strings.HasPrefix(flag, "+") && strings.Contains(flag[1:], "x") {
+			current = false
+		}
+	}
+	return current
+}
+
+func specialTarget(target string) bool {
+	return target == "$GITHUB_STEP_SUMMARY" || target == "$GITHUB_OUTPUT" || target == "$GITHUB_ENV"
+}
+
+func wordTexts(word *syntax.Word, constants map[string]string, alternatives map[string]map[string]struct{}, unknownValues map[string]bool) ([]string, bool) {
+	if word == nil {
+		return nil, false
+	}
+	known := true
+	texts := []string{""}
+	appendValue := func(values []string) {
+		if len(texts) > 0 && len(values) > 64/len(texts) {
+			known = false
+			texts = nil
+			return
+		}
+		combined := make([]string, 0, len(texts)*len(values))
+		for _, prefix := range texts {
+			for _, value := range values {
+				combined = append(combined, prefix+value)
+			}
+		}
+		texts = combined
+	}
+	syntax.Walk(word, func(node syntax.Node) bool {
+		switch n := node.(type) {
+		case *syntax.Lit:
+			appendValue([]string{n.Value})
+		case *syntax.SglQuoted:
+			appendValue([]string{n.Value})
+		case *syntax.ParamExp:
+			if n.Param == nil {
+				known = false
+				return false
+			}
+			name := n.Param.Value
+			var candidates []string
+			for value := range alternatives[name] {
+				candidates = append(candidates, value)
+			}
+			if len(candidates) == 0 {
+				if value, ok := constants[name]; ok {
+					candidates = []string{value}
+				} else {
+					known = false
+					texts = nil
+					return false
+				}
+			}
+			if unknownValues[name] || n.Excl {
+				known = false
+			}
+			slices.Sort(candidates)
+			appendValue(candidates)
+			return false
+		case *syntax.CmdSubst:
+			known = false
+			texts = nil
+			return false
+		}
+		return known
+	})
+	return texts, known
+}
+
+func sliceAt[T any](values []T, index int) (T, bool) {
+	if index >= 0 && index < len(values) {
+		return values[index], true
+	}
+	var zero T
+	return zero, false
+}
+
+func commandOutputName(command syntax.Command, markers scope) string {
+	switch cmd := command.(type) {
+	case *syntax.CallExpr:
+		if len(cmd.Args) < 2 {
+			return ""
+		}
+		nameWord, ok := sliceAt(cmd.Args, 0)
+		if !ok {
+			return ""
+		}
+		name := staticWord(nameWord)
+		if name != "echo" && name != "printf" {
+			return ""
+		}
+		for _, arg := range cmd.Args[1:] {
+			text := staticWord(arg)
+			key, _, found := strings.Cut(text, "=")
+			if !found {
+				key, _, found = strings.Cut(text, "<<")
+			}
+			if found {
+				key = strings.TrimSpace(key)
+				if strings.Contains(key, "$") || containsMarker(key, markers) {
+					return ""
+				}
+				return key + "="
+			}
+		}
+	case *syntax.Block:
+		for _, stmt := range cmd.Stmts {
+			if name := commandOutputName(stmt.Cmd, markers); name != "" {
+				return name
+			}
+		}
+	case *syntax.BinaryCmd:
+		if cmd.X != nil {
+			if name := commandOutputName(cmd.X.Cmd, markers); name != "" {
+				return name
+			}
+		}
+		if cmd.Y != nil {
+			return commandOutputName(cmd.Y.Cmd, markers)
+		}
+	}
+	return ""
+}
+
+func containsMarker(text string, markers scope) bool {
+	for marker := range markers {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func heredocOutputName(word *syntax.Word, constants map[string]string, markers scope) string {
+	text := wordText(word, constants)
+	text, _, _ = strings.Cut(text, "\n")
+	key, _, found := strings.Cut(text, "=")
+	if !found {
+		key, _, found = strings.Cut(text, "<<")
+	}
+	if !found {
+		return ""
+	}
+	key = strings.TrimSpace(key)
+	if strings.Contains(key, "$") || containsMarker(key, markers) {
+		return ""
+	}
+	return key + "="
 }
 
 func authenticationHeader(header string) bool {
@@ -380,17 +1014,38 @@ func (s *shell) function(name string, body *syntax.Stmt, args []*syntax.Word, ca
 		s.a.gap(s.path, "recursive shell function calls are not modeled")
 		return nil
 	}
-	previous := maps.Clone(s.vars)
-	for i, arg := range args {
-		s.vars[strconv.Itoa(i+1)] = s.word(arg)
+	arguments := make([]value, 0, len(args))
+	var aggregate value
+	for _, arg := range args {
+		sources := s.word(arg)
+		arguments = append(arguments, sources)
+		aggregate = union(aggregate, sources)
 	}
+	previous := maps.Clone(s.vars)
+	for index, sources := range arguments {
+		s.vars[strconv.Itoa(index+1)] = sources
+	}
+	s.vars["@"] = aggregate
+	s.vars["*"] = aggregate
 	s.active[name] = true
 	out := s.stmt(body, captured, stdin)
 	delete(s.active, name)
-	for i := range args {
-		s.vars[strconv.Itoa(i+1)] = previous[strconv.Itoa(i+1)]
+	for key := range s.vars {
+		if key == "@" || key == "*" || isPositional(key) {
+			delete(s.vars, key)
+		}
+	}
+	for key, sources := range previous {
+		if key == "@" || key == "*" || isPositional(key) {
+			s.vars[key] = sources
+		}
 	}
 	return out
+}
+
+func isPositional(name string) bool {
+	_, err := strconv.Atoi(name)
+	return err == nil
 }
 
 func staticWord(word *syntax.Word) string {
@@ -423,17 +1078,6 @@ func wordText(word *syntax.Word, constants map[string]string) string {
 		return true
 	})
 	return text.String()
-}
-
-func commandText(command syntax.Command) string {
-	if call, ok := command.(*syntax.CallExpr); ok {
-		var parts []string
-		for _, arg := range call.Args[1:] {
-			parts = append(parts, staticWord(arg))
-		}
-		return strings.Join(parts, " ")
-	}
-	return ""
 }
 
 func (s *shell) write(target string, sources value, payload string, line int) {
@@ -471,14 +1115,56 @@ func (s *shell) write(target string, sources value, payload string, line int) {
 	}
 }
 
-func artifactContains(pattern, file string) bool {
-	if pattern == "" || strings.HasPrefix(pattern, "!") {
-		return false
+func artifactIncludes(patterns []string, file string) bool {
+	included := false
+	for _, pattern := range patterns {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+		pattern, excluded := strings.CutPrefix(pattern, "!")
+		if artifactPatternMatches(pattern, file) {
+			included = !excluded
+		}
 	}
-	if pattern == "." || pattern == "**" || pattern == "**/*" || pattern == file ||
-		strings.HasPrefix(file, strings.TrimSuffix(pattern, "/")+"/") {
+	return included
+}
+
+func artifactPatternMatches(pattern, file string) bool {
+	pattern = filepath.ToSlash(strings.TrimSuffix(pattern, "/"))
+	file = filepath.ToSlash(filepath.Clean(file))
+	if pattern == "" || pattern == "." || pattern == "**" {
 		return true
 	}
-	matched, err := filepath.Match(pattern, file)
-	return err == nil && matched
+	patternParts := strings.Split(pattern, "/")
+	fileParts := strings.Split(file, "/")
+	type position struct{ pattern, file int }
+	memo := make(map[position]bool)
+	visited := make(map[position]bool)
+	var match func(int, int) bool
+	match = func(patternIndex, fileIndex int) bool {
+		current := position{pattern: patternIndex, file: fileIndex}
+		if visited[current] {
+			return memo[current]
+		}
+		visited[current] = true
+		patternPart, ok := sliceAt(patternParts, patternIndex)
+		if !ok {
+			memo[current] = true
+			return memo[current]
+		}
+		if patternPart == "**" {
+			memo[current] = match(patternIndex+1, fileIndex) ||
+				fileIndex < len(fileParts) && match(patternIndex, fileIndex+1)
+			return memo[current]
+		}
+		filePart, ok := sliceAt(fileParts, fileIndex)
+		if !ok {
+			return false
+		}
+		matched, err := filepath.Match(patternPart, filePart)
+		memo[current] = err == nil && matched && match(patternIndex+1, fileIndex+1)
+		return memo[current]
+	}
+	return match(0, 0)
 }
