@@ -12,7 +12,7 @@
 
 ### Decision
 
-We will add an optional `ThreatRuleID` field to `lint.Rule` and `lint.Diagnostic`. `lint.New` validates it against `^CTR-[0-9]{3}$`. The CLI shows it in rule listings and in text and JSON diagnostics. Every built-in rule carries its known CTR mapping, and extension rules may leave it out. A mapping means the rule covers the observable checks described for that threat rule. It does not claim full conformance, so a clean lint result is not proof of runtime conformance. We will add three AW-only rules: `pull-request-target-roles` (CTR-008), `safe-output-shell-expansion` (CTR-009), and `firewall-ssl-bump` (CTR-011). The compiler's shell-expansion regex moves into a new shared package, `pkg/workflow/shellpattern`, which both the compiler validation and the lint rule call, so they apply one lexical policy. The rules stay read-only AST checks: they do not load imports, execute scripts, or infer AW policy for native Actions inputs.
+We will add an optional `ThreatRuleID` field to `lint.Rule` and `lint.Diagnostic`. `lint.New` validates it against `^CTR-[0-9]{3}$`. The CLI shows it in rule listings and in text and JSON diagnostics. Every built-in rule carries its known CTR mapping, and extension rules may leave it out. A mapping means the rule covers the observable checks described for that threat rule. It does not claim full conformance, so a clean lint result is not proof of runtime conformance. We will add three AW-only rules: `pull-request-target-roles` (CTR-008), `safe-output-shell-expansion` (CTR-009), and `firewall-ssl-bump` (CTR-011). The firewall rule inspects authored `sandbox.agent.args` for URL-filter flags, not schema-rejected `network.firewall` fields. The compiler's shell-expansion regex moves into a new shared package, `pkg/workflow/shellpattern`, which both the compiler validation and the lint rule call, so they apply one lexical policy. The rules stay read-only AST checks: they do not load imports, execute scripts, or infer AW policy for native Actions inputs.
 
 ### Alternatives Considered
 
@@ -40,7 +40,7 @@ The linter could have called compiler validation directly to get CTR coverage. I
 - Built-in rule IDs, the threat spec, and the Workflow Linters reference page now have to be kept in sync by hand. Renumbering a CTR rule touches all three.
 - A visible CTR ID may suggest that a rule fully enforces the threat rule, even though the docs say mappings cover only observable checks.
 - The lexical detector deliberately matches inside quoted text and comments. Its false positives now show up in lint as well as in compilation.
-- The new rules only see authored source. For example, `firewall-ssl-bump` requires SSL inspection even when imports exist, because it cannot see imported policy.
+- The new rules only see authored source. `firewall-ssl-bump` checks only URL-filter arguments in the current document and cannot determine the effective arguments or runtime HTTPS enforcement.
 
 #### Neutral
 - The JSON diagnostic schema gains a `threat_rule_id` field, omitted when empty. It is an additive change.

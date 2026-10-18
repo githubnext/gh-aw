@@ -31,7 +31,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `fork-association` | `CTR-034` | AW | Explicit fork admission uses GitHub's uppercase author-association enum. Empty lists and repository wildcard patterns are valid; generated admission guards are not reconstructed. |
 | `pull-request-target-roles` | `CTR-008` | AW | `pull_request_target` does not admit explicit `read` or `all` roles. Checkout disablement and risk acknowledgment do not bypass this policy. Does not infer checkout safety or generated authorization. |
 | `safe-output-shell-expansion` | `CTR-009` | AW | Authored `safe-outputs.steps[*].run` scripts avoid the shell expansion patterns blocked by the compiler/harness: parameter transformation, indirect expansion, command substitution, and backticks. Arithmetic and ordinary variables remain allowed. |
-| `firewall-ssl-bump` | `CTR-011` | AW | Nonempty firewall `allow-urls` requires `ssl-bump: true`, including when imports exist: imported network policy does not supply firewall settings. Does not prove runtime HTTPS enforcement. |
+| `firewall-ssl-bump` | `CTR-011` | AW | Authored `sandbox.agent.args` containing a nonempty `--allow-urls` value require enabled `--ssl-bump`. This checks only arguments in the current source; it does not load imports or prove runtime HTTPS enforcement. |
 
 ## Severity and source policy
 
@@ -39,7 +39,7 @@ Action pinning, workflow-run branch scope, blanket write permissions, disabled v
 
 Tool-scope and sandbox-config use the authored strict-policy error/warning distinction, including explicit non-strict sandbox opt-outs and internal customizations. Image-argument, checkout-mode, and fork-association findings are always errors. Checkout and tool checks defer absent prerequisites that unresolved imports may supply; they still report explicit contradictions. Image checks cover image operands, not inferred package-manager arguments.
 
-Pull-request-target-roles rejects unsafe role admission in strict mode and warns in non-strict mode. Only the non-strict warning can be suppressed with boolean `features.dangerously-allow-roles-read-and-pull-request-target: true`; this does not suppress other checks. Safe-output-shell-expansion and firewall-ssl-bump are errors in either mode. The shell rule shares the compiler's lexical policy, including matches in quoted text or comments, and reports script-relative lines without script contents. It does not apply to ordinary Actions steps or infer safe-output jobs from their names.
+Pull-request-target-roles rejects unsafe role admission in strict mode and warns in non-strict mode. Only the non-strict warning can be suppressed with boolean `features.dangerously-allow-roles-read-and-pull-request-target: true`; this does not suppress other checks. Safe-output-shell-expansion and firewall-ssl-bump are errors in either mode. The firewall rule inspects authored AWF arguments; `sandbox.agent.args` is an internal customization rejected in strict mode. The shell rule shares the compiler's lexical policy, including matches in quoted text or comments, and reports script-relative lines without script contents. It does not apply to ordinary Actions steps or infer safe-output jobs from their names.
 
 ## Secret-flow analysis
 

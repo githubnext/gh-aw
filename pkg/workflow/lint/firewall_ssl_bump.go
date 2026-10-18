@@ -2,7 +2,7 @@ package lint
 
 import (
 	"context"
-	"errors"
+	"strings"
 )
 
 func FirewallSSLBumpRule() Rule {
@@ -14,36 +14,57 @@ func FirewallSSLBumpRule() Rule {
 }
 
 func checkFirewallSSLBump(ctx context.Context, input Input) ([]Diagnostic, error) {
-	source, err := authoredPolicyMapping(ctx, input)
-	if err != nil || source == nil || source["network"] == "defaults" {
+	if err := integrityInput(ctx, input); err != nil {
 		return nil, err
 	}
-	network, err := policyMapping(source["network"], "network")
-	if err != nil {
-		return nil, err
+	if input.Document == nil {
+		return nil, nil
 	}
-	firewall, err := policyMapping(network["firewall"], "network.firewall")
-	if err != nil {
-		return nil, err
+	sandbox, ok := input.Document.Frontmatter["sandbox"].(map[string]any)
+	if !ok {
+		return nil, nil
 	}
-	raw, exists := firewall["allow-urls"]
+	agent, ok := sandbox["agent"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	raw, exists := agent["args"]
 	if !exists {
 		return nil, nil
 	}
-	urls, err := policyStrings(ctx, raw, "network.firewall.allow-urls")
-	if len(urls) == 0 {
+	args, err := policyStrings(ctx, raw, "sandbox.agent.args")
+	if err != nil {
 		return nil, err
 	}
-	enabled, specified := firewall["ssl-bump"]
-	if specified {
-		if _, ok := enabled.(bool); !ok {
-			return nil, errors.Join(err, errors.New("firewall-ssl-bump requires a literal boolean at network.firewall.ssl-bump"))
+	hasURLFilters := false
+	sslBumpEnabled := false
+	expectURLValue := false
+	for _, arg := range args {
+		if expectURLValue {
+			expectURLValue = false
+			if arg != "" && !strings.HasPrefix(arg, "--") {
+				hasURLFilters = true
+				continue
+			}
 		}
-		if enabled == true {
-			return nil, err
+		switch {
+		case arg == "--allow-urls":
+			expectURLValue = true
+		case strings.HasPrefix(arg, "--allow-urls="):
+			hasURLFilters = strings.TrimPrefix(arg, "--allow-urls=") != ""
+		case arg == "--ssl-bump":
+			sslBumpEnabled = true
+		case arg == "--ssl-bump=true":
+			sslBumpEnabled = true
+		case arg == "--ssl-bump=false":
+			sslBumpEnabled = false
 		}
 	}
-	return []Diagnostic{{Path: "network.firewall.allow-urls",
-		Message: "Firewall URL filters require SSL inspection to enforce HTTPS path restrictions; set network.firewall.ssl-bump to true",
-	}}, err
+	if !hasURLFilters || sslBumpEnabled {
+		return nil, nil
+	}
+	return []Diagnostic{{
+		Path:    "sandbox.agent.args",
+		Message: "AWF URL filters require SSL inspection to enforce HTTPS path restrictions; enable SSL inspection with --ssl-bump in sandbox.agent.args",
+	}}, nil
 }

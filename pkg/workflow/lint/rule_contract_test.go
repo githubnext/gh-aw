@@ -169,9 +169,9 @@ func builtInRuleContracts() map[string]ruleContract {
 		"firewall-ssl-bump": {
 			threatRuleID: "CTR-011",
 			targets:      AWAST,
-			unsafe:       "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: false\n",
-			safe:         "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: true\n",
-			path:         "network.firewall.allow-urls",
+			unsafe:       "sandbox:\n  agent:\n    args: [--allow-urls, https://example.com/path]\n",
+			safe:         "sandbox:\n  agent:\n    args: [--ssl-bump, --allow-urls, https://example.com/path]\n",
+			path:         "sandbox.agent.args",
 		},
 	}
 }
