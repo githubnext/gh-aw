@@ -184,7 +184,8 @@ jobs:
           fi
           # runner-guard:ignore RGS-012 -- the Gemini API key is sent only to the official Google models endpoint.
           HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}") || true
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
+            "https://generativelanguage.googleapis.com/v1beta/models") || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
             jq '{
               provider: "gemini",
