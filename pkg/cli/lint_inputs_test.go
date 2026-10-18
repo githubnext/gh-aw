@@ -113,8 +113,12 @@ func TestLintInputParseFailuresPreserveOtherAST(t *testing.T) {
 			require.NoError(t, os.WriteFile(file, []byte(actions), 0o600))
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "workflow.md"), []byte(authored), 0o600))
 			diagnostics, err := lintWorkflowFile(context.Background(), file, workflowlint.Default())
-			require.Error(t, err)
-			assert.NotContains(t, err.Error(), "VERY_SENSITIVE_SCALAR")
+			if badActions {
+				require.Error(t, err)
+				assert.NotContains(t, err.Error(), "VERY_SENSITIVE_SCALAR")
+			} else {
+				require.NoError(t, err)
+			}
 			var ids []string
 			for _, diagnostic := range diagnostics {
 				ids = append(ids, diagnostic.RuleID)
