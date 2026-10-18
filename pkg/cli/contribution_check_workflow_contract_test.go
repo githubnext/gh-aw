@@ -57,9 +57,9 @@ func TestContributionCheckWorkflowAllowsRequiredShellCommands(t *testing.T) {
 
 	lockText := string(lockContent)
 	for _, token := range []string{
-		"--allow-tool '\\''shell(git:*)'\\''",
-		"--allow-tool '\\''shell(jq)'\\''",
-		"--allow-tool '\\''shell(safeoutputs:*)'\\''",
+		`"--allow-tool","shell(git:*)"`,
+		`"--allow-tool","shell(jq)"`,
+		`"--allow-tool","shell(safeoutputs:*)"`,
 	} {
 		assert.Containsf(t, lockText, token, "Compiled workflow must contain %s", token)
 	}
