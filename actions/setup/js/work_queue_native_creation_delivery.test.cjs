@@ -17,6 +17,7 @@ const { wrapClaimEffectClient } = require("./work_queue_effect_client.cjs");
 const TREE = "b".repeat(40);
 const COMMIT = "c".repeat(40);
 const BASE = "d".repeat(40);
+const EFFECTIVE_BASE = "e".repeat(40);
 let oldEnv;
 let oldCore;
 
@@ -96,7 +97,7 @@ function fixture(type) {
   Object.assign(client.rest, { pulls: { get: vi.fn(async () => ({ data: pull })), create: vi.fn(async () => ({ data: pull })) } });
   client.graphql = vi.fn(async () => ({ node: discussion }));
   const execute = callback => withClaimExecution({ assignment, claim_handle: member.handle, effects, authorize }, callback);
-  const capture = async () => {
+  const capture = async ({ baseBranch = "main", transportBaseBranch = baseBranch } = {}) => {
     if (type === "create_discussion") {
       recordClaimEffect({ repository: REPOSITORY, kind: "graphql", id: "discussion-effect", outcome: "succeeded" });
       return captureDiscussionDelivery(result, message, {
@@ -113,13 +114,19 @@ function fixture(type) {
       });
     }
     const wrapped = wrapClaimEffectClient(client, { claim_handle: member.handle, authorize, context: runtime.context });
-    await wrapped.rest.pulls.create({ owner: "owner", repo: "repo", title: pull.title, body: pull.body, head: "approved", base: "main", draft: true });
-    const exec = { getExecOutput: vi.fn(async (_command, args) => ({ exitCode: 0, stdout: args.at(-1) === "HEAD^{tree}" ? TREE : BASE })) };
-    const prepared = await preparePullRequestDelivery(exec, "main");
+    await wrapped.rest.pulls.create({ owner: "owner", repo: "repo", title: pull.title, body: pull.body, head: "approved", base: baseBranch, draft: true });
+    const exec = {
+      getExecOutput: vi.fn(async (_command, args) => {
+        const revision = args.at(-1);
+        const base = baseBranch !== "main" && revision === `refs/remotes/origin/${baseBranch}^{commit}` ? EFFECTIVE_BASE : BASE;
+        return { exitCode: 0, stdout: revision === "HEAD^{tree}" ? TREE : base };
+      }),
+    };
+    const prepared = await preparePullRequestDelivery(exec, baseBranch, transportBaseBranch);
     return capturePullRequestDelivery(
       result,
       message,
-      { prepared, repository: REPOSITORY, headRepository: REPOSITORY, id: "190", number: 19, url: result.url, branch: "approved", baseBranch: "main", title: pull.title, body: pull.body, draft: true, labels: [], assignees: [] },
+      { prepared, repository: REPOSITORY, headRepository: REPOSITORY, id: "190", number: 19, url: result.url, branch: "approved", baseBranch, transportBaseBranch, title: pull.title, body: pull.body, draft: true, labels: [], assignees: [] },
       wrapped
     );
   };
@@ -197,7 +204,7 @@ describe("native creation Claim delivery", () => {
         expect(git(["status", "--porcelain"])).toBe("");
         expect(git(["show", "HEAD:change.txt"])).toBe("Intended patch");
         prepared = await originalPrepare(exec, branch);
-        expect(prepared).toEqual({ tree: expectedTree, base });
+        expect(prepared).toEqual({ tree: expectedTree, base, transportBase: base });
         return prepared;
       };
       transport.resolveTransportPaths = () => ({ patchPath: patch, bundlePath: undefined });
@@ -219,7 +226,7 @@ describe("native creation Claim delivery", () => {
         data: { base_commit: { sha: base }, merge_base_commit: { sha: git(["merge-base", base, head]) }, status: "ahead", ahead_by: Number(git(["rev-list", "--count", `${base}..${head}`])), behind_by: 0 },
       }));
       f.client.rest.pulls.create.mockImplementation(async parameters => {
-        expect(prepared).toEqual({ tree: expectedTree, base });
+        expect(prepared).toEqual({ tree: expectedTree, base, transportBase: base });
         Object.assign(f.pull, parameters, { head: { sha: git(["rev-parse", "HEAD"]), ref: "approved", repo: { full_name: REPOSITORY, id: 7 } }, base: { sha: base, ref: "main", repo: { full_name: REPOSITORY, id: 7 } } });
         return { data: f.pull };
       });
@@ -259,6 +266,71 @@ describe("native creation Claim delivery", () => {
     const finalized = await f.finalize();
     expect(finalized.claims.h1.state).toBe("result");
     expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("verified");
+  });
+
+  it("settles the enriched PR message emitted by the safe-output transport", async () => {
+    const f = fixture("create_pull_request");
+    Object.assign(f.message, { head_repo: REPOSITORY, base_branch: "main", base_commit: BASE });
+    await f.execute(async () => {
+      await f.capture();
+      expect((await f.settle()).verification).toBe("verified");
+    });
+    expect((await f.finalize()).claims.h1.state).toBe("result");
+    expect(f.queue.state.works.get(f.member.work_id).barrier).toBe("verified");
+  });
+
+  it("independently checks an older transport base against the prepared PR base", async () => {
+    const f = fixture("create_pull_request");
+    Object.assign(f.message, { head_repo: REPOSITORY, base_branch: "main", base_commit: REF });
+    f.client.rest.repos.compareCommits.mockImplementation(async ({ base }) => ({
+      data: { base_commit: { sha: base }, merge_base_commit: { sha: base }, status: "ahead", ahead_by: 1, behind_by: 0 },
+    }));
+    await f.execute(async () => {
+      await f.capture();
+      expect((await f.settle()).verification).toBe("verified");
+      expect(f.client.rest.repos.compareCommits).toHaveBeenCalledWith(expect.objectContaining({ base: REF, head: BASE }));
+    });
+  });
+
+  it.each([
+    { requested: "release", effective: "release" },
+    { requested: "first-pr", effective: "generated/first-pr" },
+  ])("verifies transport base metadata separately from effective PR base for $requested", async ({ requested, effective }) => {
+    const f = fixture("create_pull_request");
+    Object.assign(f.message, { base: requested, base_branch: "main", base_commit: REF });
+    f.pull.base = { sha: EFFECTIVE_BASE, ref: effective, repo: { id: 7, full_name: REPOSITORY } };
+    f.client.rest.repos.compareCommits.mockImplementation(async ({ base }) => ({
+      data: { base_commit: { sha: base }, merge_base_commit: { sha: base }, status: "ahead", ahead_by: 1, behind_by: 0 },
+    }));
+    await f.execute(async () => {
+      await f.capture({ baseBranch: effective, transportBaseBranch: "main" });
+      expect((await f.settle()).verification).toBe("verified");
+    });
+    expect(f.client.rest.repos.compareCommits).toHaveBeenCalledWith(expect.objectContaining({ base: REF, head: BASE }));
+    expect(f.client.rest.repos.compareCommits).toHaveBeenCalledWith(expect.objectContaining({ base: EFFECTIVE_BASE, head: COMMIT }));
+  });
+
+  it.each([{ head_repo: "foreign/repo" }, { head_repo: null }, { base_branch: "foreign" }, { base_branch: null }, { base_commit: "not-a-commit" }, { base_commit: null }, { unexpected_transport_field: "untrusted" }])(
+    "rejects captured but invalid PR transport metadata %j",
+    async metadata => {
+      const f = fixture("create_pull_request");
+      Object.assign(f.message, metadata);
+      await f.execute(async () => {
+        await f.capture();
+        expect((await f.settle()).verification).toBe("unknown");
+        expect(f.client.rest.pulls.get).not.toHaveBeenCalled();
+      });
+    }
+  );
+
+  it("rejects a valid-looking transport base without independent ancestry", async () => {
+    const f = fixture("create_pull_request");
+    f.message.base_commit = REF;
+    await f.execute(async () => {
+      await f.capture();
+      expect((await f.settle()).verification).toBe("unknown");
+      expect(f.client.rest.pulls.get).not.toHaveBeenCalled();
+    });
   });
 
   it.each(["create_discussion", "create_pull_request"])("does not accept %s handler success or a copied private receipt as delivery proof", async type => {

@@ -226,6 +226,28 @@ describe("independent trusted Claim finalization", () => {
     expect(fixture.transactions.flatMap(commit => commit.operations).filter(operation => operation.kind === "Result")).toHaveLength(0);
   });
 
+  it.each([-1, 0])("allows missing-verifier expiry only at the exact delivery deadline, offset=%i", async offset => {
+    const { fixture, options } = setup(1);
+    finish(options, "h1", "completed");
+    await reconcileWorkerClaim(options);
+    const member = fixture.assignment.claims[0];
+    const completion = fixture.state.works.get(member.work_id);
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = vi.fn().mockResolvedValue({ status: 200, data: { ...fixture.nativeRun(), status: "completed", conclusion: "success" } });
+    const result = await finalizeWorkerResults({
+      ...options,
+      expireUnverified: true,
+      now: completion.completion_at + fixture.policy.pools.default.reconciliation.deadline_ms + offset,
+      publishWorkQueueRequest: async args => fixture.append(args.request.kind, args.request.parameters, args.actor, args.request.id, completion.completion_at + fixture.policy.pools.default.reconciliation.deadline_ms + offset),
+    });
+    expect(result.claims.h1).toMatchObject({ state: offset < 0 ? "pending" : "delivery_failed", effects: "unknown" });
+    const failures = fixture.transactions.flatMap(commit => commit.operations).filter(operation => operation.kind === "DeliveryFailure");
+    expect(failures).toHaveLength(offset < 0 ? 0 : 1);
+    if (failures.length) {
+      expect(failures[0].evidence).not.toHaveProperty("receipt");
+      expect(failures[0].evidence).not.toHaveProperty("attempts");
+    }
+  });
+
   const unsupportedPayloads = [
     { plan: "missing contract" },
     { output_contract: { kind: "none" } },

@@ -290,6 +290,7 @@ func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string
 			"            /tmp/gh-aw/claims/*/safe-output-items.jsonl\n",
 			"            /tmp/gh-aw/claims/*/temporary-id-map.json\n",
 			"            /tmp/gh-aw/claims/*/safe-output-errors.json\n",
+			"            /tmp/gh-aw/claims/*/claim-delivery-errors.json\n",
 		)
 	}
 	steps = append(steps, "          if-no-files-found: ignore\n")
