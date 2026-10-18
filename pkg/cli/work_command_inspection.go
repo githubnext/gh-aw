@@ -103,19 +103,11 @@ func workQueueInspectAt(state workqueue.Projection, branch string, row workQueue
 		return result, nil
 	}
 	claim := state.Claims[claimID]
-	result.Claim = &workQueueClaimMetadata{
-		ClaimID: claim.ClaimID, WorkID: claim.WorkID, DispatchID: claim.DispatchID, Handle: claim.Handle,
-		State: claim.State, Current: work.ClaimID == claim.ClaimID && work.State != "cancelled",
-		RequestID: claim.RequestID, CommitID: claim.CommitID, TerminalCommitID: claim.TerminalCommitID,
-		GrantedAt: workQueueCommitAt(state, claim.CommitID), TerminalAt: workQueueCommitAt(state, claim.TerminalCommitID),
-		CancellationReason: claim.CancellationReason, RetryNotBefore: claim.RetryNotBefore,
-		KeepOpen: claim.KeepOpen, Delivery: workQueueClaimDelivery(state, claim),
-	}
-	delivery, err := workQueueClaimTerminal(state, claim)
+	metadata, err := workQueueClaimMetadataAt(state, claim)
 	if err != nil {
 		return result, err
 	}
-	result.Claim.DeliveryFailureReason, result.Claim.Disposition = delivery.Reason, delivery.Disposition
+	result.Claim = &metadata
 	if dispatch := state.Dispatches[claim.DispatchID]; dispatch != nil {
 		result.Dispatch = &workQueueDispatchMetadata{
 			DispatchID: dispatch.DispatchID, Pool: dispatch.Pool, WorkerProfile: dispatch.WorkerProfile,
@@ -129,6 +121,24 @@ func workQueueInspectAt(state workqueue.Projection, branch string, row workQueue
 			})
 		}
 	}
+	return result, nil
+}
+
+func workQueueClaimMetadataAt(state workqueue.Projection, claim *workqueue.ClaimState) (workQueueClaimMetadata, error) {
+	work := state.Works[claim.WorkID]
+	result := workQueueClaimMetadata{
+		ClaimID: claim.ClaimID, WorkID: claim.WorkID, DispatchID: claim.DispatchID, Handle: claim.Handle,
+		State: claim.State, Current: work.ClaimID == claim.ClaimID && work.State != "cancelled",
+		RequestID: claim.RequestID, CommitID: claim.CommitID, TerminalCommitID: claim.TerminalCommitID,
+		GrantedAt: workQueueCommitAt(state, claim.CommitID), TerminalAt: workQueueCommitAt(state, claim.TerminalCommitID),
+		CancellationReason: claim.CancellationReason, RetryNotBefore: claim.RetryNotBefore,
+		KeepOpen: claim.KeepOpen, Delivery: workQueueClaimDelivery(state, claim),
+	}
+	delivery, err := workQueueClaimTerminal(state, claim)
+	if err != nil {
+		return result, err
+	}
+	result.DeliveryFailureReason, result.Disposition = delivery.Reason, delivery.Disposition
 	return result, nil
 }
 
