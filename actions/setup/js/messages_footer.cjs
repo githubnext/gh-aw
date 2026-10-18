@@ -17,6 +17,34 @@ const { formatAIC } = require("./model_costs.cjs");
 const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
 const { getEffectiveModelLabel, resolveEffectiveModel, validateModelIdentifier } = require("./model_attribution.cjs");
+const { currentClaimHandle, claimIdentity } = require("./work_queue_claim_scope.cjs");
+const { renderReport } = require("./report_ast.cjs");
+
+function getWorkQueueClaimFooter() {
+  const handle = currentClaimHandle();
+  if (!handle) return "";
+  const { work_id, claim_id } = claimIdentity(handle);
+  return renderReport({
+    type: "report",
+    title: "Work queue attribution",
+    children: [
+      {
+        type: "quote",
+        children: [
+          {
+            type: "paragraph",
+            children: [
+              { type: "text", value: "Work " },
+              { type: "code", value: work_id },
+              { type: "text", value: " · Claim " },
+              { type: "code", value: claim_id },
+            ],
+          },
+        ],
+      },
+    ],
+  }).body.trimEnd();
+}
 
 /**
  * Get the detection caution alert if the detection job found a potential issue.
@@ -248,7 +276,7 @@ function getFooterMessage(ctx) {
     threatDetectionAiCreditsSuffix,
   });
 
-  const getRunAgainHints = renderedFooter => {
+  const getFooterHints = renderedFooter => {
     let hints = "";
     if (ctx.slashCommand) {
       const hintText = ctx.slashCommandPlaceholder || "to run again";
@@ -258,7 +286,7 @@ function getFooterMessage(ctx) {
       if (hints) hints += "\n";
       hints += `> <sub>Add label <em>{label_command}</em> to run again</sub>`;
     }
-    const renderedHints = renderTemplate(hints, templateContext);
+    const renderedHints = [getWorkQueueClaimFooter(), renderTemplate(hints, templateContext)].filter(Boolean).join("\n");
     if (!renderedHints) return "";
     const separator = renderedFooter && !renderedFooter.endsWith("\n") ? "\n" : "";
     return separator + renderedHints;
@@ -267,7 +295,7 @@ function getFooterMessage(ctx) {
   // Use custom footer template if configured
   if (messages?.footer) {
     const renderedCustomFooter = renderTemplate(messages.footer, templateContext);
-    return renderedCustomFooter + getRunAgainHints(renderedCustomFooter);
+    return renderedCustomFooter + getFooterHints(renderedCustomFooter);
   }
 
   // Default footer template - includes emoji prefix when available
@@ -292,7 +320,7 @@ function getFooterMessage(ctx) {
     defaultFooter += " · [◷]({history_url})";
   }
   const renderedDefaultFooter = renderTemplate(defaultFooter, templateContext);
-  return renderedDefaultFooter + getRunAgainHints(renderedDefaultFooter);
+  return renderedDefaultFooter + getFooterHints(renderedDefaultFooter);
 }
 
 /**
