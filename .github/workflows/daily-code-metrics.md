@@ -5,9 +5,7 @@ description: Tracks and visualizes daily code metrics and trends to monitor repo
 on:
   schedule: daily
   workflow_dispatch:
-max-daily-ai-credits:
-  value: 10000
-  backend: repo-memory
+max-daily-ai-credits: 10000
 permissions:
   contents: read
   issues: read
