@@ -153,6 +153,26 @@ export interface ModelRoutingData {
   deviations?: JsonValue;
   requestedModel?: JsonValue;
   requestedEffort?: JsonValue;
+  /** AWF route choices in rank order; ranks are one-based array positions. */
+  rankedChoices?: ModelRoutingRankedChoice[];
+  eligibleChoices?: JsonValue;
+  catalogueOverlap?: JsonValue;
+  selectedEndpoint?: JsonValue;
+  requestedEndpoint?: JsonValue;
+  upstreamEndpoint?: JsonValue;
+  /** Request-telemetry dimensions AWF did not observe, such as `model` and `effort`; not unavailable models. */
+  unavailable?: string[];
+  /** Observed HTTP status, independent of `outcome`. */
+  status?: JsonValue;
+  /** AWF failure phase, such as `primary` or `bootstrap`; not the collection provenance phase. */
+  phase?: JsonValue;
+}
+
+export interface ModelRoutingRankedChoice {
+  rank: number;
+  id?: string;
+  model?: string;
+  effort?: string | null;
 }
 
 export interface ModelEndpointMismatchData {

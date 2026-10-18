@@ -481,6 +481,13 @@ separately. If delivery is uncertain after Completion, effects are not rerun.
 Verification within configured bounds produces Result or DeliveryFailure, an
 explicit terminal delivery failure.
 
+Trusted delivery processing reuses the selected queue client for Claim
+authorization, independent queue-control inventory and Result publication.
+Fresh Claim-scoped resource clients do not replace that queue transport or its
+verified Git-history cache on each bounded readback attempt. Resource readback
+remains Claim-scoped, and neither cached Git objects nor a successful handler
+replace fresh ledger and native-run validation.
+
 Bounded reconciliation also checks never-started reservations. When the exact
 originating run attempt is authenticated and terminal, a fresh ledger check
 must still show `reserved` with no sender or native run. Trusted prelaunch
@@ -498,6 +505,8 @@ other job must have completed; the current conclusion job must be uniquely
 identified and active. The ledger records `worker_termination` evidence with a
 digest of that job inventory, not a claim that the native run has completed.
 Only that original run may publish this release evidence.
+The evidence principal comes from the independently validated native run, not
+an optional principal field on a logical worker profile.
 
 This releases the worker execution slot while the conclusion job finishes
 diagnostics and Issue projection. It is not a strict cap on native Actions runs
