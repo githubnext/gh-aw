@@ -168,6 +168,10 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 	if !ok {
 		return WebhookSubscription{}, fmt.Errorf("%s must be an object", path)
 	}
+	config, closedStates, err := providerIssueConfig(config, path, event, definition)
+	if err != nil {
+		return WebhookSubscription{}, err
+	}
 	for _, key := range sortedWebhookKeys(config) {
 		supported := key == "types" || key == "filters" ||
 			(event == "projects_v2_item" && key == "status-transitions") ||
@@ -176,10 +180,6 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 		if !supported {
 			return WebhookSubscription{}, fmt.Errorf("unsupported %s property %q", path, key)
 		}
-	}
-	config, closedStates, err := providerIssueConfig(config, path, event, definition)
-	if err != nil {
-		return WebhookSubscription{}, err
 	}
 	types, err := parseWebhookTypes(config, path, definition.Actions)
 	if err != nil {

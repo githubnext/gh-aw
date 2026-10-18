@@ -551,7 +551,9 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool {
 			return subscription.Event == "code_scanning_alert" || subscription.Event == "dependabot_alert"
 		}), message: "Using experimental feature: on.security-alerts (hosted CAO triggers)"},
-		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Provider != "" }), message: "Using experimental feature: external issue provider triggers (approved webhook bridge required)"},
+		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "jira_issue" }), message: "Using experimental feature: on.jira-issue (approved webhook bridge required)"},
+		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "linear_issue" }), message: "Using experimental feature: on.linear-issue (approved webhook bridge required)"},
+		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "azure_devops_issue" }), message: "Using experimental feature: on.azure-devops-issue (approved webhook bridge required)"},
 		{enabled: workflowData.Graders != nil && workflowData.Graders.HasGraders(), message: "Using experimental feature: graders"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil, message: "Using experimental feature: dispatch-repository"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil, message: "Using experimental feature: merge-pull-request"},

@@ -5,8 +5,10 @@ package workflow
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -16,7 +18,25 @@ import (
 )
 
 func providerIssueOn(alias string, config any) map[string]any {
+	if settings, ok := config.(map[string]any); ok {
+		settings = maps.Clone(settings)
+		scope := map[string]string{
+			"jira-issue": "project", "linear-issue": "organization-id", "azure-devops-issue": "project_id",
+		}[alias]
+		if _, exists := settings[scope]; !exists {
+			settings[scope] = "source-scope"
+		}
+		config = settings
+	}
 	return map[string]any{"webhook-gateway": true, alias: config}
+}
+
+func providerIssueScopeYAML(alias string) string {
+	return map[string]string{
+		"jira-issue":         "    project: APP\n",
+		"linear-issue":       "    organization-id: organization-uuid\n",
+		"azure-devops-issue": "    project_id: project-uuid\n",
+	}[alias]
 }
 
 func TestProviderIssueSubscriptions(t *testing.T) {
@@ -50,8 +70,8 @@ func TestProviderIssueSubscriptions(t *testing.T) {
 
 func TestProviderIssueMixedGitHubRequirements(t *testing.T) {
 	on := providerIssueOn("jira-issue", map[string]any{})
-	on["linear-issue"] = map[string]any{}
-	on["azure-devops-issue"] = map[string]any{}
+	on["linear-issue"] = map[string]any{"organization-id": "organization-uuid"}
+	on["azure-devops-issue"] = map[string]any{"project_id": "project-uuid"}
 	on["issues"] = map[string]any{"types": []any{"opened"}}
 	on["security-alerts"] = map[string]any{"sources": "dependabot"}
 	on["projects-items"] = map[string]any{"project_id": "PVT_example"}
@@ -66,10 +86,21 @@ func TestProviderIssueExperimentalNotice(t *testing.T) {
 			require.NoError(t, err)
 			var output bytes.Buffer
 			NewCompiler().emitExperimentalFeatureWarningsTo(&WorkflowData{WebhookSubscriptions: subscriptions}, &output)
-			assert.Contains(t, output.String(), "external issue provider triggers")
+			assert.Contains(t, output.String(), "Using experimental feature: on."+alias+" (approved webhook bridge required)")
 			assert.NotContains(t, output.String(), "on.security-alerts")
 			assert.Equal(t, event, subscriptions[0].Event)
 		})
+	}
+	on := map[string]any{"webhook-gateway": true}
+	for alias := range providerIssueTriggers {
+		on[alias] = providerIssueOn(alias, map[string]any{})[alias]
+	}
+	subscriptions, err := ParseWebhookSubscriptions(on, "all-providers")
+	require.NoError(t, err)
+	var output bytes.Buffer
+	NewCompiler().emitExperimentalFeatureWarningsTo(&WorkflowData{WebhookSubscriptions: subscriptions}, &output)
+	for alias := range providerIssueTriggers {
+		assert.Equal(t, 1, strings.Count(output.String(), "Using experimental feature: on."+alias+" ("))
 	}
 }
 
@@ -83,8 +114,9 @@ func TestProviderIssueValidation(t *testing.T) {
 			"misspelling":     map[string]any{"types": []any{"labelled"}},
 			"empty types":     map[string]any{"types": []any{}},
 			"GitHub repos":    map[string]any{"repos": []any{"owner/repo"}},
-			"unknown filter":  map[string]any{"filters": map[string]any{"repository": "owner/repo"}},
-			"expression":      map[string]any{"filters": map[string]any{"sender": "${{ github.actor }}"}},
+			"filters wrapper": map[string]any{"filters": map[string]any{"project": "APP"}},
+			"unknown filter":  map[string]any{"repository": "owner/repo"},
+			"expression":      map[string]any{"sender": "${{ github.actor }}"},
 		} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
 				_, err := ParseWebhookSubscriptions(providerIssueOn(alias, config), "invalid")
@@ -129,18 +161,26 @@ func TestAzureIssueClosedStates(t *testing.T) {
 func TestProviderIssuePayloadFilters(t *testing.T) {
 	for alias, test := range map[string]struct {
 		filters map[string]any
+		field   string
 		path    []string
 	}{
-		"jira-issue":         {map[string]any{"labels": []any{"bug", "urgent"}}, []string{"issue", "fields", "labels", "*"}},
-		"linear-issue":       {map[string]any{"labels": "label-uuid"}, []string{"data", "labelIds", "*"}},
-		"azure-devops-issue": {map[string]any{"state": map[string]any{"to": "Done"}}, []string{"resource", "fields", "System.State", "newValue"}},
+		"jira-issue":         {map[string]any{"labels": []any{"bug", "urgent"}}, "labels", []string{"issue", "fields", "labels", "*"}},
+		"linear-issue":       {map[string]any{"labels": "label-uuid"}, "labels", []string{"data", "labelIds", "*"}},
+		"azure-devops-issue": {map[string]any{"state": map[string]any{"to": "Done"}}, "state.to", []string{"resource", "fields", "System.State", "newValue"}},
 	} {
 		t.Run(alias, func(t *testing.T) {
-			subscriptions, err := ParseWebhookSubscriptions(providerIssueOn(alias, map[string]any{"types": []any{"edited"}, "filters": test.filters}), "provider")
+			config := maps.Clone(test.filters)
+			config["types"] = []any{"edited"}
+			subscriptions, err := ParseWebhookSubscriptions(providerIssueOn(alias, config), "provider")
 			require.NoError(t, err)
-			require.Len(t, subscriptions[0].Conditions, 1)
-			assert.Equal(t, test.path, subscriptions[0].Conditions[0].Path)
-			assert.Equal(t, "string", subscriptions[0].Conditions[0].ValueType)
+			require.Len(t, subscriptions[0].Conditions, 2)
+			conditions := map[string]WebhookCondition{}
+			for _, condition := range subscriptions[0].Conditions {
+				conditions[condition.Filter] = condition
+			}
+			require.Contains(t, conditions, test.field)
+			assert.Equal(t, test.path, conditions[test.field].Path)
+			assert.Equal(t, "string", conditions[test.field].ValueType)
 		})
 	}
 }
@@ -148,7 +188,7 @@ func TestProviderIssuePayloadFilters(t *testing.T) {
 func TestCompileProviderIssueManifest(t *testing.T) {
 	for alias, event := range providerIssueTriggers {
 		t.Run(alias, func(t *testing.T) {
-			source := webhookWorkflow("on:\n  webhook-gateway: true\n  workflow_dispatch:\n  bots: [cao-gateway]\n  " + alias + ":\n    types: [opened, labeled]\n")
+			source := webhookWorkflow("on:\n  webhook-gateway: true\n  workflow_dispatch:\n  bots: [cao-gateway]\n  " + alias + ":\n" + providerIssueScopeYAML(alias) + "    types: [opened, labeled]\n")
 			compiler := newWebhookCompiler()
 			path := filepath.Join(t.TempDir(), alias+".md")
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
@@ -195,11 +235,55 @@ func TestProviderIssueAuthorizationAndGates(t *testing.T) {
 			t.Run(alias+"/"+name, func(t *testing.T) {
 				compiler := newWebhookCompiler()
 				compiler.repoConfig.WebhookGateway = test.enabled
-				source := webhookWorkflow("strict: false\non:\n  workflow_dispatch:\n" + test.flag + test.roles + "  " + alias + ":\n    types: [opened]\n")
+				source := webhookWorkflow("strict: false\non:\n  workflow_dispatch:\n" + test.flag + test.roles + "  " + alias + ":\n" + providerIssueScopeYAML(alias) + "    types: [opened]\n")
 				_, err := compiler.ParseWorkflowString(source, "provider-gate.md")
 				require.ErrorContains(t, err, test.want)
 			})
 		}
+	}
+}
+
+func TestProviderIssueRequiredScopes(t *testing.T) {
+	for alias, test := range map[string]struct {
+		field string
+		path  []string
+	}{
+		"jira-issue":         {"project", []string{"issue", "fields", "project", "key"}},
+		"linear-issue":       {"organization-id", []string{"organizationId"}},
+		"azure-devops-issue": {"project_id", []string{"resourceContainers", "project", "id"}},
+	} {
+		t.Run(alias, func(t *testing.T) {
+			_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, alias: map[string]any{}}, "missing")
+			require.ErrorContains(t, err, "on."+alias+"."+test.field+" is required")
+			for _, value := range []any{nil, "", " ", 1, []any{}, []any{"scope", ""}, []any{false}, "${{ github.actor }}"} {
+				config := map[string]any{test.field: value}
+				_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, alias: config}, "invalid")
+				require.Error(t, err, "scope value: %#v", value)
+			}
+			config := map[string]any{test.field: []any{"scope-b", "scope-a", "scope-a"}, "types": []any{"opened"}}
+			subscriptions, err := ParseWebhookSubscriptions(providerIssueOn(alias, config), "scoped")
+			require.NoError(t, err)
+			require.Len(t, subscriptions[0].Conditions, 1)
+			assert.Equal(t, test.path, subscriptions[0].Conditions[0].Path)
+			assert.Equal(t, []any{"scope-a", "scope-b"}, subscriptions[0].Conditions[0].Values)
+		})
+	}
+}
+
+func TestLinearIssueTeamID(t *testing.T) {
+	config := map[string]any{"organization-id": "organization-uuid", "team-id": []any{"team-b", "team-a"}, "types": []any{"opened"}}
+	on := providerIssueOn("linear-issue", config)
+	subscriptions, err := ParseWebhookSubscriptions(on, "linear-team")
+	require.NoError(t, err)
+	require.Len(t, subscriptions[0].Conditions, 2)
+	assert.Equal(t, WebhookCondition{
+		Filter: "team-id", Path: []string{"data", "teamId"}, Operator: "equals", ValueType: "string", Values: []any{"team-a", "team-b"},
+	}, subscriptions[0].Conditions[1])
+	assert.Equal(t, config, on["linear-issue"], "normalization must not mutate source selectors")
+	for _, value := range []any{nil, "", " ", 1, []any{}, "${{ secrets.LINEAR_TEAM_ID }}"} {
+		config["team-id"] = value
+		_, err := ParseWebhookSubscriptions(providerIssueOn("linear-issue", config), "invalid-team")
+		require.Error(t, err, "team-id: %#v", value)
 	}
 }
 
@@ -210,6 +294,7 @@ func TestProviderIssueCatalogNativeMappings(t *testing.T) {
 		t.Run(alias, func(t *testing.T) {
 			definition := catalog[event]
 			require.NotEmpty(t, definition.Provider)
+			assert.True(t, strings.HasPrefix(definition.Description, "Experimental. "), "every provider catalog description must mark its trigger experimental")
 			assert.Len(t, definition.NativeEvents, len(definition.Actions))
 			for _, activity := range definition.Actions {
 				require.NotEmpty(t, definition.NativeEvents[activity], "every activity must identify a real provider event")

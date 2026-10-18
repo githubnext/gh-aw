@@ -7,6 +7,8 @@ sidebar:
 
 import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json';
 
+The dedicated [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-specification/) defines every supported trigger, its expected data, and the receiver/runner contract. All gateway triggers are experimental.
+
 `on.projects-items` and `on.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. Each workflow using these events must explicitly set `on.webhook-gateway: true`. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a workflow dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
 
 Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. General `on.webhook` registration and `on.webhook-auth` are not supported.

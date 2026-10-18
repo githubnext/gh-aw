@@ -11,7 +11,7 @@
       "unlabeled": "jira:issue_updated",
       "deleted": "jira:issue_deleted"
     },
-    "description": "Jira Cloud issue lifecycle and unambiguous single-label changes. Closed/reopened means resolution set/cleared, not a guessed status name. Multi-label changelog string deltas are not normalized.",
+    "description": "Experimental. Jira Cloud issue lifecycle and unambiguous single-label changes. Closed/reopened means resolution set/cleared, not a guessed status name. Multi-label changelog string deltas are not normalized.",
     "source": "https://developer.atlassian.com/cloud/jira/platform/webhooks/",
     "availability": ["Jira Cloud tenant"],
     "filters": {
@@ -36,13 +36,13 @@
       "unlabeled": "update",
       "deleted": "remove"
     },
-    "description": "Linear Issue data-change events. Terminal timestamp changes and label ID set differences require complete data/updatedFrom evidence. IssueLabel definition events are not issue labeling.",
+    "description": "Experimental. Linear Issue data-change events. Terminal timestamp changes and label ID set differences require complete data/updatedFrom evidence. IssueLabel definition events are not issue labeling.",
     "source": "https://linear.app/developers/webhooks",
     "availability": ["Linear organization", "Linear team"],
     "filters": {
       "issue_id": { "path": ["data", "id"], "type": "string", "description": "Immutable Linear issue ID." },
-      "organization_id": { "path": ["organizationId"], "type": "string", "description": "Linear organization ID." },
-      "team_id": { "path": ["data", "teamId"], "type": "string", "description": "Issue team ID, when delivered." },
+      "organization-id": { "path": ["organizationId"], "type": "string", "description": "Required Linear organization ID; configured beside types." },
+      "team-id": { "path": ["data", "teamId"], "type": "string", "description": "Optional Linear team model ID, when delivered; configured beside organization-id." },
       "labels": { "path": ["data", "labelIds", "*"], "type": "string", "description": "A current label ID, not its name and not necessarily the changed label." },
       "sender": { "path": ["actor", "id"], "type": "string", "description": "Actor ID, when present; not dispatch authorization." }
     }
@@ -60,7 +60,7 @@
       "deleted": "workitem.deleted",
       "restored": "workitem.restored"
     },
-    "description": "Azure DevOps work item events. Closed/reopened requires explicitly configured closed-states and native old/new state values; label changes are old/new System.Tags set differences.",
+    "description": "Experimental. Azure DevOps work item events. Closed/reopened requires explicitly configured closed-states and native old/new state values; label changes are old/new System.Tags set differences.",
     "source": "https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#work-item",
     "availability": ["Azure DevOps project"],
     "filters": {
