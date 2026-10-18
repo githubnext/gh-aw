@@ -29,6 +29,7 @@ type importAccumulator struct {
 	preStepsBuilder          strings.Builder
 	preAgentStepsBuilder     strings.Builder
 	runtimesBuilder          strings.Builder
+	profileRuntimesBuilder   strings.Builder
 	servicesBuilder          strings.Builder
 	networkBuilder           strings.Builder
 	permissionsBuilder       strings.Builder
@@ -308,10 +309,10 @@ func (acc *importAccumulator) trackRuntimeOrInlineImport(fullPath, importRelPath
 		parserLog.Printf("Added import path for runtime-import: %s", importRelPath)
 		return nil
 	}
-	if !wasSubstituted {
+	if !wasSubstituted && !strings.HasPrefix(fullPath, BuiltinToolProfilePathPrefix) {
 		return nil
 	}
-	parserLog.Printf("Import %s has substituted inputs - will be inlined for compile-time substitution", importRelPath)
+	parserLog.Printf("Inlining imported markdown: %s", importRelPath)
 	markdownContent, err := ExtractMarkdownContent(rawContent)
 	if err != nil {
 		return fmt.Errorf("markdown content in imported file '%s' is not recognized, expected content after the frontmatter delimiters: %w", fullPath, err)
@@ -458,7 +459,11 @@ func (acc *importAccumulator) extractConfigFields(fm map[string]any, fullPath st
 	acc.appendJSONSliceField(fm, "safe-outputs", "{}", &acc.safeOutputs)
 	acc.appendJSONBuilderField(fm, "graders", "{}", &acc.gradersBuilder)
 	acc.appendJSONSliceField(fm, "mcp-scripts", "{}", &acc.mcpScripts)
-	acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
+	if strings.HasPrefix(fullPath, BuiltinToolProfilePathPrefix) {
+		acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.profileRuntimesBuilder)
+	} else {
+		acc.appendJSONBuilderField(fm, "runtimes", "{}", &acc.runtimesBuilder)
+	}
 	acc.appendYAMLBuilderField(fm, "services", &acc.servicesBuilder)
 	acc.appendJSONBuilderField(fm, "network", "{}", &acc.networkBuilder)
 	acc.mergeSandboxAgentMounts(fm)
@@ -1067,6 +1072,7 @@ func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 		MergedPreSteps:                acc.preStepsBuilder.String(),
 		MergedPreAgentSteps:           acc.preAgentStepsBuilder.String(),
 		MergedRuntimes:                acc.runtimesBuilder.String(),
+		ToolProfileRuntimes:           acc.profileRuntimesBuilder.String(),
 		MergedRunInstallScripts:       acc.runInstallScripts,
 		MergedServices:                acc.servicesBuilder.String(),
 		MergedNetwork:                 acc.networkBuilder.String(),

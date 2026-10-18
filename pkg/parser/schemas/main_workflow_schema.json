@@ -4784,6 +4784,11 @@
         }
       ],
       "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["go"],
+          "description": "Ecosystem tool profile. Configures required runtimes, sandbox mounts, shell commands, and sandboxed MCP tools. Currently supports go."
+        },
         "github": {
           "description": "GitHub API tools for repository operations (issues, pull requests, content management)",
           "oneOf": [

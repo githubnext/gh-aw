@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -256,6 +257,10 @@ func (c *Compiler) resolveToolsConfiguration(
 	if err != nil {
 		return nil, err
 	}
+	capabilities := agenticEngine.GetCapabilities()
+	if _, hasProfile := tools["profile"]; hasProfile && capabilities.MCP && !capabilities.ToolsAllowlist && agenticEngine.GetID() != string(constants.AgyEngine) {
+		return nil, errors.New("tools.profile requires an engine that preserves MCP tool restrictions; use engine: copilot, claude, or codex")
+	}
 	tools = c.adjustToolsForEngineCapabilities(result.Frontmatter, agenticEngine, tools)
 	tools, err = enforceMCPProxyTools(agenticEngine, tools)
 	if err != nil {
@@ -365,6 +370,10 @@ func (c *Compiler) resolveRuntimes(frontmatter map[string]any, importsResult *pa
 	if err != nil {
 		orchestratorToolsLog.Printf("Runtimes merge failed: %v", err)
 		return nil, false, fmt.Errorf("failed to merge runtimes: %w", err)
+	}
+	runtimes, err = mergeToolProfileRuntimes(runtimes, importsResult.ToolProfileRuntimes)
+	if err != nil {
+		return nil, false, err
 	}
 	runInstallScripts := resolveRunInstallScripts(runtimes, importsResult.MergedRunInstallScripts)
 	return runtimes, runInstallScripts, nil

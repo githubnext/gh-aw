@@ -17,6 +17,61 @@ Some tools are available by default. All tools declared in imported components a
 
 ## Built-in Tools
 
+### Ecosystem Profile (`profile:`)
+
+`tools.profile` configures an ecosystem's runtime, sandbox paths, shell commands,
+and MCP tools. The first supported profile is `go`:
+
+```yaml wrap
+tools:
+  profile: go
+```
+
+The Go profile installs Go 1.26 through the runtime manager, plus the pinned
+`gopls` v0.23.0 language server and its built-in MCP server. It enables `go version`,
+`go env`, `go list`, `go doc`, `go build`, `go test`, `go vet`, and `gofmt` in the
+agent's sandboxed shell. It does not grant unrestricted shell access.
+
+The `gopls` MCP sidecar exposes only `go_workspace`, `go_search`,
+`go_file_context`, `go_package_api`, `go_diagnostics`, and `go_symbol_references`.
+It mounts the workspace, runner tool cache, and installed profile binaries
+read-only; only the profile's isolated caches are writable. Builds and tests
+execute inside the agent sandbox, never in a host-side MCP shell runner.
+Sidecar analysis disables cgo, telemetry, and automatic Go toolchain downloads.
+The profile adds the `go` network ecosystem for module downloads.
+Before exporting its runtime environment, setup verifies gopls semantic readiness
+against a disposable, dependency-free Go module with module-network access
+disabled and a 60-second deadline. Missing binaries, installation failures, and
+missing probe symbols fail setup rather than falling back to text-only analysis.
+
+Setup stores binaries and caches under `$RUNNER_TEMP/gh-aw/tool-profiles/go` and
+exports `GH_AW_TOOL_PROFILE_GO_DIR`, `GH_AW_TOOL_PROFILE_GO_ROOT`, and
+`GH_AW_TOOL_PROFILE_GO_PATH`.
+The latter includes both the installed gopls directory and the selected Go
+toolchain's `bin` directory. Other containerized code-analysis servers can
+forward that PATH when they declare the same read-only binary and toolchain
+mounts. Forwarding only Go's `bin` directory does not make gopls available.
+
+Profiles work with Copilot, Claude, and Gemini, including `tools.cli-proxy`, and
+can be declared in shared workflow imports. Repeated declarations install the
+profile once. Explicit tool disabling is preserved; for example, `bash: false`
+keeps shell access disabled while retaining the gopls MCP tools. Set
+`cli-proxy: false` alongside it. Codex cannot enforce shell-command allowlists;
+use these explicit settings for MCP-only Go analysis with Codex, or explicitly
+enable unrestricted sandboxed shell access with `bash: true`.
+
+Profile runtime settings are defaults, so `go.mod` cannot select an older
+toolchain accidentally. Use `runtimes.go` to override the Go version or setup
+action (Go 1.26 or newer is
+required by the pinned gopls). The profile requires
+an enabled Docker agent sandbox (`docker` or `docker-sudo-iptables`); microVM
+runtimes do not currently support its additional mounts.
+
+Profile definitions are embedded shared-workflow Markdown files under
+`pkg/workflow/data/tool-profiles/`. Their frontmatter declares `runtimes`,
+`sandbox.agent.mounts`, `pre-agent-steps`, `tools`, `network`, and `mcp-servers`,
+so new ecosystems reuse the same compilation and validation paths.
+
 ### Edit Tool (`edit:`)
 
 Allows file editing in the GitHub Actions workspace.

@@ -16,6 +16,12 @@ func TestMergeTools(t *testing.T) {
 		expected   map[string]any
 	}{
 		{
+			name:       "empty bash allowlist disables imported commands",
+			base:       map[string]any{"bash": []any{}},
+			additional: map[string]any{"bash": []any{"go test", "go build"}},
+			expected:   map[string]any{"bash": []any{}},
+		},
+		{
 			name: "merge with allowed arrays",
 			base: map[string]any{
 				"bash": map[string]any{

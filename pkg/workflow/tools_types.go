@@ -69,6 +69,8 @@ var toolsTypesLog = logger.New("workflow:tools_types")
 //   - The raw map is preserved for perfect round-trip conversion when needed
 //   - Type alias Tools = ToolsConfig provides backward compatibility for existing code
 type ToolsConfig struct {
+	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
+
 	// Built-in tools - using pointers to distinguish between "not set" and "set to nil/empty"
 	GitHub           *GitHubToolConfig           `yaml:"github,omitempty"`
 	Bash             *BashToolConfig             `yaml:"bash,omitempty"`
@@ -277,6 +279,10 @@ func (t *ToolsConfig) ToMap() map[string]any { //nolint:largefunc // Existing co
 	}
 	if t.StartupTimeout != nil {
 		result["startup-timeout"] = t.StartupTimeout.ToValue()
+	}
+
+	if t.Profile != "" {
+		result["profile"] = t.Profile
 	}
 
 	// Add custom tools - convert MCPServerConfig to map[string]any

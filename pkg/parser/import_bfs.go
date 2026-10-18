@@ -22,12 +22,8 @@ import (
 
 // processImportsFromFrontmatterWithManifestAndSource is the internal implementation that includes source tracking.
 func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
-	importsField, exists := frontmatter["imports"]
-	if !exists {
-		return &ImportsResult{}, nil
-	}
 	parserLog.Print("Processing imports from frontmatter with recursive BFS")
-	importSpecs, err := parseImportSpecsFromField(importsField)
+	importSpecs, err := importsWithToolProfile(frontmatter)
 	if err != nil {
 		return nil, err
 	}
@@ -401,11 +397,7 @@ func extractFrontmatterForImport(fullPath string, content []byte) (*FrontmatterR
 }
 
 func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
-	importsField, hasImports := frontmatter["imports"]
-	if !hasImports {
-		return nil
-	}
-	importSpecs, err := parseImportSpecsFromField(importsField)
+	importSpecs, err := importsWithToolProfile(frontmatter)
 	if err != nil {
 		return err
 	}
@@ -444,6 +436,9 @@ func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, bas
 }
 
 func resolveNestedImportPathAndOrigin(item importQueueItem, nestedFilePath string) (string, *remoteImportOrigin, error) {
+	if strings.HasPrefix(nestedFilePath, BuiltinPathPrefix) {
+		return nestedFilePath, nil, nil
+	}
 	if item.remoteOrigin != nil && !IsWorkflowSpec(nestedFilePath) {
 		return resolveRemoteNestedPath(item, nestedFilePath)
 	}
@@ -498,7 +493,7 @@ func formatNestedResolveError(nestedImportPath, nestedFilePath string, item impo
 }
 
 func canonicalizeNestedImportPath(nestedImportPath, nestedBaseDir, baseDir string, nestedRemoteOrigin *remoteImportOrigin, nestedFullPath string) string {
-	if nestedRemoteOrigin != nil || nestedBaseDir == baseDir {
+	if strings.HasPrefix(nestedFullPath, BuiltinPathPrefix) || nestedRemoteOrigin != nil || nestedBaseDir == baseDir {
 		return nestedImportPath
 	}
 	rel, err := filepath.Rel(baseDir, nestedFullPath)

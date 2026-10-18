@@ -190,6 +190,7 @@ func (c *Compiler) validateWorkflowEngineSettings(cleanPath string, workflowData
 		c.validateEngineVersion,
 		c.validatePlaywrightMode,
 		c.validateLSPSupport,
+		validateToolProfileSandbox,
 		c.validateEngineHarnessScript,
 		validateEngineFallbackModels,
 		c.validateEngineDriver,
