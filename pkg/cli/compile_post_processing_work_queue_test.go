@@ -30,7 +30,7 @@ func TestGenerateWorkQueueEventWorkflowSkipsRepoConfigWhenIssueMirroringIsUnused
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestGenerateWorkQueueWorkerEventsHonorRepoConfiguration(t *testing.T) {
+func TestGenerateWorkQueueWorkersNeedNoEventWorkflow(t *testing.T) {
 	repoRoot := t.TempDir()
 	workflowDir := filepath.Join(repoRoot, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(workflowDir, 0o700))
@@ -41,5 +41,7 @@ func TestGenerateWorkQueueWorkerEventsHonorRepoConfiguration(t *testing.T) {
 		Tools: map[string]any{"work-queue": map[string]any{"worker": true}},
 	}}, workflowDir, repoRoot, true, false)
 
-	require.ErrorContains(t, err, "failed to load repo config for work queue event workflow")
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(workflowDir, "agentic-workqueue.yml"))
+	require.ErrorIs(t, err, os.ErrNotExist)
 }

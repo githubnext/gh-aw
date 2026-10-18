@@ -1350,6 +1350,23 @@ jobs:
           pattern: safe-outputs-items
           merge-multiple: true
           path: /tmp/gh-aw/
+      - name: Terminate work queue worker
+        id: worker_termination
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_WORK_QUEUE_ENABLED: "true"
+          GH_AW_WORK_QUEUE_ROLE: "worker"
+          GH_AW_WORK_QUEUE_ISSUES: "{\"label\":\"work\"}"
+          GH_AW_WORK_QUEUE_CHECKED_TRANSPORT: "graphql"
+          GH_AW_WORK_QUEUE_CONTRACT: "22f605b30efc2472f3b2f346e24b54dc7b4bbccb18fa930ebeeecc4b922ecab3"
+          GH_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          script: |
+            const path = require('path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { main } = require(path.join(actionsDir, 'reconcile_work_queue_run.cjs'));
+            await main({ core, githubClient: github, context });
       - name: Project this run's work queue Issues
         id: work_queue_issues
         if: always()

@@ -115,7 +115,7 @@ const OP_ROLES = {
 
 function validateEvidence(evidence) {
   closed(evidence, ["kind", "source", "repository", "workflow", "ref", "principal", "checked_at"], ["run_id", "run_attempt", "status", "conclusion", "receipt", "attempts", "effects"], "evidence");
-  if (!["prelaunch", "nonlaunch", "terminal_run", "delivery", "reconciliation"].includes(evidence.kind) || !["trusted_publisher", "github_api", "trusted_activation", "verified_receipts"].includes(evidence.source))
+  if (!["prelaunch", "nonlaunch", "terminal_run", "worker_termination", "delivery", "reconciliation"].includes(evidence.kind) || !["trusted_publisher", "github_api", "trusted_activation", "verified_receipts"].includes(evidence.source))
     throw queueError("evidence_invalid", "unsupported evidence source/kind");
   for (const field of ["repository", "workflow", "ref", "principal", "conclusion", "receipt"]) if (Object.hasOwn(evidence, field)) identity(evidence[field], field);
   decimal(evidence.principal, "evidence principal", "evidence_invalid");
@@ -398,7 +398,7 @@ function validateWorkerContinuation(state, context) {
   return authority;
 }
 
-function assertEvidence(state, dispatch, evidence, at, kind) {
+function assertEvidence(state, dispatch, evidence, at, kind, actor) {
   validateEvidence(evidence);
   boundedBytes(evidence, state.policy.limits.evidence_bytes, "lifecycle evidence");
   const profile = dispatch.profile;
@@ -413,11 +413,26 @@ function assertEvidence(state, dispatch, evidence, at, kind) {
     (principal === undefined && (state.policy.authorization !== "aw" || dispatch.state !== "reserved" || kind !== "prelaunch"))
   )
     throw queueError("evidence_invalid", "evidence scope or timestamp does not match reservation");
-  if (kind === "terminal_run" || kind === "delivery") {
+  if (kind === "terminal_run" || kind === "worker_termination" || kind === "delivery") {
     if (!dispatch.run || evidence.run_id !== dispatch.run.run_id || evidence.run_attempt !== 1) throw queueError("evidence_invalid", "evidence does not name the exact bound native attempt");
     if (kind === "terminal_run" && (evidence.source !== "github_api" || evidence.status !== "completed" || !evidence.conclusion)) throw queueError("evidence_invalid", "release/failure requires exact trusted terminal evidence");
     if (kind === "delivery" && (evidence.source !== "verified_receipts" || !evidence.receipt)) throw queueError("evidence_invalid", "Result requires independently verified scoped receipts");
   }
+  if (
+    kind === "worker_termination" &&
+    (dispatch.state !== "bound" ||
+      evidence.source !== "github_api" ||
+      !evidence.receipt ||
+      evidence.status !== undefined ||
+      evidence.conclusion !== undefined ||
+      actor?.role !== "reconciler" ||
+      actor.run_id !== dispatch.run.run_id ||
+      actor.run_attempt !== 1 ||
+      actor.repository !== evidence.repository ||
+      actor.workflow !== evidence.workflow ||
+      actor.principal !== evidence.principal)
+  )
+    throw queueError("evidence_invalid", "worker termination requires the original worker's trusted finalizer and verified job quiescence");
   if (kind === "prelaunch" && (dispatch.state !== "reserved" || dispatch.sender || dispatch.run || evidence.source !== "trusted_publisher")) throw queueError("evidence_invalid", "prelaunch cancellation cannot race past a start marker");
   if (kind === "nonlaunch" && (dispatch.run || evidence.source !== "github_api" || !evidence.receipt)) throw queueError("evidence_invalid", "nonlaunch requires positive API rejection evidence, never silence");
 }
@@ -491,8 +506,8 @@ function applyLifecycle(state, operation, commit) {
       let backoffOrigin = commit.at;
       if (commit.request.kind === "release") {
         const release = commit.operations.find(candidate => candidate.kind === "Release" && candidate.dispatch_id === claim.dispatch_id);
-        if (release && ["prelaunch", "nonlaunch", "terminal_run"].includes(release.evidence.kind)) {
-          assertEvidence(state, dispatch, release.evidence, commit.at, release.evidence.kind);
+        if (release && ["prelaunch", "nonlaunch", "terminal_run", "worker_termination"].includes(release.evidence.kind)) {
+          assertEvidence(state, dispatch, release.evidence, commit.at, release.evidence.kind, commit.actor);
           backoffOrigin = release.evidence.checked_at;
         }
       }
@@ -663,8 +678,8 @@ function applyLifecycle(state, operation, commit) {
     }
     case "Release":
       if (!dispatch || dispatch.released) throw queueError("release_invalid", "native reservation may release once only");
-      assertEvidence(state, dispatch, operation.evidence, commit.at, operation.evidence.kind);
-      if (!["prelaunch", "nonlaunch", "terminal_run"].includes(operation.evidence.kind)) throw queueError("release_invalid", "only positive nonlaunch or exact terminal evidence can release");
+      assertEvidence(state, dispatch, operation.evidence, commit.at, operation.evidence.kind, commit.actor);
+      if (!["prelaunch", "nonlaunch", "terminal_run", "worker_termination"].includes(operation.evidence.kind)) throw queueError("release_invalid", "only positive nonlaunch, terminal run, or trusted worker termination evidence can release");
       if (dispatch.claims.some(member => state.claims.get(member.claim_id).state === "open")) throw queueError("release_invalid", "settle only still-open Claims before native release");
       dispatch.released = true;
       break;

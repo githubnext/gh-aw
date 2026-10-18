@@ -45,7 +45,7 @@ The native protocol distinguishes the following records and lifecycle events:
 | Native launch | The request to start a GitHub Actions worker run. A committed assignment is not proof of launch. |
 | Completion | A durable record of task completion, published before the Claim's effects. It is not proof of delivery. |
 | Result | A record published only after independently verified delivery of the Claim's effects. |
-| Release | The operation that frees a native reservation after trusted evidence of exact termination or definitive nonlaunch. |
+| Release | Frees a worker reservation after verified inline worker quiescence, exact native termination, or definitive nonlaunch. |
 | IssueLink | An immutable, checked link from one admitted Work item to one backing Issue. |
 | IssueComment | An immutable canonical summary or historical Claim-comment handle. |
 
@@ -327,7 +327,9 @@ writes without holding agents. Projection journals persist native creation
 intent and verified receipts; bindings are batched in Git commits with an exact
 expected-head lease and a checked single parent. Publication conflicts refresh
 and replay the ledger; uncertain acknowledgements recover stable requests.
-Maintenance does not change Claims, fairness, reservations, or recovery reserve.
+Issue projection maintenance does not change Claims, fairness, reservations, or
+recovery reserve. Scheduled queue reconciliation separately recovers stranded
+reservations before compaction, using independently verified native evidence.
 
 Only a later authorized hook for the same Work/Claims can retry pending
 synchronization. There are no Issue intake scans, global dirty-Work sweeps,
@@ -379,8 +381,8 @@ Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
 `reconciler`, `run`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
 publication attempts, conflicts, recovery, capacity and packing limits,
 native launch and binding, independent verification, and durable settlement.
-`DEBUG=work-queue:run` traces automatic terminal-run cleanup: ignored events,
-staged previews, binding counts, release outcomes, and sanitized failure categories,
+`DEBUG=work-queue:run` traces inline worker cleanup: ignored events,
+staged previews, binding and job counts, release outcomes, and sanitized failure categories,
 without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
 Blocked control and launch-processing failures are always visible, even without
@@ -473,8 +475,8 @@ worker run to conclude.
 
 A lost launch response, dispatcher cancellation, or elapsed deadline does not
 prove that a worker never launched. Cancellation does not stop a native worker
-or release its reservation. Reservations remain until exact termination or
-definitive nonlaunch evidence exists; reconciliation processes that evidence
+or release its reservation. Reservations remain until verified worker quiescence,
+exact native termination, or definitive nonlaunch evidence exists; reconciliation processes that evidence
 separately. If delivery is uncertain after Completion, effects are not rerun.
 Verification within configured bounds produces Result or DeliveryFailure, an
 explicit terminal delivery failure.
@@ -487,16 +489,34 @@ the installed retry policy. Active origins, unavailable evidence, and any
 durable start marker retain their reservations; cancellation never resends a
 possibly started launch.
 
-Compiled queue workers also register a `workflow_run: completed` handler in
-`agentic-workqueue.yml`, including when Issue mirroring is disabled. It selects
-only the completed run's existing reservation, then independently authenticates
-the original run attempt, revision, principal and dispatch correlation before
-releasing capacity. Unfinished Claims follow the installed retry policy;
-completed Claims and delivery barriers are preserved. The handler never
-dispatches work, replays effects, or treats Actions success as a verified Result.
-It runs trusted default-branch code, not the worker's checkout or artifacts.
-An unavailable or mismatched native read retains the reservation for subsequent
-bounded dispatcher reconciliation or `reconcile --dispatch-id`.
+Compiled queue workers terminate inline in their existing `conclusion` job,
+which depends on all other workflow jobs and runs with `always()`. The
+`worker_termination` step selects only its own original-attempt reservation,
+independently authenticates the run, immutable revision, principal and dispatch
+correlation, and checks the attempt's complete Actions job inventory. Every
+other job must have completed; the current conclusion job must be uniquely
+identified and active. The ledger records `worker_termination` evidence with a
+digest of that job inventory, not a claim that the native run has completed.
+Only that original run may publish this release evidence.
+
+This releases the worker execution slot while the conclusion job finishes
+diagnostics and Issue projection. It is not a strict cap on native Actions runs
+still closing. No new runner job or per-worker completion-triggered workflow is
+added. Unfinished Claims follow the installed retry policy; completed Claims,
+delivery barriers and fairness debt remain unchanged. Release never creates
+Result or authorizes replaying effects.
+
+Hard cancellation, runner loss, setup failures and unavailable or mismatched
+evidence can prevent inline cleanup. The existing scheduled
+`agentics-maintenance.yml` queue-compaction job first reconciles a bounded,
+rotating batch of stranded reservations. It never cancels active native runs;
+bound workers release only after their exact original native attempt is
+independently observed completed. Dispatcher and operator reconciliation remain
+available. If maintenance is disabled, those paths provide the fallback.
+Cleanup latency after hard cancellation follows the maintenance schedule.
+
+Upgrade readers before publishing the new closed-schema `worker_termination`
+evidence variant; historical records and terminal-run recovery remain valid.
 
 ### Diagnostic artifacts
 
