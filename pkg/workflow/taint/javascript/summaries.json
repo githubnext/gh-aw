@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "modules": {
+    "actions/setup/js/actions_secret_masking.cjs": {
+      "sha256": "a9d96b61b72cc766bedde6aafe16fc2335b808e2db280713c9ae5f888317cc39",
+      "dependencies": ["actions/setup/js/otlp_header_helpers.cjs"],
+      "exports": {
+        "escapeWorkflowCommandValue": "escaped-command-value",
+        "maskSecret": "mask-secret",
+        "getOTLPSecretValues": "otlp-values"
+      }
+    },
+    "actions/setup/js/otlp_header_helpers.cjs": {
+      "sha256": "f4aeb96dc67e9c0e6e1ea11505836cca18e1c446c2c2713e94cf9b11a3dae275",
+      "exports": {
+        "parseOTLPHeaders": "argument-object",
+        "getAuthorizationSecretValues": "argument-array",
+        "getOTLPSecretValues": "otlp-values"
+      }
+    },
+    "actions/setup/js/git_auth_env.cjs": {
+      "sha256": "20a970b7ee3add68bb1fd902b1306f9210bed0f40960a9c3b2f0837bc2c0dd2a",
+      "exports": {
+        "buildGitAuthEnv": "git-auth-env"
+      }
+    },
+    "actions/setup/js/error_helpers.cjs": {
+      "sha256": "f57bf8346ebabe515ed0fa41071537a3cd8d70cb40c5b4fb4c1798b5fd7a977d",
+      "exports": {
+        "getErrorMessage": "error-message",
+        "isHtmlContent": "boolean",
+        "isLockedError": "boolean",
+        "isRateLimitError": "boolean",
+        "isConnectTimeoutError": "boolean"
+      }
+    }
+  }
+}

@@ -11,22 +11,23 @@ import (
 )
 
 type javascript struct {
-	a          *analyzer
-	input      JavaScriptInput
-	options    *JavaScriptOptions
-	env        map[string]jsValue
-	stdin      value
-	stdout     value
-	files      map[string][]Source
-	file       string
-	modules    map[string]jsValue
-	loading    map[string]struct{}
-	active     map[*jsFunction]bool
-	returns    jsValue
-	budget     int
-	failure    error
-	catchDepth int
-	thrown     value
+	a            *analyzer
+	input        JavaScriptInput
+	options      *JavaScriptOptions
+	env          map[string]jsValue
+	stdin        value
+	stdout       value
+	files        map[string][]Source
+	file         string
+	modules      map[string]jsValue
+	loading      map[string]struct{}
+	active       map[*jsFunction]bool
+	returns      jsValue
+	budget       int
+	failure      error
+	catchDepth   int
+	summaryDepth int
+	thrown       value
 }
 
 func newJavaScript(a *analyzer, input JavaScriptInput, options *JavaScriptOptions) *javascript {
@@ -77,6 +78,9 @@ func jsIndex(i int) string { return strconv.Itoa(i) }
 func (j *javascript) run() error {
 	if j.a.rule.ID == "" || j.a.rule.IsSource == nil || j.a.rule.IsSink == nil {
 		return errors.New("JavaScript taint rule requires an id, sources, and sinks")
+	}
+	if j.options != nil && j.options.Mode != "" && j.options.Mode != JavaScriptFast && j.options.Mode != JavaScriptDeep {
+		return errors.New("JavaScript analysis mode must be fast or deep")
 	}
 	if j.options == nil || j.options.Parser == nil {
 		j.gap(nil, "JavaScript analysis unavailable; configure the pinned native TypeScript compiler module")
