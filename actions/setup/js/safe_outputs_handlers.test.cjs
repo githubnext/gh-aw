@@ -224,12 +224,41 @@ describe("safe_outputs_handlers", () => {
       expect(validateAddCommentIntent({ body: "test title" })).toBeNull();
     });
 
-    it.each(["test", "testing", "test no base", "probe", "placeholder", "dummy", "temp", "temporary", "todo", "tbd", "wip", "example", "Test Title", "Placeholder Title", "Dummy Title", "Example Title", "  TEST \n\t TITLE  "])(
-      "rejects placeholder issue title %j even with a substantive body",
-      title => {
-        expect(validateCreateIssueIntent({ title, body: "MSBuild fails to resolve dependencies after upgrading the SDK. See the attached reproduction and build logs." })).toContain("Refusing to record an exploratory issue");
-      }
-    );
+    it.each([
+      "test",
+      "testing",
+      "test no base",
+      "probe",
+      "placeholder",
+      "dummy",
+      "temp",
+      "temporary",
+      "todo",
+      "tbd",
+      "wip",
+      "example",
+      "Test Title",
+      "Testing Title",
+      "Test No Base Title",
+      "Probe Title",
+      "Placeholder Title",
+      "Dummy Title",
+      "Temp Title",
+      "Temporary Title",
+      "Todo Title",
+      "TBD Title",
+      "WIP Title",
+      "Example Title",
+      "  TEST \n\t TITLE  ",
+    ])("rejects placeholder issue title %j even with a substantive body", title => {
+      expect(validateCreateIssueIntent({ title, body: "MSBuild fails to resolve dependencies after upgrading the SDK. See the attached reproduction and build logs." })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ body: `## ${title}\n\nActual investigation details` })).toContain("Refusing to record an exploratory issue");
+    });
+
+    it.each(["[bot] Test Title", "[bot]: Test Title", "[bot] - Test Title", "[bot] | Test Title", "[bot] [bot] Test Title", "［bot］ Test Title"])("rejects prefixed placeholder issue title %j", title => {
+      expect(validateCreateIssueIntent({ title, body: "Actual investigation details" }, "[bot] ")).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ body: `## ${title}\n\nActual investigation details` }, "[bot] ")).toContain("Refusing to record an exploratory issue");
+    });
 
     it.each([
       "\n\n## Test Title\n\nActual investigation details",
@@ -247,6 +276,8 @@ describe("safe_outputs_handlers", () => {
       title => {
         expect(validateCreateIssueIntent({ title, body: "Actual investigation details" })).toBeNull();
         expect(validateCreateIssueIntent({ body: `## ${title}\n\nActual investigation details` })).toBeNull();
+        expect(validateCreateIssueIntent({ title: `[bot]: ${title}`, body: "Actual investigation details" }, "[bot] ")).toBeNull();
+        expect(validateCreateIssueIntent({ body: `## [bot] ${title}\n\nActual investigation details` }, "[bot] ")).toBeNull();
       }
     );
 
@@ -3687,15 +3718,18 @@ describe("safe_outputs_handlers", () => {
     });
 
     it.each([
-      { name: "complete report", body: "MSBuild fails to resolve dependencies after upgrading the SDK. Reproduction: build the attached project with the new SDK." },
-      { name: "oversized report", body: LARGE_CONTENT_BODY },
-    ])("should reject placeholder titles before offloading or consuming quota for $name", ({ body }) => {
+      { name: "complete report", body: "MSBuild fails to resolve dependencies after upgrading the SDK. Reproduction: build the attached project with the new SDK.", titlePrefix: "" },
+      { name: "oversized report", body: LARGE_CONTENT_BODY, titlePrefix: "" },
+      { name: "prefixed complete report", body: "MSBuild fails to resolve dependencies after upgrading the SDK. Reproduction: build the attached project with the new SDK.", titlePrefix: "[bot] " },
+      { name: "prefixed oversized report", body: LARGE_CONTENT_BODY, titlePrefix: "[bot] " },
+    ])("should reject placeholder titles before offloading or consuming quota for $name", ({ body, titlePrefix }) => {
       const h = createHandlers(mockServer, mockAppendSafeOutput, {
-        create_issue: { max: 1 },
+        create_issue: { max: 1, title_prefix: titlePrefix },
       });
       const writeSpy = vi.spyOn(fs, "writeFileSync");
       try {
-        for (const args of [{ title: "Test Title", body }, { body: `\n## Placeholder Title\n\n${body}` }]) {
+        const placeholderTitles = titlePrefix ? [`${titlePrefix}Test Title`, `${titlePrefix.trim()}: Test Title`] : ["Test Title", "Placeholder Title"];
+        for (const args of placeholderTitles.flatMap(title => [{ title, body }, { body: `\n## ${title}\n\n${body}` }])) {
           const result = h.createIssueHandler(args);
           expect(result.isError).toBe(true);
           expect(JSON.parse(result.content[0].text).error).toContain("Replace the placeholder title");

@@ -1,5 +1,7 @@
 // @ts-check
 
+const { sanitizeTitle } = require("./sanitize_title.cjs");
+
 const TRIVIAL_PROBE_VALUES = new Set(["test", "testing", "test no base", "probe", "placeholder", "dummy", "temp", "temporary", "todo", "tbd", "wip", "example"]);
 
 /**
@@ -97,12 +99,13 @@ function validateCreatePullRequestIntent(entry) {
  * Detects obviously exploratory issue payloads so the agent can fail fast
  * instead of recording a stray real-world issue intent.
  * @param {{title?: unknown, body?: unknown}} entry
+ * @param {string} [titlePrefix]
  * @returns {string|null}
  */
-function validateCreateIssueIntent(entry) {
-  const title = normalizeProbeValue(resolveIssueTitleForValidation(entry));
+function validateCreateIssueIntent(entry, titlePrefix = "") {
+  const title = normalizeProbeValue(sanitizeTitle(resolveIssueTitleForValidation(entry), titlePrefix));
   const titleField = typeof entry.title === "string" && entry.title.trim() ? "title" : "body";
-  const looksLikeProbeTitle = isTrivialProbeValue(title, titleField) || ["test title", "placeholder title", "dummy title", "example title"].includes(title);
+  const looksLikeProbeTitle = isTrivialProbeValue(title, titleField) || [...TRIVIAL_PROBE_VALUES].some(word => title === `${word} title`);
 
   if (looksLikeProbeTitle) {
     return (
