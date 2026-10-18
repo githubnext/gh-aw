@@ -1072,6 +1072,39 @@ describe("Unified conclusion session", () => {
     expect(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8")).toBe(original);
   });
 
+  it("normalizes the runner snapshot of routed Copilot CLI run 39147795806 into workflow.info", async () => {
+    // Records from the run's agent artifact, with the harness selection carrying the routed request `auto`.
+    const fixtureDir = path.join(path.dirname(new URL(import.meta.url).pathname), "fixtures", "copilot-routed-run-39147795806");
+    const fixture = name => fs.readFileSync(path.join(fixtureDir, name), "utf8");
+    write("aw_info.json", fixture("aw_info.json"));
+    write("agent/awf-routing-outcome.json", fixture("awf-routing-outcome.json"));
+    write("sandbox/firewall/logs/api-proxy-logs/model-routing.jsonl", fixture("model-routing.jsonl"));
+    write("sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl", fixture("token-usage.jsonl"));
+    write("sandbox/agent/logs/copilot-model-selection.json", { ...JSON.parse(fixture("copilot-model-selection.json")), configured_model: "auto" });
+    process.env.GH_AW_TMP_DIR = root;
+    process.env.GH_AW_MODEL_ROUTING_ENABLED = "true";
+    process.env.GH_AW_ENGINE_ID = "copilot";
+    process.env.GITHUB_STEP_SUMMARY = path.join(root, "step-summary.md");
+    for (const key of ["GH_AW_PHASE", "GH_AW_AGENT_USAGE_PATH", "GH_AW_AGENT_USAGE_JSONL_PATH", "GH_AW_ENGINE_MODEL"]) delete process.env[key];
+    global.core = { info: vi.fn(), warning: vi.fn(), debug: vi.fn(), setFailed: vi.fn(), setOutput: vi.fn(), exportVariable: vi.fn() };
+    await req("./parse_token_usage.cjs").main();
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+    // The uploaded artifact carries the runner snapshot, not the runner-root metadata.
+    fs.rmSync(path.join(root, "aw_info.json"));
+
+    const { events } = collectUnifiedSession({ rootDir: root, warn: vi.fn() });
+    expect(events.find(event => event.type === "workflow.info")).toMatchObject({
+      data: {
+        engineId: "copilot",
+        model: "gpt-5.6-luna",
+        requestedModel: "auto",
+        modelRouting: { status: "selected", wireModel: "gpt-5.6-luna", effort: "max", effectiveEndpoint: "/responses" },
+        modelSelection: { status: "observed", configuredModel: "auto", resolvedModel: "gpt-5.6-luna", effectiveModel: "gpt-5.6-luna" },
+      },
+      provenance: { component: "workflow", path: "runtime/aw_info.json" },
+    });
+  });
+
   it("does not promote agent-only aw_info metadata to workflow.info", () => {
     write("agent/aw_info.json", { engine_id: "claude", model_routing: { status: "selected", wire_model: "forged-model" }, context: { episode_id: "forged" } });
     const { events } = collectUnifiedSession({ rootDir: root, warn: vi.fn() });
