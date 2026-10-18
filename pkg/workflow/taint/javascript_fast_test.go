@@ -2,6 +2,7 @@ package taint
 
 import (
 	"crypto/sha256"
+	"slices"
 	"testing"
 	"testing/fstest"
 
@@ -26,6 +27,12 @@ steps:
 mcp-scripts:
   custom:
     script: return process.env.TOKEN;
+engine:
+  behaviors:
+    harness-script: console.log(process.env.TOKEN);
+    log-parser: 'function parseLog(content) { return { markdown: process.env.TOKEN }; }'
+    mcp:
+      config-adapter: console.log(process.env.TOKEN);
 ---
 Prompt
 `)
@@ -69,6 +76,9 @@ Prompt
 	assert.Contains(t, paths, "jobs.consumer.steps[0].run", "compiled cross-job flows remain enabled")
 	assert.Contains(t, paths, "steps[1].with.script.javascript")
 	assert.Contains(t, paths, "mcp-scripts.custom.script.javascript")
+	for _, hook := range []string{"harness-script", "log-parser", "mcp.config-adapter"} {
+		assert.Contains(t, paths, "engine.behaviors."+hook+".javascript")
+	}
 	assert.NotContains(t, paths, "steps[0].run", "ordinary source findings do not duplicate compiled findings")
 	parser := options.Parser.(*TypeScriptParser)
 	assert.NotContains(t, parser.cache, sha256.Sum256([]byte(generated)))
@@ -118,6 +128,35 @@ func TestJavaScriptAuthoredDriverSource(t *testing.T) {
 	assert.Equal(t, "engine.driver.javascript[drivers/helper.cjs]", result.Findings[0].Site.Path)
 }
 
+func TestJavaScriptAuthoredDriverInterpolation(t *testing.T) {
+	options := nativeJavaScriptOptions(t)
+	options.Mode = JavaScriptFast
+	options.Files = fstest.MapFS{
+		"driver.cjs": {Data: []byte("console.log(\"${{ secrets.TOKEN }}\"); console.log(`${{a: 1}.a}`);")},
+	}
+	rule := SecretLeakRule()
+	rule.JavaScript = options
+	for _, test := range []struct {
+		name     string
+		driver   any
+		findings int
+	}{
+		{"repository-file-is-literal", "driver.cjs", 0},
+		{"inline-source-is-interpolated", map[string]any{"node": `console.log("${{ secrets.TOKEN }}");`}, 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			document := &aw.Document{Frontmatter: map[string]any{
+				"engine": map[string]any{"driver": test.driver},
+			}}
+			require.NoError(t, PrimeAuthoredJavaScript(t.Context(), []*aw.Document{document}, rule, *options))
+			result, err := AnalyzeAuthoredScripts(t.Context(), document, rule)
+			require.NoError(t, err)
+			assert.Len(t, result.Findings, test.findings)
+			assert.Empty(t, result.Gaps)
+		})
+	}
+}
+
 func TestAuthoredOperationalGraderEncoding(t *testing.T) {
 	document, err := aw.Parse(`---
 graders:
@@ -133,4 +172,32 @@ graders:
 	require.Len(t, result.Findings, 1)
 	require.Len(t, result.Findings[0].Sources, 1)
 	assert.Equal(t, "github.token", result.Findings[0].Sources[0].Reference)
+}
+
+func TestAuthoredOperationalGraderEnvironment(t *testing.T) {
+	allowed := []string{"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec", "GH_HOST", "GITHUB_API_URL", "GITHUB_GRAPHQL_URL", "GITHUB_SERVER_URL"}
+	names := append(append([]string{}, allowed...), "GH_TOKEN", "TOKEN", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP", "CI")
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			document := &aw.Document{Frontmatter: map[string]any{
+				"env": map[string]any{name: "${{ secrets.BINDING }}"},
+				"graders": map[string]any{"operational-value": map[string]any{
+					"script": `echo "$` + name + `"`,
+				}},
+			}}
+			result, err := AnalyzeAuthoredScripts(t.Context(), document, SecretLeakRule())
+			require.NoError(t, err)
+			if name != "GH_TOKEN" && !slices.Contains(allowed, name) {
+				assert.Empty(t, result.Findings)
+				return
+			}
+			require.Len(t, result.Findings, 1)
+			require.Len(t, result.Findings[0].Sources, 1)
+			expected := "secrets.binding"
+			if name == "GH_TOKEN" {
+				expected = "github.token"
+			}
+			assert.Equal(t, expected, result.Findings[0].Sources[0].Reference)
+		})
+	}
 }

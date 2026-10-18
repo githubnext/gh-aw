@@ -26,11 +26,6 @@ type workflowLintOptions struct {
 	Debug      bool
 }
 
-type workflowLintFile struct {
-	name  string
-	input workflowlint.Input
-}
-
 func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.Runner, output io.Writer, jsonOutput bool, options ...workflowLintOptions) error {
 	var configuration workflowLintOptions
 	if len(options) > 0 {
@@ -38,17 +33,18 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 	}
 	diagnostics := make([]workflowLintDiagnostic, 0)
 	var failures []error
-	inputs, loadErr := prepareWorkflowLintFiles(ctx, files, runner, configuration)
-	if errors.Is(loadErr, context.Canceled) || errors.Is(loadErr, context.DeadlineExceeded) {
-		return loadErr
+	if err := primeWorkflowLintJavaScript(ctx, files, runner, configuration); err != nil {
+		return err
 	}
-	failures = append(failures, loadErr)
-	for _, prepared := range inputs {
+	for _, file := range files {
 		if err := ctx.Err(); err != nil {
 			failures = append(failures, err)
 			break
 		}
-		file, input := prepared.name, prepared.input
+		input, loadErr := loadWorkflowLintInput(file, configuration.JavaScript)
+		if loadErr != nil {
+			failures = append(failures, fmt.Errorf("%s: %w", file, loadErr))
+		}
 		if input.Document == nil && input.Workflow == nil {
 			continue
 		}
@@ -86,29 +82,45 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 	return errors.Join(failures...)
 }
 
-func prepareWorkflowLintFiles(ctx context.Context, files []string, runner *workflowlint.Runner, configuration workflowLintOptions) ([]workflowLintFile, error) {
-	inputs := make([]workflowLintFile, 0, len(files))
-	var documents []*aw.Document
-	var failures []error
-	for _, file := range files {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		input, err := loadWorkflowLintInput(file, configuration.JavaScript)
-		inputs = append(inputs, workflowLintFile{name: file, input: input})
-		if err != nil {
-			failures = append(failures, fmt.Errorf("%s: %w", file, err))
-		}
-		if input.Document != nil {
-			documents = append(documents, input.Document)
-		}
+func primeWorkflowLintJavaScript(ctx context.Context, files []string, runner *workflowlint.Runner, configuration workflowLintOptions) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if configuration.JavaScript == nil || configuration.JavaScript.Mode != taint.JavaScriptFast {
+		return nil
+	}
+	if _, ok := configuration.JavaScript.Parser.(taint.JavaScriptBatchParser); !ok {
+		return nil
 	}
 	checksJavaScript := slices.ContainsFunc(runner.Rules(), func(rule workflowlint.Rule) bool { return rule.ID == "secret-leak" })
-	if checksJavaScript && configuration.JavaScript != nil && configuration.JavaScript.Mode == taint.JavaScriptFast {
-		err := taint.PrimeAuthoredJavaScript(ctx, documents, taint.SecretLeakRule(), *configuration.JavaScript)
-		failures = append(failures, err)
+	if !checksJavaScript {
+		return nil
 	}
-	return inputs, errors.Join(failures...)
+	var documents []*aw.Document
+	for _, file := range files {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		sourceFile := file
+		if !strings.HasSuffix(file, ".md") {
+			base, paired := strings.CutSuffix(file, ".lock.yml")
+			if !paired {
+				continue
+			}
+			sourceFile = base + ".md"
+		}
+		source, err := os.ReadFile(sourceFile)
+		if err != nil {
+			continue
+		}
+		document, err := aw.Parse(string(source))
+		if err == nil {
+			documents = append(documents, document)
+		}
+	}
+	// Priming is only an optimization; per-file analysis reports failures.
+	_ = taint.PrimeAuthoredJavaScript(ctx, documents, taint.SecretLeakRule(), *configuration.JavaScript)
+	return ctx.Err()
 }
 
 func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Runner, javascript ...*taint.JavaScriptOptions) ([]workflowlint.Diagnostic, error) {
@@ -149,8 +161,6 @@ func loadWorkflowLintInput(file string, javascript ...*taint.JavaScriptOptions) 
 			document, parseErr := aw.Parse(string(source))
 			if parseErr == nil {
 				input.Document = document
-			} else {
-				failures = append(failures, errors.New("could not parse companion AW AST"))
 			}
 		case !errors.Is(readErr, os.ErrNotExist):
 			failures = append(failures, fmt.Errorf("reading companion AW document: %w", readErr))

@@ -537,12 +537,14 @@ Script hooks are checked at executable schema locations, not by recursively matc
 
 | Source | Execution contract |
 |---|---|
-| `mcp-scripts.<tool>.script` / `.run` | JavaScript tool body or Bash; JavaScript returns are outputs to the agent. Python and Go retain unsupported-language warnings. |
-| `safe-outputs.scripts.<handler>.script` | Invoked handler body and returned output, not an uncalled function declaration. |
-| `graders.<grader>.script` | Custom JavaScript sandbox without Node environment access; `operational-value` uses Bash and its generated authentication environment. Encoded grader payloads are not Actions-interpolated. |
+| `mcp-scripts.<tool>.script` / `.run` | JavaScript tool body or Bash; JavaScript returns are outputs to the agent. Every tool inherits the shared server environment: tool env mappings merge in sorted tool-name order, with later values winning. Python and Go retain unsupported-language warnings. |
+| `safe-outputs.scripts.<handler>.script` | Invoked handler body and returned output, with `safe-outputs.env` overriding workflow env. |
+| `graders.<grader>.script` | Custom JavaScript sandbox without Node environment access; `operational-value` uses Bash with the evaluator's allowlisted environment and generated `GH_TOKEN`, not arbitrary workflow variables. Encoded grader payloads are not Actions-interpolated. |
 | Memory-tool validation hooks | Object/string `validation` and legacy aliases, including list configurations; only the validator's sanitized environment is inherited. Encoded script payloads are not Actions-interpolated. |
-| `engine.driver` | Inline Node source or available JavaScript driver files; other languages and unavailable files retain warnings. |
-| `engine.behavior` | Node harness, invoked `parseLog` function, and MCP configuration adapter. |
+| `engine.driver` | Inline Node source or available JavaScript driver files, with `engine.env` and then `sandbox.agent.env` overriding workflow env. Repository driver files are not Actions-interpolated. Other languages and unavailable files retain warnings. |
+| `engine.behaviors` | Node harness, invoked `parseLog` function, and MCP configuration adapter. The harness inherits engine execution env; log parsing and MCP configuration run in separate steps without `engine.env`. |
+
+Inline hook Actions expressions use the script-writing step's workflow env; execution-step overrides affect the hook's runtime environment, not those expressions.
 
 Agent inputs, grader payload data, memory contents, imported configuration, and generated runtime configuration are not inferred. These boundaries retain explicit coverage warnings.
 

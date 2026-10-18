@@ -87,6 +87,8 @@ func analyzeAuthoredDocument(ctx context.Context, document *aw.Document, rule Ru
 // the ordinary shell/prompt findings already checked in the compiled graph.
 func AnalyzeAuthoredJavaScript(ctx context.Context, document *aw.Document, rule Rule) (Result, error) {
 	result, err := AnalyzeAuthoredDocument(ctx, document, rule)
+	// A JS-disabled baseline removes ordinary shell/prompt duplicates without
+	// dropping shell findings whose taint came from JavaScript stdout or files.
 	baselineRule := rule
 	baselineRule.JavaScript = nil
 	baseline, baselineErr := analyzeAuthoredDocument(ctx, document, baselineRule)

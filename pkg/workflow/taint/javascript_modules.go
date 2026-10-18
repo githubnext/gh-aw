@@ -38,26 +38,6 @@ func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue { //noli
 		j.gap(n, "JavaScript module traversal limit reached")
 		return jsValue{}
 	}
-	runtime := mapped || strings.HasPrefix(target, "actions/setup/js/")
-	if j.options.Mode == JavaScriptFast && runtime {
-		catalog, err := javaScriptSummaries()
-		if err != nil {
-			j.gap(n, "JavaScript API summary catalog is unavailable")
-			return jsValue{}
-		}
-		if path.Ext(target) == "" {
-			for _, candidate := range []string{target + ".cjs", target + ".js", path.Join(target, "index.js")} {
-				if _, exists := catalog.Modules[candidate]; exists {
-					target = candidate
-					break
-				}
-			}
-		}
-		if _, exists := catalog.Modules[target]; !exists {
-			j.gap(n, "JavaScript runtime API has no reviewed summary; use deep mode to traverse runtime sources")
-			return jsValue{}
-		}
-	}
 	source, err := javascriptReadSource(j.options.Files, target)
 	if err != nil && path.Ext(target) == "" {
 		for _, candidate := range []string{target + ".cjs", target + ".js", path.Join(target, "index.js")} {
@@ -79,7 +59,7 @@ func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue { //noli
 	if v, ok := j.modules[target]; ok {
 		return v
 	}
-	if j.options.Mode == JavaScriptFast && runtime {
+	if j.options.Mode == JavaScriptFast && mapped {
 		return j.summaryModule(n, target, source)
 	}
 	tree, err := j.parse(string(source))

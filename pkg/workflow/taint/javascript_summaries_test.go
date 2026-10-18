@@ -31,14 +31,21 @@ func summaryTestFiles(t testing.TB) fstest.MapFS {
 	return files
 }
 
+func summaryTestOptions(t testing.TB) *JavaScriptOptions {
+	t.Helper()
+	options := nativeJavaScriptOptions(t)
+	options.Mode, options.Files = JavaScriptFast, summaryTestFiles(t)
+	options.RuntimePaths = map[string]string{"./actions/setup/js": "actions/setup/js"}
+	return options
+}
+
 func TestJavaScriptSummaryCatalogSourceIdentity(t *testing.T) {
 	files := summaryTestFiles(t)
 	require.NotEmpty(t, files)
 }
 
 func TestJavaScriptFastSummaryEffects(t *testing.T) {
-	options := nativeJavaScriptOptions(t)
-	options.Mode, options.Files = JavaScriptFast, summaryTestFiles(t)
+	options := summaryTestOptions(t)
 	tests := []struct {
 		name, source string
 		leak         bool
@@ -90,8 +97,7 @@ func TestJavaScriptFastSummaryEffects(t *testing.T) {
 }
 
 func TestJavaScriptSummaryInvalidationAndUnknownRuntime(t *testing.T) {
-	options := nativeJavaScriptOptions(t)
-	options.Mode = JavaScriptFast
+	options := summaryTestOptions(t)
 	source := `console.log(require("./actions/setup/js/actions_secret_masking.cjs").getOTLPSecretValues())`
 	secret := []Source{{Reference: "secrets.token", Path: "env.TOKEN"}}
 	for _, changed := range []string{
@@ -134,8 +140,7 @@ func TestJavaScriptSummaryIdentityIsNotBasename(t *testing.T) {
 }
 
 func TestJavaScriptSummaryRecursiveCallback(t *testing.T) {
-	options := nativeJavaScriptOptions(t)
-	options.Mode, options.Files = JavaScriptFast, summaryTestFiles(t)
+	options := summaryTestOptions(t)
 	result, err := AnalyzeJavaScript(JavaScriptInput{
 		Name: "entry.cjs",
 		Source: `const {maskSecret} = require("./actions/setup/js/actions_secret_masking.cjs");
@@ -149,8 +154,7 @@ func TestJavaScriptSummaryRecursiveCallback(t *testing.T) {
 }
 
 func TestJavaScriptSummaryUnresolvedCallbacks(t *testing.T) {
-	options := nativeJavaScriptOptions(t)
-	options.Mode, options.Files = JavaScriptFast, summaryTestFiles(t)
+	options := summaryTestOptions(t)
 	for name, source := range map[string]string{
 		"mask": `global.core={setSecret: process.env.SWITCH ? console.error : ()=>{}};
 			require("./actions/setup/js/actions_secret_masking.cjs").maskSecret(process.env.TOKEN);`,
@@ -160,6 +164,15 @@ func TestJavaScriptSummaryUnresolvedCallbacks(t *testing.T) {
 			require("./actions/setup/js/git_auth_env.cjs").buildGitAuthEnv(token);`,
 		"error coercion": `const error = {toString: ()=>{console.error(process.env.TOKEN); return "error"}};
 			require("./actions/setup/js/error_helpers.cjs").getErrorMessage(error);`,
+		"nested error coercion": `require("./actions/setup/js/error_helpers.cjs").getErrorMessage({
+			message: {toString() {console.error(process.env.TOKEN); return "error"}}
+		});`,
+		"nested locked predicate coercion": `require("./actions/setup/js/error_helpers.cjs").isLockedError({
+			status: 403, message: {toString() {console.error(process.env.TOKEN); return "locked"}}
+		});`,
+		"nested rate limit predicate coercion": `require("./actions/setup/js/error_helpers.cjs").isRateLimitError({
+			message: {toString() {console.error(process.env.TOKEN); return "rate limit exceeded"}}
+		});`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			result, err := AnalyzeJavaScript(JavaScriptInput{
@@ -176,8 +189,8 @@ func TestJavaScriptSummaryUnresolvedCallbacks(t *testing.T) {
 func BenchmarkJavaScriptFastSummary(b *testing.B) {
 	for _, mode := range []JavaScriptMode{JavaScriptDeep, JavaScriptFast} {
 		b.Run(string(mode), func(b *testing.B) {
-			options := nativeJavaScriptOptions(b)
-			options.Mode, options.Files = mode, summaryTestFiles(b)
+			options := summaryTestOptions(b)
+			options.Mode = mode
 			input := JavaScriptInput{
 				Name: "entry.cjs", Source: `require("./actions/setup/js/actions_secret_masking.cjs").maskSecret(process.env.TOKEN)`,
 				Env: map[string][]Source{"TOKEN": {{Reference: "secrets.token", Path: "env.TOKEN"}}},

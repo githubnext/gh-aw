@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"sync"
 )
 
@@ -78,11 +79,8 @@ func (j *javascript) callSummary(n *JavaScriptNode, model string, args []jsValue
 	j.summaryDepth++
 	defer func() { j.summaryDepth-- }()
 	first, _ := sliceAt(args, 0)
-	for _, member := range first.fields {
-		if member.fn != nil || (member.ref != "" && member.kind == jsUnknown) {
-			j.gap(n, "JavaScript API summary does not model callable input properties or coercion callbacks")
-			break
-		}
+	if jsSummaryInputHasCallbacks(first, make(map[uintptr]bool)) {
+		j.gap(n, "JavaScript API summary does not model callable input properties or coercion callbacks")
 	}
 	switch model {
 	case "escaped-command-value":
@@ -135,20 +133,38 @@ func (j *javascript) callSummary(n *JavaScriptNode, model string, args []jsValue
 }
 
 func (j *javascript) summaryEnvironmentValue(name string) jsValue {
-	env := j.env["process"].property("env")
+	env := j.runtimeGlobals["process"].property("env")
 	v := env.property(name)
 	v.sources = union(v.sources, j.a.source(v.ref, j.input.Name, nil))
 	return v
 }
 
 func (j *javascript) summaryCoreCallback(n *JavaScriptNode, method string, args []jsValue) {
-	core := j.env["global"].property("core")
+	core := j.runtimeGlobals["global"].property("core")
 	if core.fields == nil && core.ref == "" && len(core.taint()) == 0 {
-		core = j.env["core"]
+		core = j.runtimeGlobals["core"]
 	}
+
 	callback := core.property(method)
 	_, provided := core.fields[method]
 	if provided || callback.fn != nil || callback.ref != "" {
 		j.callValue(n, callback, args)
 	}
+}
+
+func jsSummaryInputHasCallbacks(v jsValue, seen map[uintptr]bool) bool {
+	if v.fn != nil || (v.ref != "" && v.kind == jsUnknown) {
+		return true
+	}
+	id := reflect.ValueOf(v.fields).Pointer()
+	if id == 0 || seen[id] {
+		return false
+	}
+	seen[id] = true
+	for _, member := range v.fields {
+		if jsSummaryInputHasCallbacks(member, seen) {
+			return true
+		}
+	}
+	return false
 }

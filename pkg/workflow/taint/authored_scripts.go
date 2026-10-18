@@ -137,11 +137,11 @@ func (c *authoredScriptCollector) engine(document *aw.Document) {
 	} else if _, exists := engine["driver"]; exists {
 		c.add(engine, "driver", "engine.driver", "file")
 	}
-	behavior := c.mapping(engine, "behavior", "engine")
-	c.add(behavior, "harness-script", "engine.behavior.harness-script", "node")
-	c.add(behavior, "log-parser", "engine.behavior.log-parser", "log-parser")
-	mcp := c.mapping(behavior, "mcp", "engine.behavior")
-	c.add(mcp, "config-adapter", "engine.behavior.mcp.config-adapter", "node")
+	behaviors := c.mapping(engine, "behaviors", "engine")
+	c.add(behaviors, "harness-script", "engine.behaviors.harness-script", "node")
+	c.add(behaviors, "log-parser", "engine.behaviors.log-parser", "log-parser")
+	mcp := c.mapping(behaviors, "mcp", "engine.behaviors")
+	c.add(mcp, "config-adapter", "engine.behaviors.mcp.config-adapter", "node")
 }
 
 // AnalyzeAuthoredScripts checks non-step script entry points. Compiled runtime
@@ -160,16 +160,112 @@ func AnalyzeAuthoredScripts(ctx context.Context, document *aw.Document, rule Rul
 	if err != nil {
 		return a.result, err
 	}
+	mcp, err := a.authoredMCPEnvironment(ctx, document, parent)
+	if err != nil {
+		return a.result, err
+	}
 	for _, script := range scripts {
 		if err := ctx.Err(); err != nil {
 			return a.result, errors.Join(append(failures, err)...)
 		}
-		failures = append(failures, a.authoredScript(ctx, script, parent))
+		bindings, err := a.authoredScriptEnvironment(ctx, document, script, parent, mcp)
+		if err != nil {
+			failures = append(failures, err)
+			continue
+		}
+		failures = append(failures, a.authoredScript(ctx, script, bindings))
 	}
 	return a.result, errors.Join(failures...)
 }
 
-func (a *analyzer) authoredScript(ctx context.Context, script authoredScript, parent scope) error {
+// Step env expressions and inline script write steps see the workflow context,
+// not the execution step's overrides. Only runtime shell bindings are overlaid.
+func (a *analyzer) authoredEnvironmentOverlay(ctx context.Context, fields map[string]any, location string, parent, bindings scope) (scope, error) {
+	overrides, err := a.authoredEnvironment(ctx, fields, location, parent)
+	if err != nil {
+		return nil, err
+	}
+	if fields["env"] == nil {
+		return bindings, nil
+	}
+	env, ok := fields["env"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("AW environment must be a mapping at %s", location)
+	}
+	for _, name := range slices.Sorted(maps.Keys(env)) {
+		bindings["shell."+name] = overrides["shell."+name]
+	}
+	return bindings, nil
+}
+
+func (a *analyzer) authoredMCPEnvironment(ctx context.Context, document *aw.Document, parent scope) (scope, error) {
+	bindings := maps.Clone(parent)
+	tools, err := optionalField[map[string]any](document.Frontmatter, "mcp-scripts", "workflow")
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range slices.Sorted(maps.Keys(tools)) {
+		fields, ok := tools[name].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("AW script configuration must be a mapping at mcp-scripts.%s", name)
+		}
+		bindings, err = a.authoredEnvironmentOverlay(ctx, fields, "mcp-scripts."+name+".env", parent, bindings)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bindings, nil
+}
+
+func (a *analyzer) authoredScriptEnvironment(ctx context.Context, document *aw.Document, script authoredScript, parent, mcp scope) (scope, error) {
+	if strings.HasPrefix(script.profile, "mcp-") {
+		return mcp, nil
+	}
+	if script.profile == "safe-output" {
+		outputs, err := optionalField[map[string]any](document.Frontmatter, "safe-outputs", "workflow")
+		if err != nil {
+			return nil, err
+		}
+		return a.authoredEnvironmentOverlay(ctx, outputs, "safe-outputs.env", parent, maps.Clone(parent))
+	}
+	if script.path != "engine.behaviors.harness-script" && !strings.HasPrefix(script.path, "engine.driver") {
+		return parent, nil
+	}
+	engine, err := optionalField[map[string]any](document.Frontmatter, "engine", "workflow")
+	if err != nil {
+		return nil, err
+	}
+	bindings := maps.Clone(parent)
+	if script.path == "engine.behaviors.harness-script" {
+		behaviors, err := optionalField[map[string]any](engine, "behaviors", "engine")
+		if err != nil {
+			return nil, err
+		}
+		execution, err := optionalField[map[string]any](behaviors, "execution", "engine.behaviors")
+		if err != nil {
+			return nil, err
+		}
+		bindings, err = a.authoredEnvironmentOverlay(ctx, execution, "engine.behaviors.execution.env", parent, bindings)
+		if err != nil {
+			return nil, err
+		}
+	}
+	bindings, err = a.authoredEnvironmentOverlay(ctx, engine, "engine.env", parent, bindings)
+	if err != nil {
+		return nil, err
+	}
+	sandbox, err := optionalField[map[string]any](document.Frontmatter, "sandbox", "workflow")
+	if err != nil {
+		return nil, err
+	}
+	agent, err := optionalField[map[string]any](sandbox, "agent", "sandbox")
+	if err != nil {
+		return nil, err
+	}
+	return a.authoredEnvironmentOverlay(ctx, agent, "sandbox.agent.env", parent, bindings)
+}
+
+func (a *analyzer) authoredScript(ctx context.Context, script authoredScript, bindings scope) error {
 	switch script.profile {
 	case "mcp-py", "mcp-go", "unsupported":
 		a.gap(script.path, "authored script language is not modeled")
@@ -190,17 +286,14 @@ func (a *analyzer) authoredScript(ctx context.Context, script authoredScript, pa
 			return nil
 		}
 		script.source = string(source)
-		return a.authoredJavaScript(script, parent, sourcePath)
+		return a.authoredJavaScript(script, bindings, sourcePath)
 	}
 	base := script.path
 	if index := strings.LastIndex(script.path, "."); index >= 0 {
 		base = script.path[:index]
 	}
-	bindings, err := a.authoredEnvironment(ctx, script.fields, base+".env", parent)
-	if err != nil {
-		return err
-	}
 	if script.profile == "memory" {
+		parent := bindings
 		bindings = make(scope)
 		for _, name := range []string{"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "RUNNER_TEMP", "GITHUB_WORKSPACE", "CI"} {
 			bindings["shell."+name] = parent["shell."+name]
@@ -214,6 +307,11 @@ func (a *analyzer) authoredScript(ctx context.Context, script authoredScript, pa
 			previous := a.literalScript
 			a.literalScript = true // Grader payload encoding prevents Actions interpolation.
 			defer func() { a.literalScript = previous }()
+			parent := bindings
+			bindings = make(scope)
+			for _, name := range []string{"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec", "GH_TOKEN", "GH_HOST", "GITHUB_API_URL", "GITHUB_GRAPHQL_URL", "GITHUB_SERVER_URL"} {
+				bindings["shell."+name] = parent["shell."+name]
+			}
 			bindings["shell.GH_TOKEN"] = a.source("github.token", base+".env.GH_TOKEN", nil)
 		}
 		return a.script(script.source, map[string]any{"shell": "bash"}, script.path, bindings, make(scope), make(scope))
@@ -228,7 +326,7 @@ func (a *analyzer) authoredJavaScript(script authoredScript, bindings scope, sou
 			input.Env[name] = sources
 		}
 	}
-	if script.profile != "grader" && script.profile != "memory" {
+	if sourcePath == "" && script.profile != "grader" && script.profile != "memory" {
 		var err error
 		input.Source, input.Literals, err = a.javascriptRender(script.source, script.path, bindings)
 		if err != nil {
