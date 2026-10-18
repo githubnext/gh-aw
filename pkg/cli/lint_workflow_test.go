@@ -226,6 +226,7 @@ func TestThreatPolicyRulesCLIInputModes(t *testing.T) {
 			cmd.SetErr(&output)
 			cmd.SetArgs([]string{rules, "--json", file})
 			err := cmd.Execute()
+			assert.NotContains(t, output.String(), "PRIVATE_VALUE")
 			wantCount := 3
 			if extension == ".yaml" {
 				wantCount = 0
@@ -236,10 +237,14 @@ func TestThreatPolicyRulesCLIInputModes(t *testing.T) {
 			var diagnostics []workflowLintDiagnostic
 			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
 			require.Len(t, diagnostics, wantCount)
-			assert.NotContains(t, output.String(), "PRIVATE_VALUE")
 			for _, diagnostic := range diagnostics {
 				assert.Equal(t, file, diagnostic.File)
 				assert.Equal(t, workflowlint.Error, diagnostic.Severity)
+				assert.Equal(t, map[string]string{
+					"pull-request-target-roles":   "CTR-008",
+					"safe-output-shell-expansion": "CTR-009",
+					"firewall-ssl-bump":           "CTR-011",
+				}[diagnostic.RuleID], diagnostic.ThreatRuleID)
 			}
 		})
 	}
@@ -271,9 +276,14 @@ func TestBuiltInWorkflowLintCommand(t *testing.T) {
 	require.NoError(t, json.NewDecoder(bytes.NewBufferString(output)).Decode(&diagnostics))
 	require.Len(t, diagnostics, 1)
 	assert.Equal(t, "secret-leak", diagnostics[0].RuleID)
+	assert.Equal(t, "CTR-017", diagnostics[0].ThreatRuleID)
 	assert.Equal(t, file, diagnostics[0].File)
 	require.Len(t, diagnostics[0].Related, 1)
 	assert.NotContains(t, diagnostics[0].Message, "TOKEN")
+
+	output, err = execute("--rules=secret-leak", file)
+	require.ErrorContains(t, err, "found 1 error")
+	assert.Contains(t, output, "error [secret-leak] (CTR-017)")
 
 	write("jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n")
 	output, err = execute("--rules=secret-leak", "--json", file)
@@ -293,6 +303,9 @@ func TestBuiltInWorkflowLintCommand(t *testing.T) {
 	assert.Contains(t, output, "pull-request-target-roles")
 	assert.Contains(t, output, "safe-output-shell-expansion")
 	assert.Contains(t, output, "firewall-ssl-bump")
+	assert.Contains(t, output, "\tCTR-008\n")
+	assert.Contains(t, output, "\tCTR-009\n")
+	assert.Contains(t, output, "\tCTR-011\n")
 	_, err = execute("--rules=missing", file)
 	require.ErrorContains(t, err, "unknown workflow lint rule")
 	_, err = execute("--json", file)
@@ -339,4 +352,5 @@ func TestWorkflowLintPreservesDiagnosticsOnRuleFailure(t *testing.T) {
 	require.Len(t, diagnostics, 2)
 	assert.Equal(t, "independent-check", diagnostics[0].RuleID)
 	assert.Equal(t, "partial-check", diagnostics[1].RuleID)
+	assert.NotContains(t, output.String(), "threat_rule_id", "unmapped extension rules do not invent compiler threat references")
 }

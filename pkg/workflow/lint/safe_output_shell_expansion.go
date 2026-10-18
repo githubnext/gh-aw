@@ -12,7 +12,8 @@ import (
 func SafeOutputShellExpansionRule() Rule {
 	return Rule{
 		ID: "safe-output-shell-expansion", Description: "Reject shell expansions blocked by the safe-output harness in authored steps",
-		Severity: Error, Targets: AWAST, Check: checkSafeOutputShellExpansion,
+		ThreatRuleID: "CTR-009",
+		Severity:     Error, Targets: AWAST, Check: checkSafeOutputShellExpansion,
 	}
 }
 

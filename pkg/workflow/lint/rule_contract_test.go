@@ -13,6 +13,7 @@ import (
 
 type ruleContract struct {
 	targets      ASTTargets
+	threatRuleID string
 	unsafe       string
 	safe         string
 	path         string
@@ -26,130 +27,151 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
 		"secret-leak": {
-			targets: ActionsAST | AWAST,
-			unsafe:  contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: echo \"$TOKEN\"\n",
-			safe:    contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: test -n \"$TOKEN\"\n",
-			path:    "jobs.check.steps[0].run",
+			threatRuleID: "CTR-017",
+			targets:      ActionsAST | AWAST,
+			unsafe:       contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: echo \"$TOKEN\"\n",
+			safe:         contractJob + "    env:\n      TOKEN: '${{ secrets.CONTRACT_SECRET }}'\n    steps:\n      - shell: bash\n        run: test -n \"$TOKEN\"\n",
+			path:         "jobs.check.steps[0].run",
 		},
 		"action-pin": {
-			targets: ActionsAST | AWAST, strictPolicy: true,
+			threatRuleID: "CTR-002",
+			targets:      ActionsAST | AWAST, strictPolicy: true,
 			unsafe: contractJob + "    steps:\n      - uses: actions/checkout@v4\n",
 			safe:   contractJob + "    steps:\n      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567\n",
 			path:   "jobs.check.steps[0].uses",
 		},
 		"job-timeout": {
-			targets: ActionsAST | AWAST,
-			unsafe:  contractJob + "    timeout-minutes: '${{ inputs.timeout }}'\n" + contractSafeSteps,
-			safe:    contractJob + "    timeout-minutes: 15\n" + contractSafeSteps,
-			path:    "jobs.check.timeout-minutes",
+			threatRuleID: "CTR-026",
+			targets:      ActionsAST | AWAST,
+			unsafe:       contractJob + "    timeout-minutes: '${{ inputs.timeout }}'\n" + contractSafeSteps,
+			safe:         contractJob + "    timeout-minutes: 15\n" + contractSafeSteps,
+			path:         "jobs.check.timeout-minutes",
 		},
 		"template-injection": {
-			targets: ActionsAST | AWAST,
-			unsafe:  contractJob + "    steps:\n      - shell: bash\n        run: echo '${{ github.event.issue.title }}'\n",
-			safe:    contractJob + "    steps:\n      - shell: bash\n        env:\n          TITLE: '${{ github.event.issue.title }}'\n        run: printf '%s\\n' \"$TITLE\"\n",
-			path:    "jobs.check.steps[0].run",
+			threatRuleID: "CTR-006",
+			targets:      ActionsAST | AWAST,
+			unsafe:       contractJob + "    steps:\n      - shell: bash\n        run: echo '${{ github.event.issue.title }}'\n",
+			safe:         contractJob + "    steps:\n      - shell: bash\n        env:\n          TITLE: '${{ github.event.issue.title }}'\n        run: printf '%s\\n' \"$TITLE\"\n",
+			path:         "jobs.check.steps[0].run",
 		},
 		"workflow-run-scope": {
-			targets: ActionsAST | AWAST, strictPolicy: true,
+			threatRuleID: "CTR-021",
+			targets:      ActionsAST | AWAST, strictPolicy: true,
 			unsafe: "on:\n  workflow_run:\n    workflows: [CI]\n    branches: ['*']\n" + contractJob + contractSafeSteps,
 			safe:   "on:\n  workflow_run:\n    workflows: [CI]\n    branches: [main]\n" + contractJob + contractSafeSteps,
 			path:   "on.workflow_run.branches",
 		},
 		"permission-scope": {
-			targets: ActionsAST | AWAST, strictPolicy: true,
+			threatRuleID: "CTR-001",
+			targets:      ActionsAST | AWAST, strictPolicy: true,
 			unsafe: "permissions: write-all\n" + contractJob + contractSafeSteps,
 			safe:   "permissions:\n  contents: read\n  id-token: write\n" + contractJob + contractSafeSteps,
 			path:   "permissions",
 		},
 		"version-check": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-018",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "check-for-updates: false\n",
 			safe:   "check-for-updates: true\n",
 			path:   "check-for-updates",
 		},
 		"conditional-import": {
-			targets: AWAST,
-			unsafe:  "imports:\n  - path: shared.md\n    if: false\n",
-			safe:    "imports:\n  - path: shared.md\n    with:\n      if: false\n",
-			path:    "imports[0].if",
+			threatRuleID: "CTR-020",
+			targets:      AWAST,
+			unsafe:       "imports:\n  - path: shared.md\n    if: false\n",
+			safe:         "imports:\n  - path: shared.md\n    with:\n      if: false\n",
+			path:         "imports[0].if",
 		},
 		"private-to-public": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-031",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "tools:\n  github:\n    private-to-public-flows: allow\n",
 			safe:   "tools:\n  github:\n    mode: local\n",
 			path:   "tools.github.private-to-public-flows",
 		},
 		"install-scripts": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-014",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "runtimes:\n  node:\n    run-install-scripts: true\n",
 			safe:   "runtimes:\n  node:\n    run-install-scripts: false\n",
 			path:   "runtimes.node.run-install-scripts",
 		},
 		"allowed-labels": {
-			targets: AWAST,
-			unsafe:  "safe-outputs:\n  create-issue:\n    allowed-labels: ['*']\n",
-			safe:    "safe-outputs:\n  create-issue:\n    allowed-labels: ['team-*']\n",
-			path:    "safe-outputs.create-issue.allowed-labels",
+			threatRuleID: "CTR-015",
+			targets:      AWAST,
+			unsafe:       "safe-outputs:\n  create-issue:\n    allowed-labels: ['*']\n",
+			safe:         "safe-outputs:\n  create-issue:\n    allowed-labels: ['team-*']\n",
+			path:         "safe-outputs.create-issue.allowed-labels",
 		},
 		"network-scope": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-011",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "network:\n  allowed: [defaults, '*']\n",
 			safe:   "network:\n  allowed: [defaults, '*.example.com']\n",
 			path:   "network.allowed",
 		},
 		"push-target": {
-			targets: AWAST, severity: Warning,
+			threatRuleID: "CTR-012",
+			targets:      AWAST, severity: Warning,
 			unsafe: "safe-outputs:\n  push-to-pull-request-branch:\n    target: '*'\n",
 			safe:   "safe-outputs:\n  push-to-pull-request-branch:\n    target: '*'\n    required-labels: [automated]\n",
 			path:   "safe-outputs.push-to-pull-request-branch.target",
 		},
 		"tool-scope": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-003",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "tools:\n  bash: false\n  cli-proxy: true\n",
 			safe:   "tools:\n  bash: false\n  cli-proxy: false\n",
 			path:   "tools.cli-proxy",
 		},
 		"sandbox-config": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-004",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "sandbox:\n  agent: false\n",
 			safe:   "sandbox:\n  agent: awf\n",
 			path:   "sandbox.agent",
 		},
 		"image-argument": {
-			targets: ActionsAST | AWAST,
-			unsafe:  contractJob + "    container:\n      image: '--contract-image-option'\n" + contractSafeSteps,
-			safe:    contractJob + "    container:\n      image: 'registry.example/app:1'\n" + contractSafeSteps,
-			path:    "jobs.check.container.image",
+			threatRuleID: "CTR-013",
+			targets:      ActionsAST | AWAST,
+			unsafe:       contractJob + "    container:\n      image: '--contract-image-option'\n" + contractSafeSteps,
+			safe:         contractJob + "    container:\n      image: 'registry.example/app:1'\n" + contractSafeSteps,
+			path:         "jobs.check.container.image",
 		},
 		"checkout-mode": {
-			targets: AWAST,
-			unsafe:  "checkout:\n  multi: true\n  path: repositories\n  allowed-repos: ['*/*']\n",
-			safe:    "checkout:\n  multi: true\n  path: repositories\n  allowed-repos: ['owner/*']\n",
-			path:    "checkout.allowed-repos",
+			threatRuleID: "CTR-033",
+			targets:      AWAST,
+			unsafe:       "checkout:\n  multi: true\n  path: repositories\n  allowed-repos: ['*/*']\n",
+			safe:         "checkout:\n  multi: true\n  path: repositories\n  allowed-repos: ['owner/*']\n",
+			path:         "checkout.allowed-repos",
 		},
 		"fork-association": {
-			targets: AWAST,
-			unsafe:  "on:\n  pull_request:\n    forks:\n      author-association: [owner]\n",
-			safe:    "on:\n  pull_request:\n    forks:\n      author-association: [OWNER]\n",
-			path:    "on.pull_request.forks.author-association",
+			threatRuleID: "CTR-034",
+			targets:      AWAST,
+			unsafe:       "on:\n  pull_request:\n    forks:\n      author-association: [owner]\n",
+			safe:         "on:\n  pull_request:\n    forks:\n      author-association: [OWNER]\n",
+			path:         "on.pull_request.forks.author-association",
 		},
 		"pull-request-target-roles": {
-			targets: AWAST, strictPolicy: true,
+			threatRuleID: "CTR-008",
+			targets:      AWAST, strictPolicy: true,
 			unsafe: "on:\n  pull_request_target:\n  roles: [read]\ncheckout: false\n",
 			safe:   "on:\n  pull_request_target:\n  roles: [write]\ncheckout: false\n",
 			path:   "on.roles",
 		},
 		"safe-output-shell-expansion": {
-			targets: AWAST,
-			unsafe:  "safe-outputs:\n  steps:\n    - run: value=$(cat /tmp/value)\n",
-			safe:    "safe-outputs:\n  steps:\n    - run: cat /tmp/value\n",
-			path:    "safe-outputs.steps[0].run",
+			threatRuleID: "CTR-009",
+			targets:      AWAST,
+			unsafe:       "safe-outputs:\n  steps:\n    - run: value=$(cat /tmp/value)\n",
+			safe:         "safe-outputs:\n  steps:\n    - run: cat /tmp/value\n",
+			path:         "safe-outputs.steps[0].run",
 		},
 		"firewall-ssl-bump": {
-			targets: AWAST,
-			unsafe:  "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: false\n",
-			safe:    "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: true\n",
-			path:    "network.firewall.allow-urls",
+			threatRuleID: "CTR-011",
+			targets:      AWAST,
+			unsafe:       "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: false\n",
+			safe:         "network:\n  firewall:\n    allow-urls: [https://example.com/path]\n    ssl-bump: true\n",
+			path:         "network.firewall.allow-urls",
 		},
 	}
 }
@@ -165,6 +187,7 @@ func TestEveryBuiltInRulePositiveAndNegative(t *testing.T) {
 			contract, exists := contracts[rule.ID]
 			require.True(t, exists, "add a contract for the newly registered rule")
 			require.Equal(t, contract.targets, rule.Targets, "each supported AST needs positive and negative coverage")
+			require.Equal(t, contract.threatRuleID, rule.ThreatRuleID, "known compiler threat mappings must remain explicit")
 			for _, target := range []ASTTargets{AWAST, ActionsAST} {
 				if contract.targets&target == 0 {
 					continue
@@ -248,6 +271,7 @@ func assertRuleContractDiagnostics(t *testing.T, id string, contract ruleContrac
 		severity, expected := want[diagnostic.Path]
 		require.True(t, expected, "unexpected diagnostic at %s", diagnostic.Path)
 		assert.Equal(t, id, diagnostic.RuleID)
+		assert.Equal(t, contract.threatRuleID, diagnostic.ThreatRuleID)
 		assert.Equal(t, severity, diagnostic.Severity)
 		assert.NotEmpty(t, diagnostic.Message)
 		if diagnostic.Path == "workflow" {

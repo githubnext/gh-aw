@@ -16,7 +16,8 @@ var permissionNamePattern = regexp.MustCompile(`^[a-z][a-z-]*$`)
 func PermissionScopeRule() Rule {
 	return Rule{
 		ID: "permission-scope", Description: "Avoid blanket write permissions and invalid OIDC read grants",
-		Severity: Warning, Targets: ActionsAST | AWAST, Check: checkPermissionScopes,
+		ThreatRuleID: "CTR-001",
+		Severity:     Warning, Targets: ActionsAST | AWAST, Check: checkPermissionScopes,
 	}
 }
 

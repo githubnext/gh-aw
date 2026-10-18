@@ -11,7 +11,8 @@ import (
 func PullRequestTargetRolesRule() Rule {
 	return Rule{
 		ID: "pull-request-target-roles", Description: "Restrict privileged pull_request_target admission to trusted repository roles",
-		Severity: Warning, Targets: AWAST, Check: checkPullRequestTargetRoles,
+		ThreatRuleID: "CTR-008",
+		Severity:     Warning, Targets: AWAST, Check: checkPullRequestTargetRoles,
 	}
 }
 

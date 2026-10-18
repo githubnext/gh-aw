@@ -80,7 +80,7 @@ func selectWorkflowLintRules(cmd *cobra.Command) (*workflowlint.Runner, error) {
 	listRules, _ := cmd.Flags().GetBool("list-rules")
 	if listRules {
 		for _, rule := range runner.Rules() {
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", rule.ID, rule.Severity, rule.Targets, rule.Description); err != nil {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\t%s\n", rule.ID, rule.Severity, rule.Targets, rule.Description, rule.ThreatRuleID); err != nil {
 				return nil, err
 			}
 		}

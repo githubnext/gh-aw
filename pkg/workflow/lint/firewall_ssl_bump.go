@@ -8,7 +8,8 @@ import (
 func FirewallSSLBumpRule() Rule {
 	return Rule{
 		ID: "firewall-ssl-bump", Description: "Require SSL inspection for authored firewall URL filters",
-		Severity: Error, Targets: AWAST, Check: checkFirewallSSLBump,
+		ThreatRuleID: "CTR-011",
+		Severity:     Error, Targets: AWAST, Check: checkFirewallSSLBump,
 	}
 }
 
@@ -39,12 +40,6 @@ func checkFirewallSSLBump(ctx context.Context, input Input) ([]Diagnostic, error
 			return nil, errors.Join(err, errors.New("firewall-ssl-bump requires a literal boolean at network.firewall.ssl-bump"))
 		}
 		if enabled == true {
-			return nil, err
-		}
-	} else {
-		pending, importErr := authoredImportsPending(input)
-		err = errors.Join(err, importErr)
-		if importErr != nil || pending {
 			return nil, err
 		}
 	}

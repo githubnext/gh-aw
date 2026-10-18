@@ -88,7 +88,8 @@ func TestFirewallSSLBumpPolicy(t *testing.T) {
 		{"missing prerequisite", "network: {firewall: {allow-urls: ['https://example.com/path']}}", true},
 		{"explicit refusal", "network: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: false}}", true},
 		{"nonstrict still invalid", "strict: false\nnetwork: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: false}}", true},
-		{"imports may enable", "imports: [shared.md]\nnetwork: {firewall: {allow-urls: ['https://example.com/path']}}", false},
+		{"imports do not supply firewall settings", "imports: [shared.md]\nnetwork: {firewall: {allow-urls: ['https://example.com/path']}}", true},
+		{"malformed unrelated imports do not hide missing SSL", "imports: PRIVATE_VALUE\nnetwork: {firewall: {allow-urls: ['https://example.com/path']}}", true},
 		{"explicit contradiction with imports", "imports: [shared.md]\nnetwork: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: false}}", true},
 		{"enabled", "network: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: true}}", false},
 		{"empty filters", "network: {firewall: {allow-urls: [], ssl-bump: false}}", false},
@@ -132,7 +133,6 @@ func TestThreatPolicyFailuresAndValueFreeDiagnostics(t *testing.T) {
 		{"firewall-ssl-bump", "network: {firewall: {allow-urls: PRIVATE_VALUE}}"},
 		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['PRIVATE_VALUE', 7]}}"},
 		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['PRIVATE_VALUE'], ssl-bump: 'true'}}"},
-		{"firewall-ssl-bump", "imports: PRIVATE_VALUE\nnetwork: {firewall: {allow-urls: ['PRIVATE_VALUE']}}"},
 	} {
 		t.Run(tt.rule+"/"+tt.fields, func(t *testing.T) {
 			document, err := aw.Parse("---\n" + tt.fields + "\n---\n")

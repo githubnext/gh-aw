@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -11,6 +12,19 @@ import (
 )
 
 func TestValidateNetworkFirewallConfig_AllowURLsRequiresSSLBump(t *testing.T) {
+	t.Run("imported SSL inspection does not satisfy authored firewall prerequisites", func(t *testing.T) {
+		network := &NetworkPermissions{Firewall: &FirewallConfig{
+			AllowURLs: []string{"https://github.com/githubnext/*"},
+		}}
+		imported, err := json.Marshal(NetworkPermissions{Firewall: &FirewallConfig{SSLBump: true}})
+		require.NoError(t, err)
+		merged, err := NewCompiler().MergeNetworkPermissions(network, string(imported))
+		require.NoError(t, err)
+		require.NotNil(t, merged.Firewall)
+		require.False(t, merged.Firewall.SSLBump)
+		require.ErrorContains(t, validateNetworkFirewallConfig(merged), "allow-urls requires ssl-bump: true")
+	})
+
 	t.Run("allow-urls without ssl-bump fails validation", func(t *testing.T) {
 		networkPermissions := &NetworkPermissions{
 			Firewall: &FirewallConfig{

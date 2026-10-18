@@ -17,11 +17,12 @@ import (
 // CTR-006, not whole-rule conformance or arbitrary shell-code data flow.
 func TemplateInjectionRule() Rule {
 	return Rule{
-		ID:          "template-injection",
-		Description: "Detect attacker-controlled Actions expressions interpolated into run scripts",
-		Severity:    Error,
-		Targets:     ActionsAST | AWAST,
-		Check:       checkTemplateInjection,
+		ID:           "template-injection",
+		ThreatRuleID: "CTR-006",
+		Description:  "Detect attacker-controlled Actions expressions interpolated into run scripts",
+		Severity:     Error,
+		Targets:      ActionsAST | AWAST,
+		Check:        checkTemplateInjection,
 	}
 }
 
