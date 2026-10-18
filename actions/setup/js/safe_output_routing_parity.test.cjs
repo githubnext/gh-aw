@@ -203,6 +203,31 @@ describe("disabled safe-output behavioral parity", () => {
 });
 
 describe("real immutable Claim routing", () => {
+  it.each([false, true])("reuses the selected queue transport for initial and bounded delivery readback with explicit client=%s", async explicitClient => {
+    const fixture = activate(2, () => []);
+    for (const member of fixture.assignment.claims) {
+      fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    }
+    global.github = fixture.githubClient;
+    const queueClient = explicitClient ? { ...fixture.githubClient } : fixture.githubClient;
+    const store = require("./work_queue_store.cjs");
+    const reads = vi.spyOn(store, "readWorkQueueLog").mockImplementation(async parameters => {
+      expect(parameters.githubClient).toBe(queueClient);
+      return fixture.readWorkQueueLog();
+    });
+    process.env.GITHUB_WORKFLOW_REF = `owner/repo/.github/workflows/worker.lock.yml@${"a".repeat(40)}`;
+    const { finalizeWorkerResults } = require("./finish_work_queue_claim.cjs");
+    const result = await manager.main({
+      ...(explicitClient ? { queueClient } : {}),
+      controlIntentPath: path.join(root, "missing-intents.jsonl"),
+      finalizeResults: options => finalizeWorkerResults({ ...options, publishWorkQueueRequest: fixture.publishWorkQueueRequest, now: fixture.at }),
+    });
+    expect(result.settlements.map(settlement => settlement.delivery.verification)).toEqual(["verified", "verified"]);
+    expect(fixture.assignment.claims.map(member => fixture.state.works.get(member.work_id).barrier)).toEqual(["verified", "verified"]);
+    expect(reads).toHaveBeenCalled();
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+  });
+
   it.each([...["create_discussion", "create_pull_request"].flatMap(type => [false, true].map(tampered => [type, tampered, false])), ["create_discussion", false, true]])(
     "independently verifies the real %s handler and manager without masking tampered=%s or labelFailure=%s",
     async (type, tampered, labelFailure) => {
