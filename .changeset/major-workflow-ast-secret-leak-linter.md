@@ -2,6 +2,8 @@
 "gh-aw": major
 ---
 
+Add opt-in per-rule performance markers and Go trace regions, with registry-complete benchmarks and AST workload budgets for runtime and allocation growth.
+
 Rules are defined only against parsed AW or Actions ASTs, with explicit target metadata. The CLI accepts AW `.md` and native Actions `.yml`/`.yaml` as well as existing `.lock.yml` files without compilation. AW-only execution checks inspect explicit authored nodes and report missing generated-flow coverage instead of fabricating an execution graph. Directory scans avoid paired-file duplication, and Markdown is never passed to actionlint.
 
 Add an extensible Actions/AW AST lint-rule framework and reusable source/sink/filter taint analysis. Run all registered AST checks alongside actionlint by default with `gh aw lint`, select specific checks with `--rules secret-leak`, list rules with `--list-rules`, and export value-free diagnostics with `--rules secret-leak --json`. Apply the rules to repository workflows in regression tests and move the Gemini inventory API key from its request URL to an authentication header.

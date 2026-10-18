@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"runtime/trace"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
 	"github.com/github/gh-aw/pkg/workflow/aw"
@@ -141,6 +143,16 @@ func (r *Runner) Run(ctx context.Context, input Input) ([]Diagnostic, error) {
 	}
 	var diagnostics []Diagnostic
 	var failures []error
+	region := trace.StartRegion(ctx, "workflow:lint")
+	defer region.End()
+	checked := 0
+	if performanceLog.Enabled() {
+		started := time.Now()
+		defer func() {
+			performanceLog.Printf("run_complete duration_ns=%d rules=%d diagnostics=%d failed=%t",
+				time.Since(started).Nanoseconds(), checked, len(diagnostics), len(failures) != 0 || ctx.Err() != nil)
+		}()
+	}
 	for _, rule := range r.rules {
 		if err := ctx.Err(); err != nil {
 			return diagnostics, errors.Join(append(failures, err)...)
@@ -152,7 +164,8 @@ func (r *Runner) Run(ctx context.Context, input Input) ([]Diagnostic, error) {
 		if (input.Workflow == nil || targets&ActionsAST == 0) && (input.Document == nil || targets&AWAST == 0) {
 			continue
 		}
-		findings, err := rule.Check(ctx, input)
+		checked++
+		findings, err := checkRulePerformance(ctx, rule, input)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("lint rule %s: %w", rule.ID, err))
 		}
@@ -164,11 +177,7 @@ func (r *Runner) Run(ctx context.Context, input Input) ([]Diagnostic, error) {
 			diagnostics = append(diagnostics, diagnostic)
 		}
 	}
-	sortDiagnostics(diagnostics)
-	diagnostics = slices.CompactFunc(diagnostics, func(a, b Diagnostic) bool {
-		return a.RuleID == b.RuleID && a.Severity == b.Severity && a.Path == b.Path &&
-			a.Line == b.Line && a.Message == b.Message && slices.Equal(a.Related, b.Related)
-	})
+	diagnostics = normalizeDiagnosticsPerformance(ctx, diagnostics)
 	return diagnostics, errors.Join(failures...)
 }
 

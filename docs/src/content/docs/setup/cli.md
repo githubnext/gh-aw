@@ -535,6 +535,17 @@ The checker follows literal `node`/`nodejs` file and `--eval` invocations, `--pr
 
 Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits retain incomplete-analysis warnings, visible with `--debug`. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, Bash analysis remains active and records unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. Configured analysis can substantially expand diagnostics and report infeasible source-flow paths; findings require review and are not a vulnerability count. An empty errors-only report does not imply complete coverage or whole-program JavaScript safety.
 
+##### Linter performance
+
+`DEBUG=workflow:lint:perf` emits per-rule start/completion markers, elapsed nanoseconds, diagnostic counts, and failure status to stderr. Separate markers measure diagnostic sorting/deduplication and total runner time. These markers contain no AST contents, source symbols, or error text and do not change JSON diagnostics or enable coverage warnings:
+
+```bash wrap
+DEBUG=workflow:lint:perf DEBUG_COLORS=0 gh aw lint --rules= --json \
+  > lint.json 2> lint-performance.log
+```
+
+Go execution traces include `workflow:lint`, `workflow:lint:rule:<id>`, and `workflow:lint:diagnostics` regions. Native JavaScript compiler time is included in the calling rule's wall time; the external compiler's CPU work is not part of a Go CPU profile.
+
 ### Testing
 
 #### `trial`
