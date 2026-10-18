@@ -80,6 +80,8 @@ Register new built-in checks in `lint.Default()`. Structural rules can inspect t
 
 `taint.AnalyzeDocument` checks an AW prompt against its compiled Actions graph; compile source documents through `Compiler.CompileDocument` rather than treating AW frontmatter as native YAML. The repository regression test applies the registered rules to existing compiled agentic workflows and their companion source documents. [`gh aw lint`](/gh-aw/setup/cli/#lint) runs all registered AST rules alongside actionlint by default; `--rules secret-leak` selects specific AST rules without external actionlint. Compilation retains its existing behavior.
 
+The default registry also checks action pinning (`action-pin`, CTR-002), direct shell-template injection (`template-injection`, CTR-006), workflow-run trigger scope (`workflow-run-scope`, CTR-021), and specified job timeouts (`job-timeout`, CTR-026). These are observable subsets of the [compiler threat specification](https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md#74-actions-ast-lint-coverage), not replacements for compiler or runtime conformance checks. Authorization, engine policy, guarded checkout provenance, and runtime publisher integrity require evidence beyond a standalone Actions AST.
+
 ## Job Types
 
 The compilation process generates specialized jobs based on workflow configuration:

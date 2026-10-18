@@ -472,6 +472,16 @@ By default, shellcheck and pyflakes integrations are disabled to reduce noise fo
 
 `--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
+| Built-in rule | Checks |
+|---|---|
+| `action-pin` | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
+| `job-timeout` | A specified job timeout is a positive integer literal, not an expression. Omission in native Actions is allowed. |
+| `template-injection` | Known attacker-controlled expressions are not interpolated into executable `run` text. Use environment bindings and quoted shell expansions instead. |
+| `workflow-run-scope` | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
+| `secret-leak` | Symbolic secrets do not reach modeled disclosure sinks. |
+
+Action pinning and workflow-run branch-scope findings are errors for a companion AW document with strict mode enabled (the AW default), and warnings for explicit non-strict AW or standalone Actions without source-policy evidence. Missing or malformed `workflow_run.workflows`, invalid specified job timeouts, and direct template injection are errors. The linter does not reconstruct CLI or repository strict-mode overrides that are absent from its inputs.
+
 The `secret-leak` rule tracks symbolic secret references, `github.token`, and known app-token action outputs through environment scopes, shell assignments, step outputs, and dependent job outputs. It detects disclosures to logs, step summaries, workflow outputs, request URLs/bodies, known publication inputs, cache keys, and artifacts containing modeled secret-bearing files. Authentication headers, token inputs, and the reusable workflow `secrets:` channel are not disclosure sinks. Boolean comparisons and predicates filter secret values; formatting, JSON serialization, encoding, and `add-mask` registration do not sanitize subsequent uses.
 
 The linter reads a companion `.md` file when present to check AW prompt expressions as well as the compiled graph. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Error diagnostics produce a nonzero exit status. Unsupported shells, shell parse failures, recursive functions, and secret-bearing data passed to unmodeled external commands produce explicit coverage warnings; warnings alone do not fail the command.

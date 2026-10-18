@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.54
+**Version**: 1.0.55
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.55` | Unreleased | Maps independent Actions/AW AST lint checks to observable subsets of CTR-002, CTR-006, CTR-017, CTR-021, and CTR-026. Existing compiler and runtime conformance requirements remain authoritative; no new `CTR-*` rule or lock-file schema change. |
 | `1.0.54` | Unreleased | Specifies the host-side MCP compilation capability boundary: a dedicated read-only mode without startup write-tool opt-in, validation independent of stale outputs, unchanged filesystem/Docker state, cached-only remote imports and nested includes, and repository-root cache lookup. Preserves trusted CLI no-emit import population. Adds bounded TLA+ evidence; no new `CTR-*` rule or lock-file schema change. |
 | `1.0.53` | Unreleased | Adds CTR-034: formalizes pull-request fork admission by repository pattern or explicit author association, retaining same-repository defaults and separating admission from permissions and secrets. Clarifies that same-repository bot checkout on `pull_request` and `pull_request_target` `ready_for_review` and `reopened` events is a runtime trust control governed by Security Architecture Specification RS-05a, not a new compiler threat rule. |
 | `1.0.52` | Unreleased | Adds CTR-033: repository-list checkout requires literal `multi: true`; ordinary repository expressions retain single-checkout semantics with runtime cardinality validation in both jobs. Safe Outputs PTI-001–007 and its TLA+ model clarify a runtime patch/bundle validation-to-application integrity boundary without changing permissions or lock-file schema. |
@@ -202,11 +203,11 @@ Every active rule MUST map to implementation and test coverage. References are p
 | Rule ID | Primary Implementation Areas | Test Coverage Targets |
 |---------|------------------------------|-----------------------|
 | CTR-001 Privilege Escalation | `pkg/workflow/*permissions*validation*.go`, `permissions_compiler_validator.go`, `compiler_builtin_job_augmentation.go` | `*permissions*_test.go`, `compiler_custom_jobs_test.go`, `idtoken_write_info_test.go`, `compiler_threat_detection_formal_test.go`, `pkg/cli/compile_development_test.go` |
-| CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `tools_validation*.go`, strict-mode validation | `*action*_test.go`, `*tools*_test.go` |
+| CTR-002 Unpinned Action Integrity | `pkg/workflow/*action*.go`, `tools_validation*.go`, strict-mode validation; AST subset: `pkg/workflow/lint/integrity.go` | `*action*_test.go`, `*tools*_test.go`, `pkg/workflow/lint/integrity_test.go` |
 | CTR-003 Unsafe Tool Scope Expansion | `pkg/workflow/*action*.go`, `tools_validation*.go`, strict-mode validation | `*action*_test.go`, `*tools*_test.go` |
 | CTR-004 Sandbox Bypass Configuration | sandbox validation, `enclaves.go`, `enclave_github_proxy.go` | sandbox, enclave, and proxy tests |
 | CTR-005 Unsafe Output Route | safe-output compiler/validation; setup safe-output and manifest helpers | safe-output and setup helper tests |
-| CTR-006 Template Injection | template/heredoc validation, `mcp_renderer_guard.go` | template-injection and MCP tests |
+| CTR-006 Template Injection | template/heredoc validation, `mcp_renderer_guard.go`; AST subset: `pkg/workflow/lint/template_injection.go` | template-injection and MCP tests; `pkg/workflow/lint/template_injection_test.go` |
 | CTR-007 Markdown Content Security | `markdown_security_scanner.go`, `pull_request_target_validation.go` | corresponding workflow and sanitizer tests |
 | CTR-008 Pull Request Target Safety | `pkg/workflow/pull_request_target_validation.go` | `pkg/workflow/pull_request_target_validation_test.go`; `specs/workflow-security/PullRequestTargetCheckout.tla` |
 | CTR-009 Shell Expansion in Safe-Outputs | safe-output shell/push validation, expression validation, firewall validation | corresponding workflow tests |
@@ -217,15 +218,15 @@ Every active rule MUST map to implementation and test coverage. References are p
 | CTR-014 Supply Chain Attack via Install Scripts | name, install-script, and allowed-label validation | `argument_injection_test.go`, corresponding validation tests |
 | CTR-015 Allowed Label Glob Scope | name, install-script, and allowed-label validation | `argument_injection_test.go`, corresponding validation tests |
 | CTR-016 Compile-Time Manifest Drift | safe-update, strict env/update, cache, and expression builder | corresponding enforcement, secrets, update, and cache tests |
-| CTR-017 Secret Leakage via Environment Variables | safe-update, strict env/update, cache, and expression builder; `pkg/workflow/awf_command_builder.go`, `threat_detection_external.go`, `evals_steps.go` | corresponding enforcement, secrets, update, and cache tests; `TestOTLPEnvExcludedFromAWFSandboxes` in `awf_env_test.go`, `TestEvalsOTLPEnvExcludedFromSandbox` in `evals_steps_test.go`, `TestCompiledOTLPEnvExcludedFromAgentDetectionAndEvals` in `threat_detection_isolation_test.go` |
+| CTR-017 Secret Leakage via Environment Variables | safe-update, strict env/update, cache, and expression builder; `pkg/workflow/awf_command_builder.go`, `threat_detection_external.go`, `evals_steps.go`; AST subset: `pkg/workflow/lint/secrets.go`, `pkg/workflow/taint/` | corresponding enforcement, secrets, update, and cache tests; `TestOTLPEnvExcludedFromAWFSandboxes` in `awf_env_test.go`, `TestEvalsOTLPEnvExcludedFromSandbox` in `evals_steps_test.go`, `TestCompiledOTLPEnvExcludedFromAgentDetectionAndEvals` in `threat_detection_isolation_test.go`; `pkg/workflow/taint/taint_test.go` |
 | CTR-018 Version Integrity Bypass | safe-update, strict env/update, cache, and expression builder | corresponding enforcement, secrets, update, and cache tests |
 | CTR-019 Cache-Memory Integrity Enforcement | safe-update, strict env/update, cache, and expression builder | corresponding enforcement, secrets, update, and cache tests |
 | CTR-020 Conditional Import Security | `pkg/parser/import_bfs.go` | `pkg/parser/import_bfs_test.go` |
-| CTR-021 Workflow Run Trigger Branch Scope | `agent_validation.go`, `agentic_engine.go`, `pkg/gitutil/gitutil.go` | workflow-run, bash-allowlist, gitutil, and download tests |
+| CTR-021 Workflow Run Trigger Branch Scope | `agent_validation.go`, `agentic_engine.go`, `pkg/gitutil/gitutil.go`; AST subset: `pkg/workflow/lint/workflow_run_scope.go` | workflow-run, bash-allowlist, gitutil, and download tests; `pkg/workflow/lint/workflow_run_scope_test.go` |
 | CTR-022 Git Subprocess Argument Injection | `agent_validation.go`, `agentic_engine.go`, `pkg/gitutil/gitutil.go` | workflow-run, bash-allowlist, gitutil, and download tests |
 | CTR-023 Bash Command Allowlist Illusion | `agent_validation.go`, `agentic_engine.go`, `pkg/gitutil/gitutil.go` | workflow-run, bash-allowlist, gitutil, and download tests |
 | CTR-025 Framework Self-Prompt Misattribution | `actions/setup/js/setup_threat_detection.cjs` | `setup_threat_detection.test.cjs` |
-| CTR-026 Generated Job Timeout Expression Injection | custom-job properties and timeout resolution | custom-job and timeout tests |
+| CTR-026 Generated Job Timeout Expression Injection | custom-job properties and timeout resolution; AST subset: `pkg/workflow/lint/integrity.go` | custom-job and timeout tests; `pkg/workflow/lint/integrity_test.go` |
 | CTR-027 Allowlisted Bot Synchronization Provenance | `actions/setup/js/check_membership.cjs`, `actions/setup/js/check_permissions_utils.cjs` | `actions/setup/js/check_membership.test.cjs`, `actions/setup/js/check_permissions_utils.test.cjs` |
 | CTR-028 Agent Configuration Restore Provenance | `pkg/workflow/pr.go`, `actions/setup/sh/save_base_github_folders.sh`, `actions/setup/sh/restore_base_github_folders.sh` | `pkg/workflow/compiler_pre_agent_steps_test.go`, `actions/setup/sh/restore_base_github_folders_test.sh` |
 | CTR-029 Repository Dispatch App Authorization | `actions/setup/js/check_membership.cjs`, `actions/setup/js/check_permissions_utils.cjs` | `actions/setup/js/check_membership.test.cjs` |
@@ -251,6 +252,22 @@ The `MCP-COMPILE-*` requirements are separate from the `CTR-*` / `T-CTR-*` gener
 | MCP-COMPILE-006 | `pkg/cli/mcp_write_tools.go`, `mcp_tools_readonly.go`, compiler option and import-cache wiring | `pkg/cli/mcp_write_tools_test.go`, `TestMCPServer_CompileTool` in `pkg/cli/mcp_server_compile_test.go`, `pkg/workflow/compiler_shared_cache_test.go`, `pkg/parser/include_readonly_test.go`; model: `ActorAuthorization`, `WriteEnabledEmission`, `TrustedNoEmitAvailability`. |
 
 `specs/workflow-security/check.py` MUST exhaust the secure MCP configuration and verify each configured synthetic negative control and reachability witness. These checks MUST NOT substitute for the concrete filesystem-preservation tests or be reported as confirmed product vulnerabilities.
+
+### 7.4 Actions AST Lint Coverage
+
+The in-process registry in `pkg/workflow/lint` supplements compiler validation by checking existing generated Actions ASTs, with an optional companion AW document. `gh aw lint` runs all registered checks by default. These checks do not replace the catalog's existing strict-mode validation, safe rewrites, runtime controls, or formal conformance evidence. They report only the subset observable in their input, using value-free diagnostics; a clean result MUST NOT be represented as proof of complete `CTR-*` conformance.
+
+| Threat rule | AST lint rule | Observable invariant | Implementation and evidence |
+|---|---|---|---|
+| CTR-002 | `action-pin` | Remote actions and reusable workflows use immutable commit references; Docker actions use immutable digests. Local references are not remote supply-chain pins. | `pkg/workflow/lint/integrity.go`, `integrity_test.go` |
+| CTR-006 | `template-injection` | Known attacker-controlled expression strings are not interpolated directly into executable `run` text. Passing values through environment data is not direct template injection. | `pkg/workflow/lint/template_injection.go`, `template_injection_test.go` |
+| CTR-017 | `secret-leak` | Symbolic secrets do not reach modeled disclosure sinks through expression, environment, output, shell, or file flows. Coverage warnings identify unmodeled paths. | `pkg/workflow/lint/secrets.go`, `pkg/workflow/taint/`, `pkg/workflow/taint/taint_test.go` |
+| CTR-021 | `workflow-run-scope` | `workflow_run` selects workflows and has branch scope, with strict/non-strict severity policy. | `pkg/workflow/lint/workflow_run_scope.go`, `workflow_run_scope_test.go` |
+| CTR-026 | `job-timeout` | A specified job timeout is a positive integer literal, not a runtime expression. Native Actions omission is not an invented requirement to specify a timeout. | `pkg/workflow/lint/integrity.go`, `integrity_test.go` |
+
+`pkg/workflow/lint/repository_workflows_test.go` applies the registered checks to repository lock files and companion AW documents. `pkg/cli/lint_workflow_test.go` exercises default execution and preserves diagnostics from independent rules even when another rule fails.
+
+Further AST candidates need additional policy or semantic evidence before becoming default rules. CTR-001 requires job-purpose and authorization policy to distinguish agent privileges from intended safe-output writes. CTR-004/005/011/019 require trusted command identification and proof of sandbox, output-route, firewall, or success-gating semantics. CTR-008/028/030/033/034 require checkout or trigger provenance and guarded-expression reasoning, not textual substring matching. CTR-003/010/012-016/018/020/023/031 depend on source configuration or manifests that need not survive in Actions YAML. CTR-007/009/013/014/022/025/027/029/032 include content, shell/subprocess, or runtime obligations that an Actions AST alone cannot prove. In particular, CTR-032 marker persistence requires destination API evidence; host-side `MCP-COMPILE-*` filesystem and capability boundaries are not generated-workflow properties.
 
 ## 8. Compliance Testing
 

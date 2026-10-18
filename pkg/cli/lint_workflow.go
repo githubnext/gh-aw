@@ -30,7 +30,6 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 		current, err := lintWorkflowFile(ctx, file, runner)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s: %w", file, err))
-			continue
 		}
 		for _, diagnostic := range current {
 			diagnostics = append(diagnostics, workflowLintDiagnostic{File: file, Diagnostic: diagnostic})

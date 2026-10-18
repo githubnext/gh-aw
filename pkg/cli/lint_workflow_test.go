@@ -4,13 +4,16 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	workflowlint "github.com/github/gh-aw/pkg/workflow/lint"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -154,4 +157,30 @@ func TestBuiltInWorkflowLintReadAndParseFailures(t *testing.T) {
 	err := cmd.Execute()
 	require.ErrorContains(t, err, "could not parse workflow Actions AST")
 	assert.NotContains(t, output.String(), "private-literal")
+}
+
+func TestWorkflowLintPreservesDiagnosticsOnRuleFailure(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "test.lock.yml")
+	require.NoError(t, os.WriteFile(file, []byte("jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo safe\n"), 0o600))
+	runner, err := workflowlint.New(workflowlint.Rule{
+		ID: "partial-check", Description: "Report partial findings on failure", Severity: workflowlint.Warning,
+		Check: func(context.Context, workflowlint.Input) ([]workflowlint.Diagnostic, error) {
+			return []workflowlint.Diagnostic{{Path: "jobs.test", Message: "check incomplete"}}, errors.New("could not complete check")
+		},
+	}, workflowlint.Rule{
+		ID: "independent-check", Description: "Continue independent checks", Severity: workflowlint.Error,
+		Check: func(context.Context, workflowlint.Input) ([]workflowlint.Diagnostic, error) {
+			return []workflowlint.Diagnostic{{Path: "jobs.test", Message: "independent finding"}}, nil
+		},
+	})
+	require.NoError(t, err)
+	var output bytes.Buffer
+	err = runWorkflowLint(context.Background(), []string{file}, runner, &output, true)
+	require.ErrorContains(t, err, "could not complete check")
+	require.ErrorContains(t, err, "workflow lint found 1 error")
+	var diagnostics []workflowLintDiagnostic
+	require.NoError(t, json.Unmarshal(output.Bytes(), &diagnostics))
+	require.Len(t, diagnostics, 2)
+	assert.Equal(t, "independent-check", diagnostics[0].RuleID)
+	assert.Equal(t, "partial-check", diagnostics[1].RuleID)
 }

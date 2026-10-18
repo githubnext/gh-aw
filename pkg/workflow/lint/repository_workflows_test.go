@@ -13,14 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Keep the checker applied to the real compiled workflows, not just synthetic
-// fixtures. Coverage warnings remain visible without claiming complete analysis.
+// Keep registered checks applied to compiled workflows, not just synthetic
+// fixtures. Warnings remain visible without claiming complete analysis.
 func TestRepositoryAgenticWorkflows(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join("..", "..", "..", ".github", "workflows", "*.lock.yml"))
 	require.NoError(t, err)
 	require.NotEmpty(t, files)
 	runner := Default()
 	warnings := 0
+	warningsByRule := make(map[string]int)
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			content, err := os.ReadFile(file)
@@ -37,10 +38,14 @@ func TestRepositoryAgenticWorkflows(t *testing.T) {
 				assert.NotEqual(t, Error, diagnostic.Severity, "%s: %s", diagnostic.Path, diagnostic.Message)
 				if diagnostic.Severity == Warning {
 					warnings++
-					t.Logf("%s: %s", diagnostic.Path, diagnostic.Message)
+					warningsByRule[diagnostic.RuleID]++
+					t.Logf("[%s] %s: %s", diagnostic.RuleID, diagnostic.Path, diagnostic.Message)
 				}
 			}
 		})
 	}
-	t.Logf("Applied built-in rules to %d agentic workflows; %d explicit coverage warnings", len(files), warnings)
+	t.Logf("Applied %d built-in rules to %d agentic workflows; %d warning diagnostics", len(runner.Rules()), len(files), warnings)
+	for _, rule := range runner.Rules() {
+		t.Logf("%s: %d warning diagnostics", rule.ID, warningsByRule[rule.ID])
+	}
 }
