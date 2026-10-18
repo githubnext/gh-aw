@@ -62,6 +62,14 @@ function batch(event) {
   return event.client_payload.aw_context.webhook;
 }
 
+function securityBatch(eventName, repos) {
+  const event = dispatch();
+  batch(event).event = eventName;
+  const source = eventName === "dependabot_alert" ? "dependabot" : "code-scanning";
+  batch(event).deliveries = repos.map((repo, i) => ({ delivery_id: `d${i}`, payload: { url: `https://api.github.com/repos/${repo}/${source}/alerts/1` } }));
+  return event;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -69,6 +77,48 @@ afterEach(() => {
 });
 
 describe("validateWebhook", () => {
+  it.each(["code_scanning_alert", "dependabot_alert"])("accepts scoped multi-repository %s batches", selectedEvent => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: selectedEvent, repos: ["bar/baz", "foo/*"] })]) });
+    const event = securityBatch(selectedEvent, ["BAR/BAZ", "foo/one", "Foo/two", "bar/baz"]);
+    const before = JSON.stringify(event);
+    expect(validateWebhook(event, env).delivery_ids).toEqual(["d0", "d1", "d2", "d3"]);
+    const normalized = normalizeWebhookContext(event.client_payload.aw_context);
+    expect(normalized.items.map(item => item.repo)).toEqual(["BAR/BAZ", "foo/one", "Foo/two"]);
+    expect(normalized.items.map(item => item.item_number)).toEqual(["1", "1", "1"]);
+    expect(JSON.stringify(event)).toBe(before);
+  });
+
+  it.each(["code_scanning_alert", "dependabot_alert"])("rejects a nonmatching repo anywhere in %s batches", selectedEvent => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: selectedEvent, repos: ["bar/baz", "foo/*"] })]) });
+    for (const repo of ["bar/other", "bar/baz-extra", "foo-other/repo", "other/foo", "foo.bar/repo"]) {
+      const event = securityBatch(selectedEvent, ["bar/baz", repo]);
+      event.client_payload.aw_context.items = [{ item_type: selectedEvent, repo: "bar/baz", item_number: "1" }];
+      expect(() => validateWebhook(event, env)).toThrow(/source repository does not match|canonical GitHub API alert URL/);
+    }
+  });
+
+  it("does not require the source repository to be the destination repository", () => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: "dependabot_alert", repos: ["bar/baz", "foo/*"] })]) });
+    const event = securityBatch("dependabot_alert", ["bar/baz", "foo/other"]);
+    event.repository = { full_name: "destination/workflows" };
+    expect(validateWebhook(event, env).skipped).toBe(false);
+  });
+
+  it("preserves existing trusted-CAO scope when repos is omitted", () => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: "dependabot_alert" })]) });
+    expect(validateWebhook(securityBatch("dependabot_alert", ["org/one", "other/two"]), env).skipped).toBe(false);
+  });
+
+  it.each([null, "", "bar/baz", [], ["*"], ["*/*"], ["*/repo"], ["foo/prefix*"], ["foo/**"], ["bar"], ["bar/baz "], ["bar/baz\n"], ["bar/."], ["bar/.."], ["bar/baz", 1]])("rejects malformed compiler repository selectors %#", repos => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: "dependabot_alert", repos })]) });
+    expect(() => validateWebhook(securityBatch("dependabot_alert", ["bar/baz"]), env)).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
+  });
+
+  it("rejects repository selectors on Projects subscriptions", () => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ repos: ["bar/baz"] })]) });
+    expect(() => validateWebhook(dispatch(), env)).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
+  });
+
   it.each(["code_scanning_alert", "dependabot_alert"])("accepts same-kind %s batches and rejects unselected events", selectedEvent => {
     const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: selectedEvent })]) });
     const event = dispatch();

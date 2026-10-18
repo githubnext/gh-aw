@@ -131,6 +131,11 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 			want: map[string]string{"vulnerability_alerts": "read"},
 		},
 		{
+			name: "plural multi-repository alerts default to both sources",
+			on:   map[string]any{"security-alerts": map[string]any{"repos": []any{"bar/baz", "foo/*"}}},
+			want: map[string]string{"security_events": "read", "vulnerability_alerts": "read"},
+		},
+		{
 			name: "removed secret scanning source grants no permissions",
 			on: map[string]any{
 				"security-alert": map[string]any{"sources": []any{"dependabot", "secret-scanning"}},

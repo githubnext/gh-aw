@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,7 +75,6 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 	}{
 		"null":                     {nil, "must be an object"},
 		"scalar":                   {"dependabot", "must be an object"},
-		"missing sources":          {map[string]any{}, "on.security-alert.sources"},
 		"null sources":             {map[string]any{"sources": nil}, "on.security-alert.sources"},
 		"empty sources":            {map[string]any{"sources": []any{}}, "on.security-alert.sources"},
 		"blank source":             {map[string]any{"sources": " "}, "on.security-alert.sources"},
@@ -110,9 +110,75 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		})
 	}
 
-	for _, shorthand := range []any{"security-alert", []any{"push", "security-alert"}} {
+	for _, shorthand := range []any{"security-alert", []any{"push", "security-alert"}, "security-alerts", []any{"push", "security-alerts"}} {
 		_, err := ParseWebhookSubscriptions(shorthand, "security-agent")
 		require.ErrorContains(t, err, "requires mapping syntax")
+	}
+}
+
+func TestSecurityAlertRepositorySelectors(t *testing.T) {
+	for _, name := range securityAlertTriggerNames {
+		t.Run(name, func(t *testing.T) {
+			config := map[string]any{"repos": []any{"Foo/*", "bar/baz", "BAR/BAZ", "foo/*"}}
+			on := map[string]any{name: config}
+			before, err := json.Marshal(on)
+			require.NoError(t, err)
+			subscriptions, err := ParseWebhookSubscriptions(on, "multi-repo")
+			require.NoError(t, err)
+			require.Len(t, subscriptions, 2, "omitted sources selects both supported alert sources")
+			for _, subscription := range subscriptions {
+				assert.Equal(t, []string{"bar/baz", "foo/*"}, subscription.Repos)
+				assert.Equal(t, "${{ github.repository }}", subscription.Dispatch.Repository)
+				assert.Empty(t, subscription.Conditions, "repository selectors are source metadata, not payload equality predicates")
+			}
+			assert.Equal(t, []string{"code_scanning_alert", "dependabot_alert"}, NormalizeGitHubAppWebhookEvents(on))
+			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
+			after, err := json.Marshal(on)
+			require.NoError(t, err)
+			assert.Equal(t, string(before), string(after), "parsing must preserve source frontmatter")
+		})
+	}
+}
+
+func TestSecurityAlertRejectsInvalidRepositorySelectors(t *testing.T) {
+	for _, name := range securityAlertTriggerNames {
+		for _, repos := range []any{
+			nil, "bar/baz", true, []any{}, []string{}, []any{7}, []any{"bar/baz", true},
+			[]any{""}, []any{" "}, []any{"*"}, []any{"*/*"}, []any{"*/baz"},
+			[]any{"bar/**"}, []any{"bar/ba*"}, []any{"bar/?az"}, []any{"bar/[baz]"},
+			[]any{"bar"}, []any{"/baz"}, []any{"bar/"}, []any{"bar/baz/other"},
+			[]any{"https://github.com/bar/baz"}, []any{"${{ github.repository }}"},
+			[]any{"bar/baz "}, []any{" bar/baz"}, []any{"bar/baz\n"}, []any{"bar/."}, []any{"bar/.."},
+		} {
+			t.Run(name+"/"+fmt.Sprint(repos), func(t *testing.T) {
+				_, err := ParseWebhookSubscriptions(map[string]any{name: map[string]any{"repos": repos}}, "invalid-repos")
+				require.ErrorContains(t, err, "on."+name+".repos")
+				assert.Contains(t, err.Error(), "owner/repo or owner/*")
+			})
+		}
+	}
+}
+
+func TestSecurityAlertAliasesAndOmittedSelectors(t *testing.T) {
+	_, err := ParseWebhookSubscriptions(map[string]any{"security-alert": map[string]any{}, "security-alerts": map[string]any{}}, "duplicate")
+	require.ErrorContains(t, err, "configure only one")
+	for _, name := range securityAlertTriggerNames {
+		subscriptions, err := ParseWebhookSubscriptions(map[string]any{name: map[string]any{}}, "defaults")
+		require.NoError(t, err)
+		require.Len(t, subscriptions, 2)
+		for _, subscription := range subscriptions {
+			assert.Nil(t, subscription.Repos, "omission does not introduce a new selector or implicit wildcard")
+			encoded, err := json.Marshal(subscription)
+			require.NoError(t, err)
+			assert.NotContains(t, string(encoded), `"repos"`)
+		}
+		subscriptions, err = ParseWebhookSubscriptions(map[string]any{name: map[string]any{"sources": "dependabot", "repos": []string{"bar/baz"}}}, "explicit-source")
+		require.NoError(t, err)
+		require.Len(t, subscriptions, 1)
+		assert.Equal(t, "dependabot_alert", subscriptions[0].Event)
+		assert.Equal(t, []string{"bar/baz"}, subscriptions[0].Repos)
+		_, err = ParseWebhookSubscriptions(map[string]any{name: map[string]any{"repos": []string{"bar/baz"}, "sources": "secret-scanning"}}, "secret")
+		require.ErrorContains(t, err, "on."+name+".sources")
 	}
 }
 

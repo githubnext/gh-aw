@@ -26,7 +26,7 @@ func enableWebhookTriggers(t *testing.T, root string) {
 
 func TestCompileWebhookRequiresOptIn(t *testing.T) {
 	for _, enabled := range []string{"", `{"webhook-triggers":false}`} {
-		for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [dependabot]}"} {
+		for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [dependabot]}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
 			t.Run(enabled+"/"+trigger, func(t *testing.T) {
 				root := t.TempDir()
 				t.Chdir(root)
@@ -133,7 +133,7 @@ func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
 }
 
 func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
-	for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [code-scanning, dependabot]}"} {
+	for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [code-scanning, dependabot]}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
 		for _, roles := range []string{"all", "read", "triage", "[admin, write, read]"} {
 			t.Run(trigger+"/"+roles, func(t *testing.T) {
 				dir := t.TempDir()
@@ -200,6 +200,61 @@ Triage the alert without logging secret values.
 			assert.Equal(t, []any{tt.value}, sub.Conditions[0].Values)
 			assert.NotContains(t, result.workflowData.On, "security-alert")
 			assert.Equal(t, []string{"admin", "maintainer", "write"}, result.workflowData.Roles)
+		})
+	}
+}
+
+func TestCompileSecurityAlertRepositories(t *testing.T) {
+	for _, alias := range []string{"security-alert", "security-alerts"} {
+		t.Run(alias, func(t *testing.T) {
+			root := t.TempDir()
+			enableWebhookTriggers(t, root)
+			path := filepath.Join(root, "security-repos.md")
+			source := fmt.Sprintf("---\non:\n  %s:\n    repos:\n      - bar/baz\n      - foo/*\npermissions:\n  contents: read\nengine: copilot\n---\nTriage every unique alert.\n", alias)
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+			require.True(t, result.success, "%+v", result.validationResult.Errors)
+			subscriptions := result.validationResult.WebhookSubscriptions
+			require.Len(t, subscriptions, 2)
+			for _, sub := range subscriptions {
+				assert.Equal(t, []string{"bar/baz", "foo/*"}, sub.Repos)
+				assert.Equal(t, "${{ github.repository }}", sub.Dispatch.Repository)
+				assert.Equal(t, 2, sub.SchemaVersion)
+				assert.NotNil(t, sub.Dispatch.PayloadProjection)
+			}
+			lock, err := os.ReadFile(filepath.Join(root, "security-repos.lock.yml"))
+			require.NoError(t, err)
+			manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(lock))
+			require.NoError(t, err)
+			assert.Equal(t, subscriptions, manifest.WebhookSubscriptions)
+			assert.Contains(t, string(lock), `"repos":["bar/baz","foo/*"]`)
+			assert.NotContains(t, result.workflowData.On, "security-alert")
+			assert.Contains(t, result.workflowData.On, "repository_dispatch")
+		})
+	}
+}
+
+func TestCompileSecurityAlertRejectsInvalidRepositories(t *testing.T) {
+	for _, trigger := range []string{
+		`security-alerts: {repos: []}`,
+		`security-alerts: {repos: ["*/*"]}`,
+		`security-alerts: {repos: ["foo/prefix*"]}`,
+		`security-alerts: {repos: [bar/baz], sources: [secret-scanning]}`,
+		"security-alerts: {repos: [bar/baz]}\n  security-alert: {sources: [dependabot]}",
+		`projects-item: {project_id: PVT_example, repos: [bar/baz]}`,
+	} {
+		t.Run(trigger, func(t *testing.T) {
+			root := t.TempDir()
+			enableWebhookTriggers(t, root)
+			path := filepath.Join(root, "invalid-repos.md")
+			source := fmt.Sprintf("---\non:\n  %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n", trigger)
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+			require.False(t, result.success)
+			assert.NotEmpty(t, result.validationResult.Errors)
+			assert.Empty(t, result.validationResult.WebhookSubscriptions)
+			_, err := os.Stat(filepath.Join(root, "invalid-repos.lock.yml"))
+			require.True(t, os.IsNotExist(err), "invalid repository selections must not emit a lock file")
 		})
 	}
 }

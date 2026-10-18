@@ -213,6 +213,17 @@ func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *
 			},
 			wantEvents: []string{"dependabot_alert"},
 		},
+		{
+			name: "plural multi-repository security alerts",
+			triggers: `on:
+  security-alerts:
+    repos: [bar/baz, "foo/*"]
+`,
+			wantPermissions: map[string]string{
+				"contents": "read", "security_events": "read", "vulnerability_alerts": "read",
+			},
+			wantEvents: []string{"code_scanning_alert", "dependabot_alert"},
+		},
 	}
 
 	for _, tt := range tests {

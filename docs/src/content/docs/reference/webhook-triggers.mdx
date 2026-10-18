@@ -7,12 +7,12 @@ sidebar:
 
 import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json';
 
-`on.projects-item` and `on.security-alert` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a workflow dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
+`on.projects-item` and `on.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. `on.security-alert` is an equivalent singular spelling; configuring both spellings in one workflow is rejected. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a workflow dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
 
 Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. General `on.webhook` registration and `on.webhook-auth` are not supported.
 
 > [!WARNING]
-> `on.projects-item`, `on.security-alert`, and their new options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
+> `on.projects-item`, `on.security-alerts` (including its singular alias), and their new options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
 
 ## Hosted CAO opt-in
 
@@ -48,25 +48,25 @@ The generated membership check authorizes the actual dispatch actor, not a sende
 
 ### Experimental first-class triggers
 
-`on.projects-item` and `on.security-alert` appear directly under `on` and use the same activity `types` and `filters` as their corresponding catalog event:
+`on.projects-item` and `on.security-alerts` appear directly under `on` and use the same activity `types` and `filters` as their corresponding catalog event:
 
 | Frontmatter trigger | Original webhook event |
 | --- | --- |
 | `on.projects-item` | `projects_v2_item` |
-| `on.security-alert` with `sources: [code-scanning]` | `code_scanning_alert` |
-| `on.security-alert` with `sources: [dependabot]` | `dependabot_alert` |
+| `on.security-alerts` with `sources: [code-scanning]` | `code_scanning_alert` |
+| `on.security-alerts` with `sources: [dependabot]` | `dependabot_alert` |
 
 `projects-item` supports **Projects v2 only**, not Projects (classic). Its required `project_id`, a sibling of `types`, is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. It accepts a nonempty string or nonempty list of node IDs. `filters.project_id` is not supported. The `field` filters describe the changed field, not the item's complete current field values.
 
 The minimal Projects trigger is `projects-item: {project_id: PVT_kwDOExample}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax under `on`; string and array shorthands are rejected. Dispatch authorization uses the standard `on.roles` and `on.bots` policy.
 
-`security-alert` requires `sources`: one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alert.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
+`security-alerts.sources` accepts one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Omitting `sources` selects both. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alerts.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
 
 ```aw wrap
 ---
 on:
   bots: [cao-gateway]
-  security-alert:
+  security-alerts:
     sources: [dependabot]
     types: [created, reopened]
     severity: [high, critical]
@@ -78,6 +78,26 @@ Triage the security alert. Never print or copy secret values into logs or report
 Webhook payloads can contain sensitive values; do not log the entire payload or include secrets in agent outputs.
 
 `severity` is a sibling of `types`, not a field inside `filters`. It uses each source's cataloged severity values: code scanning uses `none`, `note`, `warning`, or `error`; Dependabot uses `low`, `medium`, `high`, or `critical`. Every selected source must support the supplied activities and filters; use separate workflows when source-specific selectors are incompatible.
+
+### Source repositories
+
+Security alerts can select multiple source repositories:
+
+```aw wrap
+---
+on:
+  security-alerts:
+    repos:
+      - bar/baz
+      - foo/*
+---
+
+Triage every unique alert in github.aw.context.items.
+```
+
+`repos` is an optional nonempty list of literal `owner/repo` or `owner/*` selectors. Matching is case-insensitive; the compiler lowercases, sorts, and deduplicates the selectors. Any selector may match (**OR**), in addition to the selected source, activity, and payload conditions (**AND**). Wildcard owners, partial-name patterns, URLs, expressions, and exclusions are rejected. `repos` is a sibling of `sources` and `types`, not a payload filter. Projects triggers do not accept it.
+
+Selectors describe source selection, not access grants. The CAO bridge must resolve them only over fresh, reviewed private-repository enrollments and authorize each source separately. Omitted `repos` adds no selector and preserves the existing approved scope; the CAO bridge defaults to same-repository activation. Neither omission nor `owner/*` authorizes unreviewed repositories. The dispatch destination remains the repository declaring the workflow.
 
 ### Experimental status transitions
 
@@ -99,18 +119,20 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 
 ### Subscription properties
 
-`projects-item` and `security-alert` can coexist in one workflow. Projects produces one versioned subscription; security alerts produce one per selected source. Each uses the original GitHub event name. No other webhook events can be registered through frontmatter.
+`projects-item` and `security-alerts` (or `security-alert`) can coexist in one workflow. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Each uses the original GitHub event name. No other webhook events can be registered through frontmatter.
 
 | Property | Required | Description |
 | --- | --- | --- |
 | `on.projects-item.project_id` | Yes, for `projects-item` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
 | `on.projects-item.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
-| `on.security-alert.sources` | Yes, for `security-alert` | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Secret scanning is unsupported; no other security webhook is selected implicitly. |
-| `on.security-alert.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
+| `on.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
+| `on.security-alerts.repos` | No | Nonempty list of source repository selectors: literal `owner/repo` or `owner/*`. Omission preserves CAO's existing approved source scope. |
+| `on.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
 | `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no additional field conditions. |
 
 Unknown properties, events, activity types, filter names, invalid values, and filters unavailable for the selected sources or activity types fail compilation.
+All `on.security-alerts` properties also apply under the singular alias `on.security-alert`.
 
 ### Filter values and matching
 
@@ -174,6 +196,7 @@ Each compiled `.lock.yml` embeds the normalized subscriptions in the `webhook_su
 | `schema_version` | Contract version; currently `2` (batched transport). Version 1 singleton contracts are not accepted. |
 | `event` | Original GitHub webhook event name, corresponding to `X-GitHub-Event`. |
 | `types` | Allowed original payload activity types. An empty array means the event has no activity types. |
+| `repos` | Optional top-level source repository selector array for security alerts, lowercased, sorted, and deduplicated. Absent when omitted in frontmatter; never an implicit global wildcard or dispatch destination. |
 | `conditions` | Array of typed equality conditions. All must match. |
 | `conditions[].filter` | Human-readable catalog alias, such as `field.to.name`. |
 | `conditions[].path` | Array of original payload path segments; `*` traverses array elements. |
@@ -210,7 +233,7 @@ For example, the `field.to.name: Ready` leaf becomes:
 }
 ```
 
-CAO evaluates event, activity types, shared `conditions`, and any `any_of` groups against each authenticated original delivery before adding it to a batch. A condition or transition cannot be assembled from fields in different deliveries. Conditions do not grant access to other payload fields.
+CAO evaluates event, optional source `repos`, activity types, shared `conditions`, and any `any_of` groups against each authenticated original delivery before adding it to a batch. `repos` is source metadata, not a payload equality condition. A condition or transition cannot be assembled from fields in different deliveries. Conditions do not grant access to other payload fields. Adding optional `repos` does not change schema version 2 or the closed dispatch envelope.
 
 ## Dispatch transport
 
@@ -259,6 +282,8 @@ Each Projects `payload` above is abbreviated for illustration; empty `changes` p
 For security alerts, each `payload` contains **only** `{"url":"https://api.github.com/repos/OWNER/REPO/dependabot/alerts/NUMBER"}` or the corresponding `/code-scanning/alerts/NUMBER` URL. Full alert bodies, actions, severities, and repository objects are not forwarded. The URL must match `GITHUB_API_URL` (including an Enterprise API prefix), the selected event kind, and a canonical alert path, without credentials, query strings, or fragments. Additional alert data must be resolved with an authenticated GitHub App client so GitHub enforces access; the validator does not fetch it.
 
 The shared `webhook.event` applies to every delivery. Code scanning and Dependabot use separate batches even if one workflow subscribes to both. Per-delivery event overrides are rejected. Repeated delivery IDs with identical forwarded payloads collapse in first-seen order; conflicting payloads for one ID fail the entire dispatch. Distinct deliveries affecting the same item are retained, including different activity types and Status transitions. Input order is preserved, but does not imply chronological delivery.
+
+The transport can represent same-kind alerts from multiple selected repositories. CAO retains separate source-bound subscriptions and grants and must not combine independent source-authority groups into one batch. Every security item's source repository is derived from its validated alert URL; the runner rejects the whole batch if any source falls outside explicit `repos`.
 
 CAO owns batch windows, flushing, retry/replay policy, dispatch pacing, and load balancing between approved workflow subscriptions. No fixed batch size or runner-side wait is imposed: CAO chooses any nonempty batch that fits both byte limits, splitting large batches without truncating an individual delivery. Workflow-specific dispatch routes and authorization remain unchanged.
 

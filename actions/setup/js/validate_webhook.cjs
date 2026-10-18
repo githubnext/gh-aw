@@ -37,6 +37,24 @@ function eventName(env) {
   return env.GITHUB_EVENT_NAME ?? env.GH_AW_WEBHOOK_EVENT_NAME;
 }
 
+function hasValidRepositorySelectors(subscription) {
+  if (subscription.repos === undefined) return true;
+  return (
+    ["code_scanning_alert", "dependabot_alert"].includes(subscription.event) &&
+    Array.isArray(subscription.repos) &&
+    subscription.repos.length > 0 &&
+    subscription.repos.every(repo => typeof repo === "string" && repo.trim() === repo && /^[a-zA-Z0-9_-]+\/([a-zA-Z0-9._-]+|\*)$/.test(repo) && !/\/\.{1,2}$/.test(repo))
+  );
+}
+
+function matchesRepositorySelector(repo, selectors) {
+  const source = repo.toLowerCase();
+  return selectors.some(selector => {
+    const pattern = selector.toLowerCase();
+    return pattern.endsWith("/*") ? source.startsWith(pattern.slice(0, -1)) : source === pattern;
+  });
+}
+
 /**
  * Validate the dispatch transport without replacing the GitHub authorization
  * context. Same-kind deliveries are carried in client_payload.aw_context.webhook.
@@ -66,7 +84,8 @@ function validateWebhook(event, env = process.env) {
         subscription.dispatch.event_type.length <= MAX_EVENT_TYPE_LENGTH &&
         subscription.schema_version === WEBHOOK_SCHEMA_VERSION &&
         Array.isArray(subscription.types) &&
-        subscription.types.every(isNonemptyString)
+        subscription.types.every(isNonemptyString) &&
+        hasValidRepositorySelectors(subscription)
     )
   ) {
     reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions");
@@ -107,6 +126,9 @@ function validateWebhook(event, env = process.env) {
     reject("aw_context.webhook.event must match the webhook subscription");
   }
   const subscription = eventSubscriptions[0];
+  if (subscription.repos !== undefined && normalized.items.some(item => !matchesRepositorySelector(item.repo, subscription.repos))) {
+    reject("security alert source repository does not match the subscription repos");
+  }
   for (const delivery of normalized.webhook.deliveries) {
     if (delivery.payload.action !== undefined && subscription.types.length > 0 && !subscription.types.includes(delivery.payload.action)) {
       reject("webhook payload action does not match the subscription types");

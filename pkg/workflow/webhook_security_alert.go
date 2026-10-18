@@ -1,0 +1,89 @@
+package workflow
+
+import (
+	"errors"
+	"fmt"
+	"slices"
+	"sort"
+	"strings"
+)
+
+var securityAlertTriggerNames = []string{"security-alert", "security-alerts"}
+
+func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string) error {
+	if _, singular := on["security-alert"]; singular {
+		if _, plural := on["security-alerts"]; plural {
+			return errors.New("on.security-alert and on.security-alerts are aliases; configure only one")
+		}
+	}
+	for _, name := range securityAlertTriggerNames {
+		raw, exists := on[name]
+		if !exists {
+			continue
+		}
+		path := "on." + name
+		config, ok := raw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s must be an object with optional sources, repos, types, severity, and filters", path)
+		}
+		selected, err := securityAlertSourceEvents(config, path)
+		if err != nil {
+			return err
+		}
+		config, err = promoteWebhookFilters(config, path, "severity")
+		if err != nil {
+			return err
+		}
+		delete(config, "sources")
+		for _, event := range selected {
+			events[event] = config
+			paths[event] = path
+		}
+	}
+	return nil
+}
+
+func securityAlertSourceEvents(config map[string]any, path string) ([]string, error) {
+	raw, specified := config["sources"]
+	if !specified {
+		raw = sortedWebhookKeys(securityAlertEvents)
+	}
+	sources, err := webhookStringValues(raw, path+".sources")
+	if err != nil {
+		return nil, err
+	}
+	events := make([]string, 0, len(sources))
+	for _, source := range sources {
+		event, supported := securityAlertEvents[source]
+		if !supported {
+			return nil, fmt.Errorf("%s.sources must select only code-scanning or dependabot", path)
+		}
+		events = append(events, event)
+	}
+	return events, nil
+}
+
+func parseWebhookRepositories(config map[string]any, path string) ([]string, error) {
+	raw, specified := config["repos"]
+	if !specified {
+		return nil, nil
+	}
+	const message = ".repos must be a non-empty list of literal owner/repo or owner/* selectors"
+	repos, err := webhookStringList(raw)
+	if err != nil || len(repos) == 0 {
+		return nil, errors.New(path + message)
+	}
+	for i, repo := range repos {
+		repo = strings.ToLower(repo)
+		literal := repo
+		if strings.HasSuffix(repo, "/*") {
+			literal = strings.TrimSuffix(repo, "*") + "repository"
+		}
+		if !repoSlugPattern.MatchString(literal) || strings.HasSuffix(repo, "/.") || strings.HasSuffix(repo, "/..") {
+			return nil, errors.New(path + message)
+		}
+		repos[i] = repo
+	}
+	sort.Strings(repos)
+	return slices.Compact(repos), nil
+}

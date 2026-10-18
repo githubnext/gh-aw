@@ -29,6 +29,9 @@ func TestWebhookManifestCompilation(t *testing.T) {
     filters:
       alert_number: 42
 `,
+		"multi-repo": `  security-alerts:
+    repos: [bar/baz, "foo/*"]
+`,
 		"combined": `  workflow_dispatch:
   projects-item:
     project_id: PVT_one
@@ -77,7 +80,7 @@ func TestWebhookManifestCompilation(t *testing.T) {
 			} else {
 				assert.Contains(t, manifestLine, `"webhook_subscriptions":[`)
 				assert.NotContains(t, manifestLine, "secret_scanning")
-				if name == "security" {
+				if name == "security" || name == "multi-repo" {
 					require.Len(t, manifest.WebhookSubscriptions, 2)
 				}
 				for _, subscription := range manifest.WebhookSubscriptions {
@@ -90,6 +93,12 @@ func TestWebhookManifestCompilation(t *testing.T) {
 					assert.Equal(t, "${{ github.repository }}", subscription.Dispatch.Repository)
 					assert.Equal(t, 65535, subscription.Dispatch.MaxPayloadBytes)
 					assert.Equal(t, 65535, subscription.Dispatch.MaxRequestBytes)
+					if name == "multi-repo" {
+						assert.Equal(t, []string{"bar/baz", "foo/*"}, subscription.Repos)
+					} else {
+						assert.Empty(t, subscription.Repos)
+						assert.NotContains(t, manifestLine, `"repos"`)
+					}
 					if subscription.Event == "code_scanning_alert" || subscription.Event == "dependabot_alert" {
 						require.NotNil(t, subscription.Dispatch.PayloadProjection)
 						assert.Equal(t, []string{"alert", "url"}, subscription.Dispatch.PayloadProjection.SourcePath)

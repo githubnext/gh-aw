@@ -101,6 +101,7 @@ type WebhookSubscription struct {
 	SchemaVersion int                `json:"schema_version"`
 	Event         string             `json:"event"`
 	Types         []string           `json:"types"`
+	Repos         []string           `json:"repos,omitempty"`
 	Conditions    []WebhookCondition `json:"conditions"`
 	// AnyOf requires a complete group to match, in addition to Conditions.
 	AnyOf    [][]WebhookCondition `json:"any_of,omitempty"`
@@ -134,7 +135,7 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	onMap, ok := on.(map[string]any)
 	if !ok {
 		for _, name := range names {
-			if _, alias := webhookTriggerAliases[name]; alias || name == "security-alert" {
+			if _, alias := webhookTriggerAliases[name]; alias || slices.Contains(securityAlertTriggerNames, name) {
 				return nil, fmt.Errorf("on.%s requires mapping syntax", name)
 			}
 		}
@@ -172,7 +173,9 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 		return WebhookSubscription{}, fmt.Errorf("%s must be an object", path)
 	}
 	for _, key := range sortedWebhookKeys(config) {
-		supported := key == "types" || key == "filters" || (event == "projects_v2_item" && key == "status-transitions")
+		supported := key == "types" || key == "filters" ||
+			(event == "projects_v2_item" && key == "status-transitions") ||
+			(event != "projects_v2_item" && key == "repos")
 		if !supported {
 			return WebhookSubscription{}, fmt.Errorf("unsupported %s property %q", path, key)
 		}
@@ -186,6 +189,10 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 		return WebhookSubscription{}, err
 	}
 	subscription := newWebhookSubscription(workflowID, event, types, conditions)
+	subscription.Repos, err = parseWebhookRepositories(config, path)
+	if err != nil {
+		return WebhookSubscription{}, err
+	}
 	if err := applyWebhookStatusTransitions(&subscription, config, definition); err != nil {
 		return WebhookSubscription{}, err
 	}
@@ -215,42 +222,10 @@ func webhookTriggerConfigs(onMap map[string]any) (map[string]any, map[string]str
 		events[event] = config
 		paths[event] = "on." + alias
 	}
-	if raw, exists := onMap["security-alert"]; exists {
-		config, ok := raw.(map[string]any)
-		if !ok {
-			return nil, nil, errors.New("on.security-alert must be an object with required sources and optional types, severity, and filters")
-		}
-		selected, err := securityAlertSourceEvents(config)
-		if err != nil {
-			return nil, nil, err
-		}
-		config, err = promoteWebhookFilters(config, "on.security-alert", "severity")
-		if err != nil {
-			return nil, nil, err
-		}
-		delete(config, "sources")
-		for _, event := range selected {
-			events[event] = config
-			paths[event] = "on.security-alert"
-		}
+	if err := addSecurityAlertConfigs(onMap, events, paths); err != nil {
+		return nil, nil, err
 	}
 	return events, paths, nil
-}
-
-func securityAlertSourceEvents(config map[string]any) ([]string, error) {
-	sources, err := webhookStringValues(config["sources"], "on.security-alert.sources")
-	if err != nil {
-		return nil, err
-	}
-	events := make([]string, 0, len(sources))
-	for _, source := range sources {
-		event, supported := securityAlertEvents[source]
-		if !supported {
-			return nil, errors.New("on.security-alert.sources must select only code-scanning or dependabot")
-		}
-		events = append(events, event)
-	}
-	return events, nil
 }
 
 func promoteWebhookFilters(config map[string]any, path, field string) (map[string]any, error) {

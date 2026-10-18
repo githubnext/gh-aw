@@ -8,6 +8,7 @@
 package workflow
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -222,7 +223,7 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	if event, ok := webhookTriggerAliases[name]; ok {
 		return []string{event}, true
 	}
-	if name != "security-alert" {
+	if !slices.Contains(securityAlertTriggerNames, name) {
 		return nil, false
 	}
 	on, ok := onValue.(map[string]any)
@@ -233,6 +234,6 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
-	events, err := securityAlertSourceEvents(config)
+	events, err := securityAlertSourceEvents(config, "on."+name)
 	return events, err == nil
 }

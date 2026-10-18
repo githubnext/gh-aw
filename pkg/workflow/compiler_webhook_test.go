@@ -128,6 +128,7 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 		"status-transitions": {"  projects-item:\n    project_id: PVT_example\n    status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
 		"code-scanning":      {"  security-alert:\n    sources: [code-scanning]\n", "code_scanning_alert"},
 		"dependabot":         {"  security-alert:\n    sources: [dependabot]\n", "dependabot_alert"},
+		"plural":             {"  security-alerts:\n    sources: [dependabot]\n    repos: [bar/baz, \"foo/*\"]\n", "dependabot_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()
@@ -144,6 +145,7 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 			on := triggers["on"].(map[string]any)
 			assert.NotContains(t, on, "projects-item")
 			assert.NotContains(t, on, "security-alert")
+			assert.NotContains(t, on, "security-alerts")
 			assert.NotContains(t, on, "webhook-auth")
 			assert.Contains(t, on, "workflow_dispatch")
 			assert.Equal(t, []any{"manual-operation", WebhookDispatchEventType("first-class")}, on["repository_dispatch"].(map[string]any)["types"])

@@ -114,7 +114,7 @@ func TestSecurityAlertSchema(t *testing.T) {
 			"sources": "dependabot", "filters": map[string]any{"sender": "octocat"},
 		}, true},
 		"null":             {nil, false},
-		"missing sources":  {map[string]any{}, false},
+		"default sources":  {map[string]any{}, true},
 		"unknown source":   {map[string]any{"sources": "security-advisory"}, false},
 		"empty sources":    {map[string]any{"sources": []any{}}, false},
 		"mixed sources":    {map[string]any{"sources": []any{"dependabot", true}}, false},
@@ -132,19 +132,59 @@ func TestSecurityAlertSchema(t *testing.T) {
 			"sources": "dependabot", "filters": map[string]any{"severity": "high"},
 		}, false},
 	} {
-		t.Run(name, func(t *testing.T) {
-			on := map[string]any{
-				"security-alert": test.config,
-			}
-
-			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "security-alert.md")
-			if test.valid {
-				require.NoError(t, err)
-			} else {
-				require.Error(t, err)
-			}
-		})
+		for _, alias := range []string{"security-alert", "security-alerts"} {
+			t.Run(alias+"/"+name, func(t *testing.T) {
+				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{alias: test.config}}, "security-alert.md")
+				if test.valid {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+				}
+			})
+		}
 	}
+}
+
+func TestSecurityAlertRepositorySchema(t *testing.T) {
+	for _, alias := range []string{"security-alert", "security-alerts"} {
+		for name, test := range map[string]struct {
+			repos any
+			valid bool
+		}{
+			"exact and wildcard": {[]any{"bar/baz", "foo/*"}, true},
+			"case insensitive":   {[]any{"Bar/Baz", "FOO/*"}, true},
+			"dot and underscore": {[]any{"bar/repo.name_x"}, true},
+			"null":               {nil, false},
+			"scalar":             {"bar/baz", false},
+			"empty":              {[]any{}, false},
+			"blank":              {[]any{""}, false},
+			"mixed":              {[]any{"bar/baz", false}, false},
+			"wildcard owner":     {[]any{"*/baz"}, false},
+			"global wildcard":    {[]any{"*"}, false},
+			"prefix wildcard":    {[]any{"foo/prefix*"}, false},
+			"recursive wildcard": {[]any{"foo/**"}, false},
+			"expression":         {[]any{"${{ github.repository }}"}, false},
+			"url":                {[]any{"https://github.com/bar/baz"}, false},
+			"dot":                {[]any{"foo/."}, false},
+			"dotdot":             {[]any{"foo/.."}, false},
+			"duplicate":          {[]any{"foo/*", "foo/*"}, false},
+			"whitespace":         {[]any{" bar/baz"}, false},
+			"newline":            {[]any{"bar/baz\n"}, false},
+		} {
+			t.Run(alias+"/"+name, func(t *testing.T) {
+				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{alias: map[string]any{"repos": test.repos}}}, "security-repos.md")
+				if test.valid {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+				}
+			})
+		}
+	}
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+		"on": map[string]any{"security-alert": map[string]any{}, "security-alerts": map[string]any{}},
+	}, "duplicate-security.md")
+	require.Error(t, err)
 }
 
 func TestWebhookStatusTransitionsSchema(t *testing.T) {

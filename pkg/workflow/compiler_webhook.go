@@ -33,7 +33,9 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	// Preserve source frontmatter for metadata and hashing; only lower the trigger copy.
 	frontmatter = maps.Clone(frontmatter)
 	on = maps.Clone(on)
-	delete(on, "security-alert")
+	for _, name := range securityAlertTriggerNames {
+		delete(on, name)
+	}
 	for alias := range webhookTriggerAliases {
 		delete(on, alias)
 	}
