@@ -159,6 +159,9 @@ func workQueuePoolsAt(state workqueue.Projection, at int64) (map[string]*workQue
 	for _, work := range state.Works {
 		pools[work.Pool] = nil
 	}
+	for _, dispatch := range state.Dispatches {
+		pools[dispatch.Pool] = nil
+	}
 	if state.Policy != nil {
 		for name := range state.Policy.Pools {
 			pools[name] = nil
@@ -169,9 +172,11 @@ func workQueuePoolsAt(state workqueue.Projection, at int64) (map[string]*workQue
 			Pool: name, WorkByState: workQueueWorkStates(), ClaimsByState: workQueueClaimStates(),
 			DeliveryByState: workQueueDeliveryStates(), IneligibleReasons: map[string]int{},
 		}
-		if policy, ok := state.Policy.Pools[name]; ok {
-			pool.PolicyInstalled = true
-			pool.LogicalLimit, pool.NativeLimit, pool.MaxAttempts = policy.LogicalLimit, policy.NativeLimit, policy.Retry.MaxAttempts
+		if state.Policy != nil {
+			if policy, ok := state.Policy.Pools[name]; ok {
+				pool.PolicyInstalled = true
+				pool.LogicalLimit, pool.NativeLimit, pool.MaxAttempts = policy.LogicalLimit, policy.NativeLimit, policy.Retry.MaxAttempts
+			}
 		}
 		pools[name] = pool
 	}
@@ -181,14 +186,18 @@ func workQueuePoolsAt(state workqueue.Projection, at int64) (map[string]*workQue
 		if work.State != "available" {
 			continue
 		}
-		explanation, err := workqueue.ExplainWork(state, work.WorkID, at)
-		if err != nil {
-			return nil, err
-		}
-		if explanation.SchedulingEligible {
-			pool.SchedulingEligible++
+		if pool.PolicyInstalled {
+			explanation, err := workqueue.ExplainWork(state, work.WorkID, at)
+			if err != nil {
+				return nil, err
+			}
+			if explanation.SchedulingEligible {
+				pool.SchedulingEligible++
+			} else {
+				pool.IneligibleReasons[explanation.Reason]++
+			}
 		} else {
-			pool.IneligibleReasons[explanation.Reason]++
+			pool.IneligibleReasons["pool_not_installed"]++
 		}
 		admitted := workQueueAdmittedAt(state, work)
 		if admitted == nil || *admitted > at {
@@ -234,14 +243,25 @@ func workQueueClaimStats(state workqueue.Projection, pools map[string]*workQueue
 
 func workQueueActivityAt(state workqueue.Projection, at int64) (workQueueActivity, error) {
 	activity := workQueueActivity{Since: max(0, at-int64(24*time.Hour/time.Millisecond)), Until: at, Operations: map[string]int{}}
+	requestOrder := make(map[string]int, len(state.RequestOrder))
+	for index, requestID := range state.RequestOrder {
+		requestOrder[requestID] = index
+	}
+	lastRequestOrder := -1
 	for _, commit := range state.Requests {
 		if commit.At > at {
 			continue
 		}
+		order := -1
+		if index, ok := requestOrder[commit.Request.ID]; ok {
+			order = index
+		}
 		if activity.LastAt == nil || commit.At > *activity.LastAt ||
-			commit.At == *activity.LastAt && commit.ID > activity.LastCommitID {
+			commit.At == *activity.LastAt && (order > lastRequestOrder ||
+				order == lastRequestOrder && commit.ID > activity.LastCommitID) {
 			timestamp := commit.At
 			activity.LastAt, activity.LastCommitID = &timestamp, commit.ID
+			lastRequestOrder = order
 		}
 		if commit.At < activity.Since {
 			continue
