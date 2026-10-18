@@ -54,8 +54,7 @@ tools:
     toolsets: [repos, pull_requests]
   playwright:
   edit:
-  bash:
-    - "*"
+  bash: true
   web-fetch:
 runtimes:
   go:

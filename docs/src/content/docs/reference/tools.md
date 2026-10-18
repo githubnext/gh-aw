@@ -55,20 +55,43 @@ The profile also sets `GOBIN` to its writable, sandbox-mounted `cache/bin`
 directory and adds it to PATH. Additional `go install` commands use that
 directory rather than an unmounted `$HOME/go/bin`.
 
-Profiles work with Copilot, Claude, and Gemini, including `tools.cli-proxy`, and
+Profiles work with Copilot, Claude, Gemini, and Codex, including `tools.cli-proxy`, and
 can be declared in shared workflow imports. Repeated declarations install the
 profile once. Explicit tool disabling is preserved; for example, `bash: false`
 keeps shell access disabled while retaining the gopls MCP tools. Set
-`cli-proxy: false` alongside it. Codex cannot enforce shell-command allowlists;
-use these explicit settings for MCP-only Go analysis with Codex, or explicitly
-enable unrestricted sandboxed shell access with `bash: true`.
+`cli-proxy: false` alongside it.
+
+Codex cannot enforce the profile's shell-command allowlist, so it requires an
+explicit shell choice even when the profile comes from an import. Builds, tests,
+and CLI proxies require unrestricted sandboxed shell access:
+
+```aw wrap
+engine: codex
+tools:
+  profile: go
+  bash: true
+```
+
+MCP-only Go analysis disables both the shell and shell-based CLI proxies:
+
+```aw wrap
+engine: codex
+tools:
+  profile: go
+  bash: false
+  cli-proxy: false
+```
 
 Profile runtime settings are defaults, so `go.mod` cannot select an older
 toolchain accidentally. Use `runtimes.go` to override the Go version or setup
 action (Go 1.26 or newer is
 required by the pinned gopls). The profile requires
-an enabled Docker agent sandbox (`docker` or `docker-sudo-iptables`); microVM
-runtimes do not currently support its additional mounts.
+an enabled Docker agent sandbox (`docker` or `docker-sudo-iptables`).
+Cloud Hypervisor's runner-temp export is read-only; NVX exports only the workspace
+and optional tool cache. Both reject additional host volume mounts, so neither
+currently provides the profile's read-only binaries and writable cache contract.
+Support is tracked in
+[github/gh-aw-firewall#10231](https://github.com/github/gh-aw-firewall/issues/10231).
 
 Profile definitions are embedded shared-workflow Markdown files under
 `pkg/workflow/data/tool-profiles/`. Their frontmatter declares `runtimes`,

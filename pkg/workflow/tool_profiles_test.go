@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,6 +105,57 @@ func TestGoToolProfileImportsAndOverrides(t *testing.T) {
 				require.Equal(t, "1.26.9", data.Runtimes["go"].(map[string]any)["version"])
 			}
 		})
+	}
+}
+
+func TestGoToolProfileCodexShellChoices(t *testing.T) {
+	for _, imported := range []bool{false, true} {
+		for _, tc := range []struct {
+			name     string
+			shell    string
+			cliProxy bool
+			disabled bool
+			wantErr  bool
+		}{
+			{name: "unrestricted", shell: "  bash: true\n", cliProxy: true},
+			{name: "wildcard", shell: "  bash: ['*']\n", cliProxy: true},
+			{name: "disabled", shell: "  bash: false\n", disabled: true},
+			{name: "empty", shell: "  bash: []\n", disabled: true},
+			{name: "unspecified", wantErr: true},
+			{name: "restricted", shell: "  bash: ['go test']\n", wantErr: true},
+		} {
+			t.Run(fmt.Sprintf("imported=%t/%s", imported, tc.name), func(t *testing.T) {
+				dir := t.TempDir()
+				profile := "tools:\n  profile: go\n"
+				if imported {
+					require.NoError(t, os.WriteFile(filepath.Join(dir, "shared.md"), []byte("---\ntools:\n  profile: go\n---\nAnalyze Go.\n"), 0o600))
+					profile = "imports:\n  - shared.md\ntools:\n"
+				}
+				source := "---\non: workflow_dispatch\npermissions:\n  contents: read\nengine: codex\n" +
+					profile + tc.shell + fmt.Sprintf("  cli-proxy: %t\n---\nAnalyze Go.\n", tc.cliProxy)
+				file := filepath.Join(dir, "test.md")
+				require.NoError(t, os.WriteFile(file, []byte(source), 0o600))
+				err := NewCompiler().CompileWorkflow(file)
+				if tc.wantErr {
+					require.ErrorContains(t, err, "does not support bash command allow-listing")
+					return
+				}
+				require.NoError(t, err)
+				content, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
+				require.NoError(t, err)
+				lock := string(content)
+				require.Contains(t, lock, `"gopls": {`)
+				require.Contains(t, lock, "go_symbol_references")
+				if tc.disabled {
+					require.Contains(t, lock, "-c features.shell_tool=false")
+					require.NotContains(t, lock, "export GH_AW_MCP_CLI_SERVERS=")
+					require.NotContains(t, lock, "gopls --help")
+				} else {
+					require.NotContains(t, lock, "-c features.shell_tool=false")
+					require.Contains(t, lock, "gopls --help")
+				}
+			})
+		}
 	}
 }
 
