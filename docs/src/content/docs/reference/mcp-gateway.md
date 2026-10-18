@@ -7,7 +7,7 @@ sidebar:
 
 # MCP Gateway Specification
 
-**Version**: 1.17.0
+**Version**: 1.18.0
 **Status**: Draft Specification  
 **Latest Version**: [mcp-gateway](/gh-aw/reference/mcp-gateway/)  
 **JSON Schema**: [mcp-gateway-config.schema.json](/gh-aw/schemas/mcp-gateway-config.schema.json)  
@@ -2308,6 +2308,12 @@ Content-Type: application/json
 ---
 
 ## Change Log
+
+### Version 1.18.0 (Draft)
+
+- **Changed**: `stdioServerConfig.container` accepts an optional `@sha256:<64 hex>` digest suffix, with or without a tag
+- **Updated**: JSON Schema — container image patterns accept digest-pinned references
+- **Note**: Runtime support requires the corresponding fix and release in `github/gh-aw-mcpg`; existing digest-stripping compatibility behavior is unchanged
 
 ### Version 1.17.0 (Draft)
 
