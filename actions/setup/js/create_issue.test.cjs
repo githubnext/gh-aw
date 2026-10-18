@@ -1140,6 +1140,31 @@ describe("create_issue", () => {
   });
 
   describe("error handling", () => {
+    it.each([false, true])("should reject an oversized rendered body before reserving a max-count slot with staged=%s", async staged => {
+      const handler = await main({ max: 1, staged });
+
+      await expect(handler({ title: "Oversized issue", body: "x".repeat(65536) })).rejects.toThrow("ERR_VALIDATION: Issue body exceeds GitHub's maximum length of 65536 characters including attribution");
+
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+
+      const result = await handler({ title: "Valid issue", body: "Issue content" });
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(staged ? 0 : 1);
+    });
+
+    it("should allow a rendered issue body exactly at GitHub's maximum length", async () => {
+      const handler = await main({});
+      const initial = await handler({ title: "Boundary issue", body: "x" });
+      const attributionLength = initial.body.length - 1;
+
+      const result = await handler({ title: "Boundary issue", body: "x".repeat(65536 - attributionLength) });
+
+      expect(result.success).toBe(true);
+      expect(result.body).toHaveLength(65536);
+      expect(mockGithub.rest.issues.create.mock.calls[1][0].body).toBe(result.body);
+    });
+
     it("should handle issues disabled error gracefully", async () => {
       mockGithub.rest.issues.create.mockRejectedValueOnce(new Error("Issues has been disabled in this repository"));
 
