@@ -40,7 +40,9 @@ func TestGoToolProfileCompilation(t *testing.T) {
 			require.Contains(t, data.SandboxConfig.Agent.Mounts, "${{ env.GH_AW_TOOL_PROFILE_GO_DIR }}/bin:${{ env.GH_AW_TOOL_PROFILE_GO_DIR }}/bin:ro")
 			require.Contains(t, data.MarkdownContent, "## Go tool profile")
 			require.NotContains(t, strings.Join(data.ImportPaths, "\n"), "@builtin:")
+			compiler.SetBatchMode(true)
 			require.NoError(t, compiler.CompileWorkflow(file))
+			require.Equal(t, 1, compiler.GetExperimentalFeatureUsage()["Using experimental feature: tools.profile"])
 			content, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
 			require.NoError(t, err)
 			lock := string(content)
@@ -94,7 +96,8 @@ func TestGoToolProfileImportsAndOverrides(t *testing.T) {
 			source := "---\non: workflow_dispatch\npermissions:\n  contents: read\nimports:\n  - shared/go.md\n" + tc.config + "---\nAnalyze Go.\n"
 			file := filepath.Join(dir, "test.md")
 			require.NoError(t, os.WriteFile(file, []byte(source), 0o600))
-			data, err := NewCompiler().ParseWorkflowFile(file)
+			compiler := NewCompiler()
+			data, err := compiler.ParseWorkflowFile(file)
 			require.NoError(t, err)
 			require.Equal(t, "go", data.ParsedTools.Profile)
 			require.Equal(t, 1, strings.Count(data.PreAgentSteps, "name: Setup Go tool profile"))
@@ -104,6 +107,9 @@ func TestGoToolProfileImportsAndOverrides(t *testing.T) {
 			if tc.name == "runtime override" {
 				require.Equal(t, "1.26.9", data.Runtimes["go"].(map[string]any)["version"])
 			}
+			compiler.SetBatchMode(true)
+			require.NoError(t, compiler.CompileWorkflow(file))
+			require.Equal(t, 1, compiler.GetExperimentalFeatureUsage()["Using experimental feature: tools.profile"])
 		})
 	}
 }

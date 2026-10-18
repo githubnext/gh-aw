@@ -19,6 +19,12 @@ Some tools are available by default. All tools declared in imported components a
 
 ### Ecosystem Profile (`profile:`)
 
+:::caution[Experimental]
+Ecosystem tool profiles are experimental and their configuration and behavior
+may change. Compiling a workflow that uses `tools.profile`, directly or through
+an import, emits `Using experimental feature: tools.profile`.
+:::
+
 `tools.profile` configures an ecosystem's runtime, sandbox paths, shell commands,
 and MCP tools. The first supported profile is `go`:
 

@@ -3833,6 +3833,12 @@ mcp-servers:
 # GitHub API access, browser automation, file editing, and more
 # (optional)
 tools:
+  # Experimental. Ecosystem tool profile. Configures required runtimes, sandbox
+  # mounts, shell commands, and sandboxed MCP tools. Currently supports go. Using
+  # this field emits a compile-time warning.
+  # (optional)
+  profile: "go"
+
   # GitHub API tools for repository operations (issues, pull requests, content
   # management)
   # (optional)
