@@ -454,12 +454,14 @@ All linters (`zizmor`, `actionlint`, `poutine`), `--validate`, and `--no-emit` a
 
 #### `lint`
 
-Lint existing `.lock.yml` workflow files from disk with all registered built-in Actions/AW AST rules and actionlint by default. Use `--rules` to select AST rules and skip external actionlint. Neither mode recompiles Markdown workflows or runs `zizmor`/`poutine`.
+Lint AW `.md` or Actions `.yml`/`.yaml` files, including compiled `.lock.yml` files. Rules consume parsed ASTs only; file discovery and parsing belong to the CLI adapter. The command never recompiles workflows. Actionlint runs alongside the built-in rules on YAML inputs only. Use `--rules` to select AST rules and skip actionlint. Neither mode runs `zizmor` or `poutine`.
 
 ```bash wrap
-gh aw lint                                          # Lint all .github/workflows/*.lock.yml
+gh aw lint                                          # Lint workflows in .github/workflows
 gh aw lint .github/workflows/foo.lock.yml           # Lint a specific lock file
-gh aw lint --dir .github/workflows                  # Lint all lock files in a directory
+gh aw lint .github/workflows/foo.md                 # Check the authored AW AST without compiling
+gh aw lint .github/workflows/ci.yml                 # Check a native Actions AST
+gh aw lint --dir .github/workflows                  # Lint workflows in a directory
 gh aw lint --shellcheck --pyflakes                  # Enable actionlint script integrations
 gh aw lint --list-rules                             # List built-in AST rules
 gh aw lint --rules secret-leak                      # Check existing workflows for secret disclosures
@@ -472,21 +474,27 @@ By default, shellcheck and pyflakes integrations are disabled to reduce noise fo
 
 `--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
+Directory scans are nonrecursive and prefer an existing `.lock.yml` over its paired `.md` to avoid duplicate diagnostics. They include uncompiled Markdown with frontmatter and native Actions YAML, but skip plain Markdown documentation without frontmatter. Explicit Markdown paths are always accepted. `--list-rules` lists each rule's ID, default severity, supported ASTs, and description.
+
 **Migration from actionlint-only linting:** the default now also enforces registered AST rules and may fail on findings that actionlint did not report. Review those findings, or run `actionlint` directly on the generated `.lock.yml` files to retain actionlint-only behavior. `--rules` selects AST rules and skips actionlint; it does not provide an actionlint-only mode.
 
-| Built-in rule | Checks |
-|---|---|
-| `action-pin` | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
-| `job-timeout` | A specified job timeout is a positive integer literal, not an expression. Omission in native Actions is allowed. |
-| `template-injection` | Known attacker-controlled expressions are not interpolated into executable `run` text. Use environment bindings and quoted shell expansions instead. |
-| `workflow-run-scope` | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
-| `secret-leak` | Symbolic secrets do not reach modeled disclosure sinks. |
-| `permission-scope` | Explicit permissions avoid blanket `write-all` grants; OIDC does not use the invalid `id-token: read` level. Scoped repository writes and `id-token: write` are not automatically violations. |
-| `version-check` | Authored AW source does not disable `check-for-updates`. Requires a companion AW document. |
-| `conditional-import` | Authored AW configuration imports do not contain `if`, even if its value is false or null. Runtime prompt conditionals are unaffected. Requires a companion AW document. |
-| `private-to-public` | Authored AW source does not opt out of private-to-public flow protections, either globally or for selected servers. Requires a companion AW document. |
+| Built-in rule | ASTs | Checks |
+|---|---|---|
+| `action-pin` | AW, Actions | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
+| `job-timeout` | AW, Actions | An explicit workflow/job timeout is a positive integer literal, not an expression. Omission is allowed. |
+| `template-injection` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` text. Use environment bindings and quoted shell expansions instead. |
+| `workflow-run-scope` | AW, Actions | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
+| `secret-leak` | AW, Actions | Symbolic secrets do not reach modeled disclosure sinks. AW-only checks report missing generated execution coverage. |
+| `permission-scope` | AW, Actions | Explicit permissions avoid blanket `write-all` grants; OIDC does not use invalid `id-token: read`. Scoped writes and `id-token: write` are not automatically violations. |
+| `version-check` | AW | Authored source does not disable `check-for-updates`. |
+| `conditional-import` | AW | Configuration import entries do not contain `if`, even if false or null. Runtime prompt conditionals are unaffected. |
+| `private-to-public` | AW | GitHub tool configuration does not opt out of private-to-public flow protections, globally or for selected servers. |
+| `install-scripts` | AW | Authored Node configuration does not enable dependency install hooks. Other runtimes and arbitrary shell commands are not inferred. |
+| `allowed-labels` | AW | Issue, discussion, discussion-update, and PR creation label allowlists do not contain a bare `*`. Narrow patterns and literal required-label names are unaffected. |
+| `network-scope` | AW | Network allowances do not contain a bare `*`, including alongside `defaults`. Domain wildcards such as `*.example.com` are allowed; omission does not imply missing firewall protection. |
+| `push-target` | AW | A literal wildcard PR-branch push target has an authored title or label constraint. Respects deprecated aliases and defers when unresolved imports may supply constraints. |
 
-Action pinning, workflow-run branch scope, blanket write permissions, disabled version checking, and private-to-public opt-outs are errors for a companion AW document with strict mode enabled (the AW default), and warnings for explicit non-strict AW. Native Actions policy-sensitive findings are warnings; source-only rules skip native Actions without an AW document. Conditional imports, invalid OIDC read grants, missing or malformed `workflow_run.workflows`, invalid specified job timeouts, and direct template injection are errors. The linter does not reconstruct CLI/repository strict overrides, load imported source configurations, infer missing permissions, or determine whether each explicit repository-write grant is authorized.
+Action pinning, workflow-run branch scope, blanket write permissions, disabled version checking, private-to-public opt-outs, enabled Node install hooks, and bare network wildcard allowances are errors for an AW document with strict mode enabled (the AW default), and warnings for explicit non-strict AW. Native Actions policy-sensitive findings are warnings; AW-only rules skip native Actions without an AW document. Conditional imports, bare label-allowlist wildcards, invalid OIDC read grants, missing or malformed `workflow_run.workflows`, invalid explicit timeouts, and direct template injection are errors. Unconstrained wildcard push targets remain warnings even in strict mode. The linter does not reconstruct CLI/repository strict overrides, load imported configurations, infer missing permissions, or determine whether each repository-write grant is authorized.
 
 The `secret-leak` rule tracks symbolic secret references, `github.token`, and known app-token action outputs through environment scopes, shell assignments, step outputs, and dependent job outputs. It detects disclosures to logs, step summaries, workflow outputs, request URLs/bodies, known publication inputs, cache keys, and artifacts containing modeled secret-bearing files. Authentication headers, token inputs, and the reusable workflow `secrets:` channel are not disclosure sinks. Boolean comparisons and predicates filter secret values; formatting, JSON serialization, encoding, and `add-mask` registration do not sanitize subsequent uses.
 
@@ -494,13 +502,13 @@ In Bash/sh, recognized `test`/`[` string and file predicates and the `:`, `true`
 
 Unknown file reads produce secret-flow coverage warnings when they could select a modeled secret-bearing file or involve a secret-bearing filename. Unknown output targets warn when the output or filename is tainted; unrelated public file operations do not introduce secret-flow warnings.
 
-The linter reads a companion `.md` file when present to check AW prompt expressions as well as the compiled graph. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Error diagnostics produce a nonzero exit status. Unsupported shells, shell parse failures, recursive functions, and secret-bearing data passed to unmodeled external commands produce explicit coverage warnings; warnings alone do not fail the command.
+For `.lock.yml` inputs, a companion `.md` adds authored-policy and prompt checks to the existing execution graph. Native `.yml`/`.yaml` inputs never acquire an assumed AW companion. Explicit `.md` inputs inspect the AW AST independently: the prompt, top-level `steps`/`post-steps`, and authored `jobs`/`safe-jobs`. No compiled graph is fabricated. Secret analysis reports a coverage warning for missing imports, generated steps, cross-job flows, and compiler defaults; scripts without an observable shell remain unknown. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Errors produce a nonzero exit status; coverage warnings alone do not.
 
 Analysis is conservative within Bash/sh control flow and can report infeasible paths. It does not execute analyzed code or inspect external actions, sourced shell scripts, Python/PowerShell programs, dynamically constructed shell code, or arbitrary filesystem operations. JavaScript inspection requires the explicit configuration below. Imported runtime prompt files are not recursively loaded. Authentication arguments are treated as intentional credential use; endpoint trust is not inferred. A clean result is not proof that a workflow cannot leak secrets.
 
 ##### Optional native JavaScript analysis
 
-`--javascript-module` enables JavaScript secret-flow analysis using Microsoft's Go TypeScript compiler through the upstream-exported, **unstable** `@typescript/native-preview/unstable/sync` and AST APIs. The exact supported package version is `7.0.0-dev.20260707.2`. Node.js 22.12 or newer and its platform-native compiler executable must already be installed; the CLI does not download dependencies or assume its own developer `node_modules` directory exists.
+This analysis is experimental and opt-in. `--javascript-module` enables JavaScript secret-flow analysis using Microsoft's Go TypeScript compiler through the upstream-exported, **unstable** `@typescript/native-preview/unstable/sync` and AST APIs. The exact supported package version is `7.0.0-dev.20260707.2`. Node.js 22.12 or newer and its platform-native compiler executable must already be installed; the CLI does not download dependencies or assume its own developer `node_modules` directory exists.
 
 For a gh-aw source checkout, install the optional pinned dependency and supply absolute paths:
 
@@ -515,7 +523,7 @@ The checker follows literal `node`/`nodejs` file and `--eval` invocations, `--pr
 
 `--javascript-root` bounds source reads to the supplied repository, including symlink confinement. Repeated `--javascript-runtime-path 'runner-directory=repository-relative-directory'` flags can map generated runtime asset paths to **operator-verified matching source**. For example, only when the workflow uses the exact checkout's gh-aw setup assets, pass `--javascript-runtime-path '${RUNNER_TEMP}/gh-aw/actions=actions/setup/js'`. This mapping loads and analyzes source; it does not declare any helper safe. Unknown interpreter paths are not identified by basename.
 
-Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits produce explicit incomplete-analysis warnings. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, the existing Bash analysis remains active and reports unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. The model is partial, and does not prove whole-program JavaScript safety.
+Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits produce explicit incomplete-analysis warnings. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, the existing Bash analysis remains active and reports unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. Configured analysis can substantially expand diagnostics and report infeasible source-flow paths; findings require review and are not a vulnerability count. The model is partial, and does not prove whole-program JavaScript safety.
 
 ### Testing
 

@@ -245,7 +245,7 @@ func TestWorkflowRunScopeCanceledAndMissingAST(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Empty(t, diagnostics)
 	_, err = rule.Check(context.Background(), Input{})
-	require.ErrorContains(t, err, "requires an Actions AST")
+	require.ErrorContains(t, err, "requires an Actions or AW AST")
 }
 
 type workflowRunCancelContext struct {

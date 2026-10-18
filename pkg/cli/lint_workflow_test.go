@@ -170,6 +170,10 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 		{"version-check", "strict: false\ncheck-for-updates: false", "check-for-updates", workflowlint.Warning},
 		{"conditional-import", "imports:\n  - path: shared/a.md\n    if: false", "imports[0].if", workflowlint.Error},
 		{"private-to-public", "tools:\n  github:\n    private-to-public-flows: allow", "tools.github.private-to-public-flows", workflowlint.Error},
+		{"install-scripts", "runtimes:\n  node:\n    run-install-scripts: true", "runtimes.node.run-install-scripts", workflowlint.Error},
+		{"allowed-labels", "safe-outputs:\n  create-issue:\n    allowed-labels: ['*']", "safe-outputs.create-issue.allowed-labels", workflowlint.Error},
+		{"network-scope", "network:\n  allowed: [defaults, '*']", "network.allowed", workflowlint.Error},
+		{"push-target", "safe-outputs:\n  push-to-pull-request-branch:\n    target: '*'", "safe-outputs.push-to-pull-request-branch.target", workflowlint.Warning},
 	} {
 		t.Run(tt.ruleID, func(t *testing.T) {
 			dir := t.TempDir()

@@ -30,7 +30,7 @@ func sourcePolicySeverity(input Input, ruleID string) (Severity, error) {
 func VersionCheckRule() Rule {
 	return Rule{
 		ID: "version-check", Description: "Keep the AW version integrity check enabled",
-		Severity: Warning, Check: checkVersionCheck,
+		Severity: Warning, Targets: AWAST, Check: checkVersionCheck,
 	}
 }
 
@@ -65,7 +65,7 @@ func checkVersionCheck(ctx context.Context, input Input) ([]Diagnostic, error) {
 func PrivateToPublicRule() Rule {
 	return Rule{
 		ID: "private-to-public", Description: "Keep AW private-to-public flow protections enabled",
-		Severity: Warning, Check: checkPrivateToPublic,
+		Severity: Warning, Targets: AWAST, Check: checkPrivateToPublic,
 	}
 }
 
@@ -140,7 +140,7 @@ func privateToPublicValue(ctx context.Context, value any) error {
 func ConditionalImportRule() Rule {
 	return Rule{
 		ID: "conditional-import", Description: "Keep AW configuration imports unconditional",
-		Severity: Error, Check: checkConditionalImports,
+		Severity: Error, Targets: AWAST, Check: checkConditionalImports,
 	}
 }
 
@@ -228,5 +228,54 @@ func policyMapping(value any, path string) (map[string]any, error) {
 		return fields, nil
 	default:
 		return nil, fmt.Errorf("AST policy lint requires a mapping at %s; correct the configuration before linting", path)
+	}
+}
+
+func authoredPolicyMapping(ctx context.Context, input Input, keys ...string) (map[string]any, error) {
+	if err := integrityInput(ctx, input); err != nil {
+		return nil, err
+	}
+	if input.Document == nil {
+		return nil, nil
+	}
+	fields := input.Document.Frontmatter
+	var path strings.Builder
+	for _, key := range keys {
+		if path.Len() != 0 {
+			path.WriteByte('.')
+		}
+		path.WriteString(key)
+		var err error
+		fields, err = policyMapping(fields[key], path.String())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return fields, nil
+}
+
+func policyStrings(ctx context.Context, value any, path string) ([]string, error) {
+	switch entries := value.(type) {
+	case []string:
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return entries, nil
+	case []any:
+		var result []string
+		var failures []error
+		for index, entry := range entries {
+			if err := ctx.Err(); err != nil {
+				return result, errors.Join(append(failures, err)...)
+			}
+			if text, ok := entry.(string); ok {
+				result = append(result, text)
+			} else {
+				failures = append(failures, fmt.Errorf("AST policy lint requires a string at %s[%d]", path, index))
+			}
+		}
+		return result, errors.Join(failures...)
+	default:
+		return nil, fmt.Errorf("AST policy lint requires a string list at %s", path)
 	}
 }

@@ -27,6 +27,7 @@ func ActionPinRule() Rule {
 		ID:          "action-pin",
 		Description: "Require immutable remote action and reusable-workflow references",
 		Severity:    Warning,
+		Targets:     ActionsAST | AWAST,
 		Check:       checkActionPins,
 	}
 }
@@ -34,6 +35,9 @@ func ActionPinRule() Rule {
 func checkActionPins(ctx context.Context, input Input) ([]Diagnostic, error) {
 	if err := integrityInput(ctx, input); err != nil {
 		return nil, err
+	}
+	if input.Workflow == nil {
+		return checkAuthoredActionPins(ctx, input)
 	}
 	severity, err := integrityPinSeverity(input)
 	if err != nil {
@@ -171,9 +175,13 @@ func JobTimeoutRule() Rule {
 		ID:          "job-timeout",
 		Description: "Require explicit job timeouts to be literal positive integers",
 		Severity:    Error,
+		Targets:     ActionsAST | AWAST,
 		Check: func(ctx context.Context, input Input) ([]Diagnostic, error) {
 			if err := integrityInput(ctx, input); err != nil {
 				return nil, err
+			}
+			if input.Workflow == nil {
+				return checkAuthoredTimeouts(ctx, input)
 			}
 			var diagnostics []Diagnostic
 			for _, job := range input.Workflow.Jobs {
@@ -203,7 +211,10 @@ func integrityInput(ctx context.Context, input Input) error {
 		return err
 	}
 	if input.Workflow == nil {
-		return errors.New("integrity lint requires an Actions AST")
+		if input.Document != nil {
+			return nil
+		}
+		return errors.New("integrity lint requires an Actions or AW AST")
 	}
 	for _, job := range input.Workflow.Jobs {
 		if err := ctx.Err(); err != nil {

@@ -64,27 +64,38 @@ func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Run
 	if err != nil {
 		return nil, err
 	}
-	workflow, err := actions.Parse(content)
-	if err != nil {
-		// Parser errors can contain YAML scalar values. Keep lint diagnostics
-		// free of values that may themselves be credentials.
-		return nil, errors.New("could not parse workflow Actions AST")
-	}
-	input := workflowlint.Input{Workflow: workflow}
+	input := workflowlint.Input{}
 	if len(javascript) > 0 {
 		input.JavaScript = javascript[0]
 	}
-	// A companion AW source adds prompt analysis without recompiling or changing
-	// the on-disk execution graph. Native Actions files need no companion.
-	source, readErr := os.ReadFile(strings.TrimSuffix(file, ".lock.yml") + ".md")
-	if readErr == nil {
-		document, parseErr := aw.Parse(string(source))
-		if parseErr != nil {
-			return nil, errors.New("could not parse companion AW document")
+	if strings.HasSuffix(file, ".md") {
+		input.Document, err = aw.Parse(string(content))
+		if err != nil {
+			return nil, errors.New("could not parse workflow AW AST")
 		}
-		input.Document = document
-	} else if !errors.Is(readErr, os.ErrNotExist) {
-		return nil, fmt.Errorf("reading companion AW document: %w", readErr)
+		return runner.Run(ctx, input)
 	}
-	return runner.Run(ctx, input)
+	var failures []error
+	input.Workflow, err = actions.Parse(content)
+	if err != nil {
+		// Parser errors can contain YAML scalar values or credentials.
+		failures = append(failures, errors.New("could not parse workflow Actions AST"))
+	}
+	if base, paired := strings.CutSuffix(file, ".lock.yml"); paired {
+		source, readErr := os.ReadFile(base + ".md")
+		switch {
+		case readErr == nil:
+			input.Document, err = aw.Parse(string(source))
+			if err != nil {
+				failures = append(failures, errors.New("could not parse companion AW document"))
+			}
+		case !errors.Is(readErr, os.ErrNotExist):
+			failures = append(failures, fmt.Errorf("reading companion AW document: %w", readErr))
+		}
+	}
+	if input.Workflow == nil && input.Document == nil {
+		return nil, errors.Join(failures...)
+	}
+	diagnostics, err := runner.Run(ctx, input)
+	return diagnostics, errors.Join(append(failures, err)...)
 }

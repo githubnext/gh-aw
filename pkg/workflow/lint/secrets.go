@@ -11,6 +11,7 @@ func SecretLeakRule() Rule {
 		ID:          "secret-leak",
 		Description: "Detect secret values flowing to disclosure sinks",
 		Severity:    Error,
+		Targets:     ActionsAST | AWAST,
 		Check: func(ctx context.Context, input Input) ([]Diagnostic, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, err
@@ -23,13 +24,12 @@ func SecretLeakRule() Rule {
 				options.Context = ctx
 				rule.JavaScript = &options
 			}
-			if input.Document != nil {
+			if input.Workflow == nil && input.Document != nil {
+				result, err = taint.AnalyzeAuthoredDocument(ctx, input.Document, rule)
+			} else if input.Document != nil {
 				result, err = taint.AnalyzeDocument(input.Document, input.Workflow, rule)
 			} else {
 				result, err = taint.Analyze(input.Workflow, rule)
-			}
-			if err != nil {
-				return nil, err
 			}
 			diagnostics := make([]Diagnostic, 0, len(result.Findings)+len(result.Gaps))
 			for _, finding := range result.Findings {
@@ -50,7 +50,7 @@ func SecretLeakRule() Rule {
 					Message: "Incomplete secret-leak analysis: " + gap.Reason,
 				})
 			}
-			return diagnostics, nil
+			return diagnostics, err
 		},
 	}
 }

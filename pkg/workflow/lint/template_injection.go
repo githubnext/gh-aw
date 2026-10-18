@@ -20,6 +20,7 @@ func TemplateInjectionRule() Rule {
 		ID:          "template-injection",
 		Description: "Detect attacker-controlled Actions expressions interpolated into run scripts",
 		Severity:    Error,
+		Targets:     ActionsAST | AWAST,
 		Check:       checkTemplateInjection,
 	}
 }
@@ -29,6 +30,9 @@ func checkTemplateInjection(ctx context.Context, input Input) ([]Diagnostic, err
 		return nil, err
 	}
 	if input.Workflow == nil {
+		if input.Document != nil {
+			return checkAuthoredTemplateInjection(ctx, input)
+		}
 		return nil, errors.New("template-injection requires an Actions AST")
 	}
 	resolved, err := actions.Resolve(input.Workflow)

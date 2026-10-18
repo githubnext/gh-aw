@@ -28,6 +28,9 @@ func TestSourcePolicySeverityAndBoundaries(t *testing.T) {
 		{PrivateToPublicRule(), "tools:\n  github:\n    private-to-public-flows: allow", "tools.github.private-to-public-flows"},
 		{PrivateToPublicRule(), "tools:\n  github:\n    private-to-public-flows: [one, two]", "tools.github.private-to-public-flows"},
 		{PrivateToPublicRule(), "tools:\n  github:\n    private-to-public-flows: []", "tools.github.private-to-public-flows"},
+		{InstallScriptsRule(), "runtimes:\n  node:\n    run-install-scripts: true", "runtimes.node.run-install-scripts"},
+		{NetworkScopeRule(), "network:\n  allowed: ['*']", "network.allowed"},
+		{NetworkScopeRule(), "network:\n  allowed: [defaults, '*']", "network.allowed"},
 	} {
 		t.Run(tt.rule.ID+"/"+tt.text, func(t *testing.T) {
 			for _, strict := range []string{"", "strict: true\n", "strict: false\n"} {

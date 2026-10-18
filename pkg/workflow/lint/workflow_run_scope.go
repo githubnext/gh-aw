@@ -2,7 +2,6 @@ package lint
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -24,6 +23,7 @@ func WorkflowRunScopeRule() Rule {
 		ID:          "workflow-run-scope",
 		Description: "Require workflow selection and positive branch scope for workflow_run triggers",
 		Severity:    Error,
+		Targets:     ActionsAST | AWAST,
 		Check:       checkWorkflowRunScope,
 	}
 }
@@ -32,10 +32,16 @@ func checkWorkflowRunScope(ctx context.Context, input Input) ([]Diagnostic, erro
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if input.Workflow == nil {
-		return nil, errors.New("workflow-run scope lint requires an Actions AST")
+	if err := integrityInput(ctx, input); err != nil {
+		return nil, err
 	}
-	config, path, found, err := workflowRunTrigger(ctx, input.Workflow.On)
+	var on any
+	if input.Workflow != nil {
+		on = input.Workflow.On
+	} else {
+		on = input.Document.Frontmatter["on"]
+	}
+	config, path, found, err := workflowRunTrigger(ctx, on)
 	if err != nil || !found {
 		return nil, err
 	}

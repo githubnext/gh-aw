@@ -22,10 +22,29 @@ const (
 	Warning Severity = "warning"
 )
 
+type ASTTargets uint8
+
+const (
+	ActionsAST ASTTargets = 1 << iota
+	AWAST
+)
+
+func (targets ASTTargets) String() string {
+	switch targets {
+	case AWAST:
+		return "aw"
+	case ActionsAST | AWAST:
+		return "actions,aw"
+	default:
+		return "actions"
+	}
+}
+
 type Input struct {
 	Workflow *actions.Workflow
 	// Document optionally supplies authored AW fields, including the prompt.
-	// Workflow must be the compiled form, not a projection of raw frontmatter.
+	// Either AST may be supplied independently. Workflow is never a projection
+	// of AW frontmatter; when both are supplied it is the compiled graph.
 	Document   *aw.Document
 	JavaScript *taint.JavaScriptOptions
 }
@@ -51,7 +70,9 @@ type Rule struct {
 	ID          string
 	Description string
 	Severity    Severity
-	Check       func(context.Context, Input) ([]Diagnostic, error)
+	// Zero preserves the Actions-only contract of existing extension rules.
+	Targets ASTTargets
+	Check   func(context.Context, Input) ([]Diagnostic, error)
 }
 
 type Runner struct {
@@ -68,6 +89,9 @@ func New(rules ...Rule) (*Runner, error) {
 		}
 		if rule.Severity != Error && rule.Severity != Warning {
 			return nil, fmt.Errorf("lint rule %q requires error or warning severity", rule.ID)
+		}
+		if rule.Targets & ^(ActionsAST|AWAST) != 0 {
+			return nil, errors.New("lint rule targets must be Actions or AW ASTs")
 		}
 		if _, exists := seen[rule.ID]; exists {
 			return nil, fmt.Errorf("duplicate lint rule %q", rule.ID)
@@ -112,14 +136,21 @@ func (r *Runner) Select(ids ...string) (*Runner, error) {
 // Run returns diagnostics even when another rule fails. Tooling failures are
 // errors, not successful empty reports. Rule IDs/severities are registry-owned.
 func (r *Runner) Run(ctx context.Context, input Input) ([]Diagnostic, error) {
-	if input.Workflow == nil {
-		return nil, errors.New("workflow lint requires an Actions AST")
+	if input.Workflow == nil && input.Document == nil {
+		return nil, errors.New("workflow lint requires an Actions or AW AST")
 	}
 	var diagnostics []Diagnostic
 	var failures []error
 	for _, rule := range r.rules {
 		if err := ctx.Err(); err != nil {
 			return diagnostics, errors.Join(append(failures, err)...)
+		}
+		targets := rule.Targets
+		if targets == 0 {
+			targets = ActionsAST
+		}
+		if (input.Workflow == nil || targets&ActionsAST == 0) && (input.Document == nil || targets&AWAST == 0) {
+			continue
 		}
 		findings, err := rule.Check(ctx, input)
 		if err != nil {
@@ -169,5 +200,9 @@ func Default() *Runner {
 		VersionCheckRule(),
 		ConditionalImportRule(),
 		PrivateToPublicRule(),
+		InstallScriptsRule(),
+		AllowedLabelsRule(),
+		NetworkScopeRule(),
+		PushTargetRule(),
 	}}
 }

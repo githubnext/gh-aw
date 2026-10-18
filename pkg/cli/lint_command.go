@@ -38,16 +38,21 @@ var defaultGhAwActionlintIgnorePatterns = []string{
 // NewLintCommand creates the lint command.
 func NewLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "lint [lock-file-or-directory]...",
-		Short: "Lint existing .lock.yml workflow files",
-		Long: `Lint existing .lock.yml workflow files from disk using built-in Actions/AW AST rules and actionlint.
+		Use:   "lint [workflow-file-or-directory]...",
+		Short: "Lint AW Markdown or Actions YAML workflow ASTs",
+		Long: `Lint .md, .yml, and .yaml workflows using built-in Actions/AW AST rules.
 
-This command does not recompile Markdown workflows and does not run zizmor or poutine.
+Rules consume parsed ASTs only. This command never recompiles workflows.
+AW Markdown is checked as authored; imports and generated execution require an Actions AST.
+Directories prefer an existing .lock.yml over its paired .md and skip plain Markdown without frontmatter.
+Actionlint runs only on YAML files. This command does not run zizmor or poutine.
 By default, shellcheck and pyflakes integrations are disabled for generated run scripts.
 All registered AST rules run by default. Use --rules to select AST rules and skip external actionlint.`,
-		Example: `  ` + string(constants.CLIExtensionPrefix) + ` lint                                  # Lint all .lock.yml workflows in the default directory
+		Example: `  ` + string(constants.CLIExtensionPrefix) + ` lint                                  # Lint workflows in the default directory
   ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/foo.lock.yml    # Lint a specific lock file
-  ` + string(constants.CLIExtensionPrefix) + ` lint --dir custom-workflows/            # Lint all lock files in a custom directory
+  ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/foo.md           # Lint the authored AW AST without compiling
+  ` + string(constants.CLIExtensionPrefix) + ` lint .github/workflows/ci.yml           # Lint a native Actions AST
+  ` + string(constants.CLIExtensionPrefix) + ` lint --dir custom-workflows/            # Lint workflows in a custom directory
   ` + string(constants.CLIExtensionPrefix) + ` lint --shellcheck --pyflakes            # Enable actionlint script integrations
   ` + string(constants.CLIExtensionPrefix) + ` lint --rules secret-leak --json         # Run the built-in taint checker
   ` + string(constants.CLIExtensionPrefix) + ` lint --list-rules                       # List built-in AST rules`,
@@ -74,7 +79,7 @@ func selectWorkflowLintRules(cmd *cobra.Command) (*workflowlint.Runner, error) {
 	listRules, _ := cmd.Flags().GetBool("list-rules")
 	if listRules {
 		for _, rule := range runner.Rules() {
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n", rule.ID, rule.Severity, rule.Description); err != nil {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", rule.ID, rule.Severity, rule.Targets, rule.Description); err != nil {
 				return nil, err
 			}
 		}
@@ -105,7 +110,7 @@ func runLintCommand(cmd *cobra.Command, args []string) (resultErr error) {
 	if err != nil {
 		return err
 	}
-	lintCommandLog.Printf("Resolved %d lock file(s) for linting", len(lockFiles))
+	lintCommandLog.Printf("Resolved %d workflow file(s) for linting", len(lockFiles))
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	javascript, closeJavaScript, err := javascriptLintOptions(cmd)
 	if err != nil {
@@ -116,9 +121,15 @@ func runLintCommand(cmd *cobra.Command, args []string) (resultErr error) {
 	if cmd.Flags().Changed("rules") {
 		return workflowLintErr
 	}
+	actionFiles := slices.DeleteFunc(slices.Clone(lockFiles), func(file string) bool {
+		return strings.HasSuffix(file, ".md")
+	})
+	if len(actionFiles) == 0 {
+		return workflowLintErr
+	}
 	initActionlintStats()
 	defer displayActionlintSummary()
-	actionlintErr := runActionlintOnFilesWithOptions(cmd.Context(), lockFiles, verbose, true, actionlintRunOptions{
+	actionlintErr := runActionlintOnFilesWithOptions(cmd.Context(), actionFiles, verbose, true, actionlintRunOptions{
 		IncludeShellcheck: includeShellcheck,
 		IncludePyflakes:   includePyflakes,
 		IgnorePatterns:    defaultGhAwActionlintIgnorePatterns,
@@ -145,7 +156,7 @@ func resolveLockFilesForLint(inputs []string, workflowDir string) ([]string, err
 	}
 
 	if len(lockFiles) == 0 {
-		return nil, errors.New("no .lock.yml files found to lint")
+		return nil, errors.New("no .md, .yml, or .yaml workflow files found to lint")
 	}
 
 	slices.Sort(lockFiles)
@@ -166,17 +177,13 @@ func expandLintCandidate(candidate string) ([]string, error) {
 	}
 
 	if info.IsDir() {
-		lockFiles, err := filepath.Glob(filepath.Join(absCandidate, "*.lock.yml"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan %q for .lock.yml files: %w", candidate, err)
-		}
-		lintCommandLog.Printf("Expanded directory %s to %d .lock.yml file(s)", candidate, len(lockFiles))
-		return lockFiles, nil
+		return expandLintDirectory(absCandidate)
 	}
 
-	if !strings.HasSuffix(absCandidate, ".lock.yml") {
-		return nil, fmt.Errorf("path %q is not a .lock.yml file or directory", candidate)
+	switch filepath.Ext(absCandidate) {
+	case ".md", ".yml", ".yaml":
+		return []string{absCandidate}, nil
+	default:
+		return nil, fmt.Errorf("path %q is not a .md, .yml, or .yaml workflow file or directory", candidate)
 	}
-
-	return []string{absCandidate}, nil
 }

@@ -16,7 +16,7 @@ var permissionNamePattern = regexp.MustCompile(`^[a-z][a-z-]*$`)
 func PermissionScopeRule() Rule {
 	return Rule{
 		ID: "permission-scope", Description: "Avoid blanket write permissions and invalid OIDC read grants",
-		Severity: Warning, Check: checkPermissionScopes,
+		Severity: Warning, Targets: ActionsAST | AWAST, Check: checkPermissionScopes,
 	}
 }
 
@@ -27,6 +27,9 @@ func checkPermissionScopes(ctx context.Context, input Input) ([]Diagnostic, erro
 	severity, err := sourcePolicySeverity(input, "permission-scope")
 	if err != nil {
 		return nil, err
+	}
+	if input.Workflow == nil {
+		return checkAuthoredPermissions(ctx, input, severity)
 	}
 	diagnostics, err := permissionScope(ctx, input.Workflow.Permissions, "permissions", severity)
 	failures := []error{err}

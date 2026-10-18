@@ -21,6 +21,7 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		"secret-leak", "action-pin", "job-timeout", "template-injection", "workflow-run-scope",
 		"permission-scope", "version-check", "conditional-import", "private-to-public",
+		"install-scripts", "allowed-labels", "network-scope", "push-target",
 	}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")
 	require.NoError(t, err)
