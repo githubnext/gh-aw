@@ -34,6 +34,7 @@ network:
     - go
     - node
 tools:
+  profile: go
   cli-proxy: true
   bash:
     - "*"
@@ -44,7 +45,7 @@ tools:
     toolsets: [default, pull_requests]
   cache-memory: true
 timeout-minutes: 30
-steps:
+pre-agent-steps:
   - name: Install deadcode analyzer
     run: go install golang.org/x/tools/cmd/deadcode@latest
 

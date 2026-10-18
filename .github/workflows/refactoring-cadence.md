@@ -27,6 +27,7 @@ imports:
       labels: [refactoring, ai-generated]
   - shared/otlp.md
 tools:
+  profile: go
   cli-proxy: true
   github:
     mode: gh-proxy

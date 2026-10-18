@@ -51,6 +51,9 @@ The latter includes both the installed gopls directory and the selected Go
 toolchain's `bin` directory. Other containerized code-analysis servers can
 forward that PATH when they declare the same read-only binary and toolchain
 mounts. Forwarding only Go's `bin` directory does not make gopls available.
+The profile also sets `GOBIN` to its writable, sandbox-mounted `cache/bin`
+directory and adds it to PATH. Additional `go install` commands use that
+directory rather than an unmounted `$HOME/go/bin`.
 
 Profiles work with Copilot, Claude, and Gemini, including `tools.cli-proxy`, and
 can be declared in shared workflow imports. Repeated declarations install the

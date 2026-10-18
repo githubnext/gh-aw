@@ -37,7 +37,8 @@ pre-agent-steps:
         exit 1
       fi
       profile="${RUNNER_TEMP:?RUNNER_TEMP must be set}/gh-aw/tool-profiles/go"
-      mkdir -p "$profile/bin" "$profile/cache/build" "$profile/cache/mod" "$profile/cache/home"
+      mkdir -p "$profile/bin" "$profile/cache/bin" "$profile/cache/build" "$profile/cache/mod" "$profile/cache/home"
+      export GOBIN="$profile/cache/bin"
       export GOPATH="$profile/cache/go"
       export GOCACHE="$profile/cache/build"
       export GOMODCACHE="$profile/cache/mod"
@@ -60,10 +61,11 @@ pre-agent-steps:
         printf 'GH_AW_TOOL_PROFILE_GO_DIR=%s\n' "$profile"
         printf 'GH_AW_TOOL_PROFILE_GO_ROOT=%s\n' "$go_root"
         printf 'GH_AW_TOOL_PROFILE_GO_PATH=%s/bin:%s/bin\n' "$profile" "$go_root"
+        printf 'GOBIN=%s\n' "$GOBIN"
         printf 'GOPATH=%s\nGOCACHE=%s\nGOMODCACHE=%s\n' "$GOPATH" "$GOCACHE" "$GOMODCACHE"
         printf 'GOTELEMETRY=off\n'
       } >> "$GITHUB_ENV"
-      printf '%s\n' "$profile/bin" >> "$GITHUB_PATH"
+      printf '%s\n' "$profile/bin" "$GOBIN" >> "$GITHUB_PATH"
 mcp-servers:
   gopls:
     container: node:lts-alpine

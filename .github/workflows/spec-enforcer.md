@@ -44,6 +44,7 @@ name: Package Specification Enforcer
 strict: true
 timeout-minutes: 30
 tools:
+  profile: go
   bash:
   - "*"
   cache-memory: true
@@ -308,7 +309,7 @@ When one or more generated or updated spec tests pass validation, publish one ex
 mkdir -p /tmp/gh-aw/spec-enforcer "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage"
 go install github.com/boumenot/gocover-cobertura@4afa1205ab3b54ae098dd4724c1657aad10f7484
 go test ./pkg/<package>/... -run "TestSpec" -covermode=atomic -coverprofile=/tmp/gh-aw/spec-enforcer/coverage.out
-"$(go env GOPATH)/bin/gocover-cobertura" < /tmp/gh-aw/spec-enforcer/coverage.out > "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/cobertura.xml"
+"$GOBIN/gocover-cobertura" < /tmp/gh-aw/spec-enforcer/coverage.out > "$RUNNER_TEMP/gh-aw/safeoutputs/upload-code-coverage/cobertura.xml"
 ```
 
 Only after verifying `cobertura.xml` exists and is non-empty, call `upload_code_coverage` with

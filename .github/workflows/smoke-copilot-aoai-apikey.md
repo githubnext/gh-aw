@@ -214,7 +214,7 @@ Run each check NOW and mark as ✅/❌. Do NOT create files to automate this —
 5. Bash: fetch `https://github.com` with `curl` and confirm response contains `GitHub`.
 6. File + bash: create `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with timestamped success text, then `cat` it.
 7. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then `add_comment` to that discussion.
-8. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
+8. Build: run `make build` using the Go profile's sandbox-mounted caches.
 9. Artifact upload (only if build passes): stage `./gh-aw` at `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw` and run `safeoutputs upload_artifact --path gh-aw` through bash.
 10. Discussion create: call `create_discussion` in `announcements` with label `ai-generated`, title `copilot was here`, and `temporary_id: "aw_discuss"`.
 11. Workflow dispatch: use `safeoutputs dispatch_workflow` through bash for `haiku-printer`, set top-level `ref` to `${{ github.event.repository.default_branch }}`, and include `inputs.message` with an original testing/automation haiku (non-empty string).

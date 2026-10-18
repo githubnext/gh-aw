@@ -19,6 +19,7 @@ network:
     - defaults
     - go
 tools:
+  profile: go
   cli-proxy: true
   bash:
     - "cat /tmp/gh-aw/agent/image-scan/compile-output.txt"
@@ -57,8 +58,10 @@ steps:
     continue-on-error: true
     run: |
       set -e
+      export GOBIN="${RUNNER_TEMP:?RUNNER_TEMP must be set}/gh-aw/tool-profiles/go/cache/bin"
+      mkdir -p "$GOBIN"
       go install github.com/google/go-containerregistry/cmd/crane@v0.22.1
-      echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      printf '%s\n' "$GOBIN" >> "$GITHUB_PATH"
   - name: Refresh container image pins (best effort)
     continue-on-error: true
     shell: bash

@@ -233,7 +233,9 @@ func checkGoToolProfileSetup(t *testing.T, script, scenario string) {
 	}
 	require.NoError(t, err, "%s", output)
 	require.Contains(t, string(env), "GH_AW_TOOL_PROFILE_GO_PATH="+profile+"/bin:"+root+"/bin\n")
-	require.Equal(t, profile+"/bin\n", string(path))
+	require.Contains(t, string(env), "GOBIN="+profile+"/cache/bin\n")
+	require.DirExists(t, filepath.Join(profile, "cache", "bin"))
+	require.Equal(t, profile+"/bin\n"+profile+"/cache/bin\n", string(path))
 }
 
 const goProfileMockGo = `#!/bin/sh

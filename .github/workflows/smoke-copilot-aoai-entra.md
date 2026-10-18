@@ -213,7 +213,7 @@ Run each check NOW and mark as ✅/❌. Do NOT create files to automate this —
 6. File + bash: create `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with timestamped success text, then `cat` it.
 7. Azure CLI in-agent check: run `az account show --output none` to verify Azure credentials are available in the sandboxed agent process.
 8. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then `add_comment` to that discussion.
-9. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
+9. Build: run `make build` using the Go profile's sandbox-mounted caches.
 10. Artifact upload (only if build passes): stage `./gh-aw` at `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw` and call `upload_artifact` with `path: "gh-aw"`.
 11. Discussion create: call `create_discussion` in `announcements` with label `ai-generated`, title `copilot was here`, and `temporary_id: "aw_discuss"`.
 12. Workflow dispatch: call `dispatch_workflow` for `haiku-printer`, set top-level `ref` to `${{ github.event.repository.default_branch }}`, and include `inputs.message` with an original testing/automation haiku (non-empty string).
