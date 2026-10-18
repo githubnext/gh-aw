@@ -100,7 +100,9 @@ var ghAwOnSectionKeys = map[string]bool{
 	"status-comment":                     true,
 	"steps":                              true,
 	"stop-after":                         true,
-	"gateway":                            true,
+	"webhook-gateway":                    true,
+	"projects-items":                     true,
+	"security-alerts":                    true,
 }
 
 // ValidateEventTypes validates that the event types in the 'on:' section of a

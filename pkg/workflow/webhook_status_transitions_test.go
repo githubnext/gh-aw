@@ -17,7 +17,7 @@ func TestWebhookNativeStatusTransitions(t *testing.T) {
 			map[string]any{"from": "In progress", "to": "Done"},
 		},
 	}
-	on := map[string]any{"gateway": map[string]any{"projects-items": config}}
+	on := map[string]any{"webhook-gateway": true, "projects-items": config}
 	before, err := json.Marshal(on)
 	require.NoError(t, err)
 	subscriptions, err := ParseWebhookSubscriptions(on, "project-agent")
@@ -106,15 +106,15 @@ func TestWebhookNativeStatusTransitionsValidation(t *testing.T) {
 		"wrong keys":      []any{map[string]any{"old": "Todo", "new": "Ready"}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := ParseWebhookSubscriptions(map[string]any{"gateway": map[string]any{"projects-items": map[string]any{
+			_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, "projects-items": map[string]any{
 				"project_id": "PVT_example", "status-transitions": transitions,
-			}}}, "project-agent")
-			require.ErrorContains(t, err, "on.gateway.projects-items.status-transitions")
+			}}, "project-agent")
+			require.ErrorContains(t, err, "on.projects-items.status-transitions")
 		})
 	}
-	_, err := ParseWebhookSubscriptions(map[string]any{"gateway": map[string]any{"projects-items": map[string]any{
+	_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, "projects-items": map[string]any{
 		"project_id": "PVT_example", "types": []any{"created"},
 		"status-transitions": []any{map[string]any{"from": "Todo", "to": "Ready"}},
-	}}}, "project-agent")
+	}}, "project-agent")
 	require.ErrorContains(t, err, "requires types to include edited")
 }

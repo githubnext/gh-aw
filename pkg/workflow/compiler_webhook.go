@@ -17,24 +17,28 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	if !ok {
 		return frontmatter, nil
 	}
-	if len(subscriptions) == 0 {
+	_, hasGatewayFlag := on["webhook-gateway"]
+	if len(subscriptions) == 0 && !hasGatewayFlag {
 		return frontmatter, nil
 	}
-	if err := c.requireWebhookTriggers(c.extractRoles(frontmatter)); err != nil {
-		return nil, err
-	}
-	dispatchType := WebhookDispatchEventType(data.WorkflowID)
-	dispatchTypes, err := mergeWebhookDispatchTypes(on, dispatchType)
-	if err != nil {
-		return nil, err
-	}
-	data.WebhookSubscriptions = subscriptions
 
 	// Preserve source frontmatter for metadata and hashing; only lower the trigger copy.
 	frontmatter = maps.Clone(frontmatter)
 	on = maps.Clone(on)
-	delete(on, "gateway")
-	on["repository_dispatch"] = map[string]any{"types": dispatchTypes}
+	delete(on, "webhook-gateway")
+	if len(subscriptions) > 0 {
+		if err := c.requireWebhookTriggers(c.extractRoles(frontmatter)); err != nil {
+			return nil, err
+		}
+		dispatchTypes, err := mergeWebhookDispatchTypes(on, WebhookDispatchEventType(data.WorkflowID))
+		if err != nil {
+			return nil, err
+		}
+		data.WebhookSubscriptions = subscriptions
+		delete(on, "projects-items")
+		delete(on, "security-alerts")
+		on["repository_dispatch"] = map[string]any{"types": dispatchTypes}
+	}
 	frontmatter["on"] = on
 	data.On = c.extractTopLevelYAMLSection(frontmatter, "on")
 	if data.ParsedFrontmatter != nil {

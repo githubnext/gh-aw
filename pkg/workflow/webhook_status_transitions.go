@@ -11,7 +11,7 @@ func applyWebhookStatusTransitions(subscription *WebhookSubscription, config map
 	if !exists {
 		return nil
 	}
-	const path = "on.gateway.projects-items.status-transitions"
+	const path = "on.projects-items.status-transitions"
 	transitions, ok := raw.([]any)
 	if !ok || len(transitions) == 0 {
 		return fmt.Errorf("%s must be a non-empty list of from/to status pairs", path)

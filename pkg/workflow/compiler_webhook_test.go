@@ -4,6 +4,7 @@ package workflow
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -39,10 +40,10 @@ func TestCompileWebhookTriggers(t *testing.T) {
   workflow_dispatch:
   push:
     branches: [main]
-  gateway:
-    projects-items:
-      project_id: PVT_example
-      types: [edited]
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    types: [edited]
 `), "webhook-test.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 1)
@@ -50,6 +51,9 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
 	on := triggers["on"].(map[string]any)
 	assert.NotContains(t, on, "gateway")
+	assert.NotContains(t, on, "webhook-gateway")
+	assert.NotContains(t, on, "projects-items")
+	assert.NotContains(t, on, "security-alerts")
 	assert.Contains(t, on, "workflow_dispatch")
 	assert.Contains(t, on, "push")
 	assert.NotContains(t, on, "webhook")
@@ -97,12 +101,12 @@ func TestCompileWebhookTriggers(t *testing.T) {
 func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	var frontmatter map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(`on:
-  gateway:
-    projects-items:
-      project_id: PVT_example
-      types: [edited]
-    security-alerts:
-      sources: [dependabot]
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    types: [edited]
+  security-alerts:
+    sources: [dependabot]
 `), &frontmatter))
 	original, err := json.Marshal(frontmatter)
 	require.NoError(t, err)
@@ -116,6 +120,9 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.Contains(t, lowered["on"], "repository_dispatch")
 	assert.NotContains(t, lowered["on"], "webhook")
 	assert.NotContains(t, lowered["on"], "gateway")
+	assert.NotContains(t, lowered["on"], "webhook-gateway")
+	assert.NotContains(t, lowered["on"], "projects-items")
+	assert.NotContains(t, lowered["on"], "security-alerts")
 	assert.NotContains(t, lowered["on"], "projects-item")
 	assert.NotContains(t, lowered["on"], "security-alert")
 	require.Len(t, data.WebhookSubscriptions, 2)
@@ -123,16 +130,35 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.Equal(t, "projects_v2_item", data.WebhookSubscriptions[1].Event)
 }
 
+func TestWebhookGatewayFlagWithoutSubscriptions(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
+			compiler := NewCompiler()
+			source := webhookWorkflow("on:\n  webhook-gateway: " + strconv.FormatBool(enabled) + "\n  workflow_dispatch:\n  roles: all\n")
+			data, err := compiler.ParseWorkflowString(source, "native-flag.md")
+			require.NoError(t, err)
+			assert.Empty(t, data.WebhookSubscriptions)
+			assert.NotContains(t, data.On, "webhook-gateway")
+			assert.Contains(t, data.On, "workflow_dispatch")
+			output, err := compiler.CompileToYAML(data, "native-flag.md")
+			require.NoError(t, err)
+			assert.NotContains(t, output, "Validate webhook relay")
+			assert.NotContains(t, output, "Stage inline webhook event")
+			assert.NotContains(t, output, "gh-aw-webhook-")
+		})
+	}
+}
+
 func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 	for name, tt := range map[string]struct {
 		trigger string
 		event   string
 	}{
-		"projects-items":     {"  gateway:\n    projects-items:\n      project_id: PVT_example\n", "projects_v2_item"},
-		"status-transitions": {"  gateway:\n    projects-items:\n      project_id: PVT_example\n      status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
-		"code-scanning":      {"  gateway:\n    security-alerts:\n      sources: [code-scanning]\n", "code_scanning_alert"},
-		"dependabot":         {"  gateway:\n    security-alerts:\n      sources: [dependabot]\n", "dependabot_alert"},
-		"multi-repo":         {"  gateway:\n    security-alerts:\n      sources: [dependabot]\n      repos: [bar/baz, \"foo/*\"]\n", "dependabot_alert"},
+		"projects-items":     {"  webhook-gateway: true\n  projects-items:\n    project_id: PVT_example\n", "projects_v2_item"},
+		"status-transitions": {"  webhook-gateway: true\n  projects-items:\n    project_id: PVT_example\n    status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
+		"code-scanning":      {"  webhook-gateway: true\n  security-alerts:\n    sources: [code-scanning]\n", "code_scanning_alert"},
+		"dependabot":         {"  webhook-gateway: true\n  security-alerts:\n    sources: [dependabot]\n", "dependabot_alert"},
+		"multi-repo":         {"  webhook-gateway: true\n  security-alerts:\n    sources: [dependabot]\n    repos: [bar/baz, \"foo/*\"]\n", "dependabot_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()
@@ -179,74 +205,74 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 
 func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 	tests := map[string]string{
-		"missing project ID": `  gateway: {projects-items: {}}`,
-		"nested project ID": `  gateway:
-    projects-items:
-      filters:
-        project_id: PVT_example`,
-		"removed security type": `  gateway:
-    security-alerts:
-      type: dependabot`,
+		"missing project ID": `  webhook-gateway: true
+  projects-items: {}`, "nested project ID": `  webhook-gateway: true
+  projects-items:
+    filters:
+      project_id: PVT_example`,
+		"removed security type": `  webhook-gateway: true
+  security-alerts:
+    type: dependabot`,
 		"removed general registration": `  webhook:
     not_a_github_event: {}`,
-		"removed auth": `  gateway:
-    projects-items:
-      project_id: PVT_example
+		"removed auth": `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
   webhook-auth:
     actors: ["cao[bot]"]`,
-		"invalid action": `  gateway:
-    projects-items:
-      project_id: PVT_example
-      types: [not_a_real_action]`,
-		"unknown filter": `  gateway:
-    projects-items:
-      project_id: PVT_example
-      filters:
-        not-a-real-filter: test`,
-		"wrong filter type": `  gateway:
-    projects-items:
-      project_id: PVT_example
-      filters:
-        item_database_id: "7"`,
-		"unavailable filter": `  gateway:
-    projects-items:
-      project_id: PVT_example
-      types: [created]
-      filters:
-        field:
-          name: Status`,
-		"scalar event":   `  gateway: {projects-items: true}`,
-		"empty webhooks": `  webhook: {}`,
+		"invalid action": `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    types: [not_a_real_action]`,
+		"unknown filter": `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    filters:
+      not-a-real-filter: test`,
+		"wrong filter type": `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    filters:
+      item_database_id: "7"`,
+		"unavailable filter": `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    types: [created]
+    filters:
+      field:
+        name: Status`,
+		"scalar event": `  webhook-gateway: true
+  projects-items: true`, "empty webhooks": `  webhook: {}`,
 		"unrestricted dispatch": `  repository_dispatch:
-  gateway:
-    projects-items: {project_id: PVT_example}`,
+  webhook-gateway: true
+  projects-items: {project_id: PVT_example}`,
 		"wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
-  gateway:
-    projects-items: {project_id: PVT_example}`,
+  webhook-gateway: true
+  projects-items: {project_id: PVT_example}`,
 		"colliding dispatch": `  repository_dispatch:
     types: ["` + WebhookDispatchEventType("webhook-test") + `"]
-  gateway:
-    projects-items: {project_id: PVT_example}`,
+  webhook-gateway: true
+  projects-items: {project_id: PVT_example}`,
 		"security wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
-  gateway:
-    security-alerts:
-      sources: [dependabot]`,
-		"removed secret scanning": `  gateway:
-    security-alerts:
-      sources: [secret-scanning]`,
-		"mixed removed secret scanning": `  gateway:
-    security-alerts:
-      sources: [code-scanning, dependabot, secret-scanning]`,
-		"security duplicate spelling": `  gateway:
-    security-alerts:
-      sources: [code-scanning]
+  webhook-gateway: true
+  security-alerts:
+    sources: [dependabot]`,
+		"removed secret scanning": `  webhook-gateway: true
+  security-alerts:
+    sources: [secret-scanning]`,
+		"mixed removed secret scanning": `  webhook-gateway: true
+  security-alerts:
+    sources: [code-scanning, dependabot, secret-scanning]`,
+		"security duplicate spelling": `  webhook-gateway: true
+  security-alerts:
+    sources: [code-scanning]
   webhook:
     code_scanning_alert: {}`,
-		"duplicate spelling": `  gateway:
-    projects-items:
-      project_id: PVT_example
+		"duplicate spelling": `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
   webhook:
     projects_v2_item: {}`,
 	}
@@ -263,15 +289,15 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 func TestCompileWebhookNativeSelectors(t *testing.T) {
 	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
-  gateway:
-    projects-items:
-      project_id: PVT_example
-      status-transitions:
-        - {from: Todo, to: Ready}
-        - {from: In progress, to: Done}
-    security-alerts:
-      sources: [code-scanning, dependabot]
-      types: [created]
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    status-transitions:
+      - {from: Todo, to: Ready}
+      - {from: In progress, to: Done}
+  security-alerts:
+    sources: [code-scanning, dependabot]
+    types: [created]
 `), "native-selectors.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 3)
@@ -294,12 +320,12 @@ func TestWebhookStatusTransitionsDoNotAddAdmissionSteps(t *testing.T) {
 	for _, policy := range []string{"", "  roles: write\n"} {
 		t.Run(policy, func(t *testing.T) {
 			compiler := newWebhookCompiler()
-			source := webhookWorkflow("on:\n" + policy + `  gateway:
-    projects-items:
-      project_id: PVT_example
-      status-transitions:
-        - {from: Todo, to: Ready}
-        - {from: In progress, to: Done}
+			source := webhookWorkflow("on:\n" + policy + `  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    status-transitions:
+      - {from: Todo, to: Ready}
+      - {from: In progress, to: Done}
 `)
 			data, err := compiler.ParseWorkflowString(source, "cao-status.md")
 			require.NoError(t, err)
@@ -325,7 +351,7 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()
-			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  gateway:\n    projects-items:\n      project_id: PVT_example\n"+policy), "webhook-test.md")
+			data, err := compiler.ParseWorkflowString(webhookWorkflow("on:\n  webhook-gateway: true\n  projects-items:\n    project_id: PVT_example\n"+policy), "webhook-test.md")
 			if name == "all" {
 				require.ErrorContains(t, err, "require on.roles with write access or higher")
 				return
@@ -352,8 +378,8 @@ func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
   repository_dispatch:
     types: [manual-operation]
-  gateway:
-    projects-items: {project_id: PVT_example}
+  webhook-gateway: true
+  projects-items: {project_id: PVT_example}
 `), "webhook-test.md")
 	require.NoError(t, err)
 	assert.Contains(t, data.On, "manual-operation")
@@ -376,18 +402,18 @@ func TestWebhookRejectsCaseInsensitiveRelayRouteCollisions(t *testing.T) {
 func TestCompileMultipleWebhookSubscriptions(t *testing.T) {
 	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
-  gateway:
-    projects-items:
-      project_id: PVT_example
-      types: [edited]
-      filters:
-        field:
-          name: [Priority, Status]
-        project_number: 7
-    security-alerts:
-      sources: [dependabot]
-      types: [created]
-      severity: critical
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_example
+    types: [edited]
+    filters:
+      field:
+        name: [Priority, Status]
+      project_number: 7
+  security-alerts:
+    sources: [dependabot]
+    types: [created]
+    severity: critical
 `), "webhook-test.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 2)

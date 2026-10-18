@@ -32,9 +32,9 @@ func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 		"explicit true":  `{"webhook-gateway":true}`,
 	} {
 		for trigger, on := range map[string]string{
-			"project":    "on:\n  gateway:\n    projects-items: {project_id: PVT_example}\n",
-			"security":   "on:\n  gateway:\n    security-alerts: {sources: [dependabot]}\n",
-			"multi-repo": "on:\n  gateway:\n    security-alerts: {repos: [bar/baz, \"foo/*\"]}\n",
+			"project":    "on:\n  webhook-gateway: true\n  projects-items: {project_id: PVT_example}\n",
+			"security":   "on:\n  webhook-gateway: true\n  security-alerts: {sources: [dependabot]}\n",
+			"multi-repo": "on:\n  webhook-gateway: true\n  security-alerts: {repos: [bar/baz, \"foo/*\"]}\n",
 		} {
 			t.Run(name+"/"+trigger, func(t *testing.T) {
 				compiler := NewCompiler()
@@ -58,7 +58,7 @@ func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 }
 
 func TestWebhookOptInCannotBeBypassedByPreparsedData(t *testing.T) {
-	data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("on:\n  gateway:\n    projects-items: {project_id: PVT_example}\n"), "preparsed.md")
+	data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("on:\n  webhook-gateway: true\n  projects-items: {project_id: PVT_example}\n"), "preparsed.md")
 	require.NoError(t, err)
 	compiler := NewCompiler()
 	compiler.gitRoot = t.TempDir()
@@ -73,10 +73,10 @@ func TestWebhookOptInCannotBeBypassedByPreparsedData(t *testing.T) {
 
 func TestWebhookMinimumRoles(t *testing.T) {
 	for name, trigger := range map[string]string{
-		"projects":   "gateway: {projects-items: {project_id: PVT_example}}",
-		"code":       "gateway: {security-alerts: {sources: [code-scanning]}}",
-		"dependabot": "gateway: {security-alerts: {sources: [dependabot]}}",
-		"multi-repo": "gateway: {security-alerts: {repos: [bar/baz, \"foo/*\"]}}",
+		"projects":   "projects-items: {project_id: PVT_example}",
+		"code":       "security-alerts: {sources: [code-scanning]}",
+		"dependabot": "security-alerts: {sources: [dependabot]}",
+		"multi-repo": "security-alerts: {repos: [bar/baz, \"foo/*\"]}",
 	} {
 		for _, tt := range []struct {
 			roles string
@@ -101,7 +101,7 @@ func TestWebhookMinimumRoles(t *testing.T) {
 					if tt.roles != "" {
 						roleConfig = "  roles: " + tt.roles + "\n"
 					}
-					source := webhookWorkflow(fmt.Sprintf("strict: %t\non:\n  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n  bots: [cao-gateway]\n%s  %s\n", strict, roleConfig, trigger))
+					source := webhookWorkflow(fmt.Sprintf("strict: %t\non:\n  webhook-gateway: true\n  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n  bots: [cao-gateway]\n%s  %s\n", strict, roleConfig, trigger))
 					compiler := newWebhookCompiler()
 					data, err := compiler.ParseWorkflowString(source, "webhook-roles.md")
 					if !tt.valid {
@@ -126,7 +126,7 @@ func TestWebhookMinimumRoles(t *testing.T) {
 func TestWebhookMinimumRolesCannotBeBypassedByPreparsedData(t *testing.T) {
 	for _, roles := range [][]string{nil, {}, {"all"}, {"read"}, {"triage"}, {"write", "read"}, {"admin", "all"}, {"unknown"}} {
 		t.Run(fmt.Sprint(roles), func(t *testing.T) {
-			data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("strict: false\non:\n  gateway:\n    projects-items: {project_id: PVT_example}\n"), "preparsed-roles.md")
+			data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("strict: false\non:\n  webhook-gateway: true\n  projects-items: {project_id: PVT_example}\n"), "preparsed-roles.md")
 			require.NoError(t, err)
 			data.Roles = roles
 			_, err = newWebhookCompiler().CompileToYAML(data, "preparsed-roles.md")
@@ -171,7 +171,7 @@ func TestWebhookRepoConfigValidation(t *testing.T) {
 			require.Error(t, err)
 			compiler := NewCompiler()
 			compiler.gitRoot = root
-			_, err = compiler.ParseWorkflowString(webhookWorkflow("on:\n  gateway:\n    security-alerts: {sources: [dependabot]}\n"), "invalid-cao.md")
+			_, err = compiler.ParseWorkflowString(webhookWorkflow("on:\n  webhook-gateway: true\n  security-alerts: {sources: [dependabot]}\n"), "invalid-cao.md")
 			require.ErrorContains(t, err, "cannot enable hosted CAO triggers")
 		})
 	}
@@ -181,7 +181,7 @@ func TestWebhookFrontmatterCannotEnableTriggers(t *testing.T) {
 	for _, declaration := range []string{"webhook-gateway: true\n", "features: {webhook-gateway: true}\n"} {
 		compiler := NewCompiler()
 		compiler.gitRoot = t.TempDir()
-		_, err := compiler.ParseWorkflowString(webhookWorkflow(declaration+"on:\n  gateway:\n    projects-items: {project_id: PVT_example}\n"), "frontmatter-cao.md")
+		_, err := compiler.ParseWorkflowString(webhookWorkflow(declaration+"on:\n  webhook-gateway: true\n  projects-items: {project_id: PVT_example}\n"), "frontmatter-cao.md")
 		require.Error(t, err)
 	}
 }

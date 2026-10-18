@@ -12,11 +12,13 @@ func TestWebhookSchema(t *testing.T) {
 		valid bool
 	}{
 		"subscription without separate auth": {
-			on: map[string]any{"gateway": map[string]any{"projects-items": map[string]any{
-				"project_id": "PVT_example",
-				"types":      []any{"edited"},
-				"filters":    map[string]any{"project_number": 7},
-			}},
+			on: map[string]any{
+				"webhook-gateway": true,
+				"projects-items": map[string]any{
+					"project_id": "PVT_example",
+					"types":      []any{"edited"},
+					"filters":    map[string]any{"project_number": 7},
+				},
 			},
 			valid: true,
 		},
@@ -27,13 +29,13 @@ func TestWebhookSchema(t *testing.T) {
 			on: map[string]any{"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}}},
 		},
 		"unknown event config property": {
-			on: map[string]any{"gateway": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "typo": true}}},
+			on: map[string]any{"webhook-gateway": true, "projects-items": map[string]any{"project_id": "PVT_example", "typo": true}},
 		},
 		"removed auth with valid trigger": {
 			on: map[string]any{
-
-				"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}},
-				"gateway":      map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}},
+				"webhook-auth":    map[string]any{"actors": []any{"cao[bot]"}},
+				"webhook-gateway": true,
+				"projects-items":  map[string]any{"project_id": "PVT_example"},
 			},
 		},
 	} {
@@ -79,9 +81,7 @@ func TestFirstClassWebhookSchema(t *testing.T) {
 				"empty types":       {map[string]any{"project_id": "PVT_example", "types": []any{}}, false},
 			} {
 				t.Run(name, func(t *testing.T) {
-					on := map[string]any{
-						"gateway": map[string]any{alias: test.config},
-					}
+					on := map[string]any{"webhook-gateway": true, alias: test.config}
 					err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "first-class.md")
 					if test.valid {
 						require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestSecurityAlertSchema(t *testing.T) {
 	} {
 		for _, alias := range []string{"security-alerts"} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
-				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway": map[string]any{alias: test.config}}}, "security-alert.md")
+				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"webhook-gateway": true, alias: test.config}}, "security-alert.md")
 				if test.valid {
 					require.NoError(t, err)
 				} else {
@@ -170,7 +170,7 @@ func TestSecurityAlertRepositorySchema(t *testing.T) {
 			"newline":            {[]any{"bar/baz\n"}, false},
 		} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
-				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway": map[string]any{alias: map[string]any{"repos": test.repos}}}}, "security-repos.md")
+				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"webhook-gateway": true, alias: map[string]any{"repos": test.repos}}}, "security-repos.md")
 				if test.valid {
 					require.NoError(t, err)
 				} else {
@@ -204,9 +204,9 @@ func TestWebhookStatusTransitionsSchema(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-				"on": map[string]any{"gateway": map[string]any{"projects-items": map[string]any{
+				"on": map[string]any{"webhook-gateway": true, "projects-items": map[string]any{
 					"project_id": "PVT_example", "status-transitions": test.transitions,
-				}}},
+				}},
 			}, "status-transitions.md")
 			if test.valid {
 				require.NoError(t, err)
@@ -252,5 +252,31 @@ func TestWebhookGatewayNamespaceSchema(t *testing.T) {
 			map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{}}, name: map[string]any{}}} {
 			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "legacy.md"))
 		}
+	}
+
+}
+
+func TestWebhookGatewayWorkflowOptInSchema(t *testing.T) {
+	for trigger, config := range map[string]any{
+		"projects-items":  map[string]any{"project_id": "PVT_example"},
+		"security-alerts": map[string]any{},
+	} {
+		t.Run(trigger, func(t *testing.T) {
+			for _, flag := range []any{nil, false, "true", 1, map[string]any{}, []any{true}} {
+				on := map[string]any{trigger: config, "workflow_dispatch": nil}
+				if flag != nil {
+					on["webhook-gateway"] = flag
+				}
+				require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "missing-opt-in.md"))
+			}
+			on := map[string]any{"webhook-gateway": true, trigger: config, "workflow_dispatch": nil}
+			require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "enabled.md"))
+			on["webhook-gateway"] = nil
+			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "null-opt-in.md"))
+		})
+	}
+	for _, flag := range []any{false, true} {
+		on := map[string]any{"webhook-gateway": flag, "workflow_dispatch": nil}
+		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "native.md"))
 	}
 }

@@ -113,11 +113,8 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 	}{
 		{
 			name: "selected Projects and security events",
-			on: map[string]any{
-				"gateway": map[string]any{
-					"projects-items":  map[string]any{"project_id": "PVT_example"},
-					"security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}},
-				},
+			on: map[string]any{"webhook-gateway": true, "projects-items": map[string]any{"project_id": "PVT_example"},
+				"security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}},
 			},
 			want: map[string]string{
 				"organization_projects": "read",
@@ -127,17 +124,17 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 		},
 		{
 			name: "only selected security source",
-			on:   map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{"sources": []any{"dependabot"}}}},
+			on:   map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{"sources": []any{"dependabot"}}},
 			want: map[string]string{"vulnerability_alerts": "read"},
 		},
 		{
 			name: "plural multi-repository alerts default to both sources",
-			on:   map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{"repos": []any{"bar/baz", "foo/*"}}}},
+			on:   map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{"repos": []any{"bar/baz", "foo/*"}}},
 			want: map[string]string{"security_events": "read", "vulnerability_alerts": "read"},
 		},
 		{
 			name: "removed secret scanning source grants no permissions",
-			on:   map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{"sources": []any{"dependabot", "secret-scanning"}}}},
+			on:   map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{"sources": []any{"dependabot", "secret-scanning"}}},
 			want: nil,
 		},
 		{
@@ -189,10 +186,9 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 			on: map[string]any{
 				"workflow_dispatch": nil,
 				"issues":            nil,
-				"gateway": map[string]any{
-					"projects-items":  map[string]any{"project_id": "PVT_example", "types": []any{"edited"}},
-					"security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}},
-				},
+				"webhook-gateway":   true,
+				"projects-items":    map[string]any{"project_id": "PVT_example", "types": []any{"edited"}},
+				"security-alerts":   map[string]any{"sources": []any{"code-scanning", "dependabot"}},
 			},
 			want: []string{
 				"code_scanning_alert", "dependabot_alert", "issues", "projects_v2_item",
@@ -200,7 +196,7 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 		},
 		{
 			name: "removed secret scanning source yields no webhook events",
-			on:   map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{"sources": []any{"secret-scanning"}}}},
+			on:   map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{"sources": []any{"secret-scanning"}}},
 			want: nil,
 		},
 		{

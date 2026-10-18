@@ -20,7 +20,7 @@ import (
 //go:embed data/webhook_events.json
 var webhookCatalogJSON []byte
 
-// webhookTriggerAliases maps on.gateway Projects triggers to wire event names.
+// webhookTriggerAliases maps first-class Projects triggers to wire event names.
 var webhookTriggerAliases = map[string]string{
 	"projects-items": "projects_v2_item",
 }
@@ -125,11 +125,11 @@ func WebhookDispatchEventType(workflowID string) string {
 // ParseWebhookSubscriptions validates and normalizes webhook triggers without
 // fetching or hydrating payload fields. Catalog paths are emitted for CAO.
 func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription, error) {
-	gateway, err := webhookGatewayConfig(on)
+	onMap, err := webhookOnConfig(on)
 	if err != nil {
 		return nil, err
 	}
-	events, paths, err := webhookTriggerConfigs(gateway)
+	events, paths, err := webhookTriggerConfigs(onMap)
 	if err != nil {
 		return nil, err
 	}
@@ -187,60 +187,58 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 	return subscription, nil
 }
 
-func webhookGatewayConfig(on any) (map[string]any, error) {
+func webhookOnConfig(on any) (map[string]any, error) {
 	for _, name := range rawOnSectionTriggerNames(on) {
 		switch name {
-		case "webhook", "webhook-auth", "projects-item", "projects-items", "security-alert", "security-alerts":
-			return nil, fmt.Errorf("on.%s is not supported; use on.gateway.projects-items or on.gateway.security-alerts with standard on.roles/on.bots authorization", name)
+		case "webhook", "webhook-auth", "gateway", "projects-item", "security-alert":
+			return nil, fmt.Errorf("on.%s is not supported; use on.projects-items or on.security-alerts with on.webhook-gateway: true and standard on.roles/on.bots authorization", name)
 		}
 	}
 	onMap, ok := on.(map[string]any)
 	if !ok {
-		if slices.Contains(rawOnSectionTriggerNames(on), "gateway") {
-			return nil, errors.New("on.gateway requires mapping syntax with projects-items or security-alerts")
+		for _, name := range rawOnSectionTriggerNames(on) {
+			if name == "webhook-gateway" || name == "projects-items" || name == "security-alerts" {
+				return nil, errors.New("webhook triggers require mapping syntax with on.webhook-gateway: true and on.projects-items or on.security-alerts")
+			}
 		}
 		return nil, nil
 	}
-	raw, exists := onMap["gateway"]
-	if !exists {
-		return nil, nil
+	enabled, valid := onMap["webhook-gateway"].(bool)
+	if _, exists := onMap["webhook-gateway"]; exists && !valid {
+		return nil, errors.New("on.webhook-gateway must be a boolean; set it to true to enable webhook triggers")
 	}
-	gateway, ok := raw.(map[string]any)
-	if !ok || len(gateway) == 0 {
-		return nil, errors.New("on.gateway must be a non-empty object containing projects-items or security-alerts")
-	}
-	for _, name := range sortedWebhookKeys(gateway) {
-		if name != "projects-items" && name != "security-alerts" {
-			return nil, fmt.Errorf("unsupported on.gateway property %q; use projects-items or security-alerts", name)
+	for _, name := range []string{"projects-items", "security-alerts"} {
+		if _, exists := onMap[name]; exists && !enabled {
+			return nil, fmt.Errorf("on.%s requires on.webhook-gateway: true in this workflow", name)
 		}
 	}
-	return gateway, nil
+	return onMap, nil
 }
 
-func webhookTriggerConfigs(gateway map[string]any) (map[string]any, map[string]string, error) {
+func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string, error) {
 	events := map[string]any{}
 	paths := map[string]string{}
 	for _, alias := range sortedWebhookKeys(webhookTriggerAliases) {
-		raw, exists := gateway[alias]
+		raw, exists := on[alias]
 		if !exists {
 			continue
 		}
 		event := webhookTriggerAliases[alias]
 		config, ok := raw.(map[string]any)
 		if !ok {
-			return nil, nil, fmt.Errorf("on.gateway.%s must be an object with a required project_id", alias)
+			return nil, nil, fmt.Errorf("on.%s must be an object with a required project_id", alias)
 		}
 		if _, exists := config["project_id"]; !exists {
-			return nil, nil, fmt.Errorf("on.gateway.%s.project_id is required", alias)
+			return nil, nil, fmt.Errorf("on.%s.project_id is required", alias)
 		}
-		config, err := promoteWebhookFilters(config, "on.gateway."+alias, "project_id")
+		config, err := promoteWebhookFilters(config, "on."+alias, "project_id")
 		if err != nil {
 			return nil, nil, err
 		}
 		events[event] = config
-		paths[event] = "on.gateway." + alias
+		paths[event] = "on." + alias
 	}
-	if err := addSecurityAlertConfigs(gateway, events, paths); err != nil {
+	if err := addSecurityAlertConfigs(on, events, paths); err != nil {
 		return nil, nil, err
 	}
 	return events, paths, nil

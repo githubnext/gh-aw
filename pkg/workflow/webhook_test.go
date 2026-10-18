@@ -13,13 +13,13 @@ func webhookTestOn(event string, config map[string]any) map[string]any {
 	if event == "projects_v2_item" {
 		project := map[string]any{"project_id": "PVT_example"}
 		maps.Copy(project, config)
-		return map[string]any{"gateway": map[string]any{"projects-items": project}}
+		return map[string]any{"webhook-gateway": true, "projects-items": project}
 	}
 	for kind, name := range securityAlertEvents {
 		if event == name {
 			security := map[string]any{"sources": []any{kind}}
 			maps.Copy(security, config)
-			return map[string]any{"gateway": map[string]any{"security-alerts": security}}
+			return map[string]any{"webhook-gateway": true, "security-alerts": security}
 		}
 	}
 	panic("unsupported test webhook event: " + event)
@@ -35,7 +35,7 @@ func TestWebhookSubscriptionValidation(t *testing.T) {
 		{"unknown action", "projects_v2_item", map[string]any{"types": []any{"labeled"}}, "unsupported activity type"},
 		{"empty types", "projects_v2_item", map[string]any{"types": []any{}}, "non-empty list"},
 		{"scalar types", "projects_v2_item", map[string]any{"types": "edited"}, "non-empty list"},
-		{"unsupported property", "projects_v2_item", map[string]any{"filter": map[string]any{}}, "unsupported on.gateway.projects-items"},
+		{"unsupported property", "projects_v2_item", map[string]any{"filter": map[string]any{}}, "unsupported on.projects-items"},
 		{"labels require hydration", "projects_v2_item", map[string]any{"filters": map[string]any{"labels": []any{"bug"}}}, "unsupported filter"},
 		{"wrong identifier type", "projects_v2_item", map[string]any{"project_id": 123}, "non-empty string"},
 		{"expression is not literal", "projects_v2_item", map[string]any{"project_id": "${{ github.repository }}"}, "must be literals"},
@@ -76,7 +76,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 		"types":      []any{"edited", "created", "edited"},
 		"project_id": []any{"PVT_b", "PVT_a", "PVT_a"},
 	})
-	on["gateway"].(map[string]any)["security-alerts"] = map[string]any{"sources": "dependabot"}
+	on["security-alerts"] = map[string]any{"sources": "dependabot"}
 	first, err := ParseWebhookSubscriptions(on, "project-agent")
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +116,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 func TestSecurityAlertPayloadProjection(t *testing.T) {
 	for _, event := range []string{"code_scanning_alert", "dependabot_alert"} {
 		t.Run(event, func(t *testing.T) {
-			subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{"sources": eventSourceForTest(event)}}}, "security-agent")
+			subscriptions, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{"sources": eventSourceForTest(event)}}, "security-agent")
 			if err != nil {
 				t.Fatal(err)
 			}

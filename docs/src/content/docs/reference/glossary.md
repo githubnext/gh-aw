@@ -1521,7 +1521,7 @@ An auto-generated slash command available when [centralized routing](#centralize
 
 A structured context payload passed by the centralized slash-command router (`agentic_commands.yml`) when dispatching target workflows via `workflow_dispatch`. Contains the original GitHub event context (issue number, repository, actor, etc.) so the dispatched workflow can act on the correct resource even though it is triggered as a `workflow_dispatch`. See [Command Triggers](/gh-aw/reference/command-triggers/).
 
-Experimental hosted `on.gateway` triggers use `aw_context.webhook.deliveries` for a deduplicated batch of same-kind original events and `aw_context.items` for unique affected resources. They do not select a single implicit item from the batch. See [Webhook Triggers](/gh-aw/reference/webhook-triggers/).
+Experimental hosted `on.projects-items` and `on.security-alerts` triggers require `on.webhook-gateway: true`. They use `aw_context.webhook.deliveries` for a deduplicated batch of same-kind original events and `aw_context.items` for unique affected resources, without selecting a single implicit item from the batch. See [Webhook Triggers](/gh-aw/reference/webhook-triggers/).
 
 ### Conclusion Job
 

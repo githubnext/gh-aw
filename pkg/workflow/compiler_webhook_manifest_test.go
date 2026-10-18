@@ -17,34 +17,34 @@ import (
 func TestWebhookManifestCompilation(t *testing.T) {
 	for name, trigger := range map[string]string{
 		"native": "  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n",
-		"projects": `  gateway:
-    projects-items:
-      project_id: [PVT_one, PVT_two]
-      status-transitions:
-        - {from: Todo, to: Ready}
-        - {from: In progress, to: Done}
+		"projects": `  webhook-gateway: true
+  projects-items:
+    project_id: [PVT_one, PVT_two]
+    status-transitions:
+      - {from: Todo, to: Ready}
+      - {from: In progress, to: Done}
 `,
-		"security": `  gateway:
-    security-alerts:
-      sources: [code-scanning, dependabot]
-      types: [created]
-      filters:
-        alert_number: 42
+		"security": `  webhook-gateway: true
+  security-alerts:
+    sources: [code-scanning, dependabot]
+    types: [created]
+    filters:
+      alert_number: 42
 `,
-		"multi-repo": `  gateway:
-    security-alerts:
-      repos: [bar/baz, "foo/*"]
+		"multi-repo": `  webhook-gateway: true
+  security-alerts:
+    repos: [bar/baz, "foo/*"]
 `,
 		"combined": `  workflow_dispatch:
-  gateway:
-    projects-items:
-      project_id: PVT_one
-      types: [edited]
-      status-transitions: [{from: Todo, to: "Ready\nfor review"}]
-    security-alerts:
-      sources: [dependabot]
-      types: [created, reopened]
-      severity: [high, critical]
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_one
+    types: [edited]
+    status-transitions: [{from: Todo, to: "Ready\nfor review"}]
+  security-alerts:
+    sources: [dependabot]
+    types: [created, reopened]
+    severity: [high, critical]
 `,
 	} {
 		t.Run(name, func(t *testing.T) {

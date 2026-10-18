@@ -8,12 +8,12 @@ import (
 	"strings"
 )
 
-func addSecurityAlertConfigs(gateway, events map[string]any, paths map[string]string) error {
-	raw, exists := gateway["security-alerts"]
+func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string) error {
+	raw, exists := on["security-alerts"]
 	if !exists {
 		return nil
 	}
-	const path = "on.gateway.security-alerts"
+	const path = "on.security-alerts"
 	config, ok := raw.(map[string]any)
 	if !ok {
 		return fmt.Errorf("%s must be an object with optional sources, repos, types, severity, and filters", path)

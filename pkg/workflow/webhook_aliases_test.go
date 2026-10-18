@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,9 +27,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 				"types":   []any{tt.action},
 				tt.filter: tt.value,
 			}
-			on := map[string]any{
-				"gateway": map[string]any{tt.alias: config},
-			}
+			on := map[string]any{"webhook-gateway": true, tt.alias: config}
 			got, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
 			require.Len(t, got, 1)
@@ -37,7 +36,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.Len(t, got[0].Conditions, 1)
 			assert.Equal(t, tt.path, got[0].Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, got[0].Conditions[0].Values)
-			on["gateway"].(map[string]any)[tt.alias] = map[string]any{"project_id": tt.value}
+			on[tt.alias] = map[string]any{"project_id": tt.value}
 			all, err := ParseWebhookSubscriptions(on, "first-class")
 			require.NoError(t, err)
 			catalog, err := WebhookCatalog()
@@ -48,9 +47,9 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
-			for _, shorthand := range []any{"gateway", []any{"push", "gateway"}} {
+			for _, shorthand := range []any{tt.alias, []any{"push", tt.alias}, "webhook-gateway"} {
 				_, err = ParseWebhookSubscriptions(shorthand, "first-class")
-				require.ErrorContains(t, err, "requires mapping syntax")
+				require.ErrorContains(t, err, "require mapping syntax")
 			}
 		})
 	}
@@ -73,11 +72,9 @@ func TestFirstClassWebhookValidation(t *testing.T) {
 					if config, ok := tt.config.(map[string]any); ok {
 						config["project_id"] = "PVT_example"
 					}
-					_, err := ParseWebhookSubscriptions(map[string]any{
-						"gateway": map[string]any{alias: tt.config},
-					}, "first-class")
+					_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, alias: tt.config}, "first-class")
 					require.ErrorContains(t, err, tt.want)
-					assert.Contains(t, err.Error(), "on.gateway."+alias)
+					assert.Contains(t, err.Error(), "on."+alias)
 				})
 			}
 		})
@@ -101,11 +98,9 @@ func TestFirstClassWebhookPayloadRestrictions(t *testing.T) {
 	} {
 		t.Run(tt.alias+"/"+tt.want, func(t *testing.T) {
 			tt.config["project_id"] = "PVT_example"
-			_, err := ParseWebhookSubscriptions(map[string]any{
-				"gateway": map[string]any{tt.alias: tt.config},
-			}, "first-class")
+			_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, tt.alias: tt.config}, "first-class")
 			require.ErrorContains(t, err, tt.want)
-			assert.Contains(t, err.Error(), "on.gateway."+tt.alias)
+			assert.Contains(t, err.Error(), "on."+tt.alias)
 		})
 	}
 
@@ -129,7 +124,7 @@ func TestFirstClassWebhookRequiresProjectID(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := ParseWebhookSubscriptions(map[string]any{"gateway": map[string]any{"projects-items": config}}, "project-agent")
+			_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, "projects-items": config}, "project-agent")
 			require.ErrorContains(t, err, "project_id")
 		})
 	}
@@ -155,13 +150,35 @@ func TestWebhookGatewayRejectsInvalidNamespace(t *testing.T) {
 	}
 }
 
-func TestWebhookGatewayRejectsFlatTriggers(t *testing.T) {
-	for _, name := range []string{"projects-item", "projects-items", "security-alert", "security-alerts"} {
+func TestWebhookGatewayRejectsObsoleteTriggers(t *testing.T) {
+	for _, name := range []string{"projects-item", "security-alert", "gateway"} {
 		for _, input := range []any{name, []any{"push", name}, map[string]any{name: map[string]any{}},
 			map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{}}, name: nil}} {
 			subscriptions, err := ParseWebhookSubscriptions(input, "legacy")
-			require.ErrorContains(t, err, "use on.gateway.projects-items or on.gateway.security-alerts")
+			require.ErrorContains(t, err, "use on.projects-items or on.security-alerts")
 			assert.Empty(t, subscriptions)
+		}
+	}
+
+}
+
+func TestWebhookGatewayRequiresWorkflowOptIn(t *testing.T) {
+	for trigger, config := range map[string]any{
+		"projects-items":  map[string]any{"project_id": "PVT_example"},
+		"security-alerts": map[string]any{"repos": []any{"bar/baz", "foo/*"}},
+	} {
+		for _, flag := range []any{nil, false, "true", 1, map[string]any{}, []any{true}} {
+			t.Run(trigger+"/"+fmt.Sprint(flag), func(t *testing.T) {
+				on := map[string]any{trigger: config, "workflow_dispatch": nil}
+				if flag != nil {
+					on["webhook-gateway"] = flag
+				}
+				subscriptions, err := ParseWebhookSubscriptions(on, "opt-in")
+				require.ErrorContains(t, err, "on.webhook-gateway")
+				assert.Empty(t, subscriptions)
+				assert.Empty(t, ComputeGitHubAppManifestWebhookPermissions(on))
+				assert.Empty(t, NormalizeGitHubAppWebhookEvents(on))
+			})
 		}
 	}
 }

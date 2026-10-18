@@ -7,16 +7,16 @@ sidebar:
 
 import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json';
 
-`on.gateway.projects-items` and `on.gateway.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. These special events are grouped under `on.gateway`, separately from native triggers. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a workflow dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
+`on.projects-items` and `on.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. Each workflow using these events must explicitly set `on.webhook-gateway: true`. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a workflow dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
 
 Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. General `on.webhook` registration and `on.webhook-auth` are not supported.
 
 > [!WARNING]
-> `on.gateway` and its options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
+> Webhook gateway triggers and their options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
 
 ## Hosted CAO opt-in
 
-Compilation rejects these triggers by default. To enable them, set the repository-level `.github/workflows/aw.json` configuration:
+Compilation rejects these triggers by default. Enabling them requires both the repository-level `.github/workflows/aw.json` configuration and `on.webhook-gateway: true` in each subscribing workflow:
 
 ```json title=".github/workflows/aw.json"
 {
@@ -24,9 +24,9 @@ Compilation rejects these triggers by default. To enable them, set the repositor
 }
 ```
 
-`webhook-gateway` is a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. The setting enables compilation only; it does not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require this opt-in.
+The repository's `webhook-gateway` is a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. It does not automatically enable individual workflows: `on.projects-items` and `on.security-alerts` also require the boolean `on.webhook-gateway: true`. Missing, false, or non-boolean workflow flags fail compilation when a webhook trigger is declared. These settings enable compilation only; they do not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require either opt-in.
 
-The previous `webhook-triggers` setting and flat `on.projects-item`, `on.security-alert`, and `on.security-alerts` declarations are rejected. Migrate them to `webhook-gateway` and the plural trigger names under `on.gateway`. The normalized manifest and version 2 dispatch envelope are unchanged.
+The previous repository `webhook-triggers` setting, nested `on.gateway` mapping, and singular `on.projects-item`/`on.security-alert` declarations are rejected. Move the plural trigger names directly under `on`, add the sibling `webhook-gateway: true`, and retain `{"webhook-gateway":true}` in `aw.json`. The normalized manifest and version 2 dispatch envelope are unchanged.
 
 ## Syntax
 
@@ -35,10 +35,10 @@ The previous `webhook-triggers` setting and flat `on.projects-item`, `on.securit
 on:
   roles: [admin, maintainer, write]
   bots: [cao-gateway]
-  gateway:
-    projects-items:
-      project_id: PVT_kwDOExample
-      types: [edited]
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_kwDOExample
+    types: [edited]
 ---
 
 Summarize all unique project items in github.aw.context.items.
@@ -51,29 +51,29 @@ The generated membership check authorizes the actual dispatch actor, not a sende
 
 ### Experimental first-class triggers
 
-`projects-items` and `security-alerts` appear inside the nonempty `on.gateway` mapping and use the same activity `types` and `filters` as their corresponding catalog event. Native triggers, `roles`, and `bots` remain siblings of `gateway`, not children:
+`projects-items` and `security-alerts` appear directly inside `on`, alongside the mandatory `webhook-gateway: true` flag, native triggers, `roles`, and `bots`. They use the same activity `types` and `filters` as their corresponding catalog event:
 
 | Frontmatter trigger | Original webhook event |
 | --- | --- |
-| `on.gateway.projects-items` | `projects_v2_item` |
-| `on.gateway.security-alerts` with `sources: [code-scanning]` | `code_scanning_alert` |
-| `on.gateway.security-alerts` with `sources: [dependabot]` | `dependabot_alert` |
+| `on.projects-items` | `projects_v2_item` |
+| `on.security-alerts` with `sources: [code-scanning]` | `code_scanning_alert` |
+| `on.security-alerts` with `sources: [dependabot]` | `dependabot_alert` |
 
 `projects-items` supports **Projects v2 only**, not Projects (classic). Its required `project_id`, a sibling of `types`, is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. It accepts a nonempty string or nonempty list of node IDs. `filters.project_id` is not supported. The `field` filters describe the changed field, not the item's complete current field values.
 
-The minimal Projects declaration under `on` is `gateway: {projects-items: {project_id: PVT_kwDOExample}}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax; string and array shorthands, singular trigger names, and unknown gateway keys are rejected. Dispatch authorization uses the standard `on.roles` and `on.bots` policy.
+The minimal Projects declaration is `on: {webhook-gateway: true, projects-items: {project_id: PVT_kwDOExample}}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax; string and array shorthands and singular trigger names are rejected. The workflow flag is compiler metadata, not an event, and is removed from generated Actions triggers. By itself it adds no subscription or dispatch route. Dispatch authorization uses the standard `on.roles` and `on.bots` policy.
 
-`on.gateway.security-alerts.sources` accepts one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Omitting `sources` selects both. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alerts.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
+`on.security-alerts.sources` accepts one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Omitting `sources` selects both. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alerts.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
 
 ```aw wrap
 ---
 on:
   bots: [cao-gateway]
-  gateway:
-    security-alerts:
-      sources: [dependabot]
-      types: [created, reopened]
-      severity: [high, critical]
+  webhook-gateway: true
+  security-alerts:
+    sources: [dependabot]
+    types: [created, reopened]
+    severity: [high, critical]
 ---
 
 Triage the security alert. Never print or copy secret values into logs or reports.
@@ -90,11 +90,11 @@ Security alerts can select multiple source repositories:
 ```aw wrap
 ---
 on:
-  gateway:
-    security-alerts:
-      repos:
-        - bar/baz
-        - foo/*
+  webhook-gateway: true
+  security-alerts:
+    repos:
+      - bar/baz
+      - foo/*
 ---
 
 Triage every unique alert in github.aw.context.items.
@@ -108,15 +108,15 @@ Selectors describe source selection, not access grants. The CAO bridge must reso
 
 ```yaml wrap
 on:
-  gateway:
-    projects-items:
-      project_id: PVT_kwDOExample
-      status-transitions:
-        - {from: Todo, to: Ready}
-        - {from: In progress, to: Done}
+  webhook-gateway: true
+  projects-items:
+    project_id: PVT_kwDOExample
+    status-transitions:
+      - {from: Todo, to: Ready}
+      - {from: In progress, to: Done}
 ```
 
-`on.gateway.projects-items.status-transitions` is a nonempty list of objects with required, nonempty literal `from` and `to` status names. The compiler emits CAO-side predicates requiring one complete pair, a configured project ID, `field_type: single_select`, and `field_name: Status`. Entries are alternatives, not independent lists of old and new values: `Todo → Ready` and `In progress → Done` do not also match `Todo → Done`.
+`on.projects-items.status-transitions` is a nonempty list of objects with required, nonempty literal `from` and `to` status names. The compiler emits CAO-side predicates requiring one complete pair, a configured project ID, `field_type: single_select`, and `field_name: Status`. Entries are alternatives, not independent lists of old and new values: `Todo → Ready` and `In progress → Done` do not also match `Todo → Done`.
 
 CAO evaluates `changes.field_value.from.name` and `changes.field_value.to.name` directly from the original delivery, as shown in [GitHub's published project field-change payload](https://github.blog/changelog/2024-06-27-github-issues-projects-graphql-and-webhook-support-for-project-status-updates-and-more/). Missing, cleared, or non-select values do not match. There is no API lookup, state cache, or inferred previous value.
 
@@ -126,15 +126,16 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 
 ### Subscription properties
 
-`projects-items` and `security-alerts` can coexist inside one `on.gateway` mapping. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Each uses the original GitHub event name. No other webhook events can be registered through frontmatter.
+`projects-items` and `security-alerts` can coexist inside one `on` mapping with a shared `webhook-gateway: true` flag. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Each uses the original GitHub event name. No other webhook events can be registered through frontmatter.
 
 | Property | Required | Description |
 | --- | --- | --- |
-| `on.gateway.projects-items.project_id` | Yes, for `projects-items` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
-| `on.gateway.projects-items.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
-| `on.gateway.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
-| `on.gateway.security-alerts.repos` | No | Nonempty list of source repository selectors: literal `owner/repo` or `owner/*`. Omission preserves CAO's existing approved source scope. |
-| `on.gateway.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
+| `on.webhook-gateway` | Yes, for either trigger | Must be the boolean `true` in each subscribing workflow. Also requires the repository opt-in. |
+| `on.projects-items.project_id` | Yes, for `projects-items` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
+| `on.projects-items.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
+| `on.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
+| `on.security-alerts.repos` | No | Nonempty list of source repository selectors: literal `owner/repo` or `owner/*`. Omission preserves CAO's existing approved source scope. |
+| `on.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
 | `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no additional field conditions. |
 

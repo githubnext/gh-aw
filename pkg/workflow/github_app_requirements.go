@@ -219,7 +219,7 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 }
 
 func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
-	if name != "gateway" {
+	if name != "projects-items" && name != "security-alerts" {
 		return nil, false
 	}
 	subscriptions, err := ParseWebhookSubscriptions(onValue, "")
@@ -228,7 +228,9 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	}
 	events := make([]string, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
-		events = append(events, subscription.Event)
+		if (name == "projects-items") == (subscription.Event == "projects_v2_item") {
+			events = append(events, subscription.Event)
+		}
 	}
 	return events, true
 }
