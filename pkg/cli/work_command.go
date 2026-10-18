@@ -92,7 +92,14 @@ func workRead(cmd *cobra.Command) (workqueue.Projection, error) {
 	if err != nil {
 		return workqueue.Projection{}, err
 	}
-	return workqueue.Replay(commits)
+	projection, err := workqueue.Replay(commits)
+	if err != nil {
+		return projection, err
+	}
+	if projection.Repository == "" {
+		projection.Repository, _ = cmd.Flags().GetString("repo")
+	}
+	return projection, nil
 }
 
 func workReplayCommand() *cobra.Command {
@@ -150,9 +157,12 @@ func workStatsCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s := projection.Stats
-			return workPrint(cmd, s, fmt.Sprintf("Work: %d; available: %d; claimed: %d; completed: %d; cancelled: %d; Claims: %d; native reservations: %d; graph nodes: %d",
-				s.Work, s.Available, s.Claimed, s.Completed, s.Cancelled, s.Claims, s.Dispatches, s.Nodes))
+			branch, _ := cmd.Flags().GetString("branch")
+			report, err := workQueueStatsAt(projection, branch, time.Now().UnixMilli())
+			if err != nil {
+				return err
+			}
+			return workPrint(cmd, report, workQueueStatsText(report))
 		},
 	}
 }
@@ -210,7 +220,7 @@ func workExplainCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return workPrint(cmd, map[string]any{"tip": state.Tip, "at": at, "status": "snapshot_prediction", "selection": selection, "decision": decision},
+			return workPrint(cmd, map[string]any{"tip": state.Tip, "at": at, "status": "snapshot_prediction", "selection": selection, "decision": decision, "prediction": workQueueCompactPrediction(decision)},
 				"Snapshot prediction: "+decision.Reason+" "+selection.WorkID+" (not a grant)")
 		},
 	}
