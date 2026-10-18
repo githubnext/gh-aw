@@ -47,11 +47,6 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 	if err := c.validateWorkflowData(workflowData, markdownPath); err != nil {
 		return "", err
 	}
-	if len(workflowData.WebhookSubscriptions) > 0 {
-		if err := c.requireCAOTriggers(); err != nil {
-			return "", err
-		}
-	}
 
 	yamlContent, _, _, err := c.generateAndValidateYAML(workflowData, markdownPath, lockFile)
 	if err != nil {

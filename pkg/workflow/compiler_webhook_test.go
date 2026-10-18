@@ -66,7 +66,10 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.Contains(t, activation, "GH_AW_WEBHOOK_SUBSCRIPTIONS:")
 	assert.NotContains(t, activation, "GH_AW_WEBHOOK_ACTOR")
 	assert.NotContains(t, output, "trusted_actors")
+	assert.Contains(t, activation, "uses: "+getCachedActionPin("actions/github-script", data))
+	assert.Contains(t, activation, "          script: |")
 	assert.Contains(t, activation, "validate_webhook.cjs")
+	assert.NotContains(t, activation, "run: node")
 	assert.NotContains(t, activation, "toJSON(github.event")
 	require.Contains(t, activation, "Create prompt with built-in context")
 	assert.Less(t, strings.Index(activation, "Validate webhook relay"), strings.Index(activation, "Create prompt with built-in context"))
@@ -322,6 +325,19 @@ func TestWebhookPreservesDisjointDispatchTypes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, data.On, "manual-operation")
 	assert.Contains(t, data.On, WebhookDispatchEventType("webhook-test"))
+}
+
+func TestWebhookRejectsCaseInsensitiveRelayRouteCollisions(t *testing.T) {
+	route := WebhookDispatchEventType("webhook-test")
+	for _, eventType := range []string{route, strings.ToUpper(route), strings.ToUpper(route[:8]) + route[8:]} {
+		_, err := mergeWebhookDispatchTypes(map[string]any{
+			"repository_dispatch": map[string]any{
+				"types": []any{eventType},
+			},
+		}, route)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "collides")
+	}
 }
 
 func TestCompileMultipleWebhookSubscriptions(t *testing.T) {

@@ -62,6 +62,11 @@ func TestWebhookCAOOptInCannotBeBypassedByPreparsedData(t *testing.T) {
 	compiler.gitRoot = t.TempDir()
 	_, err = compiler.CompileToYAML(data, "preparsed.md")
 	require.ErrorContains(t, err, "hosted CAO server")
+
+	compiler = NewCompiler(WithNoEmit(true))
+	compiler.gitRoot = t.TempDir()
+	err = compiler.CompileWorkflowData(data, filepath.Join(t.TempDir(), "preparsed.md"))
+	require.ErrorContains(t, err, "hosted CAO server")
 }
 
 func TestWebhookCAORepoConfigValidation(t *testing.T) {

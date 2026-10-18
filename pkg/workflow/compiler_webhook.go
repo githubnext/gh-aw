@@ -62,7 +62,7 @@ func mergeWebhookDispatchTypes(on map[string]any, webhookType string) ([]string,
 	types := make([]string, 0, len(rawTypes)+1)
 	for _, rawType := range rawTypes {
 		value, ok := rawType.(string)
-		if !ok || value == "" || strings.ContainsAny(value, "*?[${") || value == webhookType {
+		if !ok || value == "" || strings.ContainsAny(value, "*?[${") || strings.EqualFold(value, webhookType) {
 			return nil, fmt.Errorf("webhook repository_dispatch type %q collides with its relay route or is not a disjoint literal type", rawType)
 		}
 		types = append(types, value)
@@ -82,10 +82,13 @@ func buildWebhookValidationStep(data *WorkflowData) ([]string, error) {
 		"      - name: Validate webhook relay\n",
 		"        id: validate-webhook\n",
 		"        if: " + webhookTriggerExpression(data) + "\n",
+		"        uses: " + getCachedActionPin("actions/github-script", data) + "\n",
 		"        env:\n",
 		formatYAMLEnv("          ", "GH_AW_WEBHOOK_SUBSCRIPTIONS", string(subscriptions)),
 		"          GH_AW_WEBHOOK_EVENT_NAME: ${{ github.event_name }}\n",
-		"        run: node \"" + SetupActionDestinationShell + "/validate_webhook.cjs\"\n",
+		"        with:\n",
+		"          script: |\n",
+		generateGitHubScriptWithRequire("validate_webhook.cjs"),
 	}, nil
 }
 
