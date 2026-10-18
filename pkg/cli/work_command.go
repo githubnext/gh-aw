@@ -58,7 +58,7 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
 	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
-		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(),
+		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(), workClearCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
 		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
 	return cmd
