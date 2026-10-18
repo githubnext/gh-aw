@@ -10,6 +10,9 @@ type jsValue struct {
 	ref     string
 	text    string
 	literal bool
+	kind    jsValueKind
+	lines   jsLineSafety
+	mask    jsMaskState
 	fields  map[string]jsValue
 	fn      *jsFunction
 }
@@ -39,13 +42,24 @@ func (v jsValue) collect(seen map[uintptr]bool) value {
 
 func jsUnion(values ...jsValue) jsValue {
 	result := jsValue{}
-	for _, current := range values {
+	for i, current := range values {
 		result.sources = union(result.sources, current.taint())
+		if i == 0 {
+			result.kind = current.kind
+		} else if result.kind != current.kind {
+			result.kind = jsUnknown
+		}
 	}
 	return result
 }
 
 func (v jsValue) property(key string) jsValue {
+	// Metadata is public, but an explicit array length assignment may itself
+	// contain a numeric secret. Object property names alone prove no type.
+	if key == "length" && (v.kind == jsString || v.kind == jsBuffer ||
+		v.kind == jsArray && len(v.fields["length"].taint()) == 0 && len(v.fields["*"].taint()) == 0) {
+		return jsValue{kind: jsNumber}
+	}
 	if current, ok := v.fields[key]; ok {
 		current.sources = union(current.sources, v.sources)
 		if current.ref == "" && v.ref != "" {
@@ -95,7 +109,7 @@ func (j *javascript) bind(node *JavaScriptNode, assigned jsValue) {
 		base := j.eval(node.Expression)
 		key := jsName(node.Name)
 		if node.Kind == "ElementAccessExpression" {
-			key = j.key(node.ArgumentExpression)
+			key, _ = j.key(node.ArgumentExpression)
 		}
 		created := base.fields == nil
 		if base.fields == nil {
@@ -115,13 +129,20 @@ func jsUnionPreserving(a, b jsValue) jsValue {
 }
 
 func jsMerge(a, b jsValue, seen map[[2]uintptr]bool) jsValue {
-	if b.ref == "" && b.fn == nil && b.fields == nil && !b.literal && len(b.sources) == 0 {
+	if b.kind == jsUnknown && b.ref == "" && b.fn == nil && b.fields == nil && !b.literal && len(b.sources) == 0 {
 		return a
 	}
-	if a.ref == "" && a.fn == nil && a.fields == nil && !a.literal && len(a.sources) == 0 {
+	if a.kind == jsUnknown && a.ref == "" && a.fn == nil && a.fields == nil && !a.literal && len(a.sources) == 0 {
 		return b
 	}
 	a.sources = union(a.sources, b.sources)
+	if a.kind != b.kind {
+		a.kind = jsUnknown
+	}
+	a.lines &= b.lines
+	if a.mask != b.mask {
+		a.mask = jsNotMask
+	}
 	pair := [2]uintptr{reflect.ValueOf(a.fields).Pointer(), reflect.ValueOf(b.fields).Pointer()}
 	if pair[0] != 0 || pair[1] != 0 {
 		if pair[0] != 0 && pair[0] == pair[1] || seen[pair] {

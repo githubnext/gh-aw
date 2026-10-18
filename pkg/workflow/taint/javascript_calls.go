@@ -40,19 +40,22 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 		} else {
 			j.gap(n, "JavaScript file read target is unresolved")
 		}
-		v := jsValue{sources: sources}
+		v := jsValue{sources: sources, kind: jsBuffer}
+		if second.literal && second.kind == jsString {
+			v.kind = jsString
+		}
 		last, hasLast := sliceAt(args, len(args)-1)
 		if ref == "fs.readFile" && len(args) > 1 && hasLast && last.fn != nil {
 			j.invoke(n, last.fn, []jsValue{{}, v})
 		}
 		return v
 	case "process.stdin.read":
-		return jsValue{sources: j.stdin}
+		return jsValue{sources: j.stdin, kind: jsBuffer}
 	case "process.stdin.on", "process.stdin.once":
 		if len(args) == 2 && first.literal && second.fn != nil {
 			switch first.text {
 			case "data":
-				j.invoke(n, second.fn, []jsValue{{sources: j.stdin}})
+				j.invoke(n, second.fn, []jsValue{{sources: j.stdin, kind: jsBuffer}})
 			case "end", "close":
 				j.invoke(n, second.fn, nil)
 			default:
@@ -65,6 +68,11 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 	case "process.stdin.setEncoding", "process.stdin.resume", "process.exit", "core.setSecret":
 		return jsValue{}
 	case "console.log", "console.info", "console.debug", "process.stdout.write":
+		// Consume only a proved single runner command, never captured data.
+		// Registration does not sanitize this value or any later use.
+		if len(args) == 1 && first.mask != jsNotMask && !j.input.CaptureStdout {
+			return jsValue{}
+		}
 		j.writeStdout(n, all.taint())
 		return jsValue{}
 	case "console.error", "console.warn", "process.stderr.write", "core.error", "core.warning", "core.setFailed",
@@ -91,8 +99,23 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 		if j.catchDepth > 0 {
 			j.thrown = union(j.thrown, all.taint())
 		}
+		all.kind = jsUnknown
 		return all
-	case "JSON.stringify", "String", "Number", "Buffer.from", "Buffer.concat", "Object.values", "Object.entries":
+	case "JSON.stringify":
+		all.kind = jsString
+		if len(args) <= 1 {
+			all.lines = jsSingleLine
+		}
+		return all
+	case "String":
+		return jsStringCoercion(first)
+	case "Number":
+		return jsValue{kind: jsNumber, sources: all.taint()}
+	case "Buffer.from", "Buffer.concat":
+		all.kind = jsBuffer
+		return all
+	case "Object.values", "Object.entries":
+		all.kind = jsArray
 		return all
 	case "Error", "TypeError", "RangeError", "SyntaxError":
 		return all
@@ -104,7 +127,7 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 			}
 			parts = append(parts, arg.text)
 		}
-		return jsValue{text: path.Join(parts...), literal: true}
+		return jsStringLiteral(path.Join(parts...))
 	case "Object.assign":
 		v := jsValue{fields: make(map[string]jsValue)}
 		for _, arg := range args {
@@ -118,11 +141,10 @@ func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Bui
 	if n.Expression != nil && n.Expression.Kind == "PropertyAccessExpression" {
 		base := j.eval(n.Expression.Expression)
 		method := jsName(n.Expression.Name)
+		if v, known := j.sequenceMethod(n, base, args, method); known {
+			return v
+		}
 		switch method {
-		case "toString", "trim", "trimStart", "trimEnd", "toLowerCase", "toUpperCase", "slice", "substring", "split", "join", "replace", "replaceAll", "concat":
-			return jsUnion(base, all)
-		case "includes", "startsWith", "endsWith":
-			return jsValue{}
 		case "then", "catch", "finally":
 			if len(args) == 1 && first.fn != nil {
 				return j.invoke(n, first.fn, []jsValue{base})

@@ -51,12 +51,12 @@ func (j *javascript) globals() map[string]jsValue {
 	env["exports"] = env["module"].fields["exports"]
 	processEnv := jsValue{ref: "process.env", fields: make(map[string]jsValue)}
 	for name, sources := range j.input.Env {
-		processEnv.fields[name] = jsValue{sources: sources}
+		processEnv.fields[name] = jsValue{sources: sources, kind: jsString}
 	}
 	for prefix := range j.optionsRuntimePaths() {
 		if suffix, ok := strings.CutPrefix(prefix, "${"); ok {
 			if name, _, ok := strings.Cut(suffix, "}"); ok && len(j.input.Env[name]) == 0 {
-				processEnv.fields[name] = jsValue{literal: true, text: "${" + name + "}"}
+				processEnv.fields[name] = jsStringLiteral("${" + name + "}")
 			}
 		}
 	}
@@ -66,7 +66,7 @@ func (j *javascript) globals() map[string]jsValue {
 		offset = 2
 	}
 	for i, sources := range j.input.Args {
-		argv.fields[jsIndex(i+offset)] = jsValue{sources: sources}
+		argv.fields[jsIndex(i+offset)] = jsValue{sources: sources, kind: jsString}
 	}
 	env["process"] = jsValue{ref: "process", fields: map[string]jsValue{"env": processEnv, "argv": argv}}
 	return env
@@ -125,12 +125,13 @@ func (j *javascript) scriptPath() string {
 	return j.input.Name + ".javascript"
 }
 
-func (j *javascript) key(n *JavaScriptNode) string {
+func (j *javascript) key(n *JavaScriptNode) (string, bool) {
 	v := j.eval(n)
 	if v.literal {
-		return v.text
+		return v.text, true
 	}
-	return "*"
+	j.gap(n, "dynamic JavaScript property access is not modeled")
+	return "*", false
 }
 
 func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST dispatch keeps conservative fallback visible.
@@ -167,21 +168,26 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		return v
 	case "Identifier":
 		if n.Text == "__dirname" {
-			return jsValue{literal: true, text: path.Dir(j.file)}
+			return jsStringLiteral(path.Dir(j.file))
 		}
 		if n.Text == "__filename" {
-			return jsValue{literal: true, text: j.file}
+			return jsStringLiteral(j.file)
 		}
 		v := j.env[n.Text]
 		v.sources = union(v.sources, j.a.source(n.Text, j.input.Name, nil))
 		v.sources = union(v.sources, j.input.Literals[n.Text])
 		return v
-	case "StringLiteral", "NumericLiteral", "NoSubstitutionTemplateLiteral", "TemplateHead", "TemplateMiddle", "TemplateTail":
-		v := jsValue{text: n.Text, literal: true}
+	case "NumericLiteral":
+		return jsValue{text: n.Text, literal: true, kind: jsNumber}
+	case "RegularExpressionLiteral":
+		return jsValue{text: n.Text, literal: true, kind: jsRegExp}
+	case "StringLiteral", "NoSubstitutionTemplateLiteral", "TemplateHead", "TemplateMiddle", "TemplateTail":
+		v := jsStringLiteral(n.Text)
 		for marker, sources := range j.input.Literals {
 			if strings.Contains(n.Text, marker) {
 				v.sources = union(v.sources, sources)
 				v.literal = false
+				v.lines, v.mask = 0, jsNotMask
 			}
 		}
 		return v
@@ -191,9 +197,16 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		base := j.eval(n.Expression)
 		key := jsName(n.Name)
 		if n.Kind == "ElementAccessExpression" {
-			key = j.key(n.ArgumentExpression)
+			var known bool
+			key, known = j.key(n.ArgumentExpression)
+			if !known {
+				return jsValue{}
+			}
 		}
 		v := base.property(key)
+		if base.ref == "process.env" {
+			v.kind = jsString
+		}
 		if v.ref != "" {
 			v.sources = union(v.sources, j.a.source(v.ref, j.input.Name, nil))
 		}
@@ -207,7 +220,7 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 			case "PropertyAssignment":
 				key := jsName(property.Name)
 				if property.Name != nil && property.Name.Kind == "ComputedPropertyName" {
-					key = j.key(property.Name.Expression)
+					key, _ = j.key(property.Name.Expression)
 				}
 				v.fields[key] = j.eval(property.Initializer)
 			case "ShorthandPropertyAssignment":
@@ -225,7 +238,7 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		}
 		return v
 	case "ArrayLiteralExpression":
-		v := jsValue{fields: make(map[string]jsValue)}
+		v := jsValue{fields: make(map[string]jsValue), kind: jsArray}
 		for i, item := range n.Elements {
 			v.fields[jsIndex(i)] = j.eval(item)
 		}
@@ -250,7 +263,9 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		switch op {
 		case "EqualsToken", "PlusEqualsToken", "BarBarEqualsToken", "QuestionQuestionEqualsToken":
 			v := right
-			if op != "EqualsToken" {
+			if op == "PlusEqualsToken" && (left.kind == jsString || right.kind == jsString) {
+				v = jsConcatStrings(left, right)
+			} else if op != "EqualsToken" {
 				v = jsUnionPreserving(left, right)
 			}
 			j.bind(n.Left, v)
@@ -259,8 +274,8 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 			"LessThanToken", "GreaterThanToken", "LessThanEqualsToken", "GreaterThanEqualsToken", "InKeyword", "InstanceOfKeyword":
 			return jsValue{}
 		case "PlusToken":
-			if left.literal && right.literal {
-				return jsValue{text: left.text + right.text, literal: true}
+			if left.kind == jsString || right.kind == jsString {
+				return jsConcatStrings(left, right)
 			}
 		}
 		return jsUnion(left, right)
@@ -306,7 +321,7 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		}
 		return v
 	case "TemplateExpression", "TemplateSpan":
-		return j.children(n)
+		return j.template(n)
 	case "WhileStatement", "DoStatement", "ForStatement", "ForOfStatement", "ForInStatement":
 		// A second pass covers loop-carried aliases; unresolved longer
 		// fixed points remain explicit rather than claiming completion.
