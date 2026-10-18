@@ -16,16 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func enableWebhookCAOConfig(t *testing.T, root string) {
+func enableWebhookTriggers(t *testing.T, root string) {
 	t.Helper()
 	configPath := filepath.Join(root, workflow.RepoConfigFileName)
 	require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
-	require.NoError(t, os.WriteFile(configPath, []byte(`{"cao":{"triggers":true}}`), 0o600))
+	require.NoError(t, os.WriteFile(configPath, []byte(`{"webhook-triggers":true}`), 0o600))
 	t.Chdir(root)
 }
 
-func TestCompileWebhookRequiresCAOOptIn(t *testing.T) {
-	for _, enabled := range []string{"", `{"cao":{"triggers":false}}`} {
+func TestCompileWebhookRequiresOptIn(t *testing.T) {
+	for _, enabled := range []string{"", `{"webhook-triggers":false}`} {
 		for _, trigger := range []string{"projects-item: {project_id: PVT_example}", "security-alert: {sources: [dependabot]}"} {
 			t.Run(enabled+"/"+trigger, func(t *testing.T) {
 				root := t.TempDir()
@@ -43,6 +43,7 @@ func TestCompileWebhookRequiresCAOOptIn(t *testing.T) {
 				require.False(t, result.success)
 				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "hosted CAO server")
 				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), workflow.RepoConfigFileName)
+				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), `{"webhook-triggers":true}`)
 			})
 		}
 	}
@@ -50,7 +51,7 @@ func TestCompileWebhookRequiresCAOOptIn(t *testing.T) {
 
 func TestCompileWebhookJSONContract(t *testing.T) {
 	dir := testutil.TempDir(t, "webhook-compile-*")
-	enableWebhookCAOConfig(t, dir)
+	enableWebhookTriggers(t, dir)
 	path := filepath.Join(dir, "webhook-test.md")
 	require.NoError(t, os.WriteFile(path, []byte(`---
 on:
@@ -118,7 +119,7 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 	} {
 		t.Run(tt.kind, func(t *testing.T) {
 			dir := testutil.TempDir(t, "security-webhook-compile-*")
-			enableWebhookCAOConfig(t, dir)
+			enableWebhookTriggers(t, dir)
 			path := filepath.Join(dir, "security-alerts.md")
 			selector := "    severity: " + tt.value
 			if tt.filter != "severity" {

@@ -26,7 +26,7 @@ Inspect the inline webhook at github.event.client_payload.payload.
 
 func newWebhookCompiler() *Compiler {
 	compiler := NewCompiler()
-	compiler.repoConfig = &RepoConfig{CAO: &CAOConfig{Triggers: true}}
+	compiler.repoConfig = &RepoConfig{WebhookTriggers: true}
 	compiler.repoConfigLoaded = true
 	return compiler
 }

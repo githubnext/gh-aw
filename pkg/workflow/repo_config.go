@@ -156,8 +156,8 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
-	// CAO enables features that require a hosted CAO server.
-	CAO *CAOConfig
+	// WebhookTriggers enables experimental synthetic triggers requiring a hosted CAO server.
+	WebhookTriggers bool
 
 	// WorkQueue holds optional scheduling overrides, never identities or credentials.
 	WorkQueue json.RawMessage
@@ -233,11 +233,6 @@ type RepoConfig struct {
 	ContainerPins map[string]ContainerPinTarget
 }
 
-// CAOConfig opts into experimental features requiring a hosted CAO server.
-type CAOConfig struct {
-	Triggers bool `json:"triggers,omitempty"`
-}
-
 // ContainerPinTarget holds the replacement image reference for a container_pins
 // entry. The image ref and digest are stored separately for independent
 // validation. The combined pinned reference is "Image@Digest".
@@ -281,7 +276,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
-		CAO                      *CAOConfig                    `json:"cao,omitempty"`
+		WebhookTriggers          bool                          `json:"webhook-triggers,omitempty"`
 		Strict                   bool                          `json:"strict,omitempty"`
 		GHES                     bool                          `json:"ghes,omitempty"`
 		RequireSelfHostedRunners bool                          `json:"require_self_hosted_runners,omitempty"`
@@ -303,7 +298,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 		return fmt.Errorf("%w: %w", errWorkQueueConfig, err)
 	}
 
-	r.CAO = raw.CAO
+	r.WebhookTriggers = raw.WebhookTriggers
 	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners

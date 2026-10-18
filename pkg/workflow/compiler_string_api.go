@@ -48,7 +48,7 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 		return "", err
 	}
 	if len(workflowData.WebhookSubscriptions) > 0 {
-		if err := c.requireCAOTriggers(); err != nil {
+		if err := c.requireWebhookTriggers(); err != nil {
 			return "", err
 		}
 	}

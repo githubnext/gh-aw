@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func writeCAOTriggerConfig(t *testing.T, root, content string) {
+func writeWebhookTriggerConfig(t *testing.T, root, content string) {
 	t.Helper()
 	if content == "" {
 		return
@@ -22,13 +22,12 @@ func writeCAOTriggerConfig(t *testing.T, root, content string) {
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 }
 
-func TestWebhookRequiresCAOTriggerOptIn(t *testing.T) {
+func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 	for name, config := range map[string]string{
-		"missing file":     "",
-		"missing cao":      `{}`,
-		"missing triggers": `{"cao":{}}`,
-		"explicit false":   `{"cao":{"triggers":false}}`,
-		"explicit true":    `{"cao":{"triggers":true}}`,
+		"missing file":   "",
+		"missing option": `{}`,
+		"explicit false": `{"webhook-triggers":false}`,
+		"explicit true":  `{"webhook-triggers":true}`,
 	} {
 		for trigger, on := range map[string]string{
 			"project":  "on:\n  projects-item: {project_id: PVT_example}\n",
@@ -37,7 +36,7 @@ func TestWebhookRequiresCAOTriggerOptIn(t *testing.T) {
 			t.Run(name+"/"+trigger, func(t *testing.T) {
 				compiler := NewCompiler()
 				compiler.gitRoot = t.TempDir()
-				writeCAOTriggerConfig(t, compiler.gitRoot, config)
+				writeWebhookTriggerConfig(t, compiler.gitRoot, config)
 				data, err := compiler.ParseWorkflowString(webhookWorkflow(on), "cao-opt-in.md")
 				if name == "explicit true" {
 					require.NoError(t, err)
@@ -45,7 +44,7 @@ func TestWebhookRequiresCAOTriggerOptIn(t *testing.T) {
 					require.NoError(t, err)
 				} else {
 					require.ErrorContains(t, err, "hosted CAO server")
-					assert.Contains(t, err.Error(), `{"cao":{"triggers":true}}`)
+					assert.Contains(t, err.Error(), `{"webhook-triggers":true}`)
 					assert.Contains(t, err.Error(), RepoConfigFileName)
 				}
 				_, err = compiler.ParseWorkflowString(webhookWorkflow("on: workflow_dispatch\n"), "native.md")
@@ -55,7 +54,7 @@ func TestWebhookRequiresCAOTriggerOptIn(t *testing.T) {
 	}
 }
 
-func TestWebhookCAOOptInCannotBeBypassedByPreparsedData(t *testing.T) {
+func TestWebhookOptInCannotBeBypassedByPreparsedData(t *testing.T) {
 	data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("on:\n  projects-item: {project_id: PVT_example}\n"), "preparsed.md")
 	require.NoError(t, err)
 	compiler := NewCompiler()
@@ -64,16 +63,18 @@ func TestWebhookCAOOptInCannotBeBypassedByPreparsedData(t *testing.T) {
 	require.ErrorContains(t, err, "hosted CAO server")
 }
 
-func TestWebhookCAORepoConfigValidation(t *testing.T) {
+func TestWebhookRepoConfigValidation(t *testing.T) {
 	for _, content := range []string{
-		`{"cao":null}`, `{"cao":true}`, `{"cao":{"triggers":null}}`,
-		`{"cao":{"triggers":"true"}}`, `{"cao":{"triggers":1}}`,
-		`{"cao":{"triggers":true,"typo":true}}`,
-		`{"cao":{"triggers":true`,
+		`{"webhook-triggers":null}`, `{"webhook-triggers":{}}`,
+		`{"webhook-triggers":"true"}`, `{"webhook-triggers":1}`,
+		`{"webhook-triggers":[]}`, `{"webhook-triggers":true`,
+		`{"cao":{"triggers":true}}`,
+		`{"repository-dispatch-triggers":true}`,
+		`{"webhook-triggers":true,"cao":{"triggers":true}}`,
 	} {
 		t.Run(content, func(t *testing.T) {
 			root := t.TempDir()
-			writeCAOTriggerConfig(t, root, content)
+			writeWebhookTriggerConfig(t, root, content)
 			_, err := LoadRepoConfig(root)
 			require.Error(t, err)
 			compiler := NewCompiler()
@@ -84,8 +85,8 @@ func TestWebhookCAORepoConfigValidation(t *testing.T) {
 	}
 }
 
-func TestWebhookFrontmatterCannotEnableCAO(t *testing.T) {
-	for _, declaration := range []string{"cao: {triggers: true}\n", "features: {cao: true}\n"} {
+func TestWebhookFrontmatterCannotEnableTriggers(t *testing.T) {
+	for _, declaration := range []string{"webhook-triggers: true\n", "features: {webhook-triggers: true}\n"} {
 		compiler := NewCompiler()
 		compiler.gitRoot = t.TempDir()
 		_, err := compiler.ParseWorkflowString(webhookWorkflow(declaration+"on:\n  projects-item: {project_id: PVT_example}\n"), "frontmatter-cao.md")

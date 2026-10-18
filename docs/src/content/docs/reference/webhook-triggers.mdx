@@ -20,13 +20,11 @@ Compilation rejects these triggers by default. To enable them, set the repositor
 
 ```json title=".github/workflows/aw.json"
 {
-  "cao": {
-    "triggers": true
-  }
+  "webhook-triggers": true
 }
 ```
 
-Omitting `cao`, omitting `triggers`, or setting it to `false` leaves the events disabled. The setting enables compilation only; it does not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require this opt-in.
+`webhook-triggers` is a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. The setting enables compilation only; it does not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require this opt-in.
 
 ## Syntax
 
