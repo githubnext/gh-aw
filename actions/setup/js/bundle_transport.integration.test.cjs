@@ -6,7 +6,7 @@ import os from "os";
 import path from "path";
 
 const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions } = require("./git_helpers.cjs");
-const { resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase, getBundlePreApplyFiles } = require("./push_to_pull_request_branch.cjs");
+const { resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase, getBundlePreApplyFiles, boundedValidationExec } = require("./push_to_pull_request_branch.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 
 const gitEnv = () => {
@@ -186,6 +186,50 @@ describe("offline bundle transport with real Git", () => {
     expect(exec.calls.some(args => args[0] === "fetch")).toBe(false);
     expect(packInventory(shallow)).toEqual(before);
     expect(fs.readFileSync(path.join(shallow, ".git/shallow"), "utf8")).toBe(shallowFile);
+  });
+
+  it.each([false, true])("keeps advanced-base discovery offline in a shallow checkout (filter support: %s)", async allowFilter => {
+    const oldHead = git(source, ["rev-parse", "HEAD"]);
+    git(source, ["checkout", "-b", "feature"]);
+    git(source, ["config", "uploadpack.allowFilter", String(allowFilter)]);
+    const shallow = path.join(root, "shallow");
+    git(root, ["clone", "--depth=1", "--filter=blob:none", "--no-checkout", "--branch", "feature", `file://${source}`, shallow]);
+    const shallowPath = path.join(shallow, ".git/shallow");
+    const shallowFile = fs.readFileSync(shallowPath, "utf8");
+    git(source, ["checkout", "main"]);
+    const mergedBase = addCommit("upstream.txt", "upstream\n");
+    git(source, ["checkout", "feature"]);
+    git(source, ["merge", "--no-ff", "main", "-m", "merge provisioned base"]);
+    addCommit("agent.txt", "agent\n");
+    const bundle = path.join(root, "shallow-agent.bundle");
+    git(source, ["bundle", "create", bundle, "feature", `^${oldHead}`]);
+    git(source, ["checkout", "main"]);
+    const trustedTip = addCommit("later.txt", "advanced base tip\n");
+
+    const exec = execApi(shallow);
+    await ensureFullHistoryForBundle(exec, {}, { bundleFilePath: bundle });
+    await importLocalBundle(exec, bundle, "refs/heads/feature", "refs/bundles/test");
+    const before = packInventory(shallow);
+    const compareCommits = vi.fn(async () => ({ data: { status: "behind" } }));
+    const options = { cwd: shallow, env: gitEnv() };
+    expect(await resolveTrustedBaseTip(boundedValidationExec, options, "main")).toBe(trustedTip);
+    const recognized = await resolveBundleTrustedBase(boundedValidationExec, options, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" });
+    expect(recognized).toBe(mergedBase);
+    await getBundleValidationBase(boundedValidationExec, options, oldHead, "refs/bundles/test", recognized);
+
+    expect(compareCommits).toHaveBeenCalledTimes(1);
+    expect(exec.calls.some(args => args[0] === "fetch")).toBe(false);
+    expect(git(shallow, ["rev-parse", "--is-shallow-repository"])).toBe("true");
+    expect(fs.readFileSync(shallowPath, "utf8")).toBe(shallowFile);
+    expect(packInventory(shallow)).toEqual(before);
+    expect(fs.readdirSync(shallow)).toEqual([".git"]);
+    const absent = await boundedValidationExec.getExecOutput("git", ["cat-file", "-e", trustedTip], offlineGitOptions(options));
+    expect(absent.exitCode).not.toBe(0);
+    if (allowFilter) {
+      const blob = git(source, ["rev-parse", `${oldHead}:shared.txt`]);
+      expect((await boundedValidationExec.getExecOutput("git", ["cat-file", "-e", blob], offlineGitOptions(options))).exitCode).not.toBe(0);
+    }
+    expect(packInventory(shallow)).toEqual(before);
   });
 
   it("imports an incremental bundle into a shallow checkout with locally provisioned prerequisites", async () => {

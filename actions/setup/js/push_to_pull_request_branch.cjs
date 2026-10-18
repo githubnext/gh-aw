@@ -7,6 +7,7 @@ const { createReportIssue } = require("./issue_report.cjs");
 const fs = require("fs");
 const { withTransportIntegrity } = require("./transport_integrity.cjs");
 const path = require("path");
+const childProcess = require("child_process");
 const { generateStagedPreview } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
@@ -19,7 +20,7 @@ const { detectForkPR, checkBranchPushable } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
-const { POLICY_FILE_PROTECTION_DENIED_REASON_CODE } = require("./error_codes.cjs");
+const { ERR_SYSTEM, POLICY_FILE_PROTECTION_DENIED_REASON_CODE } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
@@ -38,6 +39,36 @@ const { buildManualBranchApplyCommands, withTransientPushRetry } = require("./cr
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "push_to_pull_request_branch";
 const MAX_BUNDLE_PARENT_COMPARISONS = 4;
+const MAX_BUNDLE_HISTORY_COMMITS = 100;
+const BUNDLE_VALIDATION_TIMEOUT_MS = 5000;
+const BUNDLE_VALIDATION_MAX_OUTPUT = 1024 * 1024;
+
+// @actions/exec has no process timeout or output limit. Keep optional baseline
+// discovery separate from bundle recovery, and discard failed command diagnostics.
+const boundedValidationExec = {
+  /**
+   * @param {string} command
+   * @param {string[]} args
+   * @param {import("@actions/exec").ExecOptions} [options]
+   */
+  async getExecOutput(command, args, options = {}) {
+    if (command !== "git") throw new Error(`${ERR_SYSTEM}: Bundle validation only supports git commands`);
+    const result = childProcess.spawnSync(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      encoding: "utf8",
+      timeout: BUNDLE_VALIDATION_TIMEOUT_MS,
+      maxBuffer: BUNDLE_VALIDATION_MAX_OUTPUT,
+      killSignal: "SIGKILL",
+      stdio: "pipe",
+    });
+    if (result.error || result.signal || result.status === null) {
+      core.debug("Bundle validation: bounded Git command failed or exceeded its execution/output limit");
+      return { exitCode: 128, stdout: "", stderr: "" };
+    }
+    return { exitCode: result.status, stdout: result.stdout, stderr: "" };
+  },
+};
 const MISSING_BRANCH_ERROR_TEMPLATE = branchName => `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
 const MISSING_REMOTE_REF_PATTERNS = [
   "couldn't find remote ref",
@@ -224,20 +255,24 @@ async function resolveBundleTrustedBase(exec, gitOptions, oldHead, candidate, tr
     const tipAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedTip, candidate], opts);
     if (tipAncestor.exitCode === 0) return trustedTip;
 
-    const merges = await exec.getExecOutput("git", ["rev-list", "--merges", "--parents", `${oldHead}..${candidate}`], opts);
+    const merges = await exec.getExecOutput("git", ["rev-list", "--merges", "--parents", `--max-count=${MAX_BUNDLE_HISTORY_COMMITS + 1}`, `${oldHead}..${candidate}`], opts);
     if (merges.exitCode !== 0) return "";
-    const parents = new Set(
-      merges.stdout
-        .trim()
-        .split("\n")
-        .flatMap(line => line.split(" ").slice(1))
-        .filter(sha => /^[0-9a-f]{40}$/.test(sha))
-    );
+    const mergeLines = merges.stdout.trim().split("\n").filter(Boolean);
+    if (mergeLines.length > MAX_BUNDLE_HISTORY_COMMITS || mergeLines.some(line => line.split(" ").length > 3)) {
+      core.debug("Bundle validation: merge history exceeds the discovery budget");
+      return "";
+    }
+    const parents = new Set(mergeLines.flatMap(line => line.split(" ").slice(1)).filter(sha => /^[0-9a-f]{40}$/.test(sha)));
     if (!parents.size) return "";
-    const ordered = await exec.getExecOutput("git", ["rev-list", "--topo-order", ...parents, "--not", oldHead], opts);
+    const ordered = await exec.getExecOutput("git", ["rev-list", "--topo-order", `--max-count=${MAX_BUNDLE_HISTORY_COMMITS + 1}`, ...parents, "--not", oldHead], opts);
     if (ordered.exitCode !== 0) return "";
+    const orderedParents = ordered.stdout.trim().split("\n").filter(Boolean);
+    if (orderedParents.length > MAX_BUNDLE_HISTORY_COMMITS) {
+      core.debug("Bundle validation: parent history exceeds the discovery budget");
+      return "";
+    }
     let comparisonAttempts = 0;
-    for (const parent of ordered.stdout.trim().split("\n")) {
+    for (const parent of orderedParents) {
       if (!parents.has(parent)) continue;
       if (comparisonAttempts >= MAX_BUNDLE_PARENT_COMPARISONS) {
         core.debug("Bundle validation: merge parent comparison budget exhausted");
@@ -246,7 +281,13 @@ async function resolveBundleTrustedBase(exec, gitOptions, oldHead, candidate, tr
       comparisonAttempts++;
       try {
         // Comparing tip...parent reports "behind" when parent is an ancestor.
-        const { data } = await githubClient.rest.repos.compareCommits({ ...repoParts, base: trustedTip, head: parent, per_page: 1 });
+        const { data } = await githubClient.rest.repos.compareCommits({
+          ...repoParts,
+          base: trustedTip,
+          head: parent,
+          per_page: 1,
+          request: { timeout: BUNDLE_VALIDATION_TIMEOUT_MS, retries: 0, signal: AbortSignal.timeout(BUNDLE_VALIDATION_TIMEOUT_MS) },
+        });
         if (data.status === "behind" || data.status === "identical") return parent;
       } catch (error) {
         core.debug("Bundle validation: merge parent comparison unavailable");
@@ -1185,7 +1226,7 @@ async function main(config = {}) {
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
-          const trustedTip = signedCommits ? "" : await resolveTrustedBaseTip(exec, baseGitOpts, pullRequest.base?.ref);
+          const trustedTip = signedCommits ? "" : await resolveTrustedBaseTip(boundedValidationExec, baseGitOpts, pullRequest.base?.ref);
           const bundleGitOpts = offlineGitOptions(baseGitOpts);
           await ensureFullHistoryForBundle(
             exec,
@@ -1203,8 +1244,8 @@ async function main(config = {}) {
 
           await importLocalBundle(exec, bundleFilePath, `refs/heads/${branchName}`, bundleRef, baseGitOpts);
           core.info(`Imported local bundle to ${bundleRef}`);
-          const trustedBase = await resolveBundleTrustedBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedTip, githubClient, repoParts);
-          const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
+          const trustedBase = await resolveBundleTrustedBase(boundedValidationExec, baseGitOpts, rangeBaseRef, bundleRef, trustedTip, githubClient, repoParts);
+          const validationBase = await getBundleValidationBase(boundedValidationExec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
           const trustedBaseInValidationBase = validationBaseRef !== rangeBaseRef;
@@ -1895,4 +1936,4 @@ async function main(config = {}) {
   });
 }
 
-module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip, resolveBundleTrustedBase };
+module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip, resolveBundleTrustedBase, boundedValidationExec };

@@ -285,6 +285,7 @@ describe("push_to_pull_request_branch bundle integration", () => {
     const paths = require("./resolve_transport_paths.cjs");
     const transportPaths = vi.spyOn(paths, "resolveTransportPaths").mockReturnValue({ patchPath, bundlePath });
     const push = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockRejectedValue(new Error("Unexpected push"));
+    let boundedOutputSpy;
     try {
       process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
       process.env.GITHUB_WORKSPACE = targetRepo;
@@ -310,11 +311,15 @@ describe("push_to_pull_request_branch bundle integration", () => {
         },
       };
       delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
-      const handler = await require("./push_to_pull_request_branch.cjs").main({ signed_commits: false, check_branch_protection: false, protected_files: ["package.json"] });
+      const module = require("./push_to_pull_request_branch.cjs");
+      const boundedOutput = module.boundedValidationExec.getExecOutput;
+      // Match the fixture's exec API, which defaults all Git calls to targetRepo.
+      boundedOutputSpy = vi.spyOn(module.boundedValidationExec, "getExecOutput").mockImplementation((command, args, options) => boundedOutput(command, args, { ...options, cwd: targetRepo }));
+      const handler = await module.main({ signed_commits: false, check_branch_protection: false, protected_files: ["package.json"] });
       const result = await handler({ branch: "feature" }, {});
       expect(result).toMatchObject({ success: false, skipped: true });
       expect(result.error).toContain(`${agentReverted ? "patch" : "bundle"} modifies protected files (package.json)`);
-      expect(compareCommits).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", base: trustedTip, head: mergedAncestor, per_page: 1 });
+      expect(compareCommits).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", base: trustedTip, head: mergedAncestor, per_page: 1, request: { timeout: 5000, retries: 0, signal: expect.any(AbortSignal) } });
       if (!agentReverted) {
         expect(exec.getExecOutput).toHaveBeenCalledWith("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", "refs/bundles/push-feature", "--not", oldHead], expect.any(Object));
       }
@@ -326,6 +331,7 @@ describe("push_to_pull_request_branch bundle integration", () => {
     } finally {
       transportPaths.mockRestore();
       push.mockRestore();
+      boundedOutputSpy?.mockRestore();
       Object.assign(global, originalGlobals);
       for (const key of Object.keys(process.env)) {
         if (!(key in originalEnv)) delete process.env[key];

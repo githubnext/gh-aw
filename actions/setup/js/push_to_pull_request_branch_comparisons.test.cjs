@@ -7,6 +7,7 @@ describe("bundle merge-parent comparison budget", () => {
   const candidate = "c".repeat(40);
   const repoParts = { owner: "test-owner", repo: "test-repo" };
   const secretDiagnostic = "synthetic secret-bearing API diagnostic";
+  const request = { timeout: 5000, retries: 0, signal: expect.any(AbortSignal) };
   const parents = Array.from({ length: 24 }, (_, index) => (index + 1).toString(16).padStart(40, "0"));
   let mockCore;
   let mockExec;
@@ -63,7 +64,7 @@ describe("bundle merge-parent comparison budget", () => {
 
     expect(await resolve()).toBe("");
     expect(compareCommits).toHaveBeenCalledTimes(comparisonBudget);
-    expect(compareCommits.mock.calls).toEqual(parents.slice(0, comparisonBudget).map(head => [{ ...repoParts, base: trustedTip, head, per_page: 1 }]));
+    expect(compareCommits.mock.calls).toEqual(parents.slice(0, comparisonBudget).map(head => [{ ...repoParts, base: trustedTip, head, per_page: 1, request }]));
     expect(mockCore.debug).toHaveBeenCalledWith("Bundle validation: merge parent comparison budget exhausted");
   });
 
@@ -88,6 +89,18 @@ describe("bundle merge-parent comparison budget", () => {
     expect(compareCommits).toHaveBeenCalledTimes(1);
   });
 
+  it("aborts a stalled comparison after five seconds and stops discovery", async () => {
+    compareCommits.mockImplementation(
+      ({ request }) =>
+        new Promise((_resolve, reject) => {
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        })
+    );
+    expect(await resolve()).toBe("");
+    expect(compareCommits).toHaveBeenCalledTimes(1);
+    expect(compareCommits.mock.calls[0][0].request.signal.aborted).toBe(true);
+  });
+
   it.each(["behind", "identical"])("accepts a confirmed %s ancestor after missing parents within the budget", async status => {
     compareCommits.mockImplementation(async () => {
       if (compareCommits.mock.calls.length < comparisonBudget) throw Object.assign(new Error(secretDiagnostic), { status: 404 });
@@ -96,6 +109,103 @@ describe("bundle merge-parent comparison budget", () => {
 
     expect(await resolve()).toBe(parents[comparisonBudget - 1]);
     expect(compareCommits).toHaveBeenCalledTimes(comparisonBudget);
-    expect(compareCommits).toHaveBeenLastCalledWith({ ...repoParts, base: trustedTip, head: parents[comparisonBudget - 1], per_page: 1 });
+    expect(compareCommits).toHaveBeenLastCalledWith({ ...repoParts, base: trustedTip, head: parents[comparisonBudget - 1], per_page: 1, request });
+  });
+
+  it.each(["merge history", "parent history", "octopus merge"])("falls back without API comparisons when %s exceeds the discovery budget", async scenario => {
+    const original = mockExec.getExecOutput.getMockImplementation();
+    mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+      if ((scenario === "merge history" && args[1] === "--merges") || (scenario === "parent history" && args[1] === "--topo-order")) {
+        return { exitCode: 0, stdout: Array.from({ length: 101 }, () => `${candidate} ${oldHead} ${parents[0]}`).join("\n"), stderr: "" };
+      }
+      if (scenario === "octopus merge" && args[1] === "--merges") {
+        return { exitCode: 0, stdout: `${candidate} ${oldHead} ${parents[0]} ${parents[1]}\n`, stderr: "" };
+      }
+      return original(command, args, options);
+    });
+
+    expect(await resolve()).toBe("");
+    expect(compareCommits).not.toHaveBeenCalled();
+    for (const [, args] of mockExec.getExecOutput.mock.calls) {
+      if (args[0] === "rev-list") expect(args).toContain("--max-count=101");
+    }
+  });
+
+  it.each(["merge history", "parent history"])("still recognizes an ancestor at the 100-record %s boundary", async scenario => {
+    const original = mockExec.getExecOutput.getMockImplementation();
+    mockExec.getExecOutput.mockImplementation(async (command, args, options) => {
+      if (scenario === "merge history" && args[1] === "--merges") {
+        return { exitCode: 0, stdout: Array.from({ length: 100 }, () => `${candidate} ${oldHead} ${parents[0]}`).join("\n"), stderr: "" };
+      }
+      if (scenario === "parent history" && args[1] === "--topo-order") {
+        return { exitCode: 0, stdout: [...Array.from({ length: 99 }, () => candidate), parents[0]].join("\n"), stderr: "" };
+      }
+      return original(command, args, options);
+    });
+    compareCommits.mockResolvedValue({ data: { status: "behind" } });
+    expect(await resolve()).toBe(parents[0]);
+    expect(compareCommits).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("bounded optional validation Git", () => {
+  const childProcess = require("child_process");
+  const { boundedValidationExec, resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase } = require("./push_to_pull_request_branch.cjs");
+  let spawn;
+  let realSpawn;
+  let debug;
+
+  beforeEach(() => {
+    debug = vi.fn();
+    vi.stubGlobal("core", { debug, warning: vi.fn() });
+    realSpawn = childProcess.spawnSync;
+    spawn = vi.spyOn(childProcess, "spawnSync");
+  });
+
+  afterEach(() => {
+    spawn.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("enforces process and output bounds that caller options cannot relax", async () => {
+    spawn.mockReturnValue({ status: 0, stdout: "git output", stderr: "private diagnostic" });
+    expect(await boundedValidationExec.getExecOutput("git", ["rev-list", "HEAD"], { cwd: "/checkout", env: { GIT_ALLOW_PROTOCOL: "" }, timeout: 0, maxBuffer: Infinity })).toEqual({ exitCode: 0, stdout: "git output", stderr: "" });
+    expect(spawn).toHaveBeenCalledWith("git", ["rev-list", "HEAD"], expect.objectContaining({ cwd: "/checkout", env: { GIT_ALLOW_PROTOCOL: "" }, timeout: 5000, maxBuffer: 1024 * 1024, killSignal: "SIGKILL", stdio: "pipe" }));
+  });
+
+  it.each(["ETIMEDOUT", "ENOBUFS", "ENOENT", "SIGKILL"])("discards incomplete output and falls back after %s", async failure => {
+    spawn.mockReturnValue({
+      status: failure === "SIGKILL" ? null : 0,
+      signal: failure === "SIGKILL" ? failure : null,
+      error: failure === "SIGKILL" ? undefined : Object.assign(new Error("private diagnostic"), { code: failure }),
+      stdout: "partial private output",
+      stderr: "private diagnostic",
+    });
+    const compareCommits = vi.fn();
+    const client = { rest: { repos: { compareCommits } } };
+    expect(await resolveTrustedBaseTip(boundedValidationExec, {}, "main")).toBe("");
+    expect(await resolveBundleTrustedBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40), client, { owner: "owner", repo: "repo" })).toBe("");
+    expect(await getBundleValidationBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40))).toEqual({ ref: "old", conflictedFiles: [] });
+    expect(compareCommits).not.toHaveBeenCalled();
+    expect(JSON.stringify(debug.mock.calls)).not.toContain("private");
+  });
+
+  it("preserves merge-tree conflict output for conservative file protection", async () => {
+    spawn.mockReturnValue({ status: 1, stdout: `${"a".repeat(40)}\0package.json\0\0`, stderr: "private diagnostic" });
+    expect(await boundedValidationExec.getExecOutput("git", ["merge-tree"])).toEqual({ exitCode: 1, stdout: `${"a".repeat(40)}\0package.json\0\0`, stderr: "" });
+  });
+
+  it.each([
+    ["ETIMEDOUT", "setInterval(() => {}, 1000)"],
+    ["ENOBUFS", "process.stdout.write(Buffer.alloc(2 * 1024 * 1024)); setInterval(() => {}, 1000)"],
+  ])("terminates a real subprocess on %s without returning partial output", async (code, script) => {
+    let result;
+    spawn.mockImplementation((_command, _args, options) => {
+      result = realSpawn(process.execPath, ["-e", script], options);
+      return result;
+    });
+    expect(await boundedValidationExec.getExecOutput("git", ["rev-list", "HEAD"])).toEqual({ exitCode: 128, stdout: "", stderr: "" });
+    expect(result.error.code).toBe(code);
+    expect(result.signal).toBe("SIGKILL");
   });
 });

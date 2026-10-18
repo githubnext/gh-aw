@@ -248,6 +248,7 @@ describe("push_to_pull_request_branch.cjs", () => {
     delete global.exec;
     delete global.context;
     delete global.github;
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -257,6 +258,7 @@ describe("push_to_pull_request_branch.cjs", () => {
   async function loadModule() {
     // Module loads when imported
     const module = require("./push_to_pull_request_branch.cjs");
+    vi.spyOn(module.boundedValidationExec, "getExecOutput").mockImplementation((command, args, options) => mockExec.getExecOutput(command, args, options));
     return module;
   }
 
@@ -364,8 +366,8 @@ index 0000000..abc1234
       const confirmed = status === "behind" || status === "identical";
       const base = await module.resolveBundleTrustedBase(mockExec, { cwd: tempDir }, "old-head", "candidate", trustedTip, mockGithub, mockContext.repo);
       expect(base).toBe(confirmed ? mergedBase : "");
-      expect(mockGithub.rest.repos.compareCommits).toHaveBeenCalledExactlyOnceWith({ ...mockContext.repo, base: trustedTip, head: mergedBase, per_page: 1 });
-      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["rev-list", "--topo-order", mergedBase, "--not", "old-head"], expect.any(Object));
+      expect(mockGithub.rest.repos.compareCommits).toHaveBeenCalledExactlyOnceWith({ ...mockContext.repo, base: trustedTip, head: mergedBase, per_page: 1, request: { timeout: 5000, retries: 0, signal: expect.any(AbortSignal) } });
+      expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["rev-list", "--topo-order", "--max-count=101", mergedBase, "--not", "old-head"], expect.any(Object));
       for (const [, , options] of mockExec.getExecOutput.mock.calls) {
         expect(options).toEqual(expect.objectContaining({ cwd: tempDir, silent: true, env: expect.objectContaining({ GIT_ALLOW_PROTOCOL: "", GIT_NO_LAZY_FETCH: "1" }) }));
       }
@@ -2437,7 +2439,14 @@ index 0000000..abc1234
           }
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"], expect.objectContaining({ silent: true }));
           if (baseAdvanced) {
-            expect(mockGithub.rest.repos.compareCommits).toHaveBeenCalledWith({ owner: "test-owner", repo: "test-repo", base: trustedTip, head: trustedBase, per_page: 1 });
+            expect(mockGithub.rest.repos.compareCommits).toHaveBeenCalledWith({
+              owner: "test-owner",
+              repo: "test-repo",
+              base: trustedTip,
+              head: trustedBase,
+              per_page: 1,
+              request: { timeout: 5000, retries: 0, signal: expect.any(AbortSignal) },
+            });
             expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["merge-tree", "--write-tree", "--name-only", "-z", "remote-head", trustedBase], expect.any(Object));
           } else {
             expect(mockGithub.rest.repos.compareCommits).not.toHaveBeenCalled();
