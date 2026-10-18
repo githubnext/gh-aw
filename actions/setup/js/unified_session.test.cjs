@@ -186,6 +186,8 @@ describe("Unified conclusion session", () => {
     '{"providers":{"copilot":{"models":["a",false]}}}',
     '{"provider":"copilot","models":["a",42]}',
     '{"endpoints":[{"provider":"copilot","models":[],"routing_models":[{"model_id":42}]}]}',
+    '{"endpoints":[{"provider":"copilot","configured":true,"models":["a"],"routing_models":[{"model_id":"a","supported_reasoning_efforts":["very high"]}]}]}',
+    '{"endpoints":[{"provider":"copilot","configured":true,"models":["a"],"routing_models":[{"model_id":"a","context_window_tokens":0}]}]}',
   ])("warns once and skips malformed model inventories: %s", content => {
     write("sandbox/firewall/models.json", content);
     const warn = vi.fn();
@@ -232,7 +234,7 @@ describe("Unified conclusion session", () => {
     ],
     [{ providers: {} }, { endpoints: [] }],
     [{ provider: "copilot", models: [] }, { endpoints: [{ provider: "copilot", models: [] }] }],
-    [{ endpoints: [{ provider: "copilot", configured: false, models: null }] }, { endpoints: [{ provider: "copilot", models: [] }] }],
+    [{ endpoints: [{ provider: "copilot", configured: false, models: null }] }, { endpoints: [{ provider: "copilot", configured: false }] }],
   ])("keeps genuine empty or unconfigured preferred inventories instead of stale mirrors: %j", (inventory, expected) => {
     write("agent/awf-reflect.json", inventory);
     write("sandbox/firewall/awf-reflect.json", { endpoints: [{ provider: "stale", models: ["stale"] }] });

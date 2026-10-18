@@ -792,13 +792,25 @@
             "type": "object",
             "properties": {
               "provider": { "type": "string" },
-              "models": { "type": "array", "items": { "type": "string" } },
+              "configured": { "type": "boolean", "description": "AWF's endpoint configuration state; absent when the source did not supply it." },
+              "models": { "type": "array", "items": { "type": "string" }, "description": "Advertised model IDs in source order; absent means unknown, not empty." },
               "routingModels": {
                 "type": "array",
-                "items": { "type": "object", "properties": { "modelId": { "type": "string" }, "supportedEndpoints": { "type": "array", "items": { "type": "string" } } }, "required": ["modelId"], "additionalProperties": false }
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "modelId": { "type": "string" },
+                    "supportedEndpoints": { "type": "array", "items": { "type": "string" } },
+                    "supportedReasoningEfforts": { "type": "array", "items": { "type": "string" }, "description": "Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty." },
+                    "contextWindowTokens": { "type": "number", "description": "Positive context window size in tokens; absent means unknown." }
+                  },
+                  "required": ["modelId"],
+                  "additionalProperties": false
+                },
+                "description": "Routing metadata in source order; absent means unknown, not empty."
               }
             },
-            "required": ["provider", "models"],
+            "required": ["provider"],
             "additionalProperties": false
           }
         },
