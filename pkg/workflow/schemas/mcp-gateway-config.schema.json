@@ -46,7 +46,7 @@
           "type": "string",
           "description": "Container image for the MCP server (e.g., 'ghcr.io/example/mcp-server:latest'). This field is required for stdio servers per MCP Gateway Specification section 4.1.2.",
           "minLength": 1,
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?$"
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9./_-]*(:([a-zA-Z0-9._-]+|latest))?(@sha256:[a-fA-F0-9]{64})?$"
         },
         "entrypoint": {
           "type": "string",
