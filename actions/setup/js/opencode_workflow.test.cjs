@@ -26,6 +26,13 @@ async function harness({
 } = {}) {
   const stdout = [];
   const stderr = [];
+  const errors = [];
+  class HarnessError extends Error {
+    constructor(message, options) {
+      super(message, options);
+      errors.push(this);
+    }
+  }
   const process = {
     argv: ["node", "harness", "opencode", "run", "--standalone", "--format", "json", "--agent", "build", "--log-level", "info"],
     env: { OPENCODE_MODEL: "copilot/auto", GH_AW_LLM_PROVIDER: "github", AWF_REFLECT_ENABLED: "1", GH_AW_PROMPT: "/prompt.txt", GITHUB_WORKSPACE: "/workspace", ...env },
@@ -46,6 +53,7 @@ async function harness({
   const execFile = vi.fn((command, args, options, callback) => callback(exportError, exportOutput ?? JSON.stringify(sessionExport)));
   await vm.runInNewContext(engineScript("harness-script"), {
     process,
+    Error: HarnessError,
     require: name => {
       if (name === "fs") return { readFileSync };
       if (name === "child_process") return { execFile };
@@ -63,7 +71,7 @@ async function harness({
     },
   });
   const options = runProcess.mock.calls[0]?.[0];
-  return { process, options, config: options ? JSON.parse(options.env.OPENCODE_CONFIG_CONTENT) : undefined, stdout: stdout.join(""), stderr: stderr.join(""), readFileSync, execFile };
+  return { process, options, config: options ? JSON.parse(options.env.OPENCODE_CONFIG_CONTENT) : undefined, stdout: stdout.join(""), stderr: stderr.join(""), readFileSync, execFile, errors };
 }
 
 describe("OpenCode shared workflow harness", () => {
@@ -128,6 +136,12 @@ describe("OpenCode shared workflow harness", () => {
     expect(invalid.stderr).toContain("positive timeout in seconds");
   });
 
+  it("removes inherited PWD so OpenCode uses the configured engine working directory", async () => {
+    const result = await harness({ env: { PWD: "/wrong/inherited", GH_AW_ENGINE_CWD: "/workspace/project" } });
+    expect(result.options.env).not.toHaveProperty("PWD");
+    expect(result.execFile.mock.calls[0][2]).toMatchObject({ cwd: "/workspace/project", env: result.options.env });
+  });
+
   it.each(["", "copilot", "/auto", "copilot/"])("rejects malformed model %s", async model => {
     const result = await harness({ env: { OPENCODE_MODEL: model } });
     expect(result.process.exitCode).toBe(1);
@@ -151,6 +165,14 @@ describe("OpenCode shared workflow harness", () => {
     const completed = await harness({ env: { GH_AW_MAX_TURNS: "1" }, events: [{ ...event, part: { ...event.part, reason: "stop" } }] });
     expect(completed.options.runtimeGuard.shouldTerminate()).toMatchObject({ terminate: false });
     expect(completed.process.exitCode).toBeUndefined();
+  });
+
+  it("does not count replayed step completions with a fresh part ID as another turn", async () => {
+    const first = { type: "step_finish", sessionID: "ses", part: { id: "projection-one", messageID: "stable-message", reason: "tool-calls" } };
+    const replay = { ...first, part: { ...first.part, id: "projection-two" } };
+    const result = await harness({ env: { GH_AW_MAX_TURNS: "2" }, events: [first, replay] });
+    expect(result.options.runtimeGuard.shouldTerminate()).toMatchObject({ terminate: false });
+    expect(result.process.exitCode).toBeUndefined();
   });
 
   it("preserves a nonzero exit code and rejects JSON errors with zero exit status", async () => {
@@ -195,6 +217,17 @@ describe("OpenCode shared workflow harness", () => {
     expect(JSON.parse(result.stdout)).toMatchObject({ type: "opencode.mcp_failure", data: { serverName: "github" } });
   });
 
+  it("does not fail a successful run on a retryable MCP connect warning", async () => {
+    const result = await harness({
+      stderrLines: [
+        'timestamp=2026-10-18T15:00:00.000Z level=WARN fiber=#1 message="mcp connect failed" role=server server=github status="{\\"status\\":\\"connecting\\"}"',
+        'timestamp=2026-10-18T15:00:01.000Z level=INFO fiber=#1 message="mcp connected" role=server server=github',
+      ],
+    });
+    expect(result.process.exitCode).toBeUndefined();
+    expect(result.stdout).not.toContain("opencode.mcp_failure");
+  });
+
   it("reconciles missing completed steps without publishing the native export's prompt", async () => {
     const result = await harness({
       events: [{ type: "step_finish", sessionID: "ses", part: { id: "live", messageID: "first", reason: "tool-calls" } }],
@@ -203,6 +236,7 @@ describe("OpenCode shared workflow harness", () => {
         messages: [
           { type: "user", text: "Secret exported prompt." },
           { type: "assistant", id: "first", finish: "tool-calls", time: { completed: 1000 }, tokens: { input: 10 } },
+          { type: "compaction", id: "compact", time: { completed: 1500 }, summary: "Secret compaction summary.", tokens: { input: 5 }, cost: 0.01, providerState: { secret: "private compaction state" } },
           { type: "assistant", id: "second", finish: "stop", time: { completed: 2000 }, tokens: { input: 20 }, cost: 0.01, providerState: { secret: "private provider state" } },
         ],
       },
@@ -210,8 +244,11 @@ describe("OpenCode shared workflow harness", () => {
     expect(result.process.exitCode).toBeUndefined();
     expect(result.execFile.mock.calls[0].slice(0, 2)).toEqual(["opencode", ["session", "export", "--standalone", "ses"]]);
     expect(result.execFile.mock.calls[0][2]).toMatchObject({ timeout: 60000, maxBuffer: 64 * 1024 * 1024, env: result.options.env });
-    expect(JSON.parse(result.stdout)).toMatchObject({ type: "step_finish", timestamp: 2000, part: { messageID: "second", reason: "stop", tokens: { input: 20 }, cost: 0.01 } });
-    for (const secret of ["Secret exported prompt.", "private provider state"]) {
+    const records = result.stdout.trim().split("\n").map(JSON.parse);
+    expect(records[0]).toMatchObject({ type: "step_finish", timestamp: 1000, part: { id: "live", messageID: "first", reason: "tool-calls", tokens: { input: 10 } } });
+    expect(records[1]).toMatchObject({ type: "opencode.compaction", timestamp: 1500, data: { sessionID: "ses", messageID: "compact", tokens: { input: 5 }, cost: 0.01 } });
+    expect(records[2]).toMatchObject({ type: "step_finish", timestamp: 2000, part: { messageID: "second", reason: "stop", tokens: { input: 20 }, cost: 0.01 } });
+    for (const secret of ["Secret exported prompt.", "Secret compaction summary.", "private compaction state", "private provider state"]) {
       expect(result.stdout).not.toContain(secret);
       expect(result.stderr).not.toContain(secret);
     }
@@ -258,6 +295,52 @@ describe("OpenCode shared workflow harness", () => {
         .split("\n")
         .map(line => JSON.parse(line).type)
     ).toEqual(["step_finish", "opencode.max_turns"]);
+  });
+
+  it("enforces max-turns on any recovered tool-calling step at or beyond the limit", async () => {
+    const result = await harness({
+      env: { GH_AW_MAX_TURNS: "2" },
+      sessionExport: {
+        info: { id: "ses" },
+        messages: [
+          { type: "assistant", id: "first", finish: "tool-calls", time: { completed: 1000 } },
+          { type: "assistant", id: "second", finish: "unknown", time: { completed: 2000 } },
+          { type: "assistant", id: "third", finish: "tool-calls", time: { completed: 3000 } },
+          { type: "assistant", id: "fourth", finish: "stop", time: { completed: 4000 } },
+        ],
+      },
+    });
+    expect(result.process.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout.trim().split("\n").at(-1))).toMatchObject({ type: "opencode.max_turns", data: { maxTurns: 2 } });
+  });
+
+  it("merges exported usage into an observed step without duplicating its turn", async () => {
+    const result = await harness({
+      events: [{ type: "step_finish", sessionID: "ses", part: { id: "live-first", messageID: "first", reason: "tool-calls" } }],
+      sessionExport: {
+        info: { id: "ses" },
+        messages: [
+          { type: "assistant", id: "first", finish: "tool-calls", time: { completed: 1000 }, tokens: { input: 10 }, cost: 0.01 },
+          { type: "compaction", id: "compact", time: { completed: 1500 }, tokens: { input: 5 }, cost: 0.01 },
+          { type: "assistant", id: "second", finish: "stop", time: { completed: 2000 }, tokens: { input: 20 }, cost: 0.02 },
+        ],
+      },
+    });
+    const records = result.stdout.trim().split("\n").map(JSON.parse);
+    expect(records).toHaveLength(3);
+    expect(records[0]).toMatchObject({ type: "step_finish", part: { id: "live-first", messageID: "first", tokens: { input: 10 }, cost: 0.01 } });
+    expect(records[1]).toMatchObject({ type: "opencode.compaction", data: { sessionID: "ses", messageID: "compact", tokens: { input: 5 }, cost: 0.01 } });
+    const parsed = require("./parse_opencode_log.cjs").parseOpenCodeLog(result.stdout);
+    expect(parsed.logEntries.at(-1).data).toMatchObject({ numTurns: 2, totalCostUsd: 0.04, usage: { input_tokens: 35 } });
+  });
+
+  it("preserves session-export execution errors as causes without logging their contents", async () => {
+    const exportError = new Error("Secret exported prompt.");
+    const result = await harness({ exportError });
+    expect(result.process.exitCode).toBe(1);
+    expect(result.stderr).toContain("Unable to export the OpenCode session for step reconciliation");
+    expect(result.stderr).not.toContain("Secret exported prompt.");
+    expect(result.errors.find(error => error.message.includes("Unable to export"))?.cause).toBe(exportError);
   });
 });
 

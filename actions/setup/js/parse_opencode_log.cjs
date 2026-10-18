@@ -17,7 +17,7 @@ function isOpenCodeEvent(entry) {
 }
 
 /**
- * Recover completed steps omitted by the v2 CLI's projected-part reconciliation.
+ * Recover completed step and compaction accounting omitted by the v2 CLI's projected-part reconciliation.
  * Never return user messages, prompts, or provider state from the native export.
  * @param {any} session
  * @param {string} sessionID
@@ -26,9 +26,28 @@ function isOpenCodeEvent(entry) {
 function getOpenCodeSessionSteps(session, sessionID) {
   if (session?.info?.id !== sessionID || !Array.isArray(session.messages)) throw new Error("OpenCode session export must contain the requested session and messages");
   return session.messages.flatMap(message => {
+    if (message?.type === "compaction") {
+      if (message.time?.completed === undefined) return [];
+      const timestamp = typeof message.time.completed === "number" ? message.time.completed : Date.parse(message.time.completed);
+      if (typeof message.id !== "string" || !Number.isSafeInteger(timestamp) || timestamp < 0) throw new Error("OpenCode session export contains an invalid completed compaction message");
+      const tokens = normalizeOpenCodeExportTokens(message.tokens);
+      return [
+        {
+          type: "opencode.compaction",
+          timestamp,
+          data: {
+            sessionID,
+            messageID: message.id,
+            ...(tokens !== undefined ? { tokens } : {}),
+            ...(message.cost !== undefined ? { cost: message.cost } : {}),
+          },
+        },
+      ];
+    }
     if (message?.type !== "assistant" || message.time?.completed === undefined) return [];
     const timestamp = typeof message.time.completed === "number" ? message.time.completed : Date.parse(message.time.completed);
     if (typeof message.id !== "string" || !Number.isSafeInteger(timestamp) || timestamp < 0) throw new Error("OpenCode session export contains an invalid completed assistant message");
+    const tokens = normalizeOpenCodeExportTokens(message.tokens);
     return [
       {
         type: "step_finish",
@@ -40,12 +59,37 @@ function getOpenCodeSessionSteps(session, sessionID) {
           messageID: message.id,
           type: "step-finish",
           reason: message.finish,
-          ...(message.tokens !== undefined ? { tokens: message.tokens } : {}),
+          ...(tokens !== undefined ? { tokens } : {}),
           ...(message.cost !== undefined ? { cost: message.cost } : {}),
         },
       },
     ];
   });
+}
+
+/** @param {any} part @returns {boolean} */
+function isV2Part(part) {
+  return typeof part?.partID === "string";
+}
+
+/** @param {any} tokens @returns {any} */
+function normalizeOpenCodeExportTokens(tokens) {
+  if (!tokens || typeof tokens !== "object" || Array.isArray(tokens)) return undefined;
+  const normalized = { ...tokens };
+  const reasoning = tokens.reasoning;
+  if (!Number.isSafeInteger(reasoning) || reasoning < 0) return normalized;
+  const output = tokens.output === undefined ? 0 : tokens.output;
+  if (Number.isSafeInteger(output) && output >= 0) {
+    const totalOutput = output + reasoning;
+    if (Number.isSafeInteger(totalOutput)) normalized.output = totalOutput;
+    else delete normalized.output;
+  }
+  if (Number.isSafeInteger(tokens.total) && tokens.total >= 0) {
+    const total = tokens.total + reasoning;
+    if (Number.isSafeInteger(total)) normalized.total = total;
+    else delete normalized.total;
+  }
+  return normalized;
 }
 
 /** @param {string} content @returns {string[]} */
@@ -54,14 +98,26 @@ function getOpenCodeMCPFailures(content) {
   for (const line of content.split(/\r?\n/)) {
     if (!/^timestamp=\S+ level=(?:WARN|ERROR)\b/.test(line)) continue;
     const v2 = /\bmessage="mcp connect failed"(?:\s|$)/.test(line);
-    if (!v2 && (!/\bmessage="server unavailable"(?:\s|$)/.test(line) || !/\btype=(?:remote|local)\b/.test(line) || !/\bstatus=failed\b/.test(line))) continue;
+    if (v2) {
+      const statusMatch = line.match(/\bstatus=("(?:\\.|[^"\\])*"|[^\s]+)(?:\s|$)/);
+      if (!statusMatch) continue;
+      let status;
+      try {
+        status = statusMatch[1].startsWith('"') ? JSON.parse(statusMatch[1]) : statusMatch[1];
+        if (typeof status === "string") status = JSON.parse(status);
+      } catch {
+        /* malformed or nonterminal status is not failure evidence */
+        continue;
+      }
+      if (!status || typeof status !== "object" || Array.isArray(status) || status.status !== "failed") continue;
+    } else if (!/\bmessage="server unavailable"(?:\s|$)/.test(line) || !/\btype=(?:remote|local)\b/.test(line) || !/\bstatus=failed\b/.test(line)) continue;
     const match = line.match(v2 ? /\bserver=("(?:\\.|[^"\\])*"|[^\s]+)(?:\s|$)/ : /\bkey=("(?:\\.|[^"\\])*"|[^\s]+)(?:\s|$)/);
     if (!match) continue;
     if (match[1].startsWith('"')) {
       try {
         failures.add(JSON.parse(match[1]));
       } catch {
-        /* malformed logfmt field */
+        /* Ignore malformed server names; they cannot identify a failure. */
       }
     } else failures.add(match[1]);
   }
@@ -71,7 +127,7 @@ function getOpenCodeMCPFailures(content) {
 /** @param {any} raw @returns {any} */
 function sourceMetadata(raw) {
   const source = { ...raw };
-  const partID = raw.part?.partID ?? raw.part?.id;
+  const partID = isV2Part(raw.part) ? raw.part.partID : raw.part?.id;
   if (!Object.hasOwn(raw, "id") && typeof partID === "string") source.id = partID;
   if (!Object.hasOwn(raw, "parentId") && typeof raw.part?.messageID === "string") source.parentId = raw.part.messageID;
   return source;
@@ -173,6 +229,7 @@ function parseOpenCodeLog(content) {
   const toolStarts = new Map();
   const toolCompletions = new Map();
   const stepReports = new Map();
+  const compactionReports = new Map();
   const finishRefusals = new Map();
   const messageParts = new Map();
   /** @type {Record<string, any>} */
@@ -186,6 +243,24 @@ function parseOpenCodeLog(content) {
     if (isSessionEvent(raw)) {
       const refusal = raw.type === "assistant.message" ? getMessageRefusal(raw.data) : undefined;
       logEntries.push(refusal ? createSessionEvent(raw, "assistant.refusal", refusal) : structuredClone(raw));
+      if (raw.type === "opencode.compaction" && typeof raw.data.messageID === "string") {
+        const identity = JSON.stringify([raw.data.sessionID, raw.data.messageID]);
+        const report = compactionReports.get(identity) ?? {};
+        const tokens = raw.data.tokens;
+        if (tokens && typeof tokens === "object" && !Array.isArray(tokens)) {
+          const snapshot = normalizeSessionUsage({
+            total_tokens: tokens.total,
+            input_tokens: tokens.input,
+            output_tokens: tokens.output,
+            reasoning_output_tokens: tokens.reasoning,
+            cache_read_input_tokens: tokens.cache?.read,
+            cache_creation_input_tokens: tokens.cache?.write,
+          });
+          report.usage = reconcileSessionUsage(report.usage, snapshot);
+        }
+        if (isMetric(raw.data.cost)) report.cost = raw.data.cost;
+        compactionReports.set(identity, report);
+      }
       if (raw.type === "opencode.max_turns" || raw.type === "opencode.mcp_failure") {
         errors.push({ type: raw.type, ...structuredClone(raw.data) });
         resultSource = raw;
@@ -199,7 +274,7 @@ function parseOpenCodeLog(content) {
       emit("session.init", { sourceEngine: "opencode", sessionId: raw.sessionID });
     }
     const part = raw.part;
-    const partID = part?.partID ?? part?.id;
+    const partID = isV2Part(part) ? part.partID : part?.id;
     // Equal snapshots are repeated evidence; changed parts retain their payloads.
     if (typeof partID === "string") {
       const identity = JSON.stringify([raw.sessionID, raw.type, partID, raw]);
@@ -230,7 +305,7 @@ function parseOpenCodeLog(content) {
     } else if (raw.type === "tool_use") {
       const state = part.state;
       if (!state || typeof state !== "object") continue;
-      const callID = part.callID ?? (typeof part.partID === "string" ? part.id : undefined);
+      const callID = part.callID ?? (isV2Part(part) ? part.id : undefined);
       const data = { toolCallId: callID, toolName: part.tool, input: state.input };
       const callIdentity = typeof callID === "string" ? JSON.stringify([raw.sessionID, callID]) : typeof partID === "string" ? JSON.stringify([raw.sessionID, "part", partID]) : undefined;
       if (callIdentity === undefined || !toolStarts.has(callIdentity)) {
@@ -244,7 +319,7 @@ function parseOpenCodeLog(content) {
         const previous = identity !== undefined ? toolCompletions.get(identity) : undefined;
         const start = state.time?.start;
         const end = state.time?.end;
-        const exitCode = typeof part.partID === "string" ? state.metadata?.metadata?.exit : state.metadata?.exit;
+        const exitCode = isV2Part(part) ? state.metadata?.metadata?.exit : state.metadata?.exit;
         const completion = {
           toolCallId: callID,
           toolName: part.tool,
@@ -316,7 +391,7 @@ function parseOpenCodeLog(content) {
     }
   }
   if (resultSource) {
-    for (const report of stepReports.values()) {
+    for (const report of [...stepReports.values(), ...compactionReports.values()]) {
       accumulateSessionUsage(usage, report.usage);
       if (!costOverflowed && isMetric(report.cost)) {
         const sum = (totalCostUsd ?? 0) + report.cost;

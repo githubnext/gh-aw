@@ -38,6 +38,57 @@ describe("OpenCode JSON session parser", () => {
     }
   });
 
+  it("recovers settled compaction accounting without exposing private message content", () => {
+    const records = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [
+          { type: "compaction", id: "pending", time: { created: timestamp }, summary: "private pending summary", tokens: { input: 90 } },
+          { type: "compaction", id: "compacted", time: { completed: timestamp }, summary: "private summary", tokens: { input: 100, output: 4, reasoning: 0, cache: { read: 20 } }, cost: 0.03, providerState: { secret: true } },
+          { type: "assistant", id: "assistant", finish: "stop", time: { completed: timestamp + 1 }, tokens: { input: 30 }, cost: 0.01 },
+        ],
+      },
+      sessionID
+    );
+    expect(records).toHaveLength(2);
+    expect(records[0]).toMatchObject({ type: "opencode.compaction", timestamp, data: { sessionID, messageID: "compacted", tokens: { input: 100 }, cost: 0.03 } });
+    expect(JSON.stringify(records)).not.toContain("private");
+    expect(JSON.stringify(records)).not.toContain("providerState");
+    expect(parseOpenCodeLog(jsonl(records)).logEntries.at(-1)).toMatchObject({
+      type: "session.result",
+      data: { numTurns: 1, totalCostUsd: 0.04, usage: { input_tokens: 130, output_tokens: 4, cache_read_input_tokens: 20 } },
+    });
+  });
+
+  it("includes reasoning in exported output and total tokens without changing event parsing", () => {
+    const records = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [{ type: "assistant", id: "reasoning", finish: "stop", time: { completed: timestamp }, tokens: { total: 15, input: 10, output: 2, reasoning: 7, cache: { read: 3 } } }],
+      },
+      sessionID
+    );
+    expect(records[0].part.tokens).toMatchObject({ total: 22, output: 9, reasoning: 7 });
+    expect(parseOpenCodeLog(jsonl(records)).logEntries.at(-1).data.usage).toMatchObject({
+      total_tokens: 22,
+      input_tokens: 10,
+      output_tokens: 9,
+      reasoning_output_tokens: 7,
+      cache_read_input_tokens: 3,
+    });
+    const nativeEvent = record("step_finish", { tokens: { total: 15, input: 10, output: 2, reasoning: 7, cache: { read: 3 } } });
+    expect(parseOpenCodeLog(jsonl([nativeEvent])).logEntries.at(-1).data.usage.output_tokens).toBe(2);
+    const overflow = getOpenCodeSessionSteps(
+      {
+        info: { id: sessionID },
+        messages: [{ type: "assistant", id: "overflow", finish: "stop", time: { completed: timestamp }, tokens: { total: Number.MAX_SAFE_INTEGER, output: Number.MAX_SAFE_INTEGER, reasoning: 1 } }],
+      },
+      sessionID
+    );
+    expect(overflow[0].part.tokens).not.toHaveProperty("total");
+    expect(overflow[0].part.tokens).not.toHaveProperty("output");
+  });
+
   it.each([0, 2])("correlates v2 tools using partID and id, retaining nested exit metadata: %s", exit => {
     const first = {
       type: "tool_use",
@@ -83,8 +134,15 @@ describe("OpenCode JSON session parser", () => {
   it("recognizes only structured v2 MCP connection failure diagnostics", () => {
     const prefix = "timestamp=2026-10-18T15:00:00.000Z level=WARN fiber=#1";
     expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server=github status="{\\"status\\":\\"failed\\"}"`)).toEqual(["github"]);
-    expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server="server with spaces"`)).toEqual(["server with spaces"]);
-    for (const content of ["", "mcp connect failed server=github", `${prefix} message="mcp connected" server=github`, `${prefix} message="mcp connect failed"`]) expect(getOpenCodeMCPFailures(content)).toEqual([]);
+    expect(getOpenCodeMCPFailures(`${prefix} message="mcp connect failed" server="server with spaces" status="{\\"status\\":\\"failed\\"}"`)).toEqual(["server with spaces"]);
+    for (const content of [
+      "",
+      "mcp connect failed server=github",
+      `${prefix} message="mcp connected" server=github`,
+      `${prefix} message="mcp connect failed" server=github`,
+      `${prefix} message="mcp connect failed" server=github status="{\\"status\\":\\"connecting\\"}"`,
+    ])
+      expect(getOpenCodeMCPFailures(content)).toEqual([]);
   });
 
   it("preserves text, reasoning, tools, errors, timestamps and per-step usage", () => {

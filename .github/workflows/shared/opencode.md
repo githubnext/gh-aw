@@ -197,9 +197,10 @@ engine:
         let maxTurnsHit = false;
         let sessionID;
         const finishedParts = new Set();
-        const finishedMessages = new Set();
+        const finishedMessages = new Map();
         const observedMCPFailures = new Set();
         const runtimeEnv = { ...process.env, OPENCODE_CONFIG_CONTENT: JSON.stringify(config) };
+        delete runtimeEnv.PWD;
         const result = await runProcess({
           command,
           args: [...commandArgs, "--model", `awf-proxy/${model}`],
@@ -218,12 +219,29 @@ engine:
             if (!isOpenCodeEvent(entry)) return;
             if (entry.sessionID) sessionID = entry.sessionID;
             if (entry?.type === "error" && entry.error) reportedError = true;
-            if (maxTurns !== undefined && entry.type === "tool_use" && entry.part.state.status === "error" && entry.part.state.error === "Tools are disabled after the maximum agent steps") {
+            if (maxTurns !== undefined && entry.type === "tool_use" && entry.part?.state?.status === "error" && entry.part.state.error === "Tools are disabled after the maximum agent steps") {
               maxTurnsHit = true;
             }
             if (entry?.type !== "step_finish") return;
-            if (typeof entry.part.messageID === "string") finishedMessages.add(entry.part.messageID);
-            const identity = typeof entry.part?.id === "string" ? JSON.stringify([entry.sessionID, entry.part.id]) : undefined;
+            const messageID = typeof entry.part?.messageID === "string" ? entry.part.messageID : undefined;
+            const identity = messageID !== undefined ? JSON.stringify([entry.sessionID, "message", messageID]) : typeof entry.part?.id === "string" ? JSON.stringify([entry.sessionID, "part", entry.part.id]) : undefined;
+            if (messageID !== undefined) {
+              const observed = finishedMessages.get(messageID);
+              const tokens = entry.part.tokens;
+              finishedMessages.set(messageID, observed
+                ? {
+                    ...observed,
+                    ...entry,
+                    part: {
+                      ...observed.part,
+                      ...entry.part,
+                      id: observed.part.id,
+                      partID: observed.part.partID,
+                      ...(observed.part.tokens || tokens ? { tokens: { ...observed.part.tokens, ...tokens, ...(tokens?.cache || observed.part.tokens?.cache ? { cache: { ...observed.part.tokens?.cache, ...tokens?.cache } } : {}) } } : {}),
+                    },
+                  }
+                : entry);
+            }
             if (identity !== undefined && finishedParts.has(identity)) return;
             if (identity !== undefined) finishedParts.add(identity);
             turns++;
@@ -257,19 +275,39 @@ engine:
             timeout: 60000,
             maxBuffer: 64 * 1024 * 1024,
           }, (error, stdout) => {
-            if (error) return reject(new Error("Unable to export the OpenCode session for step reconciliation"));
+            if (error) return reject(new Error("Unable to export the OpenCode session for step reconciliation", { cause: error }));
             try { resolve(JSON.parse(stdout)); } catch {
               reject(new Error("Failed to parse the OpenCode session export"));
             }
           });
         });
-        const steps = getOpenCodeSessionSteps(exported, sessionID);
+        const records = getOpenCodeSessionSteps(exported, sessionID);
+        const steps = records.filter(entry => entry.type === "step_finish");
         if (!steps.length) throw new Error("OpenCode session export contains no completed model steps");
-        for (const entry of steps) {
-          if (finishedMessages.has(entry.part.messageID)) continue;
+        for (const entry of records) {
+          if (entry.type !== "step_finish") {
+            process.stdout.write(JSON.stringify(entry) + "\n");
+            continue;
+          }
+          const observed = finishedMessages.get(entry.part.messageID);
+          if (observed) {
+            const tokens = entry.part.tokens;
+            const observedTokens = observed.part.tokens;
+            process.stdout.write(JSON.stringify({
+              ...observed,
+              timestamp: observed.timestamp ?? entry.timestamp,
+              part: {
+                ...observed.part,
+                reason: observed.part.reason ?? entry.part.reason,
+                ...(tokens || observedTokens ? { tokens: { ...tokens, ...observedTokens, ...(tokens?.cache || observedTokens?.cache ? { cache: { ...tokens?.cache, ...observedTokens?.cache } } : {}) } } : {}),
+                ...(observed.part.cost === undefined && entry.part.cost !== undefined ? { cost: entry.part.cost } : {}),
+              },
+            }) + "\n");
+            continue;
+          }
           process.stdout.write(JSON.stringify(entry) + "\n");
         }
-        if (maxTurns !== undefined && steps.length >= maxTurns && steps[maxTurns - 1].part.reason === "tool-calls") {
+        if (maxTurns !== undefined && steps.slice(maxTurns - 1).some(entry => entry.part.reason === "tool-calls")) {
           process.stdout.write(JSON.stringify({ type: "opencode.max_turns", timestamp: Date.now(), data: { maxTurns } }) + "\n");
           throw new Error("OpenCode max-turns limit reached");
         }
