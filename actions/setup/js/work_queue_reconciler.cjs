@@ -247,7 +247,9 @@ function reconciliationCandidates(projection, pool, limit, runNumber) {
           dispatch.claims?.some(member => {
             const claim = projection.claims.get(member.claim_id);
             const work = projection.works.get(member.work_id);
-            return claim?.state === "completed" && work?.claim_id === member.claim_id && (claim.keep_open ? claim.barrier : work.barrier) === "pending";
+            const ownsPendingBarrier = claim?.keep_open === true || work?.claim_id === member.claim_id;
+            const barrier = claim?.keep_open ? claim.barrier : work?.barrier;
+            return claim?.state === "completed" && ownsPendingBarrier && barrier === "pending";
           }))
     )
     .sort((left, right) => {
@@ -258,6 +260,23 @@ function reconciliationCandidates(projection, pool, limit, runNumber) {
   if (candidates.length <= limit) return candidates;
   const offset = Number.isSafeInteger(runNumber) && runNumber > 0 ? (runNumber - 1) % candidates.length : 0;
   return Array.from({ length: limit }, (_, index) => candidates[(offset + index) % candidates.length]);
+}
+
+function unresolvedDeliveryResults(assignment, projection) {
+  return Object.fromEntries(
+    assignment.claims.map(member => {
+      const claim = projection.claims.get(member.claim_id);
+      const work = projection.works.get(member.work_id);
+      if (claim?.state === "cancelled") return [member.handle, { state: "cancelled", effects: "unknown" }];
+      if (claim?.state === "completed") {
+        const barrier = claim.keep_open ? claim.barrier : work?.barrier;
+        const terminal = projection.terminalBarriers.get(claim.keep_open ? member.claim_id : member.work_id);
+        if (barrier === "verified") return [member.handle, { state: "result", effects: terminal?.evidence.effects ?? "unknown" }];
+        if (barrier === "failed") return [member.handle, { state: "delivery_failed", effects: terminal?.evidence.effects ?? work?.disposition ?? "unknown" }];
+      }
+      return [member.handle, { state: "pending", effects: "unknown", reason: "verification_unresolved" }];
+    })
+  );
 }
 
 async function reconcileQueue(options) {
@@ -271,14 +290,34 @@ async function reconcileQueue(options) {
   const results = [];
   for (const dispatch of candidates) {
     const assignment = assignmentForDispatch(latest.projection, dispatch.dispatch_id);
+    let reservation;
     try {
-      const reservation = await reconcileDispatch({ ...options, assignment });
-      const delivery = dispatch.state !== "reserved" && (dispatch.run || reservation.released) ? await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment, expireUnverified: true }) : undefined;
-      results.push({ dispatch_id: dispatch.dispatch_id, ...reservation, ...(delivery ? { delivery } : {}) });
+      reservation = await reconcileDispatch({ ...options, assignment });
     } catch (error) {
       log.failure("queue.reconcile.dispatch_failed", error);
       results.push({ dispatch_id: dispatch.dispatch_id, state: "launch_unresolved", released: false });
+      continue;
     }
+    let delivery;
+    if (dispatch.state !== "reserved" && dispatch.run && (typeof options.verifyEffects === "function" || options.expireUnverified === true)) {
+      try {
+        delivery = await require("./finish_work_queue_claim.cjs").finalizeWorkerResults({ ...options, assignment });
+      } catch (error) {
+        log.failure("queue.reconcile.delivery_failed", error);
+        let projection = latest.projection;
+        try {
+          projection = (await loadQueue(options)).projection;
+        } catch (refreshError) {
+          log.failure("queue.reconcile.delivery_refresh_failed", refreshError);
+        }
+        delivery = {
+          version: 3,
+          dispatch_id: assignment.dispatch_id,
+          claims: unresolvedDeliveryResults(assignment, projection),
+        };
+      }
+    }
+    results.push({ dispatch_id: dispatch.dispatch_id, ...reservation, ...(delivery ? { delivery } : {}) });
   }
   log.debug("queue.reconcile.complete", { reconciled: results.length });
   return { version: 3, reconciled: results.length, results };

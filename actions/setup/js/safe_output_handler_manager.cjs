@@ -26,7 +26,7 @@ const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { parseIntTemplatable } = require("./templatable.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
 const { getDefaultTargetRepo, parseRepoSlug } = require("./repo_helpers.cjs");
-const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile, writeSafeOutputErrorReport, SAFE_OUTPUT_ERRORS_FILE_PATH } = require("./safe_output_manifest.cjs");
+const { createManifestLogger, ensureManifestExists, extractCreatedItemFromResult, writeTemporaryIdMapFile, writeSafeOutputErrorReport, SAFE_OUTPUT_ERRORS_FILE_PATH, CLAIM_DELIVERY_ERRORS_FILE_NAME } = require("./safe_output_manifest.cjs");
 const { loadCustomSafeOutputJobTypes, loadCustomSafeOutputScriptHandlers, loadCustomSafeOutputActionHandlers, isStagedMode } = require("./safe_output_helpers.cjs");
 const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.cjs");
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
@@ -2042,12 +2042,12 @@ async function main(options = {}) {
               failures: [
                 {
                   type: "claim_delivery",
-                  errorCode: result?.reason || "verification_unresolved",
+                  errorCode: result?.reason || (result?.state === "delivery_failed" ? "delivery_failed" : "verification_unresolved"),
                   error: settlement.delivery?.reason || settlement.error || "Independent delivery verification is unavailable",
                 },
               ],
             },
-            nodePath.join(nodePath.dirname(SAFE_OUTPUT_ERRORS_FILE_PATH), "claim-delivery-errors.json")
+            nodePath.join(nodePath.dirname(SAFE_OUTPUT_ERRORS_FILE_PATH), CLAIM_DELIVERY_ERRORS_FILE_NAME)
           )
         );
       }

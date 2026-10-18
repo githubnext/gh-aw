@@ -16,7 +16,7 @@ function captureDiscussionDelivery(result, message, expected) {
   return result;
 }
 
-async function preparePullRequestDelivery(exec, baseBranch) {
+async function preparePullRequestDelivery(exec, baseBranch, transportBaseBranch = baseBranch) {
   if (!currentClaimHandle()) return null;
   const read = async revision => {
     const result = await exec.getExecOutput("git", ["rev-parse", "--verify", revision], { silent: true });
@@ -24,7 +24,11 @@ async function preparePullRequestDelivery(exec, baseBranch) {
     if (result.exitCode !== 0 || !REVISION.test(sha)) throw new Error("Claim pull request preparation requires exact local commit/tree evidence");
     return sha;
   };
-  return { tree: await read("HEAD^{tree}"), base: await read(`refs/remotes/origin/${baseBranch}^{commit}`) };
+  return {
+    tree: await read("HEAD^{tree}"),
+    base: await read(`refs/remotes/origin/${baseBranch}^{commit}`),
+    transportBase: await read(`refs/remotes/origin/${transportBaseBranch}^{commit}`),
+  };
 }
 
 async function readAncestry(github, repository, base, head) {
@@ -116,10 +120,10 @@ async function verifyPullRequest(options, receipt) {
   const { github, claim } = options;
   if (!Number.isSafeInteger(receipt.number) || receipt.number < 1 || nativeDecimalIdentity(receipt.id) !== receipt.id) return { verified: false };
   const message = options.message;
-  if ((message.head_repo !== undefined && message.head_repo !== receipt.headRepository) || (message.base_branch !== undefined && message.base_branch !== receipt.baseBranch)) return { verified: false };
+  if ((message.head_repo !== undefined && message.head_repo !== receipt.headRepository) || (message.base_branch !== undefined && message.base_branch !== receipt.transportBaseBranch)) return { verified: false };
   if (message.base_commit !== undefined) {
     if (typeof message.base_commit !== "string" || !REVISION.test(message.base_commit)) return { verified: false };
-    if (message.base_commit !== receipt.base && !(await readAncestry(github, receipt.repository, message.base_commit, receipt.base))) return { verified: false };
+    if (message.base_commit !== receipt.transportBase && !(await readAncestry(github, receipt.repository, message.base_commit, receipt.transportBase))) return { verified: false };
   }
   if (!(await readCode(github, receipt, receipt.commit))) return { verified: false };
   const [owner, repo] = receipt.repository.split("/");

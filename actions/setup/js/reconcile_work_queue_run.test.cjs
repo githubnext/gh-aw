@@ -1,7 +1,11 @@
 // @ts-check
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { main, maintenance } from "./reconcile_work_queue_run.cjs";
+import { createRequire } from "node:module";
+import { reconcileQueue } from "./work_queue_reconciler.cjs";
 import { queueFixture, REF, REPOSITORY, WORKFLOW } from "./work_queue_lifecycle.test_helpers.cjs";
+
+const require = createRequire(import.meta.url);
 
 function setup(fixtureOptions = {}) {
   const fixture = queueFixture({ bound: true, count: 2, ...fixtureOptions });
@@ -222,6 +226,32 @@ describe("scheduled work queue recovery", () => {
     expect(await maintenance(options)).toMatchObject({ reconciled: 0 });
     expect(fixture.transactions).toHaveLength(transactions);
     expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves released capacity and reports unresolved delivery when finalization throws", async () => {
+    const { fixture, options } = setup({ count: 1 });
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    await main(options);
+    options.context = { ...fixture.dispatcherContext, job: "work_queue_compaction" };
+    const publisher = fixture.nativeRun(fixture.dispatcherContext);
+    options.workflowRef = `${REPOSITORY}/${publisher.path}@${REF}`;
+    options.githubClient.rest.actions.getWorkflowRun.mockResolvedValue({ status: 200, data: publisher });
+
+    const finalizer = require("./finish_work_queue_claim.cjs");
+    const finalize = vi.spyOn(finalizer, "finalizeWorkerResults").mockRejectedValue(new Error("ledger unavailable"));
+    try {
+      const result = await reconcileQueue({ ...options, expireUnverified: true });
+      expect(result.results[0]).toMatchObject({
+        state: "released",
+        released: true,
+        delivery: { claims: { h1: { state: "pending", reason: "verification_unresolved" } } },
+      });
+      await expect(maintenance(options)).rejects.toThrow("work_queue_maintenance_reconciliation_unresolved");
+      expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(true);
+    } finally {
+      finalize.mockRestore();
+    }
   });
 
   it.each(["active", "deadline", "unavailable", "principal", "revision"])("keeps a released pending delivery unresolved for %s evidence", async kind => {

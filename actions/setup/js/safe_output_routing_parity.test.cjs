@@ -414,14 +414,14 @@ describe("real immutable Claim routing", () => {
     expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Claim deliveries remain unverified"));
     const worker = scope.readClaimScopeContext().assignment;
     const directory = scope.claimArtifactPath(root, "h1", worker);
-    const report = JSON.parse(fs.readFileSync(path.join(directory, "claim-delivery-errors.json"), "utf8"));
+    const report = JSON.parse(fs.readFileSync(path.join(directory, manifest.CLAIM_DELIVERY_ERRORS_FILE_NAME), "utf8"));
     expect(report).toMatchObject({
       claim_handle: "h1",
       errorCode: "claim_delivery_unverified",
       message: `Claim delivery state: ${state}; effects: unknown`,
-      failures: [{ type: "claim_delivery", errorCode: "verification_unresolved" }],
+      failures: [{ type: "claim_delivery", errorCode: state === "delivery_failed" ? "delivery_failed" : "verification_unresolved" }],
     });
-    expect(fs.statSync(path.join(directory, "claim-delivery-errors.json")).mode & 0o777).toBe(0o600);
+    expect(fs.statSync(path.join(directory, manifest.CLAIM_DELIVERY_ERRORS_FILE_NAME)).mode & 0o777).toBe(0o600);
     expect(JSON.parse(fs.readFileSync(path.join(directory, "safe-output-errors.json"), "utf8")).message).toBe("Original handler failure");
   });
 
