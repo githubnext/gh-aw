@@ -65,35 +65,11 @@ func checkWorkflowRunScope(ctx context.Context, input Input) ([]Diagnostic, erro
 			Message: "workflow_run cannot combine branches and branches-ignore; use branches with optional negative patterns instead",
 		}}, nil
 	}
-	patterns, valid, err := workflowRunStrings(ctx, branches, false)
+	scoped, err := workflowRunBranchScope(ctx, branches)
 	if err != nil {
 		return nil, err
 	}
-	hasPositive, broad := false, false
-	if valid {
-		for _, pattern := range patterns {
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			pattern = strings.TrimSpace(pattern)
-			if strings.HasPrefix(pattern, "!") {
-				// GitHub applies filters in order. A universal exclusion
-				// clears earlier matches before later patterns re-include.
-				excluded := strings.TrimPrefix(pattern, "!")
-				if len(excluded) >= 2 && strings.Trim(excluded, "*") == "" {
-					broad = false
-				}
-				continue
-			}
-			hasPositive = true
-			// A broad positive pattern also defeats narrower entries in the
-			// same allowlist. Exclusions alone are not a positive trust scope.
-			if strings.Trim(pattern, "*?/+") == "" {
-				broad = true
-			}
-		}
-	}
-	if valid && hasPositive && !broad {
+	if scoped {
 		return nil, nil
 	}
 	severity := Warning
@@ -107,6 +83,35 @@ func checkWorkflowRunScope(ctx context.Context, input Input) ([]Diagnostic, erro
 		message = "workflow_run branches-ignore does not establish positive branch scope; replace it with branches naming trusted branches or scoped patterns"
 	}
 	return []Diagnostic{{Severity: severity, Path: path + ".branches", Message: message}}, nil
+}
+
+func workflowRunBranchScope(ctx context.Context, branches any) (bool, error) {
+	patterns, valid, err := workflowRunStrings(ctx, branches, false)
+	if err != nil || !valid {
+		return false, err
+	}
+	hasPositive, broad := false, false
+	for _, pattern := range patterns {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		pattern = strings.TrimSpace(pattern)
+		if excluded, negative := strings.CutPrefix(pattern, "!"); negative {
+			// GitHub applies filters in order. A universal exclusion
+			// clears earlier matches before later patterns re-include.
+			if len(excluded) >= 2 && strings.Trim(excluded, "*") == "" {
+				broad = false
+			}
+			continue
+		}
+		hasPositive = true
+		// A broad positive pattern also defeats narrower entries in the
+		// same allowlist. Exclusions alone are not a positive trust scope.
+		if strings.Trim(pattern, "*?/+") == "" {
+			broad = true
+		}
+	}
+	return hasPositive && !broad, nil
 }
 
 func workflowRunTrigger(ctx context.Context, on any) (any, string, bool, error) {
