@@ -30,7 +30,7 @@ imports:
 ---
 ```
 
-For workflows analyzing Go, copy both shared files and use the [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) wrapper. It sets up Go from `go.mod`, installs pinned `gopls` in the mounted runner tool cache, and checks semantic-symbol readiness before MCP startup. The container sees that cache read-only; no extra host mounts are added.
+For workflows analyzing Go, copy both shared files and use the [`shared/mcp/serena-go.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/shared/mcp/serena-go.md) wrapper. It requires `go.mod` to select Go 1.26 or newer, sets up that toolchain, installs pinned `gopls` in the mounted runner tool cache, and checks semantic-symbol readiness before MCP startup. The container sees that cache read-only; no extra host mounts are added.
 
 ```aw wrap
 ---
