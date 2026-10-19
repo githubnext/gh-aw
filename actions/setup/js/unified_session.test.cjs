@@ -1082,10 +1082,19 @@ describe("Unified conclusion session", () => {
     expect(events.at(-1).data.absentComponents).not.toContain("workflow");
   });
 
-  it.each(["aw_info.json", "activation/aw_info.json", "usage/aw_info.json"])("persists caller context and observed episode lineage from trusted %s", metadataPath => {
+  it.each(["runtime/aw_info.json", "aw_info.json", "activation/aw_info.json", "usage/aw_info.json"])("persists caller context and observed episode lineage from trusted %s", metadataPath => {
     write(metadataPath, {
       engine_id: "copilot",
       run_id: "300",
+      run_attempt: "2",
+      workflow_id: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+      workflow_call_id: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
+      caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+      repository: "org/repo",
+      ref: "refs/heads/main",
+      sha: "abc123",
+      actor: "octocat",
+      target_repo: "org/target",
       context: {
         episode_id: "100-1:root",
         hop_id: "200-1:caller",
@@ -1095,6 +1104,11 @@ describe("Unified conclusion session", () => {
         root_workflow_id: "root.yml",
         root_run_id: "100",
         workflow_call_id: "200-1:caller",
+        repo: "org/parent",
+        run_id: "200",
+        run_attempt: "1",
+        workflow_id: "caller.yml",
+        event_type: "workflow_dispatch",
         work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
         secret: "PRIVATE_CONTEXT",
       },
@@ -1108,12 +1122,35 @@ describe("Unified conclusion session", () => {
     expect(workflow).toMatchObject({
       data: {
         runId: "300",
+        runAttempt: "2",
+        workflowId: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+        workflowCallId: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
+        callerWorkflowRef: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+        repository: "org/repo",
+        ref: "refs/heads/main",
+        sha: "abc123",
+        actor: "octocat",
+        targetRepo: "org/target",
         awContext: {
           workflow_call_id: "200-1:caller",
           work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
           secret: "***",
         },
-        episode: { episodeId: "100-1:root", hopId: "200-1:caller", parentHopId: "100-1:root", originEvent: "issues", rootRepo: "org/repo", rootWorkflowId: "root.yml", rootRunId: "100" },
+        episode: {
+          episodeId: "100-1:root",
+          hopId: "200-1:caller",
+          parentHopId: "100-1:root",
+          originEvent: "issues",
+          rootRepo: "org/repo",
+          rootWorkflowId: "root.yml",
+          rootRunId: "100",
+          parentRepo: "org/parent",
+          parentRunId: "200",
+          parentRunAttempt: "1",
+          parentWorkflowId: "caller.yml",
+          parentWorkflowCallId: "200-1:caller",
+          parentEventType: "workflow_dispatch",
+        },
       },
       provenance: { component: "workflow", path: metadataPath },
     });

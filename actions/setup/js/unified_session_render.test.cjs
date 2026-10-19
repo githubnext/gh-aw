@@ -228,6 +228,14 @@ describe("unified session publication views", () => {
         "workflow.info",
         {
           run_id: "300",
+          run_attempt: "2",
+          workflow_id: "worker.yml",
+          workflow_call_id: "300-2:worker.yml",
+          caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+          ref: "refs/heads/main",
+          sha: "abc123",
+          actor: "octocat",
+          target_repo: "org/target",
           context: {
             episode_id: "100-1:root",
             hop_id: "200-1:caller",
@@ -237,6 +245,11 @@ describe("unified session publication views", () => {
             root_workflow_id: "root.yml",
             root_run_id: "100",
             workflow_call_id: "200-1:caller",
+            repo: "org/parent",
+            run_id: "200",
+            run_attempt: "1",
+            workflow_id: "caller.yml",
+            event_type: "workflow_dispatch",
             work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
           },
         },
@@ -249,6 +262,14 @@ describe("unified session publication views", () => {
     for (const records of [events, [header, ...normalized]]) {
       for (const output of [generatePlainTextSummary(records), generateCopilotCliStyleSummary(records)]) {
         expect(output).toContain("runId=300");
+        expect(output).toContain("runAttempt=2");
+        expect(output).toContain("workflowId=worker.yml");
+        expect(output).toContain("workflowCallId=300-2:worker.yml");
+        expect(output).toContain("callerWorkflowRef=org/parent/.github/workflows/caller.yml@refs/heads/main");
+        expect(output).toContain("ref=refs/heads/main");
+        expect(output).toContain("sha=abc123");
+        expect(output).toContain("actor=octocat");
+        expect(output).toContain("targetRepo=org/target");
         expect(output).toContain("episodeId=100-1:root");
         expect(output).toContain("hopId=200-1:caller");
         expect(output).toContain("parentHopId=");
@@ -256,6 +277,12 @@ describe("unified session publication views", () => {
         expect(output).toContain("rootRepo=org/repo");
         expect(output).toContain("rootWorkflowId=root.yml");
         expect(output).toContain("rootRunId=100");
+        expect(output).toContain("parentRepo=org/parent");
+        expect(output).toContain("parentRunId=200");
+        expect(output).toContain("parentRunAttempt=1");
+        expect(output).toContain("parentWorkflowId=caller.yml");
+        expect(output).toContain("parentWorkflowCallId=200-1:caller");
+        expect(output).toContain("parentEventType=workflow_dispatch");
         expect(output).toContain(`awContext=${JSON.stringify(normalized[0].data.awContext)}`);
       }
     }

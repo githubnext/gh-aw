@@ -6,6 +6,11 @@
 
 ---
 
+> **Current architecture:** The dual-runtime and collector portions below are
+> superseded. Outcome evaluation now runs exclusively through `gh aw outcomes`.
+> The Go evidence contract and conformance corpus remain; the JavaScript
+> evaluator and scheduled collector have been removed.
+
 ### Context
 
 Safe-output outcomes are evaluated twice in gh-aw: once by the Go CLI (`pkg/cli/outcome_eval*.go`, used by
