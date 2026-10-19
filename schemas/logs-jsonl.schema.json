@@ -2644,6 +2644,65 @@
               ],
               "additionalProperties": false
             },
+            "episode_hops": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "run_id": {
+                    "type": "integer"
+                  },
+                  "repository": {
+                    "type": "string"
+                  },
+                  "workflow": {
+                    "type": "string"
+                  },
+                  "hop_id": {
+                    "type": "string"
+                  },
+                  "parent_hop_id": {
+                    "type": "string"
+                  },
+                  "caller_run_id": {
+                    "type": "string"
+                  },
+                  "caller_repository": {
+                    "type": "string"
+                  },
+                  "shared_run": {
+                    "type": "boolean"
+                  },
+                  "evidence": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "missing_evidence": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "run_id",
+                  "shared_run",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              }
+            },
             "token_usage_summary": {
               "type": [
                 "null",
