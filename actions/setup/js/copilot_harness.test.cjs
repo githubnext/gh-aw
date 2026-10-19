@@ -4446,18 +4446,49 @@ describe("Copilot SDK configured-model liveness (recorded /reflect from run 3919
     return { multiProvider, error, exit, refetch, logs, resolution: read("agent/model-resolution.json"), selection: read("sandbox/agent/logs/copilot-model-selection.json") };
   }
 
-  function expectRefusedToStart(run, model) {
+  function expectRefusedToStart(run, model, { provider = model.startsWith("copilot/") ? "copilot" : null, checked = "copilot (http://api-proxy:10002/, 40 models)" } = {}) {
     expect(run.error?.message).toBe("exit 1");
     expect(run.exit).toHaveBeenCalledWith(1);
     expect(run.multiProvider).toBeNull();
     expect(run.refetch).toHaveBeenCalledTimes(1);
     const failure = run.logs.at(-1);
     expect(failure).toContain(`The requested model is not supported: '${model}' is not available in the workflow's live model catalog`);
-    expect(failure).toContain("checked: copilot (http://api-proxy:10002/, 40 models)");
+    expect(failure).toContain(`checked: ${checked}.`);
     expect(detectErrors(failure).modelNotSupportedError).toBe(true);
     // The failed record replaces the earlier `exact` record for copilot/main.
-    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: model, resolved_model: null, provider: model.startsWith("copilot/") ? "copilot" : null, status: "failed", cause: "model_unavailable" }]);
+    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: model, resolved_model: null, provider, status: "failed", cause: "model_unavailable" }]);
     expect(run.selection).toEqual({ status: "unavailable", configured_model: model, resolved_model: "", effective_model: "" });
+  }
+
+  function expectCatalogUnavailable(run, model, { provider = null, checked }) {
+    expect(run.error?.message).toBe("exit 1");
+    expect(run.exit).toHaveBeenCalledWith(1);
+    expect(run.multiProvider).toBeNull();
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    const failure = run.logs.at(-1);
+    expect(failure).toContain(`model-catalog retrieval prevented alias resolution for '${model}'`);
+    expect(failure).toContain(`checked: ${checked}.`);
+    expect(detectErrors(run.logs.join("\n")).modelNotSupportedError).toBe(false);
+    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: model, resolved_model: null, provider, status: "failed", cause: "catalog_unavailable" }]);
+    expect(run.selection).toBeNull();
+  }
+
+  function expectStartedWithoutUnsupportedModel(run, model) {
+    expect(run.error).toBeNull();
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    expect(run.multiProvider.model).toBe(model);
+    expect(run.logs.join("\n")).not.toContain("The requested model is not supported");
+    expect(detectErrors(run.logs.join("\n")).modelNotSupportedError).toBe(false);
+  }
+
+  /** The recorded catalogue with the openai endpoint configured and the given model list. */
+  function withOpenAIEndpoint(models) {
+    const reflect = recordedReflect();
+    Object.assign(
+      reflect.endpoints.find(endpoint => endpoint.provider === "openai"),
+      { configured: true, models }
+    );
+    return reflect;
   }
 
   it("case 1: configured claude-opus-4.8 refuses to start with model_unavailable", async () => {
@@ -4472,9 +4503,51 @@ describe("Copilot SDK configured-model liveness (recorded /reflect from run 3919
     const refreshedReflect = recordedReflect();
     refreshedReflect.endpoints.find(endpoint => endpoint.provider === "copilot").models.push("claude-opus-4.8");
     const run = await startSDK("claude-opus-4.8", { refreshed: [refreshedReflect] });
-    expect(run.error).toBeNull();
-    expect(run.refetch).toHaveBeenCalledTimes(1);
-    expect(run.multiProvider.model).toBe("copilot-completions/claude-opus-4.8");
+    expectStartedWithoutUnsupportedModel(run, "copilot-completions/claude-opus-4.8");
+  });
+
+  it("a provider-prefixed openai/gpt-6.1-sol is not matched by the Copilot listing of gpt-6.1-sol", async () => {
+    expectRefusedToStart(await startSDK("openai/gpt-6.1-sol", { refreshed: [recordedReflect()] }), "openai/gpt-6.1-sol", { provider: "openai" });
+  });
+
+  it("a provider-prefixed anthropic/claude-haiku-4.5 is not matched by the Copilot listing of claude-haiku-4.5", async () => {
+    expectRefusedToStart(await startSDK("anthropic/claude-haiku-4.5", { refreshed: [recordedReflect()] }), "anthropic/claude-haiku-4.5", { provider: "anthropic" });
+  });
+
+  it("a provider-prefixed id starts when the bounded refresh restores that provider's temporarily unavailable model list", async () => {
+    const run = await startSDK("openai/gpt-6.1-sol", { reflect: withOpenAIEndpoint(null), refreshed: [withOpenAIEndpoint(["gpt-6.1-sol"])] });
+    expectStartedWithoutUnsupportedModel(run, "openai/gpt-6.1-sol");
+  });
+
+  it("a provider-prefixed id whose provider model list stays unavailable records catalog_unavailable", async () => {
+    const run = await startSDK("openai/gpt-6.1-sol", { reflect: withOpenAIEndpoint(null), refreshed: [withOpenAIEndpoint(null)] });
+    expectCatalogUnavailable(run, "openai/gpt-6.1-sol", { provider: "openai", checked: "openai (http://api-proxy:10000/, no model list), copilot (http://api-proxy:10002/, 40 models)" });
+  });
+
+  it("a missing initial catalogue is refreshed and starts when the refresh lists the model", async () => {
+    const run = await startSDK("gpt-5.6-luna", { reflect: null, refreshed: [recordedReflect()] });
+    expectStartedWithoutUnsupportedModel(run, "copilot-responses/gpt-5.6-luna");
+  });
+
+  it("a missing catalogue (no /reflect) records catalog_unavailable", async () => {
+    expectCatalogUnavailable(await startSDK("claude-opus-4.8", { reflect: null }), "claude-opus-4.8", { checked: "(none)" });
+  });
+
+  it("an only configured endpoint with an empty model list records catalog_unavailable", async () => {
+    const emptyCatalogue = () => {
+      const reflect = recordedReflect();
+      reflect.endpoints.find(endpoint => endpoint.provider === "copilot").models = [];
+      return reflect;
+    };
+    const run = await startSDK("claude-opus-4.8", { reflect: emptyCatalogue(), refreshed: [emptyCatalogue()] });
+    expectCatalogUnavailable(run, "claude-opus-4.8", { checked: "copilot (http://api-proxy:10002/, 0 models)" });
+  });
+
+  it("a degraded refresh keeps the complete initial catalogue's model_unavailable result", async () => {
+    const degraded = recordedReflect();
+    degraded.models_fetch_complete = false;
+    degraded.endpoints.find(endpoint => endpoint.provider === "copilot").models = null;
+    expectRefusedToStart(await startSDK("claude-opus-4.8", { refreshed: [degraded] }), "claude-opus-4.8");
   });
 
   it("case 3: no configured model selects the first model", async () => {

@@ -1097,7 +1097,9 @@ function resolveMultiProviderFromReflect(options) {
   // a configured model that is not found is never silently replaced by another model.
   let primaryModel = qualifyModelForMultiProvider(configuredModel, { providers, models }) || mappedConfiguredModel;
   if (!primaryModel && configuredModel && models.length > 0) {
-    logger(`sdk-mode(multi): configured model "${configuredModel}" not found in awf-reflect endpoints; not selecting a different model`);
+    // Provisional diagnostic: the caller may still refresh /reflect, so this wording must not
+    // match the unsupported-model classifier (agent_error_patterns.cjs MODEL_NOT_SUPPORTED_PATTERN).
+    logger(`sdk-mode(multi): no awf-reflect endpoint lists the configured model "${configuredModel}"; not selecting a different model`);
     return { model: "", providers, models, configuredModelNotFound: true };
   }
   if (!primaryModel && models.length > 0) {

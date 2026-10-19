@@ -84,6 +84,8 @@ const {
   fetchModelsFromUrl,
   inferProviderTypeForModel,
   resolveMultiProviderFromReflect,
+  normalizeReflectProviderName,
+  REFLECT_PROVIDER_ALIASES,
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -91,7 +93,7 @@ const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSi
 const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { isCAPIQuotaExceededError, isCAPIServerError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
-const { parseMultiProviderJson, qualifyModelForMultiProvider } = require("./copilot_sdk_multi_provider.cjs");
+const { parseMultiProviderJson, qualifyModelForMultiProvider, isCopilotProviderName } = require("./copilot_sdk_multi_provider.cjs");
 const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_session.cjs");
 const { isRoutingReasoningEffort } = require("./copilot_routing_effort.cjs");
 const { resolveAWFModelRoutingSelection, isModelAvailableInReflectData, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
@@ -522,26 +524,74 @@ async function applyCopilotModelAliasResolution(options) {
 }
 
 /**
- * Whether a model (bare, `<provider>/`-prefixed, or wire-API-qualified) is listed on any
- * configured AWF /reflect endpoint. Model parameters (`?effort=…`) are ignored.
+ * The AWF /reflect provider names a `<provider>/` model prefix refers to, or null for a bare
+ * model id. Copilot prefixes, including the SDK's wire-API-qualified names
+ * (`copilot-responses/…`, `copilot-completions/…`), refer to the GitHub provider aliases.
+ * @param {string} prefix
+ * @returns {Set<string>|null}
+ */
+function reflectProvidersForModelPrefix(prefix) {
+  const normalized = normalizeReflectProviderName(prefix);
+  if (!normalized) return null;
+  if (isCopilotProviderName(normalized) || REFLECT_PROVIDER_ALIASES.github.has(normalized)) return REFLECT_PROVIDER_ALIASES.github;
+  const unsuffixed = normalized.replace(/-\d+$/, "");
+  const known = [normalized, unsuffixed].find(name => Object.prototype.hasOwnProperty.call(REFLECT_PROVIDER_ALIASES, name));
+  return known ? REFLECT_PROVIDER_ALIASES[known] : new Set([normalized, unsuffixed]);
+}
+
+/**
+ * Split a configured model into its model id and the /reflect providers it is scoped to.
+ * Model parameters (`?effort=…`) are ignored.
+ * @param {string} model
+ * @returns {{ id: string, prefix: string, providers: Set<string>|null }}
+ */
+function scopeModelToReflectProviders(model) {
+  const { base } = splitModelIdentifier(model);
+  const slash = base.indexOf("/");
+  if (slash <= 0) return { id: base, prefix: "", providers: null };
+  const prefix = base.slice(0, slash);
+  return { id: base.slice(slash + 1), prefix, providers: reflectProvidersForModelPrefix(prefix) };
+}
+
+/**
+ * Whether a model is listed on a configured AWF /reflect endpoint. A bare id may be listed by
+ * any provider; a `<provider>/`-prefixed id only by that provider.
  * @param {string} model
  * @param {any} reflectData
  * @returns {boolean}
  */
 function isModelListedOnConfiguredReflectEndpoint(model, reflectData) {
-  const { base } = splitModelIdentifier(model);
-  if (!base) return false;
-  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [];
-  return endpoints.some(endpoint => endpoint?.configured === true && Array.isArray(endpoint.models) && endpoint.models.some(id => typeof id === "string" && id && (base === id || base.endsWith(`/${id}`))));
+  const { id, providers } = scopeModelToReflectProviders(model);
+  return Boolean(id) && isModelAvailableInReflectData(id, reflectData, providers);
+}
+
+/**
+ * Classify why a configured model is not listed in AWF /reflect data: `catalog_unavailable`
+ * when discovery is missing or incomplete for the model's providers (no /reflect data, no
+ * configured endpoint, `models_fetch_complete: false`, or a relevant endpoint with a missing
+ * or empty model list); otherwise `model_unavailable`.
+ * @param {string} model
+ * @param {any} reflectData
+ * @returns {"catalog_unavailable" | "model_unavailable"}
+ */
+function classifyUnlistedReflectModel(model, reflectData) {
+  const { providers } = scopeModelToReflectProviders(model);
+  const configuredEndpoints = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : []).filter(endpoint => endpoint?.configured === true);
+  const relevantEndpoints = configuredEndpoints.filter(endpoint => !providers || providers.has(normalizeReflectProviderName(endpoint.provider)));
+  const incomplete = !reflectData || reflectData.models_fetch_complete === false || configuredEndpoints.length === 0 || relevantEndpoints.some(endpoint => !Array.isArray(endpoint.models) || endpoint.models.length === 0);
+  return incomplete ? "catalog_unavailable" : "model_unavailable";
 }
 
 /**
  * Resolve the Copilot SDK multi-provider configuration from AWF /reflect data.
  *
  * Without a router selection, a configured model must be listed on a configured /reflect
- * endpoint. When it is not, one bounded /reflect refresh is attempted; if the model is still
- * absent, this records the failure and stops the process before the SDK starts rather than
- * running a different model (see https://github.com/github/gh-aw/issues/70317).
+ * endpoint (scoped to its provider when prefixed). When it is not, or no catalogue is
+ * available, one bounded /reflect refresh is attempted; if the model is still absent, this
+ * records the failure and stops the process before the SDK starts rather than running a
+ * different model (see https://github.com/github/gh-aw/issues/70317). A `model_unavailable`
+ * result from a complete initial catalogue wins over a degraded refresh, as in
+ * `resolveConfiguredModelWithRefresh`.
  *
  * @param {{
  *   configuredModel: string,
@@ -560,30 +610,32 @@ async function resolveCopilotSDKMultiProvider(options) {
   const logger = options.logger || log;
   const configuredModel = String(options.configuredModel || "").trim();
   const resolve = reflectData => resolveMultiProviderFromReflect({ model: configuredModel, wireApi: options.wireApi, reflectData, modelsJson: options.modelsJson, logger });
-  const isUnavailable = (multiProvider, reflectData) => Boolean(multiProvider?.configuredModelNotFound) && !isModelListedOnConfiguredReflectEndpoint(configuredModel, reflectData);
-  let reflectData = options.reflectData;
-  let multiProvider = resolve(reflectData);
-  if (options.routed || !configuredModel || !isUnavailable(multiProvider, reflectData)) {
+  const isUnavailable = (multiProvider, reflectData) => (!multiProvider || Boolean(multiProvider.configuredModelNotFound)) && !isModelListedOnConfiguredReflectEndpoint(configuredModel, reflectData);
+  const initialReflectData = options.reflectData;
+  let multiProvider = resolve(initialReflectData);
+  if (options.routed || !configuredModel || !isUnavailable(multiProvider, initialReflectData)) {
     return multiProvider;
   }
 
   logger(`copilot-sdk driver mode: configured model '${configuredModel}' is not listed on any configured awf-reflect endpoint; refreshing awf-reflect once`);
   const refreshed = options.refetchReflectData ? await options.refetchReflectData() : null;
   if (refreshed) {
-    reflectData = refreshed;
-    multiProvider = resolve(reflectData);
-    if (!isUnavailable(multiProvider, reflectData)) {
+    multiProvider = resolve(refreshed);
+    if (!isUnavailable(multiProvider, refreshed)) {
       return multiProvider;
     }
   }
 
+  const initialReason = classifyUnlistedReflectModel(configuredModel, initialReflectData);
+  const refreshedReason = refreshed ? classifyUnlistedReflectModel(configuredModel, refreshed) : initialReason;
+  const reason = initialReason === "model_unavailable" ? initialReason : refreshedReason;
+  // Report the catalogue the failure reason came from: the latest one, unless only the initial one was complete.
+  const reflectData = refreshed && (reason === "catalog_unavailable" || refreshedReason === "model_unavailable") ? refreshed : initialReflectData;
   const requestedModel = String(options.requestedModel || configuredModel).trim();
-  const { base } = splitModelIdentifier(requestedModel);
-  const slash = base.indexOf("/");
-  const configuredEndpoints = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : []).filter(endpoint => endpoint?.configured === true);
-  const catalogIncomplete = reflectData?.models_fetch_complete === false || configuredEndpoints.some(endpoint => !Array.isArray(endpoint.models));
-  const failure = new ModelAliasResolutionError(requestedModel, catalogIncomplete ? "catalog_unavailable" : "model_unavailable", { provider: slash > 0 ? base.slice(0, slash) : "" });
-  const checked = configuredEndpoints
+  const requestedScope = scopeModelToReflectProviders(requestedModel);
+  const failure = new ModelAliasResolutionError(requestedModel, reason, { provider: requestedScope.providers === REFLECT_PROVIDER_ALIASES.github ? "copilot" : requestedScope.prefix });
+  const checked = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [])
+    .filter(endpoint => endpoint?.configured === true)
     .map(endpoint => `${String(endpoint.provider || "unknown")} (${formatInferenceEndpointForLog(endpoint.base_url || endpoint.models_url)}, ${Array.isArray(endpoint.models) ? `${endpoint.models.length} models` : "no model list"})`)
     .join(", ");
   const resolvedNote = configuredModel !== requestedModel ? ` (resolved to '${configuredModel}')` : "";
