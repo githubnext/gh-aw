@@ -775,7 +775,7 @@ func TestIsCodexCompatibleWorkflowModel(t *testing.T) {
 		{model: "openai/gpt-5.6-luna", want: true},
 		{model: "copilot/gpt-5.6-luna", want: true},
 		{model: "openai/gpt-4o", want: false},
-		{model: "copilot/mai-code-1-flash-picker", want: false},
+		{model: "copilot/mai-code-1.1-flash", want: false},
 		{model: "copilot/gpt-6-unknown", want: false},
 		{model: "openai/gpt-6-unknown", want: false},
 		{model: "anthropic/claude-sonnet-5", want: false},
