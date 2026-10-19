@@ -11,7 +11,7 @@ permissions:
 
   copilot-requests: write
 tracker-id: hippo-embed
-model: copilot/gpt-5.4-mini
+model: copilot/gpt-5
 engine:
   id: pi
   model-provider: github

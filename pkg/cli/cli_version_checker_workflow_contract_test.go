@@ -22,5 +22,5 @@ func TestCLIVersionCheckerUsesCopilotModel(t *testing.T) {
 	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "cli-version-checker.md")
 	content, err := os.ReadFile(workflowPath)
 	require.NoError(t, err)
-	require.Contains(t, string(content), "model: copilot/gpt-5.5")
+	require.Contains(t, string(content), "\nmodel: copilot/gpt-5\n")
 }

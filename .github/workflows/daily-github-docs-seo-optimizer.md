@@ -15,7 +15,7 @@ engine:
   driver: .github/drivers/daily_github_docs_seo_optimizer_driver.ts
   bare: true
 max-tool-denials: 3
-model: gpt-5.4
+model: gpt-5
 max-turns: 80
 max-daily-ai-credits: 10000
 strict: true
