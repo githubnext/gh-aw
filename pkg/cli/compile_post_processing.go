@@ -288,6 +288,14 @@ func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
 	}
 }
 
+func warnNativeActionsLockfileGenerationFailure(err error) {
+	compilePostProcessingLog.Printf("Failed to generate GitHub-native workflow lockfile: %v", err)
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf(
+		"GitHub-native workflow lockfile was not updated: %v. Authenticate the GitHub CLI and rerun `gh aw compile`.",
+		err,
+	)))
+}
+
 // displayCentralizedSlashCommandRecommendation warns when a repository has many
 // slash commands still using non-centralized strategy.
 func displayCentralizedSlashCommandRecommendation(compiler *workflow.Compiler, workflowDataList []*workflow.WorkflowData, jsonOutput bool) {

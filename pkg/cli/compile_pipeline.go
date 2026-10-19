@@ -357,6 +357,7 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
 	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
 	var shellcheckResources []workflow.ShellScriptResource
+	var compiledLockFiles []string
 	var workflowValidationResultIndexes []int
 
 	for _, file := range mdFiles {
@@ -406,6 +407,7 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 			// Collect lock files for batch security tools
 			if !config.NoEmit && fileResult.lockFile != "" {
 				if _, err := os.Stat(fileResult.lockFile); err == nil {
+					compiledLockFiles = append(compiledLockFiles, fileResult.lockFile)
 					if config.Actionlint {
 						lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
 					}
@@ -494,7 +496,15 @@ func compileAllFilesInDirectory( //nolint:largefunc // Orchestrates the full dir
 
 	// Post-processing
 	if !config.NoEmit {
-		if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
+		if err := runPostProcessingForDirectory(ctx, compiler, directoryPostProcessingOptions{
+			workflowDataList:  workflowDataList,
+			compiledLockFiles: compiledLockFiles,
+			config:            config,
+			workflowsDir:      workflowsDir,
+			gitRoot:           gitRoot,
+			successCount:      successCount,
+			errorCount:        errorCount,
+		}); err != nil {
 			return workflowDataList, err
 		}
 	}
@@ -794,6 +804,7 @@ func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowDa
 
 	var warnings []ValidationIssue
 	reportedNames := make(map[string]struct{})
+	results := *validationResults
 	for workflowIndex, workflowData := range workflowDataList {
 		if workflowData == nil || workflowData.Name == "" {
 			continue
@@ -809,14 +820,15 @@ func appendDuplicateWorkflowNameWarnings(workflowDataList []*workflow.WorkflowDa
 			reportedNames[workflowData.Name] = struct{}{}
 		}
 
-		if workflowIndex >= len(validationResultIndexes) {
+		if workflowIndex < 0 || workflowIndex >= len(validationResultIndexes) {
 			return nil, fmt.Errorf("missing validation result index for workflow %q", workflowData.WorkflowID)
 		}
 		resultIndex := validationResultIndexes[workflowIndex]
-		if resultIndex < 0 || resultIndex >= len(*validationResults) {
+		if resultIndex < 0 || resultIndex >= len(results) {
 			return nil, fmt.Errorf("validation result index %d for workflow %q is out of range", resultIndex, workflowData.WorkflowID)
 		}
-		(*validationResults)[resultIndex].Warnings = append((*validationResults)[resultIndex].Warnings, warning)
+		results[resultIndex].Warnings = append(results[resultIndex].Warnings, warning)
+		*validationResults = results
 	}
 
 	return warnings, nil
@@ -966,6 +978,15 @@ func runPostProcessing(
 		}
 	}
 
+	if config.WorkflowDir == "" && len(compiledLockFiles) > 0 {
+		gitRoot, err := gitutil.FindGitRoot()
+		if err != nil {
+			warnNativeActionsLockfileGenerationFailure(fmt.Errorf("failed to locate repository root: %w", err))
+		} else if err := generateNativeActionsLockfile(ctx, gitRoot, compiledLockFiles, compiler.GetSharedActionResolver()); err != nil {
+			warnNativeActionsLockfileGenerationFailure(err)
+		}
+	}
+
 	// Prune stale gh-aw-actions entries before saving
 	pruneStaleActionCacheEntries(compiler, actionCache)
 
@@ -975,64 +996,51 @@ func runPostProcessing(
 	return nil
 }
 
-// runPostProcessingForDirectory runs post-processing for directory compilation
-func runPostProcessingForDirectory(
-	ctx context.Context,
-	compiler *workflow.Compiler,
-	workflowDataList []*workflow.WorkflowData,
-	config CompileConfig,
-	workflowsDir string,
-	gitRoot string,
-	successCount int,
-	errorCount int,
-) error {
+type directoryPostProcessingOptions struct {
+	workflowDataList  []*workflow.WorkflowData
+	compiledLockFiles []string
+	config            CompileConfig
+	workflowsDir      string
+	gitRoot           string
+	successCount      int
+	errorCount        int
+}
+
+// runPostProcessingForDirectory runs post-processing for directory compilation.
+func runPostProcessingForDirectory(ctx context.Context, compiler *workflow.Compiler, opts directoryPostProcessingOptions) error {
 	// Get action cache
 	actionCache := compiler.GetSharedActionCache()
 
 	// Update .gitattributes (errors are non-fatal)
-	_ = updateGitAttributes(successCount, actionCache, config.Verbose)
+	_ = updateGitAttributes(opts.successCount, actionCache, opts.config.Verbose)
 
-	// Generate Dependabot manifests if requested
-	if config.Dependabot && !config.NoEmit {
-		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateDependabotManifestsWrapper(ctx, compiler, workflowDataList, absWorkflowDir, config.ForceOverwrite, config.Strict); err != nil {
-			if config.Strict {
-				return err
-			}
-		}
-	}
-
-	// Reconcile compiler-managed Dependabot ignore entries for compiler-emitted action refs.
-	if config.Dependabot && !config.NoEmit {
-		if err := compiler.ReconcileManagedDependabotIgnoresInRepo(gitRoot); err != nil {
-			if config.Strict {
-				return err
-			}
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
-		}
+	if err := runDirectoryDependabotPostProcessing(ctx, compiler, opts); err != nil {
+		return err
 	}
 
 	// Generate maintenance workflow if needed.
 	// Skip maintenance workflow generation when using custom --dir option.
 	// Keep invoking generators for empty workflowDataList so stale generated files are cleaned up.
-	if !config.NoEmit && config.WorkflowDir == "" {
-		absWorkflowDir := getAbsoluteWorkflowDir(workflowsDir, gitRoot)
-		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, workflowDataList, absWorkflowDir, gitRoot, config.Verbose, config.Strict, config.NoLogo); err != nil {
-			if config.Strict {
+	if !opts.config.NoEmit && opts.config.WorkflowDir == "" {
+		absWorkflowDir := getAbsoluteWorkflowDir(opts.workflowsDir, opts.gitRoot)
+		if err := generateMaintenanceWorkflowWrapper(ctx, compiler, opts.workflowDataList, absWorkflowDir, opts.gitRoot, opts.config.Verbose, opts.config.Strict, opts.config.NoLogo); err != nil {
+			if opts.config.Strict {
 				return err
 			}
 		}
-		if err := generateWorkQueueEventWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict, config.NoLogo); err != nil {
-			if config.Strict {
+		if err := generateWorkQueueEventWorkflowWrapper(ctx, opts.workflowDataList, absWorkflowDir, opts.gitRoot, opts.config.Strict, opts.config.NoLogo); err != nil {
+			if opts.config.Strict {
 				return err
 			}
 		}
-		if err := generateCentralSlashCommandWorkflowWrapper(ctx, workflowDataList, absWorkflowDir, gitRoot, config.Strict, config.NoLogo); err != nil {
-			if config.Strict {
+		if err := generateCentralSlashCommandWorkflowWrapper(ctx, opts.workflowDataList, absWorkflowDir, opts.gitRoot, opts.config.Strict, opts.config.NoLogo); err != nil {
+			if opts.config.Strict {
 				return err
 			}
 		}
 	}
+
+	generateDirectoryNativeActionsLockfile(ctx, compiler, opts)
 
 	// Prune stale gh-aw-actions entries before saving
 	pruneStaleActionCacheEntries(compiler, actionCache)
@@ -1040,12 +1048,42 @@ func runPostProcessingForDirectory(
 	// Prune orphaned entries — entries for action versions no longer referenced
 	// by any workflow in the directory (e.g. old pins left after a version bump).
 	// Safe to call only after a full-directory compilation with zero compile errors.
-	pruneOrphanedActionCacheEntries(compiler, actionCache, errorCount)
+	pruneOrphanedActionCacheEntries(compiler, actionCache, opts.errorCount)
 
 	// Save action cache (errors are logged but non-fatal)
-	_ = saveActionCache(actionCache, config.Verbose)
+	_ = saveActionCache(actionCache, opts.config.Verbose)
 
 	return nil
+}
+
+func runDirectoryDependabotPostProcessing(ctx context.Context, compiler *workflow.Compiler, opts directoryPostProcessingOptions) error {
+	if !opts.config.Dependabot || opts.config.NoEmit {
+		return nil
+	}
+	absWorkflowDir := getAbsoluteWorkflowDir(opts.workflowsDir, opts.gitRoot)
+	if err := generateDependabotManifestsWrapper(ctx, compiler, opts.workflowDataList, absWorkflowDir, opts.config.ForceOverwrite, opts.config.Strict); err != nil && opts.config.Strict {
+		return err
+	}
+	if err := compiler.ReconcileManagedDependabotIgnoresInRepo(opts.gitRoot); err != nil {
+		if opts.config.Strict {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
+	}
+	return nil
+}
+
+func generateDirectoryNativeActionsLockfile(ctx context.Context, compiler *workflow.Compiler, opts directoryPostProcessingOptions) {
+	if opts.config.WorkflowDir != "" || len(opts.compiledLockFiles) == 0 {
+		return
+	}
+	lockFiles, err := collectNativeLockFilesForDirectory(opts.workflowsDir)
+	if err == nil {
+		err = generateNativeActionsLockfile(ctx, opts.gitRoot, lockFiles, compiler.GetSharedActionResolver())
+	}
+	if err != nil {
+		warnNativeActionsLockfileGenerationFailure(err)
+	}
 }
 
 // outputResults outputs compilation results in the requested format

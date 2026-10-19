@@ -197,6 +197,10 @@ All GitHub Actions are pinned to commit SHAs (e.g., `actions/checkout@b4ffde6...
 
 **Commit `actions-lock.json` to version control** so every contributor and automated tool uses the same immutable pins. Refresh with `gh aw update-actions`, or delete and recompile with a permissive token to force full re-resolution.
 
+### GitHub-native workflow lockfile
+
+When GitHub API access is available, compilation updates `.github/workflows/actions.lock` for generated `.lock.yml` workflows. It records direct and transitive action and reusable-workflow dependencies, including immutable commits and repository identities. Existing entries for workflows not compiled in the same invocation are preserved. If dependency metadata cannot be resolved, compilation warns and leaves the existing native lockfile unchanged; authenticate the GitHub CLI and rerun `gh aw compile`. Container digests remain in the gh-aw manifest because the current GitHub lockfile schema covers action dependencies.
+
 ## The gh-aw-actions Repository
 
 `github/gh-aw-actions` contains the reusable actions that power compiled workflows. Every action step in a generated `.lock.yml` references it (usually by commit SHA, occasionally by a stable tag like `v0` when SHA resolution is unavailable):
