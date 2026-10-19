@@ -43,6 +43,14 @@ The service route is `/api/activation`; the deployment origin is configurable. A
 
 Each effective runtime variable takes precedence over its built-in fallback; repository Actions variables override organization variables. Enterprise-wide rollout provisions organization variables in each enrolled organization, not an assumed native enterprise Actions-variable scope. Compiler-process environment variables MUST NOT determine these values, and workflow-local configuration MUST NOT introduce another override layer. A configured endpoint automatically enables admission. An unset or empty endpoint makes the check a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
 
+```mermaid
+flowchart TD
+    V["Managed variables<br/>repository over organization"] --> E{"Effective endpoint"}
+    E -->|Empty| S["Skip admission"]
+    E -->|Invalid| B["Fail activation"]
+    E -->|Valid| C["Validate remaining settings<br/>and check authority"]
+```
+
 The compiler MUST always emit the runtime variable hooks, so enabling, disabling, or changing managed settings does not require recompilation after the feature is available in a compiled workflow. Existing managed-default update semantics remain unchanged: omitted or null YAML fields delete the corresponding variable at the selected scope. Operators MUST preserve other defaults when updating a defaults file.
 
 Managed variables distribute configuration, not locked policy. Repository Actions variables override same-named organization variables: a principal permitted to manage repository variables can shadow the organization endpoint with an empty or different value, change the audience, or select `ignore`. Workflow editors can also omit the step or change its environment wiring. Consequently, these variables cannot mandate participation or prevent bypass; an empty endpoint and default fail-open behavior are intentional availability choices.
@@ -188,28 +196,23 @@ Responses do not echo trace headers or disclose internal reason identifiers. The
 
 ### Secret Locations and Credential Flow
 
-Workflow identity:
+Workflow identity and optional backend credentials use separate token flows:
 
 ```mermaid
-flowchart TD
-    G["GitHub issuer<br/>OIDC signing key stays here"]
-    R["Activation runner<br/>Temporary OIDC token"]
-    S["Authority server<br/>Verifies with public keys"]
-    G -->|"Issues identity token"| R
-    R -->|"POST authorization header"| S
-```
+sequenceDiagram
+    participant R as Activation runner
+    participant A as Authority server
+    participant G as GitHub
 
-Optional backend App credentials:
-
-```mermaid
-flowchart TD
-    K["Authority secret store<br/>App private key"]
-    J["Authority memory<br/>App JWT"]
-    T["Authority memory<br/>Scoped installation token"]
-    A["GitHub API calls<br/>Provision variables or verify data"]
-    K -->|"Signs"| J
-    J -->|"Exchange with GitHub"| T
-    T -->|"Authorizes"| A
+    Note over G: OIDC signing key stays here
+    G-->>R: OIDC identity token
+    R->>A: POST with OIDC bearer
+    opt Optional server-side App
+        Note over A: App private key stays here
+        A->>G: Signed App JWT
+        G-->>A: Scoped installation token
+        A->>G: Installation-token API call
+    end
 ```
 
 The App private key and installation tokens never go to the runner. The key signs App JWTs, not workflow OIDC tokens. Managed variables contain only non-secret configuration. The runner's OIDC bootstrap credential is used only with GitHub; `GITHUB_TOKEN` and provider secrets are not used by admission. Transient tokens MUST NOT enter logs, traces, artifacts, or decision storage. All activation steps share the job's OIDC issuance capability, including when the admission step is skipped.
@@ -288,6 +291,18 @@ An explicit denial after a transient failure terminates retries and blocks. Afte
 | `ignore`, including omitted configuration | Emit a generic warning, complete the step successfully without an affirmative decision, and continue activation |
 | `block` | Fail the admission step and activation job; do not start the agent |
 
+```mermaid
+flowchart TD
+    A["Call authority"] --> R{"Result"}
+    R -->|Valid success| C["Apply ceiling and ID<br/>or fail closed"]
+    R -->|Denial or protocol error| B["Fail activation"]
+    R -->|Transient failure| T{"Fewer than 3 attempts?"}
+    T -->|Yes: backoff and retry| A
+    T -->|No| P{"Outage policy"}
+    P -->|ignore| I["Warn and continue<br/>with existing controls"]
+    P -->|block| B
+```
+
 The client parses only bounded `200` bodies using Section 5 validation and discards other bodies without parsing them. Blocking failures expose only `ERR_ADMISSION` and a generic message; ignored outages expose a generic `ERR_ADMISSION` warning. Neither path prints statuses, headers, bodies, tokens, issuer diagnostics, or transport exceptions.
 
 Without a valid success response, a skipped or fail-open execution has no service-issued ceiling or correlation ID. It MUST retain existing local/default credit controls and OTel configuration, without inventing an approval, unlimited allowance, or service ID. Consequently, `ignore` cannot guarantee that a service-defined run ceiling is available.
@@ -313,6 +328,15 @@ Before agent execution, gh-aw MUST pass the returned ceiling through the existin
 The existing [`max-daily-ai-credits` guardrail](/gh-aw/reference/cost-management/#cap-daily-ai-credits-per-workflow) independently aggregates the same workflow's runs across the repository over a rolling 24-hour window, regardless of actor. Admission MUST preserve its threshold resolution, accounting, trigger applicability, explicit-disable settings, and failure behavior. A successful admission or ignored admission outage MUST NOT override a daily-guardrail result that prevents agent execution; an under-budget daily result MUST NOT raise the effective per-run ceiling. The service ceiling is not a replacement daily allowance or a reset of that window.
 
 The cap is shared across continuations/restarts within the same admitted invocation, not granted anew per process, job, retry, or continuation. The implementation MUST document which cost-incurring components its run accounting covers and test that scope. Existing `gh-aw.max_ai_credits` telemetry reports the effective limit; it MUST NOT expose organization balances or policy reasoning.
+
+```mermaid
+flowchart TD
+    S["Authority ceiling"] --> M["Effective minimum"]
+    L["Finite local cap<br/>when configured"] --> M
+    M --> B["One shared<br/>invocation budget"]
+    B --> A["Agent"]
+    B --> C["Continuations"]
+```
 
 ### Retry Safety and Accounting Limits
 
