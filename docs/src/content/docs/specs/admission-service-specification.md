@@ -1,12 +1,12 @@
 ---
 title: AW Admission Service Specification
-description: OIDC-authenticated admission protocol and implementation plan for centralized Agentic Workflows cost controls
+description: Cooperative OIDC-authenticated admission protocol and implementation plan for centralized Agentic Workflows cost controls
+sidebar:
+  order: 1362
 ---
 
-# AW Admission Service Specification
-
-**Version**: 1.0 draft
-**Status**: New feature proposal; no admission implementation yet in gh-aw or gh-cao
+**Version**: 1.0 draft<br />
+**Status**: New feature proposal; no admission implementation yet in gh-aw or gh-cao<br />
 **Date**: 2026-10-19
 
 The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This document specifies a new feature. No admission client or service implementation exists yet; all admission-specific behavior described here remains to be implemented.
@@ -15,7 +15,7 @@ The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This 
 
 The proposed feature adds admission as a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Once implemented, gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Without a configured endpoint, the step is skipped or completes as a successful no-op, and activation continues normally. gh-cao MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, protected operator diagnostics, and optional configuration provisioning through its GitHub App.
 
-The gate centrally decides whether an AW execution may start and returns its maximum AI Credits allowance and a service-issued opaque correlation ID. It is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism. Returning a run ceiling does not itself enforce a hard upper bound on billed usage.
+The gate is a **cooperative admission check** for participating workflows, not an unbypassable organization policy or hard spending cap. It decides whether a cooperating AW execution may start and returns its maximum AI Credits allowance and a service-issued opaque correlation ID. It is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism.
 
 The protocol uses REST POST with a JSON body, authenticated exclusively by a GitHub Actions OIDC identity token with an audience restricted to the intended gh-cao deployment. The client MUST NOT send `GITHUB_TOKEN`, a PAT, Copilot token, GitHub App JWT, installation access token, App private key, API key, or custom activation credential to the admission service. The feature MUST support only this protocol, with no GET, alternate authentication mode, negotiation, or credential fallback.
 
@@ -45,7 +45,9 @@ Each effective runtime variable takes precedence over its built-in fallback. Var
 
 The compiler MUST always emit the runtime variable hooks, so enabling, disabling, or changing managed settings does not require recompilation after the feature is available in a compiled workflow. Existing managed-default update semantics remain unchanged: omitted or null YAML fields delete the corresponding variable at the selected scope. Operators MUST preserve other defaults when updating a defaults file.
 
-Managed defaults are not an unoverrideable enterprise policy. A principal able to override them can change the recipient, audience, or outage behavior. Mandatory enforcement requires separately protected workflow/configuration controls, authorized workflow identities, and server-side policy. HTTPS validation alone does not establish an approved destination; deployments SHOULD enforce approved origins and runner egress independently.
+Managed variables distribute configuration, not locked policy. Repository Actions variables override same-named organization variables: a principal permitted to manage repository variables can shadow the organization endpoint with an empty or different value, change the audience, or select `ignore`. Workflow editors can also omit the step or change its environment wiring. Consequently, these variables cannot mandate participation or prevent bypass; an empty endpoint and default fail-open behavior are intentional availability choices.
+
+Stronger enforcement requires the controlled AI/backend resource to independently authorize usage and enforce authoritative quota or reservations, with protected configuration and workflow identities. The admission call alone does not provide that boundary. HTTPS validation alone does not establish an approved destination; deployments SHOULD enforce approved origins and runner egress independently.
 
 ### GitHub App Responsibilities
 
@@ -371,6 +373,6 @@ Tests MUST use synthetic credentials and accounting fixtures, not production sec
 6. **Trace and service correlation:** reuse gh-aw's OTLP trace generation/validation and workflow propagation helpers, inject W3C `traceparent` for each POST attempt, and join gh-cao server spans. Propagate the validated service ID as `gh-aw.admission.correlation_id` through every subsequent span/log/metric export path, including cross-job/runtime and conclusion telemetry, without replacing trace IDs or adding metric dimensions. Record the effective ceiling with existing `gh-aw.max_ai_credits` semantics. Enforce tenant-scoped access and redaction; IDs work without an exporter and never become authorization or accounting keys.
 7. **Integration and initial release:** satisfy Section 10 across both new implementations; verify issuer/audience registration, claim mappings, ingress redaction, endpoint governance, trace continuity, and `block` for strict deployments. Recompile workflows with the feature-capable compiler to include the new activation step and runtime configuration hooks. There is no prior admission implementation to migrate or support.
 
-Integration points are the existing [activation-job assembly](../pkg/workflow/compiler_activation_context.go), [activation permissions](../pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](../pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
+Integration points are the existing [activation-job assembly](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_context.go), [activation permissions](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
 
-Platform references: [GitHub Actions OIDC claims and trust configuration](https://docs.github.com/en/actions/reference/security/oidc), [GitHub App private-key management](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps), [W3C Trace Context](https://www.w3.org/TR/trace-context/), and [RFC 6648 header-naming guidance](https://www.rfc-editor.org/rfc/rfc6648.html). Existing emit-side integration points include [`send_otlp_span.cjs`](../actions/setup/js/send_otlp_span.cjs) and [`action_setup_otlp.cjs`](../actions/setup/js/action_setup_otlp.cjs).
+Platform references: [GitHub Actions OIDC claims and trust configuration](https://docs.github.com/en/actions/reference/security/oidc), [GitHub App private-key management](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps), [W3C Trace Context](https://www.w3.org/TR/trace-context/), and [RFC 6648 header-naming guidance](https://www.rfc-editor.org/rfc/rfc6648.html). Existing emit-side integration points include [`send_otlp_span.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/send_otlp_span.cjs) and [`action_setup_otlp.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/action_setup_otlp.cjs).
