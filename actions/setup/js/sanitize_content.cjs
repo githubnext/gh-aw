@@ -124,7 +124,7 @@ function sanitizeContent(content, maxLengthOrOptions) {
   let sanitized = content;
 
   // Apply Unicode hardening first to normalize text representation
-  sanitized = canonicalizePublicationText(sanitized);
+  sanitized = canonicalizePublicationText(sanitized, { preserveImageAttributes: true });
 
   // Remove ANSI escape sequences and control characters early
   sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");

@@ -1572,13 +1572,62 @@ function hardenUnicodeText(text) {
 }
 
 /**
+ * Preserve image-attribute boundaries while canonicalizing their data.
+ * Named quote entities stay inert until the importer has tokenized attributes.
+ * @param {string} text
+ */
+function preserveImageAttributeQuotes(text) {
+  const fragments = [];
+  let written = 0;
+  for (let index = text.indexOf("<"); index >= 0; index = text.indexOf("<", index + 1)) {
+    const opening = /^<img(?=[\s/>])/i.exec(text.slice(index));
+    if (!opening) continue;
+    let position = index + opening[0].length;
+    let quote = "";
+    let start = position;
+    for (; position < text.length && text[position] !== "\n" && text[position] !== "\r"; position++) {
+      const character = text[position];
+      if (quote) {
+        if (character !== quote) continue;
+        const value = canonicalizePublicationText(text.slice(start, position)).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+        fragments.push(text.slice(written, start), value);
+        written = position;
+        quote = "";
+      } else if (character === '"' || character === "'") {
+        quote = character;
+        start = position + 1;
+      } else if (character === "=") {
+        let valueStart = position + 1;
+        while (/[ \t]/.test(text[valueStart] || "")) valueStart++;
+        if (text[valueStart] === '"' || text[valueStart] === "'") continue;
+        let end = valueStart;
+        while (end < text.length && !/[\s<>]/.test(text[end])) end++;
+        const raw = text.slice(valueStart, end);
+        if (raw && !/["'`=]/.test(raw)) {
+          const value = canonicalizePublicationText(raw).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+          if (value !== raw) {
+            fragments.push(text.slice(written, valueStart), `"${value}"`);
+            written = end;
+          }
+          position = end - 1;
+        }
+      } else if (character === "<" || character === ">") break;
+    }
+    index = position - (text[position] === "<" ? 1 : 0);
+  }
+  fragments.push(text.slice(written));
+  return fragments.join("");
+}
+
+/**
  * Stabilize encodings before applying policies that downstream renderers must not bypass.
  * @param {string} text
+ * @param {{preserveImageAttributes?: boolean}} [options]
  * @returns {string}
  */
-function canonicalizePublicationText(text) {
+function canonicalizePublicationText(text, { preserveImageAttributes = false } = {}) {
   for (let pass = 0; pass < 16; pass++) {
-    const normalized = hardenUnicodeText(text)
+    const normalized = hardenUnicodeText(preserveImageAttributes ? preserveImageAttributeQuotes(text) : text)
       .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
       .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
     if (normalized === text) return normalized;
@@ -1614,7 +1663,7 @@ function sanitizeContentCore(content, maxLength, maxBotMentions) {
 
   // Apply Unicode hardening first to normalize text representation
   // This prevents Unicode-based attacks and ensures consistent processing
-  sanitized = canonicalizePublicationText(sanitized);
+  sanitized = canonicalizePublicationText(sanitized, { preserveImageAttributes: true });
 
   // Remove ANSI escape sequences and control characters early
   // This must happen before mention neutralization to avoid creating bare mentions

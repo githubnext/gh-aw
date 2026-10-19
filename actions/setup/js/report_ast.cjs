@@ -141,12 +141,12 @@ function replaceInlineRange(nodes, start, end, replacement) {
   return visit(nodes).nodes;
 }
 
-/** @param {string} value @param {{redact?: boolean}} [options] */
-function normalizeReportText(value, { redact = true } = {}) {
+/** @param {string} value @param {{redact?: boolean, preserveImageAttributes?: boolean}} [options] */
+function normalizeReportText(value, { redact = true, preserveImageAttributes = false } = {}) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
   let current = redact ? redactDiagnosticText(value) : value;
   for (let pass = 0; pass < 16; pass++) {
-    const normalized = canonicalizePublicationText(current).replace(/\r\n?/g, "\n");
+    const normalized = canonicalizePublicationText(current, { preserveImageAttributes }).replace(/\r\n?/g, "\n");
     const redacted = redact ? redactDiagnosticText(normalized) : normalized;
     if (redacted === current) return redacted;
     current = redacted;

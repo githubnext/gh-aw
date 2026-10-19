@@ -1,7 +1,14 @@
 // @ts-check
 
 const { normalizeReportText, normalizeReportAllowedURL, normalizeReportImage } = require("./report_ast.cjs");
-const { buildAllowedDomains, sanitizeUrlProtocols, sanitizeUrlDomains } = require("./sanitize_content_core.cjs");
+const { buildAllowedDomains, buildAllowedGitHubReferences, getCurrentRepoSlug, sanitizeUrlProtocols, sanitizeUrlDomains } = require("./sanitize_content_core.cjs");
+const { isRepoAllowed } = require("./repo_helpers.cjs");
+
+/** @param {string} line */
+function openingFence(line) {
+  const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  return match && (match[1][0] !== "`" || !match[2].includes("`")) ? match : undefined;
+}
 
 /**
  * Read a single-line HTML token without interpreting backticks or quoted ">" as delimiters.
@@ -169,6 +176,10 @@ function bareURL(source) {
 function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlockSlot, agentTainted, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
   if (depth > 16) throw new TypeError("Report template nesting exceeds the maximum depth");
   if (agentTainted !== undefined && typeof agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
+  const allowedReferences = agentTainted === false ? null : buildAllowedGitHubReferences();
+  const currentRepo = getCurrentRepoSlug();
+  const allowedRepos = new Set(allowedReferences?.map(repo => (repo === "repo" ? currentRepo : repo)));
+  const referenceAllowed = repository => allowedReferences === null || isRepoAllowed((repository || currentRepo).toLowerCase(), allowedRepos);
   /**
    * Only source nodes receive this origin; inserted nodes keep their own provenance.
    * @template {ReportInline | ReportBlock} T
@@ -199,7 +210,7 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
   function inline(source, inlineDepth = 0, inLink = false) {
     if (inlineDepth > 16) throw new TypeError("Report inline nesting exceeds the maximum depth");
     // Redact the complete fragment before references or formatting split a secret.
-    source = normalizeReportText(source);
+    source = normalizeReportText(source, { preserveImageAttributes: true });
     const original = source;
     const delimiters = source.includes("[") ? markdownDelimiters(source) : undefined;
     /** @type {ReportInline[]} */
@@ -222,16 +233,23 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
         text(match[1]);
       } else if ((match = /^(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s+((?:[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*)?)(\\?)#([1-9]\d*)\b/i.exec(source)) && !/\w/.test(original[original.length - source.length - 1] || "")) {
         const verb = match[1].toLowerCase();
-        nodes.push(
-          fromSource({
-            type: "closing_reference",
-            action: verb.startsWith("clos") ? "closes" : verb.startsWith("fix") ? "fixes" : "resolves",
-            target: { number: match[4], ...(match[2] ? { repository: match[2] } : {}) },
-            enabled: !match[3],
-          })
-        );
+        if (!referenceAllowed(match[2])) nodes.push(fromSource({ type: "code", value: substitute(match[0]) }));
+        else
+          nodes.push(
+            fromSource({
+              type: "closing_reference",
+              action: verb.startsWith("clos") ? "closes" : verb.startsWith("fix") ? "fixes" : "resolves",
+              target: { number: match[4], ...(match[2] ? { repository: match[2] } : {}) },
+              enabled: !match[3],
+            })
+          );
+      } else if (!/[A-Za-z0-9_./-]/.test(original[original.length - source.length - 1] || "") && (match = /^([a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*)#([1-9]\d*)\b/.exec(source))) {
+        if (referenceAllowed(match[1])) {
+          text(match[1]);
+          nodes.push(fromSource({ type: "issue_reference", number: match[2] }));
+        } else nodes.push(fromSource({ type: "code", value: substitute(match[0]) }));
       } else if ((match = /^#([1-9]\d*)\b/.exec(source))) {
-        nodes.push(fromSource({ type: "issue_reference", number: match[1] }));
+        nodes.push(fromSource(referenceAllowed("") ? { type: "issue_reference", number: match[1] } : { type: "code", value: match[0] }));
       } else if ((match = /^\{(\w+)\}/.exec(source))) {
         if (inlineSlots && Object.hasOwn(inlineSlots, match[1])) nodes.push(...inlineSlots[match[1]].map(node => ({ ...node })));
         else {
@@ -314,7 +332,8 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
   const isBlockSlot = line => blockSlots && Object.hasOwn(blockSlots, blockSlot(line) ?? "");
   const isFieldLine = line => /^(?:\{\w+\}\s*)+$/.test(line.trim()) && (!inlineSlots || [...line.matchAll(/\{(\w+)\}/g)].some(field => !Object.hasOwn(inlineSlots, field[1])));
   const isBlockStart = line =>
-    /^(?:#{1,6}\s|```|~~~|>|<details>(?:\s*$|\s*<summary>)|<\/details>\s*$|[-*+]\s|\d+\.\s|---\s*$)/.test(line) ||
+    openingFence(line) ||
+    /^(?:#{1,6}\s|>|<details>(?:\s*$|\s*<summary>)|<\/details>\s*$|[-*+]\s|\d+\.\s|---\s*$)/.test(line) ||
     isFieldLine(line) ||
     isBlockSlot(line) ||
     (allowMetadata && /^<!--/.test(line.trim())) ||
@@ -385,7 +404,7 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
       } else if (allowFlagMarkers && (match = /^<!-- (gh-aw-threat-detected|gh-aw-threat-engine-error) -->$/.exec(line.trim()))) {
         nodes.push(fromSource({ type: "marker", name: match[1] === "gh-aw-threat-detected" ? "gh-aw-threat-detected" : "gh-aw-threat-engine-error" }));
         index++;
-      } else if ((match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line)) && (match[1][0] !== "`" || !match[2].includes("`"))) {
+      } else if ((match = openingFence(line))) {
         const fence = match[1];
         const language = match[2].trim();
         const content = [];

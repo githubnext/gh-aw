@@ -2218,7 +2218,9 @@ the typed `image` node. Its only supported attributes are `src`, `alt`, `width`,
 `height`, and `align`, without duplicates. The source MUST be a validated HTTPS
 URL without credentials, on a hostname accepted by the configured domain policy.
 Renderable images MUST NOT use the URL-policy exception for code regions,
-including when their attributes contain backticks. The shared image-node
+even when `allowed-or-code-region` is configured and their attributes contain
+backticks; renderable destinations follow the same domain restrictions as
+`allowed-only`. The shared image-node
 normalizer MUST enforce this policy for HTML imports, Markdown images, and
 directly constructed AST images, regardless of provenance. Data URIs MUST be
 rejected, including encoded variants; only canonical HTTPS sources are valid.
@@ -2229,6 +2231,11 @@ Width and height MUST be
 integer pixel dimensions from 1 through 10,000; alignment MUST be `left`, `right`,
 or `center`. Unsupported, malformed, or disallowed HTML MUST remain visible,
 escaped text with prose URL filtering, not be passed through as raw HTML.
+Quoted attribute boundaries MUST be preserved before entity decoding, including
+decimal and hexadecimal quote entities. Decoded attribute values remain subject
+to normalization, domain policy, and secret redaction without being reparsed as
+additional attributes. Indented fences MUST use the same opening-fence rule
+during paragraph collection and code-block parsing.
 
 Images without layout fields retain Markdown image serialization. Images with
 layout fields MUST serialize only validated attributes, with HTML-attribute
