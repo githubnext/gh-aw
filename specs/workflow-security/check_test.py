@@ -31,10 +31,15 @@ class TransportRunnerTest(unittest.TestCase):
             digest = hashlib.sha256(jar.read_bytes()).hexdigest()
             configurations = []
             destinations = []
+            modules = []
 
             def run(command, cwd, **options):
                 configurations.append((cwd / "model.cfg").read_text())
                 destinations.append(cwd)
+                modules.append(command[-1])
+                self.assertEqual(options["timeout"], 120)
+                self.assertIn("-workers", command)
+                self.assertTrue((cwd / command[-1]).is_file())
                 return check_transport.subprocess.CompletedProcess(command, 0, "", "")
 
             with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
@@ -45,13 +50,67 @@ class TransportRunnerTest(unittest.TestCase):
                  patch("builtins.print"):
                 check_transport.main()
             expected = [None, *check_transport.FAULTS.values(), *check_transport.WITNESSES]
-            self.assertEqual([call.args[2] for call in result.call_args_list], expected * 2)
+            git_cases = list(check_transport.git_cases())
+            self.assertEqual([call.args[2] for call in result.call_args_list],
+                             expected * 2 + [case[-1] for case in git_cases])
             for transport in ["patch", "bundle"]:
                 self.assertEqual(
                     sum(f'Transport = "{transport}"' in config for config in configurations),
                     len(expected),
                 )
+            git_configurations = configurations[len(expected) * 2:]
+            secure_profiles = {(allow, shallow) for name, allow, shallow, _, _ in git_cases
+                               if name.startswith("secure-")}
+            self.assertEqual(secure_profiles, {(False, False), (False, True),
+                                               (True, False), (True, True)})
+            self.assertEqual(modules, ["SafeOutputTransport.tla"] * (len(expected) * 2)
+                             + ["SafeOutputGit.tla"] * len(git_cases))
+            for config, (name, allow, shallow, fault, invariant) in zip(git_configurations,
+                                                                      git_cases):
+                self.assertIn(f'Fault = "{fault}"', config)
+                self.assertIn(f"AllowFullHistoryFetch = {str(allow).upper()}", config)
+                self.assertIn(f"Shallow = {str(shallow).upper()}", config)
+                self.assertIn("ComparisonBudget = 4", config)
+                self.assertIn("HistoryLimit = 100", config)
+                self.assertIn("    ProtectedPublication\n", config)
+                if name in check_transport.GIT_WITNESSES:
+                    self.assertIn(f"\nINVARIANT {invariant}\n", config)
+                else:
+                    self.assertNotIn("\nINVARIANT ", config)
             self.assertTrue(all(not destination.exists() for destination in destinations))
+
+    def test_model_selection(self):
+        for model in ["transport", "git"]:
+            with self.subTest(model=model), tempfile.TemporaryDirectory() as directory:
+                jar = Path(directory) / "tla2tools.jar"
+                jar.write_bytes(b"local runtime fixture")
+                with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                     patch.object(check_transport, "JAR_SHA256",
+                                  hashlib.sha256(jar.read_bytes()).hexdigest()), \
+                     patch.object(check_transport, "run_case") as run:
+                    check_transport.main(model)
+                expected = "SafeOutputGit" if model == "git" else "SafeOutputTransport"
+                self.assertGreater(run.call_count, 0)
+                self.assertTrue(all(call.args[2] == expected for call in run.call_args_list))
+
+    def test_git_tool_failure_is_surfaced_and_cleaned_up(self):
+        with tempfile.TemporaryDirectory() as directory:
+            jar = Path(directory) / "tla2tools.jar"
+            jar.write_bytes(b"local runtime fixture")
+            destinations = []
+
+            def run(command, cwd, **options):
+                destinations.append(cwd)
+                return subprocess.CompletedProcess(command, 1, "Error parsing module", "")
+
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(check_transport, "JAR_SHA256",
+                              hashlib.sha256(jar.read_bytes()).hexdigest()), \
+                 patch.object(check_transport.subprocess, "run", side_effect=run):
+                with self.assertRaisesRegex(RuntimeError, "git-secure.*TLC/tooling failure"):
+                    check_transport.main("git")
+            self.assertEqual(len(destinations), 1)
+            self.assertFalse(destinations[0].exists())
 
 
 class RuntimePinTest(unittest.TestCase):
