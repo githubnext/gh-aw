@@ -1,5 +1,5 @@
 ---
-/** Hero A: "Intelligent automation for GitHub" with prompt → workflow → result. */
+/** Hero A: "AI-powered workflows for GitHub" with prompt → workflow → result. */
 import CtaRow from './CtaRow.astro';
 import HeroVAVisual from './HeroVAVisual.astro';
 import { engineLogos } from './HowItWorksEngineLogos';
@@ -14,7 +14,7 @@ const engines = [
 
 <div class="aw-hero-inner">
   <div class="aw-hero-text">
-    <h1><span class="aw-line">Intelligent automation</span> <span class="aw-line">for GitHub, <span class="aw-muted">with your</span></span> <span class="aw-line aw-muted">own agents.</span></h1>
+    <h1><span class="aw-line">AI-powered workflows</span> <span class="aw-line">for GitHub, <span class="aw-muted">with your</span></span> <span class="aw-line aw-muted">own agents.</span></h1>
     <p class="aw-hero-sub">
       {engines.map((e, i) => {
         const logo = engineLogos[e.id];
@@ -24,7 +24,7 @@ const engines = [
             <span class="aw-engine"><svg class="aw-engine-logo" viewBox={logo.viewBox} aria-hidden="true" focusable="false">{logo.paths.map((d) => <path d={d} />)}</svg>{e.name}</span>{sep}
           </Fragment>
         );
-      })} triage issues, investigate failures and open pull requests across your repos. With strong guardrails and cost controls, in GitHub Actions.
+      })} can help triage issues, investigate failures and open pull requests across your repos. Runs follow your configured triggers, permissions and cost controls in GitHub Actions.
     </p>
     <div class="aw-hero-cta"><CtaRow /></div>
   </div>
