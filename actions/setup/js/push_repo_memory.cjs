@@ -359,6 +359,7 @@ async function main() {
   const maxFileCount = Number(process.env.MAX_FILE_COUNT || "100");
   const maxPatchSize = Number(process.env.MAX_PATCH_SIZE || "10240");
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+  const hasTrustedDailyAICLedger = process.env.GH_AW_DAILY_AIC_REPO_MEMORY_WRITER === "true";
   const formatJSON = process.env.FORMAT_JSON === "true";
   const validationScriptBase64 = process.env.VALIDATION_SCRIPT_B64 || "";
   const validationScriptRequired = process.env.VALIDATION_SCRIPT_REQUIRED === "true";
@@ -723,7 +724,8 @@ async function main() {
         // Allowed extensions and file-glob are persistence filters: files that do not
         // pass are logged and ignored (never uploaded, validated, counted toward
         // max-file-count/size/patch-size, or pushed) rather than causing a hard failure.
-        if (!isDailyAICLedgerFile(normalizedRelPath)) {
+        // Only the compiler's sanitized writer pipeline can exempt daily AIC files.
+        if (!hasTrustedDailyAICLedger || !isDailyAICLedgerFile(normalizedRelPath)) {
           const eligibility = isMemoryFileEligible(relativeFilePath, allowedExtensions, compiledPatterns);
           if (!eligibility.eligible) {
             core.info(`  [skip] ${normalizedRelPath} (${stats.size} bytes) — ${eligibility.reason}`);

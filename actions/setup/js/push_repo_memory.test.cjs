@@ -89,26 +89,42 @@ describe("push_repo_memory.cjs - nested memory persistence", () => {
 });
 
 describe("push_repo_memory.cjs - trusted daily AIC ledger persistence", () => {
-  it.each([
-    {
-      name: "root-only glob",
-      fileGlobFilter: "*.jsonl",
-      allowedExtensions: '[".json", ".jsonl"]',
-      expectedAgentFiles: ["agent.jsonl"],
-    },
-    {
-      name: "JSONL-only extension",
-      fileGlobFilter: "",
-      allowedExtensions: '[".jsonl"]',
-      expectedAgentFiles: ["agent.jsonl", "nested/agent.jsonl"],
-    },
-    {
-      name: "JSON-only extension",
-      fileGlobFilter: "",
-      allowedExtensions: '[".json"]',
-      expectedAgentFiles: ["agent.json"],
-    },
-  ])("persists writer coverage and usage files with $name", async ({ fileGlobFilter, allowedExtensions, expectedAgentFiles }) => {
+  it.each(
+    [
+      {
+        name: "root-only glob",
+        fileGlobFilter: "*.jsonl",
+        allowedExtensions: '[".json", ".jsonl"]',
+        expectedAgentFiles: ["agent.jsonl"],
+        coveragePassesFilters: false,
+        usagePassesFilters: false,
+      },
+      {
+        name: "JSONL-only extension",
+        fileGlobFilter: "",
+        allowedExtensions: '[".jsonl"]',
+        expectedAgentFiles: ["agent.jsonl", "nested/agent.jsonl"],
+        coveragePassesFilters: false,
+        usagePassesFilters: true,
+      },
+      {
+        name: "JSON-only extension",
+        fileGlobFilter: "",
+        allowedExtensions: '[".json"]',
+        expectedAgentFiles: ["agent.json"],
+        coveragePassesFilters: true,
+        usagePassesFilters: false,
+      },
+      {
+        name: "JSON-only recursive glob",
+        fileGlobFilter: "**/*.json",
+        allowedExtensions: '[".json", ".jsonl"]',
+        expectedAgentFiles: [],
+        coveragePassesFilters: true,
+        usagePassesFilters: false,
+      },
+    ].flatMap(testCase => [undefined, "false", "true"].map(trustedWriter => ({ ...testCase, trustedWriter })))
+  )("applies $name with trusted writer=$trustedWriter", async ({ fileGlobFilter, allowedExtensions, expectedAgentFiles, coveragePassesFilters, usagePassesFilters, trustedWriter }) => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "repo-memory-daily-aic-"));
     const artifactDir = path.join(tempDir, "artifact");
     const usageDir = path.join(tempDir, "usage");
@@ -173,6 +189,7 @@ describe("push_repo_memory.cjs - trusted daily AIC ledger persistence", () => {
             GITHUB_RUN_ID: runId,
             FILE_GLOB_FILTER: fileGlobFilter,
             ALLOWED_EXTENSIONS: allowedExtensions,
+            GH_AW_DAILY_AIC_REPO_MEMORY_WRITER: trustedWriter,
           },
         },
       });
@@ -181,8 +198,8 @@ describe("push_repo_memory.cjs - trusted daily AIC ledger persistence", () => {
 
       const repoMemoryDir = workspaceDir;
       expect(core.setFailed).not.toHaveBeenCalled();
-      expect(readLedgerEntries({ repoMemoryDir, repository, workflowId, now })).toMatchObject([{ run_id: 42, aic: 7 }]);
-      expect(readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now })).toBe(now);
+      expect(readLedgerEntries({ repoMemoryDir, repository, workflowId, now })).toMatchObject(trustedWriter === "true" || usagePassesFilters ? [{ run_id: 42, aic: 7 }] : []);
+      expect(readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now })).toBe(trustedWriter === "true" || coveragePassesFilters ? now : null);
       expect(fs.existsSync(path.join(workspaceDir, "agent.json"))).toBe(expectedAgentFiles.includes("agent.json"));
       expect(fs.existsSync(path.join(workspaceDir, "agent.jsonl"))).toBe(expectedAgentFiles.includes("agent.jsonl"));
       expect(fs.existsSync(path.join(workspaceDir, "nested", "agent.jsonl"))).toBe(expectedAgentFiles.includes("nested/agent.jsonl"));

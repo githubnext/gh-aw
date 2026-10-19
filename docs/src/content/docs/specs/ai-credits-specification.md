@@ -593,6 +593,8 @@ When a successful clone step confirms the branch is absent, activation MUST boot
 
 After the trusted coverage start is at least 24 hours old, activation uses the cloned ledger without requiring an artifact API token. The coverage marker is maintained by the trusted writer after replacing agent-supplied ledger content with the branch snapshot; it is not accepted from agent output. Restoring or initializing an empty branch alone does not establish a full rolling window. The explicit insecure override retains its existing ledger-only behavior.
 
+The selected daily AIC memory's trusted writer persists date-bucket JSONL shards and hash-scoped JSON coverage markers together, independently of agent-memory extension and glob filters, only after the compiler-owned reset step successfully removes agent-supplied ledger files. Ordinary memory files and memories without that trusted writer retain their configured filters; file-size, file-count, and patch-size limits still apply.
+
 Read current and previous UTC-day JSONL shards, retaining version-1 records for the same repository/workflow, positive integer run IDs, finite non-negative AIC, and timestamps within the inclusive preceding-24-hour interval ending at the read time. For each run ID, the greatest timestamp wins; equal timestamps use the later encountered line. Sum these records once and report estimated credits as zero.
 
 The current reader ignores malformed/invalid records and missing **or unreadable** shards. An empty readable result therefore produces zero. Unlike the artifact backend, it does not establish completeness through fresh Actions history or repair gaps with per-run maximum estimates. This availability/trust trade-off MUST NOT be described as equivalent fail-closed accounting.

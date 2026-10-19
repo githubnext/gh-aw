@@ -2835,6 +2835,7 @@ jobs:
           CREATE_ORPHAN: false
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Reset untrusted daily AIC repo-memory ledger artifact
+        id: daily-aic-repo-memory-reset
         if: always()
         env:
           GH_AW_DAILY_AIC_REPO_MEMORY_DIR: /tmp/gh-aw/repo-memory/default
@@ -2880,6 +2881,7 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}.wiki
           BRANCH_NAME: master
+          GH_AW_DAILY_AIC_REPO_MEMORY_WRITER: ${{ steps.daily-aic-repo-memory-reset.outcome == 'success' }}
           REPO_MEMORY_ALLOWED_REPOS: ${{ github.repository }}.wiki
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
