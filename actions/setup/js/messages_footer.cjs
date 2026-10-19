@@ -9,7 +9,7 @@
  */
 
 const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPromptPath } = require("./messages_core.cjs");
-const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
+const { getMissingInfoSections, getCollectedMissings, generateMissingInfoReportSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 const { formatCompactInteger } = require("./compact_numbers.cjs");
@@ -21,7 +21,8 @@ const { currentClaimHandle, claimIdentity } = require("./work_queue_claim_scope.
 const reportAST = require("./report_ast.cjs");
 
 /** @typedef {{type: "quote_line", children: import("./report_ast.cjs").ReportInline[]}} FooterQuoteLine */
-/** @typedef {string | FooterQuoteLine} FooterPart */
+/** @typedef {{type: "diagnostic_sections", markdown: string, buildChildren: () => import("./report_ast.cjs").ReportBlock[]}} FooterDiagnosticSections */
+/** @typedef {string | FooterQuoteLine | FooterDiagnosticSections} FooterPart */
 
 /** @returns {[] | [FooterQuoteLine]} */
 function buildWorkQueueClaimFooter() {
@@ -44,15 +45,15 @@ function buildWorkQueueClaimFooter() {
 /**
  * Compatibility renderer for string-only, non-issue publishers.
  * Issue documents consume the parts directly without rendering fragments.
- * The only generated node is the current Claim line; keep literal templates untouched.
+ * Keep literal templates and legacy diagnostic formatting untouched.
  * @param {FooterPart[]} parts
  */
 function renderFooterParts(parts) {
-  const claims = parts.filter(part => typeof part !== "string");
+  const claims = parts.filter(part => typeof part !== "string" && part.type === "quote_line");
   if (claims.length > 1) throw new TypeError("Footer must contain at most one Claim line");
   const claim = claims[0];
   const renderedClaim = claim ? reportAST.renderReport({ type: "report", title: "Footer", children: [{ type: "quote", children: [{ type: "paragraph", children: claim.children }] }] }).body.trimEnd() : "";
-  return parts.map(part => (typeof part === "string" ? part : renderedClaim)).join("");
+  return parts.map(part => (typeof part === "string" ? part : part.type === "quote_line" ? renderedClaim : part.markdown)).join("");
 }
 
 /**
@@ -863,9 +864,16 @@ function buildGeneratedFooterParts(workflowName, runUrl, workflowSource, workflo
   }
 
   // Add missing tools and data sections if available
+  const collectedMissings = getCollectedMissings();
   const missingInfoSections = getMissingInfoSections();
   if (missingInfoSections) {
-    suffix += missingInfoSections;
+    parts.push(suffix, {
+      type: "diagnostic_sections",
+      markdown: missingInfoSections,
+      // Legacy string publishers do not parse diagnostic text.
+      buildChildren: () => generateMissingInfoReportSections(collectedMissings),
+    });
+    suffix = "";
   }
 
   // Add XML comment marker for traceability

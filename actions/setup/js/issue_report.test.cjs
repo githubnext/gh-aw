@@ -227,19 +227,23 @@ describe("issue report publication boundary", () => {
     await createReportIssue(client, { ...parameters });
     expect(render).toHaveBeenCalledTimes(3);
     parameters.body = "<x>".repeat(10000);
-    expect(() => createReportIssue(client, parameters)).toThrow("maximum length");
-    expect(client.rest.issues.create).toHaveBeenCalledTimes(2);
+    await createReportIssue(client, parameters);
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(3);
+    expect(client.rest.issues.create.mock.calls[2][0].body).toBe("Content redacted to fit size limit.\n");
   });
 
-  it("redacts secrets and rejects oversized rendered content before any API write", async () => {
+  it("redacts secrets and fits oversized rendered content before any API write", async () => {
     vi.stubEnv("GH_AW_SECRET_NAMES", "REPORT_FIXTURE");
     vi.stubEnv("SECRET_REPORT_FIXTURE", "issue-report-fixture");
     expect(renderIssueParameters({ title: "issue-report-fixture", body: "issue-report-fixture" }).body).not.toContain("issue-report-fixture");
     expect(renderIssueParameters({ title: "Report", body: "x".repeat(65535) }).body).toHaveLength(65536);
     const client = { rest: { issues: { create: vi.fn() } } };
-    expect(() => createReportIssue(client, { owner: "o", repo: "r", title: "Report", body: "<x>".repeat(10000) })).toThrow("maximum length");
+    await createReportIssue(client, { owner: "o", repo: "r", title: "Report", body: "<x>".repeat(10000) });
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(client.rest.issues.create.mock.calls[0][0].body).toBe("Content redacted to fit size limit.\n");
+    expect(() => createReportIssue(client, { owner: "o", repo: "r", title: "Report", body: "<!-- custom: " + "m".repeat(65536) + " -->" })).toThrow("maximum length");
     expect(() => createReportIssue(client, { owner: "o", repo: "r", title: "\u0000", body: "valid" })).toThrow("must not be empty");
-    expect(client.rest.issues.create).not.toHaveBeenCalled();
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(1);
   });
 
   it("rejects malformed metadata nodes and safely encodes comment delimiters", () => {

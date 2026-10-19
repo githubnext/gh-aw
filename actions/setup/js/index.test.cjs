@@ -10,6 +10,7 @@ const publicApi = require("./index.cjs");
 const { setupGlobals, createIssue } = publicApi;
 const { main } = require("./create_issue.cjs");
 const { MAX_LABELS, MAX_ASSIGNEES } = require("./constants.cjs");
+const { MAX_BODY_LENGTH, SIZE_NOTICE } = require("./report_size.cjs");
 
 describe("custom safe-output issue API", () => {
   let originalEnv;
@@ -211,13 +212,36 @@ describe("custom safe-output issue API", () => {
     expect(github.rest.issues.create).not.toHaveBeenCalled();
   });
 
-  it("enforces the exact body limit after attribution, without dropping the footer", async () => {
+  it("fits oversized bodies after attribution while preserving the exact boundary and full footer", async () => {
     process.env.GH_AW_SAFE_OUTPUTS_STAGED = "true";
     const initial = await createIssue({ title: "Finding", body: "x" });
-    const overhead = initial.preview.body.length - 1;
-    const atLimit = await createIssue({ title: "Finding", body: "x".repeat(65536 - overhead) });
-    expect(atLimit.preview.body.length).toBe(65536);
-    await expect(createIssue({ title: "Finding", body: "x".repeat(65537 - overhead) })).rejects.toThrow("including attribution");
+    const footer = initial.preview.body.slice(1);
+    const atLimitBody = "x".repeat(MAX_BODY_LENGTH - footer.length);
+    const atLimit = await createIssue({ title: "Finding", body: atLimitBody });
+    expect(atLimit.preview.body).toBe(atLimitBody + footer);
+    expect(atLimit.preview.body).toHaveLength(MAX_BODY_LENGTH);
+    const parameters = { title: "Finding", body: atLimitBody + "x" };
+    const fitted = await createIssue(parameters);
+    expect(fitted.preview.body).toBe(SIZE_NOTICE + footer);
+    expect(fitted.preview.body.length).toBeLessThanOrEqual(MAX_BODY_LENGTH);
+    expect(github.rest.issues.create).not.toHaveBeenCalled();
+
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = "false";
+    expect(await createIssue(parameters)).toEqual({ staged: false, issue });
+    expect(github.rest.issues.create).toHaveBeenCalledExactlyOnceWith(fitted.preview);
+  });
+
+  it.each(["true", "false"])("rejects oversized protected metadata without API writes when staged=%s", async staged => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = staged;
+    const body = `Content\n\n<!-- custom-managed: ${"m".repeat(MAX_BODY_LENGTH)} -->`;
+    await expect(createIssue({ title: "Finding", body })).rejects.toThrow("protected markers, footers, and framework content cannot be reduced");
+    expect(github.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it.each(["true", "false"])("rejects an oversized protected footer without API writes when staged=%s", async staged => {
+    process.env.GH_AW_SAFE_OUTPUTS_STAGED = staged;
+    process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({ footer: "f".repeat(MAX_BODY_LENGTH) });
+    await expect(createIssue({ title: "Finding", body: "Details" })).rejects.toThrow("protected markers, footers, and framework content cannot be reduced");
     expect(github.rest.issues.create).not.toHaveBeenCalled();
   });
 
