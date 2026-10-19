@@ -42,6 +42,7 @@ func TestWebhookManifestCompilation(t *testing.T) {
 `,
 		"multi-repo": `  gateway-dispatch:
     repos: [bar/baz, "foo/*"]
+    orgs: [BAR, "foo*"]
     security-alerts: {}
 `,
 		"combined": `  gateway-dispatch:
@@ -112,6 +113,7 @@ func TestWebhookManifestCompilation(t *testing.T) {
 					assert.Equal(t, 65535, subscription.Dispatch.MaxRequestBytes)
 					if name == "multi-repo" {
 						assert.Equal(t, []string{"bar/baz", "foo/*"}, subscription.Repos)
+						assert.Equal(t, []string{"bar", "foo*"}, subscription.Orgs)
 					} else {
 						assert.Empty(t, subscription.Repos)
 						assert.NotContains(t, manifestLine, `"repos"`)

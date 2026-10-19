@@ -32,6 +32,7 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 			"security-alerts: {sources: [dependabot]}",
 			"webhooks: [{type: example.event}]",
 			"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
+			"orgs: [github, \"my-*\"]\n  security-alerts: {}",
 		} {
 			t.Run(enabled+"/"+trigger, func(t *testing.T) {
 				root := t.TempDir()
@@ -63,6 +64,7 @@ func TestCompileWebhookJSONContract(t *testing.T) {
 on:
   bots: [cao-gateway]
   gateway-dispatch:
+    orgs: ["Example-*", GITHUB]
     projects-items:
       project_id: PVT_example
       types: [edited]
@@ -86,6 +88,7 @@ Inspect the batch in aw_context.webhook.deliveries and unique aw_context.items.
 	assert.Equal(t, 2, subscription.SchemaVersion)
 	assert.Equal(t, "projects_v2_item", subscription.Event)
 	assert.Equal(t, []string{"edited"}, subscription.Types)
+	assert.Equal(t, []string{"example-*", "github"}, subscription.Orgs)
 	assert.Equal(t, "repository_dispatch", subscription.Dispatch.Method)
 	assert.Equal(t, workflow.WebhookDispatchEventType("webhook-test"), subscription.Dispatch.EventType)
 	assert.Equal(t, "github.event.client_payload.aw_context.webhook.deliveries", subscription.Dispatch.Context.Deliveries)
@@ -145,6 +148,7 @@ func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
 		"security-alerts: {sources: [code-scanning, dependabot]}",
 		"webhooks: [{type: example.event}]",
 		"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
+		"orgs: [github, \"my-*\"]\n  security-alerts: {}",
 	} {
 		for _, roles := range []string{"all", "read", "triage", "[admin, write, read]"} {
 			t.Run(trigger+"/"+roles, func(t *testing.T) {

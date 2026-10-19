@@ -158,6 +158,7 @@ func TestWebhookRepositoriesAreSharedOnlyWithRepositoryAwareEvents(t *testing.T)
 
 	on := map[string]any{"gateway-dispatch": map[string]any{
 		"repos":              []any{"Bar/Baz", "foo/*"},
+		"orgs":               []any{"GitHub", "MY-*", "github"},
 		"projects-items":     map[string]any{"project_id": "PVT_example"},
 		"security-alerts":    map[string]any{},
 		"jira-issue":         map[string]any{"project": "APP"},
@@ -171,6 +172,12 @@ func TestWebhookRepositoriesAreSharedOnlyWithRepositoryAwareEvents(t *testing.T)
 	require.Len(t, subscriptions, 6)
 	for _, subscription := range subscriptions {
 		switch subscription.Event {
+		case "projects_v2_item", "code_scanning_alert", "dependabot_alert":
+			assert.Equal(t, []string{"github", "my-*"}, subscription.Orgs)
+		default:
+			assert.Empty(t, subscription.Orgs, "provider scopes are not GitHub organization names")
+		}
+		switch subscription.Event {
 		case "code_scanning_alert", "dependabot_alert":
 			assert.Equal(t, []string{"bar/baz", "foo/*"}, subscription.Repos)
 		default:
@@ -182,6 +189,47 @@ func TestWebhookRepositoriesAreSharedOnlyWithRepositoryAwareEvents(t *testing.T)
 	assert.JSONEq(t, string(before), string(after), "shared repository normalization must not mutate source frontmatter")
 	_, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"repos": []any{"bar/baz"}, "projects-items": map[string]any{"project_id": "PVT_example"}}}, "projects-only")
 	require.NoError(t, err)
+}
+
+func TestWebhookOrganizationSelectors(t *testing.T) {
+	for _, orgs := range []any{
+		[]any{"*"}, []any{"GitHub", "my-*", "*-labs", "a*b", "g**b"},
+		[]string{"GITHUB", "github", "MY-*"},
+	} {
+		on := map[string]any{"gateway-dispatch": map[string]any{
+			"orgs": orgs, "projects-items": map[string]any{"project_id": "PVT_example"},
+			"security-alerts": map[string]any{}, "webhooks": []any{map[string]any{"type": "example.event"}},
+		}}
+		before, err := json.Marshal(on)
+		require.NoError(t, err)
+		subscriptions, err := ParseWebhookSubscriptions(on, "orgs")
+		require.NoError(t, err)
+		require.Len(t, subscriptions, 4)
+		for _, subscription := range subscriptions {
+			if subscription.Event == "webhook" {
+				assert.Empty(t, subscription.Orgs)
+			} else {
+				assert.NotEmpty(t, subscription.Orgs)
+			}
+		}
+		after, err := json.Marshal(on)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(before), string(after))
+	}
+	for _, orgs := range []any{
+		nil, "github", true, []any{}, []any{true}, []any{""}, []any{" "},
+		[]any{"github/repo"}, []any{"github/*"}, []any{" github"}, []any{"github\n"},
+		[]any{"-github"}, []any{"github-"}, []any{"foo_bar"}, []any{"foo.bar"},
+		[]any{"foo?"}, []any{"[org]"}, []any{"${{ github.repository_owner }}"},
+		[]any{"abcdefghijklmnopqrstuvwxyzabcdefghijklmn"},
+	} {
+		_, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "security-alerts": map[string]any{}}}, "invalid-orgs")
+		require.ErrorContains(t, err, "on.gateway-dispatch.orgs")
+	}
+	_, err := ParseWebhookSubscriptions(map[string]any{"orgs": []any{"github"}}, "flat-orgs")
+	require.ErrorContains(t, err, "use on.gateway-dispatch")
+	_, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"orgs": []any{"github"}}}, "no-trigger")
+	require.ErrorContains(t, err, "at least one nested gateway trigger")
 }
 
 func TestSecurityAlertOmittedSelectors(t *testing.T) {

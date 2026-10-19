@@ -5,7 +5,7 @@ const fs = require("fs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
-const { WEBHOOK_PAYLOAD_POLICY, isGenericWebhookType } = require("./webhook_resource.cjs");
+const { WEBHOOK_PAYLOAD_POLICY, isGenericWebhookType, isWebhookFilterName, validWebhookFilterValues } = require("./webhook_resource.cjs");
 const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
@@ -57,12 +57,78 @@ function matchesRepositorySelector(repo, selectors) {
   });
 }
 
+function hasValidOrganizationSelectors(subscription) {
+  return (
+    subscription.orgs === undefined ||
+    (["projects_v2_item", "code_scanning_alert", "dependabot_alert"].includes(subscription.event) &&
+      Array.isArray(subscription.orgs) &&
+      subscription.orgs.length > 0 &&
+      subscription.orgs.every(org => typeof org === "string" && /^[a-zA-Z0-9*]([a-zA-Z0-9*-]{0,37}[a-zA-Z0-9*])?$/.test(org) && !/\s/.test(org)))
+  );
+}
+
+function matchesOrganizationSelector(item, selectors) {
+  const organization = item.repo ? item.repo.split("/")[0].toLowerCase() : item.source?.match(/\/orgs\/([^/]+)\/projectsV2\/[1-9][0-9]*$/)?.[1]?.toLowerCase();
+  if (!organization) return false;
+  return selectors.some(selector => {
+    const pattern = selector.toLowerCase();
+    if (!pattern.includes("*")) return organization === pattern;
+    const parts = pattern.split("*");
+    const prefix = parts[0];
+    const suffix = parts.at(-1);
+    if (!organization.startsWith(prefix) || !organization.endsWith(suffix)) return false;
+    let offset = prefix.length;
+    for (const part of parts.slice(1, -1)) {
+      const found = organization.indexOf(part, offset);
+      if (found === -1) return false;
+      offset = found + part.length;
+    }
+    return offset <= organization.length - suffix.length;
+  });
+}
+
+function validFilterCondition(condition) {
+  return (
+    isObject(condition) &&
+    isWebhookFilterName(condition.filter) &&
+    Array.isArray(condition.path) &&
+    condition.path.length > 0 &&
+    condition.path.every(isNonemptyString) &&
+    condition.operator === "equals" &&
+    validWebhookFilterValues(condition.values) &&
+    condition.values.every(value => (condition.value_type === "integer" ? Number.isSafeInteger(value) : ["string", "boolean"].includes(condition.value_type) && typeof value === condition.value_type))
+  );
+}
+
+function validSubscriptionFilters(subscription) {
+  return (
+    Array.isArray(subscription.conditions) &&
+    subscription.conditions.every(validFilterCondition) &&
+    (subscription.any_of === undefined || (Array.isArray(subscription.any_of) && subscription.any_of.length > 0 && subscription.any_of.every(group => Array.isArray(group) && group.length > 0 && group.every(validFilterCondition))))
+  );
+}
+
+function matchesProjectedFilters(subscription, payload) {
+  const projected = payload.filters ?? {};
+  const groups = subscription.any_of ?? [[]];
+  return groups.some(group => {
+    const conditions = [...subscription.conditions, ...group];
+    const names = new Set(conditions.map(condition => condition.filter));
+    return (
+      Object.keys(projected).length === names.size &&
+      Object.keys(projected).every(name => names.has(name)) &&
+      conditions.every(condition => Object.hasOwn(projected, condition.filter) && projected[condition.filter].every(value => condition.values.includes(value)))
+    );
+  });
+}
+
 /**
  * Validate the dispatch transport without replacing the GitHub authorization
  * context. Same-kind deliveries are carried in client_payload.aw_context.webhook.
- * The gateway forwards only resource URLs and normalized event types.
+ * The gateway forwards only resource URLs, event types, and matched filter values.
  * Actor authorization uses the standard pre-activation membership check.
- * Subscription conditions are evaluated by the webhook receiver, not here.
+ * The receiver evaluates original source predicates; the runner bounds the
+ * projected filter keys and values against the compiled conditions.
  *
  * @param {any} event - Actual repository_dispatch event, never the inner webhook
  * @param {NodeJS.ProcessEnv} [env]
@@ -88,14 +154,16 @@ function validateWebhook(event, env = process.env) {
         isObject(subscription.dispatch.payload_projection) &&
         Object.keys(subscription.dispatch.payload_projection).length === 1 &&
         subscription.dispatch.payload_projection.policy === WEBHOOK_PAYLOAD_POLICY &&
+        validSubscriptionFilters(subscription) &&
         Array.isArray(subscription.types) &&
         subscription.types.every(isNonemptyString) &&
         (subscription.event !== "webhook" || (subscription.types.length === 1 && isGenericWebhookType(subscription.types[0]) && subscription.provider === undefined && subscription.activity_normalization === undefined)) &&
         hasValidRepositorySelectors(subscription) &&
+        hasValidOrganizationSelectors(subscription) &&
         (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription))
     )
   ) {
-    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions with resource-url-types/v1 projection");
+    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions with resource-url-types-filters/v1 projection");
   }
 
   if (!isObject(event) || !isNonemptyString(event.action) || event.action.length > MAX_EVENT_TYPE_LENGTH) {
@@ -139,7 +207,13 @@ function validateWebhook(event, env = process.env) {
   if (subscription.repos !== undefined && normalized.items.some(item => !matchesRepositorySelector(item.repo, subscription.repos))) {
     reject("security alert source repository does not match the subscription repos");
   }
+  if (subscription.orgs !== undefined && normalized.items.some(item => !matchesOrganizationSelector(item, subscription.orgs))) {
+    reject("webhook source organization does not match the subscription orgs");
+  }
   for (const delivery of normalized.webhook.deliveries) {
+    if (!matchesProjectedFilters(subscription, delivery.payload)) {
+      reject("webhook payload filters must contain exactly the declared matching values for all shared conditions and one complete alternative");
+    }
     if (isProviderIssueEvent(subscription.event)) {
       if (!matchesProviderIssueSubscription(subscription, delivery.payload)) {
         reject("provider issue activity does not match the subscription types or native events");

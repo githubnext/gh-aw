@@ -192,6 +192,10 @@ func TestWebhookExperimentalNotices(t *testing.T) {
 		"projects": {"projects_v2_item"},
 		"security": {"dependabot_alert", "code_scanning_alert"},
 		"both":     {"projects_v2_item", "code_scanning_alert"},
+		"generic":  {"webhook"},
+		"jira":     {"jira_issue"},
+		"linear":   {"linear_issue"},
+		"azure":    {"azure_devops_issue"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			data := &WorkflowData{}
@@ -205,10 +209,13 @@ func TestWebhookExperimentalNotices(t *testing.T) {
 			if name == "security" {
 				expected = 1
 			}
+			if len(events) > 0 {
+				expected++
+			}
 			assert.Equal(t, expected, compiler.GetExperimentalWarningCount())
 			if expected > 0 {
-				assert.Contains(t, output.String(), "Using experimental feature: on.")
-				assert.Contains(t, output.String(), "hosted CAO triggers")
+				assert.Contains(t, output.String(), "Using experimental feature: on.gateway-dispatch (approved webhook bridge required)")
+				assert.Contains(t, output.String(), "approved webhook bridge required")
 			}
 		})
 	}

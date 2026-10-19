@@ -743,7 +743,7 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
-          "not": { "enum": ["gateway-dispatch", "gateway", "webhook-gateway", "webhooks", "projects-item", "projects-items", "security-alert", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue"] },
+          "not": { "enum": ["gateway-dispatch", "gateway", "webhook-gateway", "webhooks", "orgs", "projects-item", "projects-items", "security-alert", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue"] },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
@@ -762,6 +762,7 @@
             "gateway": false,
             "webhook-gateway": false,
             "repos": false,
+            "orgs": false,
             "projects-items": false,
             "security-alerts": false,
             "jira-issue": false,
@@ -771,13 +772,13 @@
             "gateway-dispatch": {
               "type": "object",
               "additionalProperties": false,
-              "description": "Experimental. Nested bundled gateway triggers with shared repository selection. Requires aw.json webhook-gateway: true. Cannot be combined with explicit workflow_dispatch or repository_dispatch and does not grant gateway authority.",
+              "description": "Experimental. Nested bundled gateway triggers with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json webhook-gateway: true. Cannot coexist with explicit workflow_dispatch or repository_dispatch or grant gateway authority.",
               "anyOf": [{ "required": ["projects-items"] }, { "required": ["security-alerts"] }, { "required": ["jira-issue"] }, { "required": ["linear-issue"] }, { "required": ["azure-devops-issue"] }, { "required": ["webhooks"] }],
               "properties": {
                 "webhooks": {
                   "type": "array",
                   "minItems": 1,
-                  "description": "Experimental. Generic event subscriptions with unique literal type identifiers and declarative typed equality filters evaluated by an approved gateway before minimal URL/type projection. Does not register sources or grant access.",
+                  "description": "Experimental. Generic event subscriptions with unique literal type identifiers and declarative typed equality filters evaluated before canonical URL/type/matched-filter projection. Does not register sources or grant access.",
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
@@ -791,6 +792,10 @@
                 "repos": {
                   "$ref": "#/$defs/webhookRepositoryValues",
                   "description": "Experimental. Shared source repository selectors for all repository-aware gateway subscriptions; exact owner/repo or owner/* only. Ignored by non-repository event families. Selectors do not grant access."
+                },
+                "orgs": {
+                  "$ref": "#/$defs/webhookOrganizationValues",
+                  "description": "Experimental. Optional shared source GitHub organization selectors for Projects and security alerts. Case-insensitive organization names or '*' wildcard patterns, matched only over approved sources. Ignored by external providers and generic webhooks; does not grant access."
                 },
                 "projects-items": {
                   "type": "object",
@@ -14779,6 +14784,16 @@
           "items": { "type": "string", "minLength": 1, "pattern": "\\S" }
         }
       ]
+    },
+    "webhookOrganizationValues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9*]([a-zA-Z0-9*-]{0,37}[a-zA-Z0-9*])?$",
+        "not": { "pattern": "\\s" }
+      }
     },
     "webhookRepositoryValues": {
       "type": "array",

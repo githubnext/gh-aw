@@ -170,6 +170,23 @@ func TestSecurityAlertRepositorySchema(t *testing.T) {
 	}
 }
 
+func TestGatewayOrganizationSchema(t *testing.T) {
+	for _, orgs := range []any{[]any{"GitHub", "my-*", "*-labs", "a*b"}, []any{"*"}} {
+		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "security-alerts": map[string]any{}}}}, "orgs.md"))
+	}
+	for _, orgs := range []any{nil, "github", []any{}, []any{true}, []any{""}, []any{"github/repo"}, []any{"github/*"}, []any{"foo?"}, []any{"foo.bar"}, []any{"foo_bar"}, []any{"-foo"}, []any{"foo-"}, []any{"github\n"}, []any{"${{ github.actor }}"}, []any{"github", "github"}} {
+		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "security-alerts": map[string]any{}}}}, "invalid-orgs.md"))
+	}
+	for _, on := range []any{
+		"orgs",
+		map[string]any{"orgs": []any{"github"}},
+		map[string]any{"gateway-dispatch": map[string]any{"orgs": []any{"github"}}},
+		map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"orgs": []any{"github"}}}},
+	} {
+		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "invalid-orgs-placement.md"))
+	}
+}
+
 func TestWebhookStatusTransitionsSchema(t *testing.T) {
 	for name, test := range map[string]struct {
 		transitions any

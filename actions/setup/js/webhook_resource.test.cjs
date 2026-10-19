@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, resolveWebhookResource } = require("./webhook_resource.cjs");
 const { normalizeWebhookContext } = require("./webhook_context.cjs");
+const { validateWebhook } = require("./validate_webhook.cjs");
 
 const examples = [
   ["projects_v2_item", "https://api.github.com/orgs/org/projectsV2/1/items/123", ["edited"], "123", "https://api.github.com/orgs/org/projectsV2/1"],
@@ -19,7 +20,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("minimal resource notification contract", () => {
   it("explicitly versions the projection independently of the batch envelope", () => {
-    expect(WEBHOOK_PAYLOAD_POLICY).toBe("resource-url-types/v1");
+    expect(WEBHOOK_PAYLOAD_POLICY).toBe("resource-url-types-filters/v1");
   });
 
   const githubCatalog = JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/webhook_events.json", import.meta.url), "utf8"));
@@ -34,8 +35,35 @@ describe("minimal resource notification contract", () => {
     expect(payloads.map(match => match[1]).sort()).toEqual([...Object.keys(WEBHOOK_TYPES), "webhook"].sort());
     for (const [, event, json] of payloads) {
       const payload = JSON.parse(json);
-      expect(Object.keys(payload).sort()).toEqual(["type", "url"]);
+      expect(Object.keys(payload).sort()).toEqual(payload.filters ? ["filters", "type", "url"] : ["type", "url"]);
       expect(normalizeWebhookContext({ webhook: { event, deliveries: [{ delivery_id: "example", payload }] } }).items).toHaveLength(1);
+      const definition = githubCatalog[event] ?? providerCatalog[event];
+      const subscription = {
+        schema_version: 2,
+        event,
+        types: payload.type,
+        conditions: Object.entries(payload.filters ?? {}).map(([filter, values]) => ({
+          filter,
+          path: event === "webhook" ? filter.split(".") : definition.filters[filter].path,
+          operator: "equals",
+          value_type: event === "webhook" ? typeof values[0] : definition.filters[filter].type,
+          values,
+        })),
+        dispatch: { event_type: "specification", payload_projection: { policy: WEBHOOK_PAYLOAD_POLICY } },
+        ...(definition?.provider
+          ? {
+              provider: definition.provider,
+              native_events: [...new Set(Object.values(definition.native_events))],
+              activity_normalization: { policy: `${definition.provider}-issue/v1`, ...(event === "azure_devops_issue" ? { closed_states: ["Done"] } : {}) },
+            }
+          : {}),
+      };
+      expect(
+        validateWebhook(
+          { action: "specification", client_payload: { schema_version: 2, aw_context: { webhook: { event, deliveries: [{ delivery_id: "example", payload }] } } } },
+          { GITHUB_EVENT_NAME: "repository_dispatch", GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription]) }
+        ).skipped
+      ).toBe(false);
     }
   });
 
@@ -105,6 +133,15 @@ describe("minimal resource notification contract", () => {
     }
   });
 
+  it.each(examples)("preserves only scalar filter projections without changing %s resource identity", (event, url, type) => {
+    const filters = { state: ["ready"], approved: [false], attempt: [1] };
+    const payload = { url, type, filters };
+    expect(resolveWebhookResource(event, payload)).toEqual(resolveWebhookResource(event, { url, type }));
+    expect(normalizeWebhookContext({ webhook: { event, deliveries: [{ delivery_id: "filtered", payload }] } }).webhook.deliveries[0].payload.filters).toEqual(filters);
+    for (const invalid of [null, [], {}, { state: "ready" }, { state: ["ready", null] }, { state: [{ body: "private" }] }, { state: ["ready", true] }, { count: [Infinity] }, JSON.parse('{"__proto__":["private"]}')]) {
+      expect(() => resolveWebhookResource(event, { url, type, filters: invalid })).toThrow(/filters/);
+    }
+  });
   it.each(examples)("requires known distinct nonempty activities for %s", (event, url) => {
     for (const type of [undefined, null, "", "edited", [], [""], [{}], ["not-a-type"], ["closed", "closed"], ["created", "private-description"]]) {
       expect(() => resolveWebhookResource(event, { url, type })).toThrow(/type/);

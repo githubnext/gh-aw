@@ -198,10 +198,11 @@ function providerEnvironment(event, types, nativeEvents, normalization = {}) {
         event,
         provider,
         types,
+        conditions: [],
         native_events: nativeEvents,
         schema_version: 2,
         activity_normalization: { policy: `${provider}-issue/v1`, ...normalization },
-        dispatch: { event_type: "gh-aw-webhook-provider", payload_projection: { policy: "resource-url-types/v1" } },
+        dispatch: { event_type: "gh-aw-webhook-provider", payload_projection: { policy: "resource-url-types-filters/v1" } },
       },
     ]),
   };

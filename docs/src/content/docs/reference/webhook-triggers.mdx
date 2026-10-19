@@ -7,7 +7,7 @@ sidebar:
 
 import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json';
 
-The dedicated [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-specification/) defines every supported trigger, its expected data, and the receiver/runner contract. All gateway triggers are experimental.
+The dedicated [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-specification/) defines every supported trigger, its expected data, and the receiver/runner contract. `on.gateway-dispatch` itself and all nested triggers are experimental.
 
 `on.gateway-dispatch.projects-items` and `on.gateway-dispatch.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. All gateway triggers belong inside `on.gateway-dispatch`. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a repository dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
 
@@ -28,7 +28,7 @@ Compilation rejects these triggers by default. Enabling them requires the reposi
 }
 ```
 
-The repository's `webhook-gateway` remains a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. Each subscribing workflow declares at least one supported trigger inside `on.gateway-dispatch`; an empty mapping or one containing only `repos` is rejected. These settings enable compilation only; they do not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require either setting.
+The repository's `webhook-gateway` remains a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. Each subscribing workflow declares at least one supported trigger inside `on.gateway-dispatch`; an empty mapping or one containing only `repos`/`orgs` is rejected. These settings enable compilation only; they do not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require either setting.
 
 The previous workflow flag `on.webhook-gateway`, flat gateway triggers, root `on.repos`, nested `on.gateway` mapping, singular GitHub trigger names, and repository `webhook-triggers` setting are rejected. Move gateway triggers and shared `repos` inside `on.gateway-dispatch`, remove the workflow flag, and retain `{"webhook-gateway":true}` in `aw.json`. The normalized manifest and version 2 dispatch envelope are unchanged.
 
@@ -96,6 +96,7 @@ Security alerts can select multiple source repositories:
 ---
 on:
   gateway-dispatch:
+    orgs: [bar, "foo*"]
     repos:
       - bar/baz
       - foo/*
@@ -108,6 +109,12 @@ Triage every unique alert in github.aw.context.items.
 `on.gateway-dispatch.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` selectors shared by every repository-aware subscription in the mapping. Currently these are code-scanning and Dependabot alerts. Matching is case-insensitive; the compiler lowercases, sorts, and deduplicates the selectors. Any selector may match (**OR**), in addition to the selected source, activity, and payload conditions (**AND**). Wildcard owners, partial-name patterns, URLs, expressions, and exclusions are rejected. `repos` is a sibling of the nested triggers, not a payload filter or a property inside `security-alerts`. Projects and external-provider triggers ignore the shared selectors and retain their own required source scopes; supplying `repos` with only those triggers is allowed.
 
 Selectors describe source selection, not access grants. The CAO bridge must resolve them only over fresh, reviewed private-repository enrollments and authorize each source separately. Omitted `repos` adds no selector and preserves the existing approved scope; the CAO bridge defaults to same-repository activation. Neither omission nor `owner/*` authorizes unreviewed repositories. The dispatch destination remains the repository declaring the workflow.
+
+### Source organizations
+
+Optional `on.gateway-dispatch.orgs` selects GitHub source organizations for Projects and security alerts. It accepts a nonempty list such as `[github, "my-*", "*-labs"]`; names/patterns use 1–39 ASCII letters, digits, hyphens, or `*`, without leading/trailing hyphens. Matching is case-insensitive. `*` matches zero or more characters; `["*"]` selects all independently approved organizations, not all organizations on GitHub. Patterns are ORed, then intersected with shared `repos`, project scope, activities, and payload conditions. The compiler lowercases, sorts, and deduplicates them.
+
+Omission adds no organization restriction or access grant. The receiver verifies organization ownership and current authorization from reviewed enrollment, not a payload claim. The runner also matches URL-derived organizations/repository owners and rejects user-owned Projects when `orgs` is configured; a repository URL alone cannot prove organization ownership. External providers and generic webhooks ignore `orgs` and retain their explicit source scopes. `orgs` belongs beside `repos` inside `gateway-dispatch`, not inside individual triggers or at root `on`.
 
 ### Experimental status transitions
 
@@ -135,11 +142,12 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 
 | Property | Required | Description |
 | --- | --- | --- |
-| `on.gateway-dispatch` | Yes | Object containing at least one supported gateway trigger; also requires the repository opt-in. Cannot coexist with explicit workflow or repository dispatch triggers. |
+| `on.gateway-dispatch` | Yes | Experimental object containing at least one supported gateway trigger; also requires the repository opt-in. Cannot coexist with explicit workflow or repository dispatch triggers. |
 | `on.gateway-dispatch.projects-items.project_id` | Yes, for `projects-items` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
 | `on.gateway-dispatch.projects-items.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
 | `on.gateway-dispatch.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
 | `on.gateway-dispatch.repos` | No | Shared nonempty list of literal `owner/repo` or `owner/*` source selectors for repository-aware subscriptions. Omission preserves CAO's existing approved source scope. |
+| `on.gateway-dispatch.orgs` | No | Shared nonempty list of GitHub organization names or `*` patterns for Projects and security subscriptions. Case-insensitive; intersects `repos` and reviewed enrollment. |
 | `on.gateway-dispatch.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
 | `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no additional field conditions. |
@@ -170,9 +178,9 @@ Resolve every notification through a configured authenticated provider client.
 
 Filters compile to the same receiver-executable `{path, operator: "equals", value_type, values}` conditions as named triggers. Nested mappings describe original payload property paths; quoted `"*"` segments traverse array elements. Property names contain ASCII letters, digits, `_`, or `-`, starting with a letter or `_`; prototype-related properties and dotted keys are rejected. Leaves accept a string, boolean, JSON-safe integer, or a nonempty homogeneous list. All conditions are ANDed; list values and traversed array elements are ORed. Matching is strict and case-sensitive; missing/null values never match. Expressions, scripts, regular expressions, and inferred source data are unsupported.
 
-Each array entry emits one subscription with `event: "webhook"` and `types: ["<type>"]`, sorted by type. The approved bridge binds that identifier to an authenticated, enrolled source and evaluates filters against each original delivery **before** projection. No GitHub App receiving permissions or webhook registrations are inferred from arbitrary identifiers. Shared `repos` does not apply to generic sources because their repository identity is unspecified.
+Each array entry emits one subscription with `event: "webhook"` and `types: ["<type>"]`, sorted by type. The approved bridge binds that identifier to an authenticated, enrolled source and evaluates filters against each original delivery **before** projection. No GitHub App receiving permissions or webhook registrations are inferred from arbitrary identifiers. Shared `repos`/`orgs` do not apply to generic sources because their GitHub identity is unspecified.
 
-The numeric-v2 envelope and `resource-url-types/v1` boundary remain unchanged. Generic batches use `aw_context.webhook.event: "webhook"` and payloads containing exactly `{"url":"<canonical HTTPS resource URL>","type":["<configured identifier>"]}`. Different generic identifiers must use separate homogeneous batches, even on the same workflow route. URLs may identify any provider resource but confer no access: the workflow must use trusted configured provider endpoints and authenticated clients, not fetch arbitrary URLs with credentials. Generic context references use `item_type: "webhook"`, empty `item_number`/`repo`, and the complete canonical URL as `source`; they deduplicate by that URL without guessing issue IDs or safe-output targets.
+The envelope remains numeric-v2; the required projection is `resource-url-types-filters/v1`. Generic batches use `aw_context.webhook.event: "webhook"`. Payloads require `url` and `type`, plus a flat `filters` map when conditions exist. For the release selector above, a matching notification is `{"url":"https://service.example/releases/42","type":["com.example.release"],"filters":{"data.approved":[true],"data.state":["ready"]}}`. Only matching declared literals are forwarded, not unselected values or source objects. Different generic identifiers must use separate homogeneous batches, even on the same workflow route. URLs confer no access: the workflow must use trusted configured provider endpoints and authenticated clients, not fetch arbitrary URLs with credentials. Generic references use `item_type: "webhook"`, empty `item_number`/`repo`, and the complete URL as `source`, without guessing issue IDs or safe-output targets.
 
 ### Filter values and matching
 
@@ -223,7 +231,7 @@ The gateway proposal in [githubnext/gh-aw-cao#18535](https://github.com/githubne
 
 Gateway-side trusted administrative grants, current authorization, receiving/dispatching App credential isolation, bounded durable admission, fencing, budgets, telemetry, and deployment remain CAO responsibilities. This compiler's standard role/bot check is an additional execution gate, not a substitute for those controls.
 
-The runtime expects an inline batch of canonical resource URLs and activity arrays for every family under the required `resource-url-types/v1` projection policy. No native source bodies are forwarded. RFC-033 uses approved projections; the interchange and projection-policy mapping still require agreement before claiming compatibility. The CAO bridge must also preserve the compiler's `any_of` OR-of-AND transition semantics per original delivery when translating to the RFC's predicate tree.
+The runtime expects an inline batch of canonical resource URLs, activity arrays, and only declared matching filter values under the required `resource-url-types-filters/v1` projection policy. No native source bodies are forwarded. RFC-033 uses approved projections; the interchange and projection-policy mapping still require agreement before claiming compatibility. The CAO bridge must also preserve the compiler's `any_of` OR-of-AND transition semantics per original delivery when translating to the RFC's predicate tree.
 
 ### Compiler declaration
 
@@ -248,11 +256,12 @@ Each compiled `.lock.yml` embeds the normalized subscriptions in the `webhook_su
 | `conditions[].values` | Nonempty array of accepted typed values; any may match. |
 | `any_of` | Optional array of condition groups. At least one complete group must match in addition to all shared `conditions`. |
 | `any_of[][]` | Same condition shape as `conditions[]`; leaves within a group are ANDed and groups are ORed. Each Status transition produces one two-leaf group. |
+| `orgs` | Optional organization names/`*` patterns copied into organization-aware GitHub subscriptions; source metadata, not payload fields or access grants. |
 | `dispatch.repository` | Literal `${{ github.repository }}` placeholder, resolved to the repository containing the discovered compiled workflow. |
 | `dispatch.method` | `repository_dispatch`. |
 | `dispatch.event_type` | Deterministic workflow-specific route described below. |
 | `dispatch.workflow` | Compiled workflow path, `.github/workflows/<workflow-id>.lock.yml`. |
-| `dispatch.payload_projection` | Required `{"policy":"resource-url-types/v1"}` for every event family. Applies before batching; only the canonical resource URL and event activity array are forwarded. Unknown or missing policies remain nonactivating. |
+| `dispatch.payload_projection` | Required `{"policy":"resource-url-types-filters/v1"}` for every family. Applies before batching; only the canonical resource URL, event types, and declared matching filter literals are forwarded. Older, unknown, or missing policies remain nonactivating. |
 | `dispatch.context` | Paths for the envelope, `aw_context`, shared event name, delivery array, and normalized unique items. |
 | `dispatch.context.envelope` | `github.event.client_payload`. |
 | `dispatch.context.aw_context` | `github.event.client_payload.aw_context`. |
@@ -301,14 +310,16 @@ The request to `POST /repos/{owner}/{repo}/dispatches` has this shape:
             "delivery_id": "<first X-GitHub-Delivery>",
             "payload": {
               "url": "https://api.github.com/orgs/owner/projectsV2/7/items/123",
-              "type": ["edited"]
+              "type": ["edited"],
+              "filters": {"project_id": ["PVT_kwDOExample"]}
             }
           },
           {
             "delivery_id": "<second X-GitHub-Delivery>",
             "payload": {
               "url": "https://api.github.com/orgs/owner/projectsV2/7/items/456",
-              "type": ["edited"]
+              "type": ["edited"],
+              "filters": {"project_id": ["PVT_kwDOExample"]}
             }
           }
         ]
@@ -320,11 +331,13 @@ The request to `POST /repos/{owner}/{repo}/dispatches` has this shape:
 
 These are complete minimal payloads, not abbreviated source objects. CAO evaluates project IDs, Status transitions, and all other predicates against authenticated original deliveries before projection or batching. It binds the Projects API URL's owner/project number to reviewed project enrollment rather than guessing from opaque node IDs. Each `delivery_id` carries the original `X-GitHub-Delivery` value, not the Actions run ID. `deliveries` must be nonempty; even a one-event batch uses the array.
 
-Every payload contains **only** `url` and a nonempty `type` array. GitHub families carry exactly one original action, such as `["edited"]` or `["created"]`. Security URLs identify `/repos/OWNER/REPO/dependabot/alerts/NUMBER` or `/code-scanning/alerts/NUMBER`. Projects URLs identify `/orgs/OWNER/projectsV2/PROJECT_NUMBER/items/ITEM_ID` or the corresponding `/users/OWNER/...` endpoint. All GitHub URLs must match `GITHUB_API_URL`, including an Enterprise API prefix, without credentials, query strings, or fragments. The [gateway specification](/gh-aw/specs/webhook-gateway-specification/#expected-per-delivery-payloads) defines the exact forms for every provider.
+Every payload contains **only** `url`, a nonempty `type` array, and `filters` when conditions exist. `filters` is a flat map from compiled filter names to distinct, nonempty homogeneous scalar arrays, containing only actual source values accepted by the declared predicates. It must cover all shared conditions and one complete `any_of` group; extra keys, nonmatching values, nested objects, and cross-combined transition pairs reject. With no conditions, omit `filters`.
 
-Titles, bodies, labels, actors, node IDs, severities, field values, and native resource objects are not forwarded. Additional data must be resolved **inside the workflow** with an authenticated GitHub App client so GitHub enforces access; the validator does not fetch it. Use configured trusted API endpoints, never attach credentials to arbitrary payload URLs or follow credential-bearing redirects, and handle denied/deleted resources without fallback to webhook bodies.
+GitHub families carry exactly one original action, such as `["edited"]` or `["created"]`. Security URLs identify `/repos/OWNER/REPO/dependabot/alerts/NUMBER` or `/code-scanning/alerts/NUMBER`. Projects URLs identify `/orgs/OWNER/projectsV2/PROJECT_NUMBER/items/ITEM_ID` or the corresponding `/users/OWNER/...` endpoint. All GitHub URLs must match `GITHUB_API_URL`, including an Enterprise API prefix, without credentials, query strings, or fragments. The [gateway specification](/gh-aw/specs/webhook-gateway-specification/#expected-per-delivery-payloads) defines the exact forms and projection rules.
 
-At gateway ingress, `aw_context` contains only `webhook`; supplied derived `items` or resource-detail side channels are rejected. Version 1, legacy singleton envelopes, old native-body payloads, and URL-only security payloads without `type` are unsupported. The version 2 batch envelope remains unchanged, but receivers must implement the explicit `resource-url-types/v1` projection policy rather than ignoring it.
+A selector does not authorize forwarding its full field, unselected array elements, siblings, or native resource objects. Additional data must be resolved **inside the workflow** with an authenticated GitHub App client so GitHub enforces access; the validator does not fetch it. Use configured trusted API endpoints, never attach credentials to arbitrary payload URLs or follow credential-bearing redirects, and handle denied/deleted resources without fallback to webhook bodies.
+
+At gateway ingress, `aw_context` contains only `webhook`; supplied derived `items` or resource-detail side channels are rejected. Version 1, legacy singleton envelopes, old native-body payloads, URL-only security payloads without `type`, and the earlier `resource-url-types/v1` projection policy are unsupported. The version 2 batch envelope remains unchanged, but receivers must implement the explicit `resource-url-types-filters/v1` policy rather than ignoring it.
 
 The shared `webhook.event` applies to every delivery. Code scanning and Dependabot use separate batches even if one workflow subscribes to both. Per-delivery event overrides are rejected. Repeated delivery IDs with identical forwarded payloads collapse in first-seen order; conflicting payloads for one ID fail the entire dispatch. Distinct deliveries affecting the same item are retained, including different activity types and Status transitions. Input order is preserved, but does not imply chronological delivery.
 
@@ -370,13 +383,13 @@ The normal pre-activation membership check authorizes that dispatch actor. Webho
 
 The runner's JSON event file, identified by `GITHUB_EVENT_PATH`, contains the complete dispatch batch. It is not replaced or rewritten during deduplication. The normalized context is stored as `context` in `/tmp/gh-aw/aw_info.json` and propagated to compiler-managed child workflows. Prompt expressions can use `${{ toJSON(github.aw.context.items) }}` and `${{ github.aw.context.webhook.event }}`; delivery bodies remain file data rather than automatically allowlisted prompt expressions.
 
-`items` contains unique affected references, not an arbitrary first event. Each element has `item_type`, string `item_number`, `url`, and `repo`, all derived from the minimal notification. Security repositories and alert numbers come from the validated API URL; their identity uses the family, case-insensitive source repository, and alert number. Projects use the family, project API URL in `source`, and decimal item ID; `repo` is empty and project node IDs are not available without authenticated resolution. The runner creates this array; gateway-supplied `items` are rejected. Scalar `item_type`/`item_number`/comment targets remain empty for batches; handlers and safe outputs must target each intended resource explicitly.
+`items` contains unique affected references, not an arbitrary first event. Each element has `item_type`, string `item_number`, `url`, and `repo`, all derived from the minimal notification. Security repositories and alert numbers come from the validated API URL; their identity uses the family, case-insensitive source repository, and alert number. Projects use the family, project API URL in `source`, and decimal item ID; `repo` is empty. Filter literals remain in their delivery, not in derived items. The runner creates this array; gateway-supplied `items` are rejected. Scalar `item_type`/`item_number`/comment targets remain empty for batches; handlers and safe outputs must target each intended resource explicitly.
 
-External issue items use the normalized provider family, URL-derived issue identifier and source namespace, and empty `repo`. See [provider identity and normalization](/gh-aw/reference/provider-issue-triggers/#manifest-and-batch-context) for those source boundaries; provider UUIDs and cross-alias identity resolution require authenticated workflow reads.
+External issue items use the normalized provider family, URL-derived issue identifier and source namespace, and empty `repo`. See [provider identity and normalization](/gh-aw/reference/provider-issue-triggers/#manifest-and-batch-context) for those source boundaries; IDs beyond declared filter literals and cross-alias identity resolution require authenticated workflow reads.
 
 For an authenticated dispatch on the generated webhook route, the agent job stages the minimal dispatch event at `/tmp/gh-aw/github-event.json` and `$RUNNER_TEMP/gh-aw/github-event.json` with file mode `0600` for supported sandbox mount layouts. NVX includes it in its temporary guest-state handoff. A conditional prompt identifies the batch and normalized context, requires authenticated resolution of additional data, and instructs the agent to handle every item. Native triggers and unrelated dispatch routes do not stage webhook files. Native provider bodies never enter the dispatch, staged context, prompt, or child-workflow context; generated metadata and unified-session caller-context logs continue to redact delivery payloads.
 
-The validation step checks the workflow-specific route, batch version, required projection policy, both serialized byte limits, shared event, and every delivery's URL identity, closed payload shape, and selected activity types. Original source predicates and transition evidence remain receiver responsibilities because those details are not forwarded. An invalid element fails the entire batch before agent execution, rather than dropping only that element. Actor authorization remains in the standard pre-activation check.
+The validation step checks the workflow-specific route, batch version, required projection policy, both serialized byte limits, shared event, every delivery's URL identity and selected types, and the closed filter key/value allowlist including complete alternatives. Original-source provenance and transition evidence remain receiver responsibilities; projected literals cannot prove either. An invalid element fails the entire batch before agent execution, rather than dropping only that element. Actor authorization remains in the standard pre-activation check.
 
 All resource identity is derived from the validated canonical URL. Projects and alert numbers are retained as decimal strings, without JavaScript integer conversion. These are runtime reference policies, not proof of provider access or the current resource state.
 

@@ -2,7 +2,7 @@
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
-const WEBHOOK_PAYLOAD_POLICY = "resource-url-types/v1";
+const WEBHOOK_PAYLOAD_POLICY = "resource-url-types-filters/v1";
 const ISSUE_TYPES = ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"];
 const WEBHOOK_TYPES = {
   projects_v2_item: ["archived", "converted", "created", "deleted", "edited", "reordered", "restored"],
@@ -24,6 +24,18 @@ function isWebhookEvent(event) {
 
 function isGenericWebhookType(type) {
   return typeof type === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$/.test(type);
+}
+
+function isWebhookFilterName(name) {
+  return typeof name === "string" && name.split(".").every(key => /^(?:[A-Za-z_][A-Za-z0-9_-]*|\*)$/.test(key) && !["__proto__", "prototype", "constructor"].includes(key));
+}
+
+function isWebhookFilterScalar(value) {
+  return typeof value === "string" || typeof value === "boolean" || Number.isSafeInteger(value);
+}
+
+function validWebhookFilterValues(values) {
+  return Array.isArray(values) && values.length > 0 && values.every(value => isWebhookFilterScalar(value) && typeof value === typeof values[0]) && new Set(values).size === values.length;
 }
 
 function resourceURL(value, message) {
@@ -83,8 +95,18 @@ function resolveProviderResource(event, url) {
 }
 
 function resolveWebhookResource(event, payload, env = process.env) {
-  if (Object.keys(payload).some(key => !["url", "type"].includes(key))) {
-    reject("webhook payload accepts only a canonical resource URL and type array; fetch resource details with an authenticated provider client");
+  if (Object.keys(payload).some(key => !["url", "type", "filters"].includes(key))) {
+    reject("webhook payload accepts only a canonical resource URL, type array, and declared filter values; fetch resource details with an authenticated provider client");
+  }
+  if (
+    Object.hasOwn(payload, "filters") &&
+    (payload.filters === null ||
+      typeof payload.filters !== "object" ||
+      Array.isArray(payload.filters) ||
+      Object.keys(payload.filters).length === 0 ||
+      !Object.entries(payload.filters).every(([name, values]) => isWebhookFilterName(name) && validWebhookFilterValues(values)))
+  ) {
+    reject("webhook payload filters must contain only named, distinct homogeneous scalar value arrays");
   }
   if (event === "webhook") {
     if (!Array.isArray(payload.type) || payload.type.length !== 1 || !isGenericWebhookType(payload.type[0])) {
@@ -110,4 +132,4 @@ function resolveWebhookResource(event, payload, env = process.env) {
   return event.endsWith("_issue") ? resolveProviderResource(event, url) : resolveGitHubResource(event, url, env);
 }
 
-module.exports = { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, isWebhookEvent, isGenericWebhookType, resolveWebhookResource };
+module.exports = { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, isWebhookEvent, isGenericWebhookType, isWebhookFilterName, validWebhookFilterValues, resolveWebhookResource };

@@ -94,6 +94,8 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.Contains(t, activation, "Read the projected repository_dispatch event from /tmp/gh-aw/github-event.json")
 	assert.Contains(t, activation, "canonical resource URL at payload.url")
 	assert.Contains(t, activation, "payload.type array of event activities")
+	assert.Contains(t, activation, "payload.filters when declared conditions exist")
+	assert.Contains(t, activation, "only matched literal values for the declared predicates")
 	assert.Contains(t, activation, "raw source bodies are not forwarded")
 	assert.Contains(t, activation, "using provider-authenticated clients so the provider enforces access")
 	assert.Contains(t, activation, "never send credentials to arbitrary payload URLs or redirects")

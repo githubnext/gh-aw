@@ -97,7 +97,7 @@ type WebhookPayloadProjection struct {
 }
 
 // WebhookPayloadProjectionPolicy versions the closed per-delivery notification.
-const WebhookPayloadProjectionPolicy = "resource-url-types/v1"
+const WebhookPayloadProjectionPolicy = "resource-url-types-filters/v1"
 
 // WebhookSubscription is the compiler's versioned filter and routing declaration.
 type WebhookSubscription struct {
@@ -108,6 +108,7 @@ type WebhookSubscription struct {
 	Event                 string                        `json:"event"`
 	Types                 []string                      `json:"types"`
 	Repos                 []string                      `json:"repos,omitempty"`
+	Orgs                  []string                      `json:"orgs,omitempty"`
 	Conditions            []WebhookCondition            `json:"conditions"`
 	// AnyOf requires a complete group to match, in addition to Conditions.
 	AnyOf    [][]WebhookCondition `json:"any_of,omitempty"`
@@ -151,6 +152,10 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	if err != nil {
 		return nil, err
 	}
+	orgs, err := parseWebhookOrganizations(onMap, "on.gateway-dispatch")
+	if err != nil {
+		return nil, err
+	}
 	catalog, err := WebhookCatalog()
 	if err != nil {
 		return nil, err
@@ -167,6 +172,9 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		}
 		if _, repositoryScoped := definition.Filters["repository"]; repositoryScoped {
 			subscription.Repos = slices.Clone(repos)
+		}
+		if _, organizationScoped := definition.Filters["organization"]; organizationScoped {
+			subscription.Orgs = slices.Clone(orgs)
 		}
 		subscriptions = append(subscriptions, subscription)
 	}
@@ -218,8 +226,8 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 func webhookOnConfig(on any) (map[string]any, error) {
 	for _, name := range rawOnSectionTriggerNames(on) {
 		switch name {
-		case "webhook", "webhook-auth", "webhook-gateway", "gateway", "projects-item", "security-alert", "repos":
-			return nil, fmt.Errorf("on.%s is not supported; use on.gateway-dispatch with nested triggers and shared repos, and standard on.roles/on.bots authorization", name)
+		case "webhook", "webhook-auth", "webhook-gateway", "gateway", "projects-item", "security-alert", "repos", "orgs":
+			return nil, fmt.Errorf("on.%s is not supported; use on.gateway-dispatch with nested triggers and shared repos/orgs, and standard on.roles/on.bots authorization", name)
 		}
 		if isWebhookTrigger(name) {
 			return nil, fmt.Errorf("on.%s is not supported; define %s under on.gateway-dispatch", name, name)
@@ -249,12 +257,12 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	for _, name := range sortedWebhookKeys(gateway) {
 		if isWebhookTrigger(name) {
 			hasTrigger = true
-		} else if name != "repos" {
-			return nil, fmt.Errorf("unsupported on.gateway-dispatch property %q; use supported nested gateway triggers or shared repos", name)
+		} else if name != "repos" && name != "orgs" {
+			return nil, fmt.Errorf("unsupported on.gateway-dispatch property %q; use supported nested gateway triggers or shared repos/orgs", name)
 		}
 	}
 	if !hasTrigger {
-		return nil, errors.New("on.gateway-dispatch requires at least one nested gateway trigger; repos alone is not a trigger")
+		return nil, errors.New("on.gateway-dispatch requires at least one nested gateway trigger; repos/orgs alone are not triggers")
 	}
 	return gateway, nil
 }
