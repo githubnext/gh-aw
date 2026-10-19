@@ -1933,7 +1933,7 @@ async function settleClaimDelivery(scope, messages, results, options = {}) {
   return delivery;
 }
 
-/** @param {{claimPartition?: boolean, messages?: object[], verifyOutput?: Function, finalizeResults?: Function, controlIntentPath?: string, authorize?: (request: Record<string, unknown>) => unknown, activationCommentLinks?: string[]}} [options] */
+/** @param {{claimPartition?: boolean, messages?: object[], verifyOutput?: Function, finalizeResults?: Function, controlIntentPath?: string, queueClient?: object, authorize?: (request: Record<string, unknown>) => unknown, activationCommentLinks?: string[]}} [options] */
 async function main(options = {}) {
   const activationCommentLinks = options.activationCommentLinks ?? [];
   const scope = readClaimScopeContext();
@@ -1961,13 +1961,15 @@ async function main(options = {}) {
     rejectCrossClaimTemporaryReferences(partitions, rejected);
     const settlements = [];
     const verificationPasses = new Map();
+    const queueClient = options.queueClient || github;
     for (const [handle, scopedMessages] of partitions) {
       try {
         const unscopedGithub = github;
         const effects = [];
-        const authorize = options.authorize || (request => require("./finish_work_queue_claim.cjs").authorizeWorkerClaim({ ...request, github: unscopedGithub }));
+        const authorize = options.authorize || (request => require("./finish_work_queue_claim.cjs").authorizeWorkerClaim({ ...request, github: unscopedGithub, queueClient }));
         const claimOptions = {
           ...options,
+          queueClient,
           authorize,
           effects,
           controlMessages: controls.messages.filter(message => message.claim_handle === handle),
@@ -2009,6 +2011,7 @@ async function main(options = {}) {
       finalized = await finalize({
         core,
         github,
+        queueClient,
         context,
         assignment: scope.assignment,
         verifyEffects: createClaimDeliveryVerifier({

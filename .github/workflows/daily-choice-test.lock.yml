@@ -2067,7 +2067,9 @@ jobs:
     needs:
       - agent
       - detection
-    if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'test_environment')
+    if: >
+      (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'test_environment') &&
+      needs.detection.result == 'success'
     runs-on: ubuntu-latest
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
@@ -2110,4 +2112,5 @@ jobs:
           fi
         env:
           GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
+          GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_JOB_CHECK_RUN_ID: ${{ job.check_run_id }}

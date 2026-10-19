@@ -25,9 +25,21 @@ func TestAiderEntrypointContinuesAfterShellResults(t *testing.T) {
         print(message)
 `), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(codersDir, "base_coder.py"), []byte(`import os
+from types import SimpleNamespace
 
 class Coder:
     max_reflections = 3
+    gpt_prompts = SimpleNamespace(files_no_full_files="I am not sharing any files that you can edit yet.")
+    file_context = "empty"
+
+    def get_chat_files_messages(self):
+        if self.file_context == "editable":
+            content = "I have added these files to the chat: sample.go\npackage sample"
+        elif self.file_context == "repo-map":
+            content = "Ask me to add files from the repository map."
+        else:
+            content = self.gpt_prompts.files_no_full_files
+        return [{"role": "user", "content": content}, {"role": "assistant", "content": "Ok."}]
 
     def show_send_output(self, completion):
         pass
@@ -46,6 +58,11 @@ class Coder:
     def run(self, with_message):
         self.num_reflections = 0
         self.cur_messages = []
+        if os.environ["AIDER_TEST_SCENARIO"] == "empty-context":
+            context = self.get_chat_files_messages()[0]["content"]
+            if context == self.gpt_prompts.files_no_full_files:
+                self.io.assistant_output("Please provide the necessary files.")
+                return
         while True:
             self.reflected_message = None
             self.io.assistant_output("discovery" if self.num_reflections == 0 else "continuation")
@@ -92,6 +109,18 @@ from .coders import base_coder
 def main():
     coder = base_coder.Coder()
     coder.io = InputOutput()
+    for context, expected in (
+        ("editable", "I have added these files to the chat: sample.go\npackage sample"),
+        ("repo-map", "Ask me to add files from the repository map."),
+    ):
+        coder.file_context = context
+        assert coder.get_chat_files_messages() == [
+            {"role": "user", "content": expected}, {"role": "assistant", "content": "Ok."},
+        ]
+    coder.file_context = "empty"
+    messages = coder.get_chat_files_messages()
+    assert "first run its repository discovery commands in fenced bash blocks" in messages[0]["content"]
+    assert messages[1] == {"role": "assistant", "content": "Ok."}
     coder.run(with_message="perform workflow")
     assert coder.max_reflections == 3
     if os.environ["AIDER_TEST_SCENARIO"] == "loop":
@@ -100,7 +129,7 @@ def main():
 `), 0o600))
 	prompt := filepath.Join(dir, "prompt.md")
 	require.NoError(t, os.WriteFile(prompt, []byte("perform workflow"), 0o600))
-	for _, scenario := range []string{"output", "empty", "failed", "existing", "no-shell", "loop", "exception"} {
+	for _, scenario := range []string{"empty-context", "output", "empty", "failed", "existing", "no-shell", "loop", "exception"} {
 		t.Run(scenario, func(t *testing.T) {
 			terminal := filepath.Join(t.TempDir(), "terminal")
 			cmd := exec.Command("python3", loadAiderSample(t).Behaviors.Execution.Args...)

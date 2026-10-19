@@ -51,6 +51,24 @@ type JavaScriptParser interface {
 	Parse(context.Context, string) (*JavaScriptNode, error)
 }
 
+type JavaScriptParseResult struct {
+	Node *JavaScriptNode
+	Err  error
+}
+
+// JavaScriptBatchParser amortizes native compiler startup across independent
+// scripts. A syntax failure belongs to its script, not the entire batch.
+type JavaScriptBatchParser interface {
+	ParseBatch(context.Context, []string) ([]JavaScriptParseResult, error)
+}
+
+type JavaScriptMode string
+
+const (
+	JavaScriptFast JavaScriptMode = "fast"
+	JavaScriptDeep JavaScriptMode = "deep"
+)
+
 // JavaScriptOptions enables native AST analysis explicitly. Files is the
 // repository source filesystem, not the runner's filesystem. RuntimePaths maps
 // operator-verified runner asset directories to corresponding repository paths.
@@ -60,6 +78,8 @@ type JavaScriptOptions struct {
 	Parser       JavaScriptParser
 	Files        fs.FS
 	RuntimePaths map[string]string
+	// An empty mode preserves the original, deep library API behavior.
+	Mode JavaScriptMode
 }
 
 type JavaScriptInput struct {

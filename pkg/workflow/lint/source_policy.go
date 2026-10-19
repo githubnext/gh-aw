@@ -47,7 +47,8 @@ func authoredImportsPending(input Input) (bool, error) {
 func VersionCheckRule() Rule {
 	return Rule{
 		ID: "version-check", Description: "Keep the AW version integrity check enabled",
-		Severity: Warning, Targets: AWAST, Check: checkVersionCheck,
+		ThreatRuleID: "CTR-018",
+		Severity:     Warning, Targets: AWAST, Check: checkVersionCheck,
 	}
 }
 
@@ -82,7 +83,8 @@ func checkVersionCheck(ctx context.Context, input Input) ([]Diagnostic, error) {
 func PrivateToPublicRule() Rule {
 	return Rule{
 		ID: "private-to-public", Description: "Keep AW private-to-public flow protections enabled",
-		Severity: Warning, Targets: AWAST, Check: checkPrivateToPublic,
+		ThreatRuleID: "CTR-031",
+		Severity:     Warning, Targets: AWAST, Check: checkPrivateToPublic,
 	}
 }
 
@@ -157,7 +159,8 @@ func privateToPublicValue(ctx context.Context, value any) error {
 func ConditionalImportRule() Rule {
 	return Rule{
 		ID: "conditional-import", Description: "Keep AW configuration imports unconditional",
-		Severity: Error, Targets: AWAST, Check: checkConditionalImports,
+		ThreatRuleID: "CTR-020",
+		Severity:     Error, Targets: AWAST, Check: checkConditionalImports,
 	}
 }
 

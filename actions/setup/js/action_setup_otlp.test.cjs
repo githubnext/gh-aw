@@ -114,6 +114,49 @@ describe("action_setup_otlp.cjs", () => {
     expect(typeof run).toBe("function");
   });
 
+  it.each(["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"])("does not register plain placeholders from %s as standalone runner masks", async variable => {
+    const headers = [
+      "X-No-Auth=true",
+      "X-False=false",
+      "X-Null=null",
+      "X-Short=abcd",
+      "X-Seven=abcdefg",
+      "X-Digits=12345678",
+      "X-Encoded-Boolean=%74%72%75%65",
+      "X-Encoded-Short=%61%62%63%64",
+      "X-Encoded-Digits=%31%32%33%34%35%36%37%38",
+      "X-Key=abcdefgh",
+      "X-Encoded-Key=%61bcdefgh",
+    ].join(",");
+    process.env[variable] = variable === "GH_AW_OTLP_ENDPOINTS" ? JSON.stringify([{ url: "", headers }]) : headers;
+    mockSendJobSetupSpan.mockImplementationOnce(async () => {
+      expect(mockCore.setSecret.mock.calls.map(([value]) => value).sort()).toEqual([headers, "abcdefgh", "%61bcdefgh"].sort());
+      return { traceId: VALID_TRACE_ID, spanId: VALID_SPAN_ID };
+    });
+
+    await run();
+
+    expect(mockCore.setSecret.mock.calls.map(([value]) => value).sort()).toEqual([headers, "abcdefgh", "%61bcdefgh"].sort());
+  });
+
+  it.each(["Bearer abcd", "bearer 1234", "Bearer true", "Bearer abc", "Basic dTp0cnVl", "basic dToxMjM0"])("preserves short auth credential runner masks for %s", async authorization => {
+    const encoded = encodeURIComponent(authorization);
+    const headers = `Authorization=${encoded}`;
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
+    const credential = authorization.split(" ")[1];
+    const expected = new Set([headers, encoded, authorization]);
+    if (credential.length >= 4) expected.add(credential);
+    if (authorization.toLowerCase().startsWith("basic ")) {
+      const decoded = Buffer.from(credential, "base64").toString("utf8");
+      expected.add(decoded);
+      expected.add(decoded.split(":")[1]);
+    }
+
+    await run();
+
+    expect(mockCore.setSecret.mock.calls.map(([value]) => value).sort()).toEqual([...expected].sort());
+  });
+
   it("masks decoded OTLP credentials before sending spans without changing configured headers", async () => {
     const password = "synthetic-grafana-cloud-token";
     const basic = `Basic ${Buffer.from(`123456:${password}`).toString("base64")}`;

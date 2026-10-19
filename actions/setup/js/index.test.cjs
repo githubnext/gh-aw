@@ -113,6 +113,32 @@ describe("custom safe-output issue API", () => {
     expect(github.rest.issues.create.mock.calls[1][0].body).toBe(customBody);
   });
 
+  it("renders one complete AST per custom or built-in issue, including Claim attribution", async () => {
+    const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const assignment = {
+      version: 3,
+      dispatch_id: "dispatch",
+      request_id: "request",
+      commit_id: "commit",
+      policy_epoch: "policy",
+      pool: "default",
+      worker_profile: "default",
+      claims: [{ handle: "claim", work_id: "work-id", claim_id: "claim-id", work: {}, result_refs: [] }],
+    };
+    await withClaimExecution({ assignment, claim_handle: "claim" }, async () => {
+      await createIssue({ title: "Finding", body: "Custom details" });
+      expect(render).toHaveBeenCalledTimes(1);
+      const handler = await main({});
+      expect((await handler({ title: "Finding", body: "Built-in details" })).success).toBe(true);
+      expect(render).toHaveBeenCalledTimes(2);
+    });
+    for (const [parameters] of github.rest.issues.create.mock.calls) {
+      expect(parameters.body).toContain("> Work `work-id` · Claim `claim-id`");
+      expect(parameters.body.match(/<!-- gh-aw-execution:/g)).toHaveLength(1);
+    }
+  });
+
   it("keeps cross-repository attribution on the original enterprise workflow run", async () => {
     context.serverUrl = "https://github.example.com";
     process.env.GITHUB_SERVER_URL = context.serverUrl;
