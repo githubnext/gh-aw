@@ -73,6 +73,7 @@ async function main(core, ctx, githubClient) {
     engine_id: process.env.GH_AW_INFO_ENGINE_ID || "",
     engine_name: process.env.GH_AW_INFO_ENGINE_NAME || "",
     model,
+    model_source: process.env.GH_AW_INFO_MODEL_SOURCE || "",
     version: process.env.GH_AW_INFO_VERSION || "",
     agent_version: process.env.GH_AW_INFO_AGENT_VERSION || "",
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",

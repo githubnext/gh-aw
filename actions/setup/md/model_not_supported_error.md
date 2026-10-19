@@ -3,6 +3,8 @@
 
 This may be an invalid model name, a policy or access restriction for this token/repository, or a change in provider availability. Retrying the same session will not resolve a model that remains unavailable.
 
+Run details show the selected model and `model_source`. If the source is `GH_AW_DEFAULT_MODEL_*` or `GH_AW_MODEL_*`, update or remove that Actions variable at the scope where it is defined. Changes to Actions variables apply to later runs without recompiling workflows.
+
 Copilot also filters models by integration. A model enabled by organization policy and available in the standalone CLI can still be unavailable to the `agentic-workflows` integration. In particular, Gemini models have been absent from that integration's catalog. The bundled gh-aw model catalog is not proof of live access. Select a model offered to this workflow; enabling a missing model for `agentic-workflows` requires Copilot API support. Do not change the integration ID to bypass access policy.
 
 <details>

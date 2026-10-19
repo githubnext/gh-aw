@@ -83,6 +83,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_ENGINE_ID = "copilot";
     process.env.GH_AW_INFO_ENGINE_NAME = "GitHub Copilot CLI";
     process.env.GH_AW_INFO_MODEL = "gpt-4";
+    process.env.GH_AW_INFO_MODEL_SOURCE = "GH_AW_DEFAULT_MODEL_COPILOT";
     process.env.GH_AW_INFO_VERSION = "";
     process.env.GH_AW_INFO_AGENT_VERSION = "0.0.419";
     process.env.GH_AW_INFO_CLI_VERSION = "";
@@ -134,6 +135,7 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.engine_id).toBe("copilot");
     expect(awInfo.engine_name).toBe("GitHub Copilot CLI");
     expect(awInfo.model).toBe("gpt-4");
+    expect(awInfo.model_source).toBe("GH_AW_DEFAULT_MODEL_COPILOT");
     expect(awInfo.workflow_name).toBe("my-workflow");
     expect(awInfo.workflow_id).toBe("github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
     expect(awInfo.workflow_call_id).toBe("12345-1:github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");

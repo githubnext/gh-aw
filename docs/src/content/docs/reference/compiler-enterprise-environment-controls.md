@@ -24,9 +24,9 @@ In this enterprise controls reference, OTLP defaults are the scope-sensitive exc
 | `GH_AW_DEFAULT_DETECTION_JOB_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default generated `detection` job `timeout-minutes` (10 minutes) | `jobs.detection.timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_DETECTION_MODEL` | Compiler process environment | Default threat-detection model | `safe-outputs.threat-detection.engine.model` is not set |
 | `GH_AW_DEFAULT_UTC` | Compiler process environment | Default project home UTC offset for rendered CLI timestamps | `utc` is not set in `.github/workflows/aw.json` |
-| `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default fallback model for Copilot | `GH_AW_MODEL_AGENT_COPILOT` / `GH_AW_MODEL_DETECTION_COPILOT` is unset |
-| `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default fallback model for Claude | `GH_AW_MODEL_AGENT_CLAUDE` / `GH_AW_MODEL_DETECTION_CLAUDE` is unset |
-| `GH_AW_DEFAULT_MODEL_CODEX` | GitHub Actions `vars.*` at runtime | Default fallback model for Codex | `GH_AW_MODEL_AGENT_CODEX` / `GH_AW_MODEL_DETECTION_CODEX` is unset |
+| `GH_AW_DEFAULT_MODEL_COPILOT` | GitHub Actions `vars.*` at runtime | Default model for Copilot | `engine.model` and the phase-specific model variable are unset |
+| `GH_AW_DEFAULT_MODEL_CLAUDE` | GitHub Actions `vars.*` at runtime | Default model for Claude | `engine.model` and the phase-specific model variable are unset |
+| `GH_AW_DEFAULT_MODEL_CODEX` | GitHub Actions `vars.*` at runtime | Default model for Codex | `engine.model` and the phase-specific model variable are unset |
 | `GH_AW_DEFAULT_OTLP_ENDPOINT` | GitHub Actions `secrets.*` or `vars.*` at runtime | Default OTLP exporter endpoint | `observability.otlp.endpoint` is not set in frontmatter or any imported workflow |
 | `GH_AW_DEFAULT_OTLP_HEADERS` | GitHub Actions `secrets.*` at runtime | Default OTLP exporter headers for `GH_AW_DEFAULT_OTLP_ENDPOINT` | `observability.otlp.endpoint` is not set in frontmatter or any imported workflow |
 | `GH_AW_REQUIRE_SELF_HOSTED_RUNNERS` | Compiler process environment | Fail compilation unless every generated job selects a self-hosted runner | Set to `true` in a trusted compile environment to enforce self-hosted-only runners |
@@ -122,9 +122,27 @@ When neither is configured, timestamp formatting is left unchanged and uses the 
 For model selection, precedence is:
 
 1. `engine.model` in workflow frontmatter
-2. `GH_AW_MODEL_AGENT_*` or `GH_AW_MODEL_DETECTION_*`
-3. `GH_AW_DEFAULT_MODEL_*`
-4. Built-in compiler fallback
+2. The phase-specific Actions variable, such as `GH_AW_MODEL_AGENT_COPILOT` or `GH_AW_MODEL_DETECTION_COPILOT`
+3. The engine's `GH_AW_DEFAULT_MODEL_*` Actions variable
+4. The engine's built-in default
+
+For threat detection, `safe-outputs.threat-detection.engine.model` takes precedence over the main workflow model. If it is unset, `GH_AW_DEFAULT_DETECTION_MODEL` (read by the compiler when workflows are compiled) takes precedence over the phase-specific detection variable, followed by the engine's `GH_AW_DEFAULT_MODEL_*` variable and its built-in detection default.
+
+### Configure a team default model
+
+Set one variable per supported engine. These are GitHub Actions variables, not compiler-process environment variables. They can be set at repository, organization, or enterprise scope (subject to GitHub's variable visibility rules); a more-specific Actions variable takes precedence over a broader-scope variable with the same name.
+
+```bash
+gh variable set GH_AW_DEFAULT_MODEL_COPILOT --org MY_ORG --body "gpt-5.5"
+gh variable set GH_AW_DEFAULT_MODEL_CLAUDE --org MY_ORG --body "claude-sonnet-5"
+gh variable set GH_AW_DEFAULT_MODEL_CODEX --org MY_ORG --body "gpt-5.5"
+```
+
+The variables apply to the built-in Copilot, Claude, and Codex engines when the workflow has no `engine.model` and no phase-specific model variable. They do not apply to Gemini, Pi, Agy, or custom engines. A workflow using model routing selects from its routing candidates instead. For detection, the explicit detection model and the compile-time `GH_AW_DEFAULT_DETECTION_MODEL` override also take precedence. If `GH_AW_DEFAULT_MODEL_CODEX` is unset, gh-aw supplies no Codex model and leaves selection to Codex; it does not substitute a different model.
+
+The compiler emits these as `${{ vars.* }}` expressions, so GitHub resolves the variable when the workflow runs. Changing a team variable does not require recompiling already-compiled workflows. Run details include both the selected model and its source.
+
+The value must be a model ID supported by the selected engine and provider and available to the workflow's credentials and organization plan. Since the value is resolved at run time, the compiler cannot validate it. If the model is unavailable or incompatible, the affected agent run fails with model diagnostics; check the model ID, engine/provider compatibility, and access in the model catalog (`gh aw models`). There is no automatic substitution to another model.
 
 For max AI credits, precedence is:
 
