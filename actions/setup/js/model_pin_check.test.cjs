@@ -330,6 +330,12 @@ describe("model_pin_check collection and rules", () => {
     });
     expect(pin(nested, "model")).toMatchObject({ status: "not_checked", reason: "expression" });
 
+    const imported = check({
+      ".github/workflows/imported.md": "---\nengine: copilot\nmodel: dynamic\nimports:\n  - shared/models.md\n---\n",
+      ".github/workflows/shared/models.md": '---\nmodels:\n  dynamic: ["copilot/${{ vars.MODEL }}"]\n---\n',
+    });
+    expect(pin(imported, "model")).toMatchObject({ status: "not_checked", reason: "expression" });
+
     const ordered = check({
       ".github/workflows/ordered.md": '---\nengine: copilot\nmodel: dynamic\nmodels:\n  dynamic: [copilot/gpt-5-mini, "copilot/${{ vars.MODEL }}"]\n---\n',
     });
