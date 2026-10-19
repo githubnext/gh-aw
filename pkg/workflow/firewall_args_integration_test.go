@@ -206,7 +206,6 @@ Test workflow with SSL bump and allow-urls configuration.
 
 		// Compile the workflow
 		compiler := NewCompiler(WithVersion("test-ssl-bump"))
-		compiler.SetSkipValidation(true)
 
 		if err := compiler.CompileWorkflow(workflowPath); err != nil {
 			t.Fatalf("Failed to compile workflow: %v", err)

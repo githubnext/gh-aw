@@ -234,12 +234,14 @@ See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domain
 
 ### Firewall Log Level
 
-Control the verbosity of AWF firewall logs using `log-level`. Options: `debug` (verbose), `info` (default), `warn`, `error`.
+Control the verbosity of AWF firewall logs using `--log-level`. Options: `debug` (verbose), `info` (default), `warn`, `error`. Passing custom AWF arguments is an internal override and requires non-strict mode.
 
-```yaml wrap
+```aw wrap
+strict: false
+sandbox:
+  agent:
+    args: [--log-level, info]
 network:
-  firewall:
-    log-level: info
   allowed:
     - defaults
     - python
@@ -247,20 +249,19 @@ network:
 
 ### SSL Bump for HTTPS Inspection
 
-Enable SSL bump to filter HTTPS traffic by URL path patterns instead of only domain names. Use it when you must allow specific API endpoints while blocking others on the same domain. Specify permitted HTTPS patterns with `allow-urls`.
+SSL bump enables HTTPS inspection for URL path filtering. Advanced non-strict configurations pass `--ssl-bump` and `--allow-urls` through the internal `sandbox.agent.args` override. URL patterns form one comma-separated argument. The compiler rejects the legacy `network.firewall` block, including `network.firewall.ssl-bump`.
 
-```yaml wrap
-network:
-  firewall:
-    ssl-bump: true
-    allow-urls:
-      - "https://github.com/githubnext/*"
-      - "https://api.github.com/repos/*/issues"
-  allowed:
-    - defaults
+```aw wrap
+strict: false
+sandbox:
+  agent:
+    args:
+      - --ssl-bump
+      - --allow-urls
+      - "https://github.com/githubnext/*,https://api.github.com/repos/*/issues"
 ```
 
-**Security**: SSL bump intercepts and decrypts HTTPS as a man-in-the-middle. Enable it only when URL-level filtering is necessary, and craft `allow-urls` patterns carefully to avoid breaking legitimate connections. It requires AWF v0.9.0+ and does not apply to Sandbox Runtime (SRT). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for full AWF options.
+**Security**: SSL bump intercepts and decrypts HTTPS as a man-in-the-middle. Enable it only when URL-level filtering is necessary, and craft `--allow-urls` patterns carefully to avoid breaking legitimate connections. `gh aw lint` checks the authored SSL prerequisite but does not prove runtime AWF enforcement. See [Sandbox Configuration](/gh-aw/reference/sandbox/) for sandbox options.
 
 ### Disabling the Firewall
 

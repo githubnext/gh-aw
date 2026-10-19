@@ -82,6 +82,19 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("claude-sonnet-4.6");
   });
 
+  it.each(["smoke-copilot-mai", "actions-aw-linter-factory"])("resolves %s against the advertised MAI catalog", workflowName => {
+    const workflow = fs.readFileSync(path.join(__dirname, `../../../.github/workflows/${workflowName}.md`), "utf8");
+    const configuredModel = workflow.match(/^model: (.+)$/m)?.[1];
+    if (!configuredModel) throw new Error(`Missing model in ${workflowName}`);
+    expect(configuredModel).toMatch(/^(copilot\/)?mai-code-1\.1-flash$/);
+    const reflectData = {
+      models_fetch_complete: true,
+      endpoints: [{ configured: true, provider: "copilot", models: ["mai-code-1.1-flash"] }],
+    };
+    expect(resolveConfiguredCopilotModel({ configuredModel, aliasMap: ALIAS_MAP, reflectData })).toBe("mai-code-1.1-flash");
+    expect(ALIAS_MAP).not.toHaveProperty("mai-code-1-flash-picker");
+  });
+
   it("resolves Linter Miner main and sub-agent models against its advertised catalog", () => {
     const workflow = fs.readFileSync(path.join(__dirname, "../../../.github/workflows/linter-miner.md"), "utf8");
     const models = [...workflow.matchAll(/^model: (.+)$/gm)].map(match => match[1]);

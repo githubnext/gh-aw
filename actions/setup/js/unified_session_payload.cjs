@@ -473,12 +473,17 @@ function resolveUsageAic(source, data, usage) {
 /**
  * Validate and project inventory formats together so collectors cannot accept
  * malformed snapshots that would otherwise look like genuinely empty inventories.
+ * AWF writes null model and routing collections for unconfigured endpoints and
+ * pending fetches; those stay unknown (omitted), never become empty arrays.
  * @param {any} value
  * @returns {import("./types/unified_session").ModelInventoryData | undefined}
  */
 function normalizeModelInventoryData(value) {
   const isObject = entry => entry !== null && typeof entry === "object" && !Array.isArray(entry);
-  const isIdentifier = entry => typeof entry === "string" && entry.trim().length > 0;
+  // Model IDs, providers, and endpoints only need to be nonblank strings.
+  const isNonBlank = entry => typeof entry === "string" && entry.trim().length > 0;
+  // Reasoning efforts are short identifier tokens such as "low" or "xhigh", never free-form text.
+  const isEffortToken = entry => typeof entry === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(entry);
   const firstField = (entry, names) => names.map(name => entry[name]).find(field => field !== undefined);
   const normalizeRouting = entries => {
     if (!Array.isArray(entries)) return undefined;
@@ -487,8 +492,17 @@ function normalizeModelInventoryData(value) {
       if (!isObject(entry)) return undefined;
       const modelId = firstField(entry, ["modelId", "model_id"]);
       const supportedEndpoints = firstField(entry, ["supportedEndpoints", "supported_endpoints"]);
-      if (!isIdentifier(modelId) || (supportedEndpoints !== undefined && (!Array.isArray(supportedEndpoints) || !supportedEndpoints.every(isIdentifier)))) return undefined;
-      result.push({ modelId, ...(supportedEndpoints !== undefined ? { supportedEndpoints: [...supportedEndpoints] } : {}) });
+      const efforts = firstField(entry, ["supportedReasoningEfforts", "supported_reasoning_efforts"]);
+      const contextWindow = firstField(entry, ["contextWindowTokens", "context_window_tokens"]);
+      if (!isNonBlank(modelId) || (supportedEndpoints !== undefined && (!Array.isArray(supportedEndpoints) || !supportedEndpoints.every(isNonBlank)))) return undefined;
+      if (efforts != null && (!Array.isArray(efforts) || !efforts.every(isEffortToken))) return undefined;
+      if (contextWindow != null && (!Number.isSafeInteger(contextWindow) || contextWindow <= 0)) return undefined;
+      result.push({
+        modelId,
+        ...(supportedEndpoints !== undefined ? { supportedEndpoints: [...supportedEndpoints] } : {}),
+        ...(efforts != null ? { supportedReasoningEfforts: [...efforts] } : {}),
+        ...(contextWindow != null ? { contextWindowTokens: contextWindow } : {}),
+      });
     }
     return result;
   };
@@ -510,26 +524,39 @@ function normalizeModelInventoryData(value) {
     return undefined;
   }
   const topRouting = firstField(value, ["routingModels", "routing_models"]);
-  const topRoutingModels = topRouting === undefined ? undefined : normalizeRouting(topRouting);
-  if (topRouting !== undefined && topRoutingModels === undefined) return undefined;
+  const topRoutingModels = topRouting == null ? undefined : normalizeRouting(topRouting);
+  if (topRouting != null && topRoutingModels === undefined) return undefined;
   /** @type {import("./types/unified_session").ModelInventoryData["endpoints"]} */
   const endpoints = [];
   for (const entry of entries) {
-    if (!isObject(entry) || !isIdentifier(entry.provider)) return undefined;
+    if (!isObject(entry) || !isNonBlank(entry.provider)) return undefined;
+    const configured = entry.configured;
+    if (configured !== undefined && typeof configured !== "boolean") return undefined;
     const rawModels = firstField(entry, ["models", "available_models", "detected_models", "model_ids", "availableModels"]);
-    // AWF uses null for unconfigured endpoints and pending model fetches.
-    const models = rawModels === null && typeof entry.configured === "boolean" ? [] : rawModels;
-    if (!Array.isArray(models)) return undefined;
-    const modelIds = [];
-    for (const model of models) {
-      const id = typeof model === "string" ? model : isObject(model) ? firstField(model, ["id", "name", "model"]) : undefined;
-      if (!isIdentifier(id)) return undefined;
-      modelIds.push(id);
+    /** @type {string[] | undefined} */
+    let modelIds;
+    if (rawModels == null) {
+      // Only AWF's explicit endpoint state makes a missing model list an unknown rather than malformed inventory.
+      if (configured === undefined) return undefined;
+    } else {
+      if (!Array.isArray(rawModels)) return undefined;
+      modelIds = [];
+      for (const model of rawModels) {
+        const id = typeof model === "string" ? model : isObject(model) ? firstField(model, ["id", "name", "model"]) : undefined;
+        if (!isNonBlank(id)) return undefined;
+        modelIds.push(id);
+      }
     }
     const endpointRouting = firstField(entry, ["routingModels", "routing_models"]);
-    const routingModels = endpointRouting === undefined ? topRoutingModels : normalizeRouting(endpointRouting);
-    if (endpointRouting !== undefined && routingModels === undefined) return undefined;
-    endpoints.push({ provider: entry.provider, models: modelIds, ...(routingModels !== undefined ? { routingModels: structuredClone(routingModels) } : {}) });
+    // An explicit endpoint-local null means no routing metadata; only an absent field inherits the top-level list.
+    const routingModels = endpointRouting === undefined ? topRoutingModels : endpointRouting === null ? undefined : normalizeRouting(endpointRouting);
+    if (endpointRouting != null && routingModels === undefined) return undefined;
+    endpoints.push({
+      provider: entry.provider,
+      ...(configured !== undefined ? { configured } : {}),
+      ...(modelIds !== undefined ? { models: modelIds } : {}),
+      ...(routingModels !== undefined ? { routingModels: structuredClone(routingModels) } : {}),
+    });
   }
   const modelsFetchComplete = firstField(value, ["modelsFetchComplete", "models_fetch_complete"]);
   if (modelsFetchComplete !== undefined && typeof modelsFetchComplete !== "boolean") return undefined;

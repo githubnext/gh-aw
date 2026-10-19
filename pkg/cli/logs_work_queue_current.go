@@ -25,6 +25,7 @@ type WorkQueueCurrentSnapshot struct {
 	Paused          bool                        `json:"admission_paused"`
 	GrantsPaused    bool                        `json:"grants_paused"`
 	Assignment      *WorkQueueAssignmentReceipt `json:"assignment,omitempty"`
+	Diagnostics     *WorkQueueDiagnostics       `json:"diagnostics,omitempty"`
 }
 
 type WorkQueueAssignmentReceipt = workqueue.AssignmentReceipt
@@ -129,6 +130,10 @@ func parseCurrentWorkQueueSnapshot(data []byte) (*WorkQueueSnapshot, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	current.Diagnostics, err = capturedWorkQueueDiagnostics(state, envelope)
+	if err != nil {
+		return nil, currentWorkQueueDiagnosticError("diagnostics", err)
 	}
 	return &WorkQueueSnapshot{Version: 3, SHA: envelope.SHA, Current: current}, nil
 }

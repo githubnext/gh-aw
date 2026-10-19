@@ -24,11 +24,12 @@ var (
 // strict setting, so its findings default to warnings.
 func ActionPinRule() Rule {
 	return Rule{
-		ID:          "action-pin",
-		Description: "Require immutable remote action and reusable-workflow references",
-		Severity:    Warning,
-		Targets:     ActionsAST | AWAST,
-		Check:       checkActionPins,
+		ID:           "action-pin",
+		ThreatRuleID: "CTR-002",
+		Description:  "Require immutable remote action and reusable-workflow references",
+		Severity:     Warning,
+		Targets:      ActionsAST | AWAST,
+		Check:        checkActionPins,
 	}
 }
 
@@ -172,10 +173,11 @@ func integrityGitRef(value string) bool {
 // timeout retains Actions' default and is not a generated-timeout violation.
 func JobTimeoutRule() Rule {
 	return Rule{
-		ID:          "job-timeout",
-		Description: "Require explicit job timeouts to be literal positive integers",
-		Severity:    Error,
-		Targets:     ActionsAST | AWAST,
+		ID:           "job-timeout",
+		ThreatRuleID: "CTR-026",
+		Description:  "Require explicit job timeouts to be literal positive integers",
+		Severity:     Error,
+		Targets:      ActionsAST | AWAST,
 		Check: func(ctx context.Context, input Input) ([]Diagnostic, error) {
 			if err := integrityInput(ctx, input); err != nil {
 				return nil, err
