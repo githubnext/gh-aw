@@ -63,7 +63,7 @@ When the authority uses a GitHub App for provisioning or verification, that App 
 
 The App MUST be installed on the relevant organization or repository-owning account, with approved permissions and repository access for the chosen operations. Requested registration permissions are not sufficient: installation owners must approve new permissions before they become available. An enterprise installation does not substitute for the organization installation and organization permissions needed to manage organization Actions variables.
 
-The authority MUST follow GitHub's [App JWT authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app) and [installation-token generation](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app) specifications. Sign the App JWT using `RS256`, include an issued-at timestamp in `iat` and the App's client ID or application ID in `iss`, and set `exp` no more than ten minutes into the future. GitHub recommends the client ID and an `iat` sixty seconds in the past for clock skew. Use that JWT as a bearer credential for App-level operations, including `POST /app/installations/{installation_id}/access_tokens`; use the resulting installation token, not the App JWT, for the organization/repository APIs below.
+The authority MUST follow GitHub's [App JWT authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app) and [installation-token generation](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app) specifications. Sign the App JWT using `RS256`, include an issued-at timestamp in `iat` and the App's client ID or application ID in `iss`, and set `exp` no more than ten minutes into the future. GitHub recommends the client ID and an `iat` sixty seconds in the past for clock skew. Use that JWT as a bearer credential for App-level operations, including [`POST /app/installations/{installation_id}/access_tokens`](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app); use the resulting installation token, not the App JWT, for the organization/repository APIs below.
 
 Installation IDs MUST come from trusted tenant enrollment and authoritative GitHub installation metadata, bound to the verified repository owner and repository. Unverified request fields MUST NOT select another tenant's installation. Installation tokens expire after one hour; honor GitHub's returned `expires_at` and renew as needed. Treat tokens as opaque, without fixed-length or format assumptions. Scope tokens with the documented `permissions` and, for repository operations, `repositories` or `repository_ids` parameters to only the approved access needed; tokens cannot expand an installation's grants. Provisioning and verification tokens SHOULD have separate least-privilege scopes.
 
@@ -92,7 +92,7 @@ The activation job MUST gain `id-token: write` to request OIDC tokens, while ret
 
 The entire activation job is an OIDC trust boundary, not just the admission step. All custom setup, pre, and regular steps and actions, before and after admission, MUST be reviewed as able to request identity tokens for any audience, including the admission audience. OIDC attests workflow/job identity, not which step requested the token; the authority MUST NOT treat it as proof that the trusted admission helper ran. Skipping admission does not revoke the job's OIDC capability. The implementation MUST prevent untrusted code from executing in this job and review existing federated relying-party policies before granting the permission; an admission-step condition is not a permission sandbox. Trusted repository-maintained hooks remain within this cooperative boundary, without adding a job or claiming step-level isolation.
 
-For an enabled gate, the step requests an OIDC token from GitHub using the effective audience, for example with `core.getIDToken(audience)`. GitHub supplies the OIDC request capability to jobs with `id-token: write`; no GitHub App private key is needed in the runner. OIDC bootstrap credentials are used only with the trusted GitHub OIDC endpoint and MUST NOT be forwarded to the authority.
+The journey below uses GitHub.com endpoints. Other supported GitHub deployments require independently configured issuer and API hosts. Credential placeholders and decoded token examples are synthetic, not usable credentials. The GitHub response excerpts omit unrelated fields; the admission request and success bodies are complete.
 
 ### Protocol Flow
 
@@ -102,14 +102,45 @@ sequenceDiagram
     participant G as GitHub OIDC
     participant S as Authority server
 
-    A->>G: Request token for audience
-    G-->>A: Signed OIDC token
-    A->>S: POST /api/activation
+    A->>G: GET runner URL + audience
+    G-->>A: 200 JSON: value = OIDC JWT
+    A->>S: POST /api/activation + bearer JWT
     Note right of S: Verify identity<br/>Evaluate policy
     S-->>A: 200 + limit + ID / 403 / transient
+    Note over A: Validate and propagate decision<br/>then complete activation
 ```
 
-The step runs inside activation, not in a new job. No endpoint means no token or request. A validated `200` supplies the run ceiling and correlation ID before activation continues; `403` fails it. Only transient failures are retried, then handled by the outage policy. The existing activation-success dependency still gates the agent. Token reuse or renewal does not create another entitlement.
+The step first resolves the endpoint and remaining settings as specified in Section 2. No endpoint means no token or request. For an enabled gate, it snapshots the current execution's nine identity strings, acquires the token below, and sends the admission request. The authority verifies the token and request bindings as specified in Section 4, optionally verifies run-attempt metadata, and returns the Section 5 decision. Only then does the client follow [Continuing After Admission](#continuing-after-admission). Transient retries follow Section 6 without changing the invocation or creating another entitlement.
+
+### Requesting the OIDC Token
+
+GitHub supplies `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` to the job when its effective permissions allow OIDC issuance. The permission requirement and both acquisition methods are documented in GitHub's [OIDC permissions](https://docs.github.com/en/actions/reference/security/oidc#workflow-permissions-for-the-requesting-the-oidc-token) and [methods for requesting the OIDC token](https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token). A reusable workflow cannot elevate permissions denied by its caller.
+
+The trusted helper requests the effective audience explicitly through GitHub's documented [`core.getIDToken(audience)` API](https://docs.github.com/en/actions/reference/security/oidc#standard-audience-issuer-and-subject-claims):
+
+```javascript
+const oidcToken = await core.getIDToken(effectiveAudience);
+```
+
+For `effectiveAudience = "https://admission.example.org/api/activation"`, the equivalent exchange is:
+
+```http
+GET <ACTIONS_ID_TOKEN_REQUEST_URL>&audience=https%3A%2F%2Fadmission.example.org%2Fapi%2Factivation HTTP/1.1
+host: <host from ACTIONS_ID_TOKEN_REQUEST_URL>
+authorization: bearer <ACTIONS_ID_TOKEN_REQUEST_TOKEN>
+accept: application/json
+
+HTTP/1.1 200 OK
+content-type: application/json
+
+{
+  "value": "<OIDC_JWT>"
+}
+```
+
+The request URL is the complete, job-issued URL, including its existing query parameters; the audience is URL-encoded once and appended as documented. It MUST NOT be replaced with the public issuer/discovery URL or a guessed GitHub REST endpoint. `ACTIONS_ID_TOKEN_REQUEST_TOKEN` is the runner's bootstrap bearer credential for this GitHub request only. The response's `value` is a different credential: the signed OIDC identity JWT that authenticates to the authority. Neither credential is `GITHUB_TOKEN`, and no App key, App JWT, or installation token is involved in runner-side acquisition.
+
+The helper MUST keep both credentials in memory, mask the acquired token, and send only the OIDC JWT to the authority. It MUST NOT print either credential, decode a live token into diagnostics, or publish tokens through step/job outputs. The toolkit call illustrates the API, not a complete client: acquisition and any internal retries MUST satisfy Section 6's bounded deadline and generic-error requirements.
 
 ### HTTP Request
 
@@ -117,6 +148,8 @@ The service accepts `POST /api/activation`, with `content-type: application/json
 
 ```http
 POST /api/activation HTTP/1.1
+host: admission.example.org
+authorization: bearer <OIDC_JWT>
 content-type: application/json
 cache-control: no-store
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
@@ -134,7 +167,9 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 }
 ```
 
-The `authorization` header is omitted from this example. It MUST be present on actual requests, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. The example includes `traceparent` for an OTel-enabled AW; this header is optional when OTel is disabled. Redirects MUST NOT be followed.
+`<OIDC_JWT>` means exactly the token returned in the preceding response's `value`, not the bootstrap request token. The `authorization` header MUST be present, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. The example includes `traceparent` for an OTel-enabled AW; this header is optional when OTel is disabled. Redirects MUST NOT be followed.
+
+This POST targets the configured authority, not `api.github.com`. It is the proposed API defined by this specification, not a GitHub REST API. The authority consumes the OIDC token directly and returns an admission decision; there is no intermediate exchange for a cloud access token or a credential for continuing the workflow.
 
 ### Proxy-Friendly Header Conventions
 
@@ -146,19 +181,19 @@ Proxies and API gateways MUST allow and preserve the standard fields, without ap
 
 ### JSON Request Fields
 
-All nine fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers:
+All nine fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers. Standard runner sources below are defined in GitHub's [default environment variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables); the executing workflow reference uses gh-aw's existing metadata wiring:
 
 | Field | Meaning and validation |
 |-------|------------------------|
-| `repo` | Current execution's `owner/repository` slug; MUST match signed repository identity |
-| `workflow_id` | Executing workflow reference from `job.workflow_ref`, matching `aw_info.workflow_id`: `owner/repository/.github/workflows/file.yml@ref`; neither a short logical AW ID nor a numeric GitHub workflow ID |
-| `workflow_call_id` | Exactly `<run_id>-<run_attempt>:<workflow_id>`, matching `aw_info.workflow_call_id` |
-| `run_id` | Positive decimal GitHub Actions run ID; preserve as a string |
-| `run_attempt` | Positive decimal attempt number; MUST match the signed claim |
-| `ref` | Current GitHub Actions ref; MUST match the signed claim |
-| `event_type` | Current GitHub Actions event name; MUST match the supported signed event claim |
-| `actor` | Current `github.actor` login; MUST match the signed actor claim |
-| `triggering_actor` | Current `github.triggering_actor` login; the initiator of this run attempt, which may differ from `actor` on a rerun |
+| `repo` | `GITHUB_REPOSITORY`: current execution's `owner/repository` slug; MUST match signed `repository` |
+| `workflow_id` | `GH_AW_INFO_WORKFLOW_ID`, populated from `job.workflow_ref`, matching `aw_info.workflow_id`: `owner/repository/.github/workflows/file.yml@ref`; neither a short logical AW ID nor a numeric GitHub workflow ID |
+| `workflow_call_id` | Derive exactly `<run_id>-<run_attempt>:<workflow_id>`, matching `aw_info.workflow_call_id`; not a separate GitHub claim |
+| `run_id` | `GITHUB_RUN_ID`: positive decimal run ID; preserve as a string and compare with signed `run_id` |
+| `run_attempt` | `GITHUB_RUN_ATTEMPT`: positive decimal attempt number; MUST match signed `run_attempt` |
+| `ref` | `GITHUB_REF`: current GitHub Actions ref; MUST match signed `ref` |
+| `event_type` | `GITHUB_EVENT_NAME`: current event name; MUST match supported signed `event_name` |
+| `actor` | `GITHUB_ACTOR` / `github.actor`: original run actor login; MUST match signed `actor` |
+| `triggering_actor` | `GITHUB_TRIGGERING_ACTOR` / `github.triggering_actor`: current attempt's initiator, which may differ from `actor`; not an OIDC claim |
 
 The client MUST pass both values from the current [GitHub Actions context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context), not infer one from the other. `actor` identifies the original run actor; `triggering_actor` identifies the current attempt's initiator. GitHub reruns retain the privileges of `github.actor`, even when `github.triggering_actor` has different privileges. Actor-specific authorization MUST use verified identity, including signed `actor_id`, and MUST NOT substitute the rerun initiator's privileges for the original actor's.
 
@@ -192,6 +227,16 @@ Only `traceparent` is propagated across this boundary. Arbitrary `tracestate` an
 
 Responses do not echo trace headers or disclose internal reason identifiers. The successful JSON response carries only the authorized run ceiling and an opaque service correlation ID. Detailed service reasons remain in protected, tenant-scoped telemetry and MUST NOT appear in workflow-visible span attributes or events. A denied, skipped, or fail-open execution without a valid success response preserves its existing OTel configuration and MUST NOT fabricate a service-issued correlation ID.
 
+### Continuing After Admission
+
+The authority responds synchronously on the same POST; Section 5 gives the complete response and validation rules. For its example `200`, the activation helper receives `max_ai_credits = 1000` and `correlation_id = "8e53c1f4a62049b5b382704fe9d61a0c"`. It validates the entire response before publishing either field, computes the effective minimum with the existing finite local cap, and wires that limit and ID into the remaining execution. A local cap of `600` yields an effective limit of `600`; an unset local cap leaves the authority ceiling of `1000`.
+
+Only the validated non-secret decision values, never either OIDC credential, cross the existing step/job output and runtime-context boundaries. GitHub documents [passing job outputs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/pass-job-outputs), including mapping step outputs to job outputs and consuming them through `needs.<job_id>.outputs`. The compiler MUST integrate this transport into the existing graph, without adding a job or dependency; consumers MUST validate the credit value instead of interpreting a missing or malformed string output as unlimited.
+
+The helper then succeeds, and activation finishes its remaining checks. GitHub Actions schedules the already-dependent agent job only if the existing [job dependency and success conditions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds) permit it. The authority makes no callback or additional GitHub API call to resume the workflow. The workflow's normal engine credentials remain separate and MUST NOT be sent to the authority.
+
+The agent and its continuations consume the same effective invocation budget; they do not acquire another entitlement by repeating admission. All subsequent supported OTLP records retain the returned resource attribute as described above. If the endpoint is absent or an outage is ignored, there are no service decision values to transport; existing local/default controls remain. A denial, invalid success, or failed budget propagation blocks the agent instead of taking this continuation path.
+
 ## 4. Authentication and Trust Boundary
 
 ### Secret Locations and Credential Flow
@@ -223,7 +268,75 @@ The service MUST authenticate before reading tenant policy or usage. It MUST use
 
 Issuer metadata and signing keys MUST come from a deployment-configured trusted GitHub issuer. The service MUST NOT discover an issuer, JWKS endpoint, GitHub API host, or network destination from unverified token, body, or trace data. Signing-key rotation and cache refresh MUST be bounded and tested. An unknown key triggers a bounded trusted refresh; inability to refresh is an outage, while a definitively invalid signature or key is a denial.
 
+For GitHub.com, the authority reads the [discovery metadata documented by GitHub](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims):
+
+```http
+GET /.well-known/openid-configuration HTTP/1.1
+host: token.actions.githubusercontent.com
+accept: application/json
+```
+
+The relevant response fields are:
+
+```json
+{
+  "issuer": "https://token.actions.githubusercontent.com",
+  "jwks_uri": "https://token.actions.githubusercontent.com/.well-known/jwks",
+  "id_token_signing_alg_values_supported": ["RS256"]
+}
+```
+
+It obtains public verification keys from `jwks_uri`, the signing-key location identified by that [documented GitHub OIDC metadata](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims):
+
+```http
+GET /.well-known/jwks HTTP/1.1
+host: token.actions.githubusercontent.com
+accept: application/json
+```
+
+Both GETs are unauthenticated public reads: neither the workflow JWT, its bootstrap credential, nor an App credential is sent. These are cacheable issuer/key lookups, not required round trips on every admission. The JWKS response is a JSON object with a `keys` array; RSA entries identify their `kid`, `kty`, `alg`, and `use`, and provide the public modulus `n` and exponent `e`. The authority selects the public RSA signing key using the JWT header's `kid` and verifies `RS256` locally. `kid` is only a lookup key within the trusted set; token-supplied `jku`, `x5u`, or embedded keys MUST NOT select another verification source. The authority does not send the JWT back to GitHub for validation.
+
 The expected audience MUST be configured independently on the authority. It MUST NOT be accepted merely because it matches a request parameter or the token's own `aud` claim. GitHub.com and each supported GitHub Enterprise deployment require explicit issuer/trust configuration; unsupported deployments receive no credential downgrade.
+
+### Decoded OIDC Payload Example
+
+An OIDC JWT has three base64url-encoded components: header, payload, and signature. Its claims are signed, not encrypted; decoding alone does not authenticate them. The following synthetic decoded header and payload correspond to Section 3's non-reusable-workflow request and GitHub's [documented OIDC claims](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims):
+
+```json
+{
+  "typ": "JWT",
+  "alg": "RS256",
+  "kid": "synthetic-key-1"
+}
+```
+
+```json
+{
+  "iss": "https://token.actions.githubusercontent.com",
+  "aud": "https://admission.example.org/api/activation",
+  "sub": "repo:acme@1000/project@1001:ref:refs/heads/main",
+  "repository": "acme/project",
+  "repository_id": "1001",
+  "repository_owner": "acme",
+  "repository_owner_id": "1000",
+  "workflow_ref": "acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
+  "workflow_sha": "0123456789abcdef0123456789abcdef01234567",
+  "run_id": "1234",
+  "run_attempt": "2",
+  "ref": "refs/heads/main",
+  "event_name": "workflow_dispatch",
+  "actor": "octocat",
+  "actor_id": "101",
+  "jti": "synthetic-token-1",
+  "iat": 1700000000,
+  "nbf": 1700000000,
+  "exp": 1700000300
+}
+```
+
+The dates, IDs, and key identifier are illustrative; this is not a currently valid token. Use the actual verified NumericDate claims, not an assumed fixed token lifetime. The subject illustrates GitHub's [immutable subject format](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims); deployments MUST validate their configured subject policy rather than assume one universal `sub` layout.
+
+There is deliberately no `workflow_id`, `workflow_call_id`, `event_type`, or `triggering_actor` claim: the request maps these as specified in Section 3 and below. For a reusable workflow, GitHub's [documented reusable-workflow token](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows#how-the-token-works-with-reusable-workflows) additionally identifies the executing workflow with `job_workflow_ref` and `job_workflow_sha`; caller claims remain separate.
 
 ### Invocation and Tenant Binding
 
@@ -236,6 +349,72 @@ The body `workflow_id` MUST equal the verified executing workflow reference: sig
 Backend GitHub API checks MAY validate run state, enrollment, or mappings using the authority's own appropriately scoped App installation token. Successful reads of public repository/run data alone are not caller authentication. Backend credentials MUST NOT replace verification of the incoming OIDC identity.
 
 OIDC remains a bearer credential: possession permits replay to the intended audience until expiration. It is not proof of a unique HTTP request or permission for a financial mutation. The service MUST enforce invocation binding, bounded replay handling, and spend-independent probe controls.
+
+### Optional Run-Attempt Verification Calls
+
+If policy uses `triggering_actor`, the authority MUST perform the independently authenticated verification required in Section 3. The calls below run on the authority, not the activation runner, and use backend App credentials rather than the workflow's OIDC token. They do not provision variables during admission.
+
+The authority reuses an unexpired, appropriately scoped installation token or creates one through GitHub's [`POST /app/installations/{installation_id}/access_tokens`](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app). In this synthetic example, installation `42` comes from trusted enrollment and repository `1001` from the verified identity. `<APP_JWT>` is signed server-side as specified in Section 2; it is not `<OIDC_JWT>`.
+
+```http
+POST /app/installations/42/access_tokens HTTP/1.1
+host: api.github.com
+authorization: bearer <APP_JWT>
+accept: application/vnd.github+json
+content-type: application/json
+x-github-api-version: 2026-03-10
+
+{
+  "repository_ids": [1001],
+  "permissions": {
+    "actions": "read"
+  }
+}
+
+HTTP/1.1 201 Created
+content-type: application/json
+
+{
+  "token": "<INSTALLATION_TOKEN>",
+  "expires_at": "2026-10-19T20:15:00Z"
+}
+```
+
+The version header follows GitHub's [REST API versioning](https://docs.github.com/en/rest/about-the-rest-api/api-versions). Installation-token responses contain additional documented fields; honor `expires_at` and treat `token` as opaque. The App installation must already have approved repository **Actions: read** and access to this repository; the request cannot grant either permission to itself.
+
+With that installation token, the authority calls GitHub's [`GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}`](https://docs.github.com/en/rest/actions/workflow-runs#get-a-workflow-run-attempt), deriving the path from verified repository/run/attempt identity:
+
+```http
+GET /repos/acme/project/actions/runs/1234/attempts/2 HTTP/1.1
+host: api.github.com
+authorization: bearer <INSTALLATION_TOKEN>
+accept: application/vnd.github+json
+x-github-api-version: 2026-03-10
+
+HTTP/1.1 200 OK
+content-type: application/json
+
+{
+  "id": 1234,
+  "run_attempt": 2,
+  "repository": {
+    "id": 1001,
+    "full_name": "acme/project"
+  },
+  "actor": {
+    "login": "octocat",
+    "id": 101
+  },
+  "triggering_actor": {
+    "login": "hubot",
+    "id": 102
+  }
+}
+```
+
+This response excerpt uses the endpoint's documented [workflow-run response schema](https://docs.github.com/en/rest/actions/workflow-runs#get-a-workflow-run). The authority verifies `repository.id`, `id`, and `run_attempt` against the signed identity before comparing the returned `triggering_actor.login` with the request. Policy attribution uses the independently verified account ID; `actor` continues to define the original run's privileges. GitHub's numeric response identifiers MUST be handled losslessly when compared with signed decimal strings.
+
+Missing required metadata or a mismatch MUST NOT authorize the request. Temporary GitHub dependency failure follows Section 5's transient classification; it MUST NOT become unverified actor attribution. Raw GitHub statuses, bodies, credentials, or diagnostics MUST NOT be proxied to the runner. After verification and protected policy evaluation, the authority sends only the Section 5 success or uniform failure response on the original admission POST.
 
 ### Credential Handling
 
