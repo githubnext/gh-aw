@@ -244,7 +244,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 	}
 
 	if needsAppTokenCheck {
-		if err := c.validateAppTokenPermissions(parsedWorkflow, c.effectiveStrictMode(workflowData.RawFrontmatter)); err != nil {
+		if err := c.validateAppTokenPermissions(parsedWorkflow, c.effectiveStrictMode(workflowData.RawFrontmatter), len(workflowData.WebhookSubscriptions) > 0); err != nil {
 			return "", nil, nil, formatCompilerError(markdownPath, "error", err.Error(), err)
 		}
 	}

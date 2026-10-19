@@ -443,6 +443,7 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+	steps = append(steps, "          skip-token-revoke: false\n")
 
 	// Add owner - default to the derived checkout owner when available, otherwise current repository owner.
 	steps = append(steps, fmt.Sprintf("          owner: %s\n", owner))
@@ -657,6 +658,7 @@ func (c *Compiler) buildActivationAppTokenMintStep(app *GitHubAppConfig, permiss
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+	steps = append(steps, "          skip-token-revoke: false\n")
 
 	// Add owner - default to current repository owner if not specified
 	owner := app.Owner

@@ -78,8 +78,8 @@ jobs:
 	verify := gate.Steps[len(gate.Steps)-1]
 	assert.Equal(t, "verify-gateway-provenance", verify.ID)
 	assert.Equal(t, map[string]string{
-		"GH_AW_GATEWAY_APP_ID":        "${{ vars.GH_AW_GATEWAY_APP_ID }}",
-		"GH_AW_GATEWAY_APP_BOT_ID":    "${{ vars.GH_AW_GATEWAY_APP_BOT_ID }}",
+		"GH_AW_GATEWAY_APP_ID":        "${{ secrets.GH_AW_GATEWAY_APP_ID || vars.GH_AW_GATEWAY_APP_ID }}",
+		"GH_AW_GATEWAY_APP_BOT_ID":    "${{ secrets.GH_AW_GATEWAY_APP_BOT_ID || vars.GH_AW_GATEWAY_APP_BOT_ID }}",
 		"GH_AW_GATEWAY_EVENT_NAME":    "${{ github.event_name }}",
 		"GH_AW_GATEWAY_EVENT_TYPE":    WebhookDispatchEventType("provenance"),
 		"GH_AW_GATEWAY_ACTOR_ID":      "${{ github.actor_id }}",
@@ -241,5 +241,93 @@ func TestGatewayProvenanceSetupDoesNotMintConfiguredCredentials(t *testing.T) {
 			assert.NotContains(t, strings.Join(gate.Steps, ""), "https://example.com/collector")
 			assert.NotContains(t, gate.Permissions, "id-token")
 		})
+	}
+}
+
+func TestGatewayProvenanceWithConditionalRuntimeApp(t *testing.T) {
+	compiler := newWebhookCompiler()
+	source := webhookWorkflow(`strict: false
+on:
+  gateway-dispatch:
+    projects-items: {project_id: PVT_example}
+github-app:
+  client-id: ${{ secrets.GH_AW_APP_CLIENT_ID }}
+  private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}
+  ignore-if-missing: true
+tools:
+  github:
+    toolsets: [repos]
+safe-outputs:
+  create-issue:
+`)
+	data, err := compiler.ParseWorkflowString(source, "runtime-app.md")
+	require.NoError(t, err)
+	output, err := compiler.CompileToYAML(data, "runtime-app.md")
+	require.NoError(t, err)
+	var compiled struct {
+		Jobs map[string]struct {
+			If      string            `yaml:"if"`
+			Outputs map[string]string `yaml:"outputs"`
+			Steps   []struct {
+				Uses string         `yaml:"uses"`
+				If   string         `yaml:"if"`
+				With map[string]any `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(output), &compiled))
+	gate := extractJobSection(output, gatewayProvenanceJobName)
+	assert.NotContains(t, gate, "create-github-app-token")
+	assert.NotContains(t, gate, "GH_AW_APP_PRIVATE_KEY")
+	var mintedJobs []string
+	for name, job := range compiled.Jobs {
+		for _, value := range job.Outputs {
+			assert.NotContains(t, value, ".outputs.token", name)
+		}
+		for _, step := range job.Steps {
+			if !strings.HasPrefix(step.Uses, "actions/create-github-app-token@") {
+				continue
+			}
+			mintedJobs = append(mintedJobs, name)
+			assert.Regexp(t, `^actions/create-github-app-token@[a-f0-9]{40}$`, step.Uses)
+			assert.Equal(t, false, step.With["skip-token-revoke"], name)
+			assert.Equal(t, "${{ secrets.GH_AW_APP_CLIENT_ID }}", step.With["client-id"], name)
+			assert.Equal(t, "${{ secrets.GH_AW_APP_PRIVATE_KEY }}", step.With["private-key"], name)
+			assert.Contains(t, step.If, "env.GH_AW_IGNORE_IF_MISSING_APP_ID != ''", name)
+			assert.Contains(t, step.If, "env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != ''", name)
+			assert.Contains(t, job.If, "needs.gateway_provenance.outputs.verified == 'true'", name)
+		}
+	}
+	assert.Contains(t, mintedJobs, "agent")
+	assert.Contains(t, mintedJobs, "safe_outputs")
+}
+
+func TestGatewayProvenanceRejectsDisabledTokenRevocation(t *testing.T) {
+	for _, validation := range []struct {
+		name string
+		skip bool
+	}{{"validated", false}, {"skip-schema", true}} {
+		for _, tc := range []struct {
+			job, section string
+		}{{"agent", "setup-steps"}, {"activation", "pre-steps"}, {"activation", "steps"}, {"custom", "steps"}} {
+			t.Run(validation.name+"/"+tc.job+"/"+tc.section, func(t *testing.T) {
+				compiler := newWebhookCompiler()
+				compiler.skipValidation = validation.skip
+				source := webhookWorkflow("strict: false\non:\n  gateway-dispatch:\n    projects-items: {project_id: PVT_example}\njobs:\n  " + tc.job + ":\n    runs-on: ubuntu-latest\n    " + tc.section + `:
+      - uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.GH_AW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}
+          repositories: ${{ github.repository }}
+          permission-contents: read
+          skip-token-revoke: true
+`)
+				data, err := compiler.ParseWorkflowString(source, "no-revocation.md")
+				require.NoError(t, err)
+				_, err = compiler.CompileToYAML(data, "no-revocation.md")
+				require.ErrorContains(t, err, "gateway-dispatch requires actions/create-github-app-token")
+				assert.Contains(t, err.Error(), "revoke its token")
+			})
+		}
 	}
 }

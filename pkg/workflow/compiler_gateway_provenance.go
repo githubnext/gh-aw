@@ -14,7 +14,7 @@ func (c *Compiler) addGatewayProvenanceJob(data *WorkflowData) error {
 		return nil
 	}
 	if _, exists := data.Jobs[gatewayProvenanceJobName]; exists {
-		return fmt.Errorf("jobs.%s is compiler-owned and cannot be customized; configure the approved CAO App through the central GH_AW_GATEWAY_APP_ID and GH_AW_GATEWAY_APP_BOT_ID Actions variables", gatewayProvenanceJobName)
+		return fmt.Errorf("jobs.%s is compiler-owned and cannot be customized; configure the approved CAO App through the central GH_AW_GATEWAY_APP_ID and GH_AW_GATEWAY_APP_BOT_ID Actions secrets or variables", gatewayProvenanceJobName)
 	}
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
@@ -29,8 +29,8 @@ func (c *Compiler) addGatewayProvenanceJob(data *WorkflowData) error {
 		"        id: verify-gateway-provenance\n",
 		"        uses: "+getCachedActionPin("actions/github-script", data)+"\n",
 		"        env:\n",
-		"          GH_AW_GATEWAY_APP_ID: ${{ vars.GH_AW_GATEWAY_APP_ID }}\n",
-		"          GH_AW_GATEWAY_APP_BOT_ID: ${{ vars.GH_AW_GATEWAY_APP_BOT_ID }}\n",
+		"          GH_AW_GATEWAY_APP_ID: ${{ secrets.GH_AW_GATEWAY_APP_ID || vars.GH_AW_GATEWAY_APP_ID }}\n",
+		"          GH_AW_GATEWAY_APP_BOT_ID: ${{ secrets.GH_AW_GATEWAY_APP_BOT_ID || vars.GH_AW_GATEWAY_APP_BOT_ID }}\n",
 		"          GH_AW_GATEWAY_EVENT_NAME: ${{ github.event_name }}\n",
 		"          GH_AW_GATEWAY_EVENT_TYPE: "+WebhookDispatchEventType(data.WorkflowID)+"\n",
 		"          GH_AW_GATEWAY_ACTOR_ID: ${{ github.actor_id }}\n",

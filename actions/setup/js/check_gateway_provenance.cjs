@@ -26,7 +26,7 @@ async function verifyGatewayProvenance(event, client, env) {
   const appId = identityId(env.GH_AW_GATEWAY_APP_ID);
   const botId = identityId(env.GH_AW_GATEWAY_APP_BOT_ID);
   if (!appId || !botId) {
-    throw new Error(`${ERR_CONFIG}: Set the central GH_AW_GATEWAY_APP_ID and GH_AW_GATEWAY_APP_BOT_ID Actions variables to the approved App and bot-account numeric IDs.`);
+    throw new Error(`${ERR_CONFIG}: Set the central GH_AW_GATEWAY_APP_ID and GH_AW_GATEWAY_APP_BOT_ID Actions secrets or variables to the approved App and bot-account numeric IDs.`);
   }
   if (env.GH_AW_GATEWAY_EVENT_NAME !== "repository_dispatch" || !/^gh-aw-webhook-[a-f0-9]{24}$/.test(env.GH_AW_GATEWAY_EVENT_TYPE || "") || event?.action !== env.GH_AW_GATEWAY_EVENT_TYPE) {
     reject("the event must use this workflow's compiled repository_dispatch route");

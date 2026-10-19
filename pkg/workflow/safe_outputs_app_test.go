@@ -13,6 +13,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGeneratedAppTokenPostJobRevocation(t *testing.T) {
+	app := &GitHubAppConfig{
+		AppID:           "${{ secrets.APP_CLIENT_ID }}",
+		PrivateKey:      "${{ secrets.APP_PRIVATE_KEY }}",
+		IgnoreIfMissing: true,
+	}
+	compiler := NewCompiler()
+	permissions := NewPermissionsFromMap(map[PermissionScope]PermissionLevel{PermissionContents: PermissionRead})
+	for _, tc := range []struct {
+		name  string
+		steps []string
+	}{
+		{"runtime", compiler.buildGitHubAppTokenMintStepWithMeta(app, permissions, "", "", "Runtime token", "runtime-token")},
+		{"activation", compiler.buildActivationAppTokenMintStep(app, permissions)},
+		{"daily-aic", compiler.buildDailyAICAppTokenMintStep(app)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output := strings.Join(tc.steps, "")
+			assert.Contains(t, output, "uses: "+getActionPin("actions/create-github-app-token"))
+			assert.Contains(t, output, "skip-token-revoke: false\n")
+			assert.Contains(t, output, "env.GH_AW_IGNORE_IF_MISSING_APP_ID != ''")
+			assert.Contains(t, output, "env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != ''")
+			assert.NotContains(t, output, "if: ${{ secrets.")
+			assert.NotContains(t, output, "DELETE /installation/token")
+		})
+	}
+}
+
 // TestSafeOutputsAppConfiguration tests that app configuration is correctly parsed
 func TestSafeOutputsAppConfiguration(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))

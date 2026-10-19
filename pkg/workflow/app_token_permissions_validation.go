@@ -82,9 +82,30 @@ func hasExplicitAppTokenRepositories(with map[string]any) bool {
 	return false
 }
 
+func hasAppTokenRevocation(with map[string]any) bool {
+	for key, value := range with {
+		if !strings.EqualFold(key, "skip-token-revoke") {
+			continue
+		}
+		switch value := value.(type) {
+		case bool:
+			if value {
+				return false
+			}
+		case string:
+			if !strings.EqualFold(strings.TrimSpace(value), "false") {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // validateAppTokenPermissions checks the compiled jobs, including imported and
-// compiler-generated steps, before an installation token can inherit every scope.
-func (c *Compiler) validateAppTokenPermissions(workflow map[string]any, strict bool) error {
+// compiler-generated steps, for scope and mandatory gateway token cleanup.
+func (c *Compiler) validateAppTokenPermissions(workflow map[string]any, strict bool, requireRevocation bool) error {
 	jobs, ok := workflow["jobs"].(map[string]any)
 	if !ok {
 		return nil
@@ -114,6 +135,9 @@ func (c *Compiler) validateAppTokenPermissions(workflow map[string]any, strict b
 			with, ok := step["with"].(map[string]any)
 			if !ok {
 				with = nil
+			}
+			if requireRevocation && !hasAppTokenRevocation(with) {
+				return fmt.Errorf("gateway-dispatch requires actions/create-github-app-token in job %q to revoke its token; remove skip-token-revoke or set it to false", jobName)
 			}
 			if !hasExplicitAppTokenRepositories(with) && !c.hasGeneratedWildcardAppTokenStep(jobName, step, with, seenGeneratedWildcardSteps) {
 				msg := fmt.Sprintf("actions/create-github-app-token in job %q has no explicit repositories input; add repositories: ${{ github.repository }} to scope the token to the current repository", jobName)

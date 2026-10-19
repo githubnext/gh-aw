@@ -253,11 +253,43 @@ App identity and deployment configuration MUST be centrally configurable through
 | `GH_AW_GATEWAY_APP_ID` | Approved numeric CAO App ID on the configured GitHub host, not its client ID or bot-account ID. |
 | `GH_AW_GATEWAY_APP_BOT_ID` | Numeric bot-account ID independently bound to that App during trusted onboarding. |
 
-The same public identity binding MUST be supplied to CAO and the destination provenance gate. The compiler maps centrally administered organization/repository Actions variables `vars.GH_AW_GATEWAY_APP_ID` and `vars.GH_AW_GATEWAY_APP_BOT_ID` into the corresponding gate environment variables. Individual subscriptions need no identity declarations. Both values MUST be canonical positive decimal IDs.
+The same public identity binding MUST be supplied to CAO and the destination provenance gate. The compiler maps centrally administered organization/repository Actions secrets into the corresponding gate environment variables, using `${{ secrets.GH_AW_GATEWAY_APP_ID || vars.GH_AW_GATEWAY_APP_ID }}` and `${{ secrets.GH_AW_GATEWAY_APP_BOT_ID || vars.GH_AW_GATEWAY_APP_BOT_ID }}`. Each nonempty secret takes precedence over its matching Actions variable; variables remain supported for existing deployments. An invalid nonempty secret MUST fail verification, not fall back to a variable. Individual subscriptions need no identity declarations. Both effective values MUST be canonical positive decimal IDs.
 
 CAO's installation selection and trusted GitHub API configuration MUST likewise come from centrally administered environment/configuration, with per-destination installation bindings resolved through GitHub's authenticated APIs. At the destination, the gate MUST bind the central App identity to GitHub-owned host/repository context, not replace that context with caller-supplied values. A protected central configuration is not permission to dispatch to every repository or enroll a source.
 
 The destination gate needs only this public App/bot binding, not the CAO private key or a copy of the dispatch token. Private keys MUST remain in CAO's secret-backed configuration, separate from ordinary public Actions variables; they MUST NOT be copied to destination workflows. Changes to the central configuration, gate environment mapping, and approved workflow revision MUST require trusted administration. Missing, empty, malformed, revoked, ambiguous, or unverifiable configuration MUST leave the integration nonactivating. Payload values, user-defined steps, and workflow-provided environment overrides MUST NOT replace the protected gate binding. No new frontmatter syntax or serialized manifest authentication field is defined by this contract.
+
+### Admission-server provisioning recommendation
+
+The admission server SHOULD provision and rotate the approved App information in Actions secrets as part of trusted destination enrollment. Provision `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID` with the independently verified public identity binding above. Use repository secrets or organization secrets restricted to approved destination repositories; environment-only secrets are insufficient because the root `gateway_provenance` job has no environment. This is a recommended admission-server responsibility, not an implemented provisioning endpoint or permission granted by subscription discovery.
+
+For each repository secret, the provisioner uses GitHub's [Get a repository public key API](https://docs.github.com/en/rest/actions/secrets#get-a-repository-public-key), `GET /repos/{owner}/{repo}/actions/secrets/public-key` (`200 OK`), encrypts the value using [LibSodium sealed-box encryption](https://docs.github.com/en/rest/guides/encrypting-secrets-for-the-rest-api), and calls [Create or update a repository secret](https://docs.github.com/en/rest/actions/secrets#create-or-update-a-repository-secret):
+
+```http
+PUT /repos/owner/repo/actions/secrets/GH_AW_GATEWAY_APP_ID HTTP/1.1
+Host: api.github.com
+Accept: application/vnd.github+json
+Authorization: ******
+Content-Type: application/json
+X-GitHub-Api-Version: 2022-11-28
+
+{"encrypted_value":"<base64 sealed-box ciphertext>","key_id":"<repository public-key ID>"}
+```
+
+Repeat for `GH_AW_GATEWAY_APP_BOT_ID`. The response is `201 Created` for a new secret or `204 No Content` for an update. Organization provisioning uses the [organization public key](https://docs.github.com/en/rest/actions/secrets#get-an-organization-public-key) and [organization secret API](https://docs.github.com/en/rest/actions/secrets#create-or-update-an-organization-secret), `PUT /orgs/{org}/actions/secrets/{secret_name}`, with `visibility: "selected"` and the approved `selected_repository_ids`. Repository and organization encryption keys are not interchangeable. Secret-read APIs return metadata, not plaintext; metadata readback is not verification of a secret's value.
+
+Workflows that need runtime App credentials SHOULD receive a **separate, approved runtime App's** client ID and private key, for example as `GH_AW_APP_CLIENT_ID` and `GH_AW_APP_PRIVATE_KEY`. These secret names are configurable references, not additional gateway identity fields. Existing frontmatter can consume them:
+
+```aw wrap
+github-app:
+  client-id: ${{ secrets.GH_AW_APP_CLIENT_ID }}
+  private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}
+  ignore-if-missing: true
+```
+
+The compiler conditionally mints job-local runtime tokens through the pinned `actions/create-github-app-token` action with post-job revocation enabled. Missing optional runtime credentials may skip this minting; they MUST NOT bypass or change mandatory CAO provenance. The CAO dispatch App's private key MUST remain server-side and MUST NOT be provisioned into destination Actions secrets.
+
+Provisioning requires a separate least-privilege trusted administrative identity with the required Actions-secret permissions, not a dispatch token or untrusted payload authority. Enrollment MUST remain nonactivating until required provisioning succeeds and the destination's effective identity binding is verified. Provisioning and rotation failures MUST be explicit, and old bindings MUST NOT remain silently active after approval is withdrawn. Never include private keys, plaintext secrets, or tokens in logs, manifests, artifacts, source, or agent prompts.
 
 ### CAO installation-token dance
 
@@ -365,7 +397,9 @@ The relevant `200` response fields are respectively `{"id":123,"slug":"cao"}` an
 
 The **agent runtime's trusted job controller MUST revoke every GitHub App installation access token minted for its execution** when its authorized use ends, no later than owning-job cleanup. Cleanup MUST be registered immediately after minting, independently of the agent's instructions or successful completion, and MUST run on success, failure, and cancellation whenever the runner permits cleanup. Tokens MUST NOT be passed to another job to escape this lifecycle.
 
-Implementors SHOULD consider **conditionally invoking a SHA-pinned [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token#how-it-works)** only when an approved runtime token is needed. Keep `skip-token-revoke: false` (the default) so the action's post-job hook automatically revokes the token it minted. The mint step's condition MUST preserve provenance and authorization checks, and repository/permission scope MUST remain explicit and minimal. Revocation MUST NOT depend on the agent step succeeding.
+Compiler-managed runtime App token minting MUST use a **SHA-pinned [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token#how-it-works)** with explicit `skip-token-revoke: false`, so the action registers its own post-job hook to revoke the token it minted. Invoke it conditionally only when an approved runtime token is needed. The mint step's condition MUST preserve provenance and authorization checks, and repository/permission scope MUST remain explicit and minimal. Revocation MUST NOT depend on the agent step succeeding.
+
+The compiler checks rendered App-token action steps in every gateway job, including imported and customized steps. A custom step may omit `skip-token-revoke` to use the action's default `false`, or set a literal `false`; `true`, expressions, and malformed values are rejected even with `strict: false` or general schema validation disabled. This check does not inspect the internals of external composite actions or reusable workflows, nor prove cleanup for arbitrary user-authored shell minting; trusted implementations of those paths remain subject to the same revocation requirement.
 
 The action's automatic cleanup covers **its own token only**, not a token minted by a separate service. Other minting paths MUST register equivalent trusted cleanup using GitHub's [Revoke an installation access token API](https://docs.github.com/en/rest/apps/installations#revoke-an-installation-access-token), authenticated with the token being revoked:
 
@@ -379,7 +413,7 @@ X-GitHub-Api-Version: 2022-11-28
 
 The successful response is `204 No Content`; Enterprise cleanup MUST use the approved GitHub API origin/base path. Revocation failures MUST be surfaced without credential values, not reported as successful cleanup. Abrupt runner termination can prevent post-job hooks from executing; an implementation MUST NOT claim confirmed revocation when cleanup did not run.
 
-This requirement concerns explicitly minted runtime installation tokens, not the original server-held CAO dispatch credential, an OIDC ID token, or GitHub's platform-managed `GITHUB_TOKEN`. The action recommendation MUST NOT copy CAO's protected dispatch private key into a destination workflow or introduce token minting into the read-only `gateway_provenance` job. Runtime acceptance tests MUST cover successful, failed, and cancelled execution, skipped conditional minting, and explicit cleanup for service-minted tokens.
+This requirement concerns explicitly minted runtime installation tokens, not the original server-held CAO dispatch credential, an OIDC ID token, or GitHub's platform-managed `GITHUB_TOKEN`. Using the action MUST NOT copy CAO's protected dispatch private key into a destination workflow or introduce token minting into the read-only `gateway_provenance` job. Runtime acceptance tests MUST cover successful, failed, and cancelled execution, skipped conditional minting, and explicit cleanup for service-minted tokens.
 
 ### OIDC tokens: a separate, unimplemented endpoint journey
 

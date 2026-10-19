@@ -107,6 +107,7 @@ func TestCompileGatewayDispatchRejectsProvenanceOverridesIntegration(t *testing.
 	}{
 		"verifier-output":        {"gateway_provenance:\n    outputs: {verified: '${{ true }}'}", "jobs.gateway_provenance is compiler-owned"},
 		"interpolated-condition": {"custom:\n    uses: owner/repo/.github/workflows/reusable.yml@main\n    if: '${{ false }} || ${{ true }}'", "must be one GitHub Actions expression"},
+		"token-revocation":       {"activation:\n    pre-steps:\n      - uses: actions/create-github-app-token@v3\n        with:\n          client-id: ${{ secrets.GH_AW_APP_CLIENT_ID }}\n          private-key: ${{ secrets.GH_AW_APP_PRIVATE_KEY }}\n          repositories: ${{ github.repository }}\n          permission-contents: read\n          skip-token-revoke: true", "revoke its token"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			setup := setupIntegrationTest(t)
@@ -140,6 +141,10 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 			Permissions map[string]string `yaml:"permissions"`
 			Needs       any               `yaml:"needs"`
 			If          string            `yaml:"if"`
+			Steps       []struct {
+				ID  string            `yaml:"id"`
+				Env map[string]string `yaml:"env"`
+			} `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
 	require.NoError(t, yaml.Unmarshal(lock, &compiled))
@@ -150,6 +155,12 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 	require.Contains(t, compiled.Jobs, "gateway_provenance")
 	assert.Empty(t, compiled.Jobs["gateway_provenance"].Needs)
 	assert.Equal(t, map[string]string{"contents": "read"}, compiled.Jobs["gateway_provenance"].Permissions)
+	gateSteps := compiled.Jobs["gateway_provenance"].Steps
+	require.NotEmpty(t, gateSteps)
+	verify := gateSteps[len(gateSteps)-1]
+	assert.Equal(t, "verify-gateway-provenance", verify.ID)
+	assert.Equal(t, "${{ secrets.GH_AW_GATEWAY_APP_ID || vars.GH_AW_GATEWAY_APP_ID }}", verify.Env["GH_AW_GATEWAY_APP_ID"])
+	assert.Equal(t, "${{ secrets.GH_AW_GATEWAY_APP_BOT_ID || vars.GH_AW_GATEWAY_APP_BOT_ID }}", verify.Env["GH_AW_GATEWAY_APP_BOT_ID"])
 	for name, job := range compiled.Jobs {
 		if name == "gateway_provenance" {
 			continue
@@ -172,6 +183,8 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 	manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(lock))
 	require.NoError(t, err)
 	require.NotNil(t, manifest)
+	assert.Contains(t, manifest.Secrets, "GH_AW_GATEWAY_APP_ID")
+	assert.Contains(t, manifest.Secrets, "GH_AW_GATEWAY_APP_BOT_ID")
 	require.Equal(t, result.WebhookSubscriptions, manifest.WebhookSubscriptions)
 	actualEvents := make([]string, 0, len(manifest.WebhookSubscriptions))
 	for _, subscription := range manifest.WebhookSubscriptions {
