@@ -151,8 +151,10 @@ when that directory exists, enabling skills without ambient configuration
 discovery. This includes inline skills and installed frontmatter skills.
 Repository and home-directory skill roots are not added automatically.
 Missing staging directories produce an empty explicit list; a staged root that
-is a file or symbolic link fails session creation. Skill registration does not
-grant additional shell permissions or change the tool-denial limit.
+is a file or symbolic link fails session creation. This is a hard failure with
+`exitCode: 1` and a `session.error` event, not a warning or silent skip.
+Skill registration does not grant additional shell permissions or change the
+tool-denial limit.
 
 ---
 

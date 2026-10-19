@@ -141,6 +141,8 @@ If data is incomplete, proceed with available evidence and clearly state data qu
 
 Use absolute paths with `view`, `find`, and `jq`; keep every shell command and pipeline stage within the configured allowlist. Do not use `cd`, `cut`, or `sed`; use `jq` for JSON selection, normalization, and truncation instead.
 
+Permitted analysis commands are `jq`, `python`, `grep`, `find`, `cat`, `head`, `tail`, `sort`, `uniq`, `wc`, `ls`, `pwd`, and `date`. Use `python` or `grep` for plain-text transcripts; `awk`, `xargs`, and `tr` are not permitted.
+
 Read the phase instructions below with `view` from their staged absolute paths. Do not depend on automatic repository skill discovery.
 
 After a permission denial, identify the unsupported command before proceeding. Use only an explicitly allowed alternative; do not retry variants of the denied command or probe permissions. If a required capability has no allowed alternative, report that specific limitation through the configured safe-output tools instead of exhausting the three-denial budget.

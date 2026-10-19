@@ -240,12 +240,12 @@ describe("copilot_sdk_session runtime configuration", () => {
     expect(createSession.mock.calls[0][0].enableSkills).toBeUndefined();
   });
 
-  it.each(["file", "symlink"])("rejects a staged skills root that is a %s", async kind => {
+  it.each(["file", "symlink", "dangling symlink"])("rejects a staged skills root that is a %s", async kind => {
     const staging = path.join(base, "staged");
     const skills = path.join(staging, ".github/skills");
     fs.mkdirSync(path.dirname(skills), { recursive: true });
     if (kind === "file") fs.writeFileSync(skills, "Not a directory.");
-    else fs.symlinkSync(base, skills, "dir");
+    else fs.symlinkSync(kind === "dangling symlink" ? path.join(base, "does-not-exist") : base, skills, "dir");
     const createSession = vi.fn();
     class FakeCopilotClient {
       start = async () => {};
