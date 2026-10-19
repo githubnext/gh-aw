@@ -391,6 +391,8 @@ The transport can represent same-kind alerts from multiple selected repositories
 
 CAO owns batch windows, flushing, retry/replay policy, dispatch pacing, and load balancing between approved workflow subscriptions. No fixed batch size or runner-side wait is imposed: CAO chooses any nonempty batch that fits both byte limits, splitting large batches without truncating an individual delivery. Workflow-specific dispatch routes and authorization remain unchanged.
 
+Receiver-owned policies must satisfy the [durability and recovery contract](/gh-aw/specs/webhook-gateway-specification/#receiver-durability-and-recovery): retain source-scoped replay records and admitted identities/projections, recheck current approval, durably fence concurrent work, and quarantine uncertain dispatch outcomes. A body HMAC does not authenticate delivery/event headers, and GitHub's `204` acknowledges dispatch acceptance, not successful workflow execution or exactly-once delivery.
+
 | Constraint | Limit or behavior |
 | --- | --- |
 | Workflow availability | The compiled workflow must exist on the destination repository's default branch for `repository_dispatch` to trigger it. |
