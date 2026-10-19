@@ -476,5 +476,16 @@
   "summary": "GitHub Skills exercise; README unreadable (oversized); not an ecosystem tool",
   "highlights": [],
   "blogged": false
+ },
+ "microsoft/frontier-agentic-devops-rvas": {
+  "kind": "other",
+  "reviewed": "2026-10-19",
+  "score": 5,
+  "summary": "Microsoft training portal for agentic DevSecOps sessions; gh-aw is one outcome among five.",
+  "highlights": [
+   "README.md outcome/module catalog",
+   "AGENTS.md"
+  ],
+  "blogged": false
  }
 }
