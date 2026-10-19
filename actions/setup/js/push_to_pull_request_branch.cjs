@@ -1677,13 +1677,13 @@ async function main(config = {}) {
           return { skipped: true, reason: pushError.message };
         }
         const pushErrorMessage = getErrorMessage(pushError);
-        core.error(`Failed to push changes: ${pushErrorMessage}`);
 
         // Missing workflow scope is handled by the preflight above. Any workflow-scope
         // rejection that reaches this catch is GitHub's transient permission-check timeout.
         const isWorkflowsScopeTimeout = isWorkflowsScopeRejection(pushErrorMessage);
 
-        const nonFastForwardPatterns = ["non-fast-forward", "rejected", "fetch first", "Updates were rejected"];
+        // A generic rejection can be a real authentication, permission, or validation failure.
+        const nonFastForwardPatterns = ["non-fast-forward", "(fetch first)"];
         const isNonFastForward = !isWorkflowsScopeTimeout && nonFastForwardPatterns.some(pattern => pushErrorMessage.includes(pattern));
         let userMessage = isNonFastForward
           ? "Failed to push changes: remote PR branch changed while the workflow was running (non-fast-forward). Re-run the workflow on the latest PR branch state."
@@ -1714,6 +1714,11 @@ async function main(config = {}) {
         if ((isNonFastForward || isWorkflowsScopeTimeout) && fallbackAsPullRequest) {
           const staleReason = await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } });
           if (staleReason) {
+            if (isNonFastForward) {
+              core.info(staleReason);
+              return { skipped: true, reason: staleReason };
+            }
+            core.error(`Failed to push changes: ${pushErrorMessage}`);
             core.warning(staleReason);
             return { success: false, error: `Failed to push changes: ${pushErrorMessage}`, error_type: "push_failed" };
           }
@@ -1806,6 +1811,7 @@ async function main(config = {}) {
           }
         }
 
+        core.error(`Failed to push changes: ${pushErrorMessage}`);
         return { success: false, error_type: "push_failed", error: userMessage };
       }
 

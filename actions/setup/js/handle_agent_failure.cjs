@@ -3925,7 +3925,12 @@ async function isInvalidatedPRMergeCheckout() {
       return false;
     }
     const { data: logs } = await github.rest.actions.downloadJobLogsForWorkflowRun({ owner, repo, job_id: candidate.id });
-    const invalidated = typeof logs === "string" && logs.includes(`fatal: couldn't find remote ref refs/pull/${prNumber}/merge`);
+    if (typeof logs !== "string" && !(logs instanceof ArrayBuffer) && !(logs instanceof Uint8Array)) {
+      core.debug("PR merge-ref invalidation not confirmed: unsupported job log response");
+      return false;
+    }
+    const logText = typeof logs === "string" ? logs : Buffer.from(logs instanceof ArrayBuffer ? new Uint8Array(logs) : logs).toString("utf8");
+    const invalidated = logText.includes(`fatal: couldn't find remote ref refs/pull/${prNumber}/merge`);
     core.debug(`PR merge-ref invalidation ${invalidated ? "confirmed: missing merge ref after closure" : "not confirmed: missing-ref evidence unavailable"}`);
     return invalidated;
   } catch (error) {

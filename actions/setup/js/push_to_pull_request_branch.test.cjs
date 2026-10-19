@@ -1463,6 +1463,85 @@ index 0000000..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4
       });
     }
 
+    it.each(["non-fast-forward", "fetch first"])("skips fallback when the PR closes after a %s rejection", async rejection => {
+      const branch = `closed-after-${rejection.replaceAll(" ", "-")}`;
+      createPatchFile(branch);
+      mockGitForPrimaryPush();
+      const pushSignedSpy = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockImplementation(async () => {
+        mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "closed" } });
+        throw new Error(`! [rejected] feature-branch -> feature-branch (${rejection})`);
+      });
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ branch }, {});
+
+        expect(result).toEqual({ skipped: true, reason: expect.stringContaining("Pull request #123 closed") });
+        expect(pushSignedSpy).toHaveBeenCalledTimes(1);
+        expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+        expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "checkout" && args[1] === "-b")).toBe(false);
+        expect(mockExec.getExecOutput.mock.calls.some(([, args]) => args[0] === "push")).toBe(false);
+        expect(mockCore.error).not.toHaveBeenCalled();
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
+    it.each([
+      "Authentication failed",
+      "! [remote rejected] feature-branch -> feature-branch (permission denied)",
+      "! [remote rejected] feature-branch -> feature-branch (protected branch hook declined)",
+      "! [remote rejected] feature-branch -> feature-branch (`workflows` scope required)",
+      "Validation failed: changes were rejected",
+      "Updates were rejected",
+      "Unknown push failure",
+    ])("preserves a real or unknown push failure after closure: %s", async pushError => {
+      const branch = "real-push-failure-after-closure";
+      createPatchFile(branch);
+      mockGitForPrimaryPush();
+      const pushSignedSpy = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockImplementation(async () => {
+        mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "closed" } });
+        throw new Error(pushError);
+      });
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({});
+        const result = await handler({ branch }, {});
+
+        expect(result).toEqual({ success: false, error_type: "push_failed", error: expect.stringContaining(pushError) });
+        expect(pushSignedSpy).toHaveBeenCalledTimes(1);
+        expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining(pushError));
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
+    it.each(["unknown state", "permission failure"])("keeps fallback lifecycle %s visible after non-fast-forward rejection", async scenario => {
+      const branch = `fallback-lifecycle-${scenario.replaceAll(" ", "-")}`;
+      createPatchFile(branch);
+      mockGitForPrimaryPush();
+      const pushSignedSpy = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockImplementation(async () => {
+        if (scenario === "unknown state") {
+          mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "unknown" } });
+        } else {
+          mockGithub.rest.pulls.get.mockRejectedValue(Object.assign(new Error("Resource not accessible by integration"), { status: 403 }));
+        }
+        throw new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)");
+      });
+
+      try {
+        const module = await loadModule();
+        const handler = await module.main({});
+        await expect(handler({ branch }, {})).rejects.toThrow(scenario === "unknown state" ? "Cannot determine current state" : "Resource not accessible by integration");
+        expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+      } finally {
+        pushSignedSpy.mockRestore();
+      }
+    });
+
     it("should retry the primary push when it fails once with a transient workflows-scope timeout", async () => {
       vi.useFakeTimers();
       const pushSignedCommitsModule = require("./push_signed_commits.cjs");
@@ -1542,6 +1621,36 @@ index 0000000..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4
         expect(result.fallback_used).toBe(true);
         const [params] = mockGithub.rest.pulls.create.mock.calls.at(-1);
         expect(params.body).toContain("workflow-permission check");
+      } finally {
+        pushSignedSpy.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("preserves exhausted workflow-scope timeouts when the PR closes before fallback", async () => {
+      vi.useFakeTimers();
+      const pushSignedSpy = vi.spyOn(require("./push_signed_commits.cjs"), "pushSignedCommits").mockImplementation(async () => {
+        if (pushSignedSpy.mock.calls.length === 6) {
+          mockGithub.rest.pulls.get.mockResolvedValue({ data: { state: "closed" } });
+        }
+        throw new Error(TRANSIENT_WORKFLOWS_SCOPE_TIMEOUT);
+      });
+
+      try {
+        const branch = "closed-after-workflow-scope-timeouts";
+        createPatchFile(branch);
+        mockGitForPrimaryPush();
+
+        const module = await loadModule();
+        const handler = await module.main({});
+        const resultPromise = handler({ branch }, {});
+        await vi.runAllTimersAsync();
+        const result = await resultPromise;
+
+        expect(pushSignedSpy).toHaveBeenCalledTimes(6);
+        expect(result).toEqual({ success: false, error_type: "push_failed", error: expect.stringContaining(TRANSIENT_WORKFLOWS_SCOPE_TIMEOUT) });
+        expect(mockGithub.rest.pulls.create).not.toHaveBeenCalled();
+        expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining(TRANSIENT_WORKFLOWS_SCOPE_TIMEOUT));
       } finally {
         pushSignedSpy.mockRestore();
         vi.useRealTimers();

@@ -79,10 +79,15 @@ func fetchObsoletePREvidence(ctx context.Context, run WorkflowRun) (*ObsoletePRE
 	}
 	total := 0
 	for _, page := range pages {
-		total += len(page)
+		for _, pr := range page {
+			if run.HeadBranch != "" && pr.Head.Ref != "" && pr.Head.Ref != run.HeadBranch {
+				continue
+			}
+			total++
+		}
 	}
-	// A commit may belong to multiple PRs (including an advanced head). Without
-	// a unique association, closure of one must not invalidate another's run.
+	// Only affirmative branch mismatches disambiguate a shared commit. Missing
+	// refs remain candidates, and multiple matching PRs must remain unknown.
 	if total != 1 {
 		return nil, nil
 	}

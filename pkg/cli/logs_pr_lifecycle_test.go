@@ -84,15 +84,48 @@ func TestFetchObsoletePREvidence(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, proof)
 	})
-	t.Run("ambiguous commit association remains unknown", func(t *testing.T) {
-		bin := t.TempDir()
-		payload := `[[{"number":7,"state":"closed","head":{"sha":"abc123","ref":"feature"},"closed_at":"2026-10-18T20:05:00Z"},{"number":8,"state":"open","head":{"sha":"abc123","ref":"feature"}}]]`
-		require.NoError(t, os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s' '"+payload+"'\n"), 0o755))
-		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-		proof, err := fetchObsoletePREvidence(context.Background(), run)
-		require.NoError(t, err)
-		assert.Nil(t, proof)
-	})
+}
+
+func TestFetchObsoletePREvidenceBranchAssociation(t *testing.T) {
+	const closedMatch = `{"number":7,"state":"closed","head":{"sha":"abc123","ref":"feature"},"closed_at":"2026-10-18T20:05:00Z"}`
+	const openMatch = `{"number":8,"state":"open","head":{"sha":"abc123","ref":"feature"}}`
+	const openOtherBranch = `{"number":9,"state":"open","head":{"sha":"abc123","ref":"backport"}}`
+	const closedOtherBranch = `{"number":10,"state":"closed","head":{"sha":"abc123","ref":"backport"},"closed_at":"2026-10-18T20:05:00Z"}`
+	const missingBranch = `{"number":11,"state":"open","head":{"sha":"abc123"}}`
+	for _, tc := range []struct {
+		name, branch, payload string
+		want                  bool
+	}{
+		{"unique branch match with another open PR", "feature", `[[` + closedMatch + `,` + openOtherBranch + `]]`, true},
+		{"unique branch match with another closed PR", "feature", `[[` + closedMatch + `,` + closedOtherBranch + `]]`, true},
+		{"unique branch match on a later page", "feature", `[[` + openOtherBranch + `],[` + closedMatch + `]]`, true},
+		{"multiple same-branch matches remain unknown", "feature", `[[` + closedMatch + `,` + openMatch + `]]`, false},
+		{"multiple same-branch matches across pages remain unknown", "feature", `[[` + closedMatch + `],[` + openMatch + `]]`, false},
+		{"open matching PR is not invalidated by another closed PR", "feature", `[[` + openMatch + `,` + closedOtherBranch + `]]`, false},
+		{"no branch match remains unknown", "feature", `[[` + closedOtherBranch + `]]`, false},
+		{"missing run branch requires global uniqueness", "", `[[` + closedMatch + `,` + openOtherBranch + `]]`, false},
+		{"missing run branch preserves unique association", "", `[[` + closedMatch + `]]`, true},
+		{"missing PR branch cannot disambiguate another association", "feature", `[[` + closedMatch + `,` + missingBranch + `]]`, false},
+		{"missing PR head cannot disambiguate another association", "feature", `[[` + closedMatch + `,{"number":12,"state":"open"}]]`, false},
+		{"missing PR branch is not an affirmative match", "feature", `[[{"number":7,"state":"closed","head":{"sha":"abc123"},"closed_at":"2026-10-18T20:05:00Z"}]]`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bin := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s' '"+tc.payload+"'\n"), 0o755))
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			run := lifecycleTestRun()
+			run.HeadBranch = tc.branch
+			proof, err := fetchObsoletePREvidence(context.Background(), run)
+			require.NoError(t, err)
+			if tc.want {
+				require.NotNil(t, proof)
+				assert.Equal(t, 7, proof.Number)
+				assert.Equal(t, 1, proof.RunAttempt)
+			} else {
+				assert.Nil(t, proof)
+			}
+		})
+	}
 }
 
 func TestBuildProcessedRunUsesAttemptEvidenceForLifecycle(t *testing.T) {

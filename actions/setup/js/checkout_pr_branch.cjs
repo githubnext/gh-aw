@@ -31,6 +31,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { redactAndBoundDiagnostics } = require("./diagnostic_sanitization.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
 const { parseAllowedBots, isAllowedBot, canonicalizeBotIdentifier } = require("./check_permissions_utils.cjs");
@@ -41,6 +42,29 @@ const TRUSTED_BOT_PR_ACTIONS = ["opened", "synchronize", "ready_for_review", "re
 // GitHub-authenticated actor is fixed to this platform identity.
 const CENTRALIZED_ROUTER_ACTOR = "github-actions[bot]";
 const PR_HEAD_BASE_REF = "refs/remotes/origin/pr-head";
+
+/** @param {string} text */
+function redactCheckoutDiagnostics(text) {
+  const redactCredentials = value => value.replace(/(https?:\/\/)[^/\s@]+@/gi, "$1[REDACTED]@").replace(/(authorization:\s*(?:bearer|basic)\s+)\S+/gi, "$1[REDACTED]");
+  return redactCredentials(redactAndBoundDiagnostics(redactCredentials(text), { maskedValues: [process.env.GITHUB_TOKEN, process.env.GH_TOKEN].flatMap(value => (value ? [value] : [])) }));
+}
+
+class PRHeadFetchError extends Error {
+  /** @param {number} exitCode @param {string} stderr */
+  constructor(exitCode, stderr) {
+    super(`git fetch failed with exit code ${exitCode}${stderr.trim() ? `: ${redactCheckoutDiagnostics(stderr.trim())}` : ""}`);
+    this.missingRef = /could(?:n't| not) find remote ref|remote ref does not exist/i.test(stderr);
+  }
+}
+
+/** @param {string[]} args */
+async function fetchPRHead(args) {
+  // @actions/exec rejects with only the exit code, not git's stderr.
+  const { exitCode, stderr } = await exec.getExecOutput("git", ["fetch", "origin", ...args], { silent: true, ignoreReturnCode: true });
+  if (exitCode !== 0) {
+    throw new PRHeadFetchError(exitCode, stderr);
+  }
+}
 
 /**
  * Resolve the commit SHA actually checked out at HEAD.
@@ -457,7 +481,7 @@ async function main() {
       core.info(`Fetching branch: ${branchName} from origin (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const fetchArgs = await depthArgs(fetchDepth);
       core.info(fetchArgs.length > 0 ? `Fetching with ${fetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", branchName, ...fetchArgs]);
+      await fetchPRHead([branchName, ...fetchArgs]);
 
       core.info(`Checking out branch: ${branchName}`);
       await exec.exec("git", ["checkout", branchName]);
@@ -505,7 +529,7 @@ async function main() {
       core.info(`Fetching PR #${prNumber} head via refs/pull/${prNumber}/head (depth: ${fetchDepth} for ${commitCount} PR commit(s))`);
       const prFetchArgs = await depthArgs(fetchDepth);
       core.info(prFetchArgs.length > 0 ? `Fetching with ${prFetchArgs.join(" ")}` : "Fetching without --depth (full history preserved)");
-      await exec.exec("git", ["fetch", "origin", `+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs]);
+      await fetchPRHead([`+refs/pull/${prNumber}/head:${PR_HEAD_BASE_REF}`, ...prFetchArgs]);
 
       const branchName = headRef || `pr-${prNumber}`;
       core.info(`Checking out branch: ${branchName}`);
@@ -524,7 +548,7 @@ async function main() {
     // Set output to indicate successful checkout
     core.setOutput("checkout_pr_success", "true");
   } catch (error) {
-    const errorMsg = getErrorMessage(error);
+    const errorMsg = redactCheckoutDiagnostics(getErrorMessage(error));
 
     // Re-check current PR state via API to handle race conditions where
     // the PR was merged/closed after the webhook payload was captured but
@@ -548,7 +572,7 @@ async function main() {
     }
 
     // Closure alone must not hide permission, authentication, or network errors.
-    if (!isClosed && isNowClosed && /could(?:n't| not) find remote ref|remote ref does not exist/i.test(errorMsg)) {
+    if (!isClosed && isNowClosed && error instanceof PRHeadFetchError && error.missingRef) {
       core.setOutput("checkout_pr_invalidated", "true");
       core.warning(`PR #${pullRequest.number} closed before its head could be fetched. Stopping rather than running on the previous checkout.`);
     }
@@ -566,16 +590,20 @@ async function main() {
 
     // Log current git state for debugging
     try {
-      core.info("Current git status:");
-      await exec.exec("git", ["status"]);
-
-      core.info("Available remotes:");
-      await exec.exec("git", ["remote", "-v"]);
-
-      core.info("Current branch:");
-      await exec.exec("git", ["branch", "--show-current"]);
+      /** @type {[string, string[]][]} */
+      const diagnostics = [
+        ["Current git status:", ["status"]],
+        ["Available remotes:", ["remote", "-v"]],
+        ["Current branch:", ["branch", "--show-current"]],
+      ];
+      for (const [label, args] of diagnostics) {
+        core.info(label);
+        const { stdout, stderr } = await exec.getExecOutput("git", args, { silent: true });
+        if (stdout) core.info(redactCheckoutDiagnostics(stdout));
+        if (stderr) core.warning(redactCheckoutDiagnostics(stderr));
+      }
     } catch (gitError) {
-      core.warning(`Could not retrieve git state: ${getErrorMessage(gitError)}`);
+      core.warning(`Could not retrieve git state: ${redactCheckoutDiagnostics(getErrorMessage(gitError))}`);
     }
 
     core.endGroup();
