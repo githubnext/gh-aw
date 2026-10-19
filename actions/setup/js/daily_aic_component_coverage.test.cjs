@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const { getRunAIC } = require("./check_daily_aic_workflow_guardrail.cjs");
 const { sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
 const { createAPIBudget } = require("./daily_aic_api_budget.cjs");
-const { shouldSkipForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
+const { captureExecutionEvidenceConfiguration, shouldSkipForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
 const time = "2025-01-01T12:00:00Z";
 const later = "2025-01-01T12:30:00Z";
 const job = (name, overrides = {}) => ({
@@ -410,12 +410,12 @@ it("counts a successful pre-flight noop with harness evidence and empty accounti
     safeOutputsPath: "/tmp/safe-outputs.jsonl",
     hasNoopInSafeOutputs: () => true,
     log: () => {},
-    env: {
+    executionEvidence: captureExecutionEvidenceConfiguration({
       GH_AW_AWF_EXECUTION_EVIDENCE_FILE: evidenceFile,
       GH_AW_AWF_EXECUTION_COMPONENT: "agent",
       GITHUB_RUN_ID: "1",
       GITHUB_RUN_ATTEMPT: "1",
-    },
+    }),
   });
   const f = evaluate({ "agent/token_usage.jsonl": "", "agent/execution.json": fs.readFileSync(evidenceFile, "utf8") }, [job("agent")]);
   await expect(f.result).resolves.toBe(0);

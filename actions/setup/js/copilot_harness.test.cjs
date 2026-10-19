@@ -20,6 +20,7 @@ const {
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
   buildCopilotSDKChildEnv,
+  buildCopilotEngineChildEnv,
   envFlagEnabled,
   countPermissionDeniedIssues,
   detectCopilotErrors,
@@ -547,6 +548,16 @@ describe("copilot_harness.cjs", () => {
       });
 
       expect(env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+  });
+
+  describe("buildCopilotEngineChildEnv", () => {
+    it("does not pass execution evidence metadata to the engine child", () => {
+      const env = buildCopilotEngineChildEnv({ PATH: "/usr/bin", GH_AW_AWF_EXECUTION_COMPONENT: "agent", GH_AW_AWF_EXECUTION_EVIDENCE_FILE: "/tmp/evidence.json" }, { COPILOT_MODEL: "gpt-6.1-sol" });
+
+      expect(env).toMatchObject({ PATH: "/usr/bin", COPILOT_MODEL: "gpt-6.1-sol" });
+      expect(env).not.toHaveProperty("GH_AW_AWF_EXECUTION_COMPONENT");
+      expect(env).not.toHaveProperty("GH_AW_AWF_EXECUTION_EVIDENCE_FILE");
     });
   });
 
