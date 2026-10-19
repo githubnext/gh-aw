@@ -44,22 +44,44 @@ func TestOutcomeSummaryAICPerAcceptedOutcome(t *testing.T) {
 
 func TestLoadOutcomeAIC(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
-	aic, err := loadOutcomeAIC(dir, &RunSummary{RunAnalysis: RunAnalysis{
-		TokenUsage: &TokenUsageSummary{TotalAIC: 12},
-	}})
-	require.NoError(t, err)
-	assert.InDelta(t, 12, aic, 1e-9)
+	for _, tc := range []struct {
+		name      string
+		cached    bool
+		agent     bool
+		detection bool
+		expected  float64
+	}{
+		{"missing usage", false, false, false, 0},
+		{"missing usage with agent-only cache", true, false, false, 0},
+		{"agent usage", false, true, false, 1.25},
+		{"agent and detection usage", false, true, true, 3.75},
+		{"agent and detection usage with agent-only cache", true, true, true, 3.75},
+		{"detection usage with agent-only cache", true, false, true, 2.5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			if tc.cached {
+				require.NoError(t, saveRunSummary(dir, &RunSummary{
+					CLIVersion: GetVersion(),
+					RunAnalysis: RunAnalysis{
+						TokenUsage: &TokenUsageSummary{TotalAIC: 1.25},
+					},
+				}, false))
+			}
+			require.NoError(t, os.Mkdir(filepath.Join(dir, "usage"), 0o700))
+			if tc.agent {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "usage", "agent_usage.jsonl"), []byte("{\"aic\":1.25}\n"), 0o600))
+			}
+			if tc.detection {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "usage", "detection_usage.jsonl"), []byte("{\"usage\":{\"ai_credits\":2.5}}\n"), 0o600))
+			}
 
-	aic, err = loadOutcomeAIC(dir, nil)
-	require.NoError(t, err)
-	assert.Zero(t, aic, "absent usage must not invent a cost")
-
-	require.NoError(t, os.Mkdir(filepath.Join(dir, "usage"), 0o700))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "usage", "agent_usage.jsonl"), []byte("{\"aic\":4.5}\n"), 0o600))
-	aic, err = loadOutcomeAIC(dir, nil)
-	require.NoError(t, err)
-	assert.InDelta(t, 4.5, aic, 1e-9)
+			aic, err := loadOutcomeAIC(dir)
+			require.NoError(t, err)
+			assert.InDelta(t, tc.expected, aic, 1e-9)
+		})
+	}
 }
 
 func TestAuditLeavesOutcomeEvaluationToOutcomesCommand(t *testing.T) {
@@ -72,8 +94,14 @@ func TestAuditLeavesOutcomeEvaluationToOutcomesCommand(t *testing.T) {
 	dir := t.TempDir()
 	content := "{\"type\":\"dispatch_workflow\",\"repo\":\"acme/repo\",\"metadata\":{\"run_id\":2}}\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0o600))
-	data := buildAuditData(context.Background(), ProcessedRun{Run: WorkflowRun{DatabaseID: 1, LogsPath: dir}}, LogMetrics{}, nil)
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "usage"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "usage", "detection_usage.jsonl"), []byte("{\"aic\":2.5}\n"), 0o600))
+	data := buildAuditData(context.Background(), ProcessedRun{
+		Run:        WorkflowRun{DatabaseID: 1, LogsPath: dir},
+		TokenUsage: &TokenUsageSummary{TotalAIC: 1.25},
+	}, LogMetrics{}, nil)
 	require.Len(t, data.CreatedItems, 1)
 	assert.Empty(t, data.Outcomes)
 	assert.Nil(t, data.OutcomeSummary)
+	assert.InDelta(t, 1.25, data.Metrics.AIC, 1e-9, "audit metrics remain agent-only")
 }

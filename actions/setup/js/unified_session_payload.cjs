@@ -415,6 +415,7 @@ const EVENT_FIELDS = {
     triggerType: ["triggerType", "event_name"],
     workflow: ["workflow", "workflow_name"],
     workflowId: ["workflowId", "workflow_id"],
+    callerWorkflowRef: ["callerWorkflowRef", "caller_workflow_ref"],
     repository: ["repository"],
     runId: ["runId", "run_id"],
     runAttempt: ["runAttempt", "run_attempt"],

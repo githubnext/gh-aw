@@ -449,7 +449,10 @@ export interface WorkflowInfoData {
   triggerType?: JsonValue;
   dryRun?: JsonValue;
   workflow?: JsonValue;
+  /** Executing workflow reference supplied by the compiler from job.workflow_ref. */
   workflowId?: JsonValue;
+  /** GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows. */
+  callerWorkflowRef?: JsonValue;
   repository?: JsonValue;
   runId?: JsonValue;
   runAttempt?: JsonValue;

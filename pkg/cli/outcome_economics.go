@@ -13,10 +13,8 @@ func (s *OutcomeSummary) addAIC(aic float64) {
 	s.CostPerAcceptedOutcome = aic / float64(s.Accepted)
 }
 
-func loadOutcomeAIC(runDir string, summary *RunSummary) (float64, error) {
-	if summary != nil && summary.TokenUsage != nil && summary.TokenUsage.TotalAIC > 0 {
-		return summary.TokenUsage.TotalAIC, nil
-	}
+func loadOutcomeAIC(runDir string) (float64, error) {
+	// Cached token usage is agent-only; outcome cost includes detection usage too.
 	usage, err := analyzeTokenUsageAICOnly(runDir, false)
 	if err != nil || usage == nil {
 		return 0, err

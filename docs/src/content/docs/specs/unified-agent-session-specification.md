@@ -285,11 +285,14 @@ The caller's `repo`, `run_id`, `run_attempt`, `workflow_id`, `workflow_call_id`,
 and `event_type` become `parentRepo`, `parentRunId`, `parentRunAttempt`,
 `parentWorkflowId`, `parentWorkflowCallId`, and `parentEventType`, respectively.
 The current run's metadata remains separate: `workflow.info.runAttempt` and
-`workflowId` retain the recorded attempt and full GitHub workflow reference,
+`workflowId` retain the recorded attempt and executing workflow's full reference
+from compiler-wired `job.workflow_ref`, including for reusable invocations.
+`callerWorkflowRef` separately retains `GITHUB_WORKFLOW_REF`, which identifies
+the top-level caller for reusable workflows (and the current workflow otherwise),
 while `ref`, `sha`, `actor`, and `targetRepo` retain the existing metadata used
-for legacy lineage matching. The workflow reference is captured from
-`GITHUB_WORKFLOW_REF` when the runner writes `aw_info.json`, never from the
-collector's environment.
+for legacy lineage matching. Both references are captured when the runner writes
+`aw_info.json`, never from the collector's environment. An unavailable executing
+reference remains empty; the caller reference is not substituted for it.
 
 That context describes the recorded caller: `episode.hopId` is not relabeled as
 the current run's hop, and `episode.parentHopId` remains that caller's recorded

@@ -200,6 +200,7 @@ jobs:
           GH_AW_INFO_VERSION: "2.1.296"
           GH_AW_INFO_AGENT_VERSION: "2.1.296"
           GH_AW_INFO_WORKFLOW_NAME: "Blog Auditor"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

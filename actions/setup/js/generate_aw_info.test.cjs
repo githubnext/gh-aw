@@ -87,6 +87,7 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_AGENT_VERSION = "0.0.419";
     process.env.GH_AW_INFO_CLI_VERSION = "";
     process.env.GH_AW_INFO_WORKFLOW_NAME = "my-workflow";
+    process.env.GH_AW_INFO_WORKFLOW_ID = "github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main";
     process.env.GH_AW_INFO_EXPERIMENTAL = "false";
     process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST = "true";
     delete process.env.GH_AW_INFO_CACHE_MEMORY;
@@ -133,6 +134,7 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.engine_name).toBe("GitHub Copilot CLI");
     expect(awInfo.model).toBe("gpt-4");
     expect(awInfo.workflow_name).toBe("my-workflow");
+    expect(awInfo.workflow_id).toBe("github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
     expect(awInfo.experimental).toBe(false);
     expect(awInfo.supports_tools_allowlist).toBe(true);
     expect(awInfo.cache_memory).toBe(false);
@@ -149,18 +151,34 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.created_at).toBeTruthy();
   });
 
-  it("records the current workflow identity separately from the caller", async () => {
-    vi.stubEnv("GITHUB_WORKFLOW_REF", "github/my-repo/.github/workflows/worker.yml@refs/heads/main");
+  it("records the executing reusable workflow separately from its caller in the same run", async () => {
+    const callerRef = "github/my-repo/.github/workflows/caller.yml@refs/heads/main";
+    const executingRef = "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1";
+    process.env.GH_AW_INFO_WORKFLOW_ID = executingRef;
+    vi.stubEnv("GITHUB_WORKFLOW_REF", callerRef);
     vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
-    const caller = { repo: "org/parent", run_id: "100", run_attempt: "1", workflow_id: "caller.yml" };
+    const caller = { repo: "github/my-repo", run_id: "12345", run_attempt: "2", workflow_id: callerRef };
     await main(mockCore, { ...mockContext, payload: { inputs: { aw_context: JSON.stringify(caller) } } });
     const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
     expect(info).toMatchObject({
-      workflow_id: "github/my-repo/.github/workflows/worker.yml@refs/heads/main",
+      workflow_id: executingRef,
+      caller_workflow_ref: callerRef,
       run_id: 12345,
       run_attempt: "2",
+      event_name: "push",
       context: caller,
     });
+    expect(String(info.run_id)).toBe(info.context.run_id);
+    expect(info.workflow_id).not.toBe(info.context.workflow_id);
+  });
+
+  it("does not misidentify the caller as the executing workflow when its reference is unavailable", async () => {
+    delete process.env.GH_AW_INFO_WORKFLOW_ID;
+    vi.stubEnv("GITHUB_WORKFLOW_REF", "github/my-repo/.github/workflows/caller.yml@refs/heads/main");
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.workflow_id).toBe("");
+    expect(info.caller_workflow_ref).toBe("github/my-repo/.github/workflows/caller.yml@refs/heads/main");
   });
 
   it("should record dry-run and explicitly report unverified extension effects", async () => {

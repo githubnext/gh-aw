@@ -155,6 +155,7 @@ jobs:
           GH_AW_INFO_VERSION: "0.163.0"
           GH_AW_INFO_AGENT_VERSION: "0.163.0"
           GH_AW_INFO_WORKFLOW_NAME: "ESLint Monster"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"

@@ -170,11 +170,12 @@ func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 	reports := EvaluateOutcomes(ctx, items, repo, mapping)
 	outcomeSummary := ComputeOutcomeSummary(reports, mapping)
 	if outcomeSummary.Accepted > 0 {
-		aic, err := loadOutcomeAIC(runDir, summary)
+		aic, err := loadOutcomeAIC(runDir)
 		if err != nil {
-			return fmt.Errorf("failed to compute outcome AI Credits: %w", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compute outcome AI Credits; cost per accepted outcome omitted: %v", err)))
+		} else {
+			outcomeSummary.addAIC(aic)
 		}
-		outcomeSummary.addAIC(aic)
 	}
 
 	// Write outcome JSONL if requested (for OTLP export or downstream processing).

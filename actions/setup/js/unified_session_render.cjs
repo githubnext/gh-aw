@@ -262,6 +262,7 @@ function eventDetail(event) {
           "agentVersion",
           "workflow",
           "workflowId",
+          "callerWorkflowRef",
           "repository",
           "runId",
           "runAttempt",

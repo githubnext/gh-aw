@@ -165,8 +165,12 @@ For simple workflows, a single run is usually the right unit for outcome measure
 
 `gh aw outcomes` populates `summary.cost_per_accepted_outcome` when positive AIC
 usage and at least one accepted outcome are available. This is the full
-observed run AIC divided by accepted output items, not a per-item allocation.
-Unavailable cost and zero accepted outcomes leave this field omitted.
+observed run AIC, including detection usage, divided by accepted output items,
+not a per-item allocation. Cost is computed from usage artifacts independently
+of the agent-only token usage cache.
+Unavailable cost and zero accepted outcomes leave this field omitted. If usage
+cannot be read or parsed, the command warns and still returns evaluated outcomes
+and writes any requested outcome JSONL.
 
 For orchestrated workflows, multiple runs can belong to one logical execution. In that case, the more meaningful unit is the episode. Outcome and cost totals can be rolled up from runs into episodes using simple sums, and then from episodes into workflow totals and repository totals.
 

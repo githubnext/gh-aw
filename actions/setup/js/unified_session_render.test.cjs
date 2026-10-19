@@ -230,6 +230,7 @@ describe("unified session publication views", () => {
           run_id: "300",
           run_attempt: "2",
           workflow_id: "worker.yml",
+          caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
           ref: "refs/heads/main",
           sha: "abc123",
           actor: "octocat",
@@ -262,6 +263,7 @@ describe("unified session publication views", () => {
         expect(output).toContain("runId=300");
         expect(output).toContain("runAttempt=2");
         expect(output).toContain("workflowId=worker.yml");
+        expect(output).toContain("callerWorkflowRef=org/parent/.github/workflows/caller.yml@refs/heads/main");
         expect(output).toContain("ref=refs/heads/main");
         expect(output).toContain("sha=abc123");
         expect(output).toContain("actor=octocat");
