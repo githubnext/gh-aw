@@ -6,18 +6,18 @@ sidebar:
 ---
 
 **Version**: 1.0 draft<br />
-**Status**: New feature proposal; no admission implementation yet in gh-aw or gh-cao<br />
+**Status**: New feature proposal; no admission implementation yet<br />
 **Date**: 2026-10-19
 
 The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This document specifies a new feature. No admission client or service implementation exists yet; all admission-specific behavior described here remains to be implemented.
 
 ## 1. Scope and Ownership
 
-The proposed feature adds admission as a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Once implemented, gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Without a configured endpoint, the step is skipped or completes as a successful no-op, and activation continues normally. gh-cao MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, protected operator diagnostics, and optional configuration provisioning through its GitHub App.
+The proposed feature adds admission as a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Once implemented, gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Without a configured endpoint, the step is skipped or completes as a successful no-op, and activation continues normally. A deployment-selected **admission authority server** (the authority) MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, and protected operator diagnostics. It MAY use a server-side GitHub App for backend verification and configuration provisioning.
 
 The gate is a **cooperative admission check** for participating workflows, not an unbypassable organization policy or hard spending cap. It decides whether a cooperating AW execution may start and returns its maximum AI Credits allowance and a service-issued opaque correlation ID. It is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism.
 
-The protocol uses REST POST with a JSON body, authenticated exclusively by a GitHub Actions OIDC identity token with an audience restricted to the intended gh-cao deployment. The client MUST NOT send `GITHUB_TOKEN`, a PAT, Copilot token, GitHub App JWT, installation access token, App private key, API key, or custom activation credential to the admission service. The feature MUST support only this protocol, with no GET, alternate authentication mode, negotiation, or credential fallback.
+The protocol uses REST POST with a JSON body, authenticated exclusively by a GitHub Actions OIDC identity token with an audience restricted to the intended authority deployment. The client MUST NOT send `GITHUB_TOKEN`, a PAT, Copilot token, GitHub App JWT, installation access token, App private key, API key, or custom activation credential to the admission service. The feature MUST support only this protocol, with no GET, alternate authentication mode, negotiation, or credential fallback.
 
 ## 2. Configuration and Provisioning
 
@@ -34,14 +34,14 @@ Admission configuration MUST come exclusively from managed GitHub Actions variab
 The corresponding managed-defaults YAML is:
 
 ```yaml
-default_admission_url: https://cao.example.com/api/activation
-default_admission_audience: https://cao.example.com/api/activation
+default_admission_url: https://admission.example.org/api/activation
+default_admission_audience: https://admission.example.org/api/activation
 default_admission_on_outage: ignore
 ```
 
 The service route is `/api/activation`; the deployment origin is configurable. A nonempty URL MUST be the full absolute HTTPS URL for that route, without embedded credentials, query parameters, fragments, or GitHub Actions expressions. A nonempty audience MUST be a literal deployment-specific value without control characters or expressions. It identifies the intended recipient; it is not a secret or a GitHub App identifier.
 
-Each effective runtime variable takes precedence over its built-in fallback. Variable scope precedence follows the existing managed-default mechanism: repository, organization, then enterprise where supported. Compiler-process environment variables MUST NOT determine these values, and workflow-local configuration MUST NOT introduce another override layer. A configured endpoint automatically enables admission. An unset or empty endpoint makes the check a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
+Each effective runtime variable takes precedence over its built-in fallback; repository Actions variables override organization variables. Enterprise-wide rollout provisions organization variables in each enrolled organization, not an assumed native enterprise Actions-variable scope. Compiler-process environment variables MUST NOT determine these values, and workflow-local configuration MUST NOT introduce another override layer. A configured endpoint automatically enables admission. An unset or empty endpoint makes the check a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
 
 The compiler MUST always emit the runtime variable hooks, so enabling, disabling, or changing managed settings does not require recompilation after the feature is available in a compiled workflow. Existing managed-default update semantics remain unchanged: omitted or null YAML fields delete the corresponding variable at the selected scope. Operators MUST preserve other defaults when updating a defaults file.
 
@@ -51,11 +51,28 @@ Stronger enforcement requires the controlled AI/backend resource to independentl
 
 ### GitHub App Responsibilities
 
-The gh-cao GitHub App requires a private key. That key MUST remain in gh-cao's protected server-side secret storage, with access control, rotation, and audit. It MUST NOT be distributed to workflows, Actions variables, workflow secrets, artifacts, or responses.
+When the authority uses a GitHub App for provisioning or verification, that App requires a private key. That key MUST remain in the authority's protected server-side secret storage, with access control, rotation, and audit. It MUST NOT be distributed to workflows, Actions variables, workflow secrets, artifacts, or responses.
 
-The service uses the key to sign an App JWT and obtain installation access tokens for permitted GitHub API operations. Those tokens are backend credentials, not caller credentials. Provisioning tokens SHOULD be downscoped to configuration operations; verification tokens SHOULD be downscoped to required reads.
+The App MUST be installed on the relevant organization or repository-owning account, with approved permissions and repository access for the chosen operations. Requested registration permissions are not sufficient: installation owners must approve new permissions before they become available. An enterprise installation does not substitute for the organization installation and organization permissions needed to manage organization Actions variables.
 
-With administrator authorization and suitable GitHub permissions, the App MAY provision the admission URL, audience, and outage defaults at supported organization/repository scopes. Enterprise defaults use the supported enterprise administration path; App support for writing every scope MUST NOT be assumed. Unsupported provisioning MUST be reported to the administrator, not silently bypassed.
+The authority MUST follow GitHub's [App JWT authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app) and [installation-token generation](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app) specifications. Sign the App JWT using `RS256`, include an issued-at timestamp in `iat` and the App's client ID or application ID in `iss`, and set `exp` no more than ten minutes into the future. GitHub recommends the client ID and an `iat` sixty seconds in the past for clock skew. Use that JWT as a bearer credential for App-level operations, including `POST /app/installations/{installation_id}/access_tokens`; use the resulting installation token, not the App JWT, for the organization/repository APIs below.
+
+Installation IDs MUST come from trusted tenant enrollment and authoritative GitHub installation metadata, bound to the verified repository owner and repository. Unverified request fields MUST NOT select another tenant's installation. Installation tokens expire after one hour; honor GitHub's returned `expires_at` and renew as needed. Treat tokens as opaque, without fixed-length or format assumptions. Scope tokens with the documented `permissions` and, for repository operations, `repositories` or `repository_ids` parameters to only the approved access needed; tokens cannot expand an installation's grants. Provisioning and verification tokens SHOULD have separate least-privilege scopes.
+
+The following permissions apply only when the authority performs the corresponding operation, following GitHub's [App permission matrix](https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps) and [Actions variables API](https://docs.github.com/en/rest/actions/variables):
+
+| Backend operation | Required GitHub App permission |
+|-------------------|--------------------------------|
+| Create/update/delete organization variables or bulk-set their selected repositories | Organization **Variables: write** |
+| Read organization variables | Organization **Variables: read** |
+| Create/update/delete repository variables | Repository **Variables: write** |
+| Read repository variables or organization variables shared with a repository | Repository **Variables: read** |
+| Verify workflow runs, attempts, or jobs through the Actions API | Repository **Actions: read** |
+| Read workflow/source files for trusted logical-ID mapping, if used | Repository **Contents: read** |
+
+Organization and repository Variables are distinct permission categories; repository **Actions: write** is not the variable-write permission. Contents write, Workflows write, Secrets, Checks write, and Deployments write are not required for the operations in this table. Individual add/remove-selected-repository variable endpoints have additional permission requirements; implementations MUST check the selected endpoint rather than assume all visibility-management endpoints have identical grants.
+
+With administrator authorization and the applicable installation grants, the App MAY provision only the non-secret admission URL, audience, and outage defaults at supported organization/repository scopes. Enterprise-wide provisioning requires authorized organization installations for each target organization. Unsupported provisioning, missing approvals, or insufficient permissions MUST be reported to the administrator, not silently bypassed or replaced with a PAT.
 
 Only non-secret configuration is provisioned. App IDs and installation IDs do not authenticate a workflow. The App does not mint the workflow's OIDC token.
 
@@ -67,7 +84,7 @@ The activation job MUST gain `id-token: write` to request OIDC tokens, while ret
 
 The entire activation job is an OIDC trust boundary, not just the admission step. All custom setup, pre, and regular steps and actions, before and after admission, MUST be reviewed as able to request identity tokens for other audiences. Skipping admission does not revoke the job's OIDC capability. The implementation MUST prevent untrusted code from executing in this job and review existing federated relying-party policies before granting the permission; an admission-step condition is not a permission sandbox. This requirement MUST be met without adding a job.
 
-For an enabled gate, the step requests an OIDC token from GitHub using the effective audience, for example with `core.getIDToken(audience)`. GitHub supplies the OIDC request capability to jobs with `id-token: write`; no GitHub App private key is needed in the runner. OIDC bootstrap credentials are used only with the trusted GitHub OIDC endpoint and MUST NOT be forwarded to gh-cao.
+For an enabled gate, the step requests an OIDC token from GitHub using the effective audience, for example with `core.getIDToken(audience)`. GitHub supplies the OIDC request capability to jobs with `id-token: write`; no GitHub App private key is needed in the runner. OIDC bootstrap credentials are used only with the trusted GitHub OIDC endpoint and MUST NOT be forwarded to the authority.
 
 ### Protocol Flow
 
@@ -75,13 +92,13 @@ For an enabled gate, the step requests an OIDC token from GitHub using the effec
 sequenceDiagram
     participant A as Activation step
     participant G as GitHub OIDC
-    participant C as gh-cao
+    participant S as Authority server
 
     A->>G: Request token for audience
     G-->>A: Signed OIDC token
-    A->>C: POST /api/activation
-    Note right of C: Verify identity<br/>Evaluate policy
-    C-->>A: 200 + limit + ID / 403 / transient
+    A->>S: POST /api/activation
+    Note right of S: Verify identity<br/>Evaluate policy
+    S-->>A: 200 + limit + ID / 403 / transient
 ```
 
 The step runs inside activation, not in a new job. No endpoint means no token or request. A validated `200` supplies the run ceiling and correlation ID before activation continues; `403` fails it. Only transient failures are retried, then handled by the outage policy. The existing activation-success dependency still gates the agent. Token reuse or renewal does not create another entitlement.
@@ -145,19 +162,19 @@ Opaque identifiers and refs MUST NOT be unnecessarily lowercased or split. Large
 
 The client MUST propagate distributed trace context with the standard W3C `traceparent` header. Its 32-character lowercase hexadecimal trace ID is independent of the service-issued `correlation_id`. The version-00 form is `00-<trace-id>-<client-span-id>-<trace-flags>`, with a nonzero trace ID and a nonzero 16-character span ID. Implementations MUST use a standards-compliant propagator rather than interpolate arbitrary input.
 
-Reuse a valid AW trace context through the existing OTLP helpers. If none exists, generate a cryptographically random trace ID, never one derived from repository, actor, run, spend, or a credential. An admission operation and its HTTP attempts share the trace ID; each HTTP attempt has a distinct client span ID. gh-cao creates a server span parented to that attempt. A new trace MUST be available for correlation even when span export is disabled.
+Reuse a valid AW trace context through the existing OTLP helpers. If none exists, generate a cryptographically random trace ID, never one derived from repository, actor, run, spend, or a credential. An admission operation and its HTTP attempts share the trace ID; each HTTP attempt has a distinct client span ID. The authority creates a server span parented to that attempt. A new trace MUST be available for correlation even when span export is disabled.
 
 The step MUST preserve the activation job's existing trace context and propagate validated trace/parent IDs through the existing workflow mechanism so agent and conclusion telemetry remain connected. If the step creates a trace because none exists, it MUST initialize that mechanism rather than add a job or dependency. Logs retain standard `trace_id` and `span_id` correlation; neither tracing nor the service correlation ID substitutes for authenticated invocation identity or an idempotency key.
 
 After validating the successful response, the client MUST attach `correlation_id` as the common OTel resource attribute `gh-aw.admission.correlation_id` to all subsequent OTLP records for the admitted invocation, including the completed admission span, remaining activation, engine, tool/gateway, safe-output, and conclusion telemetry. This includes spans, logs, and metrics across jobs and subprocesses, including telemetry emitted on later failure or cancellation. Components that cannot set the attribute directly MUST be enriched through the shared export path; supported telemetry paths MUST NOT silently omit it.
 
-gh-cao MUST add the same attribute to its admission server span and subsequent invocation-specific span/log records, without mutating shared service resource identity or mixing invocation IDs.
+The authority MUST add the same attribute to its admission server span and subsequent invocation-specific span/log records, without mutating shared service resource identity or mixing invocation IDs.
 
 The validated ID MUST propagate through existing step/job outputs and runtime environment/context, without adding a job. Exporters MUST preserve it independently of trace/span IDs and prevent user-supplied context or custom attributes from replacing it. Already-emitted telemetry is not rewritten or resent; W3C trace context connects records emitted before admission. Independently admitted invocations receive their own service-scoped IDs rather than trusting an inherited caller value.
 
 Trace and service correlation IDs MUST NOT be used as metric datapoint dimensions, public metric labels, or authorization to access another tenant's telemetry. Metrics carry correlation only as protected resource metadata; exporters MUST NOT promote it to high-cardinality metric labels.
 
-Trace context is untrusted observability data, not an authorization claim. Within overall HTTP transport limits, missing, malformed, oversized, or duplicate trace context MUST NOT change admission or outage decisions: gh-cao discards it and starts a fresh context without echoing or logging raw invalid values. Export failures MUST NOT change the decision, disable the check, or cause another admission request.
+Trace context is untrusted observability data, not an authorization claim. Within overall HTTP transport limits, missing, malformed, oversized, or duplicate trace context MUST NOT change admission or outage decisions: the authority discards it and starts a fresh context without echoing or logging raw invalid values. Export failures MUST NOT change the decision, disable the check, or cause another admission request.
 
 Only `traceparent` is propagated across this boundary. Arbitrary `tracestate` and `baggage` MUST NOT be forwarded or reflected; received values are ignored. Sampling is locally controlled and independent of spend, actor privileges, or an attacker-supplied sampled flag. Credentials, policy reasons, usage, balances, and personal metadata MUST NOT be encoded in trace identifiers or propagation headers.
 
@@ -173,18 +190,18 @@ Workflow identity:
 flowchart TD
     G["GitHub issuer<br/>OIDC signing key stays here"]
     R["Activation runner<br/>Temporary OIDC token"]
-    C["gh-cao<br/>Verifies with public keys"]
+    S["Authority server<br/>Verifies with public keys"]
     G -->|"Issues identity token"| R
-    R -->|"POST authorization header"| C
+    R -->|"POST authorization header"| S
 ```
 
-Backend App credentials:
+Optional backend App credentials:
 
 ```mermaid
 flowchart TD
-    K["gh-cao secret store<br/>App private key"]
-    J["gh-cao memory<br/>App JWT"]
-    T["gh-cao memory<br/>Scoped installation token"]
+    K["Authority secret store<br/>App private key"]
+    J["Authority memory<br/>App JWT"]
+    T["Authority memory<br/>Scoped installation token"]
     A["GitHub API calls<br/>Provision variables or verify data"]
     K -->|"Signs"| J
     J -->|"Exchange with GitHub"| T
@@ -199,7 +216,7 @@ The service MUST authenticate before reading tenant policy or usage. It MUST use
 
 Issuer metadata and signing keys MUST come from a deployment-configured trusted GitHub issuer. The service MUST NOT discover an issuer, JWKS endpoint, GitHub API host, or network destination from unverified token, body, or trace data. Signing-key rotation and cache refresh MUST be bounded and tested. An unknown key triggers a bounded trusted refresh; inability to refresh is an outage, while a definitively invalid signature or key is a denial.
 
-The expected audience MUST be configured independently in gh-cao. It MUST NOT be accepted merely because it matches a request parameter or the token's own `aud` claim. GitHub.com and each supported GitHub Enterprise deployment require explicit issuer/trust configuration; unsupported deployments receive no credential downgrade.
+The expected audience MUST be configured independently on the authority. It MUST NOT be accepted merely because it matches a request parameter or the token's own `aud` claim. GitHub.com and each supported GitHub Enterprise deployment require explicit issuer/trust configuration; unsupported deployments receive no credential downgrade.
 
 ### Invocation and Tenant Binding
 
@@ -207,9 +224,9 @@ Authorization MUST use signed immutable `repository_id` and `repository_owner_id
 
 The service MUST compare repository, run ID, attempt, ref, event, and actor body fields against verified claims. It MUST validate signed `workflow_ref` and `workflow_sha` and, for reusable workflows, `job_workflow_ref` and `job_workflow_sha` where applicable. Required claims and equality rules MUST be verified for each supported deployment and trigger; unavailable or ambiguous identity MUST NOT select weaker policy.
 
-OIDC does not directly attest gh-aw's logical `workflow_id` or derived `workflow_call_id`. gh-cao MUST establish an authorized mapping from the verified workflow identity to the logical AW ID, through protected policy or authoritative workflow data at the verified revision. The claimed logical ID alone MUST NOT select a more permissive budget or tenant. An unknown mapping receives a conservative repository policy or denial.
+OIDC does not directly attest gh-aw's logical `workflow_id` or derived `workflow_call_id`. The authority MUST establish an authorized mapping from the verified workflow identity to the logical AW ID, through protected policy or authoritative workflow data at the verified revision. The claimed logical ID alone MUST NOT select a more permissive budget or tenant. An unknown mapping receives a conservative repository policy or denial.
 
-Backend GitHub API checks MAY validate run state, enrollment, or mappings using gh-cao's own appropriately scoped App installation token. Successful reads of public repository/run data alone are not caller authentication. Backend credentials MUST NOT replace verification of the incoming OIDC identity.
+Backend GitHub API checks MAY validate run state, enrollment, or mappings using the authority's own appropriately scoped App installation token. Successful reads of public repository/run data alone are not caller authentication. Backend credentials MUST NOT replace verification of the incoming OIDC identity.
 
 OIDC remains a bearer credential: possession permits replay to the intended audience until expiration. It is not proof of a unique HTTP request or permission for a financial mutation. The service MUST enforce invocation binding, bounded replay handling, and spend-independent probe controls.
 
@@ -237,7 +254,7 @@ cache-control: no-store
 | Field | Contract |
 |-------|----------|
 | `max_ai_credits` | Required JSON integer from `1` through `2147483647`, in the existing `max-ai-credits` AI Credit units. A ceiling for the verified current workflow invocation, not remaining organization credit, actual usage, or a reservation. Zero, negative/unlimited sentinels, fractions, strings, and null are invalid. A policy permitting no credits denies execution instead. |
-| `correlation_id` | Required nonzero 32-character lowercase hexadecimal value generated by gh-cao using 128 cryptographically random bits. Opaque, independent of the W3C trace ID, and bound to the verified invocation. It MUST NOT encode tenant, actor, usage, budget, or denial information, and is not a bearer credential. |
+| `correlation_id` | Required nonzero 32-character lowercase hexadecimal value generated by the authority using 128 cryptographically random bits. Opaque, independent of the W3C trace ID, and bound to the verified invocation. It MUST NOT encode tenant, actor, usage, budget, or denial information, and is not a bearer credential. |
 
 The client MUST validate the complete success response before continuing: supported content type, UTF-8 JSON object, exact field names and types, no duplicate/unknown fields, and a body limit of 4 KiB enforced while reading. Missing fields, malformed complete JSON, invalid values, or exceeding the body limit are protocol failures that block even under `ignore`; they MUST NOT become an outage-based bypass. A transport failure while reading the body remains a retryable network failure.
 
@@ -277,7 +294,7 @@ Default `ignore` explicitly trades enforcement for availability. Strict deployme
 
 ## 7. Cost-Control Decisions
 
-gh-cao owns policy configuration and trusted usage aggregation. Policies MAY impose organization, repository, verified-workflow, or verified-actor controls. Organization balances, remaining credit, aggregate limits, windows, and policy reasoning remain protected operator configuration. The admitted invocation's `max_ai_credits` is the only budget value returned to the caller.
+The authority owns policy configuration and trusted usage aggregation. Policies MAY impose organization, repository, verified-workflow, or verified-actor controls. Organization balances, remaining credit, aggregate limits, windows, and policy reasoning remain protected operator configuration. The admitted invocation's `max_ai_credits` is the only budget value returned to the caller.
 
 The implementation MUST define accounting units, authoritative usage sources, freshness bounds, policy precedence, time windows, and handling of active executions. It MUST NOT implicitly mix AI Credits, token counts, and currency. Missing, stale, or unavailable usage MUST NOT silently become zero.
 
@@ -285,7 +302,7 @@ Disabled or unconfigured tenants and unsupported policy selectors are durable de
 
 ### Per-Run Ceiling
 
-The returned ceiling applies only to the verified `(issuer, repository, run_id, run_attempt, workflow identity, workflow_id)` invocation. It is a policy allowance, not the organization's remaining balance. gh-cao MUST NOT compute it as remaining organization credits or vary it with hidden cumulative spend; hidden spend controls instead affect the uniform admission/denial decision.
+The returned ceiling applies only to the verified `(issuer, repository, run_id, run_attempt, workflow identity, workflow_id)` invocation. It is a policy allowance, not the organization's remaining balance. The authority MUST NOT compute it as remaining organization credits or vary it with hidden cumulative spend; hidden spend controls instead affect the uniform admission/denial decision.
 
 Before agent execution, gh-aw MUST pass the returned ceiling through the existing runtime credit-budget controls. The effective limit is the minimum of this ceiling and any stricter finite local/default per-run limit. An unset or disabled local per-run limit MUST NOT disable the returned ceiling; existing daily and other independent limits remain in force. Unsupported budget enforcement or failure to propagate a validated ceiling MUST block, not silently run uncapped.
 
@@ -295,7 +312,7 @@ The cap is shared across continuations/restarts within the same admitted invocat
 
 Although the request uses POST, this admission operation MUST remain retry-safe and MUST NOT charge credits, decrement budgets, reserve funds, create paid executions, or modify billing state. Protected request logs and short-lived decision caching are permitted; repeated requests MUST NOT create repeated financial commitments or imply that an agent actually started.
 
-Admission is a start-time check. Concurrent executions can observe the same remaining budget and overshoot it without independent in-flight accounting. gh-cao MUST document its concurrency/overshoot model and MUST NOT advertise a hard spend cap based solely on this endpoint. Reservations or settlement require a separately designed mutation protocol.
+Admission is a start-time check. Concurrent executions can observe the same remaining budget and overshoot it without independent in-flight accounting. The authority MUST document its concurrency/overshoot model and MUST NOT advertise a hard spend cap based solely on this endpoint. Reservations or settlement require a separately designed mutation protocol.
 
 ## 8. Idempotency and Replay
 
@@ -343,7 +360,7 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-016 | Proxy logs, tracing, exceptions, artifacts, outputs, and metrics | No raw token/App-key leakage or body capture; actor metadata minimized and protected |
 | ADM-017 | Budget denial versus operational rate limiting | Budget denial is `403`; `429` is spend-independent |
 | ADM-018 | Sustained outage under both policies | Fail-open limitation explicit; strict deployment verifies protected `block` |
-| ADM-019 | Endpoint in repo/org/enterprise managed variables, without any opt-in flag | Step automatically runs in activation with runtime scope precedence; no new job, repository-file override, or compiler-environment capture |
+| ADM-019 | Endpoint in repository/organization managed variables, including enterprise-wide organization rollout, without any opt-in flag | Step automatically runs in activation with runtime scope precedence; no assumed enterprise variable API, new job, repository-file override, or compiler-environment capture |
 | ADM-020 | No endpoint, or audience/policy without an endpoint | Step skips or succeeds as a no-op; no OIDC request or service call; activation and agent eligibility unchanged |
 | ADM-021 | Missing job permission, invalid config, or unsupported claim set | Fail closed without requesting another credential |
 | ADM-022 | App provisioning, private-key rotation, and unsupported scope | Server-only credentials; least privilege; explicit administrative errors |
@@ -360,17 +377,19 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-033 | Lost success response, token renewal, cross-instance retries, rerun, or independently admitted workflow hop | Stable ceiling/ID for retries; distinct IDs for independent admissions; no budget reset or expanded entitlement |
 | ADM-034 | Admitted executions with differing hidden cumulative spend under the same per-run policy | Returned ceiling does not reveal remaining balance or spend bands; random IDs convey no policy state; denials remain uniform |
 | ADM-035 | Disabled endpoint or exhausted outage with `ignore`, without a valid service response | Existing local/default budget and tracing preserved; no fabricated service ceiling, correlation ID, or affirmative admission |
+| ADM-036 | App JWT generation, installation-token exchange/renewal, or changed token format | Documented `RS256` JWT claims and ten-minute maximum expiry; trusted installation binding; one-hour installation-token expiry honored; tokens treated as opaque backend-only credentials |
+| ADM-037 | Missing installation approval, wrong organization/repository permission, restricted repository access, or a cross-tenant installation ID | No unauthorized provisioning/read or grant escalation; Variables and Actions permissions remain distinct; explicit administrative error without credential fallback |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix.
 
 ## 11. Implementation Plan
 
-1. **gh-aw managed configuration:** register the three new admission variables and their managed YAML keys with repo/org/enterprise handling, runtime scope precedence, and effective-value validation. Do not add repository JSON or workflow/frontmatter admission settings. Always include runtime variable hooks; automatically check when an endpoint is configured and no-op otherwise, without a separate opt-in flag. Add CLI coverage, enterprise reference, and release notes together.
+1. **gh-aw managed configuration:** register the three new admission variables and their managed YAML keys with repository/organization scope handling, runtime precedence, and effective-value validation. Document enterprise-wide organization provisioning without assuming native enterprise Actions variables. Do not add repository JSON or workflow/frontmatter admission settings. Always include runtime variable hooks; automatically check when an endpoint is configured and no-op otherwise, without a separate opt-in flag. Add CLI coverage, enterprise reference, and release notes together.
 2. **gh-aw activation integration:** add the new admission step to the existing activation job and grant that job `id-token: write`. Review every activation hook/action and existing federated trust policy for that job-wide capability, including when the gate is skipped. Preserve other required permissions without forwarding API credentials. Cover enabled, disabled, denied, and fail-open behavior, reusable workflows, and custom job conditions through existing activation-success dependencies. Do not add a job or new job dependency.
 3. **gh-aw OIDC client and run budget:** implement bounded GitHub OIDC acquisition and the POST/JSON contract as new functionality. Include actor, require a validated `200` with both response fields, propagate the effective minimum credit ceiling into runtime controls and continuations, and block enforcement failures. Implement generic diagnostics, retries, and outage policy; prohibit alternate credentials or HTTP methods.
-4. **gh-cao service:** implement pinned issuer/audience verification, tenant enrollment and trusted workflow mapping, App-backed verification where needed, privacy-preserving policy evaluation, a spend-private per-run ceiling, and an opaque service correlation ID. Persist stable response fields for bounded decisions/replays and keep protected telemetry. Keep the admission operation financially side-effect-free and retry-safe.
-5. **gh-cao provisioning:** keep the App private key server-side; provide authorized default provisioning, scope/permission checks, key rotation, and operator guidance distinguishing defaults from mandatory enforcement.
-6. **Trace and service correlation:** reuse gh-aw's OTLP trace generation/validation and workflow propagation helpers, inject W3C `traceparent` for each POST attempt, and join gh-cao server spans. Propagate the validated service ID as `gh-aw.admission.correlation_id` through every subsequent span/log/metric export path, including cross-job/runtime and conclusion telemetry, without replacing trace IDs or adding metric dimensions. Record the effective ceiling with existing `gh-aw.max_ai_credits` semantics. Enforce tenant-scoped access and redaction; IDs work without an exporter and never become authorization or accounting keys.
+4. **Admission authority server:** implement pinned issuer/audience verification, tenant enrollment and trusted workflow mapping, App-backed verification where needed, privacy-preserving policy evaluation, a spend-private per-run ceiling, and an opaque service correlation ID. Persist stable response fields for bounded decisions/replays and keep protected telemetry. Keep the admission operation financially side-effect-free and retry-safe.
+5. **Authority provisioning:** when using a GitHub App, keep its private key server-side and implement GitHub's App JWT/installation-token flow, approved installation grants, least-privilege Variables/read permissions, token renewal, and key rotation. Provide authorized organization/repository provisioning and operator guidance distinguishing defaults from mandatory enforcement.
+6. **Trace and service correlation:** reuse gh-aw's OTLP trace generation/validation and workflow propagation helpers, inject W3C `traceparent` for each POST attempt, and join authority server spans. Propagate the validated service ID as `gh-aw.admission.correlation_id` through every subsequent span/log/metric export path, including cross-job/runtime and conclusion telemetry, without replacing trace IDs or adding metric dimensions. Record the effective ceiling with existing `gh-aw.max_ai_credits` semantics. Enforce tenant-scoped access and redaction; IDs work without an exporter and never become authorization or accounting keys.
 7. **Integration and initial release:** satisfy Section 10 across both new implementations; verify issuer/audience registration, claim mappings, ingress redaction, endpoint governance, trace continuity, and `block` for strict deployments. Recompile workflows with the feature-capable compiler to include the new activation step and runtime configuration hooks. There is no prior admission implementation to migrate or support.
 
 Integration points are the existing [activation-job assembly](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_context.go), [activation permissions](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
