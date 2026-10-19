@@ -67,11 +67,10 @@ function createSessionLookups(session) {
   const toolCallsById = new Map();
   /** @type {Map<string, {calls: any[], next: number}>} */
   const pendingByName = new Map();
-  /** @type {Map<string, {calls: any[], next: number}>} */
-  const anonymousByName = new Map();
   const sessionScope = event => [event.data.sessionId ?? "", event.data.agentId ?? "", event.provenance.path ?? ""];
-  const scope = event => JSON.stringify([...sessionScope(event), event.data.toolCallId ?? ""]);
-  const nameKey = event => JSON.stringify([...sessionScope(event), event.data.toolName ?? ""]);
+  const correlationScope = event => [event.data.sessionId ?? "", event.data.agentId ?? ""];
+  const scope = event => JSON.stringify([...correlationScope(event), event.data.toolCallId ?? ""]);
+  const nameKey = event => JSON.stringify([...correlationScope(event), event.data.toolName ?? ""]);
   const eventIndices = new Map(session.map((event, index) => [event, index]));
   for (const event of agentEvents) {
     if (event.type !== "tool.execution_start" && event.type !== "tool.execution_complete") continue;
@@ -92,16 +91,13 @@ function createSessionLookups(session) {
       const pending = pendingByName.get(queueKey) ?? { calls: [], next: 0 };
       pending.calls.push(call);
       pendingByName.set(queueKey, pending);
-      if (!data.toolCallId) {
-        const anonymous = anonymousByName.get(queueKey) ?? { calls: [], next: 0 };
-        anonymous.calls.push(call);
-        anonymousByName.set(queueKey, anonymous);
-      }
     } else {
-      const pending = (data.toolCallId ? anonymousByName : pendingByName).get(queueKey);
+      const pending = pendingByName.get(queueKey);
       let call = data.toolCallId ? toolCallsById.get(key) : undefined;
       if (!call && pending) {
-        while (pending.next < pending.calls.length && pending.calls[pending.next].completed) pending.next++;
+        while (pending.next < pending.calls.length && (pending.calls[pending.next].completed || (data.toolCallId && pending.calls[pending.next].toolCallId && pending.calls[pending.next].toolCallId !== data.toolCallId))) {
+          pending.next++;
+        }
         call = pending.calls[pending.next++];
       }
       if (!call) {
@@ -113,25 +109,32 @@ function createSessionLookups(session) {
     }
   }
 
-  // Native events are authoritative. Gateway observations are only used when
-  // the engine supplied no native calls, avoiding duplicate request/response counts.
-  if (!toolCalls.length) {
-    const gatewayCalls = new Map();
-    for (const event of agentEvents) {
-      if (!["mcp.tool_call", "mcp.rpc.request", "mcp.rpc.response"].includes(event.type)) continue;
-      const data = event.data;
-      if (data.method && data.method !== "tools/call") continue;
-      const id = data.toolCallId ?? data.rpcId ?? data.requestId;
-      if (!data.toolName && id === undefined) continue;
-      const key = JSON.stringify([data.serverName, id ?? eventIndices.get(event)]);
-      if (!data.toolName && !gatewayCalls.has(key)) continue;
-      const call = gatewayCalls.get(key) ?? { name: data.toolName ?? "", completed: false, eventIndex: eventIndices.get(event) };
-      if (data.toolName) call.name = data.toolName;
-      if (event.type !== "mcp.rpc.request") Object.assign(call, data, { completed: true });
-      gatewayCalls.set(key, call);
-    }
-    toolCalls.push(...gatewayCalls.values());
+  const nativeCallIds = new Set(
+    toolCalls
+      .map(call => call.toolCallId)
+      .filter(id => id !== undefined && id !== null)
+      .map(String)
+  );
+  const gatewayCalls = new Map();
+  for (const event of agentEvents) {
+    if (!["mcp.tool_call", "mcp.rpc.request", "mcp.rpc.response"].includes(event.type)) continue;
+    const data = event.data;
+    if (data.method && data.method !== "tools/call") continue;
+    const id = data.toolCallId ?? data.rpcId ?? data.requestId;
+    if (!data.toolName && id === undefined) continue;
+    const key = JSON.stringify([data.serverName, id ?? eventIndices.get(event)]);
+    if (!data.toolName && !gatewayCalls.has(key)) continue;
+    const call = gatewayCalls.get(key) ?? { name: data.toolName ?? "", completed: false, eventIndex: eventIndices.get(event) };
+    if (data.toolName) call.name = data.toolName;
+    if (event.type !== "mcp.rpc.request") Object.assign(call, data, { completed: true });
+    gatewayCalls.set(key, call);
   }
+  toolCalls.push(
+    ...[...gatewayCalls.values()].filter(call => {
+      const id = call.toolCallId ?? call.rpcId ?? call.requestId;
+      return id === undefined || id === null || !nativeCallIds.has(String(id));
+    })
+  );
 
   const proxyUsage = agentEvents.filter(event => event.type === "firewall.token_usage");
   const usageEvents = proxyUsage.length ? proxyUsage : agentEvents.filter(event => event.type === "usage.report");
@@ -190,4 +193,17 @@ function createSessionLookups(session) {
   };
 }
 
-module.exports = { createSessionLookups, stableStringify, isToolFailure, isRecord };
+/**
+ * Serialize the data-only lookup contract that can cross into the isolated worker.
+ * @param {ReturnType<typeof createSessionLookups>} lookups
+ */
+function serializeLookupsForWorker(lookups) {
+  return {
+    stats: lookups.stats,
+    toolCalls: lookups.toolCalls,
+    trace: lookups.trace,
+    toolCallsById: [...lookups.toolCallsById],
+  };
+}
+
+module.exports = { createSessionLookups, serializeLookupsForWorker, stableStringify, isToolFailure, isRecord };

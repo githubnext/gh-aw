@@ -4,7 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 const { createHash } = require("crypto");
-const { createSessionLookups, buildGraderOutput, normalizeResult, BUILTIN_GRADERS, GRADER_VERSION } = require("./trace_graders.cjs");
+const { createSessionLookups, serializeLookupsForWorker } = require("./grader_session.cjs");
+const { buildGraderOutput, normalizeResult, BUILTIN_GRADERS, GRADER_VERSION } = require("./trace_graders.cjs");
 
 /**
  * Orchestration boundary: user code runs only in a fresh restricted process.
@@ -44,8 +45,7 @@ function runCustomGraders(session, graders) {
         data: {
           session,
           config: grader.config ?? {},
-          lookups: { stats: lookups.stats, toolCalls: lookups.toolCalls, trace: lookups.trace },
-          toolCallsById: [...lookups.toolCallsById],
+          lookups: serializeLookupsForWorker(lookups),
         },
       });
       const child = spawnSync(process.execPath, [permission, "--allow-fs-read=" + worker, "--max-old-space-size=256", worker], {
