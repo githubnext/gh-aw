@@ -438,12 +438,13 @@ func TestLargeContentFieldsHaveExpectedMaxLength(t *testing.T) {
 	}
 
 	fieldCases := []struct {
-		tool  string
-		field string
+		tool              string
+		field             string
+		expectedMaxLength int
 	}{
-		{tool: "create_issue", field: "body"},
+		{tool: "create_issue", field: "body", expectedMaxLength: 524288},
 		{tool: "create_discussion", field: "body"},
-		{tool: "add_comment", field: "body"},
+		{tool: "add_comment", field: "body", expectedMaxLength: 524288},
 		{tool: "update_discussion", field: "body"},
 		{tool: "update_issue", field: "body"},
 		{tool: "update_pull_request", field: "body"},
@@ -452,9 +453,9 @@ func TestLargeContentFieldsHaveExpectedMaxLength(t *testing.T) {
 		{tool: "close_discussion", field: "body"},
 		{tool: "close_issue", field: "body"},
 		{tool: "close_pull_request", field: "body"},
-		{tool: "create_pull_request_review_comment", field: "body"},
-		{tool: "submit_pull_request_review", field: "body"},
-		{tool: "reply_to_pull_request_review_comment", field: "body"},
+		{tool: "create_pull_request_review_comment", field: "body", expectedMaxLength: 524288},
+		{tool: "submit_pull_request_review", field: "body", expectedMaxLength: 524288},
+		{tool: "reply_to_pull_request_review_comment", field: "body", expectedMaxLength: 524288},
 		{tool: "create_agent_session", field: "body"},
 		{tool: "create_project_status_update", field: "body"},
 		{tool: "update_project", field: "draft_body"},
@@ -486,7 +487,11 @@ func TestLargeContentFieldsHaveExpectedMaxLength(t *testing.T) {
 
 			maxLength, ok := fieldValue["maxLength"].(float64)
 			require.True(t, ok, "expected maxLength for %s.%s", tc.tool, tc.field)
-			assert.InDelta(t, float64(65536), maxLength, 0, "expected maxLength=65536 for %s.%s", tc.tool, tc.field)
+			expectedMaxLength := tc.expectedMaxLength
+			if expectedMaxLength == 0 {
+				expectedMaxLength = 65536
+			}
+			assert.InDelta(t, float64(expectedMaxLength), maxLength, 0, "expected maxLength=%d for %s.%s", expectedMaxLength, tc.tool, tc.field)
 		})
 	}
 }

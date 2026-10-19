@@ -11,7 +11,7 @@ func (a *analyzer) interpolate(text, path string, bindings scope, replace func(i
 	var rendered strings.Builder
 	var sources value
 	count, offset := 0, 0
-	err := visitInterpolations(context.Background(), text, path, func(start, end, _ int, node actionlint.ExprNode) error {
+	err := VisitInterpolations(context.Background(), text, path, func(start, end, _ int, node actionlint.ExprNode) error {
 		rendered.WriteString(text[offset:start])
 		current := a.expression(node, path, bindings)
 		sources = union(sources, current)

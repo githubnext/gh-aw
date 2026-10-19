@@ -65,8 +65,12 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 			findings++
 		}
 		if !jsonOutput {
-			if _, err := fmt.Fprintf(output, "%s: %s [%s] %s at %s (script line %d)\n",
-				diagnostic.File, diagnostic.Severity, diagnostic.RuleID, diagnostic.Message, diagnostic.Path, diagnostic.Line); err != nil {
+			threat := ""
+			if diagnostic.ThreatRuleID != "" {
+				threat = " (" + diagnostic.ThreatRuleID + ")"
+			}
+			if _, err := fmt.Fprintf(output, "%s: %s [%s]%s %s at %s (script line %d)\n",
+				diagnostic.File, diagnostic.Severity, diagnostic.RuleID, threat, diagnostic.Message, diagnostic.Path, diagnostic.Line); err != nil {
 				return err
 			}
 		}

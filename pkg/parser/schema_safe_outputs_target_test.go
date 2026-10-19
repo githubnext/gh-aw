@@ -82,6 +82,48 @@ func TestMainWorkflowSchema_AllowFullHistoryFetch(t *testing.T) {
 	})
 }
 
+func TestMainWorkflowSchema_AllowMergedBaseBaseline(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		value any
+		valid bool
+	}{
+		{"enabled", true, true},
+		{"disabled", false, true},
+		{"string", "true", false},
+		{"expression", "${{ inputs.allow-merged-base-baseline }}", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			frontmatter := map[string]any{
+				"on":     "push",
+				"engine": "copilot",
+				"safe-outputs": map[string]any{
+					"push-to-pull-request-branch": map[string]any{"allow-merged-base-baseline": tc.value},
+				},
+			}
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/merged-base-baseline-test.md")
+			if (err == nil) != tc.valid {
+				t.Fatalf("schema validity = %v, want %v: %v", err == nil, tc.valid, err)
+			}
+		})
+	}
+	t.Run("handler-scoped", func(t *testing.T) {
+		t.Parallel()
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"safe-outputs": map[string]any{
+				"create-pull-request": map[string]any{"allow-merged-base-baseline": true},
+			},
+		}
+		if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/merged-base-baseline-test.md"); err == nil {
+			t.Fatal("expected merged-base baseline option on create-pull-request to fail schema validation")
+		}
+	})
+}
+
 func TestMainWorkflowSchema_SafeOutputConfigCoverage(t *testing.T) {
 	t.Parallel()
 

@@ -20,11 +20,12 @@ import (
 // do not prove the full glob language or which upstream branches are trusted.
 func WorkflowRunScopeRule() Rule {
 	return Rule{
-		ID:          "workflow-run-scope",
-		Description: "Require workflow selection and positive branch scope for workflow_run triggers",
-		Severity:    Error,
-		Targets:     ActionsAST | AWAST,
-		Check:       checkWorkflowRunScope,
+		ID:           "workflow-run-scope",
+		ThreatRuleID: "CTR-021",
+		Description:  "Require workflow selection and positive branch scope for workflow_run triggers",
+		Severity:     Error,
+		Targets:      ActionsAST | AWAST,
+		Check:        checkWorkflowRunScope,
 	}
 }
 

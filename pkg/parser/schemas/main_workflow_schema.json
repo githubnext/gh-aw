@@ -11403,6 +11403,11 @@
                   "description": "Allow potentially unbounded history downloads to recover missing local git bundle prerequisites. Disabled by default. Does not enable object downloads for optional validation baselines.",
                   "default": false
                 },
+                "allow-merged-base-baseline": {
+                  "type": "boolean",
+                  "description": "Allow bounded REST comparison discovery of older merged base ancestors for unsigned bundle size validation. Disabled by default; the exact pinned base tip remains recognized.",
+                  "default": false
+                },
                 "allow-workflows": {
                   "type": "boolean",
                   "description": "When true, adds workflows: write to the GitHub App token permissions. Required when allowed-files targets .github/workflows/ paths. Requires safe-outputs.github-app to be configured because the workflows permission is a GitHub App-only permission and cannot be granted via GITHUB_TOKEN.",

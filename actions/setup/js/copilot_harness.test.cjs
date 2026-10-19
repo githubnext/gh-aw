@@ -3826,7 +3826,7 @@ process.exit(1);`
               "gpt-5.6-luna": { wire_api: "responses" },
               "gpt-4.1": { wire_api: "completions" },
               "gemini-2.5-pro": { wire_api: "completions" },
-              "mai-code-1-flash-picker": { wire_api: "responses" },
+              "mai-code-1.1-flash": { wire_api: "responses" },
               "claude-sonnet-4": {},
             },
           },
@@ -3837,6 +3837,15 @@ process.exit(1);`
     function reflectModels(models) {
       return { endpoints: [{ provider: "github", configured: true, routing_models: models.map(([model_id, supported_endpoints]) => ({ model_id, supported_endpoints, candidate_metadata_complete: true })) }] };
     }
+
+    it("uses the advertised Responses API for MAI-Code-1.1-Flash", () => {
+      process.env.COPILOT_MODEL = "mai-code-1.1-flash";
+      applyCopilotWireAPI({
+        modelsJson: JSON.parse(fs.readFileSync(path.join(__dirname, "models.json"), "utf8")),
+        awfReflectData: reflectModels([["mai-code-1.1-flash", ["/responses", "ws:/responses"]]]),
+      });
+      expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
+    });
 
     it("rejects an incompatible override and records the startup failure", () => {
       const tempDir = makeHarnessTempDir("copilot-wire-mismatch-");
