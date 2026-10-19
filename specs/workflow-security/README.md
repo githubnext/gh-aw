@@ -154,13 +154,17 @@ This model does not prove JWT cryptography, issuer/JWKS trust, HTTP/TLS or JSON
 parsers, URL/redirect safety, GitHub App provisioning, distributed cache
 correctness/expiry, randomness, logging redaction, timing noninterference, or
 actual engine billing enforcement. `identity = "valid"` assumes all required
-signed claims and logical workflow mapping have been independently verified;
+signed claims, executing workflow-reference bindings, unambiguous invocation
+identity, and any logical-policy mapping have been independently verified;
 `triggeringActor = "verified"` assumes the specified authoritative run-attempt
 lookup. Opaque IDs are symbolic, not entropy proofs. Two hidden spend classes
 check explicit response-field constraints, not full observational
 noninterference: eligibility itself is an intentional disclosure. Shared
 accounting is an abstract guard, not a reservation protocol or an assertion
 that concurrent invocations cannot overshoot an organizational budget.
+Independent daily-credit guardrails and other activation checks are assumed
+satisfied in this per-invocation machine; preserving them requires integration
+tests.
 Telemetry samples one subsequent span/log/metric batch at conclusion, plus
 cross-process correlation handoff; it does not enumerate every live exporter.
 Retry/token renewal and replicas reuse one abstract verified invocation and
