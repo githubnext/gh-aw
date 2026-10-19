@@ -36,7 +36,13 @@ tools:
 The Go profile installs Go 1.26 through the runtime manager, plus the pinned
 `gopls` v0.23.0 language server and its built-in MCP server. It enables `go version`,
 `go env`, `go list`, `go doc`, `go build`, `go test`, `go vet`, and `gofmt` in the
-agent's sandboxed shell. It does not grant unrestricted shell access.
+agent's sandboxed shell when no explicit bash policy is configured.
+
+The shell entries are matched by command prefix, not by argument. In particular,
+`go build`, `go test`, and `go vet` can execute arbitrary programs through
+supported flags or test code. Treat workflows that use these commands as trusted
+code execution inside the agent sandbox; this list is not an argument-level
+security boundary.
 
 The `gopls` MCP sidecar exposes only `go_workspace`, `go_search`,
 `go_file_context`, `go_package_api`, `go_diagnostics`, and `go_symbol_references`.
@@ -44,7 +50,10 @@ It mounts the workspace, runner tool cache, and installed profile binaries
 read-only; only the profile's isolated caches are writable. Builds and tests
 execute inside the agent sandbox, never in a host-side MCP shell runner.
 Sidecar analysis disables cgo, telemetry, and automatic Go toolchain downloads.
-The profile adds the `go` network ecosystem for module downloads.
+Setup preloads workspace module dependencies before starting the sidecar, which
+sets `GOPROXY=off` and `GOSUMDB=off` to prevent module lookups from reaching
+external Go servers. The sidecar container itself is not isolated by the agent
+firewall, so these settings do not restrict unrelated outbound network traffic.
 Before exporting its runtime environment, setup verifies gopls semantic readiness
 against a disposable, dependency-free Go module with module-network access
 disabled and a 60-second deadline. Missing binaries, installation failures, and

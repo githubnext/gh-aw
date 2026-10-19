@@ -42,6 +42,9 @@ pre-agent-steps:
       export GOPATH="$profile/cache/go"
       export GOCACHE="$profile/cache/build"
       export GOMODCACHE="$profile/cache/mod"
+      if [ -f "$GITHUB_WORKSPACE/go.mod" ] || [ -f "$GITHUB_WORKSPACE/go.work" ]; then
+        (cd "$GITHUB_WORKSPACE" && GOTOOLCHAIN=local go mod download)
+      fi
       GOBIN="$profile/bin" CGO_ENABLED=0 GOTOOLCHAIN=local go install golang.org/x/tools/gopls@v0.23.0
       chmod 555 "$profile/bin/gopls" "$profile/bin"
       "$profile/bin/gopls" version
@@ -95,6 +98,8 @@ mcp-servers:
       GOPATH: ${{ env.GH_AW_TOOL_PROFILE_GO_DIR }}/cache/go
       GOCACHE: ${{ env.GH_AW_TOOL_PROFILE_GO_DIR }}/cache/build
       GOMODCACHE: ${{ env.GH_AW_TOOL_PROFILE_GO_DIR }}/cache/mod
+      GOPROXY: off
+      GOSUMDB: off
       HOME: ${{ env.GH_AW_TOOL_PROFILE_GO_DIR }}/cache/home
       CGO_ENABLED: "0"
       GOTOOLCHAIN: local
@@ -108,6 +113,14 @@ tools for workspace discovery, symbol search, references, package APIs, file
 context, and diagnostics. Run Go builds, tests, vet, and formatting through the
 agent's sandboxed shell, not through a host-side MCP command runner.
 
+The Go shell commands are matched by command prefix, not by argument. In
+particular, `go build`, `go test`, and `go vet` can execute arbitrary programs
+through supported flags or test code. Treat this profile as trusted-code
+execution inside the agent sandbox; its shell list is not an argument-level
+security boundary.
+
 The gopls sidecar has read-only access to the workspace and Go toolchain, and
 writes only to its profile cache. Its analysis disables cgo and automatic
-toolchain downloads. Go module downloads use the workflow's network policy.
+toolchain downloads. The profile preloads Go module dependencies when a root
+module or workspace is present, then disables Go proxy and checksum-database
+lookups in the sidecar so analysis cannot fetch missing modules dynamically.

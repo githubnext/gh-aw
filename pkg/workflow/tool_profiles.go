@@ -55,7 +55,7 @@ func validateToolProfileSandbox(data *WorkflowData) error {
 		return nil
 	}
 	agent := getAgentConfig(data)
-	if agent != nil && agent.Disabled || isCloudHypervisorRuntime(data) || isNVXRuntime(data) {
+	if (agent != nil && agent.Disabled) || isCloudHypervisorRuntime(data) || isNVXRuntime(data) {
 		return fmt.Errorf("tools.profile: %s requires an enabled Docker agent sandbox with profile mounts; use sandbox.agent.runtime: docker", data.ParsedTools.Profile)
 	}
 	return nil

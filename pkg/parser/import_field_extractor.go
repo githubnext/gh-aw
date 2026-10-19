@@ -19,6 +19,7 @@ import (
 // a method to convert the accumulated state into the final ImportsResult.
 type importAccumulator struct {
 	toolsBuilder             strings.Builder
+	toolProfileToolsBuilder  strings.Builder
 	mcpServersBuilder        strings.Builder
 	markdownBuilder          strings.Builder // imports with substituted inputs or schema defaults (compile-time substitution)
 	importPaths              []string        // Import paths for runtime-import macro generation
@@ -202,7 +203,11 @@ func (acc *importAccumulator) prepareFrontmatter(content []byte, item importQueu
 		return nil, nil, err
 	}
 
-	acc.toolsBuilder.WriteString(toolsContent + "\n")
+	if strings.HasPrefix(item.fullPath, BuiltinToolProfilePathPrefix) {
+		acc.toolProfileToolsBuilder.WriteString(toolsContent + "\n")
+	} else {
+		acc.toolsBuilder.WriteString(toolsContent + "\n")
+	}
 	importRelPath := computeImportRelPath(item.fullPath, item.importPath)
 	if err := acc.trackRuntimeOrInlineImport(item.fullPath, importRelPath, rawContent, wasSubstituted); err != nil {
 		return nil, nil, err
@@ -1056,6 +1061,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 func (acc *importAccumulator) buildImportsResult() *ImportsResult {
 	result := &ImportsResult{
 		MergedTools:                   acc.toolsBuilder.String(),
+		ToolProfileTools:              acc.toolProfileToolsBuilder.String(),
 		MergedMCPServers:              acc.mcpServersBuilder.String(),
 		MergedEngines:                 acc.engines,
 		MergedPlugins:                 acc.plugins,

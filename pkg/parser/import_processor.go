@@ -25,6 +25,7 @@ type PromptImportEntry struct {
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
 	MergedTools                   string                // Merged tools configuration from all imports
+	ToolProfileTools              string                // Tool defaults from built-in ecosystem profiles
 	MergedMCPServers              string                // Merged mcp-servers configuration from all imports
 	MergedEngines                 []string              // Merged engine configurations from all imports
 	MergedPlugins                 []string              // Agent Plugin references from all imports (merged after main-workflow plugins)

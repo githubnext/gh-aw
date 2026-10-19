@@ -235,7 +235,7 @@ func (c *Compiler) resolveToolsConfiguration(
 		return nil, err
 	}
 	orchestratorToolsLog.Printf("Merging tools and MCP servers")
-	tools, err := c.mergeToolsAndMCPServers(topTools, resolvedMCPServers, allIncludedTools)
+	tools, err := c.mergeToolProfileDefaults(topTools, resolvedMCPServers, allIncludedTools, importsResult.ToolProfileTools)
 	if err != nil {
 		orchestratorToolsLog.Printf("Tools merge failed: %v", err)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)

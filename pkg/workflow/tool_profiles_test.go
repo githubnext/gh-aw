@@ -63,6 +63,8 @@ func TestGoToolProfileCompilation(t *testing.T) {
 				`"\${RUNNER_TOOL_CACHE}:\${RUNNER_TOOL_CACHE}:ro"`,
 				`"GOROOT": "\${GH_AW_TOOL_PROFILE_GO_ROOT}"`,
 				`"PATH": "\${GH_AW_TOOL_PROFILE_GO_PATH}:/usr/local/bin:/usr/bin:/bin"`,
+				`"GOPROXY": "off"`,
+				`"GOSUMDB": "off"`,
 			} {
 				require.Contains(t, lock, expected)
 			}
@@ -112,6 +114,27 @@ func TestGoToolProfileImportsAndOverrides(t *testing.T) {
 			require.Equal(t, 1, compiler.GetExperimentalFeatureUsage()["Using experimental feature: tools.profile"])
 		})
 	}
+}
+
+func TestGoToolProfilePreservesNestedBashOptOut(t *testing.T) {
+	dir := t.TempDir()
+	shared := filepath.Join(dir, "shared")
+	require.NoError(t, os.Mkdir(shared, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(shared, "wrapper.md"), []byte("---\nimports:\n  - shell-policy.md\n---\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(shared, "shell-policy.md"), []byte("---\ntools:\n  bash: false\n---\n"), 0o600))
+	source := "---\non: workflow_dispatch\npermissions:\n  contents: read\nimports:\n  - shared/wrapper.md\ntools:\n  profile: go\n---\nAnalyze Go.\n"
+	file := filepath.Join(dir, "test.md")
+	require.NoError(t, os.WriteFile(file, []byte(source), 0o600))
+	compiler := NewCompiler()
+	data, err := compiler.ParseWorkflowFile(file)
+	require.NoError(t, err)
+	require.True(t, data.BashDisabled)
+	compiler.SetBatchMode(true)
+	require.NoError(t, compiler.CompileWorkflow(file))
+	content, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
+	require.NoError(t, err)
+	require.NotContains(t, string(content), "Bash(go build)")
+	require.NotContains(t, string(content), "Bash(go test)")
 }
 
 func TestGoToolProfileCodexShellChoices(t *testing.T) {
@@ -276,7 +299,8 @@ func checkGoToolProfileSetup(t *testing.T, script, scenario string) {
 	command := exec.Command("bash", "-c", script)
 	command.Env = []string{
 		"PATH=" + mockBin + ":/usr/bin:/bin", "TEST_GO_ROOT=" + root, "TEST_SCENARIO=" + scenario,
-		"RUNNER_TOOL_CACHE=" + cache, "RUNNER_TEMP=" + dir, "GITHUB_ENV=" + envFile, "GITHUB_PATH=" + pathFile,
+		"RUNNER_TOOL_CACHE=" + cache, "RUNNER_TEMP=" + dir, "GITHUB_WORKSPACE=" + dir,
+		"GITHUB_ENV=" + envFile, "GITHUB_PATH=" + pathFile,
 	}
 	output, err := command.CombinedOutput()
 	env, readErr := os.ReadFile(envFile)

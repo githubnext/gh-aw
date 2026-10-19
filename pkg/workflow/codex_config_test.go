@@ -408,6 +408,16 @@ func TestCodexNativeConfigExcludesEnvironmentWithoutOverrides(t *testing.T) {
 	}
 }
 
+func TestCodexNativeConfigIncludesGoToolProfileEnvironment(t *testing.T) {
+	names := codexShellEnvironmentVars(&WorkflowData{
+		ParsedTools:  &ToolsConfig{Profile: "go"},
+		EngineConfig: &EngineConfig{},
+	})
+	for _, name := range []string{"GOBIN", "GOPATH", "GOCACHE", "GOMODCACHE", "GOTELEMETRY"} {
+		assert.Contains(t, names, name)
+	}
+}
+
 func TestCodexDetectionConfigKeepsInferenceSettingsWithoutAgentMCP(t *testing.T) {
 	config, err := NewCodexEngine().buildNativeConfig(&WorkflowData{
 		IsDetectionRun: true,

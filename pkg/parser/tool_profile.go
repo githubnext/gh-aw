@@ -8,8 +8,8 @@ import (
 
 const BuiltinToolProfilePathPrefix = BuiltinPathPrefix + "tool-profiles/"
 
-// importsWithToolProfile appends the embedded ecosystem defaults after explicit
-// imports, preserving the normal first-wins import precedence.
+// importsWithToolProfile appends the profile import after directly declared
+// imports. Profile tool defaults are merged separately after the import graph.
 func importsWithToolProfile(frontmatter map[string]any) ([]ImportSpec, error) {
 	var specs []ImportSpec
 	if imports, exists := frontmatter["imports"]; exists {

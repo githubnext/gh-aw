@@ -299,6 +299,11 @@ func codexShellEnvironmentVars(workflowData *WorkflowData) []string {
 		names[name] = struct{}{}
 	}
 	if workflowData != nil {
+		if workflowData.ParsedTools != nil && workflowData.ParsedTools.Profile == "go" {
+			for _, name := range []string{"GOBIN", "GOPATH", "GOCACHE", "GOMODCACHE", "GOTELEMETRY"} {
+				names[name] = struct{}{}
+			}
+		}
 		env := getEngineEnvOverrides(workflowData)
 		for name, value := range env {
 			if !strings.Contains(value, "${{ secrets.") && !ContainsJobOutputExpr(value) {
