@@ -1,6 +1,6 @@
 {
-  "run_date": "2026-10-19T06:49:46Z",
-  "run_id": "39211977043",
+  "run_date": "2026-10-19T12:36:38Z",
+  "run_id": "39253103746",
   "source": "pr-triage",
   "eligible_total": 3,
   "cooldown_skipped": 1,
@@ -21,9 +21,9 @@
   },
   "action_counts": {
     "auto_merge": 1,
-    "fast_track": 0,
     "batch_review": 1,
     "defer": 1,
+    "fast_track": 0,
     "close": 0
   },
   "selected_candidates": [
@@ -114,7 +114,7 @@
       "ci_state": "no check runs"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-19T05:49:46Z",
+  "cooldown_cutoff_utc": "2026-10-19T11:36:38Z",
   "notes": [
     "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
     "PR #69772 was skipped because it was updated within the last hour."
