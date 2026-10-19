@@ -4608,6 +4608,101 @@
             "additionalProperties": false
           }
         },
+        "episode_retrieval": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "episode_id": {
+              "type": "string"
+            },
+            "host": {
+              "type": "string"
+            },
+            "repositories": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "start_date": {
+              "type": "string"
+            },
+            "end_date": {
+              "type": "string"
+            },
+            "max_runs": {
+              "type": "integer"
+            },
+            "max_api_requests": {
+              "type": "integer"
+            },
+            "timeout_seconds": {
+              "type": "number"
+            },
+            "runs_examined": {
+              "type": "integer"
+            },
+            "api_requests": {
+              "type": "integer"
+            },
+            "stop_reasons": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "issues": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "repository": {
+                    "type": "string"
+                  },
+                  "run_id": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "repository",
+                  "reason",
+                  "message"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "episode_id",
+            "host",
+            "repositories",
+            "start_date",
+            "end_date",
+            "max_runs",
+            "max_api_requests",
+            "timeout_seconds",
+            "runs_examined",
+            "api_requests"
+          ],
+          "additionalProperties": false
+        },
         "tool_usage": {
           "type": [
             "null",

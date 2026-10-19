@@ -67,7 +67,10 @@ func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput boo
 			if _, exists := costs[id]; exists {
 				continue
 			}
-			runDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", id))
+			runDir, err := episodeOutcomeRunDirectory(logs.Runs, outputDir, id)
+			if err != nil {
+				return err
+			}
 			usage, err := analyzeTokenUsageAICOnly(runDir, false)
 			cost := episodeOutcomeCost{}
 			if err != nil {
@@ -102,6 +105,33 @@ func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput boo
 		return nil
 	}
 	return renderEpisodeOutcomes(stdout, data)
+}
+
+func episodeOutcomeRunDirectory(runs []RunData, outputDir string, id int64) (string, error) {
+	root, err := filepath.Abs(outputDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve episode usage output directory: %w", err)
+	}
+	dir := filepath.Join(root, fmt.Sprintf("run-%d", id))
+	var recorded string
+	for _, run := range runs {
+		if run.RunID != id || run.LogsPath == "" {
+			continue
+		}
+		path, err := filepath.Abs(run.LogsPath)
+		if err != nil {
+			return "", fmt.Errorf("resolve recorded logs path for run %d: %w", id, err)
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return "", fmt.Errorf("recorded logs path for run %d is outside --output %s", id, root)
+		}
+		if recorded != "" && recorded != path {
+			return "", fmt.Errorf("conflicting recorded logs paths for run %d", id)
+		}
+		recorded, dir = path, path
+	}
+	return dir, nil
 }
 
 func readEpisodeOutcomeObservations(dir string) ([]EpisodeOutcomeObservation, error) {

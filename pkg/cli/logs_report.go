@@ -29,6 +29,7 @@ type LogsData struct {
 	Runs                 []RunData                   `json:"runs" console:"title:Workflow Logs Overview"`
 	Episodes             []EpisodeData               `json:"episodes" console:"-"`
 	Edges                []EpisodeEdge               `json:"edges" console:"-"`
+	EpisodeRetrieval     *EpisodeRetrieval           `json:"episode_retrieval,omitempty" console:"-"`
 	ToolUsage            []ToolUsageSummary          `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
 	MCPToolUsage         *MCPToolUsageSummary        `json:"mcp_tool_usage,omitempty" console:"title:🔧 MCP Tool Usage,omitempty"`
 	Observability        []ObservabilityInsight      `json:"observability_insights,omitempty" console:"-"`
@@ -530,7 +531,7 @@ func applyGitHubMetadataToRunData(runData *RunData, run WorkflowRun) {
 
 // buildRunData converts a processed run into RunData while accumulating rollup totals.
 // localRepo guards against cross-repo misclassification of intentional-failure workflows.
-func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, agg *logsAggregate) RunData {
+func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo string, agg *logsAggregate, classifyLocal bool) RunData {
 	if pr.cachedData != nil {
 		agg.accumulateCachedRunTotals(*pr.cachedData)
 		return *pr.cachedData
@@ -572,7 +573,7 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 	// agents and dashboards can exclude them from fleet-health success-rate rollups.
 	// Only classify when the run comes from the same repository as the local checkout
 	// (or when either side is unknown), to avoid cross-repo misclassification.
-	if localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository) {
+	if classifyLocal && (localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository)) {
 		runData.IntentionalFailure = workflow.IsIntentionalFailure(runData.WorkflowPath)
 	}
 	if runData.IntentionalFailure {
@@ -687,13 +688,16 @@ func buildLogsDataWithCollectionCoverage(processedRuns []ProcessedRun, outputDir
 	// may match an unrelated local file.  We skip detection when the run's repository
 	// is known and does not match the local checkout.  Fails open (empty string) when
 	// the slug cannot be determined.
-	localRepo, _ := GetCurrentRepoSlug()
+	var localRepo string
+	if !collection.disableLocalClassification {
+		localRepo, _ = GetCurrentRepoSlug()
+	}
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
 	runs := make([]RunData, 0, len(processedRuns))
 	for _, pr := range processedRuns {
-		runData := buildRunData(pr, processedRuns, localRepo, agg)
+		runData := buildRunData(pr, processedRuns, localRepo, agg, !collection.disableLocalClassification)
 		if pr.cachedData == nil {
 			runData.FailureSignals = failureSignalsForRun(pr)
 		}

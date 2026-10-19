@@ -89,6 +89,14 @@ Missing root fields remain unknown; the CLI does not infer a canonical root from
 
 Both compact and verbose JSON retain all canonical episode and edge details, including single-run episodes. `total_duration` sums execution durations rather than measuring wall-clock time between the first and last hop.
 
+To expand a selected run into a bounded episode selection, use
+[`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
+The collector follows recorded parents and roots and scans explicitly allowed
+repositories for canonical members within a fixed time window. Candidate-run,
+request, and timeout caps are reported in `episode_retrieval`; reaching them
+qualifies coverage rather than presenting the observed total as a complete
+episode cost.
+
 The episode-level `root_run_id` and `primary_workflow` fields have been removed. Migrate selected-data consumers to `representative_run_id` and `representative_workflow`; use `recorded_roots[]` for canonical root claims. Historical data without `context.episode_id` remains available for per-run analysis but is not backfilled into synthetic episodes.
 
 `--count` defaults to 10 even with a date filter. Choose a larger explicit count and inspect `.continuation` or `.continuations[]` before interpreting a date-window report. Continuing a query can recover more selected data, but neither an exhausted cursor nor high lineage confidence proves that all episode descendants were observed.
