@@ -403,6 +403,31 @@ The URL is supplied by the runner and already has query parameters; this is **no
 
 That value, not the request credential, is what an OIDC-aware service would receive as its bearer credential. Neither value may be printed, included in diagnostic HTTP traces, stored in artifacts, or forwarded to the agent.
 
+#### Token expiration during action runtime execution
+
+For an OIDC-based gateway integration, the **action runtime itself MUST enforce token expiration**, not merely rely on the receiving endpoint to reject stale credentials. Acquiring a token once during activation does not make it valid for the rest of a long-running job.
+
+The action MUST acquire the token on demand in the calling job using `core.getIDToken(approvedAudience)` or the equivalent runner-provided request. It MUST keep the token only in memory and track its finite numeric `exp` in Unix seconds. Locally decoding `exp` is a scheduling safeguard, not signature verification or an authorization decision; the endpoint MUST still verify the signed token independently. A token with a missing or malformed expiration, or an untrustworthy runtime clock, MUST fail the action before credential-dependent work.
+
+Before **every authenticated HTTP attempt**, including polling, retries, and calls after waits or other work, the runtime MUST recheck its current UTC time. It MUST NOT send an expired token or start a request unless `now + request_timeout + safety_margin < exp`. Requests MUST have bounded timeouts; the safety margin may shorten usable lifetime but MUST NOT extend expiration. A timer established at startup or a successful earlier request is not a substitute for this per-attempt check.
+
+When the remaining lifetime is insufficient, the action MUST discard its cached token, request a fresh GitHub-issued OIDC token for the same approved audience in the same job, and verify that the replacement has sufficient remaining lifetime before use. Token renewal and retries MUST be bounded. If renewal fails or returns no usable token, the action MUST fail explicitly and stop credential-dependent execution; it MUST NOT continue with the old token, silently skip the operation, or switch credential classes. A request timeout or authentication retry MUST preserve the endpoint's replay/idempotency rules, not assume an earlier attempt had no effect.
+
+Later jobs and reruns MUST obtain their own tokens rather than reuse an activation token through job outputs, artifacts, or an agent environment. If a future endpoint exchanges OIDC for another runtime credential, the action MUST separately track and enforce that credential's expiry and renewal policy; refreshing OIDC does not refresh an installation token or `GITHUB_TOKEN`. Neither the OIDC lifetime nor its renewal may be assumed to cover the whole workflow.
+
+Expiration stops use of the expired credential, not independently authorized work that was already admitted. An action may continue a long-running job only when subsequent credential-dependent operations have a currently usable credential; renewing a token MUST NOT extend existing grants or bypass fresh authorization.
+
+Runtime acceptance tests MUST advance a controlled clock **while the action remains running**, rather than test only initial endpoint authentication:
+
+| Runtime case | Required result |
+| --- | --- |
+| Token expires between two calls, during a wait, or before a retry/poll | Never send the stale token; obtain a usable replacement before the next attempt. |
+| Token has less remaining lifetime than the request timeout plus safety margin | Renew before sending; the request cannot outlive its allotted token-use window. |
+| Runtime reaches `now == exp` | The old token is unusable, with no expiration grace period. |
+| Renewal fails, is repeatedly unusable, or returns a malformed expiration | Fail the action explicitly; no stale-token reuse, fallback, or unbounded renewal loop. |
+| A downstream credential expires while the OIDC token is still valid, or vice versa | Enforce each credential's own expiry; neither keeps the other alive. |
+| A later job or rerun needs authenticated access | Acquire a new token in that job; never reuse the earlier job's token. |
+
 #### What an endpoint must verify before continuation
 
 The following is an **illustrative decoded claim excerpt**, not a usable token or a newly defined CAO payload:
@@ -441,8 +466,6 @@ Any future OIDC endpoint MUST enforce the signed `exp` claim on the server befor
 The endpoint MUST obtain `now` from its own synchronized, trusted UTC clock and authorize only while **`now < exp`**. At `now == exp`, the token is already expired. This protocol permits **no expiration grace period or positive expiration leeway**; JWT-library defaults MUST NOT extend validity beyond `exp` or disable expiration validation. A present `nbf` claim MUST also be a valid NumericDate and satisfy `now >= nbf`. An unavailable or untrustworthy server clock MUST fail closed, not defer to caller-supplied time or the token's `iat`.
 
 Every new authorization decision, including retries, positive-cache hits, and deferred requests, MUST check expiration against the current server time. A token that expires while queued MUST NOT authorize subsequent work. Cached signature verification or an earlier successful response MUST NOT bypass this check, and cached authorization MUST NOT remain usable at or after `exp`. Expiration failure MUST issue no credential or activation/continuation approval and MUST NOT fall back to another credential class. A caller retrying authentication must obtain a fresh GitHub-issued OIDC token and pass all authorization and replay/idempotency checks again; it cannot extend or rewrite the old token's expiry.
-
-Expiration limits the token's use for **new endpoint authorization**, not the duration of an already admitted workflow job. Successful admission MUST NOT require carrying the OIDC token into the agent or treating its expiry as automatic cancellation of already authorized work.
 
 An OIDC endpoint's acceptance tests MUST cover these cases using a controlled server clock and otherwise valid claims/signatures:
 
