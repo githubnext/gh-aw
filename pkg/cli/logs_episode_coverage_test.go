@@ -66,8 +66,6 @@ func TestEpisodeCoverageSelectedLineage(t *testing.T) {
 			assert.Equal(t, "canonical", ep.EpisodeID)
 			assert.Equal(t, "high", ep.Confidence, "lineage confidence must not measure coverage")
 			assert.Equal(t, tt.representative, ep.RepresentativeRunID)
-			assert.Equal(t, ep.RootRunID, ep.RepresentativeRunID, "legacy representative remains compatible")
-			assert.Equal(t, ep.PrimaryWorkflow, ep.RepresentativeWorkflow)
 			assert.Equal(t, len(runs)*10, ep.TotalTokens)
 			assert.InDelta(t, float64(len(runs))*0.1, ep.TotalAIC, 1e-9)
 			require.Len(t, ep.RecordedRoots, 1)
@@ -80,6 +78,10 @@ func TestEpisodeCoverageSelectedLineage(t *testing.T) {
 			assert.Equal(t, tt.reasons, ep.Coverage.Reasons)
 			assert.Equal(t, tt.missingParents, ep.Coverage.MissingParentRunIDs)
 			assert.False(t, ep.Coverage.CollectionTruncated)
+			encoded, err := json.Marshal(ep)
+			require.NoError(t, err)
+			assert.NotContains(t, string(encoded), `"root_run_id":`)
+			assert.NotContains(t, string(encoded), `"primary_workflow":`)
 
 			slices.Reverse(runs)
 			reversed, _ := buildEpisodeData(runs, nil)
@@ -96,9 +98,8 @@ func TestEpisodeCoverageUnknownRootAndReusableHops(t *testing.T) {
 		status  string
 		reasons []string
 	}{
-		{name: "standalone without context", status: "unknown"},
-		{name: "legacy standalone context", context: &AwContext{RunID: "100", WorkflowID: "root"}, status: "unknown"},
-		{name: "legacy missing caller", context: &AwContext{RunID: "99", WorkflowID: "caller"}, status: "partial", reasons: []string{"missing_recorded_parent"}},
+		{name: "standalone without root fields", context: &AwContext{EpisodeID: "canonical", RunID: "100", WorkflowID: "root"}, status: "unknown"},
+		{name: "missing caller", context: &AwContext{EpisodeID: "canonical", RunID: "99", WorkflowID: "caller"}, status: "partial", reasons: []string{"missing_recorded_parent"}},
 		{name: "canonical ID does not encode trusted root fields", context: &AwContext{EpisodeID: "99-1:root", RunID: "100"}, status: "unknown"},
 		{name: "shared-run reusable hops", context: &AwContext{
 			EpisodeID: "canonical", RunID: "100", RootRunID: "100", RootRepo: "org/repo",
@@ -118,7 +119,7 @@ func TestEpisodeCoverageUnknownRootAndReusableHops(t *testing.T) {
 				require.Len(t, episodes[0].RecordedRoots, 1)
 				assert.True(t, episodes[0].RecordedRoots[0].Observed)
 			} else {
-				assert.Empty(t, episodes[0].RecordedRoots, "legacy context must not fabricate canonical identity")
+				assert.Empty(t, episodes[0].RecordedRoots, "missing root fields must not fabricate canonical identity")
 			}
 		})
 	}
@@ -136,6 +137,8 @@ func TestEpisodeCoverageContradictoryAndInvalidContext(t *testing.T) {
 		{name: "different root repository", change: func(r []RunData) { r[1].AwContext.RootRepo = "org/other" }, reason: "conflicting_recorded_roots"},
 		{name: "parent in another canonical episode", change: func(r []RunData) { r[0].AwContext.EpisodeID = "other" }, reason: "conflicting_parent_lineage"},
 		{name: "recorded root in another canonical episode", change: func(r []RunData) { r[0].AwContext.EpisodeID = "other" }, reason: "conflicting_root_lineage"},
+		{name: "parent without canonical identity", change: func(r []RunData) { r[0].AwContext.EpisodeID = "" }, reason: "unverified_parent_lineage"},
+		{name: "root without canonical identity", change: func(r []RunData) { r[0].AwContext.EpisodeID = "" }, reason: "unverified_root_lineage"},
 		{name: "parent repository mismatch", change: func(r []RunData) { r[1].AwContext.Repo = "org/other" }, reason: "conflicting_parent_lineage"},
 		{name: "invalid root ID", change: func(r []RunData) { r[1].AwContext.RootRunID = "not-an-id" }, reason: "invalid_recorded_root_run_id"},
 		{name: "invalid parent ID", change: func(r []RunData) { r[1].AwContext.RunID = "-1" }, reason: "invalid_recorded_parent_run_id"},
@@ -215,7 +218,7 @@ func TestEpisodeCoverageCollectionAndRendering(t *testing.T) {
 	}
 }
 
-func TestCompactLogsRetainsMissingLegacyParentEvidence(t *testing.T) {
+func TestCompactLogsRetainsCanonicalEpisodeEvidence(t *testing.T) {
 	t.Parallel()
 	run := episodeCoverageTestRuns()[1]
 	run.AwContext.RootRunID, run.AwContext.RootWorkflowID, run.AwContext.RootRepo = "", "", ""
@@ -223,8 +226,14 @@ func TestCompactLogsRetainsMissingLegacyParentEvidence(t *testing.T) {
 	compacted := compactLogsData(LogsData{Episodes: episodes, Edges: edges})
 	assert.Equal(t, episodes, compacted.Episodes)
 
+	run.AwContext.RunID = "200"
+	episodes, edges = buildEpisodeData([]RunData{run}, nil)
+	compacted = compactLogsData(LogsData{Episodes: episodes, Edges: edges})
+	require.Len(t, compacted.Episodes, 1, "compact JSON retains single-run canonical episodes even without gaps or root claims")
+	assert.Equal(t, "unknown", compacted.Episodes[0].Coverage.Status)
+
 	run.AwContext = nil
 	episodes, edges = buildEpisodeData([]RunData{run}, nil)
 	compacted = compactLogsData(LogsData{Episodes: episodes, Edges: edges})
-	assert.Empty(t, compacted.Episodes, "retain compact omission for ordinary standalone legacy runs")
+	assert.Empty(t, compacted.Episodes, "runs without canonical identity have no episode rollup")
 }

@@ -4319,9 +4319,6 @@
                   "type": "string"
                 }
               },
-              "root_run_id": {
-                "type": "integer"
-              },
               "representative_run_id": {
                 "type": "integer"
               },
@@ -4410,9 +4407,6 @@
                 "items": {
                   "type": "string"
                 }
-              },
-              "primary_workflow": {
-                "type": "string"
               },
               "total_runs": {
                 "type": "integer"

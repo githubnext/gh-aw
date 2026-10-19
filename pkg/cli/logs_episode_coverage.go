@@ -84,6 +84,8 @@ func recordedEpisodeRoot(ctx *AwContext, episode *EpisodeData, runsByID map[int6
 		episode.Coverage.addGap("invalid_recorded_root_run_id")
 	case !present:
 		episode.Coverage.addGap("missing_recorded_root")
+	case canonicalEpisodeID(source) == "":
+		episode.Coverage.addGap("unverified_root_lineage")
 	case !slices.Contains(episode.RunIDs, rootID) || episodeRepositoryConflict(root.Repository, source.Repository):
 		episode.Coverage.addGap("conflicting_root_lineage")
 	default:
@@ -107,6 +109,8 @@ func addRecordedParentCoverage(run RunData, episode *EpisodeData, runsByID map[i
 		episode.Coverage.MissingParentRunIDs = append(episode.Coverage.MissingParentRunIDs, parentID)
 	case parentID == run.RunID:
 		// Reusable workflow hops can share one GitHub run.
+	case canonicalEpisodeID(parent) == "":
+		episode.Coverage.addGap("unverified_parent_lineage")
 	case !slices.Contains(episode.RunIDs, parentID) || episodeRepositoryConflict(ctx.Repo, parent.Repository):
 		episode.Coverage.addGap("conflicting_parent_lineage")
 	}

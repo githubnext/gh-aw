@@ -1449,15 +1449,15 @@ A security auditing tool for GitHub Actions workflows that identifies vulnerabil
 
 ### Deterministic Lineage
 
-The causal graph of edges between workflow runs computed by `gh aw logs --json`. Each edge connects a source run to a target run and captures how one run triggered another — via `workflow_dispatch`, `workflow_call`, or `workflow_run` events — along with a confidence rating and the reasons the link was established. Available under `.edges[]` in the JSON output. Use lineage data to reconstruct orchestrator-to-worker relationships without manually correlating run IDs.
+The graph of recorded parent-child edges between selected workflow runs in `gh aw logs --json`. Each edge connects distinct GitHub run IDs with the same nonempty canonical `context.episode_id`, using the target's recorded caller run ID. Available under `.edges[]` with lineage confidence and evidence. Call IDs, matching revision metadata, and `workflow_run` events alone do not establish edges; reusable hops sharing one run do not create self-edges.
 
 ### Episode
 
-A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_aic`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For cost analysis, prefer `total_aic` (AI Credits).
+A rollup of selected workflow runs sharing a recorded canonical `context.episode_id`, available under `.episodes[]` in `gh aw logs --json`. Metrics such as `total_runs`, `total_tokens`, and `total_aic` cover selected canonical members only; uncorrelated runs remain in `.runs[]` and overall totals. `recorded_roots[]` preserves canonical root claims separately from `representative_run_id` and `representative_workflow`. Coverage is `unknown` or `partial`, never proof of completeness; lineage confidence is independent of coverage. For cost analysis, prefer `total_aic` (AI Credits).
 
 ```bash
-gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, aic: .total_aic}'
+gh aw logs --start-date -30d --count 1000 --json | \
+  jq '.episodes[] | {id: .episode_id, workflow: .representative_workflow, aic: .total_aic}'
 ```
 
 ### WebAssembly (Wasm)

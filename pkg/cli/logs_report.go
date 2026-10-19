@@ -832,7 +832,6 @@ func renderLogsJSON(data LogsData, verbose bool) error {
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
 // Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
 // token_usage_summary, experiments, ambient_context from each run.
-// Omits single-run episodes only when they carry no recorded roots or known gaps.
 func compactLogsData(data LogsData) LogsData {
 	// Strip audit-heavy fields from runs
 	for i := range data.Runs {
@@ -844,22 +843,6 @@ func compactLogsData(data LogsData) LogsData {
 		data.Runs[i].Experiments = nil
 		data.Runs[i].AmbientContext = nil
 		data.Runs[i].AwContext = nil
-	}
-
-	// Even one selected descendant can carry useful root and coverage evidence.
-	allStandalone := true
-	for _, ep := range data.Episodes {
-		if ep.TotalRuns > 1 || len(ep.RecordedRoots) > 0 || ep.Coverage.Status == "partial" {
-			allStandalone = false
-			break
-		}
-	}
-	if allStandalone {
-		// Use empty slices (not nil) so JSON marshaling produces [] instead of null.
-		// A null value breaks agent-side Python code that calls len(d.get('episodes', []))
-		// because d.get returns None (the existing key's value) rather than the default [].
-		data.Episodes = []EpisodeData{}
-		data.Edges = []EpisodeEdge{}
 	}
 
 	return data
