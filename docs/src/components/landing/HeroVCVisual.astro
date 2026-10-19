@@ -4,7 +4,7 @@ import Octicon from '../Octicon.astro';
 
 type Kind = 'issue' | 'pr' | 'report';
 const events: { time: string; agent: string; action: string; kind: Kind; title: string; num: string; meta?: string }[] = [
-  { time: '02:10', agent: 'CI Doctor', action: 'opened an issue', kind: 'issue', title: 'Flaky test: db timeout in integration suite', num: '#519', meta: 'Root cause: shared fixture reused across workers' },
+  { time: '02:10', agent: 'CI Doctor', action: 'opened an issue', kind: 'issue', title: 'Flaky test: db timeout in integration suite', num: '#519', meta: 'Likely root cause: shared fixture reused across workers' },
   { time: '04:30', agent: 'Test Improver', action: 'opened a pull request', kind: 'pr', title: 'Add tests for parser edge cases', num: '#231', meta: 'Coverage +3.1%' },
   { time: '07:00', agent: 'Repo Status', action: 'posted the daily report', kind: 'report', title: 'Daily status — Oct 2', num: '#233', meta: '12 issues triaged · 4 PRs merged' },
 ];
