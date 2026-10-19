@@ -4319,8 +4319,76 @@
                   "type": "string"
                 }
               },
-              "root_run_id": {
+              "representative_run_id": {
                 "type": "integer"
+              },
+              "representative_workflow": {
+                "type": "string"
+              },
+              "recorded_roots": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "run_id": {
+                      "type": "string"
+                    },
+                    "workflow_id": {
+                      "type": "string"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "observed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "observed"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "coverage": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "reasons": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "missing_parent_run_ids": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "collection_truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "scope",
+                  "status",
+                  "collection_truncated"
+                ],
+                "additionalProperties": false
               },
               "run_ids": {
                 "type": [
@@ -4339,9 +4407,6 @@
                 "items": {
                   "type": "string"
                 }
-              },
-              "primary_workflow": {
-                "type": "string"
               },
               "total_runs": {
                 "type": "integer"
@@ -4469,6 +4534,7 @@
               "episode_id",
               "kind",
               "confidence",
+              "coverage",
               "run_ids",
               "workflow_names",
               "total_runs",

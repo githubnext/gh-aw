@@ -673,6 +673,10 @@ func runAmbientContext(pr ProcessedRun) *AmbientContextMetrics {
 
 // buildLogsData creates structured logs data from processed runs
 func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+	return buildLogsDataWithCollectionCoverage(processedRuns, outputDir, continuation, logsCollectionCoverageOptions{})
+}
+
+func buildLogsDataWithCollectionCoverage(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData, collection logsCollectionCoverageOptions) LogsData {
 	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
 
 	agg := &logsAggregate{engineCounts: make(map[string]int)}
@@ -719,6 +723,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	data.Episodes = episodes
 	data.Edges = edges
 	data.Continuation = continuation
+	applyLogsCollectionCoverage(&data, collection)
 	data.LogsLocation, _ = filepath.Abs(outputDir)
 	return data
 }
@@ -829,7 +834,6 @@ func renderLogsJSON(data LogsData, verbose bool) error {
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
 // Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
 // token_usage_summary, experiments, ambient_context from each run.
-// Omits episodes when all are standalone (single-run episodes add no information).
 func compactLogsData(data LogsData) LogsData {
 	// Strip audit-heavy fields from runs
 	for i := range data.Runs {
@@ -841,22 +845,6 @@ func compactLogsData(data LogsData) LogsData {
 		data.Runs[i].Experiments = nil
 		data.Runs[i].AmbientContext = nil
 		data.Runs[i].AwContext = nil
-	}
-
-	// Omit episodes when all are standalone (no multi-run episodes)
-	allStandalone := true
-	for _, ep := range data.Episodes {
-		if ep.TotalRuns > 1 {
-			allStandalone = false
-			break
-		}
-	}
-	if allStandalone {
-		// Use empty slices (not nil) so JSON marshaling produces [] instead of null.
-		// A null value breaks agent-side Python code that calls len(d.get('episodes', []))
-		// because d.get returns None (the existing key's value) rather than the default [].
-		data.Episodes = []EpisodeData{}
-		data.Edges = []EpisodeEdge{}
 	}
 
 	return data

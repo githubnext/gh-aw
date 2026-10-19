@@ -16,6 +16,7 @@ func TestBuildEpisodeDataIncludesToolCalls(t *testing.T) {
 	runs := []RunData{
 		{
 			RunID:        101,
+			AwContext:    &AwContext{EpisodeID: "episode-101"},
 			WorkflowName: "my-workflow",
 			Status:       "completed",
 			Conclusion:   "success",
@@ -87,6 +88,7 @@ func TestBuildEpisodeDataSetsBlockedAtCapWhenFirewallCountHitsCap(t *testing.T) 
 	runs := []RunData{
 		{
 			RunID:        401,
+			AwContext:    &AwContext{EpisodeID: "episode-401"},
 			WorkflowName: "firewall-heavy",
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -122,6 +124,7 @@ func TestBuildEpisodeDataDoesNotSetBlockedAtCapBelowThreshold(t *testing.T) {
 	runs := []RunData{
 		{
 			RunID:        402,
+			AwContext:    &AwContext{EpisodeID: "episode-402"},
 			WorkflowName: "low-block",
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -157,6 +160,7 @@ func TestBuildEpisodeDataNoToolCallsWhenMCPUsageAbsent(t *testing.T) {
 	runs := []RunData{
 		{
 			RunID:        200,
+			AwContext:    &AwContext{EpisodeID: "episode-200"},
 			WorkflowName: "no-mcp-workflow",
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
@@ -185,6 +189,7 @@ func TestBuildEpisodeDataAggregatesAIC(t *testing.T) {
 	runs := []RunData{
 		{
 			RunID:        501,
+			AwContext:    &AwContext{EpisodeID: "episode-501"},
 			WorkflowName: "effective-a",
 			Status:       "completed",
 			AIC:          1.2,
@@ -192,6 +197,7 @@ func TestBuildEpisodeDataAggregatesAIC(t *testing.T) {
 		},
 		{
 			RunID:        502,
+			AwContext:    &AwContext{EpisodeID: "episode-502"},
 			WorkflowName: "effective-b",
 			Status:       "completed",
 			AIC:          0.345,
@@ -220,8 +226,6 @@ func TestBuildEpisodeDataPreservesCanonicalIdentityAcrossSelections(t *testing.T
 		RunID: 100, Repository: "org/repo", TokenUsage: 10, AIC: 0.1,
 		AwContext: &AwContext{RunID: "100", EpisodeID: episodeID},
 	}
-	legacyRoot := root
-	legacyRoot.AwContext = nil
 	child := RunData{
 		RunID: 200, Repository: "org/repo", TokenUsage: 20, AIC: 0.2,
 		AwContext: &AwContext{Repo: "org/repo", RunID: "100", WorkflowCallID: episodeID, EpisodeID: episodeID},
@@ -239,7 +243,6 @@ func TestBuildEpisodeDataPreservesCanonicalIdentityAcrossSelections(t *testing.T
 		aic       float64
 	}{
 		{"full chain", []RunData{root, child, grandchild}, 2, 60, 0.6},
-		{"legacy root", []RunData{legacyRoot, child, grandchild}, 2, 60, 0.6},
 		{"reversed chain", []RunData{grandchild, child, root}, 2, 60, 0.6},
 		{"missing root", []RunData{child, grandchild}, 1, 50, 0.5},
 		{"missing middle", []RunData{root, grandchild}, 0, 40, 0.4},
@@ -280,7 +283,7 @@ func TestBuildEpisodeDataRejectsConflictingCanonicalLineage(t *testing.T) {
 		episodes, edges := buildEpisodeData(runs, nil)
 		require.Len(t, episodes, 2)
 		for _, edge := range edges {
-			assert.NotEqual(t, int64(200), edge.TargetRunID, "a legacy bridge must not merge different canonical episodes")
+			assert.NotEqual(t, int64(200), edge.TargetRunID, "uncorrelated runs must not bridge canonical episodes")
 		}
 		ids := []string{episodes[0].EpisodeID, episodes[1].EpisodeID}
 		assert.ElementsMatch(t, []string{"episode-a", "episode-b"}, ids)
@@ -299,7 +302,7 @@ func TestBuildEpisodeDataCanonicalContextDoesNotInferMissingCaller(t *testing.T)
 		},
 	}
 	episodes, edges := buildEpisodeData(runs, nil)
-	assert.Len(t, episodes, 2)
+	assert.Len(t, episodes, 1)
 	assert.Empty(t, edges, "a matching SHA is not a substitute for the absent canonical caller")
 }
 
@@ -321,19 +324,18 @@ func TestBuildEpisodeDataSharedRunDoesNotCreateSelfEdge(t *testing.T) {
 	assert.Empty(t, edges, "hop relationships within a shared run are not run-to-run edges")
 }
 
-func TestBuildDispatchEpisodeEdgeRejectsRepositoryMismatch(t *testing.T) {
+func TestBuildEpisodeEdgeRejectsRepositoryMismatch(t *testing.T) {
 	t.Parallel()
 
-	run := RunData{RunID: 200, AwContext: &AwContext{RunID: "100", Repo: "other/repo"}}
-	_, ok := buildDispatchEpisodeEdge(run, map[int64]RunData{100: {RunID: 100, Repository: "org/repo"}})
+	run := RunData{RunID: 200, AwContext: &AwContext{EpisodeID: "canonical", RunID: "100", Repo: "other/repo"}}
+	_, ok := buildEpisodeEdge(run, map[int64]RunData{100: {RunID: 100, Repository: "org/repo", AwContext: &AwContext{EpisodeID: "canonical"}}})
 	assert.False(t, ok)
 }
 
 func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 	t.Parallel()
 
-	// Two runs belonging to the same episode (via dispatch)
-	workflowCallID := "dispatch:wc-42"
+	episodeID := "canonical"
 	runs := []RunData{
 		{
 			RunID:        301,
@@ -341,7 +343,7 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 			AwContext: &AwContext{
-				WorkflowCallID: "wc-42",
+				EpisodeID: episodeID,
 			},
 		},
 		{
@@ -350,7 +352,7 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 			Status:       "completed",
 			CreatedAt:    time.Date(2024, 1, 1, 12, 1, 0, 0, time.UTC),
 			AwContext: &AwContext{
-				WorkflowCallID: "wc-42",
+				EpisodeID: episodeID,
 			},
 		},
 	}
@@ -391,7 +393,7 @@ func TestBuildEpisodeDataAggregatesToolCallsAcrossRuns(t *testing.T) {
 	require.Len(t, episodes, 1, "expected one merged episode from two dispatch runs")
 
 	ep := episodes[0]
-	assert.Equal(t, workflowCallID, ep.EpisodeID, "episode id should reflect dispatch call id")
+	assert.Equal(t, episodeID, ep.EpisodeID)
 	assert.Len(t, ep.ToolCalls, 2, "tool_calls should include calls from both runs")
 }
 
@@ -473,169 +475,104 @@ func TestMCPToolCallToEpisodeToolCall(t *testing.T) {
 	}
 }
 
-func TestCompareEpisodeSeedsPrefersKindThenConfidence(t *testing.T) {
+func TestBuildEpisodeDataRequiresCanonicalIdentity(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		left     episodeSeed
-		right    episodeSeed
-		expected int
-	}{
-		{
-			name: "workflow call beats dispatch",
-			left: episodeSeed{
-				EpisodeID:  "workflow_call:123",
-				Kind:       "workflow_call",
-				Confidence: "medium",
-			},
-			right: episodeSeed{
-				EpisodeID:  "dispatch:123",
-				Kind:       "dispatch_workflow",
-				Confidence: "high",
-			},
-			expected: 1,
-		},
-		{
-			name: "higher confidence wins within same kind",
-			left: episodeSeed{
-				EpisodeID:  "dispatch:high",
-				Kind:       "dispatch_workflow",
-				Confidence: "high",
-			},
-			right: episodeSeed{
-				EpisodeID:  "dispatch:low",
-				Kind:       "dispatch_workflow",
-				Confidence: "low",
-			},
-			expected: 1,
-		},
-		{
-			name: "episode id breaks ties deterministically",
-			left: episodeSeed{
-				EpisodeID:  "standalone:200",
-				Kind:       "standalone",
-				Confidence: "high",
-			},
-			right: episodeSeed{
-				EpisodeID:  "standalone:100",
-				Kind:       "standalone",
-				Confidence: "high",
-			},
-			expected: 1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, compareEpisodeSeeds(tt.left, tt.right), "seed precedence should be deterministic")
-		})
-	}
-}
-
-func TestFilterLineageCandidatesPrefersSingleNonNestedCandidate(t *testing.T) {
-	t.Parallel()
-
-	child := RunData{
-		RunID:     30,
-		Event:     "workflow_run",
-		CreatedAt: time.Date(2024, 1, 1, 12, 10, 0, 0, time.UTC),
-	}
+	created := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	runs := []RunData{
-		{
-			RunID:      10,
-			Event:      "push",
-			Repository: "github/gh-aw",
-			HeadSHA:    "abc123",
-			Branch:     "main",
-			CreatedAt:  time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
-		},
-		{
-			RunID:      20,
-			Event:      "workflow_run",
-			Repository: "github/gh-aw",
-			HeadSHA:    "abc123",
-			Branch:     "main",
-			CreatedAt:  time.Date(2024, 1, 1, 12, 5, 0, 0, time.UTC),
-		},
+		{RunID: 10, Event: "push", Repository: "org/repo", SHA: "abc", HeadSHA: "abc", Ref: "main", Branch: "main", Actor: "actor", RunAttempt: "1", CreatedAt: created},
+		{RunID: 20, Event: "workflow_call", Repository: "org/repo", SHA: "abc", HeadSHA: "abc", Ref: "main", Branch: "main", Actor: "actor", RunAttempt: "1", CreatedAt: created.Add(time.Minute)},
+		{RunID: 30, Event: "workflow_run", Repository: "org/repo", HeadSHA: "abc", Branch: "main", CreatedAt: created.Add(2 * time.Minute)},
+		{RunID: 40, AwContext: &AwContext{WorkflowCallID: "shared-call"}},
+		{RunID: 50, AwContext: &AwContext{WorkflowCallID: "shared-call", RunID: "40", WorkflowID: "caller"}},
+		{RunID: 60, AwContext: &AwContext{EpisodeID: "  "}},
 	}
-
-	candidates := filterLineageCandidates(runs, child, func(candidate RunData) bool {
-		return candidate.Repository == "github/gh-aw" && candidate.HeadSHA == "abc123" && candidate.Branch == "main"
-	})
-
-	require.Len(t, candidates, 1, "one non-nested candidate should be preferred")
-	assert.Equal(t, int64(10), candidates[0].RunID, "the non-workflow_run parent should be selected")
+	episodes, edges := buildEpisodeData(runs, nil)
+	assert.Empty(t, episodes, "no synthetic episode IDs or metadata-based grouping")
+	assert.NotNil(t, episodes)
+	assert.Empty(t, edges, "no call-ID, SHA, ref, actor, or event-based lineage inference")
+	assert.NotNil(t, edges)
 }
 
-func TestBuildWorkflowRunEpisodeEdgeReturnsNoEdgeForAmbiguousCandidates(t *testing.T) {
+func TestBuildEpisodeDataDoesNotAttachUncorrelatedParent(t *testing.T) {
 	t.Parallel()
 
-	child := RunData{
-		RunID:      300,
-		Event:      "workflow_run",
-		Repository: "github/gh-aw",
-		HeadSHA:    "abc123",
-		Branch:     "main",
-		CreatedAt:  time.Date(2024, 1, 1, 12, 10, 0, 0, time.UTC),
-	}
 	runs := []RunData{
-		{
-			RunID:      100,
-			Event:      "push",
-			Repository: "github/gh-aw",
-			HeadSHA:    "abc123",
-			Branch:     "main",
-			CreatedAt:  time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
-		},
-		{
-			RunID:      200,
-			Event:      "pull_request",
-			Repository: "github/gh-aw",
-			HeadSHA:    "abc123",
-			Branch:     "main",
-			CreatedAt:  time.Date(2024, 1, 1, 12, 5, 0, 0, time.UTC),
-		},
-		child,
+		{RunID: 100, TokenUsage: 10, AwContext: &AwContext{WorkflowCallID: "caller"}},
+		{RunID: 200, TokenUsage: 20, AwContext: &AwContext{EpisodeID: "canonical", RunID: "100", WorkflowCallID: "caller"}},
 	}
-
-	_, ok := buildWorkflowRunEpisodeEdge(child, runs)
-	assert.False(t, ok, "an edge should not be created when multiple upstream candidates match")
+	episodes, edges := buildEpisodeData(runs, nil)
+	require.Len(t, episodes, 1)
+	assert.Equal(t, []int64{200}, episodes[0].RunIDs)
+	assert.Equal(t, 20, episodes[0].TotalTokens)
+	assert.Empty(t, edges)
 }
 
-func TestBuildDispatchEpisodeEdgeReturnsNoEdgeForInvalidRunID(t *testing.T) {
+func TestBuildEpisodeDataCanonicalIdentityIgnoresCallIDs(t *testing.T) {
+	t.Parallel()
+
+	runs := []RunData{
+		{RunID: 100, AwContext: &AwContext{EpisodeID: " episode-a ", WorkflowCallID: "shared"}},
+		{RunID: 200, AwContext: &AwContext{EpisodeID: "episode-b", WorkflowCallID: "shared"}},
+		{RunID: 300, AwContext: &AwContext{EpisodeID: "episode-a", WorkflowCallID: "different", RunID: "100"}},
+	}
+	episodes, edges := buildEpisodeData(runs, nil)
+	require.Len(t, episodes, 2)
+	assert.Equal(t, "episode-a", episodes[0].EpisodeID)
+	assert.Equal(t, []int64{100, 300}, episodes[0].RunIDs)
+	assert.Equal(t, []int64{200}, episodes[1].RunIDs)
+	require.Len(t, edges, 1)
+	assert.Equal(t, "episode-a", edges[0].EpisodeID)
+	assert.Equal(t, int64(100), edges[0].SourceRunID)
+	assert.Equal(t, int64(300), edges[0].TargetRunID)
+}
+
+func TestBuildEpisodeDataRepresentativeWithoutTimestamps(t *testing.T) {
+	t.Parallel()
+
+	runs := []RunData{
+		{RunID: 300, WorkflowName: "worker", AwContext: &AwContext{EpisodeID: "canonical"}},
+		{RunID: 200, WorkflowName: "caller", AwContext: &AwContext{EpisodeID: "canonical"}},
+	}
+	episodes, _ := buildEpisodeData(runs, nil)
+	require.Len(t, episodes, 1)
+	assert.Equal(t, int64(200), episodes[0].RepresentativeRunID)
+	assert.Equal(t, "caller", episodes[0].RepresentativeWorkflow)
+}
+
+func TestBuildEpisodeEdgeReturnsNoEdgeForInvalidRunID(t *testing.T) {
 	t.Parallel()
 
 	run := RunData{
 		RunID: 500,
 		AwContext: &AwContext{
-			RunID:          "not-a-number",
-			WorkflowCallID: "500-1",
+			RunID:     "not-a-number",
+			EpisodeID: "canonical",
 		},
 	}
 	runsByID := map[int64]RunData{
 		500: run,
 	}
 
-	_, ok := buildDispatchEpisodeEdge(run, runsByID)
+	_, ok := buildEpisodeEdge(run, runsByID)
 	assert.False(t, ok, "dispatch edge should not be created when context.run_id is invalid")
 }
 
-func TestBuildDispatchEpisodeEdgeReturnsNoEdgeWhenSourceRunMissing(t *testing.T) {
+func TestBuildEpisodeEdgeReturnsNoEdgeWhenSourceRunMissing(t *testing.T) {
 	t.Parallel()
 
 	run := RunData{
 		RunID: 501,
 		AwContext: &AwContext{
-			RunID:          "999",
-			WorkflowCallID: "501-1",
+			RunID:     "999",
+			EpisodeID: "canonical",
 		},
 	}
 	runsByID := map[int64]RunData{
 		501: run,
 	}
 
-	_, ok := buildDispatchEpisodeEdge(run, runsByID)
+	_, ok := buildEpisodeEdge(run, runsByID)
 	assert.False(t, ok, "dispatch edge should not be created when the parent run is not present")
 }
 
@@ -704,8 +641,8 @@ func TestBuildSuggestedRoutePreferenceOrder(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "primary workflow wins",
-			episode:  EpisodeData{PrimaryWorkflow: "orchestrator", WorkflowNames: []string{"worker-a", "worker-b"}},
+			name:     "representative workflow wins",
+			episode:  EpisodeData{RepresentativeWorkflow: "orchestrator", WorkflowNames: []string{"worker-a", "worker-b"}},
 			expected: "workflow:orchestrator",
 		},
 		{

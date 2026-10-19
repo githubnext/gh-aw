@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestBuildEpisodeDataDoesNotMergeAmbiguousLegacyCalls(t *testing.T) {
+func TestBuildEpisodeDataDoesNotReconstructUnrecordedCalls(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	makeRun := func(id int64, event string, offset time.Duration) RunData {
@@ -28,19 +27,11 @@ func TestBuildEpisodeDataDoesNotMergeAmbiguousLegacyCalls(t *testing.T) {
 		makeRun(400, "workflow_call", 24*time.Hour+time.Minute),
 	}
 	episodes, edges := buildEpisodeData(runs, nil)
-	require.Len(t, episodes, 3)
-	require.Len(t, edges, 1)
-	assert.Equal(t, int64(100), edges[0].SourceRunID)
-	assert.Equal(t, int64(200), edges[0].TargetRunID)
-	for _, episode := range episodes {
-		if slices.Contains(episode.RunIDs, int64(400)) {
-			assert.Equal(t, []int64{400}, episode.RunIDs)
-			assert.InDelta(t, 400, episode.TotalAIC, 1e-9)
-		}
-	}
+	assert.Empty(t, episodes)
+	assert.Empty(t, edges)
 
 	episodes, edges = buildEpisodeData([]RunData{runs[1], runs[3]}, nil)
-	assert.Len(t, episodes, 2, "matching worker metadata is not parent-child evidence")
+	assert.Empty(t, episodes, "matching worker metadata is not canonical identity")
 	assert.Empty(t, edges)
 }
 

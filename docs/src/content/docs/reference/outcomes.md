@@ -194,7 +194,7 @@ Accounting sources are selected separately for each execution phase before
 summing independent stream totals. Agent JSON remains a fallback when agent
 JSONL has no usable cost; an executed phase without accounting qualifies cost
 coverage as partial.
-Use `--verbose` when generating logs so that standalone episodes are retained.
+Both compact and verbose logs JSON retain all canonical episodes, including standalone episodes.
 
 The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
 per-item records include `item_id` (a SHA-256 digest of the source action record,
