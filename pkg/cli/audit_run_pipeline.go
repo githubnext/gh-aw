@@ -378,8 +378,10 @@ func prepareAuditWorkflowRun(ctx context.Context, cfg auditRunConfig) (WorkflowR
 			return run, err
 		}
 	}
-	if _, err := downloadRegisteredCustomGraders(ctx, cfg); err != nil {
-		return run, err
+	if !useLocalCache {
+		if _, err := downloadRegisteredCustomGraders(ctx, cfg); err != nil {
+			return run, err
+		}
 	}
 	return prepareRunForAnalysis(run, cfg, useLocalCache), nil
 }

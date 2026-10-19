@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { main, runCustomGraders } from "./custom_graders.cjs";
+import { createSessionLookups, serializeLookupsForWorker } from "./grader_session.cjs";
 import { computeGraders } from "./trace_graders.cjs";
 
 const provenance = { component: "agent", phase: "agent", path: "agent-session.jsonl", index: 0 };
@@ -14,6 +15,16 @@ const definition = (script, extra = {}) => ({ id: "custom-count", source: "inlin
 const grade = script => runCustomGraders(session, [definition(script)]).output.results[0];
 
 describe("isolated custom graders", () => {
+  it("serializes the shared data-only lookup contract for the worker", () => {
+    const lookups = createSessionLookups(session);
+    expect(serializeLookupsForWorker(lookups)).toEqual({
+      stats: lookups.stats,
+      toolCalls: lookups.toolCalls,
+      trace: lookups.trace,
+      toolCallsById: [...lookups.toolCallsById],
+    });
+  });
+
   it("loads the published session and persists combined data-only artifacts", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-custom-graders-"));
     const originalCore = global.core;

@@ -762,6 +762,18 @@ function buildGraderTelemetry(graderOutput, eventTimeMs) {
 }
 
 /**
+ * @param {string} jobName
+ * @param {(path: string) => any} [readJSON]
+ */
+function selectGraderOutputForJob(jobName, readJSON = readJSONIfExists) {
+  if (jobName === "conclusion") return readJSON("/tmp/gh-aw/usage/graders/grader_results.json");
+  if (jobName !== "graders") return undefined;
+  const combinedOutput = readJSON("/tmp/gh-aw/custom-graders/grader_results.json");
+  if (!combinedOutput || !Array.isArray(combinedOutput.results)) return undefined;
+  return { ...combinedOutput, results: combinedOutput.results.filter(result => result?.source === "inline") };
+}
+
+/**
  * Build summary attributes and per-result events from BinEval JSONL records.
  * Only bounded, structured fields are included; free-form questions are excluded.
  *
@@ -2477,7 +2489,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
     }
   }
 
-  const graderTelemetry = jobName === "conclusion" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/usage/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
+  const graderTelemetry = buildGraderTelemetry(selectGraderOutputForJob(jobName), endMs);
   const evalTelemetry = jobName === "evals" ? buildEvalTelemetry(readJSONLIfExists("/tmp/gh-aw/evals.jsonl"), endMs) : { attributes: [], events: [] };
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
@@ -2724,6 +2736,7 @@ module.exports = {
   appendToOTLPJSONL,
   buildExperimentAttributes,
   buildGraderTelemetry,
+  selectGraderOutputForJob,
   buildEvalTelemetry,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,

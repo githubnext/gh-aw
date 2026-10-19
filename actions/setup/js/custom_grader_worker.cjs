@@ -40,7 +40,7 @@ function main() {
         events.set(event.type, bucket);
       }
       for (const bucket of events.values()) Object.freeze(bucket);
-      const calls = new Map(freeze(data.toolCallsById));
+      const calls = new Map(freeze(data.lookups.toolCallsById));
       const toolCallsById = Object.freeze({
         size: calls.size,
         get: key => calls.get(key),

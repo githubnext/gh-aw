@@ -140,6 +140,16 @@ describe("pure unified-session graders", () => {
     expect(createSessionLookups(session).toolCalls.map(call => call.success)).toEqual([false, true]);
   });
 
+  it("correlates tool calls across staged session files", () => {
+    const session = [
+      event("tool.execution_start", { sessionId: "one", toolCallId: "same", toolName: "view" }, "agent", "session-a.jsonl"),
+      event("tool.execution_complete", { sessionId: "one", toolCallId: "same", success: false }, "agent", "session-b.jsonl"),
+    ];
+    const lookups = createSessionLookups(session);
+    expect(lookups.toolCalls).toHaveLength(1);
+    expect(lookups.stats).toMatchObject({ toolCallCount: 1, failedToolCalls: 1 });
+  });
+
   it("does not pair a different known call ID with an unfinished call", () => {
     const session = [event("tool.execution_start", { toolCallId: "one", toolName: "view" }), event("tool.execution_complete", { toolCallId: "two", toolName: "view", success: true })];
     expect(createSessionLookups(session).stats).toMatchObject({ toolCallCount: 2, failedToolCalls: 1 });
@@ -173,14 +183,19 @@ describe("pure unified-session graders", () => {
     expect(createSessionLookups(session).stats).toMatchObject({ toolCallCount: 3, failedToolCalls: 1 });
   });
 
-  it("avoids duplicate gateway calls and supports gateway-only logs", () => {
-    const gateway = [
-      event("mcp.rpc.request", { serverName: "github", rpcId: "a", toolName: "view", method: "tools/call" }),
-      event("mcp.rpc.response", { serverName: "github", rpcId: "a", status: "error" }),
+  it("merges gateway-only calls into mixed native traces without duplicating IDs", () => {
+    const mixed = [
+      event("tool.execution_start", { toolCallId: "native", toolName: "view" }),
+      event("tool.execution_complete", { toolCallId: "native", success: true }),
+      event("mcp.rpc.request", { serverName: "github", rpcId: "native", toolName: "view", method: "tools/call" }),
+      event("mcp.rpc.response", { serverName: "github", rpcId: "native", status: "error" }),
+      event("mcp.rpc.request", { serverName: "github", rpcId: "gateway", toolName: "edit", method: "tools/call" }),
+      event("mcp.rpc.response", { serverName: "github", rpcId: "gateway", status: "error" }),
       event("mcp.rpc.response", { serverName: "github", rpcId: "initialize", method: "initialize" }),
     ];
-    expect(createSessionLookups(gateway).stats).toMatchObject({ toolCallCount: 1, failedToolCalls: 1 });
-    expect(createSessionLookups([...fixture(), ...gateway]).stats.toolCallCount).toBe(3);
+    expect(createSessionLookups(mixed).stats).toMatchObject({ toolCallCount: 2, failedToolCalls: 1 });
+    const gatewayOnly = [event("mcp.rpc.request", { serverName: "github", rpcId: "a", toolName: "view", method: "tools/call" }), event("mcp.rpc.response", { serverName: "github", rpcId: "a", status: "error" })];
+    expect(createSessionLookups(gatewayOnly).stats).toMatchObject({ toolCallCount: 1, failedToolCalls: 1 });
   });
 
   it("uses canonical usage when proxy telemetry is absent and duration evidence as a fallback", () => {

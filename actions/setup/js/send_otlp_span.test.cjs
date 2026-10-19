@@ -74,6 +74,7 @@ const {
   buildEpisodeAttributesFromContext,
   buildExperimentAttributes,
   buildGraderTelemetry,
+  selectGraderOutputForJob,
   buildEvalTelemetry,
   hasProxyConfigured,
   resolveEngineId,
@@ -6968,6 +6969,27 @@ describe("buildGraderTelemetry", () => {
   it("counts unrecognized statuses as other", () => {
     const telemetry = buildGraderTelemetry({ results: [{ id: "skipped", status: "skipped" }] }, 1);
     expect(telemetry.attributes).toContainEqual(buildAttr("gh-aw.graders.other", 1));
+  });
+});
+
+describe("selectGraderOutputForJob", () => {
+  it("emits inline outcomes from the grader job without duplicating conclusion results", () => {
+    const readJSON = vi.fn(() => ({
+      results: [
+        { id: "builtin", source: "builtin", status: "pass" },
+        { id: "custom", source: "inline", status: "error" },
+      ],
+    }));
+    const output = selectGraderOutputForJob("graders", readJSON);
+    expect(readJSON).toHaveBeenCalledWith("/tmp/gh-aw/custom-graders/grader_results.json");
+    expect(output.results.map(result => result.id)).toEqual(["custom"]);
+    expect(selectGraderOutputForJob("agent", readJSON)).toBeUndefined();
+  });
+
+  it("reads built-in results from conclusion", () => {
+    const readJSON = vi.fn(() => ({ results: [{ id: "builtin", source: "builtin" }] }));
+    expect(selectGraderOutputForJob("conclusion", readJSON)).toEqual({ results: [{ id: "builtin", source: "builtin" }] });
+    expect(readJSON).toHaveBeenCalledWith("/tmp/gh-aw/usage/graders/grader_results.json");
   });
 });
 

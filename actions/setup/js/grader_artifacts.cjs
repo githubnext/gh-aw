@@ -29,11 +29,6 @@ function readGraderManifestEnvironment(prefix = "GH_AW_GRADER_MANIFEST") {
   }
 }
 
-/** @returns {any[]} */
-function readGraderEnvironment() {
-  return readGraderManifestEnvironment().graders;
-}
-
 /**
  * Persistence boundary, not a grader: computation receives only the supplied log.
  * @param {import("./types/unified_session").UnifiedSession} session
@@ -64,17 +59,22 @@ function writeGraderArtifacts(session, usageDirectory, graders, customGraderIds 
     provenance: { component: "grader", phase: "conclusion", path: `usage/graders/${file}`, index: 0 },
   }));
   const previous = session.filter(event => event.type.startsWith("grader."));
+  const previousUntimed = previous.filter(previousEvent => previousEvent.timestamp === undefined).length;
+  const newUntimed = events.filter(graderEvent => graderEvent.timestamp === undefined).length;
   const collected = session
     .filter(event => !event.type.startsWith("grader."))
-    .map(event => {
-      if (event.type !== "session.collection") return event;
+    .map(sessionEvent => {
+      if (sessionEvent.type !== "session.collection") return sessionEvent;
       return {
-        ...event,
+        ...sessionEvent,
         data: {
-          ...event.data,
-          sources: [...(Array.isArray(event.data.sources) ? event.data.sources : []).filter(source => source.component !== "grader"), ...events.map(({ provenance: { component, phase, path } }) => ({ component, phase, path, events: 1 }))],
-          absentComponents: (Array.isArray(event.data.absentComponents) ? event.data.absentComponents : []).filter(component => component !== "grader"),
-          untimedEvents: (typeof event.data.untimedEvents === "number" ? event.data.untimedEvents : 0) - previous.filter(event => event.timestamp === undefined).length + events.length,
+          ...sessionEvent.data,
+          sources: [
+            ...(Array.isArray(sessionEvent.data.sources) ? sessionEvent.data.sources : []).filter(source => source.component !== "grader"),
+            ...events.map(({ provenance: { component, phase, path } }) => ({ component, phase, path, events: 1 })),
+          ],
+          absentComponents: (Array.isArray(sessionEvent.data.absentComponents) ? sessionEvent.data.absentComponents : []).filter(component => component !== "grader"),
+          untimedEvents: (typeof sessionEvent.data.untimedEvents === "number" ? sessionEvent.data.untimedEvents : 0) - previousUntimed + newUntimed,
         },
       };
     });
@@ -92,4 +92,4 @@ async function publishGraderSummary(session) {
   await global.core.summary.write({ overwrite: false });
 }
 
-module.exports = { readGraderEnvironment, readGraderManifestEnvironment, writeGraderArtifacts, publishGraderSummary };
+module.exports = { readGraderManifestEnvironment, writeGraderArtifacts, publishGraderSummary };
