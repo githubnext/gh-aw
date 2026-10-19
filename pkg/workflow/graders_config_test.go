@@ -52,7 +52,7 @@ func TestParseGradersRejectsExecutableConfiguration(t *testing.T) {
 	for _, graders := range []map[string]any{
 		{"custom": nil},
 		{"custom": map[string]any{"enabled": false}},
-		{"operational-value": map[string]any{"run": "evaluator.sh"}},
+		{"operational-value": map[string]any{"run": "../evaluator.sh"}},
 		{"operational-value": map[string]any{"script": "#!/bin/bash\necho 1"}},
 		{"loops": map[string]any{"script": "return 1"}},
 		{"loops": map[string]any{"run": "evaluator.sh"}},
@@ -61,6 +61,20 @@ func TestParseGradersRejectsExecutableConfiguration(t *testing.T) {
 		_, err := ParseGradersFromFrontmatter(map[string]any{"graders": graders})
 		require.Error(t, err)
 	}
+}
+
+func TestParseOperationalValueShellGrader(t *testing.T) {
+	cfg, err := ParseGradersFromFrontmatter(map[string]any{"graders": map[string]any{
+		"operational-value": map[string]any{"run": ".github/graders/score.sh"},
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"operational-value"}, cfg.CustomGraderIDs())
+	assert.Equal(t, "higher_is_better", cfg.Graders["operational-value"].Direction)
+	builtin, err := graderEnvironment(cfg)
+	require.NoError(t, err)
+	assert.Contains(t, builtin, `"customGraders":["operational-value"]`)
+	assert.NotContains(t, builtin, "score.sh")
+	assert.NotContains(t, builtin, "shellScript")
 }
 
 func TestParseGradersInvalidFields(t *testing.T) {

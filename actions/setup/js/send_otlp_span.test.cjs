@@ -6978,11 +6978,12 @@ describe("selectGraderOutputForJob", () => {
       results: [
         { id: "builtin", source: "builtin", status: "pass" },
         { id: "custom", source: "inline", status: "error" },
+        { id: "operational-value", source: "operational-value", status: "pass", value: 1 },
       ],
     }));
     const output = selectGraderOutputForJob("graders", readJSON);
     expect(readJSON).toHaveBeenCalledWith("/tmp/gh-aw/custom-graders/grader_results.json");
-    expect(output.results.map(result => result.id)).toEqual(["custom"]);
+    expect(output.results.map(result => result.id)).toEqual(["custom", "operational-value"]);
     expect(selectGraderOutputForJob("agent", readJSON)).toBeUndefined();
   });
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,13 +11,16 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/workflow"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/parser"
 )
 
 type extractedResource struct {
-	path string
+	path              string
+	isGraderEvaluator bool
 }
 
 type resourceDownloader func(ctx context.Context, owner, repo, filePath, ref string) ([]byte, error)
@@ -51,6 +55,16 @@ func extractResourceEntries(content string) ([]extractedResource, error) {
 		}
 	}
 
+	graders, err := workflow.ParseGradersFromFrontmatter(result.Frontmatter)
+	if err != nil {
+		return nil, err
+	}
+	for _, grader := range graders.Graders {
+		if grader.Run != "" {
+			resources = append(resources, extractedResource{path: grader.Run, isGraderEvaluator: true})
+		}
+	}
+
 	// Reject entries that contain GitHub Actions expression syntax — macros are not allowed.
 	unique := make([]extractedResource, 0, len(resources))
 	seen := make(map[string]int, len(resources))
@@ -59,7 +73,8 @@ func extractResourceEntries(content string) ([]extractedResource, error) {
 		if strings.Contains(p, "${{") {
 			return nil, fmt.Errorf("resources entry %q contains GitHub Actions expression syntax (${{) which is not allowed; use static paths only", p)
 		}
-		if _, exists := seen[p]; exists {
+		if index, exists := seen[p]; exists {
+			unique[index].isGraderEvaluator = unique[index].isGraderEvaluator || resource.isGraderEvaluator //nolint:uncheckedsliceindex // seen stores indices into unique as entries are appended.
 			continue
 		}
 		seen[p] = len(unique)
@@ -94,7 +109,7 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 	if len(parts) != 2 {
 		return nil
 	}
-	owner, repo := parts[0], parts[1]
+	owner, repo := parts[0], parts[1] //nolint:uncheckedsliceindex // len(parts) == 2 was checked above.
 	ref := spec.Version
 	if ref == "" {
 		defaultBranch, err := getRepoDefaultBranch(ctx, spec.RepoSlug)
@@ -117,6 +132,7 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 
 	// Resources are resolved relative to the source workflow's directory in the remote repo.
 	workflowBaseDir := getParentDir(spec.WorkflowPath)
+	var gitRoot string
 
 	for _, resource := range resourcePaths {
 		resourcePath := resource.path
@@ -130,7 +146,10 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 		}
 
 		var remoteFilePath string
-		if rest, ok := strings.CutPrefix(resourcePath, "/"); ok {
+		repositoryEvaluator := resource.isGraderEvaluator && !strings.HasPrefix(resourcePath, "./")
+		if repositoryEvaluator {
+			remoteFilePath = resourcePath
+		} else if rest, ok := strings.CutPrefix(resourcePath, "/"); ok {
 			remoteFilePath = rest
 		} else if workflowBaseDir != "" {
 			remoteFilePath = path.Join(workflowBaseDir, strings.TrimPrefix(resourcePath, "./"))
@@ -150,9 +169,22 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 			continue
 		}
 		targetBaseDir := targetDir
+		if repositoryEvaluator {
+			if gitRoot == "" {
+				gitRoot, err = gitutil.FindGitRootFrom(targetDir)
+				if err != nil {
+					return fmt.Errorf("cannot resolve repository root for grader resource %q: %w", resourcePath, err)
+				}
+			}
+			targetBaseDir = gitRoot
+			localRelPath = filepath.FromSlash(resourcePath)
+		}
 		targetPath := filepath.Join(targetBaseDir, localRelPath)
 
 		if err := fileutil.ValidatePathWithinBase(targetBaseDir, targetPath); err != nil {
+			if resource.isGraderEvaluator {
+				return fmt.Errorf("unsafe grader evaluator destination %q: %w", resourcePath, err)
+			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Refusing to write resource outside target directory: %q", resourcePath)))
 			}
@@ -162,7 +194,7 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 		// Check whether the target file already exists.
 		fileExists := fileutil.FileExists(targetPath)
 		if fileExists {
-			if !force {
+			if !force && !resource.isGraderEvaluator {
 				isMarkdown := strings.HasSuffix(strings.ToLower(targetPath), ".md")
 				if isMarkdown {
 					// For markdown files, allow same-source overwrites.
@@ -189,10 +221,23 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 		// Download from source repository
 		fileContent, err := download(ctx, owner, repo, remoteFilePath, ref)
 		if err != nil {
+			if resource.isGraderEvaluator {
+				return fmt.Errorf("cannot download grader evaluator %q: %w", resourcePath, err)
+			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch resource %s: %v", remoteFilePath, err)))
 			}
 			continue
+		}
+		if fileExists && !force && resource.isGraderEvaluator {
+			existing, err := os.ReadFile(targetPath)
+			if err != nil {
+				return fmt.Errorf("cannot read existing grader evaluator %q: %w", resourcePath, err)
+			}
+			if bytes.Equal(existing, fileContent) {
+				continue
+			}
+			return fmt.Errorf("grader evaluator %q already exists with different content; use --force to replace it", resourcePath)
 		}
 		// For markdown resources, embed the source field for future conflict detection.
 		if strings.HasSuffix(strings.ToLower(remoteFilePath), ".md") {
@@ -204,6 +249,9 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 
 		// Create parent directory if needed
 		if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
+			if resource.isGraderEvaluator {
+				return fmt.Errorf("cannot create grader evaluator directory %q: %w", resourcePath, err)
+			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to create directory for resource %s: %v", remoteFilePath, err)))
 			}
@@ -212,6 +260,9 @@ func fetchAndSaveRemoteResourcesWithDownloader(ctx context.Context, content stri
 
 		// Write the file
 		if err := os.WriteFile(targetPath, fileContent, constants.FilePermSensitive); err != nil {
+			if resource.isGraderEvaluator {
+				return fmt.Errorf("cannot write grader evaluator %q: %w", resourcePath, err)
+			}
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to write resource %s: %v", remoteFilePath, err)))
 			}

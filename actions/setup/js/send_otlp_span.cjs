@@ -770,7 +770,7 @@ function selectGraderOutputForJob(jobName, readJSON = readJSONIfExists) {
   if (jobName !== "graders") return undefined;
   const combinedOutput = readJSON("/tmp/gh-aw/custom-graders/grader_results.json");
   if (!combinedOutput || !Array.isArray(combinedOutput.results)) return undefined;
-  return { ...combinedOutput, results: combinedOutput.results.filter(result => result?.source === "inline") };
+  return { ...combinedOutput, results: combinedOutput.results.filter(result => result?.source === "inline" || result?.source === "operational-value") };
 }
 
 /**

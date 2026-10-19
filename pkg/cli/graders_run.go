@@ -36,6 +36,7 @@ type graderRunConfig struct {
 	Repo     string
 	Input    io.Reader
 	Output   io.Writer
+	Path     string
 }
 
 type graderRunDefinition struct {
@@ -48,6 +49,8 @@ type graderRunDefinition struct {
 	Threshold   *float64       `json:"threshold"`
 	Config      map[string]any `json:"config,omitempty"`
 	Script      string         `json:"script,omitempty"`
+	Run         string         `json:"run,omitempty"`
+	ShellScript string         `json:"shellScript,omitempty"`
 }
 
 func runGrader(ctx context.Context, config graderRunConfig) error {
@@ -59,7 +62,7 @@ func runGrader(ctx context.Context, config graderRunConfig) error {
 	if err != nil {
 		return err
 	}
-	return runJavaScriptGrader(ctx, grader, payload, config.Output)
+	return runSessionGrader(ctx, grader, payload, config.Output, config.Path)
 }
 
 func loadGraderRunDefinition(workflowArg, graderID string) (graderRunDefinition, error) {
@@ -81,10 +84,16 @@ func loadGraderRunDefinition(workflowArg, graderID string) (graderRunDefinition,
 	source := "builtin"
 	if definition.Script != "" {
 		source = "inline"
+	} else if definition.Run != "" {
+		source = "operational-value"
+		if err := definition.PrepareShellScript(workflowPath); err != nil {
+			return graderRunDefinition{}, err
+		}
 	}
 	return graderRunDefinition{
 		ID: graderID, Name: definition.Name, Description: definition.Description, Source: source, Unit: definition.Unit,
 		Direction: definition.Direction, Threshold: definition.Threshold, Config: definition.Config, Script: definition.Script,
+		Run: definition.Run, ShellScript: definition.ShellScript,
 	}, nil
 }
 
@@ -178,36 +187,26 @@ func readGraderPayload(reader io.Reader, source string) (json.RawMessage, error)
 	return json.Marshal(events)
 }
 
-func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payload json.RawMessage, output io.Writer) error {
+func runSessionGrader(ctx context.Context, grader graderRunDefinition, payload json.RawMessage, output io.Writer, searchPath string) error {
 	nodePath, err := exec.LookPath("node")
 	if err != nil {
 		return errors.New("node is required to run graders")
 	}
-	permissionFlag, err := graderNodePermissionFlag(ctx, nodePath)
-	if err != nil {
-		return err
+	var permissionFlag string
+	if grader.Source != "operational-value" {
+		permissionFlag, err = graderNodePermissionFlag(ctx, nodePath)
+		if err != nil {
+			return err
+		}
 	}
 	directory, err := os.MkdirTemp("", "gh-aw-grader-runtime-*")
 	if err != nil {
 		return fmt.Errorf("failed to stage grader runtime: %w", err)
 	}
 	defer os.RemoveAll(directory)
-	for _, name := range []string{"trace_graders.cjs", "grader_session.cjs", "trajectory_graders.cjs", "builtin_graders.json", "working_set_metrics.cjs", "custom_graders.cjs", "custom_grader_worker.cjs"} {
-		content, err := setup.SessionParserSources.ReadFile("js/" + name)
-		if err != nil {
-			return fmt.Errorf("cannot load grader runtime %s: %w", name, err)
-		}
-		if err := os.WriteFile(filepath.Join(directory, name), content, constants.FilePermSensitive); err != nil {
-			return fmt.Errorf("failed to stage grader runtime %s: %w", name, err)
-		}
-	}
-	scriptPath := filepath.Join(directory, "graders_run.cjs")
-	if err := os.WriteFile(scriptPath, gradersRunScript, constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("failed to stage grader runner: %w", err)
-	}
-	directory, err = filepath.EvalSymlinks(directory)
+	directory, err = stageGraderRuntime(directory)
 	if err != nil {
-		return fmt.Errorf("failed to resolve grader runtime path: %w", err)
+		return err
 	}
 	input, err := json.Marshal(struct {
 		Grader  graderRunDefinition `json:"grader"`
@@ -216,26 +215,58 @@ func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payloa
 	if err != nil {
 		return fmt.Errorf("failed to encode grader input: %w", err)
 	}
-	commandCtx, cancel := context.WithTimeout(ctx, graderJSTimeout)
+	timeout := graderJSTimeout
+	if grader.Source == "operational-value" {
+		timeout = 125 * time.Second
+	}
+	commandCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	args := []string{permissionFlag, "--allow-fs-read=" + directory}
-	if grader.Source == "inline" {
+	switch grader.Source {
+	case "inline":
 		args = append(args, "--allow-child-process")
+	case "operational-value":
+		// Node's permissions do not sandbox a spawned Bash interpreter. Shell
+		// replay has the same trusted-code boundary as the separate Actions job.
+		args = nil
 	}
 	args = append(args, filepath.Join(directory, "graders_run.cjs"))
 	cmd := exec.CommandContext(commandCtx, nodePath, args...)
 	cmd.Env = []string{}
+	if grader.Source == "operational-value" && searchPath != "" {
+		cmd.Env = []string{"PATH=" + searchPath}
+	}
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Stdout = output
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("grader timed out after %s", graderJSTimeout)
+			return fmt.Errorf("grader timed out after %s", timeout)
 		}
 		return fmt.Errorf("grader failed: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
+}
+
+func stageGraderRuntime(directory string) (string, error) {
+	for _, name := range []string{"trace_graders.cjs", "grader_session.cjs", "trajectory_graders.cjs", "builtin_graders.json", "working_set_metrics.cjs", "custom_graders.cjs", "custom_grader_worker.cjs", "operational_value_grader.cjs", "operational_value_worker.cjs"} {
+		content, err := setup.SessionParserSources.ReadFile("js/" + name)
+		if err != nil {
+			return "", fmt.Errorf("cannot load grader runtime %s: %w", name, err)
+		}
+		if err := os.WriteFile(filepath.Join(directory, name), content, constants.FilePermSensitive); err != nil {
+			return "", fmt.Errorf("failed to stage grader runtime %s: %w", name, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(directory, "graders_run.cjs"), gradersRunScript, constants.FilePermSensitive); err != nil {
+		return "", fmt.Errorf("failed to stage grader runner: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve grader runtime path: %w", err)
+	}
+	return resolved, nil
 }
 
 func graderNodePermissionFlag(ctx context.Context, nodePath string) (string, error) {

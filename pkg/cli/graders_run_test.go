@@ -58,7 +58,7 @@ func TestRunGraderFromUnifiedSession(t *testing.T) {
 
 func TestRunGraderRejectsCustomCode(t *testing.T) {
 	for _, entry := range []string{
-		"operational-value:\n    run: evaluator.sh",
+		"operational-value:\n    run: ../evaluator.sh",
 		"loops:\n    script: return 1",
 	} {
 		t.Run(entry, func(t *testing.T) {
@@ -71,6 +71,76 @@ func TestRunGraderRejectsCustomCode(t *testing.T) {
 			require.Contains(t, err.Error(), "graders")
 			assert.Empty(t, output.String())
 		})
+	}
+}
+
+func TestRunOperationalValueFromUnifiedSession(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  operational-value:\n    run: ./score.sh\n---\nTest.\n")
+	require.NoError(t, exec.Command("git", "init", "-q").Run())
+	require.NoError(t, os.WriteFile(".github/workflows/score.sh", []byte("#!/bin/bash\n[[ -f \"$1\" && \"$1\" == \"$GH_AW_SESSION_FILE\" ]]\nprintf '[{\"id\":\"effect\",\"value\":2},{\"id\":\"diagnostic\",\"value\":null}]'\n"), 0o600))
+	var output bytes.Buffer
+	require.NoError(t, runGrader(context.Background(), graderRunConfig{
+		Workflow: workflowID, GraderID: "operational-value", Input: strings.NewReader("[]"), Output: &output,
+	}))
+	var result struct {
+		ID      string
+		Source  string
+		Value   float64
+		Metrics []map[string]any
+	}
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, "operational-value", result.ID)
+	assert.Equal(t, "operational-value", result.Source)
+	assert.InDelta(t, 2.0, result.Value, 0)
+	assert.Len(t, result.Metrics, 2)
+}
+
+func TestLoadImportedOperationalValueDeclaringPath(t *testing.T) {
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\nimports:\n  - shared/graders.md\ngraders:\n  operational-value:\n    threshold: 1\n---\nTest.\n")
+	require.NoError(t, exec.Command("git", "init", "-q").Run())
+	require.NoError(t, os.MkdirAll(".github/workflows/shared", 0o755))
+	require.NoError(t, os.WriteFile(".github/workflows/shared/graders.md", []byte("---\ngraders:\n  operational-value:\n    run: ./score.sh\n---\n"), 0o600))
+	const source = "#!/bin/bash\nprintf '[{\"id\":\"effect\",\"value\":1}]'\n"
+	require.NoError(t, os.WriteFile(".github/workflows/shared/score.sh", []byte(source), 0o600))
+	definition, err := loadGraderRunDefinition(workflowID, "operational-value")
+	require.NoError(t, err)
+	assert.Equal(t, source, definition.ShellScript)
+	require.NoError(t, os.WriteFile(".github/workflows/score.sh", []byte("#!/bin/bash\nprintf '[{\"id\":\"override\",\"value\":2}]'\n"), 0o600))
+	require.NoError(t, os.WriteFile(".github/workflows/test.md", []byte("---\non: workflow_dispatch\nimports:\n  - shared/graders.md\ngraders:\n  operational-value:\n    run: ./score.sh\n---\nTest.\n"), 0o600))
+	definition, err = loadGraderRunDefinition(workflowID, "operational-value")
+	require.NoError(t, err)
+	assert.Contains(t, definition.ShellScript, "override")
+}
+
+func TestOperationalValueCommandSessionFileContract(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Skip("jq unavailable")
+	}
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  operational-value:\n    run: ./score.sh\n    config:\n      offset: 3\n---\nTest.\n")
+	require.NoError(t, exec.Command("git", "init", "-q").Run())
+	const source = "#!/bin/bash\njq -s --argjson config \"$GH_AW_GRADER_CONFIG\" '[{id:\"count\",value:(length + $config.offset)}]' \"$1\"\n"
+	require.NoError(t, os.WriteFile(".github/workflows/score.sh", []byte(source), 0o600))
+	event := `{"type":"tool.execution_complete","data":{"success":true},"provenance":{"component":"agent","phase":"agent","path":"session.jsonl","index":0}}`
+	for _, input := range []string{event + "\n", "[" + event + "]"} {
+		cmd := newGradersRunCommand()
+		cmd.SetArgs([]string{workflowID, "operational-value"})
+		cmd.SetIn(strings.NewReader(input))
+		var output bytes.Buffer
+		cmd.SetOut(&output)
+		require.NoError(t, cmd.Execute())
+		var result struct {
+			Value  float64
+			Source string
+		}
+		require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+		assert.InDelta(t, 4.0, result.Value, 0)
+		assert.Equal(t, "operational-value", result.Source)
 	}
 }
 

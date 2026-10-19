@@ -12,9 +12,16 @@ combined `graders` results artifact when custom IDs are registered, including
 when refreshing cached reports. The logs `graders` artifact set includes both jobs'
 results, including workflow-call-prefixed names and cached usage-only downloads.
 
-**Breaking change:** Bash/file-based graders, `operational-value`, and `run`
-are rejected. Remove these entries or migrate to pure JavaScript with a distinct
-custom ID and the `session, config, helpers` contract. User-provided conclusion
+Repository-owned `graders.operational-value.run` Bash executes only in that
+separate job. Refactor evaluators to read unified-session JSONL from `$1` /
+`GH_AW_SESSION_FILE` and configuration from `GH_AW_GRADER_CONFIG`; retain the
+legacy metric-array output. Bash AST validation and `grader-shell-file-write`
+reject detected file writes. This is trusted shell compatibility, not a
+microVM or filesystem/network sandbox.
+
+**Breaking change:** Legacy evaluator stdin requests and built-in overrides
+are rejected. Other custom IDs use pure JavaScript and the
+`session, config, helpers` contract. User-provided conclusion
 steps are rejected; move them to a separate job.
 Expensive trajectory analyses now require explicit opt-in.
 

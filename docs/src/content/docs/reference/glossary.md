@@ -1723,11 +1723,11 @@ An optional field under top-level `metadata:` frontmatter holding an absolute HT
 
 ### Graders (`graders:`)
 
-Deterministic, non-LLM metrics computed purely from the redacted in-memory unified session in conclusion. Ten fast built-ins run by default, even when `graders:` is omitted. Frontmatter can override thresholds, disable defaults, or opt into other registered built-ins. Custom executable graders are not supported. Results are stored in the `usage` artifact. See [Graders Reference](/gh-aw/experimental/trace-graders/).
+Non-LLM metrics over the redacted unified session. Ten fast built-ins run as pure computation in conclusion, even when `graders:` is omitted. Frontmatter can override thresholds, disable defaults, or opt into other built-ins. Custom JavaScript and repository-owned operational-value Bash run only in the separate graders job. Built-ins use the `usage` artifact; combined custom results use `graders`. See [Graders Reference](/gh-aw/experimental/trace-graders/).
 
 ### Operational Value Grader (`graders.operational-value`)
 
-A retired custom Bash evaluator integration. `graders.operational-value`, `script`, and `run` are rejected for security. Historical evaluator files and results may remain for provenance; new graders must be reviewed pure built-ins over the unified session. Execution quality metrics alone do not establish operational value.
+A repository-owned Bash evaluator configured with `graders.operational-value.run`. It runs only in the separate graders job, reads session JSONL from `$1` / `GH_AW_SESSION_FILE` and config JSON from `GH_AW_GRADER_CONFIG`, and emits legacy metric arrays. Detected file writes are rejected. Shell is trusted code, not yet microVM-isolated. Execution quality metrics alone do not establish operational value.
 
 ### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
 

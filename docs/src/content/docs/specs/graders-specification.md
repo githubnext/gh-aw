@@ -7,7 +7,7 @@ sidebar:
 
 # Graders Specification
 
-**Version**: 0.4.0
+**Version**: 0.5.0
 **Status**: Draft Specification
 **Feature Status**: Experimental
 
@@ -22,12 +22,12 @@ The key words MUST, MUST NOT, SHOULD, and MAY have the meanings defined by
 
 ## 2. Grader interface
 
-Every registered grader MUST receive an in-memory
+Built-in and JavaScript graders MUST receive an in-memory
 [unified session](/gh-aw/specs/unified-agent-session-specification/), represented
 as an array of canonical events with `type`, `data`, and `provenance`.
 The caller MAY supply non-executable configuration and shared indexes.
 
-Graders MUST be pure computation. They MUST NOT read files, spawn processes,
+These graders MUST be pure computation. They MUST NOT read files, spawn processes,
 access the network, inspect environment variables, or mutate the input.
 Identical session and configuration inputs MUST produce identical results.
 Legacy preprocessed trace payloads are not accepted by the public interface.
@@ -64,8 +64,10 @@ Supported per-grader fields are `enabled`, `name`, `description`, `unit`,
 `direction`, `threshold`, `min`, `max`, and `config`. These fields carry data
 only. Custom IDs MUST additionally declare an inline JavaScript `script`, limited
 to 256 KiB. Built-in IDs MUST NOT accept scripts or implementation overrides.
-Unsupported fields, Bash evaluators, file-based scripts, `run`, and the reserved
-legacy `operational-value` ID MUST fail validation, even when disabled.
+The reserved `operational-value` ID instead requires a repository-owned Bash
+file through `run`; other IDs MUST NOT accept `run`, and `operational-value`
+MUST NOT accept `script`. Unsupported fields and built-in overrides MUST fail
+validation, even when disabled.
 
 Disabling a default with `enabled: false` MUST persist through manifest
 normalization and replay. Disabling all defaults is valid.
@@ -112,24 +114,50 @@ implementation identity, numeric value or null, unit, status, and threshold
 outcome. Individual computation failures MUST be recorded as errors and surfaced
 in conclusion, not converted into successful scores.
 
-Conclusion MUST NOT receive or execute workflow-provided JavaScript.
+Conclusion MUST NOT receive or execute workflow-provided JavaScript or Bash.
 Its manifest MAY register custom grader IDs, but MUST NOT contain custom
 executable definitions. User-provided conclusion steps MUST be rejected.
 
-Custom JavaScript MUST run only in a separate **graders job**, downstream of a
+Custom JavaScript and Bash MUST run only in a separate **graders job**, downstream of a
 successful conclusion and its published `usage` artifact. This job MUST use a
 fresh hosted runner, read-only repository access, no inherited deployment
 environment, and no App, inference, or OIDC credential minting. Work-queue
 participants without a published conclusion session MUST reject custom graders.
 Authors MUST NOT customize this compiler-owned job.
 
-Each custom script MUST receive immutable in-memory session/configuration
+Each custom JavaScript script MUST receive immutable in-memory session/configuration
 snapshots and session-derived lookup helpers, with no host-object bindings.
 Scripts MUST be synchronous and return a finite number, null, or a result object
 with a finite/null `value`. File, module, environment, process, network, clock,
 randomness, and timer capabilities MUST NOT be exposed. Separate restricted Node
 processes MUST bound memory, output, and execution time; VM isolation alone is
 insufficient.
+
+### Repository-owned Bash compatibility
+
+`graders.operational-value.run` MUST name a confined `.sh` repository file
+with a Bash shebang and at most 64 KiB of UTF-8 source. Paths are repository-root
+relative; `./` paths are relative to the declaring workflow. The compiler MUST
+freeze its bytes into the separate-job manifest, never conclusion.
+
+The runtime MUST invoke Bash with the redacted unified-session JSONL filename
+as `$1` and `GH_AW_SESSION_FILE`, configuration JSON as `GH_AW_GRADER_CONFIG`,
+and empty stdin. Evaluators MUST refactor legacy stdin-request reads to this
+session file. Existing nonempty arrays of unique `{id,value}` metrics remain the
+output contract: the first metric supplies `operational-value.value`; remaining
+metrics are diagnostics. Values MUST be finite numbers or null.
+
+The compatibility subprocess MUST have no inherited credentials or shell startup
+hooks, use a temporary working directory, and bound execution to 120 seconds
+and output to 1 MiB. Compiler validation and the default `grader-shell-file-write`
+rule MUST parse Bash ASTs and reject detected file writes or unanalyzable dynamic
+execution. Read-only session access, stdout/stderr, and `/dev/null` are permitted.
+
+Bash is repository-trusted code, not a pure JavaScript worker or a filesystem/
+network sandbox. Static analysis is not proof of safety. MicroVM isolation is
+future work, not a guarantee of this interface. Authors MUST derive scores only
+from recorded session evidence, never fetch missing evidence or execute session
+text as code.
 
 The separate `graders` artifact MUST contain combined built-in and custom
 results and data-only metadata, without overwriting built-in outcomes or
@@ -147,9 +175,11 @@ The CLI owns input parsing and optional download of the run's `usage` artifact.
 It accepts unified-session JSONL or a JSON event array, not legacy trace payloads
 or executable evaluator requests.
 
-The CLI SHOULD run Node with the permission model, an empty environment, a
+For built-ins and JavaScript, the CLI SHOULD run Node with the permission model, an empty environment, a
 bounded execution time, and read access restricted to the staged runtime modules.
 The grader itself still receives only the session and data configuration.
+Shell replay MUST use the same bounded Bash compatibility runtime and session-file
+contract as the separate job; Node's permission model does not sandbox Bash.
 
 ## 7. Experiment metric references
 
@@ -170,10 +200,11 @@ See the [Experiments Specification](/gh-aw/experimental/experiments-specificatio
 Conforming implementations MUST cover:
 
 - Default activation, explicit opt-ins, and disabling all defaults.
-- Rejection of built-in overrides, Bash/file evaluators, and unsupported fields.
+- Rejection of built-in overrides, invalid shell paths, detected file writes, and unsupported fields.
 - Custom source exclusion from conclusion and isolated downstream execution.
 - Optional custom-artifact discovery, missing-artifact fallback, and cache refresh.
-- Determinism, immutable inputs, and absence of grader file or process I/O.
+- Determinism, immutable inputs, and absence of file/process I/O in pure graders.
+- Shell session-file input, legacy metric output, credential stripping, and bounded execution.
 - Shared lookups, tool correlation, duplicate accounting, and phase isolation.
 - Conclusion-only execution after unified-session collection and redaction.
 - Matching persisted results and unified-session grader events.
@@ -182,6 +213,12 @@ Conforming implementations MUST cover:
 - Grader-backed experiment reference validation.
 
 ## 9. Change log
+
+### Version 0.5.0
+
+- Restores repository-owned `operational-value.run` Bash only in the separate job.
+- Replaces legacy evaluator request input with the published unified-session file.
+- Adds shared Bash AST file-write checking during compilation and lint.
 
 ### Version 0.4.0
 

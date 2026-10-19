@@ -44,6 +44,9 @@ func (targets ASTTargets) String() string {
 
 type Input struct {
 	Workflow *actions.Workflow
+	// SourcePath identifies the declaring AW source, including imported fragments
+	// and companion Markdown when Workflow is a compiled Actions AST.
+	SourcePath string
 	// Document optionally supplies authored AW fields, including the prompt.
 	// Either AST may be supplied independently. Workflow is never a projection
 	// of AW frontmatter; when both are supplied it is the compiled graph.
@@ -232,6 +235,7 @@ func Default() *Runner {
 		FirewallSSLBumpRule(),
 		CustomJobDetectionRule(),
 		GraderFileIORule(),
+		GraderShellFileWriteRule(),
 		PullRequestTargetCheckoutRule(),
 		PromptExpressionRule(),
 	}}

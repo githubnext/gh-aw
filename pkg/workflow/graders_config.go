@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/workflow/gradershell"
 )
 
 var gradersConfigLog = logger.New("workflow:graders_config")
@@ -88,17 +89,20 @@ var builtinGraderMetaByID = func() map[string]*BuiltinGraderMeta {
 
 // GraderDefinition represents a single grader entry in the graders map.
 type GraderDefinition struct {
-	ID          string         // grader identifier (must be unique)
-	Enabled     *bool          // explicit enable/disable; nil means use default (true for built-ins)
-	Name        string         // human-readable name (defaults from registry for built-ins)
-	Description string         // description of the metric
-	Unit        string         // e.g. "ratio", "count", "ms", "factor"
-	Direction   string         // "higher_is_better" or "lower_is_better"
-	Threshold   *float64       // quality threshold (pass/fail boundary)
-	Max         *float64       // theoretical maximum
-	Min         *float64       // theoretical minimum
-	Config      map[string]any // arbitrary config passed to grader at runtime
-	Script      string         // JavaScript executed only in the isolated graders job
+	ID            string         // grader identifier (must be unique)
+	Enabled       *bool          // explicit enable/disable; nil means use default (true for built-ins)
+	Name          string         // human-readable name (defaults from registry for built-ins)
+	Description   string         // description of the metric
+	Unit          string         // e.g. "ratio", "count", "ms", "factor"
+	Direction     string         // "higher_is_better" or "lower_is_better"
+	Threshold     *float64       // quality threshold (pass/fail boundary)
+	Max           *float64       // theoretical maximum
+	Min           *float64       // theoretical minimum
+	Config        map[string]any // arbitrary config passed to grader at runtime
+	Script        string         // JavaScript executed only in the isolated graders job
+	Run           string         // Repository Bash evaluator path, only for operational-value
+	RunSourcePath string         // Declaring import file, for workflow-relative run paths
+	ShellScript   string         // Frozen evaluator source, never sent to conclusion
 }
 
 // GradersConfig holds the configuration for deterministic graders declared
@@ -222,16 +226,19 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 			return nil, fmt.Errorf("graders has invalid id %q: must match %s", id, graderIDPattern.String())
 		}
 
-		if id == "operational-value" {
-			return nil, errors.New("graders.operational-value is not supported; Bash and file-based evaluators cannot run as session graders")
-		}
 		meta, isBuiltin := builtinGraderMetaByID[id]
 		def := &GraderDefinition{ID: id, Name: id}
 		if isBuiltin {
 			def = builtinDefFromMeta(meta)
+		} else if id == "operational-value" {
+			def.Name = "Operational Value"
+			def.Direction = "higher_is_better"
 		}
 		if entryRaw == nil {
 			if !isBuiltin {
+				if id == "operational-value" {
+					return nil, errors.New("graders.operational-value requires run: a repository Bash evaluator path")
+				}
 				return nil, fmt.Errorf("graders.%s requires a JavaScript script over the in-memory session", id)
 			}
 			cfg.Graders[id] = def
@@ -246,7 +253,10 @@ func (c *Compiler) parseGradersFromFrontmatter(frontmatter map[string]any) (*Gra
 		if err := parseGraderEntryFields(def, entry, id); err != nil {
 			return nil, err
 		}
-		if !isBuiltin && def.Script == "" {
+		if id == "operational-value" && def.Run == "" {
+			return nil, errors.New("graders.operational-value requires run: a repository Bash evaluator path")
+		}
+		if !isBuiltin && id != "operational-value" && def.Script == "" {
 			return nil, fmt.Errorf("graders.%s requires a JavaScript script over the in-memory session", id)
 		}
 		if !isBuiltin && def.Threshold != nil && def.Direction == "" {
@@ -289,12 +299,25 @@ func builtinDefFromMeta(meta *BuiltinGraderMeta) *GraderDefinition {
 func parseGraderEntryFields(def *GraderDefinition, entry map[string]any, id string) error { //nolint:largefunc
 	for key := range entry {
 		switch key {
-		case "enabled", "name", "description", "unit", "direction", "threshold", "max", "min", "config", "script":
+		case "enabled", "name", "description", "unit", "direction", "threshold", "max", "min", "config", "script", "run":
 		default:
 			return fmt.Errorf("graders.%s.%s is not supported; use data-only built-in configuration or an inline JavaScript script for a custom grader", id, key)
 		}
 	}
+	if raw, exists := entry["run"]; exists {
+		if id != "operational-value" {
+			return fmt.Errorf("graders.%s.run is unsupported; only graders.operational-value accepts a Bash evaluator path", id)
+		}
+		run, valid := raw.(string)
+		if !valid || !gradershell.ValidRunPath(run) {
+			return errors.New("graders.operational-value.run must be a static repository-relative .sh path without traversal or expressions")
+		}
+		def.Run = run
+	}
 	if raw, exists := entry["script"]; exists {
+		if id == "operational-value" {
+			return errors.New("graders.operational-value requires run instead of script; use a distinct ID for JavaScript")
+		}
 		if _, builtin := builtinGraderMetaByID[id]; builtin {
 			return fmt.Errorf("graders.%s.script cannot override a built-in grader; choose a custom grader ID", id)
 		}

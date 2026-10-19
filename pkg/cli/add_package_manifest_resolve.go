@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -92,6 +93,7 @@ func resolveRepositoryPackageProjectFile(ctx context.Context, owner, repo, packa
 
 func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref, host, repoSlug string, nodes []repositoryPackageManifestNode) (*resolvedRepositoryPackageAssets, error) {
 	assets := &resolvedRepositoryPackageAssets{extensionFiles: &repositoryPackageExtensionFiles{}}
+	seenEvaluators := make(map[string]string)
 	for _, node := range nodes {
 		visibilityWarnings, err := validateRepositoryPackageVisibility(node.Manifest, repositoryPackageIdentifier(repoSlug, node.PackagePath))
 		if err != nil {
@@ -105,6 +107,10 @@ func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref
 		}
 		assets.installationSources = append(assets.installationSources, nodeInstallables...)
 		nodeResources := normalizePackageResourcePaths(node.Manifest.Resources, node.PackagePath)
+		nodeResources, err = appendPackageGraderEvaluatorResources(ctx, owner, repo, ref, host, nodeResources, nodeInstallables, seenEvaluators)
+		if err != nil {
+			return nil, err
+		}
 		assets.resourceFiles = append(assets.resourceFiles, nodeResources...)
 
 		nodeExtensionFiles, err := resolveRepositoryPackageExtensionFiles(ctx, repositoryPackageExtensionFilesOptions{
@@ -127,12 +133,58 @@ func resolveRepositoryPackageManifestNodes(ctx context.Context, owner, repo, ref
 	return assets, nil
 }
 
+func appendPackageGraderEvaluatorResources(ctx context.Context, owner, repo, ref, host string, resources []resolvedPackageResource, installables []resolvedPackageInstallable, seen map[string]string) ([]resolvedPackageResource, error) {
+	for _, resource := range resources {
+		seen[packageResourceDestinationKey(resource.DestinationPath)] = resource.SourcePath
+	}
+	for _, installable := range installables {
+		if !strings.HasSuffix(strings.ToLower(installable.SourcePath), ".md") {
+			continue
+		}
+		content, err := downloadPackageFileFromGitHubForHost(ctx, owner, repo, installable.SourcePath, ref, host)
+		if err != nil {
+			if isRepositoryFileNotFound(err) {
+				continue
+			}
+			return nil, fmt.Errorf("cannot discover grader resources for %q: %w", installable.SourcePath, err)
+		}
+		entries, err := extractResourceEntries(string(content))
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range entries {
+			if !entry.isGraderEvaluator {
+				continue
+			}
+			resource := resolvedPackageResource{SourcePath: entry.path, DestinationPath: entry.path}
+			if local, ok := strings.CutPrefix(entry.path, "./"); ok {
+				resource.SourcePath = path.Join(path.Dir(installable.SourcePath), local)
+				resource.DestinationPath = path.Join(path.Dir(installable.DestinationPath), local)
+			}
+			key := packageResourceDestinationKey(resource.DestinationPath)
+			if previous, exists := seen[key]; exists {
+				if previous != resource.SourcePath {
+					return nil, fmt.Errorf("conflicting grader evaluator sources for %q", resource.DestinationPath)
+				}
+				continue
+			}
+			seen[key] = resource.SourcePath
+			resources = append(resources, resource)
+		}
+	}
+	return resources, nil
+}
+
+func packageResourceDestinationKey(destination string) string {
+	return strings.ToLower(filepath.ToSlash(filepath.Clean(destination)))
+}
+
 func splitRepositoryPackageSlug(repoSlug string) (string, string, error) {
 	parts := strings.SplitN(repoSlug, "/", 2)
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("repository slug %q is not in 'owner/repo' format. Example: owner/repo", repoSlug)
 	}
-	return parts[0], parts[1], nil
+	return parts[0], parts[1], nil //nolint:uncheckedsliceindex // len(parts) == 2 was checked above.
 }
 
 func resolveRepositoryPackageRef(ctx context.Context, repoSpec *RepoSpec, host string) string {

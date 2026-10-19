@@ -27,6 +27,7 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 		"pull-request-target-roles", "safe-output-shell-expansion", "firewall-ssl-bump",
 		"custom-job-detection",
 		"grader-file-io",
+		"grader-shell-file-write",
 		"pull-request-target-checkout", "prompt-expression",
 	}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")

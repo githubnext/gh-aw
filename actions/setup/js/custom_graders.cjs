@@ -8,7 +8,8 @@ const { createSessionLookups, serializeLookupsForWorker } = require("./grader_se
 const { buildGraderOutput, normalizeResult, BUILTIN_GRADERS, GRADER_VERSION } = require("./trace_graders.cjs");
 
 /**
- * Orchestration boundary: user code runs only in a fresh restricted process.
+ * Orchestration boundary: JavaScript uses restricted workers; trusted Bash uses
+ * the separate-job compatibility runtime, never conclusion.
  * @param {import("./types/unified_session").UnifiedSession} session
  * @param {any[]} graders
  */
@@ -16,22 +17,13 @@ function runCustomGraders(session, graders) {
   const lookups = createSessionLookups(session);
   const worker = path.join(__dirname, "custom_grader_worker.cjs");
   const permission = process.allowedNodeEnvironmentFlags.has("--permission") ? "--permission" : "--experimental-permission";
-  if (!process.allowedNodeEnvironmentFlags.has(permission)) throw new Error("custom graders require Node.js permission support");
+  if (graders.some(grader => grader?.source === "inline" && grader.enabled !== false) && !process.allowedNodeEnvironmentFlags.has(permission)) {
+    throw new Error("custom JavaScript graders require Node.js permission support");
+  }
   const ids = new Set();
   for (const grader of graders) {
-    if (
-      !grader ||
-      typeof grader.id !== "string" ||
-      !/^[a-z][a-z0-9-]{0,63}$/.test(grader.id) ||
-      grader.id === "operational-value" ||
-      Object.hasOwn(BUILTIN_GRADERS, grader.id) ||
-      grader.source !== "inline" ||
-      typeof grader.script !== "string" ||
-      !grader.script.trim() ||
-      Buffer.byteLength(grader.script) > 256 * 1024 ||
-      Object.hasOwn(grader, "run")
-    ) {
-      throw new Error("custom graders require a distinct ID and an inline JavaScript script; built-in overrides and Bash evaluators are unsupported");
+    if (!grader || typeof grader.id !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(grader.id) || Object.hasOwn(BUILTIN_GRADERS, grader.id) || !validCustomSource(grader)) {
+      throw new Error("custom graders require a distinct JavaScript ID or operational-value with frozen Bash source; built-in overrides are unsupported");
     }
     if (ids.has(grader.id)) throw new Error(`duplicate custom grader ${grader.id}`);
     ids.add(grader.id);
@@ -39,6 +31,7 @@ function runCustomGraders(session, graders) {
   const results = graders
     .filter(grader => grader.enabled !== false)
     .map(grader => {
+      if (grader.source === "operational-value") return runOperationalValueGrader(session, grader);
       const input = JSON.stringify({
         id: grader.id,
         script: grader.script,
@@ -79,9 +72,70 @@ function runCustomGraders(session, graders) {
     manifest: {
       version: GRADER_VERSION,
       customGraders: graders.filter(grader => grader.enabled !== false).map(grader => grader.id),
-      graders: [...(Array.isArray(priorManifest?.graders) ? priorManifest.graders.filter(grader => grader.source === "builtin") : []), ...graders.map(({ script: _script, ...metadata }) => metadata)],
+      graders: [...(Array.isArray(priorManifest?.graders) ? priorManifest.graders.filter(grader => grader.source === "builtin") : []), ...graders.map(({ script: _script, shellScript: _shellScript, ...metadata }) => metadata)],
     },
     output: buildGraderOutput([...builtinResults, ...results], lookups),
+  };
+}
+
+/** @param {any} grader */
+function validCustomSource(grader) {
+  if (grader.source === "operational-value") {
+    return (
+      grader.id === "operational-value" &&
+      typeof grader.run === "string" &&
+      grader.run.endsWith(".sh") &&
+      typeof grader.shellScript === "string" &&
+      hasBashShebang(grader.shellScript) &&
+      Buffer.byteLength(grader.shellScript) <= 64 * 1024 &&
+      !Object.hasOwn(grader, "script")
+    );
+  }
+  return (
+    grader.id !== "operational-value" &&
+    grader.source === "inline" &&
+    typeof grader.script === "string" &&
+    !!grader.script.trim() &&
+    Buffer.byteLength(grader.script) <= 256 * 1024 &&
+    !Object.hasOwn(grader, "run") &&
+    !Object.hasOwn(grader, "shellScript")
+  );
+}
+
+/** @param {string} source */
+function hasBashShebang(source) {
+  const [line] = source.split("\n", 1);
+  if (!line.startsWith("#!")) return false;
+  const fields = line.slice(2).trim().split(/\s+/);
+  if (path.posix.isAbsolute(fields[0]) && path.posix.basename(fields[0]) === "bash") return true;
+  if (fields[0] !== "/usr/bin/env" && fields[0] !== "/bin/env") return false;
+  return (fields.length === 2 && fields[1] === "bash") || (fields.length >= 3 && fields[1] === "-S" && fields[2] === "bash");
+}
+
+/** @param {import("./types/unified_session").UnifiedSession} session @param {any} grader */
+function runOperationalValueGrader(session, grader) {
+  let result;
+  try {
+    const { executeOperationalValueEvaluator } = require("./operational_value_grader.cjs");
+    const metrics = executeOperationalValueEvaluator(grader.shellScript, session, grader.config ?? {});
+    result = {
+      ...normalizeResult(
+        grader.id,
+        {
+          value: metrics[0].value,
+          diagnostics: Object.fromEntries(metrics.slice(1).map(metric => [metric.id, metric.value])),
+        },
+        grader
+      ),
+      metrics,
+    };
+  } catch (error) {
+    result = { ...normalizeResult(grader.id, null, grader), status: "error", error: error instanceof Error ? error.message : String(error) };
+  }
+  return {
+    ...result,
+    source: "operational-value",
+    implementation: { id: "gh-aw/operational-value", version: GRADER_VERSION, digest: createHash("sha256").update(grader.shellScript).digest("hex") },
   };
 }
 
@@ -101,9 +155,9 @@ async function main(options = {}) {
   fs.writeFileSync(path.join(directory, "grader_manifest.json"), JSON.stringify(manifest, null, 2), { mode: 0o600 });
   fs.writeFileSync(path.join(directory, "grader_results.json"), JSON.stringify(output, null, 2), { mode: 0o600 });
   for (const result of output.results) {
-    if (result.source === "inline" && result.error) global.core.warning(`Custom grader ${result.id}: ${result.error}`);
+    if (result.source !== "builtin" && result.error) global.core.warning(`Custom grader ${result.id}: ${result.error}`);
   }
-  if (output.results.some(result => result.source === "inline" && result.status === "error")) global.core.setFailed("One or more custom graders failed");
+  if (output.results.some(result => result.source !== "builtin" && result.status === "error")) global.core.setFailed("One or more custom graders failed");
 }
 
 module.exports = { runCustomGraders, main };

@@ -212,8 +212,13 @@ receiving immutable `session`, `config`, and `helpers` snapshots. Return a
 finite number, `null`, or an object with `value`. The compiler partitions custom
 source into a restricted downstream `graders` job; conclusion receives only
 custom IDs. Never import or execute user code in conclusion, permit its step
-hooks, or allow `jobs.graders` customization. Bash, `run`, file-backed scripts,
-`operational-value`, and built-in implementation overrides are rejected.
+hooks, or allow `jobs.graders` customization. Repository-owned
+`graders.operational-value.run` Bash also runs only in that separate job: freeze
+the confined `.sh` source at compilation, pass session JSONL as `$1` /
+`GH_AW_SESSION_FILE` and config JSON as `GH_AW_GRADER_CONFIG`, and preserve legacy
+metric-array output. Compilation and `grader-shell-file-write` share the Bash AST
+write checker. Shell has bounded execution and a stripped environment but is not
+a filesystem/network sandbox or microVM yet. Built-in overrides remain rejected.
 
 The separate job consumes `usage/aw_session.jsonl` and publishes combined results
 in the `graders` artifact without source. Preserve conclusion's published session.

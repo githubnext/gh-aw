@@ -137,7 +137,7 @@ func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Run
 }
 
 func loadWorkflowLintInput(file string, javascript ...*taint.JavaScriptOptions) (workflowlint.Input, error) {
-	input := workflowlint.Input{}
+	input := workflowlint.Input{SourcePath: file}
 	content, err := os.ReadFile(file)
 	if err != nil {
 		return input, err
@@ -165,6 +165,7 @@ func loadWorkflowLintInput(file string, javascript ...*taint.JavaScriptOptions) 
 			document, parseErr := aw.Parse(string(source))
 			if parseErr == nil {
 				input.Document = document
+				input.SourcePath = base + ".md"
 			}
 		case !errors.Is(readErr, os.ErrNotExist):
 			failures = append(failures, fmt.Errorf("reading companion AW document: %w", readErr))

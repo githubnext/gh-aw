@@ -17320,6 +17320,12 @@ safe-outputs:
     # (optional)
     allow-full-history-fetch: true
 
+    # Allow bounded REST comparison discovery of older merged base ancestors for
+    # unsigned bundle size validation. Disabled by default; the exact pinned base tip
+    # remains recognized.
+    # (optional)
+    allow-merged-base-baseline: true
+
     # When true, adds workflows: write to the GitHub App token permissions. Required
     # when allowed-files targets .github/workflows/ paths. Requires
     # safe-outputs.github-app to be configured because the workflows permission is a
@@ -24494,9 +24500,9 @@ import-schema:
 # (optional)
 model: "example-value"
 
-# Pure graders over the unified session. Fast built-ins run in conclusion by
-# default; custom JavaScript runs only in a separate, restricted graders job after
-# conclusion.
+# Graders over the unified session. Fast built-ins run in conclusion; custom
+# JavaScript and operational-value.run Bash evaluators run only in the separate
+# graders job.
 # (optional)
 graders:
   {}

@@ -314,7 +314,7 @@ resources:
 			assert.Equal(t, ".github/aw/policy/controls.json", pkg.ResourceFiles[1].DestinationPath)
 		})
 
-		t.Run("does not install custom grader evaluator resources", func(t *testing.T) {
+		t.Run("installs custom grader evaluator resources", func(t *testing.T) {
 			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 				switch path {
 				case "packages/repo-assist/aw.yml":
@@ -354,10 +354,12 @@ graders:
 
 			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 			require.NoError(t, err)
-			assert.Empty(t, pkg.ResourceFiles)
+			require.Len(t, pkg.ResourceFiles, 2)
+			assert.Equal(t, resolvedPackageResource{SourcePath: ".github/graders/shared-operational-value.sh", DestinationPath: ".github/graders/shared-operational-value.sh"}, pkg.ResourceFiles[0])
+			assert.Equal(t, resolvedPackageResource{SourcePath: "packages/repo-assist/workflows/graders/triage-operational-value.sh", DestinationPath: ".github/workflows/graders/triage-operational-value.sh"}, pkg.ResourceFiles[1])
 		})
 
-		t.Run("does not install evaluators from imported manifests", func(t *testing.T) {
+		t.Run("deduplicates evaluators from imported manifests", func(t *testing.T) {
 			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 				switch path {
 				case "packages/repo-assist/aw.yml":
@@ -407,7 +409,8 @@ graders:
 
 			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 			require.NoError(t, err)
-			assert.Empty(t, pkg.ResourceFiles)
+			require.Len(t, pkg.ResourceFiles, 1)
+			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
 		})
 		getRepositoryPackageLatestRelease = func(_ context.Context, repoSlug, host string) (string, error) {
 			assert.Equal(t, "owner/repo", repoSlug)

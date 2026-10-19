@@ -54,7 +54,7 @@ func (c *Compiler) buildCustomGradersJob(data *WorkflowData) (*Job, error) {
 		RunsOn:         "runs-on: ubuntu-latest",
 		Needs:          []string{string(constants.ActivationJobName), string(constants.ConclusionJobName)},
 		If:             "always() && needs.conclusion.result == 'success'",
-		Permissions:    "permissions:\n  contents: read\n",
+		Permissions:    NewPermissionsContentsRead().RenderToYAML(),
 		TimeoutMinutes: 10,
 		Steps:          steps,
 	}, nil

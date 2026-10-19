@@ -3,11 +3,12 @@ title: Graders
 description: Pure deterministic metrics from the unified agent session
 ---
 
-Graders compute metrics without model calls, file reads, subprocesses, or
+Built-in and JavaScript graders compute metrics without model calls, file reads, subprocesses, or
 network access. Built-ins run in the **conclusion job**, after observations from
 agent execution, safe outputs, experiments, and evals have been collected and
 redacted in memory. Custom JavaScript runs only in a separate **graders job**
-after conclusion publishes that session.
+after conclusion publishes that session. Repository-owned operational-value Bash
+evaluators also run only in that separate job, using a session-file interface.
 
 :::caution[Experimental]
 Graders and their result format are experimental.
@@ -56,8 +57,8 @@ graders:
 Supported fields are `enabled`, `name`, `description`, `unit`, `direction`,
 `threshold`, `min`, `max`, and `config`. Disabling every default is valid.
 Custom IDs additionally require `script`. Built-in implementations cannot be
-overridden. Bash, `run`, file-based scripts, and legacy `operational-value`
-evaluators remain unsupported, even in disabled entries.
+overridden. Only the reserved `operational-value` ID accepts a Bash `run` path
+instead of JavaScript `script`.
 
 ## Custom JavaScript
 
@@ -93,6 +94,50 @@ cannot register custom graders.
 Conclusion receives only custom IDs, never executable grader source.
 User-provided conclusion steps and customization of `jobs.graders` are rejected.
 
+## Operational-value Bash
+
+Reuse a repository-owned evaluator after replacing its old stdin request with
+the unified-session JSONL file:
+
+```yaml
+graders:
+  operational-value:
+    run: .github/graders/score.sh
+```
+
+```bash title=".github/graders/score.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+session_file=$1 # Also available as GH_AW_SESSION_FILE.
+jq -s '[{id: "recorded-tool-failures", value:
+  ([.[] | select(.type == "tool.execution_complete" and .data.success == false)] | length)
+}]' "$session_file"
+```
+
+This diagnostic example measures recorded failures, not semantic task success.
+Configuration is JSON in `GH_AW_GRADER_CONFIG`. Stdin is empty. Keep existing
+nonempty `[{id,value}, ...]` output: the first metric becomes the primary
+`operational-value` value; subsequent metrics remain diagnostics. Use `null`
+when required evidence is absent.
+
+`run` is a repository-root-relative `.sh` file path, not an inline shell command.
+`./` paths are relative to the declaring workflow. Source must be UTF-8, have a
+Bash shebang, and fit within 64 KiB. The compiler freezes it into the separate
+job, so runtime checkout is unnecessary. `gh aw add` and packages install the
+referenced evaluator resource.
+
+The runtime starts Bash without profiles or inherited credentials, in a temporary
+working directory, with a 120-second deadline and 1 MiB output limit. Compilation
+and the default `grader-shell-file-write` linter reject detected file writes and
+unchecked dynamic execution. Read the session, compute in memory, and print metrics;
+remove temporary-file writes, checkout/API fetches, and mutation commands.
+
+> [!CAUTION]
+> Shell evaluators are trusted repository code, not a filesystem/network sandbox.
+> Static write detection cannot prove arbitrary shell safety. MicroVM isolation
+> is future work. Never evaluate session text as shell code or claim missing
+> evidence was observed.
+
 ## Opt-in trajectory graders
 
 These built-ins are not enabled by default:
@@ -127,7 +172,7 @@ The `usage` artifact contains:
 
 The collector passes the redacted session array directly to `computeGraders`.
 `createSessionLookups` provides shared event-type lookups, correlated tool calls,
-and concrete accounting statistics. Graders never reread the persisted session
+and concrete accounting statistics. Pure graders never reread the persisted session
 or source logs.
 
 When custom graders are registered, the separate `graders` artifact contains a

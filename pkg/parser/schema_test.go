@@ -1618,7 +1618,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_WorkflowRunConclus
 	})
 }
 
-func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsOperationalValueGrader(t *testing.T) {
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OperationalValueGrader(t *testing.T) {
 	t.Parallel()
 
 	for _, runPath := range []string{
@@ -1636,8 +1636,8 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_RejectsOperational
 				},
 			}
 
-			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err == nil {
-				t.Fatal("expected custom evaluator to fail schema validation")
+			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}

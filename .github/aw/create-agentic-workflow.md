@@ -41,8 +41,11 @@ irrelevant defaults instead of recreating their implementations. Custom metrics
 use `graders.<distinct-id>.script`: synchronous JavaScript over `session`,
 `config`, and `helpers.createSessionLookups(session)`, returning a finite number,
 `null`, or an object with `value`. The compiler generates an isolated downstream
-`graders` job. Never add Bash/file evaluators, `run`, the reserved
-`operational-value` ID, or user steps in conclusion. See the linked skill for
+`graders` job. Repository-owned Bash may instead use `graders.operational-value.run`,
+reading unified-session JSONL from `$1` / `GH_AW_SESSION_FILE` and config from
+`GH_AW_GRADER_CONFIG`, preserving metric-array output. Detected file writes are
+rejected; shell remains trusted code until future microVM isolation. Never add
+user code or steps in conclusion. See the linked skill for
 the full syntax, evidence rules, and fixture checks.
 
 ## Skills and Plugins
