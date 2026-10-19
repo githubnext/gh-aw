@@ -128,6 +128,13 @@ admission.
   Build `go build -o ./gh-aw ./cmd/gh-aw`; use
   `./gh-aw work-queue --repo OWNER/REPO stats --json`. `dispatch-next` grants
   reservations, never launches; use the authorized dispatcher.
+- Destructive, maintainer-gated: `gh aw work-queue clear --reason CODE
+  [--dry-run | --hard]` requires repo maintain/admin permission, is blocked in
+  CI, and always shows an interactive confirmed preview bound to the exact
+  snapshot (no bypass flag). `--hard` replaces the ledger outright — it forgets
+  Work/Claim identities, retry history and fairness debt, and only runs when
+  admission/grants are already paused with no open Claims or pending
+  deliveries. See [hard reset](../../docs/src/content/docs/reference/work-queue.md#hard-reset).
 - Daily report rotation and Claims:
   [portfolio walkthrough](../../docs/src/content/docs/patterns/daily-report-portfolio.md)
   and [shared worker instructions](../workflows/shared/daily-report-worker.md).
