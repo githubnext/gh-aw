@@ -462,8 +462,17 @@ global.exec = {
     });
     return 0;
   },
-  async getExecOutput() {
-    return { stdout: "true\n", stderr: "", exitCode: 0 };
+  async getExecOutput(command, args) {
+    records.exec.push({
+      command: String(command),
+      args: Array.isArray(args) ? args.map(String) : [String(args)],
+      argsIsArray: Array.isArray(args),
+    });
+    const isShallowCheck =
+      command === "git" && Array.isArray(args) && args[0] === "rev-parse" && args[1] === "--is-shallow-repository";
+    const headCheck =
+      command === "git" && Array.isArray(args) && args[0] === "rev-parse" && args[1] === "HEAD^{commit}";
+    return { stdout: isShallowCheck ? "true\n" : headCheck ? "abc123\n" : "", stderr: "", exitCode: 0 };
   },
 };
 
