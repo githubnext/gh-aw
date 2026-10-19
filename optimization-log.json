@@ -1,14 +1,5 @@
 [
   {
-    "date": "2026-06-29",
-    "workflow_name": "Contribution Check",
-    "workflow_file": "contribution-check",
-    "total_aic_analyzed": 587.835,
-    "runs_audited": 30,
-    "recommendations_count": 5,
-    "estimated_aic_savings_per_run": 40
-  },
-  {
     "date": "2026-06-30",
     "workflow_name": "Test Quality Sentinel",
     "workflow_file": "test-quality-sentinel",
@@ -292,5 +283,15 @@
     "recommendations_count": 5,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 60
+  },
+  {
+    "date": "2026-10-19",
+    "workflow_name": "Issue Monster",
+    "workflow_file": "issue-monster",
+    "total_aic_analyzed": 118.75,
+    "runs_audited": 7,
+    "recommendations_count": 5,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 8
   }
 ]
