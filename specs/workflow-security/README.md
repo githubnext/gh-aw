@@ -121,10 +121,11 @@ skipped/fail-open runs.
 
 `Termination` checks eventual completion under weak fairness of protocol
 progress. HTTP/OIDC deadlines, backoff, cancellation delivery, and bounded
-credit-consuming work are abstract atomic steps, not a verified wall-clock
-latency bound. A transient result can occur on any attempt; the environment
-need not eventually return an approval. Policy revocation can return the same
-uniform denial after a cached approval.
+credit-consuming work are abstract atomic steps, not a verification of the
+60-second end-to-end deadline, its early retry exhaustion, or minimum
+decision-retention duration. A transient result can occur on any attempt; the
+environment need not eventually return an approval. Policy revocation can
+return the same uniform denial after a cached approval.
 
 The checker includes 20 synthetic single-guard faults and eight reachability
 witnesses. Witnesses demonstrate admitted, skipped, and fail-open agent starts;
@@ -151,10 +152,11 @@ each negative control or witness must violate exactly its named invariant
 with TLC exit code 12. Tooling and parser failures never satisfy a control.
 
 This model does not prove JWT cryptography, issuer/JWKS trust, HTTP/TLS or JSON
-parsers, URL/redirect safety, GitHub App provisioning or installation-token
-revocation, distributed cache correctness/expiry, randomness, logging redaction,
-timing noninterference, or
-actual engine billing enforcement. `identity = "valid"` assumes all required
+parsers (including integer wire spelling and Unicode scalar validity),
+URL/redirect safety, GitHub App provisioning or installation-token
+revocation, distributed cache correctness/expiry or bounded replay-state cleanup,
+randomness, logging redaction, timing noninterference, or actual engine billing
+enforcement. `identity = "valid"` assumes all required
 signed claims, executing workflow-reference bindings, unambiguous invocation
 identity, and any logical-policy mapping have been independently verified;
 `triggeringActor = "verified"` assumes the specified authoritative run-attempt
