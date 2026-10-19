@@ -60,11 +60,12 @@ function bareURL(source) {
  * Import the small Markdown dialect used by runtime report templates into typed nodes.
  * Templates are parsed before scalar substitution; values cannot introduce markup.
  * Existing diagnostic fragments are imported separately, never passed through as raw HTML.
+ * Inline slots do not enable scalar template substitution in surrounding Markdown.
  * @param {string} markdown
- * @param {{context?: ReportContext, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, allowedMentions?: string[]}} [options]
+ * @param {{context?: ReportContext, inlineSlots?: Record<string, ReportInline[]>, minimumHeadingLevel?: number, depth?: number, allowFlagMarkers?: boolean, allowMetadata?: boolean, allowedMentions?: string[]}} [options]
  * @returns {ReportBlock[]}
  */
-function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
+function parseReportMarkdown(markdown, { context, inlineSlots, minimumHeadingLevel = 3, depth = 0, allowFlagMarkers = false, allowMetadata = false, allowedMentions = [] } = {}) {
   if (depth > 16) throw new TypeError("Report template nesting exceeds the maximum depth");
   /** @param {string} key */
   function valueFor(key) {
@@ -119,10 +120,13 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
       } else if ((match = /^#([1-9]\d*)\b/.exec(source))) {
         nodes.push({ type: "issue_reference", number: match[1] });
       } else if ((match = /^\{(\w+)\}/.exec(source))) {
-        const value = valueFor(match[1]);
-        if (Array.isArray(value)) throw new TypeError("Report blocks cannot appear inline");
-        if (typeof value === "object") nodes.push(...value.children);
-        else text(value === undefined ? match[0] : String(value));
+        if (inlineSlots && Object.hasOwn(inlineSlots, match[1])) nodes.push(...inlineSlots[match[1]]);
+        else {
+          const value = valueFor(match[1]);
+          if (Array.isArray(value)) throw new TypeError("Report blocks cannot appear inline");
+          if (typeof value === "object") nodes.push(...value.children);
+          else text(value === undefined ? match[0] : String(value));
+        }
       } else if (
         (match = /^@([A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)(?![a-zA-Z0-9_/-])/.exec(source)) &&
         !/[A-Za-z0-9]/.test(original[original.length - source.length - 1] || "") &&
@@ -183,8 +187,8 @@ function parseReportMarkdown(markdown, { context, minimumHeadingLevel = 3, depth
 
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   let index = 0;
-  const nested = source => parseReportMarkdown(source, { context, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, allowedMentions });
-  const isFieldLine = line => /^(?:\{\w+\}\s*)+$/.test(line.trim());
+  const nested = source => parseReportMarkdown(source, { context, inlineSlots, minimumHeadingLevel: Math.max(3, minimumHeadingLevel), depth: depth + 1, allowFlagMarkers, allowMetadata, allowedMentions });
+  const isFieldLine = line => /^(?:\{\w+\}\s*)+$/.test(line.trim()) && (!inlineSlots || [...line.matchAll(/\{(\w+)\}/g)].some(field => !Object.hasOwn(inlineSlots, field[1])));
   const isBlockStart = line =>
     /^(?:#{1,6}\s|```|~~~|>|<details>(?:\s*$|\s*<summary>)|<\/details>\s*$|[-*+]\s|\d+\.\s|---\s*$)/.test(line) ||
     isFieldLine(line) ||

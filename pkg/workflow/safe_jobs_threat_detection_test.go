@@ -236,6 +236,80 @@ func TestSafeOutputsJobsDoNotDependOnDetectionWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestSafeJobsThreatDetectionCondition(t *testing.T) {
+	expr := "${{ inputs.enable-threat-detection }}"
+	const baseCondition = "(!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'my_custom_job')"
+	tests := []struct {
+		name            string
+		threatDetection *ThreatDetectionConfig
+		wantCondition   string
+	}{
+		{
+			name:            "enabled",
+			threatDetection: &ThreatDetectionConfig{},
+			wantCondition:   baseCondition + " && needs.detection.result == 'success'",
+		},
+		{
+			name:          "disabled",
+			wantCondition: baseCondition,
+		},
+		{
+			name:            "conditional",
+			threatDetection: &ThreatDetectionConfig{EnabledExpr: &expr},
+			wantCondition:   "always() && " + baseCondition + " && (needs.detection.result == 'success' || needs.detection.result == 'skipped')",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, userCondition := range []string{"", "github.repository == 'github/gh-aw'"} {
+				t.Run("if="+userCondition, func(t *testing.T) {
+					c := NewCompiler()
+					data := &WorkflowData{
+						Name: "test-workflow",
+						SafeOutputs: &SafeOutputsConfig{
+							ThreatDetection: tt.threatDetection,
+							Jobs: map[string]*SafeJobConfig{
+								"my-custom-job": {
+									If: userCondition,
+									Steps: []any{
+										map[string]any{"run": "echo 'first'"},
+										map[string]any{"run": "echo 'second'"},
+									},
+								},
+							},
+						},
+					}
+					enabled := IsDetectionJobEnabled(data.SafeOutputs)
+					if _, err := c.buildSafeJobs(data, enabled); err != nil {
+						t.Fatalf("Failed to build safe jobs: %v", err)
+					}
+					job := c.jobManager.GetAllJobs()["my_custom_job"]
+					if job == nil {
+						t.Fatal("Expected custom safe-output job")
+					}
+					wantCondition := tt.wantCondition
+					if userCondition != "" {
+						wantCondition += " && (" + userCondition + ")"
+					}
+					if job.If != wantCondition {
+						t.Errorf("Expected condition %q, got %q", wantCondition, job.If)
+					}
+					const detectionEnv = "GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}"
+					for _, step := range job.Steps {
+						if !strings.Contains(step, "echo '") {
+							continue
+						}
+						if strings.Contains(step, detectionEnv) != enabled {
+							t.Errorf("Expected detection conclusion env presence %v, got step:\n%s", enabled, step)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 // TestHasSafeOutputsEnabledWithJobs verifies that HasSafeOutputsEnabled returns true
 // when only safe-outputs.jobs is configured (no other safe-outputs)
 func TestHasSafeOutputsEnabledWithJobs(t *testing.T) {
@@ -365,6 +439,14 @@ Test workflow content
 	// Verify custom job depends on detection job (threat detection enabled by default)
 	if !strings.Contains(workflowStr, "- detection") {
 		t.Error("Expected custom safe job to depend on detection job")
+	}
+
+	customJobSection := extractJobSection(workflowStr, "my_custom_job")
+	if !strings.Contains(customJobSection, "needs.detection.result == 'success'") {
+		t.Error("Expected custom safe job to require detection success")
+	}
+	if !strings.Contains(customJobSection, "GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}") {
+		t.Error("Expected custom safe job to receive the detection conclusion")
 	}
 }
 
