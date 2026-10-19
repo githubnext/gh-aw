@@ -271,6 +271,56 @@ func TestEpisodeAccountingIndependentStreamTotals(t *testing.T) {
 	assert.Contains(t, warnings[0], "cumulative AI Credits total differs")
 }
 
+func TestEpisodeAccountingAggregatesCurrentAttemptArtifacts(t *testing.T) {
+	t.Parallel()
+	runDir := t.TempDir()
+	rootInfo, err := json.Marshal(AwInfo{RunID: NumericID(42), RunAttempt: "2", Repository: "org/repo"})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(runDir, "aw_info.json"), rootInfo, 0o600))
+	writeArtifact := func(name, attempt, usage string) {
+		t.Helper()
+		dir := filepath.Join(runDir, name)
+		info, err := json.Marshal(AwInfo{RunID: NumericID(42), RunAttempt: attempt, Repository: "org/repo"})
+		require.NoError(t, err)
+		writeEpisodeAccountingFiles(t, dir, map[string]string{
+			"aw_info.json":            string(info),
+			"agent/token_usage.jsonl": usage,
+		})
+	}
+	writeArtifact("first-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25))
+	writeArtifact("second-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25)+"\n"+
+		episodeAccountingAWFRecord("independent-request", 0.75, 1.0))
+	writeArtifact("old-attempt-usage", "1", episodeAccountingAWFRecord("old-request", 9, 9))
+	usage, err := analyzeTokenUsageAICOnly(runDir, false)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	assert.InDelta(t, 1.0, usage.TotalAIC, 1e-9)
+}
+
+func TestEpisodeOutcomesUseConfinedFallbackForRelocatedReport(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	logsPath := filepath.Join(dir, "logs.json")
+	logs := episodeLogs(42)
+	logs.Runs[0].LogsPath = "/old/cache/run-42"
+	content, err := json.Marshal(logs)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(logsPath, content, 0o600))
+	outcomesDir := filepath.Join(dir, "outcomes")
+	writeOutcomeJSONL(outcomesDir, 42, []OutcomeReport{episodeObservation(42, "item-42", OutcomeStatusAccepted).OutcomeReport})
+	writeEpisodeAccountingFiles(t, filepath.Join(dir, "run-42"), map[string]string{
+		"usage/agent_usage.jsonl": episodeAccountingAWFRecord("relocated-run", 0.5, 0.5),
+	})
+	var stdout, stderr bytes.Buffer
+	require.NoError(t, runOutcomesEpisodes(logsPath, outcomesDir, dir, true, &stdout, &stderr))
+	var report EpisodeOutcomesData
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
+	require.Len(t, report.Episodes, 1)
+	require.NotNil(t, report.Episodes[0].ObservedAIC)
+	assert.InDelta(t, 0.5, *report.Episodes[0].ObservedAIC, 1e-9)
+	require.Empty(t, stderr.String())
+}
+
 func TestEpisodeAccountingPrefixedAgentDiscovery(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

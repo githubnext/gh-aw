@@ -111,34 +111,40 @@ func findAgentUsageFile(runDir string) string {
 }
 
 func findUsageJSONLFiles(runDir string) ([]string, []string) {
-	usageDir := findArtifactDir(runDir, "usage", "")
-	if usageDir == "" {
-		usageDir = filepath.Join(runDir, "usage")
-	}
-	if _, err := os.Stat(usageDir); err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
+	usageDirs, isEpisodeRun := findEpisodeUsageArtifactDirs(runDir)
+	if !isEpisodeRun {
+		usageDir := findArtifactDir(runDir, "usage", "")
+		if usageDir == "" {
+			usageDir = filepath.Join(runDir, "usage")
 		}
-		return nil, []string{fmt.Sprintf("Cannot inspect usage directory: %v", err)}
+		usageDirs = []string{usageDir}
 	}
-
 	var files, warnings []string
-	if walkErr := filepath.Walk(usageDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+	for _, usageDir := range usageDirs {
+		if _, err := os.Stat(usageDir); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", err))
+			continue
+		}
+		if walkErr := filepath.Walk(usageDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				tokenUsageLog.Printf("walk error at %s: %v", path, err)
+				warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", err))
+				return nil
+			}
+			if info == nil || info.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(strings.ToLower(info.Name()), ".jsonl") {
+				files = append(files, path)
+			}
 			return nil
+		}); walkErr != nil {
+			tokenUsageLog.Printf("usage walk error at %s: %v", usageDir, walkErr)
+			warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", walkErr))
 		}
-		if info == nil || info.IsDir() {
-			return nil
-		}
-		if strings.HasSuffix(strings.ToLower(info.Name()), ".jsonl") {
-			files = append(files, path)
-		}
-		return nil
-	}); walkErr != nil {
-		tokenUsageLog.Printf("usage walk error at %s: %v", usageDir, walkErr)
-		warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", walkErr))
 	}
 
 	sort.Strings(files)

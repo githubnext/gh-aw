@@ -19,6 +19,11 @@ import (
 
 const maxEpisodeArtifactBytes = 64 * 1024 * 1024
 
+var (
+	errEpisodeArtifactExpired     = errors.New("episode artifact has expired")
+	errEpisodeArtifactUnavailable = errors.New("episode artifact is unavailable")
+)
+
 func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (ProcessedRun, error) {
 	artifacts, err := c.listArtifacts(ctx, run)
 	if err != nil {
@@ -29,7 +34,7 @@ func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (Proces
 	if err := os.MkdirAll(runDir, constants.DirPermSensitive); err != nil {
 		return ProcessedRun{}, fmt.Errorf("create episode run directory: %w", err)
 	}
-	infos, err := c.loadCompactArtifacts(ctx, run, artifacts, runDir)
+	infos, usageDirs, err := c.loadCompactArtifacts(ctx, run, artifacts, runDir)
 	if err != nil {
 		return ProcessedRun{}, err
 	}
@@ -44,7 +49,7 @@ func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (Proces
 	if err := writeSensitiveFile(filepath.Join(runDir, "aw_info.json"), encoded); err != nil {
 		return ProcessedRun{}, fmt.Errorf("save episode run metadata: %w", err)
 	}
-	processed, err := processEpisodeArtifacts(run, runDir, info)
+	processed, err := processEpisodeArtifacts(run, runDir, usageDirs, info)
 	if err == nil && (c.report.EpisodeID == "" || c.report.EpisodeID == strings.TrimSpace(info.Context.EpisodeID)) {
 		candidate := episodeCandidate{repository: strings.ToLower(run.Repository), runID: run.DatabaseID}
 		for _, artifactInfo := range infos {
@@ -67,13 +72,16 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("read episode artifact cache marker: %w", err)
 	}
+	if artifact.Expired {
+		return "", fmt.Errorf("%w: compact artifact %q has expired", errEpisodeArtifactExpired, artifact.Name)
+	}
 	if artifact.SizeInBytes > maxEpisodeArtifactBytes {
 		return "", fmt.Errorf("compact artifact %q exceeds the 64 MiB archive limit", artifact.Name)
 	}
 	endpoint := fmt.Sprintf("repos/%s/actions/artifacts/%d/zip", run.Repository, artifact.ID)
 	data, err := c.api(ctx, endpoint)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", errEpisodeArtifactUnavailable, err)
 	}
 	stage, err := os.MkdirTemp(filepath.Dir(runDir), ".episode-artifact-")
 	if err != nil {
@@ -90,19 +98,16 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 	if err := writeSensitiveFile(filepath.Join(extracted, ".episode-complete"), []byte("v1\n")); err != nil {
 		return "", err
 	}
-	if err := os.RemoveAll(dir); err != nil {
-		return "", fmt.Errorf("replace incomplete episode artifact cache: %w", err)
-	}
 	if err := os.Rename(extracted, dir); err != nil {
+		if data, markerErr := os.ReadFile(marker); markerErr == nil && string(data) == "v1\n" {
+			return dir, nil
+		}
 		return "", fmt.Errorf("publish episode artifact cache: %w", err)
 	}
 	return dir, nil
 }
 
-func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run WorkflowRun, artifacts []episodeArtifact, runDir string) ([]*AwInfo, error) {
-	if err := pruneEpisodeArtifacts(runDir, artifacts); err != nil {
-		return nil, err
-	}
+func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run WorkflowRun, artifacts []episodeArtifact, runDir string) ([]*AwInfo, []string, error) {
 	slices.SortStableFunc(artifacts, func(a, b episodeArtifact) int {
 		// Prefer info over usage when both contain a copy of aw_info.json.
 		if kind := strings.Compare(episodeArtifactKind(a.Name), episodeArtifactKind(b.Name)); kind != 0 {
@@ -111,49 +116,35 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 		return strings.Compare(a.Name, b.Name)
 	})
 	var infos []*AwInfo
+	var usageDirs []string
 	for _, artifact := range artifacts {
 		dir, err := c.loadArtifact(ctx, run, artifact, runDir)
 		if err != nil {
-			if _, identityErr := selectEpisodeInfo(infos); identityErr == nil && c.handleStop(err) {
-				break // Retain verified membership; the explicit stop qualifies incomplete usage.
+			if errors.Is(err, errEpisodeArtifactExpired) {
+				c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "expired_artifact", err)
+				continue
 			}
-			return nil, err
+			if _, identityErr := selectEpisodeInfo(infos); identityErr == nil {
+				if c.handleStop(err) {
+					break // Retain verified membership; the explicit stop qualifies incomplete usage.
+				}
+				if episodeArtifactKind(artifact.Name) == "usage" && errors.Is(err, errEpisodeArtifactUnavailable) {
+					c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "usage_artifact_unavailable", err)
+					continue
+				}
+			}
+			return nil, nil, err
 		}
-		artifactInfos, err := readEpisodeArtifactInfo(dir, run)
+		artifactInfos, currentAttempt, err := readEpisodeArtifactInfo(dir, run)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		infos = append(infos, artifactInfos...)
-	}
-	return infos, nil
-}
-
-func pruneEpisodeArtifacts(runDir string, artifacts []episodeArtifact) error {
-	current := make(map[string]struct{}, len(artifacts))
-	for _, artifact := range artifacts {
-		current[strconv.FormatInt(artifact.ID, 10)+"-"+episodeArtifactKind(artifact.Name)] = struct{}{}
-	}
-	entries, err := os.ReadDir(runDir)
-	if err != nil {
-		return fmt.Errorf("inspect episode artifact inventory: %w", err)
-	}
-	for _, entry := range entries {
-		id, kind, valid := strings.Cut(entry.Name(), "-")
-		if !entry.IsDir() || !valid || kind != "info" && kind != "usage" {
-			continue
-		}
-		if _, valid := parseEpisodeRunID(id); !valid {
-			continue
-		}
-		if _, present := current[entry.Name()]; present {
-			continue
-		}
-		dir := filepath.Join(runDir, entry.Name())
-		if err := os.RemoveAll(dir); err != nil {
-			return fmt.Errorf("remove superseded episode artifact: %w", err)
+		if currentAttempt && episodeArtifactKind(artifact.Name) == "usage" {
+			usageDirs = append(usageDirs, dir)
 		}
 	}
-	return nil
+	return infos, usageDirs, nil
 }
 
 func extractEpisodeArtifact(ctx context.Context, data []byte, dir string) error {
@@ -187,8 +178,10 @@ func episodeArtifactKind(name string) string {
 	return "usage"
 }
 
-func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, error) {
+func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, bool, error) {
 	var infos []*AwInfo
+	hasPriorAttempt := false
+	hasCurrentAttempt := false
 	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -200,16 +193,18 @@ func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, error) {
 		if err != nil {
 			return fmt.Errorf("read episode run context: %w", err)
 		}
+		if info.RunAttempt != "" && info.RunAttempt != strconv.Itoa(run.Attempt) {
+			hasPriorAttempt = true
+			return nil
+		}
 		if info.RunID != 0 && int64(info.RunID) != run.DatabaseID || episodeRepositoryConflict(info.Repository, run.Repository) {
 			return errors.New("artifact metadata conflicts with the requested repository/run identity")
 		}
-		if info.RunAttempt != "" && info.RunAttempt != strconv.Itoa(run.Attempt) {
-			return errors.New("artifact metadata belongs to a different run attempt")
-		}
+		hasCurrentAttempt = true
 		infos = append(infos, info)
 		return nil
 	})
-	return infos, err
+	return infos, hasCurrentAttempt || !hasPriorAttempt, err
 }
 
 func selectEpisodeInfo(infos []*AwInfo) (*AwInfo, error) {
@@ -231,15 +226,15 @@ func selectEpisodeInfo(infos []*AwInfo) (*AwInfo, error) {
 	return selected, nil
 }
 
-func processEpisodeArtifacts(run WorkflowRun, runDir string, info *AwInfo) (ProcessedRun, error) {
+func processEpisodeArtifacts(run WorkflowRun, runDir string, usageDirs []string, info *AwInfo) (ProcessedRun, error) {
 	result := DownloadResult{}
 	result.Run = run
 	metrics := extractRunMetricsAndMetadata(&result, runDir, false)
-	usage, err := analyzeTokenUsage(runDir, false)
+	usage, err := analyzeEpisodeTokenUsage(runDir, usageDirs)
 	if err != nil {
 		return ProcessedRun{}, fmt.Errorf("read compact episode usage: %w", err)
 	}
-	activity, err := loadUsageActivitySummary(runDir)
+	activity, err := loadEpisodeUsageActivitySummary(usageDirs)
 	if err != nil {
 		return ProcessedRun{}, fmt.Errorf("read compact episode activity: %w", err)
 	}
@@ -247,9 +242,99 @@ func processEpisodeArtifacts(run WorkflowRun, runDir string, info *AwInfo) (Proc
 	backfillRunTokenUsageFromFirewall(&metrics, &result, usage)
 	applyUsageActivitySummaryToResult(activity, &result, true)
 	return ProcessedRun{
-		Run: result.Run, AwContext: info.Context, TokenUsage: usage,
-		MCPToolUsage: result.MCPToolUsage, FirewallAnalysis: result.FirewallAnalysis,
-		ModelRouting: analyzeModelRouting(runDir), MissingTools: result.MissingTools,
-		MissingData: result.MissingData, Noops: result.Noops,
+		Run: result.Run, AwContext: info.Context, AccessAnalysis: result.AccessAnalysis,
+		FirewallAnalysis: result.FirewallAnalysis, RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
+		MissingTools: result.MissingTools, MissingData: result.MissingData, Noops: result.Noops,
+		MCPFailures: result.MCPFailures, SkillActivations: result.SkillActivations,
+		GatewaySteeringEvents: result.GatewaySteeringEvents, MCPToolUsage: result.MCPToolUsage,
+		TokenUsage: result.TokenUsage, ModelRouting: analyzeModelRouting(runDir),
+		WorkingSet: result.WorkingSet, Ledger: result.Ledger, WorkQueue: result.WorkQueue,
+		Friction: result.Friction, GitHubRateLimitUsage: result.GitHubRateLimitUsage,
+		SafeOutputs: result.SafeOutputs,
 	}, nil
+}
+
+func analyzeEpisodeTokenUsage(runDir string, usageDirs []string) (*TokenUsageSummary, error) {
+	seen := make(map[string]struct{})
+	var entries []TokenUsageEntry
+	var usageFiles []string
+	var warnings []string
+	duplicates := 0
+	seenPaths := make(map[string]struct{}, len(usageDirs))
+	for _, usageDir := range usageDirs {
+		path := findTokenUsageFile(usageDir)
+		if path == "" {
+			continue
+		}
+		if _, exists := seenPaths[path]; exists {
+			continue
+		}
+		seenPaths[path] = struct{}{}
+		usageFiles = append(usageFiles, path)
+		fileEntries, duplicateCount, _, fileWarnings, err := scanTokenUsageEntriesWithSeen(path, seen)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, fileEntries...)
+		duplicates += duplicateCount
+		warnings = append(warnings, fileWarnings...)
+	}
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	summary := buildTokenUsageSummary(entries, duplicates)
+	totalAIC, aicFound, aicWarnings, err := sumAICFromUsageJSONLFilesWithSeen(usageFiles, make(map[string]struct{}))
+	if err != nil {
+		return nil, err
+	}
+	summary.TotalAIC = totalAIC
+	summary.AICFound = aicFound
+	for _, warning := range append(warnings, aicWarnings...) {
+		addTokenUsageWarning(summary, warning)
+	}
+	applyGatewaySteeringSummary(summary, runDir)
+	applySteeringNotices(summary, runDir)
+	augmentSubagentModelAttribution(runDir, summary)
+	return summary, nil
+}
+
+func loadEpisodeUsageActivitySummary(usageDirs []string) (*usageActivitySummary, error) {
+	for _, usageDir := range usageDirs {
+		summary, err := loadUsageActivitySummary(usageDir)
+		if err != nil {
+			return nil, err
+		}
+		if summary != nil {
+			return summary, nil
+		}
+	}
+	return nil, nil
+}
+
+func findEpisodeUsageArtifactDirs(runDir string) ([]string, bool) {
+	rootInfo, err := parseAwInfo(filepath.Join(runDir, "aw_info.json"), false)
+	if err != nil || rootInfo.RunAttempt == "" {
+		return nil, false
+	}
+	attempt, err := strconv.Atoi(rootInfo.RunAttempt)
+	if err != nil || attempt <= 0 {
+		return nil, false
+	}
+	entries, err := os.ReadDir(runDir)
+	if err != nil {
+		return nil, true
+	}
+	run := WorkflowRun{DatabaseID: int64(rootInfo.RunID), Attempt: attempt, Repository: rootInfo.Repository}
+	var dirs []string
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), "-usage") {
+			continue
+		}
+		dir := filepath.Join(runDir, entry.Name())
+		_, currentAttempt, err := readEpisodeArtifactInfo(dir, run)
+		if err == nil && currentAttempt {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs, true
 }

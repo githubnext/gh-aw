@@ -112,7 +112,8 @@ func episodeOutcomeRunDirectory(runs []RunData, outputDir string, id int64) (str
 	if err != nil {
 		return "", fmt.Errorf("resolve episode usage output directory: %w", err)
 	}
-	dir := filepath.Join(root, fmt.Sprintf("run-%d", id))
+	fallback := filepath.Join(root, fmt.Sprintf("run-%d", id))
+	dir := fallback
 	var recorded string
 	for _, run := range runs {
 		if run.RunID != id || run.LogsPath == "" {
@@ -122,16 +123,37 @@ func episodeOutcomeRunDirectory(runs []RunData, outputDir string, id int64) (str
 		if err != nil {
 			return "", fmt.Errorf("resolve recorded logs path for run %d: %w", id, err)
 		}
+		recordedPath := path
 		rel, err := filepath.Rel(root, path)
 		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-			return "", fmt.Errorf("recorded logs path for run %d is outside --output %s", id, root)
+			if !episodeFallbackIsConfinedDirectory(root, fallback) {
+				return "", fmt.Errorf("recorded logs path for run %d is outside --output %s", id, root)
+			}
+			path = fallback
 		}
-		if recorded != "" && recorded != path {
+		if recorded != "" && recorded != recordedPath {
 			return "", fmt.Errorf("conflicting recorded logs paths for run %d", id)
 		}
-		recorded, dir = path, path
+		recorded, dir = recordedPath, path
 	}
 	return dir, nil
+}
+
+func episodeFallbackIsConfinedDirectory(root, fallback string) bool {
+	info, err := os.Stat(fallback)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
+	}
+	resolvedFallback, err := filepath.EvalSymlinks(fallback)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(resolvedRoot, resolvedFallback)
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
 
 func readEpisodeOutcomeObservations(dir string) ([]EpisodeOutcomeObservation, error) {

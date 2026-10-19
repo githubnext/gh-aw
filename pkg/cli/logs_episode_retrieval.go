@@ -141,6 +141,9 @@ func episodeRetrievalDates(startDate, endDate string, now time.Time) (time.Time,
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+	if endOfDay, err := time.Parse("2006-01-02", endDate); err == nil {
+		endDate = endOfDay.AddDate(0, 0, 1).Add(-time.Nanosecond).Format(time.RFC3339Nano)
+	}
 	start, err := parseFilterDate(startDate)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
@@ -240,7 +243,6 @@ func (c *episodeCollector) visit(ctx context.Context, candidate episodeCandidate
 	if c.report.RunsExamined >= c.opts.MaxRuns {
 		return errEpisodeRunLimit
 	}
-	c.seen[candidate] = ""
 	c.report.RunsExamined++
 	run, err := c.resolveCandidate(ctx, candidate, run)
 	if err != nil {
