@@ -91,7 +91,7 @@ async function main(options = {}) {
     if (dispatch.released) return { dispatch_id: assignment.dispatch_id, state: "released", released: true };
     const publisher = await authenticatePublisher({ ...configured, role: "reconciler" });
     const expected = expectedWorkerRun(assignment, profile, context, publisher.repository, dispatchPrincipal(dispatch));
-    const proof = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, publisher.repository, runId), { ...expected, run_id: runId });
+    const proof = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, publisher.repository, runId, 1, { sleepFn: options.sleepFn }), { ...expected, run_id: runId });
     const receipt = await quiescenceReceipt(configured, runId);
     const evidence = lifecycleEvidence(assignment, profile, publisher.repository, "worker_termination", "github_api", options.now ?? Date.now(), { run_id: runId, run_attempt: 1, receipt, principal: proof.principal });
     const result = await releaseAssignment(configured, assignment, evidence);

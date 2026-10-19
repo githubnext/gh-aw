@@ -95,17 +95,46 @@ describe("inline trusted worker termination", () => {
     expect(fixture.transactions.flatMap(commit => commit.operations).filter(operation => operation.kind === "Release")).toHaveLength(1);
   });
 
-  it.each(["repository", "jobs"])("retains the reservation and pending delivery after three failed %s reads", async endpoint => {
+  it.each(["UND_ERR_SOCKET", "ECONNRESET", "ETIMEDOUT"])("recovers %s at the original-attempt boundary before checking quiescence", async code => {
+    const { fixture, options } = setup();
+    const member = fixture.assignment.claims[0];
+    fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
+    const read = options.githubClient.rest.actions.getWorkflowRunAttempt;
+    read.mockRejectedValueOnce({ cause: { cause: { code } } }).mockRejectedValueOnce({ status: 503 });
+    const jobs = options.githubClient.rest.actions.listJobsForWorkflowRunAttempt;
+    const list = jobs.getMockImplementation();
+    jobs.mockImplementation(async parameters => {
+      expect(read).toHaveBeenCalledTimes(3);
+      expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
+      return list(parameters);
+    });
+    await expect(main(options)).resolves.toMatchObject({ released: true });
+    for (const [parameters] of read.mock.calls) {
+      expect(parameters).toEqual(read.mock.calls[0][0]);
+      expect(parameters).toMatchObject({ run_id: "42", attempt_number: 1, request: { retries: 0, retryCount: 0, timeout: 15000 } });
+    }
+    expect(options.sleepFn.mock.calls).toEqual([[1000], [1000]]);
+    expect(jobs).toHaveBeenCalledTimes(1);
+    const operations = fixture.transactions.flatMap(commit => commit.operations);
+    expect(operations.filter(operation => operation.kind === "Release")).toHaveLength(1);
+    expect(operations.some(operation => ["Result", "DeliveryFailure"].includes(operation.kind))).toBe(false);
+    expect(fixture.state.works.get(member.work_id)).toMatchObject({ state: "completed", barrier: "pending" });
+  });
+
+  it.each(["repository", "publisher", "attempt", "jobs"])("retains the reservation and pending delivery after three failed %s reads", async endpoint => {
     const { fixture, options } = setup();
     const member = fixture.assignment.claims[0];
     fixture.append("finish", { dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle, outcome: "completed" }, { ...fixture.workerActor, dispatch_id: fixture.assignment.dispatch_id, claim_handle: member.handle });
     const read = vi.fn().mockRejectedValue({ status: 503 });
     if (endpoint === "repository") options.githubClient.rest.repos.get = read;
+    else if (endpoint === "publisher") options.githubClient.rest.actions.getWorkflowRun = read;
+    else if (endpoint === "attempt") options.githubClient.rest.actions.getWorkflowRunAttempt = read;
     else options.githubClient.rest.actions.listJobsForWorkflowRunAttempt = read;
     await expect(main(options)).rejects.toMatchObject({ status: 503 });
     expect(read).toHaveBeenCalledTimes(3);
     expect(options.sleepFn.mock.calls).toEqual([[1000], [1000]]);
     expect(options.publishWorkQueueRequest).not.toHaveBeenCalled();
+    if (endpoint !== "jobs") expect(options.githubClient.rest.actions.listJobsForWorkflowRunAttempt).not.toHaveBeenCalled();
     expect(fixture.state.dispatches.get(fixture.assignment.dispatch_id).released).toBe(false);
     expect(fixture.state.works.get(member.work_id)).toMatchObject({ state: "completed", barrier: "pending" });
   });

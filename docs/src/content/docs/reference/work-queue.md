@@ -718,11 +718,14 @@ shape used by pool stats and artifact replay, alongside its existing `decision`.
 These commands inspect ledger snapshots only: they do not refresh external
 dependencies, fetch live Actions status, reconcile reservations, or retry effects.
 
-Deployment repository/default-reference GETs, native repository-identity GETs,
-and inline termination's attempt-specific job-inventory GETs each allow three
-attempts, with a 15-second timeout per request and a one-second delay between
-attempts. Only HTTP 5xx, connection resets, socket disconnects, and transport
-timeouts retry, including errors wrapped by the fetch client. Access denials,
+Deployment repository/default-reference GETs, standalone native repository and
+workflow-run/attempt GETs, and inline termination's attempt-specific job-inventory
+GETs each allow three attempts, with a 15-second timeout per request and a
+one-second delay between attempts. Native reads inside launch-verification and
+run-discovery polling remain single-attempt; the outer loop owns the pool's
+reconciliation attempt and deadline budgets. Only HTTP 5xx, connection resets,
+socket disconnects, and transport timeouts retry, including errors wrapped by the
+fetch client. Access denials,
 rate limits, explicit retry restrictions, missing resources, transport-integrity
 failures, and identity mismatches fail closed. Deployment-read exhaustion blocks
 that intent without stopping independent later intents. Failed termination

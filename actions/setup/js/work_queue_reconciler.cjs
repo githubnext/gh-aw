@@ -82,7 +82,7 @@ async function discoverRuns(options, expected) {
         return { candidates: [...candidates.values()], conflict: true };
       }
       if (candidates.has(runId)) continue;
-      const original = await fetchNativeRunAttempt(options.githubClient, expected.repository, runId);
+      const original = await fetchNativeRunAttempt(options.githubClient, expected.repository, runId, 1, { retryMetadata: false });
       try {
         const proof = validateNativeRun(original, { ...expected, run_id: runId });
         candidates.set(proof.run_id, proof);
@@ -122,7 +122,7 @@ async function reconcileDispatch(options) {
     if (!origin?.workflow || !origin.run_id || !origin.run_attempt) return { state: "reserved", released: false };
     const repository = `${options.context.repo.owner}/${options.context.repo.repo}`;
     if (origin.repository.toLowerCase() !== repository.toLowerCase()) throw new Error("work_queue_dispatch_origin_mismatch");
-    const run = await fetchNativeRunAttempt(options.githubClient, repository, origin.run_id, origin.run_attempt);
+    const run = await fetchNativeRunAttempt(options.githubClient, repository, origin.run_id, origin.run_attempt, { sleepFn: options.sleepFn });
     if (
       nativeId(run.id) !== origin.run_id ||
       nativeAttempt(run.run_attempt) !== origin.run_attempt ||
@@ -140,7 +140,7 @@ async function reconcileDispatch(options) {
   const repository = trustedContext.repository;
   const expected = expectedWorkerRun(assignment, profile, options.context, repository, dispatchPrincipal(dispatch));
   if (dispatch.run) {
-    const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, dispatch.run.run_id), { ...expected, run_id: dispatch.run.run_id });
+    const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, dispatch.run.run_id, 1, { sleepFn: options.sleepFn }), { ...expected, run_id: dispatch.run.run_id });
     log.debug("dispatch.reconcile.native_checked", { terminal: proof.terminal });
     if (!proof.terminal) {
       if (options.requestCancellation === true) {
@@ -165,6 +165,7 @@ async function reconcileDispatch(options) {
   let hint = options.returnedRunId || returnedRunHint(initial.projection, assignment.dispatch_id);
   let conflict = false;
   for (; attempts < policy.max_attempts; attempts++) {
+    if (attempts > 0 && Date.now() - started >= policy.deadline_ms) break;
     log.debug("dispatch.reconcile.attempt", { attempt: attempts + 1, run_hint: !!hint });
     try {
       const current = await loadQueue(options);
@@ -172,7 +173,7 @@ async function reconcileDispatch(options) {
       if (observed?.released || observed?.run) return reconcileDispatch({ ...options, assignment });
       let candidates = [];
       if (hint) {
-        const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, hint), { ...expected, run_id: hint });
+        const proof = validateNativeRun(await fetchNativeRunAttempt(options.githubClient, repository, hint, 1, { retryMetadata: false }), { ...expected, run_id: hint });
         candidates.push(proof);
       }
       const discovered = await discoverRuns(options, expected);
@@ -202,7 +203,7 @@ async function reconcileDispatch(options) {
       attempts++;
       break;
     }
-    if (attempts + 1 < policy.max_attempts) await (options.sleepFn || (delay => new Promise(resolve => setTimeout(resolve, delay))))(Math.min(1000, 50 * 2 ** attempts));
+    if (attempts + 1 < policy.max_attempts) await (options.sleepFn || (delay => new Promise(resolve => setTimeout(resolve, delay))))(Math.min(1000, 50 * 2 ** attempts, policy.deadline_ms - (Date.now() - started)));
   }
   if (attempts >= policy.max_attempts) {
     const evidence = lifecycleEvidence(assignment, profile, repository, "reconciliation", "github_api", options.now ?? Date.now(), { attempts, principal: dispatchPrincipal(dispatch) });
