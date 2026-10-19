@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "modules": {
+    "actions/setup/js/actions_secret_masking.cjs": {
+      "sha256": "eb2700fa689629952dc12a2ea6b5e4f67e8d324a69d4879c066562a343f628a1",
+      "dependencies": ["actions/setup/js/otlp_header_helpers.cjs"],
+      "exports": {
+        "escapeWorkflowCommandValue": "escaped-command-value",
+        "maskSecret": "mask-secret",
+        "getOTLPSecretValues": "otlp-values",
+        "getOTLPRunnerMaskValues": "otlp-values"
+      }
+    },
+    "actions/setup/js/otlp_header_helpers.cjs": {
+      "sha256": "10fa229aac00bf745fffdc45350ff0169a30f9402f979c5063c17dc9d5022c82",
+      "exports": {
+        "parseOTLPHeaders": "argument-object",
+        "getAuthorizationSecretValues": "argument-array",
+        "getOTLPSecretValues": "otlp-values",
+        "getOTLPRunnerMaskValues": "otlp-values"
+      }
+    },
+    "actions/setup/js/git_auth_env.cjs": {
+      "sha256": "20a970b7ee3add68bb1fd902b1306f9210bed0f40960a9c3b2f0837bc2c0dd2a",
+      "exports": {
+        "buildGitAuthEnv": "git-auth-env"
+      }
+    },
+    "actions/setup/js/error_helpers.cjs": {
+      "sha256": "f57bf8346ebabe515ed0fa41071537a3cd8d70cb40c5b4fb4c1798b5fd7a977d",
+      "exports": {
+        "getErrorMessage": "error-message",
+        "isHtmlContent": "boolean",
+        "isLockedError": "boolean",
+        "isRateLimitError": "boolean",
+        "isConnectTimeoutError": "boolean"
+      }
+    }
+  }
+}
