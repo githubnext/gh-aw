@@ -3323,7 +3323,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should throw validation error for oversized comment body", () => {
-      const longBody = "a".repeat(70000);
+      const longBody = "a".repeat(524289);
 
       expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
     });

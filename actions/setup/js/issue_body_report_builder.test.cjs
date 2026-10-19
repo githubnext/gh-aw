@@ -130,6 +130,24 @@ describe("issue report builder slots", () => {
     expect(candidates.every(node => node.agentTainted !== false)).toBe(true);
   });
 
+  it("fits large issue text without changing footer diagnostics, expiration, or markers", () => {
+    setCollectedMissings(diagnostics);
+    const options = { repo, expiresHours: 12, closeOlderKey: "batch", bodyFooter: "Complete configured footer" };
+    const baseline = formatIssueBody("Reference", options);
+    const body = formatIssueBody("x".repeat(100000), options);
+    expect(body.length).toBeLessThanOrEqual(65536);
+    expect(body).toContain("Content redacted to fit size limit.");
+    for (const payload of payloads) expect(body).toContain(payload);
+    expect(body).toContain("Complete configured footer");
+    // Expiration timestamps differ between builds; compare the rest of the trusted footer.
+    const diagnosticStart = baseline.indexOf("<details>");
+    const expirationStart = baseline.indexOf("- [x] expires");
+    expect(body).toContain(baseline.slice(diagnosticStart, expirationStart).trimEnd());
+    expect(extractExpirationDate(body)).not.toBeNull();
+    expect(body).toContain("<!-- gh-aw-close-key: batch -->");
+    expect(body.match(/<!-- gh-aw-execution:/g)).toHaveLength(1);
+  });
+
   it.each(payloads)("offers the collected %s payload to selective redaction", payload => {
     setCollectedMissings(diagnostics);
     const report = buildIssueBodyReport("Finding", "Issue content", { repo, redact: node => JSON.stringify(node).includes(payload) });
