@@ -224,7 +224,7 @@ func validHistoricalWorkQueueTransaction(tx WorkQueueTransaction) bool {
 	}
 }
 
-func readWorkQueueFinishIntent(path string) (string, error) {
+func readWorkQueueFinishIntent(path string) (outcome string, err error) {
 	file, err := os.Open(path)
 	if os.IsNotExist(err) {
 		return "", nil
@@ -232,9 +232,12 @@ func readWorkQueueFinishIntent(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read work queue finish intent: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			err = errors.Join(err, errors.New("could not close the work queue finish intent artifact"))
+		}
+	}()
 
-	outcome := ""
 	scanner := bufio.NewScanner(file)
 	for line := 1; scanner.Scan(); line++ {
 		if strings.TrimSpace(scanner.Text()) == "" {
@@ -294,13 +297,16 @@ func extractWorkQueueOperations(logDir string) ([]WorkQueueOperation, error) {
 	return operations, nil
 }
 
-func readWorkQueueStepLog(path, source string, seen map[string]struct{}) ([]WorkQueueOperation, error) {
+func readWorkQueueStepLog(path, source string, seen map[string]struct{}) (operations []WorkQueueOperation, err error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-	var operations []WorkQueueOperation
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			err = errors.Join(err, errors.New("could not close the work queue step log"))
+		}
+	}()
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 64*1024), maxScannerBufferSize)
 	for scanner.Scan() {
@@ -433,7 +439,8 @@ func equalCurrentWorkQueueSnapshots(left, right *WorkQueueCurrentSnapshot) bool 
 	}
 	leftValue, rightValue := *left, *right
 	leftValue.Assignment, rightValue.Assignment = nil, nil
-	if leftValue != rightValue {
+	leftValue.Diagnostics, rightValue.Diagnostics = nil, nil
+	if leftValue != rightValue || !equalWorkQueueDiagnostics(left.Diagnostics, right.Diagnostics) {
 		return false
 	}
 	a, b := left.Assignment, right.Assignment

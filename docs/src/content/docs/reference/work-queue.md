@@ -641,7 +641,8 @@ initialize Policy over an invalid log.
 
 | Command | Purpose |
 | --- | --- |
-| `replay`, `stats` | Inspect state reconstructed from the log, typed dependency nodes, individual Claims, and native reservations. `replay --run-id ID` uses an exact Actions activation snapshot; `replay --file PATH` uses a downloaded snapshot without network access. |
+| `stats` | Return compact metadata-only diagnostics: ownership, Claim outcomes, delivery, reservations, per-pool eligibility and predictions, admission age, and 24-hour ledger activity. |
+| `replay` | Inspect the full state reconstructed from the log. Live JSON includes Work payloads and request history; use `stats` for a compact metadata-only report. `replay --run-id ID` uses an exact Actions activation snapshot; `replay --file PATH` uses a downloaded snapshot without network access. |
 | `state [--graph GRAPH] [--pool POOL] [--state STATE] [--search TEXT]` | Display an ASCII tree of graphs, Work, and Claims using metadata only. `--offset` and `--limit` paginate at most 256 rows/64 KiB. |
 | `inspect --work-id ID` or `inspect --claim-id ID` | Show full copyable IDs, dependency cross-references, current and historical ownership, original assignment membership, and separate delivery and native-run barriers. |
 | `tui` (alias `interactive`) | Browse the queue with a keyboard, search, multi-select, and view details for the focused item. Review cancellation and future priority changes before publishing. |
@@ -667,6 +668,52 @@ the same logical publication across retries. Each command's `--help`
 describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
+
+### Structured diagnostics
+
+`stats --json` preserves the original root counters and adds snapshot identity
+(`repository`, `branch`, `tip`, `policy_epoch`, `evaluated_at`), pause controls,
+and `policy_mode`. All timestamps are Unix milliseconds.
+
+| Field | Meaning |
+| --- | --- |
+| `claims_by_state`, `claim_cancellation_reasons`, `delivery_failure_reasons` | Historical Claim outcomes and failure reasons, separate from current Work ownership. |
+| `delivery_by_state` | Completed Claims with pending, verified, or failed delivery, including historical `keep_open` Claims. A Completion is not a verified Result. |
+| `dispatches_total`, `dispatches_by_state` | All historical dispatch records, including released reservations. |
+| `native_reservations`, `reservations_by_state` | Retained native reservations only; the original `dispatches` counter is preserved as an alias. A released dispatch can still have historical state `bound`; neither field establishes live Actions status. |
+| `pools` | Sorted per-pool Work/Claim/delivery counts, capacity and retry limits, individual scheduling eligibility, ineligible reasons, and a one-Claim/one-dispatch metadata-only prediction. Eligibility does not account for native capacity; the prediction does. Predictions never grant or launch work. Retired pools remain visible with `policy_installed: false`, zeroed non-applicable limits, and prediction reason `pool_not_installed`. |
+| `pools[].oldest_available`, `available_age_unknown` | Oldest available Work's ID, trusted admission timestamp and age; missing or future admission timestamps are counted as unknown. Client-supplied enqueue timestamps are not used to calculate age. |
+| `activity` | Committed transaction and operation counts in the inclusive `since`/`until` 24-hour window, plus the latest non-future commit ID/time. Includes maintenance; not inferred from current Work states. |
+
+`state --json` rows retain their display `text` and add typed pool, node,
+worker-profile, attempts, admission/grant time, retry boundary, cancellation,
+run-binding and reservation metadata where applicable. Pagination still counts
+forest rows (including graph and Claim rows), not Work items; follow
+`next_offset` with the same filters.
+
+`inspect --json` retains `selection` and `details` and adds `work`,
+`scheduling`, `claim`, and `dispatch` objects. `work` and `scheduling` describe
+current Work; `claim` and `dispatch` describe the selected historical Claim, or
+the Work's current/last Claim. The Claim includes grant/terminal timestamps and
+delivery-failure reason; the dispatch includes the original assignment's IDs and
+handles, immutable worker target, run binding, and `reservation_retained`.
+Absent Claim/run/timestamp metadata is `null`, not fabricated evidence. A null
+Claim or dispatch does not mean the Work was never claimed: cancellation and
+verified `keep_open` delivery can clear the Work's current Claim reference.
+Use `state` or `inspect --claim-id` to find historical attempts.
+`work.max_attempts` is the current pool retry limit, or `null` for retired pools.
+Payloads, Result descriptors, request parameters, and receipt bodies are excluded.
+
+```bash
+gh aw work-queue --repo owner/repo stats --json
+gh aw work-queue --repo owner/repo state --state available --json
+gh aw work-queue --repo owner/repo inspect --claim-id CLAIM_ID --json
+```
+
+Live `explain --json` also exposes `prediction`, the same compact assignment
+shape used by pool stats and artifact replay, alongside its existing `decision`.
+These commands inspect ledger snapshots only: they do not refresh external
+dependencies, fetch live Actions status, reconcile reservations, or retry effects.
 
 After an accepted worker dispatch, trusted controls verify the exact first run
 attempt, retrying transient reads and pending run-title correlation within the
