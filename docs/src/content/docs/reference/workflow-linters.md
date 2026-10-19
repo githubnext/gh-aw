@@ -13,7 +13,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 |---|---|---|---|
 | `action-pin` | `CTR-002` | AW, Actions | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
 | `job-timeout` | `CTR-026` | AW, Actions | An explicit workflow/job timeout is a positive integer literal, not an expression. Omission is allowed. |
-| `template-injection` | `CTR-006` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` text. Use environment bindings and quoted shell expansions instead. |
+| `template-injection` | `CTR-006` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` or `actions/github-script` code. Use environment bindings and quoted shell expansions or `process.env` instead. |
 | `workflow-run-scope` | `CTR-021` | AW, Actions | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
 | `secret-leak` | `CTR-017` | AW, Actions | Symbolic secrets do not reach modeled disclosure sinks. AW-only checks report missing generated execution coverage. |
 | `permission-scope` | `CTR-001` | AW, Actions | Explicit permissions avoid blanket `write-all` grants; OIDC does not use invalid `id-token: read`. Scoped writes and `id-token: write` are not automatically violations. |
@@ -37,6 +37,29 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `custom-job-detection` | — | AW | Authored custom jobs with a direct `agent` dependency also need `detection` and require its success. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
 | `grader-file-io` | — | AW | Custom `graders.<id>.script` JavaScript ASTs do not access filesystem/host capabilities or load modules. Requires the optional native JavaScript parser; missing parser configuration produces a visible coverage warning. |
 | `grader-shell-file-write` | — | AW | Repository-owned `graders.operational-value.run` Bash ASTs avoid detected file writes and unchecked shell execution. Loads confined evaluator source without executing it; no optional JavaScript parser required. |
+| `artipacked` | — | AW, Actions | `actions/checkout` explicitly disables credential persistence. Omitted, enabled, or dynamic persistence produces a review warning; later authenticated Git operations may require it. |
+| `cache-poisoning` | — | AW, Actions | Release-event and tag-push workflows avoid cache restoration through `actions/cache`, `actions/cache/restore`, `actions/setup-go`, and `actions/setup-node`. Save-only and lookup-only actions are exempt. |
+| `excessive-permissions` | `CTR-001` | Actions | Workflow-wide write grants are moved to the jobs that require them. Job-level writes and AW root grants are not workflow-wide permissions. |
+| `obfuscation` | — | AW, Actions | Runner-interpolated fields avoid literal-only string expressions such as `${{ '' }}`. Ordinary expressions, fallback strings, and boolean conditions are unaffected. |
+
+### Historical zizmor regressions
+
+These checks run in the existing in-process AST registry, without invoking zizmor or fetching action metadata. The rules cover the observable patterns behind these repository fixes:
+
+| Historical finding | Fix evidence | AST coverage |
+|---|---|---|
+| Persisted checkout credentials | [#2991](https://github.com/github/gh-aw/pull/2991), [#14449](https://github.com/github/gh-aw/pull/14449), [#25873](https://github.com/github/gh-aw/pull/25873) | `artipacked` checks explicit checkout steps, including imported setup steps once present in the compiled graph. |
+| Release dependency-cache poisoning | [#5214](https://github.com/github/gh-aw/pull/5214), [#5872](https://github.com/github/gh-aw/pull/5872), [#19865](https://github.com/github/gh-aw/pull/19865) | `cache-poisoning` checks enabled and default Go/Node caching on release/tag workflows. |
+| Overbroad permission placement | [#5229](https://github.com/github/gh-aw/pull/5229) | `excessive-permissions` checks workflow-wide writes; `permission-scope` already checks blanket grants. Authored AW agent-write authorization is not inferred. |
+| Literal-expression obfuscation | [#4398](https://github.com/github/gh-aw/pull/4398), [#14257](https://github.com/github/gh-aw/pull/14257) | `obfuscation` parses expression roots in outputs, environment bindings, and other runner fields. |
+| Executable template injection | [#2871](https://github.com/github/gh-aw/pull/2871), [#9147](https://github.com/github/gh-aw/pull/9147), [#25888](https://github.com/github/gh-aw/pull/25888) | `template-injection` retains shell/heredoc checks and also inspects `actions/github-script` inputs, without requiring a JavaScript parser. |
+| Mutable action references | [#2686](https://github.com/github/gh-aw/pull/2686), [#55641](https://github.com/github/gh-aw/pull/55641) | Existing `action-pin` checks remain authoritative; no duplicate pinning rule is registered. |
+
+The four new rules produce warnings in both strict and non-strict mode. They identify reviewable configuration, not proven credential disclosure or cache compromise. Checkout checks do not inspect artifact contents or Git authentication requirements. Cache checks do not infer publishing from job names, resolve cache provenance, or prove job conditions. Known pre-v4 Go and pre-v5 Node tags retain their disabled automatic-cache defaults; SHA-pinned versions with unknown defaults require an explicit cache opt-out to avoid warnings. Explicit Node `cache` still enables restoration even with `package-manager-cache: false`.
+
+AW checks inspect explicit execution blocks, including `safe-outputs.steps`, custom jobs, and post-steps, but do not load imports or reconstruct generated defaults. When a compiled Actions AST is supplied, it owns execution checks; the companion AW document does not duplicate steps removed or transformed by compilation. Obfuscation checks skip prompts, grader code, and unrelated AW configuration. Invalid expressions or malformed action inputs fail analysis with value-free errors while retaining findings from valid scopes.
+
+This is not complete zizmor parity. Creator-verification findings such as [#50015](https://github.com/github/gh-aw/pull/50015) require external provenance data; static ASTs do not establish creator trust. Existing specialized trigger and permission rules remain separate, and zizmor ignore comments are not AST-rule suppressions.
 
 ## Severity and source policy
 

@@ -238,5 +238,9 @@ func Default() *Runner {
 		GraderShellFileWriteRule(),
 		PullRequestTargetCheckoutRule(),
 		PromptExpressionRule(),
+		ArtipackedRule(),
+		CachePoisoningRule(),
+		ExcessivePermissionsRule(),
+		ObfuscationRule(),
 	}}
 }
