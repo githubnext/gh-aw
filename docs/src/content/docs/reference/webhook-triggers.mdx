@@ -32,6 +32,8 @@ The repository's `gateway-dispatch` option is a top-level boolean. Omitting it o
 
 ## Syntax
 
+All keys and values inside `on.gateway-dispatch` must be literals. The compiler and the [`gateway-dispatch-literals` lint rule](/gh-aw/reference/workflow-linters/) reject GitHub Actions expressions anywhere in the section, including nested lists and objects, even with `strict: false`. Strings containing the opening marker `${{` are rejected, including incomplete expressions. Expressions elsewhere in the workflow, such as the prompt or environment variables, remain supported.
+
 ```aw wrap
 ---
 on:

@@ -31,6 +31,12 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
+		"gateway-dispatch-literals": {
+			targets: AWAST,
+			unsafe:  "on: {gateway-dispatch: {issue: {filters: {labels: ['${{ vars.PRIVATE_VALUE }}']}}}}\n",
+			safe:    "on: {gateway-dispatch: {issue: {filters: {labels: [triage]}}}}\n",
+			path:    "on.gateway-dispatch.issue.filters.labels[0]",
+		},
 		"grader-shell-file-write": {
 			targets:     AWAST,
 			unsafe:      "graders:\n  operational-value:\n    run: ./check.sh\n",

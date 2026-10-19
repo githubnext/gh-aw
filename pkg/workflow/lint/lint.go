@@ -238,5 +238,6 @@ func Default() *Runner {
 		GraderShellFileWriteRule(),
 		PullRequestTargetCheckoutRule(),
 		PromptExpressionRule(),
+		GatewayDispatchLiteralsRule(),
 	}}
 }

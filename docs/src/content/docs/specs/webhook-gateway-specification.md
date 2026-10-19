@@ -36,6 +36,8 @@ Treat webhook content as untrusted data.
 
 Gateway trigger declarations MUST be siblings inside `on.gateway-dispatch`; optional shared `repos` and `orgs` belong in the same mapping. Empty mappings, selector-only mappings, unknown children, and misplaced gateway declarations are rejected. Supported non-trigger settings such as `roles` and `bots` remain outside this mapping under `on`. Gateway dispatch MUST be exclusive: every other trigger, including native events, schedules, workflow calls/runs, native commands, explicit dispatches and unknown/future events, MUST be rejected. The compiler removes `gateway-dispatch` and emits only its restricted `repository_dispatch` route. Multiple gateway subscriptions remain allowed; native commands use the nested gateway command declarations instead.
 
+The entire `on.gateway-dispatch` section MUST use literal configuration. GitHub Actions expressions are forbidden in every nested key and value, including shared selectors, activities, filters, provider scopes, status transitions, and command options. Compilation rejects strings containing `${{`, including incomplete expressions, even with `strict: false`. This restriction does not apply to expressions elsewhere in the workflow or compiler-generated dispatch metadata.
+
 The compiler emits an experimental-use notice for `on.gateway-dispatch` and notices for the selected triggers. Their schemas and reference documentation also identify them as experimental. Native GitHub Actions triggers remain unchanged.
 
 Dispatch actors MUST satisfy standard `on.roles` and `on.bots` authorization. Allowed explicit roles are `write`, `maintain`/`maintainer`, and `admin`; omission uses the standard write-or-higher default. `all`, `read`, `triage`, and lists containing weaker roles are rejected, including with `strict: false`. A payload's sender, organization, or claimed role is never authorization evidence.
@@ -187,16 +189,23 @@ An update MAY match several normalized types, but is admitted only once. Label r
 
 The compiler publishes identical normalized declarations through each compiled lock file's `gh-aw-manifest.webhook_subscriptions` and `gh aw compile --json`. These are discovery metadata, not activation grants.
 
+Downstream consumers read the single-line `# gh-aw-manifest: <JSON>` comment in the compiled `.lock.yml`, then inspect its `webhook_subscriptions` array. The manifest's top-level `version` is independent of each subscription's `schema_version`. Native-only workflows omit `webhook_subscriptions`; gateway workflows serialize every subscription, including empty `conditions: []` and all applicable optional metadata. The generated YAML `on` contains only the restricted `repository_dispatch` listener, not the original gateway declarations; consumers MUST NOT reconstruct subscriptions from that listener or generated job steps.
+
+```bash
+sed -n 's/^# gh-aw-manifest: //p' .github/workflows/smoke-security-alerts.lock.yml \
+  | jq '.webhook_subscriptions'
+```
+
 | Field | Required interpretation |
 | --- | --- |
 | `schema_version` | Numeric `2`; version 1 singleton declarations/envelopes are unsupported. |
 | `event`, `types` | One supported family and its selected original GitHub or normalized provider activities. |
 | `conditions` | Shared typed equality predicates over original payload paths; all MUST match. |
 | `any_of` | Optional alternatives of complete ANDed condition groups, in addition to shared conditions. A Projects Status transition creates one complete pair, never independently combined from/to lists. |
-| `repos` | Optional approved-source selection copied from shared `on.gateway-dispatch.repos` into security and command subscriptions. |
-| `orgs` | Optional case-insensitive organization names/`*` patterns copied into Projects, security, and command subscriptions. Intersects independently approved source scope and `repos`; never grants access. |
+| `repos` | Optional approved-source selection copied from shared `on.gateway-dispatch.repos` into GitHub notification, security, and command subscriptions. |
+| `orgs` | Optional case-insensitive organization names/`*` patterns copied into GitHub notification, Projects, security, and command subscriptions. Intersects independently approved source scope and `repos`; never grants access. |
 | `provider` | External issue provider name. Linear actions are always scoped to entity `Issue`. |
-| `native_events` | External issues and commands: sorted, deduplicated required native events/actions. Synthetic command family names are not GitHub webhook registration names. |
+| `native_events` | GitHub notifications: the singleton native event from the catalog. External issues and commands: sorted, deduplicated required native events/actions. Synthetic command family names are not GitHub webhook registration names. |
 | `command_filter` | Commands only: versioned server-side matching/consumption policy, names, source events, strategy, and label removal flag. |
 | `activity_normalization` | External issues only: the exact supported `policy`, plus Azure `closed_states` when configured. Unsupported policies MUST be rejected. |
 | `dispatch` | Destination, workflow-specific route, required minimal projection, context mapping, homogeneous batching, and byte limits. |

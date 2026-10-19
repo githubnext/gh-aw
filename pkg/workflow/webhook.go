@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	workflowlint "github.com/github/gh-aw/pkg/workflow/lint"
 )
 
 // webhookCatalogJSON is the compiler's authoritative, payload-only filter catalog.
@@ -248,6 +249,9 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	raw, exists := onMap["gateway-dispatch"]
 	if !exists {
 		return nil, nil
+	}
+	if diagnostics := workflowlint.CheckGatewayDispatchLiterals(raw); len(diagnostics) > 0 {
+		return nil, fmt.Errorf("%s: %s", diagnostics[0].Path, diagnostics[0].Message)
 	}
 	gateway, ok := raw.(map[string]any)
 	if !ok {

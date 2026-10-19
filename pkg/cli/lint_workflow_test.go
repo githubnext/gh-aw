@@ -173,6 +173,7 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 	}{
 		{"version-check", "strict: false\ncheck-for-updates: false", "check-for-updates", workflowlint.Warning},
 		{"conditional-import", "imports:\n  - path: shared/a.md\n    if: false", "imports[0].if", workflowlint.Error},
+		{"gateway-dispatch-literals", "strict: false\non: {gateway-dispatch: {issue: {filters: {labels: ['${{ vars.PRIVATE_VALUE }}']}}}}", "on.gateway-dispatch.issue.filters.labels[0]", workflowlint.Error},
 		{"private-to-public", "tools:\n  github:\n    private-to-public-flows: allow", "tools.github.private-to-public-flows", workflowlint.Error},
 		{"install-scripts", "runtimes:\n  node:\n    run-install-scripts: true", "runtimes.node.run-install-scripts", workflowlint.Error},
 		{"allowed-labels", "safe-outputs:\n  create-issue:\n    allowed-labels: ['*']", "safe-outputs.create-issue.allowed-labels", workflowlint.Error},

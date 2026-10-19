@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +24,81 @@ func writeWebhookTriggerConfig(t *testing.T, root, content string) {
 	path := filepath.Join(root, RepoConfigFileName)
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+}
+
+func TestGatewayDispatchRejectsExpressions(t *testing.T) {
+	for _, tt := range []struct {
+		name, gateway, path string
+	}{
+		{"whole section", `"${{ vars.GATEWAY }}"`, ""},
+		{"trigger key", `{"${{ vars.TRIGGER }}": {}}`, " property name"},
+		{"nested key", `{issue: {filters: {"${{ vars.FILTER }}": triage}}}`, ".issue.filters property name"},
+		{"repositories", `{repos: [github/gh-aw, "${{ github.repository }}"], issue: {}}`, ".repos[1]"},
+		{"ignored repositories", `{repos: ["${{ github.repository }}"], jira-issue: {project: APP}}`, ".repos[0]"},
+		{"organizations", `{orgs: ["${{ github.repository_owner }}"], issue: {}}`, ".orgs[0]"},
+		{"ignored organizations", `{orgs: ["${{ github.repository_owner }}"], jira-issue: {project: APP}}`, ".orgs[0]"},
+		{"project", `{projects-items: {project_id: "${{ vars.PROJECT }}"}}`, ".projects-items.project_id"},
+		{"project list", `{projects-items: {project_id: [PVT_example, "${{ vars.PROJECT }}"]}}`, ".projects-items.project_id[1]"},
+		{"activities", `{issue: {types: [opened, "${{ vars.ACTIVITY }}"]}}`, ".issue.types[1]"},
+		{"sources", `{security-alerts: {sources: ["${{ vars.SOURCE }}"]}}`, ".security-alerts.sources[0]"},
+		{"severity", `{security-alerts: {severity: "${{ vars.SEVERITY }}"}}`, ".security-alerts.severity"},
+		{"filter list", `{issue: {filters: {labels: [triage, "${{ vars.LABEL }}"]}}}`, ".issue.filters.labels[1]"},
+		{"nested filter", `{projects-items: {project_id: PVT_example, filters: {field: {to: {name: "${{ vars.STATUS }}"}}}}}`, ".projects-items.filters.field.to.name"},
+		{"transitions", `{projects-items: {project_id: PVT_example, status-transitions: [{from: Todo, to: "${{ vars.STATUS }}"}]}}`, ".projects-items.status-transitions[0].to"},
+		{"Jira scope", `{jira-issue: {project: "${{ vars.PROJECT }}"}}`, ".jira-issue.project"},
+		{"Linear scope", `{linear-issue: {organization-id: "${{ vars.ORGANIZATION }}"}}`, ".linear-issue.organization-id"},
+		{"Azure states", `{azure-devops-issue: {project_id: project-uuid, closed-states: [Done, "${{ vars.STATUS }}"]}}`, ".azure-devops-issue.closed-states[1]"},
+		{"slash shorthand", `{slash-command: "${{ vars.COMMAND }}"}`, ".slash-command"},
+		{"label names", `{label-command: {names: [review, "${{ vars.LABEL }}"]}}`, ".label-command.names[1]"},
+		{"command events", `{slash-command: {events: ["${{ vars.EVENT }}"]}}`, ".slash-command.events[0]"},
+		{"command strategy", `{slash-command: {strategy: "${{ vars.STRATEGY }}"}}`, ".slash-command.strategy"},
+		{"label consumption", `{label-command: {name: review, remove_label: "${{ vars.REMOVE }}"}}`, ".label-command.remove_label"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "on:\n  gateway-dispatch: " + tt.gateway + "\n"
+			var frontmatter map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(source), &frontmatter))
+			subscriptions, err := ParseWebhookSubscriptions(frontmatter["on"], "expressions")
+			require.ErrorContains(t, err, "GitHub Actions expressions are not supported")
+			assert.Contains(t, err.Error(), "on.gateway-dispatch"+tt.path+":")
+			assert.Nil(t, subscriptions)
+			for _, strict := range []bool{true, false} {
+				_, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow(fmt.Sprintf("strict: %t\n%s", strict, source)), "expressions.md")
+				require.Error(t, err, "strict=%t", strict)
+			}
+		})
+	}
+}
+
+func TestGatewayDispatchRejectsExpressionMarkers(t *testing.T) {
+	for _, expression := range []string{
+		"${{ vars.LABEL }}", "prefix-${{ github.actor }}-suffix", "${{\n github.repository \n}}",
+		"${{", "${{ }}", "${{}}", "${{ 'literal' }}",
+	} {
+		for _, values := range []any{[]any{"triage", expression}, []string{"triage", expression}} {
+			on := map[string]any{"gateway-dispatch": map[string]any{"issue": map[string]any{
+				"filters": map[string]any{"labels": values},
+			}}}
+			_, err := ParseWebhookSubscriptions(on, "markers")
+			require.ErrorContains(t, err, "on.gateway-dispatch.issue.filters.labels[1]")
+			assert.Contains(t, err.Error(), "GitHub Actions expressions are not supported")
+			assert.NotContains(t, err.Error(), expression, "diagnostics must not echo expression contents")
+		}
+	}
+}
+
+func TestGatewayDispatchPreservesOtherExpressions(t *testing.T) {
+	compiler := newWebhookCompiler()
+	source := webhookWorkflow("env:\n  REPO: ${{ github.repository }}\non:\n  gateway-dispatch:\n    issue: {}\n")
+	data, err := compiler.ParseWorkflowString(source, "literal-gateway.md")
+	require.NoError(t, err)
+	output, err := compiler.CompileToYAML(data, "literal-gateway.md")
+	require.NoError(t, err)
+	var compiled struct {
+		Env map[string]string `yaml:"env"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(output), &compiled))
+	assert.Equal(t, "${{ github.repository }}", compiled.Env["REPO"])
 }
 
 func TestWebhookRequiresTriggerOptIn(t *testing.T) {
