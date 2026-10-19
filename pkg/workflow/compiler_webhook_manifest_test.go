@@ -66,7 +66,7 @@ func TestWebhookManifestCompilation(t *testing.T) {
 			compiler := NewCompiler()
 			compiler.gitRoot = root
 			if name != "native" {
-				writeWebhookTriggerConfig(t, root, `{"webhook-gateway":true}`)
+				writeWebhookTriggerConfig(t, root, `{"gateway-dispatch":true}`)
 			}
 			path := filepath.Join(root, name+".md")
 			source := webhookWorkflow("on:\n" + trigger)

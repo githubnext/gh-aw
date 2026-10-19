@@ -201,7 +201,6 @@ func TestCompileProviderIssueManifest(t *testing.T) {
 			require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
 			on := triggers["on"].(map[string]any)
 			assert.NotContains(t, on, alias)
-			assert.NotContains(t, on, "webhook-gateway")
 			assert.NotContains(t, on, "workflow_dispatch")
 			assert.NotContains(t, on, "gateway-dispatch")
 			assert.Contains(t, on, "repository_dispatch")
@@ -229,17 +228,17 @@ func TestProviderIssueAuthorizationAndGates(t *testing.T) {
 			roles   string
 			want    string
 		}{
-			"repository opt-in":  {false, "  gateway-dispatch:\n", "", `{"webhook-gateway":true}`},
+			"repository opt-in":  {false, "  gateway-dispatch:\n", "", `{"gateway-dispatch":true}`},
 			"workflow namespace": {true, "", "", alias},
-			"false workflow":     {true, "  webhook-gateway: false\n", "", "webhook-gateway"},
+			"false workflow":     {true, "  gateway-dispatch: false\n", "", "gateway-dispatch"},
 			"weak role":          {true, "  gateway-dispatch:\n", "  roles: [read]\n", "write access"},
 			"mixed weak role":    {true, "  gateway-dispatch:\n", "  roles: [write, triage]\n", "write access"},
 		} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
 				compiler := newWebhookCompiler()
-				compiler.repoConfig.WebhookGateway = test.enabled
+				compiler.repoConfig.GatewayDispatch = test.enabled
 				indent := "    "
-				if test.flag == "" || strings.Contains(test.flag, "webhook-gateway") {
+				if test.flag != "  gateway-dispatch:\n" {
 					indent = "  "
 				}
 				source := webhookWorkflow("strict: false\non:\n" + test.roles + test.flag + indent + alias + ":\n" + providerIssueScopeYAML(alias) + "      types: [opened]\n")

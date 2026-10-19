@@ -797,7 +797,7 @@
             "gateway-dispatch": {
               "type": "object",
               "additionalProperties": false,
-              "description": "Experimental exclusive trigger. No other triggers may coexist with gateway-dispatch; non-trigger on settings such as roles and bots remain supported. Contains nested bundled gateway subscriptions with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json webhook-gateway: true and does not grant gateway authority.",
+              "description": "Experimental exclusive trigger. No other triggers may coexist with gateway-dispatch; non-trigger on settings such as roles and bots remain supported. Contains nested bundled gateway subscriptions with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json gateway-dispatch: true and does not grant gateway authority.",
               "anyOf": [
                 { "required": ["projects-items"] },
                 { "required": ["security-alerts"] },
@@ -895,23 +895,23 @@
                       "properties": { "project_id": false }
                     }
                   },
-                  "description": "Experimental. Batched Projects v2 item events under on.gateway-dispatch requiring a hosted CAO server and aw.json webhook-gateway: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
+                  "description": "Experimental. Batched Projects v2 item events under on.gateway-dispatch requiring a hosted CAO server and aw.json gateway-dispatch: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
                 },
                 "security-alerts": {
                   "$ref": "#/$defs/webhookSecurityAlert",
-                  "description": "Experimental. Batched security alerts under on.gateway-dispatch from optionally selected repositories. Requires a hosted CAO server and aw.json webhook-gateway: true."
+                  "description": "Experimental. Batched security alerts under on.gateway-dispatch from optionally selected repositories. Requires a hosted CAO server and aw.json gateway-dispatch: true."
                 },
                 "jira-issue": {
                   "$ref": "#/$defs/webhookJiraIssue",
-                  "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires nested on.gateway-dispatch, the repository webhook-gateway opt-in, and an approved provider bridge; does not register webhooks or grant source access."
+                  "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires nested on.gateway-dispatch, the repository gateway-dispatch opt-in, and an approved provider bridge; does not register webhooks or grant source access."
                 },
                 "linear-issue": {
                   "$ref": "#/$defs/webhookLinearIssue",
-                  "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires nested on.gateway-dispatch, the repository webhook-gateway opt-in, and an approved provider bridge; does not register webhooks or grant source access."
+                  "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires nested on.gateway-dispatch, the repository gateway-dispatch opt-in, and an approved provider bridge; does not register webhooks or grant source access."
                 },
                 "azure-devops-issue": {
                   "$ref": "#/$defs/webhookAzureDevOpsIssue",
-                  "description": "Experimental. Azure DevOps work item webhooks with payload-derived lifecycle and tag activities. Closed/reopened require explicit closed-states. Requires nested on.gateway-dispatch, the repository webhook-gateway opt-in, and an approved provider bridge."
+                  "description": "Experimental. Azure DevOps work item webhooks with payload-derived lifecycle and tag activities. Closed/reopened require explicit closed-states. Requires nested on.gateway-dispatch, the repository gateway-dispatch opt-in, and an approved provider bridge."
                 }
               }
             },
@@ -14811,7 +14811,7 @@
           "properties": { "severity": false, "repos": false }
         }
       },
-      "description": "Experimental. Batched on.gateway-dispatch.security-alerts subscriptions requiring a hosted CAO server and aw.json webhook-gateway: true. Shared on.gateway-dispatch.repos selects source repositories. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
+      "description": "Experimental. Batched on.gateway-dispatch.security-alerts subscriptions requiring a hosted CAO server and aw.json gateway-dispatch: true. Shared on.gateway-dispatch.repos selects source repositories. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
     },
     "webhookGenericType": {
       "type": "string",

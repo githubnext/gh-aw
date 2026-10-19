@@ -24,11 +24,11 @@ Compilation rejects these triggers by default. Enabling them requires the reposi
 
 ```json title=".github/workflows/aw.json"
 {
-  "webhook-gateway": true
+  "gateway-dispatch": true
 }
 ```
 
-The repository's `webhook-gateway` remains a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. Each subscribing workflow declares at least one supported trigger inside `on.gateway-dispatch`; an empty mapping or one containing only `repos`/`orgs` is rejected. These settings enable compilation only; they do not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require either setting.
+The repository's `gateway-dispatch` option is a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. Each subscribing workflow declares at least one supported trigger inside `on.gateway-dispatch`; an empty mapping or one containing only `repos`/`orgs` is rejected. These settings enable compilation only; they do not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require either setting.
 
 ## Syntax
 

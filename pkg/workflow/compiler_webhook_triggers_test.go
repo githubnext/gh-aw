@@ -29,8 +29,8 @@ func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 	for name, config := range map[string]string{
 		"missing file":   "",
 		"missing option": `{}`,
-		"explicit false": `{"webhook-gateway":false}`,
-		"explicit true":  `{"webhook-gateway":true}`,
+		"explicit false": `{"gateway-dispatch":false}`,
+		"explicit true":  `{"gateway-dispatch":true}`,
 	} {
 		for trigger, on := range map[string]string{
 			"project":    "on:\n  gateway-dispatch:\n    projects-items: {project_id: PVT_example}\n",
@@ -48,7 +48,7 @@ func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 					require.NoError(t, err)
 				} else {
 					require.ErrorContains(t, err, "hosted CAO server")
-					assert.Contains(t, err.Error(), `{"webhook-gateway":true}`)
+					assert.Contains(t, err.Error(), `{"gateway-dispatch":true}`)
 					assert.Contains(t, err.Error(), RepoConfigFileName)
 				}
 				_, err = compiler.ParseWorkflowString(webhookWorkflow("on: workflow_dispatch\n"), "native.md")
@@ -200,9 +200,9 @@ func TestGatewayExclusiveRouteCannotBeBypassedByPreparsedData(t *testing.T) {
 
 func TestWebhookRepoConfigValidation(t *testing.T) {
 	for _, content := range []string{
-		`{"webhook-gateway":null}`, `{"webhook-gateway":{}}`,
-		`{"webhook-gateway":"true"}`, `{"webhook-gateway":1}`,
-		`{"webhook-gateway":[]}`, `{"webhook-gateway":true`,
+		`{"gateway-dispatch":null}`, `{"gateway-dispatch":{}}`,
+		`{"gateway-dispatch":"true"}`, `{"gateway-dispatch":1}`,
+		`{"gateway-dispatch":[]}`, `{"gateway-dispatch":true`,
 	} {
 		t.Run(content, func(t *testing.T) {
 			root := t.TempDir()
@@ -218,7 +218,7 @@ func TestWebhookRepoConfigValidation(t *testing.T) {
 }
 
 func TestWebhookFrontmatterCannotEnableTriggers(t *testing.T) {
-	for _, declaration := range []string{"gateway-dispatch:\n  ", "features: {webhook-gateway: true}\n"} {
+	for _, declaration := range []string{"gateway-dispatch:\n  ", "features: {gateway-dispatch: true}\n"} {
 		compiler := NewCompiler()
 		compiler.gitRoot = t.TempDir()
 		_, err := compiler.ParseWorkflowString(webhookWorkflow(declaration+"on:\n  gateway-dispatch:\n    projects-items: {project_id: PVT_example}\n"), "frontmatter-cao.md")

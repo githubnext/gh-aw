@@ -28,7 +28,7 @@ Event: ${{ github.aw.context.webhook.event }}
 
 func newWebhookCompiler() *Compiler {
 	compiler := NewCompiler()
-	compiler.repoConfig = &RepoConfig{WebhookGateway: true}
+	compiler.repoConfig = &RepoConfig{GatewayDispatch: true}
 	compiler.repoConfigLoaded = true
 	return compiler
 }
@@ -47,7 +47,6 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal([]byte(data.On), &triggers))
 	on := triggers["on"].(map[string]any)
 	assert.NotContains(t, on, "gateway")
-	assert.NotContains(t, on, "webhook-gateway")
 	assert.NotContains(t, on, "repos")
 	assert.NotContains(t, on, "projects-items")
 	assert.NotContains(t, on, "security-alerts")
@@ -133,7 +132,6 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.Contains(t, lowered["on"], "repository_dispatch")
 	assert.NotContains(t, lowered["on"], "webhook")
 	assert.NotContains(t, lowered["on"], "gateway")
-	assert.NotContains(t, lowered["on"], "webhook-gateway")
 	assert.NotContains(t, lowered["on"], "gateway-dispatch")
 	assert.NotContains(t, lowered["on"], "projects-items")
 	assert.NotContains(t, lowered["on"], "security-alerts")

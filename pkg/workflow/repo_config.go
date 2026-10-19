@@ -156,8 +156,8 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
-	// WebhookGateway enables experimental on.gateway-dispatch triggers requiring an approved server.
-	WebhookGateway bool
+	// GatewayDispatch enables experimental on.gateway-dispatch triggers requiring an approved server.
+	GatewayDispatch bool
 
 	// WorkQueue holds optional scheduling overrides, never identities or credentials.
 	WorkQueue json.RawMessage
@@ -276,7 +276,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
-		WebhookGateway           bool                          `json:"webhook-gateway,omitempty"`
+		GatewayDispatch          bool                          `json:"gateway-dispatch,omitempty"`
 		Strict                   bool                          `json:"strict,omitempty"`
 		GHES                     bool                          `json:"ghes,omitempty"`
 		RequireSelfHostedRunners bool                          `json:"require_self_hosted_runners,omitempty"`
@@ -298,7 +298,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 		return fmt.Errorf("%w: %w", errWorkQueueConfig, err)
 	}
 
-	r.WebhookGateway = raw.WebhookGateway
+	r.GatewayDispatch = raw.GatewayDispatch
 	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners

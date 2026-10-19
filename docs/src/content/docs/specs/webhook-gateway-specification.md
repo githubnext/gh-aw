@@ -19,7 +19,7 @@ The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conformi
 
 ## Configuration and experimental status
 
-Each subscribing workflow MUST declare an `on.gateway-dispatch` object containing at least one supported nested trigger. Its repository MUST also enable `{"webhook-gateway":true}` in `.github/workflows/aw.json`. Neither setting approves a source, installs a webhook, or grants dispatch authority.
+Each subscribing workflow MUST declare an `on.gateway-dispatch` object containing at least one supported nested trigger. Its repository MUST also enable `{"gateway-dispatch":true}` in `.github/workflows/aw.json`. Neither setting approves a source, installs a webhook, or grants dispatch authority.
 
 ```aw wrap
 ---

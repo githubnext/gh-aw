@@ -17,7 +17,7 @@
     }
   },
   "properties": {
-    "webhook-gateway": {
+    "gateway-dispatch": {
       "type": "boolean",
       "default": false,
       "description": "Experimental. Enable nested on.gateway-dispatch triggers delivered through repository_dispatch by an approved gateway server. Disabled unless explicitly true. This setting does not deploy a server or grant dispatch authority."

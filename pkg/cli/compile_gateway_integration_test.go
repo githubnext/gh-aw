@@ -39,7 +39,7 @@ func TestCompileGatewayDispatchIntegration(t *testing.T) {
 			path := filepath.Join(setup.workflowsDir, name+".md")
 			require.NoError(t, os.WriteFile(path, source, 0o600))
 			config := filepath.Join(setup.tempDir, workflow.RepoConfigFileName)
-			require.NoError(t, os.WriteFile(config, []byte(`{"webhook-gateway":true}`), 0o600))
+			require.NoError(t, os.WriteFile(config, []byte(`{"gateway-dispatch":true}`), 0o600))
 			var stderr bytes.Buffer
 			cmd := exec.Command(setup.binaryPath, "compile", "--json", path)
 			cmd.Stderr = &stderr

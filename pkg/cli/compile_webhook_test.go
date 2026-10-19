@@ -21,12 +21,12 @@ func enableWebhookTriggers(t *testing.T, root string) {
 	t.Helper()
 	configPath := filepath.Join(root, workflow.RepoConfigFileName)
 	require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
-	require.NoError(t, os.WriteFile(configPath, []byte(`{"webhook-gateway":true}`), 0o600))
+	require.NoError(t, os.WriteFile(configPath, []byte(`{"gateway-dispatch":true}`), 0o600))
 	t.Chdir(root)
 }
 
 func TestCompileWebhookRequiresOptIn(t *testing.T) {
-	for _, enabled := range []string{"", `{"webhook-gateway":false}`} {
+	for _, enabled := range []string{"", `{"gateway-dispatch":false}`} {
 		for _, trigger := range []string{
 			"projects-items: {project_id: PVT_example}",
 			"security-alerts: {sources: [dependabot]}",
@@ -52,7 +52,7 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 				require.False(t, result.success)
 				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "hosted CAO server")
 				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), workflow.RepoConfigFileName)
-				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), `{"webhook-gateway":true}`)
+				assert.Contains(t, fmt.Sprint(result.validationResult.Errors), `{"gateway-dispatch":true}`)
 			})
 		}
 	}
