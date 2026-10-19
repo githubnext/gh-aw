@@ -32,7 +32,8 @@ func addEpisodeCoverage(episodes []EpisodeData, runsByID map[int64]RunData) {
 		episode := &episodes[i]
 		episode.Coverage = EpisodeCoverage{Scope: "selected_runs", Status: "unknown"}
 		roots := make(map[EpisodeRoot]struct{})
-		rootRuns, rootWorkflows, rootRepos := map[string]struct{}{}, map[string]struct{}{}, map[string]struct{}{}
+		rootRuns, rootWorkflows := map[string]struct{}{}, map[string]struct{}{}
+		var rootRepos []string
 		for _, runID := range episode.RunIDs {
 			run := runsByID[runID]
 			ctx := run.AwContext
@@ -48,7 +49,9 @@ func addEpisodeCoverage(episodes []EpisodeData, runsByID map[int64]RunData) {
 					rootWorkflows[root.WorkflowID] = struct{}{}
 				}
 				if root.Repository != "" {
-					rootRepos[strings.ToLower(root.Repository)] = struct{}{}
+					if !containsRepository(rootRepos, root.Repository) {
+						rootRepos = append(rootRepos, root.Repository)
+					}
 				}
 				roots[root] = struct{}{}
 			}
@@ -129,6 +132,15 @@ func episodeRepositoryConflict(recorded, observed string) bool {
 	return recorded != "" && observed != "" && !strings.EqualFold(recorded, observed)
 }
 
+func containsRepository(repositories []string, repository string) bool {
+	for _, candidate := range repositories {
+		if strings.EqualFold(candidate, repository) {
+			return true
+		}
+	}
+	return false
+}
+
 func (coverage *EpisodeCoverage) addGap(reason string) {
 	coverage.Status = "partial"
 	if !slices.Contains(coverage.Reasons, reason) {
@@ -192,7 +204,7 @@ func applyLogsCollectionCoverage(data *LogsData, opts logsCollectionCoverageOpti
 			Repository: target.repoOverride, ContinuationData: ContinuationData{WorkflowName: target.workflowName},
 		})
 	}
-	// Legacy callers may only know that some target hit a count limit. Combined
+	// Callers may only know that some target hit a count limit. Combined
 	// collection supplies every limited target, including those without cursors.
 	unscopedCountLimit := opts.countLimitReached && len(opts.countLimitTargets) == 0 && data.Continuation == nil
 	runsByEpisode := make(map[string][]RunData)
