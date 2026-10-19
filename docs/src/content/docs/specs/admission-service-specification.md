@@ -387,7 +387,17 @@ Both implementations MUST provide automated coverage before rollout:
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix.
 
-## 11. Implementation Plan
+## 11. Formal Model
+
+The executable [TLA+ admission model](https://github.com/github/gh-aw/blob/main/specs/workflow-security/ActivationAdmission.tla) and [TLC configuration](https://github.com/github/gh-aw/blob/main/specs/workflow-security/ActivationAdmission.cfg) formalize a participating workflow's activation, authority response, retry, and downstream execution state machine. The [model documentation and checker](https://github.com/github/gh-aw/blob/main/specs/workflow-security/README.md#cooperative-activation-admission) describe reproduction, bounds, assumptions, and synthetic controls.
+
+Four bounded profiles cover both outage policies with and without client OTel. Safety invariants cover activation-before-agent execution; no requests for an absent endpoint; OIDC-only credentials and verified identity; independently verified policy use of the triggering actor; stable invocation-bound results; three-attempt retries; blocking denials, protocol errors, and fatal configuration/credential failures; minimum credit ceilings shared across continuations; no financial admission side effects; privacy-preserving response fields; and subsequent span/log/metric correlation without mandatory tracing. A weak-fairness temporal property checks eventual completion under the model's finite-work and abstract timeout assumptions.
+
+Reachability witnesses deliberately include agent execution without a configured endpoint and after an ignored outage. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
+
+This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, HTTP/JSON parsing, trusted URL handling, distributed-cache concurrency/expiry, correlation-ID entropy, timing/logging privacy, and actual runtime credit accounting remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
+
+## 12. Implementation Plan
 
 1. **gh-aw managed configuration:** register the three new admission variables and their managed YAML keys with repository/organization scope handling, runtime precedence, and effective-value validation. Document enterprise-wide organization provisioning without assuming native enterprise Actions variables. Do not add repository JSON or workflow/frontmatter admission settings. Always include runtime variable hooks; automatically check when an endpoint is configured and no-op otherwise, without a separate opt-in flag. Add CLI coverage, enterprise reference, and release notes together.
 2. **gh-aw activation integration:** add the new admission step to the existing activation job and grant that job `id-token: write`. Review every activation hook/action and existing federated trust policy for that job-wide capability, including when the gate is skipped. Preserve other required permissions without forwarding API credentials. Cover enabled, disabled, denied, and fail-open behavior, reusable workflows, and custom job conditions through existing activation-success dependencies. Do not add a job or new job dependency.
