@@ -149,6 +149,20 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.created_at).toBeTruthy();
   });
 
+  it("records the current workflow identity separately from the caller", async () => {
+    vi.stubEnv("GITHUB_WORKFLOW_REF", "github/my-repo/.github/workflows/worker.yml@refs/heads/main");
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
+    const caller = { repo: "org/parent", run_id: "100", run_attempt: "1", workflow_id: "caller.yml" };
+    await main(mockCore, { ...mockContext, payload: { inputs: { aw_context: JSON.stringify(caller) } } });
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info).toMatchObject({
+      workflow_id: "github/my-repo/.github/workflows/worker.yml@refs/heads/main",
+      run_id: 12345,
+      run_attempt: "2",
+      context: caller,
+    });
+  });
+
   it("should record dry-run and explicitly report unverified extension effects", async () => {
     process.env.GH_AW_INFO_DRY_RUN = "true";
     await main(mockCore, mockContext);

@@ -116,15 +116,36 @@ describe("Generated session schemas", () => {
       type: "workflow.info",
       data: {
         run_id: "300",
-        context: { episode_id: "100-1:root", hop_id: "200-1:caller", parent_hop_id: "", origin_event: "issues", root_repo: "org/repo", root_workflow_id: "root.yml", root_run_id: "100", private: "omit" },
+        run_attempt: "2",
+        context: {
+          episode_id: "100-1:root",
+          hop_id: "200-1:caller",
+          parent_hop_id: "",
+          origin_event: "issues",
+          root_repo: "org/repo",
+          root_workflow_id: "root.yml",
+          root_run_id: "100",
+          repo: "org/parent",
+          run_id: "200",
+          run_attempt: "1",
+          workflow_id: "caller.yml",
+          workflow_call_id: "legacy",
+          event_type: "workflow_dispatch",
+          private: "omit",
+        },
       },
     };
     const compact = normalizeUnifiedSessionEvent(canonical);
     expect(compact.data.awContext).toEqual(canonical.data.context);
+    expect(compact.data).toMatchObject({
+      runId: "300",
+      runAttempt: "2",
+      episode: { parentRepo: "org/parent", parentRunId: "200", parentRunAttempt: "1", parentWorkflowId: "caller.yml", parentWorkflowCallId: "legacy", parentEventType: "workflow_dispatch" },
+    });
     expect(validateSession(jsonl([header, unified(compact)]))).toBe(2);
     expect(validateSession(jsonl([header, unified({ type: "workflow.info", data: {} })]))).toBe(2);
     expect(validateSession(jsonl([header, unified({ type: "workflow.info", data: { episode: null } })]))).toBe(2);
-    for (const episode of [{ episode_id: "legacy-key" }, { episodeId: "root", private: "omit" }, "root", []]) {
+    for (const episode of [{ episode_id: "legacy-key" }, { episodeId: "root", private: "omit" }, { parent_run_id: "200" }, "root", []]) {
       expect(() => validateSession(jsonl([header, unified({ type: "workflow.info", data: { episode } })]))).toThrow("Invalid session event");
     }
     expect(() => validateSession(jsonl([header, unified(canonical)]))).toThrow("Invalid session event");

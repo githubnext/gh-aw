@@ -667,6 +667,13 @@ describe("essential unified session payloads", () => {
       type: "workflow.info",
       data: {
         run_id: "300",
+        run_attempt: "2",
+        workflow_id: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+        repository: "org/repo",
+        ref: "refs/heads/main",
+        sha: "abc123",
+        actor: "octocat",
+        target_repo: "org/target",
         context: {
           episode_id: "100-1:root",
           hop_id: "200-1:caller",
@@ -676,6 +683,11 @@ describe("essential unified session payloads", () => {
           root_workflow_id: "org/repo/.github/workflows/root.yml@refs/heads/main",
           root_run_id: "100",
           workflow_call_id: "200-1:caller",
+          repo: "org/parent",
+          run_id: "200",
+          run_attempt: "1",
+          workflow_id: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+          event_type: "workflow_dispatch",
           otel_trace_id: "trace-1",
           work_queue_assignment: { payload: { enabled: false, count: 0, items: [], optional: null } },
         },
@@ -685,6 +697,13 @@ describe("essential unified session payloads", () => {
     const compact = normalizeUnifiedSessionEvent(source);
     expect(compact.data).toEqual({
       runId: "300",
+      runAttempt: "2",
+      workflowId: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+      repository: "org/repo",
+      ref: "refs/heads/main",
+      sha: "abc123",
+      actor: "octocat",
+      targetRepo: "org/target",
       awContext: source.data.context,
       episode: {
         episodeId: "100-1:root",
@@ -694,6 +713,12 @@ describe("essential unified session payloads", () => {
         rootRepo: "org/repo",
         rootWorkflowId: "org/repo/.github/workflows/root.yml@refs/heads/main",
         rootRunId: "100",
+        parentRepo: "org/parent",
+        parentRunId: "200",
+        parentRunAttempt: "1",
+        parentWorkflowId: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+        parentWorkflowCallId: "200-1:caller",
+        parentEventType: "workflow_dispatch",
       },
     });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
@@ -706,15 +731,15 @@ describe("essential unified session payloads", () => {
     const event = {
       type: "workflow.info",
       data: {
-        episode: { episodeId: "", episode_id: "wrong", parentHopId: null, parent_hop_id: "wrong", rootRunId: "00100", private: "omit" },
-        context: { episode_id: "wrong" },
+        episode: { episodeId: "", episode_id: "wrong", parentHopId: null, parent_hop_id: "wrong", rootRunId: "00100", parentRunId: "00200", run_id: "wrong", parentRepo: null, private: "omit" },
+        context: { episode_id: "wrong", run_id: "wrong", repo: "wrong" },
       },
     };
     const compact = normalizeUnifiedSessionEvent(event);
-    expect(compact.data).toEqual({ awContext: event.data.context, episode: { episodeId: "", parentHopId: null, rootRunId: "00100" } });
+    expect(compact.data).toEqual({ awContext: event.data.context, episode: { episodeId: "", parentHopId: null, rootRunId: "00100", parentRunId: "00200", parentRepo: null } });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
     expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { episode: null, context: { episode_id: "wrong" } } }).data).toEqual({ awContext: { episode_id: "wrong" }, episode: null });
-    for (const context of [undefined, null, {}, [], { workflow_call_id: "legacy", run_id: "100", workflow_id: "caller" }]) {
+    for (const context of [undefined, null, {}, []]) {
       expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { run_id: "200", context } }).data).toEqual({
         runId: "200",
         ...(context && typeof context === "object" && !Array.isArray(context) ? { awContext: context } : {}),
@@ -724,12 +749,38 @@ describe("essential unified session payloads", () => {
 
   it("prefers canonical caller context and omits absent or non-object context", () => {
     const compact = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { awContext: { run_id: "100" }, context: { run_id: "wrong" } } });
-    expect(compact.data).toEqual({ awContext: { run_id: "100" } });
+    expect(compact.data).toEqual({ awContext: { run_id: "100" }, episode: { parentRunId: "100" } });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
     for (const awContext of [undefined, null, [], "", false, 0]) {
       expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { awContext, context: { run_id: "wrong" } } }).data).not.toHaveProperty("awContext");
     }
     expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: {} }).data).not.toHaveProperty("awContext");
+  });
+
+  it("projects legacy caller identity without synthesizing canonical episode or hop IDs", () => {
+    const context = { workflow_call_id: "legacy", run_id: "00100", run_attempt: "02", workflow_id: "caller", repo: "org/repo", event_type: "issues" };
+    const compact = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { run_id: "200", context } });
+    expect(compact.data.episode).toEqual({
+      parentWorkflowCallId: "legacy",
+      parentRunId: "00100",
+      parentRunAttempt: "02",
+      parentWorkflowId: "caller",
+      parentRepo: "org/repo",
+      parentEventType: "issues",
+    });
+    expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
+  });
+
+  it("keeps a reusable workflow caller distinct even when parent and current run IDs match", () => {
+    const compact = normalizeUnifiedSessionEvent({
+      type: "workflow.info",
+      data: { run_id: "300", run_attempt: "2", context: { run_id: "300", workflow_id: "caller.yml", hop_id: "300-2:caller.yml", parent_hop_id: "100-1:root" } },
+    });
+    expect(compact.data).toMatchObject({
+      runId: "300",
+      runAttempt: "2",
+      episode: { parentRunId: "300", parentWorkflowId: "caller.yml", hopId: "300-2:caller.yml", parentHopId: "100-1:root" },
+    });
   });
 
   it("uses one accounting shape without losing zero values or adding overlapping totals", () => {

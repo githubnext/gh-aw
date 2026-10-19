@@ -3,7 +3,7 @@ title: Safe Output Outcome Evaluation Specification
 version: 1.0.0
 status: Working Draft
 date: 2026-05-15
-last_updated: 2026-10-10
+last_updated: 2026-10-19
 ---
 
 # Safe Output Outcome Evaluation Specification
@@ -23,7 +23,7 @@ The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be 
 
 1. A primary-object `404` for issue, PR, or comment creation is `rejected`/`strong`/`deleted`. A supplementary endpoint `404` MUST NOT imply object deletion.
 2. Other API failures return `error`/`weak`/`evaluation_error`. Failure to fetch supplementary PR effort evidence does not undo authoritative merge acceptance, but MUST prevent zero-touch proof.
-3. Evaluation workers MUST NOT infer acceptance from unavailable data. Collector retry and rate-limit scheduling remain future lifecycle work.
+3. Evaluation workers MUST NOT infer acceptance from unavailable data. The collector revisits unresolved runs on subsequent cycles; API-specific backoff and rate-limit scheduling remain future lifecycle work.
 
 ## Provenance Limits
 
@@ -155,9 +155,11 @@ their typed results; `emit_outcome_spans.cjs` exports them.
 
 Discussion, review-thread, review-comment creation, and comment-hiding
 evaluators remain unsupported in both runtimes. Fallback outputs have no
-implemented acceptance rule. Collection revisit/retry policy and per-outcome
-AIC attribution are separate remaining work; cross-runtime conformance does
-not complete those features.
+implemented acceptance rule. The collector retains unresolved-run manifests
+and revisits `pending`, `unknown`, and `error` outcomes outside its discovery
+window. Per-run AIC per accepted outcome is available in CLI and audit summaries;
+per-item cost attribution and automatic episode/outcome joins remain separate
+work.
 
 ---
 
@@ -534,6 +536,11 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 1. `GET /repos/{owner}/{repo}/issues/{number}` → check state
 2. Search for PRs from agent: `GET /repos/{owner}/{repo}/issues/{number}/timeline` → find linked PRs from `copilot-swe-agent`
 
+The linked PR's repository MUST come from the timeline source issue's
+`repository_url`. Its number MUST NOT be resolved against the assignment
+issue's repository by default. Missing repository evidence leaves the link
+unattributable.
+
 **Evaluation:**
 
 | Condition | Outcome |
@@ -558,6 +565,10 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 **Question:** Did the dispatched workflow succeed?
 
 **API:** `GET /repos/{owner}/{repo}/actions/runs/{recorded_run_id}`; no guessed workflow/time-window attribution
+
+Manifest capture preserves the dispatch handler's returned run ID in
+`metadata.run_id`. Positive safe-integer IDs may be represented as JSON numbers
+or decimal strings; malformed IDs MUST NOT be partially parsed.
 
 **Evaluation:**
 

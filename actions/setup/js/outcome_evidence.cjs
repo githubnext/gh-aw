@@ -40,4 +40,18 @@ function itemRepo(item, fallback) {
   return match ? match[1] : fallback;
 }
 
-module.exports = { isNonBotActor, after, secondsBetween, nonBotCommentsAfter, itemNumber, itemRepo };
+/** @param {any} issue @returns {string} */
+function linkedIssueRepo(issue) {
+  if (typeof issue?.repository_url !== "string") return "";
+  try {
+    const url = new URL(issue.repository_url);
+    if (url.protocol !== "https:" || url.username || url.password) return "";
+    const match = url.pathname.match(/\/repos\/([^/]+\/[^/]+)$/);
+    return match ? match[1] : "";
+  } catch (error) {
+    if (error instanceof TypeError) return "";
+    throw error;
+  }
+}
+
+module.exports = { isNonBotActor, after, secondsBetween, nonBotCommentsAfter, itemNumber, itemRepo, linkedIssueRepo };

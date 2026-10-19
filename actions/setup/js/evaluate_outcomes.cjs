@@ -37,6 +37,7 @@ const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 // ---------------------------------------------------------------------------
 const CACHE_DIR = "/tmp/gh-aw/cache-memory/outcome-collector";
 const SEEN_FILE = path.join(CACHE_DIR, "seen-runs.json");
+const PENDING_FILE = path.join(CACHE_DIR, "pending-runs.json");
 const OUTCOMES_DIR = "/tmp/gh-aw/outcomes";
 const EVAL_JSONL = "/tmp/gh-aw/outcome-evaluations.jsonl";
 const SUMMARY_PATH = "/tmp/gh-aw/outcome-summary.json";
@@ -86,7 +87,7 @@ function ghAPI(endpoint) {
 }
 
 /**
- * Read a JSON file, returning a default value on failure.
+ * Read a JSON file, returning a default value only when it is absent.
  * @param {string} filePath
  * @param {any} fallback
  * @returns {any}
@@ -94,8 +95,9 @@ function ghAPI(endpoint) {
 function readJSON(filePath, fallback) {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return fallback;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return fallback;
+    throw new Error(`Failed to read outcome state ${filePath}: ${String(error)}`, { cause: error });
   }
 }
 
@@ -309,30 +311,36 @@ function main() {
     throw new Error(`Failed to create evaluation directories: ${String(err)}`, { cause: err });
   }
 
-  // Load seen-runs cache
-  const seenIds = new Set(readJSON(SEEN_FILE, []));
+  // Legacy arrays also marked unresolved runs as seen; rediscover them once.
+  const seenState = readJSON(SEEN_FILE, { version: 2, ids: [] });
+  if (!Array.isArray(seenState) && (!seenState || seenState.version !== 2 || !Array.isArray(seenState.ids) || seenState.ids.some(id => !Number.isSafeInteger(id) || id <= 0))) throw new Error("Invalid resolved outcome run cache");
+  const seenIds = new Set(Array.isArray(seenState) ? [] : seenState.ids);
+  const pendingState = readJSON(PENDING_FILE, []);
+  if (!Array.isArray(pendingState) || pendingState.some(run => !run || !Number.isSafeInteger(run.databaseId) || run.databaseId <= 0)) throw new Error("Invalid pending outcome run cache");
+  const pendingRuns = new Map(pendingState.map(run => [run.databaseId, run]));
 
   // Fetch recent successful runs
   const runsRaw = gh(["run", "list", "--repo", repo, "--limit", "200", "--json", "databaseId,conclusion,workflowName,event", "--jq", '[.[] | select(.conclusion == "success")] | .[0:150]']);
 
-  if (!runsRaw || runsRaw === "[]" || runsRaw === "null") {
-    core.info("No recent successful runs found");
-    writeJSONAtomic(SUMMARY_PATH, { runs_checked: 0, total_outcomes: 0 });
-    process.exit(0);
-  }
+  if (runsRaw === null) throw new Error("Failed to list runs for outcome evaluation");
 
   /** @type {Array<{databaseId: number, workflowName: string, event: string}>} */
-  let runs;
+  let recentRuns;
   try {
-    runs = JSON.parse(runsRaw);
-  } catch {
-    console.error("Failed to parse run list");
-    writeJSONAtomic(SUMMARY_PATH, { runs_checked: 0, total_outcomes: 0 });
-    process.exit(0);
+    recentRuns = JSON.parse(runsRaw);
+  } catch (error) {
+    throw new Error("Failed to parse outcome run list", { cause: error });
   }
+  if (!Array.isArray(recentRuns) || recentRuns.some(run => !run || !Number.isSafeInteger(run.databaseId) || run.databaseId <= 0)) throw new Error("Invalid outcome run list");
+  const candidates = new Map(pendingRuns);
+  for (const run of recentRuns) {
+    if (!seenIds.has(run.databaseId)) candidates.set(run.databaseId, run);
+  }
+  const runs = [...candidates.values()].sort((a, b) => a.databaseId - b.databaseId);
 
   // Counters
   let checked = 0;
+  let revisited = 0;
   let accepted = 0;
   let rejected = 0;
   let ignored = 0;
@@ -365,16 +373,16 @@ function main() {
     const workflow = run.workflowName || "";
     const event = run.event || "";
 
-    // Skip previously evaluated
-    if (seenIds.has(runId)) continue;
-
-    // Download artifact
+    // Unresolved manifests survive the discovery window and artifact expiration.
+    const cachedManifest = path.join(CACHE_DIR, `run-${runId}`, "safe-output-items.jsonl");
     const itemDir = path.join(OUTCOMES_DIR, `run-${runId}`);
-    const dlResult = gh(["run", "download", String(runId), "--repo", repo, "--name", "safe-outputs-items", "--dir", itemDir]);
-    if (dlResult === null) continue;
-
-    const manifestPath = path.join(itemDir, "safe-output-items.jsonl");
-    if (!fs.existsSync(manifestPath)) continue;
+    let manifestPath = cachedManifest;
+    if (!fs.existsSync(cachedManifest)) {
+      const dlResult = gh(["run", "download", String(runId), "--repo", repo, "--name", "safe-outputs-items", "--dir", itemDir, "--clobber"]);
+      if (dlResult === null) continue;
+      manifestPath = path.join(itemDir, "safe-output-items.jsonl");
+      if (!fs.existsSync(manifestPath)) continue;
+    }
 
     let runNoops = 0;
     let runItems = 0;
@@ -390,6 +398,7 @@ function main() {
 
     core.info(`Run ${runId} (${workflow}): ${runItems} item(s), ${runNoops} noop(s) [trigger: ${event}]`);
     checked++;
+    if (pendingRuns.has(runId)) revisited++;
     total += runItems;
 
     // Write noop entries
@@ -429,14 +438,18 @@ function main() {
         event,
       });
       evaluatedIds.push(runId);
+      pendingRuns.delete(runId);
+      if (fs.existsSync(cachedManifest)) fs.unlinkSync(cachedManifest);
       continue;
     }
 
     // Evaluate each actionable item
+    let needsRevisit = false;
     for (const item of readJSONL(manifestPath)) {
       if (!item.type || NOOP_TYPES.has(item.type)) continue;
       const evalResult = evaluateItem(item, repo);
       const normalized = evalResult;
+      if (["pending", "unknown", "error"].includes(normalized.outcome_status)) needsRevisit = true;
 
       switch (normalized.outcome_status) {
         case "accepted":
@@ -529,7 +542,18 @@ function main() {
       event,
     });
 
-    evaluatedIds.push(runId);
+    if (needsRevisit) {
+      if (manifestPath !== cachedManifest) {
+        fs.mkdirSync(path.dirname(cachedManifest), { recursive: true });
+        fs.copyFileSync(manifestPath, cachedManifest);
+      }
+      pendingRuns.set(runId, { databaseId: runId, workflowName: workflow, event });
+      seenIds.delete(runId);
+    } else {
+      evaluatedIds.push(runId);
+      pendingRuns.delete(runId);
+      if (fs.existsSync(cachedManifest)) fs.unlinkSync(cachedManifest);
+    }
   }
 
   // Compute fleet summary
@@ -550,6 +574,8 @@ function main() {
 
   writeJSONAtomic(SUMMARY_PATH, {
     runs_checked: checked,
+    runs_revisited: revisited,
+    unresolved_runs: pendingRuns.size,
     total_outcomes: total,
     accepted,
     rejected,
@@ -572,9 +598,13 @@ function main() {
     date: new Date().toISOString().slice(0, 10),
   });
 
-  // Update seen-runs cache: merge old + new, keep last 500
+  writeJSONAtomic(
+    PENDING_FILE,
+    [...pendingRuns.values()].sort((a, b) => a.databaseId - b.databaseId)
+  );
+  // Keep terminal runs only; unresolved runs have their own durable backlog.
   const merged = [...new Set([...seenIds, ...evaluatedIds])].sort((a, b) => a - b).slice(-500);
-  writeJSONAtomic(SEEN_FILE, merged);
+  writeJSONAtomic(SEEN_FILE, { version: 2, ids: merged });
 
   core.info(`✓ Checked ${checked} runs, ${total} outcomes`);
   core.info(`  Accepted: ${accepted}, Rejected: ${rejected}, Ignored: ${ignored}, Pending: ${pending}, Noop: ${noop}`);

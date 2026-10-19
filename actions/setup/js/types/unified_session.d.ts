@@ -420,6 +420,12 @@ export interface EpisodeLineageData {
   rootRepo?: JsonValue;
   rootWorkflowId?: JsonValue;
   rootRunId?: JsonValue;
+  parentRepo?: JsonValue;
+  parentRunId?: JsonValue;
+  parentRunAttempt?: JsonValue;
+  parentWorkflowId?: JsonValue;
+  parentWorkflowCallId?: JsonValue;
+  parentEventType?: JsonValue;
 }
 
 export interface ModelSelectionData {
@@ -442,8 +448,14 @@ export interface WorkflowInfoData {
   triggerType?: JsonValue;
   dryRun?: JsonValue;
   workflow?: JsonValue;
+  workflowId?: JsonValue;
   repository?: JsonValue;
   runId?: JsonValue;
+  runAttempt?: JsonValue;
+  ref?: JsonValue;
+  sha?: JsonValue;
+  actor?: JsonValue;
+  targetRepo?: JsonValue;
   awContext?: Record<string, JsonValue>;
   episode?: EpisodeLineageData | null;
 }

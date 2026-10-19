@@ -75,6 +75,7 @@ async function main(core, ctx, githubClient) {
     version: process.env.GH_AW_INFO_VERSION || "",
     agent_version: process.env.GH_AW_INFO_AGENT_VERSION || "",
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",
+    workflow_id: process.env.GITHUB_WORKFLOW_REF || "",
     experimental: process.env.GH_AW_INFO_EXPERIMENTAL === "true",
     supports_tools_allowlist: process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST === "true",
     cache_memory: process.env.GH_AW_INFO_CACHE_MEMORY === "true",

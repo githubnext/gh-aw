@@ -627,6 +627,7 @@ func addAuditOutcomeSummary(ctx context.Context, auditData *AuditData, createdIt
 	outcomeReports := EvaluateOutcomes(ctx, createdItems, "", mapping)
 	auditData.Outcomes = outcomeReports
 	outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
+	outcomeSummary.addAIC(auditData.Metrics.AIC)
 	auditData.OutcomeSummary = &outcomeSummary
 }
 

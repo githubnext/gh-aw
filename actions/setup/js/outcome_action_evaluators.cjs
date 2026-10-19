@@ -1,6 +1,6 @@
 // @ts-check
 
-const { isNonBotActor, after, secondsBetween, nonBotCommentsAfter, itemNumber, itemRepo } = require("./outcome_evidence.cjs");
+const { isNonBotActor, after, secondsBetween, nonBotCommentsAfter, itemNumber, itemRepo, linkedIssueRepo } = require("./outcome_evidence.cjs");
 const reviews = require("./outcome_review_evaluators.cjs");
 
 const SKIPPED = new Set(["noop", "missing_tool", "missing_data", "report_incomplete"]);
@@ -38,9 +38,9 @@ function evaluateAction(item, repo, api, nowMs, normalize) {
   const type = item.type || "";
   let out = result("unknown", "none", "missing_reference");
   let failedPrimary = false;
-  const get = (/** @type {string} */ endpoint, primary = false) => {
+  const get = (/** @type {string} */ endpoint, primary = false, targetRepo = repo) => {
     try {
-      const value = api(`repos/${repo}/${endpoint}`);
+      const value = api(`repos/${targetRepo}/${endpoint}`);
       if (value == null) throw new Error(`GitHub outcome API failed: ${endpoint}`);
       return value;
     } catch (error) {
@@ -250,8 +250,8 @@ function evaluateLabels(item, number, get) {
 
 /** @param {any} item @param {(endpoint: string) => any} get */
 function evaluateDispatch(item, get) {
-  const id = item.metadata?.run_id;
-  if (!Number.isSafeInteger(id) || id <= 0) return result("pending", "none", "missing_run_id");
+  const id = reviews.getMetadataNumber(item, "run_id");
+  if (id === null) return result("pending", "none", "missing_run_id");
   const run = get(`actions/runs/${id}`);
   if (run.status !== "completed") return result("pending", "medium", "workflow_pending");
   if (run.conclusion === "success") return result("accepted", "strong", "workflow_success");
@@ -271,9 +271,9 @@ function evaluatePush(item, number, get) {
   return result("accepted", "strong", "merged");
 }
 
-/** @param {any} item @param {number} number @param {(endpoint: string) => any} get */
+/** @param {any} item @param {number} number @param {(endpoint: string, primary?: boolean, repo?: string) => any} get */
 function evaluateAssignment(item, number, get) {
-  const issue = get(`issues/${number}`);
+  get(`issues/${number}`);
   const events = get(`issues/${number}/timeline`);
   const linked = events.find(
     (/** @type {any} */ event) =>
@@ -281,11 +281,12 @@ function evaluateAssignment(item, number, get) {
       event.source?.issue?.pull_request &&
       Number.isSafeInteger(event.source.issue.number) &&
       event.source.issue.number > 0 &&
+      linkedIssueRepo(event.source.issue) !== "" &&
       ["copilot-swe-agent", "github-actions[bot]"].includes(String(event.source.issue.user?.login || "").toLowerCase()) &&
       after(event.created_at, item.timestamp)
   );
   if (linked) {
-    const pr = get(`pulls/${linked.source.issue.number}`);
+    const pr = get(`pulls/${linked.source.issue.number}`, false, linkedIssueRepo(linked.source.issue));
     return pr.merged === true ? result("accepted", "strong", "merged") : pr.state === "closed" ? result("rejected", "strong", "closed_without_merge") : result("pending", "medium", "open");
   }
   return result("unknown", "none", "missing_execution_state", "no attributable agent PR");

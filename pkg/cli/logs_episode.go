@@ -102,6 +102,8 @@ type episodeSeed struct {
 
 func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeData, []EpisodeEdge) {
 	logsEpisodeLog.Printf("Building episode data: runs=%d processed_runs=%d", len(runs), len(processedRuns))
+	runs = slices.Clone(runs)
+	slices.SortFunc(runs, func(a, b RunData) int { return cmp.Compare(a.RunID, b.RunID) })
 	runsByID := make(map[int64]RunData, len(runs))
 	processedByID := make(map[int64]ProcessedRun, len(processedRuns))
 	seedsByRunID := make(map[int64]episodeSeed, len(runs))
@@ -445,6 +447,8 @@ func classifyWorkflowCallEpisode(run RunData) (string, string, string, []string,
 	if run.TargetRepo != "" {
 		confidence = "high"
 	}
+	// Matching revision metadata is not itself a shared invocation identity.
+	parts = append(parts, strconv.FormatInt(run.RunID, 10))
 	return "workflow_call:" + strings.Join(parts, ":"), "workflow_call", confidence, reasons, true
 }
 
@@ -453,7 +457,8 @@ func buildWorkflowCallEpisodeEdge(run RunData, runs []RunData) (EpisodeEdge, boo
 		return EpisodeEdge{}, false
 	}
 	candidates := filterLineageCandidates(runs, run, func(candidate RunData) bool {
-		return candidate.Repository == run.Repository &&
+		return candidate.Event != "workflow_call" &&
+			candidate.Repository == run.Repository &&
 			candidate.SHA == run.SHA &&
 			candidate.Ref == run.Ref &&
 			candidate.Actor == run.Actor &&
