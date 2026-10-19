@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.62
+**Version**: 1.0.63
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.63` | Unreleased | Audit-only; distinguishes staged Copilot SDK skill registration and runtime permission-denial enforcement from compiler controls. Preserves CTR-023 engine-capability validation and CTR-028/030 configuration provenance. No new threat identifier, permission grant, or lock-file schema change. |
 | `1.0.62` | Unreleased | Adds authored AST checks for `pull_request_target` checkout trust (CTR-008 subset) and multiline, malformed, or blocked-property prompt expressions (CTR-010 subset). Shares checkout trust predicates with the compiler and expression parsing with secret-flow analysis. Preserves unresolved-import uncertainty and native Actions evidence boundaries. No new threat identifier or lock-file schema change. |
 | `1.0.61` | Unreleased | Exposes known compiler threat IDs in AST rule metadata, text/JSON diagnostics, rule listings, and the standalone linter reference. Checks URL-filter SSL prerequisites in accepted non-strict `sandbox.agent.args`; reports schema-rejected legacy `network.firewall` as requiring migration rather than recommending an invalid remedy. No new threat identifier or lock-file schema change. |
 | `1.0.60` | Unreleased | Adds authored AW checks for unsafe `pull_request_target` role admission (CTR-008 subset), blocked safe-output shell expansions (CTR-009), and URL-filter SSL prerequisites (CTR-011 subset). Preserves non-strict role-warning suppression, shared compiler shell policy, import uncertainty, and native Actions evidence boundaries. No new `CTR-*` rule or lock-file schema change. |
@@ -83,6 +84,10 @@ Patch/bundle replacement between safe-output validation and Git application is l
 Sandbox bypass includes the provenance of the agent's own configuration. On pull-request triggers the workspace holds head-branch content that the PR author controls, so agent configuration folders and root instruction files are attacker-controlled inputs until the generated job replaces them with the base-branch snapshot captured before that content was checked out.
 
 Activation also reads workflow imports and skills before the agent job runs. Restoring agent configuration later cannot make instructions already loaded during activation trustworthy; the activation sparse checkout must select a trusted ref independently.
+
+Copilot SDK skill registration is a runtime instruction-loading boundary, not a new compiler threat rule. The built-in driver explicitly registers only the staged workflow skill root, with ambient configuration discovery disabled in both normal and bare sessions, as described in [SDK driver §3.5](../docs/src/content/docs/specs/copilot-sdk-driver-specification.md#35-workflow-skill-registration). An absent root produces an empty explicit directory list; a root that is a file or a symbolic link, including a dangling link, causes a hard failure with `exitCode: 1` and a `session.error` event before SDK session creation. This root check neither recursively validates staged entries nor attests their provenance. CTR-028 and CTR-030 remain independent generated-workflow provenance requirements; restoring or registering a skill does not grant its instructions additional tool permissions.
+
+Runtime shell authorization and denial-budget enforcement are likewise distinct from CTR-023, which checks whether an engine can enforce explicit bash restrictions. Under the SDK workflow allowlist, an allowed command in a chain does not authorize other segments: the permission handler requires an explicitly allowed full command or individually allowed segments. Only rejected permission requests increment the tool-denial counter; a missing skill is not itself a permission denial. Reaching the configured threshold stops inference, as specified in [SDK driver §4.5](../docs/src/content/docs/specs/copilot-sdk-driver-specification.md#45-tool-denials-guardrail-environment-variable). Prompt guidance to read staged files, name permitted alternatives, or report unavailable capabilities is recovery guidance, not authorization or a replacement for the permission handler, denial guard, sandbox, or safe-output routing.
 
 Host-side OTLP exporter configuration is another secret-bearing trust boundary. Passing collector headers and endpoints through AWF's `--env-all` exposes collector credentials to sandboxed processes and can cause an agent CLI to export duplicate telemetry. CTR-017 covers compiler-generated exclusions for the agent, threat-detection, and evals sandboxes.
 
@@ -262,6 +267,8 @@ The `MCP-COMPILE-*` requirements are separate from the `CTR-*` / `T-CTR-*` gener
 
 The in-process registry in `pkg/workflow/lint` defines rules only against parsed AW or Actions ASTs, with explicit target metadata. File discovery and parsing are CLI-adapter responsibilities, never rule definitions. `gh aw lint` accepts AW `.md`, native Actions `.yml`/`.yaml`, and compiled `.lock.yml` inputs without compilation. AW-only analysis visits explicit authored execution nodes and reports unavailable generated-flow coverage; it MUST NOT fabricate a compiled Actions graph. These checks do not replace strict-mode validation, safe rewrites, runtime controls, or formal conformance evidence. A clean result MUST NOT be represented as proof of complete `CTR-*` conformance.
 
+**Informative attribution:** Selected AST checks build on [zizmor's security research and audit definitions](https://docs.zizmor.sh/audits/). Credit for the upstream `artipacked`, `cache-poisoning`, `excessive-permissions`, `obfuscation`, `template-injection`, and `unpinned-uses` audits, their names, and remediation guidance belongs to the [zizmor maintainers and contributors](https://github.com/zizmorcore/zizmor). zizmor is [MIT-licensed](https://github.com/zizmorcore/zizmor/blob/main/LICENSE). gh-aw's Go checks are independent, scoped implementations informed by those audits and repository findings, not embedded zizmor code or a claim of equivalent coverage, severity, suppression behavior, or upstream endorsement. The [Workflow Linters reference](/gh-aw/reference/workflow-linters/#historical-zizmor-regressions) links the original audits and distinguishes them from gh-aw regression evidence.
+
 Rules with a known compiler threat mapping MUST declare its `CTR-*` ID in `Rule.ThreatRuleID`. The runner MUST attach the registered reference to findings and coverage warnings; CLI text, JSON diagnostics (`threat_rule_id`), and rule listings MUST expose it. Unmapped extension rules MAY omit the field, and JSON MUST omit an empty reference. Registry contracts verify the built-in mappings below. The [Workflow Linters reference](/gh-aw/reference/workflow-linters/) documents user-facing checks and analysis boundaries separately from CLI usage.
 
 | Threat rule | AST lint rule | Observable invariant | Implementation and evidence |
@@ -363,6 +370,7 @@ A test ID that is deprecated under Section 5.4 MUST remain listed in Section 8.1
 - RFC 2119: Key words for use in RFCs to Indicate Requirement Levels
 - GitHub Actions syntax and permissions documentation
 - gh-aw security architecture and safe-output specifications
+- zizmor maintainers and contributors: [zizmor](https://github.com/zizmorcore/zizmor), [Audit Rules](https://docs.zizmor.sh/audits/), and [MIT License](https://github.com/zizmorcore/zizmor/blob/main/LICENSE) (informative upstream attribution for selected AST checks)
 
 ## 10. Change Log
 
