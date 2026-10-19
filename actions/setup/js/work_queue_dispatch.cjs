@@ -231,7 +231,7 @@ async function verifyLaunchedRun(options, expected, policy) {
   const started = Date.now();
   for (let attempt = 1; ; attempt++) {
     try {
-      return validateNativeRun(await fetchNativeRunAttempt(options.dispatchClient || options.githubClient, expected.repository, expected.run_id, 1), expected);
+      return validateNativeRun(await fetchNativeRunAttempt(options.dispatchClient || options.githubClient, expected.repository, expected.run_id, 1, { retryMetadata: false }), expected);
     } catch (error) {
       log.failure("launch.verification.failed", error, true);
       const remaining = policy.deadline_ms - (Date.now() - started);
