@@ -148,22 +148,42 @@ func (s *githubGraderRunArtifactSource) downloadGraderArtifact(ctx context.Conte
 	graderArtifacts := make([]string, 0, 2)
 	for _, name := range names {
 		if artifactMatchesFilter(name, []string{
-			constants.AgentArtifactName.String(),
-			constants.AgentOutputFallbackArtifactName.String(),
+			constants.UsageArtifactName.String(),
+			constants.GradersArtifactName.String(),
 		}) {
 			graderArtifacts = append(graderArtifacts, name)
 		}
 	}
-	if len(graderArtifacts) == 0 {
-		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
-	}
-
 	opts := downloadArtifactsOptions{
 		runID:     runID,
 		outputDir: runDir,
 		owner:     s.owner,
 		repo:      s.repo,
 		hostname:  s.hostname,
+	}
+	if len(graderArtifacts) > 0 {
+		if err := downloadArtifactsByName(ctx, opts, graderArtifacts); err != nil {
+			return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
+		}
+		if err := flattenUnifiedArtifact(runDir, false); err != nil {
+			return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
+		}
+		if err := flattenAgentOutputFallbackArtifact(runDir, false); err != nil {
+			return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
+		}
+		if findGraderFile(runDir, constants.GraderResultsFilename.String()) != "" {
+			return readGraderResultsArtifact(runDir)
+		}
+	}
+
+	graderArtifacts = graderArtifacts[:0]
+	for _, name := range names {
+		if artifactMatchesFilter(name, []string{constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()}) {
+			graderArtifacts = append(graderArtifacts, name)
+		}
+	}
+	if len(graderArtifacts) == 0 {
+		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
 	}
 	if err := downloadArtifactsByName(ctx, opts, graderArtifacts); err != nil {
 		return graderRunData{ExclusionReason: exclusionArtifactUnavailable}
@@ -285,8 +305,8 @@ func hasValidGraderMetricSuffix(metric string) bool {
 	if !ok {
 		return true
 	}
-	parts := strings.SplitN(strings.TrimSpace(rest), ".", 2)
-	return len(parts) < 2 || parts[1] == "value"
+	_, suffix, hasSuffix := strings.Cut(strings.TrimSpace(rest), ".")
+	return !hasSuffix || suffix == "value"
 }
 
 func loadGraderRunData(ctx context.Context, runs []ExperimentRunRecord, experimentNames map[string]struct{}, source graderRunArtifactSource) map[string]graderRunData {

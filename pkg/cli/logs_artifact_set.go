@@ -78,8 +78,8 @@ const (
 	ArtifactSetUsage ArtifactSet = "usage"
 
 	// ArtifactSetGraders downloads the artifacts that carry grader results
-	// (grader_results.json): the compact usage artifact, the agent artifact, and
-	// the fallback artifact used when uploading the unified agent artifact fails.
+	// (grader_results.json): built-ins in usage, combined custom results from the
+	// separate graders job, and historical agent/fallback layouts.
 	ArtifactSetGraders ArtifactSet = "graders"
 
 	// ArtifactSetEvals downloads the usage artifact, which now includes evals.jsonl
@@ -112,9 +112,9 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetUsage: {constants.UsageArtifactName.String()},
 	// evals: evals results are now included in the usage artifact.
 	ArtifactSetEvals: {constants.UsageArtifactName.String()},
-	// graders: grader results are included in the usage artifact, remain part of
-	// the unified agent artifact, and are preserved in the fallback transport.
-	ArtifactSetGraders:   {constants.UsageArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
+	// graders: conclusion publishes built-ins in usage; the separate graders job
+	// publishes combined custom results. Retain historical agent/fallback support.
+	ArtifactSetGraders:   {constants.UsageArtifactName.String(), constants.GradersArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 	ArtifactSetWorkQueue: {constants.ActivationArtifactName.String(), constants.AgentArtifactName.String()},
 }
 

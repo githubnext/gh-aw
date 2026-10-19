@@ -42,6 +42,7 @@ describe("generate_usage_artifacts.cjs", () => {
     fs.writeFileSync(path.join(tempDirectory, "agent-session.jsonl"), JSON.stringify({ type: "assistant.message", data: { content: "Finished assembly-secret-fixture" } }) + "\n");
 
     const core = {
+      summary: { addDetails: vi.fn(), write: vi.fn().mockResolvedValue(undefined) },
       info: vi.fn(message => {
         if (!message.startsWith("=== Unified session ===")) return;
         const persisted = fs.readFileSync(sessionPath, "utf8");
@@ -79,6 +80,10 @@ describe("generate_usage_artifacts.cjs", () => {
     expect(summary.match(/<summary>Unified session<\/summary>/g)).toHaveLength(1);
     expect(core.info).toHaveBeenCalledWith(expect.stringContaining("=== Unified session ==="));
     expect(core.warning).not.toHaveBeenCalled();
+    const graderOutput = JSON.parse(fs.readFileSync(path.join(usageDirectory, "graders", "grader_results.json"), "utf8"));
+    expect(graderOutput.results.length).toBe(10);
+    expect(events.some(event => event.type === "grader.result" && event.provenance.phase === "conclusion")).toBe(true);
+    expect(core.summary.addDetails).toHaveBeenCalledWith("Graders", expect.stringContaining("Tool Success Rate"));
   });
 
   it("warns on generator failures and still lists usage files", async () => {

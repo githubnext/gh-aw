@@ -1,357 +1,234 @@
 ---
 title: Graders Specification
-description: Formal specification for deterministic gh-aw graders and grader-backed experiment metrics
+description: Pure deterministic metrics over the in-memory unified agent session
 sidebar:
   order: 1360
 ---
 
 # Graders Specification
 
-**Version**: 0.2.0
+**Version**: 0.5.0
 **Status**: Draft Specification
 **Feature Status**: Experimental
-**Latest Version**: [graders-specification](/gh-aw/specs/graders-specification/)
-**Editor**: GitHub Agentic Workflows Team
-
----
-
-## Abstract
-
-This specification defines the `graders` feature in gh-aw: deterministic execution metrics and operational-value results persisted as structured artifacts. It specifies configuration, built-in grader behavior, custom inline grader constraints, operational-value grader behavior, execution ordering, artifact outputs, experiment metric references, and conformance requirements.
-
-## Status of This Document
-
-This section describes the status of this document at the time of publication. This is a draft specification and may be updated, replaced, or made obsolete by other documents at any time.
-
-This feature is experimental and implementations SHOULD expect iteration before final recommendation status.
-
-## Table of Contents
-
-1. [Introduction](#1-introduction)
-2. [Conformance](#2-conformance)
-3. [Architecture](#3-architecture)
-4. [Configuration Model](#4-configuration-model)
-5. [Built-in Graders](#5-built-in-graders)
-6. [Custom Inline Graders](#6-custom-inline-graders)
-7. [Operational Value Grader](#7-operational-value-grader)
-8. [Execution and Artifacts](#8-execution-and-artifacts)
-9. [Experiment Metric References](#9-experiment-metric-references)
-10. [Security and Isolation](#10-security-and-isolation)
-11. [Compliance Testing](#11-compliance-testing)
-12. [Norms](#12-norms)
-13. [References](#13-references)
-14. [Change Log](#14-change-log)
-
----
 
 ## 1. Introduction
 
-### 1.1 Purpose
-
-The `graders` feature provides deterministic execution metrics and operational value observations without issuing additional LLM calls.
-
-### 1.2 Scope
-
-This specification covers:
-
-- Frontmatter configuration under `graders`
-- Built-in grader identifiers and semantics
-- Custom inline grader script requirements
-- Operational-value evaluator requirements
-- Output artifact contracts
-- Experiment metric integration for grader references
-
-This specification does NOT cover:
-
-- Non-deterministic evaluator models
-- UI visualization requirements
-- External metric backends
-
-### 1.3 Design Goals
-
-A conforming implementation:
-
-1. MUST compute grader values deterministically for the same request and observable evidence.
-2. MUST preserve stable grader IDs for experiment references.
-3. MUST keep trace grading isolated from network-dependent behavior.
-4. MUST emit machine-readable grader artifacts for downstream tooling.
-
----
-
-## 2. Conformance
-
-### 2.1 Conformance Classes
-
-- **Conforming implementation**: Satisfies all MUST/SHALL requirements in this document.
-- **Partially conforming implementation**: Supports built-in graders but omits custom inline grader execution.
-
-### 2.2 Requirements Notation
-
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
-
-### 2.3 Compliance Levels
-
-- **Level 1 (Required)**: Built-in graders, manifest/results output.
-- **Level 2 (Standard)**: Custom inline graders with validation and isolation.
-- **Level 3 (Complete)**: Experiment metric references to graders with validation.
-
----
-
-## 3. Architecture
-
-`graders` executes as a post-agent step in the existing `agent` job:
-
-1. Parse and validate frontmatter `graders`.
-2. Build grader manifest and execution spec as JSON in step environment variables (`GH_AW_GRADER_MANIFEST_*` and `GH_AW_GRADER_EXEC_*`), read by the JavaScript runtime. Escape dollar signs to prevent Actions expression interpolation, and chunk payloads without splitting Unicode characters. The runtime retains legacy base64 input support for older compiled workflows.
-3. Preprocess trace artifacts once.
-4. Execute enabled graders (built-in, custom inline, and operational value).
-5. Write normalized outputs to grader artifact files.
-
-The grading step MUST run with `if: always()` semantics and SHOULD continue even when individual graders fail, recording per-grader errors in results.
-
----
-
-## 4. Configuration Model
-
-### 4.1 Frontmatter Key
-
-The configuration key MUST be `graders`.
-
-### 4.2 Enable/Disable Semantics
-
-- If `graders` is omitted, grading MUST be disabled.
-- If `graders: {}` is provided, all built-in graders MUST be enabled with defaults.
-- If `graders` is present, at least one grader MUST be enabled; otherwise configuration MUST fail.
-
-### 4.3 Entry Model
-
-`graders` is a map of `<grader-id> -> <definition|null>`.
-
-- Built-in grader entries MAY be `null` to enable defaults.
-- Custom grader entries MUST be objects and MUST include `script`.
-- The reserved `operational-value` entry MUST be an object and MUST include exactly one of `run` or `script`.
-
-Supported object fields include `enabled`, `name`, `description`, `unit`, `direction`, `threshold`, `min`, `max`, `config`, `script`, and `run`. Only the reserved `operational-value` grader accepts `run`.
-
----
-
-## 5. Built-in Graders
-
-The implementation MUST recognize the following built-in grader IDs:
-
-- `tool-success-rate`
-- `tool-failure-count`
-- `retries`
-- `loops`
-- `trajectory-efficiency`
-- `execution-step-count`
-- `execution-duration`
-- `working-set-rebuild-factor`
-- `context-growth`
-- `artifact-production`
-- `policy-near-miss`
-- `skill-constraint-coverage`
-- `exploration-error`
-- `exploitation-error`
-- `state-revisit-probability-rep`
-- `recurrence-determinism`
-- `recurrence-laminarity`
-- `recurrence-trapping-time`
-- `recurrence-rate`
-- `event-entropy-rate`
-- `lempel-ziv-trajectory-complexity`
-- `tool-output-consumption-rate`
-- `end-to-end-lineage-completeness`
-- `action-provenance-coverage`
-- `premature-termination-gap`
-- `evidence-saturation-stopping-lag`
-- `dependency-order-violation-rate`
-- `objective-coverage`
-- `grounding-accuracy`
-- `tool-wise-score`
-- `trajectory-ndtw`
-- `code-search-recall`
-- `code-read-precision`
-- `code-edit-precision`
-
-These IDs are reserved for built-ins. A built-in grader MUST NOT accept a custom `script`.
-
-Built-in graders MUST be deterministic, MUST run in-process without network or API access, and MUST keep their cost bounded. Trajectory graders MUST report `unavailable` rather than compute a score when any Trajectory IR collection exceeds the implementation's size limit.
-
-When the graders step runs, the runtime MUST run every built-in grader on the trace, including built-ins missing from the manifest. A built-in that is explicitly disabled MUST NOT run.
-
----
-
-## 6. Custom Inline Graders
-
-A custom grader is any grader ID not in the built-in set.
-
-### 6.1 Required Fields
-
-A custom grader MUST define `script`.
-
-### 6.2 Script Limits
-
-- `script` MUST be non-empty.
-- `script` MUST NOT exceed 4096 characters.
-
----
-
-## 7. Operational Value Grader
-
-The reserved grader ID MUST be `operational-value`. It MUST define exactly one evaluator source: inline Bash in `script`, or a repository-relative Bash file in `run`.
-
-The grader SHOULD declare a concise `name`, `description`, `unit`, and `direction` for its primary metric. The evaluator SHOULD document the workflow intent and every emitted metric's native meaning, including its unit, direction, significant boundaries, and `null` interpretation, in source comments that are frozen with the evaluator bytes. The primary description MUST be retained in the grader manifest and serialized result when declared.
-
-Both forms MUST be valid UTF-8, start with a Bash shebang, pass Bash syntax validation, and contain no more than 65,536 bytes. The compiler MUST resolve `run` within the repository and reject symlinks and non-regular files. It MUST freeze either source as exact evaluator bytes and record their SHA-256 digest in the grader manifest and result implementation.
-
-The evaluator MUST run once with no mode arguments. It MUST read one JSON request from standard input containing `schemaVersion`, `run`, `event`, `outputs`, and `config`. `outputs` MUST contain the current run's validated safe-output requests and MUST NOT be treated as proof that requested GitHub mutations were applied. The evaluator MUST write exactly one non-empty ordered array of objects containing exactly `id` and `value`. IDs MUST be non-empty and unique. Values MUST be finite numbers or `null`. The first item is the primary metric; later items are diagnostics. The implementation MUST preserve numeric values exactly and MUST NOT normalize, clamp, rescale, or convert them to pass/fail. The declared `unit` and `direction` define how consumers interpret the native value.
-
-The evaluator MUST return the same metric array for the same request and observable evidence. Missing or malformed required evidence MUST produce `null`, not zero. Historical replay, maturation, baselines, opportunity keys, evaluator definitions, provenance schemas, caches, and reports are outside this contract.
-
----
-
-## 8. Execution and Artifacts
-
-### 8.1 Output Directory
-
-Graders output MUST be written under:
-
-`/tmp/gh-aw/agent/graders`
-
-### 8.2 Required Files
-
-The implementation MUST produce:
-
-- `grader_manifest.json`
-- `grader_results.json`
-- `operational_value_evaluator.sh` when the `operational-value` grader is enabled
-
-### 8.3 Artifact Inclusion
-
-All applicable files MUST be included in the unified `agent` artifact.
-
-### 8.4 Deterministic Output Contract
-
-`grader_results.json` SHOULD include normalized run/result structures suitable for downstream programmatic reads, including per-grader value/status and run-level pass/fail/error counts.
-
----
-
-## 9. Experiment Metric References
-
-Experiment metric fields MAY reference grader outputs.
-
-Supported forms include:
-
-- `grader:<id>`
-- `graders.<id>.value`
-
-When a grader reference is used, `<id>` MUST resolve to a declared enabled grader. Unknown or empty grader references MUST fail validation.
-
-For each production run, the selected experiment variant is recorded before agent execution. The
-post-agent grader result then becomes an observation attributed to that assignment:
-
-```text
-production run
-→ grader result
-→ experiment observation
-→ statistical analysis
-→ deterministic decision
+Graders compute deterministic execution metrics without additional model calls.
+This specification defines configuration, the in-memory interface, execution
+ordering, artifact output, and grader-backed experiment metrics.
+
+The key words MUST, MUST NOT, SHOULD, and MAY have the meanings defined by
+[RFC 2119](https://www.ietf.org/rfc/rfc2119).
+
+## 2. Grader interface
+
+Built-in and JavaScript graders MUST receive an in-memory
+[unified session](/gh-aw/specs/unified-agent-session-specification/), represented
+as an array of canonical events with `type`, `data`, and `provenance`.
+The caller MAY supply non-executable configuration and shared indexes.
+
+These graders MUST be pure computation. They MUST NOT read files, spawn processes,
+access the network, inspect environment variables, or mutate the input.
+Identical session and configuration inputs MUST produce identical results.
+Legacy preprocessed trace payloads are not accepted by the public interface.
+
+`createSessionLookups(session)` materializes event-type indexes, correlated
+tool calls, and concrete execution statistics once for all graders. Internal
+trajectory algorithms MAY consume projections derived solely from that session.
+They MUST NOT reconstruct missing evidence by reading external artifacts.
+
+Main-agent execution statistics MUST exclude detection and eval usage.
+Native tool starts and completions MUST be correlated within their session;
+unfinished calls count as failures. Native calls take precedence over duplicate
+gateway evidence. Proxy token telemetry takes precedence over aggregate agent
+usage to avoid double-counting.
+
+Missing required evidence MUST produce `unavailable`, not fabricated measurements.
+
+## 3. Configuration model
+
+Omitting `graders`, setting it to null, or using `graders: {}` MUST enable the
+ten fast built-ins listed below. Other registered built-ins require explicit
+configuration.
+
+```yaml
+graders:
+  loops:
+    enabled: false
+  tool-success-rate:
+    threshold: 0.95
+  recurrence-determinism: {}
 ```
 
-`gh aw experiments analyze` reads the persisted assignment ledger and the run's
-`grader_results.json`; this path does not require historical trace replay or an additional evaluator
-model invocation. Only valid numeric grader results count toward `min_samples`. Missing artifacts,
-missing or failed graders, and invalid values are excluded rather than treated as zero.
+Supported per-grader fields are `enabled`, `name`, `description`, `unit`,
+`direction`, `threshold`, `min`, `max`, and `config`. These fields carry data
+only. Custom IDs MUST additionally declare an inline JavaScript `script`, limited
+to 256 KiB. Built-in IDs MUST NOT accept scripts or implementation overrides.
+The reserved `operational-value` ID instead requires a repository-owned Bash
+file through `run`; other IDs MUST NOT accept `run`, and `operational-value`
+MUST NOT accept `script`. Unsupported fields and built-in overrides MUST fail
+validation, even when disabled.
 
-Grader `direction` determines whether lower or higher values are favorable. The experiment decision
-layer normalizes this direction before applying its absolute `minimum_effect` policy and mandatory
-guardrails. A grader measures only the behavior encoded by that grader; not every grader represents
-semantic task correctness. The normative readiness, decision, and JSON contracts are defined in the
-[Experiments Specification](/gh-aw/experimental/experiments-specification/#116-deterministic-decision-policy).
+Disabling a default with `enabled: false` MUST persist through manifest
+normalization and replay. Disabling all defaults is valid.
 
----
+## 4. Built-in graders
 
-## 10. Security and Isolation
+The default set MUST contain only fast, linear-time metrics:
 
-- Grading MUST operate on local run artifacts and MUST NOT require outbound network access for built-ins.
-- Custom inline graders MUST execute in a separate Node.js process with the permission model enabled and a minimal environment.
-- Grader inputs MUST be reconstructed inside the JavaScript context; host-created objects and functions MUST NOT be exposed to the grader.
-- `process`, `require`, and other host capabilities MUST NOT be available in the grader context. Source-pattern blocklists MUST NOT be relied on as a security boundary.
-- Operational-value graders MAY access declared repository evidence using `GH_TOKEN`; implementations MUST NOT add agent-job permission scopes on behalf of the evaluator, and evaluators MUST NOT receive workflow secrets.
-- Implementations SHOULD enforce bounded execution time for inline scripts.
-- Implementations SHOULD redact grader outputs when custom scripts are enabled to reduce secret leakage risk.
+| ID | Measurement |
+|---|---|
+| `tool-success-rate` | Successful tool calls / total tool calls |
+| `tool-failure-count` | Failed or unfinished tool calls |
+| `retries` | Retry observations in main-agent MCP events |
+| `loops` | Consecutive calls with identical tool names and arguments |
+| `trajectory-efficiency` | Distinct tool names / total calls |
+| `execution-step-count` | Observed model request count |
+| `execution-duration` | Observed duration in milliseconds |
+| `working-set-rebuild-factor` | Cumulative input tokens / peak invocation input tokens |
+| `context-growth` | Total tokens / first-request tokens |
+| `artifact-production` | Safe-output result count |
 
----
+Trajectory analyses MUST remain opt-in. Reference-dependent results MUST be
+unavailable when the unified session does not contain the required evidence.
+Potentially quadratic trajectory analyses MUST retain bounded input sizes.
+The full registry is documented in the [Graders Reference](/gh-aw/experimental/trace-graders/).
 
-## 11. Compliance Testing
+## 5. Execution and artifacts
 
-### 11.1 Test Suite Requirements
+Built-in grading MUST execute in the **conclusion job**, after agent, detection,
+safe-output, experiment, and eval observations have been collected into the
+unified session. The caller MUST redact the in-memory session before grading.
+Graders MUST NOT run in the agent job or reread raw logs.
 
-- **T-GRD-001**: Omitted `graders` key disables grading step emission.
-- **T-GRD-002**: `graders: {}` enables all built-ins.
-- **T-GRD-003**: Unknown custom grader without `script` is rejected.
-- **T-GRD-004**: Custom `script` over 4096 chars is rejected.
-- **T-GRD-005**: Forbidden script patterns are rejected.
-- **T-GRD-006**: Built-in grader with `script` is rejected.
-- **T-GRD-007**: `grader_manifest.json` is written to required path.
-- **T-GRD-008**: `grader_results.json` is written to required path.
-- **T-GRD-009**: Grader files are present in `agent` artifact.
-- **T-GRD-010**: `experiments.*.metric` with `grader:<id>` validates declared enabled grader.
-- **T-GRD-011**: `experiments.*.metric` with `graders.<id>.value` validates declared enabled grader.
-- **T-GRD-012**: Each operational-value evaluator source is frozen and its digest is recorded.
-- **T-GRD-013**: Operational-value metric arrays, IDs, values, and ordering are validated.
-- **T-GRD-014**: Operational-value `script` and `run` enforce the inclusive 65,536-byte limit.
+Collection, grading, and persistence are separate responsibilities. The
+persistence boundary MUST:
 
-### 11.2 Compliance Checklist
+1. Compute enabled graders from the collected, redacted event array.
+2. Write `usage/graders/grader_manifest.json` and `usage/graders/grader_results.json`.
+3. Append `grader.manifest` and `grader.result` events with conclusion provenance.
+4. Persist `usage/aw_session.jsonl` and upload the `usage` artifact.
 
-| Requirement | Test ID | Level | Status |
-|---|---|---|---|
-| Frontmatter key is `graders` | T-GRD-001 | 1 | Required |
-| Empty map enables built-ins | T-GRD-002 | 1 | Required |
-| Custom graders require script | T-GRD-003 | 2 | Required |
-| Script safety constraints enforced | T-GRD-004, T-GRD-005 | 2 | Required |
-| Required artifact files emitted | T-GRD-007, T-GRD-008 | 1 | Required |
-| Experiment grader references validate | T-GRD-010, T-GRD-011 | 3 | Required |
-| Operational-value evaluators and metric arrays validate | T-GRD-012, T-GRD-013, T-GRD-014 | 2 | Required |
+Manifest and result schema version is 2. Results MUST preserve stable grader IDs,
+implementation identity, numeric value or null, unit, status, and threshold
+outcome. Individual computation failures MUST be recorded as errors and surfaced
+in conclusion, not converted into successful scores.
 
----
+Conclusion MUST NOT receive or execute workflow-provided JavaScript or Bash.
+Its manifest MAY register custom grader IDs, but MUST NOT contain custom
+executable definitions. User-provided conclusion steps MUST be rejected.
 
-## 12. Norms
+Custom JavaScript and Bash MUST run only in a separate **graders job**, downstream of a
+successful conclusion and its published `usage` artifact. This job MUST use a
+fresh hosted runner, read-only repository access, no inherited deployment
+environment, and no App, inference, or OIDC credential minting. Work-queue
+participants without a published conclusion session MUST reject custom graders.
+Authors MUST NOT customize this compiler-owned job.
 
-- **N-GRD-001**: Implementations MUST treat `graders` as experimental.
-- **N-GRD-002**: Implementations MUST preserve built-in grader ID stability across patch releases.
-- **N-GRD-003**: Implementations SHOULD preserve deterministic output for identical trace inputs.
-- **N-GRD-004**: Implementations MUST fail fast on invalid custom grader scripts.
-- **N-GRD-005**: Implementations MUST keep grader artifact paths stable unless a major version change is issued.
-- **N-GRD-006**: Implementations MUST keep operational value separate from execution quality metrics.
+Each custom JavaScript script MUST receive immutable in-memory session/configuration
+snapshots and session-derived lookup helpers, with no host-object bindings.
+Scripts MUST be synchronous and return a finite number, null, or a result object
+with a finite/null `value`. File, module, environment, process, network, clock,
+randomness, and timer capabilities MUST NOT be exposed. Separate restricted Node
+processes MUST bound memory, output, and execution time; VM isolation alone is
+insufficient.
 
----
+### Repository-owned Bash compatibility
 
-## 13. References
+`graders.operational-value.run` MUST name a confined `.sh` repository file
+with a Bash shebang and at most 64 KiB of UTF-8 source. Paths are repository-root
+relative; `./` paths are relative to the declaring workflow. The compiler MUST
+freeze its bytes into the separate-job manifest, never conclusion.
 
-### Normative References
+The runtime MUST invoke Bash with the redacted unified-session JSONL filename
+as `$1` and `GH_AW_SESSION_FILE`, configuration JSON as `GH_AW_GRADER_CONFIG`,
+and empty stdin. Evaluators MUST refactor legacy stdin-request reads to this
+session file. Existing nonempty arrays of unique `{id,value}` metrics remain the
+output contract: the first metric supplies `operational-value.value`; remaining
+metrics are diagnostics. Values MUST be finite numbers or null.
 
-- **[RFC 2119]** Key words for use in RFCs to Indicate Requirement Levels.  
-  https://www.ietf.org/rfc/rfc2119.txt
+The compatibility subprocess MUST have no inherited credentials or shell startup
+hooks, use a temporary working directory, and bound execution to 120 seconds
+and output to 1 MiB. Compiler validation and the default `grader-shell-file-write`
+rule MUST parse Bash ASTs and reject detected file writes or unanalyzable dynamic
+execution. Read-only session access, stdout/stderr, and `/dev/null` are permitted.
 
-### Informative References
+Bash is repository-trusted code, not a pure JavaScript worker or a filesystem/
+network sandbox. Static analysis is not proof of safety. MicroVM isolation is
+future work, not a guarantee of this interface. Authors MUST derive scores only
+from recorded session evidence, never fetch missing evidence or execute session
+text as code.
 
-- **[Graders Reference]** [Graders](/gh-aw/experimental/trace-graders/)
-- **[Experiments Specification]** [Experiments Specification](/gh-aw/experimental/experiments-specification/)
+The separate `graders` artifact MUST contain combined built-in and custom
+results and data-only metadata, without overwriting built-in outcomes or
+replacing the conclusion session. Custom implementation identity MUST include a
+source digest. Audit MUST conditionally retrieve this artifact when the usage
+manifest registers custom IDs, support workflow-call prefixes, and refresh
+cached reports when results appear. Missing optional results MUST preserve
+built-in results; actual discovery/download errors MUST be surfaced.
 
----
+## 6. Local replay
 
-## 14. Change Log
+`gh aw graders run` MUST use the same pure built-in implementation as conclusion
+or the same isolated custom runtime as the graders job.
+The CLI owns input parsing and optional download of the run's `usage` artifact.
+It accepts unified-session JSONL or a JSON event array, not legacy trace payloads
+or executable evaluator requests.
 
-### Version 0.2.0 (Draft Specification)
+For built-ins and JavaScript, the CLI SHOULD run Node with the permission model, an empty environment, a
+bounded execution time, and read access restricted to the staged runtime modules.
+The grader itself still receives only the session and data configuration.
+Shell replay MUST use the same bounded Bash compatibility runtime and session-file
+contract as the separate job; Node's permission model does not sandbox Bash.
 
-- Defines the operational value grader and absolute attainment semantics.
-- Defines frozen one-shot operational-value evaluators and their metric-array contract.
+## 7. Experiment metric references
 
-### Version 0.1.0 (Draft Specification)
+Experiment metrics MAY reference `grader:<id>` or `graders.<id>.value`.
+The ID MUST resolve to an enabled built-in or custom grader, including automatically enabled
+defaults. Unknown, disabled, or empty references MUST fail validation.
 
-- Initial draft for gh-aw graders.
-- Defines `graders` configuration semantics and built-in grader set.
-- Defines custom inline grader constraints.
-- Defines grader artifact output contract and experiment metric references.
+`gh aw experiments analyze` reads persisted assignments and grader results.
+Only valid numeric results count toward sampling requirements; missing,
+unavailable, and failed computations MUST NOT be treated as zero.
+Direction determines whether higher or lower values are favorable.
+Execution quality metrics are not evidence of semantic task correctness.
+
+See the [Experiments Specification](/gh-aw/experimental/experiments-specification/).
+
+## 8. Compliance testing
+
+Conforming implementations MUST cover:
+
+- Default activation, explicit opt-ins, and disabling all defaults.
+- Rejection of built-in overrides, invalid shell paths, detected file writes, and unsupported fields.
+- Custom source exclusion from conclusion and isolated downstream execution.
+- Optional custom-artifact discovery, missing-artifact fallback, and cache refresh.
+- Determinism, immutable inputs, and absence of file/process I/O in pure graders.
+- Shell session-file input, legacy metric output, credential stripping, and bounded execution.
+- Shared lookups, tool correlation, duplicate accounting, and phase isolation.
+- Conclusion-only execution after unified-session collection and redaction.
+- Matching persisted results and unified-session grader events.
+- The same behavior in workflow execution and CLI replay.
+- A measurable large-session performance bound for the default set.
+- Grader-backed experiment reference validation.
+
+## 9. Change log
+
+### Version 0.5.0
+
+- Restores repository-owned `operational-value.run` Bash only in the separate job.
+- Replaces legacy evaluator request input with the published unified-session file.
+- Adds shared Bash AST file-write checking during compilation and lint.
+
+### Version 0.4.0
+
+- Restores pure custom JavaScript in an isolated downstream job.
+- Keeps all user-provided JavaScript out of conclusion.
+- Adds conditional audit downloads of combined custom-results artifacts.
+
+### Version 0.3.0
+
+- Replaces file-based trace inputs with the in-memory unified session.
+- Moves grading to conclusion and enables fast built-ins by default.
+- Removes custom inline and operational-value executable graders.
+- Retains opt-in bounded trajectory analyses and shared pure lookup helpers.

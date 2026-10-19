@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,53 @@ func graderArtifact(results ...graderArtifactResult) *graderResultsArtifact {
 
 func graderResult(id, status, value string) graderArtifactResult {
 	return graderArtifactResult{ID: id, Status: status, Value: json.RawMessage(value)}
+}
+
+func TestExperimentsDownloadSeparateGraderArtifactsBeforeLegacy(t *testing.T) {
+	for _, prefix := range []string{"", "a1b2c3-"} {
+		t.Run(prefix, func(t *testing.T) {
+			calls := installSessionTestGH(t, map[string]map[string]string{
+				"agent":            {},
+				prefix + "usage":   {},
+				prefix + "graders": customGraderArtifactFixture(t),
+			})
+			t.Setenv("SESSION_TEST_NAMES", "agent\n"+prefix+"usage\n"+prefix+"graders")
+			t.Setenv("SESSION_TEST_DOWNLOAD_ERROR", "agent")
+			source := &githubGraderRunArtifactSource{baseDir: t.TempDir(), owner: "owner", repo: "repo"}
+			result := source.downloadGraderArtifact(context.Background(), 123, "123")
+			require.Empty(t, result.ExclusionReason)
+			require.NotNil(t, result.Artifact)
+			require.Len(t, result.Artifact.Results, 2)
+			content, err := os.ReadFile(calls)
+			require.NoError(t, err)
+			assert.Contains(t, string(content), "--name "+prefix+"graders")
+			assert.NotContains(t, string(content), "--name agent")
+		})
+	}
+}
+
+func TestExperimentsFallsBackWhenPreferredArtifactsHaveNoGraderResults(t *testing.T) {
+	for _, legacyArtifact := range []string{
+		constants.AgentArtifactName.String(),
+		constants.AgentOutputFallbackArtifactName.String(),
+	} {
+		t.Run(legacyArtifact, func(t *testing.T) {
+			calls := installSessionTestGH(t, map[string]map[string]string{
+				"usage":        {"aw_session.jsonl": ""},
+				legacyArtifact: {"agent/graders/grader_results.json": `{"version":2,"results":[{"id":"score","status":"pass","value":0.8}]}`},
+			})
+			t.Setenv("SESSION_TEST_NAMES", "usage\n"+legacyArtifact)
+			source := &githubGraderRunArtifactSource{baseDir: t.TempDir(), owner: "owner", repo: "repo"}
+			result := source.downloadGraderArtifact(context.Background(), 123, "123")
+			require.Empty(t, result.ExclusionReason)
+			require.NotNil(t, result.Artifact)
+			require.Len(t, result.Artifact.Results, 1)
+			content, err := os.ReadFile(calls)
+			require.NoError(t, err)
+			assert.Contains(t, string(content), "--name usage")
+			assert.Contains(t, string(content), "--name "+legacyArtifact)
+		})
+	}
 }
 
 func TestResolveGraderMetricReferences(t *testing.T) {

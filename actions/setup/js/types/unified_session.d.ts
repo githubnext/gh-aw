@@ -353,6 +353,7 @@ export interface GraderData {
 export interface GraderManifestData {
   version?: JsonValue;
   graders?: GraderData[];
+  customGraders?: string[];
 }
 
 export interface GraderMeasurementData extends GraderData {

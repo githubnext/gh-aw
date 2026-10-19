@@ -34,6 +34,9 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `prompt-expression` | `CTR-010` | AW | Authored prompt interpolations are valid, single-line Actions expressions without blocked JavaScript property traversal through dot or literal-index access. Does not implement the compiler's complete context allowlist or inspect imported prompts. |
 | `safe-output-shell-expansion` | `CTR-009` | AW | Authored `safe-outputs.steps[*].run` scripts avoid the shell expansion patterns blocked by the compiler/harness: parameter transformation, indirect expansion, command substitution, and backticks. Arithmetic and ordinary variables remain allowed. |
 | `firewall-ssl-bump` | `CTR-011` | AW | Nonempty literal `--allow-urls` in `sandbox.agent.args` requires `--ssl-bump` in the same list. Unsupported legacy `network.firewall` blocks require migration, even with `ssl-bump: true`. Does not prove runtime HTTPS enforcement. |
+| `custom-job-detection` | — | AW | Authored custom jobs with a direct `agent` dependency also need `detection` and require its success. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
+| `grader-file-io` | — | AW | Custom `graders.<id>.script` JavaScript ASTs do not access filesystem/host capabilities or load modules. Requires the optional native JavaScript parser; missing parser configuration produces a visible coverage warning. |
+| `grader-shell-file-write` | — | AW | Repository-owned `graders.operational-value.run` Bash ASTs avoid detected file writes and unchecked shell execution. Loads confined evaluator source without executing it; no optional JavaScript parser required. |
 
 ## Severity and source policy
 
@@ -58,6 +61,65 @@ sandbox:
 
 The compiler rejects `network.firewall` regardless of its SSL setting. Remove that legacy block and use `network.allowed` for domain policy; do not add `network.firewall.ssl-bump` as a remedy.
 
+### Custom job detection gates
+
+`custom-job-detection` is an error in either strict mode. A custom job that directly needs `agent` must also directly need `detection`. Without a status function, Actions implicitly requires all dependencies to succeed. Conditions using `always()`, `failure()`, or `cancelled()` must additionally require `needs.detection.result == 'success'` on every runnable branch:
+
+```aw wrap
+jobs:
+  report:
+    needs: [agent, detection, scan]
+    if: always() && needs.detection.result == 'success' && needs.scan.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Report a failed scan after successful threat detection"
+```
+
+`needs.detection.result != 'skipped'` is insufficient: failed detection must block the job too. The rule parses Actions expressions rather than matching text; quoted guards and an unguarded `||` branch do not satisfy it. Complex equivalent predicates that cannot be proven safe should use the explicit equality guard.
+
+This rule inspects authored top-level `jobs`, not compiler-managed jobs or `safe-outputs.jobs`, which receive compiler-generated guards. It does not resolve imports or infer transitive dependencies; lint shared fragments explicitly as well as their consumers. Fragments assume detection is enabled unless their source explicitly disables it. For paired lock files, an absent compiled detection job confirms the exemption.
+
+### Custom grader file operations
+
+`grader-file-io` rejects file operations in authored custom JavaScript graders in either strict mode. It uses the [native JavaScript parser](#optional-native-javascript-analysis), reports script-relative lines, and never executes grader code:
+
+```bash wrap
+gh aw lint --rules grader-file-io --json \
+  --javascript-module /path/to/gh-aw/pkg/workflow/taint/javascript \
+  /path/to/repository/.github/workflows/example.md
+```
+
+The rule rejects module loading, including `require`, static imports, dynamic imports, and relative helper modules that could hide file I/O. It also rejects unbound filesystem and host capabilities such as `fs`, `process`, `module`, Deno/Bun file APIs, and browser file readers or pickers. Aliasing an acquired capability does not avoid its acquisition finding. Ordinary local bindings and object keys named `fs` or `require`, comments, string literals, and recorded file-path data do not constitute file access.
+
+All executable grader script bodies are checked, including disabled definitions, nested functions, parameter defaults, and otherwise unmodeled syntax retained by the parser. Built-in grader configuration, Markdown examples, other script hooks, and native Actions without an AW companion are outside this rule's scope. Lint imported grader fragments explicitly; configuration imports are not resolved.
+
+Without `--javascript-module`, each custom script gets a visible coverage warning rather than a claim that it passed. Once a parser is configured, unavailable or malformed ASTs fail lint. Findings are errors. The rule does not prove arbitrary reflection or dynamically generated code safe and does not replace the isolated grader worker's filesystem, process, and code-generation restrictions. Capture evidence before grading and use only the immutable in-memory `session`, `config`, and `helpers`.
+
+### Operational-value shell file writes
+
+`grader-shell-file-write` is a default AW error rule in either strict mode.
+It loads `graders.operational-value.run` from a confined repository `.sh` file
+and parses Bash ASTs without executing source. Disabled definitions are checked
+too; invalid paths, missing files, and malformed or unanalyzable source fail
+explicitly. `./` paths resolve from the declaring workflow file:
+
+```bash
+gh aw lint --rules grader-shell-file-write .github/workflows/example.md
+```
+
+The checker walks branches, functions, substitutions, and static nested shell
+commands. It detects file-writing redirections, destination-bearing `tee`, common
+mutation commands, and in-place `sed`/`perl`. Stdout/stderr descriptor duplication,
+`/dev/null`, comments, quoted text, and read-only `jq` filters are not file writes.
+Dynamic shell execution and sourced helpers are rejected as unchecked. Compiler
+validation shares this checker, so bypassing lint does not permit detected writes.
+
+Lint imported fragments explicitly; configuration imports are not recursively
+resolved. Diagnostics use evaluator-relative lines, without source contents.
+This finite analysis does not model arbitrary interpreter programs or prove
+filesystem/network isolation. Bash graders remain trusted code in the separate
+job; microVM isolation is future work.
+
 ## Secret-flow analysis
 
 The `secret-leak` rule tracks symbolic secret references, `github.token`, and known app-token action outputs through environment scopes, shell assignments, step outputs, and dependent job outputs. It detects disclosures to logs, step summaries, workflow outputs, request URLs/bodies, known publication inputs, cache keys, and artifacts containing modeled secret-bearing files. Authentication headers, token inputs, and the reusable workflow `secrets:` channel are not disclosure sinks. Boolean comparisons and predicates filter secret values; formatting, JSON serialization, encoding, and `add-mask` registration do not sanitize subsequent uses.
@@ -76,7 +138,7 @@ Text findings include the linter rule ID and its known compiler threat ID, for e
 
 ## Optional native JavaScript analysis
 
-This analysis is experimental and opt-in. `--javascript-module` enables JavaScript secret-flow analysis using Microsoft's Go TypeScript compiler through the upstream-exported, **unstable** `@typescript/native-preview/unstable/sync` and AST APIs. The exact supported package version is `7.0.0-dev.20260707.2`. Node.js 22.12 or newer and its platform-native compiler executable must already be installed; the CLI does not download dependencies or assume its own developer `node_modules` directory exists.
+This analysis is experimental and opt-in. `--javascript-module` enables JavaScript secret-flow analysis and the custom-grader file-I/O rule using Microsoft's Go TypeScript compiler through the upstream-exported, **unstable** `@typescript/native-preview/unstable/sync` and AST APIs. The exact supported package version is `7.0.0-dev.20260707.2`. Node.js 22.12 or newer and its platform-native compiler executable must already be installed; the CLI does not download dependencies or assume its own developer `node_modules` directory exists.
 
 For a gh-aw source checkout, install the optional pinned dependency and supply absolute paths:
 
@@ -97,7 +159,8 @@ Script hooks are checked at executable schema locations, not by recursively matc
 |---|---|
 | `mcp-scripts.<tool>.script` / `.run` | JavaScript tool body or Bash; JavaScript returns are outputs to the agent. Every tool inherits the shared server environment: tool env mappings merge in sorted tool-name order, with later values winning. Python and Go retain unsupported-language warnings. |
 | `safe-outputs.scripts.<handler>.script` | Invoked handler body and returned output, with `safe-outputs.env` overriding workflow env. |
-| `graders.<grader>.script` | Custom JavaScript sandbox without Node environment access; `operational-value` uses Bash with the evaluator's allowlisted environment and generated `GH_TOKEN`, not arbitrary workflow variables. Encoded grader payloads are not Actions-interpolated. |
+| `graders.<grader>.script` | Pure custom JavaScript over immutable session data in an isolated downstream job, without filesystem, process, or Node environment access. Encoded grader payloads are not Actions-interpolated. |
+| `graders.operational-value.run` | Trusted repository Bash in the separate graders job, reading unified-session JSONL via `$1` / `GH_AW_SESSION_FILE`, JSON config via `GH_AW_GRADER_CONFIG`, and emitting legacy metric arrays. Dedicated Bash AST write checking is independent of optional JavaScript secret-flow analysis. Not yet microVM-isolated. |
 | Memory-tool validation hooks | Object/string `validation` and legacy aliases, including list configurations; only the validator's sanitized environment is inherited. Encoded script payloads are not Actions-interpolated. |
 | `engine.driver` | Inline Node source or available JavaScript driver files, with `engine.env` and then `sandbox.agent.env` overriding workflow env. Repository driver files are not Actions-interpolated. Other languages and unavailable files retain warnings. |
 | `engine.behaviors` | Node harness, invoked `parseLog` function, and MCP configuration adapter. The harness inherits engine execution env; log parsing and MCP configuration run in separate steps without `engine.env`. |

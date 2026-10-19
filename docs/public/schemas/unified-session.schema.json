@@ -639,7 +639,11 @@
       },
       "additionalProperties": false
     },
-    "GraderManifestData": { "type": "object", "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } } }, "additionalProperties": false },
+    "GraderManifestData": {
+      "type": "object",
+      "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } }, "customGraders": { "type": "array", "items": { "type": "string" } } },
+      "additionalProperties": false
+    },
     "GraderMeasurementData": {
       "type": "object",
       "properties": {

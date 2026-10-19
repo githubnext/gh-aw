@@ -892,12 +892,19 @@ describe("unified session publication views", () => {
 
   it("publishes the final redacted file into logs and appends to the existing step summary", async () => {
     const summary = path.join(directory, "summary.md");
+    const previousSummary = global.core.summary;
+    global.core.summary = { addDetails: vi.fn(), write: vi.fn() };
     fs.writeFileSync(summary, "Earlier summary\n");
     process.env.GITHUB_STEP_SUMMARY = summary;
     fs.writeFileSync(path.join(directory, "agent-session.jsonl"), JSON.stringify({ type: "assistant.message", data: { content: "done" } }) + "\n");
     fs.mkdirSync(path.join(directory, "mcp-logs"));
     fs.writeFileSync(path.join(directory, "mcp-logs", "gateway.jsonl"), JSON.stringify({ event: "tool_call", tool_name: "lookup" }) + "\n");
-    await main({ rootDir: directory });
+    try {
+      await main({ rootDir: directory });
+    } finally {
+      if (previousSummary === undefined) delete global.core.summary;
+      else global.core.summary = previousSummary;
+    }
     const artifact = fs.readFileSync(path.join(directory, "usage", "aw_session.jsonl"), "utf8");
     expect(JSON.parse(artifact.split("\n")[0]).data.version).toBe(1);
     expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("mcp.tool_call"));

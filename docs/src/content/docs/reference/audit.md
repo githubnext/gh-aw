@@ -110,7 +110,22 @@ gh aw audit 1234567890 --artifacts work-queue --json
 
 The Observability Insights section includes `skill_activations` when skill-invocation evidence is found. Each entry reports the skill name, `status` (`invoked`), the detection `source` (`agent_output` or `log_parse`), and provenance fields in JSON output. This makes it possible to distinguish skills that were merely restored or installed from skills that were actually invoked during the run.
 
-The Graders section is present when the run recorded deterministic grader results (`graders` declared in the workflow frontmatter). The `graders` object in JSON output lists each grader (`id`, `name`, `status`, `value`, `unit`, `passed`, and, when declared in the grader manifest, `direction` and `threshold`) plus aggregate counts: `total`, `passed`, `failed`, `error_count`, and `unavailable_count`. Grader results are read from the compact `usage` artifact (mirrored there by the conclusion job), the unified `agent` artifact, or the `agent-output-fallback` artifact, so they are available even when `--artifacts usage` narrows the download. The same `graders` object is included per run in `gh aw logs --json` output.
+The Graders section is present when the run recorded deterministic grader results.
+Ten fast built-ins run by default in conclusion, using the redacted in-memory
+unified session. The `graders` object in JSON output lists each grader (`id`,
+`name`, `status`, `value`, `unit`, `passed`, and, when declared in the manifest,
+`direction` and `threshold`) plus aggregate counts: `total`, `passed`, `failed`,
+`error_count`, and `unavailable_count`. Results are read from the compact `usage`
+artifact, including with `--artifacts usage`; historical agent and fallback
+artifact layouts remain readable. The same object appears per run in
+`gh aw logs --json`.
+
+When the usage manifest registers custom grader IDs, audit also downloads the
+optional standalone `graders` artifact and uses its combined built-in/custom
+results, even with `--artifacts usage`. Built-in-only runs make no extra request.
+Cached reports are refreshed when custom results become available. Missing
+optional artifacts retain built-in results; discovery/download failures are
+reported. Audit reads results as data and never executes custom graders.
 
 ### Audit finding codes
 
