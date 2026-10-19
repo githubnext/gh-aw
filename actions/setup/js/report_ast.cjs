@@ -51,6 +51,26 @@ function isInlineTextOrCode(node) {
   return node?.type === "text" || node?.type === "code";
 }
 
+/** @param {ReportInline | undefined} node */
+function hasInlineTextContent(node) {
+  return isInlineTextOrCode(node) || (node !== undefined && "children" in node && node.children.some(hasInlineTextContent));
+}
+
+/**
+ * @param {ReportInline[]} nodes
+ * @param {boolean} redactEach
+ */
+function collectInlineText(nodes, redactEach) {
+  return nodes
+    .map(node => {
+      if (node.type === "text" || node.type === "code") return redactEach ? normalizeReportText(node.value) : node.value;
+      if (node.type === "soft_break" || node.type === "hard_break") return "\n";
+      if ("children" in node) return collectInlineText(node.children, redactEach);
+      return "";
+    })
+    .join("");
+}
+
 /** @param {string} value @param {{redact?: boolean}} [options] */
 function normalizeReportText(value, { redact = true } = {}) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
@@ -151,7 +171,7 @@ function normalizeXMLMarker(node) {
  * @param {number} depth
  * @returns {ReportInline[]}
  */
-function normalizeInlines(nodes, depth, inLink = false) {
+function normalizeInlines(nodes, depth, inLink = false, deferRedaction = false) {
   checkDepth(depth);
   /** @type {ReportInline[]} */
   const result = [];
@@ -190,7 +210,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
       }
       case "text":
       case "code": {
-        const adjacentRun = isInlineTextOrCode(nodes[nodeIndex - 1]) || isInlineTextOrCode(nodes[nodeIndex + 1]);
+        const adjacentRun = deferRedaction || hasInlineTextContent(nodes[nodeIndex - 1]) || hasInlineTextContent(nodes[nodeIndex + 1]);
         const value = normalizeReportText(node.value, { redact: !adjacentRun }).replace(/\s+/g, " ");
         if (!value) break;
         const previous = result.at(-1);
@@ -204,7 +224,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
       case "subscript":
       case "link": {
         if (node.type === "link" && inLink) throw new TypeError("Report links cannot contain other links");
-        const children = normalizeInlines(node.children, depth + 1, inLink || node.type === "link");
+        const children = normalizeInlines(node.children, depth + 1, inLink || node.type === "link", true);
         if (!children.length) break;
         result.push(node.type === "link" ? { type: "link", url: normalizeReportURL(node.url), children } : { type: node.type, children });
         break;
@@ -227,7 +247,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
     while (end < result.length && result[end].type === node.type) end++;
     const run = result.slice(index, end);
     const isSameOrigin = run.every(inline => inline.agentTainted === node.agentTainted);
-    const hasAdjacentInlineRun = isInlineTextOrCode(result[index - 1]) || isInlineTextOrCode(result[end]);
+    const hasAdjacentInlineRun = deferRedaction || hasInlineTextContent(result[index - 1]) || hasInlineTextContent(result[end]);
     if (isSameOrigin && !hasAdjacentInlineRun) {
       const value = normalizeReportText(run.map(inline => (inline.type === "text" || inline.type === "code" ? inline.value : "")).join("")).replace(/\s+/g, " ");
       if (value) normalized.push({ type: node.type, value, ...normalizeReportProvenance(node) });
@@ -399,6 +419,10 @@ function codeFence(value) {
 function renderInlines(nodes) {
   // Serialization-only runs must catch secrets, controls, and mentions split across
   // provenance boundaries and choose valid code fences without changing the AST.
+  const sourceText = collectInlineText(nodes, false);
+  const completeText = normalizeReportText(sourceText).replace(/\s+/g, " ");
+  const independentlyRedactedText = collectInlineText(nodes, true).replace(/\s+/g, " ");
+  if (completeText !== independentlyRedactedText) return escapeReportText(completeText);
   /** @type {ReportInline[]} */
   const renderingNodes = [];
   for (let index = 0; index < nodes.length;) {

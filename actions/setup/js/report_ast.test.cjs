@@ -162,10 +162,12 @@ describe("report AST", () => {
     const openAISecret = `sk-proj-${"a".repeat(64)}${"b".repeat(16)}`;
     const githubSecret = `ghs_${"A".repeat(36)}.TAIL`;
     const crossTypeSecret = "cross-type-render-secret-fixture";
-    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET,RENDER_TEXT_CODE_SECRET");
+    const crossFormatSecret = "cross-format-render-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET,RENDER_TEXT_CODE_SECRET,RENDER_FORMAT_SECRET");
     vi.stubEnv("SECRET_RENDER_OPENAI_SECRET", openAISecret);
     vi.stubEnv("SECRET_RENDER_GITHUB_SECRET", githubSecret);
     vi.stubEnv("SECRET_RENDER_TEXT_CODE_SECRET", crossTypeSecret);
+    vi.stubEnv("SECRET_RENDER_FORMAT_SECRET", crossFormatSecret);
     const input = report([
       {
         type: "paragraph",
@@ -189,6 +191,13 @@ describe("report AST", () => {
           { type: "code", value: "secret-fixture", agentTainted: true },
         ],
       },
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "cross-format-render-secret-", agentTainted: false },
+          { type: "strong", agentTainted: true, children: [{ type: "text", value: "fixture", agentTainted: true }] },
+        ],
+      },
     ]);
     const body = renderReport(input).body;
     expect(body).not.toContain(openAISecret);
@@ -197,6 +206,8 @@ describe("report AST", () => {
     expect(body).not.toContain(".TAIL");
     expect(body).not.toContain(crossTypeSecret);
     expect(body).not.toContain("cross-type-render-");
+    expect(body).not.toContain(crossFormatSecret);
+    expect(body).not.toContain("cross-format-render-secret-");
   });
 
   it.each([
