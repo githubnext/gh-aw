@@ -132,7 +132,7 @@ function matchesProjectedFilters(subscription, payload) {
  * Validate the dispatch transport without replacing the GitHub authorization
  * context. Same-kind deliveries are carried in client_payload.aw_context.webhook.
  * The gateway forwards only resource URLs, event types, and matched filter values.
- * Actor authorization uses the standard pre-activation membership check.
+ * The compiler-owned gateway_provenance job authenticates the CAO App sender.
  * The receiver evaluates original source predicates; the runner bounds the
  * projected filter keys and values against the compiled conditions.
  *

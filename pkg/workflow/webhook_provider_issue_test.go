@@ -211,7 +211,7 @@ func TestCompileProviderIssueManifest(t *testing.T) {
 			lock, err := os.ReadFile(stringutil.MarkdownToLockFile(path))
 			require.NoError(t, err)
 			output := string(lock)
-			assert.Contains(t, output, "check_membership.cjs")
+			assert.Contains(t, extractJobSection(output, "gateway_provenance"), "check_gateway_provenance.cjs")
 			assert.Contains(t, output, "validate_webhook.cjs")
 			manifest, err := ExtractGHAWManifestFromLockFile(output)
 			require.NoError(t, err)

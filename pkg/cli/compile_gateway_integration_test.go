@@ -100,6 +100,37 @@ func TestCompileGatewayDispatchRejectsExpressionsIntegration(t *testing.T) {
 	}
 }
 
+func TestCompileGatewayDispatchRejectsProvenanceOverridesIntegration(t *testing.T) {
+	for name, tc := range map[string]struct {
+		job     string
+		message string
+	}{
+		"verifier-output":        {"gateway_provenance:\n    outputs: {verified: '${{ true }}'}", "jobs.gateway_provenance is compiler-owned"},
+		"interpolated-condition": {"custom:\n    uses: owner/repo/.github/workflows/reusable.yml@main\n    if: '${{ false }} || ${{ true }}'", "must be one GitHub Actions expression"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			setup := setupIntegrationTest(t)
+			defer setup.cleanup()
+			path := filepath.Join(setup.workflowsDir, name+".md")
+			source := "---\nstrict: false\non:\n  gateway-dispatch:\n    projects-items: {project_id: PVT_example}\njobs:\n  " + tc.job + "\npermissions:\n  contents: read\nengine: copilot\n---\nHandle notifications.\n"
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(setup.tempDir, workflow.RepoConfigFileName), []byte(`{"gateway-dispatch":true}`), 0o600))
+			var stderr bytes.Buffer
+			cmd := exec.Command(setup.binaryPath, "compile", "--json", path)
+			cmd.Stderr = &stderr
+			output, err := cmd.Output()
+			require.Error(t, err, "%s\n%s", output, stderr.String())
+			var results []ValidationResult
+			require.NoError(t, json.Unmarshal(output, &results))
+			require.Len(t, results, 1)
+			require.False(t, results[0].Valid)
+			require.Len(t, results[0].Errors, 1)
+			assert.Contains(t, results[0].Errors[0].Message, tc.message)
+			assert.NoFileExists(t, strings.TrimSuffix(path, ".md")+".lock.yml")
+		})
+	}
+}
+
 func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte, result ValidationResult, events []string) {
 	t.Helper()
 	route := workflow.WebhookDispatchEventType(name)
@@ -107,6 +138,8 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 		On   map[string]any `yaml:"on"`
 		Jobs map[string]struct {
 			Permissions map[string]string `yaml:"permissions"`
+			Needs       any               `yaml:"needs"`
+			If          string            `yaml:"if"`
 		} `yaml:"jobs"`
 	}
 	require.NoError(t, yaml.Unmarshal(lock, &compiled))
@@ -114,6 +147,22 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 		"repository_dispatch": map[string]any{"types": []any{route}},
 	}, compiled.On, "gateway-dispatch must lower to only its workflow-specific repository_dispatch route")
 	require.NotEmpty(t, compiled.Jobs)
+	require.Contains(t, compiled.Jobs, "gateway_provenance")
+	assert.Empty(t, compiled.Jobs["gateway_provenance"].Needs)
+	assert.Equal(t, map[string]string{"contents": "read"}, compiled.Jobs["gateway_provenance"].Permissions)
+	for name, job := range compiled.Jobs {
+		if name == "gateway_provenance" {
+			continue
+		}
+		if scalar, ok := job.Needs.(string); ok {
+			assert.Equal(t, "gateway_provenance", scalar, name)
+		} else {
+			assert.Contains(t, job.Needs, "gateway_provenance", name)
+		}
+		assert.Contains(t, job.If, "needs.gateway_provenance.result == 'success'", name)
+		assert.Contains(t, job.If, "needs.gateway_provenance.outputs.verified == 'true'", name)
+		assert.Equal(t, strings.TrimSpace(job.If), job.If, "provenance conditions cannot contain truthy trailing text: %s", name)
+	}
 	if name == "smoke-security-alerts" {
 		permissions := compiled.Jobs["agent"].Permissions
 		assert.Equal(t, "write", permissions["copilot-requests"])
@@ -136,6 +185,7 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 	assert.NotContains(t, string(lock), "check_command_position.cjs")
 	assert.NotContains(t, string(lock), "workflow_dispatch:")
 	assert.Contains(t, string(lock), "validate_webhook.cjs")
+	assert.Contains(t, string(lock), "check_gateway_provenance.cjs")
 	assert.Contains(t, string(lock), "toJSON(fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries)")
 }
 

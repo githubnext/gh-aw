@@ -20,7 +20,7 @@ This specification defines the compiler-to-receiver and receiver-to-runner contr
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
 
 > [!IMPORTANT]
-> The App-token provenance requirement below tightens the earlier generic dispatch-actor contract. The current compiler/runtime still uses standard role/bot authorization and does not generate the mandatory CAO identity gate. This protocol update does not implement that gate, verify a CAO deployment, or establish hosted readiness. An integration MUST remain nonactivating until both the receiver token flow and destination gate satisfy this contract.
+> The compiler generates the mandatory App-token provenance gate described below, replacing generic role/bot authorization for gateway ingress. This destination implementation does not verify a CAO deployment or establish hosted readiness. An integration MUST remain nonactivating until both the receiver token flow and the approved destination revision satisfy this contract.
 
 ## Configuration and experimental status
 
@@ -253,7 +253,7 @@ App identity and deployment configuration MUST be centrally configurable through
 | `GH_AW_GATEWAY_APP_ID` | Approved numeric CAO App ID on the configured GitHub host, not its client ID or bot-account ID. |
 | `GH_AW_GATEWAY_APP_BOT_ID` | Numeric bot-account ID independently bound to that App during trusted onboarding. |
 
-The same public identity binding MUST be supplied to CAO and the destination provenance gate. Destination workflows MAY obtain these values from centrally administered organization/repository Actions variables, mapped into the generated gate's environment. The compiler MUST supply that mapping; individual subscriptions MUST NOT need identity declarations. These variable names define the required integration contract, not currently implemented runtime options.
+The same public identity binding MUST be supplied to CAO and the destination provenance gate. The compiler maps centrally administered organization/repository Actions variables `vars.GH_AW_GATEWAY_APP_ID` and `vars.GH_AW_GATEWAY_APP_BOT_ID` into the corresponding gate environment variables. Individual subscriptions need no identity declarations. Both values MUST be canonical positive decimal IDs.
 
 CAO's installation selection and trusted GitHub API configuration MUST likewise come from centrally administered environment/configuration, with per-destination installation bindings resolved through GitHub's authenticated APIs. At the destination, the gate MUST bind the central App identity to GitHub-owned host/repository context, not replace that context with caller-supplied values. A protected central configuration is not permission to dispatch to every repository or enroll a source.
 
@@ -281,6 +281,10 @@ The compiler MUST generate a non-overridable pre-activation gate on every gatewa
 | Trusted binding | The centrally configured App/bot environment binding and destination approval are available independently of `client_payload`; invalid configuration, missing identity, or a failed required GitHub lookup MUST reject activation. |
 
 The gate MUST finish successfully before user-defined pre-activation/activation steps, agent execution, or privileged workflow operations. Its success MUST be an unconditional prerequisite of the generated activation decision, including custom activation outputs and `strict: false`. Standard role checks, `on.bots`, bot-collaborator lookup exceptions, `on.github-app`, or minting a token for later API operations MUST NOT rescue a provenance mismatch. A verified App MUST NOT need to masquerade as a human repository collaborator.
+
+The generated root job is `gateway_provenance`; customizing `jobs.gateway_provenance` is rejected. Every other job, including custom, reusable, and `on.needs` prerequisite jobs, directly depends on it and requires both its successful result and `verified == 'true'` output. The compiler adds these conditions after job customization and typed condition lowering, so `always()`, disjunctions, and custom activation outputs cannot bypass them. Job conditions MUST be single expressions, with one complete `${{ }}` wrapper or none; mixed interpolated expressions and literal text are rejected to prevent truthy-string bypasses.
+
+The gate pins its GitHub API/server URLs and `GITHUB_EVENT_PATH` to GitHub-owned context rather than inherited workflow environment overrides. It reads the original runner event, binds its repository ID/name to GitHub's destination context, and verifies the App/bot binding with authenticated `GET /apps/{app_slug}` and `GET /users/{username}` metadata requests on the runner's GitHub API host and Enterprise base path. Its read-only `GITHUB_TOKEN` is used only for these identity lookups, not as the incoming dispatch credential. Lookups are bounded, redirects are disabled, and required API failures reject provenance. The job does not mint App or user-configured telemetry credentials.
 
 Only GitHub's top-level sender and original actor context establish the dispatch principal. `client_payload` sender/app/installation claims, event-type names, delivery IDs, source webhook signatures, and tokens minted by the destination workflow are not proof of who sent the dispatch. The workflow MUST NOT request or accept a bearer token in the payload. A top-level installation field alone MUST NOT be treated as proof of the dispatch credential's installation or scope.
 

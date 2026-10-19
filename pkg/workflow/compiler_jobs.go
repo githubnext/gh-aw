@@ -295,6 +295,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	frontmatter := data.RawFrontmatter
 	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
 
+	if err := c.addGatewayProvenanceJob(data); err != nil {
+		return err
+	}
+
 	if err := c.resolveSafeOutputActionSchemas(data, markdownPath); err != nil {
 		return fmt.Errorf("failed to resolve safe-output action schemas: %w", err)
 	}

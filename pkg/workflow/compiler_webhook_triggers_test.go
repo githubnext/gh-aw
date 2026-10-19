@@ -190,9 +190,9 @@ func TestWebhookMinimumRoles(t *testing.T) {
 					output, err := compiler.CompileToYAML(data, "webhook-roles.md")
 					require.NoError(t, err)
 					preActivation := extractJobSection(output, "pre_activation")
-					assert.Contains(t, preActivation, "check_membership.cjs")
-					assert.Contains(t, preActivation, fmt.Sprintf("GH_AW_REQUIRED_ROLES: %q", strings.Join(data.Roles, ",")))
-					assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
+					assert.NotContains(t, preActivation, "check_membership.cjs")
+					assert.Contains(t, preActivation, "needs.gateway_provenance.outputs.verified == 'true'")
+					assert.Contains(t, extractJobSection(output, "gateway_provenance"), "check_gateway_provenance.cjs")
 					assert.True(t, compiler.needsRoleCheck(data, map[string]any{"on": map[string]any{"workflow_dispatch": nil}}))
 				})
 			}

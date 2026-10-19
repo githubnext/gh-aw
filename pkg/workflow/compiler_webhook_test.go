@@ -67,9 +67,9 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.Equal(t, map[string]any{"repository_dispatch": map[string]any{"types": []any{WebhookDispatchEventType("webhook-test")}}}, compiledOn)
 	assert.Equal(t, []any{WebhookDispatchEventType("webhook-test")}, compiledOn["repository_dispatch"].(map[string]any)["types"])
 	preActivation := extractJobSection(output, "pre_activation")
-	assert.Contains(t, preActivation, "check_membership.cjs")
-	assert.Contains(t, preActivation, `GH_AW_REQUIRED_ROLES: "admin,maintainer,write"`)
-	assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
+	assert.NotContains(t, preActivation, "check_membership.cjs")
+	assert.Contains(t, preActivation, "needs.gateway_provenance.outputs.verified == 'true'")
+	assert.Contains(t, extractJobSection(output, "gateway_provenance"), "check_gateway_provenance.cjs")
 	activation := extractJobSection(output, "activation")
 	assert.Contains(t, activation, "Validate webhook relay")
 	assert.Contains(t, activation, "if: "+webhookTriggerExpression(data))
@@ -184,7 +184,7 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 			require.NoError(t, err)
 			activation := extractJobSection(output, "activation")
 			assert.Contains(t, activation, "Validate webhook relay")
-			assert.Contains(t, extractJobSection(output, "pre_activation"), "check_membership.cjs")
+			assert.Contains(t, extractJobSection(output, "gateway_provenance"), "check_gateway_provenance.cjs")
 			assert.Contains(t, extractJobSection(output, "agent"), "Stage inline webhook event")
 			var compiled map[string]any
 			require.NoError(t, yaml.Unmarshal([]byte(output), &compiled))
@@ -336,12 +336,12 @@ func TestWebhookStatusTransitionsDoNotAddAdmissionSteps(t *testing.T) {
 			assert.NotContains(t, output, "check_project_status_transition")
 			assert.NotContains(t, output, "status_transition_ok")
 			assert.NotContains(t, output, "GH_AW_PROJECT_STATUS_CONFIG")
-			assert.Contains(t, extractJobSection(output, "pre_activation"), "check_membership.cjs")
+			assert.Contains(t, extractJobSection(output, "gateway_provenance"), "check_gateway_provenance.cjs")
 		})
 	}
 }
 
-func TestWebhookUsesStandardAuthorization(t *testing.T) {
+func TestWebhookRequiresAppProvenanceRegardlessOfRolesAndBots(t *testing.T) {
 	for name, policy := range map[string]string{
 		"default": "",
 		"roles":   "  roles: [admin]\n",
@@ -359,14 +359,10 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 			output, err := compiler.CompileToYAML(data, "webhook-test.md")
 			require.NoError(t, err)
 			preActivation := extractJobSection(output, "pre_activation")
-			assert.Contains(t, preActivation, "check_membership.cjs")
-			assert.Contains(t, preActivation, "steps.check_membership.outputs.is_team_member")
-			if name == "roles" {
-				assert.Contains(t, preActivation, `GH_AW_REQUIRED_ROLES: "admin"`)
-			}
-			if name == "bots" {
-				assert.Contains(t, preActivation, `GH_AW_ALLOWED_BOTS: "cao-gateway"`)
-			}
+			assert.NotContains(t, preActivation, "check_membership.cjs")
+			assert.NotContains(t, preActivation, "GH_AW_ALLOWED_BOTS:")
+			assert.Contains(t, preActivation, "needs.gateway_provenance.outputs.verified == 'true'")
+			assert.Contains(t, extractJobSection(output, "gateway_provenance"), "check_gateway_provenance.cjs")
 			assert.NotContains(t, output, "GH_AW_WEBHOOK_ACTOR")
 		})
 	}

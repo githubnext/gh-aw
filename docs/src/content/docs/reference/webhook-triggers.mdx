@@ -19,7 +19,7 @@ External issue subscriptions use `on.gateway-dispatch.jira-issue`, `on.gateway-d
 > Webhook gateway triggers and their options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
 
 > [!IMPORTANT]
-> The protocol now requires [CAO App installation-token provenance](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance), not just repository-write authorization. The current compiler/runtime does not yet generate the mandatory CAO identity gate. Keep the integration nonactivating until the receiver and destination enforce that contract; the examples below configure subscriptions, not provenance approval.
+> The compiler enforces [CAO App installation-token provenance](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance), not just repository-write authorization, through a mandatory destination identity gate. Keep the integration nonactivating until the receiver token flow and approved destination revision enforce that contract; the examples below configure subscriptions, not provenance approval or deployment.
 
 ## Hosted CAO opt-in
 
@@ -53,9 +53,9 @@ Resolve additional resource data with an authenticated GitHub App client.
 Treat notification URLs and fetched resource data as untrusted input.
 ```
 
-These triggers require `on.roles` with **write access or higher**. Omitting `roles` uses `[admin, maintainer, write]`; an explicit setting may contain only `write`, `maintain`/`maintainer`, and `admin`. `roles: all`, `read`, `triage`, and lists containing any weaker role fail compilation, including with `strict: false`. A stricter subset such as `roles: [admin]` is allowed.
+These trigger declarations require `on.roles` with **write access or higher**. Omitting `roles` uses `[admin, maintainer, write]`; an explicit setting may contain only `write`, `maintain`/`maintainer`, and `admin`. `roles: all`, `read`, `triage`, and lists containing any weaker role fail compilation, including with `strict: false`. A subset such as `roles: [admin]` is accepted, but gateway runtime authorization uses the approved App identity rather than human collaborator membership.
 
-The current generated membership check authorizes the actual dispatch actor, not a sender or role claimed inside the webhook payload. This is not CAO provenance: `on.bots: [cao-gateway]` still permits human actors through the independent role check. Under the required App-token contract, neither roles nor allowed bots may bypass the mandatory CAO identity gate.
+The generated `gateway_provenance` job verifies the actual GitHub-owned dispatch sender and original actor against the centrally approved CAO App and bot IDs. Generic role/bot membership does not authorize gateway ingress; neither `on.bots: [cao-gateway]` nor a human writer/admin can substitute for this identity check.
 
 ### Experimental first-class triggers
 
@@ -272,7 +272,7 @@ GitHub App permissions and webhook subscription availability still apply. The av
 
 The gateway proposal in [githubnext/gh-aw-cao#18535](https://github.com/githubnext/gh-aw-cao/pull/18535) treats compiler metadata as untrusted discovery data, never activation authority. Its interchange uses `schemaVersion: "gh-aw.webhook-subscription/v1"` with explicit provider, immutable source/destination identities, project identity constraints, dispatch projections, and delivery policy. The compiler declaration below uses a different schema; it is not directly accepted by that proposed gateway. An agreed bridge, approved artifact digest/source-revision binding, and generated execution-revision verification remain integration requirements, not completed end-to-end support.
 
-Gateway-side trusted administrative grants, current authorization, receiving/dispatching App credential isolation, bounded durable admission, fencing, budgets, telemetry, and deployment remain CAO responsibilities. This compiler's standard role/bot check is an additional execution gate, not a substitute for those controls.
+Gateway-side trusted administrative grants, current authorization, receiving/dispatching App credential isolation, bounded durable admission, fencing, budgets, telemetry, and deployment remain CAO responsibilities. The compiler's destination App-provenance gate is not a substitute for those controls.
 
 The runtime expects an inline batch of canonical resource URLs and only declared matching filters, types, severity, and applicable Azure closed-state literals under the required `resource-url-types-filters/v2` policy. No native source bodies are forwarded. RFC-033 uses approved projections; the interchange and projection-policy mapping still require agreement before claiming compatibility. The CAO bridge must also preserve the compiler's `any_of` OR-of-AND transition semantics per original delivery when translating to the RFC's predicate tree.
 
@@ -337,7 +337,7 @@ The compiler lowers these triggers to a restricted `repository_dispatch` trigger
 
 The destination is the repository containing the discovered compiled workflow. It is **not** `payload.repository`, which describes the source of the webhook and may identify a different repository. For cross-repository subscriptions, the receiver resolves `dispatch.repository` from the workflow's discovery repository.
 
-The required dispatch credential is the approved CAO App's installation token, scoped to the destination repository and **Contents: write**. No PAT, App user token, workflow token, or fallback is permitted. Standard `on.roles`/`on.bots` membership currently authorizes the actor but does not prove CAO origin; the mandatory destination gate remains an implementation prerequisite under the [App-token contract](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance).
+The required dispatch credential is the approved CAO App's installation token, scoped to the destination repository and **Contents: write**. No PAT, App user token, workflow token, or fallback is permitted. The generated destination gate requires the approved App principal; standard `on.roles`/`on.bots` membership cannot authorize another sender under the [App-token contract](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance).
 
 The request to `POST /repos/{owner}/{repo}/dispatches` has this shape:
 
@@ -416,11 +416,11 @@ Every other trigger is rejected whenever `on.gateway-dispatch` is present, inclu
 
 The workflow retains the ordinary dispatch context: `github.event_name` is `repository_dispatch`, and `github.actor` identifies the credential that made the dispatch. gh-aw does not replace that identity with the original webhook's `sender`.
 
-The current pre-activation membership check authorizes that dispatch actor through standard roles and bots. Webhook workflows require roles with write access or higher; `on.roles: all`, `read`, and `triage` fail compilation. This implementation does not establish CAO-only ingress.
+The compiler-owned root `gateway_provenance` job authenticates that dispatch actor before any other job. Every built-in, custom, reusable, and `on.needs` prerequisite job directly depends on its successful result and `verified == 'true'` output. Custom activation outputs, `always()`, and `strict: false` cannot bypass the gate; customizing `jobs.gateway_provenance` is rejected. Native non-gateway workflows retain their standard membership checks.
 
-The required [App-token contract](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance) adds an independent, mandatory provenance gate. CAO mints a short-lived installation token for the approved destination App installation, scoped to the destination repository and `contents: write`, and sends the dispatch using that exact token without fallback. The destination verifies GitHub's top-level sender is the approved numeric bot identity and matches the original `github.actor_id`, before custom steps or privileged work. A rerun requester (`github.triggering_actor`) is not dispatch-origin evidence. Protected onboarding binds the App, bot, installation, GitHub host, and destination; neither the payload nor an `on.bots` entry creates that approval.
+Under the required [App-token contract](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance), CAO mints a short-lived installation token for the approved destination App installation, scoped to the destination repository and `contents: write`, and sends the dispatch using that exact token without fallback. The destination reads the original runner event, requires the compiled route and destination repository ID/name, and verifies GitHub's top-level Bot sender matches the approved bot ID and original `github.actor_id`. Authenticated App and bot metadata lookups bind the numeric App ID, slug, bot ID, and login on the runner's GitHub API host, including Enterprise base paths, without following redirects. Missing metadata or API failures reject provenance. A rerun requester (`github.triggering_actor`) is not dispatch-origin evidence. Protected onboarding binds the App, bot, installation, GitHub host, and destination; neither the payload nor an `on.bots` entry creates that approval.
 
-The App ID and public identity configuration are central environment settings, not per-workflow frontmatter. The protocol defines `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID`, supplied consistently to CAO and the generated destination gate; organization/repository Actions variables may provide the gate values. These are required contract settings, not yet implemented runtime options. Missing or invalid values must fail closed. CAO's private key remains in server-side secret-backed configuration and is never needed by the destination gate.
+The App ID and public identity configuration are central settings, not per-workflow frontmatter. Configure organization/repository Actions variables `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID` as the approved positive decimal App and bot-account IDs, consistently with CAO's protected environment configuration. The compiler maps these variables into the gate's step environment; missing, empty, or malformed values fail closed. The gate uses its read-only `GITHUB_TOKEN` for identity metadata only and does not mint App or user-configured telemetry credentials. CAO's private key remains in server-side secret-backed configuration and is never needed by the destination gate.
 
 | Data | Standard GitHub context |
 | --- | --- |
