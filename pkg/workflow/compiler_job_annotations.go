@@ -14,6 +14,7 @@ var generatedJobNames = map[string]string{
 	string(constants.DetectionJobName):          "Detection",
 	string(constants.SafeOutputsJobName):        "Safe outputs",
 	string(constants.ConclusionJobName):         "Conclusion",
+	string(constants.GradersJobName):            "Graders",
 	string(constants.EvalsJobName):              "Evaluations",
 	string(constants.UploadAssetsJobName):       "Upload assets",
 	string(constants.UploadCodeScanningJobName): "Upload code scanning results",

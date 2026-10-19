@@ -66,8 +66,8 @@ tools:
 
 jobs:
   post-issue:
-    needs: agent
-    if: failure()
+    needs: [agent, detection]
+    if: failure() && needs.detection.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       issues: write

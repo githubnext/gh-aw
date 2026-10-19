@@ -101,6 +101,9 @@ func (c *Compiler) configureGHESCompatibility() {
 //   - validatePermissions: permissions parsing, MCP tool constraints, workflow_run security
 //   - validateToolConfiguration: safe-outputs, GitHub tools, dispatches, and resources
 func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath string) error {
+	if err := prepareOperationalValueGrader(workflowData, markdownPath); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
 	if err := validateRuntimeCheckoutConfigs(workflowData.CheckoutConfigs); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
@@ -117,10 +120,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 	if err := c.validateWorkQueueTargets(workflowData, markdownPath); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
-	}
-
-	if err := c.prepareOperationalValueGrader(workflowData, markdownPath); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 

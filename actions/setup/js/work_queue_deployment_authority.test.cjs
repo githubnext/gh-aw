@@ -148,10 +148,12 @@ describe("verified default worker deployment authority", () => {
     ["repository", { response: { status: 503 } }],
     ["repository", { code: "ETIMEDOUT" }],
     ["repository", { code: "ECONNRESET" }],
+    ["repository", { cause: { cause: { code: "UND_ERR_SOCKET" } } }],
     ["reference", { status: 500 }],
     ["reference", { response: { status: 503 } }],
     ["reference", { code: "ETIMEDOUT" }],
     ["reference", { code: "ECONNRESET" }],
+    ["reference", { cause: { code: "UND_ERR_CONNECT_TIMEOUT" } }],
   ])("retries only the transient %s metadata read before updating deployments: %j", async (endpoint, failure) => {
     const { f, options, trusted } = fixture();
     const read = endpoint === "repository" ? f.githubClient.rest.repos.get : f.githubClient.rest.git.getRef;

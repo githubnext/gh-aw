@@ -15,6 +15,7 @@ const { buildFailureReport } = require("./failure_report.cjs");
 const { buildFailureReportFooter } = require("./report_footer.cjs");
 
 useExecutionProvenanceFixture();
+beforeEach(() => vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "github.com,example.com,private.example"));
 
 const paragraph = (value, agentTainted) => ({ type: "paragraph", agentTainted, children: [{ type: "text", value, agentTainted }] });
 const report = children => ({ type: "report", title: "Report", children });
@@ -98,7 +99,7 @@ describe("report node provenance", () => {
     const markdown = [
       "## Heading",
       "",
-      "***strong emphasis*** ~~strike~~ <sub>sub</sub> `code` [link](https://example.com) ![image](https://example.com/image) @allowed #42 Fixes #57  ",
+      "***strong emphasis*** ~~strike~~ <sub>sub</sub> `code` [link](https://example.com) ![image](https://github.com/image) @allowed #42 Fixes #57  ",
       "hard break",
       "soft break",
       "",
@@ -352,6 +353,7 @@ describe("coarse report redaction", () => {
   });
 
   it("promotes a matching link or image to a complete paragraph or table redaction", () => {
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "private.example");
     const input = buildIssueReport("Report", "Keep this paragraph.\n\nBefore [private](https://private.example/path) after.\n\n| Evidence |\n| --- |\n| ![Private](https://private.example/image) |");
     const redacted = redactReport(input, node => (node.type === "link" || node.type === "image") && new URL(node.url).hostname === "private.example");
     expect(renderReport(redacted).body).toBe("Keep this paragraph.\n\nContent redacted.\n\nContent redacted.\n");

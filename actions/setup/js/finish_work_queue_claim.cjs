@@ -295,7 +295,7 @@ async function finalizeWorkerResults(options = {}) {
         contractSupported = false;
       }
       const policy = latest.projection.policy.pools[assignment.pool].reconciliation;
-      const beforeVerification = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id), expected);
+      const beforeVerification = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id, 1, { sleepFn: configured.sleepFn }), expected);
       if (trustedContext.run_id !== dispatch.run.run_id && !beforeVerification.terminal) {
         results[member.handle] = { state: "pending", effects: "unknown", reason: "terminal_evidence_required" };
         continue;
@@ -360,7 +360,7 @@ async function finalizeWorkerResults(options = {}) {
         results[member.handle] = { state: currentWork.barrier === "verified" ? "result" : "delivery_failed", effects: effects ?? "unknown" };
         continue;
       }
-      const native = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id), expected);
+      const native = validateNativeRun(await fetchNativeRunAttempt(configured.githubClient, expected.repository, dispatch.run.run_id, 1, { sleepFn: configured.sleepFn }), expected);
       const controls = claimControlReceipts(latest.projection, assignment, member.handle);
       const controlsDigest = digest(controls);
       const verifiedControlsDigest = verifiedSnapshot?.controls_digest;

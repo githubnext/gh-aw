@@ -17,6 +17,7 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/github/gh-aw/pkg/workflow/gradershell"
 )
 
 var addPackageOwnershipLog = logger.New("cli:add_package_ownership")
@@ -113,9 +114,10 @@ func packageSourceForSpec(spec *WorkflowSpec, sourceInfo *FetchedWorkflow) strin
 }
 
 func buildPackageOwnershipRecord(gitRoot, packageSource string, workflows []*ResolvedWorkflow, opts AddOptions) (*packageOwnershipRecord, error) {
+	packageID, _, _ := strings.Cut(packageSource, "@")
 	record := &packageOwnershipRecord{
 		SchemaVersion:  packageOwnershipSchemaVersion,
-		Package:        strings.Split(packageSource, "@")[0],
+		Package:        packageID,
 		Source:         packageSource,
 		ResolvedCommit: packageSourceRef(packageSource),
 		Installer:      "gh-aw " + GetVersion(),
@@ -180,7 +182,7 @@ func packageOwnershipRecordPath(gitRoot, packageSource string) string {
 }
 
 func stablePackageID(packageSource string) string {
-	base := strings.Split(packageSource, "@")[0]
+	base, _, _ := strings.Cut(packageSource, "@")
 	replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-", "@", "-")
 	slug := strings.Trim(replacer.Replace(strings.ToLower(base)), "-")
 	sum := sha256.Sum256([]byte(base))
@@ -202,7 +204,7 @@ func packageOwnershipAllowsOverwrite(gitRoot, destination, packageSource string)
 		return false, false
 	}
 	normalized := filepath.ToSlash(filepath.Clean(destination))
-	packageID := strings.Split(packageSource, "@")[0]
+	packageID, _, _ := strings.Cut(packageSource, "@")
 	for _, record := range records {
 		if record.Package != packageID {
 			continue
@@ -584,7 +586,7 @@ func isPackageResourceDestination(destination string) bool {
 		strings.HasPrefix(destination, constants.GithubDir+"ISSUE_TEMPLATE/") ||
 		strings.HasPrefix(destination, constants.GithubDir+"aw/") ||
 		isSharedWorkflowScriptDestination(destination) ||
-		workflow.IsValidOperationalValueEvaluatorRunPath(destination)
+		gradershell.ValidRunPath(destination)
 }
 
 func isSharedWorkflowScriptDestination(destination string) bool {
