@@ -1,0 +1,17 @@
+{
+  "baseline": "527e59970ad970f26f8e1038b6f301cef80cf876",
+  "files": {
+    "github_notification_webhooks.json": {
+      "source": "actions/setup/js/github_notification_webhooks.json",
+      "sha256": "445397744970a1bfd6c187211ddc04a8aea9e4ad1dff6f88741e423e70be61ca"
+    },
+    "provider_issue_webhooks.json": {
+      "source": "pkg/workflow/data/provider_issue_webhooks.json",
+      "sha256": "9be65d030891fbbb156089b66281e72db027e34cb0504fba80d808e4663e0c27"
+    },
+    "webhook_events.json": {
+      "source": "pkg/workflow/data/webhook_events.json",
+      "sha256": "35cdda02372ccd7263a80d30db8e14d2bc16e1d697732e86f2bd33f4a7a47200"
+    }
+  }
+}

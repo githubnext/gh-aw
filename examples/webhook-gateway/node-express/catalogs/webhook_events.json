@@ -1,0 +1,271 @@
+{
+  "projects_v2_item": {
+    "actions": ["archived", "converted", "created", "deleted", "edited", "reordered", "restored"],
+    "description": "An organization-level Project item changed. The payload contains content IDs, not an embedded issue or its labels; label filters are unavailable without a separate lookup. Field transitions can be null or typed values; select names and text/integer transitions have separate filters.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#projects_v2_item",
+    "availability": ["organization"],
+    "filters": {
+      "sender": {
+        "path": ["sender", "login"],
+        "type": "string",
+        "description": "Actor login."
+      },
+      "organization": {
+        "path": ["organization", "login"],
+        "type": "string",
+        "description": "Project owner's organization login."
+      },
+      "project_id": {
+        "path": ["projects_v2_item", "project_node_id"],
+        "type": "string",
+        "description": "Containing project's GraphQL node ID."
+      },
+      "item_id": {
+        "path": ["projects_v2_item", "node_id"],
+        "type": "string",
+        "description": "Project item's GraphQL node ID."
+      },
+      "item_database_id": {
+        "path": ["projects_v2_item", "id"],
+        "type": "integer",
+        "description": "Project item's numeric database ID."
+      },
+      "item_type": {
+        "path": ["projects_v2_item", "content_type"],
+        "type": "string",
+        "description": "Content represented by the item.",
+        "enum": ["Issue", "PullRequest", "DraftIssue"]
+      },
+      "content_id": {
+        "path": ["projects_v2_item", "content_node_id"],
+        "type": "string",
+        "description": "Issue, pull request, or draft issue GraphQL node ID."
+      },
+      "creator": {
+        "path": ["projects_v2_item", "creator", "login"],
+        "type": "string",
+        "description": "Item creator's login."
+      },
+      "field.name": {
+        "path": ["changes", "field_value", "field_name"],
+        "type": "string",
+        "description": "Changed project field name, such as Status or Priority.",
+        "actions": ["edited"]
+      },
+      "field.id": {
+        "path": ["changes", "field_value", "field_node_id"],
+        "type": "string",
+        "description": "Changed field's GraphQL node ID.",
+        "actions": ["edited"]
+      },
+      "field.type": {
+        "path": ["changes", "field_value", "field_type"],
+        "type": "string",
+        "description": "Changed project field type.",
+        "actions": ["edited"]
+      },
+      "project_number": {
+        "path": ["changes", "field_value", "project_number"],
+        "type": "integer",
+        "description": "Project number supplied with a field change.",
+        "actions": ["edited"]
+      },
+      "field.to.name": {
+        "path": ["changes", "field_value", "to", "name"],
+        "type": "string",
+        "description": "New single-select option name, including Status or Priority.",
+        "actions": ["edited"]
+      },
+      "field.from.name": {
+        "path": ["changes", "field_value", "from", "name"],
+        "type": "string",
+        "description": "Previous single-select option name.",
+        "actions": ["edited"]
+      },
+      "field.value": {
+        "path": ["changes", "field_value", "to", "name"],
+        "type": "string",
+        "description": "Alias for the new single-select option name; not a raw field value.",
+        "actions": ["edited"]
+      },
+      "field.to.text": {
+        "path": ["changes", "field_value", "to"],
+        "type": "string",
+        "description": "New string value for a text or date field; object and numeric values do not match.",
+        "actions": ["edited"]
+      },
+      "field.from.text": {
+        "path": ["changes", "field_value", "from"],
+        "type": "string",
+        "description": "Previous string value for a text or date field.",
+        "actions": ["edited"]
+      },
+      "field.to.number": {
+        "path": ["changes", "field_value", "to"],
+        "type": "integer",
+        "description": "New integer value for a number field, as documented in the webhook schema.",
+        "actions": ["edited"]
+      },
+      "field.from.number": {
+        "path": ["changes", "field_value", "from"],
+        "type": "integer",
+        "description": "Previous integer value for a number field.",
+        "actions": ["edited"]
+      },
+      "body.from": {
+        "path": ["changes", "body", "from"],
+        "type": "string",
+        "description": "Previous draft issue body.",
+        "actions": ["edited"]
+      },
+      "body.to": {
+        "path": ["changes", "body", "to"],
+        "type": "string",
+        "description": "New draft issue body.",
+        "actions": ["edited"]
+      }
+    }
+  },
+  "code_scanning_alert": {
+    "actions": ["appeared_in_branch", "closed_by_user", "created", "fixed", "reopened", "reopened_by_user", "updated_assignment"],
+    "description": "A code scanning alert changed, appeared in a branch, or changed assignment.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#code_scanning_alert",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": {
+        "path": ["sender", "login"],
+        "type": "string",
+        "description": "Actor login, including the ghost placeholder when no actor can be resolved."
+      },
+      "organization": {
+        "path": ["organization", "login"],
+        "type": "string",
+        "description": "Organization login, when included."
+      },
+      "repository": {
+        "path": ["repository", "full_name"],
+        "type": "string",
+        "description": "Repository owner/name."
+      },
+      "alert_number": {
+        "path": ["alert", "number"],
+        "type": "integer",
+        "description": "Repository-scoped alert number."
+      },
+      "state": {
+        "path": ["alert", "state"],
+        "type": "string",
+        "description": "Current alert state.",
+        "enum": ["open", "dismissed", "fixed"]
+      },
+      "ref": {
+        "path": ["ref"],
+        "type": "string",
+        "description": "Full Git ref associated with the alert."
+      },
+      "commit_oid": {
+        "path": ["commit_oid"],
+        "type": "string",
+        "description": "Commit associated with the alert."
+      },
+      "rule_id": {
+        "path": ["alert", "rule", "id"],
+        "type": "string",
+        "description": "Analysis rule identifier."
+      },
+      "severity": {
+        "path": ["alert", "rule", "severity"],
+        "type": "string",
+        "description": "Rule severity.",
+        "enum": ["none", "note", "warning", "error"]
+      },
+      "tool": {
+        "path": ["alert", "tool", "name"],
+        "type": "string",
+        "description": "Code scanning tool name."
+      },
+      "assignee": {
+        "path": ["alert", "assignees", "*", "login"],
+        "type": "string",
+        "description": "Login of an alert assignee."
+      }
+    }
+  },
+  "dependabot_alert": {
+    "actions": ["assignees_changed", "auto_dismissed", "auto_reopened", "created", "dismissed", "fixed", "reintroduced", "reopened", "withdrawn"],
+    "description": "A Dependabot vulnerability alert changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#dependabot_alert",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": {
+        "path": ["sender", "login"],
+        "type": "string",
+        "description": "Actor login."
+      },
+      "organization": {
+        "path": ["organization", "login"],
+        "type": "string",
+        "description": "Organization login, when included."
+      },
+      "repository": {
+        "path": ["repository", "full_name"],
+        "type": "string",
+        "description": "Repository owner/name."
+      },
+      "alert_number": {
+        "path": ["alert", "number"],
+        "type": "integer",
+        "description": "Repository-scoped alert number."
+      },
+      "state": {
+        "path": ["alert", "state"],
+        "type": "string",
+        "description": "Current alert state.",
+        "enum": ["auto_dismissed", "dismissed", "fixed", "open", "withdrawn"]
+      },
+      "severity": {
+        "path": ["alert", "security_advisory", "severity"],
+        "type": "string",
+        "description": "Advisory severity.",
+        "enum": ["low", "medium", "high", "critical"]
+      },
+      "ecosystem": {
+        "path": ["alert", "dependency", "package", "ecosystem"],
+        "type": "string",
+        "description": "Dependency package ecosystem."
+      },
+      "package": {
+        "path": ["alert", "dependency", "package", "name"],
+        "type": "string",
+        "description": "Dependency package name."
+      },
+      "manifest_path": {
+        "path": ["alert", "dependency", "manifest_path"],
+        "type": "string",
+        "description": "Dependency manifest path."
+      },
+      "scope": {
+        "path": ["alert", "dependency", "scope"],
+        "type": "string",
+        "description": "Dependency scope.",
+        "enum": ["development", "runtime"]
+      },
+      "ghsa_id": {
+        "path": ["alert", "security_advisory", "ghsa_id"],
+        "type": "string",
+        "description": "GitHub security advisory identifier."
+      },
+      "assignee": {
+        "path": ["alert", "assignees", "*", "login"],
+        "type": "string",
+        "description": "Login of an alert assignee."
+      },
+      "dismissed_reason": {
+        "path": ["alert", "dismissed_reason"],
+        "type": "string",
+        "description": "Reason the alert was dismissed.",
+        "enum": ["fix_started", "inaccurate", "no_bandwidth", "not_used", "tolerable_risk"]
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "gh-aw-webhook-gateway-express-reference",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node --test test/*.test.mjs",
+    "catalogs": "node scripts/snapshot-catalogs.mjs"
+  },
+  "dependencies": { "express": "5.1.0" }
+}
