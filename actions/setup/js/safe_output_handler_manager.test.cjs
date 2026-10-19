@@ -67,6 +67,7 @@ describe("Safe Output Handler Manager", () => {
       process.env.GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG = JSON.stringify({
         ledger_append: { ledgers: [{ name: "findings" }] },
       });
+
       const outputFile = path.join(runnerTemp, "agent-output.json");
       fs.writeFileSync(outputFile, JSON.stringify({ items: [] }));
       process.env.GH_AW_AGENT_OUTPUT = outputFile;
@@ -82,6 +83,39 @@ describe("Safe Output Handler Manager", () => {
       } finally {
         fs.rmSync(runnerTemp, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe("PR closure during output processing", () => {
+    it("skips subsequent effects when the triggering PR closes between messages", async () => {
+      global.context = { repo: { owner: "owner", repo: "repo" }, payload: { pull_request: { number: 42, state: "open" } } };
+      global.github = {
+        rest: {
+          pulls: {
+            get: vi
+              .fn()
+              .mockResolvedValueOnce({ data: { state: "open" } })
+              .mockResolvedValue({ data: { state: "closed" } }),
+          },
+        },
+      };
+      const handler = vi.fn().mockResolvedValue({ success: true });
+      const result = await processMessages(new Map([["add_comment", handler]]), [
+        { type: "add_comment", body: "first" },
+        { type: "add_comment", body: "obsolete" },
+      ]);
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(result.results[1]).toMatchObject({ skipped: true, reason: expect.stringContaining("closed after") });
+      expect(computeSafeOutputsStatus(result.results)).toMatchObject({ itemsSucceeded: 1, itemsSkipped: 1 });
+    });
+
+    it("does not apply effects when live PR state cannot be read", async () => {
+      global.context = { repo: { owner: "owner", repo: "repo" }, payload: { pull_request: { number: 42, state: "open" } } };
+      global.github = { rest: { pulls: { get: vi.fn().mockRejectedValue(new Error("Resource not accessible")) } } };
+      const handler = vi.fn();
+      const result = await processMessages(new Map([["add_comment", handler]]), [{ type: "add_comment", body: "test" }]);
+      expect(handler).not.toHaveBeenCalled();
+      expect(result.results[0]).toMatchObject({ success: false, error: expect.stringContaining("Resource not accessible") });
     });
   });
 

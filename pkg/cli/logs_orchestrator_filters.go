@@ -30,7 +30,8 @@ type runFilterOpts struct {
 	gradersOnly       bool
 }
 
-var fetchJobStatusesForProcessedRun = fetchJobStatuses
+var fetchJobDetailsForProcessedRun = fetchJobDetailsWithCounts
+var fetchPRLifecycleForProcessedRun = fetchObsoletePREvidence
 
 // matchEngineFilter checks whether the run recorded in awInfo matches the
 // requested engine filter string.  It returns (matches, detectedEngineID).
@@ -216,6 +217,36 @@ func logAndMaybeExplainSkip(runID int64, logReason, message string, verbose bool
 	}
 }
 
+func populateRunJobEvidence(ctx context.Context, run *WorkflowRun, result *DownloadResult, verbose, logFailedJobs bool) {
+	// Add failed jobs to error count.
+	if jobs, failedJobCount, err := fetchJobDetailsForProcessedRun(ctx, run.DatabaseID, "", verbose, run.Attempt); err == nil {
+		result.JobDetails = jobs
+		run.ErrorCount += failedJobCount
+		if verbose && logFailedJobs && failedJobCount > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
+		}
+	} else {
+		if len(result.JobDetails) == 0 {
+			result.JobDetails = nil
+		}
+		logsOrchestratorLog.Printf("Could not establish job evidence for run %d: %v", run.DatabaseID, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job evidence for run %d: %v", run.DatabaseID, err)))
+		}
+	}
+	if result.JobDetails != nil && len(result.JobDetails) == 0 {
+		proof, err := fetchPRLifecycleForProcessedRun(ctx, *run)
+		if err != nil {
+			logsOrchestratorLog.Printf("PR lifecycle evidence unavailable: %v", err)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(err.Error()))
+			}
+		} else {
+			run.ObsoletePR = proof
+		}
+	}
+}
+
 // buildProcessedRun constructs a ProcessedRun from a DownloadResult, computing
 // duration, action minutes, and job-failure counts.
 func buildProcessedRun(ctx context.Context, result DownloadResult, verbose, logFailedJobs bool) ProcessedRun {
@@ -226,20 +257,17 @@ func buildProcessedRun(ctx context.Context, result DownloadResult, verbose, logF
 	run.ErrorCount = 0
 	run.WarningCount = 0
 	run.LogsPath = result.LogsPath
-
-	// Add failed jobs to error count.
-	if failedJobCount, err := fetchJobStatusesForProcessedRun(ctx, run.DatabaseID, verbose); err == nil {
-		run.ErrorCount += failedJobCount
-		if verbose && logFailedJobs && failedJobCount > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
-		}
-	}
+	run.ObsoletePR = nil
+	populateRunJobEvidence(ctx, &run, &result, verbose, logFailedJobs)
 
 	// Always use GitHub API timestamps for duration calculation.
 	// GitHub Actions bills per minute, rounded up per job.
 	if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 		run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 		run.ActionMinutes = math.Ceil(run.Duration.Minutes())
+		if result.JobDetails != nil && len(result.JobDetails) == 0 {
+			run.ActionMinutes = 0
+		}
 	}
 
 	return ProcessedRun{

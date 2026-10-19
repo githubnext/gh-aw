@@ -11,6 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getStalePullRequestReason } = require("./pr_lifecycle.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 const { classifySafeOutputResult, computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId, extractTemporaryIdReferences, getCreatedTemporaryId } = require("./temporary_id.cjs");
@@ -1241,6 +1242,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Call the message handler with the individual message and resolved temp IDs
       await assertClaimAuthorized(effectiveMessage);
+      const stalePRReason = await getStalePullRequestReason(global.github, global.context);
+      if (stalePRReason) {
+        core.info(stalePRReason);
+        results.push(buildSkippedResult(messageType, i, { skipped: true, reason: stalePRReason }));
+        continue;
+      }
       const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
       // Check if the handler explicitly returned a skipped result (e.g. policy filters,
@@ -1437,7 +1444,8 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
         // Call the handler again with updated temp ID map
         await assertClaimAuthorized(deferred.message);
-        const result = await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
+        const stalePRReason = await getStalePullRequestReason(global.github, global.context);
+        const result = stalePRReason ? { skipped: true, reason: stalePRReason } : await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
 
         if (result && result.skipped === true && !result.deferred) {
           const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
@@ -1793,6 +1801,11 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
           core.info(`Updating ${tracked.type} ${logInfo} (${resolvedCount} temp ID(s) resolved)`);
 
           try {
+            const stalePRReason = await getStalePullRequestReason(github, context);
+            if (stalePRReason) {
+              core.info(stalePRReason);
+              continue;
+            }
             const targetRepo = parseRepoSlug(tracked.result.repo);
             const allowedAliases = targetRepo ? await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig, undefined, targetRepo) : [];
             // Replace artifact URL references first, then issue number references
@@ -2167,6 +2180,12 @@ async function main(options = {}) {
         let reviewFailureError = null;
         try {
           await assertClaimAuthorized({ type: "submit_pull_request_review", claim_handle: currentClaimHandle(), repo: reviewRepo, pull_request_number: reviewPrNum });
+          const stalePRReason = await getStalePullRequestReason(github, context);
+          if (stalePRReason) {
+            core.info(stalePRReason);
+            skipReviewResultsForPR(processingResult.results, reviewRepo, reviewPrNum, stalePRReason);
+            continue;
+          }
           const reviewResult = await reviewBuffer.submitReview();
           if (reviewResult.success && !reviewResult.skipped) {
             logCreatedItemFromResult(logCreatedItem, "submit_pull_request_review", reviewResult);

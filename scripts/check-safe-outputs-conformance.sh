@@ -4,8 +4,8 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Spec Version: 1.29.8 (2026-10-01; reviewed through 2026-10-09 changes)
-# Script Version: 1.29.8 (2026-10-12)
+# Spec Version: 1.29.13 (2026-10-18; reviewed through 2026-10-19 changes)
+# Script Version: 1.29.13 (2026-10-19)
 
 set -euo pipefail
 
@@ -672,7 +672,8 @@ check_mce_constraint_disclosure() {
     fi
     
     # Per spec Section 8.3 MCE2: add_comment MUST surface its constraint limits in description
-    # Required: 65536 char limit, 10 mentions, 50 links (checks the combined tool JSON file)
+    # Required: 65536 char limit, 10 mentions, and the link limit (checks the combined tool JSON file).
+    # Since spec v1.29.9 the link limit is the configured max-links (default: 50) in agent content.
     if ! grep -iE "65536" "$tools_json" > /dev/null 2>&1; then
         log_medium "MCE-001: add_comment tool description may be missing 65536 character limit"
         failed=1
@@ -681,8 +682,8 @@ check_mce_constraint_disclosure() {
         log_medium "MCE-001: add_comment tool description may be missing 10 mention limit"
         failed=1
     fi
-    if ! grep -iE "50 link" "$tools_json" > /dev/null 2>&1; then
-        log_medium "MCE-001: add_comment tool description may be missing 50 link limit"
+    if ! grep -iE "50 link|max-links[^\"]*default: 50" "$tools_json" > /dev/null 2>&1; then
+        log_medium "MCE-001: add_comment tool description may be missing the link limit (configured max-links, default: 50)"
         failed=1
     fi
     
@@ -2486,6 +2487,330 @@ check_resolve_review_thread_semantics() {
     fi
 }
 check_resolve_review_thread_semantics
+
+# TYPE-016: add_comment Configurable Link Limit (Section 7.1 Enforced Constraints, Section 8.3 MCE5, v1.29.9)
+# safe-outputs.add-comment.max-links accepts a positive integer (default 50), counts URL
+# occurrences in agent content only (generated footer/metadata links excluded), and MUST be
+# enforced at both tool invocation (MCP server) and posting time (handler) with E008.
+echo "Running TYPE-016: add_comment Configurable Link Limit..."
+check_add_comment_max_links() {
+    local handler="actions/setup/js/add_comment.cjs"
+    local mcp_handlers="actions/setup/js/safe_outputs_handlers.cjs"
+    local helpers="actions/setup/js/comment_limit_helpers.cjs"
+    local schema="pkg/parser/schemas/main_workflow_schema.json"
+    local failed=0
+
+    if [ ! -f "$helpers" ] || ! grep -qE "function enforceCommentLimits\(body, \{ maxLinks = MAX_LINKS, linkBody = body \}" "$helpers"; then
+        log_high "TYPE-016: enforceCommentLimits does not accept a configurable maxLinks and agent-only linkBody (generated links must be excluded)"
+        failed=1
+    elif ! grep -qE "E008: Comment contains .* links, maximum is \\\$\{maxLinks\}" "$helpers"; then
+        log_medium "TYPE-016: E008 link-limit error does not report the configured max-links value"
+        failed=1
+    fi
+
+    if [ ! -f "$handler" ] || ! grep -qE "enforceCommentLimits\(processedBody, \{ maxLinks, linkBody \}\)" "$handler"; then
+        log_high "TYPE-016: add_comment handler does not enforce max-links at posting time against agent content only"
+        failed=1
+    fi
+
+    if [ ! -f "$mcp_handlers" ] || ! grep -qE "enforceCommentLimits\(body, \{ maxLinks: addCommentConfig\.max_links" "$mcp_handlers"; then
+        log_high "TYPE-016: MCP server does not enforce configured max-links at tool invocation (Section 8.3 MCE4)"
+        failed=1
+    fi
+
+    if [ ! -f "$schema" ] || ! python3 - "$schema" <<'PYEOF' > /dev/null 2>&1
+import json, sys
+s = json.load(open(sys.argv[1]))
+v = s["properties"]["safe-outputs"]["properties"]["add-comment"]
+alts = [v] + v.get("oneOf", []) + v.get("anyOf", [])
+ml = next((a["properties"]["max-links"] for a in alts if "max-links" in a.get("properties", {})), None)
+sys.exit(0 if ml and ml.get("type") == "integer" and ml.get("minimum") == 1 else 1)
+PYEOF
+    then
+        log_medium "TYPE-016: Schema does not define safe-outputs.add-comment.max-links as a positive integer"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-016: add_comment max-links is configurable, excludes generated links, and is enforced at invocation and posting time"
+    fi
+}
+check_add_comment_max_links
+
+# TYPE-017: add_comment replace-older-comments (Section 7.1 Operational Semantics 8, v1.29.9)
+# replace-older-comments MUST NOT be combined with hide-older-comments; matching is limited
+# to comments by the authenticated identity (bot-only fallback) carrying the caller workflow
+# marker; discussions are excluded; staged mode MUST NOT perform the lookup or update.
+echo "Running TYPE-017: add_comment replace-older-comments..."
+check_add_comment_replace_older() {
+    local handler="actions/setup/js/add_comment.cjs"
+    local schema="pkg/parser/schemas/main_workflow_schema.json"
+    local failed=0
+
+    if [ ! -f "$handler" ]; then
+        log_high "TYPE-017: add_comment handler missing: $handler"
+        return
+    fi
+
+    if ! grep -qE "replace-older-comments cannot be combined with hide-older-comments" "$handler"; then
+        log_high "TYPE-017: Handler does not reject replace-older-comments combined with hide-older-comments"
+        failed=1
+    fi
+    if ! grep -qE 'required": \["hide-older-comments", "replace-older-comments"\]' "$schema" 2>/dev/null; then
+        log_medium "TYPE-017: Schema does not forbid combining hide-older-comments and replace-older-comments"
+        failed=1
+    fi
+
+    if ! grep -qE 'comment\.user\.login === authenticatedLogin : comment\.user\.type === "Bot"' "$handler"; then
+        log_high "TYPE-017: Replacement candidates are not restricted to the authenticated identity (bot-only fallback)"
+        failed=1
+    fi
+
+    if ! grep -qE "replaceOlderCommentsEnabled && .*!isDiscussion && \(callerWorkflowId \|\| workflowId\)" "$handler"; then
+        log_high "TYPE-017: Replacement is not limited to issue/PR comments with a caller/workflow ID marker"
+        failed=1
+    fi
+
+    local staged_line replace_line
+    staged_line=$(grep -nE "^\s*if \(isStaged\)" "$handler" | head -1 | cut -d: -f1 || true)
+    replace_line=$(grep -nE "if \(replaceOlderCommentsEnabled" "$handler" | head -1 | cut -d: -f1 || true)
+    if [ -z "$staged_line" ] || [ -z "$replace_line" ] || [ "$staged_line" -gt "$replace_line" ]; then
+        log_high "TYPE-017: Staged mode does not return before the replace-older-comments lookup/update"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-017: replace-older-comments is exclusive with hide-older-comments, identity/marker scoped, and skipped in staged mode"
+    fi
+}
+check_add_comment_replace_older
+
+# SCD-001: Signed Commit Delivery (Section 7.3 Signed Commit Delivery Requirements SCD-001..003, v1.29.9)
+# Stale-commit rebases MUST keep HEAD attached to the named delivery branch (no explicit
+# "HEAD" branch argument), and allowGitPushFallback: false MUST refuse unsigned pushes.
+echo "Running SCD-001: Signed Commit Delivery..."
+check_signed_commit_delivery() {
+    local helper="actions/setup/js/push_signed_commits.cjs"
+    local failed=0
+
+    if [ ! -f "$helper" ]; then
+        log_high "SCD-001: Signed delivery helper missing: $helper"
+        return
+    fi
+
+    local rebase_lines
+    rebase_lines=$(grep -E '\["rebase", "--onto"' "$helper" || true)
+    if [ -z "$rebase_lines" ]; then
+        log_medium "SCD-001: Could not locate stale-commit rebase in $helper"
+        failed=1
+    elif echo "$rebase_lines" | grep -qE '"HEAD"\]'; then
+        log_high "SCD-001: Rebase passes an explicit HEAD argument, detaching HEAD and leaving the named branch stale"
+        failed=1
+    fi
+
+    if ! grep -qE "allowGitPushFallback = true" "$helper" || [ "$(grep -cE 'if \(allowGitPushFallback === false\)' "$helper" || true)" -lt 1 ]; then
+        log_high "SCD-003: allowGitPushFallback: false is not honored to refuse unsigned git-push fallback"
+        failed=1
+    fi
+
+    if [ ! -f "actions/setup/js/push_signed_commits.test.cjs" ]; then
+        log_medium "SCD-001: Real-git conformance evidence (push_signed_commits.test.cjs) missing"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "SCD-001: Signed delivery rebases keep HEAD attached and honor allowGitPushFallback: false"
+    fi
+}
+check_signed_commit_delivery
+
+# PTI-001: Patch and Bundle Transport Integrity (Section 7.3 PTI-001..007, v1.29.12)
+# Both PR handlers MUST resolve qualified transport paths, capture bytes with sha256 digest and
+# dev/inode identity via nonblocking no-follow opens, consume private read-only snapshots,
+# classify failures as ERR_TRANSPORT_INTEGRITY, reject that code before custom retry
+# classifiers, and dispose snapshots.
+echo "Running PTI-001: Patch and Bundle Transport Integrity..."
+check_transport_integrity() {
+    local ti="actions/setup/js/transport_integrity.cjs"
+    local resolver="actions/setup/js/resolve_transport_paths.cjs"
+    local recovery="actions/setup/js/error_recovery.cjs"
+    local failed=0
+
+    if [ ! -f "$ti" ] || [ ! -f "$resolver" ]; then
+        log_critical "PTI-001: Transport integrity modules missing ($ti, $resolver)"
+        return
+    fi
+
+    local h
+    for h in actions/setup/js/create_pull_request.cjs actions/setup/js/push_to_pull_request_branch.cjs; do
+        if ! grep -q 'require("./transport_integrity.cjs")' "$h" 2>/dev/null || ! grep -q 'require("./resolve_transport_paths.cjs")' "$h" 2>/dev/null; then
+            log_critical "PTI-001: $h does not use transport integrity guard and trusted path resolution"
+            failed=1
+        fi
+    done
+
+    if ! grep -qE "O_NOFOLLOW" "$ti" || ! grep -qE "O_NONBLOCK" "$ti"; then
+        log_high "PTI-001: Captures do not use nonblocking, no-follow opens (symlinks/FIFOs)"
+        failed=1
+    fi
+    if ! grep -qE 'createHash\("sha256"\)' "$ti" || ! grep -qE "stat\.ino !== identity\.ino" "$ti"; then
+        log_high "PTI-001: Captures do not bind content digest and device/inode identity"
+        failed=1
+    fi
+    if ! grep -qE "isFile\(\)" "$ti"; then
+        log_high "PTI-001: Nonregular transport artifacts are not rejected"
+        failed=1
+    fi
+
+    if ! grep -qE "mkdtempSync" "$ti" || ! grep -qE "mode: 0o400" "$ti"; then
+        log_high "PTI-002: Git does not consume private read-only snapshots"
+        failed=1
+    fi
+
+    if ! grep -qE 'this\.code = "ERR_TRANSPORT_INTEGRITY"' "$ti"; then
+        log_high "PTI-007: Integrity errors do not expose stable ERR_TRANSPORT_INTEGRITY classification"
+        failed=1
+    fi
+
+    if [ ! -f "$recovery" ] || ! grep -qE 'error\?\.code === "ERR_TRANSPORT_INTEGRITY" \|\| !fullConfig\.shouldRetry\(error\)' "$recovery"; then
+        log_high "PTI-005: Retry loop does not reject integrity failures before invoking custom retry classifiers"
+        failed=1
+    fi
+
+    if ! grep -qE "function dispose\(\)" "$ti" || ! grep -qE "rmSync\(directory" "$ti"; then
+        log_high "PTI-006: Private snapshots are not disposed"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "PTI-001: Patch/bundle transport binds captured bytes, uses private snapshots, and fails permanently on integrity errors"
+    fi
+}
+check_transport_integrity
+
+# RCR-001: Runtime Repository-List Checkouts (Section 9.6.1 RCR8-RCR12, v1.29.10-1.29.12)
+# Only literal multi: true enables list expansion; single-mode selectors MUST resolve to one
+# repository; max-repos defaults to 10 and fails in full; private/internal targets require
+# allow-private-repos: true; runtime lists MUST NOT fetch LFS or submodules.
+echo "Running RCR-001: Runtime Repository-List Checkouts..."
+check_runtime_repository_checkouts() {
+    local parser="pkg/workflow/checkout_config_parser.go"
+    local runtime="actions/setup/js/checkout_dynamic.cjs"
+    local failed=0
+
+    if [ ! -f "$parser" ] || ! grep -qE "checkout\.multi must be a literal boolean" "$parser"; then
+        log_high "RCR-001: Compiler does not require checkout.multi to be a literal boolean (RCR8)"
+        failed=1
+    fi
+    if [ -f "$parser" ] && ! grep -qE "must select a single repository unless checkout\.multi is true" "$parser"; then
+        log_high "RCR-001: Single-mode repository selectors are not restricted to one repository (RCR8)"
+        failed=1
+    fi
+
+    if [ ! -f "$runtime" ]; then
+        log_high "RCR-001: Runtime checkout preparation missing: $runtime"
+        return
+    fi
+    if ! grep -qE 'GH_AW_DYNAMIC_MAX_REPOS \?\? "10"' "$runtime" || ! grep -qE "exceeding checkout\.max-repos" "$runtime"; then
+        log_high "RCR-001: max-repos (default 10) is not enforced before checkout (RCR9)"
+        failed=1
+    fi
+    if ! grep -qE "requires checkout\.allow-private-repos: true" "$runtime" || ! grep -qE "allow-private-repos must be a literal boolean" "$runtime"; then
+        log_critical "RCR-001: Private/internal runtime targets are not default-denied behind literal allow-private-repos (RCR9)"
+        failed=1
+    fi
+    if ! grep -qE "isPublic && \(data\.private \|\| data\.visibility !== \"public\"\)" "$runtime"; then
+        log_critical "RCR-001: Public hosting repositories are not prevented from checking out private/internal targets (RCR9)"
+        failed=1
+    fi
+    if ! grep -qE "submodules: false" "$runtime" || ! grep -qE "lfs: false" "$runtime" || ! grep -qE '"--no-recurse-submodules"' "$runtime"; then
+        log_high "RCR-001: Runtime lists do not hardcode lfs/submodules false and --no-recurse-submodules (RCR12)"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "RCR-001: Runtime repository-list checkouts enforce explicit multi mode, bounded preflight, private opt-in, and no secondary fetches"
+    fi
+}
+check_runtime_repository_checkouts
+
+# BGO-001: Bundle Git Operations and Validation Baselines (Section 7.3 BGO-001..008, v1.29.13)
+# Bundle inspection MUST be offline (GIT_ALLOW_PROTOCOL="" + GIT_NO_LAZY_FETCH=1);
+# allow-full-history-fetch MUST be a literal boolean defaulting to false per handler and gate
+# prerequisite recovery with a no-byte-limit warning; allow-merged-base-baseline MUST be a
+# literal opt-in; optional discovery MUST be bounded (5s, 1 MiB, 100(+1) records, 4 REST calls,
+# retries disabled).
+echo "Running BGO-001: Bundle Git Operations and Validation Baselines..."
+check_bundle_git_operations() {
+    local helpers="actions/setup/js/git_helpers.cjs"
+    local push="actions/setup/js/push_to_pull_request_branch.cjs"
+    local create="actions/setup/js/create_pull_request.cjs"
+    local schema="pkg/parser/schemas/main_workflow_schema.json"
+    local failed=0
+
+    if [ ! -f "$helpers" ] || ! grep -qE 'GIT_ALLOW_PROTOCOL: "", GIT_NO_LAZY_FETCH: "1"' "$helpers"; then
+        log_critical "BGO-001: Bundle inspection does not deny all Git transports (GIT_ALLOW_PROTOCOL=\"\" and GIT_NO_LAZY_FETCH=1)"
+        failed=1
+    fi
+
+    if [ -f "$helpers" ]; then
+        if ! grep -qE "if \(allowFullHistoryFetch !== true\) throw" "$helpers"; then
+            log_critical "BGO-002: Bundle prerequisite recovery is not gated on literal allow-full-history-fetch: true"
+            failed=1
+        fi
+        if ! grep -qE "without a byte limit" "$helpers"; then
+            log_medium "BGO-002: Opted-in recovery does not warn that downloads have no byte limit"
+            failed=1
+        fi
+    fi
+
+    if ! grep -qE "config\.allow_full_history_fetch === true" "$create" 2>/dev/null || ! grep -qE "allowFullHistoryFetch: config\.allow_full_history_fetch === true" "$push" 2>/dev/null; then
+        log_high "BGO-002: Handlers do not scope allow-full-history-fetch to their own trusted configuration"
+        failed=1
+    fi
+
+    if [ ! -f "$schema" ] || ! python3 - "$schema" <<'PYEOF' > /dev/null 2>&1
+import json, sys
+s = json.load(open(sys.argv[1]))
+so = s["properties"]["safe-outputs"]["properties"]
+for key in ("create-pull-request", "push-to-pull-request-branch"):
+    v = so[key]
+    alts = [v] + v.get("oneOf", []) + v.get("anyOf", [])
+    p = next((a["properties"]["allow-full-history-fetch"] for a in alts if "allow-full-history-fetch" in a.get("properties", {})), None)
+    if not p or p.get("type") != "boolean" or p.get("default") is not False:
+        sys.exit(1)
+PYEOF
+    then
+        log_high "BGO-002: Schema does not define allow-full-history-fetch as a boolean defaulting to false for both PR handlers"
+        failed=1
+    fi
+
+    if [ ! -f "$push" ]; then
+        log_high "BGO-004: push_to_pull_request_branch handler missing: $push"
+        return
+    fi
+    if ! grep -qE "allowMergedBaseBaseline = config\.allow_merged_base_baseline === true" "$push"; then
+        log_high "BGO-004: Older-ancestor baseline discovery is not disabled by default behind literal allow-merged-base-baseline: true"
+        failed=1
+    fi
+    if ! grep -qE "MAX_BUNDLE_PARENT_COMPARISONS = 4;" "$push" || ! grep -qE "MAX_BUNDLE_HISTORY_COMMITS = 100;" "$push" || ! grep -qE "MAX_BUNDLE_HISTORY_COMMITS \+ 1" "$push"; then
+        log_high "BGO-005: Discovery is not bounded to 4 REST comparisons and 100 records with 101st-record overflow detection"
+        failed=1
+    fi
+    if ! grep -qE "BUNDLE_VALIDATION_TIMEOUT_MS = 5000;" "$push" || ! grep -qE "BUNDLE_VALIDATION_MAX_OUTPUT = 1024 \* 1024;" "$push"; then
+        log_high "BGO-005: Optional discovery commands lack the 5-second timeout and 1 MiB output limit"
+        failed=1
+    fi
+    if ! grep -qE "retries: 0, signal: AbortSignal\.timeout\(BUNDLE_VALIDATION_TIMEOUT_MS\)" "$push"; then
+        log_high "BGO-005: REST comparisons do not disable retries and enforce a 5-second abort deadline"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "BGO-001: Bundle Git operations are offline by default, recovery is literal opt-in, and baseline discovery is bounded"
+    fi
+}
+check_bundle_git_operations
 
 # Summary
 echo ""
