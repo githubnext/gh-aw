@@ -380,6 +380,10 @@ async function runWithCopilotSDK({
       }
       return { ...agent, model: qualified || sessionModel || undefined };
     });
+    const skillsDirectory = path.resolve(agentsBaseDir, ".github", "skills");
+    const skillsStat = fs.lstatSync(skillsDirectory, { throwIfNoEntry: false });
+    if (skillsStat && !skillsStat.isDirectory()) throw new Error(`Staged Copilot skills must be a directory: ${skillsDirectory}`);
+    const skillDirectories = skillsStat ? [skillsDirectory] : [];
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {
       model: sessionModel || undefined,
@@ -389,6 +393,9 @@ async function runWithCopilotSDK({
       workingDirectory,
       skipCustomInstructions: bare,
       customAgents,
+      enableConfigDiscovery: false,
+      skillDirectories,
+      ...(skillDirectories.length ? { enableSkills: true } : {}),
       ...(mcpServers === undefined ? {} : { mcpServers }),
       onPermissionRequest,
       ...(toolCallBudget ? { hooks: { onPreToolUse: toolCallBudget.onPreToolUse } } : {}),
