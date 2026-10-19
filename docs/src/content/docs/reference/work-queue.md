@@ -697,7 +697,10 @@ current Work; `claim` and `dispatch` describe the selected historical Claim, or
 the Work's current/last Claim. The Claim includes grant/terminal timestamps and
 delivery-failure reason; the dispatch includes the original assignment's IDs and
 handles, immutable worker target, run binding, and `reservation_retained`.
-Absent Claim/run/timestamp metadata is `null`, not fabricated evidence.
+Absent Claim/run/timestamp metadata is `null`, not fabricated evidence. A null
+Claim or dispatch does not mean the Work was never claimed: cancellation and
+verified `keep_open` delivery can clear the Work's current Claim reference.
+Use `state` or `inspect --claim-id` to find historical attempts.
 `work.max_attempts` is the current pool retry limit, or `null` for retired pools.
 Payloads, Result descriptors, request parameters, and receipt bodies are excluded.
 

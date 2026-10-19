@@ -18,7 +18,7 @@ func workQueueDetails(state workqueue.Projection, row workQueueRow, at int64) (s
 	if work == nil {
 		return "", errors.New("work_missing: selected Work is absent; refresh state")
 	}
-	explanation, err := workqueue.ExplainWork(state, work.WorkID, at)
+	explanation, err := workQueueExplainWork(state, work, at)
 	if err != nil {
 		return "", err
 	}

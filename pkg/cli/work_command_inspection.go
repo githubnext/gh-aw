@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/workqueue"
@@ -84,13 +85,19 @@ type workQueueInspection struct {
 
 func workQueueInspectAt(state workqueue.Projection, branch string, row workQueueRow, at int64) (workQueueInspection, error) {
 	result := workQueueInspection{workQueueSnapshot: workQueueSnapshotAt(state, branch, at), Selection: row}
+	if row.Kind != "graph" && state.Works[row.WorkID] == nil {
+		return result, errors.New("work_missing: selected Work is absent; refresh state")
+	}
 	var err error
 	result.Details, err = workQueueDetails(state, row, at)
 	if err != nil {
 		return result, err
 	}
+	if row.Kind == "graph" {
+		return result, nil
+	}
 	work := state.Works[row.WorkID]
-	result.Scheduling, err = workqueue.ExplainWork(state, work.WorkID, at)
+	result.Scheduling, err = workQueueExplainWork(state, work, at)
 	if err != nil {
 		return result, err
 	}
@@ -124,6 +131,22 @@ func workQueueInspectAt(state workqueue.Projection, branch string, row workQueue
 	return result, nil
 }
 
+func workQueueExplainWork(state workqueue.Projection, work *workqueue.WorkState, at int64) (workqueue.WorkExplanation, error) {
+	if state.Policy != nil {
+		if _, ok := state.Policy.Pools[work.Pool]; ok {
+			return workqueue.ExplainWork(state, work.WorkID, at)
+		}
+	}
+	reason := "pool_not_installed"
+	if work.State != "available" {
+		reason = "ownership_" + work.State
+	}
+	return workqueue.WorkExplanation{
+		WorkID: work.WorkID, State: work.State, Barrier: work.Barrier,
+		Reason: reason, Path: []string{work.NodeKey}, Observations: []string{},
+	}, nil
+}
+
 func workQueueClaimMetadataAt(state workqueue.Projection, claim *workqueue.ClaimState) (workQueueClaimMetadata, error) {
 	work := state.Works[claim.WorkID]
 	result := workQueueClaimMetadata{
@@ -144,8 +167,10 @@ func workQueueClaimMetadataAt(state workqueue.Projection, claim *workqueue.Claim
 
 func workQueueWorkMetadataAt(state workqueue.Projection, work *workqueue.WorkState) workQueueWorkMetadata {
 	var maxAttempts *int
-	if pool, ok := state.Policy.Pools[work.Pool]; ok {
-		maxAttempts = &pool.Retry.MaxAttempts
+	if state.Policy != nil {
+		if pool, ok := state.Policy.Pools[work.Pool]; ok {
+			maxAttempts = &pool.Retry.MaxAttempts
+		}
 	}
 	return workQueueWorkMetadata{
 		WorkID: work.WorkID, GraphID: work.GraphID, NodeKey: work.NodeKey, Pool: work.Pool,

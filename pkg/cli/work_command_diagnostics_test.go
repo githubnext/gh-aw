@@ -176,6 +176,31 @@ func TestWorkQueueDiagnosticStatsEligibilityAgesAndEmptyQueue(t *testing.T) {
 	}
 }
 
+func TestWorkQueueInspectionHandlesMissingAndUninstalledPolicy(t *testing.T) {
+	state := workqueue.Projection{
+		Works: map[string]*workqueue.WorkState{
+			"w1": {
+				WorkDefinition: workqueue.WorkDefinition{WorkID: "w1", Pool: "retired", NodeKey: "node"},
+				State:          "available",
+			},
+		},
+	}
+	inspection, err := workQueueInspectAt(state, "work-queue",
+		workQueueRow{Kind: "work", ID: "w1", WorkID: "w1"}, 5000)
+	if err != nil || inspection.Scheduling.Reason != "pool_not_installed" || inspection.Work.MaxAttempts != nil {
+		t.Fatalf("inspection did not tolerate missing Policy: %+v %v", inspection, err)
+	}
+	report, err := workQueueStatsAt(state, "work-queue", 5000)
+	if err != nil || report.Pools[0].IneligibleReasons["pool_not_installed"] != 1 {
+		t.Fatalf("stats did not classify a Work without Policy: %+v %v", report, err)
+	}
+	_, err = workQueueInspectAt(state, "work-queue",
+		workQueueRow{Kind: "work", ID: "missing", WorkID: "missing"}, 5000)
+	if err == nil || !strings.Contains(err.Error(), "work_missing") {
+		t.Fatalf("missing Work did not return work_missing: %v", err)
+	}
+}
+
 func TestWorkQueueDiagnosticStatsHistoricalRetainedDelivery(t *testing.T) {
 	state, _, ids := workDiagnosticsFixture(t)
 	claim := state.Claims[state.Works[ids[0]].ClaimID]
@@ -205,14 +230,28 @@ func TestWorkQueueDiagnosticActivityWindow(t *testing.T) {
 	since := at - int64(24*time.Hour/time.Millisecond)
 	state := workqueue.Projection{Requests: map[string]workqueue.QueueCommit{}}
 	for id, timestamp := range map[string]int64{"before": since - 1, "start": since, "end": at, "future": at + 1} {
-		state.Requests[id] = workqueue.QueueCommit{ID: id, At: timestamp, Operations: []workqueue.Operation{
+		state.Requests[id] = workqueue.QueueCommit{ID: id, Request: workqueue.Request{ID: id}, At: timestamp, Operations: []workqueue.Operation{
 			mustWorkQueueOperation(t, map[string]any{"kind": "Checkpoint"}),
 		}}
 	}
+	state.RequestOrder = []string{"before", "start", "end", "future"}
 	activity, err := workQueueActivityAt(state, at)
 	if err != nil || activity.Since != since || activity.Until != at || activity.Transactions != 2 ||
 		activity.Operations["Checkpoint"] != 2 || activity.LastCommitID != "end" {
 		t.Fatalf("activity window includes future/old transactions: %+v %v", activity, err)
+	}
+	state.RequestOrder = []string{"older", "newer"}
+	state.Requests = map[string]workqueue.QueueCommit{
+		"older": {ID: "z-older", Request: workqueue.Request{ID: "older"}, At: at, Operations: []workqueue.Operation{
+			mustWorkQueueOperation(t, map[string]any{"kind": "Checkpoint"}),
+		}},
+		"newer": {ID: "a-newer", Request: workqueue.Request{ID: "newer"}, At: at, Operations: []workqueue.Operation{
+			mustWorkQueueOperation(t, map[string]any{"kind": "Checkpoint"}),
+		}},
+	}
+	activity, err = workQueueActivityAt(state, at)
+	if err != nil || activity.LastCommitID != "a-newer" {
+		t.Fatalf("equal-timestamp commits ignored ledger order: %+v %v", activity, err)
 	}
 	state.Requests["invalid"] = workqueue.QueueCommit{At: at, Operations: []workqueue.Operation{json.RawMessage(`invalid`)}}
 	if _, err := workQueueActivityAt(state, at); err == nil {
@@ -334,18 +373,46 @@ func TestWorkQueueDiagnosticRetiredPoolHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	state.Works[ids[0]].State = "available"
 	report, err := workQueueStatsAt(state, "work-queue", 5000)
 	if err != nil || len(report.Pools) != 2 || report.Pools[0].Pool != "default" || report.Pools[0].PolicyInstalled ||
-		report.Pools[0].WorkByState["cancelled"] != 3 || report.Pools[0].Prediction.Reason != "pool_not_installed" ||
+		report.Pools[0].WorkByState["available"] != 1 || report.Pools[0].WorkByState["cancelled"] != 2 ||
+		report.Pools[0].SchedulingEligible != 0 || report.Pools[0].IneligibleReasons["pool_not_installed"] != 1 ||
+		report.Pools[0].Prediction.Reason != "pool_not_installed" ||
 		!report.Pools[1].PolicyInstalled {
-		t.Fatalf("retired pool history was lost or treated as schedulable: %+v %v", report, err)
+		t.Fatalf("retired pool Work was lost or treated as schedulable: %+v %v", report, err)
 	}
 	inspection, err := workQueueInspectAt(state, "work-queue", workQueueRow{Kind: "work", ID: ids[0], WorkID: ids[0]}, 5000)
-	if err != nil || inspection.Work.MaxAttempts != nil || inspection.Scheduling.Reason != "ownership_cancelled" {
+	if err != nil || inspection.Work.MaxAttempts != nil || inspection.Scheduling.Reason != "pool_not_installed" {
 		t.Fatalf("retired Work inspection invented a current retry policy: %+v %v", inspection, err)
 	}
 	assertWorkDiagnosticsPrivate(t, report)
 	assertWorkDiagnosticsPrivate(t, inspection)
+}
+
+func TestWorkQueueDiagnosticRetainedDispatchFromHistoricalPool(t *testing.T) {
+	state, _, _ := workOperatorFixture(t, false)
+	state.Works = map[string]*workqueue.WorkState{}
+	state.Claims = map[string]*workqueue.ClaimState{}
+	state.Dispatches = map[string]*workqueue.DispatchState{
+		"historical": {
+			Assignment: workqueue.Assignment{DispatchID: "historical", Pool: "retired"},
+			State:      "bound",
+		},
+	}
+	report, err := workQueueStatsAt(state, "work-queue", 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pool := range report.Pools {
+		if pool.Pool == "retired" {
+			if pool.PolicyInstalled || pool.NativeReservations != 1 {
+				t.Fatalf("retired dispatch history was not retained: %+v", pool)
+			}
+			return
+		}
+	}
+	t.Fatal("historical dispatch pool was omitted from stats")
 }
 
 func TestWorkQueueDiagnosticCommandsReadOnlyAndLegacyFields(t *testing.T) {
