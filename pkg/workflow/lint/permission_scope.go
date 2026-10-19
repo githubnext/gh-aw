@@ -21,6 +21,51 @@ func PermissionScopeRule() Rule {
 	}
 }
 
+// ExcessivePermissionsRule applies only to Actions: AW root permissions scope
+// the agent job, not every job in the compiled workflow.
+func ExcessivePermissionsRule() Rule {
+	return Rule{
+		ID: "excessive-permissions", Description: "Scope workflow-wide write permissions to the jobs that need them",
+		ThreatRuleID: "CTR-001",
+		Severity:     Warning, Targets: ActionsAST, Check: checkExcessivePermissions,
+	}
+}
+
+func checkExcessivePermissions(ctx context.Context, input Input) ([]Diagnostic, error) {
+	if err := integrityInput(ctx, input); err != nil {
+		return nil, err
+	}
+	if input.Workflow == nil {
+		return nil, nil
+	}
+	if _, shorthand := input.Workflow.Permissions.(string); shorthand {
+		// permission-scope owns blanket grants and malformed shorthands.
+		_, err := permissionScope(ctx, input.Workflow.Permissions, "permissions", Warning)
+		return nil, err
+	}
+	fields, err := policyMapping(input.Workflow.Permissions, "permissions")
+	if err != nil {
+		return nil, err
+	}
+	var diagnostics []Diagnostic
+	var failures []error
+	for _, name := range slices.Sorted(maps.Keys(fields)) {
+		if err := ctx.Err(); err != nil {
+			return diagnostics, errors.Join(append(failures, err)...)
+		}
+		level, ok := fields[name].(string)
+		if !permissionNamePattern.MatchString(name) || !ok || level != "read" && level != "write" && level != "none" {
+			failures = append(failures, errors.New("excessive-permissions requires literal permission names and read, write, or none levels at permissions"))
+		} else if level == "write" {
+			diagnostics = append(diagnostics, Diagnostic{
+				Path:    "permissions." + name,
+				Message: "Workflow-wide write permission is inherited by jobs without an explicit permission mapping; move the grant to only the jobs that require it",
+			})
+		}
+	}
+	return diagnostics, errors.Join(failures...)
+}
+
 func checkPermissionScopes(ctx context.Context, input Input) ([]Diagnostic, error) {
 	if err := integrityInput(ctx, input); err != nil {
 		return nil, err
