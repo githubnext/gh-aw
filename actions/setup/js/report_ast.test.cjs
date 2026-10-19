@@ -161,9 +161,11 @@ describe("report AST", () => {
   it("redacts registered credentials across complete rendering runs and singleton AST nodes", () => {
     const openAISecret = `sk-proj-${"a".repeat(64)}${"b".repeat(16)}`;
     const githubSecret = `ghs_${"A".repeat(36)}.TAIL`;
-    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET");
+    const crossTypeSecret = "cross-type-render-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET,RENDER_TEXT_CODE_SECRET");
     vi.stubEnv("SECRET_RENDER_OPENAI_SECRET", openAISecret);
     vi.stubEnv("SECRET_RENDER_GITHUB_SECRET", githubSecret);
+    vi.stubEnv("SECRET_RENDER_TEXT_CODE_SECRET", crossTypeSecret);
     const input = report([
       {
         type: "paragraph",
@@ -180,12 +182,21 @@ describe("report AST", () => {
           { type: "code", value: ".TAIL", agentTainted: true },
         ],
       },
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "cross-type-render-", agentTainted: false },
+          { type: "code", value: "secret-fixture", agentTainted: true },
+        ],
+      },
     ]);
     const body = renderReport(input).body;
     expect(body).not.toContain(openAISecret);
     expect(body).not.toContain("b".repeat(16));
     expect(body).not.toContain(githubSecret);
     expect(body).not.toContain(".TAIL");
+    expect(body).not.toContain(crossTypeSecret);
+    expect(body).not.toContain("cross-type-render-");
   });
 
   it.each([

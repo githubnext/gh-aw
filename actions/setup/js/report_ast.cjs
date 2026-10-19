@@ -46,6 +46,11 @@ function normalizeReportProvenance(node) {
   return { agentTainted: node.agentTainted };
 }
 
+/** @param {ReportInline | undefined} node @returns {node is Extract<ReportInline, {type: "text" | "code"}>} */
+function isInlineTextOrCode(node) {
+  return node?.type === "text" || node?.type === "code";
+}
+
 /** @param {string} value @param {{redact?: boolean}} [options] */
 function normalizeReportText(value, { redact = true } = {}) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
@@ -185,7 +190,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
       }
       case "text":
       case "code": {
-        const adjacentRun = nodes[nodeIndex - 1]?.type === node.type || nodes[nodeIndex + 1]?.type === node.type;
+        const adjacentRun = isInlineTextOrCode(nodes[nodeIndex - 1]) || isInlineTextOrCode(nodes[nodeIndex + 1]);
         const value = normalizeReportText(node.value, { redact: !adjacentRun }).replace(/\s+/g, " ");
         if (!value) break;
         const previous = result.at(-1);
@@ -221,7 +226,9 @@ function normalizeInlines(nodes, depth, inLink = false) {
     let end = index + 1;
     while (end < result.length && result[end].type === node.type) end++;
     const run = result.slice(index, end);
-    if (run.every(inline => inline.agentTainted === node.agentTainted)) {
+    const isSameOrigin = run.every(inline => inline.agentTainted === node.agentTainted);
+    const hasAdjacentInlineRun = isInlineTextOrCode(result[index - 1]) || isInlineTextOrCode(result[end]);
+    if (isSameOrigin && !hasAdjacentInlineRun) {
       const value = normalizeReportText(run.map(inline => (inline.type === "text" || inline.type === "code" ? inline.value : "")).join("")).replace(/\s+/g, " ");
       if (value) normalized.push({ type: node.type, value, ...normalizeReportProvenance(node) });
     } else normalized.push(...run);
@@ -394,14 +401,50 @@ function renderInlines(nodes) {
   // provenance boundaries and choose valid code fences without changing the AST.
   /** @type {ReportInline[]} */
   const renderingNodes = [];
-  for (const node of nodes) {
-    const previous = renderingNodes.at(-1);
-    if ((node.type === "text" || node.type === "code") && previous?.type === node.type) previous.value += node.value;
-    else renderingNodes.push(node.type === "text" || node.type === "code" ? { ...node } : node);
+  for (let index = 0; index < nodes.length;) {
+    const node = nodes[index];
+    if (!isInlineTextOrCode(node)) {
+      renderingNodes.push(node);
+      index++;
+      continue;
+    }
+    let end = index + 1;
+    while (end < nodes.length && isInlineTextOrCode(nodes[end])) end++;
+    /** @type {Array<Extract<ReportInline, {type: "text" | "code"}>>} */
+    const run = [];
+    for (let runIndex = index; runIndex < end; runIndex++) {
+      const inline = nodes[runIndex];
+      if (isInlineTextOrCode(inline)) run.push(inline);
+    }
+    const source = run.map(inline => inline.value).join("");
+    const value = normalizeReportText(source).replace(/\s+/g, " ");
+    /** @type {Array<Extract<ReportInline, {type: "text" | "code"}>>} */
+    const styleRuns = [];
+    for (let runIndex = 0; runIndex < run.length;) {
+      const styleNode = run[runIndex];
+      let styleEnd = runIndex + 1;
+      while (styleEnd < run.length && run[styleEnd].type === styleNode.type) styleEnd++;
+      const styleValue = normalizeReportText(
+        run
+          .slice(runIndex, styleEnd)
+          .map(inline => inline.value)
+          .join("")
+      ).replace(/\s+/g, " ");
+      styleRuns.push({ ...styleNode, value: styleValue });
+      runIndex = styleEnd;
+    }
+    if (styleRuns.map(inline => inline.value).join("") === value) renderingNodes.push(...styleRuns);
+    else renderingNodes.push({ type: "text", value });
+    index = end;
   }
   return renderingNodes
-    .map(originalNode => {
-      const node = originalNode.type === "text" || originalNode.type === "code" ? { ...originalNode, value: normalizeReportText(originalNode.value).replace(/\s+/g, " ") } : originalNode;
+    .map(node => {
+      if (node.type === "text") return escapeReportText(node.value);
+      if (node.type === "code") {
+        const fence = "`".repeat(Array.from(node.value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 1));
+        const padding = /^[` ]|[` ]$/.test(node.value) && !/^ +$/.test(node.value) ? " " : "";
+        return `${fence}${padding}${node.value}${padding}${fence}`;
+      }
       switch (node.type) {
         case "soft_break":
           return "\n";
@@ -415,13 +458,6 @@ function renderInlines(nodes) {
           return `#${node.number}`;
         case "closing_reference":
           return `${node.action[0].toUpperCase()}${node.action.slice(1)} ${node.target.repository || ""}${node.enabled ? "#" : "\\#"}${node.target.number}`;
-        case "text":
-          return escapeReportText(node.value);
-        case "code": {
-          const fence = "`".repeat(Array.from(node.value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 1));
-          const padding = /^[` ]|[` ]$/.test(node.value) && !/^ +$/.test(node.value) ? " " : "";
-          return `${fence}${padding}${node.value}${padding}${fence}`;
-        }
         case "strong":
           return `**${renderInlines(node.children)}**`;
         case "emphasis":
