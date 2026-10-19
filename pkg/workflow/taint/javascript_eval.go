@@ -11,22 +11,24 @@ import (
 )
 
 type javascript struct {
-	a          *analyzer
-	input      JavaScriptInput
-	options    *JavaScriptOptions
-	env        map[string]jsValue
-	stdin      value
-	stdout     value
-	files      map[string][]Source
-	file       string
-	modules    map[string]jsValue
-	loading    map[string]struct{}
-	active     map[*jsFunction]bool
-	returns    jsValue
-	budget     int
-	failure    error
-	catchDepth int
-	thrown     value
+	a              *analyzer
+	input          JavaScriptInput
+	options        *JavaScriptOptions
+	env            map[string]jsValue
+	runtimeGlobals map[string]jsValue
+	stdin          value
+	stdout         value
+	files          map[string][]Source
+	file           string
+	modules        map[string]jsValue
+	loading        map[string]struct{}
+	active         map[*jsFunction]bool
+	returns        jsValue
+	budget         int
+	failure        error
+	catchDepth     int
+	summaryDepth   int
+	thrown         value
 }
 
 func newJavaScript(a *analyzer, input JavaScriptInput, options *JavaScriptOptions) *javascript {
@@ -38,17 +40,24 @@ func newJavaScript(a *analyzer, input JavaScriptInput, options *JavaScriptOption
 	if j.files == nil {
 		j.files = make(map[string][]Source)
 	}
+	j.runtimeGlobals = j.initialGlobals()
 	j.env = j.globals()
 	return j
 }
 
 func (j *javascript) globals() map[string]jsValue {
+	env := maps.Clone(j.runtimeGlobals)
+	env["module"] = jsValue{fields: map[string]jsValue{"exports": {fields: make(map[string]jsValue)}}}
+	env["exports"] = env["module"].fields["exports"]
+	return env
+}
+
+func (j *javascript) initialGlobals() map[string]jsValue {
 	env := make(map[string]jsValue)
 	for _, name := range []string{"process", "console", "JSON", "Buffer", "String", "Boolean", "Number", "Object", "Array", "Error", "TypeError", "RangeError", "SyntaxError", "require", "fetch", "core", "github", "context", "exec"} {
 		env[name] = jsValue{ref: name}
 	}
-	env["module"] = jsValue{fields: map[string]jsValue{"exports": {fields: make(map[string]jsValue)}}}
-	env["exports"] = env["module"].fields["exports"]
+	env["global"] = jsValue{fields: make(map[string]jsValue)}
 	processEnv := jsValue{ref: "process.env", fields: make(map[string]jsValue)}
 	for name, sources := range j.input.Env {
 		processEnv.fields[name] = jsValue{sources: sources, kind: jsString}
@@ -77,6 +86,9 @@ func jsIndex(i int) string { return strconv.Itoa(i) }
 func (j *javascript) run() error {
 	if j.a.rule.ID == "" || j.a.rule.IsSource == nil || j.a.rule.IsSink == nil {
 		return errors.New("JavaScript taint rule requires an id, sources, and sinks")
+	}
+	if j.options != nil && j.options.Mode != "" && j.options.Mode != JavaScriptFast && j.options.Mode != JavaScriptDeep {
+		return errors.New("JavaScript analysis mode must be fast or deep")
 	}
 	if j.options == nil || j.options.Parser == nil {
 		j.gap(nil, "JavaScript analysis unavailable; configure the pinned native TypeScript compiler module")
@@ -153,7 +165,14 @@ func (j *javascript) eval(n *JavaScriptNode) jsValue { //nolint:largefunc // AST
 		return jsValue{}
 	}
 	switch n.Kind {
-	case "SourceFile", "Block", "VariableDeclarationList", "CaseBlock", "CaseClause", "DefaultClause":
+	case "SourceFile":
+		// CommonJS declarations are module-local, even when they shadow a
+		// runtime global whose object is shared with other modules.
+		for name := range jsLocalNames(&JavaScriptNode{Body: n}) {
+			delete(j.env, name)
+		}
+		fallthrough
+	case "Block", "VariableDeclarationList", "CaseBlock", "CaseClause", "DefaultClause":
 		for _, child := range n.Statements {
 			if child.Kind == "FunctionDeclaration" && child.Name != nil {
 				j.env[child.Name.Text] = j.functionValue(child)

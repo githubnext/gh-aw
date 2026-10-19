@@ -18,7 +18,7 @@ func workQueueDetails(state workqueue.Projection, row workQueueRow, at int64) (s
 	if work == nil {
 		return "", errors.New("work_missing: selected Work is absent; refresh state")
 	}
-	explanation, err := workqueue.ExplainWork(state, work.WorkID, at)
+	explanation, err := workQueueExplainWork(state, work, at)
 	if err != nil {
 		return "", err
 	}
@@ -122,16 +122,12 @@ func workInspectCommand() *cobra.Command {
 			work := state.Works[claim.WorkID]
 			row.Current = work != nil && work.ClaimID == claimID && work.State != "cancelled"
 		}
-		details, err := workQueueDetails(state, row, time.Now().UnixMilli())
+		branch, _ := cmd.Flags().GetString("branch")
+		inspection, err := workQueueInspectAt(state, branch, row, time.Now().UnixMilli())
 		if err != nil {
 			return err
 		}
-		return workPrint(cmd, struct {
-			Status    string       `json:"status"`
-			Tip       string       `json:"tip"`
-			Selection workQueueRow `json:"selection"`
-			Details   string       `json:"details"`
-		}{"committed_snapshot", state.Tip, row, details}, details)
+		return workPrint(cmd, inspection, inspection.Details)
 	}
 	return cmd
 }

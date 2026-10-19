@@ -132,14 +132,8 @@ func printWorkQueueArtifactReplay(cmd *cobra.Command, envelope currentWorkQueueE
 		if err != nil {
 			return fmt.Errorf("artifact replay could not predict scheduling; use a pool and budgets allowed by the captured queue policy: %w", currentWorkQueueDiagnosticError("prediction", err))
 		}
-		result.Prediction = &workQueueReplayPrediction{Reason: decision.Reason, Assignments: []workQueueReplayAssignment{}}
-		for _, assignment := range decision.Assignments {
-			prediction := workQueueReplayAssignment{WorkerProfile: assignment.WorkerProfile, WorkIDs: []string{}}
-			for _, claim := range assignment.Claims {
-				prediction.WorkIDs = append(prediction.WorkIDs, claim.WorkID)
-			}
-			result.Prediction.Assignments = append(result.Prediction.Assignments, prediction)
-		}
+		prediction := workQueueCompactPrediction(decision)
+		result.Prediction = &prediction
 		human += fmt.Sprintf("\nCaptured scheduling prediction: %s, %d assignments; no live dependency refresh, credential validation, or grant",
 			decision.Reason, len(decision.Assignments))
 	}

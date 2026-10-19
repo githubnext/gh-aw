@@ -60,9 +60,9 @@ func TestLoadCachedAuditDataRequiresMatchingRunState(t *testing.T) {
 func TestLoadCachedAuditDataRejectsOlderSchema(t *testing.T) {
 	t.Parallel()
 
-	// Earlier audits lack delegated-failure metrics and qualified success findings.
-	require.Equal(t, 8, auditSchemaVersion)
-	for _, schemaVersion := range []int{0, 5, 6, 7} {
+	// Earlier audits lack captured queue diagnostics and must be regenerated.
+	require.Equal(t, 9, auditSchemaVersion)
+	for _, schemaVersion := range []int{0, 5, 6, 7, 8} {
 		runDir := t.TempDir()
 		run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success"}
 		data, err := json.Marshal(AuditData{
