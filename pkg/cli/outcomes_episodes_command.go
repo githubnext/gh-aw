@@ -67,7 +67,10 @@ func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput boo
 			if _, exists := costs[id]; exists {
 				continue
 			}
-			runDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", id))
+			runDir, err := episodeOutcomeRunDirectory(logs.Runs, outputDir, id)
+			if err != nil {
+				return err
+			}
 			usage, err := analyzeTokenUsageAICOnly(runDir, false)
 			cost := episodeOutcomeCost{}
 			if err != nil {
@@ -102,6 +105,55 @@ func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput boo
 		return nil
 	}
 	return renderEpisodeOutcomes(stdout, data)
+}
+
+func episodeOutcomeRunDirectory(runs []RunData, outputDir string, id int64) (string, error) {
+	root, err := filepath.Abs(outputDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve episode usage output directory: %w", err)
+	}
+	fallback := filepath.Join(root, fmt.Sprintf("run-%d", id))
+	dir := fallback
+	var recorded string
+	for _, run := range runs {
+		if run.RunID != id || run.LogsPath == "" {
+			continue
+		}
+		path, err := filepath.Abs(run.LogsPath)
+		if err != nil {
+			return "", fmt.Errorf("resolve recorded logs path for run %d: %w", id, err)
+		}
+		recordedPath := path
+		rel, err := filepath.Rel(root, path)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			if !episodeFallbackIsConfinedDirectory(root, fallback) {
+				return "", fmt.Errorf("recorded logs path for run %d is outside --output %s", id, root)
+			}
+			path = fallback
+		}
+		if recorded != "" && recorded != recordedPath {
+			return "", fmt.Errorf("conflicting recorded logs paths for run %d", id)
+		}
+		recorded, dir = recordedPath, path
+	}
+	return dir, nil
+}
+
+func episodeFallbackIsConfinedDirectory(root, fallback string) bool {
+	info, err := os.Stat(fallback)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
+	}
+	resolvedFallback, err := filepath.EvalSymlinks(fallback)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(resolvedRoot, resolvedFallback)
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
 
 func readEpisodeOutcomeObservations(dir string) ([]EpisodeOutcomeObservation, error) {
