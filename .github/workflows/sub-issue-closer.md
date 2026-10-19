@@ -11,7 +11,7 @@ permissions:
   contents: read
   issues: read
 engine: pi
-model: copilot/gpt-5-mini
+model: copilot/gpt-5
 strict: true
 network:
   allowed:
