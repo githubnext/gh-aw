@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-19",
+  "window_start": "2026-09-20",
+  "window_end": "2026-10-19",
+  "open_issues_sample": 100,
+  "open_prs": 11,
+  "merged_prs_sample": 50,
+  "closed_prs_sample": 30,
+  "commits_analyzed": 100,
+  "commit_sample_window": "2026-10-16 to 2026-10-19",
+  "discussions": 50,
+  "changesets": 838,
+  "issues_opened_in_sample": 200,
+  "issues_closed_in_sample": 100,
+  "prs_opened_in_sample": 90,
+  "prs_merged_in_sample": 50,
+  "latest_release": "v0.92.5",
+  "highlight_issue_numbers": [
+    68481,
+    68043,
+    67661,
+    69938,
+    70120,
+    69406,
+    69886
+  ],
+  "highlight_pr_numbers": [
+    70141,
+    70032,
+    70131,
+    70026,
+    70130,
+    70205,
+    69772
+  ],
+  "top_commit_authors_sample": [
+    [
+      "Peli de Halleux",
+      58
+    ],
+    [
+      "Copilot",
+      30
+    ],
+    [
+      "github-actions[bot]",
+      11
+    ],
+    [
+      "Landon Cox",
+      1
+    ]
+  ],
+  "notes": "Heavy merge day for lifecycle races, threat linters, work-queue diagnostics; v0.92.5 is latest release."
+}
