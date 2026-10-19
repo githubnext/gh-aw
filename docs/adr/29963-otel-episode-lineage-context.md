@@ -14,7 +14,21 @@ Agentic workflows in this system can dispatch child workflows via `workflow_call
 
 ### Decision
 
-We will extend `aw_context` with a canonical episode lineage model — `episode_id`, `hop_id`, `parent_hop_id`, `origin_event`, `root_repo`, `root_workflow_id`, `root_run_id` — and propagate it automatically across every workflow boundary. The `episode_id` is minted at the first hop and frozen thereafter; each subsequent hop records its own `hop_id` and the `parent_hop_id` of its caller. The setup action receives the current workflow name and ref as `GH_AW_SETUP_WORKFLOW_NAME`/`GH_AW_CURRENT_WORKFLOW_REF` env vars so OTEL spans can emit `gh-aw.episode.*` and `gh-aw.hop.*` attributes that correctly link parent and child spans. The `workflow_call` trigger now receives an `aw_context` input (in addition to `workflow_dispatch`) so reusable workflow callees can inherit lineage without code changes.
+We will extend `aw_context` with a canonical episode lineage model — `episode_id`, `hop_id`, `parent_hop_id`, `origin_event`, `root_repo`, `root_workflow_id`, `root_run_id` — and propagate it automatically across every workflow boundary. The `episode_id` is minted at the first hop and preserved by subsequent hops that inherit it; each subsequent hop records its own `hop_id` and the `parent_hop_id` of its caller. The setup action receives the current workflow name and ref as `GH_AW_SETUP_WORKFLOW_NAME`/`GH_AW_CURRENT_WORKFLOW_REF` env vars so OTEL spans can emit `gh-aw.episode.*` and `gh-aw.hop.*` attributes that correctly link parent and child spans. The `workflow_call` trigger now receives an `aw_context` input (in addition to `workflow_dispatch`) so reusable workflow callees can inherit lineage without code changes.
+
+#### Identity scope and implementation evidence
+
+An inherited canonical `episode_id` remains stable across handoffs, including a retry that
+retains that inherited context. This does not guarantee the same ID for fresh root reruns.
+In `actions/setup/js/aw_context.cjs`, `buildWorkflowCallId` includes `run_attempt` in the hop
+ID. `buildAwContext` uses an inherited canonical ID when available, falls back to an inherited
+legacy hop/call ID, and otherwise uses the current hop ID. A fresh root on attempt 2 can
+therefore mint a different episode ID from attempt 1 even though GitHub retains the run ID.
+
+[#29963](https://github.com/github/gh-aw/pull/29963) introduced lineage propagation;
+[#67518](https://github.com/github/gh-aw/pull/67518) preserved canonical identity and immediate
+caller lineage through reporting and unified sessions. These merged implementations are
+evidence of behavior, not evidence that this Draft ADR was formally accepted.
 
 ### Alternatives Considered
 
@@ -34,7 +48,7 @@ We considered emitting one OTEL trace per workflow run and linking them using OT
 
 #### Positive
 - Multi-hop workflow runs appear as a single connected trace in OTLP backends; parent/child span relationships are correct without post-processing.
-- The `episode_id` is stable across retries and re-runs of the same automation session, enabling idempotency checks and replay analysis.
+- An inherited canonical `episode_id` is stable across handoffs. Retry/re-run identity is preserved only when that canonical context is retained; fresh root attempts need not share an episode ID.
 - `workflow_call` triggers gain `aw_context` propagation automatically via the compiler, eliminating per-workflow boilerplate.
 - Legacy `workflow_call_id` is kept as an alias of `hop_id`, so consumers of the old field continue to work without migration.
 
@@ -56,7 +70,7 @@ We considered emitting one OTEL trace per workflow run and linking them using OT
 ### Episode Lineage Fields
 
 1. Every `aw_context` object **MUST** contain the fields `episode_id`, `hop_id`, `parent_hop_id`, `origin_event`, `root_repo`, `root_workflow_id`, and `root_run_id`.
-2. `episode_id` **MUST** be set to the `hop_id` of the first workflow in the chain and **MUST NOT** be overwritten by child hops.
+2. An inherited canonical `episode_id` **MUST** be preserved by child hops. When it is absent, `episode_id` **MUST** fall back to the inherited hop/call ID when available, otherwise to the current root's `hop_id`. Because a fresh root's `hop_id` includes `run_attempt`, fresh root reruns are not required to share an `episode_id`.
 3. `hop_id` **MUST** uniquely identify the current workflow invocation using the format `{run_id}-{run_attempt}:{workflow_ref}`, or `{run_id}-{run_attempt}` when the workflow ref is unavailable.
 4. `parent_hop_id` **MUST** be set to the caller's `hop_id` when the workflow was invoked by another agentic hop, and **MUST** be an empty string for the root hop.
 5. `workflow_call_id` **MUST** be kept as a legacy alias equal to the current `hop_id` for backwards compatibility.

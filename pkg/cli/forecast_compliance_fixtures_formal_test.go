@@ -13,7 +13,8 @@ package cli
 // specs/forecast-compliance-fixtures/README.md and the formal model that produced
 // the issue — see the "Formal Model" section of issue #40114):
 //   - TLA+ invariants: P1, P5, P7, P8, P9
-//   - F* pre/post conditions: P2, P3, P4, P6, P10, P11
+//   - F* pre/post conditions: P2, P3, P6, P10, P11
+//   - Output contract: P4 (replaces the retired yield-formula predicate)
 //   - Z3-SMT schema gap: P12, P13
 //
 // Fixture-level predicates (issue behavioral coverage map):
@@ -31,6 +32,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"testing"
@@ -113,7 +115,7 @@ func TestFormal_P2_BernoulliSuccess(t *testing.T) {
 //	observedRunsPerPeriod = (sampledRuns / historyDays) * periodDays
 //
 // Formal predicate: λ = (n/h) × p, where h = historyDays, p = periodDays
-// Specification reference: §3.8 Run Frequency Estimation
+// Specification reference: §3.7 Observed Runs Per Period
 func TestFormal_P3_ObservedRateFormula(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -135,31 +137,42 @@ func TestFormal_P3_ObservedRateFormula(t *testing.T) {
 	}
 }
 
-// TestFormal_P4_YieldFormula verifies the yield invariant:
-//
-//	yield = successRate × observedRunsPerPeriod
-//
-// Formal predicate: yield = sr × obs  (§3.9 example)
-// Specification reference: §3.9 Effective Yield Estimate
-func TestFormal_P4_YieldFormula(t *testing.T) {
+// TestFormal_P4_RunLevelOutputContract replaces the obsolete yield-formula
+// predicate with the supported run-level output contract (R-OUT-014, T-FC-056).
+func TestFormal_P4_RunLevelOutputContract(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
-		successCount int
-		totalRuns    int
-		lambda       float64
-		wantYield    float64
-	}{
-		{successCount: 8, totalRuns: 10, lambda: 10.0, wantYield: 0.8 * 10.0},
-		{successCount: 10, totalRuns: 10, lambda: 5.0, wantYield: 1.0 * 5.0},
-		{successCount: 0, totalRuns: 10, lambda: 10.0, wantYield: 0.0},
-		{successCount: 3, totalRuns: 4, lambda: 8.0, wantYield: 0.75 * 8.0},
+
+	for field := range reflect.TypeFor[ForecastWorkflowResult]().Fields() {
+		tag := field.Tag.Get("json")
+		assert.NotContains(t, tag, "yield", "retired yield must not return as an optional field")
+		assert.NotContains(t, tag, "episode_analysis", "retired episode analysis must not return as an optional field")
 	}
-	for _, tc := range cases {
-		successRate := float64(tc.successCount) / float64(tc.totalRuns)
-		yield := successRate * tc.lambda
-		assert.InDelta(t, tc.wantYield, yield, 1e-9,
-			"P4: yield = sr(%.2f) × obs(%.2f) = %.4f",
-			successRate, tc.lambda, tc.wantYield)
+
+	for _, sampledRuns := range []int{0, 10} {
+		result := ForecastWorkflowResult{WorkflowID: "daily-report", SampledRuns: sampledRuns}
+		if sampledRuns > 0 {
+			populateForecastProjection(&result, forecastRunStats{
+				totalAIC:        10,
+				successCount:    sampledRuns,
+				aicObservations: []int{1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000},
+			}, 30, 30)
+		}
+		data, err := json.Marshal(result)
+		require.NoError(t, err)
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal(data, &fields))
+		assert.NotContains(t, fields, "yield")
+		assert.NotContains(t, fields, "episode_analysis")
+		for _, name := range []string{"sampled_runs", "success_rate", "avg_aic", "p50_aic_per_run", "p95_aic_per_run", "projected_aic", "weekly_projected_aic", "monthly_projected_aic"} {
+			assert.Contains(t, fields, name, "run-level field %s must remain available", name)
+		}
+		for _, name := range []string{"monte_carlo", "weekly_monte_carlo", "monthly_monte_carlo"} {
+			if sampledRuns == 0 {
+				assert.NotContains(t, fields, name)
+			} else {
+				assert.Contains(t, fields, name)
+			}
+		}
 	}
 }
 

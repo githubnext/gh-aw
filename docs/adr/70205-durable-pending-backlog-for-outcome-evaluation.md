@@ -1,4 +1,4 @@
-# ADR-70205: Durable Pending Backlog for Outcome Evaluation and Explicit Session Lineage
+# ADR-70205: CLI-Only Outcome Evaluation and Explicit Session Lineage
 
 **Date**: 2026-05-14
 **Status**: Draft
@@ -6,52 +6,92 @@
 
 ---
 
-> **Superseded collector decision:** The pending-backlog design below was
-> replaced before merge by CLI-only evaluation through `gh aw outcomes`.
-> The scheduled collector, its cache lifecycle, and the duplicate JavaScript
-> evaluator were removed. Explicit unified-session lineage, dispatch evidence,
-> cross-repository PR attribution, and conservative episode grouping remain.
+> **Historical proposal replaced before merge:** The durable pending-backlog design
+> was not the final decision in [#70205](https://github.com/github/gh-aw/pull/70205),
+> merged on 2026-10-19. The merged change removed the scheduled collector and
+> duplicate JavaScript evaluators in favor of CLI-only evaluation through
+> `gh aw outcomes`. This ADR remains Draft; the implementation evidence below
+> does not establish formal ADR acceptance.
 
 ### Context
 
-The outcome collector (`actions/setup/js/evaluate_outcomes.cjs`) discovers recent successful runs, downloads their `safe-outputs-items` manifest, evaluates each safe-output item, and records the run ID in a "seen" cache (a flat array capped at 500 entries). Every evaluated run was marked seen even when its outcomes were still `pending`, `unknown`, or `error`. Such runs were never revisited, so their eventual outcomes were permanently lost. In addition, read and listing failures were silently treated as "no data", dispatch run IDs and cross-repository PR attribution could be dropped, legacy episode lineage could be merged ambiguously, and unified sessions carried no structured parent identity from which to rebuild episodes.
+Before this change, the outcome collector (`actions/setup/js/evaluate_outcomes.cjs`) discovered recent successful runs, downloaded their `safe-outputs-items` manifest, evaluated each safe-output item, and recorded the run ID in a "seen" cache (a flat array capped at 500 entries). Every evaluated run was marked seen even when its outcomes were still `pending`, `unknown`, or `error`. Such runs were never revisited, so their eventual outcomes could be lost. Read and listing failures could appear as "no data", dispatch run IDs and cross-repository PR attribution could be dropped, legacy episode lineage could be merged ambiguously, and unified sessions carried no structured parent identity from which to rebuild episodes.
 
-### Decision
+### Final merged decision
 
-We will split collector state into two durable caches. The first is a versioned resolved-run cache (`seen-runs.json`, `{version: 2, ids}`) that holds only terminal runs. The second is a pending backlog (`pending-runs.json`) that holds runs with unresolved outcomes. Their manifests are copied to `run-<id>/safe-output-items.jsonl` so they can be revisited after the discovery window closes or the artifact expires. Any legacy array-format seen cache is discarded once, so its runs are rediscovered. Cache read errors other than ENOENT, run-listing failures, and malformed state now fail the collector rather than silently producing empty summaries. Alongside this change, we will project parent lineage (`parentRepo`, `parentRunId`, `parentRunAttempt`, `parentWorkflowId`, `parentWorkflowCallId`, `parentEventType`) from `aw_context` into unified session episode metadata. We will evaluate agent-linked PRs in the repository recorded in the issue's `repository_url`. We will order episode lineage resolution by run ID and never merge disconnected legacy `workflow_call` runs.
+The merged PR made `gh aw outcomes` the sole live-evaluation entry point. Ordinary workflow
+execution records safe-output evidence rather than deciding acceptance. Fresh and cached
+audit paths no longer evaluate outcomes or resurface historical outcome snapshots. Later
+`gh aw outcomes` invocations reevaluate current GitHub state using the available evidence.
 
-### Alternatives Considered
+The scheduled Outcome Collector, duplicate JavaScript evaluators, collector-only OTLP span
+export, and obsolete collector tests were deleted. No built-in pending backlog, scheduled
+reevaluation, or collector-cache migration shipped as the resolution to this proposal.
+The manual objective impact report invokes `gh aw outcomes --json` and projects that output
+into its datasets rather than maintaining a second classification implementation.
+
+The merged change retained explicit parent lineage (`parentRepo`, `parentRunId`,
+`parentRunAttempt`, `parentWorkflowId`, `parentWorkflowCallId`, `parentEventType`) projected
+from `aw_context` into unified session episode metadata. Recorded caller identity remains
+separate from current-run identity. Dispatch run IDs, including numeric-string IDs, are
+preserved, and agent-linked PRs are evaluated in the repository recorded in the issue's
+`repository_url`. Episode lineage conflicts are resolved deterministically, without
+merging disconnected legacy `workflow_call` runs or inferring missing lineage from revisions.
+
+Implementation evidence is in `pkg/cli/outcomes_command.go`, the Go outcome evaluators,
+`pkg/cli/logs_episode.go`, `actions/setup/js/unified_session_payload.cjs`, and the objective
+impact report. The 82-case conformance corpus in
+`pkg/cli/testdata/outcome_conformance.json` remains for the Go evaluator; it is no longer a
+shared Go/JavaScript evaluator contract.
+
+### Historical alternatives considered before merge
 
 #### Alternative 1: Keep the single seen cache and skip unresolved runs
 
-Keep the existing behavior, where every evaluated run is marked seen regardless of status. This is the simplest option and keeps state bounded. However, it permanently misreports runs whose outcomes resolve later, such as PRs merged after the collector cycle. That misreporting is the defect this PR addresses.
+Keeping the old collector behavior would have marked every evaluated run seen regardless
+of status. This bounded state but could lose outcomes that resolved later. The merged
+decision removed the collector rather than retaining this policy.
 
 #### Alternative 2: Re-scan the full run history every cycle
 
-Remove the seen cache and re-evaluate every run within a wider discovery window on each cycle. This avoids extra state, but API cost grows with history. It still cannot reach runs outside the window. It also fails once the `safe-outputs-items` artifact expires, because the manifest is no longer downloadable.
+Rescanning a wider window every collector cycle would have avoided extra state at increasing
+API cost, without recovering expired manifests. This collector-based alternative did not
+ship; CLI reevaluation still depends on evidence being available.
 
 #### Alternative 3: Infer missing lineage from revision metadata
 
-Rebuild episodes from matching repository, SHA, or ref heuristics instead of recording explicit parent identity. This needs no schema change. However, matching revision metadata does not identify a shared invocation (see the comment in `pkg/cli/logs_episode.go`), so unrelated runs could be merged. The PR explicitly chooses not to infer missing lineage.
+Inferring parentage from matching repository, SHA, or ref would have avoided a schema change
+but could merge unrelated invocations. The merged change retained explicit parent identity
+and conservative handling of missing lineage.
 
-### Consequences
+### Consequences of the merged decision
 
 #### Positive
-- Outcomes that start as pending, unknown, or error are revisited until they become terminal, including runs outside the recent-run window or with expired artifacts.
-- Failures in reading state or listing runs are now visible rather than appearing as "0 runs checked".
-- Unified sessions carry structured parent identity, which lets episodes be reconstructed without heuristics. Older sessions without lineage remain valid.
+- Live classification is centralized in the CLI instead of duplicated in a scheduled collector and JavaScript evaluators.
+- Pending, unknown, or error outcomes can be reevaluated by a later CLI invocation; they are not promised automatic reevaluation.
+- Unified sessions carry recorded parent identity without inferring missing relationships. Older sessions without lineage remain valid.
 - Cross-repository agent PRs are evaluated in the correct repository, and dispatch run IDs are preserved.
 
 #### Negative
-- The collector cache holds more state: a pending backlog plus a copied manifest for each unresolved run. The pending backlog has no explicit size cap or expiry. [TODO: verify retention policy]
-- The collector now exits with an error on corrupt or unreadable cache state instead of degrading gracefully, so a bad cache needs manual intervention.
-- The one-time legacy migration discards the old seen list, so previously seen runs that are still in the discovery window are evaluated again once.
-- The unified session schema and both summary renderers gained new fields that must be kept in sync between the Go and JavaScript code.
+- There is no built-in scheduled reevaluation or outcome OTLP exporter.
+- Later evaluation requires another CLI invocation and retained evidence or downloadable artifacts; the removed backlog does not guarantee access after artifact expiry.
+- The unified session schema and both summary renderers gained parent fields that must stay in sync.
 
 #### Neutral
-- Collector summaries remain per-cycle samples, now with `runs_revisited` and `unresolved_runs` counts, rather than cumulative fleet totals.
 - AIC per accepted outcome is computed from observed full-run cost (`TotalAIC / Accepted`), not from per-item cost attribution.
-- Shared Go/JavaScript conformance fixtures (`pkg/cli/testdata/outcome_conformance.json`) were extended to cover the new behavior.
+- Episode usage rollups and outcome summaries remain separate.
+
+### Superseded proposal: durable pending backlog (not shipped)
+
+The initial revision proposed a versioned resolved-run cache (`seen-runs.json`,
+`{version: 2, ids}`), a pending backlog (`pending-runs.json`), and copied manifests at
+`run-<id>/safe-output-items.jsonl`. Unresolved runs would have been revisited outside the
+discovery window, legacy seen arrays discarded once, and corrupt state treated as an error.
+It also proposed collector counters such as `runs_revisited` and `unresolved_runs`.
+
+Those cache formats, migration rules, retention implications, and revisit guarantees describe
+only the abandoned collector design. They are not supported behavior or implementation
+requirements for `gh aw outcomes`.
 
 ---
 
