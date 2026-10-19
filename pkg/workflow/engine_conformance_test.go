@@ -77,8 +77,18 @@ func conformanceQueueEnv(t *testing.T, engine string) []string {
 	require.NoError(t, err)
 	return []string{
 		"CONFORMANCE_ASSIGNMENT=" + string(assignment), "GH_AW_ACTIONS_DIR=" + actionsDir,
+		"GITHUB_EVENT_PATH=" + conformanceEventPath(t, string(assignment)),
 		"GH_AW_WORK_QUEUE_ENABLED=true", "GH_AW_WORK_QUEUE_ROLE=worker",
 	}
+}
+
+func conformanceEventPath(t *testing.T, assignment string) string {
+	t.Helper()
+	event, err := json.Marshal(map[string]any{"inputs": map[string]string{"work_queue_assignment": assignment}})
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "event.json")
+	require.NoError(t, os.WriteFile(path, event, 0o600))
+	return path
 }
 
 func TestEngineConformanceJavaScript(t *testing.T) {
@@ -157,7 +167,8 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 			}
 			env = append(env, conformanceQueueEnv(t, engine)...)
 			if test.standalone {
-				env = append(env, "CONFORMANCE_ASSIGNMENT=", "GH_AW_WORK_QUEUE_ENABLED=false", "GH_AW_WORK_QUEUE_ROLE=")
+				env = append(env, "CONFORMANCE_ASSIGNMENT=", "GH_AW_WORK_QUEUE_ENABLED=false", "GH_AW_WORK_QUEUE_ROLE=",
+					"GITHUB_EVENT_PATH="+conformanceEventPath(t, ""))
 			}
 			output, err := runConformanceNode(t, env, "-e", prepare)
 			require.NoError(t, err, "%s", output)
@@ -270,6 +281,9 @@ let supplied = JSON.parse(process.env.CONFORMANCE_ASSIGNMENT);
 if (process.env.CONFORMANCE_ASSIGNMENT && process.env.CONFORMANCE_ASSIGNMENT !== "{") {
   process.env.CONFORMANCE_ASSIGNMENT = JSON.stringify(supplied);
 }
+require("node:fs").writeFileSync(process.env.GITHUB_EVENT_PATH, JSON.stringify({
+  inputs: { work_queue_assignment: process.env.CONFORMANCE_ASSIGNMENT },
+}));
 ` + prepare
 			output, err := runConformanceNode(t, env, "-e", script)
 			require.Error(t, err, "%s", output)

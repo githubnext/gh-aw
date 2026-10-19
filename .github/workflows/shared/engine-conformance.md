@@ -19,7 +19,6 @@ safe-outputs:
 pre-agent-steps:
   - name: Prepare engine conformance fixtures
     env:
-      CONFORMANCE_ASSIGNMENT: ${{ github.event.inputs.work_queue_assignment }}
       CONFORMANCE_ENGINE: ${{ github.aw.import-inputs.engine-id }}
       CONFORMANCE_ROOT: /tmp/gh-aw/agent/engine-conformance
       CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
@@ -34,10 +33,12 @@ pre-agent-steps:
       const { normalizeAssignment } = require(path.join(process.env.GH_AW_ACTIONS_DIR, "work_queue_claim_scope.cjs"));
       const engine = process.env.CONFORMANCE_ENGINE;
       if (!/^[a-z][a-z0-9-]*$/.test(engine || "")) throw new Error("Invalid conformance engine ID");
+      const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+      const rawAssignment = event.inputs?.work_queue_assignment;
       let claimHandle;
       if (process.env.GH_AW_WORK_QUEUE_ENABLED === "true") {
         assert.equal(process.env.GH_AW_WORK_QUEUE_ROLE, "worker", "Conformance requires the compiler-provided worker role");
-        const assignment = normalizeAssignment(JSON.parse(process.env.CONFORMANCE_ASSIGNMENT));
+        const assignment = normalizeAssignment(JSON.parse(rawAssignment));
         assert.equal(assignment.claims.length, 1, "Conformance requires exactly one original Claim");
         assert.equal(assignment.worker_profile, `engine-conformance-${engine}`);
         const claim = assignment.claims[0];
@@ -46,7 +47,7 @@ pre-agent-steps:
         claimHandle = claim.handle;
       } else {
         assert.notEqual(process.env.GH_AW_WORK_QUEUE_ROLE, "worker", "Queue workers cannot run standalone");
-        assert.ok(!process.env.CONFORMANCE_ASSIGNMENT, "Standalone conformance cannot accept a Claim assignment");
+        assert.ok(!rawAssignment, "Standalone conformance cannot accept a Claim assignment");
       }
       const root = process.env.CONFORMANCE_ROOT;
       const host = process.env.CONFORMANCE_STATE;
