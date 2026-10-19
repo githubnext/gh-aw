@@ -105,11 +105,6 @@ type piSubagentEventPayload struct {
 
 // Unified conclusion evidence precedes the canonical bootstrap trace. Neither
 // requires downloading the original engine logs to identify subagents.
-func readSessionSubagentModels(runDir string) ([]SubagentModelRequest, []SubagentModelActual, bool, error) {
-	requests, actuals, _, found, err := readSessionSubagentModelsDetailed(runDir)
-	return requests, actuals, found, err
-}
-
 func readSessionSubagentModelsDetailed(runDir string) ([]SubagentModelRequest, []SubagentModelActual, []AgentUsageBreakdown, bool, error) {
 	for _, relative := range []string{"usage/aw_session.jsonl", "aw_session.jsonl"} {
 		path := filepath.Join(runDir, filepath.FromSlash(relative))
