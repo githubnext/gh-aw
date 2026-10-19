@@ -26,6 +26,7 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 		"tool-scope", "sandbox-config", "image-argument", "checkout-mode", "fork-association",
 		"pull-request-target-roles", "safe-output-shell-expansion", "firewall-ssl-bump",
 		"pull-request-target-checkout", "prompt-expression",
+		"github-cli-syntax", "github-proxy-diff",
 	}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")
 	require.NoError(t, err)

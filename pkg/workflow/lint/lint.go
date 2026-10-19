@@ -232,5 +232,7 @@ func Default() *Runner {
 		FirewallSSLBumpRule(),
 		PullRequestTargetCheckoutRule(),
 		PromptExpressionRule(),
+		GitHubCLISyntaxRule(),
+		GitHubProxyDiffRule(),
 	}}
 }

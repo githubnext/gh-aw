@@ -189,6 +189,18 @@ func builtInRuleContracts() map[string]ruleContract {
 			safePrompt:   "${{ github.repository }}",
 			path:         "prompt",
 		},
+		"github-cli-syntax": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: contractJob + "    steps:\n      - run: gh pr view 42 --no-pager\n",
+			safe:   contractJob + "    steps:\n      - run: gh pr view 42 --json number,title\n",
+			path:   "jobs.check.steps[0].run",
+		},
+		"github-proxy-diff": {
+			targets: AWAST, severity: Warning,
+			unsafe: "tools:\n  github:\n    mode: gh-proxy\n", safe: "tools:\n  github:\n    mode: local\n",
+			unsafePrompt: "Run `gh pr diff 42`.", safePrompt: "Run `gh pr diff 42`.",
+			path: "prompt",
+		},
 	}
 }
 

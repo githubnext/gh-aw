@@ -60,6 +60,7 @@ func (c *Compiler) validatePromptTools(data *WorkflowData, markdownPath string) 
 			c.IncrementWarningCount()
 		}
 	}
+	c.validateGitHubCLIContracts(data, markdownPath, contents)
 }
 
 func promptToolWarning(data *WorkflowData, requirement promptToolRequirement) string {
