@@ -744,22 +744,7 @@
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
           "not": {
-            "enum": [
-              "gateway-dispatch",
-              "gateway",
-              "webhook-gateway",
-              "webhooks",
-              "orgs",
-              "projects-item",
-              "projects-items",
-              "security-alert",
-              "security-alerts",
-              "jira-issue",
-              "linear-issue",
-              "azure-devops-issue",
-              "slash-command",
-              "label-command"
-            ]
+            "enum": ["gateway-dispatch", "webhooks", "orgs", "projects-items", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue", "slash-command", "label-command"]
           },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
@@ -768,16 +753,37 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "dependencies": {
             "gateway-dispatch": {
-              "not": {
-                "anyOf": [{ "required": ["workflow_dispatch"] }, { "required": ["repository_dispatch"] }, { "required": ["slash_command"] }, { "required": ["command"] }, { "required": ["label_command"] }]
+              "propertyNames": {
+                "enum": [
+                  "gateway-dispatch",
+                  "allow-bot-authored-trigger-comment",
+                  "bots",
+                  "cooldown",
+                  "github-app",
+                  "github-token",
+                  "labels",
+                  "manual-approval",
+                  "needs",
+                  "permissions",
+                  "reaction",
+                  "report-blocked-version",
+                  "restore-memory",
+                  "roles",
+                  "skip-author-associations",
+                  "skip-bots",
+                  "skip-if-check-failing",
+                  "skip-if-match",
+                  "skip-if-no-match",
+                  "skip-roles",
+                  "stale-check",
+                  "status-comment",
+                  "steps",
+                  "stop-after"
+                ]
               }
             }
           },
           "properties": {
-            "projects-item": false,
-            "security-alert": false,
-            "gateway": false,
-            "webhook-gateway": false,
             "repos": false,
             "orgs": false,
             "projects-items": false,
@@ -791,7 +797,7 @@
             "gateway-dispatch": {
               "type": "object",
               "additionalProperties": false,
-              "description": "Experimental. Nested bundled gateway triggers with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json webhook-gateway: true. Cannot coexist with explicit workflow_dispatch or repository_dispatch or grant gateway authority.",
+              "description": "Experimental exclusive trigger. No other triggers may coexist with gateway-dispatch; non-trigger on settings such as roles and bots remain supported. Contains nested bundled gateway subscriptions with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json webhook-gateway: true and does not grant gateway authority.",
               "anyOf": [
                 { "required": ["projects-items"] },
                 { "required": ["security-alerts"] },
@@ -808,8 +814,8 @@
                   "description": "Experimental. Native slash_command configuration with matching performed by the approved gateway server, not native Actions listeners."
                 },
                 "label-command": {
-                  "$ref": "#/properties/on/oneOf/1/properties/label_command",
-                  "description": "Experimental. Native label_command configuration with matching and requested label consumption performed by the approved gateway server."
+                  "allOf": [{ "$ref": "#/properties/on/oneOf/1/properties/label_command" }, { "properties": { "remove_label": { "const": true } } }],
+                  "description": "Experimental. Native label_command configuration with matching and mandatory label consumption performed by the approved gateway server. remove_label: false is unsupported."
                 },
                 "webhooks": {
                   "type": "array",

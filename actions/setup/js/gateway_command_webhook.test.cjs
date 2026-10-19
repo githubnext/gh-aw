@@ -99,7 +99,7 @@ describe("minimal gateway command notifications", () => {
     test.payload.filters.label = ["deploy*"];
     expect(test.validate().skipped).toBe(false);
     test.subscription.command_filter.remove_label = false;
-    expect(test.validate().skipped).toBe(false);
+    expect(test.validate).toThrow(/valid version 2/);
   });
 
   it("does not import native bodyless activation bypasses into gateway admission", () => {

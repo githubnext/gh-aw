@@ -101,10 +101,8 @@ func (c *Compiler) configureGHESCompatibility() {
 //   - validatePermissions: permissions parsing, MCP tool constraints, workflow_run security
 //   - validateToolConfiguration: safe-outputs, GitHub tools, dispatches, and resources
 func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath string) error {
-	if len(workflowData.WebhookSubscriptions) > 0 {
-		if err := c.requireWebhookTriggers(workflowData.Roles); err != nil {
-			return formatCompilerError(markdownPath, "error", err.Error(), err)
-		}
+	if err := c.validateWebhookWorkflow(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 	if err := validateRuntimeCheckoutConfigs(workflowData.CheckoutConfigs); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)

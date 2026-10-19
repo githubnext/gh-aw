@@ -15,17 +15,8 @@ func TestWebhookSchema(t *testing.T) {
 			on:    map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "types": []any{"edited"}, "filters": map[string]any{"project_number": 7}}}},
 			valid: true,
 		},
-		"removed general registration": {
-			on: map[string]any{"webhook": map[string]any{"projects_v2_item": map[string]any{}}},
-		},
-		"removed auth": {
-			on: map[string]any{"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}}},
-		},
 		"unknown event config property": {
 			on: map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "typo": true}}},
-		},
-		"removed auth with valid trigger": {
-			on: map[string]any{"webhook-auth": map[string]any{"actors": []any{"cao[bot]"}}, "gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}}},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -235,31 +226,6 @@ func TestRemovedFirstClassWebhookTriggers(t *testing.T) {
 	}
 }
 
-func TestWebhookGatewayNamespaceSchema(t *testing.T) {
-	for name, on := range map[string]any{
-		"null":              map[string]any{"gateway": nil},
-		"scalar":            map[string]any{"gateway": "projects-items"},
-		"empty":             map[string]any{"gateway": map[string]any{}},
-		"list":              map[string]any{"gateway": []any{"security-alerts"}},
-		"unknown":           map[string]any{"gateway": map[string]any{"unknown": map[string]any{}}},
-		"nested roles":      map[string]any{"gateway": map[string]any{"roles": "write", "security-alerts": map[string]any{}}},
-		"singular project":  map[string]any{"gateway": map[string]any{"projects-item": map[string]any{"project_id": "PVT_example"}}},
-		"singular security": map[string]any{"gateway": map[string]any{"security-alert": map[string]any{}}},
-		"string shorthand":  "gateway",
-	} {
-		t.Run(name, func(t *testing.T) {
-			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "gateway.md"))
-		})
-	}
-	for _, name := range []string{"projects-item", "projects-items", "security-alert", "security-alerts"} {
-		for _, on := range []any{name, map[string]any{name: map[string]any{}},
-			map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{}}, name: map[string]any{}}} {
-			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "legacy.md"))
-		}
-	}
-
-}
-
 func TestGatewayDispatchSchema(t *testing.T) {
 	for trigger, config := range map[string]any{
 		"projects-items":     map[string]any{"project_id": "PVT_example"},
@@ -270,18 +236,14 @@ func TestGatewayDispatchSchema(t *testing.T) {
 		"webhooks":           []any{map[string]any{"type": "example.event"}},
 	} {
 		t.Run(trigger, func(t *testing.T) {
-			on := map[string]any{"gateway-dispatch": map[string]any{trigger: config, "repos": []any{"owner/*"}}, "push": map[string]any{}}
+			on := map[string]any{"gateway-dispatch": map[string]any{trigger: config, "repos": []any{"owner/*"}}, "roles": []any{"write"}, "bots": []any{"cao-gateway"}}
 			require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "enabled.md"))
-			for _, dispatch := range []string{"workflow_dispatch", "repository_dispatch"} {
+			for _, dispatch := range []string{"push", "issues", "pull_request", "schedule", "workflow_call", "workflow_run", "workflow_dispatch", "repository_dispatch", "slash_command", "command", "label_command", "future_event"} {
 				for _, value := range []any{nil, map[string]any{}, map[string]any{"types": []any{"manual"}}} {
 					on[dispatch] = value
 					require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "mixed-dispatch.md"))
 				}
 				delete(on, dispatch)
-			}
-			for _, flag := range []any{nil, false, true, "true", 1, map[string]any{}, []any{true}} {
-				legacy := map[string]any{trigger: config, "webhook-gateway": flag}
-				require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": legacy}, "legacy.md"))
 			}
 		})
 	}

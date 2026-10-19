@@ -181,14 +181,21 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 		},
 		{
 			name: "first-class Projects v2 and security triggers use wire event names",
-			on:   map[string]any{"issues": nil, "gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "types": []any{"edited"}}, "security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}}}},
+			on:   map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "types": []any{"edited"}}, "security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}}}},
 			want: []string{
-				"code_scanning_alert", "dependabot_alert", "issues", "projects_v2_item",
+				"code_scanning_alert", "dependabot_alert", "projects_v2_item",
 			},
 		},
 		{
 			name: "removed secret scanning source yields no webhook events",
 			on:   map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": []any{"secret-scanning"}}}},
+			want: nil,
+		},
+		{
+			name: "exclusive gateway rejects native enrollment",
+			on: map[string]any{"issues": nil, "gateway-dispatch": map[string]any{
+				"projects-items": map[string]any{"project_id": "PVT_example"},
+			}},
 			want: nil,
 		},
 		{

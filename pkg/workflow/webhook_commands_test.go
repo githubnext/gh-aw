@@ -17,7 +17,7 @@ func TestGatewayCommands(t *testing.T) {
 		`slash-command: {name: [review, "fix*", "*"], events: [issue_comment, pull_request_comment], strategy: centralized}`,
 		`slash-command: {events: ["*"]}`,
 		`label-command: {}`,
-		`label-command: {name: review, names: [review, deploy], events: [issues, pull_request], remove_label: false, strategy: decentralized}`,
+		`label-command: {name: review, names: [review, deploy], events: [issues, pull_request], remove_label: true, strategy: decentralized}`,
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			compiler := newWebhookCompiler()
@@ -82,6 +82,7 @@ func TestGatewayCommandsRejectInvalidConfiguration(t *testing.T) {
 		`slash-command: {remove_label: true}`, `slash-command: {strategy: decentralized}`,
 		"label-command:", `label-command: {name: []}`, `label-command: {names: []}`,
 		`label-command: {events: issue_comment}`, `label-command: {remove_label: "true"}`,
+		`label-command: {remove_label: false}`,
 		`label-command: {strategy: centralized}`, `label-command: {unknown: true}`,
 	} {
 		t.Run(trigger, func(t *testing.T) {
@@ -97,7 +98,7 @@ func TestGatewayCommandsRejectInvalidConfiguration(t *testing.T) {
 		var on map[string]any
 		require.NoError(t, yaml.Unmarshal([]byte(native+"\ngateway-dispatch:\n  slash-command: review\n"), &on))
 		_, err := ParseWebhookSubscriptions(on, "commands")
-		require.ErrorContains(t, err, "cannot be combined")
+		require.ErrorContains(t, err, "on.gateway-dispatch is exclusive")
 	}
 }
 

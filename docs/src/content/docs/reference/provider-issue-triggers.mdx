@@ -9,7 +9,7 @@ import providerIssueEvents from "../../../../../pkg/workflow/data/provider_issue
 
 The [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-specification/) defines the complete experimental trigger inventory and expected per-delivery data, including GitHub Projects and security alerts.
 
-`on.gateway-dispatch.jira-issue`, `on.gateway-dispatch.linear-issue`, and `on.gateway-dispatch.azure-devops-issue` declare experimental external issue subscriptions using GitHub-style `types` and flat source selectors. They require repository `.github/workflows/aw.json` with `{"webhook-gateway":true}`. The standard [webhook dispatch contract](/gh-aw/reference/webhook-triggers/) and write-or-higher `on.roles`/`on.bots` authorization apply. Explicit `workflow_dispatch` and `repository_dispatch` declarations cannot coexist with `gateway-dispatch`.
+`on.gateway-dispatch.jira-issue`, `on.gateway-dispatch.linear-issue`, and `on.gateway-dispatch.azure-devops-issue` declare experimental external issue subscriptions using GitHub-style `types` and flat source selectors. They require repository `.github/workflows/aw.json` with `{"webhook-gateway":true}`. The standard [webhook dispatch contract](/gh-aw/reference/webhook-triggers/) and write-or-higher `on.roles`/`on.bots` authorization apply. No other trigger can coexist with `gateway-dispatch`; supported non-trigger settings such as `roles` and `bots` remain allowed.
 
 Shared `gateway-dispatch.orgs` selects GitHub organizations, not Jira projects, Linear organizations, or Azure projects; external providers ignore it and retain their mandatory provider-specific scopes.
 

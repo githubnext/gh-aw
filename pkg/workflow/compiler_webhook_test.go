@@ -36,8 +36,6 @@ func newWebhookCompiler() *Compiler {
 func TestCompileWebhookTriggers(t *testing.T) {
 	compiler := newWebhookCompiler()
 	data, err := compiler.ParseWorkflowString(webhookWorkflow(`on:
-  push:
-    branches: [main]
   gateway-dispatch:
     projects-items:
       project_id: PVT_example
@@ -55,7 +53,7 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.NotContains(t, on, "security-alerts")
 	assert.NotContains(t, on, "workflow_dispatch")
 	assert.NotContains(t, on, "gateway-dispatch")
-	assert.Contains(t, on, "push")
+	assert.NotContains(t, on, "push")
 	assert.NotContains(t, on, "webhook")
 	assert.NotContains(t, on, "webhook-auth")
 	assert.Equal(t, []any{WebhookDispatchEventType("webhook-test")}, on["repository_dispatch"].(map[string]any)["types"])
@@ -67,7 +65,7 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	compiledOn := compiled["on"].(map[string]any)
 	assert.NotContains(t, compiledOn, "gateway-dispatch")
 	assert.NotContains(t, compiledOn, "workflow_dispatch")
-	assert.Contains(t, compiledOn, "push")
+	assert.Equal(t, map[string]any{"repository_dispatch": map[string]any{"types": []any{WebhookDispatchEventType("webhook-test")}}}, compiledOn)
 	assert.Equal(t, []any{WebhookDispatchEventType("webhook-test")}, compiledOn["repository_dispatch"].(map[string]any)["types"])
 	preActivation := extractJobSection(output, "pre_activation")
 	assert.Contains(t, preActivation, "check_membership.cjs")
@@ -376,11 +374,15 @@ func TestWebhookUsesStandardAuthorization(t *testing.T) {
 	}
 }
 
-func TestGatewayDispatchRejectsExplicitDispatchTriggers(t *testing.T) {
+func TestGatewayDispatchRejectsOtherTriggers(t *testing.T) {
 	for _, trigger := range []string{
 		"workflow_dispatch:", "workflow_dispatch: {}", "workflow_dispatch: {inputs: {message: {type: string}}}",
 		"repository_dispatch:", "repository_dispatch: {}", "repository_dispatch: {types: [manual-operation]}",
 		"repository_dispatch: {types: [\"" + strings.ToUpper(WebhookDispatchEventType("webhook-test")) + "\"]}",
+		"push:", "push: {}", "issues: {types: [opened]}", "pull_request: {}",
+		"schedule: daily", "schedule: [{cron: '0 0 * * *'}]", "workflow_call:", "workflow_run: {workflows: ['CI'], types: [completed]}",
+		"slash_command: review", "command: review", "label_command: review",
+		"future_event:", "future_event: {}",
 	} {
 		for _, strict := range []string{"true", "false"} {
 			t.Run(trigger+"/"+strict, func(t *testing.T) {
@@ -390,7 +392,7 @@ func TestGatewayDispatchRejectsExplicitDispatchTriggers(t *testing.T) {
 				var frontmatter map[string]any
 				require.NoError(t, yaml.Unmarshal([]byte("on:\n  "+trigger+"\n  gateway-dispatch:\n    projects-items: {project_id: PVT_example}\n"), &frontmatter))
 				_, err = newWebhookCompiler().processWebhookTriggers(frontmatter, &WorkflowData{WorkflowID: "webhook-test"})
-				require.ErrorContains(t, err, "cannot be combined with explicit on.")
+				require.ErrorContains(t, err, "on.gateway-dispatch is exclusive")
 			})
 		}
 	}

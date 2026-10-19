@@ -56,16 +56,7 @@ func TestWebhookSubscriptionValidation(t *testing.T) {
 	}
 }
 
-func TestWebhookRejectsRemovedFrontmatter(t *testing.T) {
-	for _, field := range []string{"webhook", "webhook-auth"} {
-		on := webhookTestOn("projects_v2_item", map[string]any{})
-		on[field] = map[string]any{}
-		for _, input := range []any{on, map[string]any{field: nil}, field, []any{"push", field}} {
-			if _, err := ParseWebhookSubscriptions(input, "test"); err == nil || !strings.Contains(err.Error(), "on."+field+" is not supported") {
-				t.Fatalf("expected removed on.%s to fail, got %v", field, err)
-			}
-		}
-	}
+func TestWebhookSubscriptionsDoNotAffectNativeWorkflows(t *testing.T) {
 	if got, err := ParseWebhookSubscriptions(map[string]any{"push": nil}, "test"); err != nil || len(got) != 0 {
 		t.Fatalf("native events must remain unaffected: %v, %v", got, err)
 	}

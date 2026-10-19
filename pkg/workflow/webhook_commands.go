@@ -183,8 +183,8 @@ func parseGatewayCommandFilter(config map[string]any, alias, workflowID string) 
 		if rawRemove, exists := config["remove_label"]; exists {
 			var ok bool
 			remove, ok = rawRemove.(bool)
-			if !ok {
-				return nil, fmt.Errorf("%s.remove_label must be a boolean", path)
+			if !ok || !remove {
+				return nil, fmt.Errorf("%s.remove_label must be true; gateway label commands do not support disabling label consumption", path)
 			}
 		}
 		filter.RemoveLabel = &remove

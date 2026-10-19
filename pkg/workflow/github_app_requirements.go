@@ -195,6 +195,10 @@ func rawOnSectionTriggerNames(onValue any) []string {
 // on:-section extension keys (reaction, status-comment, github-app, bots, roles,
 // etc.) that are not themselves webhook events.
 func NormalizeGitHubAppWebhookEvents(onValue any) []string {
+	if !exclusiveGatewayDispatchEnrollment(onValue) {
+		githubAppRequirementsLog.Print("Cannot infer gateway App events: gateway-dispatch cannot be combined with other triggers")
+		return nil
+	}
 	eventSet := map[string]struct{}{}
 	addEvents := func(events []string) {
 		for _, event := range events {
@@ -249,6 +253,17 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 	}
 	sort.Strings(events)
 	return events
+}
+
+func exclusiveGatewayDispatchEnrollment(onValue any) bool {
+	on, ok := onValue.(map[string]any)
+	if !ok {
+		return true
+	}
+	if _, gateway := on["gateway-dispatch"]; !gateway {
+		return true
+	}
+	return validateGatewayDispatchExclusive(on) == nil
 }
 
 func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {

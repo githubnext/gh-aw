@@ -232,11 +232,7 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 
 func webhookOnConfig(on any) (map[string]any, error) {
 	for _, name := range rawOnSectionTriggerNames(on) {
-		switch name {
-		case "webhook", "webhook-auth", "webhook-gateway", "gateway", "projects-item", "security-alert", "repos", "orgs":
-			return nil, fmt.Errorf("on.%s is not supported; use on.gateway-dispatch with nested triggers and shared repos/orgs, and standard on.roles/on.bots authorization", name)
-		}
-		if isWebhookTrigger(name) {
+		if isWebhookTrigger(name) || name == "repos" || name == "orgs" {
 			return nil, fmt.Errorf("on.%s is not supported; define %s under on.gateway-dispatch", name, name)
 		}
 	}
@@ -255,15 +251,8 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	if !ok {
 		return nil, errors.New("on.gateway-dispatch must be an object with at least one nested gateway trigger")
 	}
-	for _, dispatch := range []string{"workflow_dispatch", "repository_dispatch"} {
-		if _, exists := onMap[dispatch]; exists {
-			return nil, fmt.Errorf("on.gateway-dispatch cannot be combined with explicit on.%s; remove that trigger and let the compiler generate the gateway route", dispatch)
-		}
-	}
-	for _, command := range []string{"slash_command", "command", "label_command"} {
-		if _, exists := onMap[command]; exists {
-			return nil, fmt.Errorf("on.gateway-dispatch cannot be combined with native on.%s; define gateway-powered commands inside on.gateway-dispatch instead", command)
-		}
+	if err := validateGatewayDispatchExclusive(onMap); err != nil {
+		return nil, err
 	}
 	hasTrigger := false
 	for _, name := range sortedWebhookKeys(gateway) {

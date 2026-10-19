@@ -47,7 +47,7 @@ function validGatewayCommandSubscription(subscription) {
     new Set(filter.events).size !== filter.events.length ||
     !filter.events.every(event => events.includes(event)) ||
     !["inline", label ? "decentralized" : "centralized"].includes(filter.strategy) ||
-    (label && typeof filter.remove_label !== "boolean") ||
+    (label && filter.remove_label !== true) ||
     subscription.conditions.length !== 0 ||
     subscription.any_of !== undefined ||
     subscription.provider !== undefined ||

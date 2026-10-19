@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -153,16 +154,55 @@ func TestWebhookMinimumRolesDoesNotRestrictNativeTriggers(t *testing.T) {
 	}
 }
 
+func TestGatewayDispatchSettingsSchemaParity(t *testing.T) {
+	settings := map[string]any{
+		"allow-bot-authored-trigger-comment": true, "bots": []any{"cao-gateway"}, "cooldown": "5m",
+		"github-app":   map[string]any{"client-id": "${{ vars.APP_ID }}", "private-key": "${{ secrets.APP_KEY }}"},
+		"github-token": "${{ secrets.TOKEN }}", "labels": []any{"review"}, "manual-approval": "production",
+		"needs": []any{"prepare"}, "permissions": map[string]any{"issues": "read"}, "reaction": "none",
+		"report-blocked-version": false, "restore-memory": false, "roles": []any{"write"},
+		"skip-author-associations": map[string]any{"issue": []any{"BOT"}}, "skip-bots": []any{"other-bot"},
+		"skip-if-check-failing": true, "skip-if-match": "is:issue", "skip-if-no-match": "is:pr",
+		"skip-roles": []any{"triage"}, "stale-check": false, "status-comment": false,
+		"steps": []any{map[string]any{"run": "echo ready"}}, "stop-after": "+1d",
+	}
+	require.Len(t, settings, len(gatewayDispatchOnSettings))
+	for _, name := range gatewayDispatchOnSettings {
+		value, exists := settings[name]
+		require.True(t, exists, name)
+		on := map[string]any{"gateway-dispatch": map[string]any{"slash-command": "review"}, name: value}
+		_, err := ParseWebhookSubscriptions(on, "settings")
+		require.NoError(t, err, name)
+		require.NoError(t, parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "settings.md"), name)
+	}
+}
+
+func TestGatewayExclusiveRouteCannotBeBypassedByPreparsedData(t *testing.T) {
+	for _, mutate := range []func(*WorkflowData){
+		func(data *WorkflowData) { data.On += "\n  push: {}\n" },
+		func(data *WorkflowData) { data.On = "on:\n  workflow_call:\n" },
+		func(data *WorkflowData) { data.On = "on:\n  repository_dispatch: {}\n" },
+		func(data *WorkflowData) { data.Command = []string{"review"} },
+		func(data *WorkflowData) { data.LabelCommand = []string{"review"} },
+	} {
+		data, err := newWebhookCompiler().ParseWorkflowString(webhookWorkflow("strict: false\non:\n  gateway-dispatch:\n    slash-command: review\n"), "exclusive.md")
+		require.NoError(t, err)
+		mutate(data)
+		_, err = newWebhookCompiler().CompileToYAML(data, "exclusive.md")
+		require.ErrorContains(t, err, "on.gateway-dispatch is exclusive")
+		path := filepath.Join(t.TempDir(), "exclusive.md")
+		err = newWebhookCompiler().CompileWorkflowData(data, path)
+		require.ErrorContains(t, err, "on.gateway-dispatch is exclusive")
+		_, err = os.Stat(strings.TrimSuffix(path, ".md") + ".lock.yml")
+		require.True(t, os.IsNotExist(err))
+	}
+}
+
 func TestWebhookRepoConfigValidation(t *testing.T) {
 	for _, content := range []string{
 		`{"webhook-gateway":null}`, `{"webhook-gateway":{}}`,
 		`{"webhook-gateway":"true"}`, `{"webhook-gateway":1}`,
 		`{"webhook-gateway":[]}`, `{"webhook-gateway":true`,
-		`{"cao":{"triggers":true}}`,
-		`{"repository-dispatch-triggers":true}`,
-		`{"webhook-triggers":true}`,
-		`{"webhook-triggers":false,"webhook-gateway":true}`,
-		`{"webhook-gateway":true,"cao":{"triggers":true}}`,
 	} {
 		t.Run(content, func(t *testing.T) {
 			root := t.TempDir()

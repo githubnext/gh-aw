@@ -32,7 +32,7 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 			"security-alerts: {sources: [dependabot]}",
 			"webhooks: [{type: example.event}]",
 			"slash-command: review",
-			"label-command: {name: review, remove_label: false}",
+			"label-command: review",
 			"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
 			"orgs: [github, \"my-*\"]\n  security-alerts: {}",
 		} {
@@ -112,7 +112,6 @@ Inspect the batch in aw_context.webhook.deliveries and unique aw_context.items.
 	assert.Contains(t, string(output), `"conditions":[{"filter":"field.name"`)
 	assert.NotContains(t, string(output), `"trusted_actors"`)
 	assert.Contains(t, string(output), `"any_of"`)
-	assert.NotContains(t, result.workflowData.On, "webhook-auth")
 	assert.NotContains(t, result.workflowData.On, "projects-item")
 	assert.NotContains(t, result.workflowData.On, "workflow_dispatch")
 	assert.NotContains(t, result.workflowData.On, "gateway-dispatch")
@@ -139,7 +138,6 @@ on:
     label-command:
       name: review
       events: issues
-      remove_label: false
 permissions:
   contents: read
 engine: copilot
@@ -157,7 +155,7 @@ Notifications: ${{ toJSON(gateway.events) }}
 	output, err := json.Marshal(result.validationResult)
 	require.NoError(t, err)
 	assert.Contains(t, string(output), `"command_filter":{"policy":"slash-command/v1"`)
-	assert.Contains(t, string(output), `"remove_label":false`)
+	assert.Contains(t, string(output), `"remove_label":true`)
 	lock, err := os.ReadFile(filepath.Join(dir, "gateway-commands.lock.yml"))
 	require.NoError(t, err)
 	manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(lock))
@@ -327,63 +325,34 @@ security-alert: {sources: [dependabot]}`, `gateway-dispatch:
 	}
 }
 
-func TestCompileWebhookGatewayRejectsObsoleteSyntax(t *testing.T) {
-	for _, on := range []string{
-		"  projects-item: {project_id: PVT_example}",
-		"  projects-items: {project_id: PVT_example}",
-		"  security-alert: {sources: [dependabot]}",
-		"  security-alerts: {sources: [dependabot]}",
-		"  gateway: {}",
-		"  gateway: {projects-item: {project_id: PVT_example}}",
-		"  gateway: {security-alert: {sources: [dependabot]}}",
-		"  gateway: {security-alerts: {}, roles: all}",
-		"  gateway: {security-alerts: {}}\n  security-alert: {sources: [dependabot]}",
-	} {
-		t.Run(on, func(t *testing.T) {
-			root := t.TempDir()
-			enableWebhookTriggers(t, root)
-			path := filepath.Join(root, "obsolete-gateway.md")
-			source := "---\non:\n" + on + "\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
-			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
-			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
-			require.False(t, result.success)
-			assert.NotEmpty(t, result.validationResult.Errors)
-			assert.Empty(t, result.validationResult.WebhookSubscriptions)
-			_, err := os.Stat(filepath.Join(root, "obsolete-gateway.lock.yml"))
-			require.True(t, os.IsNotExist(err), "obsolete declarations must not emit a lock file")
-		})
-	}
-
-}
-
 func TestCompileWebhookRejectsFlatTriggers(t *testing.T) {
 	for _, trigger := range []string{
 		"projects-items: {project_id: PVT_example}",
 		"security-alerts: {}",
 	} {
-		for _, flag := range []string{"", "  webhook-gateway: true\n", "  webhook-gateway: false\n", "  webhook-gateway: null\n", "  webhook-gateway: \"true\"\n", "  webhook-gateway: {}\n"} {
-			t.Run(trigger+"/"+flag, func(t *testing.T) {
-				root := t.TempDir()
-				enableWebhookTriggers(t, root)
-				path := filepath.Join(root, "workflow-opt-in.md")
-				source := "---\nstrict: false\non:\n  workflow_dispatch:\n" + flag + "  " + trigger + "\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
-				require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
-				result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
-				require.False(t, result.success)
-				assert.NotEmpty(t, result.validationResult.Errors)
-				assert.Empty(t, result.validationResult.WebhookSubscriptions)
-				_, err := os.Stat(filepath.Join(root, "workflow-opt-in.lock.yml"))
-				require.True(t, os.IsNotExist(err), "obsolete flat triggers must not emit a lock file")
-			})
-		}
-
+		t.Run(trigger, func(t *testing.T) {
+			root := t.TempDir()
+			enableWebhookTriggers(t, root)
+			path := filepath.Join(root, "workflow-opt-in.md")
+			source := "---\nstrict: false\non:\n  workflow_dispatch:\n  " + trigger + "\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+			require.False(t, result.success)
+			assert.NotEmpty(t, result.validationResult.Errors)
+			assert.Empty(t, result.validationResult.WebhookSubscriptions)
+			_, err := os.Stat(filepath.Join(root, "workflow-opt-in.lock.yml"))
+			require.True(t, os.IsNotExist(err), "misplaced gateway triggers must not emit a lock file")
+		})
 	}
 }
 
-func TestCompileGatewayDispatchRejectsExplicitDispatch(t *testing.T) {
+func TestCompileGatewayDispatchRejectsOtherTriggers(t *testing.T) {
 	for _, trigger := range []string{
 		"workflow_dispatch:", "workflow_dispatch: {}", "repository_dispatch:", "repository_dispatch: {}",
 		"repository_dispatch: {types: [manual]}", `repository_dispatch: {types: ["*"]}`,
+		"push:", "push: {}", "issues: {types: [opened]}", "pull_request: {}",
+		"schedule: daily", "workflow_call:", "workflow_run: {workflows: ['CI'], types: [completed]}",
+		"slash_command: review", "label_command: review", "future_event:",
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			root := t.TempDir()
@@ -396,7 +365,7 @@ func TestCompileGatewayDispatchRejectsExplicitDispatch(t *testing.T) {
 			assert.NotEmpty(t, result.validationResult.Errors)
 			assert.Empty(t, result.validationResult.WebhookSubscriptions)
 			_, err := os.Stat(filepath.Join(root, "mixed-dispatch.lock.yml"))
-			require.True(t, os.IsNotExist(err), "explicit dispatch conflicts must not emit a lock file")
+			require.True(t, os.IsNotExist(err), "exclusive gateway trigger conflicts must not emit a lock file")
 		})
 	}
 

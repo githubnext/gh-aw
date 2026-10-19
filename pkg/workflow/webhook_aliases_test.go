@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,7 @@ func TestFirstClassWebhookTriggers(t *testing.T) {
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
-			for _, shorthand := range []any{tt.alias, []any{"push", tt.alias}, "webhook-gateway"} {
+			for _, shorthand := range []any{tt.alias, []any{"push", tt.alias}} {
 				_, err = ParseWebhookSubscriptions(shorthand, "first-class")
 				require.ErrorContains(t, err, "on.gateway-dispatch")
 			}
@@ -134,12 +133,10 @@ func TestWebhookGatewayRejectsInvalidNamespace(t *testing.T) {
 	for name, gateway := range map[string]any{
 		"null": nil, "scalar": "projects-items", "boolean": true,
 		"list": []any{"projects-items"}, "empty": map[string]any{},
-		"native event":      map[string]any{"issues": nil},
-		"unknown":           map[string]any{"typo": map[string]any{}},
-		"singular projects": map[string]any{"projects-item": map[string]any{"project_id": "PVT_example"}},
-		"singular security": map[string]any{"security-alert": map[string]any{}},
-		"nested roles":      map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}, "roles": "all"},
-		"nested bots":       map[string]any{"security-alerts": map[string]any{}, "bots": []any{"cao-gateway"}},
+		"native event": map[string]any{"issues": nil},
+		"unknown":      map[string]any{"typo": map[string]any{}},
+		"nested roles": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}, "roles": "all"},
+		"nested bots":  map[string]any{"security-alerts": map[string]any{}, "bots": []any{"cao-gateway"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": gateway}, "gateway")
@@ -147,41 +144,5 @@ func TestWebhookGatewayRejectsInvalidNamespace(t *testing.T) {
 			assert.Empty(t, subscriptions)
 			assert.Empty(t, NormalizeGitHubAppWebhookEvents(map[string]any{"gateway-dispatch": gateway}))
 		})
-	}
-}
-
-func TestWebhookGatewayRejectsObsoleteTriggers(t *testing.T) {
-	for _, name := range []string{"projects-item", "security-alert", "gateway"} {
-		for _, input := range []any{name, []any{"push", name}, map[string]any{name: map[string]any{}},
-			map[string]any{"gateway": map[string]any{"security-alerts": map[string]any{}}, name: nil}} {
-			subscriptions, err := ParseWebhookSubscriptions(input, "legacy")
-			require.ErrorContains(t, err, "use on.gateway-dispatch")
-			assert.Empty(t, subscriptions)
-		}
-	}
-
-}
-
-func TestWebhookRejectsLegacyWorkflowFlag(t *testing.T) {
-	for trigger, config := range map[string]any{
-		"projects-items":  map[string]any{"project_id": "PVT_example"},
-		"security-alerts": map[string]any{"sources": "dependabot"},
-	} {
-		for _, flag := range []any{nil, false, true, "true", 1, map[string]any{}, []any{true}} {
-			t.Run(trigger+"/"+fmt.Sprint(flag), func(t *testing.T) {
-				on := map[string]any{trigger: config, "workflow_dispatch": nil}
-				if trigger == "security-alerts" {
-					on["repos"] = []any{"bar/baz", "foo/*"}
-				}
-				if flag != nil {
-					on["webhook-gateway"] = flag
-				}
-				subscriptions, err := ParseWebhookSubscriptions(on, "opt-in")
-				require.ErrorContains(t, err, "on.gateway-dispatch")
-				assert.Empty(t, subscriptions)
-				assert.Empty(t, ComputeGitHubAppManifestWebhookPermissions(on))
-				assert.Empty(t, NormalizeGitHubAppWebhookEvents(on))
-			})
-		}
 	}
 }

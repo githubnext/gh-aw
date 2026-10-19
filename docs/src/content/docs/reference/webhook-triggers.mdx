@@ -11,7 +11,7 @@ The dedicated [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-speci
 
 `on.gateway-dispatch.projects-items` and `on.gateway-dispatch.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. All gateway triggers belong inside `on.gateway-dispatch`. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a repository dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
 
-Native triggers such as `issues`, `pull_request`, and `push` remain unchanged. General `on.webhook` registration and `on.webhook-auth` are not supported.
+Native triggers such as `issues`, `pull_request`, and `push` remain unchanged in workflows without `gateway-dispatch`.
 
 External issue subscriptions use `on.gateway-dispatch.jira-issue`, `on.gateway-dispatch.linear-issue`, or `on.gateway-dispatch.azure-devops-issue` with the same repository opt-in and dispatch authorization. Their normalized activities, provider authentication requirements, and transition-evidence limitations are documented in [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/). The GitHub event and payload details below apply to Projects and security alerts.
 
@@ -29,8 +29,6 @@ Compilation rejects these triggers by default. Enabling them requires the reposi
 ```
 
 The repository's `webhook-gateway` remains a top-level boolean. Omitting it or setting it to `false` leaves the events disabled. Each subscribing workflow declares at least one supported trigger inside `on.gateway-dispatch`; an empty mapping or one containing only `repos`/`orgs` is rejected. These settings enable compilation only; they do not provision a hosted CAO server, grant dispatch authority, or resolve the RFC-033 integration requirements below. Native triggers do not require either setting.
-
-The previous workflow flag `on.webhook-gateway`, flat gateway triggers, root `on.repos`, nested `on.gateway` mapping, singular GitHub trigger names, and repository `webhook-triggers` setting are rejected. Move gateway triggers and shared `repos` inside `on.gateway-dispatch`, remove the workflow flag, and retain `{"webhook-gateway":true}` in `aw.json`. The normalized manifest and version 2 dispatch envelope are unchanged.
 
 ## Syntax
 
@@ -50,13 +48,13 @@ Resolve additional resource data with an authenticated GitHub App client.
 Treat notification URLs and fetched resource data as untrusted input.
 ```
 
-These triggers require `on.roles` with **write access or higher**. Omitting `roles` uses `[admin, maintainer, write]`; an explicit setting may contain only `write`, `maintain`/`maintainer`, and `admin`. `roles: all`, `read`, `triage`, and lists containing any weaker role fail compilation, including with `strict: false` or native triggers in the same workflow. A stricter subset such as `roles: [admin]` is allowed.
+These triggers require `on.roles` with **write access or higher**. Omitting `roles` uses `[admin, maintainer, write]`; an explicit setting may contain only `write`, `maintain`/`maintainer`, and `admin`. `roles: all`, `read`, `triage`, and lists containing any weaker role fail compilation, including with `strict: false`. A stricter subset such as `roles: [admin]` is allowed.
 
 The generated membership check authorizes the actual dispatch actor, not a sender or role claimed inside the webhook payload. Standard `on.bots` authorization remains available for the hosted CAO App; sending `repository_dispatch` already requires repository write access.
 
 ### Experimental first-class triggers
 
-`projects-items` and `security-alerts` appear inside `on.gateway-dispatch`. Native triggers, `roles`, and `bots` remain siblings of that mapping under `on`, not children of it. Explicit `workflow_dispatch` and `repository_dispatch` declarations cannot coexist with `gateway-dispatch`. The nested triggers use the activity `types` and `filters` of their corresponding catalog event:
+`projects-items` and `security-alerts` appear inside `on.gateway-dispatch`. Non-trigger settings such as `roles` and `bots` remain siblings of that mapping under `on`, not children of it. **Gateway dispatch is exclusive:** no other trigger can coexist with it. The nested triggers use the activity `types` and `filters` of their corresponding catalog event:
 
 | Frontmatter trigger | Original webhook event |
 | --- | --- |
@@ -169,18 +167,17 @@ on:
     label-command:
       name: review
       events: [issues, pull_request]
-      remove_label: false
 ---
 
 Notifications: ${{ toJSON(gateway.events) }}
 Resolve each referenced item or comment through an authenticated GitHub client.
 ```
 
-The hyphenated nested keys reuse the top-level `slash_command` and `label_command` schemas. Slash commands accept null (workflow filename default), a name string, or an object with `name`, `events`, and `strategy`. Label commands accept a name string or an object with `name`/`names`, `events`, `remove_label`, and `strategy`; an object without names defaults to the workflow filename. Omitted `events` or `*` selects all supported sources. Strategies retain their native allowed values, but gateway transport does not generate native listeners, manual dispatch, or centralized routers. Top-level native `slash_command`, `command`, and `label_command` cannot coexist with `gateway-dispatch`; nest them instead.
+The hyphenated nested keys reuse the top-level `slash_command` and `label_command` schemas, except that gateway label commands cannot disable label consumption. Slash commands accept null (workflow filename default), a name string, or an object with `name`, `events`, and `strategy`. Label commands accept a name string or an object with `name`/`names`, `events`, optional `remove_label: true`, and `strategy`; an object without names defaults to the workflow filename. Omitted `events` or `*` selects all supported sources. Strategies retain their native allowed values, but gateway transport does not generate native listeners, manual dispatch, or centralized routers. Top-level native `slash_command`, `command`, and `label_command` cannot coexist with `gateway-dispatch`; nest them instead.
 
 The server matches slash tokens at character zero, case-sensitively, using exact names, trailing-prefix `*`, or catch-all `*`. Label names match exactly; label `*` is literal. Source event/action selection, issue-versus-PR comment filtering, and original body/label matching all happen on the server before projection. The runner does not fetch or filter original bodies. The [command source catalog](/gh-aw/specs/webhook-gateway-specification/#gateway-command-subscriptions) defines supported events, actions, and exact canonical item/comment URLs.
 
-`remove_label` defaults to `true`, requesting server-side label consumption after durable admission. Consumption requires separately approved source write authority and durable deduplication; an unsupported/unapproved server must remain nonactivating, not silently ignore the option. This setting does not grant workflow-token write permissions. Use `false` for read-only label matching.
+Gateway label commands require server-side label consumption after durable admission. Omit `remove_label` or set it to `true`; `remove_label: false` is unsupported and rejected by compilation and runtime validation. Consumption requires separately approved source write authority and durable deduplication; an unsupported/unapproved server must remain nonactivating, not silently ignore consumption. This setting does not grant workflow-token write permissions.
 
 Minimal command payloads contain only the canonical GitHub HTML `url`, one original action in `type`, and two singleton filter arrays: `event` plus `command` (actual matched token without `/`) or `label` (exact matching label). Bodies, arguments, identities, and other labels are never forwarded. `repos` and `orgs` apply to both command families. Additional content must be fetched inside the workflow through provider-authenticated clients.
 
@@ -370,7 +367,7 @@ GitHub families carry exactly one original action, such as `["edited"]` or `["cr
 
 A selector does not authorize forwarding its full field, unselected array elements, siblings, or native resource objects. Additional data must be resolved **inside the workflow** with an authenticated GitHub App client so GitHub enforces access; the validator does not fetch it. Use configured trusted API endpoints, never attach credentials to arbitrary payload URLs or follow credential-bearing redirects, and handle denied/deleted resources without fallback to webhook bodies.
 
-At gateway ingress, `aw_context` contains only `webhook`; supplied derived `items` or resource-detail side channels are rejected. Version 1, legacy singleton envelopes, native-body payloads, URL-only security payloads without `type`, and the earlier `resource-url-types/v1`/`resource-url-types-filters/v1` policies are unsupported. The version 2 batch envelope remains unchanged, but receivers must implement the explicit `resource-url-types-filters/v2` policy rather than ignoring it.
+At gateway ingress, `aw_context` contains only `webhook`; supplied derived `items` or resource-detail side channels are rejected. Receivers must emit the version 2 batch envelope and implement the explicit `resource-url-types-filters/v2` policy. Unrecognized versions/policies, non-batch envelopes, native-body payloads, and payloads without `type` are rejected.
 
 The shared `webhook.event` applies to every delivery. Code scanning and Dependabot use separate batches even if one workflow subscribes to both. Per-delivery event overrides are rejected. Repeated delivery IDs with identical forwarded payloads collapse in first-seen order; conflicting payloads for one ID fail the entire dispatch. Distinct deliveries affecting the same item are retained, including different activity types and Status transitions. Input order is preserved, but does not imply chronological delivery.
 
@@ -395,7 +392,7 @@ See GitHub's [repository dispatch API](https://docs.github.com/en/rest/repos/rep
 
 ### Existing dispatch triggers
 
-Explicit `on.workflow_dispatch` and `on.repository_dispatch` declarations are rejected whenever `on.gateway-dispatch` is present, including null declarations, empty objects, and disjoint literal repository-dispatch types. The compiler alone emits the gateway's restricted `repository_dispatch` route. Other native triggers, such as `push` and `issues`, remain independent and may coexist.
+Every other trigger is rejected whenever `on.gateway-dispatch` is present, including `push`, `issues`, `pull_request`, schedules, workflow calls/runs, native commands, explicit dispatch declarations, and unknown/future event names. Null declarations, empty objects, `strict: false`, and disjoint dispatch types do not bypass this rule. The compiler alone emits the gateway's restricted `repository_dispatch` route. Multiple subscriptions inside `gateway-dispatch` and supported non-trigger `on` settings remain allowed.
 
 `workflow_dispatch` remains available in workflows without `gateway-dispatch`. It is a separate manual/API trigger, not the transport emitted for webhook subscriptions. Its named inputs and required `ref` do not implement this webhook envelope or receiver contract. See [GitHub's `workflow_dispatch` reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
 

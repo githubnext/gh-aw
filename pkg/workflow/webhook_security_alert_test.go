@@ -106,7 +106,7 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		})
 	}
 
-	for _, shorthand := range []any{"security-alert", []any{"push", "security-alert"}, "security-alerts", []any{"push", "security-alerts"}} {
+	for _, shorthand := range []any{"security-alerts", []any{"push", "security-alerts"}} {
 		_, err := ParseWebhookSubscriptions(shorthand, "security-agent")
 		require.ErrorContains(t, err, "on.gateway-dispatch")
 	}
@@ -154,7 +154,7 @@ func TestSecurityAlertRejectsInvalidRepositorySelectors(t *testing.T) {
 
 func TestWebhookRepositoriesAreSharedOnlyWithRepositoryAwareEvents(t *testing.T) {
 	_, err := ParseWebhookSubscriptions(map[string]any{"repos": []any{"bar/baz"}}, "missing-gateway")
-	require.ErrorContains(t, err, "use on.gateway-dispatch")
+	require.ErrorContains(t, err, "under on.gateway-dispatch")
 
 	on := map[string]any{"gateway-dispatch": map[string]any{
 		"repos":              []any{"Bar/Baz", "foo/*"},
@@ -227,7 +227,7 @@ func TestWebhookOrganizationSelectors(t *testing.T) {
 		require.ErrorContains(t, err, "on.gateway-dispatch.orgs")
 	}
 	_, err := ParseWebhookSubscriptions(map[string]any{"orgs": []any{"github"}}, "flat-orgs")
-	require.ErrorContains(t, err, "use on.gateway-dispatch")
+	require.ErrorContains(t, err, "under on.gateway-dispatch")
 	_, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"orgs": []any{"github"}}}, "no-trigger")
 	require.ErrorContains(t, err, "at least one nested gateway trigger")
 }
