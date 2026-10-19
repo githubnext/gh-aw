@@ -4,8 +4,11 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/github"
@@ -72,6 +75,7 @@ type episodeOutcomeSnapshot struct {
 	report   EpisodeOutcomeObservation
 	at       time.Time
 	conflict bool
+	targets  []string
 }
 
 // latestEpisodeOutcomes deduplicates by action identity, never by acceptance.
@@ -106,6 +110,7 @@ func selectEpisodeOutcomeSnapshots(observations []EpisodeOutcomeObservation) (ma
 		if err != nil {
 			return nil, fmt.Errorf("invalid checked_at for outcome in run %d: %w", observation.RunID, err)
 		}
+		observation.CheckedAt = at.UTC().Format(time.RFC3339Nano)
 		identity := observation.ItemID
 		if identity == "" {
 			identity = episodeOutcomeLegacyKey(observation)
@@ -114,34 +119,63 @@ func selectEpisodeOutcomeSnapshots(observations []EpisodeOutcomeObservation) (ma
 		previous, exists := latest[key]
 		if !exists || at.After(previous.at) {
 			latest[key] = episodeOutcomeSnapshot{report: observation, at: at}
-		} else if at.Equal(previous.at) && observation.OutcomeStatus != previous.report.OutcomeStatus {
+		} else if at.Equal(previous.at) && !episodeOutcomeObservationsEqual(observation, previous.report) {
 			previous.conflict = true
+			target := episodeOutcomeLegacyKey(observation)
+			if target != episodeOutcomeLegacyKey(previous.report) && !slices.Contains(previous.targets, target) {
+				previous.targets = append(previous.targets, target)
+			}
 			latest[key] = previous
 		}
 	}
 	return latest, nil
 }
 
+func episodeOutcomeObservationsEqual(a, b EpisodeOutcomeObservation) bool {
+	return a.RunID == b.RunID &&
+		a.RunItemCount == b.RunItemCount &&
+		a.OutcomeEvaluation == b.OutcomeEvaluation &&
+		a.ItemID == b.ItemID &&
+		a.Type == b.Type &&
+		a.ObjectURL == b.ObjectURL &&
+		a.ObjectNumber == b.ObjectNumber &&
+		a.TracedRootURL == b.TracedRootURL &&
+		a.AttributionStatus == b.AttributionStatus &&
+		a.AttributionSource == b.AttributionSource &&
+		a.Repo == b.Repo &&
+		a.Detail == b.Detail &&
+		a.TimeToOutcomeHours == b.TimeToOutcomeHours &&
+		a.HumanComments == b.HumanComments &&
+		a.HumanEdits == b.HumanEdits &&
+		a.HumanReviews == b.HumanReviews &&
+		a.ZeroTouch == b.ZeroTouch &&
+		a.ObjectiveValue == b.ObjectiveValue &&
+		(a.ObjectiveLabels == nil) == (b.ObjectiveLabels == nil) &&
+		slices.Equal(a.ObjectiveLabels, b.ObjectiveLabels) &&
+		a.CreatedAt == b.CreatedAt &&
+		a.CheckedAt == b.CheckedAt &&
+		a.EvalError == b.EvalError
+}
+
 func unshadowedEpisodeOutcomeReports(latest map[string]episodeOutcomeSnapshot) ([]EpisodeOutcomeObservation, error) {
-	modernTimes := make(map[string]time.Time)
+	preciseTimes := map[int]map[string]time.Time{1: {}, 2: {}}
 	for _, item := range latest {
-		if item.report.ItemID != "" {
+		if precision := episodeOutcomeIdentityPrecision(item.report); precision > 0 {
 			key := episodeOutcomeLegacyKey(item.report)
-			if at, exists := modernTimes[key]; !exists || item.at.Before(at) {
-				modernTimes[key] = item.at
+			if at, exists := preciseTimes[precision][key]; !exists || item.at.Before(at) {
+				preciseTimes[precision][key] = item.at
 			}
 		}
 	}
 	reports := make([]EpisodeOutcomeObservation, 0, len(latest))
-	for _, item := range latest {
-		if item.report.ItemID == "" {
-			if at, modern := modernTimes[episodeOutcomeLegacyKey(item.report)]; modern {
-				// A legacy row cannot identify which precise action a newer status replaces.
-				if item.at.After(at) {
-					return nil, fmt.Errorf("legacy outcome for run %d is newer than precise item observations; reevaluate the run", item.report.RunID)
-				}
-				continue
-			}
+	for _, key := range slices.Sorted(maps.Keys(latest)) {
+		item := latest[key]
+		shadowed, err := episodeOutcomeSnapshotSuperseded(item, preciseTimes)
+		if err != nil {
+			return nil, err
+		}
+		if shadowed {
+			continue
 		}
 		if item.conflict {
 			identity := item.report.ItemID
@@ -153,6 +187,41 @@ func unshadowedEpisodeOutcomeReports(latest map[string]episodeOutcomeSnapshot) (
 		reports = append(reports, item.report)
 	}
 	return reports, nil
+}
+
+func episodeOutcomeSnapshotSuperseded(item episodeOutcomeSnapshot, preciseTimes map[int]map[string]time.Time) (bool, error) {
+	targets := append([]string{episodeOutcomeLegacyKey(item.report)}, item.targets...)
+	slices.Sort(targets)
+	for _, target := range targets {
+		shadowed := false
+		for precision := 2; precision > episodeOutcomeIdentityPrecision(item.report); precision-- {
+			if at, modern := preciseTimes[precision][target]; modern {
+				// A legacy row cannot identify which precise action a newer status replaces.
+				if item.at.After(at) {
+					return false, fmt.Errorf("legacy outcome for run %d is newer than precise item observations; reevaluate the run", item.report.RunID)
+				}
+				shadowed = true
+				break
+			}
+		}
+		if !shadowed {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// Identity precision increases from missing IDs to positional IDs to stable IDs.
+func episodeOutcomeIdentityPrecision(item EpisodeOutcomeObservation) int {
+	if item.ItemID == "" {
+		return 0
+	}
+	if suffix, positional := strings.CutPrefix(item.ItemID, "item-"); positional {
+		if index, err := strconv.Atoi(suffix); err == nil && index > 0 {
+			return 1
+		}
+	}
+	return 2
 }
 
 func episodeOutcomeLegacyKey(item EpisodeOutcomeObservation) string {
@@ -217,7 +286,7 @@ func summarizeEpisodeOutcomes(episode episodeOutcomeMembership, byRun map[int64]
 			return row, err
 		}
 		for _, item := range byRun[id] {
-			legacy = legacy || item.ItemID == ""
+			legacy = legacy || episodeOutcomeIdentityPrecision(item) < 2
 			incompleteEvidence = incompleteEvidence || item.RunItemCount != len(byRun[id])
 		}
 	}
@@ -285,7 +354,7 @@ func qualifyEpisodeOutcomes(row *EpisodeOutcomeData, episode episodeOutcomeMembe
 		row.Qualifications = append(row.Qualifications, "Some selected runs have no outcome observations; this does not establish that they produced no outputs.")
 	}
 	if legacy {
-		row.Qualifications = append(row.Qualifications, "Legacy observations lack item_id; indistinguishable actions are coalesced and efficiency is unavailable. Reevaluate these runs.")
+		row.Qualifications = append(row.Qualifications, "Legacy observations lack stable action identities; indistinguishable actions may be coalesced and efficiency is unavailable. Reevaluate these runs.")
 	}
 	if incompleteEvidence {
 		row.Qualifications = append(row.Qualifications, "Outcome item counts are missing or inconsistent; the supplied observations do not establish complete evidence for selected runs.")

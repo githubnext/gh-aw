@@ -12,6 +12,9 @@ import (
 )
 
 func episodeObservation(runID int64, itemID string, status OutcomeStatus) EpisodeOutcomeObservation {
+	if itemID != "" {
+		itemID = "test-action-" + itemID
+	}
 	return EpisodeOutcomeObservation{
 		RunID: runID, RunItemCount: 1,
 		OutcomeReport: OutcomeReport{
@@ -19,6 +22,138 @@ func episodeObservation(runID int64, itemID string, status OutcomeStatus) Episod
 			CreatedAt: "2026-10-01T01:00:00Z", CheckedAt: "2026-10-02T01:00:00Z",
 			OutcomeEvaluation: outcomeEvidence(status, EvidenceStrong, string(status)),
 		},
+	}
+}
+
+func TestLatestEpisodeOutcomesConflictingFields(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		mutate func(*EpisodeOutcomeObservation)
+	}{
+		{"status", func(item *EpisodeOutcomeObservation) { item.OutcomeStatus = OutcomeStatusRejected }},
+		{"strength", func(item *EpisodeOutcomeObservation) { item.EvidenceStrength = EvidenceWeak }},
+		{"signal", func(item *EpisodeOutcomeObservation) { item.Signal = "target_exists_only" }},
+		{"zero touch", func(item *EpisodeOutcomeObservation) { item.ZeroTouch = true }},
+		{"latency", func(item *EpisodeOutcomeObservation) { item.TimeToOutcomeHours = 1 }},
+		{"objective value", func(item *EpisodeOutcomeObservation) { item.ObjectiveValue = 10 }},
+		{"objective labels", func(item *EpisodeOutcomeObservation) { item.ObjectiveLabels = []string{"security"} }},
+		{"item count", func(item *EpisodeOutcomeObservation) { item.RunItemCount++ }},
+		{"target", func(item *EpisodeOutcomeObservation) { item.ObjectNumber++ }},
+		{"type", func(item *EpisodeOutcomeObservation) { item.Type = "update_issue" }},
+		{"error", func(item *EpisodeOutcomeObservation) { item.EvalError = "missing evidence" }},
+		{"detail", func(item *EpisodeOutcomeObservation) { item.Detail = "object still exists" }},
+		{"attribution", func(item *EpisodeOutcomeObservation) { item.AttributionStatus = "unmapped" }},
+		{"comments", func(item *EpisodeOutcomeObservation) { item.HumanComments++ }},
+		{"edits", func(item *EpisodeOutcomeObservation) { item.HumanEdits++ }},
+		{"reviews", func(item *EpisodeOutcomeObservation) { item.HumanReviews++ }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, legacy := range []bool{false, true} {
+				if legacy && (tc.name == "target" || tc.name == "type") {
+					continue
+				}
+				first := episodeObservation(1, "item-1", OutcomeStatusAccepted)
+				if legacy {
+					first.ItemID = ""
+				}
+				conflict := first
+				tc.mutate(&conflict)
+				newer := first
+				newer.CheckedAt = "2026-10-03T01:00:00Z"
+				for _, superseded := range []bool{false, true} {
+					third := first
+					if superseded {
+						third = newer
+					}
+					items := []EpisodeOutcomeObservation{first, conflict, third}
+					for _, order := range [][3]int{{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}} {
+						input := []EpisodeOutcomeObservation{items[order[0]], items[order[1]], items[order[2]]}
+						got, err := latestEpisodeOutcomes(input)
+						if superseded {
+							require.NoError(t, err)
+							assert.Equal(t, []EpisodeOutcomeObservation{newer}, got)
+						} else {
+							require.ErrorContains(t, err, "conflicting outcomes")
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestLatestEpisodeOutcomesEquivalentTimestamps(t *testing.T) {
+	t.Parallel()
+	first := episodeObservation(1, "item-1", OutcomeStatusAccepted)
+	offset := first
+	offset.CheckedAt = "2026-10-02T03:00:00+02:00"
+	for _, input := range [][]EpisodeOutcomeObservation{{first, offset}, {offset, first}} {
+		got, err := latestEpisodeOutcomes(input)
+		require.NoError(t, err)
+		assert.Equal(t, []EpisodeOutcomeObservation{first}, got)
+	}
+}
+
+func TestEpisodeOutcomesPositionalIdentityMigration(t *testing.T) {
+	t.Parallel()
+	first := episodeObservation(1, "first", OutcomeStatusAccepted)
+	second := episodeObservation(1, "second", OutcomeStatusAccepted)
+	first.RunItemCount, second.RunItemCount = 2, 2
+	older := first
+	older.ItemID = "item-1"
+	older.CheckedAt = "2026-10-01T01:00:00Z"
+	for _, input := range [][]EpisodeOutcomeObservation{{older, first, second}, {second, first, older}} {
+		data, err := buildEpisodeOutcomes(episodeLogs(1), input, map[int64]episodeOutcomeCost{1: episodeCost(6)})
+		require.NoError(t, err)
+		assert.Equal(t, 2, data.Episodes[0].Summary.Accepted)
+		assert.Equal(t, "complete", data.Episodes[0].OutcomeCoverage)
+		require.NotNil(t, data.Episodes[0].CostPerAcceptedOutcome)
+		assert.InDelta(t, 3.0, *data.Episodes[0].CostPerAcceptedOutcome, 1e-9)
+	}
+	data, err := buildEpisodeOutcomes(episodeLogs(1), []EpisodeOutcomeObservation{older}, map[int64]episodeOutcomeCost{1: episodeCost(6)})
+	require.NoError(t, err)
+	assert.Equal(t, "partial", data.Episodes[0].OutcomeCoverage)
+	assert.Nil(t, data.Episodes[0].CostPerAcceptedOutcome)
+
+	legacy := older
+	legacy.ItemID = ""
+	another := older
+	another.ItemID = "item-2"
+	for _, input := range [][]EpisodeOutcomeObservation{{legacy, older, another}, {another, older, legacy}} {
+		data, err = buildEpisodeOutcomes(episodeLogs(1), input, map[int64]episodeOutcomeCost{1: episodeCost(6)})
+		require.NoError(t, err)
+		assert.Equal(t, 2, data.Episodes[0].Summary.Total, "positional IDs retain distinct actions without counting missing-ID aliases")
+		assert.Equal(t, "partial", data.Episodes[0].OutcomeCoverage)
+		assert.Nil(t, data.Episodes[0].CostPerAcceptedOutcome)
+	}
+
+	older.CheckedAt = "2026-10-03T01:00:00Z"
+	_, err = latestEpisodeOutcomes([]EpisodeOutcomeObservation{first, older, second})
+	require.ErrorContains(t, err, "newer than precise item observations")
+}
+
+func TestEpisodeOutcomesConflictingPositionalTargets(t *testing.T) {
+	t.Parallel()
+	first := episodeObservation(1, "first", OutcomeStatusAccepted)
+	second := episodeObservation(1, "second", OutcomeStatusAccepted)
+	second.ObjectNumber++
+	older := first
+	older.ItemID = "item-1"
+	older.CheckedAt = "2026-10-01T01:00:00Z"
+	conflict := older
+	conflict.ObjectNumber = second.ObjectNumber
+	for _, input := range [][]EpisodeOutcomeObservation{
+		{older, conflict, first},
+		{first, conflict, older},
+		{conflict, first, older},
+	} {
+		_, err := latestEpisodeOutcomes(input)
+		require.ErrorContains(t, err, "conflicting outcomes", "one matching target cannot hide an ambiguous positional alias")
+		input = append(input, second)
+		got, err := latestEpisodeOutcomes(input)
+		require.NoError(t, err)
+		assert.Equal(t, []EpisodeOutcomeObservation{first, second}, got, "all alternative targets must be superseded")
 	}
 }
 

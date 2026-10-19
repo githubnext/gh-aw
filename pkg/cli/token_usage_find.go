@@ -16,10 +16,12 @@ import (
 
 // findTokenUsageFile searches for token-usage.jsonl in the run directory
 func findTokenUsageFile(runDir string) string {
-	usageArtifactCandidate := filepath.Join(runDir, "usage", "agent", "token_usage.jsonl")
-	if fileutil.FileExists(usageArtifactCandidate) {
-		tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
-		return usageArtifactCandidate
+	if usageDir := findArtifactDir(runDir, "usage", ""); usageDir != "" {
+		usageArtifactCandidate := filepath.Join(usageDir, "agent", "token_usage.jsonl")
+		if fileutil.FileExists(usageArtifactCandidate) {
+			tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
+			return usageArtifactCandidate
+		}
 	}
 
 	// Primary path: sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
@@ -77,6 +79,12 @@ func findAgentUsageFile(runDir string) string {
 		tokenUsageLog.Printf("Found agent usage file at primary path: %s", primary)
 		return primary
 	}
+	if usageDir := findArtifactDir(runDir, "usage", ""); usageDir != "" {
+		candidate := filepath.Join(usageDir, agentUsageJSONPath)
+		if fileutil.FileExists(candidate) {
+			return candidate
+		}
+	}
 
 	var found string
 	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
@@ -103,7 +111,10 @@ func findAgentUsageFile(runDir string) string {
 }
 
 func findUsageJSONLFiles(runDir string) ([]string, []string) {
-	usageDir := filepath.Join(runDir, "usage")
+	usageDir := findArtifactDir(runDir, "usage", "")
+	if usageDir == "" {
+		usageDir = filepath.Join(runDir, "usage")
+	}
 	if _, err := os.Stat(usageDir); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil

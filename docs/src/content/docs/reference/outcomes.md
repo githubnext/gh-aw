@@ -190,17 +190,24 @@ Record outcomes for each selected source run. Use `--output <directory>` on
 both commands when downloaded `run-*` artifacts are outside the default
 `.github/aw/logs` directory. The episode command reads usage artifacts directly,
 including detection usage, rather than summing agent-only cached cost.
+Accounting sources are selected separately for each execution phase before
+summing independent stream totals. Agent JSON remains a fallback when agent
+JSONL has no usable cost; an executed phase without accounting qualifies cost
+coverage as partial.
 Use `--verbose` when generating logs so that standalone episodes are retained.
 
 The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
-per-item records include `item_id` (the action's source-manifest position) and
+per-item records include `item_id` (a SHA-256 digest of the source action record,
+with an occurrence number for indistinguishable records) and
 `run_item_count` (the number of evaluated actions). The join matches `run_id`
 against episode `run_ids`, selects the latest `checked_at` for each source-run
 item, and reuses CLI outcome classifications. Repeated snapshots do not add
 accepted outcomes, and a later rejection replaces a previous acceptance.
-Conflicting statuses at the latest observation time produce an error rather
-than an arbitrary verdict. Distinct actions against the same object remain
-distinct items.
+Conflicting evaluation fields at the latest observation time, including
+evidence strength, objective value, and item count, produce an error rather
+than an arbitrary verdict. A newer observation supersedes older conflicts.
+Reordering or reserializing unchanged source records does not change action
+identities; distinct actions against the same object remain distinct items.
 
 JSON returns `episodes[]` and `unmatched_outcome_run_ids`. Each episode contains
 the selected `run_ids`, latest `items`, the existing outcome `summary`, and:
@@ -232,7 +239,10 @@ A newer legacy row produces an error requiring reevaluation rather than
 overriding ambiguous precise items or adding an extra item.
 Indistinguishable legacy-only actions can be undercounted, so these reports are
 qualified and efficiency is unavailable; reevaluate those runs to record action
-identities and counts. The report does
+identities and counts. Earlier positional IDs (`item-1`, `item-2`, and so on)
+also lack reorder-stable identity and disable efficiency when retained.
+Content-derived identities supersede matching positional observations under
+the same timestamp rule, rather than counting them again. The report does
 not infer missing episode members, reevaluate GitHub objects, or automatically
 schedule observations. Generate its schema with
 `gh aw json-schema outcomes-episodes`.

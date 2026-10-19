@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -116,8 +117,9 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 	}
 
 	reports := make([]OutcomeReport, 0, len(items))
+	occurrences := make(map[[sha256.Size]byte]int)
 	skipped := 0
-	for index, item := range items {
+	for _, item := range items {
 		if item.Type == "noop" || item.Type == "missing_tool" || item.Type == "missing_data" || item.Type == "report_incomplete" {
 			skipped++
 			continue
@@ -131,9 +133,9 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 			outcomeEvalLog.Printf("No evaluator registered for type %q, using generic sticky", item.Type)
 			eval = evalGenericSticky
 		}
+		itemID := outcomeItemID(item, occurrences)
 		report := eval(ctx, item, repo)
-		// The immutable source manifest order identifies actions, not target objects.
-		report.ItemID = fmt.Sprintf("item-%d", index+1)
+		report.ItemID = itemID
 		report.CreatedAt = item.Timestamp
 		report.CheckedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		report.OutcomeEvaluation = normalizeOutcomeEvaluation(report)
@@ -145,6 +147,18 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 	}
 	outcomeEvalLog.Printf("Outcome evaluation complete: reports=%d, skipped=%d", len(reports), skipped)
 	return reports
+}
+
+func outcomeItemID(item CreatedItemReport, occurrences map[[sha256.Size]byte]int) string {
+	source, err := json.Marshal(item)
+	if err != nil {
+		outcomeEvalLog.Printf("Cannot identify safe output item: %v", err)
+		return ""
+	}
+	digest := sha256.Sum256(source)
+	// Only indistinguishable source records need an occurrence number.
+	occurrences[digest]++
+	return fmt.Sprintf("item-sha256-%x-%d", digest, occurrences[digest])
 }
 
 // ComputeOutcomeSummary aggregates outcome reports into a summary.

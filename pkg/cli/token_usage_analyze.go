@@ -62,49 +62,76 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 	tokenUsageLog.Printf("Analyzing token usage (AIC only) in: %s", runDir)
 
 	usageJSONLFiles, warnings := findUsageJSONLFiles(runDir)
-	var totalAIC float64
-	var found bool
 	if len(usageJSONLFiles) > 0 {
 		console.LogVerbose(verbose, "  Found usage JSONL files: "+strings.Join(usageJSONLFiles, ", "))
-		var fileWarnings []string
-		var err error
-		totalAIC, found, fileWarnings, err = sumAICFromUsageJSONLFilesWithWarnings(usageJSONLFiles)
+	}
+	phaseFiles := groupTokenUsageAICPhaseFiles(runDir, usageJSONLFiles)
+	phases := make(map[string]*TokenUsageSummary)
+	seenRequestIDs := make(map[string]struct{})
+	for _, phase := range []string{"agent", "detection", "evals"} {
+		files := phaseFiles[phase]
+		if len(files) == 0 {
+			continue
+		}
+		total, found, fileWarnings, err := sumAICFromUsageJSONLFilesWithSeen(files, seenRequestIDs)
 		if err != nil {
 			return nil, err
 		}
-		warnings = append(warnings, fileWarnings...)
+		if !found && len(fileWarnings) == 0 && !slices.ContainsFunc(files, func(path string) bool {
+			return strings.Contains(strings.ToLower(filepath.Base(path)), "usage")
+		}) {
+			continue
+		}
+		if phase == "detection" && !found && len(fileWarnings) == 0 {
+			continue // Collection creates an empty detection placeholder even when the phase was skipped.
+		}
+		phases[phase] = &TokenUsageSummary{TotalAIC: total, AICFound: found, Warnings: fileWarnings}
 	}
+	markTokenUsageExecutedPhases(runDir, phases)
+	if err := applyTokenUsageAICFallbacks(runDir, verbose, usageJSONLFiles, seenRequestIDs, phases); err != nil {
+		return nil, err
+	}
+	return combineTokenUsageAICPhases(phases, warnings), nil
+}
 
+func applyTokenUsageAICFallbacks(runDir string, verbose bool, usageJSONLFiles []string, seenRequestIDs map[string]struct{}, phases map[string]*TokenUsageSummary) error {
+	agent := phases["agent"]
+	if agent == nil {
+		agent = &TokenUsageSummary{}
+	}
 	filePath := findTokenUsageFile(runDir)
 	if filePath != "" && !slices.Contains(usageJSONLFiles, filePath) {
-		fileInfo, _ := os.Stat(filePath)
-		if fileInfo != nil {
-			console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
-		}
-
-		fileAIC, fileFound, fileWarnings, err := sumAICFromUsageJSONLFilesWithWarnings([]string{filePath})
+		phases["agent"] = agent
+		fileAIC, fileFound, fileWarnings, err := sumAICFromUsageJSONLFilesWithSeen([]string{filePath}, seenRequestIDs)
 		if err != nil {
-			if !found {
-				return nil, err
+			if !tokenUsageAICPhaseCostFound(phases) {
+				return err
 			}
-			warnings = append(warnings, fmt.Sprintf("Cannot inspect usage file %s; observed cost may be incomplete: %v", filepath.Base(filePath), err))
+			addTokenUsageWarning(agent, fmt.Sprintf("Cannot inspect usage file %s; observed cost may be incomplete: %v", filepath.Base(filePath), err))
 		} else {
-			warnings = append(warnings, fileWarnings...)
+			agent.Warnings = append(agent.Warnings, fileWarnings...)
 			// Usage artifacts remain authoritative; inspect other layouts for gaps
 			// without counting a mirrored proxy stream a second time.
-			if !found {
-				totalAIC, found = fileAIC, fileFound
+			if !agent.AICFound {
+				agent.TotalAIC, agent.AICFound = fileAIC, fileFound
 			}
 		}
 	}
-	if found {
-		for _, warning := range warnings {
-			tokenUsageLog.Printf("AIC-only analysis warning: %s", warning)
+	if !agent.AICFound {
+		fallback, err := analyzeAgentUsageAICOnly(runDir, verbose, nil)
+		if err != nil {
+			if !tokenUsageAICPhaseCostFound(phases) {
+				return err
+			}
+			addTokenUsageWarning(agent, fmt.Sprintf("Cannot inspect agent usage; observed cost may be incomplete: %v", err))
+			phases["agent"] = agent
+		} else if fallback != nil {
+			agent.TotalAIC, agent.AICFound = fallback.TotalAIC, fallback.AICFound
+			agent.Warnings = append(agent.Warnings, fallback.Warnings...)
+			phases["agent"] = agent
 		}
-		return &TokenUsageSummary{TotalAIC: totalAIC, AICFound: true, Warnings: warnings}, nil
 	}
-
-	return analyzeAgentUsageAICOnly(runDir, verbose, warnings)
+	return nil
 }
 
 func analyzeAgentUsageAICOnly(runDir string, verbose bool, warnings []string) (*TokenUsageSummary, error) {

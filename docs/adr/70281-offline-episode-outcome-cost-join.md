@@ -12,9 +12,9 @@
 
 ### Decision
 
-The proposed offline `gh aw outcomes episodes` command joins existing artifacts — logs episode membership, outcome JSONL, and downloaded usage — by source `run_id`, keeps only the latest observation per action identity, and reports accepted outcomes, observed AIC, and `cost_per_accepted_outcome`. New outcome JSONL records gain a manifest-position `item_id` and `run_item_count` so deduplication is by action identity (never by acceptance) and evidence completeness can be checked; modern item identities supersede matching legacy observations only when all matching precise observations are at least as recent, while legacy-only evidence remains conservatively coalesced and qualified.
+The proposed offline `gh aw outcomes episodes` command joins existing artifacts — logs episode membership, outcome JSONL, and downloaded usage — by source `run_id`, keeps only the latest observation per action identity, and reports accepted outcomes, observed AIC, and `cost_per_accepted_outcome`. New outcome JSONL records gain a content-derived `item_id` and `run_item_count` so deduplication is by action identity (never by acceptance) and evidence completeness can be checked. IDs combine a SHA-256 digest of the source record with an occurrence number for indistinguishable records, preserving distinct actions without depending on other items' order. Modern item identities supersede matching legacy observations, including earlier positional IDs, only when all matching precise observations are at least as recent; retained legacy evidence is qualified and disables efficiency.
 
-The report is explicitly a selected-run snapshot (`membership_scope: selected_runs`): missing outcomes, missing/unpriced/malformed usage, incomplete item counts, partial membership, or retained legacy records lacking `item_id` suppress the efficiency figure (set to `null`), as does having no accepted outcomes. Qualifications and coverage fields expose evidence gaps, and the checked-in JSON schema (`gh aw json-schema outcomes-episodes`) defines the output contract.
+The report is explicitly a selected-run snapshot (`membership_scope: selected_runs`): missing outcomes, missing/unpriced/malformed usage, incomplete item counts, partial membership, or retained records lacking stable action identities suppress the efficiency figure (set to `null`), as does having no accepted outcomes. Qualifications and coverage fields expose evidence gaps, and the checked-in JSON schema (`gh aw json-schema outcomes-episodes`) defines the output contract.
 
 The command reuses the AIC usage reader for both cost and completeness diagnostics, including detection usage, rather than maintaining a second scanner with potentially different parsing rules. Successful JSON and text reports use the configured Cobra stdout writer, and warnings use its stderr writer, so callers can capture reports independently of diagnostics.
 
@@ -45,7 +45,7 @@ Always compute `observed_aic / accepted` from whatever data is available. Simple
 - A new command, schema, and JSONL fields (`item_id`, `run_item_count`) must be maintained for compatibility.
 
 #### Neutral
-- Conflicting observations at an item's latest timestamp are treated as an error requiring reevaluation rather than resolved heuristically.
+- Conflicting evaluation fields at an item's latest timestamp, including evidence strength and summary inputs, are treated as an error requiring reevaluation rather than resolved heuristically. Newer observations supersede older conflicts consistently regardless of input order.
 - A newer ambiguous legacy snapshot causes an error until every matching precise item's observation is refreshed to at least that timestamp.
 - Optional lineage/collection coverage from logs is copied as `membership_coverage` without depending on the episode producer's internal coverage implementation.
 
