@@ -587,6 +587,10 @@ gh aw logs --ref main --parse --json      # With markdown/JSON output for branch
 
 With `--json`, the output also includes deterministic lineage data under `.episodes[]` and `.edges[]`. Use these fields to group orchestrated runs into execution episodes instead of reconstructing relationships from `.runs[]` alone.
 
+Episode totals cover selected runs only. `recorded_roots[]` preserves canonical root identities from recorded context, while `representative_run_id` and `representative_workflow` explicitly name the selected-data representative (compatible aliases of `root_run_id` and `primary_workflow`). `coverage` reports `scope: selected_runs`, `status: unknown` or `partial`, reason codes, missing recorded parent run IDs, and collection truncation independently of lineage confidence. No logs selection establishes complete episode coverage. Single-run episodes with root claims or known gaps remain in compact JSON; use `--verbose --json` to retain all episodes. See [episode-level usage](/gh-aw/reference/cost-management/#interpret-episode-level-usage) for field semantics.
+
+`--count` defaults to 10, including with `--start-date` or `--end-date`. A larger date range does not remove that cap. `.continuation` and `.continuations[]` provide continuation parameters when collection is truncated; their absence does not prove that an episode has no unselected ancestors or descendants.
+
 > [!NOTE]
 > A downstream warning that a workflow file returned HTTP 404 does not mean `gh aw logs` failed to download the run. The command downloads run artifacts by run ID; workflow source lookup is a separate operation performed by the consumer. GitHub's workflows API can retain entries for deleted or renamed files. Live-inventory consumers should ignore non-active workflows and paths absent from the repository contents listing. Historical consumers should use each JSON run's `repository`, `workflow_path`, and `sha` fields instead of the current default branch, and treat missing source as unavailable metadata rather than a failed log download.
 

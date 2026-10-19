@@ -43,12 +43,17 @@ type EpisodeToolCall struct {
 }
 
 // EpisodeData represents a deterministic episode rollup derived from workflow runs.
+// RootRunID and PrimaryWorkflow retain their legacy selected-run semantics.
 type EpisodeData struct {
 	EpisodeID                      string            `json:"episode_id"`
 	Kind                           string            `json:"kind"`
 	Confidence                     string            `json:"confidence"`
 	Reasons                        []string          `json:"reasons,omitempty"`
 	RootRunID                      int64             `json:"root_run_id,omitempty"`
+	RepresentativeRunID            int64             `json:"representative_run_id,omitempty"`
+	RepresentativeWorkflow         string            `json:"representative_workflow,omitempty"`
+	RecordedRoots                  []EpisodeRoot     `json:"recorded_roots,omitempty"`
+	Coverage                       EpisodeCoverage   `json:"coverage"`
 	RunIDs                         []int64           `json:"run_ids"`
 	WorkflowNames                  []string          `json:"workflow_names"`
 	PrimaryWorkflow                string            `json:"primary_workflow,omitempty"`
@@ -125,6 +130,7 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 	edges := buildEpisodeEdges(runs, runsByID, parents, canonicalByRoot)
 	rootMetadata := selectEpisodeSeeds(runs, parents, seedsByRunID)
 	episodes := rollupEpisodes(runs, processedByID, parents, rootMetadata)
+	addEpisodeCoverage(episodes, runsByID)
 	for index, edge := range edges {
 		root := findEpisodeParent(parents, edge.TargetRunID)
 		if selectedSeed, ok := rootMetadata[root]; ok {

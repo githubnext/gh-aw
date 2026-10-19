@@ -75,7 +75,7 @@ func prepareLogsData(processedRuns []ProcessedRun, opts renderLogsOutputOptions)
 	logsOrchestratorLog.Printf("Building logs data from %d processed runs (continuation=%t)", len(processedRuns), opts.continuation != nil)
 	logsData := buildLogsData(processedRuns, opts.outputDir, opts.continuation)
 	logsData.Runs = workQueueReportRuns(logsData.Runs, opts.includeWorkQueue || len(opts.artifactFilter) == 0)
-	logsData.Continuations = opts.continuations
+	applyLogsCollectionCoverage(&logsData, opts.continuations, opts.countLimitReached)
 	logsData.GitHubAPIRateLimit = populatedGitHubAPIRateLimitReport(opts.apiRateLimit)
 	logsData.GitHubAPIRateLimits = populatedGitHubAPIRateLimitReports(opts.apiRateLimits)
 

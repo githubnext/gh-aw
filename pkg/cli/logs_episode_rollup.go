@@ -108,6 +108,8 @@ func (acc *episodeAccumulator) finalize() EpisodeData {
 	if acc.metadata.PrimaryWorkflow == "" && len(acc.metadata.WorkflowNames) > 0 {
 		acc.metadata.PrimaryWorkflow = acc.metadata.WorkflowNames[0]
 	}
+	acc.metadata.RepresentativeRunID = acc.metadata.RootRunID
+	acc.metadata.RepresentativeWorkflow = acc.metadata.PrimaryWorkflow
 	switch acc.metadata.RiskyNodeCount {
 	case 0:
 		acc.metadata.RiskDistribution = "none"

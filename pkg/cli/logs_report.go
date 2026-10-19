@@ -704,6 +704,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	addRunExecutionSummary(&summary, runs)
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
+	if continuation != nil {
+		markEpisodeCollectionTruncated(episodes)
+	}
 	for _, episode := range episodes {
 		summary.TotalEpisodes++
 		if episode.Confidence == "high" {
@@ -829,7 +832,7 @@ func renderLogsJSON(data LogsData, verbose bool) error {
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.
 // Removes: comparison, behavior_fingerprint, task_domain, agentic_assessments,
 // token_usage_summary, experiments, ambient_context from each run.
-// Omits episodes when all are standalone (single-run episodes add no information).
+// Omits single-run episodes only when they carry no recorded roots or known gaps.
 func compactLogsData(data LogsData) LogsData {
 	// Strip audit-heavy fields from runs
 	for i := range data.Runs {
@@ -843,10 +846,10 @@ func compactLogsData(data LogsData) LogsData {
 		data.Runs[i].AwContext = nil
 	}
 
-	// Omit episodes when all are standalone (no multi-run episodes)
+	// Even one selected descendant can carry useful root and coverage evidence.
 	allStandalone := true
 	for _, ep := range data.Episodes {
-		if ep.TotalRuns > 1 {
+		if ep.TotalRuns > 1 || len(ep.RecordedRoots) > 0 || ep.Coverage.Status == "partial" {
 			allStandalone = false
 			break
 		}
