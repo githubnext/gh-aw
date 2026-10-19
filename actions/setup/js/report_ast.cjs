@@ -34,6 +34,8 @@ const { createExpirationLine } = require("./ephemerals.cjs");
 
 const ALERT_KINDS = new Set(["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"]);
 const MAX_DEPTH = 16;
+/** @type {WeakSet<Report>} */
+const redactedReports = new WeakSet();
 
 /**
  * Provenance describes this node, not its descendants. Missing provenance is tainted.
@@ -482,10 +484,9 @@ function codeFence(value) {
   return "`".repeat(Array.from(value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 3));
 }
 
-/** @param {ReportInline[]} nodes */
-function renderInlines(nodes) {
-  // Serialization-only runs must catch secrets, controls, and mentions split across
-  // provenance boundaries and choose valid code fences without changing the AST.
+/** @param {ReportInline[]} nodes @returns {ReportInline[]} */
+function redactInlines(nodes) {
+  // Complete visible-text runs before serialization without changing origin boundaries.
   const sourceText = collectInlineText(nodes, false);
   const completeText = normalizeReportText(sourceText).replace(/\s+/g, " ");
   const independentlyRedactedText = collectInlineText(nodes, true).replace(/\s+/g, " ");
@@ -499,47 +500,25 @@ function renderInlines(nodes) {
       suffixLength++;
     }
     const replacement = complete.slice(prefixLength, complete.length - suffixLength).join("");
-    return renderInlines(replaceInlineRange(nodes, prefixLength, source.length - suffixLength, replacement));
+    return redactInlines(replaceInlineRange(nodes, prefixLength, source.length - suffixLength, replacement));
   }
+  return nodes.map(node => {
+    if (isInlineTextOrCode(node)) return { ...node, value: normalizeReportText(node.value).replace(/\s+/g, " ") };
+    return "children" in node ? { ...node, children: redactInlines(node.children) } : node;
+  });
+}
+
+/** @param {ReportInline[]} nodes */
+function renderInlines(nodes) {
   /** @type {ReportInline[]} */
-  const renderingNodes = [];
-  for (let index = 0; index < nodes.length;) {
-    const node = nodes[index];
-    if (!isInlineTextOrCode(node)) {
-      renderingNodes.push(node);
-      index++;
-      continue;
-    }
-    let end = index + 1;
-    while (end < nodes.length && isInlineTextOrCode(nodes[end])) end++;
-    /** @type {Array<Extract<ReportInline, {type: "text" | "code"}>>} */
-    const run = [];
-    for (let runIndex = index; runIndex < end; runIndex++) {
-      const inline = nodes[runIndex];
-      if (isInlineTextOrCode(inline)) run.push(inline);
-    }
-    const source = run.map(inline => inline.value).join("");
-    const value = normalizeReportText(source).replace(/\s+/g, " ");
-    /** @type {Array<Extract<ReportInline, {type: "text" | "code"}>>} */
-    const styleRuns = [];
-    for (let runIndex = 0; runIndex < run.length;) {
-      const styleNode = run[runIndex];
-      let styleEnd = runIndex + 1;
-      while (styleEnd < run.length && run[styleEnd].type === styleNode.type) styleEnd++;
-      const styleValue = normalizeReportText(
-        run
-          .slice(runIndex, styleEnd)
-          .map(inline => inline.value)
-          .join("")
-      ).replace(/\s+/g, " ");
-      styleRuns.push({ ...styleNode, value: styleValue });
-      runIndex = styleEnd;
-    }
-    if (styleRuns.map(inline => inline.value).join("") === value) renderingNodes.push(...styleRuns);
-    else renderingNodes.push({ type: "text", value });
-    index = end;
+  const runs = [];
+  for (const node of nodes) {
+    const previous = runs.at(-1);
+    if (isInlineTextOrCode(node) && isInlineTextOrCode(previous) && previous.type === node.type) {
+      previous.value = (previous.value + node.value).replace(/\s+/g, " ");
+    } else runs.push({ ...node });
   }
-  return renderingNodes
+  return runs
     .map(node => {
       if (node.type === "text") return escapeReportText(node.value);
       if (node.type === "code") {
@@ -659,13 +638,121 @@ function renderFooter(footer) {
 }
 
 /**
+ * Safety taint is independent of agent-origin provenance, which must survive redaction.
+ * @param {unknown} value
+ * @param {WeakSet<object>} [ancestors]
+ */
+function assertNoTaintedStrings(value, ancestors = new WeakSet()) {
+  if (typeof value === "string") {
+    const canonical = normalizeReportText(value, { redact: false });
+    if (redactDiagnosticText(value) !== value || redactDiagnosticText(canonical) !== canonical) throw new TypeError("Report contains an unredacted string");
+  } else if (value !== null && typeof value === "object") {
+    if (ancestors.has(value)) throw new TypeError("Redacted report must not contain cycles");
+    ancestors.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) assertNoTaintedStrings(item, ancestors);
+    } else {
+      for (const [key, item] of Object.entries(value)) {
+        assertNoTaintedStrings(key, ancestors);
+        assertNoTaintedStrings(item, ancestors);
+      }
+    }
+    ancestors.delete(value);
+  }
+}
+
+/**
+ * Reject unprocessed trees and recheck strings so a stale proof cannot hide new secrets.
+ * @param {Report} report
+ */
+function assertRedactedReport(report) {
+  if (!redactedReports.has(report)) throw new TypeError("Report must pass redaction before rendering");
+  assertNoTaintedStrings(report);
+  /**
+   * @param {ReportInline[]} nodes
+   */
+  function inlines(nodes) {
+    const text = normalizeReportText(collectInlineText(nodes, false), { redact: false }).replace(/\s+/g, " ");
+    if (redactDiagnosticText(text) !== text) throw new TypeError("Report contains an unredacted inline run");
+    for (const node of nodes) if ("children" in node) inlines(node.children);
+  }
+  /** @param {ReportBlock[]} nodes */
+  function blocks(nodes) {
+    for (const node of nodes) {
+      switch (node.type) {
+        case "paragraph":
+        case "heading":
+        case "task":
+          inlines(node.children);
+          break;
+        case "details":
+        case "alert":
+        case "quote":
+          blocks(node.children);
+          break;
+        case "list":
+          node.items.forEach(blocks);
+          break;
+        case "table":
+          [...node.headers, ...node.rows.flat()].forEach(inlines);
+          break;
+      }
+    }
+  }
+  blocks(report.children);
+  if (report.preamble) blocks(report.preamble);
+  if (report.footer) blocks(report.footer.children);
+}
+
+/**
+ * Prepare a tree for the mandatory assertion before serialization or escaping.
+ * @param {Report} report
+ * @returns {Report}
+ */
+function redactReportForRendering(report) {
+  const normalized = normalizeReport(report);
+  /** @param {ReportBlock[]} nodes @returns {ReportBlock[]} */
+  function blocks(nodes) {
+    return nodes.map(node => {
+      switch (node.type) {
+        case "paragraph":
+        case "heading":
+        case "task":
+          return { ...node, children: redactInlines(node.children) };
+        case "details":
+        case "alert":
+        case "quote":
+          return { ...node, children: blocks(node.children) };
+        case "list":
+          return { ...node, items: node.items.map(blocks) };
+        case "table":
+          return { ...node, headers: node.headers.map(redactInlines), rows: node.rows.map(row => row.map(redactInlines)) };
+        default:
+          return node;
+      }
+    });
+  }
+  const redacted = {
+    ...normalized,
+    children: blocks(normalized.children),
+    ...(normalized.preamble ? { preamble: blocks(normalized.preamble) } : {}),
+    ...(normalized.footer ? { footer: { ...normalized.footer, children: blocks(normalized.footer.children) } } : {}),
+  };
+  redactedReports.add(redacted);
+  return redacted;
+}
+
+/**
  * @param {Report} report
  * @returns {{title: string, body: string}}
  */
 function renderReport(report) {
-  const normalized = normalizeReport(report);
-  const parts = [normalized.preamble ? renderBlocks(normalized.preamble) : "", renderBlocks(normalized.children), normalized.footer ? renderFooter(normalized.footer) : ""];
-  return { title: normalized.title, body: parts.filter(Boolean).join("\n\n").trim() + "\n" };
+  const redacted = redactReportForRendering(report);
+  assertRedactedReport(redacted);
+  const parts = [redacted.preamble ? renderBlocks(redacted.preamble) : "", renderBlocks(redacted.children), redacted.footer ? renderFooter(redacted.footer) : ""];
+  const result = { title: redacted.title, body: parts.filter(Boolean).join("\n\n").trim() + "\n" };
+  assertNoTaintedStrings(result);
+  return result;
 }
 
-module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, renderReport };
+module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, redactReportForRendering, assertRedactedReport, renderReport };

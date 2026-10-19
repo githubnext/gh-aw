@@ -2105,6 +2105,23 @@ Redacting incomplete prefixes can hide a registered secret from subsequent
 matching and expose its suffix. Complete-run normalization and redaction MUST
 precede escaping and code-fence selection, regardless of provenance.
 
+Before concretizing a report tree to publication strings, the renderer MUST
+assert that the tree passed the rendering redaction stage and contains no
+remaining secret-tainted strings. `redactReportForRendering` prepares a fresh tree;
+`assertRedactedReport` requires its private, non-serializable redaction proof and
+checks every string, including nested metadata keys and values, encoded forms,
+and reconstructed inline runs. Normalization alone, copied proof fields, or
+framework provenance MUST NOT satisfy this assertion. The assertion MUST recheck
+current masks, rather than trust a stale proof after mutation or mask changes.
+The concrete title and body MUST also be checked before returning, so escaping
+or formatting cannot introduce a publishable secret. Failures MUST prevent
+publication and MUST NOT include the rejected content in their error messages.
+
+Secret-tainted string safety is distinct from agent-origin provenance: benign
+agent text MAY survive redaction without being relabeled as framework-origin.
+The mandatory rendering redaction stage does not require an optional coarse
+content policy.
+
 Agent-authored missing-tool, missing-data, no-op, and incomplete-report diagnostics
 in generated footers MUST remain tainted. Their framework section labels,
 attribution, expiration, and metadata retain independent framework provenance.

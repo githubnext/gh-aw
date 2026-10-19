@@ -4,7 +4,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { normalizeReport, normalizeReportTitle, renderReport } = require("./report_ast.cjs");
+const { normalizeReport, normalizeReportTitle, redactReportForRendering, assertRedactedReport, renderReport } = require("./report_ast.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 
 /** @param {import("./report_ast.cjs").ReportBlock[]} children */
@@ -14,6 +14,143 @@ const paragraph = value => ({ type: /** @type {const} */ "paragraph", children: 
 afterEach(() => vi.unstubAllEnvs());
 
 describe("report AST", () => {
+  it("requires a non-forgeable redaction pass before a tree can be concretized", () => {
+    const input = { ...report([paragraph("Safe agent text")]), agentTainted: false };
+    expect(() => assertRedactedReport(input)).toThrow("must pass redaction");
+    expect(() => assertRedactedReport(normalizeReport(input))).toThrow("must pass redaction");
+    const redacted = redactReportForRendering(input);
+    expect(() => assertRedactedReport(redacted)).not.toThrow();
+    expect(() => assertRedactedReport(structuredClone(redacted))).toThrow("must pass redaction");
+    expect(renderReport(input).body).toBe("Safe agent text\n");
+  });
+
+  it("redacts all string-bearing tree surfaces before serialization without changing origin", () => {
+    const secret = "tree-redaction-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    /** @type {import("./report_ast.cjs").Report} */
+    const input = {
+      type: "report",
+      title: secret,
+      agentTainted: true,
+      preamble: [paragraph(secret)],
+      children: [
+        {
+          type: "paragraph",
+          agentTainted: false,
+          children: [
+            { type: "text", value: "tree-redaction-", agentTainted: false },
+            { type: "strong", agentTainted: true, children: [{ type: "code", value: "secret-fixture", agentTainted: true }] },
+          ],
+        },
+        { type: "details", summary: secret, children: [paragraph(secret)] },
+        { type: "code_block", language: "text", value: secret },
+        { type: "list", ordered: false, items: [[{ type: "task", checked: false, children: [{ type: "text", value: secret }] }]] },
+        { type: "table", headers: [[{ type: "text", value: secret }]], rows: [[[{ type: "code", value: secret }]]] },
+        { type: "structured_data", data: { [secret]: [secret, { nested: secret }] } },
+        { type: "json_marker", name: "evidence", data: { [secret]: secret } },
+        { type: "xml_marker", name: "evidence", value: secret, fields: [{ key: "context", value: secret }] },
+      ],
+      footer: { type: "footer", children: [paragraph(secret)], markers: [{ type: "xml_marker", name: "gh-aw-agentic-workflow", value: secret, fields: [{ key: "context", value: secret }] }] },
+    };
+    const copy = structuredClone(input);
+    const redacted = redactReportForRendering(input);
+    expect(() => assertRedactedReport(redacted)).not.toThrow();
+    expect(JSON.stringify(redacted)).not.toContain(secret);
+    expect(redacted.agentTainted).toBe(true);
+    expect(redacted.children[0].agentTainted).toBe(false);
+    expect(input).toEqual(copy);
+    expect(JSON.stringify(renderReport(input))).not.toContain(secret);
+  });
+
+  it("rejects a tainted scalar added after the redaction pass without exposing it in the error", () => {
+    const secret = "mutated-tree-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    const redacted = redactReportForRendering(report([paragraph("Safe")]));
+    redacted.title = secret;
+    expect(() => assertRedactedReport(redacted)).toThrow("contains an unredacted string");
+    try {
+      assertRedactedReport(redacted);
+    } catch (error) {
+      expect(String(error)).not.toContain(secret);
+    }
+  });
+
+  it("rejects new secrets reassembled across inline formatting after the redaction pass", () => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", "mutated-run-secret-fixture");
+    const redacted = redactReportForRendering(report([paragraph("Safe")]));
+    redacted.children = [
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "mutated-run-", agentTainted: false },
+          { type: "strong", children: [{ type: "code", value: "secret-fixture", agentTainted: true }] },
+        ],
+      },
+    ];
+    expect(() => assertRedactedReport(redacted)).toThrow("unredacted inline run");
+  });
+
+  it("rejects encoded strings and nested metadata keys carrying secrets", () => {
+    const secret = "encoded-tree-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    const encoded = Array.from(secret, character => `&#${character.charCodeAt(0)};`).join("");
+    const title = redactReportForRendering(report([paragraph("Safe")]));
+    title.title = encoded;
+    expect(() => assertRedactedReport(title)).toThrow("unredacted string");
+    const metadata = redactReportForRendering(report([paragraph("Safe")]));
+    metadata.children.push({ type: "structured_data", data: { safe: [{ [encoded]: "value" }] } });
+    expect(() => assertRedactedReport(metadata)).toThrow("unredacted string");
+  });
+
+  it("keeps safe agent strings taint-checked without relabeling their origin", () => {
+    const redacted = redactReportForRendering(
+      report([
+        {
+          type: "paragraph",
+          agentTainted: false,
+          children: [
+            { type: "text", value: "Framework: ", agentTainted: false },
+            { type: "text", value: "benign agent content", agentTainted: true },
+          ],
+        },
+      ])
+    );
+    expect(() => assertRedactedReport(redacted)).not.toThrow();
+    expect(redacted.children[0]).toEqual({
+      type: "paragraph",
+      agentTainted: false,
+      children: [
+        { type: "text", value: "Framework: ", agentTainted: false },
+        { type: "text", value: "benign agent content", agentTainted: true },
+      ],
+    });
+  });
+
+  it("rechecks current masks rather than trusting a stale redaction proof", () => {
+    const secret = "newly-registered-secret-fixture";
+    const redacted = redactReportForRendering(report([paragraph(secret)]));
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    expect(() => assertRedactedReport(redacted)).toThrow("unredacted string");
+    expect(renderReport(redacted).body).not.toContain(secret);
+  });
+
+  it("rejects cycles added after the redaction pass", () => {
+    const redacted = redactReportForRendering(report([paragraph("Safe")]));
+    redacted.children.push({ type: "quote", children: redacted.children });
+    expect(() => assertRedactedReport(redacted)).toThrow("must not contain cycles");
+  });
+
+  it("fails closed if escaping reconstructs a secret in the concrete output", () => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", "\\*literal\\*");
+    expect(() => renderReport(report([paragraph("*literal*")]))).toThrow("unredacted string");
+  });
+
   it("normalizes deterministically without mutating the input", () => {
     const input = report([
       paragraph(""),
