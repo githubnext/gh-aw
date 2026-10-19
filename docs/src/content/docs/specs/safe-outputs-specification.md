@@ -5612,7 +5612,7 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 2. A visible threat label string: `agentic threat detected`.
 3. An XML comment marker in emitted markdown content: `<!-- gh-aw-threat-detected -->`.
 
-**Requirement WTD1a (Threat Engine Error Annotation)**: When warn-mode threat detection produces a tooling-failure reason (`agent_failure` or `parse_error`) instead of a real threat verdict, implementations MUST emit a review-first artifact with all of the following:
+**Requirement WTD1a (Threat Engine Error Annotation)**: When warn-mode threat detection produces a tooling-failure reason (`agent_failure` or `parse_error`) instead of a real threat verdict, including when the detection execution step itself failed, implementations MUST emit a review-first artifact with all of the following. A warn-mode detection conclusion of `failure` with a tooling-failure reason MUST be handled as `warning` and MUST NOT be treated as a passed detection:
 
 1. A prominent warning section:
 

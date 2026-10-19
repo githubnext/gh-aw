@@ -51,6 +51,28 @@ function isToolingFailureReason(reason) {
 }
 
 /**
+ * Returns the detection conclusion that safe-output consumers must act on.
+ *
+ * safe_outputs only runs when the detection job result is success, so a
+ * "failure" conclusion seen there was swallowed by the warn-mode step-level
+ * continue-on-error. When its reason is a tooling failure (agent_failure,
+ * parse_error) the detection engine failed without a verdict, and the warn-mode
+ * policy (WTD1a annotate, WTD2 convert, WTD3 abort) applies exactly as for
+ * "warning". Every other conclusion is returned unchanged.
+ *
+ * @param {string | undefined | null} conclusion
+ * @param {string | undefined | null} reason
+ * @returns {string}
+ */
+function getEffectiveDetectionConclusion(conclusion, reason) {
+  const normalized = String(conclusion || "").trim();
+  if (normalized === "failure" && isToolingFailureReason(reason)) {
+    return "warning";
+  }
+  return normalized;
+}
+
+/**
  * Returns the XML marker used to identify threat-engine-error output.
  * This marker is distinct from the real-threat marker so that automated tools
  * can distinguish a tooling failure from an actual security finding.
@@ -131,4 +153,5 @@ module.exports = {
   getThreatEngineErrorMarkerTemplate,
   getDetectionReasonText,
   isToolingFailureReason,
+  getEffectiveDetectionConclusion,
 };

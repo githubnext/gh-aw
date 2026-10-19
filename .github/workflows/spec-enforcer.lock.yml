@@ -1775,6 +1775,7 @@ jobs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
+      run_detection: ${{ steps.detection_guard.outputs.run_detection }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2557,6 +2558,7 @@ jobs:
       GH_AW_ENGINE_MODEL: "openai/gpt-5.6-sol"
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_RUN_DETECTION: ${{ needs.detection.outputs.run_detection }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_TRACKER_ID: "spec-enforcer"
       GH_AW_WORKFLOW_EMOJI: "📋"
