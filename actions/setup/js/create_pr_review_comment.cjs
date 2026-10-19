@@ -16,6 +16,7 @@ const { resolveDefaultMentions, resolveMentionsForItem } = require("./resolve_me
 const { parseIntTemplatable } = require("./templatable.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { fitMarkdownBody } = require("./report_size.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_pull_request_review_comment";
@@ -379,14 +380,13 @@ async function main(config = {}) {
     // Buffer the comment instead of posting it individually
     let body = sanitizeContent(commentItem.body.trim(), { allowedAliases: allowedMentionAliases, maxMentions });
     const bodyFooter = getBodyFooterMessage(config.body_footer, { workflowName, runUrl });
-    if (bodyFooter) {
-      body += "\n\n" + bodyFooter.trimEnd();
-    }
+    body = fitMarkdownBody(body, { suffix: bodyFooter ? "\n\n" + bodyFooter.trimEnd() : "", allowedMentions: allowedMentionAliases });
     /** @type {import('./pr_review_buffer.cjs').BufferedComment} */
     const bufferedComment = {
       path: commentItem.path,
       line: line,
       body,
+      ...(bodyFooter ? { bodyFooter: "\n\n" + bodyFooter.trimEnd() } : {}),
       side: side,
     };
 

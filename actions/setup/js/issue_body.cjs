@@ -10,7 +10,8 @@ const { addExpirationToFooter } = require("./ephemerals.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { appendExecutionProvenance, stripExecutionProvenance } = require("./execution_provenance.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
-const { normalizeReportText, renderReport } = require("./report_ast.cjs");
+const { normalizeReportText } = require("./report_ast.cjs");
+const { renderSizedReport } = require("./report_size.cjs");
 const { redactReport } = require("./report_redaction.cjs");
 
 /**
@@ -25,7 +26,7 @@ const { redactReport } = require("./report_redaction.cjs");
  * @returns {string}
  */
 function formatIssueBody(body, options) {
-  return renderReport(buildIssueBodyReport("Issue", body, options)).body.trimEnd();
+  return renderSizedReport(buildIssueBodyReport("Issue", body, options)).body.trimEnd();
 }
 
 /**
@@ -87,7 +88,7 @@ function buildIssueBodyReport(title, body, { repo, footer = true, bodyFooter, ex
       if (part.type !== "quote_line") {
         let key = part.type === "body_slot" ? "gh_aw_issue_body" : `gh_aw_issue_diagnostics_${Object.keys(blockSlots).length}`;
         while (literalMarkdown.includes(`{${key}}`)) key += "_";
-        blockSlots[key] = part.type === "diagnostic_sections" ? part.buildChildren() : part.children;
+        blockSlots[key] = part.type === "diagnostic_sections" ? part.buildChildren().map(node => ({ ...node, sizeProtected: true })) : part.children;
         return part.type === "body_slot" ? `{${key}}` : `\n\n{${key}}\n\n`;
       }
       let key = `gh_aw_issue_footer_${Object.keys(inlineSlots).length}`;

@@ -6,7 +6,7 @@ const { escapeMarkdown } = require("./missing_info_formatter.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
 
 /**
- * @typedef {{agentTainted?: boolean}} ReportProvenance
+ * @typedef {{agentTainted?: boolean, sizeProtected?: boolean}} ReportProvenance
  * @typedef {null | boolean | number | string | ReportData[] | {[key: string]: ReportData}} ReportData
  * @typedef {{key: string, value: string}} ReportMarkerField
  * @typedef {ReportProvenance & {type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
@@ -43,9 +43,9 @@ const redactedReports = new WeakSet();
  * @returns {ReportProvenance}
  */
 function normalizeReportProvenance(node) {
-  if (node.agentTainted === undefined) return {};
-  if (typeof node.agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
-  return { agentTainted: node.agentTainted };
+  if (node.agentTainted !== undefined && typeof node.agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
+  if (node.sizeProtected !== undefined && typeof node.sizeProtected !== "boolean") throw new TypeError("Report size protection must be a boolean");
+  return { ...(node.agentTainted === undefined ? {} : { agentTainted: node.agentTainted }), ...(node.sizeProtected === undefined ? {} : { sizeProtected: node.sizeProtected }) };
 }
 
 /** @param {ReportInline | undefined} node @returns {node is Extract<ReportInline, {type: "text" | "code"}>} */
@@ -283,7 +283,7 @@ function normalizeInlines(nodes, depth, inLink = false, deferRedaction = false) 
         const value = normalizeReportText(node.value, { redact: !adjacentRun }).replace(/\s+/g, " ");
         if (!value) break;
         const previous = result.at(-1);
-        if (previous?.type === node.type && previous.agentTainted === node.agentTainted) previous.value = (previous.value + value).replace(/\s+/g, " ");
+        if (previous?.type === node.type && previous.agentTainted === node.agentTainted && previous.sizeProtected === node.sizeProtected) previous.value = (previous.value + value).replace(/\s+/g, " ");
         else result.push({ type: node.type, value });
         break;
       }
@@ -315,7 +315,7 @@ function normalizeInlines(nodes, depth, inLink = false, deferRedaction = false) 
     let end = index + 1;
     while (end < result.length && result[end].type === node.type) end++;
     const run = result.slice(index, end);
-    const isSameOrigin = run.every(inline => inline.agentTainted === node.agentTainted);
+    const isSameOrigin = run.every(inline => inline.agentTainted === node.agentTainted && inline.sizeProtected === node.sizeProtected);
     const hasAdjacentInlineRun = deferRedaction || hasInlineTextContent(result[index - 1]) || hasInlineTextContent(result[end]);
     if (isSameOrigin && !hasAdjacentInlineRun) {
       const value = normalizeReportText(run.map(inline => (inline.type === "text" || inline.type === "code" ? inline.value : "")).join("")).replace(/\s+/g, " ");

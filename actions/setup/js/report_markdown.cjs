@@ -286,7 +286,17 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
           content.push(lines[index++]);
         }
         if (index < lines.length) index++;
-        nodes.push(fromSource({ type: "code_block", language: /^[a-zA-Z0-9_+-]*$/.test(language) ? language : "text", value: substitute(content.join("\n")) }));
+        const value = substitute(content.join("\n"));
+        if (language === "json") {
+          try {
+            nodes.push(fromSource({ type: "structured_data", data: JSON.parse(value) }));
+            continue;
+          } catch (error) {
+            if (!(error instanceof SyntaxError)) throw error;
+            // Invalid JSON examples remain literal code.
+          }
+        }
+        nodes.push(fromSource({ type: "code_block", language: /^[a-zA-Z0-9_+-]*$/.test(language) ? language : "text", value }));
       } else if ((match = /^(#{1,6})\s+(.+)$/.exec(line))) {
         nodes.push(fromSource({ type: "heading", level: Math.max(minimumHeadingLevel, match[1].length), children: inline(match[2]) }));
         index++;

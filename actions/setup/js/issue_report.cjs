@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { isDeepStrictEqual } = require("node:util");
-const reportAST = require("./report_ast.cjs");
+const { renderSizedReport } = require("./report_size.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { redactReport } = require("./report_redaction.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
@@ -32,7 +32,7 @@ function buildIssueReport(title, body, { allowedMentions = [], agentTainted = tr
  * @returns {T & {title: string, body: string}}
  */
 function renderIssueParameters(parameters, report = buildIssueReport(parameters.title, parameters.body ?? "")) {
-  const rendered = reportAST.renderReport(report);
+  const rendered = renderSizedReport(report);
   if (rendered.body.length > 65536) throw new Error(`${ERR_VALIDATION}: Issue body exceeds GitHub's maximum length of 65536 characters including attribution`);
   const result = { ...parameters, ...rendered };
   renderedIssues.set(result, { rendered, owner: result.owner, repo: result.repo, headers: { ...result.headers } });
