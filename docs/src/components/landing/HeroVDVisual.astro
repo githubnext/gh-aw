@@ -1,5 +1,5 @@
 ---
-/** Hero D visual: CI and CD lanes at rest, the Continuous AI lane lit with ongoing agent work. */
+/** Hero D visual: CI and CD lanes alongside sample agent activity. */
 import type octicons from '@primer/octicons';
 import Octicon from '../Octicon.astro';
 
@@ -41,7 +41,7 @@ const work: { ico: keyof typeof octicons; area: string; text: string; num: strin
     <div class="vd-lit-head">
       <Octicon name="sync" size={18} class="vd-lane-ico vd-spin" />
       <span class="vd-lit-name">Continuous AI</span>
-      <span class="vd-lit-cap"><span class="vd-cap-long">Improving your repo, around the clock</span><span class="vd-cap-short">Around the clock</span></span>
+      <span class="vd-lit-cap"><span class="vd-cap-long">Runs on configured schedules or events</span><span class="vd-cap-short">Scheduled or event-triggered</span></span>
     </div>
     <ol class="vd-work" role="list">
       {work.map((w, i) => (
