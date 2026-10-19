@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,286 +27,176 @@ func writeGraderRunWorkflow(t *testing.T, content string) string {
 	return "test"
 }
 
-func TestRunGraderFromStdin(t *testing.T) {
-	workflowID := writeGraderRunWorkflow(t, "---\ngraders: {}\n---\n")
-	var output bytes.Buffer
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "loops",
-		Input: bytes.NewBufferString(`{
-			"toolCalls":[
-				{"name":"view","arguments":{"path":"a"}},
-				{"name":"view","arguments":{"path":"a"}}
-			],
-			"tokenUsageEntries":[],
-			"retryEvents":[],
-			"artifacts":[]
-		}`),
-		Output: &output,
-	})
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-		"id":"loops",
-		"name":"Loops",
-		"value":1,
-		"unit":"count",
-		"passed":true,
-		"status":"pass",
-		"source":"builtin",
-		"implementation":{"id":"gh-aw/graders","version":1}
-	}`, output.String())
-}
-
-func TestRunInlineScriptGraderFromStdin(t *testing.T) {
-	workflowID := writeGraderRunWorkflow(t, `---
-graders:
-  custom-score:
-    script: |
-      return { value: trace.score, message: "computed" }
-    unit: ratio
-    direction: higher_is_better
-    threshold: 0.5
----
-`)
-	var output bytes.Buffer
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "custom-score",
-		Input:    bytes.NewBufferString(`{"score":0.75}`),
-		Output:   &output,
-	})
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-		"id":"custom-score",
-		"name":"custom-score",
-		"value":0.75,
-		"unit":"ratio",
-		"passed":true,
-		"status":"pass",
-		"source":"inline",
-		"implementation":{
-			"id":"gh-aw/graders",
-			"version":1,
-			"digest":"518c37ee83a83874d2added478398c3b391bdbaa7b92f6ea9567a016dd888640"
-		},
-		"message":"computed"
-	}`, output.String())
-}
-
-func TestRunInlineScriptGraderCannotAccessProcessOrRequire(t *testing.T) {
-	workflowID := writeGraderRunWorkflow(t, `---
-graders:
-  custom-score:
-    script: |
-      return typeof process === "undefined" && typeof require === "undefined" ? 1 : 0
----
-`)
-	var output bytes.Buffer
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "custom-score",
-		Input:    bytes.NewBufferString(`{}`),
-		Output:   &output,
-	})
-	require.NoError(t, err)
-	var result struct {
-		Value float64 `json:"value"`
+func TestRunGraderFromUnifiedSession(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
 	}
-	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
-	require.InDelta(t, float64(1), result.Value, 0)
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\n---\nTest.\n")
+	provenance := `"provenance":{"component":"agent","phase":"agent","path":"agent-session.jsonl","index":0}`
+	events := []string{
+		`{"type":"tool.execution_start","data":{"toolName":"view","input":{"path":"a"}},` + provenance + `}`,
+		`{"type":"tool.execution_start","data":{"toolName":"view","input":{"path":"a"}},` + provenance + `}`,
+	}
+	for _, input := range []string{strings.Join(events, "\n"), "[" + strings.Join(events, ",") + "]"} {
+		var output bytes.Buffer
+		require.NoError(t, runGrader(context.Background(), graderRunConfig{
+			Workflow: workflowID, GraderID: "loops", Input: strings.NewReader(input), Output: &output,
+		}))
+		var result struct {
+			ID     string
+			Value  float64
+			Status string
+			Source string
+		}
+		require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+		assert.Equal(t, "loops", result.ID)
+		assert.InDelta(t, 1.0, result.Value, 1e-9)
+		assert.Equal(t, "pass", result.Status)
+		assert.Equal(t, "builtin", result.Source)
+	}
 }
 
-func TestRunInlineScriptGraderNonFiniteValues(t *testing.T) {
-	for _, script := range []string{"return NaN", "return Infinity", "return -Infinity", "return { value: NaN }"} {
-		t.Run(script, func(t *testing.T) {
-			workflowID := writeGraderRunWorkflow(t, fmt.Sprintf("---\ngraders:\n  custom-score:\n    script: |\n      %s\n---\n", script))
+func TestRunGraderRejectsCustomCode(t *testing.T) {
+	for _, entry := range []string{
+		"operational-value:\n    run: ../evaluator.sh",
+		"loops:\n    script: return 1",
+	} {
+		t.Run(entry, func(t *testing.T) {
+			workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  "+entry+"\n---\nTest.\n")
 			var output bytes.Buffer
-			require.NoError(t, runGrader(context.Background(), graderRunConfig{
-				Workflow: workflowID,
-				GraderID: "custom-score",
-				Input:    bytes.NewBufferString(`{}`),
-				Output:   &output,
-			}))
-			var result struct {
-				Value  *float64 `json:"value"`
-				Status string   `json:"status"`
-				Error  string   `json:"error"`
-			}
-			require.NoError(t, json.Unmarshal(output.Bytes(), &result))
-			assert.Nil(t, result.Value)
-			assert.Equal(t, "error", result.Status)
-			assert.Contains(t, result.Error, "non-finite value")
+			err := runGrader(context.Background(), graderRunConfig{
+				Workflow: workflowID, GraderID: "loops", Input: strings.NewReader("[]"), Output: &output,
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "graders")
+			assert.Empty(t, output.String())
 		})
 	}
 }
 
-func TestRunInlineScriptGraderCannotEscapeAndExecuteCommand(t *testing.T) {
-	markerPath := filepath.Join(t.TempDir(), "executed")
-	workflowID := writeGraderRunWorkflow(t, fmt.Sprintf(`---
-graders:
-  custom-score:
-    script: |
-      try {
-        const escapedProcess = trace.constructor.constructor("return process")()
-        escapedProcess.getBuiltinModule("node:child_process").execSync("touch %s")
-      } catch {}
-      return 1
----
-`, markerPath))
+func TestRunOperationalValueFromUnifiedSession(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  operational-value:\n    run: ./score.sh\n---\nTest.\n")
+	require.NoError(t, exec.Command("git", "init", "-q").Run())
+	require.NoError(t, os.WriteFile(".github/workflows/score.sh", []byte("#!/bin/bash\n[[ -f \"$1\" && \"$1\" == \"$GH_AW_SESSION_FILE\" ]]\nprintf '[{\"id\":\"effect\",\"value\":2},{\"id\":\"diagnostic\",\"value\":null}]'\n"), 0o600))
 	var output bytes.Buffer
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "custom-score",
-		Input:    bytes.NewBufferString(`{}`),
-		Output:   &output,
-	})
-	require.NoError(t, err)
+	require.NoError(t, runGrader(context.Background(), graderRunConfig{
+		Workflow: workflowID, GraderID: "operational-value", Input: strings.NewReader("[]"), Output: &output,
+	}))
 	var result struct {
-		Value float64 `json:"value"`
+		ID      string
+		Source  string
+		Value   float64
+		Metrics []map[string]any
 	}
 	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
-	require.InDelta(t, float64(1), result.Value, 0)
-	_, err = os.Stat(markerPath)
-	require.ErrorIs(t, err, os.ErrNotExist)
+	assert.Equal(t, "operational-value", result.ID)
+	assert.Equal(t, "operational-value", result.Source)
+	assert.InDelta(t, 2.0, result.Value, 0)
+	assert.Len(t, result.Metrics, 2)
 }
 
-func TestRunInlineOperationalValueGraderFromStdin(t *testing.T) {
-	workflowID := writeGraderRunWorkflow(t, `---
-graders:
-  operational-value:
-    script: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      [[ $# -eq 0 ]]
-      request=$(cat)
-      value=$(printf '%s' "$request" | jq -r '.score')
-      printf '[{"id":"score","value":%s}]\n' "$value"
----
-`)
-	var output bytes.Buffer
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "operational-value",
-		Input:    bytes.NewBufferString(`{"score":0.75}`),
-		Output:   &output,
-	})
+func TestLoadImportedOperationalValueDeclaringPath(t *testing.T) {
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\nimports:\n  - shared/graders.md\ngraders:\n  operational-value:\n    threshold: 1\n---\nTest.\n")
+	require.NoError(t, exec.Command("git", "init", "-q").Run())
+	require.NoError(t, os.MkdirAll(".github/workflows/shared", 0o755))
+	require.NoError(t, os.WriteFile(".github/workflows/shared/graders.md", []byte("---\ngraders:\n  operational-value:\n    run: ./score.sh\n---\n"), 0o600))
+	const source = "#!/bin/bash\nprintf '[{\"id\":\"effect\",\"value\":1}]'\n"
+	require.NoError(t, os.WriteFile(".github/workflows/shared/score.sh", []byte(source), 0o600))
+	definition, err := loadGraderRunDefinition(workflowID, "operational-value")
 	require.NoError(t, err)
-	assert.JSONEq(t, `[{"id":"score","value":0.75}]`, output.String())
-}
-
-func TestRunScriptFileGraderFromStdin(t *testing.T) {
-	workflowID := writeGraderRunWorkflow(t, `---
-graders:
-  operational-value:
-    run: .github/graders/test-operational-value.sh
----
-`)
-	require.NoError(t, os.Mkdir(".git", 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(".github", "graders"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(".github", "graders", "test-operational-value.sh"), []byte(`#!/usr/bin/env bash
-set -euo pipefail
-[[ $# -eq 0 ]]
-[[ "${GH_HOST:-}" == "ghe.example" ]]
-payload=$(cat)
-[[ "$payload" == '{"score":0.8}' ]]
-printf '%s\n' '[{"id":"score","value":0.8},{"id":"evidence-available","value":1}]'
-`), 0o700))
-
-	var output bytes.Buffer
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "operational-value",
-		Repo:     "ghe.example/example/repo",
-		Input:    bytes.NewBufferString(`{"score":0.8}`),
-		Output:   &output,
-	})
+	assert.Equal(t, source, definition.ShellScript)
+	require.NoError(t, os.WriteFile(".github/workflows/score.sh", []byte("#!/bin/bash\nprintf '[{\"id\":\"override\",\"value\":2}]'\n"), 0o600))
+	require.NoError(t, os.WriteFile(".github/workflows/test.md", []byte("---\non: workflow_dispatch\nimports:\n  - shared/graders.md\ngraders:\n  operational-value:\n    run: ./score.sh\n---\nTest.\n"), 0o600))
+	definition, err = loadGraderRunDefinition(workflowID, "operational-value")
 	require.NoError(t, err)
-	assert.JSONEq(t, `[{"id":"score","value":0.8},{"id":"evidence-available","value":1}]`, output.String())
+	assert.Contains(t, definition.ShellScript, "override")
 }
 
-func TestRunOperationalValueGraderRejectsHistoricalPayload(t *testing.T) {
-	workflowID := writeGraderRunWorkflow(t, `---
-graders:
-  operational-value:
-    script: |
-      #!/usr/bin/env bash
-      cat
----
-`)
-	err := runGrader(context.Background(), graderRunConfig{
-		Workflow: workflowID,
-		GraderID: "operational-value",
-		RunID:    123,
-		Output:   &bytes.Buffer{},
-	})
-	require.ErrorContains(t, err, "historical replay is not supported")
+func TestOperationalValueCommandSessionFileContract(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Skip("jq unavailable")
+	}
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  operational-value:\n    run: ./score.sh\n    config:\n      offset: 3\n---\nTest.\n")
+	require.NoError(t, exec.Command("git", "init", "-q").Run())
+	const source = "#!/bin/bash\njq -s --argjson config \"$GH_AW_GRADER_CONFIG\" '[{id:\"count\",value:(length + $config.offset)}]' \"$1\"\n"
+	require.NoError(t, os.WriteFile(".github/workflows/score.sh", []byte(source), 0o600))
+	event := `{"type":"tool.execution_complete","data":{"success":true},"provenance":{"component":"agent","phase":"agent","path":"session.jsonl","index":0}}`
+	for _, input := range []string{event + "\n", "[" + event + "]"} {
+		cmd := newGradersRunCommand()
+		cmd.SetArgs([]string{workflowID, "operational-value"})
+		cmd.SetIn(strings.NewReader(input))
+		var output bytes.Buffer
+		cmd.SetOut(&output)
+		require.NoError(t, cmd.Execute())
+		var result struct {
+			Value  float64
+			Source string
+		}
+		require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+		assert.InDelta(t, 4.0, result.Value, 0)
+		assert.Equal(t, "operational-value", result.Source)
+	}
+}
+
+func TestRunCustomGraderFromUnifiedSession(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node unavailable")
+	}
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\ngraders:\n  custom-count:\n    script: return helpers.createSessionLookups(session).stats.toolCallCount + config.offset\n    config:\n      offset: 3\n---\nTest.\n")
+	var output bytes.Buffer
+	require.NoError(t, runGrader(context.Background(), graderRunConfig{
+		Workflow: workflowID, GraderID: "custom-count", Input: strings.NewReader("[]"), Output: &output,
+	}))
+	var result struct {
+		ID     string
+		Value  float64
+		Source string
+	}
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, "custom-count", result.ID)
+	assert.Equal(t, "inline", result.Source)
+	assert.InDelta(t, 3.0, result.Value, 1e-9)
+}
+
+func TestLoadGraderRunDefinitionResolvesImports(t *testing.T) {
+	workflowID := writeGraderRunWorkflow(t, "---\non: workflow_dispatch\nimports:\n  - shared/graders.md\ngraders:\n  loops:\n    threshold: 9\n---\nTest.\n")
+	require.NoError(t, os.MkdirAll(".github/workflows/shared", 0o755))
+	require.NoError(t, os.WriteFile(".github/workflows/shared/graders.md", []byte("---\ngraders:\n  loops:\n    threshold: 2\n  recurrence-determinism: {}\n---\n"), 0o600))
+	loops, err := loadGraderRunDefinition(workflowID, "loops")
+	require.NoError(t, err)
+	assert.InDelta(t, 9.0, *loops.Threshold, 1e-9)
+	trajectory, err := loadGraderRunDefinition(workflowID, "recurrence-determinism")
+	require.NoError(t, err)
+	assert.Equal(t, "builtin", trajectory.Source)
 }
 
 func TestReadGraderPayloadValidation(t *testing.T) {
-	_, err := readGraderPayload(bytes.NewBufferString("not-json"), "standard input")
-	require.ErrorContains(t, err, "not valid JSON")
-
-	_, err = parseGraderRunID("0")
-	require.ErrorContains(t, err, "positive integer")
+	for _, input := range []string{"", "null", "{}", `{"toolCalls":[]}`, "[null]", "[1]", `[{"type":"x","data":{}}]`, "{invalid", "{}\ninvalid"} {
+		_, err := readGraderPayload(strings.NewReader(input), "test")
+		require.Error(t, err, input)
+	}
+	result, err := readGraderPayload(strings.NewReader("[]"), "test")
+	require.NoError(t, err)
+	assert.JSONEq(t, "[]", string(result))
 }
 
 func TestGraderNodePermissionFlag(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("uses a POSIX shell fixture")
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node unavailable")
 	}
-	for _, test := range []struct {
-		name    string
-		output  string
-		flag    string
-		wantErr string
-	}{
-		{name: "stable", output: "--permission", flag: "--permission"},
-		{name: "experimental Node 20", output: "--experimental-permission", flag: "--experimental-permission"},
-		{name: "unsupported", wantErr: "install Node.js 20 or newer"},
-		{name: "unexpected output", output: "--allow-fs-read=*", wantErr: "permission support is required"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			nodePath := filepath.Join(t.TempDir(), "node")
-			require.NoError(t, os.WriteFile(nodePath, []byte(fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' '%s'\n", test.output)), 0o700))
-			flag, err := graderNodePermissionFlag(context.Background(), nodePath)
-			if test.wantErr != "" {
-				require.ErrorContains(t, err, test.wantErr)
-				assert.Empty(t, flag)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, test.flag, flag)
-			}
-		})
-	}
+	flag, err := graderNodePermissionFlag(context.Background(), node)
+	require.NoError(t, err)
+	assert.Contains(t, []string{"--permission", "--experimental-permission"}, flag)
 }
 
 func TestGraderNodePermissionFlagProbeFailure(t *testing.T) {
-	_, err := graderNodePermissionFlag(context.Background(), filepath.Join(t.TempDir(), "missing-node"))
+	_, err := graderNodePermissionFlag(context.Background(), "/nonexistent/node")
 	require.ErrorContains(t, err, "failed to detect Node.js permission support")
-}
-
-func TestValidateOperationalValueEvaluatorSource(t *testing.T) {
-	valid := []byte("#!/usr/bin/env bash\nprintf '%s\\n' '[]'\n")
-	actual, err := validateOperationalValueEvaluatorSource(valid)
-	require.NoError(t, err)
-	assert.Equal(t, valid, actual)
-
-	_, err = validateOperationalValueEvaluatorSource([]byte("echo invalid\n"))
-	require.ErrorContains(t, err, "Bash shebang")
-
-	_, err = validateOperationalValueEvaluatorSource(append([]byte("#!/usr/bin/env bash\n"), bytes.Repeat([]byte("x"), maxOperationalValueEvaluatorBytes)...))
-	require.ErrorContains(t, err, "65536-byte limit")
-}
-
-func TestValidateOperationalValueMetrics(t *testing.T) {
-	require.NoError(t, validateOperationalValueMetrics([]byte(`[{"id":"primary","value":2.5},{"id":"cost","value":-3.25},{"id":"diagnostic","value":null}]`)))
-
-	for _, invalid := range []string{
-		`[]`,
-		`[{"id":"score","value":1,"message":"invalid"}]`,
-		`[{"id":"score","value":1},{"id":"score","value":0}]`,
-		`[{"id":"score","value":"1"}]`,
-	} {
-		require.Error(t, validateOperationalValueMetrics([]byte(invalid)), invalid)
-	}
 }

@@ -114,13 +114,6 @@ jobs:
     pre-steps:
       - name: Safe outputs pre-step
         run: echo "safe-outputs-pre"
-  conclusion:
-    setup-steps:
-      - name: Conclusion setup-step
-        run: echo "conclusion-setup"
-    pre-steps:
-      - name: Conclusion pre-step
-        run: echo "conclusion-pre"
 ---
 
 # Builtin setup-steps ordering
@@ -169,12 +162,9 @@ jobs:
 	if conclusionSection == "" {
 		t.Fatal("Expected conclusion job section")
 	}
-	assertStepOrderInSection(t, conclusionSection,
-		"- name: Conclusion setup-step",
-		"id: setup",
-		"- name: Conclusion pre-step",
-		"- name: Generate GitHub App token",
-	)
+	if strings.Contains(conclusionSection, "Conclusion setup-step") || strings.Contains(conclusionSection, "Conclusion pre-step") {
+		t.Fatal("conclusion must contain compiler-generated steps only")
+	}
 }
 
 func TestBuiltinJobSetupCheckoutAddsContentsReadPermission(t *testing.T) {
@@ -194,14 +184,6 @@ jobs:
       id-token: write
     setup-steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/get-app-credentials
-  conclusion:
-    permissions:
-      id-token: write
-    setup-steps:
-      - uses: ACTIONS/CHECKOUT@V4
         with:
           persist-credentials: false
       - uses: ./.github/actions/get-app-credentials
@@ -226,7 +208,7 @@ jobs:
 	}
 	lockYAML := string(lockContent)
 
-	for _, jobName := range []string{"safe_outputs", "conclusion"} {
+	for _, jobName := range []string{"safe_outputs"} {
 		jobSection := extractJobSection(lockYAML, jobName)
 		if jobSection == "" {
 			t.Fatalf("Expected %s job section", jobName)
@@ -268,10 +250,6 @@ jobs:
     pre-steps:
       - name: Safe outputs pre-step
         run: echo "safe-outputs-pre"
-  conclusion:
-    pre-steps:
-      - name: Conclusion pre-step
-        run: echo "conclusion-pre"
 ---
 
 # Builtin pre-steps ordering with app token minting
@@ -317,10 +295,9 @@ jobs:
 	if conclusionSection == "" {
 		t.Fatal("Expected conclusion job section")
 	}
-	assertStepOrderInSection(t, conclusionSection,
-		"- name: Conclusion pre-step",
-		"- name: Generate GitHub App token",
-	)
+	if strings.Contains(conclusionSection, "Conclusion pre-step") {
+		t.Fatal("conclusion must contain compiler-generated steps only")
+	}
 }
 
 func TestImportedBuiltinJobSetupStepsMergeBeforeTokenMinting(t *testing.T) {

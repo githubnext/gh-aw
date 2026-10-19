@@ -1,12 +1,38 @@
 ---
 name: operational-value-designer
-description: "Design and verify a deterministic operational-value grader for any GitHub Agentic Workflow. Use when reasoning from workflow goals to measurable downstream outcomes, defining repository evidence, choosing outcome metrics, or creating an operational-value evaluator. Usage: /operational-value-designer OWNER/REPO WORKFLOW-NAME."
+description: "Design recorded-session outcome metrics using built-ins, isolated JavaScript, or separate-job operational-value Bash. Usage: /operational-value-designer OWNER/REPO WORKFLOW-NAME."
 argument-hint: "OWNER/REPO WORKFLOW-NAME"
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Operational Value Designer
+
+## Session grading contract
+
+Built-in and JavaScript graders are pure computation over the redacted in-memory unified session.
+Ten fast built-ins are enabled by default and run in conclusion after session
+collection. Configure a built-in when it measures the required property;
+do not substitute activity metrics for operational outcomes.
+
+Custom metrics use `graders.<distinct-id>.script`: a synchronous JavaScript
+body receiving `session`, `config`, and `helpers`. The compiler runs it only
+in an isolated downstream `graders` job. Never inject user steps into
+`jobs.conclusion` or customize `jobs.graders`. Repository-owned Bash compatibility
+instead uses `graders.operational-value.run` in that same separate job, with the
+session-file contract below. Built-in implementation overrides remain unsupported.
+
+JavaScript inputs are immutable snapshots. JavaScript graders cannot read files, invoke processes,
+use credentials, fetch evidence, call another model, or use clocks/randomness.
+Reuse `helpers.createSessionLookups(session)` for statistics and lookups.
+Return `null` when required observations are absent; the runtime records
+`unavailable`. Never return the string `"unavailable"` or invent a zero.
+
+Preserve historical evaluator files and prior results unless explicitly
+retiring their workflow configuration. Freeze the workflow's intent and its
+grader acceptance contract together; corrections apply only prospectively.
+
+## Design methodology
 
 Design the smallest deterministic grader that measures whether one workflow run produced its intended operational outcome. Put domain knowledge in the evaluator, not in generic runtime infrastructure.
 
@@ -25,60 +51,133 @@ The evaluator belongs to one workflow and runs whenever that workflow is graded.
 
 ## Deliverables
 
-Choose one evaluator form. For a compact evaluator, embed the complete Bash program in the workflow so it travels with the Markdown:
+Embed a compact pure JavaScript body in the workflow under a descriptive custom
+ID. This example checks target binding of recorded comment results, not comment
+quality, delivery completeness, or the workflow's ultimate outcome:
 
 ```yaml
 graders:
-  operational-value:
-    name: Maintainer Time Saved
-    description: Maintainer effort avoided by the current run's accepted outcome
-    unit: hours
+  comment-target-match:
+    name: Recorded comment target match
+    description: Whether recorded comments target the configured issue
+    unit: boolean
     direction: higher_is_better
+    threshold: 1
+    config:
+      repository: OWNER/REPO
+      issueNumber: 123
     script: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      request=$(cat)
-      # Compute and print the ordered metric array.
+      if (typeof config.repository !== "string" || !config.repository.trim() ||
+          !Number.isInteger(config.issueNumber) || config.issueNumber < 1) return null;
+      const { eventsOfType } = helpers.createSessionLookups(session);
+      const comments = eventsOfType("safe_output.result").filter(({ data }) => data?.type === "add_comment");
+      if (!comments.length || comments.some(({ data }) =>
+          typeof data.repo !== "string" || !data.repo.trim() ||
+          !Number.isInteger(data.number) || data.number < 1 ||
+          typeof data.url !== "string" || !data.url)) return null;
+      return comments.every(({ data }) =>
+        data.repo === config.repository && data.number === config.issueNumber) ? 1 : 0;
 ```
 
-For a larger evaluator, create one executable file at:
+Set a concise `name`, `description`, `unit`, and `direction`; a custom `threshold`
+requires `direction`. Use data-only `config` for declared targets and policy.
+Each script is limited to **256 KiB (262,144 UTF-8 bytes, inclusive)**.
+Simplify oversized logic; do not wrap JavaScript in filesystem/process calls.
 
-```text
-.github/graders/WORKFLOW-NAME-operational-value.sh
-```
+Check authored scripts with `gh aw lint --rules grader-file-io --javascript-module
+/path/to/gh-aw/pkg/workflow/taint/javascript /path/to/repository/.github/workflows/WORKFLOW.md`.
+The pinned native parser must already be installed. Treat missing-parser warnings
+as unchecked coverage, not approval. Module loading and filesystem/host capabilities
+are rejected; collect any required evidence before grading and use session helpers.
 
-and configure the workflow:
+Return a finite number, `null`, or an object with `value` and optional `message`,
+`details`, and `diagnostics`. Each grader ID produces one measurement, not an
+ordered array of metric objects. Use another distinct grader ID only for an
+independently useful numeric metric.
+
+Keep exact fixtures for attained, missed, unavailable, and malformed evidence,
+plus noop and inapplicable cases when relevant. Each fixture provides an event
+array, configuration, and expected numeric/null result. Execute the actual
+script through the restricted custom-grader runtime, not an unrestricted
+`eval` or shell runner, and repeat identical inputs to check determinism.
+
+Before implementation, summarize the design in a compact table containing the ultimate goal, outcome ladder, selected measurable effect, why stronger downstream effects are unavailable, primary metric and formula, applicability, success evidence, zero condition, null condition, noop interpretation, adoption point, and required recorded observations. Surface unresolved ambiguity instead of hiding it in code.
+
+### Existing Bash evaluators
+
+Retain a repository-owned Bash evaluator when migrating its input is simpler
+than rewriting its domain logic:
 
 ```yaml
 graders:
   operational-value:
-    name: Remediation Lead Time
-    description: Time required to establish the intended repository outcome
-    unit: hours
-    direction: lower_is_better
     run: .github/graders/WORKFLOW-NAME-operational-value.sh
+    unit: boolean
+    direction: higher_is_better
+    threshold: 1
+    config:
+      repository: OWNER/REPO
+      issueNumber: 123
 ```
 
-Always set a concise `name`, `description`, `unit`, and `direction` for the primary metric. At the top of the evaluator, comment the workflow intent and the native meaning of every emitted metric, including its unit, direction, significant boundaries, and `null` interpretation. These comments are frozen and archived with the evaluator bytes, preserving review context without adding a definition mode or a second metadata schema.
+`run` is a confined `.sh` path, not an inline command. Root-relative paths resolve
+from the repository; `./` resolves from the declaring workflow. Source must be
+UTF-8, start with a Bash shebang, and fit within **64 KiB (65,536 UTF-8 bytes,
+inclusive)**. Compilation freezes the bytes into the separate graders job,
+never conclusion; evaluating the frozen script needs no source checkout.
 
-Specify exactly one of `script` or `run`. Use this decision rule:
+Refactor legacy stdin-request reads to session JSONL in `$1` /
+`GH_AW_SESSION_FILE`, and parse JSON configuration from `GH_AW_GRADER_CONFIG`.
+Stdin is empty. Replace legacy `.run`, `.event`, and `.outputs` wrapper
+assumptions with recorded unified events. For example, the same narrow target
+binding predicate above can retain its Bash metric-array output:
 
-- Choose `script` for compact, workflow-specific Bash that remains easy to review inside the Markdown and can be covered by the workflow's tests.
-- Choose `run` when the Bash is large enough to obscure the workflow, is maintained or reused independently, or benefits from dedicated semantic fixtures and shell tooling.
-
-The operational-value evaluator limit is **65,536 UTF-8 bytes, inclusive**, for both forms. `run` does not permit a larger evaluator. This differs from ordinary custom inline JavaScript graders, whose limit is **4,096 Unicode characters, inclusive**.
-
-Both forms are frozen into the compiled workflow, archived with the run, and identified by the same SHA-256 digest. They produce the same GitHub Actions execution payload, so `run` does not reduce the generated workflow size; Base64 transport adds roughly 33% to the evaluator bytes in either case. Choose by readability and testability, not Actions payload size. If an evaluator exceeds 65,536 bytes, simplify its evidence logic rather than switching forms to bypass the limit.
-
-For a file-backed evaluator, create exact semantic fixtures at:
-
-```text
-.github/graders/WORKFLOW-NAME-operational-value.fixtures.json
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+session_file=$1
+jq -s --argjson config "$GH_AW_GRADER_CONFIG" '
+  def repository: type == "string" and test("\\S");
+  def issue: type == "number" and . >= 1 and floor == .;
+  [.[] | select(.type == "safe_output.result" and .data.type == "add_comment") | .data] as $comments
+  | if (($config.repository | repository) and ($config.issueNumber | issue) | not)
+       or ($comments | length == 0)
+       or any($comments[];
+         ((.repo | repository) and (.number | issue) and (.url | type == "string" and length > 0) | not))
+    then null
+    elif all($comments[]; .repo == $config.repository and .number == $config.issueNumber)
+    then 1 else 0 end
+  | [{id: "comment-target-match", value: .}]
+' "$session_file"
 ```
 
-Each fixture contains exactly `name`, `request`, and `expected`. Include `attained`, `missed`, `unavailable`, and `malformed`; also include `noop` and `inapplicable` when those states exist. Expected metrics must be exact, ordered, and deterministic. For inline Bash, encode equivalent cases in the workflow's tests and compile the workflow before adoption.
+Keep a nonempty ordered array of unique `{id,value}` metrics. The first value
+supplies the canonical `operational-value` result; remaining metrics become
+diagnostics, and the complete `metrics` array is retained. Values are finite
+numbers or `null`; IDs and order remain stable across fixtures. Other custom
+IDs accept only JavaScript `script`, not `run`.
 
-Before implementation, summarize the design in a compact table containing the ultimate goal, outcome ladder, selected measurable effect, why stronger downstream effects are unavailable, primary metric and formula, applicability, success evidence, zero condition, null condition, noop interpretation, adoption point, and required API calls. Surface unresolved ambiguity instead of hiding it in code.
+Remove temporary-file writes, live API calls, checkout scans, and sourced
+helpers. Read only the session and compute in memory, then print metrics.
+Compiler validation and the default `grader-shell-file-write` rule parse Bash
+ASTs and reject detected writes and unchecked dynamic execution, even in disabled
+definitions. `gh aw lint --rules grader-shell-file-write WORKFLOW.md` requires no
+optional JavaScript parser.
+
+Bash starts without profiles or inherited credentials, in a temporary working
+directory, with a 120-second deadline and 1 MiB output cap. It is **trusted
+repository code**, not a filesystem/network sandbox. MicroVM isolation is
+future work. Static lint is not proof of arbitrary shell safety. Never execute
+session text as code or turn absent evidence into a successful score.
+
+Verify shell fixtures through
+`scripts/verify-operational-value-evaluator.sh EVALUATOR.sh FIXTURES.json`.
+Fixtures use `{name, session, config, expected}`: `session` is a unified-event
+array, `config` is data-only, and `expected` is the exact metric array. Include
+attained, missed, unavailable, and malformed-evidence cases. The helper invokes
+the same bounded Bash runtime as workflow execution and repeats each fixture.
+Use malformed recorded evidence inside valid unified events, not an invalid
+session envelope. Compile/lint separately to validate source paths and writes.
 
 ## Design Procedure
 
@@ -106,11 +205,14 @@ Write two sentences before choosing a metric:
 
 If either sentence cannot be completed from authoritative workflow content and available evidence, stop and report the ambiguity instead of inventing a metric.
 
-Translate the sentence into a function before writing shell code:
+Translate the sentence into a function before writing either implementation:
 
 ```text
-f(run, event, config, observable evidence) -> [{id, value}, ...]
+f(session, config, helpers) -> finite number | null | {value, ...}
 ```
+
+Bash encodes the same predicate over session JSONL and returns a metric array;
+the shell interface does not authorize additional evidence sources.
 
 For every input, the function must define whether the run was applicable and whether the result is attained, missed, correctly restrained, or unavailable. The implementation should be a direct encoding of this function.
 
@@ -165,18 +267,18 @@ Use only evidence attributable to the run or its subject. Avoid repository-wide 
 
 The function must be actor-independent: identical accepted evidence must receive the same score whether it was produced by this agent, another engine, a person, or deterministic automation. Agent identity, tool choice, and execution trace are not operands unless the workflow explicitly tests that capability.
 
-Prefer evidence in this order:
+Use only evidence already recorded in the unified session: triggering facts and
+the run subject, workflow observations, `safe_output.request` and
+`safe_output.result` events, and captured repository or authoritative API
+responses. Missing repository state or API evidence cannot be fetched during
+grading. A producer must capture it before the conclusion session is finalized,
+or the metric must return `null`.
 
-1. the event payload and run subject;
-2. already materialized workflow inputs, outputs, and safe-output requests;
-3. repository state at the run SHA;
-4. narrowly scoped GitHub API reads needed to fill a specific gap.
-
-Do not re-fetch data already captured with sufficient fidelity. For batch workflows, define the eligible set and denominator from one consistent snapshot. Do not use historical expectations, another model's findings, the evaluator's own output, or the workflow's confidence as ground truth.
+Do not re-fetch data already captured with sufficient fidelity. For batch workflows, define the eligible set and denominator from one consistent recorded snapshot. Do not use historical expectations, another model's findings, the evaluator's own output, or the workflow's confidence as ground truth.
 
 Whenever the metric judges a workflow decision, derive the expected decision independently from source evidence and compare it with the observed workflow request. Do not accept the workflow's explanation as proof that its decision was correct. Existing `evals` are evidence only for the exact predicate they evaluate; an eval that checks whether output exists does not prove that output is accurate.
 
-When evidence sources conflict, apply an explicit precedence justified by the workflow or return `null`; never choose whichever source produces a better score. Validate current-run caches and precomputed files for their expected completion marker, count, or schema before using them. If an expected batch snapshot is missing, stale, truncated, capped, or only partially parsed, return `null` rather than silently shrinking the denominator. Apply intentional eligibility filters before fixing the denominator, then count every eligible item whether processed or missed.
+When evidence sources conflict, apply an explicit precedence justified by the workflow or return `null`; never choose whichever source produces a better score. Validate captured observations for their expected completion marker, count, or schema before using them. If an expected batch snapshot is missing, stale, truncated, capped, or only partially parsed, return `null` rather than silently shrinking the denominator. Apply intentional eligibility filters before fixing the denominator, then count every eligible item whether processed or missed.
 
 A declared sampling rule bounds the selected set; items outside that intentional sample are not misses. An execution safety cap does not shrink the eligible denominator: score the complete eligible set when evidence supports it, or return `null` when the cap prevents complete evaluation. Within the selected set, compare the complete expected action set with the complete observed request set. This is mandatory for destructive actions such as closing, deleting, relabeling, or superseding items: an unjustified extra mutation is a miss, not partial credit.
 
@@ -194,7 +296,10 @@ Dependency failure is `null` when it prevents evidence collection for some other
 
 ### 4. Respect the grading boundary
 
-The evaluator runs once for the current workflow run. It does not wait for future acceptance, replay history, or revise an observation later. Safe-output requests may be graded before the requested GitHub mutation is applied.
+The evaluator runs once over the current run's published conclusion session.
+It does not wait for future acceptance, replay history, or revise an observation
+later. Conclusion collects safe-output results when available, but a
+`safe_output.request` is still not proof that a GitHub mutation was applied.
 
 Therefore:
 
@@ -222,9 +327,9 @@ External research may refine what to measure; it must not:
 
 Adopt an external definition only when all operands and ground truth are observable at the per-run grading boundary. For example, a standard may identify precision and recall as useful dimensions, but neither is a valid per-run metric without independently known true and false cases.
 
-When research is used, add a short research note to the design table: source URL, definition considered, what was adopted or rejected, and why. Record a source in evaluator comments only when it materially affects the implemented formula. Runtime grading must remain deterministic from the request, repository state, declared GitHub access, and workflow outputs; it must never browse the web for metric design.
+When research is used, add a short research note to the design table: source URL, definition considered, what was adopted or rejected, and why. Record a source in evaluator comments only when it materially affects the implemented formula. Runtime grading must remain deterministic from the in-memory session and data-only configuration; it must never browse the web for metric design.
 
-When live external data is itself the workflow's declared subject, such as a model or service inventory, use the workflow's captured response or the narrow declared authoritative API as evidence. Pin the endpoint and required fields in the design, validate completeness, and return `null` on unavailable, truncated, or incompatible responses; do not substitute search results or design-time research.
+When live external data is itself the workflow's declared subject, such as a model or service inventory, use the authoritative response captured in the session. Pin the endpoint and required fields in the producer's design, validate completeness, and return `null` on unavailable, truncated, or incompatible observations; do not substitute search results or design-time research.
 
 ### 6. Choose the smallest useful metric set
 
@@ -255,76 +360,79 @@ Set `direction` to `higher_is_better` or `lower_is_better` according to the metr
 Freeze the metric prospectively to prevent hindsight bias:
 
 - choose the formula, thresholds, evidence rules, and fixtures before inspecting any scored outcomes;
-- commit the workflow and its inline evaluator, or the workflow and referenced evaluator file, together; that commit is the adoption point for the pair;
+- commit the workflow intent, inline `script` or referenced Bash evaluator, data configuration, and semantic fixtures together; that commit is the adoption point for the contract;
 - treat the evaluator as read-only while the workflow's intent and acceptance criteria are unchanged;
-- when those workflow semantics change, update the workflow and evaluator together at the same path and commit; the new pair applies only to future runs;
+- when those workflow semantics change, update the workflow and its grader together at the same workflow path and commit; the new contract applies only to future runs;
 - allow an evaluator-only defect correction only prospectively, without changing or regrading prior results;
 - retain the metric ID when the measured outcome still means the same thing; choose a new descriptive ID only when the outcome itself changes;
 - score each run with the evaluator bytes and configuration frozen into that run. Never move adoption backward or tune a function against observed scores.
 
-The workflow commit and evaluator digest preserve each historical pair, including inline Bash extracted from the committed Markdown. The current evaluator may replace the old one in the same field or path. Do not add versioned filenames, registries, or a second provenance service.
+The workflow commit and custom implementation's SHA-256 source digest preserve
+the adopted contract. Keep the script at the same grader ID while its meaning
+is stable. Result artifacts omit executable source. Do not add versioned
+filenames, registries, or a second provenance service.
 
 ### 7. Implement the evaluator
 
-Use Bash 3.2-compatible Bash and `jq`. The evaluator runs once, accepts no mode arguments, reads one request from stdin, and writes one result to stdout.
+For JavaScript, write a synchronous function body, not a module, CLI program, or
+`module.exports`. `session` is an array of unified events with `type`, `data`,
+and `provenance`; it is not a filename or the legacy trace/request object.
 
-Input:
+Use `const lookups = helpers.createSessionLookups(session)`:
 
-```json
-{
-  "schemaVersion": 1,
-  "run": {
-    "id": "12345",
-    "attempt": 1,
-    "repository": "OWNER/REPO",
-    "workflow": "Workflow name",
-    "ref": "refs/heads/main",
-    "sha": "...",
-    "eventName": "issues"
-  },
-  "event": {},
-  "outputs": [],
-  "config": {}
-}
-```
+| Helper | Meaning |
+|---|---|
+| `lookups.stats` | Concrete session accounting, including tool calls, usage, retries, and artifact counts |
+| `lookups.eventsOfType(type)` | Recorded events of one unified-session type |
+| `lookups.toolCalls` | Correlated calls with native/gateway duplicate handling |
+| `lookups.toolCallsById` | Read-only scoped tool-call index |
+| `lookups.trace` | Session-derived trajectory projection for analyses that need it |
 
-`outputs` contains the current run's validated safe-output requests from `agent_output.json`. Treat them as requested actions, not proof that the corresponding GitHub mutations were applied.
+These are immutable snapshots of the supplied session, not a facility to load
+other logs or reconstruct evidence absent from the input.
 
-Output:
+Return the metric value directly or `{ value, message, details, diagnostics }`.
+The runtime adds the configured ID, status, and implementation identity.
+Promises, strings, booleans, non-finite values, and metric arrays are rejected.
+Use `null` for absent or malformed required evidence; include an optional
+message explaining the specific missing observation. Do not catch real
+implementation errors and convert them into success or unavailable results.
 
-```json
-[
-  {"id": "domain-primary-metric", "value": 0.75},
-  {"id": "optional-diagnostic", "value": null}
-]
-```
-
-The output must be one non-empty ordered array. The first item is primary. Later items are optional diagnostics. Every object must contain exactly `id` and `value`; IDs must be non-empty and unique; values must be finite numbers or `null`. The runtime preserves each numeric value exactly; it does not normalize operational values.
-
-The evaluator must:
-
-- consume stdin once and write only the metric array to stdout;
-- write human-readable diagnostics to stderr;
-- return the same result for the same evidence;
-- use `null`, not zero, for missing or malformed required evidence;
-- request no more GitHub permissions or API calls than its evidence requires;
-- avoid network calls when local event, repository, or workflow-output evidence is sufficient.
-- consume existing validation artifacts instead of repeating expensive builds, browsers, services, or scans;
-- never invoke another model or agent to grade the workflow's model or agent output.
+The grader must return the same result for the same inputs, preserve the
+metric's native numeric scale, and inspect recorded validation results instead
+of repeating builds, scans, services, or browsers. File, module, network,
+process, clock, random, and timer APIs are unavailable. Do not add permissions,
+secrets, or custom conclusion steps to work around this boundary.
 
 ### 8. Verify and review
 
-Run:
+Compile the workflow, then replay the selected grader with a unified-session
+JSONL file or JSON event array. For example:
 
 ```bash
-.github/skills/operational-value-designer/scripts/verify-operational-value-contract-change.sh BASE-REF
-# File-backed evaluator:
-.github/skills/operational-value-designer/scripts/verify-operational-value-evaluator.sh \
-  .github/graders/WORKFLOW-NAME-operational-value.sh \
-  .github/graders/WORKFLOW-NAME-operational-value.fixtures.json
-# Both forms:
 gh aw compile .github/workflows/WORKFLOW-NAME.md
+cat aw_session.jsonl | gh aw graders run WORKFLOW-NAME comment-target-match
+git diff BASE-REF -- .github/workflows/WORKFLOW-NAME.md
 ```
+
+Exercise exact semantic fixtures through `runCustomGraders` in
+`actions/setup/js/custom_graders.cjs`, including repeated identical inputs,
+missing evidence, and malformed observations. For this skill's example and
+guidance regressions, run `bash .github/skills/operational-value-designer/tests/test.sh`.
+
+Inspect the generated DAG: `graders` must depend on successful conclusion and
+read the published `usage/aw_session.jsonl`, while conclusion receives only
+custom registration IDs. Built-ins remain in `usage/graders/`; the separate
+`graders` artifact contains combined built-in/custom results and data-only
+metadata, not executable source. Audit optionally downloads registered custom
+results. `gh aw logs --graders` or `--artifacts graders` includes both artifacts.
+Custom results do not rewrite conclusion's session.
+
+For Bash, replay with `gh aw graders run WORKFLOW-NAME operational-value`.
+`verify-operational-value-evaluator.sh` validates session-file fixtures through
+the actual shell runtime. `verify-operational-value-contract-change.sh BASE-REF`
+checks evaluator/workflow pairing; use `--correction` only for an explicit
+prospective defect fix. These shell helpers do not validate inline JavaScript.
 
 Review the design against these checks:
 
@@ -346,6 +454,6 @@ Review the design against these checks:
 - Diagnostics are independently useful and do not duplicate the primary metric.
 - The workflow and evaluator were adopted together, and neither the function nor prior results were changed retroactively.
 - External research, if used, changed a definition rather than adding prestige or complexity.
-- The evaluator makes the minimum necessary API calls.
-- The output is only an ordered array of exact `{id,value}` objects.
+- The evaluator uses only supplied session evidence and configuration; JavaScript performs no I/O, and Bash reads the session file without writes or live evidence fetches.
+- JavaScript returns a finite number, `null`, or an object containing `value`; Bash returns the stable legacy metric array.
 - Exact fixtures prove attained scores above missed, unavailable and malformed evidence return the declared result, and repeated evaluation is deterministic.

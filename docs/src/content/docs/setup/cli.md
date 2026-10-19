@@ -658,6 +658,10 @@ When multiple targets run concurrently, `--count` limits the combined number of 
 
 `--evals` and `--graders` each pull in a matching artifact set automatically: `--evals` includes results from `evals.jsonl`, `--graders` includes deterministic grader results and their artifacts. `--audit` generates `audit.json` in each downloaded run's cache directory (comparisons use only the runs downloaded in that invocation). `--ignore-workflow-runs` excludes specific run IDs (or `slug/ID` values, where the slug is informational and matching uses the numeric ID) from an otherwise matching set.
 
+The `graders` artifact set includes conclusion's built-in results in `usage`
+and the optional combined `graders` artifact from the separate custom-grader job,
+with workflow-call-prefixed and historical agent artifacts supported.
+
 `--max-storage` bounds total logs cache size in MB after pruning non-essential data. It defaults to 1024 MB (1 GB); `--max-storage 0` disables the limit. Concurrent in-flight downloads can temporarily exceed this soft budget. `--prune-older-runs` additionally removes the oldest completed runs when that pruning alone can't satisfy `--max-storage`. `--max-github-api-rate-limit` pauses (single target) or stops (multiple targets) further downloads once the given number of core API requests have been used — pass a positive value for an absolute budget or a negative value to reserve that many requests from the current rate limit. `--drain3-weights` points `--train` at an existing `drain3_weights.json` to seed pattern training instead of starting from scratch.
 
 `--cached-jsonl` reuses compatible, schema-versioned run records and workflow-run discovery responses. It writes exactly one JSON value per line, appending every complete `gh run list` payload before downloading artifacts and available GitHub API rate-limit reports after collection. Each enriched `run` record includes job execution data, sanitized MCP tool-call metadata, and available engine, model, runtime, and component versions for downstream dashboards. Raw tool errors, arguments, responses, and artifact bodies are excluded. Discovered runs therefore remain available when a timeout or API limit interrupts processing. Records from incompatible schema versions are ignored. Use `gh aw json-schema logs-jsonl` to generate the schema for each JSON Lines item.
@@ -760,19 +764,26 @@ The command and its output formats may change.
 
 #### `graders`
 
-Run one grader declared by a local workflow against a saved run payload or JSON
-from standard input. Operational-value evaluators use the same one-shot request
-shape as workflow execution and return an ordered metric array. The command
-executes either Bash embedded in `graders.operational-value.script` or a Bash
-file referenced by `graders.operational-value.run`; operational-value graders
-require standard input because historical replay is not supported.
+Run one enabled built-in, custom JavaScript, or operational-value Bash grader against a unified session from a saved run's
+`usage` artifact or from standard input. Input accepts unified-session JSONL
+or a JSON event array. The ten fast built-ins are available without explicit
+frontmatter configuration. Custom JavaScript uses a separate restricted worker
+with the same in-memory interface as the downstream graders job. Repository-owned
+`graders.operational-value.run` Bash uses that job's session-file compatibility
+runtime: session JSONL in `$1` / `GH_AW_SESSION_FILE`, config JSON in
+`GH_AW_GRADER_CONFIG`, and legacy metric-array output.
 
-JavaScript graders (built-in and custom) require Node.js 20+ with the permission model; the CLI picks `--permission` or `--experimental-permission` as supported and never runs a grader without permissions enabled.
+Pure built-in/JavaScript replay requires Node.js 20+ with the permission model. The CLI picks
+`--permission` or `--experimental-permission` as supported, restricts reads to
+the staged runtime modules, and passes the session in memory to the grader.
+Bash replay requires Node.js and Bash with the same bounded, stripped-environment
+runtime as the separate job. It is trusted code, not a filesystem/network sandbox
+or microVM; compilation and lint reject detected file writes.
 
 ```bash wrap
 gh aw graders run weekly-research loops 123456789
-cat payload.json | gh aw graders run weekly-research loops
-cat request.json | gh aw graders run daily-file-diet operational-value
+cat aw_session.jsonl | gh aw graders run weekly-research loops
+cat aw_session.jsonl | gh aw graders run weekly-research operational-value
 ```
 
 **Options:** `--repo/-r`

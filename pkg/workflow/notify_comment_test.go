@@ -1567,11 +1567,8 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 		!strings.Contains(script, "elif [ -f /tmp/gh-aw/detection_usage.jsonl ]; then") {
 		t.Errorf("Expected collect script to prefer detection_usage.jsonl from the downloaded detection artifact with a legacy fallback.\nScript:\n%s", script)
 	}
-	if !strings.Contains(script, "cp /tmp/gh-aw/agent/graders/grader_manifest.json /tmp/gh-aw/usage/graders/grader_manifest.json") {
-		t.Errorf("Expected collect script to copy grader manifest into usage.\nScript:\n%s", script)
-	}
-	if !strings.Contains(script, "cp /tmp/gh-aw/agent/graders/grader_results.json /tmp/gh-aw/usage/graders/grader_results.json") {
-		t.Errorf("Expected collect script to copy grader results into usage.\nScript:\n%s", script)
+	if strings.Contains(script, "/agent/graders/") {
+		t.Errorf("Graders must be computed from the collected session, not copied from agent artifacts.\nScript:\n%s", script)
 	}
 	if !strings.Contains(script, "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
 		t.Errorf("Expected collect script to include firewall audit token usage path for agent.\nScript:\n%s", script)

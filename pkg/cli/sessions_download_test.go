@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -112,6 +113,27 @@ func TestSessionsDownloadUsageFirst(t *testing.T) {
 	require.Contains(t, string(commands), "--name usage")
 	require.Regexp(t, `-R ([^ ]*/)?owner/repo`, string(commands))
 	require.NotContains(t, string(commands), "--name agent")
+}
+
+func TestLoadGraderRunPayloadDownloadsUnifiedSession(t *testing.T) {
+	for _, artifact := range []string{"usage", "called-usage"} {
+		t.Run(artifact, func(t *testing.T) {
+			content := sessionTestHeader + sessionTestAgentEvent
+			installSessionTestGH(t, map[string]map[string]string{artifact: {"aw_session.jsonl": content}})
+			payload, err := loadGraderRunPayload(context.Background(), graderRunConfig{RunID: 123, Repo: "owner/repo"})
+			require.NoError(t, err)
+			var events []json.RawMessage
+			require.NoError(t, json.Unmarshal(payload, &events))
+			require.Len(t, events, 2)
+		})
+	}
+}
+
+func TestLoadGraderRunPayloadSurfacesDownloadErrors(t *testing.T) {
+	installSessionTestGH(t, map[string]map[string]string{"usage": {"aw_session.jsonl": sessionTestHeader}})
+	t.Setenv("SESSION_TEST_DOWNLOAD_ERROR", "usage")
+	_, err := loadGraderRunPayload(context.Background(), graderRunConfig{RunID: 123, Repo: "owner/repo"})
+	require.ErrorContains(t, err, "failed to download usage artifact")
 }
 
 func TestSessionsDownloadNormalizesPublishedPiObservations(t *testing.T) {

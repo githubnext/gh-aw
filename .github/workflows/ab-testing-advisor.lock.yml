@@ -1185,42 +1185,6 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'generate_observability_summary.cjs'));
             await main(core);
-      - name: Run graders
-        if: always()
-        continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { mainFromEnvironment } = require(path.join(actionsDir, 'trace_graders.cjs'));
-            await mainFromEnvironment();
-        env:
-          GH_AW_GRADER_MANIFEST_0: '{"version":1,"graders":[]}'
-          GH_AW_GRADER_MANIFEST_CHUNKS: '1'
-          GH_AW_GRADER_EXEC_0: 'null'
-          GH_AW_GRADER_EXEC_CHUNKS: '1'
-      - name: Redact grader outputs
-        if: always()
-        continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { redactFilesInDir } = require(path.join(actionsDir, 'redact_secrets.cjs'));
-            await redactFilesInDir('/tmp/gh-aw/agent/graders');
-        env:
-          GH_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_MCP_SERVER_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
-          SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          SECRET_GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
-          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Write agent output placeholder if missing
         if: always()
         run: |
@@ -1269,9 +1233,6 @@ jobs:
             /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl
             /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/model-routing.jsonl
             /tmp/gh-aw/awf-resolved-config.json
-            /tmp/gh-aw/agent/graders/grader_manifest.json
-            /tmp/gh-aw/agent/graders/grader_payload.json
-            /tmp/gh-aw/agent/graders/grader_results.json
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
       - name: Upload agent artifacts
@@ -1299,9 +1260,6 @@ jobs:
             /tmp/gh-aw/github_rate_limits.jsonl
             /tmp/gh-aw/otel.jsonl
             /tmp/gh-aw/otlp-export-errors.jsonl
-            /tmp/gh-aw/agent/graders/grader_manifest.json
-            /tmp/gh-aw/agent/graders/grader_payload.json
-            /tmp/gh-aw/agent/graders/grader_results.json
             /tmp/gh-aw/safeoutputs.jsonl
             /tmp/gh-aw/agent_output.json
             /tmp/gh-aw/aw-*.patch
@@ -1604,6 +1562,8 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_GRADER_MANIFEST_0: '{"version":2,"graders":[{"id":"recurrence-determinism","name":"Recurrence Determinism (RQA DET)","description":"RQA DET: fraction of recurrent points forming diagonal (repeated-subsequence) lines","source":"builtin","enabled":true,"unit":"ratio","direction":"lower_is_better","max":1,"min":0},{"id":"recurrence-laminarity","name":"Recurrence Laminarity (RQA LAM)","description":"RQA LAM: fraction of recurrent points forming vertical (stagnation) lines","source":"builtin","enabled":true,"unit":"ratio","direction":"lower_is_better","max":1,"min":0},{"id":"state-revisit-probability-rep","name":"State Revisit Probability REP","description":"Fraction of canonical state visits that revisit an already visited state","source":"builtin","enabled":true,"unit":"ratio","direction":"lower_is_better","max":1,"min":0}]}'
+          GH_AW_GRADER_MANIFEST_CHUNKS: '1'
           GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}
           GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}
           GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}

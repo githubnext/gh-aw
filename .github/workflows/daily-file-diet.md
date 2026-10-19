@@ -53,13 +53,6 @@ evals:
     question: Did the agent analyze the largest Go source files in the repository?
   - id: issue_created_or_noop
     question: Was a refactoring issue created for files exceeding the healthy size threshold, or was noop used when all files were within limits?
-graders:
-  operational-value:
-    name: File Diet Decision Conformance
-    description: "Strongest attributable precursor to decomposing oversized Go files: whether grading-time evidence contains the correct target-bound refactoring issue or healthy-repository noop"
-    unit: ratio
-    direction: higher_is_better
-    run: .github/graders/daily-file-diet-operational-value.sh
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -41,6 +41,57 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it("grades the complete redacted log before persisting conclusion results", () => {
+    write("aw_info.json", { engine_id: "copilot", run_id: 123, run_attempt: 2 });
+    write("agent-session.jsonl", [
+      { type: "tool.execution_start", data: { toolName: "view", toolCallId: "a", input: { path: "private-one" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "a", success: true } },
+      { type: "tool.execution_start", data: { toolName: "view", toolCallId: "b", input: { path: "private-two" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "b", success: true } },
+    ]);
+    write("agent-stdio.log", "::add-mask::private-one\n::add-mask::private-two\n");
+    write("safe-output-items.jsonl", [{ type: "issue", number: 1 }]);
+    write("evals.jsonl", [{ runid: "123", id: "goal", answer: "YES" }]);
+    const events = writeUnifiedSession({ rootDir: root, graders: [] });
+    const output = JSON.parse(fs.readFileSync(path.join(root, "usage/graders/grader_results.json"), "utf8"));
+    expect(output.results.find(result => result.id === "loops").value).toBe(1);
+    expect(output.results.find(result => result.id === "artifact-production").value).toBe(1);
+    expect(output.context.evals.byQuestion.goal).toBe("YES");
+    const resultEvent = events.find(event => event.type === "grader.result");
+    expect(resultEvent.provenance).toMatchObject({ component: "grader", phase: "conclusion" });
+    expect(resultEvent.data.results).toMatchObject(output.results.map(({ id, value, status }) => ({ id, value, status })));
+    expect(events.find(event => event.type === "session.collection").data.absentComponents).not.toContain("grader");
+    expect(events.find(event => event.type === "session.collection").data.sources.filter(source => source.component === "grader")).toHaveLength(2);
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("private-one");
+    expect(persisted).not.toContain("private-two");
+    expect(persisted.trim().split("\n").map(JSON.parse)).toEqual(events);
+    expect(validateSession(persisted)).toBe(events.length);
+    expect(writeUnifiedSession({ rootDir: root, graders: [] }).filter(event => event.type === "grader.result")).toEqual([resultEvent]);
+  });
+
+  it("removes stale grading artifacts when the unified session cannot be published", () => {
+    write("usage/graders/grader_manifest.json", {});
+    write("usage/graders/grader_results.json", {});
+    expect(() => writeUnifiedSession({ rootDir: root, graders: [{ id: "custom", script: "return 1" }] })).toThrow(/custom graders/);
+    for (const file of ["aw_session.jsonl", "graders/grader_manifest.json", "graders/grader_results.json"]) {
+      expect(fs.existsSync(path.join(root, "usage", file))).toBe(false);
+    }
+  });
+
+  it("records custom IDs without executing code found in collected evidence", () => {
+    const marker = path.join(root, "must-not-exist");
+    const script = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "executed")`;
+    write("graders/grader_manifest.json", { graders: [{ id: "custom-count", source: "inline", script }] });
+    write("agent-session.jsonl", [{ type: "assistant.message", data: { content: script } }]);
+    const events = writeUnifiedSession({ rootDir: root, graders: [], customGraderIds: ["custom-count"] });
+    const manifest = events.find(event => event.type === "grader.manifest").data;
+    expect(manifest.customGraders).toEqual(["custom-count"]);
+    expect(manifest.graders.every(grader => grader.source === "builtin" && !Object.hasOwn(grader, "script"))).toBe(true);
+    expect(fs.existsSync(marker)).toBe(false);
+    expect(validateSession(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8"))).toBe(events.length);
+  });
+
   it("persists dependency job outcomes without outputs or invented timing", () => {
     process.env.GH_AW_JOB_RESULTS = JSON.stringify({
       safe_outputs: { result: "failure", outputs: { token: "PRIVATE_OUTPUT" } },

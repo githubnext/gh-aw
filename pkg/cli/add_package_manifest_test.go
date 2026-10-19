@@ -314,7 +314,7 @@ resources:
 			assert.Equal(t, ".github/aw/policy/controls.json", pkg.ResourceFiles[1].DestinationPath)
 		})
 
-		t.Run("adds grader evaluators to package resources", func(t *testing.T) {
+		t.Run("installs custom grader evaluator resources", func(t *testing.T) {
 			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 				switch path {
 				case "packages/repo-assist/aw.yml":
@@ -355,14 +355,11 @@ graders:
 			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 			require.NoError(t, err)
 			require.Len(t, pkg.ResourceFiles, 2)
-			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].SourcePath)
-			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
-			assert.Equal(t, "packages/repo-assist/workflows/graders/triage-operational-value.sh", pkg.ResourceFiles[1].SourcePath)
-			assert.Equal(t, ".github/workflows/graders/triage-operational-value.sh", pkg.ResourceFiles[1].DestinationPath)
-			assert.True(t, isPackageResourceDestination(pkg.ResourceFiles[1].DestinationPath))
+			assert.Equal(t, resolvedPackageResource{SourcePath: ".github/graders/shared-operational-value.sh", DestinationPath: ".github/graders/shared-operational-value.sh"}, pkg.ResourceFiles[0])
+			assert.Equal(t, resolvedPackageResource{SourcePath: "packages/repo-assist/workflows/graders/triage-operational-value.sh", DestinationPath: ".github/workflows/graders/triage-operational-value.sh"}, pkg.ResourceFiles[1])
 		})
 
-		t.Run("dedupes a repository-root evaluator shared across imported manifests", func(t *testing.T) {
+		t.Run("deduplicates evaluators from imported manifests", func(t *testing.T) {
 			downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 				switch path {
 				case "packages/repo-assist/aw.yml":
@@ -413,7 +410,6 @@ graders:
 			pkg, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 			require.NoError(t, err)
 			require.Len(t, pkg.ResourceFiles, 1)
-			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].SourcePath)
 			assert.Equal(t, ".github/graders/shared-operational-value.sh", pkg.ResourceFiles[0].DestinationPath)
 		})
 		getRepositoryPackageLatestRelease = func(_ context.Context, repoSlug, host string) (string, error) {

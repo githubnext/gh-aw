@@ -110,12 +110,6 @@ func (c *Compiler) generateAgentOutputFallbackUpload(yaml *strings.Builder, data
 		paths = append(paths, constants.AWFResolvedConfigFilePath.String())
 	}
 
-	// Include grader manifest/results in the fallback so detection and downstream
-	// jobs have reliable access even when the large unified artifact times out.
-	if data.Graders != nil && data.Graders.HasGraders() {
-		paths = append(paths, collectGraderArtifactPaths(data.Graders)...)
-	}
-
 	if isArcDindTopology(data) {
 		paths = rewriteTmpGhAwPathsForArcDind(paths)
 	}

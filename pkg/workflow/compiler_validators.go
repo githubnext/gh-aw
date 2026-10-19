@@ -547,7 +547,7 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 	}{
 		{enabled: ResolveEngineID(workflowData) == string(constants.CopilotEngine) && workflowData.EngineConfig.DynamicWorkflowsEnabled(), message: "Using experimental feature: copilot.dynamic-workflows"},
 		{enabled: workflowData.RateLimit != nil, message: "Using experimental feature: rate limiting"},
-		{enabled: workflowData.Graders != nil && workflowData.Graders.HasGraders(), message: "Using experimental feature: graders"},
+		{enabled: workflowData.RawFrontmatter["graders"] != nil && workflowData.Graders != nil && workflowData.Graders.HasGraders(), message: "Using experimental feature: graders"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil, message: "Using experimental feature: dispatch-repository"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil, message: "Using experimental feature: merge-pull-request"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ApproveWorkflowRun != nil, message: "Using experimental feature: approve-workflow-run"},
