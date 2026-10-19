@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createReportIssue } = require("./issue_report.cjs");
+const { getStalePullRequestReason, StalePullRequestError } = require("./pr_lifecycle.cjs");
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");
@@ -870,6 +871,11 @@ async function main(config = {}) {
         pull_number: pullNumber,
       });
       pullRequest = response.data;
+      if (pullRequest.state === "closed") {
+        const reason = `Pull request #${pullNumber} is closed; refusing to push to its branch`;
+        core.info(reason);
+        return { skipped: true, reason };
+      }
       branchName = pullRequest.head.ref;
       prTitle = pullRequest.title || "";
       prLabels = pullRequest.labels.map(label => label.name);
@@ -1637,7 +1643,9 @@ async function main(config = {}) {
         // "Unable to determine if workflow can be created or updated due to timeout; `workflows`
         // scope may be required." — a transient server-side condition, not a real scope problem.
         // Retry with exponential backoff before treating the push as failed.
-        const pushedSha = await withTransientPushRetry(() => {
+        const pushedSha = await withTransientPushRetry(async () => {
+          const staleReason = await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } });
+          if (staleReason) throw new StalePullRequestError(staleReason);
           transport.assertUnchanged();
           return pushSignedCommits({
             assertTransportUnchanged: transport.assertUnchanged,
@@ -1651,6 +1659,7 @@ async function main(config = {}) {
             pushRemoteUrl,
             pushToken: headGitHubToken,
             signedCommits,
+            requireExistingBranch: true,
             resolvedTemporaryIds,
             currentRepo: itemRepo,
             validationConfig: config,
@@ -1663,14 +1672,18 @@ async function main(config = {}) {
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {
         transport.assertUnchanged();
+        if (pushError instanceof StalePullRequestError) {
+          core.info(pushError.message);
+          return { skipped: true, reason: pushError.message };
+        }
         const pushErrorMessage = getErrorMessage(pushError);
-        core.error(`Failed to push changes: ${pushErrorMessage}`);
 
         // Missing workflow scope is handled by the preflight above. Any workflow-scope
         // rejection that reaches this catch is GitHub's transient permission-check timeout.
         const isWorkflowsScopeTimeout = isWorkflowsScopeRejection(pushErrorMessage);
 
-        const nonFastForwardPatterns = ["non-fast-forward", "rejected", "fetch first", "Updates were rejected"];
+        // A generic rejection can be a real authentication, permission, or validation failure.
+        const nonFastForwardPatterns = ["non-fast-forward", "(fetch first)"];
         const isNonFastForward = !isWorkflowsScopeTimeout && nonFastForwardPatterns.some(pattern => pushErrorMessage.includes(pattern));
         let userMessage = isNonFastForward
           ? "Failed to push changes: remote PR branch changed while the workflow was running (non-fast-forward). Re-run the workflow on the latest PR branch state."
@@ -1699,6 +1712,16 @@ async function main(config = {}) {
         // Fallback path for diverged branches: create a new pull request so changes
         // can still be reviewed and merged into the original PR branch.
         if ((isNonFastForward || isWorkflowsScopeTimeout) && fallbackAsPullRequest) {
+          const staleReason = await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } });
+          if (staleReason) {
+            if (isNonFastForward) {
+              core.info(staleReason);
+              return { skipped: true, reason: staleReason };
+            }
+            core.error(`Failed to push changes: ${pushErrorMessage}`);
+            core.warning(staleReason);
+            return { success: false, error: `Failed to push changes: ${pushErrorMessage}`, error_type: "push_failed" };
+          }
           const fallbackBranchName = normalizeBranchName(`${branchName}-fallback`, String(Date.now()));
           const fallbackReason = isNonFastForward ? "Non-fast-forward push detected" : "Transient workflow-permission check timeout on push";
           core.warning(`${fallbackReason}; creating fallback pull request from '${fallbackBranchName}' to '${branchName}'`);
@@ -1788,6 +1811,7 @@ async function main(config = {}) {
           }
         }
 
+        core.error(`Failed to push changes: ${pushErrorMessage}`);
         return { success: false, error_type: "push_failed", error: userMessage };
       }
 
@@ -1848,7 +1872,9 @@ async function main(config = {}) {
     //
     // Skip the activation comment for empty commits (0 file changes, e.g. CI trigger commits).
     // These are noise — they don't represent meaningful work and would clutter PRs on every scheduled run.
-    if (hasChanges) {
+    const commentStaleReason = hasChanges ? await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } }) : null;
+    if (commentStaleReason) core.info(commentStaleReason);
+    if (hasChanges && !commentStaleReason) {
       let isEmptyCommit = false;
       if (rangeBaseRef) {
         try {
@@ -1893,7 +1919,9 @@ async function main(config = {}) {
     // This works around the GITHUB_TOKEN limitation where pushes don't trigger CI events.
     // Restricting to exactly 1 new commit prevents the CI trigger token being used on
     // multi-commit branches where workflow files may have been iteratively modified.
-    if (hasChanges) {
+    const ciStaleReason = hasChanges ? await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } }) : null;
+    if (ciStaleReason) core.info(ciStaleReason);
+    if (hasChanges && !ciStaleReason) {
       transport.assertUnchanged();
       const ciTriggerResult = await pushExtraEmptyCommit({
         assertTransportUnchanged: transport.assertUnchanged,
@@ -1901,6 +1929,7 @@ async function main(config = {}) {
         repoOwner: pushRepoParts.owner,
         repoName: pushRepoParts.repo,
         newCommitCount,
+        requireExistingBranch: true,
       });
       if (ciTriggerResult.success && !ciTriggerResult.skipped) {
         core.info("Extra empty commit pushed - CI checks should start shortly");

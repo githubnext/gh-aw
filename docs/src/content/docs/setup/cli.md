@@ -590,6 +590,30 @@ With `--json`, the output also includes deterministic lineage data under `.episo
 > [!NOTE]
 > A downstream warning that a workflow file returned HTTP 404 does not mean `gh aw logs` failed to download the run. The command downloads run artifacts by run ID; workflow source lookup is a separate operation performed by the consumer. GitHub's workflows API can retain entries for deleted or renamed files. Live-inventory consumers should ignore non-active workflows and paths absent from the repository contents listing. Historical consumers should use each JSON run's `repository`, `workflow_path`, and `sha` fields instead of the current default branch, and treat missing source as unavailable metadata rather than a failed log download.
 
+Logs preserve each run's raw GitHub conclusion. `job_count: 0` means the Jobs API
+confirmed no jobs for that attempt; an absent `job_count` means unavailable evidence.
+Confirmed jobless failures remain visible as `confirmed_no_jobs` clusters, but
+are not runtime-audit candidates. They can represent validation failures or
+platform-side lifecycle invalidation; missing artifacts alone establishes neither.
+
+An originally queued `pull_request` run is classified with
+`exclusion_reason: obsolete_pr` only when its exact attempt has no jobs and the
+uniquely associated PR closed after the attempt was queued but before GitHub
+finalized it as failed or cancelled. `obsolete_pr` retains the PR number,
+closure time, and attempt as evidence. Such runs remain in the raw run list and
+`summary.obsolete_pr_runs`, but are excluded from actionable failure clusters
+and investigations. Explicit startup-validation conclusions, observed failure
+signals, job-backed failures, unavailable API evidence, and closed-event runs
+are not classified as obsolete. Association is resolved from the run's exact
+commit, even if that PR's head advanced before closure; ambiguous associations
+remain unknown.
+
+`summary.executed_runs` and `summary.executed_success_runs` count only completed
+runs with confirmed jobs. Use these for executed-run success rates rather than
+the raw `total_runs`; unknown evidence and jobless runs are not successes.
+`summary.non_execution_runs` counts confirmed jobless runs. No in-job guard can
+change GitHub's platform-side conclusion for a run whose jobs never started.
+
 To diagnose an actual download failure, enable the logs API and download debug namespaces:
 
 ```bash wrap

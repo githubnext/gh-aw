@@ -301,6 +301,7 @@ func (c *Compiler) buildAgentFailureCoreVars(data *WorkflowData, mainJobName str
 	}
 	if ShouldGeneratePRCheckoutStep(data) {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.%s.outputs.checkout_pr_success }}\n", mainJobName))
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_CHECKOUT_PR_INVALIDATED: ${{ needs.%s.outputs.checkout_pr_invalidated }}\n", mainJobName))
 	}
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.%s.outputs.ai_credits_rate_limit_error || 'false' }}\n", mainJobName))
 	envVars = append(envVars, fmt.Sprintf("          GH_AW_UNKNOWN_MODEL_AI_CREDITS: ${{ needs.%s.outputs.unknown_model_ai_credits || 'false' }}\n", mainJobName))

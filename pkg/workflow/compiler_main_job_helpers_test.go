@@ -153,6 +153,13 @@ func TestBuildMainJobDependencies(t *testing.T) {
 
 // TestBuildMainJobOutputs tests that the output map contains expected keys under various config.
 func TestBuildMainJobOutputs(t *testing.T) {
+	t.Run("PR checkout invalidation is distinct from ordinary checkout failure", func(t *testing.T) {
+		data := &WorkflowData{AI: "copilot", Permissions: "permissions:\n  contents: read"}
+		outputs := NewCompiler().buildMainJobOutputs(data)
+		assert.Equal(t, "${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}", outputs["checkout_pr_invalidated"])
+		data.CheckoutDisabled = true
+		assert.NotContains(t, NewCompiler().buildMainJobOutputs(data), "checkout_pr_invalidated")
+	})
 	t.Run("core outputs are always present", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{AI: "copilot"}

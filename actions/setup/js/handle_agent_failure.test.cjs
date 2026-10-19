@@ -243,6 +243,7 @@ describe("handle_agent_failure", () => {
         data: {
           jobs: [
             {
+              id: 456,
               name: "agent",
               conclusion: "failure",
               steps: [{ name: "Checkout repository (gh-aw default)", conclusion: "failure", completed_at: checkoutCompletedAt }],
@@ -252,7 +253,14 @@ describe("handle_agent_failure", () => {
       });
       global.github = {
         paginate: vi.fn(async (request, params) => (await request(params)).data.jobs),
-        rest: { pulls: { get: getPR }, actions: { listJobsForWorkflowRun: listJobs }, issues: { create: vi.fn() } },
+        rest: {
+          pulls: { get: getPR },
+          actions: {
+            listJobsForWorkflowRun: listJobs,
+            downloadJobLogsForWorkflowRun: vi.fn().mockResolvedValue({ data: "fatal: couldn't find remote ref refs/pull/42/merge" }),
+          },
+          issues: { create: vi.fn() },
+        },
       };
     });
 
@@ -356,7 +364,7 @@ describe("handle_agent_failure", () => {
         expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("PR merge ref was invalidated"));
         expect(global.core.debug).toHaveBeenCalledWith("Checking PR #42 for merge-ref checkout invalidation");
         expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref checkout timing: closed_at=2026-10-03T12:00:00.000Z, checkout_completed_at=2026-10-03T12:00:01.000Z");
-        expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation confirmed: closure preceded failed default checkout completion");
+        expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation confirmed: missing merge ref after closure");
       } finally {
         delete process.env.GH_AW_AGENT_CONCLUSION;
       }
@@ -366,6 +374,39 @@ describe("handle_agent_failure", () => {
       getPR.mockResolvedValue({ data: { state: "closed", closed_at: "2026-10-03T12:00:02Z" } });
       expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
       expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation not confirmed: no failed default checkout completed at or after PR closure");
+    });
+
+    it.each(["ArrayBuffer", "Uint8Array", "Buffer", "Uint8Array subarray"])("decodes %s job logs before checking merge-ref invalidation", async shape => {
+      const evidence = "fatal: couldn't find remote ref refs/pull/42/merge";
+      const bytes = new TextEncoder().encode(evidence);
+      const padded = new TextEncoder().encode(`prefix ${evidence} suffix`);
+      const logs = shape === "ArrayBuffer" ? bytes.buffer : shape === "Buffer" ? Buffer.from(bytes) : shape === "Uint8Array subarray" ? padded.subarray(7, 7 + bytes.length) : bytes;
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: logs });
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(true);
+    });
+
+    it.each(["fatal: Authentication failed", "remote: Permission denied", "fatal: unable to access origin: network error", "unknown git error", "fatal: couldn't find remote ref refs/pull/99/merge"])(
+      "does not suppress binary logs without this PR's missing-ref evidence: %s",
+      async evidence => {
+        global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: new TextEncoder().encode(evidence) });
+        expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
+      }
+    );
+
+    it("does not coerce unsupported job log bodies into evidence", async () => {
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: { toString: () => "fatal: couldn't find remote ref refs/pull/42/merge" } });
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
+      expect(global.core.debug).toHaveBeenCalledWith("PR merge-ref invalidation not confirmed: unsupported job log response");
+    });
+
+    it.each(["fatal: Authentication failed", "remote: Permission denied", "", null])("keeps a failed checkout visible without missing-ref evidence: %j", async logs => {
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: logs });
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
+    });
+
+    it("keeps a failed checkout visible when its logs cannot be read", async () => {
+      global.github.rest.actions.downloadJobLogsForWorkflowRun.mockRejectedValue(new Error("403 forbidden"));
+      expect(await require("./handle_agent_failure.cjs").isInvalidatedPRMergeCheckout()).toBe(false);
     });
 
     it("does not suppress a real agent failure after closure", async () => {
