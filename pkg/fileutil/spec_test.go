@@ -6,7 +6,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -49,6 +51,14 @@ func TestSpec_PublicAPI_ValidateExecutablePath(t *testing.T) {
 	require.NoError(t, err, "an absolute executable file should be accepted")
 	assert.Equal(t, executable, resolved, "the resolved executable path should be returned")
 
+	symlink := filepath.Join(dir, "tool-link")
+	require.NoError(t, os.Symlink(executable, symlink),
+		"test symlink to executable should be created")
+	symlinkResolved, err := fileutil.ValidateExecutablePath(symlink)
+	require.NoError(t, err, "an absolute symlink to an executable should be accepted")
+	assert.Equal(t, executable, symlinkResolved,
+		"ValidateExecutablePath should return the resolved executable path")
+
 	require.Error(t, func() error {
 		_, err := fileutil.ValidateExecutablePath("relative-tool")
 		return err
@@ -85,7 +95,12 @@ func TestSpec_PublicAPI_ResolveExecutablePath(t *testing.T) {
 	require.Error(t, err, "an empty executable name should be rejected")
 
 	_, err = fileutil.ResolveExecutablePath("missing-spec-tool")
-	assert.Error(t, err, "a command absent from PATH should return an error")
+	require.Error(t, err, "a command absent from PATH should return an error")
+	var lookPathError *exec.Error
+	require.ErrorAs(t, err, &lookPathError,
+		"a missing command should return an exec.LookPath error")
+	assert.Equal(t, reflect.TypeFor[*exec.Error](), reflect.TypeOf(err),
+		"the underlying exec.LookPath error should be returned unchanged, not wrapped")
 }
 
 // TestSpec_PublicAPI_ValidateAbsolutePath validates the documented behavior:
@@ -171,6 +186,15 @@ func TestSpec_PublicAPI_ValidatePathWithinBase(t *testing.T) {
 		t.Parallel()
 		err := fileutil.ValidatePathWithinBase(base, base)
 		assert.NoError(t, err, "base path itself should be accepted")
+	})
+
+	t.Run("rejects symlink escaping base", func(t *testing.T) {
+		outsideDir := t.TempDir()
+		link := filepath.Join(base, "outside-link")
+		require.NoError(t, os.Symlink(outsideDir, link),
+			"test symlink to an outside directory should be created")
+		err := fileutil.ValidatePathWithinBase(base, filepath.Join(link, "file.txt"))
+		assert.Error(t, err, "a symlink resolving outside base should be rejected")
 	})
 }
 

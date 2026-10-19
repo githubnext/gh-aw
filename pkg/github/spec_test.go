@@ -4,6 +4,8 @@ package github_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -210,6 +212,21 @@ func TestSpec_ConfigPrecedence_EnvironmentJSON(t *testing.T) {
 		"LoadObjectiveMapping should use the raw environment JSON mapping")
 	assert.Equal(t, github.MultiLabelLogicSum, om.MultiLabelLogic,
 		"LoadObjectiveMapping should preserve environment-provided logic")
+}
+
+// TestSpec_ConfigPrecedence_EnvironmentFile validates the documented fallback
+// that treats OBJECTIVE_MAPPING_JSON as a file path when it is not raw JSON.
+func TestSpec_ConfigPrecedence_EnvironmentFile(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "objective-mapping.json")
+	require.NoError(t, os.WriteFile(configPath,
+		[]byte(`{"label_to_value":{"from-file":73},"multi_label_logic":"max","priority_labels":[]}`),
+		0o600), "environment-referenced mapping file should be created")
+	t.Setenv("OBJECTIVE_MAPPING_JSON", configPath)
+
+	om := github.LoadObjectiveMapping()
+	require.NotNil(t, om, "a valid environment-referenced mapping file should load")
+	assert.Equal(t, 73, om.ComputeObjectiveValue([]string{"from-file"}),
+		"LoadObjectiveMapping should treat non-JSON environment content as a file path")
 }
 
 // TestSpec_PublicAPI_GetAllLabels validates that GetAllLabels returns all
