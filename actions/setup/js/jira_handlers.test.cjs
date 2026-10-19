@@ -270,13 +270,19 @@ describe("Jira safe-output handlers", () => {
     expect(requests[0].body.fields).not.toHaveProperty("description");
   });
 
-  it("omits a footer that would exceed the Jira description limit", async () => {
+  it("fits Jira descriptions without omitting the configured footer", async () => {
     const handler = await createIssueMain({ max: 1, body_footer: "Configured footer" });
     const result = await handler({ temporary_id: "#aw_jira123", project_key: "ENG", issue_type: "Task", summary: "x".repeat(255), description: "x".repeat(32767) });
     expect(result.success).toBe(true);
     expect(requests[0].body.fields.summary).toHaveLength(255);
-    expect(requests[0].body.fields.description.content[0].content[0].text).toHaveLength(32767);
-    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Configured body footer omitted"));
+    expect(requests[0].body.fields.description.content[0].content[0].text).toBe("Content redacted to fit size limit.");
+    const text = requests[0].body.fields.description.content
+      .flatMap(block => block.content || [])
+      .map(inline => inline.text || "")
+      .join("\n");
+    expect(text.length).toBeLessThanOrEqual(32767);
+    expect(text).toContain("Configured footer");
+    expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("Configured body footer omitted"));
   });
 
   it("adds one Jira label with additive update semantics", async () => {

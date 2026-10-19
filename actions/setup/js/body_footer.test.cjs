@@ -20,9 +20,13 @@ describe("appendConfiguredBodyFooter", () => {
     expect(appendConfiguredBodyFooter("Body", undefined)).toBe("Body");
   });
 
-  it("omits the footer when appending would exceed the destination limit", () => {
+  it("redacts oversized body text without shortening or omitting the footer", () => {
     const body = "x".repeat(100);
-    expect(appendConfiguredBodyFooter(body, "Footer", { maxLength: 100 })).toBe(body);
+    expect(appendConfiguredBodyFooter(body, "Footer", { maxLength: 100 })).toBe("Content redacted to fit size limit.\n\nFooter");
+  });
+
+  it("fails explicitly when the footer alone cannot fit", () => {
+    expect(() => appendConfiguredBodyFooter("Body", "f".repeat(101), { maxLength: 100 })).toThrow("Protected markers and footers");
   });
 
   it("appends the footer when the composed body fits the destination limit", () => {

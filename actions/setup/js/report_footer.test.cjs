@@ -71,18 +71,20 @@ describe("structured report footer", () => {
     expect(footer.children).toEqual([
       {
         type: "quote",
+        agentTainted: false,
         children: [
           {
             type: "paragraph",
+            agentTainted: false,
             children: [
-              { type: "text", value: "Smoke Copilot: {triggering_number} {unknownField} {__proto__} {constructor}" },
-              { type: "text", value: " · " },
-              { type: "link", url: ctx.historyUrl, children: [{ type: "text", value: "◷" }] },
+              { type: "text", value: "Smoke Copilot: {triggering_number} {unknownField} {__proto__} {constructor}", agentTainted: false },
+              { type: "text", value: " · ", agentTainted: false },
+              { type: "link", url: ctx.historyUrl, children: [{ type: "text", value: "◷", agentTainted: false }], agentTainted: false },
             ],
           },
         ],
       },
-      { type: "paragraph", children: [{ type: "text", value: "{unknown_block}" }] },
+      { type: "paragraph", children: [{ type: "text", value: "{unknown_block}", agentTainted: false }], agentTainted: false },
     ]);
     expect(parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow")?.workflow_id).toBe("smoke-copilot");
     expect(parseHTMLCommentMetadata(body, "gh-aw-failure-issue")?.failure_categories).toBe("missing_tool|report_incomplete");
@@ -93,7 +95,7 @@ describe("structured report footer", () => {
     vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ agentFailureIssue: "> Name: {workflow_name} {triggering_number}" }));
     const workflowName = "{history_link} **injected** [bad](https://evil.example) <!-- injected -->";
     const footer = buildFailureReportFooter({ ...ctx, workflowName }, { expiresHours: 0, failureFields: fields });
-    expect(footer.children).toEqual([{ type: "quote", children: [{ type: "paragraph", children: [{ type: "text", value: `Name: ${workflowName} {triggering_number}` }] }] }]);
+    expect(footer.children).toEqual([{ type: "quote", children: [{ type: "paragraph", children: [{ type: "text", value: `Name: ${workflowName} {triggering_number}`, agentTainted: false }], agentTainted: false }], agentTainted: false }]);
     const { body } = renderReport(document(footer));
     expect(body).not.toContain("<!-- injected -->");
     expect(body.split("\n\n<!-- gh-aw-agentic-workflow:")[0]).not.toContain("[bad](https://evil.example)");
