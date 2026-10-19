@@ -37,6 +37,10 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `custom-job-detection` | — | AW | Authored custom jobs with a direct `agent` dependency also need `detection` and require its success. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
 | `grader-file-io` | — | AW | Custom `graders.<id>.script` JavaScript ASTs do not access filesystem/host capabilities or load modules. Requires the optional native JavaScript parser; missing parser configuration produces a visible coverage warning. |
 | `grader-shell-file-write` | — | AW | Repository-owned `graders.operational-value.run` Bash ASTs avoid detected file writes and unchecked shell execution. Loads confined evaluator source without executing it; no optional JavaScript parser required. |
+| `github-cli-syntax` | — | AW, Actions | Warns about literal `gh --no-pager` and `gh pr view/list --json authorAssociation` in shell steps and positive `Run` prompt instructions. Use `GH_PAGER=cat` and host-side REST `author_association` reads instead. |
+| `github-proxy-diff` | — | AW | Warns when a positive `Run` prompt instruction expects `gh pr diff` under an explicit `tools.github.mode: gh-proxy`; that route may return JSON metadata rather than a unified diff. Pre-fetch the diff in a host step and pass its path to delegates. |
+
+These GitHub CLI contract checks are best-effort warnings. They do not execute `gh`, change tool grants, or inspect commands generated later by a model. Prompt checks cover literal inline commands and shell fences introduced by positive `Run` instructions; dynamic arguments and non-shell programs are not inferred. Unparseable shell text retains a coverage warning.
 
 ## Severity and source policy
 
