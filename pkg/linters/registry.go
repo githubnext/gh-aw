@@ -24,6 +24,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/execcommandwithoutcontext"
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
+	"github.com/github/gh-aw/pkg/linters/formatintitoa"
 	"github.com/github/gh-aw/pkg/linters/fprintferrorunchecked"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
 	"github.com/github/gh-aw/pkg/linters/generatedyamlheredoc"
@@ -151,6 +152,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	sortslice.Analyzer,
 	sprintferrdot.Analyzer,
 	sprintferrorsnew.Analyzer,
+	formatintitoa.Analyzer,
 	sprintfbool.Analyzer,
 	sprintfint.Analyzer,
 	strconvparseignorederror.Analyzer,
