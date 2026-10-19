@@ -19,16 +19,13 @@ gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
   --output "$EVIDENCE" --json
 ```
 
-Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout can return an incomplete JSON report. Reuse cache; fetch only missing evidence.
-Read only the linked `key_findings[].playbook_url` section or exact-code row, not
-the entire playbook. Trace causes, not final cascades.
-Start with one failure; compare one relevant success only if needed.
-Fleet request: [cluster failures first](analyzing-runs.md).
+Check completeness, `overview`, `key_findings`, `recommendations`, `errors`;
+timeouts may return an incomplete JSON report. Reuse cache; fetch gaps only.
+Read only the linked `key_findings[].playbook_url` section/exact-code row.
+Trace causes, not cascades. Fleet: [cluster first](analyzing-runs.md).
 
-Preserve code case/punctuation and namespace; severity differs by emitter.
-Success, advisory, pending, skipped, and policy-denied outcomes need not be bugs.
-Unlisted/external codes: [unmapped codes](#unmapped-codes).
+Preserve code case/punctuation/namespace; severity varies by emitter.
+Nonfailure/policy-denied outcomes needn't be bugs. Unlisted: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
 
@@ -218,42 +215,45 @@ Check producer/version, record location, completeness.
 
 ## Work-queue codes
 
-Follow [queue playbook](work-queue.md); inspect status/artifacts read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-verified receipts. Pending projection doesn't prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs across
-work, or bypass immutable profiles/effect scopes.
+Follow [queue playbook](work-queue.md); inspect read-only: repo/branch/tip, epoch,
+fingerprint, Work/Claim/Delivery IDs, run binding/receipts. Pending projection != claim failure.
+Never rewrite history, fabricate evidence, reuse cross-work credentials/request IDs,
+or bypass immutable profiles/effect scopes.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
 | `unsupported_protocol`, `codec_invalid`, `invalid_json`, `invalid_utf8`, `invalid_unicode`, `duplicate_key`, `noncanonical_number` | Version, canonical bytes, keys, Unicode/numbers. | Align producer/reader; regenerate input, not history. |
-| `ledger_invalid`, `ledger_foreign`, `ledger_nonextending` | Queue identity, DAG, ancestry. | Stop publication; recover trusted queue/tip via protocol. |
-| `queue_missing`, `policy_missing` | Queue location; trusted config. | Approved AW-managed bootstrap/deployment; no manual admin seeding. |
+| `ledger_invalid`, `ledger_foreign`, `ledger_nonextending` | Identity, DAG, ancestry. | Stop publication; recover trusted queue/tip via protocol. |
+| `queue_missing`, `policy_missing` | Location/config. | Approved AW-managed bootstrap/deployment; no manual seeding. |
 | `repository_unavailable`, `repository_scope_invalid`, `branch_invalid`, `git_transport_failed` | Repo/branch, checkout credentials, Git failure. | Restore authorized transport/target; reread uncertain publication tip. |
-| `actor_unauthorized`, `admission_unauthorized`, `unauthorized_operation`, `ownership_unauthorized`, `work_unauthorized`, `dependency_unauthorized`, `projection_unauthorized`, `resource_unauthorized` | Principal, role/profile, operation/resource scope. | Use authorized actor/path; no impersonation/scope expansion. |
+| `actor_unauthorized`, `admission_unauthorized`, `unauthorized_operation`, `ownership_unauthorized`, `work_unauthorized`, `dependency_unauthorized`, `projection_unauthorized`, `resource_unauthorized` | Principal, role/profile, operation/resource scope. | Authorized actor/path only; no impersonation/scope expansion. |
 | `policy_invalid`, `policy_epoch_invalid`, `policy_proposal_mismatch`, `profile_invalid`, `pool_invalid`, `dispatcher_invalid` | Schema, approved revision, epoch, pools/dispatcher. | Correct trusted config via supported deployment/update. |
-| `work_queue_profile_not_approved`, `work_queue_dispatch_credential_identity_unavailable` | Worker approval; verifiable dispatch identity. | Fix approved deployment/credentials; never substitute unverified identity. |
+| `work_queue_profile_not_approved`, `work_queue_dispatch_credential_identity_unavailable` | Worker approval; dispatch identity. | Fix approved deployment/credentials; reject unverified identity. |
 | `deployment_invalid`, `deployment_conflict` | Schema, revision, expected tip. | Fix trusted deployment; reconcile concurrency before CAS retry. |
-| `policy_not_quiescent`, `admission_paused`, `grants_paused` | Claims/dispatches; pause controls. | Respect pause; reconcile active work before authorized policy change. |
+| `policy_not_quiescent`, `admission_paused`, `grants_paused` | Claims/dispatches; controls. | Respect pause; reconcile before authorized policy change. |
+| `hard_clear_not_paused` | Admission/grants controls. | Pause both before authorized hard clear. |
+| `hard_clear_snapshot_invalid`, `hard_clear_conflict` | Preview/current Git revisions. | Reinspect/reconfirm; never reset unpreviewed snapshots. |
+| `hard_clear_unresolved` | Reservations, Claims, barriers, uncertain effects. | Reconcile definitive termination/nonlaunch/delivery evidence; never discard unsettled work. |
 | `graph_invalid`, `graph_pool_conflict`, `node_conflict`, `replacement_invalid`, `work_conflict`, `work_identity_invalid`, `work_invalid`, `identity_invalid` | Graph/node, pool, payload/fingerprint, replacement. | Fix submission contract; retain accepted identity. |
 | `dependency_cycle`, `dependency_duplicate`, `dependency_invalid`, `dependency_missing`, `dependency_result_unavailable`, `dependency_credentials_missing` | DAG, dependency, receipt, scoped credentials. | Fix graph/legitimate result/access; never fabricate completion. |
-| `dependency_verifier_required`, `delivery_verifier_required`, `nonlaunch_verifier_required`, `remediation_verifier_required` | Trusted verifier; evidence type. | Use approved verifier; absence blocks effect, never disable verification. |
+| `dependency_verifier_required`, `delivery_verifier_required`, `nonlaunch_verifier_required`, `remediation_verifier_required` | Verifier; evidence type. | Require approved verifier; absence blocks effects. |
 | `assignment_invalid`, `assignment_immutable`, `claim_invalid`, `claim_missing`, `claim_conflict`, `claim_ineffective` | Assignment, owner, epoch, deadline, active claim. | Reconcile; use effective claim; never mutate assignment. |
-| `claim_scope_invalid`, `claim_scope_required`, `claim_effects_unauthorized`, `claim_control_delivery_invalid` | Claim handle/factory, scope, control delivery. | Retain original write scope and validated control intent. |
+| `claim_scope_invalid`, `claim_scope_required`, `claim_effects_unauthorized`, `claim_control_delivery_invalid` | Claim handle/factory, scope, control delivery. | Retain original scope/validated control intent. |
 | `child_entitlement`, `run_binding_conflict`, `run_invalid` | Parent/child entitlement; workflow/run/attempt identity. | Correct authorized binding; reject reused/mismatched authority. |
 | `condition_invalid`, `control_invalid`, `packing_invalid`, `selection_invalid`, `priority_conflict` | Policy; canonical control/scheduler inputs. | Recompute authoritative state; use allowed transition. |
 | `request_invalid`, `request_missing`, `request_fingerprint`, `request_reuse`, `request_reused`, `reason_invalid`, `timestamp_invalid` | Identity/fingerprint, closed schema, reason/timestamp. | Identical request: exact retry. New intent: fresh ID. |
 | `publication_conflict`, `publication_invalid`, `publication_unresolved` | Git tip, CAS, published commit. | Reread/reconcile before retry; publication may have succeeded. |
+| `work_expired` | Work deadline. | Refresh fair prefix before publication. |
 | `checkpoint_invalid`, `credential_generation_reused` | Checkpoint proof/ancestry; unique credential generation. | Recover verified checkpoint/authorized new generation; no stale authority. |
 | `dispatch_invalid`, `dispatch_missing`, `launch_started`, `launch_unresolved` | Reservation, receipt, possibly started child. | Reconcile immutable dispatch identity; no duplicate launch. |
 | `claim_delivery_unverified`, `delivery_failed`, `verification_unresolved`, `delivery_conflict`, `delivery_barrier_conflict`, `delivery_contract_required`, `delivery_evidence_required`, `evidence_invalid`, `evidence_required`, `terminal_evidence_required`, `nonlaunch_evidence_required` | Claim state/effects; independent receipts; barrier/contract. | Reconcile before retry; never force terminal state. |
-| `result_invalid`, `completion_conflict`, `cancellation_conflict`, `ownership_terminal`, `work_terminal`, `work_missing` | Work/ownership state; finish/result intent. | Respect terminal transitions; reconcile duplicate/conflicting completion/cancellation. |
-| `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts, open claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
+| `result_invalid`, `completion_conflict`, `cancellation_conflict`, `ownership_terminal`, `work_terminal`, `work_missing` | Work/ownership state; intent. | Respect terminal transitions; reconcile duplicate/conflicting completion/cancellation. |
+| `retry_invalid`, `retry_exhausted`, `release_invalid`, `release_open_claims`, `remediation_invalid` | Retry/release policy, attempts/claims. | Stop exhausted retries; reconcile claims; authorized recovery only. |
 | `observation_invalid`, `observation_conflict`, `reconciliation_invalid`, `reconciliation_pending`, `inspection_invalid`, `resource_unverified` | Provenance/freshness; trusted reconciliation. | Bounded refresh/reconciliation; unverified resources stay blocked. |
 | `resource_invalid`, `resource_limit`, `assignment_limit`, `evidence_limit`, `graph_limit`, `work_queue_graph_limit`, `ledger_limit`, `observation_limit`, `operation_limit`, `payload_limit`, `pending_limit`, `projection_limit`, `reconciliation_limit` | Named limit; actual count. | Bound/batch/compact through supported operations; retain limits. |
 | `issue_binding_invalid`, `issue_binding_conflict` | Queue-issue binding; ownership. | Correct authorized binding; never adopt another work item's issue. |
 | `projection_invalid`, `projection_journal_invalid`, `projection_journal_conflict`, `projection_scope_changed` | Journal identity, target scope, CAS. | Reconcile ledger/projection; never rewrite conflict history. |
-| `projection_target_unavailable` | Target existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
+| `projection_target_unavailable` | Existence/visibility; journal. | Restore authorized access; inaccessible != deleted. |
 | `projection_comment_pending`, `projection_label_pending`, `projection_coordination_pending`, `projection_pagination_pending`, `projection_rate_pending` | Checkpoint, pacing, pages/receipts. | Bounded reconciliation; no duplicate writes; never mistake pending for terminal failure. |
 
 ## Unmapped codes
