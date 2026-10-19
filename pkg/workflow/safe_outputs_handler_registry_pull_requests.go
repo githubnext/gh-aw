@@ -26,6 +26,7 @@ var pullRequestHandlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("commit_title_suffix", c.CommitTitleSuffix).
 			AddDefault("max_patch_size", maxPatchSize).
 			AddIfTrue("allow_full_history_fetch", c.AllowFullHistoryFetch).
+			AddIfTrue("allow_merged_base_baseline", c.AllowMergedBaseBaseline).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddIfNotEmpty("head-repo", c.HeadRepoSlug).
 			AddIfNotEmpty("base_branch", c.BaseBranch).

@@ -145,6 +145,39 @@ describe("privacy-preserving work queue logging", () => {
     expect(output()).not.toContain("private");
   });
 
+  it("includes only a bounded canonical GitHub request ID from an HTTP failure", () => {
+    const requestId = "1B41:A4F74:930C3C:1DF33D1:6AD4920C";
+    createWorkQueueLogger("provisioning").failure(
+      "deployment.repository.read.failed",
+      {
+        status: 500,
+        response: { headers: { "x-github-request-id": requestId, authorization: "private-token" }, data: "private-body" },
+      },
+      true
+    );
+    expect(output()).toContain(`GitHub request ID: ${requestId}.`);
+    expect(output()).not.toContain("private");
+  });
+
+  it.each(["private-token", "1:2:3:4:5\nprivate", "1:2:3:4:5\n", "1:2:3:4:5\r", "1:2:3:4:5\u2028", "a".repeat(256), null, 123])("withholds malformed GitHub request IDs: %j", requestId => {
+    createWorkQueueLogger("provisioning").failure("deployment.reference.read.failed", { status: 503, response: { headers: { "x-github-request-id": requestId } } }, true);
+    expect(output()).toContain("GitHub request ID: unknown.");
+    expect(output()).not.toContain("private");
+    expect(output()).not.toContain("a".repeat(256));
+  });
+
+  it("does not invoke request-ID or header getters", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private-token");
+    });
+    const logger = createWorkQueueLogger("provisioning");
+    logger.failure("deployment.repository.read.failed", { status: 500, response: Object.defineProperty({}, "headers", { get: getter }) }, true);
+    logger.failure("deployment.reference.read.failed", { status: 500, response: { headers: Object.defineProperty({}, "x-github-request-id", { get: getter }) } }, true);
+    expect(getter).not.toHaveBeenCalled();
+    expect(output()).toContain("GitHub request ID: unknown.");
+    expect(output()).not.toContain("private");
+  });
+
   it("reports only allowlisted static error codes without DEBUG or invoking getters", () => {
     const logger = createWorkQueueLogger("dispatch");
     logger.failure("launch.preflight.blocked", new Error("work_queue_dispatch_credential_client_mismatch"), true);

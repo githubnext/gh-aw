@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { spawnSync } = require("child_process");
+const childProcess = require("child_process");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { isTransientError } = require("./error_recovery.cjs");
@@ -82,6 +82,35 @@ function ensureSafeDirectoryTrust(gitCwd, logger) {
 }
 
 /**
+ * Execute Git without logging command output, preserving ordinary exit statuses.
+ * Spawn failures discard partial output; callers must check status before use.
+ *
+ * @param {string[]} args
+ * @param {Object} [options]
+ * @returns {import("child_process").SpawnSyncReturns<string>}
+ */
+function execGitSyncResult(args, options = {}) {
+  const result = childProcess.spawnSync("git", args, {
+    encoding: "utf8",
+    maxBuffer: 100 * 1024 * 1024,
+    timeout: 60_000,
+    killSignal: "SIGKILL",
+    ...options,
+    stdio: options.stdio === "inherit" ? "pipe" : options.stdio,
+    env: {
+      ...(options.env || process.env),
+      GIT_TERMINAL_PROMPT: "0",
+      GCM_INTERACTIVE: "Never",
+      GIT_ASKPASS: "/bin/echo",
+    },
+  });
+  if (result.error || result.signal || result.status === null) {
+    return { ...result, status: null, stdout: "", stderr: "" };
+  }
+  return result;
+}
+
+/**
  * Safely execute git command using spawnSync with args array to prevent shell injection.
  *
  * Hardened against indefinite hangs: always runs git with non-interactive
@@ -119,24 +148,9 @@ function execGitSync(args, options = {}) {
   //    credential rejection fail fast instead of opening an interactive prompt.
   //  - timeout (default 60s) ensures a stuck network/TLS handshake cannot
   //    wedge the calling event loop. Callers can override via options.timeout.
-  const callerEnv = spawnOptions.env || process.env;
-  const safeEnv = {
-    ...callerEnv,
-    GIT_TERMINAL_PROMPT: "0",
-    GCM_INTERACTIVE: "Never",
-    GIT_ASKPASS: "/bin/echo",
-  };
   const defaultTimeoutMs = 60_000;
 
-  const result = spawnSync("git", args, {
-    encoding: "utf8",
-    maxBuffer: 100 * 1024 * 1024, // 100 MB — prevents ENOBUFS on large diffs (e.g. git format-patch)
-    timeout: defaultTimeoutMs,
-    killSignal: "SIGKILL",
-    ...spawnOptions,
-    stdio: spawnOptions.stdio === "inherit" ? "pipe" : spawnOptions.stdio,
-    env: safeEnv,
-  });
+  const result = execGitSyncResult(args, spawnOptions);
 
   if (result.error) {
     // Detect ENOBUFS (buffer overflow) and provide a more actionable message
@@ -873,6 +887,7 @@ module.exports = {
   isTransientGitError,
   withGitRetry,
   execGitSync,
+  execGitSyncResult,
   backfillCommitObjects,
   checkImplausibleShallowRange,
   ensureFullHistoryForBundle,
