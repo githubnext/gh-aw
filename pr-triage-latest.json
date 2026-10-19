@@ -1,11 +1,11 @@
 {
-  "run_date": "2026-10-18T18:25:15Z",
-  "run_id": "39153922024",
+  "run_date": "2026-10-19T00:59:22Z",
+  "run_id": "39183083728",
   "source": "pr-triage",
   "eligible_total": 2,
-  "cooldown_skipped": 6,
-  "open_copilot_prs": 8,
-  "skipped_prs": [69868, 69866, 69848, 69831, 69813, 69772],
+  "cooldown_skipped": 4,
+  "open_copilot_prs": 6,
+  "skipped_prs": [70013, 69998, 69997, 69772],
   "category_counts": {"bug": 2},
   "risk_counts": {"medium": 1, "high": 1},
   "priority_counts": {"medium": 2},
@@ -20,7 +20,7 @@
       "score_breakdown": {"impact": 34, "urgency": 18, "quality": 13},
       "action": "batch_review",
       "review_state": "draft",
-      "ci_state": "unknown"
+      "ci_state": "Analyze (python) failed"
     },
     {
       "number": 56568,
@@ -31,7 +31,7 @@
       "score_breakdown": {"impact": 33, "urgency": 12, "quality": 12},
       "action": "defer",
       "review_state": "changes_requested",
-      "ci_state": "unknown"
+      "ci_state": "no check runs"
     }
   ],
   "prs": [
@@ -46,7 +46,7 @@
       "priority_score": 65,
       "action": "batch_review",
       "review_state": "draft",
-      "ci_state": "unknown"
+      "ci_state": "Analyze (python) failed"
     },
     {
       "number": 56568,
@@ -59,12 +59,12 @@
       "priority_score": 57,
       "action": "defer",
       "review_state": "changes_requested",
-      "ci_state": "unknown"
+      "ci_state": "no check runs"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-18T17:25:15Z",
+  "cooldown_cutoff_utc": "2026-10-18T23:59:22Z",
   "notes": [
     "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
-    "Newer PRs #69868, #69866, #69848, #69831, #69813, and #69772 were skipped due to recency."
+    "Newer PRs #70013, #69998, #69997, and #69772 were skipped due to recency."
   ]
 }

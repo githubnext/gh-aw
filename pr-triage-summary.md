@@ -1,9 +1,9 @@
 # PR Triage Summary
 
-- Run: 2026-10-18T18:25:15Z
+- Run: 2026-10-19T00:59:22Z
 - Eligible PRs: 2
-- Skipped by cooldown: 6
-- Open Copilot PRs: 8
+- Skipped by cooldown: 4
+- Open Copilot PRs: 6
 
 ## Result
 - #69586 — batch_review — bug / medium — total 65
@@ -17,5 +17,5 @@
 - Batch opportunities: none (only 2 eligible PRs)
 
 ## Next action
-- Review #69586 as a focused bug-fix candidate in the next batch window, with draft state and a failing analyzer check noted.
-- Keep #56568 deferred pending stronger evidence or a formal human review resolution because it remains in changes-requested state.
+- Review #69586 in a small batch once the draft state and analyzer issue are addressed.
+- Keep #56568 deferred pending human review resolution due the changes-requested, signed-commit policy risk.
