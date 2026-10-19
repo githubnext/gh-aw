@@ -274,9 +274,11 @@ func TestEpisodeAccountingIndependentStreamTotals(t *testing.T) {
 func TestEpisodeAccountingAggregatesCurrentAttemptArtifacts(t *testing.T) {
 	t.Parallel()
 	runDir := t.TempDir()
+	collectionDir := filepath.Join(runDir, "collection")
+	require.NoError(t, os.MkdirAll(collectionDir, 0o700))
 	rootInfo, err := json.Marshal(AwInfo{RunID: NumericID(42), RunAttempt: "2", Repository: "org/repo"})
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(runDir, "aw_info.json"), rootInfo, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(collectionDir, "aw_info.json"), rootInfo, 0o600))
 	writeArtifact := func(name, attempt, usage string) {
 		t.Helper()
 		dir := filepath.Join(runDir, name)
@@ -286,12 +288,16 @@ func TestEpisodeAccountingAggregatesCurrentAttemptArtifacts(t *testing.T) {
 			"aw_info.json":            string(info),
 			"agent/token_usage.jsonl": usage,
 		})
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".episode-complete"), []byte("v1\n"), 0o600))
 	}
-	writeArtifact("first-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25))
-	writeArtifact("second-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25)+"\n"+
+	writeArtifact("20-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25))
+	writeArtifact("21-usage", "2", episodeAccountingAWFRecord("shared-request", 0.25, 0.25)+"\n"+
 		episodeAccountingAWFRecord("independent-request", 0.75, 1.0))
-	writeArtifact("old-attempt-usage", "1", episodeAccountingAWFRecord("old-request", 9, 9))
-	usage, err := analyzeTokenUsageAICOnly(runDir, false)
+	writeArtifact("22-usage", "1", episodeAccountingAWFRecord("old-request", 9, 9))
+	inventory, err := json.Marshal([]string{"../20-usage", "../21-usage"})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(collectionDir, ".episode-artifacts.json"), inventory, 0o600))
+	usage, err := analyzeTokenUsageAICOnly(collectionDir, false)
 	require.NoError(t, err)
 	require.NotNil(t, usage)
 	assert.InDelta(t, 1.0, usage.TotalAIC, 1e-9)

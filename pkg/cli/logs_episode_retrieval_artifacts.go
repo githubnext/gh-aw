@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,14 +16,13 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/errorutil"
 )
 
 const maxEpisodeArtifactBytes = 64 * 1024 * 1024
 
-var (
-	errEpisodeArtifactExpired     = errors.New("episode artifact has expired")
-	errEpisodeArtifactUnavailable = errors.New("episode artifact is unavailable")
-)
+var errEpisodeArtifactExpired = errors.New("compact episode artifact has expired")
+var errEpisodeArtifactPriorAttempt = errors.New("artifact metadata belongs to a different run attempt")
 
 func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (ProcessedRun, error) {
 	artifacts, err := c.listArtifacts(ctx, run)
@@ -34,7 +34,7 @@ func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (Proces
 	if err := os.MkdirAll(runDir, constants.DirPermSensitive); err != nil {
 		return ProcessedRun{}, fmt.Errorf("create episode run directory: %w", err)
 	}
-	infos, usageDirs, err := c.loadCompactArtifacts(ctx, run, artifacts, runDir)
+	infos, dirs, err := c.loadCompactArtifacts(ctx, run, artifacts, runDir)
 	if err != nil {
 		return ProcessedRun{}, err
 	}
@@ -42,14 +42,36 @@ func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (Proces
 	if err != nil {
 		return ProcessedRun{}, err
 	}
+	collectionDir := filepath.Join(runDir, "collection-"+rand.Text())
+	if err := os.Mkdir(collectionDir, constants.DirPermSensitive); err != nil {
+		return ProcessedRun{}, fmt.Errorf("create episode collection directory: %w", err)
+	}
 	encoded, err := json.Marshal(info)
 	if err != nil {
 		return ProcessedRun{}, fmt.Errorf("encode episode run metadata: %w", err)
 	}
-	if err := writeSensitiveFile(filepath.Join(runDir, "aw_info.json"), encoded); err != nil {
+	if err := writeSensitiveFile(filepath.Join(collectionDir, "aw_info.json"), encoded); err != nil {
 		return ProcessedRun{}, fmt.Errorf("save episode run metadata: %w", err)
 	}
-	processed, err := processEpisodeArtifacts(run, runDir, usageDirs, info)
+	inventory := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		inventory = append(inventory, filepath.Join("..", filepath.Base(dir)))
+	}
+	encoded, err = json.Marshal(inventory)
+	if err != nil {
+		return ProcessedRun{}, fmt.Errorf("encode episode artifact inventory: %w", err)
+	}
+	if err := writeSensitiveFile(filepath.Join(collectionDir, ".episode-artifacts.json"), encoded); err != nil {
+		return ProcessedRun{}, fmt.Errorf("save episode artifact inventory: %w", err)
+	}
+	processed, err := processEpisodeArtifacts(run, collectionDir, info)
+	if err == nil {
+		for _, artifactInfo := range infos {
+			if artifactInfo.Context != nil && strings.TrimSpace(artifactInfo.Context.EpisodeID) == strings.TrimSpace(info.Context.EpisodeID) {
+				processed.EpisodeContexts = append(processed.EpisodeContexts, artifactInfo)
+			}
+		}
+	}
 	if err == nil && (c.report.EpisodeID == "" || c.report.EpisodeID == strings.TrimSpace(info.Context.EpisodeID)) {
 		candidate := episodeCandidate{repository: strings.ToLower(run.Repository), runID: run.DatabaseID}
 		for _, artifactInfo := range infos {
@@ -62,18 +84,28 @@ func (c *episodeCollector) loadRun(ctx context.Context, run WorkflowRun) (Proces
 	return processed, err
 }
 
+func completedEpisodeArtifact(dir string) (bool, error) {
+	data, err := os.ReadFile(filepath.Join(dir, ".episode-complete"))
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read episode artifact cache marker: %w", err)
+	}
+	return string(data) == "v1\n", nil
+}
+
 func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, artifact episodeArtifact, runDir string) (string, error) {
 	// Artifact IDs are immutable. Names and URLs from the response never select
 	// a local destination or remote endpoint.
 	dir := filepath.Join(runDir, strconv.FormatInt(artifact.ID, 10)+"-"+episodeArtifactKind(artifact.Name))
-	marker := filepath.Join(dir, ".episode-complete")
-	if data, err := os.ReadFile(marker); err == nil && string(data) == "v1\n" {
+	if complete, err := completedEpisodeArtifact(dir); err != nil {
+		return "", err
+	} else if complete {
 		return dir, nil
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("read episode artifact cache marker: %w", err)
 	}
 	if artifact.Expired {
-		return "", fmt.Errorf("%w: compact artifact %q has expired", errEpisodeArtifactExpired, artifact.Name)
+		return "", fmt.Errorf("%w: %q", errEpisodeArtifactExpired, artifact.Name)
 	}
 	if artifact.SizeInBytes > maxEpisodeArtifactBytes {
 		return "", fmt.Errorf("compact artifact %q exceeds the 64 MiB archive limit", artifact.Name)
@@ -81,10 +113,10 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 	endpoint := fmt.Sprintf("repos/%s/actions/artifacts/%d/zip", run.Repository, artifact.ID)
 	data, err := c.api(ctx, endpoint)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", errEpisodeArtifactUnavailable, err)
+		return "", err
 	}
-	stage, err := os.MkdirTemp(filepath.Dir(runDir), ".episode-artifact-")
-	if err != nil {
+	stage := filepath.Join(filepath.Dir(runDir), ".episode-artifact-"+rand.Text())
+	if err := os.Mkdir(stage, constants.DirPermSensitive); err != nil {
 		return "", fmt.Errorf("stage episode artifact: %w", err)
 	}
 	defer os.RemoveAll(stage)
@@ -99,7 +131,9 @@ func (c *episodeCollector) loadArtifact(ctx context.Context, run WorkflowRun, ar
 		return "", err
 	}
 	if err := os.Rename(extracted, dir); err != nil {
-		if data, markerErr := os.ReadFile(marker); markerErr == nil && string(data) == "v1\n" {
+		if complete, markerErr := completedEpisodeArtifact(dir); markerErr != nil {
+			return "", markerErr
+		} else if complete {
 			return dir, nil
 		}
 		return "", fmt.Errorf("publish episode artifact cache: %w", err)
@@ -116,7 +150,8 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 		return strings.Compare(a.Name, b.Name)
 	})
 	var infos []*AwInfo
-	var usageDirs []string
+	var dirs []string
+	var priorAttempt bool
 	for _, artifact := range artifacts {
 		dir, err := c.loadArtifact(ctx, run, artifact, runDir)
 		if err != nil {
@@ -124,27 +159,70 @@ func (c *episodeCollector) loadCompactArtifacts(ctx context.Context, run Workflo
 				c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "expired_artifact", err)
 				continue
 			}
-			if _, identityErr := selectEpisodeInfo(infos); identityErr == nil {
-				if c.handleStop(err) {
-					break // Retain verified membership; the explicit stop qualifies incomplete usage.
-				}
-				if episodeArtifactKind(artifact.Name) == "usage" && errors.Is(err, errEpisodeArtifactUnavailable) {
-					c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "usage_artifact_unavailable", err)
-					continue
-				}
+			if _, identityErr := selectEpisodeInfo(infos); identityErr == nil && c.handleStop(err) {
+				break // Retain verified membership; the explicit stop qualifies incomplete usage.
+			}
+			if episodeArtifactKind(artifact.Name) == "usage" && episodeArtifactUnavailable(err) {
+				c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "missing_artifact", err)
+				continue
 			}
 			return nil, nil, err
 		}
-		artifactInfos, currentAttempt, err := readEpisodeArtifactInfo(dir, run)
+		artifactInfos, err := readEpisodeArtifactInfo(dir, run)
 		if err != nil {
+			if errors.Is(err, errEpisodeArtifactPriorAttempt) {
+				priorAttempt = true
+				continue
+			}
 			return nil, nil, err
 		}
 		infos = append(infos, artifactInfos...)
-		if currentAttempt && episodeArtifactKind(artifact.Name) == "usage" {
-			usageDirs = append(usageDirs, dir)
-		}
+		dirs = append(dirs, dir)
 	}
-	return infos, usageDirs, nil
+	if len(infos) == 0 && priorAttempt {
+		return nil, nil, fmt.Errorf("no current-attempt canonical identity: %w", errEpisodeArtifactPriorAttempt)
+	}
+	return infos, dirs, nil
+}
+
+func episodeArtifactUnavailable(err error) bool {
+	return errorutil.IsNotFoundError(err) || errorutil.IsGoneError(err)
+}
+
+// readEpisodeArtifactDirs returns the immutable, validated inventory for one
+// collection. Older collections keep their own inventory and cached evidence.
+func readEpisodeArtifactDirs(runDir string) ([]string, bool, error) {
+	id, kind, artifactDir := strings.Cut(filepath.Base(filepath.Clean(runDir)), "-")
+	if _, validID := parseEpisodeRunID(id); artifactDir && validID && (kind == "info" || kind == "usage") {
+		return nil, false, nil // An archive cannot supply its own trusted collection inventory.
+	}
+	data, err := os.ReadFile(filepath.Join(runDir, ".episode-artifacts.json"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, true, fmt.Errorf("read episode artifact inventory: %w", err)
+	}
+	var inventory []string
+	if err := json.Unmarshal(data, &inventory); err != nil {
+		return nil, true, fmt.Errorf("decode episode artifact inventory: %w", err)
+	}
+	dirs := make([]string, 0, len(inventory))
+	for _, relative := range inventory {
+		name := filepath.Base(relative)
+		id, kind, valid := strings.Cut(name, "-")
+		if _, validID := parseEpisodeRunID(id); !valid || !validID || kind != "info" && kind != "usage" || relative != filepath.Join("..", name) {
+			return nil, true, fmt.Errorf("invalid episode artifact inventory entry %q", relative)
+		}
+		dir := filepath.Join(runDir, relative)
+		if complete, err := completedEpisodeArtifact(dir); err != nil {
+			return nil, true, err
+		} else if !complete {
+			return nil, true, fmt.Errorf("episode artifact inventory entry %q is incomplete", relative)
+		}
+		dirs = append(dirs, dir)
+	}
+	return dirs, true, nil
 }
 
 func extractEpisodeArtifact(ctx context.Context, data []byte, dir string) error {
@@ -178,10 +256,8 @@ func episodeArtifactKind(name string) string {
 	return "usage"
 }
 
-func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, bool, error) {
+func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, error) {
 	var infos []*AwInfo
-	hasPriorAttempt := false
-	hasCurrentAttempt := false
 	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -194,17 +270,15 @@ func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, bool, erro
 			return fmt.Errorf("read episode run context: %w", err)
 		}
 		if info.RunAttempt != "" && info.RunAttempt != strconv.Itoa(run.Attempt) {
-			hasPriorAttempt = true
-			return nil
+			return errEpisodeArtifactPriorAttempt
 		}
 		if info.RunID != 0 && int64(info.RunID) != run.DatabaseID || episodeRepositoryConflict(info.Repository, run.Repository) {
 			return errors.New("artifact metadata conflicts with the requested repository/run identity")
 		}
-		hasCurrentAttempt = true
 		infos = append(infos, info)
 		return nil
 	})
-	return infos, hasCurrentAttempt || !hasPriorAttempt, err
+	return infos, err
 }
 
 func selectEpisodeInfo(infos []*AwInfo) (*AwInfo, error) {
@@ -226,15 +300,16 @@ func selectEpisodeInfo(infos []*AwInfo) (*AwInfo, error) {
 	return selected, nil
 }
 
-func processEpisodeArtifacts(run WorkflowRun, runDir string, usageDirs []string, info *AwInfo) (ProcessedRun, error) {
+func processEpisodeArtifacts(run WorkflowRun, runDir string, info *AwInfo) (ProcessedRun, error) {
 	result := DownloadResult{}
 	result.Run = run
+	result.Run.LogsPath = runDir
 	metrics := extractRunMetricsAndMetadata(&result, runDir, false)
-	usage, err := analyzeEpisodeTokenUsage(runDir, usageDirs)
+	usage, err := analyzeTokenUsage(runDir, false)
 	if err != nil {
 		return ProcessedRun{}, fmt.Errorf("read compact episode usage: %w", err)
 	}
-	activity, err := loadEpisodeUsageActivitySummary(usageDirs)
+	activity, err := loadUsageActivitySummary(runDir)
 	if err != nil {
 		return ProcessedRun{}, fmt.Errorf("read compact episode activity: %w", err)
 	}
@@ -252,89 +327,4 @@ func processEpisodeArtifacts(run WorkflowRun, runDir string, usageDirs []string,
 		Friction: result.Friction, GitHubRateLimitUsage: result.GitHubRateLimitUsage,
 		SafeOutputs: result.SafeOutputs,
 	}, nil
-}
-
-func analyzeEpisodeTokenUsage(runDir string, usageDirs []string) (*TokenUsageSummary, error) {
-	seen := make(map[string]struct{})
-	var entries []TokenUsageEntry
-	var usageFiles []string
-	var warnings []string
-	duplicates := 0
-	seenPaths := make(map[string]struct{}, len(usageDirs))
-	for _, usageDir := range usageDirs {
-		path := findTokenUsageFile(usageDir)
-		if path == "" {
-			continue
-		}
-		if _, exists := seenPaths[path]; exists {
-			continue
-		}
-		seenPaths[path] = struct{}{}
-		usageFiles = append(usageFiles, path)
-		fileEntries, duplicateCount, _, fileWarnings, err := scanTokenUsageEntriesWithSeen(path, seen)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, fileEntries...)
-		duplicates += duplicateCount
-		warnings = append(warnings, fileWarnings...)
-	}
-	if len(entries) == 0 {
-		return nil, nil
-	}
-	summary := buildTokenUsageSummary(entries, duplicates)
-	totalAIC, aicFound, aicWarnings, err := sumAICFromUsageJSONLFilesWithSeen(usageFiles, make(map[string]struct{}))
-	if err != nil {
-		return nil, err
-	}
-	summary.TotalAIC = totalAIC
-	summary.AICFound = aicFound
-	for _, warning := range append(warnings, aicWarnings...) {
-		addTokenUsageWarning(summary, warning)
-	}
-	applyGatewaySteeringSummary(summary, runDir)
-	applySteeringNotices(summary, runDir)
-	augmentSubagentModelAttribution(runDir, summary)
-	return summary, nil
-}
-
-func loadEpisodeUsageActivitySummary(usageDirs []string) (*usageActivitySummary, error) {
-	for _, usageDir := range usageDirs {
-		summary, err := loadUsageActivitySummary(usageDir)
-		if err != nil {
-			return nil, err
-		}
-		if summary != nil {
-			return summary, nil
-		}
-	}
-	return nil, nil
-}
-
-func findEpisodeUsageArtifactDirs(runDir string) ([]string, bool) {
-	rootInfo, err := parseAwInfo(filepath.Join(runDir, "aw_info.json"), false)
-	if err != nil || rootInfo.RunAttempt == "" {
-		return nil, false
-	}
-	attempt, err := strconv.Atoi(rootInfo.RunAttempt)
-	if err != nil || attempt <= 0 {
-		return nil, false
-	}
-	entries, err := os.ReadDir(runDir)
-	if err != nil {
-		return nil, true
-	}
-	run := WorkflowRun{DatabaseID: int64(rootInfo.RunID), Attempt: attempt, Repository: rootInfo.Repository}
-	var dirs []string
-	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), "-usage") {
-			continue
-		}
-		dir := filepath.Join(runDir, entry.Name())
-		_, currentAttempt, err := readEpisodeArtifactInfo(dir, run)
-		if err == nil && currentAttempt {
-			dirs = append(dirs, dir)
-		}
-	}
-	return dirs, true
 }

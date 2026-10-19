@@ -712,12 +712,38 @@ limit on filtered run discovery is reported as a gap; narrow the time window
 when reached. Unlike `logs --max-github-api-rate-limit`, the request cap applies
 to this retrieval, not the account's previously consumed quota.
 
+Each collection records its own artifact inventory and `logs_path`. Later
+collections do not delete cached evidence referenced by earlier reports, and
+completed local downloads remain usable after remote expiration.
+
 The MCP `logs` tool exposes the same operation through `episode_run`,
 `episode_repository`, `allow_repositories`, and `max_api_requests`; `count`
 becomes the candidate cap. Workflow-discovery filters cannot be combined with
 episode retrieval.
 
 To retrieve an ordinary workflow named `episode`, use `gh aw logs -- episode`.
+
+##### `logs explain <logs.json>`
+
+Show a per-hop explanation from an existing logs JSON report without additional
+GitHub requests:
+
+```bash wrap
+gh aw logs explain episode.json --episode RECORDED_EPISODE_ID
+```
+
+`--episode` selects one recorded episode; omitting it explains every selected
+episode. `--json` returns structured explanations, described by
+`gh aw json-schema logs-explanation`.
+
+The view shows recorded hop IDs, parent-hop and run edges, reusable-workflow
+hops sharing one run ID, and missing or conflicting evidence. Costs appear
+once per selected run in `run_costs`, not on hops. Missing hop IDs remain
+missing; the view does not reconstruct them or claim complete membership.
+Logs JSON includes the same data under `episodes[].explanation`, including in
+compact and MCP reports.
+
+For an ordinary workflow named `explain`, use `gh aw logs -- explain`.
 
 #### `audit`
 

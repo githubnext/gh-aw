@@ -14,7 +14,7 @@ import (
 )
 
 // EpisodeRetrievalOptions bounds a single canonical episode collection.
-// MaxRuns counts attempted candidates, not just matching episode members.
+// MaxRuns counts distinct attempted candidates, not just matching episode members.
 type EpisodeRetrievalOptions struct {
 	SeedRunID         int64
 	Repository        string
@@ -56,12 +56,13 @@ type episodeCandidate struct {
 }
 
 type episodeCollector struct {
-	opts    EpisodeRetrievalOptions
-	report  EpisodeRetrieval
-	request episodeAPIRequest
-	seen    map[episodeCandidate]string
-	pending []episodeCandidate
-	members []ProcessedRun
+	opts      EpisodeRetrievalOptions
+	report    EpisodeRetrieval
+	request   episodeAPIRequest
+	attempted map[episodeCandidate]struct{}
+	seen      map[episodeCandidate]string
+	pending   []episodeCandidate
+	members   []ProcessedRun
 }
 
 var errEpisodeAPILimit = errors.New("episode API request limit reached")
@@ -74,7 +75,9 @@ func RetrieveEpisodeLogs(ctx context.Context, opts EpisodeRetrievalOptions) (Log
 }
 
 func retrieveEpisodeLogs(ctx context.Context, opts EpisodeRetrievalOptions, request episodeAPIRequest) (LogsData, error) {
-	collector := &episodeCollector{opts: opts, request: request, seen: make(map[episodeCandidate]string)}
+	collector := &episodeCollector{
+		opts: opts, request: request, attempted: make(map[episodeCandidate]struct{}), seen: make(map[episodeCandidate]string),
+	}
 	if err := collector.initialize(time.Now()); err != nil {
 		return LogsData{}, err
 	}
@@ -141,9 +144,6 @@ func episodeRetrievalDates(startDate, endDate string, now time.Time) (time.Time,
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
-	if endOfDay, err := time.Parse("2006-01-02", endDate); err == nil {
-		endDate = endOfDay.AddDate(0, 0, 1).Add(-time.Nanosecond).Format(time.RFC3339Nano)
-	}
 	start, err := parseFilterDate(startDate)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
@@ -151,6 +151,9 @@ func episodeRetrievalDates(startDate, endDate string, now time.Time) (time.Time,
 	end, err := parseFilterDate(endDate)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
+	}
+	if len(endDate) == len("2006-01-02") {
+		end = end.AddDate(0, 0, 1).Add(-time.Second)
 	}
 	if start.After(end) {
 		return time.Time{}, time.Time{}, errors.New("--start-date must not be after --end-date")
@@ -240,10 +243,13 @@ func (c *episodeCollector) visit(ctx context.Context, candidate episodeCandidate
 		}
 		return nil
 	}
-	if c.report.RunsExamined >= c.opts.MaxRuns {
-		return errEpisodeRunLimit
+	if _, attempted := c.attempted[candidate]; !attempted {
+		if c.report.RunsExamined >= c.opts.MaxRuns {
+			return errEpisodeRunLimit
+		}
+		c.attempted[candidate] = struct{}{}
+		c.report.RunsExamined++
 	}
-	c.report.RunsExamined++
 	run, err := c.resolveCandidate(ctx, candidate, run)
 	if err != nil {
 		return err
@@ -252,6 +258,7 @@ func (c *episodeCollector) visit(ctx context.Context, candidate episodeCandidate
 	if err != nil {
 		return err
 	}
+	c.seen[candidate] = ""
 	if processed.AwContext == nil || strings.TrimSpace(processed.AwContext.EpisodeID) == "" {
 		return fmt.Errorf("run %d has no recorded context.episode_id", run.DatabaseID)
 	}

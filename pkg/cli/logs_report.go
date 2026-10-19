@@ -246,7 +246,8 @@ type RunData struct {
 	TaskDomain                 *TaskDomainInfo        `json:"task_domain,omitempty" console:"-"`
 	BehaviorFingerprint        *BehaviorFingerprint   `json:"behavior_fingerprint,omitempty" console:"-"`
 	AgenticAssessments         []AgenticAssessment    `json:"agentic_assessments,omitempty" console:"-"`
-	AwContext                  *AwContext             `json:"context,omitempty" console:"-"`                                                        // aw_context data from aw_info.json
+	AwContext                  *AwContext             `json:"context,omitempty" console:"-"` // aw_context data from aw_info.json
+	EpisodeHops                []EpisodeHop           `json:"episode_hops,omitempty" console:"-"`
 	TokenUsageSummary          *TokenUsageSummary     `json:"token_usage_summary,omitempty" console:"-"`                                            // Token usage from firewall proxy
 	SteeringNotices            []SteeringNotice       `json:"steering_notices,omitempty" console:"-"`                                               // AWF steering notices delivered on model requests
 	SteeringNoticesUnavailable bool                   `json:"steering_notices_unavailable,omitempty" console:"-"`                                   // True when the unified session could not be read
@@ -553,7 +554,6 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 
 	// Extract engine ID and aw_context from aw_info.json.
 	engineInfo := extractRunEngineInfo(pr)
-	// Accumulate engine counts from aw_info.json data (authoritative source).
 	if engineInfo.engineID != "" {
 		agg.engineCounts[engineInfo.engineID]++
 	}
@@ -561,6 +561,7 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 	comparison := buildAuditComparisonForProcessedRuns(pr, processedRuns)
 
 	runData := newRunData(pr, engineInfo, chainMetrics, comparison, failureKind, gitHubAPICalls)
+	runData.EpisodeHops = collectRunEpisodeHops(pr, engineInfo.awContext)
 	runData.ModelRouting = pr.ModelRouting
 	runData.SteeringNotices = tokenUsageSteeringNotices(pr.TokenUsage)
 	runData.SteeringNoticesUnavailable = tokenUsageSteeringNoticesUnavailable(pr.TokenUsage)

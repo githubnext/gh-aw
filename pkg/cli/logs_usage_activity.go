@@ -175,6 +175,21 @@ type usageActivityExperiments struct {
 }
 
 func loadUsageActivitySummary(runDir string) (*usageActivitySummary, error) {
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
+		if err != nil {
+			return nil, err
+		}
+		for _, dir := range dirs {
+			summary, err := loadUsageActivitySummary(dir)
+			if err != nil {
+				return nil, err
+			}
+			if summary != nil {
+				return summary, nil
+			}
+		}
+		return nil, nil
+	}
 	candidates := []string{
 		filepath.Join(runDir, "usage", "activity", "summary.json"),
 		filepath.Join(runDir, "activity", "summary.json"),

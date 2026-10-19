@@ -1320,7 +1320,7 @@ sync-install-script-hashes:
 .PHONY: schemas
 schemas: build
 	@set -eu; \
-	for schema in audit logs logs-jsonl outcomes-episodes; do \
+	for schema in audit logs logs-jsonl logs-explanation outcomes-episodes; do \
 		target="schemas/$$schema.schema.json"; \
 		tmp=$$(mktemp "$$target.tmp.XXXXXX"); \
 		trap 'rm -f "$$tmp"' EXIT HUP INT TERM; \

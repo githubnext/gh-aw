@@ -97,6 +97,11 @@ request, and timeout caps are reported in `episode_retrieval`; reaching them
 qualifies coverage rather than presenting the observed total as a complete
 episode cost.
 
+`episodes[].explanation` separates recorded hops from `run_costs`. Reusable
+workflow hops can share a run ID; that run's tokens and AI credits appear once
+in the accounting list and are not attributed to individual hops. The offline
+`gh aw logs explain <logs.json>` view shows the same evidence and gaps.
+
 The episode-level `root_run_id` and `primary_workflow` fields have been removed. Migrate selected-data consumers to `representative_run_id` and `representative_workflow`; use `recorded_roots[]` for canonical root claims. Historical data without `context.episode_id` remains available for per-run analysis but is not backfilled into synthetic episodes.
 
 `--count` defaults to 10 even with a date filter. Choose a larger explicit count and inspect `.continuation` or `.continuations[]` before interpreting a date-window report. Continuing a query can recover more selected data, but neither an exhausted cursor nor high lineage confidence proves that all episode descendants were observed.

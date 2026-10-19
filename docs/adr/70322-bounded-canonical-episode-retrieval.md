@@ -1,8 +1,8 @@
 # ADR-70322: Bounded Canonical Episode Retrieval from Recorded Episode Identity
 
 **Date**: 2026-10-19
-**Status**: Draft
-**Deciders**: [TODO: verify] (PR #70322 author and reviewers)
+**Status**: Proposed (maintainer acceptance is not recorded)
+**Deciders**: Not recorded; maintainer review is pending on PR #70322
 
 ---
 
@@ -13,6 +13,14 @@
 ### Decision
 
 We will add `gh aw logs episode <run-id-or-url>` (and the equivalent MCP `logs` `episode_run` mode) that collects episode members whose membership is determined **only** by a recorded, matching `context.episode_id`; no synthetic or heuristic grouping is introduced, and conflicting identities are reported as issues rather than resolved. The collector first follows recorded parent/root references, then scans only the seed repository plus explicitly allowlisted (`--allow-repo`) same-host repositories within a fixed creation-time window. Hard budgets — `--max-runs` (distinct candidates attempted, including nonmembers and failed lookups), `--max-api-requests` (every collector-initiated REST call: metadata, discovery pages, artifact inventories, and archive downloads), and `--timeout` — apply across the whole operation, and the output records bounds, stop reasons, and evidence gaps instead of claiming complete membership. Compact info/usage artifacts are cached by host, repository, run, attempt, and immutable artifact ID, with size-guarded ZIP extraction, and results flow through the existing logs report builder and schema.
+
+The per-hop explanation view preserves recorded `hop_id` and `parent_hop_id`
+evidence, including reusable-workflow invocations sharing a GitHub run ID.
+Missing or conflicting evidence is shown explicitly; neither hop identity nor
+edges are synthesized from workflow names or timing. Accounting remains once
+per selected run in a separate `run_costs` collection, never allocated to hops.
+`gh aw logs explain` reads an existing logs report offline, so explanation adds
+no GitHub calls and cannot expand retrieval bounds.
 
 ### Alternatives Considered
 
@@ -39,7 +47,7 @@ Persist page cursors so a later run can continue where a budget-limited run stop
 #### Negative
 - Results are explicitly incomplete: runs without recorded `episode_id`, outside the time window, in non-allowlisted repositories, or beyond GitHub's discovery ceiling are never found.
 - Reruns repeat discovery API calls because no resume cursor is kept.
-- Adds a second retrieval path alongside the existing `logs` download pipeline (~850 new lines across collector, API, artifact, command, and MCP files) that must be kept consistent with shared report and schema code.
+- Adds a bounded retrieval path alongside the existing `logs` download pipeline that must be kept consistent with shared report and schema code.
 - Budgets count nonmembers and failed requests, so a small `--max-api-requests` can stop before any additional member is found.
 
 #### Neutral
@@ -49,4 +57,5 @@ Persist page cursors so a later run can continue where a budget-limited run stop
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+Acceptance remains subject to maintainer review; this document does not record
+an approval or change PR merge state.

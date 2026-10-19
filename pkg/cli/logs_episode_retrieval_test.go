@@ -276,7 +276,7 @@ func TestEpisodeRetrievalDateOnlyEndIncludesWholeDay(t *testing.T) {
 	data, err := retrieveEpisodeLogs(context.Background(), opts, f.request)
 	require.NoError(t, err)
 	require.Equal(t, []int64{2}, data.Episodes[0].RunIDs)
-	require.Equal(t, time.Date(2026, 10, 19, 23, 59, 59, 999999999, time.UTC), data.EpisodeRetrieval.EndDate)
+	require.Equal(t, time.Date(2026, 10, 19, 23, 59, 59, 0, time.UTC), data.EpisodeRetrieval.EndDate)
 	opts.EndDate = "2026-10-19T12:30:00Z"
 	_, end, err := episodeRetrievalDates(opts.StartDate, opts.EndDate, time.Now())
 	require.NoError(t, err)
@@ -309,7 +309,7 @@ func TestEpisodeRetrievalArtifactCacheAndRunAttempts(t *testing.T) {
 	run.RunAttempt = 2
 	f.runs["org/one/2"] = run
 	_, err = retrieveEpisodeLogs(context.Background(), opts, f.request)
-	require.ErrorContains(t, err, "no recorded context.episode_id")
+	require.ErrorContains(t, err, "no current-attempt canonical identity")
 	require.Equal(t, 1, countEpisodeCalls(f.calls, func(s string) bool { return strings.HasSuffix(s, "/20/zip") }))
 }
 
@@ -392,15 +392,15 @@ func TestEpisodeRetrievalUnavailableUsagePreservesVerifiedMember(t *testing.T) {
 		}
 		if strings.HasSuffix(endpoint, "/21/zip") {
 			f.calls = append(f.calls, endpoint)
-			return nil, errors.New("HTTP 410: artifact expired")
+			return nil, errors.New("gh: artifact unavailable (HTTP 410)")
 		}
 		return f.request(ctx, host, endpoint)
 	}
 	data, err := retrieveEpisodeLogs(context.Background(), episodeRetrievalTestOptions(t), request)
 	require.NoError(t, err)
 	require.Equal(t, []int64{2}, data.Episodes[0].RunIDs)
-	require.Contains(t, data.EpisodeRetrieval.Issues[0].Reason, "usage_artifact_unavailable")
-	require.Contains(t, data.Episodes[0].Coverage.Reasons, "retrieval_usage_artifact_unavailable")
+	require.Contains(t, data.EpisodeRetrieval.Issues[0].Reason, "missing_artifact")
+	require.Contains(t, data.Episodes[0].Coverage.Reasons, "retrieval_missing_artifact")
 }
 
 func TestEpisodeRetrievalFiltersOldAttemptsAndAggregatesUsageArtifacts(t *testing.T) {
@@ -412,7 +412,7 @@ func TestEpisodeRetrievalFiltersOldAttemptsAndAggregatesUsageArtifacts(t *testin
 	activity := `{"schema":"usage-activity-summary/v1","session":{"turns":7},"firewall":{"total_requests":2,"allowed_requests":2},"working_set":{"measurement_state":"measured","invocations":3},"ledger":{"transactions_added":2},"friction":{},"skills":{"total_invocations":1,"unique_skills":1,"items":[{"name":"skill-one","invocation_count":1}]},"safe_outputs":{"total_items":1,"items":[{}]},"steering":{"total_events":2}}`
 	f.archives[20] = f.archiveWithAttempt(2, 1, "old-attempt", 5, "")
 	f.archives[21] = f.archiveWithAttempt(2, 1, "old-usage", 5, "")
-	f.archives[30] = f.archiveWithAttempt(2, 2, "current-info", 0.25, "")
+	f.archives[30] = f.archiveWithRecords(2, 2, "", "")
 	f.archives[31] = f.archiveWithAttempt(2, 2, "stream-one", 0.25, activity)
 	f.archives[32] = f.archiveWithRecords(2, 2,
 		"{\"event\":\"token_usage\",\"request_id\":\"stream-one\",\"provider\":\"unknown\",\"model\":\"gpt-4.1\",\"input_tokens\":10,\"output_tokens\":2,\"ai_credits_this_response\":0.25,\"ai_credits_total\":0.25}\n"+
@@ -437,13 +437,20 @@ func TestEpisodeRetrievalFiltersOldAttemptsAndAggregatesUsageArtifacts(t *testin
 	require.InDelta(t, 1.0, data.Summary.TotalAIC, 0.000001)
 
 	runData := f.runs["org/one/2"].workflowRun()
-	runDir := filepath.Join(opts.OutputDir, "episodes", "github.com", "org", "one", "run-2", "attempt-2")
+	runDir := data.Runs[0].LogsPath
 	info, err := parseAwInfo(filepath.Join(runDir, "aw_info.json"), false)
 	require.NoError(t, err)
-	usageDirs, isEpisode := findEpisodeUsageArtifactDirs(runDir)
+	dirs, isEpisode, err := readEpisodeArtifactDirs(runDir)
+	require.NoError(t, err)
 	require.True(t, isEpisode)
+	var usageDirs []string
+	for _, dir := range dirs {
+		if strings.HasSuffix(dir, "-usage") {
+			usageDirs = append(usageDirs, dir)
+		}
+	}
 	require.Len(t, usageDirs, 2)
-	processed, err := processEpisodeArtifacts(runData, runDir, usageDirs, info)
+	processed, err := processEpisodeArtifacts(runData, runDir, info)
 	require.NoError(t, err)
 	require.Equal(t, 7, processed.Run.Turns)
 	require.NotNil(t, processed.WorkingSet)
@@ -544,7 +551,7 @@ func TestEpisodeRetrievalSupersededArtifactDoesNotDoubleCountUsage(t *testing.T)
 	second, err := retrieveEpisodeLogs(context.Background(), opts, request)
 	require.NoError(t, err)
 	require.Equal(t, first.Summary.TotalTokens, second.Summary.TotalTokens)
-	_, err = os.Stat(filepath.Join(second.Runs[0].LogsPath, "20-usage"))
+	_, err = os.Stat(filepath.Join(filepath.Dir(second.Runs[0].LogsPath), "20-usage"))
 	require.NoError(t, err)
 	usage, err := analyzeTokenUsageAICOnly(second.Runs[0].LogsPath, false)
 	require.NoError(t, err)

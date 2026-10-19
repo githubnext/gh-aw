@@ -111,21 +111,26 @@ func findAgentUsageFile(runDir string) string {
 }
 
 func findUsageJSONLFiles(runDir string) ([]string, []string) {
-	usageDirs, isEpisodeRun := findEpisodeUsageArtifactDirs(runDir)
-	if !isEpisodeRun {
-		usageDir := findArtifactDir(runDir, "usage", "")
-		if usageDir == "" {
-			usageDir = filepath.Join(runDir, "usage")
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
+		if err != nil {
+			return nil, []string{fmt.Sprintf("Cannot inspect episode usage inventory: %v", err)}
 		}
-		usageDirs = []string{usageDir}
+		return findUsageJSONLFilesInDirs(dirs)
 	}
+	usageDir := findArtifactDir(runDir, "usage", "")
+	if usageDir == "" {
+		usageDir = filepath.Join(runDir, "usage")
+	}
+	return findUsageJSONLFilesInDirs([]string{usageDir})
+}
+
+func findUsageJSONLFilesInDirs(dirs []string) ([]string, []string) {
 	var files, warnings []string
-	for _, usageDir := range usageDirs {
+	for _, usageDir := range dirs {
 		if _, err := os.Stat(usageDir); err != nil {
-			if os.IsNotExist(err) {
-				continue
+			if !os.IsNotExist(err) {
+				warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", err))
 			}
-			warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", err))
 			continue
 		}
 		if walkErr := filepath.Walk(usageDir, func(path string, info os.FileInfo, err error) error {
