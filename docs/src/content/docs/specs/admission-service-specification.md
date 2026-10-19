@@ -6,10 +6,10 @@ sidebar:
 ---
 
 **Version**: 1.0 draft<br />
-**Status**: New feature proposal; no admission implementation yet<br />
+**Status**: New feature proposal; no shipped admission implementation yet<br />
 **Date**: 2026-10-19
 
-The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This document specifies a new feature. No admission client or service implementation exists yet; all admission-specific behavior described here remains to be implemented.
+The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This document specifies a new feature. This repository does not yet ship an admission client or service; the contracts below define the required production behavior.
 
 ## 1. Scope and Ownership
 
@@ -175,7 +175,7 @@ This POST targets the configured authority, not `api.github.com`. It is the prop
 
 ### Proxy-Friendly Header Conventions
 
-Emit lowercase HTTP field names and accept them case-insensitively. When propagating trace context, use the standard W3C `traceparent` field through an OpenTelemetry propagator, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The required standard request fields are `authorization`, `content-type`, and `cache-control`; `traceparent` is conditional on AW OTel enablement.
+Emit lowercase application-controlled protocol field names and accept all HTTP field names case-insensitively, following [HTTP field-name semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.1). Transport-generated HTTP/1.1 fields such as `Date` or `Content-Length` MAY use conventional casing; HTTP/2 field names MUST follow its lowercase transport requirement. When propagating trace context, use the standard W3C `traceparent` field through an OpenTelemetry propagator, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The required standard request fields are `authorization`, `content-type`, and `cache-control`; `traceparent` is conditional on AW OTel enablement.
 
 Any future custom header MUST use the lowercase `gh-aw-` namespace followed by ASCII alphanumeric, hyphen-separated words: `gh-aw-[a-z0-9]+(?:-[a-z0-9]+)*`. Do not use underscores, spaces, dotted OTel attribute names, or an `x-` prefix. This protocol defines no custom headers. The service-issued correlation ID is returned in JSON and propagated as an OTel attribute; it MUST NOT replace `traceparent`.
 
@@ -190,8 +190,8 @@ All nine fields are required exactly once in a UTF-8 JSON object. Every value is
 | `repo` | `GITHUB_REPOSITORY`: current execution's `owner/repository` slug; MUST match signed `repository` |
 | `workflow_id` | `GH_AW_INFO_WORKFLOW_ID`, populated from `job.workflow_ref`, matching `aw_info.workflow_id`: `owner/repository/.github/workflows/file.yml@ref`; neither a short logical AW ID nor a numeric GitHub workflow ID |
 | `workflow_call_id` | Derive exactly `<run_id>-<run_attempt>:<workflow_id>`, matching `aw_info.workflow_call_id`; not a separate GitHub claim |
-| `run_id` | `GITHUB_RUN_ID`: positive decimal run ID; preserve as a string and compare with signed `run_id` |
-| `run_attempt` | `GITHUB_RUN_ATTEMPT`: positive decimal attempt number; MUST match signed `run_attempt` |
+| `run_id` | `GITHUB_RUN_ID`: canonical ASCII decimal run ID; preserve as a string and compare with signed `run_id` |
+| `run_attempt` | `GITHUB_RUN_ATTEMPT`: canonical ASCII decimal attempt number; MUST match signed `run_attempt` |
 | `ref` | `GITHUB_REF`: current GitHub Actions ref; MUST match signed `ref` |
 | `event_type` | `GITHUB_EVENT_NAME`: current event name; MUST match supported signed `event_name` |
 | `actor` | `GITHUB_ACTOR` / `github.actor`: original run actor login; MUST match signed `actor` |
@@ -207,7 +207,7 @@ The service MUST reject missing, duplicate, unknown, malformed, empty, or oversi
 
 JSON member names and string values in requests and success responses MUST decode to Unicode scalar-value sequences. Unpaired surrogate escapes MUST be rejected, not replaced; valid surrogate pairs remain supported. Decode JSON escapes exactly once and compare decoded identifiers exactly, without case folding or Unicode normalization. Invalid request strings receive the uniform denial; invalid success strings are blocking protocol failures.
 
-Opaque identifiers and refs MUST NOT be unnecessarily split. Large decimal identifiers MUST NOT pass through floating-point conversion.
+`run_id` and `run_attempt`, in both the body and matching verified claims, MUST be nonempty ASCII strings matching `[1-9][0-9]*`. Signs, leading zeros, whitespace, decimal points, exponent notation, and Unicode digit substitutions are invalid. Compare the original decoded strings exactly, without integer normalization; documented field-length limits MUST NOT require conversion to a bounded numeric type. This grammar does not redefine other opaque identifiers or their deployment-specific claim types. Opaque identifiers and refs MUST NOT be unnecessarily split. Large decimal identifiers MUST NOT pass through floating-point conversion.
 
 ### OpenTelemetry Correlation
 
@@ -301,6 +301,8 @@ accept: application/json
 Both GETs are unauthenticated public reads: neither the workflow JWT, its bootstrap credential, nor an App credential is sent. These are cacheable issuer/key lookups, not required round trips on every admission. The JWKS response is a JSON object with a `keys` array; RSA entries identify their `kid`, `kty`, `alg`, and `use`, and provide the public modulus `n` and exponent `e`. The authority selects the public RSA signing key using the JWT header's `kid` and verifies `RS256` locally. `kid` is only a lookup key within the trusted set; token-supplied `jku`, `x5u`, or embedded keys MUST NOT select another verification source. The authority does not send the JWT back to GitHub for validation.
 
 The expected audience MUST be configured independently on the authority. It MUST NOT be accepted merely because it matches a request parameter or the token's own `aud` claim. GitHub.com and each supported GitHub Enterprise deployment require explicit issuer/trust configuration; unsupported deployments receive no credential downgrade.
+
+The verified deployment claim matrix MUST state the accepted JSON shape of `aud`. The default admission profile requires a single JSON string exactly equal to the configured audience. A deployment MAY accept a single-element array containing that string only when this issuer profile has been independently verified and explicitly configured. All other arrays, additional recipients, non-string members, and undeclared claim shapes MUST receive the uniform denial. A JWT library's audience-membership default or the incoming token MUST NOT select or broaden the trusted profile.
 
 ### Decoded OIDC Payload Example
 
@@ -559,6 +561,10 @@ Concurrent retries across service instances MUST NOT multiply financial or execu
 
 Completed decisions and their response fields MUST be retained for at least 60 seconds after atomic commitment, covering Section 6's full client retry horizon. Retention does not extend authorization: expiry or revocation MAY change an admission to the uniform denial, never increase its credit allowance. A cached admission MUST NOT outlive its configured authorization window or admit a different invocation, workflow hop, or run attempt.
 
+The authority MUST document whether the original consistent policy/usage snapshot authorizes replay within that fixed window or whether current policy/usage revalidation is required, including applicable freshness and revocation bounds. When the documented snapshot and authorization requirements remain satisfied, it MAY return the original result without new policy or usage reads; an unavailable dependency not required for that replay does not itself make the retained result an outage. Reusing a snapshot MUST NOT waive Section 4's authentication and invocation-binding requirements.
+
+If a dependency required for current authorization or revalidation is temporarily unavailable, the authority MUST return the generic transient response without deleting or replacing the original decision. Revalidation MAY confirm the original success or revoke it to the uniform denial; it MUST NOT return a different successful ceiling or correlation ID, extend eligibility, or convert an operational outage into cached revocation.
+
 The authority MUST document a bounded retention and late-replay lifecycle. After the retry horizon it MAY retain the original decision or uniformly deny an expired or revoked invocation, but cache eviction or a renewed identity token MUST NOT create a fresh decision, ceiling, or correlation ID for the same invocation. Decision or denial records MUST NOT be discarded until a trusted invocation-eligibility rule guarantees that later requests remain ineligible; document that rule and its bounded garbage collection. A cache TTL alone is insufficient. Authorization windows and eligibility cutoffs MUST NOT slide forward on a retry or token renewal, and MUST NOT be derived solely from the current token's issue or expiry time.
 
 Where token identifiers such as `jti` are used, repeated requests for the same invocation MUST remain compatible with legitimate retries. A blanket one-use-token rule MUST NOT reject those retries; token renewal MUST NOT create a fresh policy/accounting entitlement. Transient failures MUST NOT be cached as admission or policy denial.
@@ -582,9 +588,9 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ID | Case | Required result |
 |----|------|-----------------|
 | ADM-001 | `POST /api/admission` with valid OIDC identity, audience, enrollment, and permitted invocation | `200` JSON containing valid `max_ai_credits` and opaque `correlation_id`, with `cache-control: no-store` |
-| ADM-002 | Missing token, GitHub API token, App credential, bad signature/algorithm, wrong issuer/audience, expired or premature token | Same empty `403`; no credential fallback |
+| ADM-002 | Missing token, GitHub API token, App credential, bad signature/algorithm, wrong issuer/audience, missing/wrong-type `aud`, undeclared singleton array, additional audience recipients, expired or premature token | Same empty `403`; no credential fallback or implicit audience-profile expansion |
 | ADM-003 | Different hidden spend bands and durable denial reasons | No reason/amount differences in status, body, headers, size, or intentional timing |
-| ADM-004 | Missing/duplicate/unknown/malformed JSON field, non-string value, query parameter, invalid content type, or inconsistent invocation ID | Uniform `403`; no unsafe downstream calls |
+| ADM-004 | Missing/duplicate/unknown/malformed JSON field, non-string value, query parameter, invalid content type, noncanonical decimal run/attempt string, or inconsistent invocation ID | Uniform `403`, including signed/body-matching leading-zero, signed, whitespace, exponent, or non-ASCII digit forms; no normalization or unsafe downstream calls |
 | ADM-005 | JSON slashes, Unicode/reserved characters, escapes, surrogate pairs, unpaired surrogate escapes in names/values, and large decimal ID strings | Valid scalar sequences parse once without injection, normalization, truncation, or precision loss; unpaired surrogates receive uniform request denial or a blocking success-response protocol error, never replacement |
 | ADM-006 | Forged repo/run/attempt, ref, event, either actor, executing reference/call ID, or logical policy selector | Signed execution bindings and authorized policy mapping enforced; caller reference cannot replace reusable executing identity; unverified rerun metadata never authorizes or attributes spend |
 | ADM-007 | OIDC/JWKS, GitHub, usage, policy, or storage outage; slow token acquisition/renewal, internal retries, or response-body reads | Each token/HTTP operation bounded by ten seconds and remaining overall time; the entire sequence, including backoff, ends within 60 seconds; no fabricated policy results |
@@ -609,7 +615,7 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-026 | OTel-enabled AW with valid W3C context, retries, and downstream jobs | Stable correlation trace ID; distinct HTTP attempt spans; connected client/server and workflow telemetry |
 | ADM-027 | Missing/invalid/oversized trace context within transport limits, baggage, forced sampling, or export failure | No authorization change, raw metadata leakage, extra admission request, or attacker-controlled expensive sampling |
 | ADM-028 | Custom activation hooks/actions before or after admission, including a skipped gate | Job-wide OIDC access includes the admission audience; tokens do not attest helper execution; untrusted code excluded and skipping does not revoke OIDC |
-| ADM-029 | HTTP/1.1 and HTTP/2 proxy traversal, field-name casing, duplicate trace fields, and transport limits | Standard lowercase names emitted; case-insensitive handling; preserved single trace context; no underscore-header dependency or raw credential logging |
+| ADM-029 | HTTP/1.1 and HTTP/2 proxy traversal, application/transport field-name casing, duplicate trace fields, and transport limits | Lowercase application protocol names; conventional transport-owned HTTP/1.1 casing accepted; HTTP/2 lowercase names; case-insensitive handling; preserved single trace context; no underscore-header dependency or raw credential logging |
 | ADM-030 | Success body boundaries, missing/duplicate/unknown fields, wrong types, zero/negative/fractional/oversized credits, decimal/exponent tokens such as `1000.0`/`1e3`, invalid correlation ID, or unsupported content type | Plain-decimal numeric tokens `1` and `2147483647` accepted; other invalid bodies block even under `ignore`; lexical validation precedes information-losing conversion; interrupted transport uses bounded retries |
 | ADM-031 | Service ceiling above/below a finite local limit, disabled/unset local limit, unavailable runtime enforcement, or independent daily-guardrail result | Effective minimum enforced before agent execution; no per-continuation reset or daily-guardrail bypass, including after ignored admission outages; daily under-budget result never raises the ceiling; enforcement failure blocks |
 | ADM-032 | All subsequent OTLP spans, logs, and metrics across supported jobs, subprocesses, exporters, and later failure/cancellation | Same `gh-aw.admission.correlation_id` resource attribute preserved; W3C trace IDs unchanged; no metric-dimension promotion or untrusted attribute override |
@@ -621,7 +627,9 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-038 | OTel-disabled AW omits `traceparent` | Same authentication, admission, retry, and outage behavior; no required client trace generation or export; successful response still includes the ceiling and service correlation ID |
 | ADM-039 | Separately minted runtime installation token; skipped minting; already-expired token; normal, failed, or cancellable job exit; cleanup failure | Conditional minting registers automatic or equivalent revocation through `DELETE /installation/token`; no disabled cleanup or cross-job token handoff; cleanup failures are visible without credential leakage; OIDC-only admission neither mints App tokens nor revokes OIDC JWTs or job-provided tokens |
 
-Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix.
+Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix, including audience shape/cardinality, required claim types, subject policy, and caller/executing identity mappings. Each supported audience profile MUST have matching positive and negative fixtures; a declared singleton-array profile accepts only its one configured recipient.
+
+Cached-decision tests MUST cover every supported snapshot/revalidation policy: retained replay during an unrelated dependency outage, required revalidation failure, dependency recovery, and a later durable policy denial. The original successful ceiling and ID MUST survive transient revalidation failure; recovery replays those fields while authorized, and revocation returns only the uniform denial.
 
 ## 11. Formal Model
 

@@ -172,8 +172,11 @@ Telemetry samples one subsequent span/log/metric batch at conclusion, plus
 cross-process correlation handoff; it does not enumerate every live exporter.
 Retry/token renewal and replicas reuse one abstract verified invocation and
 shared decision store; actual concurrency, foreign invocation partitioning,
-retention, and revocation require implementation-level tests. Neither the
-compiler nor an authority implementation has been shown to refine this model.
+retention, and revocation require implementation-level tests. Audience claim
+profiles, canonical run/attempt parsing, and completed-decision policy/usage
+revalidation are also implementation obligations, not separate model dimensions.
+Neither the compiler nor an authority implementation has been shown to refine
+this model.
 
 ## Evidence and invariants
 
