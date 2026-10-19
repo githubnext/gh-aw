@@ -189,7 +189,22 @@ describe("check_version_updates", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v0.91.10 or newer"));
   });
 
-  it("should not reject older workflows without safe outputs when remote config is unavailable", async () => {
+  it.each([
+    ["missing", undefined],
+    ["unknown", "maybe"],
+  ])("should reject below-minimum workflows when the safe-output signal is %s", async (_signalState, signal) => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.91.9";
+    if (signal === undefined) {
+      delete process.env.GH_AW_HAS_SAFE_OUTPUTS;
+    } else {
+      process.env.GH_AW_HAS_SAFE_OUTPUTS = signal;
+    }
+    mockFetchError(new Error("ECONNREFUSED"));
+    await runMain();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v0.91.10 or newer"));
+  });
+
+  it("should not reject below-minimum workflows explicitly compiled without safe outputs when remote config is unavailable", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.88.7";
     process.env.GH_AW_HAS_SAFE_OUTPUTS = "false";
     mockFetchError(new Error("ECONNREFUSED"));

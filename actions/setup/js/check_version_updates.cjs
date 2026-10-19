@@ -248,7 +248,10 @@ async function main() {
     return;
   }
 
-  const requiresExecutionProvenance = process.env.GH_AW_HAS_SAFE_OUTPUTS === "true" && compareVersions(compiledVersion, PROVENANCE_MINIMUM_COMPILER_VERSION) < 0;
+  const safeOutputsSignal = process.env.GH_AW_HAS_SAFE_OUTPUTS;
+  const isBelowProvenanceMinimum = compareVersions(compiledVersion, PROVENANCE_MINIMUM_COMPILER_VERSION) < 0;
+  const safeOutputsAreUnknown = safeOutputsSignal !== "true" && safeOutputsSignal !== "false";
+  const requiresExecutionProvenance = isBelowProvenanceMinimum && (safeOutputsSignal === "true" || safeOutputsAreUnknown);
 
   core.info(`Checking compile-agentic version: ${compiledVersion}`);
   core.info(`Fetching update configuration from: ${CONFIG_URL}`);
