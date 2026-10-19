@@ -52,6 +52,14 @@ function isUntrustedLedgerArtifact(relativePath, trustedSegments) {
 }
 
 /**
+ * @param {string} relativePath
+ * @returns {boolean}
+ */
+function isDailyAICLedgerFile(relativePath) {
+  return /^daily-aic-ledger\/(?:\d{4}-\d{2}-\d{2}\.jsonl|coverage-[0-9a-f]{64}\.json)$/.test(relativePath.replace(/\\/g, "/"));
+}
+
+/**
  * Configure a checkout-local merge policy that keeps both sides of conflicting
  * JSONL regions. The info attributes file is not committed to the memory branch.
  *
@@ -351,6 +359,7 @@ async function main() {
   const maxFileCount = Number(process.env.MAX_FILE_COUNT || "100");
   const maxPatchSize = Number(process.env.MAX_PATCH_SIZE || "10240");
   const fileGlobFilter = process.env.FILE_GLOB_FILTER || "";
+  const hasTrustedDailyAICLedger = process.env.GH_AW_DAILY_AIC_REPO_MEMORY_WRITER === "true";
   const formatJSON = process.env.FORMAT_JSON === "true";
   const validationScriptBase64 = process.env.VALIDATION_SCRIPT_B64 || "";
   const validationScriptRequired = process.env.VALIDATION_SCRIPT_REQUIRED === "true";
@@ -715,11 +724,14 @@ async function main() {
         // Allowed extensions and file-glob are persistence filters: files that do not
         // pass are logged and ignored (never uploaded, validated, counted toward
         // max-file-count/size/patch-size, or pushed) rather than causing a hard failure.
-        const eligibility = isMemoryFileEligible(relativeFilePath, allowedExtensions, compiledPatterns);
-        if (!eligibility.eligible) {
-          core.info(`  [skip] ${normalizedRelPath} (${stats.size} bytes) — ${eligibility.reason}`);
-          filteredOutFiles.push({ path: normalizedRelPath, reason: eligibility.reason || "ineligible" });
-          continue;
+        // Only the compiler's sanitized writer pipeline can exempt daily AIC files.
+        if (!hasTrustedDailyAICLedger || !isDailyAICLedgerFile(normalizedRelPath)) {
+          const eligibility = isMemoryFileEligible(relativeFilePath, allowedExtensions, compiledPatterns);
+          if (!eligibility.eligible) {
+            core.info(`  [skip] ${normalizedRelPath} (${stats.size} bytes) — ${eligibility.reason}`);
+            filteredOutFiles.push({ path: normalizedRelPath, reason: eligibility.reason || "ineligible" });
+            continue;
+          }
         }
 
         // Validate file size

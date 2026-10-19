@@ -245,6 +245,7 @@ jobs:
           GH_AW_MAX_DAILY_AI_CREDITS_BACKEND: "repo-memory"
           GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED: ${{ steps.daily-aic-repo-memory-clone.outputs.cloned == 'true' }}
           GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC: ${{ vars.GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC || 'false' }}
+          GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING: ${{ steps.daily-aic-repo-memory-clone.outcome == 'success' && steps.daily-aic-repo-memory-clone.outputs.cloned == 'false' }}
           GH_AW_DAILY_AIC_REPO_MEMORY_DIR: /tmp/gh-aw/repo-memory/default
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
         with:
@@ -2835,6 +2836,7 @@ jobs:
           CREATE_ORPHAN: false
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Reset untrusted daily AIC repo-memory ledger artifact
+        id: daily-aic-repo-memory-reset
         if: always()
         env:
           GH_AW_DAILY_AIC_REPO_MEMORY_DIR: /tmp/gh-aw/repo-memory/default
@@ -2880,6 +2882,7 @@ jobs:
           MEMORY_ID: default
           TARGET_REPO: ${{ github.repository }}.wiki
           BRANCH_NAME: master
+          GH_AW_DAILY_AIC_REPO_MEMORY_WRITER: ${{ steps.daily-aic-repo-memory-reset.outcome == 'success' }}
           REPO_MEMORY_ALLOWED_REPOS: ${{ github.repository }}.wiki
           MAX_FILE_SIZE: 102400
           MAX_FILE_COUNT: 100
