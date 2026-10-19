@@ -2,8 +2,10 @@ package cli
 
 import (
 	"cmp"
+	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // EpisodeRoot preserves a recorded canonical root claim without substituting a
@@ -46,7 +48,7 @@ func addEpisodeCoverage(episodes []EpisodeData, runsByID map[int64]RunData) {
 					rootWorkflows[root.WorkflowID] = struct{}{}
 				}
 				if root.Repository != "" {
-					rootRepos[root.Repository] = struct{}{}
+					rootRepos[strings.ToLower(root.Repository)] = struct{}{}
 				}
 				roots[root] = struct{}{}
 			}
@@ -84,9 +86,11 @@ func recordedEpisodeRoot(ctx *AwContext, episode *EpisodeData, runsByID map[int6
 		episode.Coverage.addGap("invalid_recorded_root_run_id")
 	case !present:
 		episode.Coverage.addGap("missing_recorded_root")
+	case episodeRepositoryConflict(root.Repository, source.Repository):
+		episode.Coverage.addGap("conflicting_root_lineage")
 	case canonicalEpisodeID(source) == "":
 		episode.Coverage.addGap("unverified_root_lineage")
-	case !slices.Contains(episode.RunIDs, rootID) || episodeRepositoryConflict(root.Repository, source.Repository):
+	case !slices.Contains(episode.RunIDs, rootID):
 		episode.Coverage.addGap("conflicting_root_lineage")
 	default:
 		root.Observed = true
@@ -107,11 +111,11 @@ func addRecordedParentCoverage(run RunData, episode *EpisodeData, runsByID map[i
 	case !present:
 		episode.Coverage.addGap("missing_recorded_parent")
 		episode.Coverage.MissingParentRunIDs = append(episode.Coverage.MissingParentRunIDs, parentID)
-	case parentID == run.RunID:
-		// Reusable workflow hops can share one GitHub run.
+	case episodeRepositoryConflict(ctx.Repo, parent.Repository):
+		episode.Coverage.addGap("conflicting_parent_lineage")
 	case canonicalEpisodeID(parent) == "":
 		episode.Coverage.addGap("unverified_parent_lineage")
-	case !slices.Contains(episode.RunIDs, parentID) || episodeRepositoryConflict(ctx.Repo, parent.Repository):
+	case !slices.Contains(episode.RunIDs, parentID):
 		episode.Coverage.addGap("conflicting_parent_lineage")
 	}
 }
@@ -122,7 +126,7 @@ func parseEpisodeRunID(id string) (int64, bool) {
 }
 
 func episodeRepositoryConflict(recorded, observed string) bool {
-	return recorded != "" && observed != "" && recorded != observed
+	return recorded != "" && observed != "" && !strings.EqualFold(recorded, observed)
 }
 
 func (coverage *EpisodeCoverage) addGap(reason string) {
@@ -133,16 +137,134 @@ func (coverage *EpisodeCoverage) addGap(reason string) {
 	}
 }
 
-func markEpisodeCollectionTruncated(episodes []EpisodeData) {
-	for i := range episodes {
-		episodes[i].Coverage.CollectionTruncated = true
-		episodes[i].Coverage.addGap("collection_truncated")
+type logsCollectionCoverageOptions struct {
+	continuations     []WorkflowContinuation
+	countLimitReached bool
+	countLimitTargets []logsWorkflowTarget
+}
+
+func resolveLogsCollectionTargetRepositories(results []logsTargetResult, localRepository string) {
+	if localRepository == "" {
+		for _, result := range results {
+			if result.target.repoOverride != "" {
+				continue
+			}
+			for _, run := range result.result.processedRuns {
+				runURL, _ := url.Parse(run.Run.URL)
+				if repository := collectionRunRepository(run.Run.Repository, runURL); repository != "" {
+					localRepository = repository
+					break
+				}
+			}
+			if localRepository != "" {
+				break
+			}
+		}
+	}
+	for i := range results {
+		if results[i].target.repoOverride == "" {
+			results[i].target.repoOverride = localRepository
+		}
 	}
 }
 
-func applyLogsCollectionCoverage(data *LogsData, continuations []WorkflowContinuation, countLimitReached bool) {
-	data.Continuations = continuations
-	if len(continuations) > 0 || countLimitReached {
-		markEpisodeCollectionTruncated(data.Episodes)
+func logsCountLimitedTargets(results []logsTargetResult) []logsWorkflowTarget {
+	var targets []logsWorkflowTarget
+	for _, result := range results {
+		if result.result.countLimitReached {
+			targets = append(targets, result.target)
+		}
 	}
+	return targets
+}
+
+func applyLogsCollectionCoverage(data *LogsData, opts logsCollectionCoverageOptions) {
+	data.Continuations = opts.continuations
+	if data.Continuation == nil && len(opts.continuations) == 0 && !opts.countLimitReached {
+		return
+	}
+	targets := slices.Clone(opts.continuations)
+	if data.Continuation != nil {
+		targets = append(targets, WorkflowContinuation{ContinuationData: *data.Continuation})
+	}
+	for _, target := range opts.countLimitTargets {
+		targets = append(targets, WorkflowContinuation{
+			Repository: target.repoOverride, ContinuationData: ContinuationData{WorkflowName: target.workflowName},
+		})
+	}
+	// Legacy callers may only know that some target hit a count limit. Combined
+	// collection supplies every limited target, including those without cursors.
+	unscopedCountLimit := opts.countLimitReached && len(opts.countLimitTargets) == 0 && data.Continuation == nil
+	runsByEpisode := make(map[string][]RunData)
+	for _, run := range data.Runs {
+		if episodeID := canonicalEpisodeID(run); episodeID != "" {
+			runsByEpisode[episodeID] = append(runsByEpisode[episodeID], run)
+		}
+	}
+	for i := range data.Episodes {
+		episode := &data.Episodes[i]
+		truncated := unscopedCountLimit
+		for _, target := range targets {
+			if episodeMatchesCollectionTarget(*episode, runsByEpisode[episode.EpisodeID], target) {
+				truncated = true
+				break
+			}
+		}
+		if truncated {
+			episode.Coverage.CollectionTruncated = true
+			episode.Coverage.addGap("collection_truncated")
+		}
+	}
+}
+
+func episodeMatchesCollectionTarget(episode EpisodeData, runs []RunData, target WorkflowContinuation) bool {
+	if len(runs) == 0 {
+		if len(episode.WorkflowNames) == 0 {
+			return collectionTargetMatchesRun(target, RunData{Repository: episode.Repository})
+		}
+		for _, name := range episode.WorkflowNames {
+			if collectionTargetMatchesRun(target, RunData{Repository: episode.Repository, WorkflowName: name}) {
+				return true
+			}
+		}
+	}
+	for _, run := range runs {
+		if collectionTargetMatchesRun(target, run) {
+			return true
+		}
+	}
+	return false
+}
+
+func collectionTargetMatchesRun(target WorkflowContinuation, run RunData) bool {
+	repository := strings.TrimSpace(target.Repository)
+	runURL, err := url.Parse(run.URL)
+	if host := logsRateLimitHost(repository); host != "" {
+		repository = strings.TrimPrefix(repository, host+"/")
+		if err == nil && runURL.Host != "" && !strings.EqualFold(host, runURL.Host) {
+			return false
+		}
+	}
+	runRepository := collectionRunRepository(run.Repository, runURL)
+	if repository != "" && runRepository != "" && !strings.EqualFold(repository, runRepository) {
+		return false
+	}
+	workflow := strings.TrimSpace(target.WorkflowName)
+	if workflow == "" || (run.WorkflowName == "" && run.WorkflowPath == "") {
+		return true
+	}
+	// Target resolution normally yields the display name; API callers can also
+	// supply a workflow ID or lock-file path.
+	return strings.EqualFold(workflow, run.WorkflowName) ||
+		workflowIDFromPath(workflow) == workflowIDFromRun(run.WorkflowPath, run.WorkflowName)
+}
+
+func collectionRunRepository(repository string, runURL *url.URL) string {
+	if repository != "" || runURL == nil {
+		return repository
+	}
+	if repo, _, found := strings.Cut(strings.TrimPrefix(runURL.Path, "/"), "/actions/runs/"); found {
+		return repo
+	}
+	return ""
 }

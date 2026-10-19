@@ -673,6 +673,10 @@ func runAmbientContext(pr ProcessedRun) *AmbientContextMetrics {
 
 // buildLogsData creates structured logs data from processed runs
 func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData) LogsData {
+	return buildLogsDataWithCollectionCoverage(processedRuns, outputDir, continuation, logsCollectionCoverageOptions{})
+}
+
+func buildLogsDataWithCollectionCoverage(processedRuns []ProcessedRun, outputDir string, continuation *ContinuationData, collection logsCollectionCoverageOptions) LogsData {
 	reportLog.Printf("Building logs data from %d processed runs", len(processedRuns))
 
 	agg := &logsAggregate{engineCounts: make(map[string]int)}
@@ -704,9 +708,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	addRunExecutionSummary(&summary, runs)
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
-	if continuation != nil {
-		markEpisodeCollectionTruncated(episodes)
-	}
 	for _, episode := range episodes {
 		summary.TotalEpisodes++
 		if episode.Confidence == "high" {
@@ -722,6 +723,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	data.Episodes = episodes
 	data.Edges = edges
 	data.Continuation = continuation
+	applyLogsCollectionCoverage(&data, collection)
 	data.LogsLocation, _ = filepath.Abs(outputDir)
 	return data
 }

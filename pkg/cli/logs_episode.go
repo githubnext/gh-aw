@@ -243,7 +243,7 @@ func buildEpisodeEdge(run RunData, runsByID map[int64]RunData) (EpisodeEdge, boo
 		logsEpisodeLog.Printf("Ignoring episode edge without matching canonical identity: source_run=%d target_run=%d", sourceRunID, run.RunID)
 		return EpisodeEdge{}, false
 	}
-	if run.AwContext.Repo != "" && source.Repository != "" && run.AwContext.Repo != source.Repository {
+	if episodeRepositoryConflict(run.AwContext.Repo, source.Repository) {
 		logsEpisodeLog.Printf("Ignoring dispatch source repository mismatch: source_run=%d target_run=%d", sourceRunID, run.RunID)
 		return EpisodeEdge{}, false
 	}

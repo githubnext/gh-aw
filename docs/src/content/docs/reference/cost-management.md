@@ -77,13 +77,13 @@ Episode root and coverage fields distinguish recorded identity from the selected
 
 | Field | Meaning |
 |---|---|
-| `recorded_roots[]` | Distinct root claims from context: string `run_id`, full `workflow_id`, and `repository` when recorded. `observed` is true only when that root run is selected in this episode without a known repository mismatch. Conflicting claims are preserved, not resolved by timestamps. |
+| `recorded_roots[]` | Distinct root claims from context: string `run_id`, full `workflow_id`, and `repository` when recorded, including claims without a run ID. `observed` is true only when that root run is selected in this episode without a known repository mismatch. Conflicting claims and original repository spelling are preserved; repository identity comparison ignores case. |
 | `representative_run_id`, `representative_workflow` | Selected-data representative, preferring the earliest timestamped run, then the lowest run ID when timestamps are absent or tied. An available workflow name is used when the representative has none. These fields do not identify a missing canonical root. |
 | `coverage.scope` | Always `selected_runs`; totals exclude unselected ancestors and descendants. |
 | `coverage.status` | `partial` when recorded evidence has gaps, contradictions, invalid run IDs, or collection truncation; otherwise `unknown`. Logs do not establish episode completeness, even when every recorded parent and root is selected. |
 | `coverage.reasons` | Machine-readable codes: `missing_recorded_root`, `missing_recorded_parent`, `unverified_root_lineage`, `unverified_parent_lineage`, `conflicting_recorded_roots`, `conflicting_root_lineage`, `conflicting_parent_lineage`, `invalid_recorded_root_run_id`, `invalid_recorded_parent_run_id`, and `collection_truncated`. Unverified lineage means the referenced run is selected but has no canonical episode identity. |
 | `coverage.missing_parent_run_ids` | Sorted, unique recorded caller run IDs absent from the selection. Same-run reusable hops are not missing run-level parents. |
-| `coverage.collection_truncated` | True when the collection has a continuation or reports a count limit. This describes the report's selection, not proof that this particular episode has additional members. False does not establish completeness. |
+| `coverage.collection_truncated` | True when collection truncation applies to this episode's selected repository/workflow target, or a reached count limit cannot be scoped more precisely. A scoped continuation does not downgrade unrelated targets. This is not proof that this particular episode has additional members; false does not establish completeness. |
 
 Missing root fields remain unknown; the CLI does not infer a canonical root from a descendant or parse one from an episode ID. Root presence is run-level evidence, not proof that every reusable workflow hop or artifact was collected.
 

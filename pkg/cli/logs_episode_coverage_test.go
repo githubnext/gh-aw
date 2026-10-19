@@ -178,13 +178,15 @@ func TestEpisodeCoverageMissingParentsUniqueAndSorted(t *testing.T) {
 
 func TestEpisodeCoverageCollectionAndRendering(t *testing.T) {
 	for _, tt := range []struct {
-		name string
-		opts renderLogsOutputOptions
+		name    string
+		opts    renderLogsOutputOptions
+		bounded bool
 	}{
 		{name: "unbounded selection"},
-		{name: "count with date range", opts: renderLogsOutputOptions{continuation: &ContinuationData{Count: 10, StartDate: "-30d"}}},
-		{name: "multi-target continuation", opts: renderLogsOutputOptions{continuations: []WorkflowContinuation{{Repository: "org/other"}}}},
-		{name: "count limit without cursor", opts: renderLogsOutputOptions{countLimitReached: true}},
+		{name: "count with date range", opts: renderLogsOutputOptions{continuation: &ContinuationData{Count: 10, StartDate: "-30d"}}, bounded: true},
+		{name: "matching multi-target continuation", opts: renderLogsOutputOptions{continuations: []WorkflowContinuation{{Repository: "org/repo"}}}, bounded: true},
+		{name: "unrelated multi-target continuation", opts: renderLogsOutputOptions{continuations: []WorkflowContinuation{{Repository: "org/other"}}}},
+		{name: "count limit without cursor", opts: renderLogsOutputOptions{countLimitReached: true}, bounded: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			run := episodeCoverageTestRuns()[0]
@@ -193,12 +195,13 @@ func TestEpisodeCoverageCollectionAndRendering(t *testing.T) {
 			data, err := prepareLogsData([]ProcessedRun{processedRunFromCachedData(run, nil, opts.outputDir)}, opts)
 			require.NoError(t, err)
 			require.Len(t, data.Episodes, 1)
-			bounded := tt.name != "unbounded selection"
-			assert.Equal(t, bounded, data.Episodes[0].Coverage.CollectionTruncated)
+			assert.Equal(t, tt.bounded, data.Episodes[0].Coverage.CollectionTruncated)
 			status := "unknown"
-			if bounded {
+			if tt.bounded {
 				status = "partial"
 				assert.Equal(t, []string{"collection_truncated"}, data.Episodes[0].Coverage.Reasons)
+			} else {
+				assert.Empty(t, data.Episodes[0].Coverage.Reasons)
 			}
 			assert.Equal(t, status, data.Episodes[0].Coverage.Status)
 			for _, verbose := range []bool{false, true} {
