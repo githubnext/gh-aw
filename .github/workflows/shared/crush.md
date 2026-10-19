@@ -133,7 +133,7 @@ engine:
         fs.chmodSync(configPath, 0o600);
     harness-script: |
       const { spawnSync } = require("child_process");
-      const { accessSync, constants, readFileSync, writeFileSync } = require("fs");
+      const { accessSync, closeSync, constants, fstatSync, openSync, readFileSync, writeFileSync } = require("fs");
       const { isAbsolute, join } = require("path");
       const { fetchAWFReflect, resolveProviderEndpointFromReflect, deriveBaseUrlFromModelsURL, inferWireApiForModel, REFLECT_PROVIDER_ALIASES } = require("./awf_reflect.cjs");
 
@@ -253,17 +253,22 @@ engine:
 
         const promptPath = process.env.GH_AW_PROMPT;
         if (!promptPath) throw new Error("GH_AW_PROMPT is required");
-        const prompt = readFileSync(promptPath, "utf8");
-        log(`prompt loaded (${Buffer.byteLength(prompt, "utf8")} bytes)`);
         const executable = resolveCommand(command);
         log(`resolved ${command} to ${executable}`);
-        log("starting Crush CLI");
         const startedAt = Date.now();
-        const result = spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`, prompt], {
-          cwd: workspace,
-          env: process.env,
-          stdio: "inherit",
-        });
+        const promptFd = openSync(promptPath, "r");
+        let result;
+        try {
+          log(`prompt loaded (${fstatSync(promptFd).size} bytes)`);
+          log("starting Crush CLI");
+          result = spawnSync(executable, [...commandArgs, "--model", `awf-proxy/${model}`], {
+            cwd: workspace,
+            env: process.env,
+            stdio: [promptFd, "inherit", "inherit"],
+          });
+        } finally {
+          closeSync(promptFd);
+        }
         log(`Crush CLI finished after ${Date.now() - startedAt}ms (exit: ${result.status ?? "none"}; signal: ${result.signal ?? "none"})`);
         fail(result, "Crush execution");
       };
@@ -349,4 +354,8 @@ historical terminal records retain their observed fields.
 Native verbose logging and harness startup/exit milestones are written to
 stderr for timeout diagnosis. The harness logs prompt size, never prompt contents,
 configuration contents, or credential values.
+The prompt file is opened as stdin with an explicit EOF, not passed in process
+arguments. Crush reads regular files and named pipes before initialization:
+inheriting an open sandbox pipe stalls before MCP startup or inference, while
+Node's socket-backed child-process pipes are not recognized as prompt input.
 -->
