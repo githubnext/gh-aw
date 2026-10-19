@@ -46,7 +46,7 @@ function resourceURL(value, message, allowFragment = false) {
   } catch {
     reject(message);
   }
-  if (url.protocol !== "https:" || url.username || url.password || url.search || (!allowFragment && url.hash) || url.href !== value) {
+  if (url.protocol !== "https:" || url.username || url.password || url.href.includes("?") || url.href.endsWith("#") || (!allowFragment && url.hash) || url.href !== value) {
     reject(message);
   }
   return url;

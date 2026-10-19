@@ -91,6 +91,39 @@ describe("minimal resource notification contract", () => {
     }
   });
 
+  it.each([
+    ["projects_v2_item", "body.from"],
+    ["projects_v2_item", "body.to"],
+    ["azure_devops_issue", "tags.from"],
+    ["azure_devops_issue", "tags.to"],
+  ])("allows only exact configured scalar literals for %s %s", (event, filter) => {
+    const definition = githubCatalog[event] ?? providerCatalog[event];
+    const selected = "reviewed literal";
+    const filters = { project_id: ["approved-project"], [filter]: [selected] };
+    const subscription = {
+      schema_version: 2,
+      event,
+      types: ["edited"],
+      conditions: Object.entries(filters).map(([name, values]) => ({
+        filter: name,
+        path: definition.filters[name].path,
+        operator: "equals",
+        value_type: "string",
+        values,
+      })),
+      dispatch: { event_type: "literal-projection", payload_projection: { policy: WEBHOOK_PAYLOAD_POLICY } },
+      ...(event === "azure_devops_issue" ? { provider: "azure-devops", native_events: ["workitem.updated"], activity_normalization: { policy: "azure-devops-issue/v1" } } : {}),
+    };
+    const payload = { url: examples.find(([family]) => family === event)[1], type: ["edited"], filters };
+    const envelope = { action: "literal-projection", client_payload: { schema_version: 2, aw_context: { webhook: { event, deliveries: [{ delivery_id: "literal", payload }] } } } };
+    const env = { GITHUB_EVENT_NAME: "repository_dispatch", GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription]) };
+    expect(validateWebhook(envelope, env).skipped).toBe(false);
+    for (const values of [["reviewed literal plus unselected text"], [selected, "unselected"], [{ body: selected }]]) {
+      payload.filters[filter] = values;
+      expect(() => validateWebhook(envelope, env)).toThrow(/filter/);
+    }
+  });
+
   it.each(["webhook", "example.event"])("rejects custom resource family %s", event => {
     expect(() => resolveWebhookResource(event, { url: "https://service.example/releases/42", type: ["example.event"] })).toThrow(/supported event activities/);
     expect(() => normalizeWebhookContext({ webhook: { event, deliveries: [] } })).toThrow(/supported webhook event/);
@@ -135,7 +168,23 @@ describe("minimal resource notification contract", () => {
 
   it.each(examples)("rejects noncanonical, credentialed, queried and fragmented %s URLs", (event, url, type) => {
     const parsed = new URL(url);
-    for (const invalid of [undefined, "", {}, url.replace("https:", "http:"), `${url}?token=private`, `${url}#details`, `${url}/`, `${parsed.origin}/other/resource/123`, url.replace("://", "://user:private@")]) {
+    for (const invalid of [
+      undefined,
+      "",
+      {},
+      url.replace("https:", "http:"),
+      url.replace("https:", "HTTPS:"),
+      url.replace(parsed.hostname, parsed.hostname.toUpperCase()),
+      url.replace(parsed.origin, `${parsed.origin}:443`),
+      url.replace(parsed.pathname, `/./${parsed.pathname.slice(1)}`),
+      `${url}?token=private`,
+      `${url}?`,
+      `${url}#details`,
+      `${url}#`,
+      `${url}/`,
+      `${parsed.origin}/other/resource/123`,
+      url.replace("://", "://user:private@"),
+    ]) {
       expect(() => resolveWebhookResource(event, { url: invalid, type })).toThrow(/canonical/);
       expect(() => resolveWebhookResource(event, { url: invalid, type })).not.toThrow(/private/);
     }

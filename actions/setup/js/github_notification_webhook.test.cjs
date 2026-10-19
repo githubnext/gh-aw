@@ -97,6 +97,15 @@ describe("first-class GitHub gateway notifications", () => {
     expect(test.validate).toThrow(/canonical/);
   });
 
+  it.each(Object.keys(GITHUB_NOTIFICATION_EVENTS))("rejects empty query or fragment delimiters for %s", event => {
+    const test = fixture(event);
+    const [parent, anchor] = test.payload.url.split("#");
+    for (const url of [`${parent}?${anchor ? `#${anchor}` : ""}`, `${parent}#`]) {
+      test.payload.url = url;
+      expect(test.validate).toThrow(/canonical/);
+    }
+  });
+
   it("rejects malformed notification metadata and noncanonical URL forms", () => {
     for (const change of [
       { native_events: ["pull_request"] },
