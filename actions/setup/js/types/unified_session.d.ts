@@ -228,10 +228,23 @@ export interface ModelRoutingOutcomeData {
 export interface ModelInventoryData {
   endpoints: {
     provider: string;
-    models: string[];
+    /** AWF's endpoint configuration state; absent when the source did not supply it. */
+    configured?: boolean;
+    /** Advertised model IDs in source order; absent means unknown, not empty. */
+    models?: string[];
+    /** Routing metadata in source order; absent means unknown, not empty. */
     routingModels?: {
       modelId: string;
       supportedEndpoints?: string[];
+      /** Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty. */
+      supportedReasoningEfforts?: string[];
+      /**
+       * Positive context window size in tokens; absent means unknown.
+       * @asType integer
+       * @minimum 1
+       * @maximum 9007199254740991
+       */
+      contextWindowTokens?: number;
     }[];
   }[];
   modelsFetchComplete?: boolean;

@@ -21,3 +21,6 @@ schemas/logs-jsonl.schema.json
 
 .beads/
 .github/aw/
+
+# Recorded byte-exact AWF reflection fixtures (SHA-256 pinned)
+actions/setup/js/test_data/awf_reflect/*.json
