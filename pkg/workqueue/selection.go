@@ -108,6 +108,9 @@ func positionLess(a, b Position) bool {
 }
 
 func (state Projection) eligibility(work *WorkState, at int64, logical int, accounts map[string]int) string {
+	if workExpired(work, max(at, state.timeWatermark)) || work.CancellationReason == "work_expired" {
+		return "work_expired"
+	}
 	if work.Barrier == "pending" || work.Barrier == "failed" {
 		return "delivery_" + work.Barrier
 	}
@@ -178,6 +181,9 @@ func (state Projection) eligibleBuckets(poolName string, at int64, logical int, 
 		if work.Pool != poolName || work.State != "available" {
 			continue
 		}
+		if workExpired(work, max(at, state.timeWatermark)) {
+			continue
+		}
 		hasAvailable = true
 		if state.eligibility(work, at, logical, accounts) != "ready" {
 			continue
@@ -243,6 +249,7 @@ func PlanNext(state Projection, pool string, at int64) (Selection, error) {
 
 func cloneProjection(state Projection) Projection {
 	copy := state
+	copy.expiringWorks = maps.Clone(state.expiringWorks)
 	copy.Works = make(map[string]*WorkState, len(state.Works))
 	for id, work := range state.Works {
 		item := *work

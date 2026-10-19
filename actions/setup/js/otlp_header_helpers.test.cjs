@@ -59,6 +59,22 @@ describe("otlp_header_helpers.cjs", () => {
     }
   });
 
+  it("retains plain placeholders for artifact and step-summary redaction", () => {
+    const { redactArtifactContent, redactStepSummaryContent } = require("./redact_secrets.cjs");
+    const placeholders = ["true", "false", "null", "abcd", "abcdefg", "12345678", "%74%72%75%65", "%31%32%33%34%35%36%37%38"];
+    vi.stubEnv("OTEL_EXPORTER_OTLP_HEADERS", placeholders.map((value, index) => `X-Placeholder-${index}=${value}`).join(","));
+    vi.stubEnv("GH_AW_OTLP_ALL_HEADERS", "");
+    vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "");
+
+    const values = getOTLPSecretValues();
+    const content = JSON.stringify({ values: placeholders });
+    const expected = JSON.stringify({ values: placeholders.map(() => "***") });
+
+    expect(values.sort()).toEqual([...placeholders].sort());
+    expect(redactArtifactContent(content, [], values).content).toBe(expected);
+    expect(redactStepSummaryContent(content)).toBe(expected);
+  });
+
   it("keeps eval verification rejecting unredacted OTLP credentials", () => {
     const { verifyRedaction } = require("./redact_evals_results.cjs");
     const { redactStepSummaryContent } = require("./redact_secrets.cjs");

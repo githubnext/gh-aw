@@ -132,10 +132,11 @@ func wildcardMatch(pattern, key string) bool {
 }
 
 type analyzer struct {
-	rule        Rule
-	result      Result
-	promptScope scope
-	failure     error
+	rule          Rule
+	result        Result
+	promptScope   scope
+	failure       error
+	literalScript bool
 }
 
 func (a *analyzer) emit(site Site, sources value) {

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func nativeJavaScriptOptions(t *testing.T) *JavaScriptOptions {
+func nativeJavaScriptOptions(t testing.TB) *JavaScriptOptions {
 	t.Helper()
 	dir, err := filepath.Abs("javascript")
 	require.NoError(t, err)
@@ -77,6 +77,15 @@ func TestNativeJavaScriptTaint(t *testing.T) {
 		{"dynamic import", `require(process.env.MODULE).consume(process.env.TOKEN);`, "", true},
 		{"function not executed", `function unused(){console.log(process.env.TOKEN)}`, "", false},
 		{"never execute JavaScript", `require("child_process").execSync("false");`, "", true},
+	}
+	sources := make([]string, 0, len(tests))
+	for _, tt := range tests {
+		sources = append(sources, tt.source)
+	}
+	results, err := options.Parser.(JavaScriptBatchParser).ParseBatch(t.Context(), sources)
+	require.NoError(t, err)
+	for _, result := range results {
+		require.NoError(t, result.Err)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

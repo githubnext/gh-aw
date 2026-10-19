@@ -23,6 +23,9 @@ func TestJavaScriptLintConfiguration(t *testing.T) {
 	}{
 		{"disabled", nil, ""},
 		{"explicit module", []string{"--javascript-module", t.TempDir()}, ""},
+		{"explicit deep", []string{"--javascript-module", t.TempDir(), "--javascript-mode", "deep"}, ""},
+		{"invalid mode", []string{"--javascript-module", t.TempDir(), "--javascript-mode", "unknown"}, "must be fast or deep"},
+		{"mode requires module", []string{"--javascript-mode", "deep"}, "requires --javascript-module"},
 		{"root requires module", []string{"--javascript-root", t.TempDir()}, "require --javascript-module"},
 		{"mapping requires root", []string{"--javascript-module", t.TempDir(), "--javascript-runtime-path", "/runner=helpers"}, "requires --javascript-root"},
 		{"invalid mapping", []string{"--javascript-module", t.TempDir(), "--javascript-root", t.TempDir(), "--javascript-runtime-path", "/runner=../outside"}, "repository-relative-directory"},
@@ -40,6 +43,9 @@ func TestJavaScriptLintConfiguration(t *testing.T) {
 				} else {
 					require.NotNil(t, options)
 					assert.NotNil(t, options.Parser)
+					mode, err := cmd.Flags().GetString("javascript-mode")
+					require.NoError(t, err)
+					assert.Equal(t, mode, string(options.Mode))
 				}
 			}
 			require.NoError(t, closeFiles())
@@ -65,9 +71,9 @@ func TestJavaScriptLintCLI(t *testing.T) {
 	}{
 		{"safe authentication", `fetch("https://example.test", {headers:{Authorization:process.env.TOKEN}})`, module, "", "", false},
 		{"leak", `console.log(process.env.TOKEN)`, module, workflowlint.Error, "reaches log", false},
-		{"unknown hidden", `unknown(process.env.TOKEN)`, module, "", "", false},
+		{"unknown visible", `unknown(process.env.TOKEN)`, module, workflowlint.Warning, "not modeled", false},
 		{"unknown debug", `unknown(process.env.TOKEN)`, module, workflowlint.Warning, "not modeled", true},
-		{"unavailable module hidden", `console.log(process.env.TOKEN)`, t.TempDir(), "", "", false},
+		{"unavailable module visible", `console.log(process.env.TOKEN)`, t.TempDir(), workflowlint.Warning, "AST unavailable", false},
 		{"unavailable module debug", `console.log(process.env.TOKEN)`, t.TempDir(), workflowlint.Warning, "AST unavailable", true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

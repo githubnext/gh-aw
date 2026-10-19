@@ -1141,6 +1141,9 @@
         "execution_ref": {
           "$ref": "#/$defs/Revision"
         },
+        "expires_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
         "fairness_key": {
           "maxLength": 128,
           "type": "string"
