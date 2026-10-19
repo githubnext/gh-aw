@@ -2,6 +2,8 @@
 
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { formatDuration, sleep } = require("./process_runner.cjs");
 const { emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 
@@ -15,14 +17,29 @@ const { emitSoftTimeoutSignal } = require("./harness_retry_guard.cjs");
 /**
  * Return true when the harness should skip spawning an agent because a prior step
  * already wrote a noop safe-output.
- * @param {{ safeOutputsPath: string, hasNoopInSafeOutputs: (path: string, options: { logger: (message: string) => void }) => boolean, log: (message: string) => void }} options
+ * @param {{ safeOutputsPath: string, hasNoopInSafeOutputs: (path: string, options: { logger: (message: string) => void }) => boolean, log: (message: string) => void, env?: Record<string, string | undefined> }} options
  * @returns {boolean}
  */
-function shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log }) {
+function shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, env = process.env }) {
   if (!safeOutputsPath || !hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
     return false;
   }
   log("pre-flight: noop message found in safe-outputs — skipping agent (work is already complete or no work needed)");
+  const evidenceFile = env.GH_AW_AWF_EXECUTION_EVIDENCE_FILE;
+  const component = env.GH_AW_AWF_EXECUTION_COMPONENT;
+  const runId = Number(env.GITHUB_RUN_ID);
+  const runAttempt = Number(env.GITHUB_RUN_ATTEMPT);
+  if (evidenceFile && ["agent", "detection", "evals"].includes(component || "") && Number.isSafeInteger(runId) && runId > 0 && Number.isSafeInteger(runAttempt) && runAttempt > 0) {
+    try {
+      // Only this pre-flight branch proves no model ran; a noop after an attempt does not.
+      fs.mkdirSync(path.dirname(evidenceFile), { recursive: true });
+      fs.writeFileSync(`${evidenceFile}.tmp`, JSON.stringify({ version: 1, component, run_id: runId, run_attempt: runAttempt, state: "not_started" }) + "\n");
+      fs.renameSync(`${evidenceFile}.tmp`, evidenceFile);
+      log(`pre-flight: recorded ${component} execution evidence as not_started`);
+    } catch (error) {
+      log(`pre-flight: could not record zero-use execution evidence: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
   return true;
 }
 
