@@ -486,7 +486,12 @@ func TestLargeContentFieldsHaveExpectedMaxLength(t *testing.T) {
 
 			maxLength, ok := fieldValue["maxLength"].(float64)
 			require.True(t, ok, "expected maxLength for %s.%s", tc.tool, tc.field)
-			assert.InDelta(t, float64(65536), maxLength, 0, "expected maxLength=65536 for %s.%s", tc.tool, tc.field)
+			expectedMaxLength := float64(65536)
+			switch tc.tool {
+			case "create_issue", "add_comment", "create_pull_request_review_comment", "submit_pull_request_review", "reply_to_pull_request_review_comment":
+				expectedMaxLength = 524288
+			}
+			assert.InDelta(t, expectedMaxLength, maxLength, 0, "unexpected maxLength for %s.%s", tc.tool, tc.field)
 		})
 	}
 }
