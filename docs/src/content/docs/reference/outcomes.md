@@ -32,7 +32,7 @@ To support that measurement, every evaluated output is classified into an outcom
 | `unknown` | The action cannot be verified: required execution evidence is missing, the evaluator is unsupported, or only target existence is known. |
 | `error` | An API or evaluation failure prevented checking the action. |
 
-The CLI and scheduled collector use the same action-specific classifications,
+The CLI uses action-specific classifications,
 evidence strengths, and signals. An open issue or PR remains `pending`; approval,
 bot comments, and unrelated target state do not turn a creation into acceptance.
 Generic existence checks return weak `unknown`, never `accepted`. Unsupported
@@ -174,10 +174,63 @@ and writes any requested outcome JSONL.
 
 For orchestrated workflows, multiple runs can belong to one logical execution. In that case, the more meaningful unit is the episode. Outcome and cost totals can be rolled up from runs into episodes using simple sums, and then from episodes into workflow totals and repository totals.
 
-Episode usage rollups and outcome summaries are separate outputs today.
-Joining them requires matching outcome source run IDs to episode run IDs and
-selecting the latest observation of each item; repeated CLI observations
-must not be summed as additional accepted outcomes.
+### Episode Outcome Summaries
+
+`gh aw outcomes episodes` joins recorded outcome observations to the episode
+membership from a logs report. It is an offline report, not another evaluator:
+
+```bash wrap
+gh aw logs --verbose --json > logs.json
+gh aw outcomes 1234567890 --outcomes-dir ./outcomes
+gh aw outcomes 1234567891 --outcomes-dir ./outcomes
+gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --json
+```
+
+Record outcomes for each selected source run. Use `--output <directory>` on
+both commands when downloaded `run-*` artifacts are outside the default
+`.github/aw/logs` directory. The episode command reads usage artifacts directly,
+including detection usage, rather than summing agent-only cached cost.
+Use `--verbose` when generating logs so that standalone episodes are retained.
+
+The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
+per-item records include `item_id` (the action's source-manifest position) and
+`run_item_count` (the number of evaluated actions). The join matches `run_id`
+against episode `run_ids`, selects the latest `checked_at` for each source-run
+item, and reuses CLI outcome classifications. Repeated snapshots do not add
+accepted outcomes, and a later rejection replaces a previous acceptance.
+Conflicting statuses at the same observation time produce an error rather
+than an arbitrary verdict. Distinct actions against the same object remain
+distinct items.
+
+JSON returns `episodes[]` and `unmatched_outcome_run_ids`. Each episode contains
+the selected `run_ids`, latest `items`, the existing outcome `summary`, and:
+
+| Field | Meaning |
+| --- | --- |
+| `membership_scope` | Always `selected_runs`; the logs selection does not prove full-episode membership. |
+| `membership_coverage` | Optional lineage/collection scope, status, reasons, and truncation evidence copied from the logs, separate from outcome/cost coverage. |
+| `outcome_coverage` | `complete` or `partial` for selected runs only, based on available observations, item identity, and recorded item counts. |
+| `outcome_run_ids`, `missing_outcome_run_ids` | Selected runs with and without recorded outcomes. No observations do not prove that a run produced no outputs. |
+| `observed_aic` | Sum of available selected-run usage; `null` when unavailable. An explicit recorded zero remains `0`, not unknown. |
+| `cost_coverage` | `available`, `partial`, or `unavailable` for selected runs. Usage warnings qualify cost as partial. |
+| `cost_run_ids`, `missing_cost_run_ids` | Selected runs with and without usable AIC evidence. |
+| `missing_run_ids` | Episode member IDs absent from the supplied run records. |
+| `cost_per_accepted_outcome` | Observed AIC divided by accepted items, or `null` when there are no accepted items, incomplete membership/evidence/cost, or ambiguous legacy identities. A valid zero cost yields `0`. |
+| `qualifications` | Scope and evidence limitations, including unresolved outcomes. |
+
+Pending, unknown, and error outcomes remain unresolved rather than becoming
+accepted. A ratio with unresolved items is an observed snapshot, not a final
+efficiency verdict. Partial AIC is never divided by accepted items to imply a
+complete cost result. Outcomes whose source runs are outside selected
+membership are listed separately and excluded from all episode counts.
+
+Older JSONL without `item_id` is conservatively coalesced by source run, action
+type, repository, target, and creation time. Indistinguishable legacy actions
+can be undercounted, so these reports are qualified and efficiency is unavailable;
+reevaluate those runs to record action identities and counts. The report does
+not infer missing episode members, reevaluate GitHub objects, or automatically
+schedule observations. Generate its schema with
+`gh aw json-schema outcomes-episodes`.
 
 The outcomes model is deliberately narrow. It does not try to estimate the full business value of a workflow, replace human judgment for nuanced quality questions, combine deterministic compute cost and inference cost into one synthetic score, or solve overlap and duplicate-work analysis in the first version.
 

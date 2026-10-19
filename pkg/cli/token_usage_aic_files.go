@@ -115,6 +115,13 @@ func parseLegacyUsageJSONLAIC(line string) (float64, bool) {
 	}
 	usage := extractUsageRecord(parsed["usage"])
 	for _, keys := range [][]string{{"ai_credits", "aiCredits"}, {"aic"}} {
+		for _, key := range keys {
+			for _, candidate := range []any{usage[key], parsed[key]} {
+				if value, ok := candidate.(float64); ok && isFinite(value) && value >= 0 {
+					return value, true
+				}
+			}
+		}
 		if value := usageNumericValue(parsed, usage, keys...); value > 0 {
 			return value, true
 		}

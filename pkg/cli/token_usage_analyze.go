@@ -72,7 +72,7 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 			for _, warning := range warnings {
 				tokenUsageLog.Printf("AIC-only analysis warning: %s", warning)
 			}
-			return &TokenUsageSummary{TotalAIC: totalAIC, Warnings: warnings}, nil
+			return &TokenUsageSummary{TotalAIC: totalAIC, AICFound: true, Warnings: warnings}, nil
 		}
 	}
 
@@ -93,7 +93,7 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 		for _, warning := range summary.Warnings {
 			tokenUsageLog.Printf("AIC-only analysis warning: %s", warning)
 		}
-		return &TokenUsageSummary{TotalAIC: summary.TotalAIC, Warnings: summary.Warnings}, nil
+		return &TokenUsageSummary{TotalAIC: summary.TotalAIC, AICFound: true, Warnings: summary.Warnings}, nil
 	}
 
 fallback:
@@ -112,6 +112,7 @@ fallback:
 	}
 	return &TokenUsageSummary{
 		TotalAIC: summary.TotalAIC,
+		AICFound: summary.AICFound,
 	}, nil
 }
 

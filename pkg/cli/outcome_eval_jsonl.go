@@ -23,12 +23,18 @@ func writeOutcomeJSONL(dir string, runID int64, reports []OutcomeReport) {
 		outcomeEvalLog.Printf("Failed to create outcomes file %s: %v", filePath, err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			outcomeEvalLog.Printf("Failed to close outcomes file %s: %v", filePath, err)
+		}
+	}()
 
 	for _, r := range reports {
 		eval := normalizeOutcomeEvaluation(r)
 		entry := map[string]any{
 			"run_id":                runID,
+			"item_id":               r.ItemID,
+			"run_item_count":        len(reports),
 			"type":                  r.Type,
 			"outcome_status":        eval.OutcomeStatus,
 			"evidence_strength":     eval.EvidenceStrength,

@@ -27,6 +27,7 @@ var objectiveMappingGHAPIGraphQL = ghAPIGraphQL
 // OutcomeReport is the result of evaluating one safe output item.
 type OutcomeReport struct {
 	OutcomeEvaluation
+	ItemID             string   `json:"item_id,omitempty" console:"-"`
 	Type               string   `json:"type" console:"header:Type"`
 	ObjectURL          string   `json:"object_url,omitempty" console:"header:URL,omitempty"`
 	ObjectNumber       int      `json:"object_number,omitempty" console:"header:#,omitempty"`
@@ -116,7 +117,7 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 
 	reports := make([]OutcomeReport, 0, len(items))
 	skipped := 0
-	for _, item := range items {
+	for index, item := range items {
 		if item.Type == "noop" || item.Type == "missing_tool" || item.Type == "missing_data" || item.Type == "report_incomplete" {
 			skipped++
 			continue
@@ -131,8 +132,10 @@ func EvaluateOutcomes(ctx context.Context, items []CreatedItemReport, repoOverri
 			eval = evalGenericSticky
 		}
 		report := eval(ctx, item, repo)
+		// The immutable source manifest order identifies actions, not target objects.
+		report.ItemID = fmt.Sprintf("item-%d", index+1)
 		report.CreatedAt = item.Timestamp
-		report.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+		report.CheckedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		report.OutcomeEvaluation = normalizeOutcomeEvaluation(report)
 
 		// Compute objective value from issue/PR labels
