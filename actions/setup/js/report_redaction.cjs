@@ -81,42 +81,62 @@ function redactReport(report, shouldRedact) {
   }
   /**
    * @param {ReportBlock[]} nodes
-   * @returns {ReportBlock[]}
+   * @returns {{nodes: ReportBlock[], redacted: boolean}}
    */
   function blocks(nodes) {
-    return nodes.map(node => {
+    let redacted = false;
+    const result = nodes.map(node => {
       const agentSubtree = isAgentSubtree(node);
-      if (agentSubtree && shouldRedact(node)) return redactionNotice();
+      if (agentSubtree && shouldRedact(node)) {
+        redacted = true;
+        return redactionNotice();
+      }
       switch (node.type) {
         case "paragraph":
         case "heading":
         case "task": {
           const children = inlines(node.children);
-          return children.redacted && agentSubtree ? redactionNotice() : { ...node, children: children.nodes };
+          redacted ||= children.redacted;
+          if (children.redacted && agentSubtree) return redactionNotice();
+          return { ...node, children: children.nodes };
         }
         case "table": {
           const headers = node.headers.map(inlines);
           const rows = node.rows.map(row => row.map(inlines));
-          if (agentSubtree && [...headers, ...rows.flat()].some(cell => cell.redacted)) return redactionNotice();
+          const tableRedacted = [...headers, ...rows.flat()].some(cell => cell.redacted);
+          redacted ||= tableRedacted;
+          if (agentSubtree && tableRedacted) return redactionNotice();
           return { ...node, headers: headers.map(cell => cell.nodes), rows: rows.map(row => row.map(cell => cell.nodes)) };
         }
-        case "details":
+        case "details": {
+          const children = blocks(node.children);
+          redacted ||= children.redacted;
+          if (agentSubtree && children.redacted) return redactionNotice();
+          return { ...node, children: children.nodes };
+        }
         case "alert":
-        case "quote":
-          return { ...node, children: blocks(node.children) };
-        case "list":
-          return { ...node, items: node.items.map(blocks) };
+        case "quote": {
+          const children = blocks(node.children);
+          redacted ||= children.redacted;
+          return { ...node, children: children.nodes };
+        }
+        case "list": {
+          const items = node.items.map(blocks);
+          redacted ||= items.some(item => item.redacted);
+          return { ...node, items: items.map(item => item.nodes) };
+        }
         default:
           return node;
       }
     });
+    return { nodes: result, redacted };
   }
   const titleRedacted = normalized.agentTainted !== false && shouldRedact({ type: "text", value: normalized.title, agentTainted: true });
   const result = {
     ...normalized,
     ...(titleRedacted ? { title: "Content redacted.", agentTainted: false } : {}),
-    children: blocks(normalized.children),
-    ...(normalized.preamble ? { preamble: blocks(normalized.preamble) } : {}),
+    children: blocks(normalized.children).nodes,
+    ...(normalized.preamble ? { preamble: blocks(normalized.preamble).nodes } : {}),
   };
   if (normalized.footer) {
     const notices = [];
@@ -125,7 +145,7 @@ function redactReport(report, shouldRedact) {
       notices.push(redactionNotice());
       return false;
     });
-    result.footer = { ...normalized.footer, children: [...blocks(normalized.footer.children), ...notices], markers };
+    result.footer = { ...normalized.footer, children: [...blocks(normalized.footer.children).nodes, ...notices], markers };
   }
   return normalizeReport(result);
 }

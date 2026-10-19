@@ -280,6 +280,31 @@ describe("coarse report redaction", () => {
     expect(renderReport(redacted).body).toBe("<details>\n<summary>Framework evidence</summary>\n\nKeep framework text\n\n- Content redacted.\n- Content redacted.\n\n</details>\n");
   });
 
+  it("promotes wholly agent-origin details after descendant redaction but preserves mixed-origin details", () => {
+    const agentDetails = report([
+      {
+        type: "details",
+        agentTainted: true,
+        summary: "token hunter2",
+        children: [paragraph("private body", true)],
+      },
+    ]);
+    const redactedAgentDetails = redactReport(agentDetails, node => node.type === "paragraph");
+    expect(redactedAgentDetails.children).toEqual([paragraph("Content redacted.", false)]);
+    expect(renderReport(redactedAgentDetails).body).toBe("Content redacted.\n");
+
+    const mixedDetails = report([
+      {
+        type: "details",
+        agentTainted: true,
+        summary: "Framework summary",
+        children: [paragraph("Framework body", false), paragraph("private body", true)],
+      },
+    ]);
+    const redactedMixedDetails = redactReport(mixedDetails, node => node.type === "paragraph" && node.agentTainted);
+    expect(renderReport(redactedMixedDetails).body).toBe("<details>\n<summary>Framework summary</summary>\n\nFramework body\n\nContent redacted.\n\n</details>\n");
+  });
+
   it("covers preambles, footer children, and typed footer markers without altering framework title or expiration", () => {
     const input = {
       ...report([]),
