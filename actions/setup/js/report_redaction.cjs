@@ -9,7 +9,7 @@ const { normalizeReport } = require("./report_ast.cjs");
 
 /**
  * A coarse replacement must not swallow framework descendants.
- * Undefined provenance is agent-tainted; explicit false prevents coarse replacement.
+ * Missing provenance is treated as agent-tainted; only explicit false marks a framework-owned node.
  * @param {ReportBlock | ReportInline} node
  * @returns {boolean}
  */
