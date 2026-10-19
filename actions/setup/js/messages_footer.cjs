@@ -16,6 +16,7 @@ const { formatCompactInteger } = require("./compact_numbers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
+const { getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const { getEffectiveModelLabel, resolveEffectiveModel, validateModelIdentifier } = require("./model_attribution.cjs");
 const { currentClaimHandle, claimIdentity } = require("./work_queue_claim_scope.cjs");
 const reportAST = require("./report_ast.cjs");
@@ -59,17 +60,17 @@ function renderFooterParts(parts) {
 /**
  * Get the detection caution alert if the detection job found a potential issue.
  * Reads GH_AW_DETECTION_CONCLUSION and GH_AW_DETECTION_REASON from environment variables.
- * Returns the caution alert markdown when conclusion is "warning", or empty string otherwise.
+ * Returns the caution alert markdown when the effective conclusion is "warning" (including a
+ * warn-mode detection engine failure, see getEffectiveDetectionConclusion), or empty string otherwise.
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @returns {string} Caution alert markdown or empty string
  */
 function getDetectionCautionAlert(workflowName, runUrl) {
-  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-  if (detectionConclusion !== "warning") {
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+  if (getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, detectionReason) !== "warning") {
     return "";
   }
-  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   return getDetectionWarningMessage({ workflowName, runUrl, reason: detectionReason });
 }
 

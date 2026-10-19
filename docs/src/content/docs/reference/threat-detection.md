@@ -121,7 +121,7 @@ safe-outputs:
 | `steps` | array | Additional GitHub Actions steps to run **before** AI analysis (pre-steps) |
 | `post-steps` | array | Additional GitHub Actions steps to run **after** AI analysis (post-steps) |
 | `max-ai-credits` | integer | AI Credits cap for the detection run, independent of the main agent budget. Defaults to `400` when unset, with runtime override via `vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS`. Accepts plain integers; `-1` disables the detection budget. |
-| `continue-on-error` | boolean | When `true` (default), detection warnings/failures produce a caution notice instead of blocking safe outputs. |
+| `continue-on-error` | boolean | When `true` (default), detected threats and detection engine failures apply the warn-mode policy (annotate reviewable outputs, convert branch pushes, abort non-reviewable outputs) instead of blocking all safe outputs. When `false`, they fail the detection job and safe outputs are not applied. |
 | `report-as-issue` | boolean | When `true` (default), detection warnings/failures create or update the `[aw] Detection Runs` tracking issue. Set to `false` to keep threat detection and its enforcement enabled while skipping the tracking issue; results remain visible in the GitHub Actions run logs. |
 
 ### Private CA certificates
@@ -475,7 +475,13 @@ Reasons:
 
 **When Detection Fails:**
 
-If the detection process itself fails (e.g., network issues, tool errors), the workflow stops and safe outputs are not applied. This fail-safe approach prevents potentially malicious content from being processed.
+If the detection process itself fails (for example a provider outage, a retired model, or unparseable results), detection concludes with reason `agent_failure` or `parse_error` and no security verdict. What happens next depends on `continue-on-error`:
+
+- **Warn mode** (`continue-on-error: true`, the default): the run continues and detection concludes `warning`. Safe outputs get the warn-mode policy from the [safe outputs specification](/gh-aw/specs/safe-outputs-specification/) instead of being applied as if detection passed:
+  - Reviewable outputs (such as `create-issue`, `add-comment`, `create-pull-request`) are applied with a `[!WARNING]` block, the `threat detection engine error` label string, and the `<!-- gh-aw-threat-engine-error -->` marker.
+  - `push-to-pull-request-branch` falls back to a review pull request with the same warning.
+  - Non-reviewable outputs (such as `merge-pull-request`, `close-issue`, `assign-to-agent`) are not applied and are reported as failures in the step summary.
+- **Strict mode** (`continue-on-error: false`): the detection job fails and safe outputs are not applied.
 
 **When Detection Returns a Warning:**
 
