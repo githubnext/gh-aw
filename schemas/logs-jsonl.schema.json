@@ -18,6 +18,38 @@
         "run": {
           "type": "object",
           "properties": {
+            "obsolete_pr": {
+              "type": [
+                "null",
+                "object"
+              ],
+              "properties": {
+                "number": {
+                  "type": "integer"
+                },
+                "closed_at": {
+                  "type": "string"
+                },
+                "run_attempt": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "number",
+                "closed_at",
+                "run_attempt"
+              ],
+              "additionalProperties": false
+            },
+            "exclusion_reason": {
+              "type": "string"
+            },
+            "job_count": {
+              "type": [
+                "null",
+                "integer"
+              ]
+            },
             "failure_signals": {
               "type": [
                 "null",

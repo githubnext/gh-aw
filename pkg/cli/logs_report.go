@@ -105,6 +105,10 @@ type WorkflowContinuation struct {
 
 // LogsSummary contains aggregate metrics across all runs
 type LogsSummary struct {
+	ObsoletePRRuns      int     `json:"obsolete_pr_runs,omitempty" console:"header:Obsolete PR Runs,omitempty"`
+	NonExecutionRuns    int     `json:"non_execution_runs,omitempty" console:"header:Jobless Runs,omitempty"`
+	ExecutedRuns        int     `json:"executed_runs" console:"-"`
+	ExecutedSuccessRuns int     `json:"executed_success_runs" console:"-"`
 	TotalRuns           int     `json:"total_runs" console:"header:Total Runs"`
 	TotalDuration       string  `json:"total_duration" console:"header:Total Duration"`
 	TotalAIC            float64 `json:"total_aic,omitempty"`
@@ -161,6 +165,10 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
+	ObsoletePR      *ObsoletePREvidence `json:"obsolete_pr,omitempty" console:"-"`
+	ExclusionReason string              `json:"exclusion_reason,omitempty" console:"-"`
+	// JobCount is absent when job evidence is unavailable, not zero.
+	JobCount          *int            `json:"job_count,omitempty" console:"-"`
 	FailureSignals    []FailureSignal `json:"failure_signals,omitempty" console:"-"`
 	FailureClusterIDs []string        `json:"failure_cluster_ids,omitempty" console:"-"`
 	RunID             int64           `json:"run_id" console:"header:Run ID"`
@@ -588,7 +596,6 @@ func buildRunData(pr ProcessedRun, processedRuns []ProcessedRun, localRepo strin
 // newRunData assembles the base RunData fields for a processed run.
 func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutputChainMetrics, comparison *AuditComparisonData, failureKind string, gitHubAPICalls int) RunData {
 	run := pr.Run
-	modelAttribution := resolveEffectiveModelAttribution(pr.Run.LogsPath, engineInfo.awInfo, pr.ModelRouting, pr.TokenUsage)
 	runData := RunData{
 		RunID:                      run.DatabaseID,
 		Number:                     run.Number,
@@ -644,7 +651,8 @@ func newRunData(pr ProcessedRun, engineInfo runEngineInfo, chainMetrics SafeOutp
 		SafeOutputs:                pr.SafeOutputs,
 		WorkQueue:                  pr.WorkQueue,
 	}
-	applyModelAttributionToRunData(&runData, modelAttribution)
+	applyRunExecutionEvidence(&runData, pr)
+	applyModelAttributionToRunData(&runData, resolveEffectiveModelAttribution(pr.Run.LogsPath, engineInfo.awInfo, pr.ModelRouting, pr.TokenUsage))
 	applyGitHubMetadataToRunData(&runData, run)
 	return runData
 }
@@ -685,10 +693,15 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		if pr.cachedData == nil {
 			runData.FailureSignals = failureSignalsForRun(pr)
 		}
+		runData.ExclusionReason = ""
+		if isObsoletePRRun(runData) {
+			runData.ExclusionReason = "obsolete_pr"
+		}
 		runs = append(runs, runData)
 	}
 
 	summary := agg.summary(len(processedRuns))
+	addRunExecutionSummary(&summary, runs)
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
 	for _, episode := range episodes {

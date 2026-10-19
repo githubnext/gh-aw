@@ -442,7 +442,7 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 	cachePath := filepath.Join(outputDir, jobsAPIResponseFileName)
 	require.NoError(t, os.WriteFile(cachePath, []byte("old cache"), 0o644))
 
-	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, outputDir, false)
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, outputDir, false, 2)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	assert.Equal(t, 1, failedJobs, "failed job count should include failed jobs")
@@ -457,7 +457,7 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 
 	argsLog, err := os.ReadFile(argsLogPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(argsLog), "repos/{owner}/{repo}/actions/runs/28307653871/jobs?per_page=100", "should query the run jobs API")
+	assert.Contains(t, string(argsLog), "repos/{owner}/{repo}/actions/runs/28307653871/attempts/2/jobs?per_page=100", "should query the exact run attempt")
 	assert.Contains(t, string(argsLog), "--paginate --slurp", "should cache all pages of the jobs API response")
 	assert.NotContains(t, string(argsLog), "--jq", "should cache the complete API response without a projection")
 

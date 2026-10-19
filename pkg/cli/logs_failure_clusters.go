@@ -162,6 +162,9 @@ func failureClusterSignals(run RunData) ([]FailureSignal, string) {
 		// Unknown failures are workflow-scoped, not a presumed common cause.
 		identity := failureRunIdentityFor(run)
 		scope := failureClusterKey(identity.Host, identity.Repository, run.WorkflowPath, run.WorkflowName)
+		if run.JobCount != nil && *run.JobCount == 0 {
+			return []FailureSignal{{Kind: "no_jobs", Value: scope}}, "confirmed_no_jobs"
+		}
 		return []FailureSignal{{Kind: "workflow_failure", Value: scope}}, "metadata_only"
 	}
 	for i := range signals {
@@ -179,7 +182,7 @@ func annotateFailureClusters(runs []RunData) []FailureCluster {
 		run := &runs[i]
 		// Membership is query-scoped, never reused from a cached report.
 		run.FailureClusterIDs = nil
-		if !isClusterFailureConclusion(run.Conclusion) {
+		if !isClusterFailureConclusion(run.Conclusion) || isObsoletePRRun(*run) {
 			continue
 		}
 		signals, evidence := failureClusterSignals(*run)

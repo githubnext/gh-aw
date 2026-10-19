@@ -767,6 +767,59 @@ describe("push_signed_commits integration tests", () => {
   // ──────────────────────────────────────────────────────
 
   describe("new branch (does not exist on remote)", () => {
+    it("uses a lease so deletion after the unsigned existence probe cannot recreate a PR branch", async () => {
+      execGit(["checkout", "-b", "leased-pr"], { cwd: workDir });
+      execGit(["push", "origin", "leased-pr"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "change.txt"), "change\n");
+      execGit(["add", "change.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "PR change"], { cwd: workDir });
+      const realExec = makeRealExec(workDir);
+      global.exec = {
+        ...realExec,
+        getExecOutput: async (program, args, options) => {
+          if (program === "git" && args[0] === "push") execGit(["update-ref", "-d", "refs/heads/leased-pr"], { cwd: bareDir });
+          return realExec.getExecOutput(program, args, options);
+        },
+      };
+      await expect(
+        pushSignedCommits({
+          githubClient: makeMockGithubClient(),
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "leased-pr",
+          baseRef: "origin/main",
+          cwd: workDir,
+          signedCommits: false,
+          requireExistingBranch: true,
+        })
+      ).rejects.toThrow("git push failed");
+      expect(execGit(["ls-remote", "origin", "refs/heads/leased-pr"], { cwd: workDir }).stdout.trim()).toBe("");
+    });
+
+    it.each([true, false])("does not recreate a deleted PR branch (signed: %s)", async signedCommits => {
+      execGit(["checkout", "-b", "deleted-pr-branch"], { cwd: workDir });
+      fs.writeFileSync(path.join(workDir, "change.txt"), "change\n");
+      execGit(["add", "change.txt"], { cwd: workDir });
+      execGit(["commit", "-m", "PR change"], { cwd: workDir });
+      global.exec = makeRealExec(workDir);
+      const githubClient = makeMockGithubClient();
+      await expect(
+        pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "deleted-pr-branch",
+          baseRef: "origin/main",
+          cwd: workDir,
+          signedCommits,
+          requireExistingBranch: true,
+        })
+      ).rejects.toThrow("refusing to recreate");
+      expect(githubClient.rest.git.createRef).not.toHaveBeenCalled();
+      expect(githubClient.graphql).not.toHaveBeenCalled();
+      expect(execGit(["ls-remote", "origin", "refs/heads/deleted-pr-branch"], { cwd: workDir }).stdout.trim()).toBe("");
+    });
+
     it("should create remote branch via REST and use parent OID for first commit (single commit)", async () => {
       // Create a local branch with one commit but do NOT push it
       execGit(["checkout", "-b", "new-unpushed-branch"], { cwd: workDir });
