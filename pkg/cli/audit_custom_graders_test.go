@@ -93,9 +93,17 @@ func TestAuditCustomArtifactErrorsAreSurfaced(t *testing.T) {
 			t.Setenv(env, "graders")
 			dir := t.TempDir()
 			registerCustomGraderFixture(t, dir, "")
-			_, err := downloadRegisteredCustomGraders(context.Background(), auditRunConfig{runID: 123, outputDir: dir})
+			cfg := auditRunConfig{runID: 123, outputDir: dir}
+			downloaded, err := downloadRegisteredCustomGraders(context.Background(), cfg)
 			require.ErrorContains(t, err, "custom grader artifact")
+			assert.False(t, downloaded)
+			assert.NoDirExists(t, filepath.Join(dir, "graders"))
 			require.Len(t, extractGradersData(dir).Results, 1)
+			t.Setenv(env, "")
+			downloaded, err = downloadRegisteredCustomGraders(context.Background(), cfg)
+			require.NoError(t, err)
+			assert.True(t, downloaded)
+			require.Len(t, extractGradersData(dir).Results, 2)
 		})
 	}
 }
