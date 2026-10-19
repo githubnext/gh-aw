@@ -361,6 +361,26 @@ Authorization: token <GATE_JOB_GITHUB_TOKEN>
 
 The relevant `200` response fields are respectively `{"id":123,"slug":"cao"}` and `{"id":456,"login":"cao[bot]","type":"Bot"}`; these are field excerpts, not complete responses. See GitHub's [Get an app](https://docs.github.com/en/rest/apps/apps#get-an-app) and [Get a user](https://docs.github.com/en/rest/users/users#get-a-user) API contracts. The current verifier disables redirects and retries and sets a 15-second timeout on each metadata request. It never obtains the incoming dispatch token, contacts the resource URL, or returns a credential to the agent.
 
+### Runtime-minted token revocation
+
+The **agent runtime's trusted job controller MUST revoke every GitHub App installation access token minted for its execution** when its authorized use ends, no later than owning-job cleanup. Cleanup MUST be registered immediately after minting, independently of the agent's instructions or successful completion, and MUST run on success, failure, and cancellation whenever the runner permits cleanup. Tokens MUST NOT be passed to another job to escape this lifecycle.
+
+Implementors SHOULD consider **conditionally invoking a SHA-pinned [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token#how-it-works)** only when an approved runtime token is needed. Keep `skip-token-revoke: false` (the default) so the action's post-job hook automatically revokes the token it minted. The mint step's condition MUST preserve provenance and authorization checks, and repository/permission scope MUST remain explicit and minimal. Revocation MUST NOT depend on the agent step succeeding.
+
+The action's automatic cleanup covers **its own token only**, not a token minted by a separate service. Other minting paths MUST register equivalent trusted cleanup using GitHub's [Revoke an installation access token API](https://docs.github.com/en/rest/apps/installations#revoke-an-installation-access-token), authenticated with the token being revoked:
+
+```http
+DELETE /installation/token HTTP/1.1
+Host: api.github.com
+Accept: application/vnd.github+json
+Authorization: Bearer <RUNTIME_INSTALLATION_TOKEN>
+X-GitHub-Api-Version: 2022-11-28
+```
+
+The successful response is `204 No Content`; Enterprise cleanup MUST use the approved GitHub API origin/base path. Revocation failures MUST be surfaced without credential values, not reported as successful cleanup. Abrupt runner termination can prevent post-job hooks from executing; an implementation MUST NOT claim confirmed revocation when cleanup did not run.
+
+This requirement concerns explicitly minted runtime installation tokens, not the original server-held CAO dispatch credential, an OIDC ID token, or GitHub's platform-managed `GITHUB_TOKEN`. The action recommendation MUST NOT copy CAO's protected dispatch private key into a destination workflow or introduce token minting into the read-only `gateway_provenance` job. Runtime acceptance tests MUST cover successful, failed, and cancelled execution, skipped conditional minting, and explicit cleanup for service-minted tokens.
+
 ### OIDC tokens: a separate, unimplemented endpoint journey
 
 An activation job **can** authenticate to an independently designed OIDC-aware service, but that would be an additional protocol, not the App-token verification above. GitHub documents token issuance and claims; it does not define a CAO request path, request body, authorization decision, or response schema.
