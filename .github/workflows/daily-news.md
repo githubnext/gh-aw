@@ -16,7 +16,7 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-news-weekday
-model: copilot/grok-4.5
+model: copilot/grok
 engine:
   id: pi
   model-provider: github
