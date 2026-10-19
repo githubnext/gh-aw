@@ -13,7 +13,7 @@ const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
 function redactCliProxyDiagnostics(content, env) {
   // Bash command substitution removes NUL bytes; normalize before matching.
   content = content.replaceAll("\0", "");
-  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
+  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
   for (const name of (env.GH_AW_SECRET_NAMES || "")
     .split(",")
     .map(name => name.trim())

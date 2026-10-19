@@ -20,6 +20,7 @@ import {
   getOTLPIfMissingMode,
   hasNonEmptyOTLPHeaders,
   injectCustomGatewayEnvArgs,
+  injectProxyEnvArgs,
   computeHealthRetryBudgetMs,
   MCP_GATEWAY_BACKEND_STARTUP_TIMEOUT_DEFAULT_MS,
   MCP_GATEWAY_HEALTH_REGISTRATION_MARGIN_MS,
@@ -36,6 +37,34 @@ import {
 } from "./start_mcp_gateway.cjs";
 import { writeMcpConfiguration } from "./mcp_configuration.cjs";
 import { applyGatewayRuntimeTimeouts } from "./tool_timeouts.cjs";
+
+describe("MCP gateway runner proxy environment", () => {
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("forwards %s by name without putting values in Docker arguments", name => {
+    const args = ["run", "--rm", "gateway:latest"];
+    const value = "synthetic-proxy-value with spaces";
+    expect(injectProxyEnvArgs(args, { [name]: value })).toEqual(["run", "-e", name, "--rm", "gateway:latest"]);
+    expect(args).toEqual(["run", "--rm", "gateway:latest"]);
+  });
+
+  it("leaves unset variables to Docker client defaults", () => {
+    expect(injectProxyEnvArgs(["run", "--rm", "gateway:latest"], {})).toEqual(["run", "--rm", "gateway:latest"]);
+  });
+
+  it("forwards empty values and preserves explicit container overrides", () => {
+    const args = ["run", "-e", "HTTPS_PROXY=explicit", "gateway:latest"];
+    expect(injectProxyEnvArgs(args, { HTTPS_PROXY: "" })).toEqual(["run", "-e", "HTTPS_PROXY", "-e", "HTTPS_PROXY=explicit", "gateway:latest"]);
+  });
+
+  it("adds runner proxy flags before launching the gateway", () => {
+    const source = fs.readFileSync(new URL("./start_mcp_gateway.cjs", import.meta.url), "utf8");
+    expect(source.indexOf("args = injectProxyEnvArgs(args)")).toBeLessThan(source.indexOf("const child = spawn(cmd, args"));
+  });
+
+  it.each(["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"])("redacts %s values in gateway diagnostics", name => {
+    const value = "synthetic-proxy-value";
+    expect(redactGatewayDiagnostics(`proxy connection failed: ${value}`, { [name]: value })).not.toContain(value);
+  });
+});
 
 describe("agenticworkflows backend ownership", () => {
   it.each(["localhost/gh-aw:dev", "alpine:3.24"])("uses the runner identity without widening private artifact modes (%s)", container => {

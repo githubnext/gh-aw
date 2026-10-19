@@ -42,6 +42,7 @@ const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
 const { applyGatewayRuntimeTimeouts } = require("./tool_timeouts.cjs");
 const { fetchMCPToolsResult } = require("./mount_mcp_as_cli.cjs");
 const { writeMcpConfiguration } = require("./mcp_configuration.cjs");
+const { redactCliProxyDiagnostics } = require("./redact_cli_proxy_diagnostics.cjs");
 
 /** @type {number | null} */
 let activeGatewayPid = null;
@@ -396,14 +397,15 @@ const gatewayCredentialRedactions = [
 /**
  * Redacts common credential formats from gateway diagnostics output.
  * @param {string} text
+ * @param {NodeJS.ProcessEnv} env
  * @returns {string}
  */
-function redactGatewayDiagnostics(text) {
+function redactGatewayDiagnostics(text, env = process.env) {
   let redacted = text;
   for (const { pattern, replacement } of gatewayCredentialRedactions) {
     redacted = redacted.replace(pattern, replacement);
   }
-  return redacted;
+  return redactCliProxyDiagnostics(redacted, env);
 }
 
 /**
@@ -493,6 +495,18 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
   // impossible even if the compiler/runtime metadata ever diverges.
   const customArgs = names.flatMap((name, index) => ["-e", `${name}=${env[`${customGatewayEnvTransportPrefix}${index}`] || ""}`]);
   return [...args.slice(0, markerIndex), ...customArgs, ...args.slice(markerIndex + 1)];
+}
+
+/**
+ * @param {string[]} args
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string[]}
+ */
+function injectProxyEnvArgs(args, env = process.env) {
+  const names = ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"];
+  const proxyArgs = names.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
+  // Insert after "run" so explicitly configured container settings still win.
+  return [...args.slice(0, 1), ...proxyArgs, ...args.slice(1)];
 }
 
 /**
@@ -1029,6 +1043,7 @@ async function main() {
     return;
   }
   args = injectCustomGatewayEnvArgs(args);
+  args = injectProxyEnvArgs(args);
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
   const stderrPath = createGatewayStderrPath();
@@ -1558,6 +1573,7 @@ module.exports = {
   getJSONParseErrorContext,
   getGatewayStartupMarkerPath,
   injectCustomGatewayEnvArgs,
+  injectProxyEnvArgs,
   computeHealthRetryBudgetMs,
   MCP_GATEWAY_HEALTH_MAX_ATTEMPTS_LIMIT,
   MCP_GATEWAY_HEALTH_RETRY_DEFAULTS,
