@@ -269,11 +269,11 @@ func readEpisodeArtifactInfo(dir string, run WorkflowRun) ([]*AwInfo, error) {
 		if err != nil {
 			return fmt.Errorf("read episode run context: %w", err)
 		}
-		if info.RunID != 0 && int64(info.RunID) != run.DatabaseID || episodeRepositoryConflict(info.Repository, run.Repository) {
-			return errors.New("artifact metadata conflicts with the requested repository/run identity")
-		}
 		if info.RunAttempt != "" && info.RunAttempt != strconv.Itoa(run.Attempt) {
 			return errEpisodeArtifactPriorAttempt
+		}
+		if info.RunID != 0 && int64(info.RunID) != run.DatabaseID || episodeRepositoryConflict(info.Repository, run.Repository) {
+			return errors.New("artifact metadata conflicts with the requested repository/run identity")
 		}
 		infos = append(infos, info)
 		return nil
@@ -317,11 +317,14 @@ func processEpisodeArtifacts(run WorkflowRun, runDir string, info *AwInfo) (Proc
 	backfillRunTokenUsageFromFirewall(&metrics, &result, usage)
 	applyUsageActivitySummaryToResult(activity, &result, true)
 	return ProcessedRun{
-		Run: result.Run, AwContext: info.Context, TokenUsage: result.TokenUsage,
-		MCPToolUsage: result.MCPToolUsage, FirewallAnalysis: result.FirewallAnalysis,
-		ModelRouting: analyzeModelRouting(runDir), MissingTools: result.MissingTools,
-		MissingData: result.MissingData, Noops: result.Noops,
-		WorkingSet: result.WorkingSet, Ledger: result.Ledger, Friction: result.Friction,
-		SkillActivations: result.SkillActivations, SafeOutputs: result.SafeOutputs,
+		Run: result.Run, AwContext: info.Context, AccessAnalysis: result.AccessAnalysis,
+		FirewallAnalysis: result.FirewallAnalysis, RedactedDomainsAnalysis: result.RedactedDomainsAnalysis,
+		MissingTools: result.MissingTools, MissingData: result.MissingData, Noops: result.Noops,
+		MCPFailures: result.MCPFailures, SkillActivations: result.SkillActivations,
+		GatewaySteeringEvents: result.GatewaySteeringEvents, MCPToolUsage: result.MCPToolUsage,
+		TokenUsage: result.TokenUsage, ModelRouting: analyzeModelRouting(runDir),
+		WorkingSet: result.WorkingSet, Ledger: result.Ledger, WorkQueue: result.WorkQueue,
+		Friction: result.Friction, GitHubRateLimitUsage: result.GitHubRateLimitUsage,
+		SafeOutputs: result.SafeOutputs,
 	}, nil
 }

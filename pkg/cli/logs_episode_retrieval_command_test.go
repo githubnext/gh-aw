@@ -174,6 +174,17 @@ func TestEpisodeRetrievalOutputAndOutcomeUsagePath(t *testing.T) {
 	require.ErrorContains(t, err, "conflicting recorded logs paths")
 }
 
+func TestEpisodeOutcomeFallbackRejectsEscapingSymlink(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	fallback := filepath.Join(root, "run-2")
+	if err := os.Symlink(outside, fallback); err != nil {
+		t.Skipf("cannot create test symlink: %v", err)
+	}
+	_, err := episodeOutcomeRunDirectory([]RunData{{RunID: 2, LogsPath: "/old/cache/run-2"}}, root, 2)
+	require.ErrorContains(t, err, "outside --output")
+}
+
 func TestEpisodeRetrievalConflictingCompactContextsAndIdentities(t *testing.T) {
 	_, err := selectEpisodeInfo([]*AwInfo{
 		{Context: &AwContext{EpisodeID: "one"}},
