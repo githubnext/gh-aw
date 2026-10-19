@@ -20,19 +20,18 @@ gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout can return an incomplete JSON report. Reuse cache; fetch only missing evidence.
-Read only the linked `key_findings[].playbook_url` section or exact-code row, not
-the entire playbook. Trace causes, not final cascades.
-Start with one failure; compare one relevant success only if needed.
-Fleet request: [cluster failures first](analyzing-runs.md).
+Timeout may return an incomplete JSON report. Reuse cache; fetch missing evidence only.
+Read only the linked `key_findings[].playbook_url` section or exact-code row.
+Trace one cause, not cascades; compare one success if needed.
+Fleet: [cluster failures first](analyzing-runs.md).
 
-Preserve code case/punctuation and namespace; severity differs by emitter.
-Success, advisory, pending, skipped, and policy-denied outcomes need not be bugs.
+Preserve code case/punctuation/namespace; severity varies by emitter.
+Success/advisory/pending/skipped/policy-denied outcomes need not be bugs.
 Unlisted/external codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
 
-Use same-run audit paths, never a baseline's artifact as evidence for this run.
+Use same-run audit paths, never baseline artifacts.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -86,12 +85,11 @@ Inventory evidence: [Model availability](#model-availability).
 
 ## Model availability
 
-Use [Start here](#start-here); read `engine_config`. Audit diagnoses Pi `not advertised`
-startup failures: confirmed absence → `model_unavailable`; missing/incomplete/
-malformed/ambiguous/contradictory evidence → `model_availability_unknown`.
-Candidates/endpoints are inspection aids, never auto-substitutions.
-Pass quoted job/step URLs to audit; inspect referenced lines separately.
-Fallback for missing context: `gh run view --log`.
+Use [Start here](#start-here); read `engine_config`. Pi `not advertised`:
+confirmed absence → `model_unavailable`; missing/incomplete/malformed/ambiguous/contradictory
+evidence → `model_availability_unknown`. Candidates/endpoints never auto-substitute.
+Audit quoted job/step URLs; inspect referenced lines.
+Missing context: `gh run view --log`.
 
 ### Inspect cached models
 
@@ -106,8 +104,7 @@ Default refresh downloads artifacts; prefer cached evidence.
 
 ### Verify exact same-run inventory
 
-Read `$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json` or audit-reported path.
-Never substitute another run/baseline.
+Read same-run `$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json` or audit-reported path.
 
 ```bash
 : "${MODEL:?Set exact rejected model ID}" "${PROVIDER:?Set reflected provider}"
@@ -120,8 +117,8 @@ jq --arg model "$MODEL" --arg provider "$PROVIDER" '
   ]}' "$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json"
 ```
 
-Strip provider prefix/query suffix; preserve dated/version IDs. Resolve provider
-aliases (`github` → `copilot`) before selection. For `auto`/`opus`, inspect
+Strip provider prefix/query suffix; preserve dated/version IDs. Resolve
+aliases (`github` → `copilot`). For `auto`/`opus`, inspect
 `model_aliases`/harness resolution. Alias != concrete ID; `routing_models` != inventory.
 
 | Evidence | Meaning |
@@ -144,14 +141,14 @@ gh aw audit "$BASE_RUN_ID" "$RUN_ID" --repo "$REPO" \
 ```
 
 First run = reference. Compare model/provider, credential source (names only),
-revision, runtimes, inventory; success alone does not establish model identity.
+revision/runtimes/inventory; success doesn't establish model identity.
 Different inventories + same AWF version: catalog/access difference, not proof of
-AWF regression/global retirement. Keep removal time/cause unknown without evidence.
-Find pin introduction with `git log -S 'model: PROVIDER/MODEL' -- WORKFLOW.md`.
+AWF regression/global retirement. Removal time/cause requires evidence.
+Pin introduction: `git log -S 'model: PROVIDER/MODEL' -- WORKFLOW.md`.
 Stop when explained; no fleet-wide downloads.
 
-Confirmed absent pin: verify same-provider candidate API/capabilities/policy.
-Authorized patch: edit source, recompile lock; compilation does not test inference.
+Absent pin: verify same-provider candidate API/capabilities/policy.
+Authorized patch: edit source, recompile lock; compilation != inference test.
 Runtime defect: follow [model/engine guide](debug-model-engine-misconfiguration.md).
 
 ## Completion and safe-output errors
@@ -191,7 +188,7 @@ Registration/nonempty `safeoutputs.jsonl` does not prove publication.
 
 ## Merge guard codes
 
-Check current PR head/base SHA, checks, reviews, guards. Diagnosis never authorizes merge.
+Check current PR head/base SHA/checks/reviews/guards. Diagnosis never authorizes merge.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -219,10 +216,9 @@ Check producer/version, record location, completeness.
 ## Work-queue codes
 
 Follow [queue playbook](work-queue.md); inspect status/artifacts read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-verified receipts. Pending projection doesn't prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs across
-work, or bypass immutable profiles/effect scopes.
+Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding/receipts.
+Pending projection != claim failure. Never rewrite history, fabricate evidence,
+reuse credentials/request IDs across work, or bypass immutable profiles/effect scopes.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -235,6 +231,10 @@ work, or bypass immutable profiles/effect scopes.
 | `work_queue_profile_not_approved`, `work_queue_dispatch_credential_identity_unavailable` | Worker approval; verifiable dispatch identity. | Fix approved deployment/credentials; never substitute unverified identity. |
 | `deployment_invalid`, `deployment_conflict` | Schema, revision, expected tip. | Fix trusted deployment; reconcile concurrency before CAS retry. |
 | `policy_not_quiescent`, `admission_paused`, `grants_paused` | Claims/dispatches; pause controls. | Respect pause; reconcile active work before authorized policy change. |
+| `hard_clear_not_paused` | Admission/grant controls. | Authorized pause of both required. |
+| `hard_clear_snapshot_invalid`, `hard_clear_conflict` | Preview revision; tip/publication error. | Obtain valid preview; reconfirm changes, never reset unseen state. |
+| `hard_clear_unresolved` | Reservations, claims, barriers/uncertain effects. | Reconcile definitive termination/nonlaunch/delivery evidence; never discard obligations. |
+| `work_expired` | Deadline/publication time. | Refresh fair prefix; reject expired grants. |
 | `graph_invalid`, `graph_pool_conflict`, `node_conflict`, `replacement_invalid`, `work_conflict`, `work_identity_invalid`, `work_invalid`, `identity_invalid` | Graph/node, pool, payload/fingerprint, replacement. | Fix submission contract; retain accepted identity. |
 | `dependency_cycle`, `dependency_duplicate`, `dependency_invalid`, `dependency_missing`, `dependency_result_unavailable`, `dependency_credentials_missing` | DAG, dependency, receipt, scoped credentials. | Fix graph/legitimate result/access; never fabricate completion. |
 | `dependency_verifier_required`, `delivery_verifier_required`, `nonlaunch_verifier_required`, `remediation_verifier_required` | Trusted verifier; evidence type. | Use approved verifier; absence blocks effect, never disable verification. |
@@ -258,7 +258,7 @@ work, or bypass immutable profiles/effect scopes.
 
 ## Unmapped codes
 
-External/future codes are open-ended.
+External/future codes vary.
 
 | Codes or signature | Check | Remedy |
 | --- | --- | --- |
