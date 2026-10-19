@@ -157,6 +157,23 @@ describe("extra_empty_commit.cjs", () => {
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Extra empty commit pushed"));
     });
 
+    it("leases the existing PR branch for a CI-trigger push", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: `${"a".repeat(40)}\n`, stderr: "" });
+      const result = await pushExtraEmptyCommit({ branchName: "feature-branch", repoOwner: "test-owner", repoName: "test-repo", requireExistingBranch: true });
+      expect(result.success).toBe(true);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["push", `--force-with-lease=refs/heads/feature-branch:${"a".repeat(40)}`, "ci-trigger", "feature-branch"]);
+    });
+
+    it("does not recreate a deleted PR branch after a failed fetch", async () => {
+      mockExec.exec.mockImplementation(async (_cmd, args) => {
+        if (args[0] === "fetch") throw new Error("fatal: couldn't find remote ref feature-branch");
+        return 0;
+      });
+      const result = await pushExtraEmptyCommit({ branchName: "feature-branch", repoOwner: "test-owner", repoName: "test-repo", requireExistingBranch: true });
+      expect(result.success).toBe(false);
+      expect(mockExec.exec.mock.calls.some(([, args]) => args[0] === "push")).toBe(false);
+    });
+
     it("should add and remove a ci-trigger remote only on the git push path", async () => {
       await pushExtraEmptyCommit({
         branchName: "feature-branch",

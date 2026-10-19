@@ -442,7 +442,7 @@ async function main() {
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
 
-    if (eventName === "pull_request" && isFork === false) {
+    if (eventName === "pull_request" && isFork === false && !isClosed) {
       // For non-fork pull_request events, we run in the merge commit context.
       // The PR branch is in the same repo as origin, so we can use direct git commands.
       // Fork PRs cannot use git fetch because their head branch only exists in the fork
@@ -526,41 +526,10 @@ async function main() {
   } catch (error) {
     const errorMsg = getErrorMessage(error);
 
-    // Check if PR is closed - if so, treat checkout failure as a warning
-    if (isClosed) {
-      core.startGroup("⚠️ Closed PR Checkout Warning");
-      core.warning(`Event type: ${eventName}`);
-      core.warning(`PR number: ${pullRequest.number}`);
-      core.warning(`PR state: closed`);
-      core.warning(`Checkout failed (expected for closed PR): ${errorMsg}`);
-
-      if (pullRequest.head?.ref) {
-        core.warning(`Branch likely deleted: ${pullRequest.head.ref}`);
-      }
-
-      core.warning("This is expected behavior when a PR is closed - the branch may have been deleted.");
-      core.endGroup();
-
-      // Set output to indicate successful handling of closed PR
-      core.setOutput("checkout_pr_success", "true");
-
-      // Add a brief summary noting this is expected
-      const warningMessage = `## ⚠️ Closed Pull Request
-
-Pull request #${pullRequest.number} is closed. The checkout failed because the branch has likely been deleted, which is expected behavior.
-
-**This is not an error** - workflows targeting closed PRs will continue normally.`;
-
-      await core.summary.addRaw(warningMessage).write();
-
-      // Do NOT call setFailed - this should not fail the step
-      return;
-    }
-
     // Re-check current PR state via API to handle race conditions where
     // the PR was merged/closed after the webhook payload was captured but
     // before the agent job ran (e.g. PR merged within seconds of triggering).
-    let isNowClosed = false;
+    let isNowClosed = isClosed;
     try {
       const { data: currentPR } = await github.rest.pulls.get({
         owner: context.repo.owner,
@@ -569,7 +538,7 @@ Pull request #${pullRequest.number} is closed. The checkout failed because the b
       });
       isNowClosed = currentPR.state === "closed";
       if (isNowClosed) {
-        core.info(`ℹ️ PR #${pullRequest.number} is now closed (was '${pullRequest.state}' in webhook payload) — treating checkout failure as expected`);
+        core.info(`PR #${pullRequest.number} is now closed (was '${pullRequest.state}' in webhook payload)`);
       }
     } catch (apiError) {
       const apiErrorMsg = getErrorMessage(apiError);
@@ -578,31 +547,10 @@ Pull request #${pullRequest.number} is closed. The checkout failed because the b
       core.warning(`Could not fetch current PR state${statusSuffix}: ${apiErrorMsg}`);
     }
 
-    if (isNowClosed) {
-      core.startGroup("⚠️ Closed PR Checkout Warning");
-      core.warning(`Event type: ${eventName}`);
-      core.warning(`PR number: ${pullRequest.number}`);
-      core.warning(`PR state: closed (merged after workflow was triggered)`);
-      core.warning(`Checkout failed (expected for closed PR): ${errorMsg}`);
-
-      if (pullRequest.head?.ref) {
-        core.warning(`Branch likely deleted: ${pullRequest.head.ref}`);
-      }
-
-      core.warning("This is expected behavior when a PR is closed - the branch may have been deleted.");
-      core.endGroup();
-
-      // Set output to indicate successful handling of closed PR
-      core.setOutput("checkout_pr_success", "true");
-
-      const warningMessage = `## ⚠️ Closed Pull Request
-
-Pull request #${pullRequest.number} was merged after this workflow was triggered. The checkout failed because the branch has been deleted, which is expected behavior.
-
-**This is not an error** - workflows targeting closed PRs will continue normally.`;
-
-      await core.summary.addRaw(warningMessage).write();
-      return;
+    // Closure alone must not hide permission, authentication, or network errors.
+    if (!isClosed && isNowClosed && /could(?:n't| not) find remote ref|remote ref does not exist/i.test(errorMsg)) {
+      core.setOutput("checkout_pr_invalidated", "true");
+      core.warning(`PR #${pullRequest.number} closed before its head could be fetched. Stopping rather than running on the previous checkout.`);
     }
 
     // For open PRs, treat checkout failure as an error

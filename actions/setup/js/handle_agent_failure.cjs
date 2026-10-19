@@ -3903,7 +3903,7 @@ async function isInvalidatedPRMergeCheckout() {
       return false;
     }
     const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { owner, repo, run_id: context.runId, per_page: 100 });
-    const invalidated = jobs.some(
+    const candidate = jobs.find(
       job =>
         job.name === "agent" &&
         job.conclusion === "failure" &&
@@ -3920,7 +3920,13 @@ async function isInvalidatedPRMergeCheckout() {
           return Number.isFinite(completedAt) && closedAt <= completedAt;
         })
     );
-    core.debug(`PR merge-ref invalidation ${invalidated ? "confirmed" : "not confirmed"}: ${invalidated ? "closure preceded failed default checkout completion" : "no failed default checkout completed at or after PR closure"}`);
+    if (!candidate) {
+      core.debug("PR merge-ref invalidation not confirmed: no failed default checkout completed at or after PR closure");
+      return false;
+    }
+    const { data: logs } = await github.rest.actions.downloadJobLogsForWorkflowRun({ owner, repo, job_id: candidate.id });
+    const invalidated = typeof logs === "string" && logs.includes(`fatal: couldn't find remote ref refs/pull/${prNumber}/merge`);
+    core.debug(`PR merge-ref invalidation ${invalidated ? "confirmed: missing merge ref after closure" : "not confirmed: missing-ref evidence unavailable"}`);
     return invalidated;
   } catch (error) {
     const message = getErrorMessage(error);
@@ -4338,10 +4344,8 @@ async function main() {
       return;
     }
 
-    // Check if the failure was due to PR checkout (e.g., PR was merged and branch deleted)
-    // If checkout_pr_success is "false", skip creating an issue as this is expected behavior
-    if (agentConclusion === "failure" && checkoutPRSuccess === "false") {
-      core.info("Skipping failure handling - failure was due to PR checkout (likely PR merged)");
+    if (agentConclusion === "failure" && checkoutPRSuccess === "false" && process.env.GH_AW_CHECKOUT_PR_INVALIDATED === "true") {
+      core.info("Skipping failure handling - PR closed and the checkout remote ref disappeared");
       return;
     }
     if (agentConclusion === "failure" && (await isInvalidatedPRMergeCheckout())) {
