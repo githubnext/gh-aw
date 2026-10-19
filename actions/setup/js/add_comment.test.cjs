@@ -129,6 +129,17 @@ describe("add_comment", () => {
   });
 
   describe("publication size fitting", () => {
+    it("rejects over-limit input before sanitization could truncate its trailing protected marker", async () => {
+      const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
+      const createComment = vi.fn(mockGithub.rest.issues.createComment);
+      mockGithub.rest.issues.createComment = createComment;
+      const handler = await eval(`(async () => { ${script}; return await main({}); })()`);
+      const result = await handler({ type: "add_comment", body: "x".repeat(524289) + "\n<!-- custom: KEEP-THIS-ENTIRE-MARKER -->" }, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/E006.*524288/);
+      expect(createComment).not.toHaveBeenCalled();
+    });
+
     it.each([true, false])("keeps text intact when the final provenance-inclusive body exactly fits with footer=%s", async footer => {
       const script = fs.readFileSync(path.join(__dirname, "add_comment.cjs"), "utf8");
       const handler = await eval(`(async () => { ${script}; return await main(${JSON.stringify({ max: 2, footer })}); })()`);

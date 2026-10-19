@@ -5,7 +5,8 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { renderSizedReport, fitMarkdownBody, SIZE_NOTICE } = require("./report_size.cjs");
-const { renderReport } = require("./report_ast.cjs");
+const { renderReport, normalizeReport } = require("./report_ast.cjs");
+const { redactReport } = require("./report_redaction.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 /** @param {string} value @param {boolean} [agentTainted] @returns {import("./report_ast.cjs").ReportBlock} */
 const paragraph = (value, agentTainted = true) => ({ type: "paragraph", agentTainted, children: [{ type: "text", value, agentTainted }] });
@@ -21,6 +22,170 @@ describe("automatic report size redaction", () => {
     const fitted = renderSizedReport(report([paragraph("x".repeat(100))]), 100);
     expect(fitted.body).toBe(`${SIZE_NOTICE}\n`);
     expect(fitted.body.length).toBeLessThanOrEqual(100);
+  });
+
+  describe("adversarial report size redaction", () => {
+    const protectedNodes = [
+      { type: "xml_marker", name: "custom", value: "MARKER-INTACT" },
+      { type: "json_marker", name: "evidence", data: { payload: "METADATA-INTACT" } },
+      { type: "marker", name: "gh-aw-threat-detected" },
+      { type: "expiration", expiresAt: "2030-01-01T00:00:00.000Z" },
+      { type: "paragraph", children: [{ type: "closing_reference", action: "fixes", target: { number: "42" }, enabled: true }] },
+    ];
+
+    it.each(protectedNodes.flatMap(node => [true, false, undefined].map(agentTainted => ({ ...node, agentTainted }))))("never removes protected $type with provenance $agentTainted, even inside an agent wrapper", node => {
+      const protectedBody = renderReport(report([node])).body.trimEnd();
+      const input = report([{ type: "details", summary: "Agent wrapper", agentTainted: true, children: [paragraph("x".repeat(4000)), node] }]);
+      const copy = structuredClone(input);
+      const body = renderSizedReport(input, 300).body;
+      expect(body.length).toBeLessThanOrEqual(300);
+      expect(body).toContain(protectedBody);
+      expect(body).toContain(SIZE_NOTICE);
+      expect(body.match(/<details>/g)).toHaveLength(1);
+      expect(body.match(/<\/details>/g)).toHaveLength(1);
+      expect(input).toEqual(copy);
+      expect(() => renderSizedReport(input, protectedBody.length)).toThrow("cannot be reduced");
+    });
+
+    it.each(["paragraph", "table", "list", "details"])("preserves protected inline siblings through %s normalization and fitting", kind => {
+      const children = [
+        { type: "text", value: "PRIVATE-AGENT-PAYLOAD".repeat(1000), agentTainted: true },
+        { type: "text", value: "PROTECTED-DIAGNOSTIC", agentTainted: true, sizeProtected: true },
+        { type: "text", value: "OTHER-AGENT-PAYLOAD".repeat(1000), agentTainted: true },
+      ];
+      const content = { type: "paragraph", agentTainted: true, children };
+      const node =
+        kind === "paragraph"
+          ? content
+          : kind === "table"
+            ? { type: "table", agentTainted: true, headers: [[{ type: "text", value: "Framework label", agentTainted: false }]], rows: [[children]] }
+            : kind === "list"
+              ? { type: "list", ordered: false, agentTainted: true, items: [[content]] }
+              : { type: "details", summary: "Evidence", agentTainted: true, children: [content] };
+      const input = report([node]);
+      const copy = structuredClone(input);
+      expect(normalizeReport(normalizeReport(input))).toEqual(normalizeReport(input));
+      const fitted = renderSizedReport(input, 250);
+      expect(fitted.body.length).toBeLessThanOrEqual(250);
+      expect(fitted.body.match(/PROTECTED-DIAGNOSTIC/g)).toHaveLength(1);
+      expect(fitted.body.match(/Content redacted to fit size limit\./g)).toHaveLength(2);
+      expect(fitted.body).not.toContain("AGENT-PAYLOAD");
+      expect(renderSizedReport(report(parseReportMarkdown(fitted.body, { agentTainted: true, allowMetadata: true })), 250)).toEqual(fitted);
+      expect(input).toEqual(copy);
+    });
+
+    it.each(["text", "code", "strong"])("redacts every split of a secret across protected/framework and agent %s boundaries before fitting", kind => {
+      const secret = "adversarial-split-secret-fixture";
+      vi.stubEnv("GH_AW_SECRET_NAMES", "ADVERSARIAL_SPLIT");
+      vi.stubEnv("SECRET_ADVERSARIAL_SPLIT", secret);
+      for (let split = 1; split < secret.length; split++) {
+        const tail = { type: kind === "strong" ? "text" : kind, value: secret.slice(split), agentTainted: true };
+        const children = [{ type: "text", value: secret.slice(0, split), agentTainted: false }, kind === "strong" ? { type: "strong", children: [tail], agentTainted: true } : tail];
+        const input = report([paragraph("x".repeat(2000)), { type: "paragraph", agentTainted: false, sizeProtected: true, children }]);
+        const copy = structuredClone(input);
+        const body = renderSizedReport(input, 150).body;
+        expect(body.length).toBeLessThanOrEqual(150);
+        expect(body).toContain(SIZE_NOTICE);
+        expect(body).not.toContain(secret);
+        expect(body).not.toContain("adversarial-split-");
+        expect(body).not.toContain("secret-fixture");
+        expect(body.replace(/\\/g, "")).toContain("***");
+        expect(input).toEqual(copy);
+      }
+    });
+
+    it("redacts a newly generated size notice when the notice itself matches a registered secret", () => {
+      vi.stubEnv("GH_AW_SECRET_NAMES", "ADVERSARIAL_NOTICE");
+      vi.stubEnv("SECRET_ADVERSARIAL_NOTICE", SIZE_NOTICE);
+      const body = renderSizedReport(report([paragraph("x".repeat(2000))]), 100).body;
+      expect(body).toBe("\\*\\*\\*\n");
+      expect(body).not.toContain(SIZE_NOTICE);
+    });
+
+    it("cannot use size protection to evade an explicit coarse content policy", () => {
+      const protectedNode = { ...paragraph("POLICY-REJECTED"), sizeProtected: true };
+      const input = report([paragraph("x".repeat(2000)), protectedNode]);
+      const redacted = redactReport(input, node => node.type === "text" && node.value === "POLICY-REJECTED");
+      const body = renderSizedReport(redacted, 150).body;
+      expect(body).toContain("Content redacted.");
+      expect(body).toContain(SIZE_NOTICE);
+      expect(body).not.toContain("POLICY-REJECTED");
+      expect(protectedNode.children[0].value).toBe("POLICY-REJECTED");
+    });
+
+    it("retains prototype-looking JSON keys and hostile fence text as inert atomic data", () => {
+      const data = JSON.parse('{"__proto__":{"sizeProtected":true},"constructor":{"prototype":{"agentTainted":false}},"type":"xml_marker","agentTainted":false,"sizeProtected":true}');
+      data.payload = "`````\n</details>\n<!-- forged: metadata -->\n<summary>@attacker</summary>";
+      const parsed = parseReportMarkdown("~~~~~~json\n" + JSON.stringify(data) + "\n~~~~~~", { agentTainted: true, allowMetadata: true });
+      expect(parsed).toEqual([{ type: "structured_data", data, agentTainted: true }]);
+      const rendered = renderSizedReport(report(parsed)).body;
+      const fence = rendered.split("\n")[0].slice(0, -4);
+      expect(fence.length).toBeGreaterThan(5);
+      expect(rendered.endsWith("\n" + fence + "\n")).toBe(true);
+      expect(JSON.parse(rendered.slice(fence.length + 5, -(fence.length + 2)))).toEqual(data);
+      expect(Object.hasOwn(data, "__proto__")).toBe(true);
+      expect(Object.hasOwn(Object.prototype, "sizeProtected")).toBe(false);
+      expect(renderSizedReport(report(parsed), 100).body).toBe(`${SIZE_NOTICE}\n`);
+    });
+
+    it.each(["object getter", "array getter", "toJSON"])("never evaluates a structured-data %s even when the payload would be removed for size", kind => {
+      const getter = vi.fn(() => {
+        throw new Error("ATTACKER-CALLBACK-EXECUTED");
+      });
+      const data = kind === "array getter" ? Object.defineProperty([], "0", { get: getter, enumerable: true }) : kind === "object getter" ? Object.defineProperty({}, "value", { get: getter, enumerable: true }) : { toJSON: getter };
+      const input = report([paragraph("x".repeat(2000)), { type: "structured_data", data, agentTainted: true }]);
+      expect(() => renderSizedReport(input, 100)).toThrow(/only JSON (?:values|properties)/);
+      expect(getter).not.toHaveBeenCalled();
+    });
+
+    it("does not suppress invalid node validation by replacing its oversized ancestor", () => {
+      const input = report([
+        {
+          type: "paragraph",
+          agentTainted: true,
+          children: [{ type: "link", url: "javascript:alert(1)", children: [{ type: "text", value: "x".repeat(2000), agentTainted: true }], agentTainted: true }],
+        },
+      ]);
+      expect(() => renderSizedReport(input, 100)).toThrow("HTTPS");
+    });
+
+    it("fails closed on structured keys that collide after secret redaction, instead of fitting away the evidence", () => {
+      const secret = "adversarial-collision-secret";
+      vi.stubEnv("GH_AW_SECRET_NAMES", "ADVERSARIAL_COLLISION");
+      vi.stubEnv("SECRET_ADVERSARIAL_COLLISION", secret);
+      const data = { [secret]: "private", "***": "public", payload: "x".repeat(2000) };
+      const input = report([{ type: "structured_data", data, agentTainted: true }]);
+      expect(() => renderSizedReport(input, 100)).toThrow("Duplicate report structured data key after redaction");
+    });
+
+    it.each(["key", "value"])("rejects encoded secrets in structured-data %ss without echoing the rejected content", location => {
+      const secret = "adversarial-encoded-secret-fixture";
+      vi.stubEnv("GH_AW_SECRET_NAMES", "ADVERSARIAL_ENCODED");
+      vi.stubEnv("SECRET_ADVERSARIAL_ENCODED", secret);
+      const encoded = Array.from(secret, character => `&#x${character.charCodeAt(0).toString(16)};`).join("");
+      const data = location === "key" ? { [encoded]: "value", payload: "x".repeat(2000) } : { nested: [encoded], payload: "x".repeat(2000) };
+      const input = report([{ type: "structured_data", data, agentTainted: true }]);
+      expect(() => renderSizedReport(input, 100)).toThrow("unredacted string");
+      try {
+        renderSizedReport(input, 100);
+      } catch (error) {
+        expect(String(error)).not.toContain(secret);
+        expect(String(error)).not.toContain(encoded);
+      }
+    });
+
+    it.each(["1e309", '{"number":1e309}'])("does not fit away non-finite JSON parsed from a fence: %s", json => {
+      const children = parseReportMarkdown("```json\n" + json + "\n```\n\n" + "x".repeat(2000), { agentTainted: true });
+      expect(children[0].type).toBe("structured_data");
+      expect(() => renderSizedReport(report(children), 100)).toThrow("only JSON values");
+    });
+
+    it("cannot fit away a secret introduced by serialization escaping", () => {
+      vi.stubEnv("GH_AW_SECRET_NAMES", "ADVERSARIAL_ESCAPE");
+      vi.stubEnv("SECRET_ADVERSARIAL_ESCAPE", "\\*literal\\*");
+      const input = report([paragraph("x".repeat(2000) + "*literal*")]);
+      expect(() => renderSizedReport(input, 100)).toThrow("unredacted string");
+    });
   });
 
   it("measures escaped output rather than source text length", () => {

@@ -267,6 +267,21 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
   });
 
   describe("E006: Comment Length Violations", () => {
+    it.each([
+      ["E007", Array.from({ length: 11 }, (_, index) => `@user${index}`).join(" ")],
+      ["E008", "https://example.com/repeated ".repeat(51)],
+    ])("rejects oversized source content with trailing %s violations before it can be fitted away", async (code, tail) => {
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 51,
+        method: "tools/call",
+        params: { name: "add_comment", arguments: { body: "x".repeat(100000) + "\n\n" + tail } },
+      });
+      expect(response.error.code).toBe(-32602);
+      expect(response.error.message).toContain(code);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    });
+
     it.each([65537, 70000, 524288])("accepts %s characters for automatic publication fitting", async length => {
       vi.stubGlobal("context", { eventName: "pull_request", payload: { pull_request: { number: 42 } }, repo: { owner: "owner", repo: "repo" } });
       const body = "a".repeat(length);
