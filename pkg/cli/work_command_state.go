@@ -17,17 +17,28 @@ import (
 const workQueueViewBytes = 64 << 10
 
 type workQueueRow struct {
-	Kind       string `json:"kind"`
-	ID         string `json:"id"`
-	WorkID     string `json:"work_id,omitempty"`
-	GraphID    string `json:"graph_id"`
-	Text       string `json:"text"`
-	State      string `json:"state,omitempty"`
-	Priority   int    `json:"priority,omitempty"`
-	Delivery   string `json:"delivery,omitempty"`
-	Current    bool   `json:"current,omitempty"`
-	DispatchID string `json:"dispatch_id,omitempty"`
-	Handle     string `json:"claim_handle,omitempty"`
+	Kind                string                `json:"kind"`
+	ID                  string                `json:"id"`
+	WorkID              string                `json:"work_id,omitempty"`
+	GraphID             string                `json:"graph_id"`
+	Text                string                `json:"text"`
+	State               string                `json:"state,omitempty"`
+	Priority            int                   `json:"priority,omitempty"`
+	Delivery            string                `json:"delivery,omitempty"`
+	Current             bool                  `json:"current,omitempty"`
+	DispatchID          string                `json:"dispatch_id,omitempty"`
+	Handle              string                `json:"claim_handle,omitempty"`
+	Pool                string                `json:"pool,omitempty"`
+	NodeKey             string                `json:"node_key,omitempty"`
+	WorkerProfile       string                `json:"worker_profile,omitempty"`
+	Attempts            *int                  `json:"attempts,omitempty"`
+	AdmittedAt          *int64                `json:"admitted_at,omitempty"`
+	GrantedAt           *int64                `json:"granted_at,omitempty"`
+	RetryNotBefore      *int64                `json:"retry_not_before,omitempty"`
+	ClaimID             string                `json:"claim_id,omitempty"`
+	CancellationReason  string                `json:"cancellation_reason,omitempty"`
+	Run                 *workqueue.RunBinding `json:"run,omitempty"`
+	ReservationRetained *bool                 `json:"reservation_retained,omitempty"`
 }
 
 func (row workQueueRow) key() string { return row.Kind + ":" + row.ID }
@@ -125,9 +136,11 @@ func workQueueRows(state workqueue.Projection, filter workQueueFilter, collapsed
 		counts[graph]--
 		last := counts[graph] == 0
 		closed := collapsed[work.WorkID] && filter.Query == ""
-		rows = append(rows, workQueueForestWorkRow(work, last, closed, len(group.claims) > 0))
+		row := workQueueForestWorkRow(work, last, closed, len(group.claims) > 0)
+		row.AdmittedAt = workQueueAdmittedAt(state, work)
+		rows = append(rows, row)
 		if !closed {
-			rows = append(rows, workQueueForestClaimRows(work, group.claims, last)...)
+			rows = append(rows, workQueueForestClaimRows(state, work, group.claims, last)...)
 		}
 	}
 	return rows
@@ -143,10 +156,12 @@ func workQueueForestWorkRow(work *workqueue.WorkState, last, collapsed, hasClaim
 	}
 	return workQueueRow{Kind: "work", ID: work.WorkID, WorkID: work.WorkID, GraphID: work.GraphID,
 		State: work.State, Priority: work.SchedulingPriority(), Delivery: work.Barrier,
+		Pool: work.Pool, NodeKey: work.NodeKey, WorkerProfile: work.WorkerProfile, Attempts: &work.Attempts,
+		RetryNotBefore: &work.RetryNotBefore, ClaimID: work.ClaimID, CancellationReason: work.CancellationReason,
 		Text: fmt.Sprintf("%s [%s] W %s %s [%s P%d delivery=%s]", connector, marker, workQueueText(work.WorkID), workQueueText(work.NodeKey), work.State, work.SchedulingPriority(), work.Barrier)}
 }
 
-func workQueueForestClaimRows(work *workqueue.WorkState, members []*workqueue.ClaimState, last bool) []workQueueRow {
+func workQueueForestClaimRows(state workqueue.Projection, work *workqueue.WorkState, members []*workqueue.ClaimState, last bool) []workQueueRow {
 	rows := make([]workQueueRow, 0, len(members))
 	prefix := "|   "
 	if last {
@@ -162,9 +177,20 @@ func workQueueForestClaimRows(work *workqueue.WorkState, members []*workqueue.Cl
 		if current {
 			owner = "current"
 		}
-		rows = append(rows, workQueueRow{Kind: "claim", ID: claim.ClaimID, WorkID: work.WorkID, GraphID: work.GraphID,
+		row := workQueueRow{Kind: "claim", ID: claim.ClaimID, WorkID: work.WorkID, GraphID: work.GraphID,
 			State: claim.State, Current: current, DispatchID: claim.DispatchID, Handle: claim.Handle,
-			Text: fmt.Sprintf("%s%s C %s [%s %s] handle=%s dispatch=%s", prefix, connector, workQueueText(claim.ClaimID), claim.State, owner, workQueueText(claim.Handle), workQueueText(claim.DispatchID))})
+			Pool: work.Pool, NodeKey: work.NodeKey, WorkerProfile: work.WorkerProfile,
+			RetryNotBefore: &claim.RetryNotBefore, CancellationReason: claim.CancellationReason,
+			Delivery: workQueueClaimDelivery(state, claim),
+			Text:     fmt.Sprintf("%s%s C %s [%s %s] handle=%s dispatch=%s", prefix, connector, workQueueText(claim.ClaimID), claim.State, owner, workQueueText(claim.Handle), workQueueText(claim.DispatchID))}
+		if commit, ok := state.Requests[claim.RequestID]; ok {
+			row.GrantedAt = &commit.At
+		}
+		if dispatch := state.Dispatches[claim.DispatchID]; dispatch != nil {
+			retained := !dispatch.Released
+			row.ReservationRetained, row.Run = &retained, dispatch.Run
+		}
+		rows = append(rows, row)
 	}
 	return rows
 }
