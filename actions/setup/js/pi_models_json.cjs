@@ -535,7 +535,18 @@ async function main(options = {}) {
     for (const agent of agents) {
       if (seen.has(agent.modelId)) continue;
       seen.add(agent.modelId);
-      validatePiModelAvailability({ provider, modelId: agent.modelId, configuredModel: agent.declaredModel || agent.modelId, reflectData, logger });
+      try {
+        validatePiModelAvailability({ provider, modelId: agent.modelId, configuredModel: agent.declaredModel || agent.modelId, reflectData, logger });
+      } catch (error) {
+        if (error instanceof ModelAliasResolutionError) {
+          // Replace the earlier "exact"/"resolved" record for every role sharing the unavailable model.
+          for (const failed of agents) {
+            if (failed.modelId !== agent.modelId) continue;
+            recordModelResolution({ engine: "pi", role: failed.name, configured_model: failed.declaredModel || `${nativeProvider}/${modelId}`, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason });
+          }
+        }
+        throw error;
+      }
       const catalogModel = runtime.getModel(nativeProvider, agent.modelId);
       const childApi = resolvePiApiForModel({ provider, modelId: agent.modelId, model: catalogModel, modelsJson, logger });
       const childMetadata = {};
