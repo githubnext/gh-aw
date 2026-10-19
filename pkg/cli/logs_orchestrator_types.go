@@ -193,6 +193,9 @@ type renderLogsOutputOptions struct {
 	// than firing for timeout-driven continuations too.
 	countLimitReached bool
 	continuations     []WorkflowContinuation
+	// countLimitTargets preserves per-target count bounds even when no
+	// resumable continuation was produced for that target.
+	countLimitTargets []logsWorkflowTarget
 	// suppressRender skips all report rendering after the summary file has been
 	// written, for callers that only want the downloaded artifacts.
 	suppressRender    bool

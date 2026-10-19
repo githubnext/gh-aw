@@ -261,6 +261,9 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 	}()
 	allAPIRateLimits := startGitHubAPIRateLimitReports(activeCtx, logsTargetRateLimitHosts(targets))
 	results := collectLogsTargets(activeCtx, opts, targets)
+	if slices.ContainsFunc(targets, func(target logsWorkflowTarget) bool { return target.repoOverride == "" }) {
+		resolveLogsCollectionTargetRepositories(results, workflowRunListRepository(""))
+	}
 	processedRuns, continuations, timeoutReached, countLimitReached, storageLimitReached, allErrors := mergeLogsTargetResults(results, initialErrors)
 	renderLogsCollectionStats(opts.collectionStats)
 	for _, err := range allErrors {
@@ -303,6 +306,7 @@ func DownloadWorkflowLogsForTargets( //nolint:largefunc // Keeps shared collecti
 		endDate:           opts.EndDate,
 		checkStaleness:    true,
 		countLimitReached: countLimitReached,
+		countLimitTargets: logsCountLimitedTargets(results),
 		suppressRender:    opts.SuppressRender,
 		continuations:     continuations,
 		apiRateLimit:      apiRateLimit,

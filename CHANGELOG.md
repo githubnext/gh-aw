@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
+Logs episode rollups now require a recorded nonempty `context.episode_id`.
+Call-ID grouping, synthetic episode IDs, metadata-inferred lineage, and bridges
+through uncorrelated runs are removed. Runs without canonical identity remain
+in `.runs[]` and overall totals, but not episode counts, rollups, or edges.
+Replace episode-level `root_run_id` and `primary_workflow` with
+`representative_run_id` and `representative_workflow` for selected-data identity;
+use `recorded_roots[]` for canonical root claims. Recompile workflows to record
+canonical context for future runs; historical data without it remains available
+for per-run analysis only. Compact JSON retains all canonical episodes, including
+single-run episodes. Coverage remains `unknown` or `partial`, never complete.
+
 Graders now run in conclusion as pure computation over the redacted in-memory
 unified session. Ten fast built-ins are enabled by default; other built-ins
 require explicit opt-in. Custom JavaScript runs only in a separate restricted

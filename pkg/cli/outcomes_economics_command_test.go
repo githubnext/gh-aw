@@ -111,7 +111,10 @@ func TestRunOutcomesSupplementaryAIC(t *testing.T) {
 				require.NoError(t, json.Unmarshal([]byte(line), &report))
 				assert.Equal(t, string(OutcomeStatusAccepted), report["outcome_status"])
 				assert.InDelta(t, 42, report["run_id"], 0)
+				assert.NotEmpty(t, report["item_id"])
+				assert.InDelta(t, 2, report["run_item_count"], 0)
 			}
+			assert.NotEqual(t, data.Items[0].ItemID, data.Items[1].ItemID)
 
 			summary, ok := loadRunSummary(runDir, false)
 			require.True(t, ok)

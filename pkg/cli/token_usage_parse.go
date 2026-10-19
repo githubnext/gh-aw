@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -15,11 +16,15 @@ import (
 func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
-	entries, duplicateRecordCount, err := scanTokenUsageEntries(filePath)
+	entries, duplicateRecordCount, _, warnings, err := scanTokenUsageEntriesWithSeen(filePath, nil)
 	if err != nil {
 		return nil, err
 	}
-	return buildTokenUsageSummary(entries, duplicateRecordCount), nil
+	summary := buildTokenUsageSummary(entries, duplicateRecordCount)
+	if summary != nil {
+		summary.Warnings = append(summary.Warnings, warnings...)
+	}
+	return summary, nil
 }
 
 func buildTokenUsageSummary(entries []TokenUsageEntry, duplicateRecordCount int) *TokenUsageSummary {
@@ -86,27 +91,29 @@ func buildTokenUsageSummary(entries []TokenUsageEntry, duplicateRecordCount int)
 }
 
 func scanTokenUsageEntries(filePath string) ([]TokenUsageEntry, int, error) {
-	entries, duplicateRecordCount, _, err := scanTokenUsageEntriesWithSeen(filePath, nil)
+	entries, duplicateRecordCount, _, _, err := scanTokenUsageEntriesWithSeen(filePath, nil)
 	return entries, duplicateRecordCount, err
 }
 
-func scanTokenUsageEntriesWithSeen(filePath string, seenRequestIDs map[string]struct{}) ([]TokenUsageEntry, int, bool, error) {
+func scanTokenUsageEntriesWithSeen(filePath string, seenRequestIDs map[string]struct{}) (entries []TokenUsageEntry, duplicateRecordCount int, awfSchemaRecordFound bool, warnings []string, err error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("failed to open token usage file: %w", err)
+		return nil, 0, false, nil, fmt.Errorf("failed to open token usage file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close token usage file: %w", closeErr)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-	entries := make([]TokenUsageEntry, 0)
+	entries = make([]TokenUsageEntry, 0)
 	if seenRequestIDs == nil {
 		seenRequestIDs = make(map[string]struct{})
 	}
-	duplicateRecordCount := 0
 	lineNum := 0
-	awfSchemaRecordFound := false
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
@@ -114,9 +121,9 @@ func scanTokenUsageEntriesWithSeen(filePath string, seenRequestIDs map[string]st
 			continue
 		}
 
-		var entry TokenUsageEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
+		entry, warning := decodeTokenUsageEntryWithWarning(line, filePath, lineNum)
+		if warning != "" {
+			warnings = append(warnings, warning)
 			continue
 		}
 		if strings.HasPrefix(entry.Schema, "token-usage/") || entry.Event == "token_usage" {
@@ -137,13 +144,33 @@ func scanTokenUsageEntriesWithSeen(filePath string, seenRequestIDs map[string]st
 			}
 			seenRequestIDs[dedupeKey] = struct{}{}
 		}
+		if !tokenUsageEntryHasAIC(entry) {
+			warnings = append(warnings, usageRecordWarning(filePath, lineNum, "unpriced usage"))
+		}
 		entries = append(entries, entry)
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, duplicateRecordCount, awfSchemaRecordFound, fmt.Errorf("error reading token usage file: %w", err)
+		return nil, duplicateRecordCount, awfSchemaRecordFound, warnings, fmt.Errorf("error reading token usage file: %w", err)
 	}
-	return entries, duplicateRecordCount, awfSchemaRecordFound, nil
+	return entries, duplicateRecordCount, awfSchemaRecordFound, warnings, nil
+}
+
+func decodeTokenUsageEntryWithWarning(line, filePath string, lineNumber int) (TokenUsageEntry, string) {
+	var entry TokenUsageEntry
+	if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNumber, err)
+		reason := "malformed usage record"
+		if json.Valid([]byte(line)) {
+			reason = "invalid usage fields"
+		}
+		return entry, usageRecordWarning(filePath, lineNumber, reason)
+	}
+	return entry, ""
+}
+
+func usageRecordWarning(filePath string, lineNumber int, reason string) string {
+	return fmt.Sprintf("%s line %d: %s; observed cost may be incomplete", filepath.Base(filePath), lineNumber, reason)
 }
 
 func extractUsageRecord(value any) map[string]any {
