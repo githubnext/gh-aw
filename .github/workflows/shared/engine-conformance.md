@@ -19,17 +19,35 @@ safe-outputs:
 pre-agent-steps:
   - name: Prepare engine conformance fixtures
     env:
+      CONFORMANCE_ASSIGNMENT: ${{ github.event.inputs.work_queue_assignment }}
       CONFORMANCE_ENGINE: ${{ github.aw.import-inputs.engine-id }}
       CONFORMANCE_ROOT: /tmp/gh-aw/agent/engine-conformance
       CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
+      GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
     run: |
       set -euo pipefail
       node <<'JS'
+      const assert = require("node:assert/strict");
       const crypto = require("node:crypto");
       const fs = require("node:fs");
       const path = require("node:path");
+      const { normalizeAssignment } = require(path.join(process.env.GH_AW_ACTIONS_DIR, "work_queue_claim_scope.cjs"));
       const engine = process.env.CONFORMANCE_ENGINE;
       if (!/^[a-z][a-z0-9-]*$/.test(engine || "")) throw new Error("Invalid conformance engine ID");
+      let claimHandle;
+      if (process.env.GH_AW_WORK_QUEUE_ENABLED === "true") {
+        assert.equal(process.env.GH_AW_WORK_QUEUE_ROLE, "worker", "Conformance requires the compiler-provided worker role");
+        const assignment = normalizeAssignment(JSON.parse(process.env.CONFORMANCE_ASSIGNMENT));
+        assert.equal(assignment.claims.length, 1, "Conformance requires exactly one original Claim");
+        assert.equal(assignment.worker_profile, `engine-conformance-${engine}`);
+        const claim = assignment.claims[0];
+        assert.equal(claim.work.engine, engine);
+        assert.deepEqual(claim.work.effect_contract, { kind: "none" });
+        claimHandle = claim.handle;
+      } else {
+        assert.notEqual(process.env.GH_AW_WORK_QUEUE_ROLE, "worker", "Queue workers cannot run standalone");
+        assert.ok(!process.env.CONFORMANCE_ASSIGNMENT, "Standalone conformance cannot accept a Claim assignment");
+      }
       const root = process.env.CONFORMANCE_ROOT;
       const host = process.env.CONFORMANCE_STATE;
       if (!root || !host) throw new Error("Conformance paths are missing");
@@ -42,6 +60,7 @@ pre-agent-steps:
       };
       const expected = {
         engine,
+        ...(claimHandle !== undefined && { claimHandle }),
         ...fixture,
         engineEnv: `conformance-${engine}`,
         shellDigest: crypto.createHash("sha256").update(fixture.fileNonce).digest("hex"),
@@ -156,6 +175,7 @@ post-steps:
         assert.ok(file, "Safe-output evidence path is required");
         assert.deepEqual(read(path.dirname(file), path.basename(file)), {
           type: "noop", message: "Conformance probes completed",
+          ...(expected.claimHandle !== undefined && { claim_handle: expected.claimHandle }),
         });
       });
       const passed = checks.every(item => item.status === "passed");
@@ -196,6 +216,10 @@ This is a small configuration test, not a repository task. Do not change reposit
 files, install dependencies, or publish GitHub resources. Do not edit fixtures,
 the shell probe, or the checker. Stop immediately if a required operation fails;
 do not claim success or substitute a guessed value.
+
+For queue workers, the host records the original singleton assignment's handle
+before agent execution and requires the staged noop to match that handle and
+exact content. Non-queue suites retain their exact unscoped noop.
 
 1. Read `/tmp/gh-aw/agent/engine-conformance/input.json` with your file-reading
    capability. Retain `fileNonce`, `left`, and `right`.
