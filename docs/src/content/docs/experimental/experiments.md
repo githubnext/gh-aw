@@ -187,8 +187,10 @@ syntax.
 
 With Copilot, you can also declare `subagent_model: [small, large]` in
 `experiments` and set the sub-agent's `model` to
-`${{ experiments.subagent_model }}`. The selected variant is used in the
-sub-agent definition and recorded in the run's declared-model metadata.
+`${{ experiments.subagent_model }}`. The activation job replaces the reference
+with the selected variant before it writes the sub-agent file, and records the
+same variant in the run's declared-model metadata. If no assignment is available,
+activation fails instead of writing the expression.
 Audit patterns and model-routing request policy expand every declared variant
 through the workflow's model aliases, while `models.allowed` and `models.blocked`
 still constrain admission. Router candidates remain unchanged. These patterns

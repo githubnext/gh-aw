@@ -195,6 +195,7 @@ post-steps:
           expectModelInventory: true,
           copilotInventory: true,
           resolutionRoles: ["main"],
+          requiredSubAgents: ["file-summarizer"],
         });
 ---
 

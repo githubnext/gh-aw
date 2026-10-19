@@ -325,6 +325,75 @@ func TestCompileCopilotWithExperimentalSubagentModels(t *testing.T) {
 	}
 }
 
+// TestSubagentMetadataMatchesSelectedExperimentVariant verifies that the recorded sub-agent
+// model metadata and the value interpolate_prompt.cjs writes into the inline sub-agent file
+// both come from the same pick-experiment assignment, so after Actions evaluates the step
+// output they agree with each other and with the selected variant.
+func TestSubagentMetadataMatchesSelectedExperimentVariant(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "workflow.md")
+	content := "---\non: workflow_dispatch\nstrict: false\npermissions:\n  contents: read\nengine: copilot\nexperiments:\n  subagent_model: [small, large]\n---\n# Work\nSummarize README.md using file-summarizer.\n\n" +
+		"## agent: `file-summarizer`\n---\nmodel: ${{ experiments.subagent_model }}\ndescription: Summarizes a file\n---\nSummarize the file.\n"
+	require.NoError(t, os.WriteFile(source, []byte(content), 0600))
+	compiler := NewCompiler()
+	data, err := compiler.ParseWorkflowFile(source)
+	require.NoError(t, err)
+	generated, err := compiler.CompileToYAML(data, source)
+	require.NoError(t, err)
+
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				ID   string            `yaml:"id"`
+				Name string            `yaml:"name"`
+				Env  map[string]string `yaml:"env"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	require.NoError(t, yaml.Unmarshal([]byte(generated), &workflow))
+	activation, ok := workflow.Jobs["activation"]
+	require.True(t, ok, "activation job must exist")
+
+	var metadataEnv, agentFileEnv string
+	pickIndex, metadataIndex, agentFileIndex := -1, -1, -1
+	for i, step := range activation.Steps {
+		switch {
+		case step.ID == "pick-experiment":
+			pickIndex = i
+		case step.ID == "generate_aw_info":
+			metadataIndex = i
+			metadataEnv = step.Env["GH_AW_INFO_SUB_AGENT_MODELS"]
+		case step.Name == "Interpolate variables and render templates":
+			agentFileIndex = i
+			agentFileEnv = step.Env["GH_AW_EXPERIMENTS_SUBAGENT_MODEL"]
+		}
+	}
+	require.NotEqual(t, -1, pickIndex, "pick-experiment step must exist")
+	require.NotEqual(t, -1, metadataIndex, "generate_aw_info step must exist")
+	require.NotEqual(t, -1, agentFileIndex, "interpolation step that writes inline sub-agents must exist")
+	assert.Less(t, pickIndex, metadataIndex, "experiment selection must precede sub-agent metadata")
+	assert.Less(t, pickIndex, agentFileIndex, "experiment selection must precede the sub-agent file write")
+
+	const selectedVariant = "${{ steps.pick-experiment.outputs.subagent_model }}"
+	assert.Equal(t, selectedVariant, agentFileEnv, "the sub-agent file must be written from the selected assignment")
+
+	for _, variant := range []string{"small", "large"} {
+		t.Run(variant, func(t *testing.T) {
+			// Simulate Actions evaluating the pick-experiment output for this assignment.
+			var declarations []struct {
+				Name  string `json:"name"`
+				Model string `json:"model"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(strings.ReplaceAll(metadataEnv, selectedVariant, variant)), &declarations))
+			require.Len(t, declarations, 1)
+			assert.Equal(t, "file-summarizer", declarations[0].Name)
+			assert.Equal(t, variant, declarations[0].Model, "recorded sub-agent model must be the selected variant")
+			assert.Equal(t, strings.ReplaceAll(agentFileEnv, selectedVariant, variant), declarations[0].Model, "recorded model must match the model written to the sub-agent file")
+			assert.NotContains(t, declarations[0].Model, "experiments.", "a literal experiment expression must not be recorded as a model ID")
+			assert.NotContains(t, declarations[0].Model, "${{", "an unevaluated expression must not be recorded as a model ID")
+		})
+	}
+}
+
 // TestRewriteExperimentPrefixCollision guards against one declared experiment name being a
 // prefix of another (e.g. "model" and "model_variant"); the word-boundary-anchored regex
 // rewrite must not partially corrupt the longer name's reference while rewriting the shorter
