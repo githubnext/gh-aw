@@ -73,6 +73,7 @@ const {
   applyCopilotWireAPI,
   warnCopilotSubagentEndpoints,
   applyCopilotModelAliasResolution,
+  resolveCopilotSDKMultiProvider,
   formatInferenceEndpointForLog,
   logCopilotInferenceConfiguration,
   resolveLongRunTokenThreshold,
@@ -111,6 +112,7 @@ describe("native invocation model and session selection", () => {
 });
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
+const { detectErrors } = require("./agent_error_patterns.cjs");
 
 const agentTempDir = "/tmp/gh-aw/agent";
 const harnessChildEnv = {
@@ -4387,5 +4389,267 @@ process.stdout.write("done\\n");`
     expect(result.stderr).toContain("copilot-sdk driver mode: starting sidecar");
     expect(args).not.toContain("--session-id");
     expect(selection).toBeNull();
+  });
+});
+
+describe("Copilot SDK configured-model liveness (recorded /reflect from run 39191157830)", () => {
+  // Agent artifact sandbox/firewall/awf-reflect.json of https://github.com/github/gh-aw/actions/runs/39191157830:
+  // models_fetch_complete true, 40 Copilot models (claude-haiku-4.5 first, claude-opus-5.5 the only Opus),
+  // no claude-opus-4.8. That run silently served claude-haiku-4.5 for a configured claude-opus-4.8 (gh-aw#70317).
+  const fixturePath = path.join(path.dirname(require.resolve("./copilot_harness.cjs")), "fixtures", "awf-reflect-sdk-39191157830.json");
+  const recordedReflect = () => JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+  const awfConfigPath = "/tmp/gh-aw/awf-config.json";
+  const originalAwfConfig = fs.existsSync(awfConfigPath) ? fs.readFileSync(awfConfigPath, "utf8") : null;
+  let tmpDir;
+
+  afterEach(() => {
+    delete process.env.COPILOT_MODEL;
+    if (originalAwfConfig !== null) fs.writeFileSync(awfConfigPath, originalAwfConfig);
+    else if (fs.existsSync(awfConfigPath)) fs.rmSync(awfConfigPath);
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+    tmpDir = undefined;
+  });
+
+  // Mirrors the harness SDK startup: alias resolution, then the SDK provider resolution.
+  async function startSDK(model, { reflect = recordedReflect(), refreshed = [], routedModel = "" } = {}) {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-sdk-liveness-"));
+    vi.stubEnv("GH_AW_TMP_DIR", tmpDir);
+    fs.mkdirSync(path.dirname(awfConfigPath), { recursive: true });
+    fs.writeFileSync(awfConfigPath, JSON.stringify({ apiProxy: { models: recordedReflect().model_aliases } }));
+    const logs = [];
+    const logger = message => logs.push(message);
+    const refetch = vi.fn().mockResolvedValue(null);
+    for (const data of refreshed) refetch.mockResolvedValueOnce(data);
+    const exit = vi.spyOn(process, "exit").mockImplementation(code => {
+      throw new Error(`exit ${code}`);
+    });
+    if (model) process.env.COPILOT_MODEL = model;
+    else delete process.env.COPILOT_MODEL;
+    if (!routedModel) await applyCopilotModelAliasResolution({ awfReflectData: reflect, logger, refetchReflectData: refetch });
+    let multiProvider = null;
+    let error = null;
+    try {
+      multiProvider = await resolveCopilotSDKMultiProvider({
+        configuredModel: routedModel || process.env.COPILOT_MODEL || "",
+        requestedModel: routedModel ? "auto" : model,
+        routed: Boolean(routedModel),
+        reflectData: reflect,
+        refetchReflectData: refetch,
+        logger,
+      });
+    } catch (err) {
+      error = err;
+    }
+    const read = file => (fs.existsSync(path.join(tmpDir, file)) ? JSON.parse(fs.readFileSync(path.join(tmpDir, file), "utf8")) : null);
+    return { multiProvider, error, exit, refetch, logs, resolution: read("agent/model-resolution.json"), selection: read("sandbox/agent/logs/copilot-model-selection.json") };
+  }
+
+  function expectRefusedToStart(run, model, { provider = model.startsWith("copilot/") ? "copilot" : null, checked = "copilot (http://api-proxy:10002/, 40 models)" } = {}) {
+    expect(run.error?.message).toBe("exit 1");
+    expect(run.exit).toHaveBeenCalledWith(1);
+    expect(run.multiProvider).toBeNull();
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    const failure = run.logs.at(-1);
+    expect(failure).toContain(`The requested model is not supported: '${model}' is not available in the workflow's live model catalog`);
+    expect(failure).toContain(`checked: ${checked}.`);
+    expect(detectErrors(failure).modelNotSupportedError).toBe(true);
+    // The failed record replaces the earlier `exact` record for copilot/main.
+    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: model, resolved_model: null, provider, status: "failed", cause: "model_unavailable" }]);
+    expect(run.selection).toEqual({ status: "unavailable", configured_model: model, resolved_model: "", effective_model: "" });
+  }
+
+  function expectCatalogUnavailable(run, model, { provider = null, checked }) {
+    expect(run.error?.message).toBe("exit 1");
+    expect(run.exit).toHaveBeenCalledWith(1);
+    expect(run.multiProvider).toBeNull();
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    const failure = run.logs.at(-1);
+    expect(failure).toContain(`model-catalog retrieval prevented alias resolution for '${model}'`);
+    expect(failure).toContain(`checked: ${checked}.`);
+    expect(detectErrors(run.logs.join("\n")).modelNotSupportedError).toBe(false);
+    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: model, resolved_model: null, provider, status: "failed", cause: "catalog_unavailable" }]);
+    expect(run.selection).toBeNull();
+  }
+
+  function expectStartedWithoutUnsupportedModel(run, model) {
+    expect(run.error).toBeNull();
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    expect(run.multiProvider.model).toBe(model);
+    expect(run.logs.join("\n")).not.toContain("The requested model is not supported");
+    expect(detectErrors(run.logs.join("\n")).modelNotSupportedError).toBe(false);
+  }
+
+  /** The recorded catalogue with the openai endpoint configured and the given model list. */
+  function withOpenAIEndpoint(models) {
+    const reflect = recordedReflect();
+    Object.assign(
+      reflect.endpoints.find(endpoint => endpoint.provider === "openai"),
+      { configured: true, models }
+    );
+    return reflect;
+  }
+
+  it("case 1: configured claude-opus-4.8 refuses to start with model_unavailable", async () => {
+    expectRefusedToStart(await startSDK("claude-opus-4.8", { refreshed: [recordedReflect()] }), "claude-opus-4.8");
+  });
+
+  it("case 2: configured copilot/claude-opus-4.8 refuses to start with model_unavailable", async () => {
+    expectRefusedToStart(await startSDK("copilot/claude-opus-4.8", { refreshed: [recordedReflect()] }), "copilot/claude-opus-4.8");
+  });
+
+  it("starts when the bounded refresh lists the configured model", async () => {
+    const refreshedReflect = recordedReflect();
+    refreshedReflect.endpoints.find(endpoint => endpoint.provider === "copilot").models.push("claude-opus-4.8");
+    const run = await startSDK("claude-opus-4.8", { refreshed: [refreshedReflect] });
+    expectStartedWithoutUnsupportedModel(run, "copilot-completions/claude-opus-4.8");
+  });
+
+  it("a provider-prefixed openai/gpt-6.1-sol is not matched by the Copilot listing of gpt-6.1-sol", async () => {
+    expectRefusedToStart(await startSDK("openai/gpt-6.1-sol", { refreshed: [recordedReflect()] }), "openai/gpt-6.1-sol", { provider: "openai" });
+  });
+
+  it("a provider-prefixed anthropic/claude-haiku-4.5 is not matched by the Copilot listing of claude-haiku-4.5", async () => {
+    expectRefusedToStart(await startSDK("anthropic/claude-haiku-4.5", { refreshed: [recordedReflect()] }), "anthropic/claude-haiku-4.5", { provider: "anthropic" });
+  });
+
+  it("a provider-prefixed id starts when the bounded refresh restores that provider's temporarily unavailable model list", async () => {
+    const run = await startSDK("openai/gpt-6.1-sol", { reflect: withOpenAIEndpoint(null), refreshed: [withOpenAIEndpoint(["gpt-6.1-sol"])] });
+    expectStartedWithoutUnsupportedModel(run, "openai/gpt-6.1-sol");
+  });
+
+  it("a provider-prefixed id whose provider model list stays unavailable records catalog_unavailable", async () => {
+    const run = await startSDK("openai/gpt-6.1-sol", { reflect: withOpenAIEndpoint(null), refreshed: [withOpenAIEndpoint(null)] });
+    expectCatalogUnavailable(run, "openai/gpt-6.1-sol", { provider: "openai", checked: "openai (http://api-proxy:10000/, no model list), copilot (http://api-proxy:10002/, 40 models)" });
+  });
+
+  it("a missing initial catalogue is refreshed and starts when the refresh lists the model", async () => {
+    const run = await startSDK("gpt-5.6-luna", { reflect: null, refreshed: [recordedReflect()] });
+    expectStartedWithoutUnsupportedModel(run, "copilot-responses/gpt-5.6-luna");
+  });
+
+  it("a missing catalogue (no /reflect) records catalog_unavailable", async () => {
+    expectCatalogUnavailable(await startSDK("claude-opus-4.8", { reflect: null }), "claude-opus-4.8", { checked: "(none)" });
+  });
+
+  it("an only configured endpoint with an empty model list records catalog_unavailable", async () => {
+    const emptyCatalogue = () => {
+      const reflect = recordedReflect();
+      reflect.endpoints.find(endpoint => endpoint.provider === "copilot").models = [];
+      return reflect;
+    };
+    const run = await startSDK("claude-opus-4.8", { reflect: emptyCatalogue(), refreshed: [emptyCatalogue()] });
+    expectCatalogUnavailable(run, "claude-opus-4.8", { checked: "copilot (http://api-proxy:10002/, 0 models)" });
+  });
+
+  it("an incomplete catalogue on both attempts records catalog_unavailable", async () => {
+    const incompleteCatalogue = () => {
+      const reflect = recordedReflect();
+      reflect.models_fetch_complete = false;
+      reflect.endpoints.find(endpoint => endpoint.provider === "copilot").models = null;
+      return reflect;
+    };
+    const run = await startSDK("claude-opus-4.8", { reflect: incompleteCatalogue(), refreshed: [incompleteCatalogue()] });
+    expectCatalogUnavailable(run, "claude-opus-4.8", { checked: "copilot (http://api-proxy:10002/, no model list)" });
+  });
+
+  it("a degraded refresh keeps the complete initial catalogue's model_unavailable result", async () => {
+    const degraded = recordedReflect();
+    degraded.models_fetch_complete = false;
+    degraded.endpoints.find(endpoint => endpoint.provider === "copilot").models = null;
+    expectRefusedToStart(await startSDK("claude-opus-4.8", { refreshed: [degraded] }), "claude-opus-4.8");
+  });
+
+  it("case 3: no configured model selects the first model", async () => {
+    const run = await startSDK("");
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.multiProvider.model).toBe("copilot-completions/claude-haiku-4.5");
+  });
+
+  it("case 4: configured live copilot/gpt-5.4 is unchanged", async () => {
+    const run = await startSDK("copilot/gpt-5.4");
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.multiProvider.model).toBe("copilot-responses/gpt-5.4");
+    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: "copilot/gpt-5.4", resolved_model: "gpt-5.4", provider: "copilot", status: "exact", cause: null }]);
+  });
+
+  it("case 5: configured qualified live copilot-responses/gpt-5.6-luna is unchanged and keeps its wire API", async () => {
+    const run = await startSDK("copilot-responses/gpt-5.6-luna");
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.multiProvider.model).toBe("copilot-responses/gpt-5.6-luna");
+    expect(run.multiProvider.providers.find(provider => provider.name === "copilot-responses")).toMatchObject({ wireApi: "responses" });
+  });
+
+  it("case 6: configured alias opus resolves to the newest live Opus", async () => {
+    const run = await startSDK("opus");
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.multiProvider.model).toBe("copilot-completions/claude-opus-5.5");
+    expect(run.resolution).toEqual([{ engine: "copilot", role: "main", configured_model: "opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null }]);
+  });
+
+  it("case 7: a routed SDK run uses the router's wire_model unchanged", async () => {
+    const run = await startSDK("", { routedModel: "gpt-5.6-luna" });
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.multiProvider.model).toBe("copilot-responses/gpt-5.6-luna");
+    expect(run.resolution).toBeNull();
+  });
+
+  // Derived: the recording's unconfigured openai endpoint is configured with a model list
+  // (no recorded run with this shape exists).
+  it("case 8: a model live only on a non-Copilot configured endpoint is unchanged", async () => {
+    const reflect = recordedReflect();
+    Object.assign(
+      reflect.endpoints.find(endpoint => endpoint.provider === "openai"),
+      { configured: true, models: ["gpt-6.1-pro"] }
+    );
+    const run = await startSDK("openai/gpt-6.1-pro", { reflect });
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.multiProvider.model).toBe("openai/gpt-6.1-pro");
+  });
+
+  it("case 1 end to end: the harness exits non-zero before starting the SDK", () => {
+    const harnessTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-sdk-liveness-e2e-"));
+    tmpDir = harnessTmpDir;
+    const preloadPath = path.join(harnessTmpDir, "reflect-preload.cjs");
+    const sidecarStartedPath = path.join(harnessTmpDir, "sidecar-started");
+    const sidecarPath = path.join(harnessTmpDir, "copilot-sidecar.cjs");
+    fs.writeFileSync(
+      preloadPath,
+      `const body = require("fs").readFileSync(${JSON.stringify(fixturePath)}, "utf8");
+require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))}).fetchAWFReflect = async () => ({ ok: true, reflectData: JSON.parse(body) });`
+    );
+    fs.writeFileSync(sidecarPath, `#!/usr/bin/env node\nrequire("fs").writeFileSync(${JSON.stringify(sidecarStartedPath)}, "1");\n`, { mode: 0o755 });
+    const env = { ...harnessChildEnv, GH_AW_TMP_DIR: harnessTmpDir, COPILOT_HOME: path.join(harnessTmpDir, "copilot-home"), GH_AW_HARNESS_MAX_RETRIES: "0", NODE_OPTIONS: `--require ${preloadPath}` };
+    for (const key of ["GH_AW_MODEL_FALLBACK", "GH_AW_MODEL_ROUTING", "GH_AW_SKIP_REFLECT", "GH_AW_PHASE", "GH_AW_SAFE_OUTPUTS", "COPILOT_PROVIDER_WIRE_API", "GH_AW_MODEL_ALIASES"]) delete env[key];
+    Object.assign(env, { AWF_REFLECT_ENABLED: "1", COPILOT_MODEL: "claude-opus-4.8", COPILOT_SDK_URI: "http://127.0.0.1:1", GH_AW_AWF_CONFIG_PATH: path.join(harnessTmpDir, "missing-awf-config.json") });
+    const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, sidecarPath, sidecarPath], {
+      cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+      env,
+      encoding: "utf8",
+      timeout: 20000,
+    });
+
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("The requested model is not supported: 'claude-opus-4.8' is not available in the workflow's live model catalog");
+    expect(result.stderr).not.toContain("starting sidecar");
+    expect(result.stderr).not.toContain("copilot-completions/claude-haiku-4.5");
+    expect(fs.existsSync(sidecarStartedPath)).toBe(false);
+    expect(detectErrors(result.stderr).modelNotSupportedError).toBe(true);
+    expect(JSON.parse(fs.readFileSync(path.join(harnessTmpDir, "agent/model-resolution.json"), "utf8"))).toEqual([
+      { engine: "copilot", role: "main", configured_model: "claude-opus-4.8", resolved_model: null, provider: null, status: "failed", cause: "model_unavailable" },
+    ]);
+    expect(JSON.parse(fs.readFileSync(path.join(harnessTmpDir, "sandbox/agent/logs/copilot-model-selection.json"), "utf8"))).toEqual({
+      status: "unavailable",
+      configured_model: "claude-opus-4.8",
+      resolved_model: "",
+      effective_model: "",
+    });
   });
 });
