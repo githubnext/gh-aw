@@ -34,12 +34,12 @@ Admission configuration MUST come exclusively from managed GitHub Actions variab
 The corresponding managed-defaults YAML is:
 
 ```yaml
-default_admission_url: https://admission.example.org/api/activation
-default_admission_audience: https://admission.example.org/api/activation
+default_admission_url: https://admission.example.org/api/admission
+default_admission_audience: https://admission.example.org/api/admission
 default_admission_on_outage: ignore
 ```
 
-The service route is `/api/activation`; the deployment origin is configurable. A nonempty URL MUST be the full absolute HTTPS URL for that route, without embedded credentials, query parameters, fragments, or GitHub Actions expressions. A nonempty audience MUST be a literal deployment-specific value without control characters or expressions. It identifies the intended recipient; it is not a secret or a GitHub App identifier.
+The service route is `/api/admission`; the deployment origin is configurable. A nonempty URL MUST be the full absolute HTTPS URL for that route, without embedded credentials, query parameters, fragments, or GitHub Actions expressions. A nonempty audience MUST be a literal deployment-specific value without control characters or expressions. It identifies the intended recipient; it is not a secret or a GitHub App identifier.
 
 Each effective runtime variable takes precedence over its built-in fallback; repository Actions variables override organization variables. Enterprise-wide rollout provisions organization variables in each enrolled organization, not an assumed native enterprise Actions-variable scope. Compiler-process environment variables MUST NOT determine these values, and workflow-local configuration MUST NOT introduce another override layer. A configured endpoint automatically enables admission. An unset or empty endpoint makes the check a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
 
@@ -104,7 +104,7 @@ sequenceDiagram
 
     A->>G: GET runner URL + audience
     G-->>A: 200 JSON: value = OIDC JWT
-    A->>S: POST /api/activation + bearer JWT
+    A->>S: POST /api/admission + bearer JWT
     Note right of S: Verify identity<br/>Evaluate policy
     S-->>A: 200 + limit + ID / 403 / transient
     Note over A: Validate and propagate decision<br/>then complete activation
@@ -122,10 +122,10 @@ The trusted helper requests the effective audience explicitly through GitHub's d
 const oidcToken = await core.getIDToken(effectiveAudience);
 ```
 
-For `effectiveAudience = "https://admission.example.org/api/activation"`, the equivalent exchange is:
+For `effectiveAudience = "https://admission.example.org/api/admission"`, the equivalent exchange is:
 
 ```http
-GET <ACTIONS_ID_TOKEN_REQUEST_URL>&audience=https%3A%2F%2Fadmission.example.org%2Fapi%2Factivation HTTP/1.1
+GET <ACTIONS_ID_TOKEN_REQUEST_URL>&audience=https%3A%2F%2Fadmission.example.org%2Fapi%2Fadmission HTTP/1.1
 host: <host from ACTIONS_ID_TOKEN_REQUEST_URL>
 authorization: bearer <ACTIONS_ID_TOKEN_REQUEST_TOKEN>
 accept: application/json
@@ -144,10 +144,10 @@ The helper MUST keep both credentials in memory, mask the acquired token, and se
 
 ### HTTP Request
 
-The service accepts `POST /api/activation`, with `content-type: application/json`, `cache-control: no-store`, and an `authorization` header containing the bearer OIDC identity token. Execution metadata belongs in the JSON body, not the URL. There are no query parameters. Other HTTP methods MUST NOT admit execution or evaluate spending policy; the client MUST NOT fall back to GET.
+The service accepts `POST /api/admission`, with `content-type: application/json`, `cache-control: no-store`, and an `authorization` header containing the bearer OIDC identity token. Execution metadata belongs in the JSON body, not the URL. There are no query parameters. Other HTTP methods MUST NOT admit execution or evaluate spending policy; the client MUST NOT fall back to GET.
 
 ```http
-POST /api/activation HTTP/1.1
+POST /api/admission HTTP/1.1
 host: admission.example.org
 authorization: bearer <OIDC_JWT>
 content-type: application/json
@@ -235,6 +235,8 @@ Only the validated non-secret decision values, never either OIDC credential, cro
 
 The helper then succeeds, and activation finishes its remaining checks. GitHub Actions schedules the already-dependent agent job only if the existing [job dependency and success conditions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds) permit it. The authority makes no callback or additional GitHub API call to resume the workflow. The workflow's normal engine credentials remain separate and MUST NOT be sent to the authority.
 
+The helper MUST discard its OIDC token when admission completes, rather than pass it to downstream execution. Token expiration limits authentication of admission requests, not the lifetime of an execution already admitted by a valid response. An admitted agent does not periodically renew this token, and expiration MUST NOT reset its budget or create another entitlement.
+
 The agent and its continuations consume the same effective invocation budget; they do not acquire another entitlement by repeating admission. All subsequent supported OTLP records retain the returned resource attribute as described above. If the endpoint is absent or an outage is ignored, there are no service decision values to transport; existing local/default controls remain. A denial, invalid success, or failed budget propagation blocks the agent instead of taking this continuation path.
 
 ## 4. Authentication and Trust Boundary
@@ -264,7 +266,11 @@ The App private key and installation tokens never go to the runner. The key sign
 
 ### OIDC Verification
 
-The service MUST authenticate before reading tenant policy or usage. It MUST use a maintained JWT verifier and validate the signature, permitted algorithm, trusted GitHub issuer, exact configured audience, expiry, not-before, and issuance time with bounded clock skew. Unsigned tokens, algorithm confusion, missing required claims, and unexpected claim types MUST be rejected.
+The service MUST authenticate every admission request before reading a cached decision, tenant policy, or usage. It MUST use a maintained JWT verifier and validate the signature, permitted algorithm, trusted GitHub issuer, exact configured audience, expiry, not-before, and issuance time. Unsigned tokens, algorithm confusion, missing required claims, and unexpected claim types MUST be rejected.
+
+The signed `exp` claim is mandatory and MUST be a finite JSON number representing UTC seconds since the Unix epoch, as defined by GitHub's [OIDC time claims](https://docs.github.com/en/actions/reference/security/oidc#additional-standard-jose-header-parameters-and-claims) and [JWT expiration semantics](https://www.rfc-editor.org/rfc/rfc7519.html#section-4.1.4). Missing, string, null, non-finite, or otherwise invalid expiration values MUST receive the uniform empty `403`. The authority MUST use its current synchronized UTC clock and require `now_utc_seconds < exp`: a token is expired exactly at `exp`, not only after it. Bounded clock-skew tolerance MAY apply to `nbf` and `iat`, but MUST NOT extend `exp` or disable expiration verification.
+
+The authority MUST enforce this check on every request, including retries, renewed tokens, and cache hits, and recheck expiration immediately before returning any `200`. A token that expires during dependency calls or policy evaluation MUST NOT receive an admitted `200` response. Expiration rejection is an authentication failure: return the same empty `403`, without an expiry-specific diagnostic, not a transient status that could activate `ignore`.
 
 Issuer metadata and signing keys MUST come from a deployment-configured trusted GitHub issuer. The service MUST NOT discover an issuer, JWKS endpoint, GitHub API host, or network destination from unverified token, body, or trace data. Signing-key rotation and cache refresh MUST be bounded and tested. An unknown key triggers a bounded trusted refresh; inability to refresh is an outage, while a definitively invalid signature or key is a denial.
 
@@ -313,7 +319,7 @@ An OIDC JWT has three base64url-encoded components: header, payload, and signatu
 ```json
 {
   "iss": "https://token.actions.githubusercontent.com",
-  "aud": "https://admission.example.org/api/activation",
+  "aud": "https://admission.example.org/api/admission",
   "sub": "repo:acme@1000/project@1001:ref:refs/heads/main",
   "repository": "acme/project",
   "repository_id": "1001",
@@ -461,7 +467,7 @@ Every response MUST set `cache-control: no-store` and omit budget, quota, reset,
 
 The client makes at most three attempts. Each admission HTTP request has a ten-second timeout; OIDC acquisition MUST also have a bounded deadline. Network errors, timeouts, `408`, `429`, and `5xx` are transient. Backoff is 250 ms, then 500 ms, each plus 0-249 ms random jitter. JSON body identity, audience, and the trace ID when present remain unchanged; each instrumented HTTP attempt has its own span ID. Response headers do not affect retry timing.
 
-A still-valid identity token MAY be reused across retries. If renewal is necessary, it MUST preserve the same verified invocation identity and MUST NOT expand the attempt budget. OIDC issuer transport failures MAY use the outage policy; missing `id-token: write`, missing bootstrap credentials, invalid local configuration, malformed identity, and explicit authentication failures MUST block without fallback.
+A still-valid identity token MAY be reused across retries. The client MUST NOT knowingly send an expired token and SHOULD renew before an attempt if the remaining lifetime cannot cover its request deadline. If renewal is necessary, it MUST preserve the same verified invocation identity and MUST NOT expand the attempt budget. Reading `exp` locally is only a token-refresh scheduling hint, not signature verification or authorization; the authority MUST independently enforce Section 4. An authority `403` for expiration MUST terminate retries and block under both outage policies. OIDC issuer transport failures MAY use the outage policy; missing `id-token: write`, missing bootstrap credentials, invalid local configuration, malformed identity, and explicit authentication failures MUST block without fallback.
 
 An explicit denial after a transient failure terminates retries and blocks. After transient attempts are exhausted:
 
@@ -533,6 +539,8 @@ Concurrent retries across service instances MUST NOT multiply financial or execu
 
 Completed decisions and their response fields MUST be retained for at least the client's retry horizon, with bounded retention, expiry, and an explicit revocation strategy. Revocation MAY change an admission to the uniform denial, never increase its credit allowance. A cached admission MUST NOT outlive its configured authorization window or admit a different invocation, workflow hop, or run attempt.
 
+Decision retention MUST NOT extend bearer-token validity. A cached approval MUST NOT authenticate an expired token, even when the invocation, `jti`, or prior decision is known. The decision record MAY survive the original token's expiration for deduplication, but returning it requires a currently valid, independently verified token for the same invocation and an unexpired decision authorization window. A renewed token does not change the original ceiling or correlation ID.
+
 Where token identifiers such as `jti` are used, repeated requests for the same invocation MUST remain compatible with legitimate retries. A blanket one-use-token rule MUST NOT reject those retries; token renewal MUST NOT create a fresh policy/accounting entitlement. Transient failures MUST NOT be cached as admission or policy denial.
 
 ## 9. Privacy and Abuse Resistance
@@ -553,8 +561,8 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 
 | ID | Case | Required result |
 |----|------|-----------------|
-| ADM-001 | `POST /api/activation` with valid OIDC identity, audience, enrollment, and permitted invocation | `200` JSON containing valid `max_ai_credits` and opaque `correlation_id`, with `cache-control: no-store` |
-| ADM-002 | Missing token, GitHub API token, App credential, bad signature/algorithm, wrong issuer/audience, expired or premature token | Same empty `403`; no credential fallback |
+| ADM-001 | `POST /api/admission` with valid OIDC identity, audience, enrollment, and permitted invocation | `200` JSON containing valid `max_ai_credits` and opaque `correlation_id`, with `cache-control: no-store` |
+| ADM-002 | Missing token, GitHub API token, App credential, bad signature/algorithm, wrong issuer/audience, absent/invalid `exp`, just before/exactly at/after `exp` with clock-skew settings, expiry during processing, or premature token | Require `now < exp` on entry and before `200`; valid controls may admit only before expiry; all invalid/expired credentials get the same empty `403`, even under `ignore`, with no credential fallback |
 | ADM-003 | Different hidden spend bands and durable denial reasons | No reason/amount differences in status, body, headers, size, or intentional timing |
 | ADM-004 | Missing/duplicate/unknown/malformed JSON field, non-string value, query parameter, invalid content type, or inconsistent invocation ID | Uniform `403`; no unsafe downstream calls |
 | ADM-005 | JSON slashes, Unicode/reserved characters, escapes, and large decimal ID strings | Parse once without injection, truncation, or precision loss |
@@ -565,7 +573,7 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-010 | Explicit `403`, including after an outage | Block without further retries under either policy |
 | ADM-011 | Redirect, empty `204`, malformed `200`, or another unsupported response | Block under either outage policy; no credential sent to any redirect destination |
 | ADM-012 | Sensitive diagnostics in a faulty response or issuer exception | No workflow-visible credential or diagnostic leakage |
-| ADM-013 | Duplicate POSTs, token reuse/renewal, and lost responses across instances | Retry-safe decisions; no additional financial entitlement |
+| ADM-013 | Duplicate POSTs, token reuse/renewal, lost responses across instances, or an expired token hitting a cached approval | Reauthenticate each request; an expired token gets uniform `403` despite the cache; a valid renewed token preserves the original decision fields and creates no additional financial entitlement |
 | ADM-014 | Reruns, caller/executing reference or SHA mismatch, and repeated identical reusable calls | Existing `aw_info` reference/call-ID semantics and distinct verified invocation keys preserved; ambiguous repeated calls receive uniform denial, not retry deduplication or new entitlements |
 | ADM-015 | Stale accounting and concurrent executions | No implicit zero usage or unsupported hard-cap claim |
 | ADM-016 | Proxy logs, tracing, exceptions, artifacts, outputs, and metrics | No raw token/App-key leakage or body capture; actor metadata minimized and protected |
@@ -602,7 +610,7 @@ Four bounded profiles cover both outage policies with and without client OTel. S
 
 Reachability witnesses deliberately include agent execution without a configured endpoint and after an ignored outage. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
 
-This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, HTTP/JSON parsing, trusted URL handling, distributed-cache concurrency/expiry, correlation-ID entropy, timing/logging privacy, and actual runtime credit accounting remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
+This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, wall-clock token expiration and response-time rechecks, HTTP/JSON parsing, trusted URL handling, distributed-cache concurrency/expiry, correlation-ID entropy, timing/logging privacy, and actual runtime credit accounting remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
 
 ## 12. Implementation Plan
 
@@ -618,7 +626,7 @@ The owner map assigns implementation work to the normative contracts rather than
 | gh-aw and authority observability | 3, 5-9 | Reuse OTLP trace/propagation helpers when enabled; require neither tracing nor export when disabled. Carry the service ID across every subsequent job/runtime/conclusion span, log, and metric path; retain effective-credit telemetry, tenant isolation, and redaction without metric-dimension promotion. |
 | Joint integration and release | 10, 11 | Satisfy every acceptance category and implementation obligation beyond the bounded model. Verify issuer/audience registration, claim mappings, ingress redaction, endpoint governance, trace continuity, and protected `block` for strict deployments. Recompile with the feature-capable compiler; no prior admission implementation requires migration. |
 
-Managed-default validation belongs in `pkg/cli/env_command.go`, alongside the existing field validators, and MUST also apply to effective runtime values that can be set outside the CLI. Apply Section 2's URL rules to `default_admission_url` (absolute HTTPS `/api/activation`, no embedded credentials, query, fragment, or expressions), its literal/no-control-character/no-expression rules to `default_admission_audience`, and Section 6's exact `ignore`/`block` enum to `default_admission_on_outage`. Preserve Section 2's empty-value fallbacks and omitted/null deletion semantics; test accepted, rejected, empty, and deleted values.
+Managed-default validation belongs in `pkg/cli/env_command.go`, alongside the existing field validators, and MUST also apply to effective runtime values that can be set outside the CLI. Apply Section 2's URL rules to `default_admission_url` (absolute HTTPS `/api/admission`, no embedded credentials, query, fragment, or expressions), its literal/no-control-character/no-expression rules to `default_admission_audience`, and Section 6's exact `ignore`/`block` enum to `default_admission_on_outage`. Preserve Section 2's empty-value fallbacks and omitted/null deletion semantics; test accepted, rejected, empty, and deleted values.
 
 Integration points are the existing [activation-job assembly](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_context.go), [activation permissions](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
 

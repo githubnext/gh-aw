@@ -150,12 +150,14 @@ counterexample/witness traces. Secure profiles must exhaust without error;
 each negative control or witness must violate exactly its named invariant
 with TLC exit code 12. Tooling and parser failures never satisfy a control.
 
-This model does not prove JWT cryptography, issuer/JWKS trust, HTTP/TLS or JSON
+This model does not prove JWT cryptography, wall-clock token expiration or
+response-time rechecks, issuer/JWKS trust, HTTP/TLS or JSON
 parsers, URL/redirect safety, GitHub App provisioning, distributed cache
 correctness/expiry, randomness, logging redaction, timing noninterference, or
 actual engine billing enforcement. `identity = "valid"` assumes all required
-signed claims, executing workflow-reference bindings, unambiguous invocation
-identity, and any logical-policy mapping have been independently verified;
+signed claims (including an unexpired token), executing workflow-reference
+bindings, unambiguous invocation identity, and any logical-policy mapping have
+been independently verified;
 `triggeringActor = "verified"` assumes the specified authoritative run-attempt
 lookup. Opaque IDs are symbolic, not entropy proofs. Two hidden spend classes
 check explicit response-field constraints, not full observational
