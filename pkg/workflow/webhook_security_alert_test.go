@@ -141,13 +141,25 @@ func TestSecurityAlertRejectsInvalidRepositorySelectors(t *testing.T) {
 		[]any{""}, []any{" "}, []any{"*"}, []any{"*/*"}, []any{"*/baz"},
 		[]any{"bar/**"}, []any{"bar/ba*"}, []any{"bar/?az"}, []any{"bar/[baz]"},
 		[]any{"bar"}, []any{"/baz"}, []any{"bar/"}, []any{"bar/baz/other"},
-		[]any{"https://github.com/bar/baz"}, []any{"${{ github.repository }}"},
+		[]any{"https://github.com/bar/baz"},
 		[]any{"bar/baz "}, []any{" bar/baz"}, []any{"bar/baz\n"}, []any{"bar/."}, []any{"bar/.."},
 	} {
 		t.Run(fmt.Sprint(repos), func(t *testing.T) {
 			_, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"repos": repos, "security-alerts": map[string]any{}}}, "invalid-repos")
 			require.ErrorContains(t, err, "on.gateway-dispatch.repos")
 			assert.Contains(t, err.Error(), "owner/repo or owner/*")
+		})
+	}
+}
+
+func TestSecurityAlertRejectsRepositoryExpressions(t *testing.T) {
+	for name, repos := range map[string]any{
+		"untyped list": []any{"${{ github.repository }}"},
+		"typed list":   []string{"${{ github.repository }}"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"repos": repos, "security-alerts": map[string]any{}}}, "expression-repos")
+			require.EqualError(t, err, "on.gateway-dispatch.repos[0]: GitHub Actions expressions are not supported in on.gateway-dispatch; keys and values must be literals (for example, repos: [github/gh-aw])")
 		})
 	}
 }
