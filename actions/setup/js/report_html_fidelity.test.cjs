@@ -71,6 +71,24 @@ describe("typed report image presentation", () => {
     }
   });
 
+  it("requires primitive numbers for both dimensions without coercion", () => {
+    const valueOf = vi.fn(() => 120);
+    for (const dimension of [true, false, 120n, Object(120), { valueOf }, () => 120, Symbol("dimension")]) {
+      for (const field of ["width", "height"]) {
+        expect(() => normalizeReportImage(image({ [field]: dimension }))).toThrow("Report image dimensions must be integers between 1 and 10000");
+      }
+    }
+    expect(valueOf).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 120, 10000])("retains valid width and height as numbers: %i", dimension => {
+    const normalized = normalizeReportImage(image({ width: dimension, height: dimension }));
+    expect(normalized.width).toBe(dimension);
+    expect(normalized.height).toBe(dimension);
+    expect(typeof normalized.width).toBe("number");
+    expect(typeof normalized.height).toBe("number");
+  });
+
   it.each(["LEFT", "top", 'right" onload="attack()', "", null, 1])("rejects invalid typed alignment %j", align => {
     expect(() => normalizeReportImage(image({ align }))).toThrow("Invalid report image alignment");
   });

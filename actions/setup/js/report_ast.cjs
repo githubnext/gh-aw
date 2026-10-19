@@ -176,7 +176,7 @@ function normalizeReportURL(value) {
 /** @param {ReportImage} node @returns {ReportImage} */
 function normalizeReportImage(node) {
   for (const dimension of [node.width, node.height]) {
-    if (dimension !== undefined && (!Number.isInteger(dimension) || dimension < 1 || dimension > 10000)) throw new TypeError("Report image dimensions must be integers between 1 and 10000");
+    if (dimension !== undefined && (typeof dimension !== "number" || !Number.isInteger(dimension) || dimension < 1 || dimension > 10000)) throw new TypeError("Report image dimensions must be integers between 1 and 10000");
   }
   if (node.align !== undefined && !["left", "right", "center"].includes(node.align)) throw new TypeError("Invalid report image alignment");
   return {
