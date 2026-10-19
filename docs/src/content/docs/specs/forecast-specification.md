@@ -1,6 +1,6 @@
 ---
 title: Forecast Command Specification
-description: Formal W3C-style specification for the gh aw forecast command — Monte Carlo token-usage projection, episode analysis, workflow discovery, and output formats for GitHub Agentic Workflows
+description: Formal W3C-style specification for the gh aw forecast command — Monte Carlo AI Credit projection, workflow discovery, and run-level output formats for GitHub Agentic Workflows
 sidebar:
   order: 1355
 ---
@@ -14,7 +14,7 @@ sidebar:
 
 ## Abstract
 
-This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, episode-level analysis, and both console-table and machine-readable JSON output formats. Implementations conforming to this specification provide operators with probabilistic cost forecasts suitable for capacity planning, cost estimation, and budget governance.
+This specification defines the `gh aw forecast` command for the GitHub Agentic Workflows project. The command performs historical sampling of completed agentic workflow runs and applies a Monte Carlo simulation engine to project future AI Credits (AIC) consumption over a configurable time horizon. The specification covers workflow discovery (local and remote modes), data sampling via the GitHub Actions API, the Poisson–bootstrap Monte Carlo projection algorithm, and both console-table and machine-readable JSON output formats. Forecasts are run-level usage projections, not episode or throughput reports. Implementations conforming to this specification provide operators with probabilistic cost forecasts suitable for capacity planning, cost estimation, and budget governance.
 
 ---
 
@@ -37,7 +37,7 @@ Feedback should be filed as GitHub issues against the `github/gh-aw` repository.
 5. [Workflow Discovery](#5-workflow-discovery)
 6. [Data Sampling](#6-data-sampling)
 7. [Monte Carlo Projection Engine](#7-monte-carlo-projection-engine)
-8. [Episode Analysis](#8-episode-analysis)
+8. [Retired Episode Analysis](#8-retired-episode-analysis)
 9. [Output Formats](#9-output-formats)
 10. [Error Handling](#10-error-handling)
 11. [Implementation Requirements](#11-implementation-requirements)
@@ -71,7 +71,6 @@ This specification covers:
 - Workflow discovery in local (`.github/workflows/`) and remote (`--repo`) modes
 - Historical run sampling and per-run metric derivation
 - The Monte Carlo simulation algorithm producing P10, P50, P90 percentile estimates
-- Episode grouping and episode-level metric computation
 - Console table output format
 - Machine-readable JSON output schema (`--json`)
 - Error conditions and graceful-degradation behavior
@@ -83,6 +82,7 @@ This specification does NOT cover:
 - A/B experiment frontmatter schema (defined in the [A/B Experiments Specification](/gh-aw/experimental/experiments-specification/))
 - Billing, pricing, or financial modeling beyond token projections
 - Streaming or real-time token consumption reporting
+- Episode grouping, episode-level metrics, and throughput (`yield`) reporting, removed from forecast in [#34750](https://github.com/github/gh-aw/pull/34750)
 
 ### 1.3 Design Goals
 
@@ -102,7 +102,7 @@ A conforming `gh aw forecast` implementation MUST be designed for:
 
 A **conforming forecast implementation** is one that satisfies all MUST, REQUIRED, and SHALL requirements in this specification.
 
-A **partially conforming forecast implementation** is one that satisfies all MUST requirements in Sections 4, 5, 6, and 7 but MAY lack support for optional features such as episode analysis (Section 8), experiment variant reporting, or verbose diagnostics.
+A **partially conforming forecast implementation** is one that satisfies all MUST requirements in Sections 4, 5, 6, and 7 but MAY lack support for optional features such as experiment variant reporting or verbose diagnostics. Retired episode and yield features are not conformance requirements at any level.
 
 ### 2.2 Requirements Notation
 
@@ -113,7 +113,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 Implementations MUST support:
 
 - **Level 1 (Required)**: Command invocation, workflow discovery, historical data sampling, and Monte Carlo projection with console output.
-- **Level 2 (Standard)**: JSON output (`--json`), episode analysis, remote-repository mode (`--repo`), and experiment variant reporting.
+- **Level 2 (Standard)**: JSON output (`--json`), remote-repository mode (`--repo`), and experiment variant reporting.
 - **Level 3 (Complete)**: All optional features including `--verbose` diagnostics, concurrency limit reporting, and frontmatter metadata enrichment.
 
 ---
@@ -154,35 +154,11 @@ observed_runs_per_period = (sampled_run_count / history_days) × period_days
 
 Where `period_days` is 7 for `week` and 30 for `month`.
 
-### 3.8 Episode
-
-A logical grouping of one or more workflow runs that collectively represent a single task attempt. Episodes are identified by grouping runs sharing the same `headSha` and `headBranch`, or by `workflow_dispatch`/`workflow_call` linkage where available.
-
-### 3.9 Yield
-
-The effective throughput rate: the expected number of successful runs per projection period, computed as the product of the observed run frequency and the historical success rate:
-
-```
-yield = observed_runs_per_period × success_rate
-```
-
-Where `success_rate = successful_run_count / total_sampled_run_count`.
-
-Example:
-
-If `successful_run_count = 18`, `total_sampled_run_count = 24`, and
-`observed_runs_per_period = 20`, then:
-
-```
-success_rate = 18 / 24 = 0.75
-yield = observed_runs_per_period × success_rate = 20 × 0.75 = 15
-```
-
-### 3.10 Bootstrap Resampling
+### 3.8 Bootstrap Resampling
 
 An empirical resampling technique where individual observations are drawn with replacement from the observed sample. Used in Section 7 to model per-run token usage without parametric distribution assumptions.
 
-### 3.11 Lock File
+### 3.9 Lock File
 
 A `.lock.yml` file located in `.github/workflows/` that declares a compiled agentic workflow and its associated metadata. Lock files are the authoritative source of workflow identifiers in local mode.
 
@@ -490,7 +466,7 @@ The `projected_aic` top-level field MUST equal `p50_projected_aic`.
 
 ### 7.5 Nil Projection Condition
 
-If no historical runs are available for a workflow, the implementation MUST return a nil (empty/zero) projection for that workflow. Nil projections MUST be represented in JSON output as zero values for all numeric Monte Carlo fields. The implementation MUST NOT run trials when the sample is empty.
+If no historical runs are available for a workflow, the implementation MUST return a nil projection for that workflow. JSON output MUST omit nil Monte Carlo objects and retain zero-valued top-level projection fields. The implementation MUST NOT run trials when the sample is empty.
 
 ### 7.6 Minimum Sample Size for Percentile Validity
 
@@ -502,42 +478,17 @@ The P10 and P90 estimates produced by the Monte Carlo engine are only statistica
 
 ---
 
-## 8. Episode Analysis
+## 8. Retired Episode Analysis
 
-### 8.1 Purpose
+Episode analysis and yield reporting were deliberately removed from `gh aw forecast` in
+[#34750](https://github.com/github/gh-aw/pull/34750), merged on 2026-05-25. Forecast does not
+construct episodes, emit episode tables, or expose `episode_analysis` or `yield` JSON fields.
+The retained `success_rate` describes sampled run conclusions; it is not a throughput metric.
 
-An **episode** is a logical grouping of one or more workflow runs that collectively represent a single task attempt. Episode analysis computes per-episode metrics to reveal how many runs, on average, are required to complete a task successfully.
-
-### 8.2 Episode Construction
-
-The implementation MUST group sampled runs into episodes using the `buildEpisodeData` and `classifyEpisode` engine:
-
-- **R-EP-001**: Runs sharing the same `headSha` and `headBranch` MUST be grouped into the same episode.
-- **R-EP-002**: Runs linked by `workflow_dispatch` or `workflow_call` relationships (reconstructed from cached run summaries) SHOULD be merged into the triggering run's episode.
-
-#### 8.2.1 Limitations in Forecast Context
-
-During forecasting, full artifact data may not be available for all sampled runs. When cached summary data is unavailable:
-
-- **R-EP-010**: `workflow_dispatch`/`workflow_call` linkage MUST be omitted from episode construction.
-- **R-EP-011**: The resulting `sampled_episodes` count MUST be treated as a **lower-bound estimate**. Implementations MUST communicate this limitation in output (e.g., via a note in console output or a boolean `episode_count_is_lower_bound` field in JSON).
-
-For orchestrator workflows that primarily receive `workflow_call` triggers, the episode count underestimate may be significant. Implementations SHOULD emit a warning when the dominant trigger type is `workflow_call` or `workflow_dispatch`.
-
-### 8.3 Episode Metrics
-
-For each workflow, the implementation MUST compute:
-
-| Metric | Definition |
-|---|---|
-| `sampled_episodes` | Count of distinct episodes identified in the sample |
-| `runs_per_episode` | `sampled_run_count / sampled_episodes` |
-| `avg_aic_per_episode` | Mean AIC summed across all runs within each episode |
-| `observed_episodes_per_period` | `(sampled_episodes / history_days) × period_days` |
-
-### 8.4 Episode Table Display
-
-The implementation MUST display the episode analysis table in console output when any workflow in the result set has `runs_per_episode > 1.0`. The table SHOULD be omitted when all workflows have `runs_per_episode = 1.0` (one run per episode is the baseline and adds no additional information).
+The former requirements **R-EP-001**, **R-EP-002**, **R-EP-010**, **R-EP-011**,
+**R-OUT-005**, and **R-OUT-013**, and tests **T-FC-041** through **T-FC-044**, are retired.
+Their identifiers are reserved for historical traceability and MUST NOT be reused for new
+requirements. Episode behavior elsewhere in gh-aw is outside this command's contract.
 
 ---
 
@@ -550,28 +501,33 @@ When `--json` is not specified, the implementation MUST render a formatted conso
 | Column | Description |
 |---|---|
 | `Workflow` | Workflow display name or identifier |
-| `Sampled Runs` | Count of completed and in-progress runs included in the sample |
+| `Runs` | Count of completed and in-progress runs included in the sample |
+| `P50 AIC/Run` | Median AIC of individual sampled runs |
+| `P95 AIC/Run` | 95th-percentile AIC of individual sampled runs |
+| `Weekly AIC (P50)` | Median projected AIC over a 7-day window |
+| `Monthly AIC (P50)` | Median projected AIC over a 30-day window |
 | `Success Rate` | Fraction of sampled runs concluding with `success`, formatted as a percentage; `N/A` when no runs were sampled |
-| `Yield/Period` | Effective throughput rate (`success_rate × observed_runs_per_period`) formatted to one decimal place |
-| `Avg AIC` | `avg_aic` formatted as K/M abbreviations (e.g. `12.5K`, `1.20M`); `-` when zero |
-| `Proj. AIC (P50)` | Median projected AI Credits from Monte Carlo (P50), formatted as K/M abbreviations |
-| `80% CI (P10–P90)` | Confidence interval range `p10–p90`, both formatted as K/M abbreviations |
-| `Triggers` | Comma-separated list of active trigger event names from frontmatter (up to 3, remainder shown as `+N`) |
+
+The table reports both weekly and monthly projections regardless of `--period`. The selected
+period and P10/P90 confidence intervals remain available in JSON output. A `TOTAL` row is
+appended when more than one workflow is present. Specific workflow selections also display
+individual run samples; experiment variant and backtesting tables are displayed when applicable.
 
 #### 9.1.1 Table Formatting Requirements
 
 - **R-OUT-001**: Column widths MUST be auto-fitted to the widest value in each column.
-- **R-OUT-002**: AIC values MUST be formatted as K/M abbreviations (e.g. `12.5K`, `1.20M`); raw integer values of zero MUST be rendered as `-`.
+- **R-OUT-002**: AIC values at or above 1,000 MUST be formatted as K/M abbreviations (e.g. `12.5K`, `1.20M`); smaller positive values MUST be rendered numerically, and zero MUST be rendered as `-`.
 - **R-OUT-003**: Rows MUST be sorted by Monte Carlo P50 projected AI Credits in descending order; when Monte Carlo data is unavailable, sort by `projected_aic`.
 - **R-OUT-004**: A workflow with zero sampled runs MUST appear in the table with `-` in projection columns and `N/A` in rate columns.
-- **R-OUT-005**: When episode analysis is applicable (Section 8.4), a second table with episode metrics MUST be printed below the main table, separated by a blank line.
+- **R-OUT-014**: Console output MUST NOT include a yield column or episode-analysis table. Workflow JSON objects MUST NOT include the retired `yield` or `episode_analysis` fields.
 
 #### 9.1.2 Example Console Output
 
 ```
-Workflow          Sampled Runs  Success Rate  Yield/Period  Avg AIC  Proj. AIC (P50)  80% CI (P10–P90)  Triggers
-ci-doctor                   42         92%          35.4   12.5K         480.0K       430.0K–535.0K   pull_request, workflow_dispatch
-daily-planner               18         89%          14.4    8.2K         131.0K       105.0K–158.0K   schedule
+Workflow          Runs  P50 AIC/Run  P95 AIC/Run  Weekly AIC (P50)  Monthly AIC (P50)  Success Rate
+ci-doctor           42        12.5K        18.0K            112.0K             480.0K           92%
+daily-planner       18         8.2K        12.0K             30.0K             131.0K           89%
+TOTAL               60                                    142.0K             611.0K
 ```
 
 ### 9.2 JSON Output Schema
@@ -604,14 +560,18 @@ When `--json` is specified, the implementation MUST emit a single JSON object to
   "history_days": <integer>,
   "observed_runs_per_period": <number>,
   "success_rate": <number>,
-  "yield": <number>,
   "avg_aic": <number>,
   "avg_duration_seconds": <number>,
+  "p50_aic_per_run": <number>,
+  "p95_aic_per_run": <number>,
   "projected_aic": <number>,
+  "weekly_projected_aic": <number>,
+  "monthly_projected_aic": <number>,
   "active_triggers": [ "<string>", ... ],
   "concurrency_limit": <integer>,
   "monte_carlo": { <MonteCarlo> },
-  "episode_analysis": { <EpisodeAnalysis> },
+  "weekly_monte_carlo": { <MonteCarlo> },
+  "monthly_monte_carlo": { <MonteCarlo> },
   "experiment_variants": [ <ExperimentVariant>, ... ]
 }
 ```
@@ -624,15 +584,25 @@ When `--json` is specified, the implementation MUST emit a single JSON object to
 | `history_days` | integer | MUST | Value of `--days` used for this forecast. |
 | `observed_runs_per_period` | number | MUST | Extrapolated run rate for the projection period. |
 | `success_rate` | number | MUST | Fraction of sampled runs that concluded successfully, in `[0.0, 1.0]`. |
-| `yield` | number | MUST | Effective throughput rate: `success_rate × observed_runs_per_period`. |
 | `avg_aic` | number | MUST | Mean AIC per sampled run. `0` when no AIC data is available. |
 | `avg_duration_seconds` | number | MUST | Mean wall-clock duration per sampled run in seconds. |
+| `p50_aic_per_run` | number | MUST | Median AIC of individual sampled runs. |
+| `p95_aic_per_run` | number | MUST | 95th-percentile AIC of individual sampled runs. |
 | `projected_aic` | number | MUST | P50 Monte Carlo projection. Equals `monte_carlo.p50_projected_aic`. |
-| `active_triggers` | array of strings | SHOULD | Trigger event types from workflow frontmatter. Empty array when frontmatter is unavailable. |
+| `weekly_projected_aic` | number | MUST | Weekly point estimate: observed weekly run rate multiplied by `avg_aic`. |
+| `monthly_projected_aic` | number | MUST | Monthly point estimate: observed monthly run rate multiplied by `avg_aic`. |
+| `active_triggers` | array of strings or null | SHOULD | Trigger event types from workflow frontmatter. May be null when frontmatter is unavailable. |
 | `concurrency_limit` | integer | SHOULD | Concurrency group limit from frontmatter. `0` indicates unlimited or unavailable. |
-| `monte_carlo` | object | MUST | Monte Carlo simulation results. See Section 9.2.3. |
-| `episode_analysis` | object | SHOULD | Episode analysis results. See Section 9.2.4. |
-| `experiment_variants` | array | MAY | A/B experiment variant breakdown. See Section 9.2.5. Empty array when frontmatter is unavailable or no experiments are configured. |
+| `monte_carlo` | object | Conditional | Selected-period Monte Carlo results. Omitted when the projection is nil. See Section 9.2.3. |
+| `weekly_monte_carlo` | object | Conditional | Weekly Monte Carlo results, including the P50 used in the console table. Omitted when the projection is nil. |
+| `monthly_monte_carlo` | object | Conditional | Monthly Monte Carlo results, including the P50 used in the console table. Omitted when the projection is nil. |
+| `experiment_variants` | array | MAY | A/B experiment variant breakdown. See Section 9.2.5. Omitted when no variant data is available. |
+| `workflow_path` | string | MAY | Workflow file path when available. |
+| `engines` | array of strings | MAY | Engine identifiers from frontmatter. |
+| `run_samples` | array | MAY | Individual sampled runs, with `run_id` and `aic`, plus `date` and `run_url` when available. |
+
+Backtesting mode additionally emits root-level `eval_mode` and per-workflow `evaluation`
+metrics. None of these output paths adds episode or yield reporting.
 
 #### 9.2.3 MonteCarlo Object
 
@@ -643,7 +613,8 @@ When `--json` is specified, the implementation MUST emit a single JSON object to
   "std_dev_aic": <number>,
   "p10_projected_aic": <number>,
   "p50_projected_aic": <number>,
-  "p90_projected_aic": <number>
+  "p90_projected_aic": <number>,
+  "is_reliable": <boolean>
 }
 ```
 
@@ -655,28 +626,13 @@ When `--json` is specified, the implementation MUST emit a single JSON object to
 | `p10_projected_aic` | number | MUST | 10th percentile of trial totals. |
 | `p50_projected_aic` | number | MUST | 50th percentile (median) of trial totals. |
 | `p90_projected_aic` | number | MUST | 90th percentile of trial totals. |
+| `is_reliable` | boolean | MUST | Whether the sample meets the minimum observation count. |
 
-When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iterations` MUST be `0`.
+When the projection is nil, this object MUST be omitted rather than emitted with zero iterations.
 
-#### 9.2.4 EpisodeAnalysis Object
+#### 9.2.4 Retired EpisodeAnalysis Object
 
-```json
-{
-  "sampled_episodes": <integer>,
-  "episode_count_is_lower_bound": <boolean>,
-  "runs_per_episode": <number>,
-  "avg_aic_per_episode": <number>,
-  "observed_episodes_per_period": <number>
-}
-```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `sampled_episodes` | integer | MUST | Distinct episode count. Lower-bound estimate when artifact linkage is unavailable. |
-| `episode_count_is_lower_bound` | boolean | SHOULD | `true` when episode linkage data is incomplete (for example, remote mode without artifacts); otherwise `false`. |
-| `runs_per_episode` | number | MUST | Mean runs per episode. |
-| `avg_aic_per_episode` | number | MUST | Mean AIC per episode. |
-| `observed_episodes_per_period` | number | MUST | Extrapolated episode rate for the projection period. |
+The former `EpisodeAnalysis` object is no longer part of the JSON schema. See Section 8.
 
 #### 9.2.5 ExperimentVariant Object
 
@@ -708,12 +664,15 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
       "period": "month",
       "sampled_runs": 42,
       "history_days": 30,
-      "observed_runs_per_period": 38.5,
+      "observed_runs_per_period": 42,
       "success_rate": 0.92,
-      "yield": 0.92,
       "avg_aic": 12500,
       "avg_duration_seconds": 145.3,
+      "p50_aic_per_run": 12500,
+      "p95_aic_per_run": 18000,
       "projected_aic": 480000,
+      "weekly_projected_aic": 122500,
+      "monthly_projected_aic": 525000,
       "active_triggers": ["pull_request", "workflow_dispatch"],
       "concurrency_limit": 0,
       "monte_carlo": {
@@ -722,14 +681,26 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
         "std_dev_aic": 32000.5,
         "p10_projected_aic": 430000,
         "p50_projected_aic": 480000,
-        "p90_projected_aic": 535000
+        "p90_projected_aic": 535000,
+        "is_reliable": true
       },
-      "episode_analysis": {
-        "sampled_episodes": 40,
-        "episode_count_is_lower_bound": true,
-        "runs_per_episode": 1.05,
-        "avg_aic_per_episode": 13100,
-        "observed_episodes_per_period": 36.7
+      "weekly_monte_carlo": {
+        "iterations": 10000,
+        "mean_projected_aic": 113000,
+        "std_dev_aic": 35000,
+        "p10_projected_aic": 70000,
+        "p50_projected_aic": 112000,
+        "p90_projected_aic": 158000,
+        "is_reliable": true
+      },
+      "monthly_monte_carlo": {
+        "iterations": 10000,
+        "mean_projected_aic": 481000,
+        "std_dev_aic": 32000,
+        "p10_projected_aic": 430000,
+        "p50_projected_aic": 480000,
+        "p90_projected_aic": 535000,
+        "is_reliable": true
       },
       "experiment_variants": [
         {
@@ -756,9 +727,6 @@ When `sampled_runs = 0`, all numeric fields in this object MUST be `0` and `iter
   `projected_aic` (P50 value) in descending order.
 - **R-OUT-011**: Workflows with zero projected tokens MUST appear after all workflows with non-zero projections.
 - **R-OUT-012**: Among workflows with equal projected tokens, the ordering SHOULD be deterministic (e.g., alphabetical by workflow ID).
-- **R-OUT-013**: JSON output SHOULD disclose episode lower-bound semantics by including
-  `episode_analysis.episode_count_is_lower_bound` for each workflow. Console output SHOULD include
-  a note when this field is `true`.
 
 ---
 
@@ -942,12 +910,10 @@ and adding new fixtures.
 - **T-FC-039**: Boundary crossover: `λ = 15` uses Knuth's exact branch.
 - **T-FC-040**: Boundary crossover: `λ > 15` uses Normal approximation branch.
 
-#### 12.1.5 Episode Analysis Tests
+#### 12.1.5 Retired Episode Analysis Tests
 
-- **T-FC-041**: Runs sharing `headSha` and `headBranch` are grouped into the same episode.
-- **T-FC-042**: `runs_per_episode` equals `sampled_run_count / sampled_episodes`.
-- **T-FC-043**: Episode table is printed in console output when any workflow has `runs_per_episode > 1`.
-- **T-FC-044**: Episode table is suppressed when all workflows have `runs_per_episode = 1.0`.
+**T-FC-041** through **T-FC-044** no longer apply to forecast. Episode grouping, per-episode
+metrics, and conditional episode tables were removed; these test IDs remain reserved.
 
 #### 12.1.6 Output Format Tests
 
@@ -957,6 +923,7 @@ and adding new fixtures.
 - **T-FC-053**: JSON `workflows` array is sorted by `projected_aic` descending.
 - **T-FC-054**: No stdout output (other than JSON) when `--json` is specified.
 - **T-FC-055**: Accuracy note emitted to stderr unless `--json` is specified.
+- **T-FC-056**: Workflow JSON omits `yield` and `episode_analysis`; console output contains neither a yield column nor an episode table.
 
 ### 12.2 Compliance Checklist
 
@@ -979,11 +946,10 @@ and adding new fixtures.
 | Percentile ordering | T-FC-037 | 1 | Required |
 | P50 field consistency | T-FC-038 | 1 | Required |
 | λ crossover threshold enforcement | T-FC-039–040 | 1 | Required |
-| Episode grouping | T-FC-041–042 | 2 | Required |
-| Episode table display logic | T-FC-043–044 | 2 | Required |
 | Console output columns | T-FC-050 | 1 | Required |
 | JSON schema conformance | T-FC-051–054 | 2 | Required |
 | Accuracy disclosure note | T-FC-055 | 1 | Required |
+| Retired yield and episode output absent | T-FC-056 | 2 | Required |
 
 ---
 
@@ -1015,9 +981,11 @@ This section maps normative forecast requirements to implementation files.
 | §6 Data Sampling | `pkg/cli/forecast.go` |
 | §7 Monte Carlo Projection Engine | `pkg/cli/forecast_montecarlo.go` |
 | Monte Carlo engine (Poisson/Bootstrap/Bernoulli) | `pkg/cli/forecast_montecarlo.go` |
-| Forecast command orchestration and output fields | `pkg/cli/forecast.go`, `pkg/cli/forecast_command.go` |
+| Forecast command orchestration and output fields | `pkg/cli/forecast.go`, `pkg/cli/forecast_command.go`, `pkg/cli/forecast_types.go` |
+| Console and JSON rendering | `pkg/cli/forecast_render.go` |
 | Workflow discovery, rate-limit backoff, and run sampling | `pkg/cli/forecast.go` |
 | Forecast compliance tests (including rate-limit backoff and λ thresholds) | `pkg/cli/forecast_montecarlo_test.go` |
+| Retired-output contract and fixture schema checks | `pkg/cli/forecast_compliance_fixtures_formal_test.go` |
 
 Sync procedure:
 1. Update this specification when changing projection algorithms or thresholds.
@@ -1064,7 +1032,7 @@ A workflow named `ci-doctor` has the following historical sample over 30 days:
 - 42 completed runs
 - 5 runs missing `aw_info.json` (treated as 0 AIC)
 - AIC observations (for the 37 runs with artifacts): range from 8,000 to 18,000, mean ≈ 12,500
-- 38 successful runs (yield = 38/42 ≈ 0.905)
+- 38 successful runs (`success_rate` = 38/42 ≈ 0.905)
 - Projection period: `month` (30 days)
 
 #### A.2 Observed Rate
@@ -1109,9 +1077,10 @@ The threshold of λ = 15 is chosen as the crossover point where Normal approxima
 
 Traditional projection models assume a parametric distribution (e.g., log-normal) for per-run token usage. Agentic workflow token usage is frequently multi-modal (e.g., simple tasks versus complex multi-step tasks) and exhibits heavy tails due to recursive sub-agent chains. Bootstrap resampling avoids distributional misspecification by directly sampling from the empirical distribution, preserving these characteristics faithfully. The tradeoff is that projections are bounded by observed extremes; extrapolation beyond observed maximum AIC requires explicit assumption and is out of scope for this specification.
 
-### Appendix D: Episode Count Lower-Bound Semantics
+### Appendix D: Retired Episode Count Semantics
 
-For orchestrator workflows that primarily use `workflow_call` or `workflow_dispatch` triggers, episodes are initiated by calls from another workflow rather than directly by GitHub events. These cross-workflow links are embedded in `aw_info.json` artifacts and are unavailable during forecasting when artifacts cannot be retrieved. As a result, each received `workflow_call` is counted as a separate episode, causing the episode count to overcount episodes and undercount the linkage. This means `runs_per_episode` may appear closer to `1.0` than its true value. Callers MUST treat `sampled_episodes` as a lower-bound estimate in this scenario and SHOULD note this limitation in any capacity planning documents.
+The former lower-bound discussion applied to episode output that forecast no longer emits.
+No episode-count estimate or linkage-completeness flag is part of the forecast contract.
 
 ### Appendix E: Workflow Discovery Race Conditions
 
@@ -1151,12 +1120,16 @@ Safeguard requirements for this specification are now defined in §10.7.
 
 ### Version 1.0.0 (Draft)
 
+- Aligned the contract with the removal of episode analysis and yield in [#34750](https://github.com/github/gh-aw/pull/34750); retired the associated requirements and tests without reusing their identifiers
+- Updated console columns and run-level JSON examples to match the current forecast output; replaced the obsolete yield-formula predicate with output-contract coverage
 - Promoted the `gh aw forecast` command out of experimental status
 - Removed the experimental-status stderr warning and `[EXPERIMENTAL]` command labels
 - Replaced the experimental warning (R-IMPL-040) with an accuracy-disclosure note: "All forecasts are estimates derived from historical samples and may be inaccurate."
 - Centralized console output explanations in the footer and removed user-facing "Monte Carlo" wording
 
 ### Version 0.1.0 (Experimental Draft)
+
+The entries below describe the historical draft, including features retired in Section 8.
 
 - Updated remote discovery requirements with workflow-race mitigation guidance (R-DISC-014)
 - Added optional JSON lower-bound disclosure field `episode_count_is_lower_bound` and recommendation R-OUT-013 (without reassigning existing R-OUT-010..012 semantics)

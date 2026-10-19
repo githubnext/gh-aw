@@ -3,6 +3,14 @@
 This directory contains fixture files for bootstrapping the Section 12 compliance tests of the
 [Forecast Specification](../../docs/src/content/docs/specs/forecast-specification.md).
 
+Forecast is a run-level AIC projection command. Episode analysis and yield were removed in
+[#34750](https://github.com/github/gh-aw/pull/34750); the former episode requirements and tests
+T-FC-041–T-FC-044 are retired, not missing fixture coverage. No episode fixtures are required.
+The former P4 yield-formula predicate is replaced by
+`TestFormal_P4_RunLevelOutputContract` (T-FC-056), which checks the serialized forecast
+shape rather than a formula absent from the command. Console exclusions are checked by
+`TestForecastTableOmitsRetiredMetrics`.
+
 ## Fixture Files
 
 ### `run_summary_minimal.json`
@@ -12,7 +20,6 @@ This fixture represents a single successful workflow run (`daily-report`) with:
 
 - `conclusion: "success"` — the run is counted as successful in Bernoulli sampling
 - `token_usage_summary.total_aic: 0.0054` — the AIC observation used in bootstrap resampling
-- `token_usage_summary.total_aic: 5400` — the corresponding AIC fixture value
 - `run.updatedAt` and `run.startedAt` — used to compute `duration_seconds`
 
 Use this fixture as the baseline for Monte Carlo engine compliance tests (**T-FC-031** through
@@ -58,16 +65,17 @@ must not produce NaN, infinity, or integer overflow in the simulation result.
 | `PercentileOrdering` (T-FC-037) | `TestPercentileOrdering` | P10 <= P50 <= P90 holds for a non-trivial observation set |
 | `P50FieldConsistency` (T-FC-038) | `TestProjectedTokensEqualsP50` | projected AIC is defined as, and equal to, Monte Carlo P50 |
 | `LambdaCrossoverAt15` (T-FC-039/040) | `TestLambdaCrossoverBoundaryAt15` | Boundary: lambda==15 uses Knuth; lambda>15 uses normal approximation |
+| `RunLevelOutputContract` (T-FC-056) | `TestFormal_P4_RunLevelOutputContract`, `TestForecastTableOmitsRetiredMetrics` | JSON excludes `yield` and `episode_analysis`; console excludes yield and episode tables |
 
 ## How to Run Compliance Tests
 
-The forecast compliance tests are located in `pkg/cli/forecast_montecarlo_test.go` and
-`pkg/cli/forecast_test.go`.
+The forecast compliance tests are located in `pkg/cli/forecast_montecarlo_test.go`,
+`pkg/cli/forecast_test.go`, and `pkg/cli/forecast_compliance_fixtures_formal_test.go`.
 
 To run the full forecast compliance test suite:
 
 ```bash
-go test -v -run "TestForecast" ./pkg/cli/
+go test -v -run "TestForecast|TestMonteCarlo|TestFormal" ./pkg/cli/
 ```
 
 To run only the Monte Carlo engine tests (covering T-FC-031–T-FC-040):
@@ -99,7 +107,6 @@ The `run_summary_minimal.json` fixture follows the `RunSummary` struct defined i
 | `run.updatedAt` | `Run.UpdatedAt` | Duration computation |
 | `run.startedAt` | `Run.StartedAt` | Duration computation |
 | `token_usage_summary.total_aic` | `TokenUsage.TotalAIC` | Bootstrap AIC sample |
-| `token_usage_summary.total_aic` | `TokenUsage.TotalAIC` | AIC fixture conformance |
 | `run_id` | `RunID` | Run identification |
 
 ## Adding New Fixtures
