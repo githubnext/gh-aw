@@ -30,6 +30,7 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 		"grader-shell-file-write",
 		"pull-request-target-checkout", "prompt-expression",
 		"gateway-dispatch-literals",
+		"artipacked", "cache-poisoning", "excessive-permissions", "obfuscation",
 	}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")
 	require.NoError(t, err)
