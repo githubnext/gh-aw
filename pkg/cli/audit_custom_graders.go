@@ -54,6 +54,7 @@ func downloadRegisteredCustomGraders(ctx context.Context, cfg auditRunConfig) (b
 	}
 	if err := downloadArtifactsByName(ctx, downloadArtifactsOptions{
 		runID: cfg.runID, outputDir: cfg.outputDir, owner: cfg.owner, repo: cfg.repo, hostname: cfg.hostname, verbose: cfg.verbose,
+		failOnDownloadError: true,
 	}, selected); err != nil {
 		return false, fmt.Errorf("cannot download optional custom grader artifact: %w", err)
 	}
