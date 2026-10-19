@@ -140,7 +140,7 @@ describe("push_to_pull_request_branch bundle integration", () => {
       const ancestor = execGit(["merge-base", "--is-ancestor", head, base], { cwd: repo, allowFailure: true });
       return { data: { status: ancestor.status === 0 ? "behind" : "diverged" } };
     });
-    const recognizedBase = await resolveBundleTrustedBase(exec, {}, oldHead, "HEAD", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" });
+    const recognizedBase = await resolveBundleTrustedBase(exec, {}, oldHead, "HEAD", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" }, true);
     expect(recognizedBase).toBe(trustedBase);
     expect(compareCommits).toHaveBeenCalledTimes(baseAdvanced ? 1 : 0);
     const { ref: baseline, conflictedFiles } = await getBundleValidationBase(exec, {}, oldHead, "HEAD", recognizedBase);
@@ -315,7 +315,12 @@ describe("push_to_pull_request_branch bundle integration", () => {
       const boundedOutput = module.boundedValidationExec.getExecOutput;
       // Match the fixture's exec API, which defaults all Git calls to targetRepo.
       boundedOutputSpy = vi.spyOn(module.boundedValidationExec, "getExecOutput").mockImplementation((command, args, options) => boundedOutput(command, args, { ...options, cwd: targetRepo }));
-      const handler = await module.main({ signed_commits: false, check_branch_protection: false, protected_files: ["package.json"] });
+      const handler = await module.main({
+        signed_commits: false,
+        check_branch_protection: false,
+        allow_merged_base_baseline: true,
+        protected_files: ["package.json"],
+      });
       const result = await handler({ branch: "feature" }, {});
       expect(result).toMatchObject({ success: false, skipped: true });
       expect(result.error).toContain(`${agentReverted ? "patch" : "bundle"} modifies protected files (package.json)`);

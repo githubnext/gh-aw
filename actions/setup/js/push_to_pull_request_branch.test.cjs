@@ -364,7 +364,7 @@ index 0000000..abc1234
       });
       const module = await loadModule();
       const confirmed = status === "behind" || status === "identical";
-      const base = await module.resolveBundleTrustedBase(mockExec, { cwd: tempDir }, "old-head", "candidate", trustedTip, mockGithub, mockContext.repo);
+      const base = await module.resolveBundleTrustedBase(mockExec, { cwd: tempDir }, "old-head", "candidate", trustedTip, mockGithub, mockContext.repo, true);
       expect(base).toBe(confirmed ? mergedBase : "");
       expect(mockGithub.rest.repos.compareCommits).toHaveBeenCalledExactlyOnceWith({ ...mockContext.repo, base: trustedTip, head: mergedBase, per_page: 1, request: { timeout: 5000, retries: 0, signal: expect.any(AbortSignal) } });
       expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["rev-list", "--topo-order", "--max-count=101", mergedBase, "--not", "old-head"], expect.any(Object));
@@ -2384,10 +2384,14 @@ index 0000000..abc1234
       ["agent-created octopus merge", "small patch\n", 16, "merge-agent.txt", "octopus merge", false, "", true],
       ["agent-created octopus merge after trusted-base fallback", "small patch\n", 16, "merge-agent.txt", "octopus merge", false, "", true, true],
     ];
-    const cases = scenarios.flatMap(scenario => [false, true].map(baseAdvanced => [baseAdvanced, ...scenario]));
+    const cases = scenarios.flatMap(scenario => [false, true].map(baseAdvanced => [baseAdvanced, true, ...scenario]));
+    cases.push(
+      [true, false, "oversized agent patch with older-base discovery disabled", "x".repeat(2048), 16, "merge-agent.txt", "Patch size", false],
+      [true, false, "oversized expanded content with older-base discovery disabled", "small patch\n", 2048, "merge-agent.txt", "Changed content size", false]
+    );
     it.each(cases)(
-      "validates with advanced base %s: %s independently of merged base changes",
-      async (baseAdvanced, _name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "", octopusMerge = false, mergeTreeFailure = false, historyPatch = agentPatch) => {
+      "validates with advanced base %s and merged-base opt-in %s: %s",
+      async (baseAdvanced, allowMergedBaseBaseline, _name, agentPatch, contentSize, changedFile, expectedError, binaryConflict, historyFile = "", octopusMerge = false, mergeTreeFailure = false, historyPatch = agentPatch) => {
         const branch = "merge-size-validation";
         const trustedBase = "b".repeat(40);
         const trustedTip = baseAdvanced ? "d".repeat(40) : trustedBase;
@@ -2423,11 +2427,19 @@ index 0000000..abc1234
         const pushSpy = vi.spyOn(pushModule, "pushSignedCommits").mockResolvedValue("candidate-head");
         try {
           const module = await loadModule();
-          const handler = await module.main({ max_patch_size: 1, signed_commits: false, protected_files: ["package.json"] });
+          const handler = await module.main({
+            max_patch_size: 1,
+            signed_commits: false,
+            allow_merged_base_baseline: allowMergedBaseBaseline,
+            protected_files: ["package.json"],
+          });
           const result = await handler({ branch, diff_size: 0 }, {});
           if (expectedError) {
             expect(result.success).toBe(false);
             expect(result.error).toContain(expectedError);
+            if (baseAdvanced && !allowMergedBaseBaseline && ["Patch size", "Changed content size"].includes(expectedError)) {
+              expect(result.error).toContain("allow-merged-base-baseline: true");
+            }
             expect(pushSpy).not.toHaveBeenCalled();
           } else {
             expect(result.success).toBe(true);
@@ -2438,7 +2450,7 @@ index 0000000..abc1234
             }
           }
           expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"], expect.objectContaining({ silent: true }));
-          if (baseAdvanced) {
+          if (baseAdvanced && allowMergedBaseBaseline) {
             expect(mockGithub.rest.repos.compareCommits).toHaveBeenCalledWith({
               owner: "test-owner",
               repo: "test-repo",
@@ -2450,6 +2462,11 @@ index 0000000..abc1234
             expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["merge-tree", "--write-tree", "--name-only", "-z", "remote-head", trustedBase], expect.any(Object));
           } else {
             expect(mockGithub.rest.repos.compareCommits).not.toHaveBeenCalled();
+          }
+          if (!baseAdvanced || allowMergedBaseBaseline) {
+            expect(mockExec.getExecOutput).toHaveBeenCalledWith("git", ["merge-tree", "--write-tree", "--name-only", "-z", "remote-head", trustedBase], expect.any(Object));
+          } else {
+            expect(mockExec.getExecOutput).not.toHaveBeenCalledWith("git", ["merge-tree", "--write-tree", "--name-only", "-z", "remote-head", trustedBase], expect.any(Object));
           }
           expect(mockExec.exec).not.toHaveBeenCalledWith("git", ["fetch", "origin", trustedBase], expect.any(Object));
           if (!mergeTreeFailure && expectedError !== "protected files" && expectedError !== "Patch size") {

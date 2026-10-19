@@ -136,7 +136,7 @@ describe("offline bundle transport with real Git", () => {
       const result = spawnSync("git", ["merge-base", "--is-ancestor", head, base], { cwd: source, env: gitEnv() });
       return { data: { status: result.status === 0 ? "behind" : "diverged" } };
     });
-    const recognized = await resolveBundleTrustedBase(exec, {}, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" });
+    const recognized = await resolveBundleTrustedBase(exec, {}, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" }, true);
     expect(recognized).toBe(mergedBase);
     expect(compareCommits.mock.calls.some(([args]) => args.head === olderBase)).toBe(false);
     const baseline = await getBundleValidationBase(exec, {}, oldHead, "refs/bundles/test", recognized);
@@ -213,7 +213,7 @@ describe("offline bundle transport with real Git", () => {
     const compareCommits = vi.fn(async () => ({ data: { status: "behind" } }));
     const options = { cwd: shallow, env: gitEnv() };
     expect(await resolveTrustedBaseTip(boundedValidationExec, options, "main")).toBe(trustedTip);
-    const recognized = await resolveBundleTrustedBase(boundedValidationExec, options, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" });
+    const recognized = await resolveBundleTrustedBase(boundedValidationExec, options, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" }, true);
     expect(recognized).toBe(mergedBase);
     await getBundleValidationBase(boundedValidationExec, options, oldHead, "refs/bundles/test", recognized);
 

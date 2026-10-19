@@ -248,12 +248,16 @@ async function resolveTrustedBaseTip(exec, gitOptions, baseRef) {
  * @param {{ owner: string, repo: string }} repoParts
  * @returns {Promise<string>}
  */
-async function resolveBundleTrustedBase(exec, gitOptions, oldHead, candidate, trustedTip, githubClient, repoParts) {
+async function resolveBundleTrustedBase(exec, gitOptions, oldHead, candidate, trustedTip, githubClient, repoParts, allowMergedBaseBaseline = false) {
   if (!trustedTip) return "";
   const opts = { ...offlineGitOptions(gitOptions), ignoreReturnCode: true };
   try {
     const tipAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedTip, candidate], opts);
     if (tipAncestor.exitCode === 0) return trustedTip;
+    if (!allowMergedBaseBaseline) {
+      core.debug("Bundle validation: merged base ancestor discovery is disabled");
+      return "";
+    }
 
     const merges = await exec.getExecOutput("git", ["rev-list", "--merges", "--parents", `--max-count=${MAX_BUNDLE_HISTORY_COMMITS + 1}`, `${oldHead}..${candidate}`], opts);
     if (merges.exitCode !== 0) return "";
@@ -503,6 +507,7 @@ async function main(config = {}) {
   const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const checkBranchProtection = config.check_branch_protection !== false;
   const signedCommits = config.signed_commits !== false;
+  const allowMergedBaseBaseline = config.allow_merged_base_baseline === true;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = parsePositiveInteger(config.max_patch_size) ?? 4096;
   const maxCount = config.max || 0; // 0 means no limit
@@ -612,6 +617,10 @@ async function main(config = {}) {
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
     const applyTransport = hasBundleFile ? "bundle" : "patch";
     const deferBundleValidation = hasBundleFile && !signedCommits && !isStaged;
+    const mergedBaseBaselineHint =
+      hasBundleFile && !signedCommits && !allowMergedBaseBaseline
+        ? ". If the bundle includes commits already merged into the current base branch, set allow-merged-base-baseline: true under safe-outputs.push-to-pull-request-branch to recognize the merged base ancestor."
+        : "";
     core.info(`Apply transport mode: ${applyTransport} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
     if (bundleFilePath && !hasBundleFile) {
       core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
@@ -693,8 +702,7 @@ async function main(config = {}) {
         core.info(`${sizeLabel}: ${sizeForCheckKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
         if (sizeForCheckKb > maxSizeKb) {
-          let msg;
-          msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+          const msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)${mergedBaseBaselineHint}`;
           return { error: { success: false, error: msg }, fallbackFiles };
         }
 
@@ -1244,7 +1252,7 @@ async function main(config = {}) {
 
           await importLocalBundle(exec, bundleFilePath, `refs/heads/${branchName}`, bundleRef, baseGitOpts);
           core.info(`Imported local bundle to ${bundleRef}`);
-          const trustedBase = await resolveBundleTrustedBase(boundedValidationExec, baseGitOpts, rangeBaseRef, bundleRef, trustedTip, githubClient, repoParts);
+          const trustedBase = await resolveBundleTrustedBase(boundedValidationExec, baseGitOpts, rangeBaseRef, bundleRef, trustedTip, githubClient, repoParts, allowMergedBaseBaseline);
           const validationBase = await getBundleValidationBase(boundedValidationExec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
@@ -1479,7 +1487,7 @@ async function main(config = {}) {
           const changedBlobSizeKb = Math.ceil(changedBlobSizeBytes / 1024);
           core.info(`Changed content size: ${changedBlobSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
           if (changedBlobSizeKb > maxSizeKb) {
-            const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+            const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)${mergedBaseBaselineHint}`;
             await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
             return { success: false, error: msg };
           }

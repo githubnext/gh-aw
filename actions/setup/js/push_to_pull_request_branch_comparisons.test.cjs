@@ -52,7 +52,7 @@ describe("bundle merge-parent comparison budget", () => {
   });
 
   async function resolve() {
-    return resolveBundleTrustedBase(mockExec, { cwd: process.cwd(), env: { GIT_ALLOW_PROTOCOL: "https", GIT_NO_LAZY_FETCH: "0" } }, oldHead, candidate, trustedTip, { rest: { repos: { compareCommits } } }, repoParts);
+    return resolveBundleTrustedBase(mockExec, { cwd: process.cwd(), env: { GIT_ALLOW_PROTOCOL: "https", GIT_NO_LAZY_FETCH: "0" } }, oldHead, candidate, trustedTip, { rest: { repos: { compareCommits } } }, repoParts, true);
   }
 
   it.each(["missing", "ahead", "diverged", "unknown"])("caps 24 attacker-controlled parents at four comparisons after %s results", async status => {
@@ -184,7 +184,7 @@ describe("bounded optional validation Git", () => {
     const compareCommits = vi.fn();
     const client = { rest: { repos: { compareCommits } } };
     expect(await resolveTrustedBaseTip(boundedValidationExec, {}, "main")).toBe("");
-    expect(await resolveBundleTrustedBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40), client, { owner: "owner", repo: "repo" })).toBe("");
+    expect(await resolveBundleTrustedBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40), client, { owner: "owner", repo: "repo" }, true)).toBe("");
     expect(await getBundleValidationBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40))).toEqual({ ref: "old", conflictedFiles: [] });
     expect(compareCommits).not.toHaveBeenCalled();
     expect(JSON.stringify(debug.mock.calls)).not.toContain("private");

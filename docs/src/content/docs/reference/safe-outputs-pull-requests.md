@@ -149,6 +149,8 @@ The agent's commits are packaged as a **git bundle** and uploaded as an Actions 
 
 If the base branch advances between agent start and `safe_outputs` apply, the PR can be created slightly behind the current base and addressed with a rebase when the necessary bundle objects are available. Otherwise, missing prerequisites cause the handler to fail unless recovery is explicitly enabled as described above. If a non-fast-forward race occurs during the push itself, the job creates a fallback PR from a temporary branch so no changes are lost.
 
+For unsigned bundle pushes, the handler recognizes the exact pinned base tip by default. If the base branch has advanced past an ancestor already included in the bundle, that older-ancestor size baseline is opt-in: set `allow-merged-base-baseline: true` under `safe-outputs.push-to-pull-request-branch`. Without it, validation uses the PR-head baseline; a related patch-size error points to the opt-in. This setting only enables bounded metadata/REST discovery and does not fetch base objects or enable history recovery.
+
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 
 :::caution[Shallow checkout and large monorepos]
