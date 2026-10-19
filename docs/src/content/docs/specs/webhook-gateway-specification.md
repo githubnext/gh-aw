@@ -13,9 +13,14 @@ sidebar:
 
 **Required payload projection:** `resource-url-types-filters/v2`.
 
+**Required dispatch provenance:** Approved CAO GitHub App installation token and mandatory destination App-identity verification.
+
 This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers GitHub issues, pull requests, discussions, every comment family, reviews/threads, Projects, security alerts, external issues, and commands. Custom webhooks are unsupported. It does not register webhook sources and is unrelated to the MCP gateway.
 
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
+
+> [!IMPORTANT]
+> The App-token provenance requirement below tightens the earlier generic dispatch-actor contract. The current compiler/runtime still uses standard role/bot authorization and does not generate the mandatory CAO identity gate. This protocol update does not implement that gate, verify a CAO deployment, or establish hosted readiness. An integration MUST remain nonactivating until both the receiver token flow and destination gate satisfy this contract.
 
 ## Configuration and experimental status
 
@@ -40,7 +45,7 @@ The entire `on.gateway-dispatch` section MUST use literal configuration. GitHub 
 
 The compiler emits an experimental-use notice for `on.gateway-dispatch` and notices for the selected triggers. Their schemas and reference documentation also identify them as experimental. Native GitHub Actions triggers remain unchanged.
 
-Dispatch actors MUST satisfy standard `on.roles` and `on.bots` authorization. Allowed explicit roles are `write`, `maintain`/`maintainer`, and `admin`; omission uses the standard write-or-higher default. `all`, `read`, `triage`, and lists containing weaker roles are rejected, including with `strict: false`. A payload's sender, organization, or claimed role is never authorization evidence.
+Gateway compilation retains the write-minimum role policy: allowed explicit roles are `write`, `maintain`/`maintainer`, and `admin`; omission uses the standard write-or-higher default. `all`, `read`, `triage`, and lists containing weaker roles are rejected, including with `strict: false`. This policy and `on.bots` MUST NOT substitute for, widen, or bypass the mandatory [App-token provenance gate](#github-app-token-provenance). A human writer or administrator is not an authorized gateway sender. A payload's sender, organization, or claimed role is never authorization evidence.
 
 ## Supported triggers and source data
 
@@ -233,9 +238,75 @@ No content beyond these references, type values, and declared matching literals 
 
 The batch envelope remains numeric version `2`; the explicit projection policy versions its per-delivery data boundary. The older `resource-url-types/v1` and `resource-url-types-filters/v1` policies, native-body Projects/provider payloads, URL-only security payloads without types, and `source_path`/`target_path` projection declarations are unsupported. Receivers MUST NOT silently ignore the new policy or fall back to forwarding native bodies. Subscription metadata or source payloads MUST NOT supply gateway authority.
 
+## GitHub App token provenance
+
+The CAO-to-workflow hop MUST use the following GitHub App token contract. Provider authentication at receiver ingress and App authentication at workflow ingress are separate requirements; neither replaces the other.
+
+### Approved identity binding
+
+Trusted onboarding MUST bind the GitHub API origin and Enterprise base path, destination repository ID, approved CAO App ID and its numeric bot-account ID, and the approved destination installation ID. App IDs, client IDs, bot-account IDs, and installation IDs are distinct identifiers and MUST NOT be interchanged. Resolve their binding through GitHub's authenticated APIs and independently reviewed enrollment, not source payloads, notification URLs, subscription discovery, or an arbitrary bot login.
+
+App identity and deployment configuration MUST be centrally configurable through protected environment variables, not repeated in subscribing workflow frontmatter:
+
+| Environment variable | Contract value |
+| --- | --- |
+| `GH_AW_GATEWAY_APP_ID` | Approved numeric CAO App ID on the configured GitHub host, not its client ID or bot-account ID. |
+| `GH_AW_GATEWAY_APP_BOT_ID` | Numeric bot-account ID independently bound to that App during trusted onboarding. |
+
+The same public identity binding MUST be supplied to CAO and the destination provenance gate. Destination workflows MAY obtain these values from centrally administered organization/repository Actions variables, mapped into the generated gate's environment. The compiler MUST supply that mapping; individual subscriptions MUST NOT need identity declarations. These variable names define the required integration contract, not currently implemented runtime options.
+
+CAO's installation selection and trusted GitHub API configuration MUST likewise come from centrally administered environment/configuration, with per-destination installation bindings resolved through GitHub's authenticated APIs. At the destination, the gate MUST bind the central App identity to GitHub-owned host/repository context, not replace that context with caller-supplied values. A protected central configuration is not permission to dispatch to every repository or enroll a source.
+
+The destination gate needs only this public App/bot binding, not the CAO private key or a copy of the dispatch token. Private keys MUST remain in CAO's secret-backed configuration, separate from ordinary public Actions variables; they MUST NOT be copied to destination workflows. Changes to the central configuration, gate environment mapping, and approved workflow revision MUST require trusted administration. Missing, empty, malformed, revoked, ambiguous, or unverifiable configuration MUST leave the integration nonactivating. Payload values, user-defined steps, and workflow-provided environment overrides MUST NOT replace the protected gate binding. No new frontmatter syntax or serialized manifest authentication field is defined by this contract.
+
+### CAO installation-token dance
+
+1. CAO MUST authenticate as the approved App using an App JWT signed with its protected private key and resolve the approved installation for the destination repository through the configured GitHub API.
+2. CAO MUST mint a short-lived installation access token for that installation, explicitly restricted to the destination repository and `contents: write`, the permission required by the repository dispatch endpoint. It MUST verify the returned repository scope, permissions, and expiry rather than inherit installation-wide authority.
+3. CAO MUST use that exact installation token to send `POST /repos/{owner}/{repo}/dispatches` for the admitted batch and emitted workflow route. Source and destination grants MUST still be current at dispatch, including retries; token possession does not replace durable admission, source authorization, or label-consumption fencing.
+
+A PAT, GitHub App user access token, workflow `GITHUB_TOKEN`, another App's token, or a fallback credential MUST NOT send a gateway dispatch. Mint or dispatch failure MUST be explicit and nonactivating; retries MUST NOT switch credential classes or bypass admission. Reuse of an unexpired token is allowed only while its exact repository/permission scope and installation approval remain valid.
+
+App private keys and token-minting authority MUST be isolated to the approved CAO dispatch service. Every minting path for that App MUST enforce the same source/destination admission policy; sharing its credentials with unrelated automation defeats CAO-only provenance. The App JWT and installation token MUST remain credentials for the configured GitHub API only, MUST NOT be sent to resource URLs or credential-bearing redirects, and MUST NOT enter the dispatch envelope, logs, artifacts, prompts, or agent environments. Expired or revoked tokens MUST NOT be reused; revoke tokens when their authorized use ends.
+
+### Mandatory destination gate
+
+The compiler MUST generate a non-overridable pre-activation gate on every gateway workflow. Using the original GitHub-owned runner event and context, the gate MUST require all of the following:
+
+| Check | Required evidence |
+| --- | --- |
+| Transport and route | `github.event_name` is `repository_dispatch` and the top-level event action equals the workflow's emitted dispatch type. |
+| App sender | Top-level `github.event.sender.type` is `Bot` and its numeric `id` equals the approved CAO bot-account ID for this GitHub host and destination. |
+| Original actor | `github.actor_id` equals the verified sender ID. `github.triggering_actor`, which can identify a rerun requester, MUST NOT replace the original actor as dispatch-origin evidence. |
+| Trusted binding | The centrally configured App/bot environment binding and destination approval are available independently of `client_payload`; invalid configuration, missing identity, or a failed required GitHub lookup MUST reject activation. |
+
+The gate MUST finish successfully before user-defined pre-activation/activation steps, agent execution, or privileged workflow operations. Its success MUST be an unconditional prerequisite of the generated activation decision, including custom activation outputs and `strict: false`. Standard role checks, `on.bots`, bot-collaborator lookup exceptions, `on.github-app`, or minting a token for later API operations MUST NOT rescue a provenance mismatch. A verified App MUST NOT need to masquerade as a human repository collaborator.
+
+Only GitHub's top-level sender and original actor context establish the dispatch principal. `client_payload` sender/app/installation claims, event-type names, delivery IDs, source webhook signatures, and tokens minted by the destination workflow are not proof of who sent the dispatch. The workflow MUST NOT request or accept a bearer token in the payload. A top-level installation field alone MUST NOT be treated as proof of the dispatch credential's installation or scope.
+
+This check authenticates the approved App principal, not a particular CAO process, tenant, original provider signature, or exact token instance. GitHub does not expose the dispatch bearer token to the workflow. Token minting/scope validation and installation checks therefore belong to CAO; the destination verifies the independently bound App sender. CAO MUST enforce source/destination isolation for every tenant sharing that App. Original-source authentication, durable admission, and replay controls remain receiver responsibilities.
+
+### Conformance and adoption
+
+Receiver and compiler/runtime acceptance tests MUST cover the following cases before activation:
+
+| Case | Required result |
+| --- | --- |
+| Approved App installation token, destination binding, route, actor, and valid batch | Pass provenance, then perform all existing batch validation. |
+| Human writer/admin, PAT, App user token, or workflow token dispatch | Reject provenance even when standard role/bot checks would authorize the actor. |
+| Unrelated App or bot, including one listed in `on.bots` | Reject provenance. |
+| Missing/mismatched sender type or numeric sender/actor ID, absent/empty/malformed central environment binding, or identity lookup failure | Reject before custom steps or privileged work; emit an actionable error without credential values. |
+| Payload or user-step override of central App identity configuration | Reject or prevent the override; never change the trusted sender binding. |
+| Spoofed sender/App/installation fields inside `client_payload` | Reject under the closed envelope; never use them as identity evidence. |
+| Rerun by a different authorized user | Check the original dispatch principal, not the rerun requester; preserve GitHub's separate rerun authorization. |
+| Wrong destination installation/repository, excessive token scope, expired/revoked token, or mint failure | CAO refuses dispatch; no fallback token or broader installation-wide mint. |
+| Invalid batch from the approved App | Reject under existing route, projection, selector, size, and batch rules. |
+
+The envelope and subscription schema remain numeric version `2`; this contract adds no bearer token, payload proof, or projection field. Version `2`, the projection policy, and successful compilation alone MUST NOT be interpreted as provenance conformance. Receiver and destination workflow/compiler revisions MUST be independently approved together before activation. Older role/bot-only workflows are not conforming, and an unsupported destination MUST remain nonactivating rather than receive a permissive compatibility dispatch. Native non-gateway workflows retain their existing authorization behavior.
+
 ## Dispatch envelope
 
-The receiver sends `POST /repos/{owner}/{repo}/dispatches` to the repository containing the discovered workflow, not a source repository named in a payload. It MUST use the emitted `dispatch.event_type`: `gh-aw-webhook-` plus the first 24 hexadecimal SHA-256 characters of the workflow ID. All subscriptions in one workflow share that route.
+The receiver sends `POST /repos/{owner}/{repo}/dispatches` using the approved App installation token to the repository containing the discovered workflow, not a source repository named in a payload. It MUST use the emitted `dispatch.event_type`: `gh-aw-webhook-` plus the first 24 hexadecimal SHA-256 characters of the workflow ID. All subscriptions in one workflow share that route.
 
 ```json title="dispatch.json"
 {
@@ -441,11 +512,11 @@ The agent MUST handle every intended item explicitly, not silently use the first
 
 | Component | Contract responsibility |
 | --- | --- |
-| Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata and restricted dispatch routing. External providers do not create GitHub App webhook/permission requirements. |
-| Approved receiver | Verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch with an authorized destination credential. Keep administrative grants separate from untrusted metadata. |
+| Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata, restricted dispatch routing, and the mandatory App-provenance activation gate. External providers do not create GitHub source-webhook requirements; all gateway families still require the CAO destination App-token contract. |
+| Approved receiver | Verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch using the scoped installation token for the approved CAO App. Keep administrative grants and minting authority separate from untrusted metadata. |
 | Runner | Validate route, schema, projection policy, sizes, closed payload/filter key/value allowlist, complete condition alternatives, URL-derived identity, selected activities/native registration, and explicit repository/organization selectors. It does not fetch resource details or re-derive source transitions. Invalid elements fail the whole batch. |
 | Workflow | Resolve any additional resource data through configured provider-authenticated clients so the provider enforces access. Handle denied/deleted resources without falling back to native webhook bodies. |
-| Standard authorization gate | Authorize the actual GitHub dispatch actor through role and bot rules before agent execution. It does not authenticate original provider signatures. |
+| App-provenance gate | Require the approved GitHub-owned CAO App sender and original actor identity before custom steps or privileged work. Role/bot rules cannot widen this trust boundary. It does not authenticate original provider signatures. |
 
 The runner checks projected filter values against `conditions` and a complete `any_of` group, but cannot independently prove the original-payload predicates or lifecycle/label evidence. Original-source matching belongs to the authenticated receiver before projection. Types and filter values describe the delivered event, not an assurance of current state or continuing access. A correctly shaped URL is not proof of source authorization or provider access.
 
@@ -467,4 +538,4 @@ Receiver deployment, credential isolation, approved artifact/revision binding, d
 
 The [GitHub webhook trigger reference](/gh-aw/reference/webhook-triggers/) defines the detailed GitHub filter catalog and dispatch authorization. The [provider issue reference](/gh-aw/reference/provider-issue-triggers/) contains the provider selector catalog and authoritative Jira, Linear, and Azure DevOps documentation supporting each normalization rule.
 
-See the [GitHub repository dispatch API](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event), [GitHub webhook payloads](https://docs.github.com/en/webhooks/webhook-events-and-payloads), [Jira webhooks](https://developer.atlassian.com/cloud/jira/platform/webhooks/), [Linear webhooks](https://linear.app/developers/webhooks), and [Azure DevOps service-hook events](https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops).
+See the [GitHub repository dispatch API](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event), [App installation-token generation](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app), [GitHub actor contexts](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context), [GitHub webhook payloads](https://docs.github.com/en/webhooks/webhook-events-and-payloads), [Jira webhooks](https://developer.atlassian.com/cloud/jira/platform/webhooks/), [Linear webhooks](https://linear.app/developers/webhooks), and [Azure DevOps service-hook events](https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops).

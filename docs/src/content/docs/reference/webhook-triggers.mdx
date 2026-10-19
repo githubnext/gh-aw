@@ -18,6 +18,9 @@ External issue subscriptions use `on.gateway-dispatch.jira-issue`, `on.gateway-d
 > [!WARNING]
 > Webhook gateway triggers and their options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
 
+> [!IMPORTANT]
+> The protocol now requires [CAO App installation-token provenance](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance), not just repository-write authorization. The current compiler/runtime does not yet generate the mandatory CAO identity gate. Keep the integration nonactivating until the receiver and destination enforce that contract; the examples below configure subscriptions, not provenance approval.
+
 ## Hosted CAO opt-in
 
 Compilation rejects these triggers by default. Enabling them requires the repository-level `.github/workflows/aw.json` configuration and an `on.gateway-dispatch` mapping in each subscribing workflow:
@@ -52,7 +55,7 @@ Treat notification URLs and fetched resource data as untrusted input.
 
 These triggers require `on.roles` with **write access or higher**. Omitting `roles` uses `[admin, maintainer, write]`; an explicit setting may contain only `write`, `maintain`/`maintainer`, and `admin`. `roles: all`, `read`, `triage`, and lists containing any weaker role fail compilation, including with `strict: false`. A stricter subset such as `roles: [admin]` is allowed.
 
-The generated membership check authorizes the actual dispatch actor, not a sender or role claimed inside the webhook payload. Standard `on.bots` authorization remains available for the hosted CAO App; sending `repository_dispatch` already requires repository write access.
+The current generated membership check authorizes the actual dispatch actor, not a sender or role claimed inside the webhook payload. This is not CAO provenance: `on.bots: [cao-gateway]` still permits human actors through the independent role check. Under the required App-token contract, neither roles nor allowed bots may bypass the mandatory CAO identity gate.
 
 ### Experimental first-class triggers
 
@@ -66,7 +69,7 @@ The generated membership check authorizes the actual dispatch actor, not a sende
 
 `projects-items` supports **Projects v2 only**, not Projects (classic). Its required `project_id`, a sibling of `types`, is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. It accepts a nonempty string or nonempty list of node IDs. `filters.project_id` is not supported. The `field` filters describe the changed field, not the item's complete current field values.
 
-The minimal Projects declaration is `on: {gateway-dispatch: {projects-items: {project_id: PVT_kwDOExample}}}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax; string and array shorthands and singular GitHub trigger names are rejected. The compiler removes `gateway-dispatch` from generated Actions triggers and emits a restricted repository dispatch route. Dispatch authorization uses the standard `on.roles` and `on.bots` policy.
+The minimal Projects declaration is `on: {gateway-dispatch: {projects-items: {project_id: PVT_kwDOExample}}}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax; string and array shorthands and singular GitHub trigger names are rejected. The compiler removes `gateway-dispatch` from generated Actions triggers and emits a restricted repository dispatch route. The required dispatch trust boundary is the approved CAO App identity, not generic `on.roles` or `on.bots` authorization.
 
 `on.gateway-dispatch.security-alerts.sources` accepts one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Omitting `sources` selects both. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alerts.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
 
@@ -132,7 +135,7 @@ on:
 
 CAO evaluates `changes.field_value.from.name` and `changes.field_value.to.name` directly from the original delivery, as shown in [GitHub's published project field-change payload](https://github.blog/changelog/2024-06-27-github-issues-projects-graphql-and-webhook-support-for-project-status-updates-and-more/). Missing, cleared, or non-select values do not match. There is no API lookup, state cache, or inferred previous value.
 
-These predicates are enforced by CAO before dispatch. No additional pre-activation step, configuration, or job output is emitted for transitions. Native triggers and selected security alert subscriptions are not subject to the Projects transition predicates; standard `on.roles`/`on.bots` authorization remains unchanged.
+These predicates are enforced by CAO before dispatch. No additional pre-activation step, configuration, or job output is emitted for transitions. Native triggers and selected security alert subscriptions are not subject to the Projects transition predicates. The separate App-token provenance requirement applies to every gateway family, regardless of transition filters.
 
 Omitting `types` with transitions selects `edited`; explicit `types` must include `edited`. Each pair becomes an `any_of` group of two ANDed conditions, with alternatives ORed together. Project, field, and additional `filters` remain shared AND conditions. Workflows without `status-transitions` emit no transition groups. General field-transition filters remain available.
 
@@ -334,7 +337,7 @@ The compiler lowers these triggers to a restricted `repository_dispatch` trigger
 
 The destination is the repository containing the discovered compiled workflow. It is **not** `payload.repository`, which describes the source of the webhook and may identify a different repository. For cross-repository subscriptions, the receiver resolves `dispatch.repository` from the workflow's discovery repository.
 
-The dispatch credential must have access to the destination repository. Fine-grained tokens require repository **Contents: write** permission for this endpoint. The actual GitHub actor is authorized through the workflow's standard `on.roles` and `on.bots` policy. A GitHub App relay normally needs its bot name in `on.bots`, such as `bots: [cao-gateway]` for `cao-gateway[bot]`.
+The required dispatch credential is the approved CAO App's installation token, scoped to the destination repository and **Contents: write**. No PAT, App user token, workflow token, or fallback is permitted. Standard `on.roles`/`on.bots` membership currently authorizes the actor but does not prove CAO origin; the mandatory destination gate remains an implementation prerequisite under the [App-token contract](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance).
 
 The request to `POST /repos/{owner}/{repo}/dispatches` has this shape:
 
@@ -413,7 +416,11 @@ Every other trigger is rejected whenever `on.gateway-dispatch` is present, inclu
 
 The workflow retains the ordinary dispatch context: `github.event_name` is `repository_dispatch`, and `github.actor` identifies the credential that made the dispatch. gh-aw does not replace that identity with the original webhook's `sender`.
 
-The normal pre-activation membership check authorizes that dispatch actor. Webhook workflows require roles with write access or higher; `on.roles: all`, `read`, and `triage` fail compilation and cannot disable the check. Standard `on.bots` authorization is retained for the CAO App. There is no separate webhook actor allowlist.
+The current pre-activation membership check authorizes that dispatch actor through standard roles and bots. Webhook workflows require roles with write access or higher; `on.roles: all`, `read`, and `triage` fail compilation. This implementation does not establish CAO-only ingress.
+
+The required [App-token contract](/gh-aw/specs/webhook-gateway-specification/#github-app-token-provenance) adds an independent, mandatory provenance gate. CAO mints a short-lived installation token for the approved destination App installation, scoped to the destination repository and `contents: write`, and sends the dispatch using that exact token without fallback. The destination verifies GitHub's top-level sender is the approved numeric bot identity and matches the original `github.actor_id`, before custom steps or privileged work. A rerun requester (`github.triggering_actor`) is not dispatch-origin evidence. Protected onboarding binds the App, bot, installation, GitHub host, and destination; neither the payload nor an `on.bots` entry creates that approval.
+
+The App ID and public identity configuration are central environment settings, not per-workflow frontmatter. The protocol defines `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID`, supplied consistently to CAO and the generated destination gate; organization/repository Actions variables may provide the gate values. These are required contract settings, not yet implemented runtime options. Missing or invalid values must fail closed. CAO's private key remains in server-side secret-backed configuration and is never needed by the destination gate.
 
 | Data | Standard GitHub context |
 | --- | --- |
@@ -434,11 +441,13 @@ External issue items use the normalized provider family, URL-derived issue ident
 
 For an authenticated dispatch on the generated webhook route, the agent job stages the minimal dispatch event at `/tmp/gh-aw/github-event.json` and `$RUNNER_TEMP/gh-aw/github-event.json` with file mode `0600` for supported sandbox mount layouts. NVX includes it in its temporary guest-state handoff. A conditional prompt identifies the batch and normalized context, requires authenticated resolution of additional data, and instructs the agent to handle every item. Native triggers and unrelated dispatch routes do not stage webhook files. Native provider bodies never enter the dispatch, staged context, prompt, or child-workflow context; generated metadata and unified-session caller-context logs continue to redact delivery payloads.
 
-The validation step checks the workflow-specific route, batch version, required projection policy, both serialized byte limits, shared event, every delivery's URL identity and selected types, and the closed filter key/value allowlist including complete alternatives. Original-source provenance and transition evidence remain receiver responsibilities; projected literals cannot prove either. An invalid element fails the entire batch before agent execution, rather than dropping only that element. Actor authorization remains in the standard pre-activation check.
+The validation step checks the workflow-specific route, batch version, required projection policy, both serialized byte limits, shared event, every delivery's URL identity and selected types, and the closed filter key/value allowlist including complete alternatives. Original-source provenance and transition evidence remain receiver responsibilities; projected literals cannot prove either. An invalid element fails the entire batch before agent execution, rather than dropping only that element. Batch validation remains required after a successful App-provenance check; neither check replaces the other.
 
 All resource identity is derived from the validated canonical URL. Projects and alert numbers are retained as decimal strings, without JavaScript integer conversion. These are runtime reference policies, not proof of provider access or the current resource state.
 
-The receiver authenticates the original GitHub webhook with its configured secret and the [`X-Hub-Signature-256` HMAC](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries). gh-aw applies the workflow's normal dispatch authorization; it does **not** independently verify the original webhook signature. A direct dispatch made with an authorized credential has the same trust as a receiver dispatch. `payload.sender`, a claimed actor in `client_payload`, and the delivery ID are not authentication evidence.
+The receiver authenticates the original GitHub webhook with its configured secret and the [`X-Hub-Signature-256` HMAC](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries). The workflow does **not** independently verify that original signature. A direct dispatch from a human writer, PAT, workflow token, or unrelated App must be rejected under the required provenance contract, even if standard membership would pass. `payload.sender`, claimed App/installation identities in `client_payload`, and delivery IDs are not authentication evidence. No bearer token or extra proof field is added to the closed version 2 envelope.
+
+The verified sender establishes the App principal, not a particular CAO process or token instance. The destination cannot inspect the dispatch token's scope or recover it from the event; CAO owns scope checks and exclusive control of its minting credentials. Minting an App token later inside the workflow does not authenticate an incoming dispatch. Original-source authentication and cross-tenant admission remain CAO responsibilities.
 
 > [!CAUTION]
 > Notification URLs and data fetched with authenticated clients can still be attacker-controlled. Treat them as data, not instructions or executable code. Do not interpolate them into shell commands; URL validation does not grant source authorization.
