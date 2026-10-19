@@ -146,7 +146,9 @@ Use this to suppress content from known-bad accounts — automated bots, comprom
 
 `trusted-users` elevates content from listed GitHub usernames to `approved` integrity, regardless of their author association. This is useful for contractors, partner developers, or external contributors who should be treated as trusted even though GitHub classifies them as `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR`.
 
-Bot logins such as `github-actions[bot]` are also valid. Use the full login, including the `[bot]` suffix. Trust applies to issues, pull requests, and comments authored by that login; it does not extend to other authors' comments on a trusted bot's issue or pull request. Listing a bot does not require lowering `min-integrity` to `none`.
+Bot logins such as `github-actions[bot]` are also valid. Use the full login, including the `[bot]` suffix. Trust is configured per author and does not extend to other authors' comments on a trusted bot's issue or pull request. Listing a bot does not require lowering `min-integrity` to `none`.
+
+**Known limitation:** the MCP gateway may still classify bot-authored content as `DIFC_FILTERED` at runtime despite this configuration. Compiling the policy does not guarantee that `issue_read` will return the bot-authored body; see [#70242](https://github.com/github/gh-aw/issues/70242).
 
 ```aw wrap
 tools:

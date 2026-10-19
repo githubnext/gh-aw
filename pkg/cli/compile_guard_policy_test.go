@@ -408,6 +408,8 @@ This workflow uses trusted-users alongside blocked-users.
 	assert.Contains(t, lockFileContent, `steps.parse-guard-vars.outputs.blocked_users`, "Compiled lock file must reference blocked_users step output")
 }
 
+// TestGuardPolicyTrustedBotCompiledOutput verifies compile-time policy handoff only.
+// It does not verify runtime bot-content elevation through the MCP gateway; see #70242.
 func TestGuardPolicyTrustedBotCompiledOutput(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
