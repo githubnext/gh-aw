@@ -115,8 +115,11 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 func TestSecurityAlertRepositorySelectors(t *testing.T) {
 	for _, name := range []string{"security-alerts"} {
 		t.Run(name, func(t *testing.T) {
-			config := map[string]any{"repos": []any{"Foo/*", "bar/baz", "BAR/BAZ", "foo/*"}}
-			on := map[string]any{"webhook-gateway": true, name: config}
+			on := map[string]any{
+				"webhook-gateway": true,
+				"repos":           []any{"Foo/*", "bar/baz", "BAR/BAZ", "foo/*"},
+				name:              map[string]any{},
+			}
 			before, err := json.Marshal(on)
 			require.NoError(t, err)
 			subscriptions, err := ParseWebhookSubscriptions(on, "multi-repo")
@@ -137,22 +140,36 @@ func TestSecurityAlertRepositorySelectors(t *testing.T) {
 }
 
 func TestSecurityAlertRejectsInvalidRepositorySelectors(t *testing.T) {
-	for _, name := range []string{"security-alerts"} {
-		for _, repos := range []any{
-			nil, "bar/baz", true, []any{}, []string{}, []any{7}, []any{"bar/baz", true},
-			[]any{""}, []any{" "}, []any{"*"}, []any{"*/*"}, []any{"*/baz"},
-			[]any{"bar/**"}, []any{"bar/ba*"}, []any{"bar/?az"}, []any{"bar/[baz]"},
-			[]any{"bar"}, []any{"/baz"}, []any{"bar/"}, []any{"bar/baz/other"},
-			[]any{"https://github.com/bar/baz"}, []any{"${{ github.repository }}"},
-			[]any{"bar/baz "}, []any{" bar/baz"}, []any{"bar/baz\n"}, []any{"bar/."}, []any{"bar/.."},
-		} {
-			t.Run(name+"/"+fmt.Sprint(repos), func(t *testing.T) {
-				_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, name: map[string]any{"repos": repos}}, "invalid-repos")
-				require.ErrorContains(t, err, "on."+name+".repos")
-				assert.Contains(t, err.Error(), "owner/repo or owner/*")
-			})
-		}
+	for _, repos := range []any{
+		nil, "bar/baz", true, []any{}, []string{}, []any{7}, []any{"bar/baz", true},
+		[]any{""}, []any{" "}, []any{"*"}, []any{"*/*"}, []any{"*/baz"},
+		[]any{"bar/**"}, []any{"bar/ba*"}, []any{"bar/?az"}, []any{"bar/[baz]"},
+		[]any{"bar"}, []any{"/baz"}, []any{"bar/"}, []any{"bar/baz/other"},
+		[]any{"https://github.com/bar/baz"}, []any{"${{ github.repository }}"},
+		[]any{"bar/baz "}, []any{" bar/baz"}, []any{"bar/baz\n"}, []any{"bar/."}, []any{"bar/.."},
+	} {
+		t.Run(fmt.Sprint(repos), func(t *testing.T) {
+			_, err := ParseWebhookSubscriptions(map[string]any{
+				"webhook-gateway": true,
+				"repos":           repos,
+				"security-alerts": map[string]any{},
+			}, "invalid-repos")
+			require.ErrorContains(t, err, "on.repos")
+			assert.Contains(t, err.Error(), "owner/repo or owner/*")
+		})
 	}
+}
+
+func TestWebhookRepositoriesRequireSecurityAlertsAndGatewayOptIn(t *testing.T) {
+	_, err := ParseWebhookSubscriptions(map[string]any{"repos": []any{"bar/baz"}}, "missing-gateway")
+	require.ErrorContains(t, err, "on.repos requires on.webhook-gateway: true")
+
+	_, err = ParseWebhookSubscriptions(map[string]any{
+		"webhook-gateway": true,
+		"repos":           []any{"bar/baz"},
+		"projects-items":  map[string]any{"project_id": "PVT_example"},
+	}, "projects-only")
+	require.ErrorContains(t, err, "on.repos requires an on.security-alerts subscription")
 }
 
 func TestSecurityAlertOmittedSelectors(t *testing.T) {
@@ -166,12 +183,24 @@ func TestSecurityAlertOmittedSelectors(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, string(encoded), `"repos"`)
 		}
-		subscriptions, err = ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, name: map[string]any{"sources": "dependabot", "repos": []string{"bar/baz"}}}, "explicit-source")
+		subscriptions, err = ParseWebhookSubscriptions(map[string]any{
+			"webhook-gateway": true,
+			"repos":           []string{"bar/baz"},
+			name:              map[string]any{"sources": "dependabot"},
+		}, "explicit-source")
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 1)
 		assert.Equal(t, "dependabot_alert", subscriptions[0].Event)
 		assert.Equal(t, []string{"bar/baz"}, subscriptions[0].Repos)
-		_, err = ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, name: map[string]any{"repos": []string{"bar/baz"}, "sources": "secret-scanning"}}, "secret")
+		_, err = ParseWebhookSubscriptions(map[string]any{
+			"webhook-gateway": true,
+			name:              map[string]any{"repos": []string{"bar/baz"}, "sources": "secret-scanning"},
+		}, "secret")
+		require.ErrorContains(t, err, "on.security-alerts.repos is not supported")
+		_, err = ParseWebhookSubscriptions(map[string]any{
+			"webhook-gateway": true,
+			name:              map[string]any{"sources": "secret-scanning"},
+		}, "secret")
 		require.ErrorContains(t, err, "on."+name+".sources")
 	}
 }

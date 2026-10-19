@@ -129,7 +129,7 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 		},
 		{
 			name: "plural multi-repository alerts default to both sources",
-			on:   map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{"repos": []any{"bar/baz", "foo/*"}}},
+			on:   map[string]any{"webhook-gateway": true, "repos": []any{"bar/baz", "foo/*"}, "security-alerts": map[string]any{}},
 			want: map[string]string{"security_events": "read", "vulnerability_alerts": "read"},
 		},
 		{

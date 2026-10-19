@@ -32,8 +32,8 @@ func TestWebhookManifestCompilation(t *testing.T) {
       alert_number: 42
 `,
 		"multi-repo": `  webhook-gateway: true
-  security-alerts:
-    repos: [bar/baz, "foo/*"]
+  repos: [bar/baz, "foo/*"]
+  security-alerts: {}
 `,
 		"combined": `  workflow_dispatch:
   webhook-gateway: true

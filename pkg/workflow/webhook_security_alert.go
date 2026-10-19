@@ -3,12 +3,13 @@ package workflow
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
 )
 
-func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string) error {
+func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string, repos []string) error {
 	raw, exists := on["security-alerts"]
 	if !exists {
 		return nil
@@ -16,7 +17,14 @@ func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string)
 	const path = "on.security-alerts"
 	config, ok := raw.(map[string]any)
 	if !ok {
-		return fmt.Errorf("%s must be an object with optional sources, repos, types, severity, and filters", path)
+		return fmt.Errorf("%s must be an object with optional sources, types, severity, and filters", path)
+	}
+	if _, exists := config["repos"]; exists {
+		return errors.New("on.security-alerts.repos is not supported; use on.repos")
+	}
+	if len(repos) > 0 {
+		config = maps.Clone(config)
+		config["repos"] = repos
 	}
 	selected, err := securityAlertSourceEvents(config, path)
 	if err != nil {

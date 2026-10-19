@@ -217,8 +217,9 @@ func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *
 			name: "plural multi-repository security alerts",
 			triggers: `on:
   webhook-gateway: true
+  repos: [bar/baz, "foo/*"]
   security-alerts:
-    repos: [bar/baz, "foo/*"]
+    sources: [dependabot]
 `, wantPermissions: map[string]string{
 				"contents": "read", "security_events": "read", "vulnerability_alerts": "read",
 			},

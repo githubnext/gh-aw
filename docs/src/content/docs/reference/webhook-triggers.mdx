@@ -96,16 +96,16 @@ Security alerts can select multiple source repositories:
 ---
 on:
   webhook-gateway: true
+  repos:
+    - bar/baz
+    - foo/*
   security-alerts:
-    repos:
-      - bar/baz
-      - foo/*
 ---
 
 Triage every unique alert in github.aw.context.items.
 ```
 
-`repos` is an optional nonempty list of literal `owner/repo` or `owner/*` selectors. Matching is case-insensitive; the compiler lowercases, sorts, and deduplicates the selectors. Any selector may match (**OR**), in addition to the selected source, activity, and payload conditions (**AND**). Wildcard owners, partial-name patterns, URLs, expressions, and exclusions are rejected. `repos` is a sibling of `sources` and `types`, not a payload filter. Projects triggers do not accept it.
+`on.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` selectors for `on.security-alerts`. Matching is case-insensitive; the compiler lowercases, sorts, and deduplicates the selectors. Any selector may match (**OR**), in addition to the selected source, activity, and payload conditions (**AND**). Wildcard owners, partial-name patterns, URLs, expressions, and exclusions are rejected. It is a top-level `on` setting, not a payload filter, and currently does not apply to Projects or external-provider triggers.
 
 Selectors describe source selection, not access grants. The CAO bridge must resolve them only over fresh, reviewed private-repository enrollments and authorize each source separately. Omitted `repos` adds no selector and preserves the existing approved scope; the CAO bridge defaults to same-repository activation. Neither omission nor `owner/*` authorizes unreviewed repositories. The dispatch destination remains the repository declaring the workflow.
 
@@ -139,7 +139,7 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 | `on.projects-items.project_id` | Yes, for `projects-items` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
 | `on.projects-items.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
 | `on.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
-| `on.security-alerts.repos` | No | Nonempty list of source repository selectors: literal `owner/repo` or `owner/*`. Omission preserves CAO's existing approved source scope. |
+| `on.repos` | No | Nonempty list of source repository selectors for `on.security-alerts`: literal `owner/repo` or `owner/*`. Omission preserves CAO's existing approved source scope. |
 | `on.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
 | `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no additional field conditions. |

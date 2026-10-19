@@ -779,6 +779,10 @@
               "type": "boolean",
               "description": "Experimental. Must be true in each workflow using webhook triggers, including external issue providers. Also requires aw.json webhook-gateway: true. Does not grant gateway authority."
             },
+            "repos": {
+              "$ref": "#/$defs/webhookRepositoryValues",
+              "description": "Experimental. Source repository selectors for security-alert webhook subscriptions; exact owner/repo or owner/* only. Selectors do not grant access."
+            },
             "projects-items": {
               "type": "object",
               "additionalProperties": false,
@@ -14708,17 +14712,6 @@
           ],
           "description": "Experimental. Security alert sources; omission selects both code-scanning and dependabot. Secret scanning and related scan/location events are unsupported."
         },
-        "repos": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z0-9_-]+/([a-zA-Z0-9._-]+|\\*)$",
-            "not": { "anyOf": [{ "pattern": "/\\.{1,2}$" }, { "pattern": "\\s" }] }
-          },
-          "description": "Experimental. Source repository selectors: exact owner/repo or owner/* only. Matching is case-insensitive. Omission leaves CAO's approved source scope unchanged; selectors do not grant cross-repository access."
-        },
         "severity": {
           "$ref": "#/$defs/webhookStringValues",
           "description": "Experimental. Source-specific severity string or nonempty list of severities; sibling of types."
@@ -14747,6 +14740,16 @@
           "items": { "type": "string", "minLength": 1, "pattern": "\\S" }
         }
       ]
+    },
+    "webhookRepositoryValues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]+/([a-zA-Z0-9._-]+|\\*)$",
+        "not": { "anyOf": [{ "pattern": "/\\.{1,2}$" }, { "pattern": "\\s" }] }
+      }
     },
     "work_queue_worker_profile": {
       "type": "object",

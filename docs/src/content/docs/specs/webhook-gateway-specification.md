@@ -83,11 +83,11 @@ Incoming provider deliveries to the receiver MUST supply the identities, require
 
 `projects-items` requires a `project_id` node ID or nonempty list of IDs beside `types`. Optional `status-transitions` selects complete `{from, to}` Status pairs; it requires `edited` and delivered single-select Status evidence. `security-alerts.sources` selects `code-scanning`, `dependabot`, or both by default; supplied types and filters MUST be supported by every selected source.
 
-All trigger objects accept `types`. Projects and security alerts accept `filters`; external issue providers instead use the flat selectors and required scopes above. Projects additionally accepts `project_id` and `status-transitions`; security alerts accept `sources`, `repos`, and `severity`; only Azure accepts `closed-states`. Unknown properties are rejected. `severity` is a sibling of `types`, not a nested payload filter, and uses the selected source's cataloged severity values.
+All trigger objects accept `types`. Projects and security alerts accept `filters`; external issue providers instead use the flat selectors and required scopes above. Projects additionally accepts `project_id` and `status-transitions`; security alerts accept `sources` and `severity`; only Azure accepts `closed-states`. The top-level `on.repos` selector applies to security alerts. Unknown properties are rejected. `severity` is a sibling of `types`, not a nested payload filter, and uses the selected source's cataloged severity values.
 
 GitHub `filters` and flat provider selectors use the allowlisted payload paths and scalar types in the [GitHub trigger reference](/gh-aw/reference/webhook-triggers/#supported-events-and-filters) and [provider issue reference](/gh-aw/reference/provider-issue-triggers/). Conditions are ANDed; values within a condition are ORed. Missing/null fields never match. Matching MUST NOT hydrate missing data through API calls, guessed state names, or cached history. Selector strings are literals, not expressions or regular expressions.
 
-Security `repos` selectors are optional literal `owner/repo` or `owner/*` values, matched case-insensitively over approved sources. They do not grant access. Other triggers MUST NOT accept `repos`.
+`on.repos` selectors are optional literal `owner/repo` or `owner/*` values, matched case-insensitively over approved security-alert sources. They do not grant access. They currently apply only to `on.security-alerts`; other triggers MUST NOT accept repository selectors.
 
 ### Provider normalization policies
 
@@ -115,7 +115,7 @@ The compiler publishes identical normalized declarations through each compiled l
 | `event`, `types` | One supported family and its selected original GitHub or normalized provider activities. |
 | `conditions` | Shared typed equality predicates over original payload paths; all MUST match. |
 | `any_of` | Optional alternatives of complete ANDed condition groups, in addition to shared conditions. A Projects Status transition creates one complete pair, never independently combined from/to lists. |
-| `repos` | Optional approved-source selection for security alerts only. |
+| `repos` | Optional approved-source selection from top-level `on.repos` for security alerts only. |
 | `provider`, `native_events` | External issues only: provider name and sorted, deduplicated required native events/actions. Linear actions are always scoped to entity `Issue`. |
 | `activity_normalization` | External issues only: the exact supported `policy`, plus Azure `closed_states` when configured. Unsupported policies MUST be rejected. |
 | `dispatch` | Destination, workflow-specific route, required minimal projection, context mapping, homogeneous batching, and byte limits. |

@@ -34,7 +34,7 @@ func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 		for trigger, on := range map[string]string{
 			"project":    "on:\n  webhook-gateway: true\n  projects-items: {project_id: PVT_example}\n",
 			"security":   "on:\n  webhook-gateway: true\n  security-alerts: {sources: [dependabot]}\n",
-			"multi-repo": "on:\n  webhook-gateway: true\n  security-alerts: {repos: [bar/baz, \"foo/*\"]}\n",
+			"multi-repo": "on:\n  webhook-gateway: true\n  repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}\n",
 		} {
 			t.Run(name+"/"+trigger, func(t *testing.T) {
 				compiler := NewCompiler()
@@ -76,7 +76,7 @@ func TestWebhookMinimumRoles(t *testing.T) {
 		"projects":   "projects-items: {project_id: PVT_example}",
 		"code":       "security-alerts: {sources: [code-scanning]}",
 		"dependabot": "security-alerts: {sources: [dependabot]}",
-		"multi-repo": "security-alerts: {repos: [bar/baz, \"foo/*\"]}",
+		"multi-repo": "security-alerts: {}",
 	} {
 		for _, tt := range []struct {
 			roles string

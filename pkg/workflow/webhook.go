@@ -225,6 +225,9 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	if _, exists := onMap["webhook-gateway"]; exists && !valid {
 		return nil, errors.New("on.webhook-gateway must be a boolean; set it to true to enable webhook triggers")
 	}
+	if _, exists := onMap["repos"]; exists && !enabled {
+		return nil, errors.New("on.repos requires on.webhook-gateway: true")
+	}
 	for _, name := range sortedWebhookKeys(onMap) {
 		if isWebhookTrigger(name) && !enabled {
 			return nil, fmt.Errorf("on.%s requires on.webhook-gateway: true in this workflow", name)
@@ -236,6 +239,15 @@ func webhookOnConfig(on any) (map[string]any, error) {
 func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string, error) {
 	events := map[string]any{}
 	paths := map[string]string{}
+	repos, err := parseWebhookRepositories(on, "on")
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(repos) > 0 {
+		if _, exists := on["security-alerts"]; !exists {
+			return nil, nil, errors.New("on.repos requires an on.security-alerts subscription")
+		}
+	}
 	for _, alias := range sortedWebhookKeys(webhookTriggerAliases) {
 		raw, exists := on[alias]
 		if !exists {
@@ -256,7 +268,7 @@ func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string
 		events[event] = config
 		paths[event] = "on." + alias
 	}
-	if err := addSecurityAlertConfigs(on, events, paths); err != nil {
+	if err := addSecurityAlertConfigs(on, events, paths, repos); err != nil {
 		return nil, nil, err
 	}
 	addProviderIssueConfigs(on, events, paths)

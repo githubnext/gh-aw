@@ -165,11 +165,14 @@ func TestWebhookGatewayRejectsObsoleteTriggers(t *testing.T) {
 func TestWebhookGatewayRequiresWorkflowOptIn(t *testing.T) {
 	for trigger, config := range map[string]any{
 		"projects-items":  map[string]any{"project_id": "PVT_example"},
-		"security-alerts": map[string]any{"repos": []any{"bar/baz", "foo/*"}},
+		"security-alerts": map[string]any{"sources": "dependabot"},
 	} {
 		for _, flag := range []any{nil, false, "true", 1, map[string]any{}, []any{true}} {
 			t.Run(trigger+"/"+fmt.Sprint(flag), func(t *testing.T) {
 				on := map[string]any{trigger: config, "workflow_dispatch": nil}
+				if trigger == "security-alerts" {
+					on["repos"] = []any{"bar/baz", "foo/*"}
+				}
 				if flag != nil {
 					on["webhook-gateway"] = flag
 				}

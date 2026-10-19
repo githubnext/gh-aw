@@ -30,6 +30,7 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 		if err := c.requireWebhookTriggers(c.extractRoles(frontmatter)); err != nil {
 			return nil, err
 		}
+		delete(on, "repos")
 		dispatchTypes, err := mergeWebhookDispatchTypes(on, WebhookDispatchEventType(data.WorkflowID))
 		if err != nil {
 			return nil, err

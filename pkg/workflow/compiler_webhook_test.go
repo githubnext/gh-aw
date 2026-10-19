@@ -52,6 +52,7 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	on := triggers["on"].(map[string]any)
 	assert.NotContains(t, on, "gateway")
 	assert.NotContains(t, on, "webhook-gateway")
+	assert.NotContains(t, on, "repos")
 	assert.NotContains(t, on, "projects-items")
 	assert.NotContains(t, on, "security-alerts")
 	assert.Contains(t, on, "workflow_dispatch")
@@ -163,7 +164,7 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 		"status-transitions": {"  webhook-gateway: true\n  projects-items:\n    project_id: PVT_example\n    status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
 		"code-scanning":      {"  webhook-gateway: true\n  security-alerts:\n    sources: [code-scanning]\n", "code_scanning_alert"},
 		"dependabot":         {"  webhook-gateway: true\n  security-alerts:\n    sources: [dependabot]\n", "dependabot_alert"},
-		"multi-repo":         {"  webhook-gateway: true\n  security-alerts:\n    sources: [dependabot]\n    repos: [bar/baz, \"foo/*\"]\n", "dependabot_alert"},
+		"multi-repo":         {"  webhook-gateway: true\n  repos: [bar/baz, \"foo/*\"]\n  security-alerts:\n    sources: [dependabot]\n", "dependabot_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()

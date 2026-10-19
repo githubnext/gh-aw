@@ -27,7 +27,11 @@ func enableWebhookTriggers(t *testing.T, root string) {
 
 func TestCompileWebhookRequiresOptIn(t *testing.T) {
 	for _, enabled := range []string{"", `{"webhook-gateway":false}`} {
-		for _, trigger := range []string{"projects-items: {project_id: PVT_example}", "security-alerts: {sources: [dependabot]}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
+		for _, trigger := range []string{
+			"projects-items: {project_id: PVT_example}",
+			"security-alerts: {sources: [dependabot]}",
+			"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
+		} {
 			t.Run(enabled+"/"+trigger, func(t *testing.T) {
 				root := t.TempDir()
 				t.Chdir(root)
@@ -135,7 +139,11 @@ func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
 }
 
 func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
-	for _, trigger := range []string{"projects-items: {project_id: PVT_example}", "security-alerts: {sources: [code-scanning, dependabot]}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
+	for _, trigger := range []string{
+		"projects-items: {project_id: PVT_example}",
+		"security-alerts: {sources: [code-scanning, dependabot]}",
+		"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
+	} {
 		for _, roles := range []string{"all", "read", "triage", "[admin, write, read]"} {
 			t.Run(trigger+"/"+roles, func(t *testing.T) {
 				dir := t.TempDir()
@@ -214,7 +222,7 @@ func TestCompileSecurityAlertRepositories(t *testing.T) {
 			root := t.TempDir()
 			enableWebhookTriggers(t, root)
 			path := filepath.Join(root, "security-repos.md")
-			source := fmt.Sprintf("---\non:\n  webhook-gateway: true\n  %s:\n    repos:\n      - bar/baz\n      - foo/*\npermissions:\n  contents: read\nengine: copilot\n---\nTriage every unique alert.\n", alias)
+			source := fmt.Sprintf("---\non:\n  webhook-gateway: true\n  repos: [bar/baz, \"foo/*\"]\n  %s: {}\npermissions:\n  contents: read\nengine: copilot\n---\nTriage every unique alert.\n", alias)
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.True(t, result.success, "%+v", result.validationResult.Errors)
@@ -241,11 +249,15 @@ func TestCompileSecurityAlertRepositories(t *testing.T) {
 func TestCompileSecurityAlertRejectsInvalidRepositories(t *testing.T) {
 	for _, trigger := range []string{
 		`webhook-gateway: true
-security-alerts: {repos: []}`, `webhook-gateway: true
-security-alerts: {repos: ["*/*"]}`, `webhook-gateway: true
-security-alerts: {repos: ["foo/prefix*"]}`, `webhook-gateway: true
-security-alerts: {repos: [bar/baz], sources: [secret-scanning]}`, `webhook-gateway: true
-security-alerts: {repos: [bar/baz]}
+repos: []
+security-alerts: {}`, `webhook-gateway: true
+repos: ["*/*"]
+security-alerts: {}`, `webhook-gateway: true
+repos: ["foo/prefix*"]
+security-alerts: {}`, `webhook-gateway: true
+repos: [bar/baz]
+security-alerts: {sources: [secret-scanning]}`, `webhook-gateway: true
+security-alerts: {repos: [bar/baz]}`, `webhook-gateway: true
 security-alert: {sources: [dependabot]}`, `webhook-gateway: true
 projects-items: {project_id: PVT_example, repos: [bar/baz]}`} {
 		t.Run(trigger, func(t *testing.T) {
@@ -294,7 +306,10 @@ func TestCompileWebhookGatewayRejectsObsoleteSyntax(t *testing.T) {
 }
 
 func TestCompileWebhookRequiresWorkflowOptIn(t *testing.T) {
-	for _, trigger := range []string{"projects-items: {project_id: PVT_example}", "security-alerts: {repos: [bar/baz, \"foo/*\"]}"} {
+	for _, trigger := range []string{
+		"projects-items: {project_id: PVT_example}",
+		"repos: [bar/baz, \"foo/*\"]\nsecurity-alerts: {}",
+	} {
 		for _, flag := range []string{"", "  webhook-gateway: false\n", "  webhook-gateway: null\n", "  webhook-gateway: \"true\"\n", "  webhook-gateway: {}\n"} {
 			t.Run(trigger+"/"+flag, func(t *testing.T) {
 				root := t.TempDir()
