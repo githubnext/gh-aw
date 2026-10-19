@@ -9,6 +9,7 @@ const { dispatchPrincipal } = require("./work_queue_policy.cjs");
 const { assignmentForDispatch } = require("./work_queue_replay.cjs");
 const { lifecycleEvidence, releaseAssignment, reconcileQueue } = require("./work_queue_reconciler.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
+const { readQueueMetadata } = require("./work_queue_read_retry.cjs");
 
 async function quiescenceReceipt(options, runId) {
   const names = options.jobNames ?? JSON.parse(process.env.GH_AW_JOB_DISPLAY_NAMES || "null");
@@ -17,15 +18,21 @@ async function quiescenceReceipt(options, runId) {
   const finalizerName = names.conclusion;
   const jobs = [];
   for (let page = 1; page <= 4; page++) {
-    const response = await options.githubClient.rest.actions.listJobsForWorkflowRunAttempt({
-      ...options.context.repo,
-      run_id: runId,
-      attempt_number: 1,
-      per_page: 100,
-      page,
-      headers: { "X-GitHub-Api-Version": API_VERSION },
-      request: { retries: 0, timeout: 15000 },
-    });
+    const response = await readQueueMetadata(
+      () =>
+        options.githubClient.rest.actions.listJobsForWorkflowRunAttempt({
+          ...options.context.repo,
+          run_id: runId,
+          attempt_number: 1,
+          per_page: 100,
+          page,
+          headers: { "X-GitHub-Api-Version": API_VERSION },
+          request: { retries: 0, retryCount: 0, timeout: 15000 },
+        }),
+      log,
+      "run.jobs.read",
+      options.sleepFn
+    );
     if (response.status !== 200 || !Array.isArray(response.data?.jobs) || response.data.jobs.length > 100) throw new Error("work_queue_worker_jobs_unavailable");
     jobs.push(...response.data.jobs);
     if (response.data.jobs.length < 100) {

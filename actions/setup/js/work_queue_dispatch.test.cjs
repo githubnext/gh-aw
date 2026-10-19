@@ -1958,7 +1958,7 @@ describe("native queue launch fencing and conservative recovery", () => {
     let metadataReads = 0;
     const repository = fixture.githubClient.rest.repos.get;
     fixture.githubClient.rest.repos.get = vi.fn(async parameters => {
-      if (parameters.request?.retryCount === 0 && ++metadataReads <= 3) {
+      if (!parameters.headers && parameters.request?.retryCount === 0 && ++metadataReads <= 3) {
         throw Object.assign(new Error("private-provider-body"), { status: 500, response: { headers: { "x-github-request-id": requestId, authorization: "private-token" } } });
       }
       const response = await repository(parameters);

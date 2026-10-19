@@ -92,6 +92,43 @@ describe("authenticated native queue runs", () => {
     expect(githubClient.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
   });
 
+  it("recovers nested socket failures during publisher repository authentication with bounded GETs only", async () => {
+    const githubClient = nativeClient({ getWorkflowRun: vi.fn().mockResolvedValue({ status: 200, data: run }) });
+    const failure = Object.assign(new Error("other side closed"), { cause: { cause: { code: "UND_ERR_SOCKET" } } });
+    githubClient.rest.repos.get.mockRejectedValueOnce(failure).mockRejectedValueOnce(failure);
+    const sleepFn = vi.fn(async () => {});
+    const options = {
+      role: "reconciler",
+      context: { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 1, actorId: "11", sha: ref, eventName: "workflow_dispatch" },
+      workflowRef: `${expected.repository}/${expected.workflow}@${ref}`,
+      githubClient,
+      sleepFn,
+    };
+    await expect(authenticatePublisher(options)).resolves.toMatchObject({ authenticated: true, run_id: run.id });
+    expect(githubClient.rest.repos.get).toHaveBeenCalledTimes(3);
+    expect(githubClient.rest.repos.get.mock.calls.every(([parameters]) => parameters.request.retries === 0 && parameters.request.retryCount === 0 && parameters.request.timeout === 15000)).toBe(true);
+    expect(githubClient.rest.actions.getWorkflowRun).toHaveBeenCalledTimes(1);
+    expect(sleepFn.mock.calls).toEqual([[1000], [1000]]);
+  });
+
+  it("still denies a foreign repository after transport recovery without reading the run", async () => {
+    const githubClient = nativeClient({ getWorkflowRun: vi.fn() }, { full_name: "foreign/repo", id: 7 });
+    githubClient.rest.repos.get.mockRejectedValueOnce({ status: 503 });
+    const sleepFn = vi.fn(async () => {});
+    await expect(
+      authenticatePublisher({
+        role: "reconciler",
+        context: { repo: { owner: "owner", repo: "repo" }, runId: run.id, runAttempt: 1, sha: ref, eventName: "workflow_dispatch" },
+        workflowRef: `${expected.repository}/${expected.workflow}@${ref}`,
+        githubClient,
+        sleepFn,
+      })
+    ).rejects.toThrow("native_repository_identity_mismatch");
+    expect(githubClient.rest.repos.get).toHaveBeenCalledTimes(2);
+    expect(githubClient.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+    expect(sleepFn).toHaveBeenCalledTimes(1);
+  });
+
   it("reads an exact bounded dispatcher attempt without relaxing worker attempt-one validation", async () => {
     const getAttempt = vi.fn().mockResolvedValue({ status: 200, data: { ...run, run_attempt: 2 } });
     const githubClient = nativeClient({ getWorkflowRunAttempt: getAttempt });
