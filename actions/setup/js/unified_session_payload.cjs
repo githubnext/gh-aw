@@ -133,6 +133,12 @@ const EPISODE_LINEAGE_FIELDS = {
   rootRepo: ["rootRepo", "root_repo"],
   rootWorkflowId: ["rootWorkflowId", "root_workflow_id"],
   rootRunId: ["rootRunId", "root_run_id"],
+  parentRepo: ["parentRepo", "repo"],
+  parentRunId: ["parentRunId", "run_id"],
+  parentRunAttempt: ["parentRunAttempt", "run_attempt"],
+  parentWorkflowId: ["parentWorkflowId", "workflow_id"],
+  parentWorkflowCallId: ["parentWorkflowCallId", "workflow_call_id"],
+  parentEventType: ["parentEventType", "event_type"],
 };
 /** @type {Fields} */
 const SAFE_OUTPUT_FIELDS = {
@@ -409,8 +415,16 @@ const EVENT_FIELDS = {
     modelSelection: ["modelSelection", "model_selection"],
     triggerType: ["triggerType", "event_name"],
     workflow: ["workflow", "workflow_name"],
+    workflowId: ["workflowId", "workflow_id"],
+    workflowCallId: ["workflowCallId", "workflow_call_id"],
+    callerWorkflowRef: ["callerWorkflowRef", "caller_workflow_ref"],
     repository: ["repository"],
     runId: ["runId", "run_id"],
+    runAttempt: ["runAttempt", "run_attempt"],
+    ref: ["ref"],
+    sha: ["sha"],
+    actor: ["actor"],
+    targetRepo: ["targetRepo", "target_repo"],
     episode: ["episode"],
   },
   "model_routing.outcome": {
@@ -623,7 +637,7 @@ function normalizeUnifiedSessionEvent(event, phase) {
     if (modelSelection && typeof modelSelection === "object" && !Array.isArray(modelSelection)) {
       data.modelSelection = selectFields(modelSelection, MODEL_SELECTION_FIELDS);
     }
-    const episode = Object.hasOwn(source, "episode") ? source.episode : source.context;
+    const episode = Object.hasOwn(source, "episode") ? source.episode : awContext;
     if (episode && typeof episode === "object" && !Array.isArray(episode)) {
       const lineage = selectFields(episode, EPISODE_LINEAGE_FIELDS);
       if (Object.keys(lineage).length || Object.hasOwn(source, "episode")) data.episode = lineage;

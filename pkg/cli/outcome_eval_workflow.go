@@ -96,6 +96,8 @@ func dispatchOutcomeRunID(metadata map[string]any) int64 {
 				runID = int64(id)
 			case int64:
 				runID = id
+			case string:
+				runID = int64(metadataInt(metadata, "run_id"))
 			}
 		}
 	}

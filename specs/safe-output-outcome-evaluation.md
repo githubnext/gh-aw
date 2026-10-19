@@ -3,12 +3,12 @@ title: Safe Output Outcome Evaluation Specification
 version: 1.0.0
 status: Working Draft
 date: 2026-05-15
-last_updated: 2026-10-10
+last_updated: 2026-10-19
 ---
 
 # Safe Output Outcome Evaluation Specification
 
-Every safe output type has a measurable outcome. This spec defines the exact evaluation logic for each type: what to check, how to classify the outcome, and what OTel attributes to emit.
+Every safe output type has a measurable outcome. This spec defines the evaluation logic for each type and the attribute contract for optional downstream OTel export. Production evaluation runs exclusively through `gh aw outcomes`; the CLI emits JSON and optional JSONL, not outcome OTel spans.
 
 ## Principles
 
@@ -23,7 +23,7 @@ The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be 
 
 1. A primary-object `404` for issue, PR, or comment creation is `rejected`/`strong`/`deleted`. A supplementary endpoint `404` MUST NOT imply object deletion.
 2. Other API failures return `error`/`weak`/`evaluation_error`. Failure to fetch supplementary PR effort evidence does not undo authoritative merge acceptance, but MUST prevent zero-touch proof.
-3. Evaluation workers MUST NOT infer acceptance from unavailable data. Collector retry and rate-limit scheduling remain future lifecycle work.
+3. Evaluation workers MUST NOT infer acceptance from unavailable data. Each `gh aw outcomes` invocation checks current state; reevaluation requires a later invocation. Automatic scheduling and API-specific backoff remain outside this command.
 
 ## Provenance Limits
 
@@ -51,12 +51,12 @@ Every evaluation produces one of these outcomes:
 | `unknown` | Missing execution evidence, unsupported evaluator, or no action-specific observable signal |
 | `error` | API or evaluation failure prevented verification |
 
-### Cross-runtime conformance
+### CLI conformance
 
-Go and JavaScript consume the same cases in
-`pkg/cli/testdata/outcome_conformance.json`. The normalized triple
-`outcome_status`, `evidence_strength`, and `signal` is authoritative; collectors
-and telemetry MUST preserve it instead of reinterpreting display text.
+The Go CLI executes the cases in `pkg/cli/testdata/outcome_conformance.json`.
+The normalized triple `outcome_status`, `evidence_strength`, and `signal` is
+authoritative; downstream reports and telemetry MUST preserve it instead of
+reinterpreting display text. There is no separate JavaScript evaluator.
 
 Creation of a PR is accepted only after merge. Creation of an issue is accepted
 only when closed as `completed`; an open issue remains pending even when engaged.
@@ -75,7 +75,8 @@ missing evidence MUST NOT default to zero human effort.
 
 ## Common OTel Attributes
 
-Every outcome span carries these attributes:
+An optional downstream exporter maps CLI evaluation records to these attributes.
+Built-in workflow telemetry does not emit outcome spans.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -98,8 +99,8 @@ Every outcome span carries these attributes:
 The following implementation areas are responsible for evaluation data capture, outcome classification plumbing, and runtime event artifacts.
 
 Status meanings:
-- `implemented`: dedicated evaluator logic exists in both Go and JS.
-- `partial`: dedicated evaluator exists in one runtime; the other relies on generic fallback logic.
+- `implemented`: dedicated evaluator logic exists in the Go CLI.
+- `partial`: the Go CLI implements only part of the specified evidence contract.
 - `not-started`: no dedicated evaluator exists yet; current behavior is generic/no-op only.
 
 ### Current Default Acceptance Map
@@ -147,17 +148,13 @@ The Go dispatcher is `pkg/cli/outcome_eval.go`; dedicated evaluators are split
 across `outcome_eval_{pr,issue,comment,label,generic,agent,review,update,workflow}.go`.
 Common actor and evidence helpers live in `outcome_eval_evidence.go`.
 
-The JavaScript dispatcher and primary action evaluators are
-`actions/setup/js/outcome_action_evaluators.cjs`. Review and retained-update
-evaluators live in `outcome_review_evaluators.cjs`, with common evidence helpers
-in `outcome_evidence.cjs`. `evaluate_outcomes.cjs` collects runs and preserves
-their typed results; `emit_outcome_spans.cjs` exports them.
-
 Discussion, review-thread, review-comment creation, and comment-hiding
-evaluators remain unsupported in both runtimes. Fallback outputs have no
-implemented acceptance rule. Collection revisit/retry policy and per-outcome
-AIC attribution are separate remaining work; cross-runtime conformance does
-not complete those features.
+evaluators remain unsupported. Fallback outputs have no implemented acceptance
+rule. Workflow handlers record execution evidence in the safe-output manifest;
+only `gh aw outcomes` evaluates that evidence against later GitHub state.
+The impact report projects CLI JSON without implementing classification rules.
+Per-run AIC per accepted outcome is available in outcomes summaries; per-item
+cost attribution and automatic episode/outcome joins remain separate work.
 
 ---
 
@@ -534,6 +531,11 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 1. `GET /repos/{owner}/{repo}/issues/{number}` → check state
 2. Search for PRs from agent: `GET /repos/{owner}/{repo}/issues/{number}/timeline` → find linked PRs from `copilot-swe-agent`
 
+The linked PR's repository MUST come from the timeline source issue's
+`repository_url`. Its number MUST NOT be resolved against the assignment
+issue's repository by default. Missing repository evidence leaves the link
+unattributable.
+
 **Evaluation:**
 
 | Condition | Outcome |
@@ -558,6 +560,10 @@ Same logic as `update_issue` but via GraphQL on the discussion body.
 **Question:** Did the dispatched workflow succeed?
 
 **API:** `GET /repos/{owner}/{repo}/actions/runs/{recorded_run_id}`; no guessed workflow/time-window attribution
+
+Manifest capture preserves the dispatch handler's returned run ID in
+`metadata.run_id`. Positive safe-integer IDs may be represented as JSON numbers
+or decimal strings; malformed IDs MUST NOT be partially parsed.
 
 **Evaluation:**
 
@@ -747,14 +753,17 @@ API failures return `error`; execution-time handler retry policy in
 
 From the outcome evaluations above, compute:
 
-| Metric | Formula | Description | Go aggregation owner | OTel emission owner |
-|--------|---------|-------------|----------------------|---------------------|
-| `acceptance_rate` | accepted / (accepted + rejected) | How often actions are kept | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
-| `waste_rate` | rejected / total | How often actions are undone | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
-| `ignore_rate` | ignored / total | How often actions get no response | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
-| `zero_touch_rate` | zero_touch / accepted | How often accepted actions need no actor-visible non-bot edits | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
-| `time_to_outcome` | median(time_to_outcome_hours) | How fast outcomes resolve | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
-| `cost_per_accepted_outcome` | total_run_cost / accepted_count | Efficiency metric | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) | `actions/setup/js/emit_outcome_spans.cjs` (`buildSummaryAttributes`) |
+| Metric | Formula | Description | CLI aggregation owner |
+|--------|---------|-------------|-----------------------|
+| `acceptance_rate` | accepted / (accepted + rejected) | How often actions are kept | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) |
+| `waste_rate` | rejected / total | How often actions are undone | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) |
+| `ignore_rate` | ignored / total | How often actions get no response | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) |
+| `zero_touch_rate` | zero_touch / accepted | How often accepted actions need no actor-visible non-bot edits | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) |
+| `time_to_outcome` | median(time_to_outcome_hours) | How fast outcomes resolve | `pkg/cli/outcome_eval.go` (`ComputeOutcomeSummary`) |
+| `cost_per_accepted_outcome` | total_run_cost / accepted_count | Efficiency metric | `pkg/cli/outcome_economics.go` (`addAIC`) |
+
+These metrics are returned in `gh aw outcomes --json`. `--outcomes-dir` writes
+per-item JSONL for downstream processing; OTel conversion is not built in.
 
 ## Implementation Priority
 
@@ -799,10 +808,9 @@ safe-output type; status and evidence strength are separate attributes.
 
 ### Sync Follow-ups: Safe-Output Section-to-Test Mapping
 
-The shared 77-case fixture corpus is
+The 82-case fixture corpus is
 `pkg/cli/testdata/outcome_conformance.json`. Go executes it through
-`pkg/cli/outcome_conformance_test.go`; JavaScript executes the same inputs through
-`actions/setup/js/outcome_conformance.test.cjs`. The executable TLA+ checker
+`pkg/cli/outcome_conformance_test.go`. The executable TLA+ checker
 projects all cases into evidence facts and checks the same expected status,
 strength, signal, and zero-touch result. See [verification scope](outcomes/README.md)
 for the distinction between runtime tests, fixture agreement, and bounded model

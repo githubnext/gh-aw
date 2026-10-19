@@ -421,6 +421,12 @@ export interface EpisodeLineageData {
   rootRepo?: JsonValue;
   rootWorkflowId?: JsonValue;
   rootRunId?: JsonValue;
+  parentRepo?: JsonValue;
+  parentRunId?: JsonValue;
+  parentRunAttempt?: JsonValue;
+  parentWorkflowId?: JsonValue;
+  parentWorkflowCallId?: JsonValue;
+  parentEventType?: JsonValue;
 }
 
 export interface ModelSelectionData {
@@ -443,8 +449,19 @@ export interface WorkflowInfoData {
   triggerType?: JsonValue;
   dryRun?: JsonValue;
   workflow?: JsonValue;
+  /** Executing workflow reference supplied by the compiler from job.workflow_ref. */
+  workflowId?: JsonValue;
+  /** Current workflow invocation ID from aw_info, separate from the caller's ID. */
+  workflowCallId?: JsonValue;
+  /** GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows. */
+  callerWorkflowRef?: JsonValue;
   repository?: JsonValue;
   runId?: JsonValue;
+  runAttempt?: JsonValue;
+  ref?: JsonValue;
+  sha?: JsonValue;
+  actor?: JsonValue;
+  targetRepo?: JsonValue;
   awContext?: Record<string, JsonValue>;
   episode?: EpisodeLineageData | null;
 }

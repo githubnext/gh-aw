@@ -23,7 +23,6 @@ func TestReportedWorkflowToolPermissions(t *testing.T) {
 		{"code-scanning-fixer", []string{"shell(cut)", "shell(github:*)", "shell(safeoutputs:*)"}},
 		{"smoke-copilot-aoai-apikey", []string{"shell", "safeoutputs"}},
 		{"smoke-workflow-call", []string{"Bash(git status:*)", "Bash(git branch:*)", "Bash(git remote:*)", "Bash(git log:*)"}},
-		{"outcome-collector", nil},
 		{"sighthound-security-scan", nil},
 	}
 	for _, tt := range tests {
@@ -67,20 +66,10 @@ func TestReportedWorkflowToolPermissions(t *testing.T) {
 				assert.True(t, data.BashDisabled)
 				require.True(t, IsMCPScriptsEnabled(data.MCPScripts))
 				assert.NotContains(t, getMCPCLIExcludeFromAgentConfig(data), "mcpscripts")
-				if tt.workflow == "outcome-collector" {
-					require.Contains(t, data.MCPScripts.Tools, "read-outcome-summary")
-					require.Contains(t, data.MCPScripts.Tools, "read-outcome-evaluations")
-					assert.Equal(t, "cat /tmp/gh-aw/outcome-summary.json", data.MCPScripts.Tools["read-outcome-summary"].Run)
-					assert.Equal(t, "cat /tmp/gh-aw/outcome-evaluations.jsonl", data.MCPScripts.Tools["read-outcome-evaluations"].Run)
-					assert.Contains(t, data.MarkdownContent, "and stop; the evaluations file may not exist.")
-					assert.Contains(t, data.MarkdownContent, "Call `mcp__mcpscripts__read-outcome-evaluations`")
-					assert.Less(t, strings.Index(data.MarkdownContent, "If `total_outcomes` is 0"), strings.Index(data.MarkdownContent, "Call `mcp__mcpscripts__read-outcome-evaluations`"))
-				} else {
-					require.Contains(t, data.MCPScripts.Tools, "read-sighthound-findings")
-					require.Contains(t, data.MCPScripts.Tools, "read-sighthound-summary")
-					assert.Equal(t, "cat /tmp/gh-aw/agent/sighthound/actionable.json", data.MCPScripts.Tools["read-sighthound-findings"].Run)
-					assert.Equal(t, "cat /tmp/gh-aw/agent/sighthound/summary.md", data.MCPScripts.Tools["read-sighthound-summary"].Run)
-				}
+				require.Contains(t, data.MCPScripts.Tools, "read-sighthound-findings")
+				require.Contains(t, data.MCPScripts.Tools, "read-sighthound-summary")
+				assert.Equal(t, "cat /tmp/gh-aw/agent/sighthound/actionable.json", data.MCPScripts.Tools["read-sighthound-findings"].Run)
+				assert.Equal(t, "cat /tmp/gh-aw/agent/sighthound/summary.md", data.MCPScripts.Tools["read-sighthound-summary"].Run)
 			default:
 				t.Fatalf("unexpected engine: %s", ResolveEngineID(data))
 			}

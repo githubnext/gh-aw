@@ -251,7 +251,7 @@ opaque because its essential fields are not defined by this specification.
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields, plus AWF's ranked choices, pool counts, request endpoints, telemetry availability, HTTP status, and failure phase when supplied. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
-| Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. For webhook batches, it retains unique affected items and delivery IDs but omits each delivery's raw `payload`; those bodies remain in runner-owned context files. Text and Markdown summaries display the log-safe context as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`, `rootWorkflowId`, and `rootRunId`. |
+| Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. For webhook batches, it retains unique affected items and delivery IDs but omits each delivery's raw `payload`; those bodies remain in runner-owned context files. Text and Markdown summaries display the log-safe context as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied canonical lineage and parent repository, run, attempt, workflow, call identity, and event type. |
 | Skills | Activation inventory records installed skill name, relative source, scope, SHA-256 content digest, and declared purpose, without skill content. Exact-name and cross-scope collisions retain names, kinds, and source identifiers: current sources are workspace-relative paths, while overwritten frontmatter installations use ordinal identifiers such as `frontmatter-1`. Observed engine invocations retain the selected skill name, path, source, trigger, model, and turn when supplied; a declared or installed skill is not proof of invocation. |
 
 OpenTelemetry observations use `otel.span`, `otel.span_event`, and `otel.log`.
@@ -277,7 +277,38 @@ comes from the GitHub Actions event name; `cliVersion`, `awfVersion`,
 are not inferred. The numeric file-format version remains `1`: the
 `type`/`data`/`provenance` envelope and JSONL framing are unchanged.
 
-The optional `workflow.info.episode` object maps the seven snake_case lineage fields in `aw_info.json.context` to camelCase without inferring absent values or changing identifiers. That context describes the recorded caller: `episode.hopId` is not relabeled as the current run's hop, and `episode.parentHopId` remains that caller's recorded parent. Existing files without lineage remain valid; legacy call IDs alone do not synthesize canonical episode metadata. Only runner-owned workflow metadata supplies this projection, using the collector's existing source precedence.
+The optional `workflow.info.episode` object projects recorded lineage and parent
+identity from `aw_info.json.context` without inferring absent values or changing
+identifiers. `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`,
+`rootWorkflowId`, and `rootRunId` map the corresponding snake_case lineage fields.
+The caller's `repo`, `run_id`, `run_attempt`, `workflow_id`, `workflow_call_id`,
+and `event_type` become `parentRepo`, `parentRunId`, `parentRunAttempt`,
+`parentWorkflowId`, `parentWorkflowCallId`, and `parentEventType`, respectively.
+The current run's metadata remains separate: `workflow.info.runAttempt` and
+`workflowId` retain the recorded attempt and executing workflow's full reference
+from compiler-wired `job.workflow_ref`, including for reusable invocations.
+`workflowCallId` retains the top-level `aw_info.json.workflow_call_id`, computed
+with the existing workflow-call ID helper as `<run_id>-<run_attempt>:<workflow_id>`.
+The attempt defaults to `1`; when the executing workflow reference is unavailable,
+the ID contains only `<run_id>-<run_attempt>`. This identifies the current
+workflow, while `episode.parentWorkflowCallId` retains the caller's recorded ID.
+`callerWorkflowRef` separately retains `GITHUB_WORKFLOW_REF`, which identifies
+the top-level caller for reusable workflows (and the current workflow otherwise),
+while `ref`, `sha`, `actor`, and `targetRepo` retain the existing metadata used
+for legacy lineage matching. Both references are captured when the runner writes
+`aw_info.json`, never from the collector's environment. An unavailable executing
+reference remains empty; the caller reference is not substituted for it.
+
+That context describes the recorded caller: `episode.hopId` is not relabeled as
+the current run's hop, and `episode.parentHopId` remains that caller's recorded
+parent, not the current run's immediate parent. Parent and current run IDs may
+match for reusable workflows; workflow and call identities must remain distinct.
+Legacy context can provide parent identity without a canonical `episodeId` or
+hop ID. Existing files without lineage remain valid. Only runner-owned workflow
+metadata supplies this projection, using the collector's existing source
+precedence. Explicit normalized `episode` values take precedence over context,
+including explicit `null`; canonical `awContext` takes precedence over legacy
+`context`.
 
 **T-UAS-055 — Source provenance.** Every merged event MUST have a `provenance`
 object with `component`, `phase`, `path`, and `index`. `path` MUST be relative to

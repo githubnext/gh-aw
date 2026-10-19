@@ -311,6 +311,14 @@ describe("safe_output_manifest", () => {
   });
 
   describe("extractCreatedItemFromResult", () => {
+    it.each([123456, "123456"])("preserves dispatched run %s for outcome evaluation", runId => {
+      const item = extractCreatedItemFromResult("dispatch_workflow", {
+        success: true,
+        workflow_name: "worker",
+        run_id: runId,
+      });
+      expect(item?.metadata).toEqual({ run_id: runId });
+    });
     it("should extract item from create_issue result", () => {
       const result = { success: true, repo: "owner/repo", number: 42, url: "https://github.com/owner/repo/issues/42", temporaryId: "aw_def456" };
       const item = extractCreatedItemFromResult("create_issue", result);

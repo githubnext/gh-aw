@@ -71,6 +71,12 @@ Each run under `.runs[]` includes `duration`, `token_usage`, `aic`, `workflow_na
 
 When propagated context includes `episode_id`, the rollup preserves that ID, matching OpenTelemetry correlation, even when intermediate runs are absent. Older context falls back to call IDs and inferred lineage. Totals cover only the runs included in the report; high confidence indicates lineage evidence, not complete episode coverage. Edges connect distinct GitHub run IDs, so reusable workflow hops sharing one run do not produce separate run edges.
 
+For legacy `workflow_call` records without explicit call identity, matching
+revision and actor metadata alone does not merge runs. A unique non-reusable
+upstream candidate is required; ambiguous calls remain separate. Conflicting
+canonical lineage is processed in stable run-ID order, so input ordering does
+not change episode membership or totals.
+
 Default JSON omits episode and edge details when every episode contains a single run, while retaining summary counts. Use `--verbose --json` to retain those details. `total_duration` sums execution durations rather than measuring wall-clock time between the first and last hop.
 
 For usage analysis, focus on `total_runs`, `total_tokens`, `total_aic`, `total_duration`, `primary_workflow`, `resource_heavy_node_count`, and `blocked_request_count`. For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric because it maps to provider billing in AI Credits (1 AIC = $0.01 USD).

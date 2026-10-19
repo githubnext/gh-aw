@@ -114,6 +114,13 @@ output type, and evaluate it again while results remain `pending`. A pull
 request may remain pending until review and become accepted when merged; a
 comment may need time to receive a reply or reaction.
 
+`gh aw outcomes` is the sole outcome-evaluation entry point. Workflow execution
+records safe-output evidence; it does not decide whether those outputs were
+accepted. `gh aw audit` reports execution evidence without checking live outcome
+state. There is no built-in scheduled collector or automatic reevaluation.
+Rerun `gh aw outcomes` later for unresolved items; each invocation checks current
+GitHub state rather than reusing a cached classification.
+
 Use JSON output to feed a report or inspect the summary:
 
 ```bash wrap
@@ -156,7 +163,21 @@ The basic dashboard for outcomes is therefore intentionally small: total AIC, to
 
 For simple workflows, a single run is usually the right unit for outcome measurement.
 
+`gh aw outcomes` populates `summary.cost_per_accepted_outcome` when positive AIC
+usage and at least one accepted outcome are available. This is the full
+observed run AIC, including detection usage, divided by accepted output items,
+not a per-item allocation. Cost is computed from usage artifacts independently
+of the agent-only token usage cache.
+Unavailable cost and zero accepted outcomes leave this field omitted. If usage
+cannot be read or parsed, the command warns and still returns evaluated outcomes
+and writes any requested outcome JSONL.
+
 For orchestrated workflows, multiple runs can belong to one logical execution. In that case, the more meaningful unit is the episode. Outcome and cost totals can be rolled up from runs into episodes using simple sums, and then from episodes into workflow totals and repository totals.
+
+Episode usage rollups and outcome summaries are separate outputs today.
+Joining them requires matching outcome source run IDs to episode run IDs and
+selecting the latest observation of each item; repeated CLI observations
+must not be summed as additional accepted outcomes.
 
 The outcomes model is deliberately narrow. It does not try to estimate the full business value of a workflow, replace human judgment for nuanced quality questions, combine deterministic compute cost and inference cost into one synthetic score, or solve overlap and duplicate-work analysis in the first version.
 

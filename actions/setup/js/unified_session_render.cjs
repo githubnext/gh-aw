@@ -250,9 +250,30 @@ function eventDetail(event) {
       return fields(data, ["jobResult", "conclusion", "reason", "promptInjection", "secretLeak", "maliciousPatch"]);
     case "workflow.info":
       return (
-        fields(data, ["engineId", "model", "requestedModel", "modelRouting", "triggerType", "cliVersion", "awfVersion", "mcpgVersion", "agentVersion", "workflow", "repository", "runId"]) +
+        fields(data, [
+          "engineId",
+          "model",
+          "requestedModel",
+          "modelRouting",
+          "triggerType",
+          "cliVersion",
+          "awfVersion",
+          "mcpgVersion",
+          "agentVersion",
+          "workflow",
+          "workflowId",
+          "workflowCallId",
+          "callerWorkflowRef",
+          "repository",
+          "runId",
+          "runAttempt",
+          "ref",
+          "sha",
+          "actor",
+          "targetRepo",
+        ]) +
         " " +
-        fields(data.episode, ["episodeId", "hopId", "parentHopId", "originEvent", "rootRepo", "rootWorkflowId", "rootRunId"]) +
+        fields(data.episode, ["episodeId", "hopId", "parentHopId", "originEvent", "rootRepo", "rootWorkflowId", "rootRunId", "parentRepo", "parentRunId", "parentRunAttempt", "parentWorkflowId", "parentWorkflowCallId", "parentEventType"]) +
         (data.awContext !== undefined ? ` awContext=${inline(JSON.stringify(data.awContext))}` : "")
       );
     case "session.collection_warning":
