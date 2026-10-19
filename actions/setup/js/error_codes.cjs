@@ -19,6 +19,7 @@
  *   ERR_NOT_FOUND   - Resource not found (issues, discussions, PRs)
  *   ERR_PARSE       - Parsing failures (JSON, NDJSON, log formats)
  *   ERR_SYSTEM      - System and I/O errors (file access, git operations)
+ *   ERR_ADMISSION   - Opaque workflow admission failure (no policy or budget details)
  */
 
 /** @type {string} Input validation failures */
@@ -41,6 +42,9 @@ const ERR_PARSE = "ERR_PARSE";
 
 /** @type {string} System and I/O errors */
 const ERR_SYSTEM = "ERR_SYSTEM";
+
+/** @type {string} Privacy-preserving workflow admission failure */
+const ERR_ADMISSION = "ERR_ADMISSION";
 
 /** @type {string} Safe output validation/input errors (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E001 = "E001";
@@ -82,6 +86,7 @@ module.exports = {
   ERR_NOT_FOUND,
   ERR_PARSE,
   ERR_SYSTEM,
+  ERR_ADMISSION,
   SAFE_OUTPUT_E001,
   SAFE_OUTPUT_E002,
   SAFE_OUTPUT_E007,

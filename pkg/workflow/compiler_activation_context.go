@@ -33,6 +33,7 @@ type activationJobBuildContext struct {
 	shouldRemoveLabel        bool
 	filteredLabelEvents      []string
 	needsAppTokenForAccess   bool
+	admissionEnabled         bool
 
 	customJobsBeforeActivation []string
 	activationNeeds            []string
@@ -86,6 +87,12 @@ func (c *Compiler) newActivationJobBuildContext(
 	}
 	c.addActivationEngineOutputs(ctx, engine)
 	addActivationExperimentOutputs(ctx)
+	admissionSteps, err := c.buildAdmissionGateStep(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure workflow admission: %w", err)
+	}
+	ctx.steps = append(ctx.steps, admissionSteps...)
+	ctx.admissionEnabled = len(admissionSteps) > 0
 
 	return ctx, nil
 }

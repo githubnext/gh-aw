@@ -156,6 +156,9 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
+	// Admission optionally gates every agent execution through a trusted HTTPS service.
+	Admission *AdmissionConfig
+
 	// WorkQueue holds optional scheduling overrides, never identities or credentials.
 	WorkQueue json.RawMessage
 
@@ -273,6 +276,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
+		Admission                *AdmissionConfig              `json:"admission,omitempty"`
 		Strict                   bool                          `json:"strict,omitempty"`
 		GHES                     bool                          `json:"ghes,omitempty"`
 		RequireSelfHostedRunners bool                          `json:"require_self_hosted_runners,omitempty"`
@@ -294,6 +298,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 		return fmt.Errorf("%w: %w", errWorkQueueConfig, err)
 	}
 
+	r.Admission = raw.Admission
 	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners
@@ -435,6 +440,9 @@ func validateRepoConfigJSON(data []byte, filePath string) error {
 func validateRepoConfigValues(cfg *RepoConfig) error {
 	if cfg == nil {
 		return nil
+	}
+	if err := validateAdmissionConfig(cfg.Admission); err != nil {
+		return err
 	}
 	if cfg.UTC != "" {
 		normalized, err := NormalizeUTCOffset(cfg.UTC)
