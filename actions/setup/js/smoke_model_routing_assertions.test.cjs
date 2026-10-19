@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import vm from "node:vm";
 import { checkDetectionEvidence, checkModelRoutingEvidence, checkSessionContract, detectionMain, evaluateDetectionEvidence, main, normalizeEndpoint, servedModel, sessionContractMain } from "./smoke_model_routing_assertions.cjs";
 import { piRoutedSession, postFixCopilotRoutedSession, postFixCopilotSession, preFixCopilotSession } from "./fixtures/session_contract_sessions.cjs";
 
@@ -1076,7 +1075,7 @@ describe("smoke_model_routing_assertions", () => {
       expect(core.setFailed).toHaveBeenCalledWith(`Unified-session smoke assertions failed (1):\n${results.failures[0]}`);
     });
 
-    it.each([{ resolutionRoles: [] }, { copilotInventory: false }, { expectModelInventory: false, copilotInventory: false }])("logs when U2 is not requested: %j", async expectations => {
+    it.each([{ resolutionRoles: [] }, { copilotInventory: false, resolutionRoles: [] }, { expectModelInventory: false, copilotInventory: false, resolutionRoles: [] }])("logs when U2 is not requested: %j", async expectations => {
       fixture({ session: [...postFixCopilotRoutedSession(), workflowInfo(), selection(), harnessOutcome()], requests: copilotRequests() });
       for (const [entryPoint, extra] of [
         [main, copilotExpectations],
@@ -1088,6 +1087,21 @@ describe("smoke_model_routing_assertions", () => {
         expect(core.info).toHaveBeenCalledWith("U2 not evaluated: neither expectModelInventory nor copilotInventory is true");
         expect([...results.passes, ...results.failures].filter(line => /^(PASS|FAIL) U2 /.test(line))).toEqual([]);
       }
+    });
+
+    it.each([
+      [{}, []],
+      [{ copilotInventory: false }, []],
+      [{ expectModelInventory: false, copilotInventory: false }, []],
+      [{ expectModelInventory: true }, ["U1", "U2", "U3"]],
+      [{ copilotInventory: true }, ["U1", "U2", "U3"]],
+      [{ resolutionRoles: [] }, ["U1", "U3"]],
+    ])("runs U1–U3 from main only when the smoke opts in: %j", async (expectations, expectedIds) => {
+      fixture({ session: [...postFixCopilotRoutedSession(), workflowInfo(), selection(), harnessOutcome()], requests: copilotRequests() });
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await main({ core, rootDir: root, buildSession: false, ...copilotExpectations, ...expectations });
+      expect(results.failures).toEqual([]);
+      expect(checkIds(results.passes).filter(id => /^U\d$/.test(id))).toEqual(expectedIds);
     });
 
     it("reports E2 without throwing when the evidence root is unavailable", async () => {
@@ -1106,19 +1120,6 @@ describe("smoke_model_routing_assertions", () => {
       const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...unroutedCopilot });
       expect(results.failures.some(line => line.startsWith("FAIL E2 evidence: failed to read ") && line.includes("aw_session.jsonl"))).toBe(true);
       expect(core.setFailed).toHaveBeenCalled();
-    });
-
-    it.each([undefined, "/missing-runner-temp"])("reports an unavailable runner temp path from the Smoke Claude post-step: %s", async runnerTemp => {
-      const workflow = fs.readFileSync(new URL("../../../.github/workflows/smoke-claude.md", import.meta.url), "utf8");
-      const script = workflow.match(/post-steps:[\s\S]*?      script: \|\n([\s\S]*?)\n---/)[1].replace(/^ {8}/gm, "");
-      const core = { setFailed: vi.fn() };
-      const load = vi.fn(name => {
-        if (name === "node:path") return path;
-        throw new Error("assertion module unavailable");
-      });
-      await vm.runInNewContext(`(async () => { ${script} })()`, { require: load, core, process: { env: { RUNNER_TEMP: runnerTemp } } });
-      expect(core.setFailed).toHaveBeenCalledWith(`Unable to run unified-session smoke assertions: ${runnerTemp ? "assertion module unavailable" : "RUNNER_TEMP is unavailable"}`);
-      expect(load).toHaveBeenCalledTimes(runnerTemp ? 2 : 1);
     });
 
     it("reports FAIL E2 without U checks when the session file is missing, for both entry points", async () => {

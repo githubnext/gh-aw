@@ -48,9 +48,17 @@ const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
  *   `ai_credits_limit_exceeded` routing failure, and agent execution
  *   succeeded; T4 every other check passed
  *
- * - U1–U3 unified-session contract (only when a session expectation is
- *   configured; `sessionContractMain` runs E2 and U1–U3 alone for unrouted
- *   smokes): U1 no `session.collection_warning` events; U2 exactly one
+ * - U1–U3 unified-session contract. `main` runs them only when the smoke opts
+ *   in; `sessionContractMain` always runs E2 and U1–U3 alone for unrouted
+ *   smokes. Session-contract fields:
+ *   - `expectModelInventory: true` opts in and enables U2
+ *   - `copilotInventory: true` opts in, enables U2 and also requires a
+ *     configured `copilot` endpoint with models
+ *   - `resolutionRoles` (any array, including `[]`) opts in and lists the
+ *     roles U3 requires; `[]` requires none
+ *   `false` or omitted booleans and an omitted `resolutionRoles` do not opt
+ *   in, so a smoke that sets only `false` values runs no U checks in `main`.
+ *   U1 no `session.collection_warning` events; U2 exactly one
  *   agent-phase `model.inventory`, and with `copilotInventory` its `copilot`
  *   endpoint is configured with a non-empty model list (when
  *   `expectModelInventory` or `copilotInventory` is true; otherwise an info
@@ -572,12 +580,13 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
 }
 
 /**
- * Whether the smoke configured any unified-session contract expectation.
+ * Whether the smoke opted in to the unified-session contract: a `true`
+ * inventory flag or an explicit `resolutionRoles` array. `false` does not opt in.
  * @param {SessionContractExpectations} expectations
  * @returns {boolean}
  */
 function hasSessionContract(expectations) {
-  return expectations.expectModelInventory !== undefined || expectations.copilotInventory !== undefined || expectations.resolutionRoles !== undefined;
+  return expectations.expectModelInventory === true || expectations.copilotInventory === true || Array.isArray(expectations.resolutionRoles);
 }
 
 /** @param {any} inventory @returns {string} */
