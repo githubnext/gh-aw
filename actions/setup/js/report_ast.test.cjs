@@ -228,6 +228,41 @@ describe("report AST", () => {
     expect(body).toContain("*Independent emphasis* [guide](https://guide.example/)");
   });
 
+  it.each(
+    ["text", "code"].flatMap(type =>
+      [
+        { origin: "trusted", provenance: [false, false, false] },
+        { origin: "tainted", provenance: [true, true, true] },
+        { origin: "unspecified", provenance: [undefined, undefined, undefined] },
+        { origin: "alternating", provenance: [false, true, false] },
+      ].map(scenario => ({ type, ...scenario }))
+    )
+  )("redacts prefix-matching credentials in complete $origin $type runs and singletons", ({ type, provenance }) => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_PREFIX_SECRET");
+    for (const parts of [
+      ["sk-proj-", "a".repeat(64), "b".repeat(16)],
+      ["ghs_", "A".repeat(36), ".TAIL"],
+    ]) {
+      const secret = parts.join("");
+      vi.stubEnv("SECRET_RENDER_PREFIX_SECRET", secret);
+      const children = parts.map((value, index) => ({ type, value, ...(provenance[index] === undefined ? {} : { agentTainted: provenance[index] }) }));
+      const input = report([{ type: "paragraph", children }]);
+      const copy = structuredClone(input);
+      const normalized = normalizeReport(input);
+      const singleton = report([{ type: "paragraph", children: [{ type, value: secret, ...(provenance[0] === undefined ? {} : { agentTainted: provenance[0] }) }] }]);
+      for (const candidate of [input, normalized, singleton]) {
+        const body = renderReport(candidate).body;
+        expect(body).not.toContain(secret);
+        expect(body).not.toContain(parts[0]);
+        expect(body).not.toContain(parts[2]);
+      }
+      expect(input).toEqual(copy);
+      expect(normalizeReport(normalized)).toEqual(normalized);
+      if (provenance[0] !== provenance[1]) expect(normalized.children[0].children).toEqual(children);
+      else expect(normalized.children[0].children).toHaveLength(1);
+    }
+  });
+
   it.each([
     ["@", "octocat"],
     ["&", "#64;octocat"],

@@ -9,6 +9,7 @@ const { normalizeReport } = require("./report_ast.cjs");
 
 /**
  * A coarse replacement must not swallow framework descendants.
+ * Undefined provenance is agent-tainted; explicit false prevents coarse replacement.
  * @param {ReportBlock | ReportInline} node
  * @returns {boolean}
  */
@@ -20,7 +21,7 @@ function isAgentSubtree(node) {
   return true;
 }
 
-/** @returns {ReportInline} */
+/** @returns {ReportInline} Plain framework-owned "Content redacted." text without link or formatting wrappers. */
 function inlineRedactionNotice() {
   return { type: "text", value: "Content redacted.", agentTainted: false };
 }

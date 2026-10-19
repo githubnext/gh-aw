@@ -382,6 +382,22 @@ describe("coarse report redaction", () => {
     expect(redactReport(redacted, node => node.type === "code")).toEqual(redacted);
   });
 
+  it.each([true, undefined])("removes an entire link when its label matches with agent provenance %s", agentTainted => {
+    const input = report([
+      {
+        type: "paragraph",
+        agentTainted: false,
+        children: [
+          { type: "text", value: "Framework label: ", agentTainted: false },
+          { type: "link", url: "https://private.example/secret-path", agentTainted, children: [{ type: "text", value: "private label", agentTainted }] },
+        ],
+      },
+    ]);
+    const redacted = redactReport(input, node => node.type === "text" && node.value === "private label");
+    expect(redacted.children[0].children).toEqual([{ type: "text", value: "Framework label: Content redacted.", agentTainted: false }]);
+    expect(renderReport(redacted).body).toBe("Framework label: Content redacted.\n");
+  });
+
   it("traverses mixed-origin inline containers and keeps their framework descendants", () => {
     const input = report([
       {

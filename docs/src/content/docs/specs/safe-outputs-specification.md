@@ -2097,10 +2097,13 @@ The attributed issue builder parses agent content separately and inserts typed
 blocks into the framework template. Agent delimiters cannot close framework
 wrappers or consume the generated footer. Normalization MUST retain provenance and
 MUST NOT merge inline nodes across provenance boundaries.
-Serialization MAY inspect adjacent text or code as a complete run without
-mutating the AST, but MUST reapply normalization and secret redaction before
-escaping or choosing code fences. This prevents split secrets, controls, or
-mentions from becoming active output.
+Serialization MUST assemble complete adjacent text or code runs before applying
+secret redaction, including runs already merged during normalization and singleton
+runs. It MUST also detect secrets reconstructed across inline formatting
+containers without mutating the AST or discarding unrelated formatting.
+Redacting incomplete prefixes can hide a registered secret from subsequent
+matching and expose its suffix. Complete-run normalization and redaction MUST
+precede escaping and code-fence selection, regardless of provenance.
 
 Agent-authored missing-tool, missing-data, no-op, and incomplete-report diagnostics
 in generated footers MUST remain tainted. Their framework section labels,
@@ -2117,6 +2120,11 @@ task, or table instead of leaving broken Markdown fragments. Framework nodes are
 not policy candidates, and mixed-origin subtrees MUST NOT be replaced wholesale.
 Their children are traversed instead; tainted inline slots in framework or
 mixed-origin paragraphs receive an inline notice without removing framework labels.
+When a descendant matches inside a wholly agent-origin inline container, that
+container MUST become a plain notice too. For example, selecting an agent link's
+label MUST remove the link destination rather than leave a link around the notice.
+Mixed-origin inline containers are traversed instead, preserving framework
+descendants.
 Consecutive selected inline siblings produce one notice per matching run, but the
 policy MUST still be evaluated for every candidate. Framework content or an
 unmatched sibling separates runs. The transform includes preamble and footer
