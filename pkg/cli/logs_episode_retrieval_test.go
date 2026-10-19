@@ -220,7 +220,7 @@ func TestEpisodeRetrievalTimeWindowAppliesToRecordedRuns(t *testing.T) {
 	listCall := f.calls[len(f.calls)-1]
 	parsed, err := url.Parse(listCall)
 	require.NoError(t, err)
-	require.Equal(t, "2026-10-18T00:00:00Z..2026-10-20T00:00:00Z", parsed.Query().Get("created"))
+	require.Equal(t, "2026-10-18T00:00:00Z..2026-10-20T23:59:59Z", parsed.Query().Get("created"))
 }
 
 func TestEpisodeRetrievalConflictingRecordedIdentity(t *testing.T) {

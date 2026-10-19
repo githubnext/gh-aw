@@ -252,7 +252,10 @@ count then caps all candidate runs examined, not only matching members.
 allow_repositories explicitly permits additional repositories on the seed host;
 max_api_requests caps the entire operation, including compact artifact downloads.
 Read episode_retrieval for fixed time/repository bounds, counters, stop reasons
-and evidence gaps. It never establishes complete episode membership.`
+and evidence gaps. It never establishes complete episode membership.
+episodes[].explanation shows recorded hops (including reusable invocations sharing
+a run), hop/run edges, and missing evidence. Run costs are separate in run_costs;
+never multiply or allocate a run's cost across its hops.`
 
 // newLogsToolHandler builds the handler for the logs tool.
 func newLogsToolHandler(execCmd execCmdFunc, actor string, validateActor bool) func(context.Context, *mcp.CallToolRequest, logsArgs) (*mcp.CallToolResult, any, error) { //nolint:largefunc // Existing MCP handler remains centralized.

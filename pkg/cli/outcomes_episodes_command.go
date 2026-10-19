@@ -112,7 +112,8 @@ func episodeOutcomeRunDirectory(runs []RunData, outputDir string, id int64) (str
 	if err != nil {
 		return "", fmt.Errorf("resolve episode usage output directory: %w", err)
 	}
-	dir := filepath.Join(root, fmt.Sprintf("run-%d", id))
+	fallback := filepath.Join(root, fmt.Sprintf("run-%d", id))
+	dir := fallback
 	var recorded string
 	for _, run := range runs {
 		if run.RunID != id || run.LogsPath == "" {
@@ -124,6 +125,9 @@ func episodeOutcomeRunDirectory(runs []RunData, outputDir string, id int64) (str
 		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			if info, err := os.Lstat(fallback); err == nil && info.IsDir() {
+				continue
+			}
 			return "", fmt.Errorf("recorded logs path for run %d is outside --output %s", id, root)
 		}
 		if recorded != "" && recorded != path {

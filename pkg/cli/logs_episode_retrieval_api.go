@@ -90,10 +90,6 @@ func (c *episodeCollector) listArtifacts(ctx context.Context, run WorkflowRun) (
 			if artifact.ID <= 0 || !artifactMatchesFilter(artifact.Name, []string{"info", "usage"}) {
 				continue
 			}
-			if artifact.Expired {
-				c.issue(episodeCandidate{repository: run.Repository, runID: run.DatabaseID}, "expired_artifact", fmt.Errorf("compact artifact %q has expired", artifact.Name))
-				continue
-			}
 			artifacts = append(artifacts, artifact)
 		}
 		if len(response.Artifacts) < 100 {
