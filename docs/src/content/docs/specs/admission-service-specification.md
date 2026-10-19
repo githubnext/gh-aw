@@ -121,15 +121,16 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
   "run_attempt": "2",
   "ref": "refs/heads/main",
   "event_type": "workflow_dispatch",
-  "actor": "octocat"
+  "actor": "octocat",
+  "triggering_actor": "hubot"
 }
 ```
 
-The `authorization` header is omitted from this example. It MUST be present on actual requests, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. Redirects MUST NOT be followed.
+The `authorization` header is omitted from this example. It MUST be present on actual requests, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. The example includes `traceparent` for an OTel-enabled AW; this header is optional when OTel is disabled. Redirects MUST NOT be followed.
 
 ### Proxy-Friendly Header Conventions
 
-Emit lowercase HTTP field names and accept them case-insensitively. Use the standard W3C `traceparent` field through an OpenTelemetry propagator, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The standard request fields are `authorization`, `content-type`, `cache-control`, and `traceparent`.
+Emit lowercase HTTP field names and accept them case-insensitively. When propagating trace context, use the standard W3C `traceparent` field through an OpenTelemetry propagator, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The required standard request fields are `authorization`, `content-type`, and `cache-control`; `traceparent` is conditional on AW OTel enablement.
 
 Any future custom header MUST use the lowercase `gh-aw-` namespace followed by ASCII alphanumeric, hyphen-separated words: `gh-aw-[a-z0-9]+(?:-[a-z0-9]+)*`. Do not use underscores, spaces, dotted OTel attribute names, or an `x-` prefix. This protocol defines no custom headers. The service-issued correlation ID is returned in JSON and propagated as an OTel attribute; it MUST NOT replace `traceparent`.
 
@@ -137,7 +138,7 @@ Proxies and API gateways MUST allow and preserve the standard fields, without ap
 
 ### JSON Request Fields
 
-All eight fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers:
+All nine fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers:
 
 | Field | Meaning and validation |
 |-------|------------------------|
@@ -149,8 +150,11 @@ All eight fields are required exactly once in a UTF-8 JSON object. Every value i
 | `ref` | Current GitHub Actions ref; MUST match the signed claim |
 | `event_type` | Current GitHub Actions event name; MUST match the supported signed event claim |
 | `actor` | Current `github.actor` login; MUST match the signed actor claim |
+| `triggering_actor` | Current `github.triggering_actor` login; the initiator of this run attempt, which may differ from `actor` on a rerun |
 
-The actor is the original run actor, not the rerun initiator represented by `github.triggering_actor`. Actor-specific authorization MUST use verified actor identity, including signed `actor_id`, not the request field alone.
+The client MUST pass both values from the current [GitHub Actions context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context), not infer one from the other. `actor` identifies the original run actor; `triggering_actor` identifies the current attempt's initiator. GitHub reruns retain the privileges of `github.actor`, even when `github.triggering_actor` has different privileges. Actor-specific authorization MUST use verified identity, including signed `actor_id`, and MUST NOT substitute the rerun initiator's privileges for the original actor's.
+
+`triggering_actor` is not a documented GitHub OIDC claim and MUST NOT be assumed to be signed by the identity token. Until independently verified, it is informational request metadata, not an authorization or accounting identity. Before using it for policy or budget attribution, the authority MUST compare it with authoritative [workflow run-attempt metadata](https://docs.github.com/en/rest/actions/workflow-runs#get-a-workflow-run-attempt) bound to the signed repository, run ID, and attempt, and use the verified account ID where identity stability is required. An App-backed lookup requires repository **Actions: read**. A policy depending on this identity MUST NOT fall back to unverified data or a more permissive policy when verification fails.
 
 The client derives fields from the current runner context and compiled workflow ID, not caller-supplied `aw_context`. It sends no full event payload, arbitrary inbound context, usage, balances, or policy values. Original triggering-event lineage is not part of this protocol.
 
@@ -160,17 +164,17 @@ Opaque identifiers and refs MUST NOT be unnecessarily lowercased or split. Large
 
 ### OpenTelemetry Correlation
 
-The client MUST propagate distributed trace context with the standard W3C `traceparent` header. Its 32-character lowercase hexadecimal trace ID is independent of the service-issued `correlation_id`. The version-00 form is `00-<trace-id>-<client-span-id>-<trace-flags>`, with a nonzero trace ID and a nonzero 16-character span ID. Implementations MUST use a standards-compliant propagator rather than interpolate arbitrary input.
+When OTel is enabled for the AW, the client MUST propagate distributed trace context with the standard W3C `traceparent` header. When OTel is disabled, `traceparent` is optional: no client trace generation, propagation, or export is required solely for admission. The authority and its ingress MUST NOT require this header for authentication or admission. When present, its 32-character lowercase hexadecimal trace ID is independent of the service-issued `correlation_id`. The version-00 form is `00-<trace-id>-<client-span-id>-<trace-flags>`, with a nonzero trace ID and a nonzero 16-character span ID. Implementations MUST use a standards-compliant propagator rather than interpolate arbitrary input.
 
-Reuse a valid AW trace context through the existing OTLP helpers. If none exists, generate a cryptographically random trace ID, never one derived from repository, actor, run, spend, or a credential. An admission operation and its HTTP attempts share the trace ID; each HTTP attempt has a distinct client span ID. The authority creates a server span parented to that attempt. A new trace MUST be available for correlation even when span export is disabled.
+For OTel-enabled AWs, reuse a valid AW trace context through the existing OTLP helpers. If none exists, generate a cryptographically random trace ID, never one derived from repository, actor, run, spend, or a credential. An instrumented admission operation and its HTTP attempts share the trace ID; each HTTP attempt has a distinct client span ID. The authority parents its server span to valid incoming context when present, or starts its own context according to its instrumentation when no header is supplied.
 
-The step MUST preserve the activation job's existing trace context and propagate validated trace/parent IDs through the existing workflow mechanism so agent and conclusion telemetry remain connected. If the step creates a trace because none exists, it MUST initialize that mechanism rather than add a job or dependency. Logs retain standard `trace_id` and `span_id` correlation; neither tracing nor the service correlation ID substitutes for authenticated invocation identity or an idempotency key.
+For OTel-enabled AWs, the step MUST preserve the activation job's existing trace context and propagate validated trace/parent IDs through the existing workflow mechanism so agent and conclusion telemetry remain connected. If the step creates a trace because none exists, it MUST initialize that mechanism rather than add a job or dependency. Instrumented logs retain standard `trace_id` and `span_id` correlation; neither tracing nor the service correlation ID substitutes for authenticated invocation identity or an idempotency key.
 
 After validating the successful response, the client MUST attach `correlation_id` as the common OTel resource attribute `gh-aw.admission.correlation_id` to all subsequent OTLP records for the admitted invocation, including the completed admission span, remaining activation, engine, tool/gateway, safe-output, and conclusion telemetry. This includes spans, logs, and metrics across jobs and subprocesses, including telemetry emitted on later failure or cancellation. Components that cannot set the attribute directly MUST be enriched through the shared export path; supported telemetry paths MUST NOT silently omit it.
 
 The authority MUST add the same attribute to its admission server span and subsequent invocation-specific span/log records, without mutating shared service resource identity or mixing invocation IDs.
 
-The validated ID MUST propagate through existing step/job outputs and runtime environment/context, without adding a job. Exporters MUST preserve it independently of trace/span IDs and prevent user-supplied context or custom attributes from replacing it. Already-emitted telemetry is not rewritten or resent; W3C trace context connects records emitted before admission. Independently admitted invocations receive their own service-scoped IDs rather than trusting an inherited caller value.
+The validated ID MUST propagate through existing step/job outputs and runtime environment/context, without adding a job. The service-issued ID remains required on success and available independently of AW OTel enablement; retaining it MUST NOT enable telemetry export. Exporters MUST preserve it independently of trace/span IDs and prevent user-supplied context or custom attributes from replacing it. Already-emitted telemetry is not rewritten or resent; existing W3C trace context connects records emitted before admission. Independently admitted invocations receive their own service-scoped IDs rather than trusting an inherited caller value.
 
 Trace and service correlation IDs MUST NOT be used as metric datapoint dimensions, public metric labels, or authorization to access another tenant's telemetry. Metrics carry correlation only as protected resource metadata; exporters MUST NOT promote it to high-cardinality metric labels.
 
@@ -178,7 +182,7 @@ Trace context is untrusted observability data, not an authorization claim. Withi
 
 Only `traceparent` is propagated across this boundary. Arbitrary `tracestate` and `baggage` MUST NOT be forwarded or reflected; received values are ignored. Sampling is locally controlled and independent of spend, actor privileges, or an attacker-supplied sampled flag. Credentials, policy reasons, usage, balances, and personal metadata MUST NOT be encoded in trace identifiers or propagation headers.
 
-Responses do not echo trace headers or disclose internal reason identifiers. The successful JSON response carries only the authorized run ceiling and an opaque service correlation ID. Detailed service reasons remain in protected, tenant-scoped telemetry and MUST NOT appear in workflow-visible span attributes or events. A denied, skipped, or fail-open execution without a valid success response retains ordinary W3C tracing but MUST NOT fabricate a service-issued correlation ID.
+Responses do not echo trace headers or disclose internal reason identifiers. The successful JSON response carries only the authorized run ceiling and an opaque service correlation ID. Detailed service reasons remain in protected, tenant-scoped telemetry and MUST NOT appear in workflow-visible span attributes or events. A denied, skipped, or fail-open execution without a valid success response preserves its existing OTel configuration and MUST NOT fabricate a service-issued correlation ID.
 
 ## 4. Authentication and Trust Boundary
 
@@ -222,7 +226,7 @@ The expected audience MUST be configured independently on the authority. It MUST
 
 Authorization MUST use signed immutable `repository_id` and `repository_owner_id`, trusted tenant enrollment, and allowed workflow identities. A valid GitHub signature alone does not authorize an arbitrary repository or tenant.
 
-The service MUST compare repository, run ID, attempt, ref, event, and actor body fields against verified claims. It MUST validate signed `workflow_ref` and `workflow_sha` and, for reusable workflows, `job_workflow_ref` and `job_workflow_sha` where applicable. Required claims and equality rules MUST be verified for each supported deployment and trigger; unavailable or ambiguous identity MUST NOT select weaker policy.
+The service MUST compare repository, run ID, attempt, ref, event, and actor body fields against verified claims. `triggering_actor` follows the separate run-attempt verification requirements in Section 3; no corresponding OIDC claim is required or assumed. It MUST validate signed `workflow_ref` and `workflow_sha` and, for reusable workflows, `job_workflow_ref` and `job_workflow_sha` where applicable. Required claims and equality rules MUST be verified for each supported deployment and trigger; unavailable or ambiguous identity MUST NOT select weaker policy.
 
 OIDC does not directly attest gh-aw's logical `workflow_id` or derived `workflow_call_id`. The authority MUST establish an authorized mapping from the verified workflow identity to the logical AW ID, through protected policy or authoritative workflow data at the verified revision. The claimed logical ID alone MUST NOT select a more permissive budget or tenant. An unknown mapping receives a conservative repository policy or denial.
 
@@ -273,7 +277,7 @@ Every response MUST set `cache-control: no-store` and omit budget, quota, reset,
 
 ## 6. Retries, Outages, and Availability
 
-The client makes at most three attempts. Each admission HTTP request has a ten-second timeout; OIDC acquisition MUST also have a bounded deadline. Network errors, timeouts, `408`, `429`, and `5xx` are transient. Backoff is 250 ms, then 500 ms, each plus 0-249 ms random jitter. JSON body identity, audience, and correlation trace ID remain unchanged; each HTTP attempt has its own span ID. Response headers do not affect retry timing.
+The client makes at most three attempts. Each admission HTTP request has a ten-second timeout; OIDC acquisition MUST also have a bounded deadline. Network errors, timeouts, `408`, `429`, and `5xx` are transient. Backoff is 250 ms, then 500 ms, each plus 0-249 ms random jitter. JSON body identity, audience, and the trace ID when present remain unchanged; each instrumented HTTP attempt has its own span ID. Response headers do not affect retry timing.
 
 A still-valid identity token MAY be reused across retries. If renewal is necessary, it MUST preserve the same verified invocation identity and MUST NOT expand the attempt budget. OIDC issuer transport failures MAY use the outage policy; missing `id-token: write`, missing bootstrap credentials, invalid local configuration, malformed identity, and explicit authentication failures MUST block without fallback.
 
@@ -286,7 +290,7 @@ An explicit denial after a transient failure terminates retries and blocks. Afte
 
 The client parses only bounded `200` bodies using Section 5 validation and discards other bodies without parsing them. Blocking failures expose only `ERR_ADMISSION` and a generic message; ignored outages expose a generic `ERR_ADMISSION` warning. Neither path prints statuses, headers, bodies, tokens, issuer diagnostics, or transport exceptions.
 
-Without a valid success response, a skipped or fail-open execution has no service-issued ceiling or correlation ID. It MUST retain existing local/default credit controls and ordinary tracing, without inventing an approval, unlimited allowance, or service ID. Consequently, `ignore` cannot guarantee that a service-defined run ceiling is available.
+Without a valid success response, a skipped or fail-open execution has no service-issued ceiling or correlation ID. It MUST retain existing local/default credit controls and OTel configuration, without inventing an approval, unlimited allowance, or service ID. Consequently, `ignore` cannot guarantee that a service-defined run ceiling is available.
 
 The service SHOULD complete within two seconds under expected load and MUST bound dependencies below the client's ten-second HTTP deadline. It MUST remain safe when timeouts and retries reach different instances.
 
@@ -332,7 +336,7 @@ All durable denials MUST share status, empty body, header set, and response-size
 
 The service MUST NOT offer anonymous balance checks, threshold-specific codes, amount-dependent retry timing, spend-based cache validators, or budget-reset headers. Proxies, CDNs, API gateways, and tracing MUST preserve these rules. Shared intermediary caching is prohibited.
 
-The `authorization` header and raw tokens MUST be redacted before telemetry or request sampling. POST bodies contain repository, ref, actor, and execution metadata: body capture MUST be disabled or redacted in ingress/access logs, traces, and exceptions by default. Trace correlation does not authorize raw header/body logging. Necessary structured metadata MUST be minimized, tenant-scoped, access-controlled, and retention-bounded. Actor logins and IDs are identifying data, not public diagnostic labels.
+The `authorization` header and raw tokens MUST be redacted before telemetry or request sampling. POST bodies contain repository, ref, actor, triggering actor, and execution metadata: body capture MUST be disabled or redacted in ingress/access logs, traces, and exceptions by default. Trace correlation does not authorize raw header/body logging. Necessary structured metadata MUST be minimized, tenant-scoped, access-controlled, and retention-bounded. Both actor identities are identifying data, not public diagnostic labels.
 
 Protected operator reason codes and accounting diagnostics MAY be stored separately without credentials. They MUST NOT be reflected into workflow responses, URLs, artifacts, or public metrics. Cross-tenant reads are prohibited.
 
@@ -347,7 +351,7 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-003 | Different hidden spend bands and durable denial reasons | No reason/amount differences in status, body, headers, size, or intentional timing |
 | ADM-004 | Missing/duplicate/unknown/malformed JSON field, non-string value, query parameter, invalid content type, or inconsistent invocation ID | Uniform `403`; no unsafe downstream calls |
 | ADM-005 | JSON slashes, Unicode/reserved characters, escapes, and large decimal ID strings | Parse once without injection, truncation, or precision loss |
-| ADM-006 | Forged repository, run, attempt, ref, event, actor, or logical workflow ID | No favorable bypass of verified identity or tenant controls |
+| ADM-006 | Forged repository, run, attempt, ref, event, actor, triggering actor, or logical workflow ID | No favorable bypass of verified identity or tenant controls; unverified rerun metadata never becomes an authorization or accounting identity |
 | ADM-007 | OIDC/JWKS, GitHub, usage, policy, or storage outage | Bounded retry/outage behavior, not fabricated policy results |
 | ADM-008 | Network glitch or `503`, followed by admission | Retry within limits with unchanged identity/audience |
 | ADM-009 | Exhausted transient failures | Default/`ignore` warns and continues activation; `block` fails activation and prevents agent execution |
@@ -365,9 +369,9 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-021 | Missing job permission, invalid config, or unsupported claim set | Fail closed without requesting another credential |
 | ADM-022 | App provisioning, private-key rotation, and unsupported scope | Server-only credentials; least privilege; explicit administrative errors |
 | ADM-023 | Issuer key rotation and malicious token key/issuer URLs | Bounded trusted refresh; no token-controlled outbound discovery |
-| ADM-024 | Original actor versus rerun initiator; unauthenticated public run read | Correct actor binding; neither body claims nor public reads establish authorization |
+| ADM-024 | Initial run or rerun with different `actor`/`triggering_actor`; absent triggering-actor OIDC claim; unauthenticated public run read | Both context values forwarded distinctly; original actor privileges preserved; policy use of the rerun initiator requires verified run-attempt identity, not a nonexistent signed claim or unauthenticated read alone |
 | ADM-025 | GET or another unsupported method; nonempty malformed endpoint | No method fallback or spending-policy evaluation; invalid configuration never becomes a no-op |
-| ADM-026 | Valid W3C context, retries, and downstream jobs | Stable correlation trace ID; distinct HTTP attempt spans; connected client/server and workflow telemetry |
+| ADM-026 | OTel-enabled AW with valid W3C context, retries, and downstream jobs | Stable correlation trace ID; distinct HTTP attempt spans; connected client/server and workflow telemetry |
 | ADM-027 | Missing/invalid/oversized trace context within transport limits, baggage, forced sampling, or export failure | No authorization change, raw metadata leakage, extra admission request, or attacker-controlled expensive sampling |
 | ADM-028 | Custom activation hooks/actions before or after admission, including a skipped gate | Entire job reviewed for OIDC access; untrusted code excluded; skipping admission is not treated as permission revocation |
 | ADM-029 | HTTP/1.1 and HTTP/2 proxy traversal, field-name casing, duplicate trace fields, and transport limits | Standard lowercase names emitted; case-insensitive handling; preserved single trace context; no underscore-header dependency or raw credential logging |
@@ -376,9 +380,10 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-032 | All subsequent OTLP spans, logs, and metrics across supported jobs, subprocesses, exporters, and later failure/cancellation | Same `gh-aw.admission.correlation_id` resource attribute preserved; W3C trace IDs unchanged; no metric-dimension promotion or untrusted attribute override |
 | ADM-033 | Lost success response, token renewal, cross-instance retries, rerun, or independently admitted workflow hop | Stable ceiling/ID for retries; distinct IDs for independent admissions; no budget reset or expanded entitlement |
 | ADM-034 | Admitted executions with differing hidden cumulative spend under the same per-run policy | Returned ceiling does not reveal remaining balance or spend bands; random IDs convey no policy state; denials remain uniform |
-| ADM-035 | Disabled endpoint or exhausted outage with `ignore`, without a valid service response | Existing local/default budget and tracing preserved; no fabricated service ceiling, correlation ID, or affirmative admission |
+| ADM-035 | Disabled endpoint or exhausted outage with `ignore`, without a valid service response | Existing local/default budget and OTel configuration preserved; no fabricated service ceiling, correlation ID, or affirmative admission |
 | ADM-036 | App JWT generation, installation-token exchange/renewal, or changed token format | Documented `RS256` JWT claims and ten-minute maximum expiry; trusted installation binding; one-hour installation-token expiry honored; tokens treated as opaque backend-only credentials |
 | ADM-037 | Missing installation approval, wrong organization/repository permission, restricted repository access, or a cross-tenant installation ID | No unauthorized provisioning/read or grant escalation; Variables and Actions permissions remain distinct; explicit administrative error without credential fallback |
+| ADM-038 | OTel-disabled AW omits `traceparent` | Same authentication, admission, retry, and outage behavior; no required client trace generation or export; successful response still includes the ceiling and service correlation ID |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix.
 
@@ -386,10 +391,10 @@ Tests MUST use synthetic credentials and accounting fixtures, not production sec
 
 1. **gh-aw managed configuration:** register the three new admission variables and their managed YAML keys with repository/organization scope handling, runtime precedence, and effective-value validation. Document enterprise-wide organization provisioning without assuming native enterprise Actions variables. Do not add repository JSON or workflow/frontmatter admission settings. Always include runtime variable hooks; automatically check when an endpoint is configured and no-op otherwise, without a separate opt-in flag. Add CLI coverage, enterprise reference, and release notes together.
 2. **gh-aw activation integration:** add the new admission step to the existing activation job and grant that job `id-token: write`. Review every activation hook/action and existing federated trust policy for that job-wide capability, including when the gate is skipped. Preserve other required permissions without forwarding API credentials. Cover enabled, disabled, denied, and fail-open behavior, reusable workflows, and custom job conditions through existing activation-success dependencies. Do not add a job or new job dependency.
-3. **gh-aw OIDC client and run budget:** implement bounded GitHub OIDC acquisition and the POST/JSON contract as new functionality. Include actor, require a validated `200` with both response fields, propagate the effective minimum credit ceiling into runtime controls and continuations, and block enforcement failures. Implement generic diagnostics, retries, and outage policy; prohibit alternate credentials or HTTP methods.
-4. **Admission authority server:** implement pinned issuer/audience verification, tenant enrollment and trusted workflow mapping, App-backed verification where needed, privacy-preserving policy evaluation, a spend-private per-run ceiling, and an opaque service correlation ID. Persist stable response fields for bounded decisions/replays and keep protected telemetry. Keep the admission operation financially side-effect-free and retry-safe.
+3. **gh-aw OIDC client and run budget:** implement bounded GitHub OIDC acquisition and the POST/JSON contract as new functionality. Include distinct `actor` and `triggering_actor` values from GitHub context, require a validated `200` with both response fields, propagate the effective minimum credit ceiling into runtime controls and continuations, and block enforcement failures. Implement generic diagnostics, retries, and outage policy; prohibit alternate credentials or HTTP methods.
+4. **Admission authority server:** implement pinned issuer/audience verification, tenant enrollment and trusted workflow mapping, App-backed verification where needed, privacy-preserving policy evaluation, a spend-private per-run ceiling, and an opaque service correlation ID. Independently verify the triggering actor against run-attempt metadata before using it for policy or accounting. Persist stable response fields for bounded decisions/replays and keep protected telemetry. Keep the admission operation financially side-effect-free and retry-safe.
 5. **Authority provisioning:** when using a GitHub App, keep its private key server-side and implement GitHub's App JWT/installation-token flow, approved installation grants, least-privilege Variables/read permissions, token renewal, and key rotation. Provide authorized organization/repository provisioning and operator guidance distinguishing defaults from mandatory enforcement.
-6. **Trace and service correlation:** reuse gh-aw's OTLP trace generation/validation and workflow propagation helpers, inject W3C `traceparent` for each POST attempt, and join authority server spans. Propagate the validated service ID as `gh-aw.admission.correlation_id` through every subsequent span/log/metric export path, including cross-job/runtime and conclusion telemetry, without replacing trace IDs or adding metric dimensions. Record the effective ceiling with existing `gh-aw.max_ai_credits` semantics. Enforce tenant-scoped access and redaction; IDs work without an exporter and never become authorization or accounting keys.
+6. **Trace and service correlation:** when AW OTel is enabled, reuse gh-aw's OTLP trace generation/validation and workflow propagation helpers, inject W3C `traceparent` for each POST attempt, and join authority server spans. When disabled, allow requests without `traceparent` and do not require client tracing or export. Propagate the validated service ID as `gh-aw.admission.correlation_id` through every subsequent span/log/metric export path, including cross-job/runtime and conclusion telemetry, without replacing trace IDs or adding metric dimensions. Record the effective ceiling with existing `gh-aw.max_ai_credits` semantics. Enforce tenant-scoped access and redaction; the service ID remains available without OTel and never becomes an authorization or accounting key.
 7. **Integration and initial release:** satisfy Section 10 across both new implementations; verify issuer/audience registration, claim mappings, ingress redaction, endpoint governance, trace continuity, and `block` for strict deployments. Recompile workflows with the feature-capable compiler to include the new activation step and runtime configuration hooks. There is no prior admission implementation to migrate or support.
 
 Integration points are the existing [activation-job assembly](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_context.go), [activation permissions](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
