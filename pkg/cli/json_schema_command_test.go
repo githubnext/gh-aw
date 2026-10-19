@@ -23,13 +23,6 @@ func TestJSONSchemaCommand(t *testing.T) {
 		validOutput []any
 	}{
 		{
-			name:       "logs-explanation",
-			schemaName: "logs-explanation",
-			validOutput: []any{
-				[]episodeExplanationView{{EpisodeID: "ep-1", EpisodeExplanation: &EpisodeExplanation{}}},
-			},
-		},
-		{
 			name:       "outcomes-episodes",
 			schemaName: "outcomes-episodes",
 			validOutput: []any{
@@ -297,7 +290,7 @@ func TestJSONSchemaCommandRejectsInvalidArguments(t *testing.T) {
 func TestGeneratedOutputSchemasAreCurrent(t *testing.T) {
 	t.Parallel()
 
-	for _, schemaName := range []string{"audit", "logs", "logs-jsonl", "logs-explanation", "outcomes-episodes"} {
+	for _, schemaName := range []string{"audit", "logs", "logs-jsonl", "outcomes-episodes"} {
 		t.Run(schemaName, func(t *testing.T) {
 			t.Parallel()
 

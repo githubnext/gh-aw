@@ -135,7 +135,6 @@ func NewLogsCommand() *cobra.Command {
 	addLogsCommandFlags(logsCmd, validArtifactSets)
 	registerLogsCommandCompletions(logsCmd)
 	logsCmd.AddCommand(newLogsEpisodeCommand())
-	logsCmd.AddCommand(newLogsExplainCommand())
 	return logsCmd
 }
 

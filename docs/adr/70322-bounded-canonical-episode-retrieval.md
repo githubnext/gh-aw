@@ -19,8 +19,13 @@ evidence, including reusable-workflow invocations sharing a GitHub run ID.
 Missing or conflicting evidence is shown explicitly; neither hop identity nor
 edges are synthesized from workflow names or timing. Accounting remains once
 per selected run in a separate `run_costs` collection, never allocated to hops.
-`gh aw logs explain` reads an existing logs report offline, so explanation adds
-no GitHub calls and cannot expand retrieval bounds.
+`gh aw logs episode --view hops` presents the same cached snapshot as the default
+summary, without requiring a separate command or JSON file. Identical collection
+options reuse a versioned report cache without GitHub calls; `--refresh` rescans
+and atomically replaces that snapshot while retaining immutable artifacts.
+Collection time and cache provenance remain explicit, and cached request
+counters describe the original collection. JSON has one standard logs schema
+regardless of the selected display view.
 
 ### Alternatives Considered
 

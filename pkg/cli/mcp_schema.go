@@ -68,8 +68,6 @@ func GenerateNamedOutputSchema(name string) ([]byte, error) {
 		schema, err = generateLogsOutputSchema()
 	case "logs-jsonl":
 		schema, err = generateLogsJSONLItemSchema()
-	case "logs-explanation":
-		schema, err = GenerateOutputSchema[[]episodeExplanationView]()
 	case "outcomes-episodes":
 		schema, err = GenerateOutputSchema[EpisodeOutcomesData]()
 	default:

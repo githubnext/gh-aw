@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +19,7 @@ func newLogsEpisodeCommand() *cobra.Command {
 	}
 	var repository string
 	var jsonOutput bool
+	var view string
 	cmd := &cobra.Command{
 		Use:   "episode <run-id-or-url>",
 		Short: "Retrieve a canonical episode within explicit collection bounds",
@@ -31,9 +31,14 @@ queried. Missing evidence and collection limits are reported; coverage is never
 claimed complete. The run cap includes nonmembers and failed candidate lookups.
 The API cap counts every REST request, including artifact pages and downloads,
 but not the subsequent transfer from GitHub's artifact storage redirect.
-Rerun with larger bounds to extend collection; immutable artifacts are reused.`,
+Reports are cached automatically. Use --view hops to inspect recorded invocations
+from the same snapshot without another retrieval. Use --refresh to collect again;
+immutable artifacts are reused. --json always returns the standard logs report.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateEpisodeView(view); err != nil {
+				return err
+			}
 			if len(args) > 0 {
 				if err := resolveEpisodeSeed(&opts, args[0], repository); err != nil {
 					return err
@@ -45,16 +50,13 @@ Rerun with larger bounds to extend collection; immutable artifacts are reused.`,
 			if err != nil {
 				return err
 			}
-			if jsonOutput {
-				encoder := json.NewEncoder(cmd.OutOrStdout())
-				encoder.SetIndent("", "  ")
-				return encoder.Encode(data)
-			}
-			return renderEpisodeRetrieval(cmd.OutOrStdout(), data)
+			return renderEpisodeView(cmd.OutOrStdout(), data, view, jsonOutput)
 		},
 	}
 
 	addEpisodeRetrievalFlags(cmd, &opts, &repository, &jsonOutput)
+	cmd.Flags().StringVar(&view, "view", "summary", "Episode view: summary or hops (JSON always includes both)")
+	cmd.Flags().BoolVar(&opts.Refresh, "refresh", false, "Refresh the cached episode snapshot using the current collection bounds")
 	return cmd
 }
 

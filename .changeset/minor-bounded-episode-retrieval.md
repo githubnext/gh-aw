@@ -13,6 +13,9 @@ attempt, and immutable artifact ID.
 Episode outcome reports read recorded run artifact paths beneath `--output`,
 so isolated retrieval caches remain available for offline cost accounting.
 
-Add an offline `gh aw logs explain <logs.json>` view of recorded episode hops,
-including reusable invocations sharing a run, recorded edges, and missing
-evidence. Run costs remain separate and are counted once per run, not per hop.
+Add automatic episode snapshot caching and `--view summary|hops` on the episode
+command, without a separate explanation command or JSON input file. Identical
+queries reuse the snapshot offline; `--refresh` recollects. The hop view shows
+reusable invocations sharing a run, recorded edges, and missing evidence. Run
+costs remain separate and are counted once per run, not per hop; JSON retains
+the standard logs report shape for every view.

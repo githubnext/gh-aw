@@ -4907,6 +4907,12 @@
             "api_requests": {
               "type": "integer"
             },
+            "collected_at": {
+              "type": "string"
+            },
+            "cached": {
+              "type": "boolean"
+            },
             "stop_reasons": {
               "type": [
                 "null",

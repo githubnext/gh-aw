@@ -108,34 +108,27 @@ func TestEpisodeHopsReadCurrentNormalArtifactMetadata(t *testing.T) {
 	require.False(t, slices.ContainsFunc(hops, func(hop EpisodeHop) bool { return hop.HopID == "old" || hop.HopID == "agent" }))
 }
 
-func TestEpisodeHopsOfflineExplanationCommand(t *testing.T) {
+func TestEpisodeHopsViewUsesStandardJSON(t *testing.T) {
 	logs := compactLogsData(episodeHopTestReport(t))
 	require.Nil(t, logs.Runs[0].AwContext)
-	file := filepath.Join(t.TempDir(), "logs.json")
-	encoded, err := json.Marshal(logs)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(file, encoded, 0o600))
 	var console bytes.Buffer
-	cmd := NewLogsCommand()
-	cmd.SetArgs([]string{"explain", file, "--episode", "canonical"})
-	cmd.SetOut(&console)
-	require.NoError(t, cmd.Execute())
+	require.NoError(t, renderEpisodeView(&console, logs, "hops", false))
 	require.Contains(t, console.String(), "Hop reusable: run 42")
 	require.Contains(t, console.String(), "[shared run]")
 	require.Contains(t, console.String(), "Hop edge root -> reusable: recorded")
 	require.Contains(t, console.String(), "Run-level accounting")
 	require.Contains(t, console.String(), "complete membership is not established")
-	require.ErrorIs(t, runLogsExplain(file, "", false, episodeFailWriter{}), io.ErrClosedPipe)
-	require.ErrorIs(t, runLogsExplain(file, "", true, episodeFailWriter{}), io.ErrClosedPipe)
-	require.ErrorContains(t, runLogsExplain(file, "other", true, io.Discard), "no recorded episode")
+	require.ErrorIs(t, renderEpisodeView(episodeFailWriter{}, logs, "hops", false), io.ErrClosedPipe)
+	require.ErrorIs(t, renderEpisodeView(episodeFailWriter{}, logs, "hops", true), io.ErrClosedPipe)
+	require.ErrorContains(t, renderEpisodeView(io.Discard, logs, "other", true), "invalid --view")
 	var output bytes.Buffer
-	require.NoError(t, runLogsExplain(file, "", true, &output))
-	var views []episodeExplanationView
-	require.NoError(t, json.Unmarshal(output.Bytes(), &views))
-	require.Len(t, views, 1)
-	require.Len(t, views[0].Hops, 3)
-	require.Len(t, views[0].RunCosts, 2)
-	schemaJSON, err := GenerateNamedOutputSchema("logs-explanation")
+	require.NoError(t, renderEpisodeView(&output, logs, "hops", true))
+	var data LogsData
+	require.NoError(t, json.Unmarshal(output.Bytes(), &data))
+	require.Len(t, data.Episodes, 1)
+	require.Len(t, data.Episodes[0].Explanation.Hops, 3)
+	require.Len(t, data.Episodes[0].Explanation.RunCosts, 2)
+	schemaJSON, err := GenerateNamedOutputSchema("logs")
 	require.NoError(t, err)
 	var schema jsonschema.Schema
 	require.NoError(t, json.Unmarshal(schemaJSON, &schema))

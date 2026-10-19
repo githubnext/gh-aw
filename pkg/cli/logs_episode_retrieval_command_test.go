@@ -22,6 +22,7 @@ func TestEpisodeRetrievalPreservesWorkflowArguments(t *testing.T) {
 		{"--", "episode"},
 		{"episode.md"},
 		{"org/repo/episode"},
+		{"explain"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			cmd := NewLogsCommand()
@@ -64,6 +65,9 @@ func TestEpisodeRetrievalCommandAndMCPArguments(t *testing.T) {
 	require.NoError(t, cmd.ParseFlags(remaining))
 	require.Equal(t, []string{"123"}, cmd.Flags().Args())
 	require.Contains(t, cmd.Long, "not")
+	args.Refresh = true
+	cmdArgs, _, _ = buildLogsCommandArgs(context.Background(), args)
+	require.Contains(t, cmdArgs, "--refresh")
 }
 
 func TestEpisodeRetrievalMCPRejectsUnsupportedOptions(t *testing.T) {
@@ -71,6 +75,7 @@ func TestEpisodeRetrievalMCPRejectsUnsupportedOptions(t *testing.T) {
 		{AllowRepositories: []string{"org/two"}},
 		{MaxAPIRequests: 4},
 		{EpisodeRepository: "org/one"},
+		{Refresh: true},
 		{EpisodeRun: "1", WorkflowName: "example"},
 		{EpisodeRun: "1", Engine: "copilot"},
 		{EpisodeRun: "1", Artifacts: []string{"all"}},
@@ -263,8 +268,9 @@ esac
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0700))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	cmd := NewLogsCommand()
-	cmd.SetArgs([]string{"episode", "2", "--repo", "github.com/org/one", "--start-date", "2026-10-18", "--end-date", "2026-10-20",
-		"--max-runs", "1", "--max-api-requests", "4", "--output", filepath.Join(dir, "artifacts"), "--json"})
+	args := []string{"episode", "2", "--repo", "github.com/org/one", "--start-date", "2026-10-18", "--end-date", "2026-10-20",
+		"--max-runs", "1", "--max-api-requests", "4", "--output", filepath.Join(dir, "artifacts")}
+	cmd.SetArgs(append(append([]string{}, args...), "--json"))
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
@@ -273,8 +279,47 @@ esac
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &data))
 	require.Equal(t, "canonical", data.EpisodeRetrieval.EpisodeID)
 	require.Equal(t, 4, data.EpisodeRetrieval.APIRequests)
+	require.False(t, data.EpisodeRetrieval.CollectedAt.IsZero())
 	calls, err := os.ReadFile(callsPath)
 	require.NoError(t, err)
 	require.Len(t, strings.Split(strings.TrimSpace(string(calls)), "\n"), 4)
 	require.Empty(t, stderr.String())
+	checkEpisodeCLIViewCache(t, args, callsPath)
+}
+
+func checkEpisodeCLIViewCache(t *testing.T, args []string, callsPath string) {
+	t.Helper()
+	cmd := NewLogsCommand()
+	cmd.SetArgs(append(append([]string{}, args...), "--view", "hops"))
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.Execute())
+	require.Contains(t, output.String(), "Cached episode snapshot")
+	require.Contains(t, output.String(), "no GitHub requests")
+	require.Contains(t, output.String(), "Run-level accounting")
+	calls, err := os.ReadFile(callsPath)
+	require.NoError(t, err)
+	require.Len(t, strings.Split(strings.TrimSpace(string(calls)), "\n"), 4)
+	cmd = NewLogsCommand()
+	cmd.SetArgs(append(append([]string{}, args...), "--refresh", "--json"))
+	output.Reset()
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.Execute())
+	var data LogsData
+	require.NoError(t, json.Unmarshal(output.Bytes(), &data))
+	require.False(t, data.EpisodeRetrieval.Cached)
+	require.Equal(t, 3, data.EpisodeRetrieval.APIRequests, "refresh still reuses immutable archives")
+	calls, err = os.ReadFile(callsPath)
+	require.NoError(t, err)
+	require.Len(t, strings.Split(strings.TrimSpace(string(calls)), "\n"), 7)
+}
+
+func TestEpisodeRetrievalRejectsInvalidViewBeforeRetrieval(t *testing.T) {
+	cmd := newLogsEpisodeCommand()
+	cmd.SetArgs([]string{"2", "--repo", "org/one", "--view", "unknown", "--output", t.TempDir()})
+	cmd.SetErr(io.Discard)
+	require.ErrorContains(t, cmd.Execute(), "invalid --view")
+	for _, child := range NewLogsCommand().Commands() {
+		require.NotEqual(t, "explain", child.Name())
+	}
 }

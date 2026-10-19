@@ -99,8 +99,10 @@ episode cost.
 
 `episodes[].explanation` separates recorded hops from `run_costs`. Reusable
 workflow hops can share a run ID; that run's tokens and AI credits appear once
-in the accounting list and are not attributed to individual hops. The offline
-`gh aw logs explain <logs.json>` view shows the same evidence and gaps.
+in the accounting list and are not attributed to individual hops.
+`gh aw logs episode <run-id-or-url> --view hops` shows the same evidence and gaps.
+Repeated queries reuse the cached snapshot without GitHub requests; use
+`--refresh` to recollect rather than treating cached costs as current.
 
 The episode-level `root_run_id` and `primary_workflow` fields have been removed. Migrate selected-data consumers to `representative_run_id` and `representative_workflow`; use `recorded_roots[]` for canonical root claims. Historical data without `context.episode_id` remains available for per-run analysis but is not backfilled into synthetic episodes.
 

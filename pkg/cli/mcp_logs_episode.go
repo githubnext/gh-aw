@@ -13,8 +13,8 @@ import (
 
 func validateMCPEpisodeLogsArgs(args logsArgs) error {
 	if args.EpisodeRun == "" {
-		if args.EpisodeRepository != "" || len(args.AllowRepositories) > 0 || args.MaxAPIRequests != 0 {
-			return errors.New("episode_repository, allow_repositories, and max_api_requests require episode_run")
+		if args.EpisodeRepository != "" || len(args.AllowRepositories) > 0 || args.MaxAPIRequests != 0 || args.Refresh {
+			return errors.New("episode_repository, allow_repositories, max_api_requests, and refresh require episode_run")
 		}
 		return nil
 	}
@@ -47,6 +47,9 @@ func buildEpisodeLogsCommandArgs(ctx context.Context, args logsArgs) ([]string, 
 	}
 	if seconds, ok := effectiveMCPLogsToolSoftTimeoutSeconds(ctx, timeout); ok {
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(seconds)+"s")
+	}
+	if args.Refresh {
+		cmdArgs = append(cmdArgs, "--refresh")
 	}
 	repository := args.EpisodeRepository
 	if repository == "" && !strings.Contains(args.EpisodeRun, "/") {

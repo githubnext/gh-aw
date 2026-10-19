@@ -25,6 +25,7 @@ type EpisodeRetrievalOptions struct {
 	MaxAPIRequests    int
 	Timeout           time.Duration
 	OutputDir         string
+	Refresh           bool
 }
 
 // EpisodeRetrieval records collection bounds and evidence gaps, not completeness.
@@ -39,6 +40,8 @@ type EpisodeRetrieval struct {
 	TimeoutSeconds float64                 `json:"timeout_seconds"`
 	RunsExamined   int                     `json:"runs_examined"`
 	APIRequests    int                     `json:"api_requests"`
+	CollectedAt    time.Time               `json:"collected_at,omitzero"`
+	Cached         bool                    `json:"cached,omitempty"`
 	StopReasons    []string                `json:"stop_reasons,omitempty"`
 	Issues         []EpisodeRetrievalIssue `json:"issues,omitempty"`
 }
@@ -71,7 +74,7 @@ var errEpisodeRunLimit = errors.New("episode candidate run limit reached")
 // RetrieveEpisodeLogs collects canonical members using compact artifacts and the
 // standard logs report builder. It does not evaluate outcomes or infer lineage.
 func RetrieveEpisodeLogs(ctx context.Context, opts EpisodeRetrievalOptions) (LogsData, error) {
-	return retrieveEpisodeLogs(ctx, opts, requestEpisodeAPI)
+	return retrieveCachedEpisodeLogs(ctx, opts, requestEpisodeAPI)
 }
 
 func retrieveEpisodeLogs(ctx context.Context, opts EpisodeRetrievalOptions, request episodeAPIRequest) (LogsData, error) {
@@ -101,6 +104,18 @@ func retrieveEpisodeLogs(ctx context.Context, opts EpisodeRetrievalOptions, requ
 }
 
 func (c *episodeCollector) initialize(now time.Time) error {
+	if err := c.initializeScope(); err != nil {
+		return err
+	}
+	start, end, err := episodeRetrievalDates(c.opts.StartDate, c.opts.EndDate, now)
+	if err != nil {
+		return err
+	}
+	c.report.StartDate, c.report.EndDate = start, end
+	return nil
+}
+
+func (c *episodeCollector) initializeScope() error {
 	if c.opts.SeedRunID <= 0 || c.opts.MaxRuns <= 0 || c.opts.MaxAPIRequests <= 0 || c.opts.Timeout <= 0 || c.opts.OutputDir == "" {
 		return errors.New("episode retrieval requires a positive seed run ID, --max-runs, --max-api-requests, --timeout, and a nonempty --output")
 	}
@@ -112,13 +127,9 @@ func (c *episodeCollector) initialize(now time.Time) error {
 		return fmt.Errorf("invalid seed repository %q: expected [HOST/]owner/repo", c.opts.Repository)
 	}
 	c.opts.Repository = strings.ToLower(repository)
-	start, end, err := episodeRetrievalDates(c.opts.StartDate, c.opts.EndDate, now)
-	if err != nil {
-		return err
-	}
 	c.report = EpisodeRetrieval{
 		Host: strings.ToLower(host), Repositories: []string{strings.ToLower(repository)},
-		StartDate: start, EndDate: end, MaxRuns: c.opts.MaxRuns, MaxAPIRequests: c.opts.MaxAPIRequests,
+		MaxRuns: c.opts.MaxRuns, MaxAPIRequests: c.opts.MaxAPIRequests,
 		TimeoutSeconds: c.opts.Timeout.Seconds(),
 	}
 	for _, allowed := range c.opts.AllowRepositories {

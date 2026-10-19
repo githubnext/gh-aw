@@ -697,6 +697,8 @@ gh aw logs episode 1234567890 --repo owner/repo \
 | `--timeout` | `5m` | Collection deadline, expressed as a duration. |
 | `--output/-o` | `.github/aw/logs` | Compact artifacts, isolated by host, repository, run, attempt, and immutable artifact ID. |
 | `--json` | Disabled | Standard logs JSON plus `episode_retrieval` bounds, counters, stop reasons, and evidence gaps. |
+| `--view` | `summary` | Display `summary` or recorded `hops`; JSON includes both views' data. |
+| `--refresh` | Disabled | Recollect instead of reading the cached episode snapshot; immutable artifact downloads are still reused. |
 
 Run, request, and timeout bounds must be positive. This subcommand downloads only
 compact `info` and `usage` artifacts, with a 64 MiB limit on each archive and its
@@ -706,8 +708,17 @@ truncated discovery qualify the returned episode coverage. Coverage remains
 `selected_runs` with status `unknown` or `partial`, never complete, even after all
 pages in the bounded window are exhausted.
 
-Rerunning with larger bounds reuses downloaded immutable artifacts; it rescans
-discovery rather than resuming an unstable page cursor. GitHub's 1,000-result
+The command automatically caches a snapshot for the seed, host, repository
+allowlist, dates, and collection bounds beneath `--output`. Repeating the same
+query or switching `--view` reads that snapshot without GitHub requests, even
+offline. Snapshots remain unchanged until `--refresh`; relative dates such as
+`-7d` retain the original snapshot window until refreshed. Changing bounds
+collects a separate snapshot. `episode_retrieval.collected_at` records collection
+time and `cached` marks reuse; REST counters describe the original collection.
+
+Use `--refresh` to rescan with the same bounds. A larger-bound query also reuses
+downloaded immutable artifacts; discovery rescans rather than resuming an
+unstable page cursor. GitHub's 1,000-result
 limit on filtered run discovery is reported as a gap; narrow the time window
 when reached. Unlike `logs --max-github-api-rate-limit`, the request cap applies
 to this retrieval, not the account's previously consumed quota.
@@ -717,24 +728,22 @@ collections do not delete cached evidence referenced by earlier reports, and
 completed local downloads remain usable after remote expiration.
 
 The MCP `logs` tool exposes the same operation through `episode_run`,
-`episode_repository`, `allow_repositories`, and `max_api_requests`; `count`
+`episode_repository`, `allow_repositories`, `max_api_requests`, and `refresh`; `count`
 becomes the candidate cap. Workflow-discovery filters cannot be combined with
 episode retrieval.
 
 To retrieve an ordinary workflow named `episode`, use `gh aw logs -- episode`.
 
-##### `logs explain <logs.json>`
-
-Show a per-hop explanation from an existing logs JSON report without additional
-GitHub requests:
+Use `--view hops` on the same episode command to inspect recorded invocations:
 
 ```bash wrap
-gh aw logs explain episode.json --episode RECORDED_EPISODE_ID
+gh aw logs episode 1234567890 --repo owner/repo --view hops
 ```
 
-`--episode` selects one recorded episode; omitting it explains every selected
-episode. `--json` returns structured explanations, described by
-`gh aw json-schema logs-explanation`.
+No separate explanation command or JSON input file is needed. The first query
+collects and caches the episode; subsequent queries with the same collection
+options reuse it. `--json` always returns the standard logs report, described by
+`gh aw json-schema logs`, regardless of the selected display view.
 
 The view shows recorded hop IDs, parent-hop and run edges, reusable-workflow
 hops sharing one run ID, and missing or conflicting evidence. Costs appear
@@ -742,8 +751,6 @@ once per selected run in `run_costs`, not on hops. Missing hop IDs remain
 missing; the view does not reconstruct them or claim complete membership.
 Logs JSON includes the same data under `episodes[].explanation`, including in
 compact and MCP reports.
-
-For an ordinary workflow named `explain`, use `gh aw logs -- explain`.
 
 #### `audit`
 
