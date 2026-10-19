@@ -6,13 +6,14 @@ const { escapeMarkdown } = require("./missing_info_formatter.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
 
 /**
+ * @typedef {{agentTainted?: boolean, sizeProtected?: boolean}} ReportProvenance
  * @typedef {null | boolean | number | string | ReportData[] | {[key: string]: ReportData}} ReportData
  * @typedef {{key: string, value: string}} ReportMarkerField
- * @typedef {{type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
- * @typedef {{type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
- * @typedef {{type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
- * @typedef {{type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | {type: "image", url: string, alt: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]}} ReportInline
- * @typedef {{type: "paragraph", children: ReportInline[]} |
+ * @typedef {ReportProvenance & {type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
+ * @typedef {ReportProvenance & {type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
+ * @typedef {ReportProvenance & {type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
+ * @typedef {ReportProvenance & ({type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | {type: "image", url: string, alt: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]})} ReportInline
+ * @typedef {ReportProvenance & ({type: "paragraph", children: ReportInline[]} |
  *   {type: "heading", level: number, children: ReportInline[]} |
  *   {type: "code_block", value: string, language: string} |
  *   {type: "list", ordered: boolean, items: ReportBlock[][]} |
@@ -25,22 +26,127 @@ const { createExpirationLine } = require("./ephemerals.cjs");
  *   {type: "structured_data", data: ReportData} |
  *   ReportXMLMarker | ReportJSONMarker |
  *   {type: "expiration", expiresAt: string} |
- *   {type: "marker", name: "gh-aw-threat-detected" | "gh-aw-threat-engine-error"}} ReportBlock
+ *   {type: "marker", name: "gh-aw-threat-detected" | "gh-aw-threat-engine-error"})} ReportBlock
  * @typedef {ReportXMLMarker & {name: "gh-aw-agentic-workflow" | "gh-aw-failure-issue", value: string, fields: ReportMarkerField[]}} ReportMarker
- * @typedef {{type: "footer", children: ReportBlock[], expiresAt?: string, markers: ReportMarker[]}} ReportFooter
- * @typedef {{type: "report", title: string, children: ReportBlock[], preamble?: ReportBlock[], footer?: ReportFooter}} Report
+ * @typedef {ReportProvenance & {type: "footer", children: ReportBlock[], expiresAt?: string, markers: ReportMarker[]}} ReportFooter
+ * @typedef {ReportProvenance & {type: "report", title: string, children: ReportBlock[], preamble?: ReportBlock[], footer?: ReportFooter}} Report
  */
 
 const ALERT_KINDS = new Set(["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"]);
 const MAX_DEPTH = 16;
+/** @type {WeakSet<Report>} */
+const redactedReports = new WeakSet();
 
-/** @param {string} value */
-function normalizeReportText(value) {
+/**
+ * Provenance describes this node, not its descendants. Missing provenance is tainted.
+ * @param {ReportProvenance} node
+ * @returns {ReportProvenance}
+ */
+function normalizeReportProvenance(node) {
+  if (node.agentTainted !== undefined && typeof node.agentTainted !== "boolean") throw new TypeError("Report agent taint must be a boolean");
+  if (node.sizeProtected !== undefined && typeof node.sizeProtected !== "boolean") throw new TypeError("Report size protection must be a boolean");
+  return { ...(node.agentTainted === undefined ? {} : { agentTainted: node.agentTainted }), ...(node.sizeProtected === undefined ? {} : { sizeProtected: node.sizeProtected }) };
+}
+
+/** @param {ReportInline | undefined} node @returns {node is Extract<ReportInline, {type: "text" | "code"}>} */
+function isInlineTextOrCode(node) {
+  return node?.type === "text" || node?.type === "code";
+}
+
+/** @param {ReportInline | undefined} node */
+function hasInlineTextContent(node) {
+  return isInlineTextOrCode(node) || (node !== undefined && "children" in node && node.children.some(hasInlineTextContent));
+}
+
+/**
+ * @param {ReportInline[]} nodes
+ * @param {boolean} redactEach
+ */
+function collectInlineText(nodes, redactEach) {
+  return nodes
+    .map(node => {
+      if (node.type === "text" || node.type === "code") return redactEach ? normalizeReportText(node.value) : node.value;
+      if (node.type === "soft_break" || node.type === "hard_break") return "\n";
+      if ("children" in node) return collectInlineText(node.children, redactEach);
+      return "";
+    })
+    .join("");
+}
+
+/**
+ * @param {ReportInline[]} nodes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} replacement
+ * @returns {ReportInline[]}
+ */
+function replaceInlineRange(nodes, start, end, replacement) {
+  let offset = 0;
+  let inserted = false;
+  /**
+   * @param {ReportInline[]} current
+   * @returns {{nodes: ReportInline[], changed: boolean}}
+   */
+  function visit(current) {
+    let changed = false;
+    /** @type {ReportInline[]} */
+    const result = [];
+    for (const node of current) {
+      if (node.type === "text" || node.type === "code") {
+        const value = Array.from(node.value);
+        const nodeStart = offset;
+        offset += value.length;
+        const nodeEnd = offset;
+        if (nodeStart >= end || nodeEnd <= start) {
+          result.push(node);
+          continue;
+        }
+        changed = true;
+        const prefixEnd = Math.max(0, Math.min(value.length, start - nodeStart));
+        const suffixStart = Math.max(0, Math.min(value.length, end - nodeStart));
+        const prefix = value.slice(0, prefixEnd).join("");
+        const suffix = value.slice(suffixStart).join("");
+        if (prefix) result.push({ ...node, value: prefix });
+        if (!inserted && replacement) {
+          result.push({ type: "text", value: replacement, agentTainted: false });
+          inserted = true;
+        }
+        if (suffix) result.push({ ...node, value: suffix });
+        continue;
+      }
+      if (node.type === "soft_break" || node.type === "hard_break") {
+        const nodeStart = offset;
+        offset++;
+        if (nodeStart >= start && nodeStart < end) {
+          changed = true;
+          if (!inserted && replacement) {
+            result.push({ type: "text", value: replacement, agentTainted: false });
+            inserted = true;
+          }
+        } else result.push(node);
+        continue;
+      }
+      if ("children" in node) {
+        const children = visit(node.children);
+        changed ||= children.changed;
+        if (children.changed && node.type === "link") result.push(...children.nodes);
+        else if (children.nodes.length) result.push({ ...node, children: children.nodes });
+        continue;
+      }
+      result.push(node);
+    }
+    return { nodes: result, changed };
+  }
+  return visit(nodes).nodes;
+}
+
+/** @param {string} value @param {{redact?: boolean}} [options] */
+function normalizeReportText(value, { redact = true } = {}) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
-  let current = redactDiagnosticText(value);
+  let current = redact ? redactDiagnosticText(value) : value;
   for (let pass = 0; pass < 16; pass++) {
     const normalized = canonicalizePublicationText(current).replace(/\r\n?/g, "\n");
-    const redacted = redactDiagnosticText(normalized);
+    const redacted = redact ? redactDiagnosticText(normalized) : normalized;
     if (redacted === current) return redacted;
     current = redacted;
   }
@@ -126,7 +232,7 @@ function normalizeXMLMarker(node) {
   });
   const value = node.value === undefined ? undefined : fields !== undefined ? normalizeMarkerValue(node.value) : normalizeReportText(node.value).trim().replace(/,/g, "%2C");
   if (value?.includes("\n")) throw new TypeError("Report metadata must fit on one line");
-  return { type: "xml_marker", name: node.name, ...(value === undefined ? {} : { value }), ...(fields ? { fields } : {}) };
+  return { type: "xml_marker", name: node.name, ...(value === undefined ? {} : { value }), ...(fields ? { fields } : {}), ...normalizeReportProvenance(node) };
 }
 
 /**
@@ -134,11 +240,14 @@ function normalizeXMLMarker(node) {
  * @param {number} depth
  * @returns {ReportInline[]}
  */
-function normalizeInlines(nodes, depth, inLink = false) {
+function normalizeInlines(nodes, depth, inLink = false, deferRedaction = false) {
   checkDepth(depth);
   /** @type {ReportInline[]} */
   const result = [];
-  for (const node of nodes) {
+  for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+    const node = nodes[nodeIndex];
+    const provenance = normalizeReportProvenance(node);
+    const start = result.length;
     switch (node.type) {
       case "soft_break":
       case "hard_break":
@@ -170,10 +279,11 @@ function normalizeInlines(nodes, depth, inLink = false) {
       }
       case "text":
       case "code": {
-        const value = normalizeReportText(node.value).replace(/\s+/g, " ");
+        const adjacentRun = deferRedaction || hasInlineTextContent(nodes[nodeIndex - 1]) || hasInlineTextContent(nodes[nodeIndex + 1]);
+        const value = normalizeReportText(node.value, { redact: !adjacentRun }).replace(/\s+/g, " ");
         if (!value) break;
         const previous = result.at(-1);
-        if ((node.type === "text" || node.type === "code") && previous?.type === node.type) previous.value = (previous.value + value).replace(/\s+/g, " ");
+        if (previous?.type === node.type && previous.agentTainted === node.agentTainted && previous.sizeProtected === node.sizeProtected) previous.value = (previous.value + value).replace(/\s+/g, " ");
         else result.push({ type: node.type, value });
         break;
       }
@@ -183,7 +293,7 @@ function normalizeInlines(nodes, depth, inLink = false) {
       case "subscript":
       case "link": {
         if (node.type === "link" && inLink) throw new TypeError("Report links cannot contain other links");
-        const children = normalizeInlines(node.children, depth + 1, inLink || node.type === "link");
+        const children = normalizeInlines(node.children, depth + 1, inLink || node.type === "link", true);
         if (!children.length) break;
         result.push(node.type === "link" ? { type: "link", url: normalizeReportURL(node.url), children } : { type: node.type, children });
         break;
@@ -191,8 +301,29 @@ function normalizeInlines(nodes, depth, inLink = false) {
       default:
         throw new TypeError("Unsupported report inline node");
     }
+    for (let index = start; index < result.length; index++) Object.assign(result[index], provenance);
   }
-  return result;
+  /** @type {ReportInline[]} */
+  const normalized = [];
+  for (let index = 0; index < result.length;) {
+    const node = result[index];
+    if (node.type !== "text" && node.type !== "code") {
+      normalized.push(node);
+      index++;
+      continue;
+    }
+    let end = index + 1;
+    while (end < result.length && result[end].type === node.type) end++;
+    const run = result.slice(index, end);
+    const isSameOrigin = run.every(inline => inline.agentTainted === node.agentTainted && inline.sizeProtected === node.sizeProtected);
+    const hasAdjacentInlineRun = deferRedaction || hasInlineTextContent(result[index - 1]) || hasInlineTextContent(result[end]);
+    if (isSameOrigin && !hasAdjacentInlineRun) {
+      const value = normalizeReportText(run.map(inline => (inline.type === "text" || inline.type === "code" ? inline.value : "")).join("")).replace(/\s+/g, " ");
+      if (value) normalized.push({ type: node.type, value, ...normalizeReportProvenance(node) });
+    } else normalized.push(...run);
+    index = end;
+  }
+  return normalized;
 }
 
 /**
@@ -205,6 +336,8 @@ function normalizeBlocks(nodes, depth) {
   /** @type {ReportBlock[]} */
   const result = [];
   for (const node of nodes) {
+    const provenance = normalizeReportProvenance(node);
+    const start = result.length;
     switch (node.type) {
       case "paragraph":
       case "task":
@@ -279,6 +412,7 @@ function normalizeBlocks(nodes, depth) {
       default:
         throw new TypeError("Unsupported report block node");
     }
+    for (let index = start; index < result.length; index++) Object.assign(result[index], provenance);
   }
   return result;
 }
@@ -301,7 +435,7 @@ function normalizeFooter(footer) {
   });
   if (new Set(markers.map(marker => marker.name)).size !== markers.length) throw new TypeError("Duplicate report metadata marker");
   /** @type {ReportFooter} */
-  const result = { type: "footer", children: normalizeBlocks(footer.children, 0), markers };
+  const result = { type: "footer", children: normalizeBlocks(footer.children, 0), markers, ...normalizeReportProvenance(footer) };
   if (footer.expiresAt !== undefined) {
     const date = new Date(footer.expiresAt);
     if (Number.isNaN(date.getTime())) throw new TypeError("Invalid report expiration date");
@@ -325,6 +459,7 @@ function normalizeReport(report) {
     children: normalizeBlocks(report.children, 0),
     ...(report.preamble ? { preamble: normalizeBlocks(report.preamble, 0) } : {}),
     ...(report.footer ? { footer: normalizeFooter(report.footer) } : {}),
+    ...normalizeReportProvenance(report),
   };
 }
 
@@ -349,10 +484,48 @@ function codeFence(value) {
   return "`".repeat(Array.from(value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 3));
 }
 
+/** @param {ReportInline[]} nodes @returns {ReportInline[]} */
+function redactInlines(nodes) {
+  // Complete visible-text runs before serialization without changing origin boundaries.
+  const sourceText = collectInlineText(nodes, false);
+  const completeText = normalizeReportText(sourceText).replace(/\s+/g, " ");
+  const independentlyRedactedText = collectInlineText(nodes, true).replace(/\s+/g, " ");
+  if (completeText !== independentlyRedactedText) {
+    const source = Array.from(sourceText);
+    const complete = Array.from(completeText);
+    let prefixLength = 0;
+    while (prefixLength < source.length && prefixLength < complete.length && source[prefixLength] === complete[prefixLength]) prefixLength++;
+    let suffixLength = 0;
+    while (suffixLength < source.length - prefixLength && suffixLength < complete.length - prefixLength && source[source.length - suffixLength - 1] === complete[complete.length - suffixLength - 1]) {
+      suffixLength++;
+    }
+    const replacement = complete.slice(prefixLength, complete.length - suffixLength).join("");
+    return redactInlines(replaceInlineRange(nodes, prefixLength, source.length - suffixLength, replacement));
+  }
+  return nodes.map(node => {
+    if (isInlineTextOrCode(node)) return { ...node, value: normalizeReportText(node.value).replace(/\s+/g, " ") };
+    return "children" in node ? { ...node, children: redactInlines(node.children) } : node;
+  });
+}
+
 /** @param {ReportInline[]} nodes */
 function renderInlines(nodes) {
-  return nodes
+  /** @type {ReportInline[]} */
+  const runs = [];
+  for (const node of nodes) {
+    const previous = runs.at(-1);
+    if (isInlineTextOrCode(node) && isInlineTextOrCode(previous) && previous.type === node.type) {
+      previous.value = (previous.value + node.value).replace(/\s+/g, " ");
+    } else runs.push({ ...node });
+  }
+  return runs
     .map(node => {
+      if (node.type === "text") return escapeReportText(node.value);
+      if (node.type === "code") {
+        const fence = "`".repeat(Array.from(node.value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 1));
+        const padding = /^[` ]|[` ]$/.test(node.value) && !/^ +$/.test(node.value) ? " " : "";
+        return `${fence}${padding}${node.value}${padding}${fence}`;
+      }
       switch (node.type) {
         case "soft_break":
           return "\n";
@@ -366,13 +539,6 @@ function renderInlines(nodes) {
           return `#${node.number}`;
         case "closing_reference":
           return `${node.action[0].toUpperCase()}${node.action.slice(1)} ${node.target.repository || ""}${node.enabled ? "#" : "\\#"}${node.target.number}`;
-        case "text":
-          return escapeReportText(node.value);
-        case "code": {
-          const fence = "`".repeat(Array.from(node.value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 1));
-          const padding = /^[` ]|[` ]$/.test(node.value) && !/^ +$/.test(node.value) ? " " : "";
-          return `${fence}${padding}${node.value}${padding}${fence}`;
-        }
         case "strong":
           return `**${renderInlines(node.children)}**`;
         case "emphasis":
@@ -472,13 +638,121 @@ function renderFooter(footer) {
 }
 
 /**
+ * Safety taint is independent of agent-origin provenance, which must survive redaction.
+ * @param {unknown} value
+ * @param {WeakSet<object>} [ancestors]
+ */
+function assertNoTaintedStrings(value, ancestors = new WeakSet()) {
+  if (typeof value === "string") {
+    const canonical = normalizeReportText(value, { redact: false });
+    if (redactDiagnosticText(value) !== value || redactDiagnosticText(canonical) !== canonical) throw new TypeError("Report contains an unredacted string");
+  } else if (value !== null && typeof value === "object") {
+    if (ancestors.has(value)) throw new TypeError("Redacted report must not contain cycles");
+    ancestors.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) assertNoTaintedStrings(item, ancestors);
+    } else {
+      for (const [key, item] of Object.entries(value)) {
+        assertNoTaintedStrings(key, ancestors);
+        assertNoTaintedStrings(item, ancestors);
+      }
+    }
+    ancestors.delete(value);
+  }
+}
+
+/**
+ * Reject unprocessed trees and recheck strings so a stale proof cannot hide new secrets.
+ * @param {Report} report
+ */
+function assertRedactedReport(report) {
+  if (!redactedReports.has(report)) throw new TypeError("Report must pass redaction before rendering");
+  assertNoTaintedStrings(report);
+  /**
+   * @param {ReportInline[]} nodes
+   */
+  function inlines(nodes) {
+    const text = normalizeReportText(collectInlineText(nodes, false), { redact: false }).replace(/\s+/g, " ");
+    if (redactDiagnosticText(text) !== text) throw new TypeError("Report contains an unredacted inline run");
+    for (const node of nodes) if ("children" in node) inlines(node.children);
+  }
+  /** @param {ReportBlock[]} nodes */
+  function blocks(nodes) {
+    for (const node of nodes) {
+      switch (node.type) {
+        case "paragraph":
+        case "heading":
+        case "task":
+          inlines(node.children);
+          break;
+        case "details":
+        case "alert":
+        case "quote":
+          blocks(node.children);
+          break;
+        case "list":
+          node.items.forEach(blocks);
+          break;
+        case "table":
+          [...node.headers, ...node.rows.flat()].forEach(inlines);
+          break;
+      }
+    }
+  }
+  blocks(report.children);
+  if (report.preamble) blocks(report.preamble);
+  if (report.footer) blocks(report.footer.children);
+}
+
+/**
+ * Prepare a tree for the mandatory assertion before serialization or escaping.
+ * @param {Report} report
+ * @returns {Report}
+ */
+function redactReportForRendering(report) {
+  const normalized = normalizeReport(report);
+  /** @param {ReportBlock[]} nodes @returns {ReportBlock[]} */
+  function blocks(nodes) {
+    return nodes.map(node => {
+      switch (node.type) {
+        case "paragraph":
+        case "heading":
+        case "task":
+          return { ...node, children: redactInlines(node.children) };
+        case "details":
+        case "alert":
+        case "quote":
+          return { ...node, children: blocks(node.children) };
+        case "list":
+          return { ...node, items: node.items.map(blocks) };
+        case "table":
+          return { ...node, headers: node.headers.map(redactInlines), rows: node.rows.map(row => row.map(redactInlines)) };
+        default:
+          return node;
+      }
+    });
+  }
+  const redacted = {
+    ...normalized,
+    children: blocks(normalized.children),
+    ...(normalized.preamble ? { preamble: blocks(normalized.preamble) } : {}),
+    ...(normalized.footer ? { footer: { ...normalized.footer, children: blocks(normalized.footer.children) } } : {}),
+  };
+  redactedReports.add(redacted);
+  return redacted;
+}
+
+/**
  * @param {Report} report
  * @returns {{title: string, body: string}}
  */
 function renderReport(report) {
-  const normalized = normalizeReport(report);
-  const parts = [normalized.preamble ? renderBlocks(normalized.preamble) : "", renderBlocks(normalized.children), normalized.footer ? renderFooter(normalized.footer) : ""];
-  return { title: normalized.title, body: parts.filter(Boolean).join("\n\n").trim() + "\n" };
+  const redacted = redactReportForRendering(report);
+  assertRedactedReport(redacted);
+  const parts = [redacted.preamble ? renderBlocks(redacted.preamble) : "", renderBlocks(redacted.children), redacted.footer ? renderFooter(redacted.footer) : ""];
+  const result = { title: redacted.title, body: parts.filter(Boolean).join("\n\n").trim() + "\n" };
+  assertNoTaintedStrings(result);
+  return result;
 }
 
-module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, renderReport };
+module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, redactReportForRendering, assertRedactedReport, renderReport };

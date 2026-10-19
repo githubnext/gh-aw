@@ -5079,7 +5079,7 @@ async function main() {
         });
 
         const detectionCaution = getDetectionCautionAlert(workflowName, runUrl);
-        report.preamble = parseReportMarkdown(detectionCaution, { allowFlagMarkers: true });
+        report.preamble = parseReportMarkdown(detectionCaution, { allowFlagMarkers: true, agentTainted: false });
         const request = renderIssueParameters({ owner, repo, title: issueTitle, labels: ["agentic-workflows"], headers: { "X-GitHub-Api-Version": GITHUB_API_VERSION } }, report);
         const { title: reportTitle, body: issueBody } = request;
 

@@ -230,5 +230,7 @@ func Default() *Runner {
 		PullRequestTargetRolesRule(),
 		SafeOutputShellExpansionRule(),
 		FirewallSSLBumpRule(),
+		PullRequestTargetCheckoutRule(),
+		PromptExpressionRule(),
 	}}
 }

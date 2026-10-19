@@ -101,7 +101,7 @@ func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 		{
 			name: "general-purpose Copilot model",
 			data: &WorkflowData{
-				Model:        "copilot/mai-code-1-flash-picker",
+				Model:        "copilot/mai-code-1.1-flash",
 				EngineConfig: &EngineConfig{ID: "codex"},
 			},
 			wantWarning: true,
@@ -180,7 +180,7 @@ func TestWarnCodexCopilotModelCompatibility(t *testing.T) {
 		{
 			name: "Copilot engine",
 			data: &WorkflowData{
-				Model:        "copilot/mai-code-1-flash-picker",
+				Model:        "copilot/mai-code-1.1-flash",
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
 		},

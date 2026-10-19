@@ -2083,6 +2083,133 @@ Test Case 3: Context Inclusion
 
 **Requirement CS3**: Sanitization MUST be idempotent: `sanitize(sanitize(content)) === sanitize(content)`
 
+#### Issue-body tree provenance and coarse redaction
+
+The issue publication AST records optional `agentTainted` provenance on report,
+footer, block, and inline nodes. `true` identifies agent-origin content; `false`
+identifies framework-origin structure or metadata. Missing provenance MUST be
+treated as agent-tainted. The flag describes the node itself, not its descendants:
+a framework-owned `details` wrapper can contain agent-tainted paragraphs.
+
+Only trusted builders MAY assign framework provenance. Agent body text, including
+HTML comments or JSON containing `agentTainted: false`, MUST NOT set node provenance.
+The attributed issue builder parses agent content separately and inserts typed
+blocks into the framework template. Agent delimiters cannot close framework
+wrappers or consume the generated footer. Normalization MUST retain provenance and
+MUST NOT merge inline nodes across provenance boundaries.
+Serialization MUST assemble complete adjacent text or code runs before applying
+secret redaction, including runs already merged during normalization and singleton
+runs. It MUST also detect secrets reconstructed across inline formatting
+containers without mutating the AST or discarding unrelated formatting.
+Redacting incomplete prefixes can hide a registered secret from subsequent
+matching and expose its suffix. Complete-run normalization and redaction MUST
+precede escaping and code-fence selection, regardless of provenance.
+
+Before concretizing a report tree to publication strings, the renderer MUST
+assert that the tree passed the rendering redaction stage and contains no
+remaining secret-tainted strings. `redactReportForRendering` prepares a fresh tree;
+`assertRedactedReport` requires its private, non-serializable redaction proof and
+checks every string, including nested metadata keys and values, encoded forms,
+and reconstructed inline runs. Normalization alone, copied proof fields, or
+framework provenance MUST NOT satisfy this assertion. The assertion MUST recheck
+current masks, rather than trust a stale proof after mutation or mask changes.
+The concrete title and body MUST also be checked before returning, so escaping
+or formatting cannot introduce a publishable secret. Failures MUST prevent
+publication and MUST NOT include the rejected content in their error messages.
+
+Secret-tainted string safety is distinct from agent-origin provenance: benign
+agent text MAY survive redaction without being relabeled as framework-origin.
+The mandatory rendering redaction stage does not require an optional coarse
+content policy.
+
+##### Automatic publication size redaction
+
+Issue-body AST publication and comment/review body fitting MUST measure the
+concrete rendered body, including escaping, code fences, attribution, and metadata,
+against the destination limit. The runtime measures string length in UTF-16 code
+units, with a 65,536-unit cap for GitHub issue and comment bodies; review summaries
+retain its conservative 65,000-unit limit. Supported issue creation, comment, and review tools accept
+bounded source bodies up to 524,288 units for this fitting stage. Mention and
+link quotas MUST still apply before size redaction; removing text MUST NOT bypass
+these constraints.
+
+On overflow, `renderSizedReport` replaces large wholly agent-origin subtrees with
+the framework notice `Content redacted to fit size limit.` Mixed-origin containers
+MUST retain framework labels and traverse their agent slots instead. Adjacent
+replacement notices MAY be coalesced. The final concrete length MUST be checked;
+an estimated source size alone MUST NOT establish that a body fits. Existing
+Markdown strings that already fit MUST remain unchanged by the size-fitting helper.
+
+Markers, closing references, expiration, complete generated/configured footers,
+and footer diagnostics MUST NOT be sliced, ellipsized, or omitted to make space.
+Trusted builders MAY set `sizeProtected: true` on diagnostic subtrees embedded in
+the main body. Normalization MUST retain this flag and MUST NOT merge protected
+inline strings with unprotected siblings. Raw Markdown or JSON MUST NOT assign
+this flag. Size protection MUST NOT bypass secret redaction, mandatory rendering
+assertions, or an explicit coarse security policy.
+
+Structured payloads MUST use the atomic `structured_data` AST node. Valid `json`
+code fences are parsed into this node; invalid JSON examples remain literal code
+blocks. Size redaction MAY replace an entire agent-origin structured payload, but
+MUST NOT truncate its serialized JSON, alter selected fields to make space, or
+leave unbalanced fences. JSON metadata uses the distinct protected `json_marker`
+node, not a size-redactable structured payload.
+
+After replacement, the tree MUST pass the normal redaction/proof assertions before
+serialization. Protected-frame overflow MUST fail explicitly before an API write,
+without publishing a clipped footer or reporting success. Review fallback
+excerpts MUST likewise reserve their complete configured footers; fitting a
+fallback MUST NOT truncate the review's original attribution or caller marker.
+
+##### Explicit coarse content policies
+
+Agent-authored missing-tool, missing-data, no-op, and incomplete-report diagnostics
+in generated footers MUST remain tainted. Their framework section labels,
+attribution, expiration, and metadata retain independent framework provenance.
+Issue builders MUST reject wrappers that prevent typed content slots from being
+consumed, including paired code-fence wrappers, rather than publish placeholder
+text or silently lose agent content.
+
+The runtime helper `redactReport(report, shouldRedact)` applies an additional,
+trusted-code policy to normalized block and inline nodes. A selected agent block
+is replaced by a framework-generated `Content redacted.` paragraph, removing the
+entire subtree. An inline match removes its containing agent paragraph, heading,
+task, or table instead of leaving broken Markdown fragments. Framework nodes are
+not policy candidates, and mixed-origin subtrees MUST NOT be replaced wholesale.
+Their children are traversed instead; tainted inline slots in framework or
+mixed-origin paragraphs receive an inline notice without removing framework labels.
+When a descendant matches inside a wholly agent-origin inline container, that
+container MUST become a plain notice too. For example, selecting an agent link's
+label MUST remove the link destination rather than leave a link around the notice.
+Mixed-origin inline containers are traversed instead, preserving framework
+descendants.
+Consecutive selected inline siblings produce one notice per matching run, but the
+policy MUST still be evaluated for every candidate. Framework content or an
+unmatched sibling separates runs. The transform includes preamble and footer
+nodes and does not mutate the input.
+
+The report node's `agentTainted` flag also describes its title. A tainted title,
+including one with missing provenance, is offered to the same predicate as a
+normalized `{type: "text", value: title, agentTainted: true}` node. A selected title
+becomes the fixed `Content redacted.` title, and the report node is marked
+framework-origin so repeated redaction does not revisit it. Child provenance
+remains independent and unchanged. Framework titles and unmatched tainted titles
+are retained; ordinary title sanitization and secret redaction still apply.
+
+`buildIssueReport` and `buildIssueBodyReport` accept this predicate as the optional
+`redact` builder option. This is an internal runtime API, not an agent tool field
+or a workflow frontmatter option. Without a predicate, mandatory secret redaction
+and automatic size fitting still apply. Framework provenance MUST NOT bypass
+secret redaction, node validation, URL validation, or rendering escapes.
+
+Community reports motivating this separation fall into three clusters:
+
+| Cluster | Reports | Boundary |
+| --- | --- | --- |
+| Overly strict URL filtering | [#17513](https://github.com/github/gh-aw/issues/17513), [#33970](https://github.com/github/gh-aw/issues/33970) | Readable citations versus URL-based exfiltration; this AST support does not relax the configured URL policy. |
+| HTML and code fidelity | [#18829](https://github.com/github/gh-aw/issues/18829), [#29009](https://github.com/github/gh-aw/issues/29009) | Literal code, typed presentation elements, and arbitrary HTML require different handling; provenance does not enable raw HTML nodes. |
+| Hidden metadata loss | [#18992](https://github.com/github/gh-aw/issues/18992), [#67174](https://github.com/github/gh-aw/issues/67174) | Agent payloads remain distinct from framework markers; typed metadata does not grant agent comments framework trust. |
+
 **Detailed Transformation Specifications**:
 
 **Transformation T1: Unicode Normalization**
@@ -2387,14 +2514,15 @@ Fields used for privileged transport metadata, including patch anchoring and upl
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.",
+  "description": "Add a comment to an existing issue, pull request, or discussion. Maximum input: 524288 characters, 10 mentions, and configured max-links URL occurrences (default: 50). Large agent content is automatically redacted to fit 65536 published characters, reserving complete footers and markers. Protected-frame overflow fails explicitly. Discussion comments require safe-outputs.add-comment.discussions: true.",
   "inputSchema": {
     "type": "object",
     "required": ["body"],
     "properties": {
       "body": {
         "type": "string",
-        "description": "Comment text in Markdown. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). A footer (~200-500 characters) is automatically appended, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+        "maxLength": 524288,
+        "description": "Final intended Markdown comment. Large agent content may be replaced with size-redaction notices; complete footers and markers are preserved. Mention and link limits apply before fitting."
       },
       "item_number": {
         "type": "number",
@@ -2412,7 +2540,7 @@ Fields used for privileged transport metadata, including patch anchoring and upl
 
 **Operational Semantics**:
 
-1. **Constraint Enforcement**: The MCP server validates body content before recording operations. Violations trigger immediate error responses with specific guidance (see Section 8.3). The body length limit applies to user-provided content; a second validation occurs after footer addition to ensure the complete comment doesn't exceed limits.
+1. **Constraint Enforcement**: The MCP server enforces the bounded input length, mentions, and links before recording operations. Violations trigger immediate errors (see Section 8.3). The processor validates input again, automatically fits agent content after reserving attribution, and checks the complete final comment before publication.
 2. **Context Resolution**: When `item_number` omitted, resolves from workflow trigger context.
 3. **Related Items**: When multiple outputs created, adds related items section to comments.
 4. **Footer Injection**: Appends footer according to configuration (typically 200-500 characters).
@@ -2435,11 +2563,14 @@ These extensions apply to safe-output processor messages for `add_comment` (incl
 
 | Constraint | Limit | Error Code | Example Error Message |
 |------------|-------|------------|----------------------|
+| Input body length | 524288 characters | E006 | "Comment body exceeds maximum length of 524288 characters (got 524289)" |
 | Body length (complete comment including footer) | 65536 characters | E006 | "Comment body exceeds maximum length of 65536 characters (got 70000)" |
 | Mentions | 10 per comment | E007 | "Comment contains 15 mentions, maximum is 10" |
 | Links | `safe-outputs.add-comment.max-links` (default: 50) in agent content | E008 | "Comment contains 60 links, maximum is 50" |
 
-**Note**: The 65536 character limit applies to the final comment text including the automatically appended footer. Users should leave approximately 200-500 characters of headroom to accommodate the footer, which contains workflow attribution and installation instructions.
+The final limit includes all attribution and metadata. The processor reserves
+their actual size automatically; callers do not need to estimate footer headroom.
+If protected content alone cannot fit, publication fails rather than shortening it.
 
 The link limit counts URL occurrences, not distinct URLs, and excludes trusted generated footer and metadata links. `max-links` accepts a positive integer and is enforced at both tool invocation and posting time. Generated metadata remains subject to final-body length and mention limits.
 
@@ -4957,13 +5088,14 @@ Tool descriptions (MCP tool schemas) MUST surface enforced constraints to the LL
 ```json
 {
   "name": "add_comment",
-  "description": "Add a comment to an existing GitHub issue, pull request, or discussion. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). Exceeding these limits will result in an immediate error with specific guidance.",
+  "description": "Add a comment with at most 524288 input characters, 10 mentions, and configured max-links URL occurrences (default: 50). Large agent content is automatically redacted to fit 65536 published characters including complete footers and markers. Protected-frame overflow fails explicitly.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "body": {
         "type": "string",
-        "description": "The comment text in Markdown format. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. A footer (~200-500 characters) is automatically appended, so leave adequate space. Maximum 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+        "maxLength": 524288,
+        "description": "Final intended Markdown comment. Input mention/link limits apply before automatic publication size redaction. Markers and footers are not shortened."
       }
     }
   }
@@ -5010,42 +5142,52 @@ This dual enforcement pattern ensures constraints cannot be bypassed through mal
 ```javascript
 // MCP Server - Immediate validation during tool call
 function handleAddComment(args) {
-  enforceCommentLimits(args.body); // Throws if limits exceeded
+  enforceCommentLimits(args.body, {maxLength: MAX_COMMENT_INPUT_LENGTH});
   recordOperation('add_comment', args);
   return {result: {content: [{type: "text", text: '{"result":"success"}'}]}};
 }
 
 // Safe Output Processor - Final validation before API call  
-async function processAddComment(operation) {
-  enforceCommentLimits(operation.body); // Defense-in-depth
-  const sanitized = sanitizeContent(operation);
-  await github.rest.issues.createComment(sanitized);
+async function processAddComment(operation, footer) {
+  enforceCommentLimits(operation.body, {maxLength: MAX_COMMENT_INPUT_LENGTH});
+  const sanitized = sanitizeContent(operation.body);
+  const body = fitMarkdownBody(sanitized, {suffix: footer});
+  enforceCommentLimits(body, {linkBody: sanitized});
+  await github.rest.issues.createComment({body});
 }
 ```
 
 **Requirement MCE5: Constraint Configuration Consistency**
 
-Constraint limits defined in MCP tool descriptions MUST match the enforcement logic in both the MCP server and safe output processor implementations. Inconsistent limits between these components violate the specification.
+Input limits defined in MCP tool descriptions MUST match invocation-time and
+processor input validation. Publication limits MAY be smaller when automatic
+size redaction is supported; descriptions MUST distinguish those limits and the
+processor MUST enforce the final complete-body limit. Inconsistent limits for
+the same stage violate the specification.
 
 **Verification**:
 
 - **Method**: Code review and integration testing
 - **Tool**: Automated tests comparing tool descriptions to handler enforcement code
-- **Criteria**: All constraint limits are identical across tool schema, MCP server, and processor
+- **Criteria**: Input limits match across tool schema, MCP server, and processor; final publication limits are disclosed and enforced after fitting
 
 **Example Constraints for Common Safe Output Types**:
 
 | Type | Constraint | Limit | Error Code |
 |------|-----------|-------|------------|
+| `add_comment` | Input body length | 524288 chars | E006 |
 | `add_comment` | Body length (complete comment with footer) | 65536 chars | E006 |
 | `add_comment` | Mentions | 10 | E007 |
 | `add_comment` | Links in agent content (excluding generated metadata) | Configured `max-links`, default 50 | E008 |
 | `create_issue` | Title length | 256 chars | E009 |
+| `create_issue` | Input body length | 524288 chars | Schema validation |
 | `create_issue` | Body length (complete body with footer) | 65536 chars | E006 |
 | `create_pull_request` | Title length | 256 chars | E009 |
 | `create_pull_request` | Body length (complete body with footer) | 65536 chars | E006 |
 
-**Note**: For operations that append footers (comments, issues, pull requests), the character limit applies to the complete text including the automatically added footer. Users should reserve approximately 200-500 characters to accommodate the footer.
+Final publication limits include automatically added footers. AST-aware issue
+and comment/review fitting reserves complete attribution automatically. Other
+output types retain their declared input and publication constraints.
 
 **Rationale**: Early constraint enforcement transforms validation failures from post-execution errors (requiring workflow reruns) into correctable feedback during agent reasoning. This improves agent effectiveness by enabling iterative refinement and reduces wasted compute on operations that will ultimately fail validation.
 

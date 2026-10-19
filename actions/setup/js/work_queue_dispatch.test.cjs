@@ -1939,6 +1939,90 @@ describe("native queue launch fencing and conservative recovery", () => {
     }
   });
 
+  it("reports an exhausted submit metadata read while independently launching and binding older Work", async () => {
+    const contract = "a".repeat(64);
+    const { fixture, options, post } = setup({
+      granted: false,
+      count: 3,
+      batch: 1,
+      configurePolicy: policy => {
+        policy.authorization = "aw";
+        policy.producers = {};
+        delete policy.pools.default.profiles.default.principal;
+        policy.pools.default.profiles.default.logical_contract = contract;
+      },
+    });
+    const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-mixed-metadata-"));
+    const filename = path.join(directory, "intents.jsonl");
+    const requestId = "1B41:A4F74:930C3C:1DF33D1:6AD4920C";
+    let metadataReads = 0;
+    const repository = fixture.githubClient.rest.repos.get;
+    fixture.githubClient.rest.repos.get = vi.fn(async parameters => {
+      if (parameters.request?.retryCount === 0 && ++metadataReads <= 3) {
+        throw Object.assign(new Error("private-provider-body"), { status: 500, response: { headers: { "x-github-request-id": requestId, authorization: "private-token" } } });
+      }
+      const response = await repository(parameters);
+      return { ...response, data: { ...response.data, default_branch: "main" } };
+    });
+    const reference = fixture.githubClient.rest.git.getRef;
+    fixture.githubClient.rest.git.getRef = async parameters => (parameters.ref === "heads/main" ? { data: { ref: "refs/heads/main", object: { sha: REF } } } : reference(parameters));
+    const source = "---\ntools:\n  work-queue:\n    worker: true\n---\nExecute approved instructions.\n";
+    const lock = `on:\n  workflow_dispatch:\n    inputs:\n      work_queue_assignment:\n        type: string\nenv:\n  GH_AW_WORK_QUEUE_CONTRACT: "${contract}"\n`;
+    fixture.githubClient.rest.repos.getContent = async ({ path }) => ({ data: { type: "file", path, encoding: "base64", content: Buffer.from(path.endsWith(".md") ? source : lock).toString("base64") } });
+    fixture.githubClient.rest.actions.getWorkflow = async () => ({ data: { path: ".github/workflows/worker.lock.yml", state: "active" } });
+    const runs = new Map();
+    post.mockImplementation(async parameters => {
+      const assignment = JSON.parse(parameters.inputs.work_queue_assignment);
+      const runId = String(42 + runs.size);
+      runs.set(runId, { ...fixture.nativeRun(), id: runId, display_title: `gh-aw work-queue ${assignment.dispatch_id}` });
+      return { status: 200, data: { workflow_run_id: runId, run_url: `https://api.github.com/repos/owner/repo/actions/runs/${runId}`, html_url: `https://github.com/owner/repo/actions/runs/${runId}` } };
+    });
+    fixture.githubClient.rest.actions.getWorkflowRunAttempt = async ({ run_id }) => ({ status: 200, data: runs.get(run_id) });
+    const core = {
+      info: vi.fn(),
+      setOutput: vi.fn(),
+      setFailed: vi.fn(),
+      summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() },
+    };
+    const sleepFn = vi.fn(async () => {});
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      stagePlanIntents(filename, {
+        version: 1,
+        nodes: [{ graph_id: "new-cohort", node_key: "new", pool: "default", worker_profile: "default", payload: { task: "new submission" } }],
+        dispatch: { pool: "default", max_claims: 3, max_dispatches: 3 },
+      });
+      const result = await publishQueueControls({ ...options, assignment: null, role: "dispatcher", intentPath: filename, policyProposal: fixture.policy, maxDispatches: 3, sleepFn, core });
+      expect(result).toMatchObject({ status: "recovery_required", success: false, remaining_dispatches: 0 });
+      expect(result.receipts).toEqual([
+        expect.objectContaining({ status: "blocked", reason: "queue_control_github_api_unavailable", failure_stage: "intent_processing" }),
+        expect.objectContaining({
+          status: "durable",
+          success: true,
+          dispatches: 3,
+          launches: [expect.objectContaining({ state: "bound", run_id: "42" }), expect.objectContaining({ state: "bound", run_id: "43" }), expect.objectContaining({ state: "bound", run_id: "44" })],
+        }),
+      ]);
+      expect(metadataReads).toBe(4);
+      expect(sleepFn.mock.calls).toEqual([[1000], [1000]]);
+      expect(fixture.state.works.size).toBe(3);
+      expect(fixture.state.works.has(nodeId("new-cohort", "new"))).toBe(false);
+      expect(fixture.state.claims.size).toBe(3);
+      expect([...fixture.state.dispatches.values()].every(dispatch => dispatch.state === "bound")).toBe(true);
+      expect(post).toHaveBeenCalledTimes(3);
+      expect(post.mock.calls.every(([parameters]) => parameters.request.retries === 0 && parameters.request.retryCount === 0)).toBe(true);
+      expect(core.setFailed).toHaveBeenCalledOnce();
+      const output = stderr.mock.calls.map(call => call[0]).join("");
+      expect(output).toContain("deployment.repository.read.failed");
+      expect(output).toContain(`GitHub request ID: ${requestId}.`);
+      expect(output).toContain("controls.complete durable=1 blocked=1 rejected=0 unresolved=0 recovery_required=true");
+      expect(output + JSON.stringify(result)).not.toContain("private");
+    } finally {
+      stderr.mockRestore();
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it.each(["work_queue_dispatch_credential_client_mismatch", "private-token-response"])("retains committed grants and reports prelaunch failure safely: %s", async message => {
     const { fixture, options, post } = setup({ granted: false, count: 3, batch: 1 });
     const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gh-aw-queue-prelaunch-"));

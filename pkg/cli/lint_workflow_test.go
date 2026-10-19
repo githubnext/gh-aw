@@ -182,6 +182,7 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 		{"safe-output-shell-expansion", "safe-outputs: {steps: [{run: '$(PRIVATE_VALUE)'}]}", "safe-outputs.steps[0].run", workflowlint.Error},
 		{"firewall-ssl-bump", "strict: false\nsandbox: {agent: {args: [--allow-urls, 'https://example.com/path']}}", "sandbox.agent.args", workflowlint.Error},
 		{"firewall-ssl-bump", "network: {firewall: {allow-urls: ['https://example.com/path'], ssl-bump: true}}", "network.firewall", workflowlint.Error},
+		{"pull-request-target-checkout", "on: pull_request_target\ncheckout: {ref: '${{ github.event.pull_request.head.sha }}'}", "checkout", workflowlint.Error},
 	} {
 		t.Run(tt.ruleID, func(t *testing.T) {
 			dir := t.TempDir()
@@ -205,6 +206,41 @@ func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 			assert.Equal(t, tt.ruleID, diagnostics[0].RuleID)
 			assert.Equal(t, tt.path, diagnostics[0].Path)
 			assert.Equal(t, tt.level, diagnostics[0].Severity)
+		})
+	}
+}
+
+func TestNewThreatRulesCLIInputModes(t *testing.T) {
+	const source = "---\non: {pull_request_target: {acknowledge-risk: true}}\ncheckout: {ref: '${{ github.event.pull_request.head.sha }}'}\n---\nPrompt ${{ inputs.PRIVATE_VALUE.constructor }}\n"
+	for _, extension := range []string{".md", ".lock.yml", ".yaml"} {
+		t.Run(extension, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "test.md"), []byte(source), 0o600))
+			file := filepath.Join(dir, "test"+extension)
+			if extension != ".md" {
+				require.NoError(t, os.WriteFile(file, []byte("on: pull_request_target\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo public\n"), 0o600))
+			}
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=pull-request-target-checkout,prompt-expression", "--json", file})
+			err := cmd.Execute()
+			want := 2
+			if extension == ".yaml" {
+				want = 0
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "workflow lint found 2 error")
+			}
+			assert.NotContains(t, output.String(), "PRIVATE_VALUE")
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			require.Len(t, diagnostics, want)
+			for _, diagnostic := range diagnostics {
+				assert.Equal(t, map[string]string{"pull-request-target-checkout": "CTR-008", "prompt-expression": "CTR-010"}[diagnostic.RuleID], diagnostic.ThreatRuleID)
+				assert.Equal(t, workflowlint.Error, diagnostic.Severity)
+			}
 		})
 	}
 }
