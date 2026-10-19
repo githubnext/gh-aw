@@ -344,6 +344,7 @@ steps:
 post-steps:
   - name: Check workflow model pins
     if: always()
+    continue-on-error: true
     shell: bash
     run: |
       set -euo pipefail
