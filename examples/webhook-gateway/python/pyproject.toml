@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gh-aw-webhook-gateway-reference"
+version = "0.1.0"
+description = "Non-production Python reference for the gh-aw webhook gateway v2 contract"
+requires-python = ">=3.9"
+dependencies = ["cryptography==46.0.3"]
+
+[project.scripts]
+webhook-gateway = "gateway.server:main"
+
+[tool.setuptools.package-data]
+gateway = ["catalogs.json"]
