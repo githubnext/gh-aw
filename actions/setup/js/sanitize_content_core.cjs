@@ -890,29 +890,83 @@ function removeXmlComments(s) {
  * @returns {string} The string with markdown link titles neutralized
  */
 function neutralizeMarkdownLinkTitles(s) {
-  // Move title into link text for inline links: [text](url "title") → [text (title)](url)
-  // Capturing groups:
-  //   1: opening bracket  [
-  //   2: link text
-  //   3: ]( separator
-  //   4: angle-bracket URL  <url>  (mutually exclusive with group 5)
-  //   5: bare URL           (mutually exclusive with group 4)
-  //   6: double-quoted title text  (mutually exclusive with 7 and 8)
-  //   7: single-quoted title text  (mutually exclusive with 6 and 8)
-  //   8: parenthesized title text  (mutually exclusive with 6 and 7)
-  //   9: optional whitespace before closing )
-  s = s.replace(/(\[)([^\]]*)(\]\()(?:(<[^>]*>)|([^\s)]+))\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\))(\s*\))/g, (match, ob, linkText, mid, angUrl, bareUrl, dqT, sqT, pT, close) => {
-    const url = angUrl !== undefined ? angUrl : bareUrl;
-    const title = dqT !== undefined ? dqT : sqT !== undefined ? sqT : pT;
-    return `${ob}${linkText} (${title})${mid}${url}${close}`;
-  });
-
-  // Strip title from reference-style link definitions: [ref]: url "title" → [ref]: url
-  // These must appear at the start of a line (per CommonMark spec). The gm flag makes
-  // ^ match after each newline so the substitution works correctly on multi-line content.
-  s = s.replace(/^(\[[^\]]+\]:\s+\S+)\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/gm, "$1");
-
-  return s;
+  /**
+   * Index boundaries before matching so failed titles cannot rescan overlapping
+   * labels, destinations, or quoted suffixes.
+   * @param {string} source
+   * @param {boolean} reference
+   */
+  function neutralize(source, reference) {
+    if (!source.includes("[")) return source;
+    /** @type {Record<string, number[]>} */
+    const positions = { "[": [], "]": [], ">": [], '"': [], "'": [], ")": [], whitespace: [], text: [], lineEnd: [] };
+    for (let index = 0; index < source.length; index++) {
+      const character = source[index];
+      if (Object.hasOwn(positions, character)) positions[character].push(index);
+      positions[/\s/.test(character) ? "whitespace" : "text"].push(index);
+      if (/[\r\n\u2028\u2029]/.test(character)) positions.lineEnd.push(index);
+    }
+    /** @param {number[]} indices @param {number} offset */
+    function lowerBound(indices, offset) {
+      let low = 0;
+      let high = indices.length;
+      while (low < high) {
+        const middle = (low + high) >>> 1;
+        if (indices[middle] < offset) low = middle + 1;
+        else high = middle;
+      }
+      return low;
+    }
+    /** @param {string} boundary @param {number} offset */
+    function next(boundary, offset) {
+      const indices = positions[boundary];
+      return indices[lowerBound(indices, offset)] ?? source.length;
+    }
+    /** @param {number} urlEnd */
+    function titleAt(urlEnd) {
+      if (urlEnd >= source.length || !/\s/.test(source[urlEnd])) return undefined;
+      const start = next("text", urlEnd);
+      const opener = source[start];
+      if (opener !== '"' && opener !== "'" && opener !== "(") return undefined;
+      const closing = next(opener === "(" ? ")" : opener, start + 1);
+      if (closing === source.length) return undefined;
+      const after = next("text", closing + 1);
+      if (!reference) return source[after] === ")" ? { start, closing, end: after + 1 } : undefined;
+      const lineEnd = positions.lineEnd[lowerBound(positions.lineEnd, after) - 1];
+      const end = after === source.length ? after : lineEnd;
+      return end !== undefined && end >= closing + 1 ? { start, closing, end } : undefined;
+    }
+    const fragments = [];
+    let written = 0;
+    let cursor = 0;
+    for (const start of positions["["]) {
+      if (start < cursor || (reference && start > 0 && !/[\r\n\u2028\u2029]/.test(source[start - 1]))) continue;
+      const labelEnd = next("]", start + 1);
+      if (labelEnd === source.length) break;
+      cursor = labelEnd + 1;
+      if (source[labelEnd + 1] !== (reference ? ":" : "(") || (reference && labelEnd === start + 1)) continue;
+      let urlStart = labelEnd + 2;
+      if (reference) {
+        if (!/\s/.test(source[urlStart] || "")) continue;
+        urlStart = next("text", urlStart);
+      }
+      let urlEnd = source[urlStart] === "<" && !reference ? next(">", urlStart + 1) + 1 : source.length;
+      let title = titleAt(urlEnd);
+      if (!title) {
+        urlEnd = reference ? next("whitespace", urlStart) : Math.min(next("whitespace", urlStart), next(")", urlStart));
+        if (urlEnd === urlStart) continue;
+        title = titleAt(urlEnd);
+      }
+      if (!title) continue;
+      fragments.push(source.slice(written, start));
+      if (reference) fragments.push(source.slice(start, urlEnd));
+      else fragments.push(`${source.slice(start, labelEnd)} (${source.slice(title.start + 1, title.closing)})](${source.slice(urlStart, urlEnd)}${source.slice(title.closing + 1, title.end)}`);
+      written = cursor = title.end;
+    }
+    fragments.push(source.slice(written));
+    return fragments.join("");
+  }
+  return neutralize(neutralize(s, false), true);
 }
 
 /**

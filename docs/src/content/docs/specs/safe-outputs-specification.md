@@ -2238,6 +2238,10 @@ Image-only lines and standalone subscript delimiters in multi-line paragraphs
 MUST remain in Markdown inline context,
 so subsequent code cannot become raw HTML through CommonMark HTML-block parsing.
 Adjacent generated code delimiters MUST NOT merge into a different backtick run.
+Markdown delimiter matching, URL punctuation trimming, and hidden link-title
+neutralization MUST avoid repeated full-suffix scans on malformed input.
+These protections MUST apply before publication-size fitting, including at the
+sanitizer's maximum input length.
 Imported images retain the source's agent taint and remain subject to ordinary
 secret redaction, coarse content policies, rendering assertions, and concrete
 publication-size fitting. These rules do not introduce a raw-HTML AST node.

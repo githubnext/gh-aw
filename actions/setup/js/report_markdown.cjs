@@ -71,52 +71,84 @@ function htmlImage(raw, substitute) {
 }
 
 /**
- * Scan destinations before substitution, so scalar values cannot close a link.
+ * Index delimiters once so malformed links cannot repeatedly rescan the suffix.
  * @param {string} source
  */
-function markdownLink(source) {
-  const image = source.startsWith("!");
-  const start = image ? 1 : 0;
-  if (source[start] !== "[") return undefined;
-  let labelDepth = 1;
-  let index = start + 1;
-  for (; index < source.length && source[index] !== "\n"; index++) {
-    if (source[index] === "\\") index++;
-    else if (source[index] === "[") labelDepth++;
-    else if (source[index] === "]" && --labelDepth === 0) break;
-  }
-  if (labelDepth !== 0 || source.slice(index, index + 2) !== "](") return undefined;
-  const label = source.slice(start + 1, index);
-  const destinationStart = index + 2;
-  let destinationDepth = 1;
-  for (index = destinationStart; index < source.length; index++) {
-    if (/\s/.test(source[index])) return undefined;
-    if (source[index] === "\\") index++;
-    else if (source[index] === "(") destinationDepth++;
-    else if (source[index] === ")" && --destinationDepth === 0) {
-      return { raw: source.slice(0, index + 1), label, destination: source.slice(destinationStart, index).replace(/\\([\\()])/g, "$1"), image };
+function markdownDelimiters(source) {
+  const brackets = new Uint32Array(source.length);
+  const parentheses = new Uint32Array(source.length);
+  /** @type {number[]} */
+  const bracketStack = [];
+  /** @type {number[]} */
+  const parenthesisStack = [];
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index];
+    if (character === "\\") {
+      index++;
+      continue;
+    }
+    if (character === "\n") bracketStack.length = 0;
+    if (/\s/.test(character)) parenthesisStack.length = 0;
+    else if (character === "(") parenthesisStack.push(index);
+    else if (character === ")") {
+      const start = parenthesisStack.pop();
+      if (start !== undefined) parentheses[start] = index;
+    }
+    if (character === "[") bracketStack.push(index);
+    else if (character === "]") {
+      const start = bracketStack.pop();
+      if (start !== undefined) brackets[start] = index;
     }
   }
-  return undefined;
+  return { brackets, parentheses };
+}
+
+/**
+ * Read preindexed destinations before substitution, so scalar values cannot close a link.
+ * @param {string} source
+ * @param {number} offset
+ * @param {ReturnType<typeof markdownDelimiters>} delimiters
+ */
+function markdownLink(source, offset, delimiters) {
+  const image = source[offset] === "!";
+  const start = offset + (image ? 1 : 0);
+  if (source[start] !== "[") return undefined;
+  const labelEnd = delimiters.brackets[start];
+  if (!labelEnd || source[labelEnd + 1] !== "(") return undefined;
+  const destinationEnd = delimiters.parentheses[labelEnd + 1];
+  if (!destinationEnd) return undefined;
+  return {
+    raw: source.slice(offset, destinationEnd + 1),
+    label: source.slice(start + 1, labelEnd),
+    destination: source.slice(labelEnd + 2, destinationEnd).replace(/\\([\\()])/g, "$1"),
+    image,
+  };
 }
 
 /** @param {string} source */
 function bareURL(source) {
   const match = /^https:\/\/[^\s<>"'`*]+/i.exec(source);
   if (!match) return undefined;
-  let url = match[0];
-  for (;;) {
-    const previous = url;
-    url = url.replace(/[.,!?;:]+$/, "");
-    for (const [open, close] of [
-      ["(", ")"],
-      ["[", "]"],
-      ["{", "}"],
-    ]) {
-      if (url.endsWith(close) && url.split(close).length > url.split(open).length) url = url.slice(0, -1);
-    }
-    if (previous === url) return url;
+  const url = match[0];
+  const balance = [0, 0, 0];
+  for (const character of url) {
+    const opening = "([{".indexOf(character);
+    const closing = ")]}".indexOf(character);
+    if (opening >= 0) balance[opening]--;
+    else if (closing >= 0) balance[closing]++;
   }
+  let end = url.length;
+  while (end) {
+    const character = url[end - 1];
+    if (/[.,!?;:]/.test(character)) end--;
+    else {
+      const closing = ")]}".indexOf(character);
+      if (closing < 0 || balance[closing] <= 0) break;
+      balance[closing]--;
+      end--;
+    }
+  }
+  return url.slice(0, end);
 }
 
 /** @typedef {import("./report_ast.cjs").ReportInline} ReportInline */
@@ -169,6 +201,7 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
     // Redact the complete fragment before references or formatting split a secret.
     source = normalizeReportText(source);
     const original = source;
+    const delimiters = source.includes("[") ? markdownDelimiters(source) : undefined;
     /** @type {ReportInline[]} */
     const nodes = [];
     const text = value => {
@@ -178,7 +211,7 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
     };
     while (source) {
       let match;
-      const link = markdownLink(source);
+      const link = delimiters && markdownLink(original, original.length - source.length, delimiters);
       const autolink = bareURL(source);
       const tag = htmlTag(source);
       if ((match = /^(?: {2,}|\\)\n/.exec(source))) {
