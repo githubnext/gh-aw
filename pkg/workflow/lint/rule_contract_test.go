@@ -19,6 +19,8 @@ type ruleContract struct {
 	path         string
 	severity     Severity
 	strictPolicy bool
+	unsafePrompt string
+	safePrompt   string
 }
 
 const contractJob = "jobs:\n  check:\n    runs-on: ubuntu-latest\n"
@@ -173,6 +175,20 @@ func builtInRuleContracts() map[string]ruleContract {
 			safe:         "strict: false\nsandbox:\n  agent:\n    args: [--ssl-bump, --allow-urls, https://example.com/path]\n",
 			path:         "sandbox.agent.args",
 		},
+		"pull-request-target-checkout": {
+			threatRuleID: "CTR-008",
+			targets:      AWAST, strictPolicy: true,
+			unsafe: "on: pull_request_target\ncheckout: {ref: '${{ github.event.pull_request.head.sha }}'}\n",
+			safe:   "on: pull_request_target\ncheckout: {ref: '${{ github.event.pull_request.base.sha }}'}\n",
+			path:   "checkout",
+		},
+		"prompt-expression": {
+			threatRuleID: "CTR-010",
+			targets:      AWAST,
+			unsafePrompt: "${{\n github.repository\n}}",
+			safePrompt:   "${{ github.repository }}",
+			path:         "prompt",
+		},
 	}
 }
 
@@ -208,14 +224,17 @@ func TestEveryBuiltInRulePositiveAndNegative(t *testing.T) {
 func runRuleContractPair(t *testing.T, id string, contract ruleContract, target ASTTargets, nonstrict bool) {
 	t.Helper()
 	for _, test := range []struct {
-		name, source string
-		finding      bool
+		name, source, prompt string
+		finding              bool
 	}{
-		{"positive", contract.unsafe, true},
-		{"negative", contract.safe, false},
+		{"positive", contract.unsafe, contract.unsafePrompt, true},
+		{"negative", contract.safe, contract.safePrompt, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := ruleContractInput(t, test.source, target, nonstrict)
+			if input.Document != nil && test.prompt != "" {
+				input.Document.Markdown = test.prompt
+			}
 			before, err := json.Marshal(input)
 			require.NoError(t, err)
 			runner, err := Default().Select(id)
