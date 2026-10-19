@@ -520,8 +520,10 @@ async function main() {
 
   /**
    * Helper to set detection failure/warning outputs based on continue-on-error mode.
-   * In warn mode, engine failures with tooling reasons fail closed; all other
-   * failures set conclusion=warning, success=false, and do not fail the job.
+   * In warn mode every failure (including detection engine failures with the
+   * tooling reasons agent_failure/parse_error) sets conclusion=warning,
+   * success=false, and does not fail the job, so safe outputs get the warn-mode
+   * policy (WTD1/WTD1a annotation, WTD2 conversion, WTD3 abort).
    * In error mode: sets conclusion=failure, success=false, fails the job.
    * @param {string} reason - Categorized reason (e.g. "threat_detected", "agent_failure", "parse_error")
    * @param {string} message - Human-readable error message
@@ -532,8 +534,7 @@ async function main() {
     }
     core.setOutput("reason", reason);
     core.exportVariable("GH_AW_DETECTION_REASON", reason);
-    const mustFail = detectionExecutionOutcome === "failure" && (reason === "agent_failure" || reason === "parse_error");
-    if (isWarnMode && !mustFail) {
+    if (isWarnMode) {
       core.warning(`⚠️ ${message}`);
       core.setOutput("conclusion", "warning");
       core.exportVariable("GH_AW_DETECTION_CONCLUSION", "warning");
