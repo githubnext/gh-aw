@@ -35,6 +35,7 @@ describe("check_version_updates", () => {
     vi.stubGlobal("fetch", mockFetch);
 
     delete process.env.GH_AW_COMPILED_VERSION;
+    delete process.env.GH_AW_HAS_SAFE_OUTPUTS;
     delete process.env.GH_AW_BLOCKED_VERSION_REPORT_AS_ISSUE;
     delete process.env.GH_AW_WORKFLOW_NAME;
     delete process.env.GITHUB_REPOSITORY;
@@ -169,18 +170,37 @@ describe("check_version_updates", () => {
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch update configuration"));
   });
 
-  it("should reject workflows older than the provenance requirement before fetching remote config", async () => {
+  it("should reject workflows older than the provenance requirement when remote config is unavailable", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.88.7";
+    process.env.GH_AW_HAS_SAFE_OUTPUTS = "true";
     mockFetchError(new Error("ECONNREFUSED"));
     await runMain();
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalled();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v0.91.10 or newer"));
     expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("run `gh aw compile`"));
     expect(mockCore.summary.write).toHaveBeenCalled();
   });
 
+  it("should reject the version immediately below the provenance requirement", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.91.9";
+    process.env.GH_AW_HAS_SAFE_OUTPUTS = "true";
+    mockFetchError(new Error("ECONNREFUSED"));
+    await runMain();
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("v0.91.10 or newer"));
+  });
+
+  it("should not reject older workflows without safe outputs when remote config is unavailable", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.88.7";
+    process.env.GH_AW_HAS_SAFE_OUTPUTS = "false";
+    mockFetchError(new Error("ECONNREFUSED"));
+    await runMain();
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Could not fetch update configuration"));
+  });
+
   it("should accept the first compiler version that supplies safe-output provenance", async () => {
     process.env.GH_AW_COMPILED_VERSION = "v0.91.10";
+    process.env.GH_AW_HAS_SAFE_OUTPUTS = "true";
     mockFetchSuccess(JSON.stringify({}));
     await runMain();
     expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -412,6 +432,28 @@ describe("check_version_updates", () => {
       })
     );
     expect(createMock.mock.calls[0][0].body).toContain("https://github.com/owner/repo/actions/runs/456");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
+  });
+
+  it("should report blocked old versions before enforcing the provenance minimum", async () => {
+    process.env.GH_AW_COMPILED_VERSION = "v0.85.3";
+    process.env.GH_AW_HAS_SAFE_OUTPUTS = "true";
+    mockFetchSuccess(JSON.stringify({ blockedVersions: ["v0.85.3"], minimumVersion: "" }));
+    const searchMock = vi.fn().mockResolvedValue({ data: { items: [] } });
+    const createMock = vi.fn().mockResolvedValue({ data: { number: 42, html_url: "https://github.com/owner/repo/issues/42" } });
+    global.github = {
+      rest: {
+        search: { issuesAndPullRequests: searchMock },
+        issues: { create: createMock, update: vi.fn() },
+      },
+    };
+
+    await runMain();
+
+    expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
+    expect(mockCore.summary.addRaw).not.toHaveBeenCalledWith(expect.stringContaining("Incompatible compiled workflow"));
+    expect(searchMock).toHaveBeenCalled();
+    expect(createMock).toHaveBeenCalled();
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Blocked compile-agentic version"));
   });
 

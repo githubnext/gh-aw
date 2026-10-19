@@ -215,6 +215,23 @@ async function reportBlockedVersionIssue(compiledVersion) {
  */
 
 /**
+ * Fail activation when safe-output publishing requires provenance not available
+ * in the compiled workflow.
+ *
+ * @param {string} compiledVersion
+ * @returns {Promise<void>}
+ */
+async function failForMissingExecutionProvenance(compiledVersion) {
+  const message = `The setup runtime requires a workflow compiled with gh-aw ${PROVENANCE_MINIMUM_COMPILER_VERSION} or newer. Update gh-aw, run \`gh aw compile\`, and commit the regenerated workflow.`;
+  core.summary
+    .addRaw("### Incompatible compiled workflow\n\n")
+    .addRaw(`This workflow was compiled with \`${compiledVersion}\`, but safe-output publishing now requires execution provenance added in \`${PROVENANCE_MINIMUM_COMPILER_VERSION}\`.\n\n`)
+    .addRaw("**Action required:** Update `gh-aw`, run `gh aw compile`, and commit the regenerated workflow.\n");
+  await core.summary.write();
+  core.setFailed(message);
+}
+
+/**
  * Main entry point.
  */
 async function main() {
@@ -231,16 +248,7 @@ async function main() {
     return;
   }
 
-  if (compareVersions(compiledVersion, PROVENANCE_MINIMUM_COMPILER_VERSION) < 0) {
-    const message = `The setup runtime requires a workflow compiled with gh-aw ${PROVENANCE_MINIMUM_COMPILER_VERSION} or newer. Update gh-aw, run \`gh aw compile\`, and commit the regenerated workflow.`;
-    core.summary
-      .addRaw("### Incompatible compiled workflow\n\n")
-      .addRaw(`This workflow was compiled with \`${compiledVersion}\`, but safe-output publishing now requires execution provenance added in \`${PROVENANCE_MINIMUM_COMPILER_VERSION}\`.\n\n`)
-      .addRaw("**Action required:** Update `gh-aw`, run `gh aw compile`, and commit the regenerated workflow.\n");
-    await core.summary.write();
-    core.setFailed(message);
-    return;
-  }
+  const requiresExecutionProvenance = process.env.GH_AW_HAS_SAFE_OUTPUTS === "true" && compareVersions(compiledVersion, PROVENANCE_MINIMUM_COMPILER_VERSION) < 0;
 
   core.info(`Checking compile-agentic version: ${compiledVersion}`);
   core.info(`Fetching update configuration from: ${CONFIG_URL}`);
@@ -270,6 +278,10 @@ async function main() {
       "fetch update configuration"
     );
   } catch (err) {
+    if (requiresExecutionProvenance) {
+      await failForMissingExecutionProvenance(compiledVersion);
+      return;
+    }
     const message = getErrorMessage(err);
     core.info(`Could not fetch update configuration (${message}). Skipping version check.`);
     return;
@@ -290,6 +302,11 @@ async function main() {
     await core.summary.write();
     await reportBlockedVersionIssue(compiledVersion);
     core.setFailed(`Blocked compile-agentic version: ${compiledVersion} is in the blocked versions list. Update gh-aw to the latest version and recompile your workflow.`);
+    return;
+  }
+
+  if (requiresExecutionProvenance) {
+    await failForMissingExecutionProvenance(compiledVersion);
     return;
   }
 
