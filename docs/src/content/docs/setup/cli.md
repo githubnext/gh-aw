@@ -817,6 +817,27 @@ gh aw outcomes history --repo owner/repo --json     # JSON output for another re
 
 **Options:** `--limit`, `--source`, `--json/-j`, `--repo/-r`
 
+##### `outcomes episodes`
+
+Join episode membership from a full logs JSON report with the latest recorded
+safe-output outcome observations. Reads downloaded usage artifacts locally;
+does not query GitHub or evaluate outcomes.
+
+```bash wrap
+gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes
+gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --output ./logs --json
+```
+
+**Required:** `--logs` (generated with `gh aw logs --verbose --json`),
+`--outcomes-dir` (JSONL written by `gh aw outcomes <run-id>`).
+
+**Options:** `--output/-o` (downloaded `run-*` directory, default
+`.github/aw/logs`), `--json/-j`.
+
+Reports are scoped to selected runs and qualify missing membership, outcomes,
+and cost. See [Episode Outcome Summaries](/gh-aw/reference/outcomes/#episode-outcome-summaries)
+for the JSON contract and unavailable-cost semantics.
+
 #### `models`
 
 List model catalog pricing, built-in aliases and their resolution order, and models observed in local automation artifacts.
@@ -1231,6 +1252,7 @@ Print the JSON Schema for structured command output.
 gh aw json-schema audit        # Schema for gh aw audit --json
 gh aw json-schema logs         # Schema for gh aw logs --json
 gh aw json-schema logs-jsonl   # Schema for each gh aw logs --cached-jsonl line
+gh aw json-schema outcomes-episodes # Schema for gh aw outcomes episodes --json
 ```
 
 **Schema arguments:** `audit`, `logs`, `logs-jsonl`. The schema is written to stdout. See [JSON output schemas](/gh-aw/reference/audit/#json-output-schemas).
