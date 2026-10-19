@@ -239,5 +239,9 @@ func Default() *Runner {
 		PullRequestTargetCheckoutRule(),
 		PromptExpressionRule(),
 		GatewayDispatchLiteralsRule(),
+		ArtipackedRule(),
+		CachePoisoningRule(),
+		ExcessivePermissionsRule(),
+		ObfuscationRule(),
 	}}
 }

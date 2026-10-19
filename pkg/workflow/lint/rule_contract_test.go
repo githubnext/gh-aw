@@ -37,6 +37,30 @@ func builtInRuleContracts() map[string]ruleContract {
 			safe:    "on: {gateway-dispatch: {issue: {filters: {labels: [triage]}}}}\n",
 			path:    "on.gateway-dispatch.issue.filters.labels[0]",
 		},
+		"artipacked": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: contractJob + "    steps:\n      - uses: actions/checkout@v6\n",
+			safe:   contractJob + "    steps:\n      - uses: actions/checkout@v6\n        with:\n          persist-credentials: false\n",
+			path:   "jobs.check.steps[0].uses",
+		},
+		"cache-poisoning": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: "on: release\n" + contractJob + "    steps:\n      - uses: actions/setup-go@v6\n",
+			safe:   "on: release\n" + contractJob + "    steps:\n      - uses: actions/setup-go@v6\n        with:\n          cache: false\n",
+			path:   "jobs.check.steps[0].uses",
+		},
+		"excessive-permissions": {
+			targets: ActionsAST, severity: Warning, threatRuleID: "CTR-001",
+			unsafe: "permissions: {contents: read, issues: write}\n" + contractJob + contractSafeSteps,
+			safe:   "permissions: {contents: read}\n" + contractJob + "    permissions: {issues: write}\n" + contractSafeSteps,
+			path:   "permissions.issues",
+		},
+		"obfuscation": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: contractJob + "    outputs: {comment_id: \"${{ '' }}\"}\n" + contractSafeSteps,
+			safe:   contractJob + "    outputs: {comment_id: ''}\n" + contractSafeSteps,
+			path:   "jobs.check.outputs.comment_id",
+		},
 		"grader-shell-file-write": {
 			targets:     AWAST,
 			unsafe:      "graders:\n  operational-value:\n    run: ./check.sh\n",
