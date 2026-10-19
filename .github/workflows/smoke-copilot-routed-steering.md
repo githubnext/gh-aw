@@ -63,6 +63,9 @@ post-steps:
           executionOutcome: process.env.SMOKE_EXECUTION,
           allowedModels: ["gpt-5.6-luna"],
           steering: { maxAiCredits: 7 },
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: [],
         });
 ---
 

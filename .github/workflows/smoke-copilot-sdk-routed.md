@@ -63,6 +63,9 @@ post-steps:
           mainEndpoint: "/responses",
           subAgents: [{ name: "haiku-whoami", model: "claude-haiku-4.5", endpoint: "/chat/completions" }],
           requireDeclaredAgentNames: true,
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: [],
         });
 ---
 
