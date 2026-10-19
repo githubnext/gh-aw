@@ -26,6 +26,12 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
+		"custom-job-detection": {
+			targets: AWAST,
+			unsafe:  contractJob + "    needs: agent\n" + contractSafeSteps,
+			safe:    contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,
+			path:    "jobs.check.needs",
+		},
 		"secret-leak": {
 			threatRuleID: "CTR-017",
 			targets:      ActionsAST | AWAST,

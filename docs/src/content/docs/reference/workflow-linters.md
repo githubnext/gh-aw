@@ -32,6 +32,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `pull-request-target-roles` | `CTR-008` | AW | `pull_request_target` does not admit explicit `read` or `all` roles. Checkout disablement and risk acknowledgment do not bypass this policy. Does not infer checkout safety or generated authorization. |
 | `safe-output-shell-expansion` | `CTR-009` | AW | Authored `safe-outputs.steps[*].run` scripts avoid the shell expansion patterns blocked by the compiler/harness: parameter transformation, indirect expansion, command substitution, and backticks. Arithmetic and ordinary variables remain allowed. |
 | `firewall-ssl-bump` | `CTR-011` | AW | Nonempty literal `--allow-urls` in `sandbox.agent.args` requires `--ssl-bump` in the same list. Unsupported legacy `network.firewall` blocks require migration, even with `ssl-bump: true`. Does not prove runtime HTTPS enforcement. |
+| `custom-job-detection` | — | AW | Authored custom jobs with a direct `agent` dependency also need `detection` and require its success. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
 
 ## Severity and source policy
 
@@ -51,6 +52,24 @@ sandbox:
 ```
 
 The compiler rejects `network.firewall` regardless of its SSL setting. Remove that legacy block and use `network.allowed` for domain policy; do not add `network.firewall.ssl-bump` as a remedy.
+
+### Custom job detection gates
+
+`custom-job-detection` is an error in either strict mode. A custom job that directly needs `agent` must also directly need `detection`. Without a status function, Actions implicitly requires all dependencies to succeed. Conditions using `always()`, `failure()`, or `cancelled()` must additionally require `needs.detection.result == 'success'` on every runnable branch:
+
+```aw wrap
+jobs:
+  report:
+    needs: [agent, detection, scan]
+    if: always() && needs.detection.result == 'success' && needs.scan.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Report a failed scan after successful threat detection"
+```
+
+`needs.detection.result != 'skipped'` is insufficient: failed detection must block the job too. The rule parses Actions expressions rather than matching text; quoted guards and an unguarded `||` branch do not satisfy it. Complex equivalent predicates that cannot be proven safe should use the explicit equality guard.
+
+This rule inspects authored top-level `jobs`, not compiler-managed jobs or `safe-outputs.jobs`, which receive compiler-generated guards. It does not resolve imports or infer transitive dependencies; lint shared fragments explicitly as well as their consumers. Fragments assume detection is enabled unless their source explicitly disables it. For paired lock files, an absent compiled detection job confirms the exemption.
 
 ## Secret-flow analysis
 

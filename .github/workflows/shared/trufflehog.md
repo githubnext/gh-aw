@@ -3,7 +3,7 @@ jobs:
   trufflehog_scan:
     runs-on: ubuntu-latest
     needs: [agent, detection]
-    if: always() && needs.agent.result != 'skipped' && needs.detection.result != 'skipped'
+    if: always() && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     permissions:
       contents: read
     outputs:
@@ -159,8 +159,8 @@ jobs:
 
   trufflehog_report:
     runs-on: ubuntu-latest
-    needs: [agent, trufflehog_scan]
-    if: always() && needs.trufflehog_scan.result == 'failure' && needs.trufflehog_scan.outputs.secrets_found == 'true'
+    needs: [agent, detection, trufflehog_scan]
+    if: always() && needs.detection.result == 'success' && needs.trufflehog_scan.result == 'failure' && needs.trufflehog_scan.outputs.secrets_found == 'true'
     permissions:
       issues: write
     steps:

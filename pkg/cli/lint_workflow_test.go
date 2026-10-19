@@ -251,6 +251,40 @@ func TestThreatPolicyRulesCLIInputModes(t *testing.T) {
 	}
 }
 
+func TestCustomJobDetectionCLIInputModes(t *testing.T) {
+	const source = "---\njobs:\n  report:\n    needs: [agent, detection]\n    if: always()\n---\nPrompt\n"
+	const compiled = "jobs:\n  detection:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo detection\n"
+	for _, extension := range []string{".md", ".lock.yml", ".yaml"} {
+		t.Run(extension, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "test.md"), []byte(source), 0o600))
+			file := filepath.Join(dir, "test"+extension)
+			if extension != ".md" {
+				require.NoError(t, os.WriteFile(file, []byte(compiled), 0o600))
+			}
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=custom-job-detection", "--json", file})
+			err := cmd.Execute()
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			if extension == ".yaml" {
+				require.NoError(t, err)
+				assert.Empty(t, diagnostics, "native Actions has no authored AW custom jobs")
+				return
+			}
+			require.ErrorContains(t, err, "workflow lint found 1 error")
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, "custom-job-detection", diagnostics[0].RuleID)
+			assert.Equal(t, "jobs.report.if", diagnostics[0].Path)
+			assert.Equal(t, workflowlint.Error, diagnostics[0].Severity)
+			assert.Empty(t, diagnostics[0].ThreatRuleID)
+		})
+	}
+}
+
 func TestBuiltInWorkflowLintCommand(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "test.lock.yml")
@@ -304,6 +338,7 @@ func TestBuiltInWorkflowLintCommand(t *testing.T) {
 	assert.Contains(t, output, "pull-request-target-roles")
 	assert.Contains(t, output, "safe-output-shell-expansion")
 	assert.Contains(t, output, "firewall-ssl-bump")
+	assert.Contains(t, output, "custom-job-detection")
 	assert.Contains(t, output, "\tCTR-008\n")
 	assert.Contains(t, output, "\tCTR-009\n")
 	assert.Contains(t, output, "\tCTR-011\n")
