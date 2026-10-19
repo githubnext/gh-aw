@@ -196,6 +196,9 @@ describe("report AST", () => {
         children: [
           { type: "text", value: "cross-format-render-secret-", agentTainted: false },
           { type: "strong", agentTainted: true, children: [{ type: "text", value: "fixture", agentTainted: true }] },
+          { type: "strong", agentTainted: false, children: [{ type: "text", value: "Safe emphasis", agentTainted: false }] },
+          { type: "text", value: " ", agentTainted: false },
+          { type: "link", url: "https://docs.example/", agentTainted: false, children: [{ type: "text", value: "docs", agentTainted: false }] },
         ],
       },
     ]);
@@ -208,6 +211,7 @@ describe("report AST", () => {
     expect(body).not.toContain("cross-type-render-");
     expect(body).not.toContain(crossFormatSecret);
     expect(body).not.toContain("cross-format-render-secret-");
+    expect(body).toContain("**Safe emphasis** [docs](https://docs.example/)");
   });
 
   it.each([

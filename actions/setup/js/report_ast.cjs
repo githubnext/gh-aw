@@ -71,6 +71,73 @@ function collectInlineText(nodes, redactEach) {
     .join("");
 }
 
+/**
+ * @param {ReportInline[]} nodes
+ * @param {number} start
+ * @param {number} end
+ * @param {string} replacement
+ * @returns {ReportInline[]}
+ */
+function replaceInlineRange(nodes, start, end, replacement) {
+  let offset = 0;
+  let inserted = false;
+  /**
+   * @param {ReportInline[]} current
+   * @returns {{nodes: ReportInline[], changed: boolean}}
+   */
+  function visit(current) {
+    let changed = false;
+    /** @type {ReportInline[]} */
+    const result = [];
+    for (const node of current) {
+      if (node.type === "text" || node.type === "code") {
+        const value = Array.from(node.value);
+        const nodeStart = offset;
+        offset += value.length;
+        const nodeEnd = offset;
+        if (nodeStart >= end || nodeEnd <= start) {
+          result.push(node);
+          continue;
+        }
+        changed = true;
+        const prefixEnd = Math.max(0, Math.min(value.length, start - nodeStart));
+        const suffixStart = Math.max(0, Math.min(value.length, end - nodeStart));
+        const prefix = value.slice(0, prefixEnd).join("");
+        const suffix = value.slice(suffixStart).join("");
+        if (prefix) result.push({ ...node, value: prefix });
+        if (!inserted && replacement) {
+          result.push({ type: "text", value: replacement, agentTainted: false });
+          inserted = true;
+        }
+        if (suffix) result.push({ ...node, value: suffix });
+        continue;
+      }
+      if (node.type === "soft_break" || node.type === "hard_break") {
+        const nodeStart = offset;
+        offset++;
+        if (nodeStart >= start && nodeStart < end) {
+          changed = true;
+          if (!inserted && replacement) {
+            result.push({ type: "text", value: replacement, agentTainted: false });
+            inserted = true;
+          }
+        } else result.push(node);
+        continue;
+      }
+      if ("children" in node) {
+        const children = visit(node.children);
+        changed ||= children.changed;
+        if (children.changed && node.type === "link") result.push(...children.nodes);
+        else if (children.nodes.length) result.push({ ...node, children: children.nodes });
+        continue;
+      }
+      result.push(node);
+    }
+    return { nodes: result, changed };
+  }
+  return visit(nodes).nodes;
+}
+
 /** @param {string} value @param {{redact?: boolean}} [options] */
 function normalizeReportText(value, { redact = true } = {}) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
@@ -422,7 +489,18 @@ function renderInlines(nodes) {
   const sourceText = collectInlineText(nodes, false);
   const completeText = normalizeReportText(sourceText).replace(/\s+/g, " ");
   const independentlyRedactedText = collectInlineText(nodes, true).replace(/\s+/g, " ");
-  if (completeText !== independentlyRedactedText) return escapeReportText(completeText);
+  if (completeText !== independentlyRedactedText) {
+    const source = Array.from(sourceText);
+    const complete = Array.from(completeText);
+    let prefixLength = 0;
+    while (prefixLength < source.length && prefixLength < complete.length && source[prefixLength] === complete[prefixLength]) prefixLength++;
+    let suffixLength = 0;
+    while (suffixLength < source.length - prefixLength && suffixLength < complete.length - prefixLength && source[source.length - suffixLength - 1] === complete[complete.length - suffixLength - 1]) {
+      suffixLength++;
+    }
+    const replacement = complete.slice(prefixLength, complete.length - suffixLength).join("");
+    return renderInlines(replaceInlineRange(nodes, prefixLength, source.length - suffixLength, replacement));
+  }
   /** @type {ReportInline[]} */
   const renderingNodes = [];
   for (let index = 0; index < nodes.length;) {
