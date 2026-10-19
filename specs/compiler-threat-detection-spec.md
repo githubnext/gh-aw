@@ -262,6 +262,8 @@ The `MCP-COMPILE-*` requirements are separate from the `CTR-*` / `T-CTR-*` gener
 
 The in-process registry in `pkg/workflow/lint` defines rules only against parsed AW or Actions ASTs, with explicit target metadata. File discovery and parsing are CLI-adapter responsibilities, never rule definitions. `gh aw lint` accepts AW `.md`, native Actions `.yml`/`.yaml`, and compiled `.lock.yml` inputs without compilation. AW-only analysis visits explicit authored execution nodes and reports unavailable generated-flow coverage; it MUST NOT fabricate a compiled Actions graph. These checks do not replace strict-mode validation, safe rewrites, runtime controls, or formal conformance evidence. A clean result MUST NOT be represented as proof of complete `CTR-*` conformance.
 
+**Informative attribution:** Selected AST checks build on [zizmor's security research and audit definitions](https://docs.zizmor.sh/audits/). Credit for the upstream `artipacked`, `cache-poisoning`, `excessive-permissions`, `obfuscation`, `template-injection`, and `unpinned-uses` audits, their names, and remediation guidance belongs to the [zizmor maintainers and contributors](https://github.com/zizmorcore/zizmor). zizmor is [MIT-licensed](https://github.com/zizmorcore/zizmor/blob/main/LICENSE). gh-aw's Go checks are independent, scoped implementations informed by those audits and repository findings, not embedded zizmor code or a claim of equivalent coverage, severity, suppression behavior, or upstream endorsement. The [Workflow Linters reference](/gh-aw/reference/workflow-linters/#historical-zizmor-regressions) links the original audits and distinguishes them from gh-aw regression evidence.
+
 Rules with a known compiler threat mapping MUST declare its `CTR-*` ID in `Rule.ThreatRuleID`. The runner MUST attach the registered reference to findings and coverage warnings; CLI text, JSON diagnostics (`threat_rule_id`), and rule listings MUST expose it. Unmapped extension rules MAY omit the field, and JSON MUST omit an empty reference. Registry contracts verify the built-in mappings below. The [Workflow Linters reference](/gh-aw/reference/workflow-linters/) documents user-facing checks and analysis boundaries separately from CLI usage.
 
 | Threat rule | AST lint rule | Observable invariant | Implementation and evidence |
@@ -363,6 +365,7 @@ A test ID that is deprecated under Section 5.4 MUST remain listed in Section 8.1
 - RFC 2119: Key words for use in RFCs to Indicate Requirement Levels
 - GitHub Actions syntax and permissions documentation
 - gh-aw security architecture and safe-output specifications
+- zizmor maintainers and contributors: [zizmor](https://github.com/zizmorcore/zizmor), [Audit Rules](https://docs.zizmor.sh/audits/), and [MIT License](https://github.com/zizmorcore/zizmor/blob/main/LICENSE) (informative upstream attribution for selected AST checks)
 
 ## 10. Change Log
 
