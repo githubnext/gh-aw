@@ -846,11 +846,40 @@ async function applyCopilotCLISubagentModels(options) {
   for (const resolution of resolutions) {
     if (resolution.model === resolution.configuredModel) continue;
     for (const file of files.filter(file => file.name === resolution.name && file.model === resolution.configuredModel)) {
+      const original = fs.readFileSync(file.path);
       rewriteCopilotAgentFileModel(file.path, resolution.model);
+      if (!hideTrackedAgentFileRewrite(file.path, logger)) {
+        fs.writeFileSync(file.path, original);
+        logger(`copilot sub-agent '${resolution.name}': cannot keep the resolved model out of commits for tracked file ${file.path}. Refusing to start Copilot with an unresolved sub-agent model.`);
+        process.exit(1);
+        return [];
+      }
       logger(`copilot sub-agent '${resolution.name}': wrote model '${resolution.model}' to ${file.path}`);
     }
   }
   return resolutions;
+}
+
+/**
+ * Keep a harness rewrite of a git-tracked agent file out of the agent's commits and
+ * safe-output patches by marking it skip-worktree. Untracked files (restored inline
+ * sub-agents) need nothing. Returns false when a tracked file cannot be hidden.
+ * @param {string} agentPath
+ * @param {(msg: string) => void} logger
+ * @returns {boolean}
+ */
+function hideTrackedAgentFileRewrite(agentPath, logger) {
+  const { spawnSync } = require("child_process");
+  const cwd = path.dirname(agentPath);
+  const file = path.basename(agentPath);
+  const tracked = spawnSync("git", ["ls-files", "--error-unmatch", "--", file], { cwd, stdio: "ignore" });
+  if (tracked.error || tracked.status !== 0) return true;
+  const hidden = spawnSync("git", ["update-index", "--skip-worktree", "--", file], { cwd, encoding: "utf8" });
+  if (hidden.error || hidden.status !== 0) {
+    logger(`warning: git update-index --skip-worktree failed for ${agentPath}: ${hidden.error ? getErrorMessage(hidden.error) : String(hidden.stderr || "").trim()}`);
+    return false;
+  }
+  return true;
 }
 
 /**

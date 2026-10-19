@@ -4845,6 +4845,25 @@ describe("Copilot sub-agent model resolution (recorded /reflect from run 3930457
     expect(fs.readFileSync(path.join(agentsDir, "haiku-whoami.agent.md"), "utf8")).toBe(exact);
   });
 
+  it("case 6 (CLI, tracked file): a rewritten repository agent file stays out of git status and commits", async () => {
+    const { execFileSync } = require("child_process");
+    const dir = tempDir("copilot-subagent-cli-tracked-");
+    const git = (/** @type {string[]} */ ...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: dir, encoding: "utf8" });
+    git("init", "-q");
+    const agentsDir = path.join(dir, ".github/agents");
+    fs.mkdirSync(agentsDir, { recursive: true });
+    fs.writeFileSync(path.join(agentsDir, "repo-small.agent.md"), "---\nmodel: small\n---\nRepository agent.\n");
+    git("add", "-A");
+    git("commit", "-q", "-m", "init");
+    const awfConfigPath = path.join(dir, "awf-config.json");
+    fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
+    await applyCopilotCLISubagentModels({ reflectData: recordedReflect(), agentsDir, env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath }, logger: () => {} });
+    expect(fs.readFileSync(path.join(agentsDir, "repo-small.agent.md"), "utf8")).toBe('---\nmodel: "claude-haiku-5.5"\n---\nRepository agent.\n');
+    git("add", "-A");
+    expect(git("status", "--porcelain", "--", ".github")).toBe("");
+    expect(git("diff", "--cached", "--name-only", "--", ".github")).toBe("");
+  });
+
   /** Spawn the harness against the recorded catalogue with the given workspace agent files. */
   async function runHarness({ sdk = false, agents, reflect = recordedReflect(), env: envOverrides = {} }) {
     const dir = tempDir("copilot-subagent-harness-");
