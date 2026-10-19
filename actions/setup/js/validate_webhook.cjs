@@ -8,6 +8,7 @@ const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_c
 const { WEBHOOK_PAYLOAD_POLICY, isGenericWebhookType, isWebhookFilterName, validWebhookFilterValues } = require("./webhook_resource.cjs");
 const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
 const { isGatewayCommand, validGatewayCommandSubscription, matchesGatewayCommandSubscription } = require("./gateway_command_webhook.cjs");
+const { isGitHubNotification, validGitHubNotificationSubscription } = require("./github_notification_webhook.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
 const MAX_DISPATCH_REQUEST_BYTES = 65535;
@@ -43,7 +44,7 @@ function eventName(env) {
 function hasValidRepositorySelectors(subscription) {
   if (subscription.repos === undefined) return true;
   return (
-    ["code_scanning_alert", "dependabot_alert", "slash_command", "label_command"].includes(subscription.event) &&
+    (isGitHubNotification(subscription.event) || ["code_scanning_alert", "dependabot_alert", "slash_command", "label_command"].includes(subscription.event)) &&
     Array.isArray(subscription.repos) &&
     subscription.repos.length > 0 &&
     subscription.repos.every(repo => typeof repo === "string" && repo.trim() === repo && /^[a-zA-Z0-9_-]+\/([a-zA-Z0-9._-]+|\*)$/.test(repo) && !/\/\.{1,2}$/.test(repo))
@@ -61,7 +62,7 @@ function matchesRepositorySelector(repo, selectors) {
 function hasValidOrganizationSelectors(subscription) {
   return (
     subscription.orgs === undefined ||
-    (["projects_v2_item", "code_scanning_alert", "dependabot_alert", "slash_command", "label_command"].includes(subscription.event) &&
+    ((isGitHubNotification(subscription.event) || ["projects_v2_item", "code_scanning_alert", "dependabot_alert", "slash_command", "label_command"].includes(subscription.event)) &&
       Array.isArray(subscription.orgs) &&
       subscription.orgs.length > 0 &&
       subscription.orgs.every(org => typeof org === "string" && /^[a-zA-Z0-9*]([a-zA-Z0-9*-]{0,37}[a-zA-Z0-9*])?$/.test(org) && !/\s/.test(org)))
@@ -167,6 +168,7 @@ function validateWebhook(event, env = process.env) {
         hasValidRepositorySelectors(subscription) &&
         hasValidOrganizationSelectors(subscription) &&
         (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription)) &&
+        (!isGitHubNotification(subscription.event) || validGitHubNotificationSubscription(subscription)) &&
         (isGatewayCommand(subscription.event) ? validGatewayCommandSubscription(subscription) : subscription.command_filter === undefined)
     )
   ) {

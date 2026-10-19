@@ -1,6 +1,6 @@
 ---
 title: Webhook Triggers
-description: Experimental gateway triggers for Projects v2, security alerts, provider issues, commands, and generic webhooks.
+description: Experimental gateway triggers for GitHub issues, pull requests, comments, Projects v2, security alerts, provider issues, and commands.
 sidebar:
   order: 401
 ---
@@ -9,11 +9,11 @@ import webhookEvents from '../../../../../pkg/workflow/data/webhook_events.json'
 
 The dedicated [Webhook Gateway Specification](/gh-aw/specs/webhook-gateway-specification/) defines every supported trigger, its expected data, and the receiver/runner contract. `on.gateway-dispatch` itself and all nested triggers are experimental.
 
-`on.gateway-dispatch.projects-items` and `on.gateway-dispatch.security-alerts` declare subscriptions to specific GitHub webhooks that do not have a native GitHub Actions trigger. All gateway triggers belong inside `on.gateway-dispatch`. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a repository dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
+`on.gateway-dispatch` declares server-filtered GitHub issue, pull-request, discussion, comment, review/thread, Projects v2, and security subscriptions. A hosted CAO integration authenticates deliveries, evaluates the compiled subscription for each delivery, and batches matching events of the same kind into a repository dispatch. gh-aw supplies the compiler declaration and validates the batch; it does not deploy a receiver or activate gateway authority.
 
 Native triggers such as `issues`, `pull_request`, and `push` remain unchanged in workflows without `gateway-dispatch`.
 
-External issue subscriptions use `on.gateway-dispatch.jira-issue`, `on.gateway-dispatch.linear-issue`, or `on.gateway-dispatch.azure-devops-issue` with the same repository opt-in and dispatch authorization. Their normalized activities, provider authentication requirements, and transition-evidence limitations are documented in [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/). The GitHub event and payload details below apply to Projects and security alerts.
+External issue subscriptions use `on.gateway-dispatch.jira-issue`, `on.gateway-dispatch.linear-issue`, or `on.gateway-dispatch.azure-devops-issue` with the same repository opt-in and dispatch authorization. Their normalized activities, provider authentication requirements, and transition-evidence limitations are documented in [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/).
 
 > [!WARNING]
 > Webhook gateway triggers and their options are experimental. Their syntax and behavior may change. They are synthetic events requiring a hosted CAO server, not native GitHub Actions triggers.
@@ -140,19 +140,58 @@ Resource triggers, gateway commands, and generic `webhooks` can coexist inside o
 
 | Property | Required | Description |
 | --- | --- | --- |
-| `on.gateway-dispatch` | Yes | Experimental object containing at least one supported gateway trigger; also requires the repository opt-in. Cannot coexist with explicit workflow or repository dispatch triggers. |
+| `on.gateway-dispatch` | Yes | Exclusive experimental object containing at least one supported gateway trigger; also requires the repository opt-in. Cannot coexist with any other trigger. |
 | `on.gateway-dispatch.projects-items.project_id` | Yes, for `projects-items` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
 | `on.gateway-dispatch.projects-items.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
 | `on.gateway-dispatch.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
 | `on.gateway-dispatch.repos` | No | Shared nonempty list of literal `owner/repo` or `owner/*` source selectors for repository-aware subscriptions. Omission preserves CAO's existing approved source scope. |
-| `on.gateway-dispatch.orgs` | No | Shared nonempty list of GitHub organization names or `*` patterns for Projects and security subscriptions. Case-insensitive; intersects `repos` and reviewed enrollment. |
+| `on.gateway-dispatch.orgs` | No | Shared nonempty list of GitHub organization names or `*` patterns for GitHub notifications, Projects, security, and commands. Case-insensitive; intersects `repos` and reviewed enrollment. |
 | `on.gateway-dispatch.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
 | `on.gateway-dispatch.slash-command` | No | Native `on.slash_command` configuration, matched by the server. |
 | `on.gateway-dispatch.label-command` | No | Native `on.label_command` configuration, including server-side `remove_label`. |
-| `types` | No | Nonempty list of supported activity types under either trigger, matched against the original `payload.action`. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
-| `filters` | No | Mapping of allowlisted, typed payload selectors under either trigger. Omission imposes no additional field conditions. |
+| `types` | No | Nonempty list of supported activity types under a resource trigger, matched against the original action. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
+| `filters` | No | Mapping of allowlisted, typed payload selectors under GitHub notification, Projects, or security triggers. Omission imposes no additional field conditions. |
 
 For named triggers, unknown properties, events, activity types, filter names, invalid values, and filters unavailable for the selected sources or activity types fail compilation. Generic subscriptions use the explicit event identifiers and declarative payload paths below.
+
+### GitHub issues, pull requests, and comments
+
+```aw wrap
+---
+on:
+  gateway-dispatch:
+    repos: ["my-org/*"]
+    issue:
+      types: [opened, labeled]
+      filters:
+        labels: [triage]
+    pull-request:
+      types: [ready_for_review, closed]
+      filters:
+        base: main
+        draft: false
+    issue-comment:
+      types: [created, edited]
+    pull-request-comment:
+      types: [created]
+    pull-request-review:
+      types: [submitted]
+      filters:
+        state: approved
+    pull-request-review-comment:
+    pull-request-review-thread:
+    discussion:
+    discussion-comment:
+    commit-comment:
+---
+
+Process every notification in ${{ toJSON(gateway.events) }}.
+Fetch accessible resource details using authenticated GitHub tools.
+```
+
+Each key accepts null, `{}`, or an object with `types` and optional typed `filters`. A null trigger or omitted `types` selects every supported action, including comment deletion where the source supports it. The receiver filters original source events, actions, and conditions before projection; no command token is required. `issue-comment` selects issue conversation comments only, while `pull-request-comment` selects PR conversation comments from native `issue_comment`. Inline review comments/replies, reviews, review-thread resolution, discussion comments/replies, and commit comments have separate keys. Native top-level events cannot coexist with these gateway subscriptions.
+
+The [notification catalog](/gh-aw/specs/webhook-gateway-specification/#github-notification-subscriptions) lists every action, filter path/type, native source discriminator, and canonical URL/anchor. Bodies and titles are not filterable or forwarded. Selectors use exact equality, not branch/path globs or native `branches`/`paths` fields. Current parent `labels` and a changed `label` are distinct selectors; only matching declared literals are projected. Shared `repos`/`orgs` restrict independently approved sources. Receiving-App inference uses read-only source permissions, not command or label-write authority.
 
 ### Gateway-powered commands
 
@@ -363,7 +402,7 @@ Every payload contains **only** `url`, a nonempty `type` array, and `filters` fo
 
 Every forwarded `type` must match the selected `types` as well as source evidence. A provider update with `edited`, `closed`, and `labeled` evidence forwards only `["closed"]` when `types: [closed]`; one matching activity cannot authorize unselected ones. See [Provider Issue Triggers](/gh-aw/reference/provider-issue-triggers/#manifest-and-batch-context) for lifecycle projection.
 
-GitHub families carry exactly one original action, such as `["edited"]` or `["created"]`. Security URLs identify `/repos/OWNER/REPO/dependabot/alerts/NUMBER` or `/code-scanning/alerts/NUMBER`. Projects URLs identify `/orgs/OWNER/projectsV2/PROJECT_NUMBER/items/ITEM_ID` or the corresponding `/users/OWNER/...` endpoint. These API URLs must match `GITHUB_API_URL`, including an Enterprise API prefix, without credentials, query strings, or fragments. Commands use `GITHUB_SERVER_URL` HTML links and only source-specific canonical comment anchors. The [gateway specification](/gh-aw/specs/webhook-gateway-specification/#expected-per-delivery-payloads) defines the exact forms and projection rules.
+GitHub families carry exactly one original action, such as `["edited"]` or `["created"]`. Security URLs identify `/repos/OWNER/REPO/dependabot/alerts/NUMBER` or `/code-scanning/alerts/NUMBER`. Projects URLs identify `/orgs/OWNER/projectsV2/PROJECT_NUMBER/items/ITEM_ID` or the corresponding `/users/OWNER/...` endpoint. These API URLs must match `GITHUB_API_URL`, including an Enterprise API prefix, without credentials, query strings, or fragments. GitHub notifications and commands use `GITHUB_SERVER_URL` HTML links and only their source-specific canonical comment/review anchors. The [gateway specification](/gh-aw/specs/webhook-gateway-specification/#expected-per-delivery-payloads) defines the exact forms and projection rules.
 
 A selector does not authorize forwarding its full field, unselected array elements, siblings, or native resource objects. Additional data must be resolved **inside the workflow** with an authenticated GitHub App client so GitHub enforces access; the validator does not fetch it. Use configured trusted API endpoints, never attach credentials to arbitrary payload URLs or follow credential-bearing redirects, and handle denied/deleted resources without fallback to webhook bodies.
 

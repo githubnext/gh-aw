@@ -263,14 +263,15 @@ func sanitizeValidationResults(results []ValidationResult) []ValidationResult {
 
 	return sliceutil.Map(results, func(result ValidationResult) ValidationResult {
 		return ValidationResult{
-			Scope:        result.Scope,
-			Workflow:     result.Workflow,
-			Valid:        result.Valid,
-			CompiledFile: result.CompiledFile,
-			Errors:       sliceutil.Map(result.Errors, sanitizeError),
-			Warnings:     sliceutil.Map(result.Warnings, sanitizeError),
-			Labels:       result.Labels,
-			DryRun:       result.DryRun,
+			Scope:                result.Scope,
+			Workflow:             result.Workflow,
+			Valid:                result.Valid,
+			CompiledFile:         result.CompiledFile,
+			Errors:               sliceutil.Map(result.Errors, sanitizeError),
+			Warnings:             sliceutil.Map(result.Warnings, sanitizeError),
+			Labels:               result.Labels,
+			DryRun:               result.DryRun,
+			WebhookSubscriptions: result.WebhookSubscriptions,
 		}
 	})
 }

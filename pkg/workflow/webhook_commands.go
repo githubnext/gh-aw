@@ -19,10 +19,6 @@ type WebhookCommandFilter struct {
 	RemoveLabel *bool    `json:"remove_label,omitempty"`
 }
 
-func isGatewayCommand(event string) bool {
-	return event == "slash_command" || event == "label_command"
-}
-
 func parseGatewayCommandSubscriptions(config map[string]any, workflowID string, repos, orgs []string) ([]WebhookSubscription, error) {
 	var subscriptions []WebhookSubscription
 	for _, alias := range []string{"slash-command", "label-command"} {

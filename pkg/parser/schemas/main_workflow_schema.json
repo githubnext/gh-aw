@@ -806,9 +806,29 @@
                 { "required": ["azure-devops-issue"] },
                 { "required": ["webhooks"] },
                 { "required": ["slash-command"] },
-                { "required": ["label-command"] }
+                { "required": ["label-command"] },
+                { "required": ["issue"] },
+                { "required": ["pull-request"] },
+                { "required": ["discussion"] },
+                { "required": ["issue-comment"] },
+                { "required": ["pull-request-comment"] },
+                { "required": ["pull-request-review"] },
+                { "required": ["pull-request-review-comment"] },
+                { "required": ["pull-request-review-thread"] },
+                { "required": ["discussion-comment"] },
+                { "required": ["commit-comment"] }
               ],
               "properties": {
+                "issue": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "discussion": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "issue-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-review": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-review-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-review-thread": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "discussion-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "commit-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
                 "slash-command": {
                   "$ref": "#/properties/on/oneOf/1/properties/slash_command",
                   "description": "Experimental. Native slash_command configuration with matching performed by the approved gateway server, not native Actions listeners."
@@ -837,7 +857,7 @@
                 },
                 "orgs": {
                   "$ref": "#/$defs/webhookOrganizationValues",
-                  "description": "Experimental. Optional shared source GitHub organization selectors for Projects and security alerts. Case-insensitive organization names or '*' wildcard patterns, matched only over approved sources. Ignored by external providers and generic webhooks; does not grant access."
+                  "description": "Experimental. Optional shared source GitHub organization selectors for repository notifications, Projects, security alerts, and commands. Case-insensitive organization names or '*' wildcard patterns, matched only over approved sources. Ignored by external providers and generic webhooks; does not grant access."
                 },
                 "projects-items": {
                   "type": "object",
@@ -14798,6 +14818,25 @@
       "minLength": 1,
       "maxLength": 100,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "webhookGitHubNotification": {
+      "description": "Experimental. GitHub notification subscription filtered by the approved gateway before minimal canonical URL/type/matching-filter projection. A null trigger or omitted types selects every catalog action; no original bodies or native Actions listeners.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "types": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "filters": { "$ref": "#/$defs/webhookGenericFilters" }
+          }
+        }
+      ]
     },
     "webhookGenericFilters": {
       "type": "object",

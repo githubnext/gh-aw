@@ -13,7 +13,7 @@ sidebar:
 
 **Required payload projection:** `resource-url-types-filters/v2`.
 
-This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers Projects, security alerts, external issues, gateway-powered commands, and a generic `webhooks` array. It does not register webhook sources and is unrelated to the MCP gateway.
+This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers GitHub issues, pull requests, discussions, every comment family, reviews/threads, Projects, security alerts, external issues, commands, and a generic `webhooks` array. It does not register webhook sources and is unrelated to the MCP gateway.
 
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
 
@@ -55,6 +55,7 @@ The following inventory is exhaustive. Other entries in an internal webhook cata
 | `on.gateway-dispatch.webhooks[]` | `webhook` | Each entry's required literal `type`, bound to a source by the approved bridge | Authenticated original delivery with the properties selected by declarative `filters`, and a canonical resource URL chosen through the approved source binding. No provider identity or permissions are inferred. |
 | `on.gateway-dispatch.slash-command` | `slash_command` | Selected native GitHub source event and original `action` | Original body and canonical item/comment HTML URL from the source catalog below. The server matches the position-zero slash token before projection. |
 | `on.gateway-dispatch.label-command` | `label_command` | Selected native GitHub source event with `action: labeled` | Original `label.name` and canonical item HTML URL. The server matches the label exactly and separately authorizes any requested label removal. |
+| GitHub notification triggers below | The corresponding GitHub semantic event | Authenticated `X-GitHub-Event` and native `action` | Original source resource, event-specific identity, declared filter evidence, and canonical item/comment HTML URL; no original body is forwarded. |
 
 Provider source scopes are mandatory root fields beside `types`: Jira `project` matches `issue.fields.project.key`; Linear `organization-id` matches `organizationId`; Azure `project_id` matches `resourceContainers.project.id`. Linear also accepts optional root `team-id`, matched against `data.teamId`. These fields and other allowlisted provider selectors are **flat trigger properties**; a `filters` wrapper is rejected for all three providers. Source selection does not grant provider access.
 
@@ -90,11 +91,54 @@ Named resource trigger objects accept `types`; generic array entries instead req
 
 GitHub `filters` and flat provider selectors use the allowlisted payload paths and scalar types in the [GitHub trigger reference](/gh-aw/reference/webhook-triggers/#supported-events-and-filters) and [provider issue reference](/gh-aw/reference/provider-issue-triggers/). Conditions are ANDed; values within a condition are ORed. Missing/null fields never match. Matching MUST NOT hydrate missing data through API calls, guessed state names, or cached history. Selector strings are literals, not expressions or regular expressions.
 
-`on.gateway-dispatch.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` values, matched case-insensitively over approved sources. It applies to code-scanning and Dependabot alerts and both command families. It MUST NOT grant access. Projects and external-provider subscriptions ignore shared `repos` and retain their required source scopes, including when they are the only selected families. No trigger-local `repos` is accepted.
+`on.gateway-dispatch.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` values, matched case-insensitively over approved sources. It applies to GitHub notifications, code-scanning and Dependabot alerts, and both command families. It MUST NOT grant access. Projects and external-provider subscriptions ignore shared `repos` and retain their required source scopes, including when they are the only selected families. No trigger-local `repos` is accepted.
 
-`on.gateway-dispatch.orgs` is an optional nonempty list of GitHub organization names or `*` wildcard patterns, for example `[github, "my-*", "*-labs"]`. Patterns use 1–39 ASCII letters, digits, hyphens, or `*`, without leading/trailing hyphens; `*` matches zero or more characters, including the entire name. Matching is case-insensitive, OR between patterns, and AND with `repos`, source scopes, types, and conditions. Omission adds no organization restriction. The compiler lowercases, sorts, and deduplicates selectors and copies them into Projects, security, and command subscriptions. External providers and generic webhooks ignore shared `orgs`; mandatory provider scopes remain required.
+`on.gateway-dispatch.orgs` is an optional nonempty list of GitHub organization names or `*` wildcard patterns, for example `[github, "my-*", "*-labs"]`. Patterns use 1–39 ASCII letters, digits, hyphens, or `*`, without leading/trailing hyphens; `*` matches zero or more characters, including the entire name. Matching is case-insensitive, OR between patterns, and AND with `repos`, source scopes, types, and conditions. Omission adds no organization restriction. The compiler lowercases, sorts, and deduplicates selectors and copies them into GitHub notification, Projects, security, and command subscriptions. External providers and generic webhooks ignore shared `orgs`; mandatory provider scopes remain required.
 
 Organization selectors MUST operate only over independently approved GitHub source organizations. Even `orgs: ["*"]` MUST NOT enroll a source, grant cross-organization access, or expand approved activation scope. The receiver MUST verify organization identity and ownership from authenticated source enrollment, not infer organizational authority from a payload or URL owner string. The runner additionally compares URL-derived organization/owner names, rejects user-owned Projects when `orgs` is present, and intersects both selectors for security alerts. Repository URLs alone do not prove that an owner is an organization. `orgs` is source metadata, not an additional forwarded resource field; trigger-local or root `on.orgs` declarations reject.
+
+### GitHub notification subscriptions
+
+All triggers below are children of `on.gateway-dispatch`. They accept null, `{}`, or `{types: [...], filters: {...}}`. A null trigger or omitted `types` selects every action listed for the family; explicit `types: null` rejects. Matching is performed by the receiver on the authenticated original delivery, not by native Actions listeners. An event/action match does not require a slash command, original body, or label consumption.
+
+The shared compiler/runtime catalog is `actions/setup/js/github_notification_webhooks.json`. Its `native_event`, `actions`, `issue_kind`, `url_path`, `path`, `anchor`, and typed filter paths are normative. `native_events` in each compiled subscription MUST be the singleton native event below; `types` MUST be a nonempty subset of its actions. Notification subscriptions MUST NOT contain `provider`, `activity_normalization`, `command_filter`, or `any_of`.
+
+| Nested trigger | Semantic `event` / native event | Exact supported actions | Canonical HTML path and original URL field |
+| --- | --- | --- | --- |
+| `issue` | `issues` / `issues` | `opened`, `edited`, `deleted`, `transferred`, `pinned`, `unpinned`, `closed`, `reopened`, `assigned`, `unassigned`, `labeled`, `unlabeled`, `locked`, `unlocked`, `milestoned`, `demilestoned`, `typed`, `untyped`, `field_added`, `field_removed` | `/OWNER/REPO/issues/N`, `issue.html_url` |
+| `pull-request` | `pull_request` / `pull_request` | `assigned`, `unassigned`, `labeled`, `unlabeled`, `opened`, `edited`, `closed`, `reopened`, `synchronize`, `converted_to_draft`, `locked`, `unlocked`, `enqueued`, `dequeued`, `milestoned`, `demilestoned`, `ready_for_review`, `review_requested`, `review_request_removed`, `auto_merge_enabled`, `auto_merge_disabled` | `/OWNER/REPO/pull/N`, `pull_request.html_url` |
+| `discussion` | `discussion` / `discussion` | `created`, `edited`, `deleted`, `transferred`, `pinned`, `unpinned`, `labeled`, `unlabeled`, `locked`, `unlocked`, `category_changed`, `answered`, `unanswered` | `/OWNER/REPO/discussions/N`, `discussion.html_url` |
+| `issue-comment` | `issue_comment` / `issue_comment` | `created`, `edited`, `deleted` | `/OWNER/REPO/issues/N#issuecomment-C`, `comment.html_url` |
+| `pull-request-comment` | `pull_request_comment` / `issue_comment` | `created`, `edited`, `deleted` | `/OWNER/REPO/pull/N#issuecomment-C`, `comment.html_url` |
+| `pull-request-review` | `pull_request_review` / `pull_request_review` | `submitted`, `edited`, `dismissed` | `/OWNER/REPO/pull/N#pullrequestreview-R`, `review.html_url` |
+| `pull-request-review-comment` | `pull_request_review_comment` / `pull_request_review_comment` | `created`, `edited`, `deleted` | `/OWNER/REPO/pull/N#discussion_rC`, `comment.html_url` |
+| `pull-request-review-thread` | `pull_request_review_thread` / `pull_request_review_thread` | `resolved`, `unresolved` | `/OWNER/REPO/pull/N#discussion_rC`, first `thread.comments[0].html_url` |
+| `discussion-comment` | `discussion_comment` / `discussion_comment` | `created`, `edited`, `deleted` | `/OWNER/REPO/discussions/N#discussioncomment-C`, `comment.html_url` |
+| `commit-comment` | `commit_comment` / `commit_comment` | `created` | `/OWNER/REPO/commit/SHA#commitcomment-C`, `comment.html_url` |
+
+`N`, `C`, and `R` are positive decimal identifiers without leading zeroes; `SHA` is a lowercase 40-character hexadecimal commit ID. URLs MUST match the configured `GITHUB_SERVER_URL` origin and base path, contain no credentials/query, and use exactly the specified family-specific anchor (or no fragment for item events). The receiver MUST bind the URL's repository, parent number/commit, and comment/review ID to the authenticated original source resource. It MUST NOT manufacture an anchor from unrelated event evidence. For review threads, the first delivered comment supplies the stable thread reference; an empty/missing comments array or absent canonical URL is nonactivating. Deletion notifications remain valid references even if a subsequent authenticated read returns not found; cached source bodies MUST NOT be substituted.
+
+For `issues`, `issue_comment`, and `pull_request_comment`, `N` is original `issue.number`; for other PR families it is `pull_request.number`; for discussion families it is `discussion.number`. `C` is original `comment.id`, except review threads use `thread.comments[0].id`. `R` is `review.id`, and `SHA` is `comment.commit_id`. The repository is original `repository.full_name`, not an independently supplied URL owner/repository pair.
+
+`issues` and `issue_comment` require an original issue object with no `issue.pull_request` property. `pull_request_comment` is a semantic split of native `issue_comment` and requires an object-valued `issue.pull_request`; null, malformed, absent, or contradictory PR evidence MUST NOT be inferred from a URL alone. Other PR families require the original `pull_request` object. Discussion and commit references similarly require their original parent identity. These are server-owned source checks; the runner can only bound the projected canonical URL/type/filter literals.
+
+All families accept exact `sender`, `organization`, and `repository` filters. Additional selectors below use the original payload paths from the shared catalog:
+
+| Trigger | Additional `filters` keys |
+| --- | --- |
+| `issue` | Integer `number`, `state` (`open`/`closed`), `labels`, changed `label`, `author`, `assignee` |
+| `pull-request` | Integer `number`, `state` (`open`/`closed`), `labels`, changed `label`, `author`, boolean `draft`/`merged`, exact `base`/`head` branches |
+| `discussion` | Integer `number`, category slug `category`, `labels`, changed `label`, `author` |
+| `issue-comment`, `pull-request-comment` | Parent integer `number`, parent `labels`, comment `author` |
+| `pull-request-review` | Parent integer `number`, review `state` (`approved`, `changes_requested`, `commented`, `dismissed`, `pending`), reviewer `author` |
+| `pull-request-review-comment` | Parent integer `number`, exact file `path`, comment `author` |
+| `pull-request-review-thread` | Parent integer `number`, exact comment file `path` |
+| `discussion-comment` | Parent integer `number`, category slug `category`, comment `author` |
+| `commit-comment` | Exact `commit` SHA, exact file `path` when delivered, comment `author` |
+
+All unspecified selector types are strings; equality is exact and case-sensitive. `labels` matches delivered label names, but only matching configured literals are projected, never the full label collection. Changed `label` is available only for `labeled`/`unlabeled`; filters requiring absent original fields fail closed. Bodies/titles and wildcard/regex branch or path matching are not exposed. Shared `repos` and `orgs` apply to every family without granting source access.
+
+Receiving-App inference requests read-only `issues`, `pull_requests`, `discussions`, or `contents` permission according to the selected source family. Native registration events deduplicate, including the shared `issue_comment` registration for issue/PR conversation comments. No write permission or command activation is inferred from a notification subscription. In particular, notification `ready_for_review`, `review_requested`, and review `submitted` are supported without changing the narrower command catalog.
 
 ### Gateway command subscriptions
 
@@ -299,6 +343,50 @@ The canonical [Projects item API URL](https://docs.github.com/en/rest/projects/i
 
 The receiver checks the original `projects_v2_item.project_node_id` and delivered Status evidence before projection. This example selects only `project_id: PVT_example`. A subscription with `status-transitions` additionally forwards the matched `field.name`, `field.type`, `field.from.name`, and `field.to.name` literals for one complete pair. It MUST NOT forward the item's complete fields or unrelated status values. The workflow resolves all other project fields and current item data through an authenticated GitHub client.
 
+### GitHub issues, pull requests, discussions, and comments
+
+These complete examples use the exact family/URL/anchor forms from the notification catalog. Each GitHub notification carries exactly one original action. Only the last example includes a declared matching selector.
+
+```json title="issues.payload.json"
+{"url":"https://github.com/owner/repo/issues/42","type":["opened"]}
+```
+
+```json title="pull_request.payload.json"
+{"url":"https://github.com/owner/repo/pull/42","type":["ready_for_review"]}
+```
+
+```json title="discussion.payload.json"
+{"url":"https://github.com/owner/repo/discussions/42","type":["created"]}
+```
+
+```json title="issue_comment.payload.json"
+{"url":"https://github.com/owner/repo/issues/42#issuecomment-123","type":["created"]}
+```
+
+```json title="pull_request_comment.payload.json"
+{"url":"https://github.com/owner/repo/pull/42#issuecomment-123","type":["edited"]}
+```
+
+```json title="pull_request_review.payload.json"
+{"url":"https://github.com/owner/repo/pull/42#pullrequestreview-123","type":["submitted"]}
+```
+
+```json title="pull_request_review_comment.payload.json"
+{"url":"https://github.com/owner/repo/pull/42#discussion_r123","type":["deleted"]}
+```
+
+```json title="pull_request_review_thread.payload.json"
+{"url":"https://github.com/owner/repo/pull/42#discussion_r123","type":["resolved"]}
+```
+
+```json title="discussion_comment.payload.json"
+{"url":"https://github.com/owner/repo/discussions/42#discussioncomment-123","type":["created"]}
+```
+
+```json title="commit_comment.payload.json"
+{"url":"https://github.com/owner/repo/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#commitcomment-123","type":["created"],"filters":{"author":["reviewer"]}}
+```
+
 ### Code scanning alert
 
 ```json title="code_scanning_alert.payload.json"
@@ -371,6 +459,7 @@ The runner derives `aw_context.items` rather than trusting a sender-supplied ite
 | Linear | Issue identifier from the URL | Family, workspace URL in `source`, identifier; `url` and empty `repo`. Readable title slugs do not change identity. |
 | Azure DevOps | Decimal work item ID from the URL | Family, collection URL in `source`, work item ID; `url` and empty `repo`. An optional project path segment does not change collection identity. |
 | Commands | Parent issue, PR, or discussion number | Command family, canonical parent URL without anchor in `source`, source `repo`, and number. Distinct comment deliveries remain in the batch; issue/PR/discussion URL paths prevent numerical identity collisions. |
+| GitHub notifications | Parent issue, PR, discussion number, or commit SHA | Semantic event family, canonical parent URL without anchor in `source`, source `repo`, and parent identifier. Distinct comment/review deliveries remain in the batch while their affected parent reference deduplicates. |
 
 These identities are derived references, not extra sender-supplied resource metadata. Renamed workspace/collection aliases or moved Linear issue identifiers are not resolved by the runner; any cross-alias reconciliation requires authenticated workflow reads. IDs not already supplied as declared matching filter literals require provider-authenticated resolution.
 

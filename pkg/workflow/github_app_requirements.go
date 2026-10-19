@@ -114,28 +114,7 @@ func ComputeGitHubAppManifestWebhookPermissions(onValue any) map[string]string {
 		return nil
 	}
 	for _, subscription := range subscriptions {
-		if subscription.CommandFilter == nil {
-			continue
-		}
-		level := "read"
-		if subscription.CommandFilter.RemoveLabel != nil && *subscription.CommandFilter.RemoveLabel {
-			level = "write"
-		}
-		for _, event := range subscription.CommandFilter.Events {
-			var scope PermissionScope
-			switch event {
-			case "issues", "issue_comment":
-				scope = PermissionIssues
-			case "pull_request", "pull_request_comment", "pull_request_review_comment":
-				scope = PermissionPullRequests
-			case "discussion", "discussion_comment":
-				scope = PermissionDiscussions
-			}
-			key, supported := GitHubAppManifestPermissionKey(scope)
-			if supported && result[key] != "write" {
-				result[key] = level
-			}
-		}
+		addGatewaySubscriptionPermissions(result, subscription)
 	}
 	if len(result) == 0 {
 		return nil
@@ -280,7 +259,7 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 		if subscription.Provider != "" || subscription.Event == "webhook" {
 			continue
 		}
-		if isGatewayCommand(subscription.Event) {
+		if len(subscription.NativeEvents) > 0 {
 			events = append(events, subscription.NativeEvents...)
 		} else {
 			events = append(events, subscription.Event)

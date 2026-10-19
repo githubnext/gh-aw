@@ -144,7 +144,7 @@ func TestWebhookCatalogIntegrity(t *testing.T) {
 			t.Errorf("missing documented webhook event %s", required)
 		}
 	}
-	for _, native := range []string{"issues", "push", "pull_request", "discussion", "label", "release", "repository_dispatch", "workflow_dispatch"} {
+	for _, native := range []string{"push", "label", "release", "repository_dispatch", "workflow_dispatch"} {
 		if _, ok := catalog[native]; ok {
 			t.Errorf("unnecessarily duplicated native trigger %s", native)
 		}

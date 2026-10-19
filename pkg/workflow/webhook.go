@@ -40,7 +40,7 @@ type WebhookFilter struct {
 	Enum        []any    `json:"enum,omitempty"`
 }
 
-// WebhookEvent describes a webhook not available as a native Actions trigger.
+// WebhookEvent describes a source event available through the webhook gateway.
 type WebhookEvent struct {
 	Provider     string                   `json:"provider,omitempty"`
 	NativeEvents map[string]string        `json:"native_events,omitempty"`
@@ -123,6 +123,9 @@ func WebhookCatalog() (map[string]WebhookEvent, error) {
 		return nil, fmt.Errorf("invalid embedded webhook catalog: %w", err)
 	}
 	if err := addProviderIssueCatalog(catalog); err != nil {
+		return nil, err
+	}
+	if err := addGitHubNotificationCatalog(catalog); err != nil {
 		return nil, err
 	}
 	return catalog, nil
@@ -221,6 +224,13 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 		return WebhookSubscription{}, err
 	}
 	subscription := newWebhookSubscription(workflowID, event, types, conditions)
+	if definition.Provider == "" && len(definition.NativeEvents) > 0 {
+		for _, activity := range types {
+			subscription.NativeEvents = append(subscription.NativeEvents, definition.NativeEvents[activity])
+		}
+		slices.Sort(subscription.NativeEvents)
+		subscription.NativeEvents = slices.Compact(subscription.NativeEvents)
+	}
 	if err := applyWebhookStatusTransitions(&subscription, config, definition); err != nil {
 		return WebhookSubscription{}, err
 	}
@@ -232,7 +242,7 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 
 func webhookOnConfig(on any) (map[string]any, error) {
 	for _, name := range rawOnSectionTriggerNames(on) {
-		if isWebhookTrigger(name) || name == "repos" || name == "orgs" {
+		if (isWebhookTrigger(name) && name != "discussion") || name == "repos" || name == "orgs" {
 			return nil, fmt.Errorf("on.%s is not supported; define %s under on.gateway-dispatch", name, name)
 		}
 	}
@@ -295,6 +305,7 @@ func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string
 		return nil, nil, err
 	}
 	addProviderIssueConfigs(on, events, paths)
+	addGitHubNotificationConfigs(on, events, paths)
 	return events, paths, nil
 }
 

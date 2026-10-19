@@ -2,6 +2,7 @@
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { isGatewayCommand, resolveGatewayCommandResource } = require("./gateway_command_webhook.cjs");
+const { GITHUB_NOTIFICATION_EVENTS, isGitHubNotification, resolveGitHubNotificationResource } = require("./github_notification_webhook.cjs");
 
 const WEBHOOK_PAYLOAD_POLICY = "resource-url-types-filters/v2";
 const ISSUE_TYPES = ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"];
@@ -14,6 +15,7 @@ const WEBHOOK_TYPES = {
   azure_devops_issue: [...ISSUE_TYPES, "restored"],
   slash_command: ["opened", "edited", "reopened", "created"],
   label_command: ["labeled"],
+  ...Object.fromEntries(Object.entries(GITHUB_NOTIFICATION_EVENTS).map(([event, definition]) => [event, definition.actions])),
 };
 
 /** @returns {never} */
@@ -131,8 +133,9 @@ function resolveWebhookResource(event, payload, env = process.env) {
       : event.endsWith("_alert")
         ? "security alert payload requires a canonical GitHub API alert URL"
         : "provider payload requires a canonical HTTPS resource URL";
-  const url = resourceURL(payload.url, message, isGatewayCommand(event));
+  const url = resourceURL(payload.url, message, isGatewayCommand(event) || isGitHubNotification(event));
   if (isGatewayCommand(event)) return resolveGatewayCommandResource(event, url, payload, env);
+  if (isGitHubNotification(event)) return resolveGitHubNotificationResource(event, url, env);
   return event.endsWith("_issue") ? resolveProviderResource(event, url) : resolveGitHubResource(event, url, env);
 }
 

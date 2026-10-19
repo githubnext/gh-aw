@@ -29,21 +29,6 @@
       "assignee": { "path": ["alert", "assignees", "*", "login"], "type": "string", "description": "Login of an alert assignee." }
     }
   },
-  "commit_comment": {
-    "actions": ["created"],
-    "description": "A commit comment was created. Still listed in the webhook documentation, but not in the current native Actions trigger inventory.",
-    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#commit_comment",
-    "availability": ["repository", "organization", "app"],
-    "filters": {
-      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
-      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
-      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
-      "comment_id": { "path": ["comment", "id"], "type": "integer", "description": "Commit comment database ID." },
-      "commit_id": { "path": ["comment", "commit_id"], "type": "string", "description": "Commented commit SHA." },
-      "path": { "path": ["comment", "path"], "type": "string", "description": "Commented file path, when present." },
-      "author": { "path": ["comment", "user", "login"], "type": "string", "description": "Comment author's login." }
-    }
-  },
   "custom_property": {
     "actions": ["created", "deleted", "promote_to_enterprise", "updated"],
     "description": "An organization or enterprise custom property definition changed.",
@@ -487,23 +472,6 @@
       "body": { "path": ["projects_v2_status_update", "body"], "type": "string", "description": "Current status update body." },
       "body.from": { "path": ["changes", "body", "from"], "type": "string", "description": "Previous status update body.", "actions": ["edited"] },
       "body.to": { "path": ["changes", "body", "to"], "type": "string", "description": "New status update body.", "actions": ["edited"] }
-    }
-  },
-  "pull_request_review_thread": {
-    "actions": ["resolved", "unresolved"],
-    "description": "A pull request review thread was resolved or reopened.",
-    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request_review_thread",
-    "availability": ["repository", "organization", "app"],
-    "filters": {
-      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
-      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
-      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
-      "pull_request_number": { "path": ["pull_request", "number"], "type": "integer", "description": "Pull request number." },
-      "comment_id": { "path": ["thread", "comments", "*", "id"], "type": "integer", "description": "Database ID of a comment in the review thread." },
-      "path": { "path": ["thread", "comments", "*", "path"], "type": "string", "description": "File path discussed by a comment in the review thread." },
-      "base": { "path": ["pull_request", "base", "ref"], "type": "string", "description": "Pull request base branch." },
-      "head": { "path": ["pull_request", "head", "ref"], "type": "string", "description": "Pull request head branch." },
-      "labels": { "path": ["pull_request", "labels", "*", "name"], "type": "string", "description": "Label name on the embedded pull request." }
     }
   },
   "repository": {

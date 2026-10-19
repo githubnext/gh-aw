@@ -7,6 +7,7 @@ const { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, resolveWebhookResource } = requir
 const { normalizeWebhookContext } = require("./webhook_context.cjs");
 const { validateWebhook } = require("./validate_webhook.cjs");
 const { COMMAND_SOURCE_ACTIONS, isGatewayCommand } = require("./gateway_command_webhook.cjs");
+const notificationCatalog = require("./github_notification_webhooks.json");
 
 const examples = [
   ["projects_v2_item", "https://api.github.com/orgs/org/projectsV2/1/items/123", ["edited"], "123", "https://api.github.com/orgs/org/projectsV2/1"],
@@ -24,7 +25,10 @@ describe("minimal resource notification contract", () => {
     expect(WEBHOOK_PAYLOAD_POLICY).toBe("resource-url-types-filters/v2");
   });
 
-  const githubCatalog = JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/webhook_events.json", import.meta.url), "utf8"));
+  const githubCatalog = {
+    ...JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/webhook_events.json", import.meta.url), "utf8")),
+    ...Object.fromEntries(Object.entries(notificationCatalog.events).map(([event, definition]) => [event, { ...definition, filters: { ...notificationCatalog.common_filters, ...definition.filters } }])),
+  };
   const providerCatalog = JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/provider_issue_webhooks.json", import.meta.url), "utf8"));
   it.each(Object.entries(WEBHOOK_TYPES))("keeps %s activities identical to the compiler catalog", (event, types) => {
     if (isGatewayCommand(event)) {
@@ -57,6 +61,7 @@ describe("minimal resource notification contract", () => {
             values,
           })),
         dispatch: { event_type: "specification", payload_projection: { policy: WEBHOOK_PAYLOAD_POLICY } },
+        ...(definition?.native_event ? { native_events: [definition.native_event] } : {}),
         ...(isGatewayCommand(event)
           ? {
               native_events: [event === "slash_command" ? "issue_comment" : "issues"],
