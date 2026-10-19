@@ -17,25 +17,6 @@
     }
   },
   "properties": {
-    "admission": {
-      "description": "Optional admission service checked before every agent execution. Only the GitHub Actions token and current workflow identity are sent.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["url"],
-      "properties": {
-        "url": {
-          "description": "Trusted HTTPS GET endpoint without credentials, query parameters, fragments, or expressions. Recompile workflows after changing this setting.",
-          "type": "string",
-          "pattern": "^https://[^\\s\\\\?#${}]+$"
-        },
-        "on_outage": {
-          "description": "Policy after transient service failures exhaust bounded retries. Defaults to ignore (continue execution); block fails activation. Explicit admission denials always block.",
-          "type": "string",
-          "enum": ["ignore", "block"],
-          "default": "ignore"
-        }
-      }
-    },
     "work_queue": {
       "description": "Global scheduling and backing Issue/label overrides. AW supplies authorization and approved worker routes. Missing settings use one pool, concurrency 16, pending limit 4096 and three attempts with 30-second backoff.",
       "type": "object",

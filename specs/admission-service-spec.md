@@ -13,7 +13,7 @@ The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This 
 
 ## 1. Scope and Ownership
 
-The proposed feature adds admission as a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Once implemented, gh-aw MUST include admission support by default: configuration in `aw.json` or managed Actions variables automatically enables the check, without a separate opt-in flag. Without an effective endpoint from either source, the step is skipped or completes as a successful no-op, and activation continues normally. gh-cao MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, protected operator diagnostics, and optional configuration provisioning through its GitHub App.
+The proposed feature adds admission as a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Once implemented, gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Without a configured endpoint, the step is skipped or completes as a successful no-op, and activation continues normally. gh-cao MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, protected operator diagnostics, and optional configuration provisioning through its GitHub App.
 
 The gate centrally decides whether an AW execution may start. It is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism. A service decision alone cannot impose a hard upper bound on the cost of an already-running execution.
 
@@ -21,23 +21,9 @@ The protocol uses REST POST with a JSON body, authenticated exclusively by a Git
 
 ## 2. Configuration and Provisioning
 
-### Workflow Configuration
+### Managed Environment Variables
 
-```json
-{
-  "admission": {
-    "url": "https://cao.example.com/api/activation",
-    "audience": "https://cao.example.com/api/activation",
-    "on_outage": "ignore"
-  }
-}
-```
-
-The configuration resides in `.github/workflows/aw.json`. Individual admission fields MAY be omitted to inherit managed defaults. The service route is `/api/activation`; the deployment origin is configurable. An explicitly configured URL MUST be the full absolute HTTPS URL for that route, without embedded credentials, query parameters, fragments, or GitHub Actions expressions. An explicitly configured audience MUST be a nonempty literal deployment-specific value without control characters or expressions. It identifies the intended recipient; it is not a secret or a GitHub App identifier.
-
-### Managed Defaults
-
-The compiler MUST support these GitHub Actions variables through the existing `gh aw env get/update` registry:
+Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
 
 | Actions variable | Managed YAML field | Built-in fallback |
 |------------------|--------------------|-------------------|
@@ -45,9 +31,19 @@ The compiler MUST support these GitHub Actions variables through the existing `g
 | `GH_AW_DEFAULT_ADMISSION_AUDIENCE` | `default_admission_audience` | Effective endpoint URL |
 | `GH_AW_DEFAULT_ADMISSION_ON_OUTAGE` | `default_admission_on_outage` | `ignore` |
 
-Precedence is field-by-field: explicit `aw.json` field, effective runtime Actions variable, then built-in fallback. Actions variable precedence follows the existing managed-default mechanism: repository, organization, then enterprise where supported. Compiler-process environment variables MUST NOT determine inherited values. A configured endpoint automatically enables admission, whether supplied by `aw.json` or inherited variables. If neither provides an endpoint, the check is a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
+The corresponding managed-defaults YAML is:
 
-Local configuration changes require recompilation. The compiler MUST emit support for runtime-managed defaults even when `aw.json` omits admission, so subsequent inherited-value changes do not require recompilation. Existing managed-default update semantics remain unchanged: omitted or null YAML fields delete the corresponding variable at the selected scope. Operators MUST preserve other defaults when updating a defaults file.
+```yaml
+default_admission_url: https://cao.example.com/api/activation
+default_admission_audience: https://cao.example.com/api/activation
+default_admission_on_outage: ignore
+```
+
+The service route is `/api/activation`; the deployment origin is configurable. A nonempty URL MUST be the full absolute HTTPS URL for that route, without embedded credentials, query parameters, fragments, or GitHub Actions expressions. A nonempty audience MUST be a literal deployment-specific value without control characters or expressions. It identifies the intended recipient; it is not a secret or a GitHub App identifier.
+
+Each effective runtime variable takes precedence over its built-in fallback. Variable scope precedence follows the existing managed-default mechanism: repository, organization, then enterprise where supported. Compiler-process environment variables MUST NOT determine these values, and workflow-local configuration MUST NOT introduce another override layer. A configured endpoint automatically enables admission. An unset or empty endpoint makes the check a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
+
+The compiler MUST always emit the runtime variable hooks, so enabling, disabling, or changing managed settings does not require recompilation after the feature is available in a compiled workflow. Existing managed-default update semantics remain unchanged: omitted or null YAML fields delete the corresponding variable at the selected scope. Operators MUST preserve other defaults when updating a defaults file.
 
 Managed defaults are not an unoverrideable enterprise policy. A principal able to override them can change the recipient, audience, or outage behavior. Mandatory enforcement requires separately protected workflow/configuration controls, authorized workflow identities, and server-side policy. HTTPS validation alone does not establish an approved destination; deployments SHOULD enforce approved origins and runner egress independently.
 
@@ -67,14 +63,35 @@ gh-aw MUST add the admission step to the existing activation job after applicabl
 
 The activation job MUST gain `id-token: write` to request OIDC tokens, while retaining only the GitHub API permissions required by its other steps. Permissions are job-scoped, not step-scoped; the admission step MUST NOT use or forward the activation job's GitHub API token or other available secrets. When no effective endpoint exists, the step MUST be skipped or succeed as a no-op without requesting an identity token or making a service call. Skipping the step MUST NOT skip activation or its downstream jobs. A blocking admission failure MUST fail activation and prevent agent execution through the existing activation-success dependency.
 
+The entire activation job is an OIDC trust boundary, not just the admission step. All custom setup, pre, and regular steps and actions, before and after admission, MUST be reviewed as able to request identity tokens for other audiences. Skipping admission does not revoke the job's OIDC capability. The implementation MUST prevent untrusted code from executing in this job and review existing federated relying-party policies before granting the permission; an admission-step condition is not a permission sandbox. This requirement MUST be met without adding a job.
+
 For an enabled gate, the step requests an OIDC token from GitHub using the effective audience, for example with `core.getIDToken(audience)`. GitHub supplies the OIDC request capability to jobs with `id-token: write`; no GitHub App private key is needed in the runner. OIDC bootstrap credentials are used only with the trusted GitHub OIDC endpoint and MUST NOT be forwarded to gh-cao.
 
-The service accepts `POST /api/activation`, with `Content-Type: application/json`, `Cache-Control: no-store`, and an Authorization header containing the bearer OIDC identity token. Execution metadata belongs in the JSON body, not the URL. There are no query parameters. Other HTTP methods MUST NOT admit execution or evaluate spending policy; the client MUST NOT fall back to GET.
+### Protocol Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Activation step
+    participant G as GitHub OIDC
+    participant C as gh-cao
+
+    A->>G: Request token for audience
+    G-->>A: Signed OIDC token
+    A->>C: POST /api/activation
+    Note right of C: Verify identity<br/>Evaluate policy
+    C-->>A: 204 / 403 / transient
+```
+
+The step runs inside activation, not in a new job. No endpoint means no token or request. `204` continues activation; `403` fails it. Only transient failures are retried, then handled by the outage policy. The existing activation-success dependency still gates the agent. Token reuse or renewal does not create another entitlement.
+
+### HTTP Request
+
+The service accepts `POST /api/activation`, with `content-type: application/json`, `cache-control: no-store`, and an `authorization` header containing the bearer OIDC identity token. Execution metadata belongs in the JSON body, not the URL. There are no query parameters. Other HTTP methods MUST NOT admit execution or evaluate spending policy; the client MUST NOT fall back to GET.
 
 ```http
 POST /api/activation HTTP/1.1
-Content-Type: application/json
-Cache-Control: no-store
+content-type: application/json
+cache-control: no-store
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 
 {
@@ -89,7 +106,15 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 }
 ```
 
-The Authorization header is omitted from this example. It MUST be present on actual requests, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. Redirects MUST NOT be followed.
+The `authorization` header is omitted from this example. It MUST be present on actual requests, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. Redirects MUST NOT be followed.
+
+### Proxy-Friendly Header Conventions
+
+Emit lowercase HTTP field names and accept them case-insensitively. Use the standard W3C `traceparent` field through an OpenTelemetry propagator, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The standard request fields are `authorization`, `content-type`, `cache-control`, and `traceparent`.
+
+Any future custom header MUST use the lowercase `gh-aw-` namespace followed by ASCII alphanumeric, hyphen-separated words: `gh-aw-[a-z0-9]+(?:-[a-z0-9]+)*`. Do not use underscores, spaces, dotted OTel attribute names, or an `x-` prefix. This protocol defines no custom headers; the trace ID already supplies correlation, without a second identifier.
+
+Proxies and API gateways MUST allow and preserve the standard fields, without appending or comma-joining `traceparent` values, rewriting trace IDs, or caching admission responses. They MUST NOT forward arbitrary caller headers or use forwarded-host headers to select an issuer, audience, or tenant. Document transport limits that accommodate valid GitHub OIDC tokens and trace context. Infrastructure header/body limits still apply before protocol processing.
 
 ### JSON Request Fields
 
@@ -122,13 +147,41 @@ Reuse a valid AW trace context through the existing OTLP helpers. If none exists
 
 The step MUST preserve the activation job's existing trace context and propagate validated trace/parent IDs through the existing workflow mechanism so agent and conclusion telemetry remain connected. If the step creates a trace because none exists, it MUST initialize that mechanism rather than add a job or dependency. Logs use the same `trace_id` and `span_id`; correlation MUST NOT substitute for authenticated invocation identity or an idempotency key. Trace IDs MUST NOT be high-cardinality metric labels or grant access to another tenant's traces.
 
-Trace context is untrusted observability data, not an authorization claim. Missing, malformed, oversized, or duplicate trace headers MUST NOT change admission or outage decisions: gh-cao discards them and starts a fresh context without echoing or logging raw invalid values. Export failures MUST NOT change the decision, disable the check, or cause another admission request.
+Trace context is untrusted observability data, not an authorization claim. Within overall HTTP transport limits, missing, malformed, oversized, or duplicate trace context MUST NOT change admission or outage decisions: gh-cao discards it and starts a fresh context without echoing or logging raw invalid values. Export failures MUST NOT change the decision, disable the check, or cause another admission request.
 
 Only `traceparent` is propagated across this boundary. Arbitrary `tracestate` and `baggage` MUST NOT be forwarded or reflected; received values are ignored. Sampling is locally controlled and independent of spend, actor privileges, or an attacker-supplied sampled flag. Credentials, policy reasons, usage, balances, and personal metadata MUST NOT be encoded in trace identifiers or propagation headers.
 
 Responses do not echo trace headers or disclose an internal diagnostic identifier. The client MAY expose its validated opaque correlation ID independently of the admission result for support. Detailed service reasons remain in protected, tenant-scoped telemetry and MUST NOT appear in workflow-visible span attributes or events.
 
 ## 4. Authentication and Trust Boundary
+
+### Secret Locations and Credential Flow
+
+Workflow identity:
+
+```mermaid
+flowchart TD
+    G["GitHub issuer<br/>OIDC signing key stays here"]
+    R["Activation runner<br/>Temporary OIDC token"]
+    C["gh-cao<br/>Verifies with public keys"]
+    G -->|"Issues identity token"| R
+    R -->|"POST authorization header"| C
+```
+
+Backend App credentials:
+
+```mermaid
+flowchart TD
+    K["gh-cao secret store<br/>App private key"]
+    J["gh-cao memory<br/>App JWT"]
+    T["gh-cao memory<br/>Scoped installation token"]
+    A["GitHub API calls<br/>Provision variables or verify data"]
+    K -->|"Signs"| J
+    J -->|"Exchange with GitHub"| T
+    T -->|"Authorizes"| A
+```
+
+The App private key and installation tokens never go to the runner. The key signs App JWTs, not workflow OIDC tokens. Managed variables contain only non-secret configuration. The runner's OIDC bootstrap credential is used only with GitHub; `GITHUB_TOKEN` and provider secrets are not used by admission. Transient tokens MUST NOT enter logs, traces, artifacts, or decision storage. All activation steps share the job's OIDC issuance capability, including when the admission step is skipped.
 
 ### OIDC Verification
 
@@ -171,7 +224,7 @@ The service MUST use the same empty `403` for invalid credentials, claim mismatc
 
 When trusted OIDC, GitHub, usage, policy, or storage dependencies are temporarily unavailable, the service MUST return a generic transient status, normally `503`, rather than fabricate admission or denial. Operational rate limiting MAY return `429` only independently of spend. Budget thresholds, concurrency policy, or reset windows MUST NOT be represented as `429`, `5xx`, or `Retry-After`, which could activate fail-open behavior.
 
-Every response MUST set `Cache-Control: no-store`, have an empty body, and omit budget, quota, reset, policy, and internal-correlation headers. The service MUST NOT redirect or request another credential.
+Every response MUST set `cache-control: no-store`, have an empty body, and omit budget, quota, reset, policy, and internal-correlation headers. The service MUST NOT redirect or request another credential.
 
 ## 6. Retries, Outages, and Availability
 
@@ -222,7 +275,7 @@ All durable denials MUST share status, empty body, header set, and response-size
 
 The service MUST NOT offer anonymous balance checks, threshold-specific codes, amount-dependent retry timing, spend-based cache validators, or budget-reset headers. Proxies, CDNs, API gateways, and tracing MUST preserve these rules. Shared intermediary caching is prohibited.
 
-Authorization headers and raw tokens MUST be redacted before telemetry or request sampling. POST bodies contain repository, ref, actor, and execution metadata: body capture MUST be disabled or redacted in ingress/access logs, traces, and exceptions by default. Trace correlation does not authorize raw header/body logging. Necessary structured metadata MUST be minimized, tenant-scoped, access-controlled, and retention-bounded. Actor logins and IDs are identifying data, not public diagnostic labels.
+The `authorization` header and raw tokens MUST be redacted before telemetry or request sampling. POST bodies contain repository, ref, actor, and execution metadata: body capture MUST be disabled or redacted in ingress/access logs, traces, and exceptions by default. Trace correlation does not authorize raw header/body logging. Necessary structured metadata MUST be minimized, tenant-scoped, access-controlled, and retention-bounded. Actor logins and IDs are identifying data, not public diagnostic labels.
 
 Protected operator reason codes and accounting diagnostics MAY be stored separately without credentials. They MUST NOT be reflected into workflow responses, URLs, artifacts, or public metrics. Cross-tenant reads are prohibited.
 
@@ -232,7 +285,7 @@ Both implementations MUST provide automated coverage before rollout:
 
 | ID | Case | Required result |
 |----|------|-----------------|
-| ADM-001 | `POST /api/activation` with valid OIDC identity, audience, enrollment, and permitted invocation | Empty `204`, `Cache-Control: no-store` |
+| ADM-001 | `POST /api/activation` with valid OIDC identity, audience, enrollment, and permitted invocation | Empty `204`, `cache-control: no-store` |
 | ADM-002 | Missing token, GitHub API token, App credential, bad signature/algorithm, wrong issuer/audience, expired or premature token | Same empty `403`; no credential fallback |
 | ADM-003 | Different hidden spend bands and durable denial reasons | No reason/amount differences in status, body, headers, size, or intentional timing |
 | ADM-004 | Missing/duplicate/unknown/malformed JSON field, non-string value, query parameter, invalid content type, or inconsistent invocation ID | Uniform `403`; no unsafe downstream calls |
@@ -250,7 +303,7 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-016 | Proxy logs, tracing, exceptions, artifacts, outputs, and metrics | No raw token/App-key leakage or body capture; actor metadata minimized and protected |
 | ADM-017 | Budget denial versus operational rate limiting | Budget denial is `403`; `429` is spend-independent |
 | ADM-018 | Sustained outage under both policies | Fail-open limitation explicit; strict deployment verifies protected `block` |
-| ADM-019 | Endpoint in repo/org/enterprise defaults or `aw.json`, without any opt-in flag | Step automatically runs in activation with runtime inheritance and per-field precedence; no new job or compiler-environment capture |
+| ADM-019 | Endpoint in repo/org/enterprise managed variables, without any opt-in flag | Step automatically runs in activation with runtime scope precedence; no new job, repository-file override, or compiler-environment capture |
 | ADM-020 | No endpoint, or audience/policy without an endpoint | Step skips or succeeds as a no-op; no OIDC request or service call; activation and agent eligibility unchanged |
 | ADM-021 | Missing job permission, invalid config, or unsupported claim set | Fail closed without requesting another credential |
 | ADM-022 | App provisioning, private-key rotation, and unsupported scope | Server-only credentials; least privilege; explicit administrative errors |
@@ -258,20 +311,22 @@ Both implementations MUST provide automated coverage before rollout:
 | ADM-024 | Original actor versus rerun initiator; unauthenticated public run read | Correct actor binding; neither body claims nor public reads establish authorization |
 | ADM-025 | GET or another unsupported method; nonempty malformed endpoint | No method fallback or spending-policy evaluation; invalid configuration never becomes a no-op |
 | ADM-026 | Valid W3C context, retries, and downstream jobs | Stable correlation trace ID; distinct HTTP attempt spans; connected client/server and workflow telemetry |
-| ADM-027 | Missing/invalid/oversized trace headers, baggage, forced sampling, or export failure | No authorization change, raw metadata leakage, extra admission request, or attacker-controlled expensive sampling |
+| ADM-027 | Missing/invalid/oversized trace context within transport limits, baggage, forced sampling, or export failure | No authorization change, raw metadata leakage, extra admission request, or attacker-controlled expensive sampling |
+| ADM-028 | Custom activation hooks/actions before or after admission, including a skipped gate | Entire job reviewed for OIDC access; untrusted code excluded; skipping admission is not treated as permission revocation |
+| ADM-029 | HTTP/1.1 and HTTP/2 proxy traversal, field-name casing, duplicate trace fields, and transport limits | Standard lowercase names emitted; case-insensitive handling; preserved single trace context; no underscore-header dependency or raw credential logging |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix.
 
 ## 11. Implementation Plan
 
-1. **gh-aw configuration:** define the new `admission.url`, `admission.audience`, and `admission.on_outage` fields, allow individual fields to inherit defaults, validate effective settings, and register all three managed defaults with repo/org/enterprise handling and runtime precedence. Always include admission support; automatically check when an endpoint is configured and no-op otherwise, without a separate opt-in flag. Add schema, CLI coverage, enterprise reference, and release notes together.
-2. **gh-aw activation integration:** add the new admission step to the existing activation job and grant that job `id-token: write`. Preserve its other required permissions without forwarding API credentials. Cover enabled, disabled, denied, and fail-open behavior, reusable workflows, and custom job conditions through existing activation-success dependencies. Do not add a job or new job dependency.
+1. **gh-aw managed configuration:** register the three new admission variables and their managed YAML keys with repo/org/enterprise handling, runtime scope precedence, and effective-value validation. Do not add repository JSON or workflow/frontmatter admission settings. Always include runtime variable hooks; automatically check when an endpoint is configured and no-op otherwise, without a separate opt-in flag. Add CLI coverage, enterprise reference, and release notes together.
+2. **gh-aw activation integration:** add the new admission step to the existing activation job and grant that job `id-token: write`. Review every activation hook/action and existing federated trust policy for that job-wide capability, including when the gate is skipped. Preserve other required permissions without forwarding API credentials. Cover enabled, disabled, denied, and fail-open behavior, reusable workflows, and custom job conditions through existing activation-success dependencies. Do not add a job or new job dependency.
 3. **gh-aw OIDC client:** implement bounded GitHub OIDC acquisition and the POST/JSON contract as new functionality. Include actor, accept only `204`, implement generic diagnostics, retries, and outage policy, and prohibit alternate credentials or HTTP methods.
 4. **gh-cao service:** implement pinned issuer/audience verification, tenant enrollment and trusted workflow mapping, App-backed verification where needed, privacy-preserving policy evaluation, bounded decisions/replays, and protected telemetry. Keep the admission operation financially side-effect-free and retry-safe.
 5. **gh-cao provisioning:** keep the App private key server-side; provide authorized default provisioning, scope/permission checks, key rotation, and operator guidance distinguishing defaults from mandatory enforcement.
 6. **Trace correlation:** reuse gh-aw's OTLP trace generation/validation and workflow propagation helpers, inject W3C `traceparent` for each POST attempt, join gh-cao server spans, and enforce tenant-scoped telemetry and propagation redaction. Correlation works without an exporter and never becomes an authorization or accounting key.
 7. **Integration and initial release:** satisfy Section 10 across both new implementations; verify issuer/audience registration, claim mappings, ingress redaction, endpoint governance, trace continuity, and `block` for strict deployments. Recompile workflows with the feature-capable compiler to include the new activation step and runtime configuration hooks. There is no prior admission implementation to migrate or support.
 
-Integration points are the existing [activation-job assembly](../pkg/workflow/compiler_activation_context.go), [activation permissions](../pkg/workflow/compiler_activation_permissions.go), [repository configuration schema](../pkg/parser/schemas/repo_config_schema.json), and [managed-default registry](../pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created.
+Integration points are the existing [activation-job assembly](../pkg/workflow/compiler_activation_context.go), [activation permissions](../pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](../pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
 
-Platform references: [GitHub Actions OIDC claims and trust configuration](https://docs.github.com/en/actions/reference/security/oidc), [GitHub App private-key management](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps), and [W3C Trace Context](https://www.w3.org/TR/trace-context/). Existing emit-side integration points include [`send_otlp_span.cjs`](../actions/setup/js/send_otlp_span.cjs) and [`action_setup_otlp.cjs`](../actions/setup/js/action_setup_otlp.cjs).
+Platform references: [GitHub Actions OIDC claims and trust configuration](https://docs.github.com/en/actions/reference/security/oidc), [GitHub App private-key management](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps), [W3C Trace Context](https://www.w3.org/TR/trace-context/), and [RFC 6648 header-naming guidance](https://www.rfc-editor.org/rfc/rfc6648.html). Existing emit-side integration points include [`send_otlp_span.cjs`](../actions/setup/js/send_otlp_span.cjs) and [`action_setup_otlp.cjs`](../actions/setup/js/action_setup_otlp.cjs).
