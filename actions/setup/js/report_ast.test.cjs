@@ -163,11 +163,13 @@ describe("report AST", () => {
     const githubSecret = `ghs_${"A".repeat(36)}.TAIL`;
     const crossTypeSecret = "cross-type-render-secret-fixture";
     const crossFormatSecret = "cross-format-render-secret-fixture";
-    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET,RENDER_TEXT_CODE_SECRET,RENDER_FORMAT_SECRET");
+    const strongSecret = "nested-strong-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET,RENDER_TEXT_CODE_SECRET,RENDER_FORMAT_SECRET,RENDER_STRONG_SECRET");
     vi.stubEnv("SECRET_RENDER_OPENAI_SECRET", openAISecret);
     vi.stubEnv("SECRET_RENDER_GITHUB_SECRET", githubSecret);
     vi.stubEnv("SECRET_RENDER_TEXT_CODE_SECRET", crossTypeSecret);
     vi.stubEnv("SECRET_RENDER_FORMAT_SECRET", crossFormatSecret);
+    vi.stubEnv("SECRET_RENDER_STRONG_SECRET", strongSecret);
     const input = report([
       {
         type: "paragraph",
@@ -201,6 +203,16 @@ describe("report AST", () => {
           { type: "link", url: "https://docs.example/", agentTainted: false, children: [{ type: "text", value: "docs", agentTainted: false }] },
         ],
       },
+      {
+        type: "paragraph",
+        children: [
+          { type: "strong", agentTainted: true, children: [{ type: "text", value: strongSecret, agentTainted: true }] },
+          { type: "text", value: " ", agentTainted: false },
+          { type: "emphasis", agentTainted: false, children: [{ type: "text", value: "Independent emphasis", agentTainted: false }] },
+          { type: "text", value: " ", agentTainted: false },
+          { type: "link", url: "https://guide.example/", agentTainted: false, children: [{ type: "text", value: "guide", agentTainted: false }] },
+        ],
+      },
     ]);
     const body = renderReport(input).body;
     expect(body).not.toContain(openAISecret);
@@ -211,7 +223,9 @@ describe("report AST", () => {
     expect(body).not.toContain("cross-type-render-");
     expect(body).not.toContain(crossFormatSecret);
     expect(body).not.toContain("cross-format-render-secret-");
+    expect(body).not.toContain(strongSecret);
     expect(body).toContain("**Safe emphasis** [docs](https://docs.example/)");
+    expect(body).toContain("*Independent emphasis* [guide](https://guide.example/)");
   });
 
   it.each([
