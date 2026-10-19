@@ -208,6 +208,24 @@
         "1/50 sessions logged (6 turns, clean, 1 expected permission denial + recovery).",
         "0/10 open PRs orphaned, 45th healthy day."
       ]
+    },
+    {
+      "date": "2026-10-19",
+      "sessions_analyzed": 50,
+      "completion_rate": 66.0,
+      "average_duration_minutes": 8.006,
+      "median_duration_minutes": 0.0,
+      "orphan_rate_pct": 0.0,
+      "escalations": 0,
+      "experimental_strategy": null,
+      "key_insights": [
+        "DATA PIPELINE FAILURE: 0/50 conversation logs fetched (worse than prior worst of 1-3/50); the 50 fetched items are CI gate/check-run workflows, not Copilot agent sessions. copilot-session-data-fetch module needs investigation.",
+        "66.0% completion (33/50), flat vs 10-18 (68.0%); 46-day mean 34.2%.",
+        "93.9% bot-driven successes (new high, prev 97.0% on 10-14); true_agentic 2/2=100% ('Addressing comment on PR' x2).",
+        "Narrowest branch spread on record: 2 branches (70%/30%).",
+        "Duration mean 8.0min/median 0.0min, driven by instant CI-gate fires, not real agent sessions.",
+        "0/8 open PRs orphaned, 47th healthy day. Standard run (roll=30)."
+      ]
     }
   ],
   "last_updated": "2026-10-17",
