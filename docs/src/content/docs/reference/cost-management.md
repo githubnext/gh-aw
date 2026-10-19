@@ -278,6 +278,14 @@ Activation logs identify artifact discovery and accounting failures with the und
 
 Cold scans check the compiler-owned `agent`, `detection`, and `evals` jobs independently. Every executed component needs valid accounting; empty collector placeholders and evaluation results alone do not prove zero usage. Raw token usage takes precedence over overlapping summaries. Invalid numeric fields make the accounting unknown. Failed-only reruns retain successful components from earlier attempts, but a rerun component needs a producer artifact from its own job execution. Missing carried-forward usage remains unknown. Older snapshots without component-coverage validation are not reused.
 
+#### Repo-Memory Bootstrap
+
+With `max-daily-ai-credits.backend: repo-memory`, a missing memory branch does not require an insecure override. After the clone step confirms the branch is absent, activation checks authoritative workflow history and usage artifacts under the same daily limit. This requires Actions read access and fails closed on incomplete accounting or API restrictions.
+
+Recompile existing workflows after upgrading so activation receives the clone result required for secure bootstrap.
+
+The trusted memory writer records when ledger coverage starts. New branches and existing ledgers without coverage metadata continue using artifact accounting until that coverage is at least 24 hours old; subsequent activations use the trusted cloned ledger. This prevents a new empty ledger from erasing recent spending. Preserve the coverage files under `daily-aic-ledger/` with the JSONL shards. Do not enable `GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC` or `continue-on-error` to bootstrap.
+
 To disable the guardrail explicitly, set `-1`:
 
 ```aw wrap

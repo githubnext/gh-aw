@@ -562,6 +562,9 @@ Daily AIC guardrail with repo-memory ledger`
 	if !strings.Contains(lockStr, "GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED: ${{ steps.daily-aic-repo-memory-clone.outputs.cloned == 'true' }}") {
 		t.Fatal("expected activation guardrail to trust the ledger only after a successful clone")
 	}
+	if !strings.Contains(lockStr, "GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING: ${{ steps.daily-aic-repo-memory-clone.outcome == 'success' && steps.daily-aic-repo-memory-clone.outputs.cloned == 'false' }}") {
+		t.Fatal("expected artifact-backed bootstrap only after a successful clone step confirms the branch is absent")
+	}
 	preGuardrailCloneIdx := strings.Index(lockStr, "Clone daily AIC repo-memory ledger (default)")
 	guardrailCheckIdx := strings.Index(lockStr, "name: Check daily workflow token guardrail")
 	if preGuardrailCloneIdx < 0 || guardrailCheckIdx < 0 || preGuardrailCloneIdx >= guardrailCheckIdx {
