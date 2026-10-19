@@ -22,7 +22,7 @@ function subscription(overrides = {}) {
       max_payload_bytes: 65535,
       max_request_bytes: 65535,
       batch: { mode: "same-event", deduplicate_by: "delivery_id" },
-      payload_projection: { policy: "resource-url-types-filters/v1" },
+      payload_projection: { policy: "resource-url-types-filters/v2" },
       context: {
         envelope: "github.event.client_payload",
         aw_context: "github.event.client_payload.aw_context",
@@ -182,7 +182,7 @@ describe("validateWebhook", () => {
     expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: value }))).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
   });
 
-  it.each([{ schema_version: 1 }, { schema_version: "2" }, { event: "" }, { dispatch: { event_type: "x".repeat(101) } }, { dispatch: {} }, { types: undefined }, { types: "created" }, { types: [3] }])(
+  it.each([{ schema_version: 1 }, { schema_version: "2" }, { event: "" }, { dispatch: { event_type: "x".repeat(101) } }, { dispatch: {} }, { types: undefined }, { types: [] }, { types: "created" }, { types: [3] }])(
     "rejects invalid or singleton subscription %#",
     overrides => {
       expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription(overrides)]) }))).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
@@ -341,14 +341,19 @@ describe("validateWebhook", () => {
     expect(() => validateWebhook(event, environment())).not.toThrow(/private-description/);
   });
 
-  it.each([undefined, {}, { policy: "resource-url-types/v1" }, { policy: "resource-url-types-filters/v2" }, { source_path: ["alert", "url"], target_path: ["url"] }, { policy: "resource-url-types-filters/v1", extra: true }])(
-    "rejects missing, old or unsupported projection declarations %#",
-    projection => {
-      const selected = subscription();
-      selected.dispatch.payload_projection = projection;
-      expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) }))).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
-    }
-  );
+  it.each([
+    undefined,
+    {},
+    { policy: "resource-url-types/v1" },
+    { policy: "resource-url-types-filters/v1" },
+    { policy: "resource-url-types-filters/v3" },
+    { source_path: ["alert", "url"], target_path: ["url"] },
+    { policy: "resource-url-types-filters/v2", extra: true },
+  ])("rejects missing, old or unsupported projection declarations %#", projection => {
+    const selected = subscription();
+    selected.dispatch.payload_projection = projection;
+    expect(() => validateWebhook(dispatch(), environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) }))).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
+  });
 
   it("bounds the raw batch before deduplication", () => {
     const repeated = delivery();
@@ -468,6 +473,22 @@ describe("minimal declared filter projection", () => {
   const conditions = [condition("data.state", ["ready", "published"]), condition("approved", [false]), condition("attempt", [1, 2])];
   const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ conditions })]) });
   const filters = { "data.state": ["ready"], approved: [false], attempt: [1] };
+
+  it.each([
+    ["code_scanning_alert", "error", "warning", ["alert", "rule", "severity"]],
+    ["dependabot_alert", "critical", "low", ["alert", "security_advisory", "severity"]],
+  ])("forwards only the declared matching severity for %s", (eventName, selected, unselected, path) => {
+    const selectedSubscription = subscription({ event: eventName, types: ["created"], conditions: [{ ...condition("severity", [selected]), path }] });
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selectedSubscription]) });
+    const event = securityBatch(eventName, ["org/repo"]);
+    batch(event).deliveries[0].payload.filters = { severity: [selected] };
+    expect(validateWebhook(event, env).skipped).toBe(false);
+    batch(event).deliveries[0].payload.filters.severity = [selected, unselected];
+    expect(() => validateWebhook(event, env)).toThrow(/declared matching values/);
+    batch(event).deliveries[0].payload.filters = { severity: [selected] };
+    batch(event).deliveries[0].payload.severity = selected;
+    expect(() => validateWebhook(event, env)).toThrow(/accepts only/);
+  });
 
   it("preserves typed matching scalar subsets, not complete source fields", () => {
     const event = filteredEvent(filters);

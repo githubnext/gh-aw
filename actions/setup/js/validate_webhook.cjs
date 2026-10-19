@@ -111,8 +111,11 @@ function validSubscriptionFilters(subscription) {
 function matchesProjectedFilters(subscription, payload) {
   const projected = payload.filters ?? {};
   const groups = subscription.any_of ?? [[]];
+  const terminal = subscription.event === "azure_devops_issue" && payload.type.some(type => ["closed", "reopened"].includes(type));
+  if (terminal && (projected["closed-states"]?.length !== 1 || !Array.isArray(subscription.activity_normalization.closed_states))) return false;
   return groups.some(group => {
     const conditions = [...subscription.conditions, ...group];
+    if (terminal) conditions.push({ filter: "closed-states", values: subscription.activity_normalization.closed_states });
     const names = new Set(conditions.map(condition => condition.filter));
     return (
       Object.keys(projected).length === names.size &&
@@ -156,6 +159,7 @@ function validateWebhook(event, env = process.env) {
         subscription.dispatch.payload_projection.policy === WEBHOOK_PAYLOAD_POLICY &&
         validSubscriptionFilters(subscription) &&
         Array.isArray(subscription.types) &&
+        subscription.types.length > 0 &&
         subscription.types.every(isNonemptyString) &&
         (subscription.event !== "webhook" || (subscription.types.length === 1 && isGenericWebhookType(subscription.types[0]) && subscription.provider === undefined && subscription.activity_normalization === undefined)) &&
         hasValidRepositorySelectors(subscription) &&
@@ -163,7 +167,7 @@ function validateWebhook(event, env = process.env) {
         (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription))
     )
   ) {
-    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions with resource-url-types-filters/v1 projection");
+    reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions with resource-url-types-filters/v2 projection");
   }
 
   if (!isObject(event) || !isNonemptyString(event.action) || event.action.length > MAX_EVENT_TYPE_LENGTH) {
@@ -218,7 +222,7 @@ function validateWebhook(event, env = process.env) {
       if (!matchesProviderIssueSubscription(subscription, delivery.payload)) {
         reject("provider issue activity does not match the subscription types or native events");
       }
-    } else if (subscription.types.length > 0 && !delivery.payload.type.some(type => subscription.types.includes(type))) {
+    } else if (!delivery.payload.type.every(type => subscription.types.includes(type))) {
       reject("webhook payload type does not match the subscription types");
     }
   }

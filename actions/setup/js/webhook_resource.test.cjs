@@ -20,7 +20,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("minimal resource notification contract", () => {
   it("explicitly versions the projection independently of the batch envelope", () => {
-    expect(WEBHOOK_PAYLOAD_POLICY).toBe("resource-url-types-filters/v1");
+    expect(WEBHOOK_PAYLOAD_POLICY).toBe("resource-url-types-filters/v2");
   });
 
   const githubCatalog = JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/webhook_events.json", import.meta.url), "utf8"));
@@ -42,13 +42,15 @@ describe("minimal resource notification contract", () => {
         schema_version: 2,
         event,
         types: payload.type,
-        conditions: Object.entries(payload.filters ?? {}).map(([filter, values]) => ({
-          filter,
-          path: event === "webhook" ? filter.split(".") : definition.filters[filter].path,
-          operator: "equals",
-          value_type: event === "webhook" ? typeof values[0] : definition.filters[filter].type,
-          values,
-        })),
+        conditions: Object.entries(payload.filters ?? {})
+          .filter(([filter]) => !(event === "azure_devops_issue" && filter === "closed-states"))
+          .map(([filter, values]) => ({
+            filter,
+            path: event === "webhook" ? filter.split(".") : definition.filters[filter].path,
+            operator: "equals",
+            value_type: event === "webhook" ? typeof values[0] : definition.filters[filter].type,
+            values,
+          })),
         dispatch: { event_type: "specification", payload_projection: { policy: WEBHOOK_PAYLOAD_POLICY } },
         ...(definition?.provider
           ? {

@@ -87,6 +87,8 @@ func webhookPromptSection(data *WorkflowData) *PromptSection {
 			"The shared webhook event name is client_payload.aw_context.webhook.event; each element of " +
 			"client_payload.aw_context.webhook.deliveries contains delivery_id and an inline payload. " +
 			"Every delivery payload contains only a canonical resource URL at payload.url, a non-empty payload.type array of event activities or a generic identifier, and payload.filters when declared conditions exist. " +
+			"Forwarded types are only the declared matching activities; severity is a declared filter literal, not a full alert. " +
+			"Azure closed/reopened notifications additionally include exactly one matching declared terminal name at payload.filters[\"closed-states\"], never the unmatched side of the transition. " +
 			"Filter entries contain only matched literal values for the declared predicates, not complete source fields or objects. " +
 			"Activities such as closed and reopened convey transitions, not the current resource state. Unfiltered resource details and raw source bodies are not forwarded. " +
 			"Resolve all additional data inside this workflow using provider-authenticated clients so the provider enforces access; use an authenticated GitHub App client for GitHub data. " +

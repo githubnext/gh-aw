@@ -189,7 +189,8 @@ function validProviderIssueSubscription(subscription) {
 
 function matchesProviderIssueSubscription(subscription, payload) {
   const [created, updated, deleted, restored] = PROVIDER_ISSUE_EVENTS[subscription.event];
-  return payload.type.some(activity => {
+  if (payload.type.includes("closed") && payload.type.includes("reopened")) return false;
+  return payload.type.every(activity => {
     const native = activity === "opened" ? created : activity === "deleted" ? deleted : activity === "restored" ? restored : updated;
     return subscription.native_events.includes(native) && subscription.types.includes(activity);
   });

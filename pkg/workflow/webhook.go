@@ -97,7 +97,7 @@ type WebhookPayloadProjection struct {
 }
 
 // WebhookPayloadProjectionPolicy versions the closed per-delivery notification.
-const WebhookPayloadProjectionPolicy = "resource-url-types-filters/v1"
+const WebhookPayloadProjectionPolicy = "resource-url-types-filters/v2"
 
 // WebhookSubscription is the compiler's versioned filter and routing declaration.
 type WebhookSubscription struct {

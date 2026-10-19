@@ -2,7 +2,7 @@
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 
-const WEBHOOK_PAYLOAD_POLICY = "resource-url-types-filters/v1";
+const WEBHOOK_PAYLOAD_POLICY = "resource-url-types-filters/v2";
 const ISSUE_TYPES = ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"];
 const WEBHOOK_TYPES = {
   projects_v2_item: ["archived", "converted", "created", "deleted", "edited", "reordered", "restored"],

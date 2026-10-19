@@ -11,7 +11,7 @@ sidebar:
 
 **Subscription and transport schema:** Numeric version `2`.
 
-**Required payload projection:** `resource-url-types-filters/v1`.
+**Required payload projection:** `resource-url-types-filters/v2`.
 
 This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers five named nested triggers plus a generic `webhooks` array: six provider-specific families and one generic family. It does not register webhook sources and is unrelated to the MCP gateway.
 
@@ -147,19 +147,28 @@ The compiler publishes identical normalized declarations through each compiled l
 | `provider`, `native_events` | External issues only: provider name and sorted, deduplicated required native events/actions. Linear actions are always scoped to entity `Issue`. |
 | `activity_normalization` | External issues only: the exact supported `policy`, plus Azure `closed_states` when configured. Unsupported policies MUST be rejected. |
 | `dispatch` | Destination, workflow-specific route, required minimal projection, context mapping, homogeneous batching, and byte limits. |
-| `dispatch.payload_projection.policy` | Exact policy `resource-url-types-filters/v1`, required for every event family. Unknown, older, or missing projection policies MUST remain nonactivating. |
+| `dispatch.payload_projection.policy` | Exact policy `resource-url-types-filters/v2`, required for every event family. Unknown, older, or missing projection policies MUST remain nonactivating. |
 
 The receiver MUST authenticate and authorize the source, select the family, derive normalized activities when applicable, and evaluate selectors, shared conditions, and complete `any_of` groups against each original delivery **before** projection or batching. A condition MUST NOT be assembled across deliveries.
 
-Every `dispatch.payload_projection` is exactly `{"policy":"resource-url-types-filters/v1"}`. Each notification requires `url` and `type`, plus `filters` when its subscription has conditions. These are the only permitted payload properties. `url` is the canonical resource URI, serialized as an HTTPS URL. GitHub types contain the single original action; provider types contain all distinct activities established by the declared normalization policy, including `edited` for updates; generic types contain exactly the configured event identifier. Receivers SHOULD sort activities and projected filter values for deterministic retries.
+Every `dispatch.payload_projection` is exactly `{"policy":"resource-url-types-filters/v2"}`. Each notification requires `url` and `type`, plus `filters` for matching declared selectors as specified below. These are the only permitted payload properties. `url` is the canonical resource URI, serialized as an HTTPS URL. Each forwarded type MUST be both established by the original delivery/normalization policy and selected by `subscription.types`. The receiver MUST intersect the activities with the selected types before forwarding; an empty intersection does not qualify. For example, a provider update classified as `["edited","closed","labeled"]` for `types: [closed]` forwards only `["closed"]`, not the other activities. Omitted frontmatter `types` uses the compiler's expanded defaults. Generic types contain exactly the configured identifier. Receivers SHOULD sort activities and projected filter values for deterministic retries.
 
 `filters` is a flat map keyed by the compiled `condition.filter` names, not a native source object. Each value is a nonempty array of distinct matching scalars of the declared type. For example, a subscription selecting `data.state: [ready, published]` forwards `"filters":{"data.state":["ready"]}` when only `ready` occurs in the delivery, not both configured alternatives or unrelated states. An array-valued source field contributes only its matching literals, never the complete source array.
 
-The keys MUST cover every shared condition and exactly one complete matching `any_of` alternative when alternatives exist. Each projected value MUST be present in the authenticated original delivery at the declared path and accepted by every applicable condition for that name. Missing fields, extra keys, nonmatching values, nested objects, mixed scalar types, and partial or cross-combined transition pairs MUST reject the delivery. The runner rechecks this closed key/value allowlist; it cannot prove original-source provenance from the projection. With no conditions or alternatives, `filters` MUST be omitted. Source selectors represented by compiled conditions follow the same rule; `repos`, `orgs`, and activity-normalization settings are not extra payload fields.
+The keys MUST cover every shared condition and exactly one complete matching `any_of` alternative when alternatives exist, plus the Azure terminal-state match below when applicable. Each projected value MUST be present in the authenticated original delivery at the declared path and accepted by every applicable condition for that name. Missing fields, extra keys, nonmatching values, nested objects, mixed scalar types, and partial or cross-combined transition pairs MUST reject the delivery. The runner rechecks this closed key/value allowlist; it cannot prove original-source provenance from the projection.
+
+| Declared selector | Permitted matching values |
+| --- | --- |
+| `filters` and flat provider selectors | Actual matched literals under their compiled `condition.filter` names, covering shared conditions and one complete alternative. |
+| `types` or generic `type` | Only selected, evidence-backed activities/identifier in `payload.type`; no unselected activities. |
+| Security `severity` | Only matched configured severity literals in `payload.filters.severity`; the compiler promotes this selector to a typed condition. No advisory, dependency, rule, or alert objects. |
+| Azure `closed-states` | For a forwarded `closed` activity, exactly the entered configured terminal name; for `reopened`, exactly the departed configured terminal name. Forward this single string in `payload.filters["closed-states"]`, never the unselected nonterminal side or the full configured set. |
+
+`closed-states` is declared in `activity_normalization.closed_states`, not a new source-path equality condition. The receiver MUST establish a complete old/new transition before projecting the matching terminal name. This key is required only when a selected `closed` or `reopened` activity is forwarded; otherwise it MUST be absent, even if terminal names are configured. A notification MUST NOT contain both `closed` and `reopened`. With no conditions, alternatives, or selected Azure lifecycle match, `filters` MUST be omitted. `repos`, `orgs`, and normalization policy objects are not extra payload fields.
 
 No content beyond these references, type values, and declared matching literals may be forwarded. A filter is not permission to copy its source object, sibling fields, nonmatching array elements, descriptions, or provider responses. All other resource details MUST be resolved inside the workflow through provider-authenticated access so the provider controls visibility.
 
-The batch envelope remains numeric version `2`; the explicit projection policy versions its per-delivery data boundary. The older `resource-url-types/v1` policy, native-body Projects/provider payloads, URL-only security payloads without types, and `source_path`/`target_path` projection declarations are unsupported. Receivers MUST NOT silently ignore the new policy or fall back to forwarding native bodies. Subscription metadata or source payloads MUST NOT supply gateway authority.
+The batch envelope remains numeric version `2`; the explicit projection policy versions its per-delivery data boundary. The older `resource-url-types/v1` and `resource-url-types-filters/v1` policies, native-body Projects/provider payloads, URL-only security payloads without types, and `source_path`/`target_path` projection declarations are unsupported. Receivers MUST NOT silently ignore the new policy or fall back to forwarding native bodies. Subscription metadata or source payloads MUST NOT supply gateway authority.
 
 ## Dispatch envelope
 
@@ -207,7 +216,7 @@ Explicit native `workflow_dispatch` and `repository_dispatch` triggers MUST NOT 
 
 ## Expected per-delivery payloads
 
-These are complete permitted payloads for the indicated selectors, not abbreviated native bodies. Every payload MUST contain `url` and `type`; only the declared matching `filters` map may additionally appear, and it is required when conditions exist. `type` MUST be a nonempty array of distinct supported activities or exactly one generic identifier; GitHub families require exactly one activity. Source objects, changelogs, descriptions, and arbitrary state objects MUST NOT be included. Labels, severities, IDs, and field values are allowed only as the matching literals of explicitly compiled conditions, never as unfiltered resource data. All supplied identities are illustrative.
+These are complete permitted payloads for the indicated selectors, not abbreviated native bodies. Every payload MUST contain `url` and `type`; only the declared matching `filters` map may additionally appear, and it is required when conditions or a selected Azure lifecycle match exist. `type` MUST be a nonempty array of distinct selected, evidence-backed activities or exactly one generic identifier; GitHub families require exactly one activity. Source objects, changelogs, descriptions, and arbitrary state objects MUST NOT be included. Labels, severities, IDs, and field values are allowed only as matching declared literals, including the single applicable Azure terminal name, never as unfiltered resource data. All supplied identities are illustrative.
 
 Every URL MUST be canonical HTTPS without credentials, query strings, or fragments. Its serialized value MUST equal the URL parser's canonical representation. The runner validates references without fetching them; URLs are not arbitrary overflow pointers or authorization evidence.
 
@@ -289,13 +298,13 @@ The receiver checks `organizationId`, optional `data.teamId`, and `updatedFrom` 
 {
   "url": "https://dev.azure.com/organization/_apis/wit/workItems/42",
   "type": ["closed", "edited", "labeled"],
-  "filters": {"project_id": ["project-uuid"]}
+  "filters": {"project_id": ["project-uuid"], "closed-states": ["Done"]}
 }
 ```
 
 The URL MUST identify a work item, not an update/revision or recycle-bin record. Supported API shapes are `https://dev.azure.com/{organization}/[project/]_apis/wit/workItems/{id}` and `https://{organization}.visualstudio.com/{collection}/[project/]_apis/wit/workItems/{id}`. The optional project path segment uses a project ID or URL-encoded project name. The receiver MUST bind the canonical resource URL and positive decimal work item ID to the reviewed collection/project.
 
-The required root `project_id` is checked against original `resourceContainers.project.id` and forwarded only as its declared matching filter literal. Original updates require `resource.workItemId`, not `resource.id`, except declared version `"1.0"` snapshot updates without `resource.revision`; non-update events may use `resource.id`. The receiver derives `closed` only from delivered old/new state evidence crossing configured `closed-states`. It MUST NOT forward native update URLs, container objects, complete state/tag deltas, or unselected work item fields.
+This example assumes all three forwarded activities were selected, `project_id: project-uuid`, and `closed-states: [Done]`. The receiver checks the project ID against original `resourceContainers.project.id` and forwards only its matching literal. Original updates require `resource.workItemId`, not `resource.id`, except declared version `"1.0"` snapshot updates without `resource.revision`; non-update events may use `resource.id`. The receiver derives `closed` only from complete delivered state evidence entering configured `Done`, which is the only terminal literal forwarded. A `reopened` notification similarly forwards only the departed configured terminal name, not the new nonterminal value. Native update URLs, container objects, complete state/tag deltas, and unselected work item fields MUST NOT be forwarded.
 
 ## Derived context and responsibility boundary
 

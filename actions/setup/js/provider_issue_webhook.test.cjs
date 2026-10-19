@@ -202,7 +202,7 @@ function providerEnvironment(event, types, nativeEvents, normalization = {}) {
         native_events: nativeEvents,
         schema_version: 2,
         activity_normalization: { policy: `${provider}-issue/v1`, ...normalization },
-        dispatch: { event_type: "gh-aw-webhook-provider", payload_projection: { policy: "resource-url-types-filters/v1" } },
+        dispatch: { event_type: "gh-aw-webhook-provider", payload_projection: { policy: "resource-url-types-filters/v2" } },
       },
     ]),
   };
@@ -254,12 +254,59 @@ describe("provider issue batch transport", () => {
     expect(() => validateWebhook(providerDispatch("jira_issue", [payload]), providerEnvironment("jira_issue", ["closed"], ["jira:issue_updated"]))).toThrow(/accepts only/);
   });
 
-  it("requires every delivery to satisfy a selected activity", () => {
+  it("requires every forwarded activity to be selected, not just one activity in each delivery", () => {
     const original = linear("update", { completedAt: "2026-10-01T00:00:00Z" }, { completedAt: null });
-    const closed = notification("linear_issue", providerIssueActivities("linear_issue", original));
+    const activities = providerIssueActivities("linear_issue", original);
+    expect(activities).toEqual(["edited", "closed"]);
+    const closed = notification("linear_issue", ["closed"]);
     const env = providerEnvironment("linear_issue", ["closed"], ["update"]);
     expect(validateWebhook(providerDispatch("linear_issue", [closed]), env).skipped).toBe(false);
+    expect(() => validateWebhook(providerDispatch("linear_issue", [notification("linear_issue", activities)]), env)).toThrow(/activity/);
     expect(() => validateWebhook(providerDispatch("linear_issue", [closed, notification("linear_issue")]), env)).toThrow(/activity/);
+  });
+
+  it.each(["closed", "reopened"])("projects only the matching declared Azure terminal state for %s", activity => {
+    const payload = notification("azure_devops_issue", [activity]);
+    payload.filters = { "closed-states": ["Done"] };
+    const env = providerEnvironment("azure_devops_issue", [activity], ["workitem.updated"], { closed_states: ["Done", "Closed"] });
+    expect(validateWebhook(providerDispatch("azure_devops_issue", [payload]), env).skipped).toBe(false);
+    for (const filters of [
+      undefined,
+      {},
+      { "closed-states": [] },
+      { "closed-states": ["private-active-state"] },
+      { "closed-states": ["Done", "Closed"] },
+      { "closed-states": ["Done", "private-active-state"] },
+      { "closed-states": [true] },
+      { "closed-states": ["done"] },
+      { "closed-states": ["Done"], state: ["private-active-state"] },
+    ]) {
+      expect(() => validateWebhook(providerDispatch("azure_devops_issue", [{ ...payload, filters }]), env)).toThrow(/filters/);
+      expect(() => validateWebhook(providerDispatch("azure_devops_issue", [{ ...payload, filters }]), env)).not.toThrow(/private-active-state/);
+    }
+  });
+
+  it("does not forward configured terminal names when no selected lifecycle transition matched", () => {
+    const env = providerEnvironment("azure_devops_issue", ["edited"], ["workitem.updated"], { closed_states: ["Done"] });
+    const payload = notification("azure_devops_issue");
+    expect(validateWebhook(providerDispatch("azure_devops_issue", [payload]), env).skipped).toBe(false);
+    payload.filters = { "closed-states": ["Done"] };
+    expect(() => validateWebhook(providerDispatch("azure_devops_issue", [payload]), env)).toThrow(/filters/);
+    const other = notification("linear_issue", ["closed"]);
+    other.filters = { "closed-states": ["Done"] };
+    expect(() => validateWebhook(providerDispatch("linear_issue", [other]), providerEnvironment("linear_issue", ["closed"], ["update"]))).toThrow(/filters/);
+  });
+
+  it("rejects contradictory closed and reopened activities rather than forwarding a full transition", () => {
+    const payload = notification("linear_issue", ["closed", "reopened"]);
+    expect(() => validateWebhook(providerDispatch("linear_issue", [payload]), providerEnvironment("linear_issue", ["closed", "reopened"], ["update"]))).toThrow(/activity/);
+  });
+
+  it("rejects undeclared Azure lifecycle filters through the validation error path", () => {
+    const payload = notification("azure_devops_issue", ["closed"]);
+    payload.filters = { "closed-states": ["Done"] };
+    const env = providerEnvironment("azure_devops_issue", ["edited"], ["workitem.updated"]);
+    expect(() => validateWebhook(providerDispatch("azure_devops_issue", [payload]), env)).toThrow(/Webhook validation failed:.*filters/);
   });
 
   it("checks the selected native registration as well as normalized activities", () => {
