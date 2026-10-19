@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -274,7 +275,7 @@ func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 				"min-integrity": "unapproved",
 				"allowed-repos": "owner/*",
 			},
-			expectedContains: []string{`"min-integrity":"unapproved"`, `"repos":"owner/*"`},
+			expectedContains: []string{`"min-integrity":"unapproved"`, `"repos":["owner/*"]`},
 			expectedAbsent:   []string{"blocked-users", "approval-labels"},
 		},
 		{
@@ -283,7 +284,7 @@ func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 				"min-integrity": "approved",
 				"allowed-repos": "${{ github.repository }}",
 			},
-			expectedContains: []string{`"min-integrity":"approved"`, `"repos":"${{ github.repository }}"`},
+			expectedContains: []string{`"min-integrity":"approved"`, `"repos":["${{ github.repository }}"]`},
 			expectedAbsent:   []string{"blocked-users", "approval-labels"},
 		},
 		{
@@ -313,6 +314,53 @@ func TestGetDIFCProxyPolicyJSON(t *testing.T) {
 				assert.NotContains(t, got, s, "policy JSON should NOT contain %q for: %s", s, tt.name)
 			}
 		})
+	}
+}
+
+func TestGitHubGuardPolicyRepositoryScopes(t *testing.T) {
+	tests := []struct {
+		name     string
+		repos    any
+		expected any
+	}{
+		{name: "all", repos: "all", expected: "all"},
+		{name: "public", repos: "public", expected: "public"},
+		{name: "repository", repos: "owner/repo", expected: []string{"owner/repo"}},
+		{name: "owner wildcard", repos: "owner/*", expected: []string{"owner/*"}},
+		{name: "repository prefix", repos: "owner/prefix*", expected: []string{"owner/prefix*"}},
+		{name: "repository expression", repos: githubRepositoryExpression, expected: []string{githubRepositoryExpression}},
+		{name: "string list", repos: []string{"owner/repo", "other/*"}, expected: []string{"owner/repo", "other/*"}},
+		{name: "YAML list", repos: []any{githubRepositoryExpression}, expected: []string{githubRepositoryExpression}},
+	}
+
+	for _, tt := range tests {
+		for _, field := range []string{"allowed-repos", "repos"} {
+			t.Run(tt.name+"/"+field, func(t *testing.T) {
+				config := map[string]any{
+					field:           tt.repos,
+					"min-integrity": "approved",
+				}
+				gatewayJSON, err := json.Marshal(getGitHubGuardPolicies(config))
+				require.NoError(t, err)
+				expectedJSON, err := json.Marshal(tt.expected)
+				require.NoError(t, err)
+				for name, policyJSON := range map[string]string{
+					"gateway":    string(gatewayJSON),
+					"CLI proxy":  buildCLIProxyPolicyJSON(config, &WorkflowData{SandboxConfig: &SandboxConfig{}}),
+					"DIFC proxy": getDIFCProxyPolicyJSON(config, nil, nil),
+				} {
+					t.Run(name, func(t *testing.T) {
+						var policy struct {
+							AllowOnly struct {
+								Repos json.RawMessage `json:"repos"`
+							} `json:"allow-only"`
+						}
+						require.NoError(t, json.Unmarshal([]byte(policyJSON), &policy))
+						assert.JSONEq(t, string(expectedJSON), string(policy.AllowOnly.Repos))
+					})
+				}
+			})
+		}
 	}
 }
 
@@ -974,7 +1022,7 @@ func TestBuildStartCliProxyStepYAML(t *testing.T) {
 		require.NotEmpty(t, result, "should emit CLI proxy step")
 		assert.Contains(t, result, "CLI_PROXY_POLICY", "should emit CLI_PROXY_POLICY")
 		assert.Contains(t, result, `"min-integrity":"approved"`, "should use configured min-integrity")
-		assert.Contains(t, result, `"repos":"owner/*"`, "should use configured repos")
+		assert.Contains(t, result, `"repos":["owner/*"]`, "should use configured repos")
 	})
 
 	t.Run("uses runtime repos default when repos is omitted but min-integrity is configured", func(t *testing.T) {

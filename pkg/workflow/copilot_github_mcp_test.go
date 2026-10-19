@@ -243,7 +243,7 @@ func TestGetGitHubGuardPoliciesToolCallLimits(t *testing.T) {
 			},
 			expected: map[string]any{
 				"allow-only": map[string]any{
-					"repos":         "github/gh-aw",
+					"repos":         []string{"github/gh-aw"},
 					"min-integrity": "approved",
 					"tool-call-limits": map[string]int{
 						"issue_read": 2,

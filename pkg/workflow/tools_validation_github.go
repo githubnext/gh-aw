@@ -303,10 +303,10 @@ func isExactGitHubRepositoryExpression(value string) bool {
 func normalizeGitHubRepositoryInReposScope(repos any) any {
 	switch r := repos.(type) {
 	case string:
-		if isExactGitHubRepositoryExpression(r) {
-			return githubRepositoryExpression
+		if r == "all" || r == "public" {
+			return r
 		}
-		return r
+		return []string{r}
 	case []string:
 		normalized := make([]string, len(r))
 		for i, repo := range r {
