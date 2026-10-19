@@ -1737,6 +1737,14 @@ long an agent remains in a stagnation episode; lower values are better. It is
 opt-in and reports `unavailable` when the unified session lacks state evidence.
 See [Graders Reference](/gh-aw/experimental/trace-graders/).
 
+### Unified Session (`usage/aw_session.jsonl`)
+
+The canonical, timestamp-ordered record of an agent run, built from Copilot-compatible event objects (`type`, `data`, and optional native metadata) produced by Claude, Copilot, Codex, Gemini, Pi, and custom engines. It begins with a numeric file-format version header, carries essential agent, MCP gateway, firewall, safe-output, experiment, grader, and eval payloads with source provenance, and is the input to [Graders](#graders-graders). See the [Unified Agent Session Specification](/gh-aw/specs/unified-agent-session-specification/).
+
+### Agent-Tainted Provenance (`agentTainted`)
+
+An optional flag on nodes of the issue publication AST indicating whether content originated from the agent (`true`) or from framework-owned structure and metadata (`false`). Missing provenance is treated as agent-tainted, only trusted builders can assign framework provenance, and secret redaction runs on complete text runs regardless of provenance. See the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/).
+
 ### Trajectory IR
 
 The canonical, schema-defined intermediate representation of an agent run's execution trace, consumed by trajectory graders. It normalizes a run into `events[]` (ordered kinds such as `tool_call` and `state_change`), `observations[]` (each optionally carrying a `consumedByActionIds` list identifying which later actions referenced it), declared `states[]` and `objectives[]`, and optional `config.constraints`. Graders project purely from this structure rather than parsing raw logs, so new graders only need to reason about the IR's fields. See [Graders Reference](/gh-aw/experimental/trace-graders/).
