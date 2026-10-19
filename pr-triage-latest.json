@@ -1,23 +1,58 @@
 {
-  "run_date": "2026-10-19T00:59:22Z",
-  "run_id": "39183083728",
+  "run_date": "2026-10-19T06:49:46Z",
+  "run_id": "39211977043",
   "source": "pr-triage",
-  "eligible_total": 2,
-  "cooldown_skipped": 4,
-  "open_copilot_prs": 6,
-  "skipped_prs": [70013, 69998, 69997, 69772],
-  "category_counts": {"bug": 2},
-  "risk_counts": {"medium": 1, "high": 1},
-  "priority_counts": {"medium": 2},
-  "action_counts": {"auto_merge": 0, "fast_track": 0, "batch_review": 1, "defer": 1, "close": 0},
+  "eligible_total": 3,
+  "cooldown_skipped": 1,
+  "open_copilot_prs": 4,
+  "skipped_prs": [
+    69772
+  ],
+  "category_counts": {
+    "bug": 3
+  },
+  "risk_counts": {
+    "low": 1,
+    "medium": 1,
+    "high": 1
+  },
+  "priority_counts": {
+    "medium": 3
+  },
+  "action_counts": {
+    "auto_merge": 1,
+    "fast_track": 0,
+    "batch_review": 1,
+    "defer": 1,
+    "close": 0
+  },
   "selected_candidates": [
+    {
+      "number": 69997,
+      "title": "Allow digest-pinned MCP images in local gateway schemas",
+      "category": "bug",
+      "risk": "low",
+      "priority_score": 60,
+      "score_breakdown": {
+        "impact": 27,
+        "urgency": 15,
+        "quality": 18
+      },
+      "action": "auto_merge",
+      "review_state": "open",
+      "ci_state": "pass"
+    },
     {
       "number": 69586,
       "title": "Protect behavior-defined engine session capture",
       "category": "bug",
       "risk": "medium",
       "priority_score": 65,
-      "score_breakdown": {"impact": 34, "urgency": 18, "quality": 13},
+      "score_breakdown": {
+        "impact": 34,
+        "urgency": 18,
+        "quality": 13
+      },
       "action": "batch_review",
       "review_state": "draft",
       "ci_state": "Analyze (python) failed"
@@ -28,13 +63,30 @@
       "category": "bug",
       "risk": "high",
       "priority_score": 57,
-      "score_breakdown": {"impact": 33, "urgency": 12, "quality": 12},
+      "score_breakdown": {
+        "impact": 33,
+        "urgency": 12,
+        "quality": 12
+      },
       "action": "defer",
       "review_state": "changes_requested",
       "ci_state": "no check runs"
     }
   ],
   "prs": [
+    {
+      "number": 69997,
+      "title": "Allow digest-pinned MCP images in local gateway schemas",
+      "state": "open",
+      "user": "Copilot",
+      "draft": false,
+      "category": "bug",
+      "risk": "low",
+      "priority_score": 60,
+      "action": "auto_merge",
+      "review_state": "open",
+      "ci_state": "pass"
+    },
     {
       "number": 69586,
       "title": "Protect behavior-defined engine session capture",
@@ -62,9 +114,9 @@
       "ci_state": "no check runs"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-18T23:59:22Z",
+  "cooldown_cutoff_utc": "2026-10-19T05:49:46Z",
   "notes": [
     "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
-    "Newer PRs #70013, #69998, #69997, and #69772 were skipped due to recency."
+    "PR #69772 was skipped because it was updated within the last hour."
   ]
 }
