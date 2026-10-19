@@ -7,12 +7,12 @@ sidebar:
 
 ProjectOps helps teams run project operations with less manual upkeep.
 
-It builds on [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects), which provides the core planning and tracking layer for issues and pull requests, and adds support for judgment-heavy decisions.
+It builds on [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects), which provides the core planning and tracking layer for issues and pull requests, and adds AI-assisted analysis, routing and field updates.
 
 ProjectOps reads project state with GitHub tools and applies changes through [safe-outputs](/gh-aw/reference/safe-outputs/).
 It is most useful when you need context-aware routing and field updates. For simple, rule-based transitions, [built-in automations](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations) are usually enough.
 
-In practice, this gives teams faster triage decisions, cleaner board state, stronger planning signals across related issues and pull requests, and more decision-ready status updates.
+ProjectOps can summarize related issues and pull requests and apply configured project-field updates. These summaries describe repository activity rather than individual productivity. Maintainers remain responsible for planning and prioritization.
 
 ## How it works
 
@@ -126,7 +126,7 @@ safe-outputs:
     max: 1
 ---
 
-# Intelligent Issue Triage
+# AI-assisted Issue Triage
 
 Analyze each new issue in this repository and decide whether it belongs on the project board.
 
