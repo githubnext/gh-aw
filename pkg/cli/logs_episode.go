@@ -43,45 +43,46 @@ type EpisodeToolCall struct {
 
 // EpisodeData represents a deterministic episode rollup derived from workflow runs.
 type EpisodeData struct {
-	EpisodeID                      string            `json:"episode_id"`
-	Kind                           string            `json:"kind"`
-	Confidence                     string            `json:"confidence"`
-	Reasons                        []string          `json:"reasons,omitempty"`
-	RepresentativeRunID            int64             `json:"representative_run_id,omitempty"`
-	RepresentativeWorkflow         string            `json:"representative_workflow,omitempty"`
-	RecordedRoots                  []EpisodeRoot     `json:"recorded_roots,omitempty"`
-	Coverage                       EpisodeCoverage   `json:"coverage"`
-	RunIDs                         []int64           `json:"run_ids"`
-	WorkflowNames                  []string          `json:"workflow_names"`
-	TotalRuns                      int               `json:"total_runs"`
-	TotalTokens                    int               `json:"total_tokens"`
-	TotalAIC                       float64           `json:"total_aic,omitempty"`
-	TotalDuration                  string            `json:"total_duration"`
-	RiskyNodeCount                 int               `json:"risky_node_count"`
-	ChangedNodeCount               int               `json:"changed_node_count"`
-	WriteCapableNodeCount          int               `json:"write_capable_node_count"`
-	MissingToolCount               int               `json:"missing_tool_count"`
-	MCPFailureCount                int               `json:"mcp_failure_count"`
-	BlockedRequestCount            int               `json:"blocked_request_count"`
-	LatestSuccessFallbackCount     int               `json:"latest_success_fallback_count"`
-	NewMCPFailureRunCount          int               `json:"new_mcp_failure_run_count"`
-	BlockedRequestIncreaseRunCount int               `json:"blocked_request_increase_run_count"`
-	BlockedRequestAtCap            bool              `json:"blocked_request_at_cap,omitempty"`
-	ResourceHeavyNodeCount         int               `json:"resource_heavy_node_count"`
-	PoorControlNodeCount           int               `json:"poor_control_node_count"`
-	RiskDistribution               string            `json:"risk_distribution"`
-	EscalationEligible             bool              `json:"escalation_eligible"`
-	EscalationReason               string            `json:"escalation_reason,omitempty"`
-	SuggestedRoute                 string            `json:"suggested_route,omitempty"`
-	Repository                     string            `json:"repository,omitempty"`
-	Organization                   string            `json:"organization,omitempty"`
-	ManifestEntryCount             int               `json:"manifest_entry_count,omitempty"`
-	TemporaryIDMappings            int               `json:"temporary_id_mappings,omitempty"`
-	ChainedTargetCount             int               `json:"chained_target_count,omitempty"`
-	ChainedFollowupActionCount     int               `json:"chained_followup_action_count,omitempty"`
-	DelegatedTempTargetCount       int               `json:"delegated_temp_target_count,omitempty"`
-	ClosedTempTargetCount          int               `json:"closed_temp_target_count,omitempty"`
-	ToolCalls                      []EpisodeToolCall `json:"tool_calls,omitempty"`
+	EpisodeID                      string              `json:"episode_id"`
+	Kind                           string              `json:"kind"`
+	Confidence                     string              `json:"confidence"`
+	Reasons                        []string            `json:"reasons,omitempty"`
+	RepresentativeRunID            int64               `json:"representative_run_id,omitempty"`
+	RepresentativeWorkflow         string              `json:"representative_workflow,omitempty"`
+	RecordedRoots                  []EpisodeRoot       `json:"recorded_roots,omitempty"`
+	Coverage                       EpisodeCoverage     `json:"coverage"`
+	RunIDs                         []int64             `json:"run_ids"`
+	WorkflowNames                  []string            `json:"workflow_names"`
+	TotalRuns                      int                 `json:"total_runs"`
+	TotalTokens                    int                 `json:"total_tokens"`
+	TotalAIC                       float64             `json:"total_aic,omitempty"`
+	TotalDuration                  string              `json:"total_duration"`
+	RiskyNodeCount                 int                 `json:"risky_node_count"`
+	ChangedNodeCount               int                 `json:"changed_node_count"`
+	WriteCapableNodeCount          int                 `json:"write_capable_node_count"`
+	MissingToolCount               int                 `json:"missing_tool_count"`
+	MCPFailureCount                int                 `json:"mcp_failure_count"`
+	BlockedRequestCount            int                 `json:"blocked_request_count"`
+	LatestSuccessFallbackCount     int                 `json:"latest_success_fallback_count"`
+	NewMCPFailureRunCount          int                 `json:"new_mcp_failure_run_count"`
+	BlockedRequestIncreaseRunCount int                 `json:"blocked_request_increase_run_count"`
+	BlockedRequestAtCap            bool                `json:"blocked_request_at_cap,omitempty"`
+	ResourceHeavyNodeCount         int                 `json:"resource_heavy_node_count"`
+	PoorControlNodeCount           int                 `json:"poor_control_node_count"`
+	RiskDistribution               string              `json:"risk_distribution"`
+	EscalationEligible             bool                `json:"escalation_eligible"`
+	EscalationReason               string              `json:"escalation_reason,omitempty"`
+	SuggestedRoute                 string              `json:"suggested_route,omitempty"`
+	Repository                     string              `json:"repository,omitempty"`
+	Organization                   string              `json:"organization,omitempty"`
+	ManifestEntryCount             int                 `json:"manifest_entry_count,omitempty"`
+	TemporaryIDMappings            int                 `json:"temporary_id_mappings,omitempty"`
+	ChainedTargetCount             int                 `json:"chained_target_count,omitempty"`
+	ChainedFollowupActionCount     int                 `json:"chained_followup_action_count,omitempty"`
+	DelegatedTempTargetCount       int                 `json:"delegated_temp_target_count,omitempty"`
+	ClosedTempTargetCount          int                 `json:"closed_temp_target_count,omitempty"`
+	ToolCalls                      []EpisodeToolCall   `json:"tool_calls,omitempty"`
+	Explanation                    *EpisodeExplanation `json:"explanation,omitempty"`
 }
 
 type episodeAccumulator struct {
@@ -114,6 +115,9 @@ func buildEpisodeData(runs []RunData, processedRuns []ProcessedRun) ([]EpisodeDa
 	}
 	episodes := rollupEpisodes(runs, processedByID)
 	addEpisodeCoverage(episodes, runsByID)
+	for i := range episodes {
+		episodes[i].Explanation = explainEpisode(episodes[i], runs, edges)
+	}
 	slices.SortFunc(episodes, func(a, b EpisodeData) int {
 		if a.RepresentativeRunID != b.RepresentativeRunID {
 			return cmp.Compare(a.RepresentativeRunID, b.RepresentativeRunID)

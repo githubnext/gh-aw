@@ -196,6 +196,13 @@ JSONL has no usable cost; an executed phase without accounting qualifies cost
 coverage as partial.
 Both compact and verbose logs JSON retain all canonical episodes, including standalone episodes.
 
+Membership can also come from [`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
+Its bounded retrieval report uses the same episode contract. The outcome join
+reads each run's recorded `logs_path` beneath `--output`, including isolated
+repository/attempt directories; conflicting paths or paths outside that root
+are errors. Collection limits remain membership gaps and suppress efficiency
+claims; this offline join does not perform additional discovery.
+
 The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
 per-item records include `item_id` (a SHA-256 digest of the source action record,
 with an occurrence number for indistinguishable records) and
