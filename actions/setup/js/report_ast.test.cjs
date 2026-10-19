@@ -1,6 +1,6 @@
 // @ts-check
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -11,6 +11,7 @@ const { parseReportMarkdown } = require("./report_markdown.cjs");
 const report = children => ({ type: /** @type {const} */ "report", title: " [aw] Smoke:\r\nfailed ", children });
 const paragraph = value => ({ type: /** @type {const} */ "paragraph", children: [{ type: /** @type {const} */ "text", value }] });
 
+beforeEach(() => vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "github.com,example.com,example.org"));
 afterEach(() => vi.unstubAllEnvs());
 
 describe("report AST", () => {
@@ -208,6 +209,7 @@ describe("report AST", () => {
   });
 
   it("validates images and escapes alt text without introducing HTML or notifications", () => {
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "example.com");
     const input = report([{ type: "paragraph", children: [{ type: "image", url: "https://example.com/chart(a).png", alt: "Chart ] <img> @user & data" }] }]);
     const { body } = renderReport(input);
     expect(body).toBe("![Chart \\] &lt;img&gt; &#64;user &amp; data](https://example.com/chart%28a%29.png)\n");
@@ -549,10 +551,11 @@ describe("report Markdown import boundary", () => {
   });
 
   it("imports balanced and escaped URL parentheses and rejects non-HTTPS images", () => {
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "github.com,example.com");
     const source = "[Compare](https://github.com/o/r/compare/main...fix(parser)?expand=1&title=Fix(parser)) [Escaped](https://example.com/a\\(b\\)) ![Chart](https://example.com/chart(a).png) ![Unsafe](javascript:alert(1))";
     const { body } = renderReport(report(parseReportMarkdown(source)));
     expect(body).toBe(
-      "[Compare](https://github.com/o/r/compare/main...fix%28parser%29?expand=1&title=Fix%28parser%29) [Escaped](https://example.com/a%28b%29) ![Chart](https://example.com/chart%28a%29.png) Unsafe (link unavailable: invalid HTTPS URL)\n"
+      "[Compare](https://github.com/o/r/compare/main...fix%28parser%29?expand=1&title=Fix%28parser%29) [Escaped](https://example.com/a%28b%29) ![Chart](https://example.com/chart%28a%29.png) Unsafe (image unavailable: URL must use an allowed HTTPS domain)\n"
     );
   });
 
