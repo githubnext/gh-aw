@@ -993,7 +993,7 @@ async function main(config = {}) {
     processedBody = removeDuplicateTitleFromDescription(title, processedBody);
 
     // Sanitize body content to neutralize @mentions, URLs, and other security risks
-    processedBody = sanitizeContent(normalizeReportText(processedBody), { allowedAliases: allowedMentionAliases, maxMentions });
+    processedBody = sanitizeContent(normalizeReportText(processedBody, { preserveImageAttributes: true }), { allowedAliases: allowedMentionAliases, maxMentions });
 
     const bodyLines = processedBody.split("\n");
 
