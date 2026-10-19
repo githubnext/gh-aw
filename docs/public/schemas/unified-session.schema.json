@@ -802,7 +802,7 @@
                     "modelId": { "type": "string" },
                     "supportedEndpoints": { "type": "array", "items": { "type": "string" } },
                     "supportedReasoningEfforts": { "type": "array", "items": { "type": "string" }, "description": "Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty." },
-                    "contextWindowTokens": { "type": "number", "description": "Positive context window size in tokens; absent means unknown." }
+                    "contextWindowTokens": { "type": "integer", "description": "Positive context window size in tokens; absent means unknown.", "minimum": 1, "maximum": 9007199254740991 }
                   },
                   "required": ["modelId"],
                   "additionalProperties": false

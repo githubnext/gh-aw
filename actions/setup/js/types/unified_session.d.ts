@@ -238,7 +238,12 @@ export interface ModelInventoryData {
       supportedEndpoints?: string[];
       /** Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty. */
       supportedReasoningEfforts?: string[];
-      /** Positive context window size in tokens; absent means unknown. */
+      /**
+       * Positive context window size in tokens; absent means unknown.
+       * @asType integer
+       * @minimum 1
+       * @maximum 9007199254740991
+       */
       contextWindowTokens?: number;
     }[];
   }[];

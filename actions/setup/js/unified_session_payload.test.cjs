@@ -165,6 +165,16 @@ describe("essential unified session payloads", () => {
     expect(() => normalizeUnifiedSessionEvent({ type: "model.inventory", data: source })).toThrow("ERR_VALIDATION: Model inventory snapshot must contain valid endpoint model collections");
   });
 
+  it("publishes contextWindowTokens as a positive safe integer in the unified schema", () => {
+    const source = { type: "model.inventory", data: { endpoints: [{ provider: "copilot", models: ["a"], routing_models: [{ model_id: "a", context_window_tokens: 1 }] }] } };
+    const [event] = mergeSessionSources([{ component: "agent", phase: "agent", path: "awf-reflect.json", events: [source] }]);
+    const validate = createSessionValidator("unified").event;
+    expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+    const withWindow = contextWindowTokens => ({ ...event, data: { endpoints: [{ ...event.data.endpoints[0], routingModels: [{ modelId: "a", contextWindowTokens }] }] } });
+    expect(validate(withWindow(Number.MAX_SAFE_INTEGER)), JSON.stringify(validate.errors)).toBe(true);
+    for (const contextWindowTokens of [0, 1.5, Number.MAX_SAFE_INTEGER + 1]) expect(validate(withWindow(contextWindowTokens)), String(contextWindowTokens)).toBe(false);
+  });
+
   it("projects canonical MCP configuration through the shared metadata allowlist", () => {
     const source = {
       type: "mcp.configuration",
