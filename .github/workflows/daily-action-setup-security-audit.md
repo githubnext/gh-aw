@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
   issues: read
-model: claude-opus-4.8
+model: opus
 engine:
   id: copilot
   copilot-sdk: true
