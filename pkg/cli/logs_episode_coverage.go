@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // EpisodeRoot preserves a recorded canonical root claim without substituting a
@@ -30,7 +31,8 @@ func addEpisodeCoverage(episodes []EpisodeData, runsByID map[int64]RunData) {
 		episode := &episodes[i]
 		episode.Coverage = EpisodeCoverage{Scope: "selected_runs", Status: "unknown"}
 		roots := make(map[EpisodeRoot]struct{})
-		rootRuns, rootWorkflows, rootRepos := map[string]struct{}{}, map[string]struct{}{}, map[string]struct{}{}
+		rootRuns, rootWorkflows := map[string]struct{}{}, map[string]struct{}{}
+		var rootRepos []string
 		for _, runID := range episode.RunIDs {
 			run := runsByID[runID]
 			ctx := run.AwContext
@@ -46,7 +48,9 @@ func addEpisodeCoverage(episodes []EpisodeData, runsByID map[int64]RunData) {
 					rootWorkflows[root.WorkflowID] = struct{}{}
 				}
 				if root.Repository != "" {
-					rootRepos[root.Repository] = struct{}{}
+					if !containsRepository(rootRepos, root.Repository) {
+						rootRepos = append(rootRepos, root.Repository)
+					}
 				}
 				roots[root] = struct{}{}
 			}
@@ -84,9 +88,13 @@ func recordedEpisodeRoot(ctx *AwContext, episode *EpisodeData, runsByID map[int6
 		episode.Coverage.addGap("invalid_recorded_root_run_id")
 	case !present:
 		episode.Coverage.addGap("missing_recorded_root")
+	case episodeRepositoryConflict(root.Repository, source.Repository):
+		episode.Coverage.addGap("conflicting_root_lineage")
+	case source.AwContext == nil:
+		// A dispatch root can be a standalone run with no recorded episode context.
 	case canonicalEpisodeID(source) == "":
 		episode.Coverage.addGap("unverified_root_lineage")
-	case !slices.Contains(episode.RunIDs, rootID) || episodeRepositoryConflict(root.Repository, source.Repository):
+	case !slices.Contains(episode.RunIDs, rootID):
 		episode.Coverage.addGap("conflicting_root_lineage")
 	default:
 		root.Observed = true
@@ -107,11 +115,11 @@ func addRecordedParentCoverage(run RunData, episode *EpisodeData, runsByID map[i
 	case !present:
 		episode.Coverage.addGap("missing_recorded_parent")
 		episode.Coverage.MissingParentRunIDs = append(episode.Coverage.MissingParentRunIDs, parentID)
-	case parentID == run.RunID:
-		// Reusable workflow hops can share one GitHub run.
+	case episodeRepositoryConflict(ctx.Repo, parent.Repository):
+		episode.Coverage.addGap("conflicting_parent_lineage")
 	case canonicalEpisodeID(parent) == "":
 		episode.Coverage.addGap("unverified_parent_lineage")
-	case !slices.Contains(episode.RunIDs, parentID) || episodeRepositoryConflict(ctx.Repo, parent.Repository):
+	case !slices.Contains(episode.RunIDs, parentID):
 		episode.Coverage.addGap("conflicting_parent_lineage")
 	}
 }
@@ -122,7 +130,16 @@ func parseEpisodeRunID(id string) (int64, bool) {
 }
 
 func episodeRepositoryConflict(recorded, observed string) bool {
-	return recorded != "" && observed != "" && recorded != observed
+	return recorded != "" && observed != "" && !strings.EqualFold(recorded, observed)
+}
+
+func containsRepository(repositories []string, repository string) bool {
+	for _, candidate := range repositories {
+		if strings.EqualFold(candidate, repository) {
+			return true
+		}
+	}
+	return false
 }
 
 func (coverage *EpisodeCoverage) addGap(reason string) {
@@ -142,7 +159,29 @@ func markEpisodeCollectionTruncated(episodes []EpisodeData) {
 
 func applyLogsCollectionCoverage(data *LogsData, continuations []WorkflowContinuation, countLimitReached bool) {
 	data.Continuations = continuations
-	if len(continuations) > 0 || countLimitReached {
-		markEpisodeCollectionTruncated(data.Episodes)
+	if len(continuations) == 0 {
+		if data.Continuation != nil || countLimitReached {
+			markEpisodeCollectionTruncated(data.Episodes)
+		}
+		return
+	}
+
+	defaultRepository, _ := GetCurrentRepoSlug()
+	for i := range data.Episodes {
+		episode := &data.Episodes[i]
+		for _, continuation := range continuations {
+			repository := continuation.Repository
+			if repository == "" {
+				repository = defaultRepository
+			}
+			if repository == "" || episode.Repository == "" || !strings.EqualFold(repository, episode.Repository) {
+				continue
+			}
+			if continuation.WorkflowName != "" && !slices.Contains(episode.WorkflowNames, continuation.WorkflowName) {
+				continue
+			}
+			markEpisodeCollectionTruncated(data.Episodes[i : i+1])
+			break
+		}
 	}
 }

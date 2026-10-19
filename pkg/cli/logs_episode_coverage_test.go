@@ -125,6 +125,67 @@ func TestEpisodeCoverageUnknownRootAndReusableHops(t *testing.T) {
 	}
 }
 
+func TestEpisodeCoverageUnlinkedRootRemainsUnobserved(t *testing.T) {
+	t.Parallel()
+	runs := episodeCoverageTestRuns()
+	runs[0].AwContext = nil
+
+	episodes, _ := buildEpisodeData([]RunData{runs[0], runs[2]}, nil)
+	require.Len(t, episodes, 1)
+	episode := episodes[0]
+	require.Len(t, episode.RecordedRoots, 1)
+	assert.False(t, episode.RecordedRoots[0].Observed)
+	assert.Equal(t, "partial", episode.Coverage.Status)
+	assert.Equal(t, []string{"missing_recorded_parent"}, episode.Coverage.Reasons)
+}
+
+func TestEpisodeCoverageSameRunParentChecksRepository(t *testing.T) {
+	t.Parallel()
+	run := episodeCoverageTestRuns()[0]
+	run.AwContext = &AwContext{EpisodeID: "canonical", RunID: "100", Repo: "org/other"}
+
+	episodes, edges := buildEpisodeData([]RunData{run}, nil)
+	require.Len(t, episodes, 1)
+	assert.Empty(t, edges, "same-run callers must not create self-edges")
+	assert.Equal(t, "partial", episodes[0].Coverage.Status)
+	assert.Equal(t, []string{"conflicting_parent_lineage"}, episodes[0].Coverage.Reasons)
+}
+
+func TestEpisodeCoverageRepositoryIdentityIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	runs := episodeCoverageTestRuns()[:2]
+	runs[1].AwContext.RootRepo = "Org/Repo"
+	runs[1].AwContext.Repo = "ORG/REPO"
+
+	episodes, _ := buildEpisodeData(runs, nil)
+	require.Len(t, episodes, 1)
+	assert.Equal(t, "unknown", episodes[0].Coverage.Status)
+	require.Len(t, episodes[0].RecordedRoots, 2, "preserve the original recorded claims")
+	assert.ElementsMatch(t, []string{"org/repo", "Org/Repo"}, []string{
+		episodes[0].RecordedRoots[0].Repository,
+		episodes[0].RecordedRoots[1].Repository,
+	})
+	assert.True(t, episodes[0].RecordedRoots[0].Observed)
+	assert.True(t, episodes[0].RecordedRoots[1].Observed)
+}
+
+func TestEpisodeCoveragePreservesPartialRootClaims(t *testing.T) {
+	t.Parallel()
+	run := episodeCoverageTestRuns()[0]
+	run.AwContext.RootWorkflowID = "org/repo/.github/workflows/root.yml@main"
+	run.AwContext.RootRepo = "Org/Repo"
+	run.AwContext.RootRunID = ""
+
+	episodes, _ := buildEpisodeData([]RunData{run}, nil)
+	require.Len(t, episodes, 1)
+	require.Len(t, episodes[0].RecordedRoots, 1)
+	assert.Equal(t, EpisodeRoot{
+		WorkflowID: run.AwContext.RootWorkflowID,
+		Repository: "Org/Repo",
+	}, episodes[0].RecordedRoots[0])
+	assert.Equal(t, "unknown", episodes[0].Coverage.Status)
+}
+
 func TestEpisodeCoverageContradictoryAndInvalidContext(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -178,13 +239,15 @@ func TestEpisodeCoverageMissingParentsUniqueAndSorted(t *testing.T) {
 
 func TestEpisodeCoverageCollectionAndRendering(t *testing.T) {
 	for _, tt := range []struct {
-		name string
-		opts renderLogsOutputOptions
+		name      string
+		opts      renderLogsOutputOptions
+		truncated bool
 	}{
 		{name: "unbounded selection"},
-		{name: "count with date range", opts: renderLogsOutputOptions{continuation: &ContinuationData{Count: 10, StartDate: "-30d"}}},
-		{name: "multi-target continuation", opts: renderLogsOutputOptions{continuations: []WorkflowContinuation{{Repository: "org/other"}}}},
-		{name: "count limit without cursor", opts: renderLogsOutputOptions{countLimitReached: true}},
+		{name: "count with date range", opts: renderLogsOutputOptions{continuation: &ContinuationData{Count: 10, StartDate: "-30d"}}, truncated: true},
+		{name: "other repository continuation", opts: renderLogsOutputOptions{continuations: []WorkflowContinuation{{Repository: "org/other"}}}},
+		{name: "matching target continuation", opts: renderLogsOutputOptions{continuations: []WorkflowContinuation{{Repository: "Org/Repo", ContinuationData: ContinuationData{WorkflowName: "root"}}}}, truncated: true},
+		{name: "count limit without cursor", opts: renderLogsOutputOptions{countLimitReached: true}, truncated: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			run := episodeCoverageTestRuns()[0]
@@ -193,10 +256,9 @@ func TestEpisodeCoverageCollectionAndRendering(t *testing.T) {
 			data, err := prepareLogsData([]ProcessedRun{processedRunFromCachedData(run, nil, opts.outputDir)}, opts)
 			require.NoError(t, err)
 			require.Len(t, data.Episodes, 1)
-			bounded := tt.name != "unbounded selection"
-			assert.Equal(t, bounded, data.Episodes[0].Coverage.CollectionTruncated)
+			assert.Equal(t, tt.truncated, data.Episodes[0].Coverage.CollectionTruncated)
 			status := "unknown"
-			if bounded {
+			if tt.truncated {
 				status = "partial"
 				assert.Equal(t, []string{"collection_truncated"}, data.Episodes[0].Coverage.Reasons)
 			}
@@ -215,6 +277,41 @@ func TestEpisodeCoverageCollectionAndRendering(t *testing.T) {
 			assert.Contains(t, out.String(), "recorded_root run=100")
 			assert.Contains(t, out.String(), "representative_run=100")
 		})
+	}
+}
+
+func TestEpisodeCoverageContinuationOnlyMarksMatchingRepository(t *testing.T) {
+	t.Parallel()
+	run := episodeCoverageTestRuns()[0]
+	otherRun := run
+	otherContext := *run.AwContext
+	otherRun.RunID = 400
+	otherRun.Repository = "org/other"
+	otherRun.AwContext = &otherContext
+	otherRun.AwContext.EpisodeID = "other"
+	otherRun.AwContext.RunID = "400"
+	otherRun.AwContext.Repo = "org/other"
+	otherRun.AwContext.RootRunID = "400"
+	otherRun.AwContext.RootRepo = "org/other"
+
+	opts := renderLogsOutputOptions{
+		outputDir: t.TempDir(),
+		continuations: []WorkflowContinuation{{
+			Repository: "org/other",
+			ContinuationData: ContinuationData{
+				WorkflowName: "root",
+			},
+		}},
+	}
+	data, err := prepareLogsData([]ProcessedRun{
+		processedRunFromCachedData(run, nil, opts.outputDir),
+		processedRunFromCachedData(otherRun, nil, opts.outputDir),
+	}, opts)
+	require.NoError(t, err)
+	require.Len(t, data.Episodes, 2)
+	for _, episode := range data.Episodes {
+		expected := episode.Repository == "org/other"
+		assert.Equal(t, expected, episode.Coverage.CollectionTruncated, episode.Repository)
 	}
 }
 

@@ -704,9 +704,6 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	addRunExecutionSummary(&summary, runs)
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
-	if continuation != nil {
-		markEpisodeCollectionTruncated(episodes)
-	}
 	for _, episode := range episodes {
 		summary.TotalEpisodes++
 		if episode.Confidence == "high" {
