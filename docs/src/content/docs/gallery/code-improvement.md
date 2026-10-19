@@ -1,9 +1,9 @@
 ---
 title: Automated code improvement
-description: Use Code Simplifier as a gh-aw example that proposes focused, behavior-preserving code improvements automatically.
+description: Use Code Simplifier as a gh-aw example that proposes focused code simplifications intended to preserve behavior.
 ---
 
-Automated code improvement with GitHub Agentic Workflows means reviewing recent production-code changes for unnecessary complexity and proposing a small, behavior-preserving simplification. This example is a portable adaptation of the [Code Simplifier workflow](https://github.com/githubnext/agentics/blob/main/workflows/code-simplifier.md).
+Automated code improvement with GitHub Agentic Workflows means reviewing recent production-code changes for unnecessary complexity and proposing a focused simplification intended to preserve behavior. This example is a portable adaptation of the [Code Simplifier workflow](https://github.com/githubnext/agentics/blob/main/workflows/code-simplifier.md).
 
 ```aw wrap title=".github/workflows/code-simplifier.md"
 ---
