@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { Parser } from "commonmark";
 import { executionEnv } from "./test_execution_provenance.js";
 
 const require = createRequire(import.meta.url);
@@ -28,6 +29,72 @@ describe("report parser delimiter fidelity", () => {
 });
 
 describe("bounded link title normalization", () => {
+  it.each([
+    ["plain prose without brackets", "plain prose without brackets"],
+    ["unmatched [label", "unmatched [label"],
+    ['[label](https://github.com "visible")', "[label (visible)](https://github.com)"],
+    ["[label](https://github.com 'visible')", "[label (visible)](https://github.com)"],
+    ["[label](https://github.com (visible))", "[label (visible)](https://github.com)"],
+    ['[label](https://github.com "")', "[label ()](https://github.com)"],
+    ['![image](https://github.com/image.png "visible")', "![image (visible)](https://github.com/image.png)"],
+    ['[label](<https://github.com/a b> "visible"\n)', "[label (visible)](<https://github.com/a b>\n)"],
+    ['[label](<url "visible")', "[label (visible)](<url)"],
+    ['[outer [inner](https://github.com "visible") tail', "[outer [inner (visible)](https://github.com) tail"],
+    ["[label](url \"[nested](url 'title')\")", "[label ([nested](url 'title'))](url)"],
+    ["[broken](url \"unterminated [next](https://github.com 'visible')", '[broken](url "unterminated [next (visible)](https://github.com)'],
+    ['[wrong separator]x [next](https://github.com "visible")', "[wrong separator]x [next (visible)](https://github.com)"],
+    ['[empty]( "not a title")', '[empty]( "not a title")'],
+    ['[label](url "missing close"', '[label](url "missing close"'],
+    ["[label](url unquoted)", "[label](url unquoted)"],
+    [' [ref]: https://github.com "not at line start"', ' [ref]: https://github.com "not at line start"'],
+    ['[]: https://github.com "empty label"', '[]: https://github.com "empty label"'],
+    ['[ref]: https://github.com "hidden" trailing prose', '[ref]: https://github.com "hidden" trailing prose'],
+    ['[ref]: https://github.com "hidden"\n \t', "[ref]: https://github.com"],
+    ['[ref]:\nhttps://github.com "hidden"\r\n   Next', "[ref]:\nhttps://github.com\n   Next"],
+    ["[first]: https://github.com \"hidden\"\n\n[second]: https://github.com 'other'\nText", "[first]: https://github.com\n[second]: https://github.com\nText"],
+  ])("has an explicit expected result for %s", (source, expected) => {
+    expect(neutralizeMarkdownLinkTitles(source)).toBe(expected);
+  });
+
+  it.each([
+    ["\n", "\n"],
+    ["\r", "\r"],
+    ["\r\n", "\n"],
+    ["\u2028", "\u2028"],
+    ["\u2029", "\u2029"],
+  ])("preserves following text when stripping a reference title before %j", (lineEnd, remainingLineEnd) => {
+    expect(neutralizeMarkdownLinkTitles(`[ref]: https://github.com "hidden"${lineEnd}   Next`)).toBe(`[ref]: https://github.com${remainingLineEnd}   Next`);
+  });
+
+  it.each([
+    ['[label](https://github.com "visible title")', true],
+    ["[label](https://github.com 'visible title')", true],
+    ["[label](https://github.com (visible title))", true],
+    ['[label][ref]\n\n[ref]: https://github.com "hidden title"', false],
+  ])("removes hidden tooltip channels in independent CommonMark parsing: %s", (source, visible) => {
+    const result = neutralizeMarkdownLinkTitles(source);
+    const walker = new Parser().parse(result).walker();
+    const links = [];
+    const text = [];
+    let event;
+    while ((event = walker.next())) {
+      if (!event.entering) continue;
+      if (event.node.type === "link") links.push(event.node);
+      if (event.node.type === "text") text.push(event.node.literal);
+    }
+    expect(links).toHaveLength(1);
+    expect(links[0].destination).toBe("https://github.com");
+    expect(links[0].title).toBe("");
+    expect(text.join("")).toBe(visible ? "label (visible title)" : "label");
+    expect(neutralizeMarkdownLinkTitles(result)).toBe(result);
+  });
+
+  it("recovers a valid final title after many overlapping malformed candidates", () => {
+    const malformed = '[broken](url "'.repeat(2048);
+    const valid = "[last](https://github.com 'visible')";
+    expect(neutralizeMarkdownLinkTitles(malformed + valid)).toBe(malformed + "[last (visible)](https://github.com)");
+  });
+
   // The former patterns are a compatibility oracle only for short fuzz inputs.
   function reference(source) {
     return source
