@@ -18,6 +18,10 @@ describe("bundle merge-parent comparison budget", () => {
     mockCore = { debug: vi.fn(), warning: vi.fn() };
     vi.stubGlobal("core", mockCore);
     mockExec = {
+      async execGitSyncResult(args, options) {
+        const result = await mockExec.getExecOutput("git", args, { ...options, silent: true, ignoreReturnCode: true });
+        return { ...result, status: result.exitCode };
+      },
       exec: vi.fn(),
       getExecOutput: vi.fn(async (_command, args) => {
         if (args[0] === "merge-base") return { exitCode: 128, stdout: "", stderr: secretDiagnostic };
@@ -150,7 +154,8 @@ describe("bundle merge-parent comparison budget", () => {
 
 describe("bounded optional validation Git", () => {
   const childProcess = require("child_process");
-  const { boundedValidationExec, resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase } = require("./push_to_pull_request_branch.cjs");
+  const gitHelpers = require("./git_helpers.cjs");
+  const { resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase } = require("./push_to_pull_request_branch.cjs");
   let spawn;
   let realSpawn;
   let debug;
@@ -169,30 +174,41 @@ describe("bounded optional validation Git", () => {
 
   it("enforces process and output bounds that caller options cannot relax", async () => {
     spawn.mockReturnValue({ status: 0, stdout: "git output", stderr: "private diagnostic" });
-    expect(await boundedValidationExec.getExecOutput("git", ["rev-list", "HEAD"], { cwd: "/checkout", env: { GIT_ALLOW_PROTOCOL: "" }, timeout: 0, maxBuffer: Infinity })).toEqual({ exitCode: 0, stdout: "git output", stderr: "" });
-    expect(spawn).toHaveBeenCalledWith("git", ["rev-list", "HEAD"], expect.objectContaining({ cwd: "/checkout", env: { GIT_ALLOW_PROTOCOL: "" }, timeout: 5000, maxBuffer: 1024 * 1024, killSignal: "SIGKILL", stdio: "pipe" }));
+    expect(await resolveTrustedBaseTip(gitHelpers, { cwd: "/checkout", env: { GIT_ALLOW_PROTOCOL: "" }, timeout: 0, maxBuffer: Infinity, shell: true }, "main")).toBe("");
+    expect(spawn).toHaveBeenCalledWith(
+      "git",
+      ["ls-remote", "--refs", "--exit-code", "origin", "refs/heads/main"],
+      expect.objectContaining({ cwd: "/checkout", env: expect.objectContaining({ GIT_ALLOW_PROTOCOL: "" }), timeout: 5000, maxBuffer: 1024 * 1024, killSignal: "SIGKILL", stdio: "pipe" })
+    );
+    expect(spawn.mock.calls.every(([, , options]) => options.shell !== true)).toBe(true);
+    expect(JSON.stringify(debug.mock.calls)).not.toContain("private");
   });
 
-  it.each(["ETIMEDOUT", "ENOBUFS", "ENOENT", "SIGKILL"])("discards incomplete output and falls back after %s", async failure => {
+  it.each(["ETIMEDOUT", "ENOBUFS", "ENOENT", "SIGKILL", "SIGINT"])("discards incomplete output and falls back after %s", async failure => {
     spawn.mockReturnValue({
-      status: failure === "SIGKILL" ? null : 0,
-      signal: failure === "SIGKILL" ? failure : null,
-      error: failure === "SIGKILL" ? undefined : Object.assign(new Error("private diagnostic"), { code: failure }),
+      status: failure.startsWith("SIG") ? null : 0,
+      signal: failure.startsWith("SIG") ? failure : null,
+      error: failure.startsWith("SIG") ? undefined : Object.assign(new Error("private diagnostic"), { code: failure }),
       stdout: "partial private output",
       stderr: "private diagnostic",
     });
     const compareCommits = vi.fn();
     const client = { rest: { repos: { compareCommits } } };
-    expect(await resolveTrustedBaseTip(boundedValidationExec, {}, "main")).toBe("");
-    expect(await resolveBundleTrustedBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40), client, { owner: "owner", repo: "repo" }, true)).toBe("");
-    expect(await getBundleValidationBase(boundedValidationExec, {}, "old", "candidate", "a".repeat(40))).toEqual({ ref: "old", conflictedFiles: [] });
+    expect(await resolveTrustedBaseTip(gitHelpers, {}, "main")).toBe("");
+    expect(await resolveBundleTrustedBase(gitHelpers, {}, "old", "candidate", "a".repeat(40), client, { owner: "owner", repo: "repo" }, true)).toBe("");
+    expect(await getBundleValidationBase(gitHelpers, {}, "old", "candidate", "a".repeat(40))).toEqual({ ref: "old", conflictedFiles: [] });
     expect(compareCommits).not.toHaveBeenCalled();
     expect(JSON.stringify(debug.mock.calls)).not.toContain("private");
   });
 
   it("preserves merge-tree conflict output for conservative file protection", async () => {
-    spawn.mockReturnValue({ status: 1, stdout: `${"a".repeat(40)}\0package.json\0\0`, stderr: "private diagnostic" });
-    expect(await boundedValidationExec.getExecOutput("git", ["merge-tree"])).toEqual({ exitCode: 1, stdout: `${"a".repeat(40)}\0package.json\0\0`, stderr: "" });
+    spawn
+      .mockReturnValueOnce({ status: 0, stdout: "", stderr: "" })
+      .mockReturnValueOnce({ status: 0, stdout: "", stderr: "" })
+      .mockReturnValueOnce({ status: 1, stdout: "", stderr: "" })
+      .mockReturnValue({ status: 1, stdout: `${"a".repeat(40)}\0package.json\0\0`, stderr: "private diagnostic" });
+    expect(await getBundleValidationBase(gitHelpers, {}, "old", "candidate", "base")).toEqual({ ref: "a".repeat(40), conflictedFiles: ["package.json"] });
+    expect(JSON.stringify(debug.mock.calls)).not.toContain("private");
   });
 
   it.each([
@@ -204,7 +220,7 @@ describe("bounded optional validation Git", () => {
       result = realSpawn(process.execPath, ["-e", script], options);
       return result;
     });
-    expect(await boundedValidationExec.getExecOutput("git", ["rev-list", "HEAD"])).toEqual({ exitCode: 128, stdout: "", stderr: "" });
+    expect(await resolveTrustedBaseTip(gitHelpers, {}, "main")).toBe("");
     expect(result.error.code).toBe(code);
     expect(result.signal).toBe("SIGKILL");
   });

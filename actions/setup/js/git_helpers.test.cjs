@@ -43,6 +43,26 @@ describe("git_helpers.cjs", () => {
   });
 
   describe("execGitSync", () => {
+    it("exposes structured Git results without logging remote diagnostics", async () => {
+      const { execGitSyncResult } = await import("./git_helpers.cjs");
+      const logger = { debug: vi.fn(), error: vi.fn() };
+      global.core = logger;
+      const result = execGitSyncResult(["invalid-command"]);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("invalid-command");
+      expect(logger.debug).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it("discards partial structured output on process failure", async () => {
+      const { execGitSyncResult } = await import("./git_helpers.cjs");
+      const result = execGitSyncResult(["--version"], { maxBuffer: 1 });
+      expect(result.status).toBeNull();
+      expect(result.error.code).toBe("ENOBUFS");
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+    });
+
     it("should export execGitSync function", async () => {
       const { execGitSync } = await import("./git_helpers.cjs");
       expect(typeof execGitSync).toBe("function");

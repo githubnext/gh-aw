@@ -46,6 +46,10 @@ function writeRepoFile(repoDir, relativePath, content) {
 
 function createExecApi(cwd) {
   const api = {
+    async execGitSyncResult(args, options) {
+      const result = await api.getExecOutput("git", args, { ...options, silent: true, ignoreReturnCode: true });
+      return { ...result, status: result.exitCode };
+    },
     async getExecOutput(command, args = [], options = {}) {
       if (command !== "git") {
         throw new Error(`unexpected command: ${command}`);
@@ -312,9 +316,10 @@ describe("push_to_pull_request_branch bundle integration", () => {
       };
       delete require.cache[require.resolve("./push_to_pull_request_branch.cjs")];
       const module = require("./push_to_pull_request_branch.cjs");
-      const boundedOutput = module.boundedValidationExec.getExecOutput;
+      const gitHelpers = require("./git_helpers.cjs");
+      const boundedOutput = gitHelpers.execGitSyncResult;
       // Match the fixture's exec API, which defaults all Git calls to targetRepo.
-      boundedOutputSpy = vi.spyOn(module.boundedValidationExec, "getExecOutput").mockImplementation((command, args, options) => boundedOutput(command, args, { ...options, cwd: targetRepo }));
+      boundedOutputSpy = vi.spyOn(gitHelpers, "execGitSyncResult").mockImplementation((args, options) => boundedOutput(args, { ...options, cwd: targetRepo }));
       const handler = await module.main({
         signed_commits: false,
         check_branch_protection: false,

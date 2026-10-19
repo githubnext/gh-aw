@@ -5,8 +5,9 @@ import http from "http";
 import os from "os";
 import path from "path";
 
-const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions } = require("./git_helpers.cjs");
-const { resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase, getBundlePreApplyFiles, boundedValidationExec } = require("./push_to_pull_request_branch.cjs");
+const gitHelpers = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions } = gitHelpers;
+const { resolveTrustedBaseTip, resolveBundleTrustedBase, getBundleValidationBase, getBundlePreApplyFiles } = require("./push_to_pull_request_branch.cjs");
 const { checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 
 const gitEnv = () => {
@@ -28,6 +29,10 @@ function execApi(cwd, { emulateOldGit = false } = {}) {
   const calls = [];
   const api = {
     calls,
+    async execGitSyncResult(args, options) {
+      const result = await api.getExecOutput("git", args, { ...options, silent: true, ignoreReturnCode: true });
+      return { ...result, status: result.exitCode };
+    },
     async getExecOutput(command, args, options = {}) {
       calls.push(args);
       const env = { ...gitEnv(), ...options.env };
@@ -212,10 +217,10 @@ describe("offline bundle transport with real Git", () => {
     const before = packInventory(shallow);
     const compareCommits = vi.fn(async () => ({ data: { status: "behind" } }));
     const options = { cwd: shallow, env: gitEnv() };
-    expect(await resolveTrustedBaseTip(boundedValidationExec, options, "main")).toBe(trustedTip);
-    const recognized = await resolveBundleTrustedBase(boundedValidationExec, options, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" }, true);
+    expect(await resolveTrustedBaseTip(gitHelpers, options, "main")).toBe(trustedTip);
+    const recognized = await resolveBundleTrustedBase(gitHelpers, options, oldHead, "refs/bundles/test", trustedTip, { rest: { repos: { compareCommits } } }, { owner: "test-owner", repo: "test-repo" }, true);
     expect(recognized).toBe(mergedBase);
-    await getBundleValidationBase(boundedValidationExec, options, oldHead, "refs/bundles/test", recognized);
+    await getBundleValidationBase(gitHelpers, options, oldHead, "refs/bundles/test", recognized);
 
     expect(compareCommits).toHaveBeenCalledTimes(1);
     expect(exec.calls.some(args => args[0] === "fetch")).toBe(false);
@@ -223,11 +228,11 @@ describe("offline bundle transport with real Git", () => {
     expect(fs.readFileSync(shallowPath, "utf8")).toBe(shallowFile);
     expect(packInventory(shallow)).toEqual(before);
     expect(fs.readdirSync(shallow)).toEqual([".git"]);
-    const absent = await boundedValidationExec.getExecOutput("git", ["cat-file", "-e", trustedTip], offlineGitOptions(options));
-    expect(absent.exitCode).not.toBe(0);
+    const absent = gitHelpers.execGitSyncResult(["cat-file", "-e", trustedTip], offlineGitOptions(options));
+    expect(absent.status).not.toBe(0);
     if (allowFilter) {
       const blob = git(source, ["rev-parse", `${oldHead}:shared.txt`]);
-      expect((await boundedValidationExec.getExecOutput("git", ["cat-file", "-e", blob], offlineGitOptions(options))).exitCode).not.toBe(0);
+      expect(gitHelpers.execGitSyncResult(["cat-file", "-e", blob], offlineGitOptions(options)).status).not.toBe(0);
     }
     expect(packInventory(shallow)).toEqual(before);
   });

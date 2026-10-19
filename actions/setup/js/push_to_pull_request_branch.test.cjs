@@ -217,6 +217,10 @@ describe("push_to_pull_request_branch.cjs", () => {
       graphql: vi.fn(),
     };
 
+    mockExec.execGitSyncResult = async (args, options) => {
+      const result = await mockExec.getExecOutput("git", args, { ...options, silent: true, ignoreReturnCode: true });
+      return { ...result, status: result.exitCode };
+    };
     global.core = mockCore;
     global.exec = mockExec;
     global.context = mockContext;
@@ -258,7 +262,7 @@ describe("push_to_pull_request_branch.cjs", () => {
   async function loadModule() {
     // Module loads when imported
     const module = require("./push_to_pull_request_branch.cjs");
-    vi.spyOn(module.boundedValidationExec, "getExecOutput").mockImplementation((command, args, options) => mockExec.getExecOutput(command, args, options));
+    vi.spyOn(require("./git_helpers.cjs"), "execGitSyncResult").mockImplementation((args, options) => mockExec.execGitSyncResult(args, options));
     return module;
   }
 
