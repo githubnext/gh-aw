@@ -74,6 +74,24 @@ func TestAllowFullHistoryFetchIsHandlerScoped(t *testing.T) {
 	assert.NotContains(t, handlerRegistry["push_to_pull_request_branch"](cfg), "allow_full_history_fetch")
 }
 
+func TestAllowMergedBaseBaselineIsHandlerScoped(t *testing.T) {
+	t.Parallel()
+	cfg := NewCompiler().extractSafeOutputsConfig(map[string]any{"safe-outputs": map[string]any{
+		"create-pull-request":         map[string]any{},
+		"push-to-pull-request-branch": map[string]any{"allow-merged-base-baseline": true},
+	}})
+	require.NotNil(t, cfg)
+	assert.NotContains(t, handlerRegistry["create_pull_request"](cfg), "allow_merged_base_baseline")
+	assert.Equal(t, true, handlerRegistry["push_to_pull_request_branch"](cfg)["allow_merged_base_baseline"])
+
+	encoded, err := generateSafeOutputsConfig(&WorkflowData{SafeOutputs: cfg})
+	require.NoError(t, err)
+	var runtime map[string]map[string]any
+	require.NoError(t, json.Unmarshal([]byte(encoded), &runtime))
+	assert.NotContains(t, runtime["create_pull_request"], "allow_merged_base_baseline")
+	assert.Equal(t, true, runtime["push_to_pull_request_branch"]["allow_merged_base_baseline"])
+}
+
 // TestEmptySafeOutputsConfig tests behavior with no safe outputs
 func TestEmptySafeOutputsConfig(t *testing.T) {
 	compiler := NewCompiler()

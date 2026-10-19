@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.29.12<br>
+**Version**: 1.29.13<br>
 **Status**: Working Draft<br>
-**Publication Date**: 2026-10-14<br>
+**Publication Date**: 2026-10-18<br>
 **Editor**: GitHub Agentic Workflows Team<br>
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)<br>
 **Latest Published Version**: This document
@@ -2572,6 +2572,7 @@ safe-outputs:
 12. **`head_repo` Required for Same-Organization Forks**: The owner-qualified head reference (requirement 9) alone is insufficient when `head-repo` and `target-repo` share the same owner/organization, because multiple repositories under that owner can define the same branch name. Whenever `head-repo` differs from `target-repo` — including when both share the same owner/organization — every pull request creation or update API call MUST include the `head_repo` parameter naming the head repository, in addition to the owner-qualified `head` reference.
 13. **Signed Commit Delivery**: Branch delivery MUST satisfy the [signed commit delivery requirements](#signed-commit-delivery-requirements), shared with `push_to_pull_request_branch`.
 14. **Transport Integrity**: Patch/bundle application and publication MUST satisfy the shared [transport integrity requirements](#patch-and-bundle-transport-integrity-requirements).
+15. **Bundle Git Operations**: Bundle inspection and prerequisite recovery MUST satisfy [BGO-001–003 and BGO-008](#bundle-git-operations-and-validation-baselines). Optional unsigned push baselines (BGO-004–007) apply only to `push_to_pull_request_branch`.
 
 **Configuration Parameters**:
 
@@ -2591,6 +2592,7 @@ safe-outputs:
 - `github-token`: Optional credential for upstream pull request creation and related upstream metadata operations
 - `head-github-token`: Optional credential for `head-repo` branch writes. When specified, it SHOULD be limited to `contents: write` on `head-repo`
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime. When `head-github-app` is configured, the minted token takes precedence over `head-github-token`. The app installation MUST have `contents: write` on `head-repo`
+- `allow-full-history-fetch`: Literal boolean, default `false`, independently scoped to this handler. Permits potentially unbounded bundle prerequisite recovery; does not enable downloads for optional validation baselines.
 - `preserve-branch-name`: When `true`, use the agent-supplied branch name verbatim without appending a random salt suffix (default: `false`)
 - `recreate-ref`: When `true` (and `preserve-branch-name: true`), allows the handler to force-delete an existing remote branch ref and recreate it from the agent's local HEAD on collision. When `false` (default), an existing remote branch under `preserve-branch-name: true` causes a fallback rather than overwriting the remote ref. Has no effect when `preserve-branch-name: false`. (default: `false`)
 
@@ -2634,6 +2636,34 @@ These requirements apply to `create_pull_request` and `push_to_pull_request_bran
 | PTI-006–007 | Registered cleanup and structured diagnostics in `transport_integrity.cjs` | `transport_integrity_git.test.cjs` verifies real Git refs, conflicting-rebase rollback, and malformed-patch aborts; helper tests cover checkout pinning, failed cleanup, cause retention, and safe logging |
 
 All implementation and test paths in this table are under `actions/setup/js/`. The bounded [transport lifecycle model](https://github.com/github/gh-aw/blob/main/specs/workflow-security/SafeOutputTransport.tla) specifies stable consumption, failure, retry, cleanup, and diagnostic invariants; it does not prove filesystem isolation or cryptographic collision resistance.
+
+##### Bundle Git Operations and Validation Baselines
+
+**BGO-001 — Offline object inspection**: Bundle prerequisite checks, local import, and optional baseline ancestry/tree inspection MUST deny all Git transports, including promisor lazy downloads, using both `GIT_ALLOW_PROTOCOL=""` and `GIT_NO_LAZY_FETCH=1`. Missing local history or blobs MUST NOT implicitly deepen a shallow checkout, expand sparse-checkout patterns, or materialize missing remote objects. A local bundle MAY supply its own objects without changing this rule.
+
+**BGO-002 — Explicit recovery authority**: `create_pull_request` and `push_to_pull_request_branch` MUST default `allow-full-history-fetch` to `false` and MUST accept only a literal boolean. Missing prerequisites MUST fail with checkout-provisioning guidance unless this handler's trusted configuration is exactly `true`. An agent request MUST NOT grant recovery authority. Opted-in recovery MAY use `--unshallow` or fetch-by-SHA and MUST warn that downloads have no byte limit. Depth, a SHA, and `blob:none` MUST NOT be described as byte bounds. A locally sufficient bundle MUST NOT trigger recovery.
+
+**BGO-003 — Credential roles**: Recovery MUST use the handler-selected authorized repository and its credentials. For `push_to_pull_request_branch`, this is the validated PR head repository, including a configured automation fork; head credentials MUST be restored before baseline discovery and validation. For `create_pull_request`, recovery uses the target checkout's `origin`. Optional base metadata discovery MUST query only the target checkout's `origin` and use its credentials, not a temporarily installed fork-head token. REST comparisons MUST use the upstream repository client; Git credentials MUST NOT be assumed to authorize REST.
+
+**BGO-004 — Pinned provenance and opt-in**: For unsigned bundle pushes, the handler MUST pin exactly one current base-branch SHA from an exact-ref, metadata-only `ls-remote` to preserve exact-tip recognition. It MUST NOT fetch the pinned object. Older-ancestor baseline discovery MUST be disabled by default and enabled only by literal `allow-merged-base-baseline: true` on `safe-outputs.push-to-pull-request-branch`. A locally proven merge of the exact pinned tip MUST bypass REST comparison discovery regardless of the opt-in. When older-ancestor discovery is enabled, a merge parent MAY be selected for size validation only when REST comparison with the pinned SHA as `base` and that parent as `head` reports `behind` or `identical`. Workflow-start SHAs, commit timestamps, and agent metadata MUST NOT substitute for pinned provenance. Parent preference MUST use topological ordering.
+
+**BGO-005 — Bounded discovery**: Optional base metadata, ancestry, and merge-tree commands MUST have a 5-second process timeout, a 1 MiB limit per output stream, noninteractive authentication, and no shell interpolation. Each merge-parent/history scan MUST accept at most 100 records, using a 101st record to detect overflow before trusting a partial scan. Octopus-parent discovery MUST fall back rather than expand an unbounded argument list. REST comparison discovery MUST issue at most four requests, each with a 5-second abort deadline and automatic retries disabled. Only candidate-specific missing-parent responses (404) MAY continue within the remaining budget. Authorization, rate-limit, service, transport, timeout, and unknown failures MUST stop comparison discovery immediately.
+
+**BGO-006 — Conservative fallback**: Timeouts, output overflow, missing required local objects, and unsupported merge-tree operations MUST NOT be treated as successful evidence; partial command output MUST NOT establish a baseline. An inconclusive exact-tip ancestry probe MAY proceed to independently bounded parent discovery without downloading the tip only when `allow-merged-base-baseline: true`. With older-ancestor discovery disabled, or when discovery is inconclusive, unavailable pinned metadata, history overflow, an unconfirmed ancestor, or inability to construct its validation tree MUST retain PR-head validation unless the exact pinned tip was locally proven. An optional baseline failure MUST NOT enable recovery downloads even when `allow-full-history-fetch` is true; that flag applies only to prerequisite recovery. Required file/history checks MUST NOT be skipped because optional discovery failed.
+
+**BGO-007 — Separate size and protection provenance**: A validation-only merge tree MAY exclude confirmed ancestor content from patch-size and changed-content-size calculations when the required objects and ancestry are available locally. Only the exact pinned base tip MAY exempt its history and unmodified files from protected-file checks. A non-tip ancestor MUST retain PR-head-based protected-file and history checks, including changes later reverted in side-branch or agent commits. Reachability alone does not prove a historical base-branch state. Agent changes and conflict resolutions MUST remain subject to policy checks; unvalidated octopus merge resolutions MUST be rejected.
+
+**BGO-008 — Safe failures and append-only delivery**: Optional discovery and recovery diagnostics MUST NOT expose raw remote errors, artifact contents, or credentials. Validation-only trees MUST NOT rebase or rewrite existing PR commits. Baseline selection MUST NOT change append-only push policy, signing defaults, or authorization of the destination repository.
+
+**Conformance Evidence**:
+
+| Requirements | Implementation / regression evidence |
+|---|---|
+| BGO-001–003 | `git_helpers.cjs`, `git_helpers.test.cjs`, and `bundle_transport.integration.test.cjs`: literal opt-in, scoped fork recovery, unchanged shallow markers and pack inventory, missing blobs still absent, and no optional fetches |
+| BGO-004–006 | `push_to_pull_request_branch.cjs` and `push_to_pull_request_branch_comparisons.test.cjs`: disabled-by-default discovery, exact-tip compatibility, 100/101-record boundaries, 24-parent request caps, abort signals, real subprocess time/output limits, fixed diagnostics, and conservative fallback |
+| BGO-007–008 | `push_to_pull_request_branch.test.cjs` and `push_to_pull_request_branch.integration.test.cjs`: exact-tip no-network path, advanced-base sizing, strict non-tip protection, A-add/B-remove side-branch imports, reverted changes, and unchanged PR refs on rejection |
+
+Paths in this table are under `actions/setup/js/`. The bounded [Git-operation model](https://github.com/github/gh-aw/blob/main/specs/workflow-security/SafeOutputGit.tla) separates prerequisite recovery from optional discovery and size trust from protection trust. Synthetic negative controls and reachability witnesses check the abstraction, not Git internals, wall-clock guarantees, credential grants, or implementation refinement.
 
 **Security Requirements**:
 
@@ -3689,6 +3719,7 @@ For all Linear types, GraphQL source, endpoint, protocol, and host are implement
 - `allowed-repos`: Cross-repository allowlist applied to both `target-repo` and `head-repo`
 - `head-github-token`: Optional credential for `head-repo` branch writes
 - `head-github-app`: Optional GitHub App configuration to mint an ephemeral credential for `head-repo` branch writes at runtime; takes precedence over `head-github-token` when both are specified
+- `allow-full-history-fetch`: Literal boolean, default `false`, independently scoped to this handler. Permits potentially unbounded bundle prerequisite recovery; does not enable downloads for optional validation baselines.
 
 **Notes**:
 
@@ -3705,6 +3736,7 @@ For all Linear types, GraphQL source, endpoint, protocol, and host are implement
 - When the Convertible fallback (WTD2) opens a review or fallback pull request from `head-repo`, the `head_repo` parameter MUST be included on the pull request creation API call whenever `head-repo` differs from `target-repo`, including when both share the same owner/organization
 - Signed branch delivery MUST satisfy the shared [signed commit delivery requirements](#signed-commit-delivery-requirements).
 - Patch/bundle handling and publication MUST satisfy the shared [transport integrity requirements](#patch-and-bundle-transport-integrity-requirements).
+- Bundle inspection, recovery, and unsigned validation baselines MUST satisfy [BGO-001–008](#bundle-git-operations-and-validation-baselines).
 
 ---
 
@@ -6196,6 +6228,12 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.29.13** (2026-10-18):
+
+- **Added**: BGO-001–008 for offline bundle inspection, literal history-recovery opt-in, repository-specific credential roles, and bounded optional validation-baseline discovery.
+- **Clarified**: Confirmed non-tip ancestors may reduce size accounting but cannot exempt protected files/history; only the exact pinned base tip grants that exemption.
+- **Added**: A bounded Git-operation TLA+ model with shallow/full and opt-in/default-deny profiles, negative controls, and reachability witnesses in the pinned transport checker.
 
 **Version 1.29.12** (2026-10-14):
 
