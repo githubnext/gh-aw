@@ -52,12 +52,13 @@ type Input struct {
 }
 
 type Diagnostic struct {
-	RuleID   string            `json:"rule_id"`
-	Severity Severity          `json:"severity"`
-	Path     string            `json:"path"`
-	Line     int               `json:"script_line,omitempty"`
-	Message  string            `json:"message"`
-	Related  []RelatedLocation `json:"related,omitempty"`
+	RuleID       string            `json:"rule_id"`
+	ThreatRuleID string            `json:"threat_rule_id,omitempty"`
+	Severity     Severity          `json:"severity"`
+	Path         string            `json:"path"`
+	Line         int               `json:"script_line,omitempty"`
+	Message      string            `json:"message"`
+	Related      []RelatedLocation `json:"related,omitempty"`
 }
 
 type RelatedLocation struct {
@@ -69,9 +70,12 @@ type RelatedLocation struct {
 // checkers can share the registry, selection, diagnostics, and CLI integration.
 // Check must not mutate Input or include sensitive values in diagnostics.
 type Rule struct {
-	ID          string
-	Description string
-	Severity    Severity
+	ID string
+	// ThreatRuleID optionally identifies the corresponding compiler threat
+	// specification rule; a mapping does not imply full rule conformance.
+	ThreatRuleID string
+	Description  string
+	Severity     Severity
 	// Zero preserves the Actions-only contract of existing extension rules.
 	Targets ASTTargets
 	Check   func(context.Context, Input) ([]Diagnostic, error)
@@ -82,6 +86,7 @@ type Runner struct {
 }
 
 var ruleIDPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
+var threatRuleIDPattern = regexp.MustCompile(`^CTR-[0-9]{3}$`)
 
 func New(rules ...Rule) (*Runner, error) {
 	seen := make(map[string]struct{})
@@ -91,6 +96,9 @@ func New(rules ...Rule) (*Runner, error) {
 		}
 		if rule.Severity != Error && rule.Severity != Warning {
 			return nil, fmt.Errorf("lint rule %q requires error or warning severity", rule.ID)
+		}
+		if rule.ThreatRuleID != "" && !threatRuleIDPattern.MatchString(rule.ThreatRuleID) {
+			return nil, fmt.Errorf("lint rule %q requires a compiler threat ID in CTR-NNN form", rule.ID)
 		}
 		if rule.Targets & ^(ActionsAST|AWAST) != 0 {
 			return nil, errors.New("lint rule targets must be Actions or AW ASTs")
@@ -171,6 +179,7 @@ func (r *Runner) Run(ctx context.Context, input Input) ([]Diagnostic, error) {
 		}
 		for _, diagnostic := range findings {
 			diagnostic.RuleID = rule.ID
+			diagnostic.ThreatRuleID = rule.ThreatRuleID
 			if diagnostic.Severity == "" {
 				diagnostic.Severity = rule.Severity
 			}
@@ -218,5 +227,8 @@ func Default() *Runner {
 		ImageArgumentRule(),
 		CheckoutModeRule(),
 		ForkAssociationRule(),
+		PullRequestTargetRolesRule(),
+		SafeOutputShellExpansionRule(),
+		FirewallSSLBumpRule(),
 	}}
 }

@@ -13,7 +13,8 @@ import (
 func CheckoutModeRule() Rule {
 	return Rule{
 		ID: "checkout-mode", Description: "Require explicit checkout expansion and its authored safety prerequisites",
-		Severity: Error, Targets: AWAST, Check: checkCheckoutModes,
+		ThreatRuleID: "CTR-033",
+		Severity:     Error, Targets: AWAST, Check: checkCheckoutModes,
 	}
 }
 

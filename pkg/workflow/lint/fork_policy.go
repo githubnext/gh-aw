@@ -9,7 +9,8 @@ import (
 func ForkAssociationRule() Rule {
 	return Rule{
 		ID: "fork-association", Description: "Validate explicit pull-request fork author-association admission",
-		Severity: Error, Targets: AWAST, Check: checkForkAssociations,
+		ThreatRuleID: "CTR-034",
+		Severity:     Error, Targets: AWAST, Check: checkForkAssociations,
 	}
 }
 
