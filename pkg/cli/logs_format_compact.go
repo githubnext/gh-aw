@@ -327,8 +327,19 @@ func renderLogsCompactVerboseToWriter(writer io.Writer, data LogsData) error {
 	if len(data.Episodes) > 0 {
 		w.println("[episodes]")
 		for _, ep := range data.Episodes {
-			w.printf("%s runs=%d conf=%s duration=%s\n",
-				ep.Kind, ep.TotalRuns, ep.Confidence, ep.TotalDuration)
+			w.printf("%s runs=%d conf=%s duration=%s representative_run=%d coverage=%s scope=%s collection_truncated=%t\n",
+				ep.Kind, ep.TotalRuns, ep.Confidence, ep.TotalDuration, ep.RepresentativeRunID,
+				ep.Coverage.Status, ep.Coverage.Scope, ep.Coverage.CollectionTruncated)
+			if len(ep.RecordedRoots) > 0 {
+				for _, root := range ep.RecordedRoots {
+					w.printf("  recorded_root run=%s workflow=%s repo=%s observed=%t\n",
+						root.RunID, root.WorkflowID, root.Repository, root.Observed)
+				}
+			}
+			if len(ep.Coverage.Reasons) > 0 {
+				w.printf("  coverage_reasons=%s missing_parent_runs=%v\n",
+					strings.Join(ep.Coverage.Reasons, ","), ep.Coverage.MissingParentRunIDs)
+			}
 		}
 	}
 	if err := renderLogsWorkQueueToWriter(w, data.Runs); err != nil {

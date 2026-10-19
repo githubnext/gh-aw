@@ -1316,11 +1316,11 @@ sync-install-script-hashes:
 	@bash scripts/update-install-script-hashes.sh
 	@echo "✓ Install script hashes synced successfully"
 
-# Generate audit, logs, and cached logs JSONL item schemas
+# Generate structured CLI output schemas
 .PHONY: schemas
 schemas: build
 	@set -eu; \
-	for schema in audit logs logs-jsonl; do \
+	for schema in audit logs logs-jsonl outcomes-episodes; do \
 		target="schemas/$$schema.schema.json"; \
 		tmp=$$(mktemp "$$target.tmp.XXXXXX"); \
 		trap 'rm -f "$$tmp"' EXIT HUP INT TERM; \

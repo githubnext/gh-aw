@@ -7669,6 +7669,9 @@
                       "signal": {
                         "type": "string"
                       },
+                      "item_id": {
+                        "type": "string"
+                      },
                       "type": {
                         "type": "string"
                       },

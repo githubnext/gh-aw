@@ -67,29 +67,43 @@ Each run under `.runs[]` includes `duration`, `token_usage`, `aic`, `workflow_na
 
 ### Interpret Episode-Level Usage
 
-`gh aw logs --json` emits three views of the same data: `.runs[]` for individual workflow runs, `.episodes[]` for related runs grouped into one logical execution, and `.edges[]` for inferred parent-child lineage. Use `.runs[]` to find which run was resource-heavy and `.episodes[]` to answer "what did this job use end-to-end?". For non-orchestrated workflows, an episode collapses to a single run.
+`gh aw logs --json` emits three views of the same data: `.runs[]` for individual workflow runs, `.episodes[]` for runs sharing a recorded canonical identity, and `.edges[]` for recorded parent-child lineage between selected runs in the same episode. Use `.runs[]` to find which run was resource-heavy and `.episodes[]` to measure usage across the selected members of a logical execution.
 
-When propagated context includes `episode_id`, the rollup preserves that ID, matching OpenTelemetry correlation, even when intermediate runs are absent. Older context falls back to call IDs and inferred lineage. Totals cover only the runs included in the report; high confidence indicates lineage evidence, not complete episode coverage. Edges connect distinct GitHub run IDs, so reusable workflow hops sharing one run do not produce separate run edges.
+Episode grouping requires a nonempty propagated `context.episode_id` and preserves that ID, matching OpenTelemetry correlation even when intermediate runs are absent. Runs without canonical identity remain in `.runs[]` and overall summary totals, but do not contribute to `.episodes[]`, episode counts, or edges. Call IDs, matching revision/actor metadata, and `workflow_run` events do not reconstruct episodes. Totals cover only selected members with recorded canonical identity; high confidence indicates lineage evidence, not complete episode coverage. Edges require both runs to share the same canonical ID and connect distinct GitHub run IDs, so reusable workflow hops sharing one run do not produce separate run edges.
 
-For legacy `workflow_call` records without explicit call identity, matching
-revision and actor metadata alone does not merge runs. A unique non-reusable
-upstream candidate is required; ambiguous calls remain separate. Conflicting
-canonical lineage is processed in stable run-ID order, so input ordering does
-not change episode membership or totals.
+Conflicting canonical identities never merge, and uncorrelated runs never bridge episodes. Input ordering does not change episode membership or totals.
 
-Default JSON omits episode and edge details when every episode contains a single run, while retaining summary counts. Use `--verbose --json` to retain those details. `total_duration` sums execution durations rather than measuring wall-clock time between the first and last hop.
+Episode root and coverage fields distinguish recorded identity from the selected data:
 
-For usage analysis, focus on `total_runs`, `total_tokens`, `total_aic`, `total_duration`, `primary_workflow`, `resource_heavy_node_count`, and `blocked_request_count`. For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric because it maps to provider billing in AI Credits (1 AIC = $0.01 USD).
+| Field | Meaning |
+|---|---|
+| `recorded_roots[]` | Distinct root claims from context: string `run_id`, full `workflow_id`, and `repository` when recorded, including claims without a run ID. `observed` is true only when that root run is selected in this episode without a known repository mismatch. Conflicting claims and original repository spelling are preserved; repository identity comparison ignores case. |
+| `representative_run_id`, `representative_workflow` | Selected-data representative, preferring the earliest timestamped run, then the lowest run ID when timestamps are absent or tied. An available workflow name is used when the representative has none. These fields do not identify a missing canonical root. |
+| `coverage.scope` | Always `selected_runs`; totals exclude unselected ancestors and descendants. |
+| `coverage.status` | `partial` when recorded evidence has gaps, contradictions, invalid run IDs, or collection truncation; otherwise `unknown`. Logs do not establish episode completeness, even when every recorded parent and root is selected. |
+| `coverage.reasons` | Machine-readable codes: `missing_recorded_root`, `missing_recorded_parent`, `unverified_root_lineage`, `unverified_parent_lineage`, `conflicting_recorded_roots`, `conflicting_root_lineage`, `conflicting_parent_lineage`, `invalid_recorded_root_run_id`, `invalid_recorded_parent_run_id`, and `collection_truncated`. Unverified lineage means the referenced run is selected but has no canonical episode identity. |
+| `coverage.missing_parent_run_ids` | Sorted, unique recorded caller run IDs absent from the selection. Same-run reusable hops are not missing run-level parents. |
+| `coverage.collection_truncated` | True when collection truncation applies to this episode's selected repository/workflow target, or a reached count limit cannot be scoped more precisely. A scoped continuation does not downgrade unrelated targets. This is not proof that this particular episode has additional members; false does not establish completeness. |
+
+Missing root fields remain unknown; the CLI does not infer a canonical root from a descendant or parse one from an episode ID. Root presence is run-level evidence, not proof that every reusable workflow hop or artifact was collected.
+
+Both compact and verbose JSON retain all canonical episode and edge details, including single-run episodes. `total_duration` sums execution durations rather than measuring wall-clock time between the first and last hop.
+
+The episode-level `root_run_id` and `primary_workflow` fields have been removed. Migrate selected-data consumers to `representative_run_id` and `representative_workflow`; use `recorded_roots[]` for canonical root claims. Historical data without `context.episode_id` remains available for per-run analysis but is not backfilled into synthetic episodes.
+
+`--count` defaults to 10 even with a date filter. Choose a larger explicit count and inspect `.continuation` or `.continuations[]` before interpreting a date-window report. Continuing a query can recover more selected data, but neither an exhausted cursor nor high lineage confidence proves that all episode descendants were observed.
+
+For usage analysis, focus on `total_runs`, `total_tokens`, `total_aic`, `total_duration`, `representative_workflow`, `resource_heavy_node_count`, and `blocked_request_count`. For Claude, Codex, and Copilot runs, `total_aic` is the preferred cost metric because it maps to provider billing in AI Credits (1 AIC = $0.01 USD).
 
 ```bash
-# Top 10 costliest logical executions over the past 30 days by AIC
-gh aw logs --start-date -30d --verbose --json | \
-  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
+# Top 10 costliest selected episodes, from at most 1000 runs in the past 30 days
+gh aw logs --start-date -30d --count 1000 --verbose --json | \
+  jq '[.episodes[] | {episode: .episode_id, workflow: .representative_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
       | sort_by(.aic) | reverse | .[:10]'
 
-# Top 10 heaviest Copilot executions by AIC
-gh aw logs --start-date -30d --engine copilot --verbose --json | \
-  jq '[.episodes[] | {episode: .episode_id, workflow: .primary_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
+# Top 10 heaviest selected Copilot episodes by AIC
+gh aw logs --start-date -30d --count 1000 --engine copilot --verbose --json | \
+  jq '[.episodes[] | {episode: .episode_id, workflow: .representative_workflow, runs: .total_runs, aic: (.total_aic // 0)}]
       | sort_by(.aic) | reverse | .[:10]'
 ```
 
