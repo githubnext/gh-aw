@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { evaluateItem } from "./evaluate_outcomes.cjs";
 import {
   MANIFEST_FILE_PATH,
   TEMPORARY_ID_MAP_FILE_PATH,
@@ -319,13 +318,6 @@ describe("safe_output_manifest", () => {
         run_id: runId,
       });
       expect(item?.metadata).toEqual({ run_id: runId });
-      const endpoints = [];
-      const outcome = evaluateItem(item, "owner/repo", endpoint => {
-        endpoints.push(endpoint);
-        return { status: "completed", conclusion: "success" };
-      });
-      expect(outcome).toMatchObject({ outcome_status: "accepted", signal: "workflow_success" });
-      expect(endpoints).toEqual(["repos/owner/repo/actions/runs/123456"]);
     });
     it("should extract item from create_issue result", () => {
       const result = { success: true, repo: "owner/repo", number: 42, url: "https://github.com/owner/repo/issues/42", temporaryId: "aw_def456" };

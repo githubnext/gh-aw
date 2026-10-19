@@ -49,6 +49,8 @@ func loadCachedAuditData(runOutputDir string, run WorkflowRun, source auditCache
 		auditData.CacheSource != source {
 		return AuditData{}, false
 	}
+	auditData.Outcomes = nil
+	auditData.OutcomeSummary = nil
 	return auditData, true
 }
 

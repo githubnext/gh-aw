@@ -89,7 +89,6 @@ func buildRenderedAuditDataFromCache(ctx context.Context, processedRun Processed
 	}
 	mergeWorkQueueReport(&auditData.WorkQueue, processedRun.WorkQueue)
 	createdItems := resolveCreatedItems(runOutputDir, processedRun.SafeOutputs)
-	addAuditOutcomeSummary(ctx, &auditData, createdItems)
 	comparison, err := buildRenderedAuditComparison(ctx, processedRun, createdItems, runOutputDir, opts)
 	if err != nil {
 		return AuditData{}, err

@@ -62,20 +62,18 @@ func TestLoadOutcomeAIC(t *testing.T) {
 	assert.InDelta(t, 4.5, aic, 1e-9)
 }
 
-func TestAuditOutcomeSummaryIncludesAICPerAcceptedOutcome(t *testing.T) {
+func TestAuditLeavesOutcomeEvaluationToOutcomesCommand(t *testing.T) {
 	original := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = original })
-	workflowOutcomeGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
-		assert.Equal(t, "acme/repo", repo)
-		return map[string]any{"status": "completed", "conclusion": "success"}, nil
+	workflowOutcomeGHAPIGet = func(_ context.Context, _, _ string) (map[string]any, error) {
+		t.Fatal("audit must not query outcome evidence")
+		return nil, nil
 	}
-	data := &AuditData{Metrics: MetricsData{AIC: 12}}
-	items := []CreatedItemReport{
-		{Type: "dispatch_workflow", Repo: "acme/repo", Metadata: map[string]any{"run_id": 1}},
-		{Type: "dispatch_workflow", Repo: "acme/repo", Metadata: map[string]any{"run_id": 2}},
-	}
-	addAuditOutcomeSummary(context.Background(), data, items)
-	require.NotNil(t, data.OutcomeSummary)
-	assert.Equal(t, 2, data.OutcomeSummary.Accepted)
-	assert.InDelta(t, 6, data.OutcomeSummary.CostPerAcceptedOutcome, 1e-9)
+	dir := t.TempDir()
+	content := "{\"type\":\"dispatch_workflow\",\"repo\":\"acme/repo\",\"metadata\":{\"run_id\":2}}\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, safeOutputItemsManifestFilename), []byte(content), 0o600))
+	data := buildAuditData(context.Background(), ProcessedRun{Run: WorkflowRun{DatabaseID: 1, LogsPath: dir}}, LogMetrics{}, nil)
+	require.Len(t, data.CreatedItems, 1)
+	assert.Empty(t, data.Outcomes)
+	assert.Nil(t, data.OutcomeSummary)
 }

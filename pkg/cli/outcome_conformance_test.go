@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOutcomeCrossRuntimeConformance(t *testing.T) {
+func TestOutcomeConformance(t *testing.T) {
 	var cases []struct {
 		Name      string                     `json:"name"`
 		Item      CreatedItemReport          `json:"item"`

@@ -6,6 +6,12 @@
 
 ---
 
+> **Superseded collector decision:** The pending-backlog design below was
+> replaced before merge by CLI-only evaluation through `gh aw outcomes`.
+> The scheduled collector, its cache lifecycle, and the duplicate JavaScript
+> evaluator were removed. Explicit unified-session lineage, dispatch evidence,
+> cross-repository PR attribution, and conservative episode grouping remain.
+
 ### Context
 
 The outcome collector (`actions/setup/js/evaluate_outcomes.cjs`) discovers recent successful runs, downloads their `safe-outputs-items` manifest, evaluates each safe-output item, and records the run ID in a "seen" cache (a flat array capped at 500 entries). Every evaluated run was marked seen even when its outcomes were still `pending`, `unknown`, or `error`. Such runs were never revisited, so their eventual outcomes were permanently lost. In addition, read and listing failures were silently treated as "no data", dispatch run IDs and cross-repository PR attribution could be dropped, legacy episode lineage could be merged ambiguously, and unified sessions carried no structured parent identity from which to rebuild episodes.

@@ -2,19 +2,20 @@
 
 `OutcomeEvaluation.tla` specifies snapshot-based outcome classification and its
 typed reporting contract. `OutcomeEvaluation.cfg` checks a finite abstraction of
-the current Go/JavaScript rules, including creation, engagement, close provenance,
+the Go CLI evidence rules, including creation, engagement, close provenance,
 retained changes, review attribution, milestone identity, pushed-commit ancestry,
 agent assignment, dispatch, unsupported types, and generic fallback.
 
 ## Model and assumptions
 
-One evidence record is chosen nondeterministically. Abstract Go and JavaScript
+One evidence record is chosen nondeterministically. Historical abstract Go and JavaScript
 evaluators compute in either order, then publish their typed results and count
 each status. There are six phases and two evaluator identities; the count vector
 represents two observations of the same action, not two production actions.
 Evidence is immutable during this evaluation. `WF_vars(Next)` excludes indefinite
 stuttering before publication; it is an assumption, not a guarantee about the
-collector scheduler.
+scheduling of later CLI evaluations. These model identities do not imply two
+production evaluators; `gh aw outcomes` is the only evaluation entry point.
 
 The finite universe has **2,712 distinct evidence records**. Each action family
 varies relevant state, missing/available execution evidence, API success/failure,
@@ -101,17 +102,16 @@ All ten negative controls produced their required invariant counterexamples:
 `pkg/cli/testdata/outcome_conformance.json` into model facts. It never derives
 facts from expected results and rejects unmapped fixture types. Expectations are
 checked by TLC, including status, evidence strength, signal, and zero-touch.
-Go and JavaScript execute the same corpus through their native conformance tests:
+The Go CLI executes the current corpus through its conformance test:
 
 ```sh
-go test ./pkg/cli -run '^TestOutcomeCrossRuntimeConformance$' -count=1
-npm --prefix actions/setup/js exec -- vitest run outcome_conformance.test.cjs
+go test ./pkg/cli -run '^TestOutcomeConformance$' -count=1
 ```
 
 Fixture agreement is an example-based bridge, not a refinement proof of the
 adapter, native evaluators, or every API payload. The model does not prove
 pagination completeness, string normalization, actor authenticity, timestamp
-parsing, merge ancestry returned by GitHub, transport persistence, collector
-revisits, or economic/AIC attribution. It also does not prove unbounded
+parsing, merge ancestry returned by GitHub, transport persistence, later CLI
+reevaluation, or economic/AIC attribution. It also does not prove unbounded
 multi-action aggregation or telemetry delivery. No TLAPS, F*, or Z3 proof is
 claimed.

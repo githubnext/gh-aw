@@ -114,17 +114,12 @@ output type, and evaluate it again while results remain `pending`. A pull
 request may remain pending until review and become accepted when merged; a
 comment may need time to receive a reply or reaction.
 
-The scheduled collector retains manifests for runs with `pending`, `unknown`,
-or `error` outcomes and evaluates them again on subsequent cycles, even after
-they leave the recent-run discovery window. A run leaves this backlog once all
-its outcomes are resolved. Legacy seen-run caches are migrated by reevaluating
-rediscovered runs; this does not backfill runs outside the discovery window.
-
-Collector summaries describe each cycle's evaluated cohort, not cumulative
-fleet totals. Discovery samples at most 150 successful runs from the latest
-200 runs; failed runs and older, previously undiscovered runs are not included.
-`runs_revisited` counts backlog runs evaluated this cycle, and
-`unresolved_runs` counts runs remaining in the backlog.
+`gh aw outcomes` is the sole outcome-evaluation entry point. Workflow execution
+records safe-output evidence; it does not decide whether those outputs were
+accepted. `gh aw audit` reports execution evidence without checking live outcome
+state. There is no built-in scheduled collector or automatic reevaluation.
+Rerun `gh aw outcomes` later for unresolved items; each invocation checks current
+GitHub state rather than reusing a cached classification.
 
 Use JSON output to feed a report or inspect the summary:
 
@@ -168,9 +163,7 @@ The basic dashboard for outcomes is therefore intentionally small: total AIC, to
 
 For simple workflows, a single run is usually the right unit for outcome measurement.
 
-`gh aw outcomes` and `gh aw audit` populate
-`summary.cost_per_accepted_outcome` and
-`outcome_summary.cost_per_accepted_outcome`, respectively, when positive AIC
+`gh aw outcomes` populates `summary.cost_per_accepted_outcome` when positive AIC
 usage and at least one accepted outcome are available. This is the full
 observed run AIC divided by accepted output items, not a per-item allocation.
 Unavailable cost and zero accepted outcomes leave this field omitted.
@@ -179,7 +172,7 @@ For orchestrated workflows, multiple runs can belong to one logical execution. I
 
 Episode usage rollups and outcome summaries are separate outputs today.
 Joining them requires matching outcome source run IDs to episode run IDs and
-selecting the latest observation of each item; repeated collector observations
+selecting the latest observation of each item; repeated CLI observations
 must not be summed as additional accepted outcomes.
 
 The outcomes model is deliberately narrow. It does not try to estimate the full business value of a workflow, replace human judgment for nuanced quality questions, combine deterministic compute cost and inference cost into one synthetic score, or solve overlap and duplicate-work analysis in the first version.

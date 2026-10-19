@@ -57,6 +57,24 @@ func TestLoadCachedAuditDataRequiresMatchingRunState(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestLoadCachedAuditDataDropsHistoricalOutcomeSnapshot(t *testing.T) {
+	runDir := t.TempDir()
+	run := WorkflowRun{DatabaseID: 42, Status: "completed", Conclusion: "success"}
+	data := AuditData{
+		CacheSource:    auditCacheSourceFull,
+		Overview:       buildAuditOverview(run, nil),
+		Outcomes:       []OutcomeReport{{Type: "create_issue"}},
+		OutcomeSummary: &OutcomeSummary{Total: 1},
+	}
+	require.NoError(t, writeAuditData(runDir, data))
+
+	cached, ok := loadCachedAuditData(runDir, run, auditCacheSourceFull)
+	require.True(t, ok)
+	assert.Equal(t, data.Overview, cached.Overview)
+	assert.Empty(t, cached.Outcomes)
+	assert.Nil(t, cached.OutcomeSummary)
+}
+
 func TestLoadCachedAuditDataRejectsOlderSchema(t *testing.T) {
 	t.Parallel()
 
