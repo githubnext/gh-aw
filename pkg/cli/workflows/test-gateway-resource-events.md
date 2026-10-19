@@ -20,11 +20,6 @@ on:
       project_id: project-uuid
       types: [closed, reopened]
       closed-states: [Done, Closed]
-    webhooks:
-      - type: com.example.release
-        filters:
-          data:
-            state: ready
 permissions:
   contents: read
 engine: copilot

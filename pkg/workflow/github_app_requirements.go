@@ -256,7 +256,7 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	}
 	events := make([]string, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
-		if subscription.Provider != "" || subscription.Event == "webhook" {
+		if subscription.Provider != "" {
 			continue
 		}
 		if len(subscription.NativeEvents) > 0 {

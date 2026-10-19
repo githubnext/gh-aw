@@ -90,7 +90,7 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.NotContains(t, activation, `cp -- "$GITHUB_EVENT_PATH"`)
 	assert.Contains(t, activation, "Read the projected repository_dispatch event from /tmp/gh-aw/github-event.json")
 	assert.Contains(t, activation, "canonical resource URL at payload.url")
-	assert.Contains(t, activation, "payload.type array of event activities")
+	assert.Contains(t, activation, "payload.type array of supported event activities")
 	assert.Contains(t, activation, "payload.filters when declared conditions exist")
 	assert.Contains(t, activation, "only matched literal values for the declared predicates")
 	assert.Contains(t, activation, "Forwarded types are only the declared matching activities")

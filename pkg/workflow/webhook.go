@@ -148,10 +148,9 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	if err != nil {
 		return nil, err
 	}
-	rawWebhooks, hasWebhooks := onMap["webhooks"]
 	_, hasSlashCommand := onMap["slash-command"]
 	_, hasLabelCommand := onMap["label-command"]
-	if len(events) == 0 && !hasWebhooks && !hasSlashCommand && !hasLabelCommand {
+	if len(events) == 0 && !hasSlashCommand && !hasLabelCommand {
 		return nil, nil
 	}
 	repos, err := parseWebhookRepositories(onMap, "on.gateway-dispatch")
@@ -183,13 +182,6 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 			subscription.Orgs = slices.Clone(orgs)
 		}
 		subscriptions = append(subscriptions, subscription)
-	}
-	if hasWebhooks {
-		generic, err := parseGenericWebhookSubscriptions(rawWebhooks, workflowID)
-		if err != nil {
-			return nil, err
-		}
-		subscriptions = append(subscriptions, generic...)
 	}
 	commands, err := parseGatewayCommandSubscriptions(onMap, workflowID, repos, orgs)
 	if err != nil {

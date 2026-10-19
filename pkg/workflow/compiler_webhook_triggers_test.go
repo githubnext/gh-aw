@@ -232,7 +232,6 @@ func TestWebhookExperimentalNotices(t *testing.T) {
 		"projects": {"projects_v2_item"},
 		"security": {"dependabot_alert", "code_scanning_alert"},
 		"both":     {"projects_v2_item", "code_scanning_alert"},
-		"generic":  {"webhook"},
 		"jira":     {"jira_issue"},
 		"linear":   {"linear_issue"},
 		"azure":    {"azure_devops_issue"},

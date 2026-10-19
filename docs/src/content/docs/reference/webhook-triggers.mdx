@@ -112,7 +112,7 @@ Selectors describe source selection, not access grants. The CAO bridge must reso
 
 Optional `on.gateway-dispatch.orgs` selects GitHub source organizations for Projects, security alerts, and gateway commands. It accepts a nonempty list such as `[github, "my-*", "*-labs"]`; names/patterns use 1–39 ASCII letters, digits, hyphens, or `*`, without leading/trailing hyphens. Matching is case-insensitive. `*` matches zero or more characters; `["*"]` selects all independently approved organizations, not all organizations on GitHub. Patterns are ORed, then intersected with shared `repos`, project scope, activities, and payload conditions. The compiler lowercases, sorts, and deduplicates them.
 
-Omission adds no organization restriction or access grant. The receiver verifies organization ownership and current authorization from reviewed enrollment, not a payload claim. The runner also matches URL-derived organizations/repository owners and rejects user-owned Projects when `orgs` is configured; a repository URL alone cannot prove organization ownership. External providers and generic webhooks ignore `orgs` and retain their explicit source scopes. `orgs` belongs beside `repos` inside `gateway-dispatch`, not inside individual triggers or at root `on`.
+Omission adds no organization restriction or access grant. The receiver verifies organization ownership and current authorization from reviewed enrollment, not a payload claim. The runner also matches URL-derived organizations/repository owners and rejects user-owned Projects when `orgs` is configured; a repository URL alone cannot prove organization ownership. External providers ignore `orgs` and retain their explicit source scopes. `orgs` belongs beside `repos` inside `gateway-dispatch`, not inside individual triggers or at root `on`.
 
 ### Experimental status transitions
 
@@ -136,7 +136,7 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 
 ### Subscription properties
 
-Resource triggers, gateway commands, and generic `webhooks` can coexist inside one `on.gateway-dispatch` mapping. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Commands use synthetic `slash_command`/`label_command` families and declare their underlying `native_events`; external issues use normalized provider families. Frontmatter does not register or authorize webhook sources.
+Resource triggers, GitHub notifications, and gateway commands can coexist inside one `on.gateway-dispatch` mapping. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Commands use synthetic `slash_command`/`label_command` families and declare their underlying `native_events`; external issues use normalized provider families. Frontmatter does not register or authorize webhook sources. Custom webhooks are unsupported.
 
 | Property | Required | Description |
 | --- | --- | --- |
@@ -152,7 +152,7 @@ Resource triggers, gateway commands, and generic `webhooks` can coexist inside o
 | `types` | No | Nonempty list of supported activity types under a resource trigger, matched against the original action. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |
 | `filters` | No | Mapping of allowlisted, typed payload selectors under GitHub notification, Projects, or security triggers. Omission imposes no additional field conditions. |
 
-For named triggers, unknown properties, events, activity types, filter names, invalid values, and filters unavailable for the selected sources or activity types fail compilation. Generic subscriptions use the explicit event identifiers and declarative payload paths below.
+Unknown properties, events, activity types, filter names, invalid values, and filters unavailable for the selected sources or activity types fail compilation.
 
 ### GitHub issues, pull requests, and comments
 
@@ -220,34 +220,6 @@ Gateway label commands require server-side label consumption after durable admis
 
 Minimal command payloads contain only the canonical GitHub HTML `url`, one original action in `type`, and two singleton filter arrays: `event` plus `command` (actual matched token without `/`) or `label` (exact matching label). Bodies, arguments, identities, and other labels are never forwarded. `repos` and `orgs` apply to both command families. Additional content must be fetched inside the workflow through provider-authenticated clients.
 
-### Generic webhooks
-
-```aw wrap
----
-on:
-  gateway-dispatch:
-    webhooks:
-      - type: com.example.release
-        filters:
-          data:
-            state: [ready, published]
-            approved: true
-      - type: com.example.deploy
-        filters:
-          environment: production
----
-
-Resolve every notification through a configured authenticated provider client.
-```
-
-`on.gateway-dispatch.webhooks` is a nonempty array of objects with required `type` and optional `filters`. Each `type` must be unique within the workflow: a literal identifier of 1–100 ASCII letters, digits, `.`, `_`, `:`, `/`, or `-`, starting with a letter or digit. The singular `webhook` key and object shorthand are unsupported. An omitted `filters` accepts all independently authorized deliveries of that type; supplying filters requires a nonempty mapping.
-
-Filters compile to the same receiver-executable `{path, operator: "equals", value_type, values}` conditions as named triggers. Nested mappings describe original payload property paths; quoted `"*"` segments traverse array elements. Property names contain ASCII letters, digits, `_`, or `-`, starting with a letter or `_`; prototype-related properties and dotted keys are rejected. Leaves accept a string, boolean, JSON-safe integer, or a nonempty homogeneous list. All conditions are ANDed; list values and traversed array elements are ORed. Matching is strict and case-sensitive; missing/null values never match. Expressions, scripts, regular expressions, and inferred source data are unsupported.
-
-Each array entry emits one subscription with `event: "webhook"` and `types: ["<type>"]`, sorted by type. The approved bridge binds that identifier to an authenticated, enrolled source and evaluates filters against each original delivery **before** projection. No GitHub App receiving permissions or webhook registrations are inferred from arbitrary identifiers. Shared `repos`/`orgs` do not apply to generic sources because their GitHub identity is unspecified.
-
-The envelope remains numeric-v2; the required projection is `resource-url-types-filters/v2`. Generic batches use `aw_context.webhook.event: "webhook"`. Payloads require `url` and `type`, plus a flat `filters` map when conditions exist. For the release selector above, a matching notification is `{"url":"https://service.example/releases/42","type":["com.example.release"],"filters":{"data.approved":[true],"data.state":["ready"]}}`. Only matching declared literals are forwarded, not unselected values or source objects. Different generic identifiers must use separate homogeneous batches, even on the same workflow route. URLs confer no access: the workflow must use trusted configured provider endpoints and authenticated clients, not fetch arbitrary URLs with credentials. Generic references use `item_type: "webhook"`, empty `item_number`/`repo`, and the complete URL as `source`, without guessing issue IDs or safe-output targets.
-
 ### Filter values and matching
 
 Filters use nested YAML mappings. Dotted names in the catalog below describe that nesting; literal dotted YAML keys are rejected. Each leaf accepts one scalar or a nonempty list of scalars of the documented type.
@@ -309,7 +281,7 @@ Each compiled `.lock.yml` embeds the normalized subscriptions in the `webhook_su
 | --- | --- |
 | `schema_version` | Contract version; currently `2` (batched transport). Version 1 singleton contracts are not accepted. |
 | `event` | Original GitHub webhook event name, or the normalized external issue provider family. |
-| `types` | Nonempty selected original GitHub or normalized provider activities; generic `webhook` has exactly one literal identifier. Every forwarded `payload.type` value must be selected and established by the delivery. |
+| `types` | Nonempty selected original GitHub or normalized provider activities. Every forwarded `payload.type` value must be selected and established by the delivery. |
 | `provider` | External issues only: `jira`, `linear`, or `azure-devops`. |
 | `native_events` | External issues and commands: native provider/GitHub events required by selected activities or command sources. |
 | `activity_normalization` | External issues only: versioned policy and optional Azure `closed_states`; see the provider reference. |

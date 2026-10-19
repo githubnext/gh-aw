@@ -26,7 +26,7 @@ func TestCompileGatewayDispatchIntegration(t *testing.T) {
 			"issues", "pull_request", "discussion", "issue_comment", "pull_request_comment",
 			"pull_request_review", "pull_request_review_comment", "pull_request_review_thread", "discussion_comment", "commit_comment",
 		}},
-		{"pkg/cli/workflows/test-gateway-resource-events.md", []string{"projects_v2_item", "code_scanning_alert", "dependabot_alert", "jira_issue", "linear_issue", "azure_devops_issue", "webhook"}},
+		{"pkg/cli/workflows/test-gateway-resource-events.md", []string{"projects_v2_item", "code_scanning_alert", "dependabot_alert", "jira_issue", "linear_issue", "azure_devops_issue"}},
 		{"pkg/cli/workflows/test-gateway-commands.md", []string{"slash_command", "label_command"}},
 		{".github/workflows/smoke-security-alerts.md", []string{"code_scanning_alert", "dependabot_alert"}},
 	} {

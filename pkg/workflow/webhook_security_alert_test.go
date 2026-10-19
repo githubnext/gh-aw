@@ -198,19 +198,15 @@ func TestWebhookOrganizationSelectors(t *testing.T) {
 	} {
 		on := map[string]any{"gateway-dispatch": map[string]any{
 			"orgs": orgs, "projects-items": map[string]any{"project_id": "PVT_example"},
-			"security-alerts": map[string]any{}, "webhooks": []any{map[string]any{"type": "example.event"}},
+			"security-alerts": map[string]any{},
 		}}
 		before, err := json.Marshal(on)
 		require.NoError(t, err)
 		subscriptions, err := ParseWebhookSubscriptions(on, "orgs")
 		require.NoError(t, err)
-		require.Len(t, subscriptions, 4)
+		require.Len(t, subscriptions, 3)
 		for _, subscription := range subscriptions {
-			if subscription.Event == "webhook" {
-				assert.Empty(t, subscription.Orgs)
-			} else {
-				assert.NotEmpty(t, subscription.Orgs)
-			}
+			assert.NotEmpty(t, subscription.Orgs)
 		}
 		after, err := json.Marshal(on)
 		require.NoError(t, err)

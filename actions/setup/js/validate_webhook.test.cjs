@@ -77,22 +77,12 @@ afterEach(() => {
 });
 
 describe("validateWebhook", () => {
-  it("validates generic identifiers against the compiled subscription, not omitted source predicates", () => {
-    const selected = subscription({ event: "webhook", types: ["com.example.release"] });
-    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected]) });
-    const event = dispatch([{ delivery_id: "generic", payload: { url: "https://service.example/releases/42", type: ["com.example.release"] } }]);
-    batch(event).event = "webhook";
-    expect(validateWebhook(event, env).skipped).toBe(false);
-    batch(event).deliveries[0].payload.type = ["other.event"];
-    expect(() => validateWebhook(event, env)).toThrow(/must match/);
-    env.GH_AW_WEBHOOK_SUBSCRIPTIONS = JSON.stringify([selected, subscription({ event: "webhook", types: ["other.event"] })]);
-    expect(validateWebhook(event, env).skipped).toBe(false);
-    for (const types of [[], ["*"], ["event", "other"]]) {
-      env.GH_AW_WEBHOOK_SUBSCRIPTIONS = JSON.stringify([subscription({ event: "webhook", types })]);
-      expect(() => validateWebhook(event, env)).toThrow(/valid version 2/);
-    }
-    env.GH_AW_WEBHOOK_SUBSCRIPTIONS = JSON.stringify([subscription({ event: "webhook", types: ["com.example.release"], repos: ["owner/*"] })]);
+  it.each(["webhook", "example.event"])("rejects custom subscription and batch family %s", customEvent => {
+    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: customEvent, types: ["example.event"] })]) });
+    const event = dispatch();
     expect(() => validateWebhook(event, env)).toThrow(/valid version 2/);
+    batch(event).event = customEvent;
+    expect(() => validateWebhook(event, environment())).toThrow(/supported webhook event/);
   });
   it.each(["code_scanning_alert", "dependabot_alert"])("accepts scoped multi-repository %s batches", selectedEvent => {
     const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event: selectedEvent, repos: ["bar/baz", "foo/*"] })]) });
@@ -453,7 +443,7 @@ describe("shared source organization selectors", () => {
     expect(() => validateWebhook(dispatch(), env)).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
   });
 
-  it.each(["jira_issue", "linear_issue", "azure_devops_issue", "webhook"])("rejects org metadata on non-GitHub family %s", event => {
+  it.each(["jira_issue", "linear_issue", "azure_devops_issue"])("rejects org metadata on non-GitHub family %s", event => {
     const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([subscription({ event, orgs: ["*"] })]) });
     expect(() => validateWebhook(dispatch(), env)).toThrow(/GH_AW_WEBHOOK_SUBSCRIPTIONS/);
   });
@@ -528,17 +518,6 @@ describe("minimal declared filter projection", () => {
 
   it("rejects values in an undeclared filter even when they are scalar", () => {
     expect(() => validateWebhook(filteredEvent({ state: ["ready"] }), environment())).toThrow(/declared matching values/);
-  });
-
-  it("uses only the selected generic entry's conditions, not the union of its siblings", () => {
-    const selected = subscription({ event: "webhook", types: ["com.example.release"], conditions: [condition("state", ["ready"])] });
-    const other = subscription({ event: "webhook", types: ["com.example.deploy"], conditions: [condition("state", ["deploy-ready"])] });
-    const env = environment({ GH_AW_WEBHOOK_SUBSCRIPTIONS: JSON.stringify([selected, other]) });
-    const event = dispatch([{ delivery_id: "generic", payload: { url: "https://service.example/releases/42", type: ["com.example.release"], filters: { state: ["ready"] } } }]);
-    batch(event).event = "webhook";
-    expect(validateWebhook(event, env).skipped).toBe(false);
-    batch(event).deliveries[0].payload.filters.state = ["deploy-ready"];
-    expect(() => validateWebhook(event, env)).toThrow(/declared matching values/);
   });
 
   it("enforces one complete alternative without from/to cross-products or private side channels", () => {

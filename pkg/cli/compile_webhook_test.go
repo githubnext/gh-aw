@@ -30,7 +30,6 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 		for _, trigger := range []string{
 			"projects-items: {project_id: PVT_example}",
 			"security-alerts: {sources: [dependabot]}",
-			"webhooks: [{type: example.event}]",
 			"slash-command: review",
 			"label-command: review",
 			"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
@@ -189,7 +188,6 @@ func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
 	for _, trigger := range []string{
 		"projects-items: {project_id: PVT_example}",
 		"security-alerts: {sources: [code-scanning, dependabot]}",
-		"webhooks: [{type: example.event}]",
 		"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
 		"orgs: [github, \"my-*\"]\n  security-alerts: {}",
 	} {
@@ -371,22 +369,23 @@ func TestCompileGatewayDispatchRejectsOtherTriggers(t *testing.T) {
 
 }
 
-func TestCompileGenericWebhookJSONContract(t *testing.T) {
-	root := t.TempDir()
-	enableWebhookTriggers(t, root)
-	path := filepath.Join(root, "generic.md")
-	source := "---\non:\n  gateway-dispatch:\n    webhooks:\n      - type: com.example.release\n        filters:\n          data:\n            state: [ready, published]\n            approved: true\n      - type: com.example.deploy\npermissions:\n  contents: read\nengine: copilot\n---\nResolve the notification using an authenticated provider client.\n"
-	require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
-	result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
-	require.True(t, result.success, "%+v", result.validationResult.Errors)
-	require.Len(t, result.validationResult.WebhookSubscriptions, 2)
-	subscription := result.validationResult.WebhookSubscriptions[1]
-	assert.Equal(t, "webhook", subscription.Event)
-	assert.Equal(t, []string{"com.example.release"}, subscription.Types)
-	assert.Len(t, subscription.Conditions, 2)
-	lock, err := os.ReadFile(filepath.Join(root, "generic.lock.yml"))
-	require.NoError(t, err)
-	manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(lock))
-	require.NoError(t, err)
-	assert.Equal(t, result.validationResult.WebhookSubscriptions, manifest.WebhookSubscriptions)
+func TestCompileWebhookRejectsCustomSubscriptions(t *testing.T) {
+	for _, trigger := range []string{
+		"webhooks: [{type: example.event}]",
+		"security-alerts: {}\nwebhooks: [{type: example.event}]",
+	} {
+		t.Run(trigger, func(t *testing.T) {
+			root := t.TempDir()
+			enableWebhookTriggers(t, root)
+			path := filepath.Join(root, "custom.md")
+			source := "---\non:\n  gateway-dispatch:\n    " + strings.ReplaceAll(trigger, "\n", "\n    ") + "\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
+			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
+			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+			require.False(t, result.success)
+			assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "webhooks")
+			assert.Empty(t, result.validationResult.WebhookSubscriptions)
+			_, err := os.Stat(filepath.Join(root, "custom.lock.yml"))
+			require.True(t, os.IsNotExist(err), "custom subscriptions must not emit a lock file")
+		})
+	}
 }

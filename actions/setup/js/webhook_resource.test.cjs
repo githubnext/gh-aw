@@ -41,7 +41,7 @@ describe("minimal resource notification contract", () => {
   it("validates every complete specification payload against the actual runtime", () => {
     const specification = readFileSync(new URL("../../../docs/src/content/docs/specs/webhook-gateway-specification.md", import.meta.url), "utf8");
     const payloads = [...specification.matchAll(/```json title="([^"]+)\.payload\.json"\n([\s\S]*?)\n```/g)];
-    expect(payloads.map(match => match[1]).sort()).toEqual([...Object.keys(WEBHOOK_TYPES), "webhook"].sort());
+    expect(payloads.map(match => match[1]).sort()).toEqual(Object.keys(WEBHOOK_TYPES).sort());
     for (const [, event, json] of payloads) {
       const payload = JSON.parse(json);
       expect(Object.keys(payload).sort()).toEqual(payload.filters ? ["filters", "type", "url"] : ["type", "url"]);
@@ -55,9 +55,9 @@ describe("minimal resource notification contract", () => {
           .filter(([filter]) => !(event === "azure_devops_issue" && filter === "closed-states"))
           .map(([filter, values]) => ({
             filter,
-            path: event === "webhook" ? filter.split(".") : definition.filters[filter].path,
+            path: definition.filters[filter].path,
             operator: "equals",
-            value_type: event === "webhook" ? typeof values[0] : definition.filters[filter].type,
+            value_type: definition.filters[filter].type,
             values,
           })),
         dispatch: { event_type: "specification", payload_projection: { policy: WEBHOOK_PAYLOAD_POLICY } },
@@ -91,48 +91,9 @@ describe("minimal resource notification contract", () => {
     }
   });
 
-  it("derives generic references only from canonical URLs without guessing issue identities", () => {
-    const url = "https://service.example/releases/42";
-    expect(resolveWebhookResource("webhook", { url, type: ["com.example.release"] })).toEqual({
-      item_type: "webhook",
-      item_number: "",
-      repo: "",
-      source: url,
-      url,
-    });
-    const result = normalizeWebhookContext({
-      webhook: {
-        event: "webhook",
-        deliveries: [url, url, `${url}/other`].map((url, index) => ({
-          delivery_id: `generic-${index}`,
-          payload: { url, type: ["com.example.release"] },
-        })),
-      },
-    });
-    expect(result.items).toHaveLength(2);
-    expect(result.webhook.deliveries).toHaveLength(3);
-    expect(() => resolveWebhookResource("webhook", { url, type: ["com.example.release"], state: "private" })).toThrow(/accepts only/);
-    for (const invalid of ["http://service.example/releases/42", `${url}?token=private`, `${url}#fragment`, "https://user:private@service.example/releases/42"]) {
-      expect(() => resolveWebhookResource("webhook", { url: invalid, type: ["com.example.release"] })).toThrow(/canonical/);
-    }
-  });
-
-  it("requires homogeneous literal generic event identifiers, not activity/body side channels", () => {
-    const url = "https://service.example/releases/42";
-    for (const type of [[], [""], ["*"], ["event type"], ["${{ github.actor }}"], ["event", "other"], "event", [false], ["a".repeat(101)]]) {
-      expect(() => resolveWebhookResource("webhook", { url, type })).toThrow(/type/);
-    }
-    expect(() =>
-      normalizeWebhookContext({
-        webhook: {
-          event: "webhook",
-          deliveries: ["event", "other"].map(type => ({
-            delivery_id: type,
-            payload: { url, type: [type] },
-          })),
-        },
-      })
-    ).toThrow(/one event identifier/);
+  it.each(["webhook", "example.event"])("rejects custom resource family %s", event => {
+    expect(() => resolveWebhookResource(event, { url: "https://service.example/releases/42", type: ["example.event"] })).toThrow(/supported event activities/);
+    expect(() => normalizeWebhookContext({ webhook: { event, deliveries: [] } })).toThrow(/supported webhook event/);
   });
 
   it.each(examples)("derives %s identity from only URL and activities, without network access", (event, url, type, number, source) => {

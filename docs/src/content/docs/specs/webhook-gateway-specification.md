@@ -13,7 +13,7 @@ sidebar:
 
 **Required payload projection:** `resource-url-types-filters/v2`.
 
-This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers GitHub issues, pull requests, discussions, every comment family, reviews/threads, Projects, security alerts, external issues, commands, and a generic `webhooks` array. It does not register webhook sources and is unrelated to the MCP gateway.
+This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers GitHub issues, pull requests, discussions, every comment family, reviews/threads, Projects, security alerts, external issues, and commands. Custom webhooks are unsupported. It does not register webhook sources and is unrelated to the MCP gateway.
 
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
 
@@ -42,7 +42,7 @@ Dispatch actors MUST satisfy standard `on.roles` and `on.bots` authorization. Al
 
 ## Supported triggers and source data
 
-The following inventory is exhaustive. Other entries in an internal webhook catalog do not become named frontmatter triggers; generic identifiers require an independently approved bridge/source binding.
+The following inventory is exhaustive. Other entries in an internal webhook catalog do not become frontmatter triggers.
 
 | Experimental trigger | Subscription `event` | Native event discriminator | Required original receiver data (not forwarded as source objects) |
 | --- | --- | --- | --- |
@@ -52,7 +52,6 @@ The following inventory is exhaustive. Other entries in an internal webhook cata
 | `on.gateway-dispatch.jira-issue` | `jira_issue` | `payload.webhookEvent` | Native Jira issue object, decimal-string `issue.id`, HTTPS REST `issue.self`, matching project key, and delivered system-field changelog evidence for lifecycle/label changes. |
 | `on.gateway-dispatch.linear-issue` | `linear_issue` | `payload.type: "Issue"` and native `payload.action` | Native `data`, immutable `data.id`, matching `organizationId` and optional team ID, and `updatedFrom` for changed-property evidence. `IssueLabel` definition events do not qualify. |
 | `on.gateway-dispatch.azure-devops-issue` | `azure_devops_issue` | `payload.eventType` | Native work item resource, collection and matching project identity, and delivered state/tag deltas. Updated resources use `workItemId`, not an update ID. |
-| `on.gateway-dispatch.webhooks[]` | `webhook` | Each entry's required literal `type`, bound to a source by the approved bridge | Authenticated original delivery with the properties selected by declarative `filters`, and a canonical resource URL chosen through the approved source binding. No provider identity or permissions are inferred. |
 | `on.gateway-dispatch.slash-command` | `slash_command` | Selected native GitHub source event and original `action` | Original body and canonical item/comment HTML URL from the source catalog below. The server matches the position-zero slash token before projection. |
 | `on.gateway-dispatch.label-command` | `label_command` | Selected native GitHub source event with `action: labeled` | Original `label.name` and canonical item HTML URL. The server matches the label exactly and separately authorizes any requested label removal. |
 | GitHub notification triggers below | The corresponding GitHub semantic event | Authenticated `X-GitHub-Event` and native `action` | Original source resource, event-specific identity, declared filter evidence, and canonical item/comment HTML URL; no original body is forwarded. |
@@ -87,13 +86,13 @@ Incoming provider deliveries to the receiver MUST supply the identities, require
 
 `projects-items` requires a `project_id` node ID or nonempty list of IDs beside `types`. Optional `status-transitions` selects complete `{from, to}` Status pairs; it requires `edited` and delivered single-select Status evidence. `security-alerts.sources` selects `code-scanning`, `dependabot`, or both by default; supplied types and filters MUST be supported by every selected source.
 
-Named resource trigger objects accept `types`; generic array entries instead require singular `type`. Commands reuse their native command configuration and derive activities from selected `events`. Projects and security alerts accept `filters`; external issue providers instead use the flat selectors and required scopes above. Projects additionally accepts `project_id` and `status-transitions`; security alerts accept `sources` and `severity`; only Azure accepts `closed-states`. Shared `on.gateway-dispatch.repos` applies to repository-aware subscriptions; `orgs` applies to GitHub organization-aware subscriptions. Unknown properties are rejected. `severity` is a sibling of `types`, not a nested payload filter, and uses the selected source's cataloged severity values.
+Resource trigger objects accept `types`. Commands reuse their native command configuration and derive activities from selected `events`. Projects and security alerts accept `filters`; external issue providers instead use the flat selectors and required scopes above. Projects additionally accepts `project_id` and `status-transitions`; security alerts accept `sources` and `severity`; only Azure accepts `closed-states`. Shared `on.gateway-dispatch.repos` applies to repository-aware subscriptions; `orgs` applies to GitHub organization-aware subscriptions. Unknown properties are rejected. `severity` is a sibling of `types`, not a nested payload filter, and uses the selected source's cataloged severity values.
 
 GitHub `filters` and flat provider selectors use the allowlisted payload paths and scalar types in the [GitHub trigger reference](/gh-aw/reference/webhook-triggers/#supported-events-and-filters) and [provider issue reference](/gh-aw/reference/provider-issue-triggers/). Conditions are ANDed; values within a condition are ORed. Missing/null fields never match. Matching MUST NOT hydrate missing data through API calls, guessed state names, or cached history. Selector strings are literals, not expressions or regular expressions.
 
 `on.gateway-dispatch.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` values, matched case-insensitively over approved sources. It applies to GitHub notifications, code-scanning and Dependabot alerts, and both command families. It MUST NOT grant access. Projects and external-provider subscriptions ignore shared `repos` and retain their required source scopes, including when they are the only selected families. No trigger-local `repos` is accepted.
 
-`on.gateway-dispatch.orgs` is an optional nonempty list of GitHub organization names or `*` wildcard patterns, for example `[github, "my-*", "*-labs"]`. Patterns use 1–39 ASCII letters, digits, hyphens, or `*`, without leading/trailing hyphens; `*` matches zero or more characters, including the entire name. Matching is case-insensitive, OR between patterns, and AND with `repos`, source scopes, types, and conditions. Omission adds no organization restriction. The compiler lowercases, sorts, and deduplicates selectors and copies them into GitHub notification, Projects, security, and command subscriptions. External providers and generic webhooks ignore shared `orgs`; mandatory provider scopes remain required.
+`on.gateway-dispatch.orgs` is an optional nonempty list of GitHub organization names or `*` wildcard patterns, for example `[github, "my-*", "*-labs"]`. Patterns use 1–39 ASCII letters, digits, hyphens, or `*`, without leading/trailing hyphens; `*` matches zero or more characters, including the entire name. Matching is case-insensitive, OR between patterns, and AND with `repos`, source scopes, types, and conditions. Omission adds no organization restriction. The compiler lowercases, sorts, and deduplicates selectors and copies them into GitHub notification, Projects, security, and command subscriptions. External providers ignore shared `orgs`; mandatory provider scopes remain required.
 
 Organization selectors MUST operate only over independently approved GitHub source organizations. Even `orgs: ["*"]` MUST NOT enroll a source, grant cross-organization access, or expand approved activation scope. The receiver MUST verify organization identity and ownership from authenticated source enrollment, not infer organizational authority from a payload or URL owner string. The runner additionally compares URL-derived organization/owner names, rejects user-owned Projects when `orgs` is present, and intersects both selectors for security alerts. Repository URLs alone do not prove that an owner is an organization. `orgs` is source metadata, not an additional forwarded resource field; trigger-local or root `on.orgs` declarations reject.
 
@@ -168,28 +167,6 @@ Compiled `command_filter` contains exact `policy: "slash-command/v1"` or `"label
 
 Gateway label commands require server-side label consumption only after durable admission. It MUST require a separately reviewed source label-write grant, an authorized source credential, and durable fencing/idempotency; metadata alone grants no write authority. An incapable or unapproved receiver MUST keep the subscription nonactivating rather than silently ignore consumption or move it to the runner. Disabling consumption is unsupported. Receiving-App permission inference uses read access for slash-command sources and corresponding write access for label-command sources; inferred permissions do not enroll or authorize sources and do not expand the workflow's `GITHUB_TOKEN`.
 
-### Generic event subscriptions
-
-```yaml wrap
-on:
-  gateway-dispatch:
-    webhooks:
-      - type: com.example.release
-        filters:
-          data:
-            state: [ready, published]
-            approved: true
-      - type: com.example.deploy
-        filters:
-          environment: production
-```
-
-`webhooks` MUST be a nonempty array; each object MUST contain a unique `type` and MAY contain `filters`, with no other properties. The singular `webhook` key and object shorthand are rejected. Identifiers MUST be 1–100 ASCII letters, digits, `.`, `_`, `:`, `/`, or `-`, starting with a letter or digit. The compiler emits one subscription per entry with `event: "webhook"`, exactly one `types` element containing that identifier, and deterministic ordering by identifier.
-
-Generic `filters` MUST be a nonempty nested mapping when present. Property names use ASCII letters, digits, `_`, and `-`, starting with a letter or `_`; quoted `"*"` segments traverse array elements, not object keys. Dotted keys and `__proto__`, `prototype`, or `constructor` path segments are rejected. Each leaf is a literal string, boolean, JSON-safe integer, or nonempty homogeneous list. These compile into typed equality `conditions`, with AND between leaves and OR between accepted values/array elements. Missing/null fields never match. Scripts, expressions, regular expressions, and API hydration are not supported.
-
-The approved receiver MUST bind each identifier to an authenticated, authorized source; the identifier is not a registration or an authority claim. It MUST evaluate the conditions against original deliveries before projecting to the minimal payload below. Generic subscriptions infer no GitHub App webhook events/permissions and ignore shared `repos`/`orgs` because arbitrary source repository/organization identity is unspecified. Named-trigger source scopes and catalogs remain unchanged.
-
 ### Provider normalization policies
 
 External issue types are gh-aw activities, not invented provider-native webhook actions. The receiver MUST classify the original native discriminators without inserting a GitHub-style `action` into the source object. It forwards the resulting activities in `payload.type`, not the original discriminator, entity object, or changelog. Linear's original `type: "Issue"` is not the forwarded activity array.
@@ -213,7 +190,7 @@ The compiler publishes identical normalized declarations through each compiled l
 | Field | Required interpretation |
 | --- | --- |
 | `schema_version` | Numeric `2`; version 1 singleton declarations/envelopes are unsupported. |
-| `event`, `types` | One supported family and its selected original GitHub or normalized provider activities; generic `webhook` uses exactly one configured event identifier. |
+| `event`, `types` | One supported family and its selected original GitHub or normalized provider activities. |
 | `conditions` | Shared typed equality predicates over original payload paths; all MUST match. |
 | `any_of` | Optional alternatives of complete ANDed condition groups, in addition to shared conditions. A Projects Status transition creates one complete pair, never independently combined from/to lists. |
 | `repos` | Optional approved-source selection copied from shared `on.gateway-dispatch.repos` into security and command subscriptions. |
@@ -227,7 +204,7 @@ The compiler publishes identical normalized declarations through each compiled l
 
 The receiver MUST authenticate and authorize the source, select the family, derive normalized activities when applicable, and evaluate selectors, shared conditions, and complete `any_of` groups against each original delivery **before** projection or batching. A condition MUST NOT be assembled across deliveries.
 
-Every `dispatch.payload_projection` is exactly `{"policy":"resource-url-types-filters/v2"}`. Each notification requires `url` and `type`, plus `filters` for matching declared selectors as specified below. These are the only permitted payload properties. `url` is the canonical resource URI, serialized as an HTTPS URL. Each forwarded type MUST be both established by the original delivery/normalization policy and selected by `subscription.types`. The receiver MUST intersect the activities with the selected types before forwarding; an empty intersection does not qualify. For example, a provider update classified as `["edited","closed","labeled"]` for `types: [closed]` forwards only `["closed"]`, not the other activities. Omitted frontmatter `types` uses the compiler's expanded defaults. Generic types contain exactly the configured identifier. Receivers SHOULD sort activities and projected filter values for deterministic retries.
+Every `dispatch.payload_projection` is exactly `{"policy":"resource-url-types-filters/v2"}`. Each notification requires `url` and `type`, plus `filters` for matching declared selectors as specified below. These are the only permitted payload properties. `url` is the canonical resource URI, serialized as an HTTPS URL. Each forwarded type MUST be both established by the original delivery/normalization policy and selected by `subscription.types`. The receiver MUST intersect the activities with the selected types before forwarding; an empty intersection does not qualify. For example, a provider update classified as `["edited","closed","labeled"]` for `types: [closed]` forwards only `["closed"]`, not the other activities. Omitted frontmatter `types` uses the compiler's expanded defaults. Receivers SHOULD sort activities and projected filter values for deterministic retries.
 
 `filters` is a flat map keyed by the compiled `condition.filter` names, not a native source object. Each value is a nonempty array of distinct matching scalars of the declared type. For example, a subscription selecting `data.state: [ready, published]` forwards `"filters":{"data.state":["ready"]}` when only `ready` occurs in the delivery, not both configured alternatives or unrelated states. An array-valued source field contributes only its matching literals, never the complete source array.
 
@@ -236,7 +213,7 @@ The keys MUST cover every shared condition and exactly one complete matching `an
 | Declared selector | Permitted matching values |
 | --- | --- |
 | `filters` and flat provider selectors | Actual matched literals under their compiled `condition.filter` names, covering shared conditions and one complete alternative. |
-| `types` or generic `type` | Only selected, evidence-backed activities/identifier in `payload.type`; no unselected activities. |
+| `types` | Only selected, evidence-backed activities in `payload.type`; no unselected activities. |
 | Security `severity` | Only matched configured severity literals in `payload.filters.severity`; the compiler promotes this selector to a typed condition. No advisory, dependency, rule, or alert objects. |
 | Azure `closed-states` | For a forwarded `closed` activity, exactly the entered configured terminal name; for `reopened`, exactly the departed configured terminal name. Forward this single string in `payload.filters["closed-states"]`, never the unselected nonterminal side or the full configured set. |
 | Command names and source events | Exactly one selected semantic identifier in `filters.event` and one actual matching token in `filters.command` or exact matched label in `filters.label`. No body, arguments, sender, or other labels. |
@@ -277,7 +254,7 @@ The receiver sends `POST /repos/{owner}/{repo}/dispatches` to the repository con
 
 `client_payload` MUST contain only `schema_version` and `aw_context`. At gateway ingress, `aw_context` MUST contain only `webhook`; supplied `items`, provenance, or resource-detail side channels are rejected. `aw_context.webhook` MUST contain only `event` and a nonempty `deliveries` array. Each delivery MUST contain only a nonempty `delivery_id` and inline object `payload`; per-delivery family overrides are forbidden. A one-delivery batch still uses the array. Outside the restricted gateway route, compiler-managed child-workflow context can carry normal caller metadata and runtime-derived `items`, but it MUST preserve the same minimal delivery payloads.
 
-The family MUST be homogeneous and match exactly one compiled subscription on that route. Generic `webhook` batches MUST additionally contain only one configured event identifier in every `payload.type`; the runner selects its subscription by family and identifier. Repeated IDs with deeply equal forwarded payloads collapse in first-seen order; conflicting duplicates fail the entire batch. Distinct updates to one resource remain separate deliveries. Input order is preserved without implying chronological order.
+The family MUST be homogeneous and match exactly one compiled subscription on that route. Repeated IDs with deeply equal forwarded payloads collapse in first-seen order; conflicting duplicates fail the entire batch. Distinct updates to one resource remain separate deliveries. Input order is preserved without implying chronological order.
 
 GitHub deliveries use their original delivery identity. Other integrations MUST assign a stable identity for the original delivery, not use a resource ID or an Actions run ID. The runner checks only nonempty batch-local delivery IDs; durable retry/replay identity and cross-dispatch deduplication remain receiver responsibilities.
 
@@ -293,7 +270,7 @@ Other triggers MUST NOT coexist with `gateway-dispatch`, including null/empty de
 
 ## Expected per-delivery payloads
 
-These are complete permitted payloads for the indicated selectors, not abbreviated native bodies. Every payload MUST contain `url` and `type`; only the declared matching `filters` map may additionally appear, and it is required when conditions or a selected Azure lifecycle match exist. `type` MUST be a nonempty array of distinct selected, evidence-backed activities or exactly one generic identifier; GitHub families require exactly one activity. Source objects, changelogs, descriptions, and arbitrary state objects MUST NOT be included. Labels, severities, IDs, and field values are allowed only as matching declared literals, including the single applicable Azure terminal name, never as unfiltered resource data. All supplied identities are illustrative.
+These are complete permitted payloads for the indicated selectors, not abbreviated native bodies. Every payload MUST contain `url` and `type`; only the declared matching `filters` map may additionally appear, and it is required when conditions or a selected Azure lifecycle match exist. `type` MUST be a nonempty array of distinct selected, evidence-backed activities; GitHub families require exactly one activity. Source objects, changelogs, descriptions, and arbitrary state objects MUST NOT be included. Labels, severities, IDs, and field values are allowed only as matching declared literals, including the single applicable Azure terminal name, never as unfiltered resource data. All supplied identities are illustrative.
 
 Every URL MUST be canonical HTTPS without credentials or query strings. Fragments are forbidden except the exact source-specific command comment anchors specified above. Its serialized value MUST equal the URL parser's canonical representation. The runner validates references without fetching them; URLs are not arbitrary overflow pointers or authorization evidence.
 
@@ -316,18 +293,6 @@ Every URL MUST be canonical HTTPS without credentials or query strings. Fragment
   "filters": {"event": ["issues"], "label": ["review"]}
 }
 ```
-
-### Generic webhook notification
-
-```json title="webhook.payload.json"
-{
-  "url": "https://service.example/releases/42",
-  "type": ["com.example.release"],
-  "filters": {"data.approved": [true], "data.state": ["ready"]}
-}
-```
-
-`type` MUST contain exactly one configured generic identifier, not a source body or an additional activity list. Its URL is a canonical HTTPS resource reference from the reviewed source binding, without a provider-specific path assumption. The runner MUST NOT fetch it or infer provider access, GitHub repository identity, or an issue number. Generic affected references have `item_type: "webhook"`, empty `item_number`/`repo`, and the complete URL as `source`; identical canonical URLs deduplicate. Different event identifiers MUST NOT share a batch.
 
 ### Projects v2 item
 
@@ -487,7 +452,7 @@ The workflow MUST use an authenticated GitHub App client for additional GitHub d
 
 Triggers do not provision provider credentials, tools, or read permissions. Workflows without an authorized reader MUST report unresolved or denied resources rather than infer unavailable details.
 
-Receiver deployment, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility are not implemented by these declarations. Secret scanning, Projects (classic), unregistered generic event identifiers, and non-batch payload envelopes are unsupported.
+Receiver deployment, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility are not implemented by these declarations. Secret scanning, Projects (classic), custom webhook identifiers, and non-batch payload envelopes are unsupported.
 
 ## References
 

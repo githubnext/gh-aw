@@ -17,15 +17,6 @@ import (
 func TestWebhookManifestCompilation(t *testing.T) {
 	for name, trigger := range map[string]string{
 		"native": "  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n",
-		"generic": `  gateway-dispatch:
-    webhooks:
-      - type: com.example.release
-        filters:
-          data:
-            state: [ready, published]
-            approved: true
-      - type: com.example.deploy
-`,
 		"projects": `  gateway-dispatch:
     projects-items:
       project_id: [PVT_one, PVT_two]
@@ -54,11 +45,6 @@ func TestWebhookManifestCompilation(t *testing.T) {
       sources: [dependabot]
       types: [created, reopened]
       severity: [high, critical]
-    webhooks:
-      - type: com.example.release
-        filters:
-          data:
-            approved: true
 `,
 	} {
 		t.Run(name, func(t *testing.T) {

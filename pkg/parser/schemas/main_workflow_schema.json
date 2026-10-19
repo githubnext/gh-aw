@@ -744,7 +744,7 @@
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
           "not": {
-            "enum": ["gateway-dispatch", "webhooks", "orgs", "projects-items", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue", "slash-command", "label-command"]
+            "enum": ["gateway-dispatch", "orgs", "projects-items", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue", "slash-command", "label-command"]
           },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
@@ -793,7 +793,6 @@
             "jira-issue": false,
             "linear-issue": false,
             "azure-devops-issue": false,
-            "webhooks": false,
             "gateway-dispatch": {
               "type": "object",
               "additionalProperties": false,
@@ -804,7 +803,6 @@
                 { "required": ["jira-issue"] },
                 { "required": ["linear-issue"] },
                 { "required": ["azure-devops-issue"] },
-                { "required": ["webhooks"] },
                 { "required": ["slash-command"] },
                 { "required": ["label-command"] },
                 { "required": ["issue"] },
@@ -837,27 +835,13 @@
                   "allOf": [{ "$ref": "#/properties/on/oneOf/1/properties/label_command" }, { "properties": { "remove_label": { "const": true } } }],
                   "description": "Experimental. Native label_command configuration with matching and mandatory label consumption performed by the approved gateway server. remove_label: false is unsupported."
                 },
-                "webhooks": {
-                  "type": "array",
-                  "minItems": 1,
-                  "description": "Experimental. Generic event subscriptions with unique literal type identifiers and declarative typed equality filters evaluated before canonical URL/type/matched-filter projection. Does not register sources or grant access.",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["type"],
-                    "properties": {
-                      "type": { "$ref": "#/$defs/webhookGenericType" },
-                      "filters": { "$ref": "#/$defs/webhookGenericFilters" }
-                    }
-                  }
-                },
                 "repos": {
                   "$ref": "#/$defs/webhookRepositoryValues",
                   "description": "Experimental. Shared source repository selectors for all repository-aware gateway subscriptions; exact owner/repo or owner/* only. Ignored by non-repository event families. Selectors do not grant access."
                 },
                 "orgs": {
                   "$ref": "#/$defs/webhookOrganizationValues",
-                  "description": "Experimental. Optional shared source GitHub organization selectors for repository notifications, Projects, security alerts, and commands. Case-insensitive organization names or '*' wildcard patterns, matched only over approved sources. Ignored by external providers and generic webhooks; does not grant access."
+                  "description": "Experimental. Optional shared source GitHub organization selectors for repository notifications, Projects, security alerts, and commands. Case-insensitive organization names or '*' wildcard patterns, matched only over approved sources. Ignored by external providers; does not grant access."
                 },
                 "projects-items": {
                   "type": "object",
@@ -14813,12 +14797,6 @@
       },
       "description": "Experimental. Batched on.gateway-dispatch.security-alerts subscriptions requiring a hosted CAO server and aw.json gateway-dispatch: true. Shared on.gateway-dispatch.repos selects source repositories. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
     },
-    "webhookGenericType": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
-    },
     "webhookGitHubNotification": {
       "description": "Experimental. GitHub notification subscription filtered by the approved gateway before minimal canonical URL/type/matching-filter projection. A null trigger or omitted types selects every catalog action; no original bodies or native Actions listeners.",
       "oneOf": [
@@ -14833,21 +14811,21 @@
               "uniqueItems": true,
               "items": { "type": "string", "minLength": 1 }
             },
-            "filters": { "$ref": "#/$defs/webhookGenericFilters" }
+            "filters": { "$ref": "#/$defs/webhookNotificationFilters" }
           }
         }
       ]
     },
-    "webhookGenericFilters": {
+    "webhookNotificationFilters": {
       "type": "object",
       "minProperties": 1,
       "propertyNames": {
         "pattern": "^([A-Za-z_][A-Za-z0-9_-]*|\\*)$",
         "not": { "enum": ["__proto__", "prototype", "constructor"] }
       },
-      "additionalProperties": { "$ref": "#/$defs/webhookGenericFilterValue" }
+      "additionalProperties": { "$ref": "#/$defs/webhookNotificationFilterValue" }
     },
-    "webhookGenericFilterValue": {
+    "webhookNotificationFilterValue": {
       "oneOf": [
         { "type": "string", "not": { "pattern": "\\$\\{\\{" } },
         { "type": "boolean" },
@@ -14857,7 +14835,7 @@
           "minItems": 1,
           "oneOf": [{ "items": { "type": "string", "not": { "pattern": "\\$\\{\\{" } } }, { "items": { "type": "boolean" } }, { "items": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 } }]
         },
-        { "$ref": "#/$defs/webhookGenericFilters" }
+        { "$ref": "#/$defs/webhookNotificationFilters" }
       ]
     },
     "webhookStringValues": {

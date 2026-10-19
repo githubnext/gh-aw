@@ -69,16 +69,19 @@ func TestProviderIssueSubscriptions(t *testing.T) {
 	}
 }
 
-func TestProviderIssueMixedGitHubRequirements(t *testing.T) {
+func TestProviderIssueMixedGatewayRequirements(t *testing.T) {
 	on := providerIssueOn("jira-issue", map[string]any{})
 	gateway := on["gateway-dispatch"].(map[string]any)
 	gateway["linear-issue"] = map[string]any{"organization-id": "organization-uuid"}
 	gateway["azure-devops-issue"] = map[string]any{"project_id": "project-uuid"}
-	on["issues"] = map[string]any{"types": []any{"opened"}}
+	gateway["issue"] = map[string]any{"types": []any{"opened"}}
 	gateway["security-alerts"] = map[string]any{"sources": "dependabot"}
 	gateway["projects-items"] = map[string]any{"project_id": "PVT_example"}
 	assert.Equal(t, []string{"dependabot_alert", "issues", "projects_v2_item"}, NormalizeGitHubAppWebhookEvents(on))
-	assert.Equal(t, map[string]string{"organization_projects": "read", "vulnerability_alerts": "read"}, ComputeGitHubAppManifestWebhookPermissions(on))
+	assert.Equal(t, map[string]string{"issues": "read", "organization_projects": "read", "vulnerability_alerts": "read"}, ComputeGitHubAppManifestWebhookPermissions(on))
+	on["issues"] = map[string]any{"types": []any{"opened"}}
+	assert.Empty(t, NormalizeGitHubAppWebhookEvents(on))
+	assert.Empty(t, ComputeGitHubAppManifestWebhookPermissions(on))
 }
 
 func TestProviderIssueExperimentalNotice(t *testing.T) {

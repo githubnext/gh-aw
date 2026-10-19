@@ -5,7 +5,7 @@ const fs = require("fs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
-const { WEBHOOK_PAYLOAD_POLICY, isGenericWebhookType, isWebhookFilterName, validWebhookFilterValues } = require("./webhook_resource.cjs");
+const { WEBHOOK_PAYLOAD_POLICY, isWebhookEvent, isWebhookFilterName, validWebhookFilterValues } = require("./webhook_resource.cjs");
 const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
 const { isGatewayCommand, validGatewayCommandSubscription, matchesGatewayCommandSubscription } = require("./gateway_command_webhook.cjs");
 const { isGitHubNotification, validGitHubNotificationSubscription } = require("./github_notification_webhook.cjs");
@@ -152,7 +152,7 @@ function validateWebhook(event, env = process.env) {
     !subscriptions.every(
       subscription =>
         isObject(subscription) &&
-        isNonemptyString(subscription.event) &&
+        isWebhookEvent(subscription.event) &&
         isObject(subscription.dispatch) &&
         isNonemptyString(subscription.dispatch.event_type) &&
         subscription.dispatch.event_type.length <= MAX_EVENT_TYPE_LENGTH &&
@@ -164,7 +164,6 @@ function validateWebhook(event, env = process.env) {
         Array.isArray(subscription.types) &&
         subscription.types.length > 0 &&
         subscription.types.every(isNonemptyString) &&
-        (subscription.event !== "webhook" || (subscription.types.length === 1 && isGenericWebhookType(subscription.types[0]) && subscription.provider === undefined && subscription.activity_normalization === undefined)) &&
         hasValidRepositorySelectors(subscription) &&
         hasValidOrganizationSelectors(subscription) &&
         (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription)) &&
@@ -208,7 +207,7 @@ function validateWebhook(event, env = process.env) {
   if (!normalized) {
     reject("client_payload.aw_context.webhook is required");
   }
-  const eventSubscriptions = matching.filter(subscription => subscription.event === normalized.webhook.event && (subscription.event !== "webhook" || subscription.types[0] === normalized.webhook.deliveries[0].payload.type[0]));
+  const eventSubscriptions = matching.filter(subscription => subscription.event === normalized.webhook.event);
   if (eventSubscriptions.length !== 1) {
     reject("aw_context.webhook.event must match the webhook subscription");
   }
