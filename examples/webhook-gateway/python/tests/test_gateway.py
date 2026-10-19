@@ -617,6 +617,8 @@ class GatewayTest(unittest.TestCase):
         self.assertEqual(payload["url"], "https://api.github.com/orgs/source/projectsV2/7/items/123")
         self.assertEqual(payload["filters"]["field.to.name"], ["Ready"])
         self.assertEqual(len(payload["filters"]), 5)
+        body["changes"]["field_value"]["project_number"] = 99
+        self.assert_rejected("project_number_mismatch", lambda: project(sub, "projects_v2_item", body, source, self.config["github"]))
 
     def test_both_security_alert_families_minimal(self):
         for event, kind, severity in (("code_scanning_alert", "code-scanning", "error"), ("dependabot_alert", "dependabot", "high")):
@@ -712,6 +714,15 @@ class GatewayTest(unittest.TestCase):
         edited = copy.deepcopy(sub)
         edited["types"] = ["edited"]
         self.assertNotIn("closed-states", project(edited, "", body, config["sources"]["src"], config["github"])["filters"])
+        for revision in (
+            {"id": 99}, {"fields": {"System.Id": 99}},
+            {"url": "https://dev.azure.com/other/_apis/wit/workItems/42"},
+        ):
+            body["resource"]["revision"] = revision
+            with self.subTest(revision=revision), self.assertRaises(Rejected):
+                project(sub, "", body, config["sources"]["src"], config["github"])
+        body["resource"]["revision"] = {"id": 42, "fields": {"System.Id": 42}, "url": body["resource"]["url"]}
+        self.assertEqual(project(sub, "", body, config["sources"]["src"], config["github"])["url"], payload["url"])
         del body["resource"]["workItemId"]
         self.assert_rejected("unsafe_integer_id", lambda: project(sub, "", body, config["sources"]["src"], config["github"]))
 
@@ -765,9 +776,23 @@ class GatewayTest(unittest.TestCase):
             "https://example.atlassian.net/rest/%2e/api/3/issue/42",
             "https://example.atlassian.net/rest/../api/3/issue/42",
             "https://user:pass@example.atlassian.net/rest/api/3/issue/42",
+            "https://127.1/rest/api/3/issue/42",
+            "https://0177.0.0.1/rest/api/3/issue/42",
+            "https://0x7f000001/rest/api/3/issue/42",
+            "https://127.0.0.1./rest/api/3/issue/42",
+            "https://[0:0:0:0:0:0:0:1]/rest/api/3/issue/42",
+            "https://example.atlassian.net/{prefix}/rest/api/3/issue/42",
         ):
             with self.subTest(value=value):
                 self.assert_rejected("invalid_resource_url", lambda: canonical_url(value))
+        for value in (
+            "https://127.0.0.1/rest/api/3/issue/42",
+            "https://[::1]/rest/api/3/issue/42",
+            "https://example.atlassian.net:800/rest/api/3/issue/42",
+            "https://linear.app/workspace/issue/APP-42/encoded%2eslug",
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(canonical_url(value).geturl(), value)
 
     def test_admission_and_receipt_budgets_do_not_acknowledge_undurable_jobs(self):
         with patch("gateway.store.MAX_PENDING", 0):

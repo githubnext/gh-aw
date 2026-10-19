@@ -309,6 +309,9 @@ def resource_url(event, native, body, source, github):
         owner = body.get("organization") if project["owner_kind"] == "orgs" else body.get("sender")
         require(type(owner) is dict and type(owner.get("id")) is int and owner.get("id") == project["owner_id"]
                 and owner.get("login") == project["owner"], "project_owner_mismatch", 403)
+        delivered_number = at(body, ["changes", "field_value", "project_number"])
+        if delivered_number is not None:
+            require(type(delivered_number) is int and delivered_number == project["number"], "project_number_mismatch")
         return base_url(github["api_url"]) + "/" + project["owner_kind"] + "/" + project["owner"] + "/projectsV2/" + positive(project["number"]) + "/items/" + positive(item.get("id"))
     if event in {"dependabot_alert", "code_scanning_alert"}:
         require(source.get("repository"), "repository_binding_required", 403)
@@ -340,10 +343,24 @@ def resource_url(event, native, body, source, github):
     )
     identity = resource.get("workItemId", resource.get("id") if snapshot else None)
     number = positive(identity)
+    if snapshot and "id" in resource:
+        require(positive(resource["id"]) == number, "contradictory_azure_item_identity")
     value = resource.get("url")
     canonical_url(value)
-    require(value in [source["collection_url"] + "/" + prefix + "_apis/wit/workItems/" + number
-                      for prefix in ("", source["project_id"] + "/")], "source_url_identity_mismatch")
+    allowed = [source["collection_url"] + "/" + prefix + "_apis/wit/workItems/" + number
+               for prefix in ("", source["project_id"] + "/")]
+    require(value in allowed, "source_url_identity_mismatch")
+    if "revision" in resource:
+        revision = resource["revision"]
+        require(type(revision) is dict, "invalid_azure_revision")
+        if "id" in revision:
+            require(positive(revision["id"]) == number, "contradictory_azure_item_identity")
+        fields = revision.get("fields")
+        if type(fields) is dict and "System.Id" in fields:
+            require(positive(fields["System.Id"]) == number, "contradictory_azure_item_identity")
+        if "url" in revision:
+            canonical_url(revision["url"])
+            require(revision["url"] in allowed, "source_url_identity_mismatch")
     return value
 
 

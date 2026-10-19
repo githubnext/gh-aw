@@ -101,7 +101,8 @@ families, organization-owned Projects with reviewed URL metadata, slash commands
 and evidence-backed Jira/Linear/Azure issue normalization. External provider URL
 limitations are explicit: Linear requires original top-level `url` and
 `data.identifier`; Azure requires original `resource.url` already naming the work
-item, optionally with its enrolled project-ID segment. Azure update/revision
+item, optionally with its enrolled project-ID segment, and checks delivered
+revision IDs, `System.Id`, and revision item links for contradictions. Azure update/revision
 URLs and user-owned Projects are nonactivating. `label_command` import always
 rejects with `unsupported_label_consumption`; no source-write credential is
 provided to this process. An artifact containing an unsupported subscription is

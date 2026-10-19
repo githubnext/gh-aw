@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import re
 from urllib.parse import urlsplit, urlunsplit
@@ -99,16 +100,26 @@ def canonical_url(value, fragment=False):
     require(text(value), "invalid_resource_url")
     try:
         url = urlsplit(value)
-        authority = (url.hostname or "") + (":" + str(url.port) if url.port is not None else "")
+        host = url.hostname or ""
+        if ":" in host:
+            require("%" not in host and ipaddress.IPv6Address(host).compressed == host, "invalid_resource_url")
+            authority = "[" + host + "]"
+        else:
+            require(re.fullmatch(r"[a-z0-9.-]+", host), "invalid_resource_url")
+            last = host.rstrip(".").split(".")[-1]
+            if re.fullmatch(r"(?:[0-9]+|0x[0-9a-f]*)", last):
+                require(str(ipaddress.IPv4Address(host)) == host, "invalid_resource_url")
+            authority = host
+        authority += ":" + str(url.port) if url.port is not None else ""
         require(
-            url.scheme == "https" and url.hostname and not url.username and not url.password
+            url.scheme == "https" and host and not url.username and not url.password
             and not url.query and (fragment or not url.fragment)
             and not re.search(r"[\x00-\x20\x7f\\]", value)
-            and re.fullmatch(r"[a-z0-9.-]+", url.hostname)
             and url.netloc == authority and url.port != 443
             and urlunsplit(url) == value
-            and all(segment not in {".", ".."} for segment in url.path.split("/"))
-            and not re.search(r"%(?:2e|2f|5c)", url.path, re.I),
+            and not re.search(r'["<>`{}]', url.path)
+            and all(re.sub(r"%2e", ".", segment, flags=re.I) not in {".", ".."}
+                    for segment in url.path.split("/")),
             "invalid_resource_url",
         )
         url.netloc.encode("ascii")
