@@ -104,17 +104,19 @@ func checkGitHubCLIContracts(ctx context.Context, input Input, proxyOnly bool) (
 }
 
 func githubCLIContractMessages(args []string, proxyOnly bool) []string {
-	options, jsonFields := parseGitHubCLIOptions(args)
+	globalArgs, command, commandArgs := splitGitHubCLIArguments(args)
+	globalOptions, _ := parseGitHubCLIOptions(globalArgs)
+	commandOptions, jsonFields := parseGitHubCLIOptions(commandArgs)
 	var messages []string
-	if !proxyOnly && githubCLIOptionPresent(options, "--no-pager") {
+	if !proxyOnly && (githubCLIOptionPresent(globalOptions, "--no-pager") ||
+		githubCLIOptionPresent(commandOptions, "--no-pager")) {
 		messages = append(messages, "gh does not support --no-pager; remove the flag and configure GH_PAGER=cat in the step environment")
 	}
-	if len(args) < 2 {
+	if len(command) == 0 {
 		return messages
 	}
-	command := args[:2]
 	if proxyOnly {
-		if slices.Equal(command, []string{"pr", "diff"}) && !githubCLIOptionPresent(options, "--name-only") {
+		if slices.Equal(command, []string{"pr", "diff"}) && !githubCLIOptionPresent(commandOptions, "--name-only") {
 			return []string{"Agent prompt requires a raw PR diff through gh-proxy, which may return JSON metadata instead; pre-fetch a unified diff in a host step and pass its file path to the delegate"}
 		}
 		return nil
@@ -128,17 +130,51 @@ func githubCLIContractMessages(args []string, proxyOnly bool) []string {
 	return messages
 }
 
+func splitGitHubCLIArguments(args []string) (globalArgs, command, commandArgs []string) {
+	sawPR, skipGlobalValue, foundCommand := false, false, false
+	for _, arg := range args {
+		if foundCommand {
+			commandArgs = append(commandArgs, arg)
+			continue
+		}
+		if skipGlobalValue {
+			globalArgs = append(globalArgs, arg)
+			skipGlobalValue = false
+			continue
+		}
+		if sawPR {
+			if slices.Contains([]string{"view", "list", "diff"}, arg) {
+				command = []string{"pr", arg}
+				foundCommand = true
+				continue
+			}
+			globalArgs = append(globalArgs, "pr")
+			sawPR = false
+		}
+		if arg == "pr" {
+			sawPR = true
+			continue
+		}
+		globalArgs = append(globalArgs, arg)
+		name, _, hasInlineValue := strings.Cut(arg, "=")
+		if strings.HasPrefix(arg, "-") && !hasInlineValue && githubCLIOptionTakesValue(name) {
+			skipGlobalValue = true
+		}
+	}
+	if sawPR {
+		globalArgs = append(globalArgs, "pr")
+	}
+	return globalArgs, command, commandArgs
+}
+
 func parseGitHubCLIOptions(args []string) (map[string]struct{}, []string) {
 	options := make(map[string]struct{})
 	var jsonFields []string
 	if end := slices.Index(args, "--"); end >= 0 {
 		args = args[:end]
 	}
-	if len(args) < 2 {
-		return options, jsonFields
-	}
 	skipNext, jsonValueNext := false, false
-	for _, arg := range args[2:] {
+	for _, arg := range args {
 		if jsonValueNext {
 			jsonFields = append(jsonFields, strings.Split(arg, ",")...)
 			jsonValueNext = false
@@ -177,7 +213,8 @@ func githubCLIOptionTakesValue(option string) bool {
 	switch option {
 	case "-R", "-q", "--repo", "--jq", "--template", "--assignee", "--author",
 		"--base", "--head", "--label", "--limit", "--milestone", "--state",
-		"--search", "--sort", "--order", "--app", "--reviewer", "--review-requested":
+		"--search", "--sort", "--order", "--app", "--reviewer", "--review-requested",
+		"--hostname", "--config", "--header", "--cache", "--verbosity", "--color", "--api-port":
 		return true
 	default:
 		return false
@@ -360,10 +397,8 @@ func githubCLIPromptScripts(markdown string) []githubCLIScript {
 
 func githubCLIInstructionProse(line string) string {
 	command := githubCLIRunInstruction.ReplaceAllString(line, "")
-	if strings.HasPrefix(command, "`") {
-		if end := strings.IndexByte(command[1:], '`'); end >= 0 {
-			return command[end+2:]
-		}
+	if end := strings.IndexByte(command, '`'); end >= 0 {
+		return command[:end]
 	}
 	if strings.HasPrefix(command, "gh ") {
 		return ""

@@ -18,6 +18,7 @@ func TestGitHubCLICommandSyntax(t *testing.T) {
 		count        int
 	}{
 		{"observed pager", "gh pr view 42 --no-pager", 1},
+		{"global pager before subcommand", "gh --no-pager pr view 42", 1},
 		{"observed PR field", "gh pr view 42 --json number,authorAssociation,files", 1},
 		{"list field", "gh pr list --json=number,authorAssociation", 1},
 		{"both mistakes", "gh pr view 42 --no-pager --json 'number,authorAssociation'", 2},
@@ -109,6 +110,7 @@ func TestGitHubCLIAuthoredPromptBoundaries(t *testing.T) {
 		count        int
 	}{
 		{"literal imperative", "Run `gh pr view 42 --no-pager`.", 1},
+		{"negative wording after positive command", "Run `gh pr view 42 --no-pager` if the response is not cached.", 1},
 		{"inline command with example repository", "Run `gh pr view 42 --no-pager --repo example/project`.", 1},
 		{"list imperative", "- Run `gh pr view 42 --json authorAssociation`.", 1},
 		{"unquoted imperative", "Run gh pr diff 42 --no-pager.", 1},
