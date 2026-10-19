@@ -24,6 +24,7 @@ const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs")
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json";
 const FETCH_TIMEOUT_MS = 120_000;
+const PROVENANCE_MINIMUM_COMPILER_VERSION = "v0.91.10";
 const BLOCKED_VERSION_ISSUE_TITLE_PREFIX = "[aw] Workflows blocked by compile-agentic";
 const GITHUB_API_VERSION = "2022-11-28";
 
@@ -227,6 +228,17 @@ async function main() {
   // Only check official releases in vMAJOR.MINOR.PATCH format; ignore unknown syntax
   if (!parseVersion(compiledVersion)) {
     core.info(`Skipping version update check: '${compiledVersion}' is not an official release version (expected vMAJOR.MINOR.PATCH format)`);
+    return;
+  }
+
+  if (compareVersions(compiledVersion, PROVENANCE_MINIMUM_COMPILER_VERSION) < 0) {
+    const message = `The setup runtime requires a workflow compiled with gh-aw ${PROVENANCE_MINIMUM_COMPILER_VERSION} or newer. Update gh-aw, run \`gh aw compile\`, and commit the regenerated workflow.`;
+    core.summary
+      .addRaw("### Incompatible compiled workflow\n\n")
+      .addRaw(`This workflow was compiled with \`${compiledVersion}\`, but safe-output publishing now requires execution provenance added in \`${PROVENANCE_MINIMUM_COMPILER_VERSION}\`.\n\n`)
+      .addRaw("**Action required:** Update `gh-aw`, run `gh aw compile`, and commit the regenerated workflow.\n");
+    await core.summary.write();
+    core.setFailed(message);
     return;
   }
 
