@@ -16,7 +16,7 @@ on:
 permissions:
   contents: read
 name: Smoke Copilot SDK
-model: copilot/gpt-5.4
+model: copilot/gpt-5
 engine:
   id: copilot
   fallback-models:
