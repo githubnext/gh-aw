@@ -261,9 +261,48 @@ The destination gate needs only this public App/bot binding, not the CAO private
 
 ### CAO installation-token dance
 
-1. CAO MUST authenticate as the approved App using an App JWT signed with its protected private key and resolve the approved installation for the destination repository through the configured GitHub API.
-2. CAO MUST mint a short-lived installation access token for that installation, explicitly restricted to the destination repository and `contents: write`, the permission required by the repository dispatch endpoint. It MUST verify the returned repository scope, permissions, and expiry rather than inherit installation-wide authority.
-3. CAO MUST use that exact installation token to send `POST /repos/{owner}/{repo}/dispatches` for the admitted batch and emitted workflow route. Source and destination grants MUST still be current at dispatch, including retries; token possession does not replace durable admission, source authorization, or label-consumption fencing.
+These calls happen **on CAO before the Actions run starts**, not in the workflow's activation job. The HTTP examples use GitHub.com, illustrative App ID `123`, bot ID `456`, installation ID `321`, and destination repository ID `789` (`owner/repo`). Tokens are placeholders. Enterprise integrations MUST use their centrally approved GitHub API origin/base path and supported REST API version, not a URL supplied by a delivery.
+
+1. CAO MUST create an [App JWT](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app), signed with the approved App's private key using `RS256`. Its `iss` is the App's client ID or App ID, not the bot or installation ID. GitHub recommends backdating `iat` by 60 seconds for clock skew; `exp` MUST be no more than 10 minutes in the future. This is **not** a GitHub Actions OIDC token.
+2. CAO MUST [resolve the repository installation](https://docs.github.com/en/rest/apps/apps#get-a-repository-installation-for-the-authenticated-app) using that JWT:
+
+   ```http
+   GET /repos/owner/repo/installation HTTP/1.1
+   Host: api.github.com
+   Accept: application/vnd.github+json
+   Authorization: Bearer <CAO_APP_JWT>
+   X-GitHub-Api-Version: 2022-11-28
+   ```
+
+   A `200 OK` response contains the installation's `id`, `app_id`, account, permissions, and suspension information. CAO MUST compare these with the independently approved destination binding; receiving an installation object is not itself enrollment approval. A redirect or missing, suspended, or mismatched installation MUST NOT cause a credential or destination fallback.
+3. CAO MUST [mint a repository-restricted installation access token](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app) using the same App identity:
+
+   ```http
+   POST /app/installations/321/access_tokens HTTP/1.1
+   Host: api.github.com
+   Accept: application/vnd.github+json
+   Authorization: Bearer <CAO_APP_JWT>
+   Content-Type: application/json
+   X-GitHub-Api-Version: 2022-11-28
+
+   {"repository_ids":[789],"permissions":{"contents":"write"}}
+   ```
+
+   The `201 Created` response supplies `token`, `expires_at`, `permissions`, and repository-selection information. CAO MUST verify the returned destination scope, approved permissions, and expiry, accounting for GitHub's implicit metadata access. Omitting `repository_ids` or `permissions` would inherit broader installation authority and is forbidden by this contract. GitHub documents a one-hour installation-token lifetime; CAO MUST honor the actual returned expiry. The token MUST be treated as an opaque credential, not parsed or identified by a fixed length or prefix.
+4. CAO MUST use **that exact installation token**, not the App JWT, to [create the repository dispatch](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event):
+
+   ```http
+   POST /repos/owner/repo/dispatches HTTP/1.1
+   Host: api.github.com
+   Accept: application/vnd.github+json
+   Authorization: Bearer <CAO_INSTALLATION_TOKEN>
+   Content-Type: application/json
+   X-GitHub-Api-Version: 2022-11-28
+
+   {"event_type":"<emitted dispatch.event_type>","client_payload":{"schema_version":2,"aw_context":{"webhook":{"event":"dependabot_alert","deliveries":[{"delivery_id":"<original delivery identity>","payload":{"url":"https://api.github.com/repos/owner/repo/dependabot/alerts/42","type":["created"]}}]}}}}
+   ```
+
+   This complete minimal example assumes a `created` Dependabot subscription without conditions. The real `event_type` MUST be copied from the approved compiled manifest; the placeholder is not a usable route. The response is **`204 No Content`**, with no workflow result or continuation token. It acknowledges the dispatch request, not successful job execution. The compiled workflow must already exist on the destination's default branch under GitHub's [`repository_dispatch` execution rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#repository_dispatch). Source and destination grants MUST still be current at dispatch, including retries; token possession does not replace durable admission, source authorization, or label-consumption fencing.
 
 A PAT, GitHub App user access token, workflow `GITHUB_TOKEN`, another App's token, or a fallback credential MUST NOT send a gateway dispatch. Mint or dispatch failure MUST be explicit and nonactivating; retries MUST NOT switch credential classes or bypass admission. Reuse of an unexpired token is allowed only while its exact repository/permission scope and installation approval remain valid.
 
@@ -289,6 +328,113 @@ The gate pins its GitHub API/server URLs and `GITHUB_EVENT_PATH` to GitHub-owned
 Only GitHub's top-level sender and original actor context establish the dispatch principal. `client_payload` sender/app/installation claims, event-type names, delivery IDs, source webhook signatures, and tokens minted by the destination workflow are not proof of who sent the dispatch. The workflow MUST NOT request or accept a bearer token in the payload. A top-level installation field alone MUST NOT be treated as proof of the dispatch credential's installation or scope.
 
 This check authenticates the approved App principal, not a particular CAO process, tenant, original provider signature, or exact token instance. GitHub does not expose the dispatch bearer token to the workflow. Token minting/scope validation and installation checks therefore belong to CAO; the destination verifies the independently bound App sender. CAO MUST enforce source/destination isolation for every tenant sharing that App. Original-source authentication, durable admission, and replay controls remain receiver responsibilities.
+
+### Actions run, activation requests, and continuation
+
+**The current gateway has no activation-to-CAO authorization endpoint, token exchange, or continuation response.** The specified direction is CAO → GitHub dispatch → `gateway_provenance` → `pre_activation` → `activation` → agent. gh-aw implements the destination gate and local batch validation; the server-side calls above are CAO requirements, not evidence that a particular receiver revision is deployed or conforming. An Actions OIDC request is not part of this path, and gateway configuration alone does not grant `id-token: write`.
+
+| Stage | Credential, input, and continuation |
+| --- | --- |
+| GitHub starts the run | GitHub supplies the original event file at `github.event_path`, the top-level sender, original `github.actor_id`, and destination repository context. The closed `client_payload` contains only the minimal notification envelope, never CAO's dispatch credential. |
+| `gateway_provenance` starts | GitHub supplies this job's own read-only [`GITHUB_TOKEN`](https://docs.github.com/en/actions/concepts/security/github_token). It is distinct from the incoming CAO installation token and authenticates the gate's outgoing metadata requests only. No OIDC token or App private key is requested. |
+| The gate requests GitHub metadata | Pinned `actions/github-script` calls `github.rest.apps.getBySlug({app_slug: "cao", ...})` and `github.rest.users.getByUsername({username: "cao[bot]", ...})` using the job's `GITHUB_TOKEN`. These are the two REST requests below, not a call to a CAO endpoint. |
+| The gate decides | Both responses must be `200`. The App response's `id`/`slug` and bot response's `id`/`login`/`type` must match the central App/bot binding and original sender/actor. The route and event repository must match GitHub's destination context. Failure keeps `verified=false` and fails the job; success publishes only `verified=true`, not a bearer token. |
+| `pre_activation` runs | Its direct dependency and mandatory condition require the successful provenance result and `verified == 'true'`. Its normal stop-time, rate, cooldown, and other configured checks still apply. The generated activation decision consumes the provenance output instead of generic role/bot membership. |
+| `activation` runs | After setup, `validate-webhook.cjs` reads `GITHUB_EVENT_PATH` locally and checks the route, closed numeric-v2 envelope, byte limits, projection, resource URLs, selected activities, and matching filter literals against compiled subscriptions. **This validation makes no HTTP request.** `generate_aw_info.cjs` then derives normalized deliveries and unique items for context and prompt expressions. |
+| The workflow continues | With the normal generated conditions, failed activation does not start the agent. After successful activation and the remaining configured guards, the agent stages the minimal event and handles every intended item. Additional data requires separately authorized provider clients; neither a URL nor successful provenance grants read access. Every job retains the direct provenance dependency, even when it uses `always()`. |
+
+The gate's equivalent HTTP requests have no request body:
+
+```http
+GET /apps/cao HTTP/1.1
+Host: api.github.com
+Accept: application/vnd.github+json
+Authorization: token <GATE_JOB_GITHUB_TOKEN>
+```
+
+```http
+GET /users/cao%5Bbot%5D HTTP/1.1
+Host: api.github.com
+Accept: application/vnd.github+json
+Authorization: token <GATE_JOB_GITHUB_TOKEN>
+```
+
+The relevant `200` response fields are respectively `{"id":123,"slug":"cao"}` and `{"id":456,"login":"cao[bot]","type":"Bot"}`; these are field excerpts, not complete responses. See GitHub's [Get an app](https://docs.github.com/en/rest/apps/apps#get-an-app) and [Get a user](https://docs.github.com/en/rest/users/users#get-a-user) API contracts. The current verifier disables redirects and retries and sets a 15-second timeout on each metadata request. It never obtains the incoming dispatch token, contacts the resource URL, or returns a credential to the agent.
+
+### OIDC tokens: a separate, unimplemented endpoint journey
+
+An activation job **can** authenticate to an independently designed OIDC-aware service, but that would be an additional protocol, not the App-token verification above. GitHub documents token issuance and claims; it does not define a CAO request path, request body, authorization decision, or response schema.
+
+The credentials involved MUST NOT be interchanged:
+
+| Credential | Issuer or holder | Intended recipient and authority |
+| --- | --- | --- |
+| `ACTIONS_ID_TOKEN_REQUEST_TOKEN` | GitHub Actions runner | Authenticates only the request to the runner-provided OIDC request URL. It MUST NOT be sent to CAO or to resource URLs. |
+| Actions OIDC ID token | GitHub's OIDC issuer | Proves signed workflow/job claims to the specifically approved audience. It is not a GitHub REST API access token or an App JWT; current gateway provenance does not use it. |
+| CAO App JWT | CAO, signed with its App private key | Authenticates CAO to GitHub's installation lookup and token-minting endpoints. It MUST remain server-side. |
+| CAO installation access token | GitHub, issued for the approved CAO installation | Authorizes the destination-scoped dispatch with `contents: write`. It MUST NOT be returned to the workflow as a provenance proof. |
+| Job `GITHUB_TOKEN` | GitHub Actions | Authorizes the particular job's GitHub API operations under its declared permissions, not calls to an arbitrary external service. |
+
+#### Requesting an Actions OIDC token
+
+An OIDC-calling job needs **`id-token: write`** in its effective GitHub Actions permissions; grant it at job level for least privilege. That permission enables ID-token issuance; it does not grant repository write access. This is not currently added for gateway provenance. Optional observability OIDC elsewhere in a workflow has its own audience and is unrelated to gateway admission.
+
+GitHub's [OIDC request methods](https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token) expose `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` to an authorized job. A custom action can request an ID token with the [Actions toolkit](https://docs.github.com/en/actions/concepts/security/openid-connect#authenticating-custom-actions-using-oidc):
+
+```javascript
+const audience = process.env.APPROVED_SERVICE_AUDIENCE;
+if (!audience) throw new Error("An approved OIDC service audience is required");
+const idToken = await core.getIDToken(audience);
+core.setSecret(idToken);
+```
+
+For an illustrative audience of `https://cao.example`, the equivalent request is:
+
+```http
+GET <ACTIONS_ID_TOKEN_REQUEST_URL>&audience=https%3A%2F%2Fcao.example HTTP/1.1
+Authorization: Bearer <ACTIONS_ID_TOKEN_REQUEST_TOKEN>
+```
+
+The URL is supplied by the runner and already has query parameters; this is **not** `GET https://api.github.com/...`. The actual audience must be URL-encoded, centrally approved, and explicitly supplied rather than relying on the default repository-owner audience. The JSON response's `value` field contains the signed ID token:
+
+```json
+{"value":"<signed GitHub Actions OIDC JWT>"}
+```
+
+That value, not the request credential, is what an OIDC-aware service would receive as its bearer credential. Neither value may be printed, included in diagnostic HTTP traces, stored in artifacts, or forwarded to the agent.
+
+#### What an endpoint must verify before continuation
+
+The following is an **illustrative decoded claim excerpt**, not a usable token or a newly defined CAO payload:
+
+```json
+{
+  "iss": "https://token.actions.githubusercontent.com",
+  "aud": "https://cao.example",
+  "sub": "<subject allowed by the configured trust policy>",
+  "repository": "owner/repo",
+  "repository_id": "789",
+  "repository_owner_id": "42",
+  "workflow_ref": "owner/repo/.github/workflows/example.lock.yml@refs/heads/main",
+  "workflow_sha": "0123456789abcdef0123456789abcdef01234567",
+  "ref": "refs/heads/main",
+  "event_name": "repository_dispatch",
+  "actor_id": "456",
+  "run_id": "10001",
+  "run_attempt": "1",
+  "check_run_id": "20001",
+  "jti": "<unique token identifier>",
+  "iat": 1792436400,
+  "nbf": 1792436400,
+  "exp": 1792436700
+}
+```
+
+See the authoritative [OIDC claim reference](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims). Claim presence and subject templates depend on the supported GitHub host and job configuration; `job_workflow_ref`/`job_workflow_sha` concern reusable workflows and are not substitutes for the caller's identity. GitHub also supports immutable/custom subjects, so a receiver MUST NOT assume every `sub` is a legacy `repo:owner/repo:ref:...` string.
+
+An endpoint accepting this credential would need to validate the signature and allowed algorithm/key using the **preconfigured trusted issuer's** discovery metadata and JWKS, not a token-supplied arbitrary URL. For GitHub.com, discovery is [`https://token.actions.githubusercontent.com/.well-known/openid-configuration`](https://token.actions.githubusercontent.com/.well-known/openid-configuration). It must check exact issuer/audience, validity times, approved immutable repository/owner identities, workflow path and approved revision, event/ref, and the intended run/attempt/job binding. A valid ID token alone does not establish source grants, approved compiler/manifest content, freshness of authorization, or a job's logical name `activation`. Client-supplied JSON does not become signed OIDC claims.
+
+**No such CAO endpoint request or continuation payload is defined or implemented here.** In particular, there is no specified `POST /activate`, OIDC-to-App-token exchange, returned `allowed` field, or token that unblocks the current activation job. A future extension must separately define its endpoint, audience/trust policy, closed request/response schemas, request-to-run binding, replay/idempotency rules, timeouts, and fail-closed continuation before a compiler or receiver may claim support. It must not replace the existing App-sender gate or put bearer tokens into the closed dispatch envelope.
 
 ### Conformance and adoption
 

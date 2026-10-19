@@ -422,6 +422,8 @@ Under the required [App-token contract](/gh-aw/specs/webhook-gateway-specificati
 
 The App ID and public identity configuration are central settings, not per-workflow frontmatter. Configure organization/repository Actions variables `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID` as the approved positive decimal App and bot-account IDs, consistently with CAO's protected environment configuration. The compiler maps these variables into the gate's step environment; missing, empty, or malformed values fail closed. The gate uses its read-only `GITHUB_TOKEN` for identity metadata only and does not mint App or user-configured telemetry credentials. CAO's private key remains in server-side secret-backed configuration and is never needed by the destination gate.
 
+The specification documents the [exact API and activation continuation sequence](/gh-aw/specs/webhook-gateway-specification/#actions-run-activation-requests-and-continuation), including CAO's installation lookup, scoped token request, dispatch payload, and the gate's metadata calls. The current activation job does not request a CAO endpoint or an OIDC token for gateway admission; [OIDC token issuance and the missing endpoint contract](/gh-aw/specs/webhook-gateway-specification/#oidc-tokens-a-separate-unimplemented-endpoint-journey) are documented separately.
+
 | Data | Standard GitHub context |
 | --- | --- |
 | Relay envelope | `github.event.client_payload` |
