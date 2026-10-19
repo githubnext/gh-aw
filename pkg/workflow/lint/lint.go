@@ -232,5 +232,7 @@ func Default() *Runner {
 		FirewallSSLBumpRule(),
 		CustomJobDetectionRule(),
 		GraderFileIORule(),
+		PullRequestTargetCheckoutRule(),
+		PromptExpressionRule(),
 	}}
 }

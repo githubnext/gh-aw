@@ -485,7 +485,7 @@ func TestCodexEngineRenderMCPConfigOpenAIProxyProvider(t *testing.T) {
 		var yaml strings.Builder
 		workflowData := &WorkflowData{
 			Name:  "test-workflow",
-			Model: "copilot/mai-code-1-flash-picker",
+			Model: "copilot/mai-code-1.1-flash",
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{Enabled: true},
 			},
@@ -530,7 +530,7 @@ func TestCodexEngineOpenAIProxyProviderBaseURL(t *testing.T) {
 
 	t.Run("uses the Copilot gateway port for copilot models", func(t *testing.T) {
 		expected := "http://" + net.JoinHostPort(constants.AWFAPIProxyContainerIP, strconv.Itoa(constants.CopilotLLMGatewayPort))
-		workflowData := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}, Model: "copilot/mai-code-1-flash-picker"}
+		workflowData := &WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}, Model: "copilot/mai-code-1.1-flash"}
 
 		if actual := engine.getOpenAIProxyProviderBaseURL(workflowData); actual != expected {
 			t.Errorf("Expected Copilot proxy provider base URL %q, got %q", expected, actual)

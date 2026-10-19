@@ -15,8 +15,10 @@ import (
 func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, positive bool, jobs int) Input {
 	tb.Helper()
 	source := contract.safe
+	prompt := contract.safePrompt
 	if positive {
 		source = contract.unsafe
+		prompt = contract.unsafePrompt
 	}
 	if target == ActionsAST {
 		workflow, err := actions.Parse([]byte(source))
@@ -33,6 +35,9 @@ func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, p
 	}
 	document, err := aw.Parse("---\n" + source + "---\nPublic performance-test prompt.\n")
 	require.NoError(tb, err)
+	if prompt != "" {
+		document.Markdown = prompt
+	}
 	template := map[string]any{
 		"runs-on": "ubuntu-latest",
 		"steps":   []any{map[string]any{"shell": "bash", "run": "echo public"}},
