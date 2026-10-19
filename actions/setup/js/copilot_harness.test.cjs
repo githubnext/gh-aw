@@ -4543,6 +4543,17 @@ describe("Copilot SDK configured-model liveness (recorded /reflect from run 3919
     expectCatalogUnavailable(run, "claude-opus-4.8", { checked: "copilot (http://api-proxy:10002/, 0 models)" });
   });
 
+  it("an incomplete catalogue on both attempts records catalog_unavailable", async () => {
+    const incompleteCatalogue = () => {
+      const reflect = recordedReflect();
+      reflect.models_fetch_complete = false;
+      reflect.endpoints.find(endpoint => endpoint.provider === "copilot").models = null;
+      return reflect;
+    };
+    const run = await startSDK("claude-opus-4.8", { reflect: incompleteCatalogue(), refreshed: [incompleteCatalogue()] });
+    expectCatalogUnavailable(run, "claude-opus-4.8", { checked: "copilot (http://api-proxy:10002/, no model list)" });
+  });
+
   it("a degraded refresh keeps the complete initial catalogue's model_unavailable result", async () => {
     const degraded = recordedReflect();
     degraded.models_fetch_complete = false;
