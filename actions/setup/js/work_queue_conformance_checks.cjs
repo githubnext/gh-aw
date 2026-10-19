@@ -179,7 +179,7 @@ if (require.main === module) {
   else if (process.argv.includes("--replay")) {
     const fs = require("node:fs");
     const input = parseStrictJSON(fs.readFileSync(0, "utf8"));
-    const state = replayTransactions(input.transactions);
+    const state = replayTransactions(input.transactions, input.as_of);
     const output = { state: serializeProjection(state), canonical: serializeTransactionLog(input.transactions) };
     if (input.pool) output.next = selectionOnly(planNext(state, input.pool, input.at));
     if (input.parameters) output.decision = planDispatch(state, input.parameters, { requestId: input.request_id, commitId: input.commit_id, at: input.at });

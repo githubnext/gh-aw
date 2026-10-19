@@ -13,6 +13,7 @@ const { serializeDeployments } = require("./work_queue_deployment.cjs");
 const { writeWorkQueueUpdateSummary } = require("./work_queue_summary_renderer.cjs");
 const { queueAuthenticationScope } = require("./work_queue_auth_cache.cjs");
 const { queueGitScope, queueLedgerClient } = require("./work_queue_git_transport.cjs");
+const { expirationView } = require("./work_queue_expiration.cjs");
 const {
   appendCommit,
   causalChain,
@@ -21,7 +22,7 @@ const {
   newRequest,
   newState,
   parseTransactionRecords,
-  prepareCheckpoint,
+  reconstructCheckpoint,
   proposedCommitId,
   replayTransactionLog,
   replayTransactions,
@@ -263,7 +264,7 @@ async function verifyCheckpointGitHistory(options, head, root) {
           .digest("hex") !== checkpoint.history_sha256
       )
         throw invalid();
-      if (previous.state.tip !== checkpoint.prior_tip || prepareCheckpoint(previous.transactions, parent, root.actor, root.at)[0].operations[0].state_sha256 !== checkpoint.state_sha256) throw invalid();
+      if (previous.state.tip !== checkpoint.prior_tip || reconstructCheckpoint(previous.transactions, parent, root.actor, root.at, checkpoint.state_sha256)[0].operations[0].state_sha256 !== checkpoint.state_sha256) throw invalid();
       head = parent;
       root = previous.transactions[0];
       break;
@@ -300,7 +301,7 @@ function validateExtendingPrefix(previous, current, message) {
         createHash("sha256")
           .update(previous.map(commit => canonical(commit)).join("\n") + "\n", "utf8")
           .digest("hex") === history_sha256 &&
-        prepareCheckpoint(previous, current[0].operations[0].prior_git_sha, undefined, current[0].at)[0].operations[0].state_sha256 === current[0].operations[0].state_sha256
+        reconstructCheckpoint(previous, current[0].operations[0].prior_git_sha, undefined, current[0].at, current[0].operations[0].state_sha256)[0].operations[0].state_sha256 === current[0].operations[0].state_sha256
       )
         return;
     }
@@ -353,7 +354,7 @@ async function validateCompactionExtension(previous, current, { githubClient, ow
       .digest("hex") !== checkpoint.history_sha256
   )
     throw queueError("ledger_invalid", message);
-  if (prepareCheckpoint(source.transactions, checkpoint.prior_git_sha, undefined, current[0].at)[0].operations[0].state_sha256 !== checkpoint.state_sha256) throw queueError("ledger_invalid", message);
+  if (reconstructCheckpoint(source.transactions, checkpoint.prior_git_sha, undefined, current[0].at, checkpoint.state_sha256)[0].operations[0].state_sha256 !== checkpoint.state_sha256) throw queueError("ledger_invalid", message);
   await validateCompactionExtension(previous, source.transactions, { githubClient, owner, repo, sha: checkpoint.prior_git_sha, branch }, message, depth + 1);
 }
 
@@ -529,7 +530,9 @@ async function publishWorkQueueRequest({
         };
       } else throw queueError("queue_missing", "submit Work to bootstrap an absent queue; standalone Policy seeding is unsupported");
     }
-    validateRequestContext(current.state, stable, stableActor);
+    // Defer admission quotas until the candidate's trusted decision time, but
+    // retain dispatch scope validation before any native dependency reads.
+    if (stable.kind !== "submit") validateRequestContext(current.state, stable, stableActor);
     if (stableActor.role === "worker" && ["submit", "dispatch_next", "observe"].includes(stable.kind)) validateWorkerContinuation(current.state, context);
     if (stable.kind === "submit")
       for (const node of stable.parameters.nodes) {
@@ -548,6 +551,7 @@ async function publishWorkQueueRequest({
     const observations = Array.isArray(refresh) ? refresh : refresh && typeof refresh === "object" && "operations" in refresh ? refresh.operations : undefined;
     if (!Array.isArray(observations) || observations.some(operation => operation?.kind !== "Observation")) throw queueError("request_invalid", "observation refresh must return only typed Observation operations");
     const at = integer(now(), 0, Number.MAX_SAFE_INTEGER, "trusted publication time");
+    if (stable.kind === "submit") validateRequestContext(expirationView(current.state, at), stable, stableActor);
     const id = identity(commitId(commitId === proposedCommitId ? current.state : structuredClone(current.state), structuredClone(stable)), "candidate commit ID");
     const generated = await generateOperations(generateOperations === generateRequestOperations ? current.state : structuredClone(current.state), structuredClone(stable), structuredClone(stableActor), at, id, structuredClone(observations));
     const decision = Array.isArray(generated) ? { operations: generated } : generated;
@@ -579,6 +583,9 @@ async function publishWorkQueueRequest({
     }
     let sha;
     try {
+      // Regenerate immediately with fresh time to exclude expired Work from the next
+      // candidate; no ref write was attempted here, so contention backoff is unnecessary.
+      if (require("./work_queue_expiration.cjs").expiringGrant(current.state, checked.commit.operations, now)) continue;
       sha = await writeCandidate({ githubClient, owner, repo, current, transactions: checked.transactions });
     } catch (error) {
       log.failure("request.publish.write_failed", error);

@@ -10,6 +10,7 @@ const { boundedBytes, checkLedgerBudget } = require("./work_queue_limits.cjs");
 const { indexesFor, trackState, untrackState, updateIndexes } = require("./work_queue_indexes.cjs");
 const { validateEffectResourceAuthority } = require("./work_queue_resource_scope.cjs");
 const { applyIssueBinding } = require("./work_queue_issue_contract.cjs");
+const { advanceExpiration, expirationView } = require("./work_queue_expiration.cjs");
 const { initializeDeployments, validateDeployment, applyDeployment, admissionProfile, serializeDeployments, restoreDeployments } = require("./work_queue_deployment.cjs");
 const {
   actorFromContext,
@@ -49,7 +50,7 @@ const OP_FIELDS = {
   Control: [["kind", "control", "value", "reason"], []],
   Work: [
     ["kind", "work_id", "graph_id", "node_key", "pool", "priority", "fairness_key", "worker_profile", "batch_trust_domain", "payload", "depends_on", "enqueued"],
-    ["subject", "backing_issue", "replacement_of", "logical_contract", "execution_ref"],
+    ["subject", "backing_issue", "replacement_of", "logical_contract", "execution_ref", "expires_at"],
   ],
   Claim: [["kind", "work_id", "claim_id", "dispatch_id", "handle", "observations"], []],
   Completion: [["kind", "work_id", "claim_id", "dispatch_id", "claim_handle", "run_id", "run_attempt"], ["keep_open"]],
@@ -187,6 +188,7 @@ function validateOperation(operation) {
     if (Object.hasOwn(operation, "keep_open") && typeof operation.keep_open !== "boolean") throw queueError("request_invalid", "keep_open must be boolean");
   }
   if (operation.kind === "ClaimCancellation") integer(operation.retry_not_before, 0, Number.MAX_SAFE_INTEGER, "retry-not-before");
+  if (operation.expires_at !== undefined) integer(operation.expires_at, 0, Number.MAX_SAFE_INTEGER, "Work expiration timestamp");
   if (operation.kind === "Control") {
     if (!["admission_paused", "grants_paused", "credential_generation"].includes(operation.control)) throw queueError("control_invalid", "unknown Control");
     if (operation.control === "credential_generation") identity(operation.value, "credential generation");
@@ -345,6 +347,7 @@ function newState() {
   return {
     repository: "",
     tip: "",
+    time_watermark: 0,
     policy_epoch: "",
     /** @type {ReturnType<typeof defaultPolicy> | null} */
     policy: null,
@@ -555,8 +558,9 @@ function applyLifecycle(state, operation, commit) {
           throw queueError("work_unauthorized", "worker can terminally cancel only its exhausted cancelled Claim scope");
       }
       if (work.state === "cancelled") {
-        const cancelled = state.cancellations.get(work.work_id);
+        const cancelled = state.cancellations.get(work.work_id) ?? (work.cancellation_reason === "work_expired" ? { kind: "WorkCancellation", work_id: work.work_id, reason: "work_expired" } : undefined);
         if (!cancelled || canonical(cancelled) !== canonical(operation)) throw queueError("cancellation_conflict", "terminal cancellation metadata is immutable");
+        state.cancellations.set(work.work_id, operation);
         break;
       }
       if (work.state === "claimed") {
@@ -729,8 +733,14 @@ function validateRequestContext(state, request, actor) {
   if (request.kind === "submit") validateGraphAdmission(state, request.parameters.nodes, actor);
 }
 
-function replayTransactions(transactions) {
-  return replayOrdered(causalChain(transactions));
+function replayTransactions(transactions, asOf) {
+  if (asOf !== undefined) integer(asOf, 0, Number.MAX_SAFE_INTEGER, "replay timestamp");
+  const state = replayOrdered(causalChain(transactions));
+  if (asOf !== undefined) {
+    advanceExpiration(state, asOf);
+    projectViews(state);
+  }
+  return state;
 }
 
 function checkpointSnapshot(state, lastAt) {
@@ -869,6 +879,7 @@ function restoreCheckpointState(checkpoint) {
   state.policy_epoch = snapshot.policy_epoch;
   state.policy = snapshot.policy;
   state.tip = checkpoint.id;
+  state.time_watermark = snapshot.last_at;
   state.admission_paused = snapshot.admission_paused;
   state.grants_paused = snapshot.grants_paused;
   state.credential_generation = snapshot.credential_generation;
@@ -955,7 +966,7 @@ function restoreCheckpointState(checkpoint) {
       previous: receipt.previous,
       request: { id: receipt.request_id, kind: receipt.kind, fingerprint: receipt.fingerprint, parameters: receipt.dispatch_parameters ?? null },
       compacted_parameters_digest: receipt.parameters_digest,
-      checkpoint_prior_tip: receipt.prior_tip,
+      ...(receipt.prior_tip === undefined ? {} : { checkpoint_prior_tip: receipt.prior_tip }),
       actor: receipt.actor,
       policy_epoch: receipt.policy_epoch,
       at: receipt.at,
@@ -968,6 +979,7 @@ function restoreCheckpointState(checkpoint) {
       state.claimExplanations.set(claim.claim_id, { ...explanation });
     }
     state.requests.set(receipt.request_id, prior);
+    state.time_watermark = Math.max(state.time_watermark, receipt.at);
     state.historicalTransactions.push(prior);
   }
   const nodeFields = [
@@ -983,6 +995,7 @@ function restoreCheckpointState(checkpoint) {
     "payload",
     "depends_on",
     "enqueued",
+    "expires_at",
     "subject",
     "backing_issue",
     "replacement_of",
@@ -1089,6 +1102,7 @@ function restoreCheckpointState(checkpoint) {
   state.ledgerBytes = canonicalBytes(checkpoint) + 1;
   const policy = state.policy;
   if (!policy || state.ledgerBytes + require("./work_queue_limits.cjs").recoveryHeadroom(state) > policy.limits.ledger_bytes + policy.limits.recovery_bytes) throw invalid();
+  advanceExpiration(state, checkpoint.at);
   return state;
 }
 
@@ -1155,6 +1169,7 @@ function replayOrdered(ordered) {
   }
   for (let ordinal = 0; ordinal < ordered.length; ordinal++) {
     const commit = ordered[ordinal];
+    advanceExpiration(state, commit.at);
     if (ordinal === 0 && !offset) state.repository = commit.actor.repository;
     const priorRequest = state.requests.get(commit.request.id);
     if (priorRequest) throw queueError("request_reused", priorRequest.request.fingerprint === commit.request.fingerprint ? "committed request cannot appear in another commit" : "request identity has different semantics");
@@ -1305,6 +1320,9 @@ function replayOrdered(ordered) {
       }
       updateIndexes(state, operation);
     }
+    // Operations may admit Work or make it expirable by cancelling a Claim or
+    // verifying retained delivery; the pre-operation pass cannot cover these changes.
+    advanceExpiration(state, commit.at);
     if (expected && claimIndex !== expected.operations.length) throw queueError("packing_invalid", "Claim commit omitted an admissible member of the fair prefix");
     if (!expected && commit.request.kind === "dispatch_next") throw queueError("request_invalid", "no-grant evaluation cannot consume a stable request identity");
     // Retry exhaustion cannot leave an immediately retryable poison head.
@@ -1373,7 +1391,14 @@ function serializeProjection(state) {
     claims: mapObject(state.claims),
     dispatches: mapObject(state.dispatches),
     observations: mapObject(state.observations),
-    requests: mapObject(state.requests),
+    requests: mapObject(
+      new Map(
+        [...state.requests].map(([id, commit]) => {
+          const { compacted_parameters_digest, checkpoint_prior_tip, checkpoint_events, ...wire } = commit;
+          return [id, wire];
+        })
+      )
+    ),
     clocks: Object.fromEntries([...state.clocks].map(([pool, clock]) => [pool, diagnostics(clock)])),
     admission_paused: state.admission_paused,
     grants_paused: state.grants_paused,
@@ -1422,14 +1447,24 @@ function serializeTransactionLog(transactions) {
   return ordered.length ? ordered.map(commit => canonical(commit)).join("\n") + "\n" : "";
 }
 
-function compactTransactions(transactions, priorGitSHA, actor, at = Date.now()) {
+function compactTransactions(transactions, priorGitSHA, actor, at) {
+  return checkpointTransactions(transactions, priorGitSHA, actor, at, false);
+}
+
+function checkpointTransactions(transactions, priorGitSHA, actor, at, legacy) {
   const validated = replayTransactions(transactions);
   if (priorGitSHA === undefined) return validated.transactions;
-  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(priorGitSHA) || actor?.role !== "administrator" || actor.repository !== validated.repository || !Number.isSafeInteger(at) || at < 0 || at > Number.MAX_SAFE_INTEGER)
+  if (at === undefined) at = Math.max(Date.now(), validated.time_watermark);
+  let lastAt = validated.time_watermark;
+  if (legacy) {
+    if ([...validated.works.values()].some(work => work.expires_at !== undefined)) throw queueError("checkpoint_invalid", "deadline-bearing history requires the committed time watermark");
+    lastAt = validated.transactions.at(-1).at;
+  }
+  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(priorGitSHA) || actor?.role !== "administrator" || actor.repository !== validated.repository || !Number.isSafeInteger(at) || at < lastAt || at > Number.MAX_SAFE_INTEGER)
     throw queueError("checkpoint_invalid", "checkpoint requires an administrator, valid time and prior Git commit SHA");
   const history = serializeTransactionLog(validated.transactions);
   const history_sha256 = createHash("sha256").update(history, "utf8").digest("hex");
-  const state = checkpointSnapshot(validated, validated.transactions.at(-1).at);
+  const state = checkpointSnapshot(validated, lastAt);
   const state_sha256 = digest(state);
   const requests_compressed = deflateRawSync(Buffer.from(canonical(state.requests), "utf8")).toString("base64");
   const { requests: _, ...projection } = state;
@@ -1458,7 +1493,23 @@ function prepareCheckpoint(source, priorGitSHA, actor, at) {
   const ordered = causalChain(transactions);
   const root = ordered[0];
   const administrator = actor ?? { role: "administrator", principal: root.actor.principal, repository: root.actor.repository };
-  return compactTransactions(transactions, priorGitSHA, administrator, at ?? ordered.at(-1).at);
+  return compactTransactions(transactions, priorGitSHA, administrator, at ?? replayOrdered(ordered).time_watermark);
+}
+
+// Only history verification may reproduce the pre-expiration final-timestamp
+// hash. New checkpoints always use the committed watermark.
+function reconstructCheckpoint(transactions, priorGitSHA, actor, at, expectedStateSHA) {
+  const root = causalChain(transactions)[0];
+  const administrator = actor ?? { role: "administrator", principal: root.actor.principal, repository: root.actor.repository };
+  for (const legacy of [false, true]) {
+    try {
+      const checkpoint = checkpointTransactions(transactions, priorGitSHA, administrator, at, legacy);
+      if (checkpoint[0].operations[0].state_sha256 === expectedStateSHA) return checkpoint;
+    } catch (error) {
+      if (error?.code !== "checkpoint_invalid") throw error;
+    }
+  }
+  throw queueError("checkpoint_invalid", "checkpoint does not match its Git parent history");
 }
 
 function appendCommit(transactions, commit) {
@@ -1481,6 +1532,7 @@ function appendCommit(transactions, commit) {
 }
 
 function generateRequestOperations(state, request, actor, at, commitId, observations = []) {
+  state = expirationView(state, at);
   validateRequestContext(state, request, actor);
   if (request.kind === "dispatch_next") return observations.length ? planDispatchWithObservations(state, request, actor, at, commitId, observations) : planDispatch(state, request.parameters, { requestId: request.id, commitId, at });
   if (request.kind === "submit") {
@@ -1559,6 +1611,7 @@ module.exports = {
   parseTransactionRecords,
   planDispatchWithObservations,
   prepareCheckpoint,
+  reconstructCheckpoint,
   proposedCommitId,
   planNext,
   quiescent,
