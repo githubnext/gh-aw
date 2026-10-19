@@ -53,6 +53,7 @@ describe("Safe Output Handler Manager", () => {
     delete process.env.GH_AW_SAFE_OUTPUT_ACTIONS;
     delete process.env.GH_AW_DETECTION_CONCLUSION;
     delete process.env.GH_AW_DETECTION_REASON;
+    delete process.env.GH_AW_RUN_DETECTION;
     delete process.env.RUNNER_TEMP;
     delete global.github;
     delete global.context;
@@ -1166,6 +1167,41 @@ describe("Safe Output Handler Manager", () => {
       for (const r of result.results) {
         expect(r).toMatchObject({ success: false, cancelled: true, errorCode: "threat_detection_failure_blocked" });
       }
+    });
+
+    it.each([undefined, "", "  "])("never applies any output when detection was required but the conclusion is %j (defence in depth)", async conclusion => {
+      process.env.GH_AW_RUN_DETECTION = "true";
+      if (conclusion !== undefined) process.env.GH_AW_DETECTION_CONCLUSION = conclusion;
+      const createIssueHandler = vi.fn().mockResolvedValue({ success: true });
+      const addCommentHandler = vi.fn().mockResolvedValue({ success: true });
+      const handlers = new Map([
+        ["create_issue", createIssueHandler],
+        ["add_comment", addCommentHandler],
+      ]);
+      const messages = [
+        { type: "create_issue", title: "T", body: "B" },
+        { type: "add_comment", body: "C" },
+      ];
+
+      const result = await processMessages(handlers, messages);
+
+      expect(createIssueHandler).not.toHaveBeenCalled();
+      expect(addCommentHandler).not.toHaveBeenCalled();
+      expect(result.results).toHaveLength(2);
+      for (const r of result.results) {
+        expect(r).toMatchObject({ success: false, cancelled: true, errorCode: "threat_detection_conclusion_missing" });
+      }
+    });
+
+    it.each(["false", ""])("applies outputs when the conclusion is empty and GH_AW_RUN_DETECTION is '%s'", async runDetection => {
+      process.env.GH_AW_RUN_DETECTION = runDetection;
+      process.env.GH_AW_DETECTION_CONCLUSION = "";
+      const assignHandler = vi.fn().mockResolvedValue({ success: true });
+
+      const result = await processMessages(new Map([["assign_to_agent", assignHandler]]), [{ type: "assign_to_agent", issue_number: 1 }]);
+
+      expect(assignHandler).toHaveBeenCalledTimes(1);
+      expect(result.results[0].success).toBe(true);
     });
 
     it("should pass the shared temporary ID map to handlers", async () => {

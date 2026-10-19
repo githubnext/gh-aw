@@ -70,6 +70,14 @@ threat-detect conclude \
   --result-file "${RESULT_FILE}" \
   --detection-log "${DETECTION_LOG_FILE}" || conclude_exit=$?
 
+# threat-detect conclude exited non-zero without recording a conclusion (for
+# example it crashed before writing outputs). An empty conclusion must never
+# reach safe_outputs, so report the detector as unavailable: warn mode concludes
+# warning/agent_failure, strict mode fails closed.
+if [ "${conclude_exit}" -ne 0 ] && [ -z "$(last_output_value conclusion)" ]; then
+  report_detector_unavailable "threat-detect conclude exited with status ${conclude_exit} without reporting a conclusion"
+fi
+
 # In warn mode a detection engine failure (agent_failure/parse_error) applies the
 # warn-mode safe-outputs policy (WTD1a annotate, WTD2 convert, WTD3 abort) instead
 # of failing closed. threat-detect conclude (<= v0.5.2) still concludes failure

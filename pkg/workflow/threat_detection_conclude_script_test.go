@@ -159,9 +159,14 @@ func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T)
 	}
 }
 
+// TestConcludeThreatDetectionScript_PropagatesThreatDetectFailure verifies that a
+// threat-detect conclude failure that never recorded a conclusion still fails
+// closed in strict mode, with explicit agent_failure outputs so safe_outputs
+// never sees an empty conclusion.
 func TestConcludeThreatDetectionScript_PropagatesThreatDetectFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+	outputFile := filepath.Join(tmpDir, "github_output.txt")
 	binDir := filepath.Join(tmpDir, "bin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatalf("failed to create bin directory: %v", err)
@@ -171,9 +176,90 @@ func TestConcludeThreatDetectionScript_PropagatesThreatDetectFailure(t *testing.
 	}
 
 	cmd := exec.Command("bash", scriptPath, filepath.Join(tmpDir, "detection_result.json"))
-	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"))
-	if out, err := cmd.CombinedOutput(); err == nil {
+	cmd.Env = append(os.Environ(),
+		"RUN_DETECTION=true",
+		"GH_AW_DETECTION_CONTINUE_ON_ERROR=false",
+		"GITHUB_OUTPUT="+outputFile,
+		"PATH="+binDir+":"+os.Getenv("PATH"),
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
 		t.Fatalf("script should propagate threat-detect failure, output: %s", out)
+	}
+	outputData, readErr := os.ReadFile(outputFile)
+	if readErr != nil {
+		t.Fatalf("failed to read GITHUB_OUTPUT: %v", readErr)
+	}
+	if got := lastKeyValue(string(outputData), "conclusion"); got != "failure" {
+		t.Errorf("conclusion = %q, want failure; GITHUB_OUTPUT: %s", got, outputData)
+	}
+	if got := lastKeyValue(string(outputData), "reason"); got != "agent_failure" {
+		t.Errorf("reason = %q, want agent_failure", got)
+	}
+}
+
+// TestConcludeThreatDetectionScript_ConcludeExitWithoutConclusion verifies that a
+// threat-detect conclude that exits non-zero before writing a conclusion is
+// reported as an unavailable detector instead of leaving the outputs empty, which
+// safe_outputs would otherwise treat as unrestricted: warn mode concludes
+// warning/agent_failure and exits 0, strict mode fails closed.
+func TestConcludeThreatDetectionScript_ConcludeExitWithoutConclusion(t *testing.T) {
+	tests := []struct {
+		name            string
+		continueOnError string
+		stub            string
+		wantErr         bool
+		wantConclusion  string
+	}{
+		{name: "warn mode exit 2", continueOnError: "true", stub: "#!/usr/bin/env bash\nexit 2\n", wantConclusion: "warning"},
+		{name: "strict mode exit 2", continueOnError: "false", stub: "#!/usr/bin/env bash\nexit 2\n", wantErr: true, wantConclusion: "failure"},
+		{name: "warn mode empty conclusion", continueOnError: "true", stub: "#!/usr/bin/env bash\necho \"conclusion=\" >> \"$GITHUB_OUTPUT\"\nexit 2\n", wantConclusion: "warning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+			outputFile := filepath.Join(tmpDir, "github_output.txt")
+			binDir := filepath.Join(tmpDir, "bin")
+			if err := os.MkdirAll(binDir, 0755); err != nil {
+				t.Fatalf("failed to create bin directory: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(binDir, "threat-detect"), []byte(tt.stub), 0755); err != nil {
+				t.Fatalf("failed to write threat-detect stub: %v", err)
+			}
+
+			cmd := exec.Command("bash", scriptPath, filepath.Join(tmpDir, "detection_result.json"))
+			cmd.Env = append(os.Environ(),
+				"RUN_DETECTION=true",
+				"THREAT_DETECT_INSTALL_OUTCOME=success",
+				"GH_AW_DETECTION_CONTINUE_ON_ERROR="+tt.continueOnError,
+				"GITHUB_OUTPUT="+outputFile,
+				"PATH="+binDir+":"+os.Getenv("PATH"),
+			)
+			out, err := cmd.CombinedOutput()
+			if tt.wantErr && err == nil {
+				t.Fatalf("script should fail closed in strict mode, output: %s", out)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("script should exit 0 in warn mode: %v\nOutput: %s", err, out)
+			}
+			outputData, readErr := os.ReadFile(outputFile)
+			if readErr != nil {
+				t.Fatalf("failed to read GITHUB_OUTPUT: %v", readErr)
+			}
+			if got := lastKeyValue(string(outputData), "conclusion"); got != tt.wantConclusion {
+				t.Errorf("conclusion = %q, want %s; GITHUB_OUTPUT: %s", got, tt.wantConclusion, outputData)
+			}
+			if got := lastKeyValue(string(outputData), "success"); got != "false" {
+				t.Errorf("success = %q, want false", got)
+			}
+			if got := lastKeyValue(string(outputData), "reason"); got != "agent_failure" {
+				t.Errorf("reason = %q, want agent_failure", got)
+			}
+			if !strings.Contains(string(out), "threat-detect conclude exited with status 2 without reporting a conclusion") {
+				t.Errorf("expected message about missing conclusion, got: %s", out)
+			}
+		})
 	}
 }
 

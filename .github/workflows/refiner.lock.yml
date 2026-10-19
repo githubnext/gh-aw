@@ -1916,6 +1916,7 @@ jobs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
+      run_detection: ${{ steps.detection_guard.outputs.run_detection }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2723,6 +2724,7 @@ jobs:
       GH_AW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_RUN_DETECTION: ${{ needs.detection.outputs.run_detection }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"runStarted\":\"🔍 Starting code refinement... [{workflow_name}]({run_url}) is analyzing PR #${{ github.event.pull_request.number }} for style alignment and security issues\",\"runSuccess\":\"✅ Refinement complete! [{workflow_name}]({run_url}) has created a PR with improvements for PR #${{ github.event.pull_request.number }}\",\"runFailure\":\"❌ Refinement failed! [{workflow_name}]({run_url}) {status} while processing PR #${{ github.event.pull_request.number }}\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_EMOJI: "✨"
