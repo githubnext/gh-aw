@@ -142,6 +142,8 @@ The request URL is the complete, job-issued URL, including its existing query pa
 
 The helper MUST keep both credentials in memory, mask the acquired token, and send only the OIDC JWT to the authority. It MUST NOT print either credential, decode a live token into diagnostics, or publish tokens through step/job outputs. The toolkit call illustrates the API, not a complete client: acquisition and any internal retries MUST satisfy Section 6's bounded deadline and generic-error requirements.
 
+See [Runtime-Minted Token Revocation](#runtime-minted-token-revocation) for OIDC disposal versus installation-token revocation.
+
 ### HTTP Request
 
 The service accepts `POST /api/admission`, with `content-type: application/json`, `cache-control: no-store`, and an `authorization` header containing the bearer OIDC identity token. Execution metadata belongs in the JSON body, not the URL. There are no query parameters. Other HTTP methods MUST NOT admit execution or evaluate spending policy; the client MUST NOT fall back to GET.
@@ -422,6 +424,26 @@ The service MUST discard the caller token after request processing. It MUST NOT 
 
 The admission endpoint MUST reject GitHub API tokens and App credentials. Failure to acquire or verify OIDC MUST NOT trigger an API-token, App-token, or shared-secret fallback.
 
+### Runtime-Minted Token Revocation
+
+When an independently authorized AW capability mints a GitHub App installation access token in the action runtime, that client MUST arrange revocation after its job-local use. For a token that remains usable, cleanup MUST call GitHub's documented [`DELETE /installation/token`](https://docs.github.com/en/rest/apps/installations#revoke-an-installation-access-token), authenticated with that same minted installation token:
+
+```http
+DELETE /installation/token HTTP/1.1
+host: api.github.com
+authorization: bearer <RUNTIME_INSTALLATION_TOKEN>
+accept: application/vnd.github+json
+x-github-api-version: 2026-03-10
+
+HTTP/1.1 204 No Content
+```
+
+The implementor SHOULD consider a conditionally executed, commit-SHA-pinned [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token#how-it-works) step, whose default post-job cleanup performs this revocation automatically. Its condition MUST reflect an existing authorized capability's need for an App token, not merely whether admission is configured. Scope the token to explicit repositories and required permissions, and leave [`skip-token-revoke`](https://github.com/actions/create-github-app-token#skip-token-revoke) at its default `false`. The token MUST stay within its minting job; do not disable cleanup to transport it to another job.
+
+Custom minting code MUST register equivalent cleanup for successful and failed job exits, and cancellation where the runner can execute cleanup. Revocation failure MUST be reported without exposing credentials or claiming confirmed revocation. Already-expired tokens do not require a revocation call. A lost or forcibly terminated runner cannot guarantee cleanup; neither action post hooks nor token deletion from local memory prove that GitHub revoked a token.
+
+This requirement applies to separately minted installation tokens, not the admission OIDC JWT or the job-provided `GITHUB_TOKEN`. GitHub's documented [OIDC API](https://docs.github.com/en/rest/actions/oidc) manages claim customization and provides no endpoint for revoking a minted Actions OIDC JWT. The admission client MUST discard its OIDC token after use, but MUST NOT claim that local deletion revokes it or send it to the installation-token revocation endpoint. `actions/create-github-app-token` does not mint or revoke OIDC JWTs; it MUST NOT be introduced as admission authentication or expose the authority's App private key to the runner. Admission remains OIDC-only.
+
 ## 5. Response Contract
 
 An admitted response MUST be `200 OK` with `content-type: application/json` and exactly these two fields:
@@ -588,9 +610,10 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-033 | Lost success response, token renewal, cross-instance retries, rerun, or independently admitted workflow hop | Stable ceiling/ID for retries; distinct IDs for independent admissions; no budget reset or expanded entitlement |
 | ADM-034 | Admitted executions with differing hidden cumulative spend under the same per-run policy | Returned ceiling does not reveal remaining balance or spend bands; random IDs convey no policy state; denials remain uniform |
 | ADM-035 | Disabled endpoint or exhausted outage with `ignore`, without a valid service response | Existing local/default budget and OTel configuration preserved; no fabricated service ceiling, correlation ID, or affirmative admission |
-| ADM-036 | App JWT generation, installation-token exchange/renewal, or changed token format | Documented `RS256` JWT claims and ten-minute maximum expiry; trusted installation binding; one-hour installation-token expiry honored; tokens treated as opaque backend-only credentials |
+| ADM-036 | Authority-side App JWT generation, installation-token exchange/renewal, or changed token format | Documented `RS256` JWT claims and ten-minute maximum expiry; trusted installation binding; one-hour installation-token expiry honored; tokens treated as opaque backend-only credentials |
 | ADM-037 | Missing installation approval, wrong organization/repository permission, restricted repository access, or a cross-tenant installation ID | No unauthorized provisioning/read or grant escalation; Variables and Actions permissions remain distinct; explicit administrative error without credential fallback |
 | ADM-038 | OTel-disabled AW omits `traceparent` | Same authentication, admission, retry, and outage behavior; no required client trace generation or export; successful response still includes the ceiling and service correlation ID |
+| ADM-039 | Separately minted runtime installation token; skipped minting; already-expired token; normal, failed, or cancellable job exit; cleanup failure | Conditional minting registers automatic or equivalent revocation through `DELETE /installation/token`; no disabled cleanup or cross-job token handoff; cleanup failures are visible without credential leakage; OIDC-only admission neither mints App tokens nor revokes OIDC JWTs or job-provided tokens |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix.
 
@@ -602,7 +625,7 @@ Four bounded profiles cover both outage policies with and without client OTel. S
 
 Reachability witnesses deliberately include agent execution without a configured endpoint and after an ignored outage. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
 
-This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, HTTP/JSON parsing, trusted URL handling, distributed-cache concurrency/expiry, correlation-ID entropy, timing/logging privacy, and actual runtime credit accounting remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
+This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, runtime installation-token revocation, HTTP/JSON parsing, trusted URL handling, distributed-cache concurrency/expiry, correlation-ID entropy, timing/logging privacy, and actual runtime credit accounting remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
 
 ## 12. Implementation Plan
 
@@ -612,7 +635,7 @@ The owner map assigns implementation work to the normative contracts rather than
 |--------------------|--------------------|--------------|
 | gh-aw managed configuration | 2, 6 | Register all three variable/YAML bindings and runtime hooks with repository/organization scope, precedence, validation, automatic enablement, and no-op coverage. Add CLI tests, enterprise reference, and release notes together. |
 | gh-aw activation compiler | 1, 3, 4, 6 | Integrate into the existing activation job and permissions. Review every hook/action and federated trust policy for job-wide OIDC access, including the admission audience and skipped gate. Test existing activation-success dependencies, reusable workflows, and custom job conditions without adding a job or dependency. |
-| gh-aw OIDC client and runtime budgets | 3, 5-8 | Implement OIDC acquisition, POST/JSON validation, executing `aw_info` identity and distinct actor context, retries/outage handling, generic diagnostics, and effective ceiling propagation through continuations. Preserve independent daily controls and block enforcement failures. |
+| gh-aw OIDC client and runtime budgets | 3, 4, 5-8 | Implement OIDC acquisition, POST/JSON validation, executing `aw_info` identity and distinct actor context, retries/outage handling, generic diagnostics, and effective ceiling propagation through continuations. Revoke separately minted runtime installation tokens without introducing App credentials into admission. Preserve independent daily controls and block enforcement failures. |
 | Admission authority | 3-9 | Implement trusted issuer/audience, tenant and caller/executing reference/SHA binding, unambiguous invocation verification, independently verified triggering-actor policy use, stable response fields, and bounded replay storage. Keep policy evaluation protected and admission retry-safe, spend-private, and financially side-effect-free. |
 | Authority provisioning | 2, 4, 9 | Implement optional server-side App JWT/installation-token flow, approved least-privilege grants, renewal/key rotation, and authorized organization/repository provisioning. Document enterprise-wide organization rollout and the distinction between managed defaults and mandatory enforcement. |
 | gh-aw and authority observability | 3, 5-9 | Reuse OTLP trace/propagation helpers when enabled; require neither tracing nor export when disabled. Carry the service ID across every subsequent job/runtime/conclusion span, log, and metric path; retain effective-credit telemetry, tenant isolation, and redaction without metric-dimension promotion. |

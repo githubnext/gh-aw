@@ -151,8 +151,9 @@ each negative control or witness must violate exactly its named invariant
 with TLC exit code 12. Tooling and parser failures never satisfy a control.
 
 This model does not prove JWT cryptography, issuer/JWKS trust, HTTP/TLS or JSON
-parsers, URL/redirect safety, GitHub App provisioning, distributed cache
-correctness/expiry, randomness, logging redaction, timing noninterference, or
+parsers, URL/redirect safety, GitHub App provisioning or installation-token
+revocation, distributed cache correctness/expiry, randomness, logging redaction,
+timing noninterference, or
 actual engine billing enforcement. `identity = "valid"` assumes all required
 signed claims, executing workflow-reference bindings, unambiguous invocation
 identity, and any logical-policy mapping have been independently verified;
