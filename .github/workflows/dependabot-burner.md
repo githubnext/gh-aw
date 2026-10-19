@@ -26,7 +26,7 @@ permissions:
 concurrency:
   group: dependabot-burner
   cancel-in-progress: false
-model: gpt-5.4-mini
+model: gpt-5
 engine:
   id: copilot
   copilot-sdk: true
