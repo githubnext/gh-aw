@@ -1714,6 +1714,181 @@
       "published": "2026-10-15",
       "relevant": true,
       "analyzed_at": "2026-10-16-08-42-43"
+    },
+    {
+      "id": "2610.23845v1",
+      "title": "AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23826v1",
+      "title": "Self-Building Labs",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23820v1",
+      "title": "CocoRNA: Collective RNA Design with Cooperative Multi-agent Reinforcement Learning",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23812v1",
+      "title": "Learning Personalized Memory Gating from Delayed One-Sided Feedback",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23791v1",
+      "title": "DrugHarness: An Evolvable Agent Harness for Computational Drug Discovery",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23788v1",
+      "title": "Parametric Resonance in Primal-Dual Learning for Slowly Non-Stationary Constrained MDPs",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23782v1",
+      "title": "Enforcing Code Reasoning in Agentic Scaffold for More Effective Issue Resolution",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23709v1",
+      "title": "GLOBE: Evolving Structured Agentic Memory for E-commerce Product Optimization in Generative Search",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23707v1",
+      "title": "Tool Recommendation for Multi-Step Agents: Finding Every Tool a Task Needs",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23685v1",
+      "title": "HardEval: An Execution-Verified Benchmark for AI-Driven Security Hardening and Compliance Remediation",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23673v1",
+      "title": "On the possibilities and limitations of LLM-based multi-agent systems for multi-criteria decision-making in healthcare operations management",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23650v1",
+      "title": "JAXtari: High-Throughput and Easy-to-Modify Arcade Learning Environment",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23612v1",
+      "title": "SIT-Eval: Situation-Based Interactive Turn-by-Turn Evaluation of Conversational Agents",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23599v1",
+      "title": "From Trajectories to Differentiated Skills: Cognitive Differentiation for Self-Improving Agents",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23598v1",
+      "title": "RL-Guided Temporal Localization for Dual-Channel Retrieval in Long-Horizon Agent Memory",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23574v1",
+      "title": "Darwin-Claw: Environment-Adaptive Experience Consolidation for Recursively Self-Evolving Agents",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23559v1",
+      "title": "An Interactive GraphRAG Workspace for Reifying, Auditing, and Steering Conversational AI Memories",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23554v1",
+      "title": "SkillBrowser: Selective Skill Exposure for Scalable Skill-Using Agents",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23550v1",
+      "title": "Reason-guided Human Reward Modeling for Preference-based Reinforcement Learning",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23534v1",
+      "title": "From Billion-Scale to Million-Scale Language Models: Operational Capabilities for Embedded Post-Exploitation",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23506v1",
+      "title": "MLOps-Bench: Benchmarking AI Agents on Production ML Engineering in Real Repositories",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23470v1",
+      "title": "QD-Rec: Open-Ended Evolution of Recommendations via Quality-Diversity",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23465v1",
+      "title": "S-GAP: Stealthy Graph Attack Primitives for Graph Large Language Models",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23449v1",
+      "title": "GatewayBench: Unified Capability and Security Evaluation Platform for MCP Gateways",
+      "published": "2026-10-16",
+      "relevant": true,
+      "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.23445v1",
+      "title": "RECREG: Recovery-based Shielding for Regular Safety Properties in Reinforcement Learning",
+      "published": "2026-10-16",
+      "relevant": false,
+      "analyzed_at": "2026-10-19-08-50-44"
     }
   ]
 }

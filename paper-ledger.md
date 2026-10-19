@@ -912,3 +912,187 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 - **Relevant**: Yes
 - **Opportunity**: Preserve verifier-backed successful steps across retries and track partial progress separately from terminal success.
 - **Area**: retry evaluation
+
+### [AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery](https://arxiv.org/abs/2610.23845v1)
+- **ID**: 2610.23845v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI,cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add claim-level reproducibility checks and robustness-analysis stages that preserve executable evidence for agent workflow outputs.
+- **Area**: evaluation and auditability
+
+### [Self-Building Labs](https://arxiv.org/abs/2610.23826v1)
+- **ID**: 2610.23826v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI,cs.MA,cs.RO
+- **Relevant**: No
+
+### [CocoRNA: Collective RNA Design with Cooperative Multi-agent Reinforcement Learning](https://arxiv.org/abs/2610.23820v1)
+- **ID**: 2610.23820v1
+- **Published**: 2026-10-16
+- **Categories**: cs.LG,cs.MA
+- **Relevant**: No
+
+### [Learning Personalized Memory Gating from Delayed One-Sided Feedback](https://arxiv.org/abs/2610.23812v1)
+- **ID**: 2610.23812v1
+- **Published**: 2026-10-16
+- **Categories**: cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Introduce configurable fact-level memory admission and eviction scoring that learns from later retrieval or reuse while warm-starting from historical workflow data.
+- **Area**: agent memory and token optimization
+
+### [DrugHarness: An Evolvable Agent Harness for Computational Drug Discovery](https://arxiv.org/abs/2610.23791v1)
+- **ID**: 2610.23791v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add provenance-bearing conditional skill proposals with independent review, targeted execution trials, frozen per-run versions and admit/reject/defer status before learned guidance becomes reusable.
+- **Area**: validated skill evolution
+
+### [Parametric Resonance in Primal-Dual Learning for Slowly Non-Stationary Constrained MDPs](https://arxiv.org/abs/2610.23788v1)
+- **ID**: 2610.23788v1
+- **Published**: 2026-10-16
+- **Categories**: stat.ML,cs.LG,eess.SY
+- **Relevant**: No
+
+### [Enforcing Code Reasoning in Agentic Scaffold for More Effective Issue Resolution](https://arxiv.org/abs/2610.23782v1)
+- **ID**: 2610.23782v1
+- **Published**: 2026-10-16
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Provide an optional DeskCheck-style workflow scaffold that emits auditable localization hypotheses, checks patches against every issue requirement, performs a refinement pass and requires diverse behavioral validation.
+- **Area**: coding-agent workflow scaffolding
+
+### [GLOBE: Evolving Structured Agentic Memory for E-commerce Product Optimization in Generative Search](https://arxiv.org/abs/2610.23709v1)
+- **ID**: 2610.23709v1
+- **Published**: 2026-10-16
+- **Categories**: cs.CL,cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Introduce typed memory entries with stable IDs, applicability scope, evidence, outcome statistics and governed add/modify/deactivate transitions instead of accumulating unstructured notes.
+- **Area**: structured agent memory
+
+### [Tool Recommendation for Multi-Step Agents: Finding Every Tool a Task Needs](https://arxiv.org/abs/2610.23707v1)
+- **ID**: 2610.23707v1
+- **Published**: 2026-10-16
+- **Categories**: cs.LG,cs.IR
+- **Relevant**: Yes
+- **Opportunity**: Add a policy-filtered tool-discovery gateway that exposes a tiny fixed interface, retrieves and reranks tools on demand, measures complete-chain coverage, and preserves per-call safe-output authorization.
+- **Area**: dynamic tool discovery and token optimization
+
+### [HardEval: An Execution-Verified Benchmark for AI-Driven Security Hardening and Compliance Remediation](https://arxiv.org/abs/2610.23685v1)
+- **ID**: 2610.23685v1
+- **Published**: 2026-10-16
+- **Categories**: cs.CR,cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Create state-based security workflow evaluations that verify persistent postconditions and idempotence after an agent run, rather than scoring only patches, plans or command text.
+- **Area**: execution-verified security evaluation
+
+### [On the possibilities and limitations of LLM-based multi-agent systems for multi-criteria decision-making in healthcare operations management](https://arxiv.org/abs/2610.23673v1)
+- **ID**: 2610.23673v1
+- **Published**: 2026-10-16
+- **Categories**: math.OC,cs.AI,cs.MA
+- **Relevant**: No
+
+### [JAXtari: High-Throughput and Easy-to-Modify Arcade Learning Environment](https://arxiv.org/abs/2610.23650v1)
+- **ID**: 2610.23650v1
+- **Published**: 2026-10-16
+- **Categories**: cs.LG
+- **Relevant**: No
+
+### [SIT-Eval: Situation-Based Interactive Turn-by-Turn Evaluation of Conversational Agents](https://arxiv.org/abs/2610.23612v1)
+- **ID**: 2610.23612v1
+- **Published**: 2026-10-16
+- **Categories**: cs.CL,cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add a situation-rule harness that samples rare workflow states such as tool failure, injection, missing permissions, and malformed safe output, then reports calibrated per-rule errors.
+- **Area**: Evaluation and safety testing
+
+### [From Trajectories to Differentiated Skills: Cognitive Differentiation for Self-Improving Agents](https://arxiv.org/abs/2610.23599v1)
+- **ID**: 2610.23599v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Prototype evidence-backed skill evolution that routes validated trace lessons into separately maintained Meta, Experience, Tool, and Script artifacts and refreshes their lazy-loading descriptions.
+- **Area**: Skill evolution and persistent memory
+
+### [RL-Guided Temporal Localization for Dual-Channel Retrieval in Long-Horizon Agent Memory](https://arxiv.org/abs/2610.23598v1)
+- **ID**: 2610.23598v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add optional timestamps or validity intervals to persistent memory and combine semantic retrieval with a gated temporal channel that favors evidence valid for the requested workflow or repository state.
+- **Area**: Long-horizon memory retrieval
+
+### [Darwin-Claw: Environment-Adaptive Experience Consolidation for Recursively Self-Evolving Agents](https://arxiv.org/abs/2610.23574v1)
+- **ID**: 2610.23574v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Introduce a probationary lifecycle for trace-derived skill patches: bounded nursery and active slots, evidence-based promotion, TTL eviction, archival, and explicit pinning, with validation before SKILL.md publication.
+- **Area**: Experience consolidation and skill lifecycle
+
+### [An Interactive GraphRAG Workspace for Reifying, Auditing, and Steering Conversational AI Memories](https://arxiv.org/abs/2610.23559v1)
+- **ID**: 2610.23559v1
+- **Published**: 2026-10-16
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Represent repo-memory entries as linked goal, fact, decision, and code-artifact records with provenance and freshness metadata, then flag stale technical facts before prompt assembly.
+- **Area**: Auditable repository memory
+
+### [SkillBrowser: Selective Skill Exposure for Scalable Skill-Using Agents](https://arxiv.org/abs/2610.23554v1)
+- **ID**: 2610.23554v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Replace globally exposed skill metadata with an on-demand capability-search meta-skill that supports explicit abstention, capability-oriented queries, bounded results, and exposure-rate telemetry.
+- **Area**: Selective skill loading and token optimization
+
+### [Reason-guided Human Reward Modeling for Preference-based Reinforcement Learning](https://arxiv.org/abs/2610.23550v1)
+- **ID**: 2610.23550v1
+- **Published**: 2026-10-16
+- **Categories**: cs.RO,cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Extend trajectory comparisons with structured reason tags for safety, correctness, efficiency, and recoverability, and train or calibrate evaluators jointly on preference and rationale prediction.
+- **Area**: Evaluator and reward-model design
+
+### [From Billion-Scale to Million-Scale Language Models: Operational Capabilities for Embedded Post-Exploitation](https://arxiv.org/abs/2610.23534v1)
+- **ID**: 2610.23534v1
+- **Published**: 2026-10-16
+- **Categories**: cs.CR,cs.AI
+- **Relevant**: No
+
+### [MLOps-Bench: Benchmarking AI Agents on Production ML Engineering in Real Repositories](https://arxiv.org/abs/2610.23506v1)
+- **ID**: 2610.23506v1
+- **Published**: 2026-10-16
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Build a gh-aw benchmark of realistic workflow/compiler changes with buggy baselines, oracle patches, provenance, and both change-specific and regression tests; score task completion separately from test pass rate.
+- **Area**: evaluation
+
+### [QD-Rec: Open-Ended Evolution of Recommendations via Quality-Diversity](https://arxiv.org/abs/2610.23470v1)
+- **ID**: 2610.23470v1
+- **Published**: 2026-10-16
+- **Categories**: cs.IR,cs.AI,cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Add an optional quality-diversity aggregation pattern that stores candidate outputs in repo/cache memory, rejects semantic duplicates, and retains locally superior alternatives before final ranking.
+- **Area**: sub-agents and memory
+
+### [S-GAP: Stealthy Graph Attack Primitives for Graph Large Language Models](https://arxiv.org/abs/2610.23465v1)
+- **ID**: 2610.23465v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [GatewayBench: Unified Capability and Security Evaluation Platform for MCP Gateways](https://arxiv.org/abs/2610.23449v1)
+- **ID**: 2610.23449v1
+- **Published**: 2026-10-16
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Benchmark gh-aw engines with scaled distractor-tool sets and indirect injections, then support hierarchical on-demand MCP tool discovery while measuring task success, tokens, latency, and attack success per engine/harness.
+- **Area**: MCP gateway architecture
+
+### [RECREG: Recovery-based Shielding for Regular Safety Properties in Reinforcement Learning](https://arxiv.org/abs/2610.23445v1)
+- **ID**: 2610.23445v1
+- **Published**: 2026-10-16
+- **Categories**: cs.LG,cs.AI
+- **Relevant**: No
