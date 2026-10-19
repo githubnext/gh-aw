@@ -131,7 +131,7 @@ flowchart TB
 
 ## Safe Outputs: Permission Isolation
 
-The SafeOutputs subsystem enforces permission isolation by ensuring that agent execution never has direct write access to external state. The agent job runs with minimal read-only permissions, while write operations are deferred to separate jobs that execute only after the agent completes. This separation ensures that even a fully compromised agent cannot directly modify repository state.
+In the default safe-output path, the agent job uses read-only permissions and requests writes through structured output. Separate jobs execute permitted requests after the agent completes. Direct-write permissions, custom jobs, tools and credential configuration can introduce additional write paths.
 
 ```mermaid
 flowchart LR
@@ -167,17 +167,17 @@ flowchart LR
     LABEL --> API
 ```
 
-<Image src={safeOutputsIsolation} alt="Diagram showing the agent job writing an agent_output.json artifact, which a threat detection job analyzes for secret leaks and malicious patches; only when approved do scoped safe-output jobs such as create_issue, add_comment, and create_pull_request call the GitHub API, while the agent itself never holds write permissions" />
+<Image src={safeOutputsIsolation} alt="Default safe-output path: a read-only agent job produces an artifact, automated threat detection checks the output, and scoped jobs execute permitted GitHub writes. A passing detection result is not human approval." />
 
 <Aside type="tip">
-The SafeOutputs subsystem provides security by design: the agent never requires write permissions because all write operations are performed by separate, validated jobs with minimal scoped permissions.
+Safe outputs allow supported GitHub writes without granting the agent job direct write permissions. Separate jobs validate and execute requests using scoped permissions.
 </Aside>
 
 ## Agent Workflow Firewall (AWF)
 
-The Agent Workflow Firewall (AWF) containerizes the agent, binds it to a Docker network, and uses iptables to redirect HTTP/HTTPS traffic through a Squid proxy container. The Squid proxy controls the agent's egress traffic via a configurable domain allowlist to prevent data exfiltration and restrict compromised agents to permitted domains. The AWF setup process drops its iptables capabilities before launching the agent. 
+The Agent Workflow Firewall (AWF) containerizes the agent, binds it to a Docker network, and uses iptables to redirect HTTP/HTTPS traffic through a Squid proxy container. The proxy restricts network destinations through a configurable domain allowlist, helping reduce data-exfiltration risk. Review permitted destinations for the data the workflow can access. The AWF setup process drops its iptables capabilities before launching the agent.
 
-Containerizing an agent improves security by limiting its access to the host, but this may come at a cost. In particular, many coding agents expect full access to the host and break if containerized naively. To support agents that need more access to the host, AWF provides a more permissive 'chroot mode' that mounts a subset of host system directories read-only under '/host', mounts the host's HOME and '/tmp' directories read-write, imports a subset of host environment variables like USER and PATH, and then launches the agent in a '/host' chroot jail. This allows the agent to safely use host-installed binaries (Python, Node.js, Go, etc.) from their normal paths, while controlling access to the host network, environment variables, and other sensitive resources.
+Containerizing an agent improves security by limiting its access to the host, but this may come at a cost. In particular, many coding agents expect full access to the host and break if containerized naively. To support agents that need more access to the host, AWF provides a more permissive 'chroot mode' that mounts a subset of host system directories read-only under '/host', mounts the host's HOME and '/tmp' directories read-write, imports a subset of host environment variables like USER and PATH, and then launches the agent in a '/host' chroot jail. This provides access to host-installed binaries (Python, Node.js, Go, etc.) through the configured host mounts, while controlling access to the host network, environment variables, and other sensitive resources.
 
 Thus, AWF separates two concerns:
 - **Filesystem**: Controlled access to host binaries and runtimes via chroot
@@ -588,7 +588,7 @@ See [Integrity Filtering Reference](/gh-aw/reference/integrity/) for configurati
 
 ## Secret Redaction
 
-Before workflow artifacts are uploaded, all files in the `/tmp/gh-aw` directory are scanned for secret values and redacted. This mechanism prevents accidental credential leakage through logs, outputs, or artifacts. Secret redaction executes unconditionally (with `if: always()`), ensuring that secrets are protected even if the workflow fails at an earlier stage.
+Before workflow artifacts are uploaded, files in `/tmp/gh-aw` are scanned for configured secret values and matching content is redacted. This helps reduce accidental credential exposure in those artifacts.
 
 ```mermaid
 flowchart LR
@@ -647,7 +647,7 @@ secret-masking:
         find /tmp/gh-aw -type f -exec sed -i 's/password123/REDACTED/g' {} +
 ```
 
-Secret redaction executes with `if: always()` to ensure secrets are never leaked, even if the workflow fails at an earlier stage.
+The redaction step uses `if: always()` so it can run after earlier step failures.
 
 ## Job Execution Flow
 

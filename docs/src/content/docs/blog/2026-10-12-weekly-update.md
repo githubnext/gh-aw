@@ -51,7 +51,7 @@ Documentation Unbloat reviews the docs and simplifies verbose pages while keepin
 
 This week it ran every night on its schedule at about 01:15 UTC. All three runs we looked at (October 10, 11 and 12) succeeded, taking between 7 and 10 minutes and producing one safe output each.
 
-Its stated mission is to make docs shorter, so it spends its nights trimming words, which is a bit like a barber who works only while you sleep.
+The workflow runs on a schedule to identify verbose documentation and propose shorter wording.
 
 💡 **Usage tip**: Pair a scheduled editor like this with a `/unbloat` slash command so you can also trim a specific page on demand.
 

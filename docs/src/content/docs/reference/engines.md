@@ -7,6 +7,12 @@ sidebar:
 
 GitHub Agentic Workflows uses an [AI engine](/gh-aw/reference/glossary/#engine) - usually a coding agent - to interpret a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
 
+## Data handling before setup
+
+The selected engine, model service and enabled integrations determine where workflow context is processed. Authentication, data handling, retention and available safeguards vary by provider and configuration; not every workflow uses GitHub Copilot services.
+
+Before enabling an engine, review its setup documentation and applicable provider terms. Check which repository content and credentials are accessible, which tools and outbound destinations are permitted, and who can access retained logs and artifacts.
+
 ## Built-in AI engines
 
 Set `engine:` in workflow frontmatter and configure the corresponding authentication method:
