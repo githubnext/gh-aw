@@ -2043,7 +2043,7 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 
 - **[ACTIONLINT]** "actionlint: Static checker for GitHub Actions workflow files." https://github.com/rhysd/actionlint
 
-- **[ZIZMOR]** "zizmor: Security scanner for GitHub Actions." https://github.com/woodruffw/zizmor
+- **[ZIZMOR]** zizmor maintainers and contributors. "zizmor: Security scanner for CI/CD systems." https://github.com/zizmorcore/zizmor. [Audit Rules](https://docs.zizmor.sh/audits/); [MIT License](https://github.com/zizmorcore/zizmor/blob/main/LICENSE). Selected gh-aw AST checks build on zizmor's security research, audit definitions, names, and remediation guidance; gh-aw's independent implementations do not imply equivalent coverage or upstream endorsement.
 
 - **[GHAW-DOCS]** "GitHub Agentic Workflows Documentation." https://github.com/github/gh-aw
 

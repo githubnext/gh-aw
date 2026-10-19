@@ -8,6 +8,8 @@
 
 ### Context
 
+Credit for the upstream audit definitions, names, security research, and remediation guidance belongs to the [zizmor maintainers and contributors](https://github.com/zizmorcore/zizmor). zizmor is [MIT-licensed](https://github.com/zizmorcore/zizmor/blob/main/LICENSE); its [audit documentation](https://docs.zizmor.sh/audits/) describes the original checks. The repository fixes below provide gh-aw regression evidence, not the origin of those audits. This decision introduces independent Go implementations of selected checks, not embedded zizmor code, equivalent audit coverage, or upstream endorsement.
+
 The repository has fixed the same kinds of zizmor findings several times. These include persisted checkout credentials (#2991, #14449, #25873), dependency-cache restoration in release workflows (#5214, #5872, #19865), workflow-wide write permissions (#5229), literal-only obfuscation expressions (#4398, #14257), and template injection into executable code. Each time, an external scanner found the problem. The in-process Actions/AW linter (`pkg/workflow/lint`) could not catch a regression of these patterns. The linter already has a default rule registry (`Default()` in `lint.go`) with rules such as `action-pin`, `template-injection`, and `permission-scope`. It runs over both typed/raw Actions ASTs and AW documents and must also build for WASM (`GOOS=js GOARCH=wasm`). Because of that WASM constraint, a new check cannot depend on optional native parsers or network lookups.
 
 ### Decision
