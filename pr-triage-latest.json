@@ -1,29 +1,33 @@
 {
-  "run_date": "2026-10-19T12:36:38Z",
-  "run_id": "39253103746",
+  "run_date": "2026-10-19T18:31:25Z",
+  "run_id": "39302762019",
   "source": "pr-triage",
-  "eligible_total": 3,
-  "cooldown_skipped": 1,
-  "open_copilot_prs": 4,
+  "eligible_total": 2,
+  "cooldown_skipped": 6,
+  "open_copilot_prs": 8,
   "skipped_prs": [
-    69772
+    70322,
+    70320,
+    70295,
+    70294,
+    69772,
+    69586
   ],
   "category_counts": {
-    "bug": 3
+    "bug": 2
   },
   "risk_counts": {
     "low": 1,
-    "medium": 1,
     "high": 1
   },
   "priority_counts": {
-    "medium": 3
+    "medium": 2
   },
   "action_counts": {
     "auto_merge": 1,
-    "batch_review": 1,
     "defer": 1,
     "fast_track": 0,
+    "batch_review": 0,
     "close": 0
   },
   "selected_candidates": [
@@ -34,28 +38,13 @@
       "risk": "low",
       "priority_score": 60,
       "score_breakdown": {
-        "impact": 27,
+        "impact": 25,
         "urgency": 15,
-        "quality": 18
+        "quality": 20
       },
       "action": "auto_merge",
-      "review_state": "open",
+      "review_state": "approved",
       "ci_state": "pass"
-    },
-    {
-      "number": 69586,
-      "title": "Protect behavior-defined engine session capture",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 65,
-      "score_breakdown": {
-        "impact": 34,
-        "urgency": 18,
-        "quality": 13
-      },
-      "action": "batch_review",
-      "review_state": "draft",
-      "ci_state": "Analyze (python) failed"
     },
     {
       "number": 56568,
@@ -84,21 +73,8 @@
       "risk": "low",
       "priority_score": 60,
       "action": "auto_merge",
-      "review_state": "open",
+      "review_state": "approved",
       "ci_state": "pass"
-    },
-    {
-      "number": 69586,
-      "title": "Protect behavior-defined engine session capture",
-      "state": "open",
-      "user": "Copilot",
-      "draft": true,
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 65,
-      "action": "batch_review",
-      "review_state": "draft",
-      "ci_state": "Analyze (python) failed"
     },
     {
       "number": 56568,
@@ -114,9 +90,9 @@
       "ci_state": "no check runs"
     }
   ],
-  "cooldown_cutoff_utc": "2026-10-19T11:36:38Z",
+  "cooldown_cutoff_utc": "2026-10-19T17:31:25Z",
   "notes": [
     "Only PRs updated before the 1h cooldown cutoff were eligible for triage.",
-    "PR #69772 was skipped because it was updated within the last hour."
+    "Six PRs were skipped because they were updated within the last hour."
   ]
 }
