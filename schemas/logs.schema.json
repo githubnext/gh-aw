@@ -18,6 +18,9 @@
             "metadata_only_runs": {
               "type": "integer"
             },
+            "non_execution_runs": {
+              "type": "integer"
+            },
             "intentional_failure_runs": {
               "type": "integer"
             },
@@ -96,6 +99,7 @@
             "unique_failed_runs",
             "observed_evidence_runs",
             "metadata_only_runs",
+            "non_execution_runs",
             "intentional_failure_runs",
             "audit_budget",
             "eligible_clusters",
@@ -322,6 +326,18 @@
         "summary": {
           "type": "object",
           "properties": {
+            "obsolete_pr_runs": {
+              "type": "integer"
+            },
+            "non_execution_runs": {
+              "type": "integer"
+            },
+            "executed_runs": {
+              "type": "integer"
+            },
+            "executed_success_runs": {
+              "type": "integer"
+            },
             "total_runs": {
               "type": "integer"
             },
@@ -429,6 +445,8 @@
             }
           },
           "required": [
+            "executed_runs",
+            "executed_success_runs",
             "total_runs",
             "total_duration",
             "total_action_minutes",
@@ -453,6 +471,38 @@
           "items": {
             "type": "object",
             "properties": {
+              "obsolete_pr": {
+                "type": [
+                  "null",
+                  "object"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "integer"
+                  },
+                  "closed_at": {
+                    "type": "string"
+                  },
+                  "run_attempt": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "number",
+                  "closed_at",
+                  "run_attempt"
+                ],
+                "additionalProperties": false
+              },
+              "exclusion_reason": {
+                "type": "string"
+              },
+              "job_count": {
+                "type": [
+                  "null",
+                  "integer"
+                ]
+              },
               "failure_signals": {
                 "type": [
                   "null",
@@ -5780,6 +5830,9 @@
             "metadata_only_runs": {
               "type": "integer"
             },
+            "non_execution_runs": {
+              "type": "integer"
+            },
             "intentional_failure_runs": {
               "type": "integer"
             },
@@ -5858,6 +5911,7 @@
             "unique_failed_runs",
             "observed_evidence_runs",
             "metadata_only_runs",
+            "non_execution_runs",
             "intentional_failure_runs",
             "audit_budget",
             "eligible_clusters",
