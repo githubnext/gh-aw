@@ -5,6 +5,7 @@ const { TextDecoder } = require("node:util");
 const { posix } = require("node:path");
 const { queueError } = require("./work_queue_codec.cjs");
 const { validatePolicy, validateProfile } = require("./work_queue_policy.cjs");
+const log = require("./work_queue_logging.cjs").createWorkQueueLogger("provisioning");
 
 const MAX_WORKFLOW_BYTES = 1024 * 1024;
 
@@ -114,12 +115,28 @@ function workerContract(contents) {
   return contracts.size === 1 ? [...contracts][0] : undefined;
 }
 
-async function verifiedDefaultReference({ githubClient, owner, repo }) {
-  const repository = (await githubClient.rest.repos.get({ owner, repo }))?.data;
+async function readDeploymentMetadata(read, event, sleepFn) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await read();
+    } catch (error) {
+      const status = error?.status ?? error?.response?.status;
+      const transient = error?.code !== "ERR_TRANSPORT_INTEGRITY" && ((Number.isInteger(status) && status >= 500 && status <= 599) || (status === undefined && ["ETIMEDOUT", "ECONNRESET"].includes(error?.code)));
+      const retry = transient && attempt < 3;
+      log.failure(`${event}.${retry ? "retry" : "failed"}`, error, true);
+      if (!retry) throw error;
+      await sleepFn(1000);
+    }
+  }
+}
+
+async function verifiedDefaultReference({ githubClient, owner, repo, sleepFn = delay => new Promise(resolve => setTimeout(resolve, delay)) }) {
+  const parameters = { owner, repo, request: { retries: 0, retryCount: 0, timeout: 15000 } };
+  const repository = (await readDeploymentMetadata(() => githubClient.rest.repos.get(parameters), "deployment.repository.read", sleepFn))?.data;
   const branch = repository?.default_branch;
   if (typeof repository?.full_name !== "string" || repository.full_name.toLowerCase() !== `${owner}/${repo}`.toLowerCase() || typeof branch !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(branch) || branch.includes(".."))
     throw queueError("policy_invalid", "AW deployment requires a verified repository and default worker revision");
-  const reference = (await githubClient.rest.git.getRef({ owner, repo, ref: `heads/${branch}` }))?.data;
+  const reference = (await readDeploymentMetadata(() => githubClient.rest.git.getRef({ ...parameters, ref: `heads/${branch}` }), "deployment.reference.read", sleepFn))?.data;
   const revision = reference?.object?.sha;
   if (reference?.ref !== `refs/heads/${branch}` || typeof revision !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(revision) || /^0+$/.test(revision)) throw queueError("policy_invalid", "default worker revision is not immutable");
   return revision;

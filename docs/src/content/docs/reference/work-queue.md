@@ -410,7 +410,7 @@ emitted event in the same namespace within that process. The first event uses
 `+0ms`; suppressed events do not reset the interval. Always-visible queue
 diagnostics and failures use the same timing.
 
-Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
+Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`, `provisioning`,
 `reconciler`, `run`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
 publication attempts, conflicts, recovery, capacity and packing limits,
 native launch and binding, independent verification, and durable settlement.
@@ -418,6 +418,9 @@ native launch and binding, independent verification, and durable settlement.
 staged previews, binding and job counts, release outcomes, and sanitized failure categories,
 without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+HTTP failure explanations also include a validated GitHub request ID, or
+`unknown` when unavailable. Deployment metadata diagnostics distinguish
+repository reads from default-reference reads.
 Blocked control and launch-processing failures are always visible, even without
 `DEBUG`. Diagnostics, receipts, the step summary, and the Actions failure annotation
 include a fixed human-readable explanation and recovery action alongside the
@@ -714,6 +717,13 @@ Live `explain --json` also exposes `prediction`, the same compact assignment
 shape used by pool stats and artifact replay, alongside its existing `decision`.
 These commands inspect ledger snapshots only: they do not refresh external
 dependencies, fetch live Actions status, reconcile reservations, or retry effects.
+
+During deployment refresh, repository and default-reference GETs each allow
+three attempts, with a 15-second timeout per request and a one-second delay
+between attempts. Only HTTP 5xx, connection resets, and transport timeouts retry;
+access denials, rate limits, missing resources, and identity mismatches fail
+closed. Exhaustion blocks that intent without stopping independent later
+intents. These retries never replay a batch or a worker launch POST.
 
 After an accepted worker dispatch, trusted controls verify the exact first run
 attempt, retrying transient reads and pending run-title correlation within the
