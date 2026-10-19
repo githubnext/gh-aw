@@ -104,6 +104,9 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 	if err := c.validateWebhookWorkflow(workflowData); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
+	if err := prepareOperationalValueGrader(workflowData, markdownPath); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
 	if err := validateRuntimeCheckoutConfigs(workflowData.CheckoutConfigs); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
@@ -120,10 +123,6 @@ func (c *Compiler) validateWorkflowData(workflowData *WorkflowData, markdownPath
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 	if err := c.validateWorkQueueTargets(workflowData, markdownPath); err != nil {
-		return formatCompilerError(markdownPath, "error", err.Error(), err)
-	}
-
-	if err := c.prepareOperationalValueGrader(workflowData, markdownPath); err != nil {
 		return formatCompilerError(markdownPath, "error", err.Error(), err)
 	}
 

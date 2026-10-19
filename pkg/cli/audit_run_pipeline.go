@@ -259,6 +259,11 @@ func renderCachedAuditIfAvailable(ctx context.Context, cfg auditRunConfig) (done
 		}
 		return false, false, nil
 	}
+	if downloaded, err := downloadRegisteredCustomGraders(ctx, cfg); err != nil {
+		return false, false, err
+	} else if downloaded {
+		return false, false, nil
+	}
 	processedRun := processedRunFromSummary(summary, cfg.outputDir)
 	return true, false, renderAuditReport(ctx, processedRun, summary.Metrics, summary.MCPToolUsage, cfg.auditOptions())
 }
@@ -370,6 +375,11 @@ func prepareAuditWorkflowRun(ctx context.Context, cfg auditRunConfig) (WorkflowR
 	if !useLocalCache {
 		useLocalCache, err = downloadAuditArtifactsIfNeeded(ctx, cfg, run, hasLocalCache)
 		if err != nil {
+			return run, err
+		}
+	}
+	if !useLocalCache {
+		if _, err := downloadRegisteredCustomGraders(ctx, cfg); err != nil {
 			return run, err
 		}
 	}

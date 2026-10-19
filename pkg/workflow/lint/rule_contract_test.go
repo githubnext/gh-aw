@@ -19,8 +19,11 @@ type ruleContract struct {
 	path         string
 	severity     Severity
 	strictPolicy bool
+	javaScript   bool
 	unsafePrompt string
 	safePrompt   string
+	unsafeShell  string
+	safeShell    string
 }
 
 const contractJob = "jobs:\n  check:\n    runs-on: ubuntu-latest\n"
@@ -28,6 +31,26 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
+		"grader-shell-file-write": {
+			targets:     AWAST,
+			unsafe:      "graders:\n  operational-value:\n    run: ./check.sh\n",
+			safe:        "graders:\n  operational-value:\n    run: ./check.sh\n",
+			unsafeShell: "#!/bin/bash\nprintf 1 > PRIVATE_FILE\n",
+			safeShell:   "#!/bin/bash\njq '.events | length' \"$GH_AW_SESSION\"\n",
+			path:        "graders.operational-value.run",
+		},
+		"grader-file-io": {
+			targets: AWAST, javaScript: true,
+			unsafe: "graders:\n  custom:\n    script: const fs = require('node:fs'); return fs.readFileSync('evidence');\n",
+			safe:   "graders:\n  custom:\n    script: return helpers.createSessionLookups(session).stats.toolCalls;\n",
+			path:   "graders.custom.script",
+		},
+		"custom-job-detection": {
+			targets: AWAST,
+			unsafe:  contractJob + "    needs: agent\n" + contractSafeSteps,
+			safe:    contractJob + "    needs: [agent, detection]\n" + contractSafeSteps,
+			path:    "jobs.check.needs",
+		},
 		"secret-leak": {
 			threatRuleID: "CTR-017",
 			targets:      ActionsAST | AWAST,
@@ -232,6 +255,16 @@ func runRuleContractPair(t *testing.T, id string, contract ruleContract, target 
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := ruleContractInput(t, test.source, target, nonstrict)
+			if contract.safeShell != "" {
+				source := contract.safeShell
+				if test.finding {
+					source = contract.unsafeShell
+				}
+				input = prepareGraderShellFixture(t, input, source)
+			}
+			if contract.javaScript {
+				input.JavaScript = nativeGraderJavaScriptOptions(t)
+			}
 			if input.Document != nil && test.prompt != "" {
 				input.Document.Markdown = test.prompt
 			}

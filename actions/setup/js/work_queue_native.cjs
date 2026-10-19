@@ -6,6 +6,7 @@ const { posix } = require("node:path");
 const { canonical, closed, parseStrictJSON } = require("./work_queue_codec.cjs");
 const { actorFromContext } = require("./work_queue_policy.cjs");
 const { dispatchWorkflow } = require("./dispatch_workflow_transport.cjs");
+const { isTransientQueueReadError, readQueueMetadata } = require("./work_queue_read_retry.cjs");
 
 const API_VERSION = "2026-03-10";
 
@@ -58,12 +59,17 @@ function dispatchResponse(response, destination) {
   };
 }
 
-async function fetchNativeRepository(githubClient, repository) {
+// Polling callers own their retry budget; standalone metadata reads recover here.
+function readNativeMetadata(read, event, { sleepFn = undefined, retryMetadata = true } = {}) {
+  return retryMetadata ? readQueueMetadata(read, log, event, sleepFn) : read();
+}
+
+async function fetchNativeRepository(githubClient, repository, readOptions = {}) {
   log.debug("repository.fetch.start");
   const [owner, repo, extra] = repository.split("/");
   if (!owner || !repo || extra) throw new TypeError("native run repository is invalid");
   if (typeof githubClient?.rest?.repos?.get !== "function") throw new Error("native_repository_api_missing");
-  const response = await githubClient.rest.repos.get({ owner, repo, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, timeout: 15000 } });
+  const response = await readNativeMetadata(() => githubClient.rest.repos.get({ owner, repo, headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, retryCount: 0, timeout: 15000 } }), "repository.read", readOptions);
   if (response.status !== 200 || typeof response.data?.full_name !== "string" || response.data.full_name.toLowerCase() !== repository.toLowerCase()) throw new Error("native_repository_identity_mismatch");
   const verified = { repository: response.data.full_name, repository_id: nativeId(response.data.id, "native repository ID") };
   log.debug("repository.fetch.verified");
@@ -77,30 +83,39 @@ function canonicalNativeRepository(run, verified) {
 }
 
 // An agent's assignment and run name are correlation hints, never proof.
-async function fetchNativeRun(githubClient, repository, runId) {
+async function fetchNativeRun(githubClient, repository, runId, sleepFn = undefined) {
   log.debug("run.fetch.start");
-  const verified = await fetchNativeRepository(githubClient, repository);
+  const verified = await fetchNativeRepository(githubClient, repository, { sleepFn });
   const [owner, repo] = verified.repository.split("/");
-  const response = await githubClient.rest.actions.getWorkflowRun({ owner, repo, run_id: nativeId(runId), headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, timeout: 15000 } });
+  const response = await readNativeMetadata(
+    () => githubClient.rest.actions.getWorkflowRun({ owner, repo, run_id: nativeId(runId), headers: { "X-GitHub-Api-Version": API_VERSION }, request: { retries: 0, retryCount: 0, timeout: 15000 } }),
+    "run.read",
+    { sleepFn }
+  );
   if (response.status !== undefined && response.status !== 200) throw new Error("native run API read was not successful");
   const run = canonicalNativeRepository(response.data, verified);
   log.debug("run.fetch.verified");
   return run;
 }
 
-async function fetchNativeRunAttempt(githubClient, repository, runId, attempt = 1) {
+async function fetchNativeRunAttempt(githubClient, repository, runId, attempt = 1, readOptions = {}) {
   log.debug("run_attempt.fetch.start");
   const attemptNumber = nativeAttempt(attempt);
-  const verified = await fetchNativeRepository(githubClient, repository);
+  const verified = await fetchNativeRepository(githubClient, repository, readOptions);
   const [owner, repo] = verified.repository.split("/");
-  const response = await githubClient.rest.actions.getWorkflowRunAttempt({
-    owner,
-    repo,
-    run_id: nativeId(runId),
-    attempt_number: attemptNumber,
-    headers: { "X-GitHub-Api-Version": API_VERSION },
-    request: { retries: 0, timeout: 15000 },
-  });
+  const response = await readNativeMetadata(
+    () =>
+      githubClient.rest.actions.getWorkflowRunAttempt({
+        owner,
+        repo,
+        run_id: nativeId(runId),
+        attempt_number: attemptNumber,
+        headers: { "X-GitHub-Api-Version": API_VERSION },
+        request: { retries: 0, retryCount: 0, timeout: 15000 },
+      }),
+    "run_attempt.read",
+    readOptions
+  );
   if (response.status !== undefined && response.status !== 200) throw new Error("native run attempt API read was not successful");
   const run = canonicalNativeRepository(response.data, verified);
   log.debug("run_attempt.fetch.verified");
@@ -109,7 +124,7 @@ async function fetchNativeRunAttempt(githubClient, repository, runId, attempt = 
 
 function isTransientVerificationError(error) {
   const status = error?.status ?? error?.response?.status;
-  return status === 404 || (status >= 500 && status <= 599) || ["ETIMEDOUT", "ECONNRESET"].includes(error?.code) || error?.message === "run_correlation_mismatch";
+  return status === 404 || isTransientQueueReadError(error) || error?.message === "run_correlation_mismatch";
 }
 
 function validateNativeRun(run, expected) {
@@ -233,7 +248,7 @@ async function authenticatePublisher(options) {
   if (options.role === "worker" && attempt !== 1) throw new Error("rerun_not_authorized");
   const repository = `${context.repo.owner}/${context.repo.repo}`;
   const runId = nativeId(context.runId ?? process.env.GITHUB_RUN_ID, "publisher run ID");
-  const publisher = publisherContextForRun(options, await fetchNativeRun(options.githubClient, repository, runId));
+  const publisher = publisherContextForRun(options, await fetchNativeRun(options.githubClient, repository, runId, options.sleepFn));
   log.debug("publisher.authenticate.complete");
   return publisher;
 }

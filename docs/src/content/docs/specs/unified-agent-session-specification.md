@@ -89,7 +89,10 @@ and eval evidence, the conclusion job merges these observations into
 `aw-prompts/system.txt` and `aw-prompts/user.txt` files; the merger records each
 available file as an untimed `prompt.system` or `prompt.user` event with its exact
 content and source path. These prompt events are omitted from default summaries.
-Graders arrive in the agent artifact. Collection and upload
+Built-in graders compute from the redacted in-memory unified session in
+conclusion, after all sources are collected. Their manifest and result events
+are appended before the session is persisted; grader files are written into
+the `usage` artifact. Graders never reread the session or source files. Collection and upload
 run after conclusion handlers, before setup cleanup. The existing usage JSON,
 JSONL accounting, activity summary, and result files remain available.
 

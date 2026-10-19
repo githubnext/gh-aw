@@ -307,7 +307,7 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(parent, &caller))
 	binding := caller.Jobs["agy-conformance"]
 	assert.Equal(t, map[string]string{"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}"}, binding.Secrets)
-	assert.Equal(t, map[string]string{"actions": "read", "contents": "read"}, binding.Permissions)
+	assert.Equal(t, map[string]string{"actions": "read", "contents": "read", "pull-requests": "read"}, binding.Permissions)
 	assert.Equal(t, "${{ inputs['agy-conformance'] }}", binding.If)
 	assert.Equal(t, "./.github/workflows/agy-conformance-reusable.lock.yml", binding.Uses)
 	for _, entry := range []struct {
@@ -330,7 +330,11 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 				assert.Contains(t, callee.Concurrency["group"], "${{ github.run_id }}")
 			}
 			for name, config := range callee.Jobs {
-				allowedPermissions := binding.Permissions
+				allowedPermissions := map[string]string{"actions": "read", "contents": "read"}
+				if entry.id == "agy-conformance-reusable" && name == "safe_outputs" {
+					allowedPermissions["pull-requests"] = "read"
+					assert.Equal(t, map[string]string{"pull-requests": "read"}, config.Permissions)
+				}
 				if entry.id == "smoke-agy" && (name == "pre_activation" || name == "activation") {
 					allowedPermissions = map[string]string{
 						"actions": "read", "contents": "read", "issues": "read", "pull-requests": "read",

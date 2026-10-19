@@ -178,7 +178,8 @@ Set `jobs.<job-id>.restore-memory: true` to restore any configured `cache-memory
 | `activation` | `jobs.activation.setup-steps` is refused at compile time to prevent short-circuiting protections; use `jobs.activation.pre-steps` |
 | `agent` | `jobs.agent.setup-steps` → compiler setup checkout/setup → `jobs.agent.pre-steps` → runtime path setup → top-level `pre-steps` → checkout/token/runtime/custom/agent steps |
 | `safe_outputs` | `jobs.safe_outputs.setup-steps` → compiler setup checkout/setup → `jobs.safe_outputs.pre-steps` → safe-outputs downloads/prep → GitHub App token minting → safe-output handlers/finalization |
-| `conclusion` | `jobs.conclusion.setup-steps` → compiler setup checkout/setup → `jobs.conclusion.pre-steps` → built-in conclusion steps (including GitHub App token minting when configured) |
+| `conclusion` | Compiler-generated steps only; user `setup-steps`, `pre-steps`, and `steps` are rejected |
+| `graders` | Compiler-owned restricted job after conclusion, generated only for custom JavaScript graders; no job customization or inherited environment |
 | `detection` | `jobs.detection.setup-steps` → compiler setup checkout/setup → `jobs.detection.pre-steps` → built-in detection steps |
 | `unlock` | `jobs.unlock.setup-steps` → compiler setup checkout/setup → `jobs.unlock.pre-steps` → built-in unlock steps |
 

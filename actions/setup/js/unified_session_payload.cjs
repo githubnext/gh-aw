@@ -364,7 +364,7 @@ const EVENT_FIELDS = {
   "safe_output.result": SAFE_OUTPUT_FIELDS,
   "safe_output.error": SAFE_OUTPUT_FIELDS,
   "experiment.state": { runId: ["runId", "run_id"], assignments: ["assignments"], counts: ["counts"] },
-  "grader.manifest": { version: ["version"] },
+  "grader.manifest": { version: ["version"], customGraders: ["customGraders"] },
   "grader.result": GRADER_FIELDS,
   "eval.result": { id: ["id"], answer: ["answer"], model: ["model"], error: ["error"], runId: ["runId", "runid", "run_id"], assignments: ["assignments", "experiments"] },
   "github_api.rate_limit": {

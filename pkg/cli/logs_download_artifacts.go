@@ -163,6 +163,9 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to download artifact %q: %v", name, cmdErr)))
 			}
+			if opts.failOnDownloadError {
+				return fmt.Errorf("failed to download artifact %q: %w", name, cmdErr)
+			}
 			// Non-fatal: continue downloading other artifacts
 		} else {
 			logsDownloadLog.Printf("Downloaded artifact %q", name)

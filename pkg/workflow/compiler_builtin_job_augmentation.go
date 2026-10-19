@@ -2,6 +2,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -23,6 +24,9 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 		_, hasSetupSteps := configMap["setup-steps"]
 		_, hasPreSteps := configMap["pre-steps"]
 		_, hasSteps := configMap["steps"]
+		if jobName == string(constants.ConclusionJobName) && (hasSetupSteps || hasPreSteps || hasSteps) {
+			return errors.New("jobs.conclusion cannot run user-provided steps; use a separate job or a custom session grader")
+		}
 		if err := validateRestrictedBuiltinSetupSteps(jobName, hasSetupSteps); err != nil {
 			return err
 		}
@@ -30,10 +34,7 @@ func (c *Compiler) applyBuiltinJobPreSteps(data *WorkflowData) error {
 			continue
 		}
 
-		targetJobName := jobName
-		if jobName == "pre-activation" {
-			targetJobName = string(constants.PreActivationJobName)
-		}
+		targetJobName := normalizeBuiltinJobAlias(jobName)
 
 		if err := validateRestrictedBuiltinSteps(jobName, targetJobName, hasSteps); err != nil {
 			return err
@@ -249,6 +250,9 @@ func parseBuiltinJobAugmentation(jobName, targetJobName string, rawConfig any) (
 }
 
 func (c *Compiler) applyBuiltinJobAugmentation(jobName string, rawConfig any, data *WorkflowData, allJobs map[string]*Job) error {
+	if jobName == string(constants.GradersJobName) {
+		return errors.New("jobs.graders is compiler-owned and cannot be customized; configure custom JavaScript under graders instead")
+	}
 	targetJobName := normalizeBuiltinJobAlias(jobName)
 	if !isBuiltinJobName(targetJobName) {
 		return nil

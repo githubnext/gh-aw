@@ -227,9 +227,6 @@ func (c *Compiler) addActivationEngineOutputs(ctx *activationJobBuildContext, en
 	ctx.outputs["engine_id"] = "${{ steps.generate_aw_info.outputs.engine_id }}"
 	ctx.outputs["model"] = "${{ steps.generate_aw_info.outputs.model }}"
 	ctx.outputs["aw_context"] = "${{ steps.generate_aw_info.outputs.aw_context }}"
-	if operationalValueGraderEnabled(ctx.data) {
-		ctx.outputs["run_created_at"] = "${{ steps.generate_aw_info.outputs.run_created_at }}"
-	}
 	ctx.outputs["lockdown_check_failed"] = "${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}"
 	ctx.outputs["oauth_token_check_failed"] = "${{ steps.check-oauth-tokens.outputs.oauth_token_check_failed == 'true' }}"
 	if !ctx.data.StaleCheckDisabled {

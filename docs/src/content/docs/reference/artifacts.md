@@ -23,6 +23,7 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `prompt` | — | Legacy/back-compat | Historical standalone prompt artifact (`prompt.txt`); in current compiled workflows `prompt.txt` is included in the `activation` artifact instead |
 | `experiment` | `constants.ExperimentArtifactName` | Multi-file | A/B experiment state (`state.json`) uploaded by the activation job when experiments are declared in the frontmatter |
 | `usage` | `constants.UsageArtifactName` | Multi-file | Compact conclusion-job artifact with workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths |
+| `graders` | `constants.GradersArtifactName` | Conditional | Combined built-in and custom results and data-only manifest from the separate `graders` job, generated when JavaScript or operational-value Bash graders are enabled |
 | `evals` | `constants.EvalsArtifactName` | Single-file | BinEval evaluation results (`evals.jsonl`) uploaded by the evals job when `evals` are declared in the workflow frontmatter |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Multi-file | Safe output items manifest (`safe-output-items.jsonl`), temporary ID map (`temporary-id-map.json`), and failure diagnostics (`safe-output-errors.json`, written only when the `Process Safe Outputs` step fails) |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
@@ -51,7 +52,7 @@ The `gh aw logs` and `gh aw audit` commands support `--artifacts` to download on
 | `experiment` | `experiment`, `usage` | A/B experiment state (only present when experiments are declared) |
 | `usage` | `usage` | Compact conclusion-job artifact for lightweight reporting and forecasting |
 | `evals` | `usage` | BinEval evaluation results (only present when `evals` are declared) |
-| `graders` | `usage`, `agent`, `agent-output-fallback` | Deterministic grader results (only present when `graders` are declared) |
+| `graders` | `usage`, `graders`, legacy agent artifacts | Default built-ins and optional combined custom results |
 | `github-api` | `activation`, `agent` | GitHub API rate limit logs |
 
 ```bash
@@ -140,7 +141,7 @@ The AWF API proxy log directory may also contain `token-usage.jsonl` and `model-
 
 ## `agent-output-fallback`
 
-When uploaded, the small `agent-output-fallback` artifact includes the processed agent output, safe-output records, execution evidence, agent usage, and the three supported `token-usage.jsonl` and `model-routing.jsonl` path variants beneath `sandbox/firewall/logs`, `sandbox/firewall/audit`, and `sandbox/firewall-audit-logs`. It also carries grader files when graders are configured.
+When uploaded, the small `agent-output-fallback` artifact includes the processed agent output, safe-output records, execution evidence, agent usage, and the three supported `token-usage.jsonl` and `model-routing.jsonl` path variants beneath `sandbox/firewall/logs`, `sandbox/firewall/audit`, and `sandbox/firewall-audit-logs`. Built-in graders run later in conclusion and are stored in `usage`; custom graders run in a separate downstream job and publish the `graders` artifact.
 
 For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/reference/open-telemetry/).
 
@@ -380,12 +381,21 @@ contributes zero answers. Keep `UNKNOWN` separate from both `YES` and `NO`.
 
 ## Grader files
 
-When the workflow frontmatter declares one or more `graders`, the grader files are stored inside existing artifacts rather than uploaded as a standalone `graders` artifact. They live under `agent/graders/` in the unified `agent` artifact, under `graders/` in the `agent-output-fallback` artifact when the fallback transport is used, and under `usage/graders/` after the conclusion job mirrors them for lightweight downloads. The files are:
+The conclusion job computes fast built-in graders by default after collecting
+the redacted unified session. Results live under `graders/` in the `usage`
+artifact, alongside `aw_session.jsonl`. Custom JavaScript and operational-value Bash run only in a separate
+downstream job, publishing a standalone `graders` artifact with combined built-in
+and custom results. Neither kind runs in the agent job. The files are:
 
 - `grader_manifest.json` — The configured graders with their unit, direction, and threshold
-- `grader_results.json` — The validated grader results (status, raw value, pass/fail) computed from the run trace
+- `grader_results.json` — The validated grader results (status, raw value, pass/fail) computed from the in-memory unified session
 
 ### Accessing graders data
+
+`gh aw logs --graders` and `--artifacts graders` include both the conclusion job's
+`usage` artifact and the separate job's `graders` artifact. Workflow-call-prefixed
+names are matched automatically. The combined custom artifact is preferred when
+present; built-ins remain available for runs without custom graders.
 
 ```bash
 # Download the artifacts that carry grader results
@@ -393,11 +403,15 @@ gh aw logs <run-id> --artifacts graders
 
 # Or with gh run download against the actual artifacts
 gh run download <run-id> -n usage
-gh run download <run-id> -n agent
-gh run download <run-id> -n agent-output-fallback
 ```
 
-`gh aw audit` reports grader outcomes in its console output and includes them in the JSON report under the `graders` key (results, plus `total`, `passed`, `failed`, `error_count`, and `unavailable_count`). The artifact also retains the exact operational-value evaluator bytes used for that run.
+`gh aw audit` reports grader outcomes in its console output and includes them in the JSON report under the `graders` key (results, plus `total`, `passed`, `failed`, `error_count`, and `unavailable_count`). Grader manifest and result events are also included in the unified session. Historical runs may retain grader files in agent artifacts.
+
+The usage manifest includes `customGraders` IDs only, never custom source.
+Audit conditionally downloads the optional `graders` artifact when these IDs
+are registered and prefers its combined results, including for cached reports.
+If that artifact is absent, built-in results remain available. The standalone
+manifest also omits executable source; it does not replace the conclusion session.
 
 ## Naming Compatibility
 

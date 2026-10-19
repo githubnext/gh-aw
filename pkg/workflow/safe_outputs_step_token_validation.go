@@ -3,11 +3,11 @@ package workflow
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var safeOutputsStepTokenValidationLog = logger.New("workflow:safe_outputs_step_token_validation")
@@ -98,26 +98,24 @@ func (c *Compiler) validateSafeOutputStepTokenReferences(data *WorkflowData) err
 		return nil
 	}
 
-	sortedIDs := make([]string, 0, len(ids))
-	for id := range ids {
-		sortedIDs = append(sortedIDs, id)
-	}
-	sort.Strings(sortedIDs)
+	sortedIDs := sliceutil.SortedKeys(ids)
 	safeOutputsStepTokenValidationLog.Printf("Validating %d same-job step token reference(s)", len(sortedIDs))
 
 	jobs := c.jobManager.GetAllJobs()
-	jobNames := make([]string, 0, len(jobs))
-	for jobName := range jobs {
-		jobNames = append(jobNames, jobName)
-	}
-	sort.Strings(jobNames)
-
-	for _, jobName := range jobNames {
+	for _, jobName := range sliceutil.SortedKeys(jobs) {
 		jobYAML := strings.Join(jobs[jobName].Steps, "")
 		for _, stepID := range sortedIDs {
 			consumeIdx := jobStepOutputConsumptionIndex(jobYAML, stepID)
 			if consumeIdx < 0 {
 				continue
+			}
+			if jobName == string(constants.ConclusionJobName) {
+				return NewValidationError(
+					"safe-outputs.github-token",
+					fmt.Sprintf("${{ steps.%s.outputs.* }}", stepID),
+					"conclusion accepts compiler-generated steps only and cannot run a user-provided token-minting step",
+					"Use a secrets.* token expression or compiler-managed safe-outputs.github-app authentication instead",
+				)
 			}
 			declareIdx := jobStepIDDeclarationIndex(jobYAML, stepID)
 			if declareIdx >= 0 && declareIdx < consumeIdx {
