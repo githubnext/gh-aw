@@ -17,34 +17,47 @@ import (
 func TestWebhookManifestCompilation(t *testing.T) {
 	for name, trigger := range map[string]string{
 		"native": "  workflow_dispatch:\n  repository_dispatch:\n    types: [manual]\n",
-		"projects": `  webhook-gateway: true
-  projects-items:
-    project_id: [PVT_one, PVT_two]
-    status-transitions:
-      - {from: Todo, to: Ready}
-      - {from: In progress, to: Done}
+		"generic": `  gateway-dispatch:
+    webhooks:
+      - type: com.example.release
+        filters:
+          data:
+            state: [ready, published]
+            approved: true
+      - type: com.example.deploy
 `,
-		"security": `  webhook-gateway: true
-  security-alerts:
-    sources: [code-scanning, dependabot]
-    types: [created]
-    filters:
-      alert_number: 42
+		"projects": `  gateway-dispatch:
+    projects-items:
+      project_id: [PVT_one, PVT_two]
+      status-transitions:
+        - {from: Todo, to: Ready}
+        - {from: In progress, to: Done}
 `,
-		"multi-repo": `  webhook-gateway: true
-  repos: [bar/baz, "foo/*"]
-  security-alerts: {}
+		"security": `  gateway-dispatch:
+    security-alerts:
+      sources: [code-scanning, dependabot]
+      types: [created]
+      filters:
+        alert_number: 42
 `,
-		"combined": `  workflow_dispatch:
-  webhook-gateway: true
-  projects-items:
-    project_id: PVT_one
-    types: [edited]
-    status-transitions: [{from: Todo, to: "Ready\nfor review"}]
-  security-alerts:
-    sources: [dependabot]
-    types: [created, reopened]
-    severity: [high, critical]
+		"multi-repo": `  gateway-dispatch:
+    repos: [bar/baz, "foo/*"]
+    security-alerts: {}
+`,
+		"combined": `  gateway-dispatch:
+    projects-items:
+      project_id: PVT_one
+      types: [edited]
+      status-transitions: [{from: Todo, to: "Ready\nfor review"}]
+    security-alerts:
+      sources: [dependabot]
+      types: [created, reopened]
+      severity: [high, critical]
+    webhooks:
+      - type: com.example.release
+        filters:
+          data:
+            approved: true
 `,
 	} {
 		t.Run(name, func(t *testing.T) {

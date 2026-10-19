@@ -11,7 +11,7 @@ func (c *Compiler) requireWebhookTriggers(roles []string) error {
 		return fmt.Errorf("cannot enable hosted CAO triggers: %w", err)
 	}
 	if config == nil || !config.WebhookGateway {
-		return fmt.Errorf("webhook triggers are experimental synthetic webhook events that must be triggered by a hosted CAO server; enable them by setting {\"webhook-gateway\":true} in %s in addition to on.webhook-gateway: true in the workflow", RepoConfigFileName)
+		return fmt.Errorf("webhook triggers are experimental synthetic webhook events that must be triggered by a hosted CAO server; enable them by setting {\"webhook-gateway\":true} in %s and defining nested triggers under on.gateway-dispatch in the workflow", RepoConfigFileName)
 	}
 	return validateWebhookTriggerRoles(roles)
 }

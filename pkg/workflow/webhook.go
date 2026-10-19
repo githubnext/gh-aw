@@ -143,8 +143,13 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 	if err != nil {
 		return nil, err
 	}
-	if len(events) == 0 {
+	rawWebhooks, hasWebhooks := onMap["webhooks"]
+	if len(events) == 0 && !hasWebhooks {
 		return nil, nil
+	}
+	repos, err := parseWebhookRepositories(onMap, "on.gateway-dispatch")
+	if err != nil {
+		return nil, err
 	}
 	catalog, err := WebhookCatalog()
 	if err != nil {
@@ -160,7 +165,17 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		if err != nil {
 			return nil, err
 		}
+		if _, repositoryScoped := definition.Filters["repository"]; repositoryScoped {
+			subscription.Repos = slices.Clone(repos)
+		}
 		subscriptions = append(subscriptions, subscription)
+	}
+	if hasWebhooks {
+		generic, err := parseGenericWebhookSubscriptions(rawWebhooks, workflowID)
+		if err != nil {
+			return nil, err
+		}
+		subscriptions = append(subscriptions, generic...)
 	}
 	return subscriptions, nil
 }
@@ -177,7 +192,6 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 	for _, key := range sortedWebhookKeys(config) {
 		supported := key == "types" || key == "filters" ||
 			(event == "projects_v2_item" && key == "status-transitions") ||
-			((event == "code_scanning_alert" || event == "dependabot_alert") && key == "repos") ||
 			(event == "azure_devops_issue" && key == "closed-states")
 		if !supported {
 			return WebhookSubscription{}, fmt.Errorf("unsupported %s property %q", path, key)
@@ -192,10 +206,6 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 		return WebhookSubscription{}, err
 	}
 	subscription := newWebhookSubscription(workflowID, event, types, conditions)
-	subscription.Repos, err = parseWebhookRepositories(config, path)
-	if err != nil {
-		return WebhookSubscription{}, err
-	}
 	if err := applyWebhookStatusTransitions(&subscription, config, definition); err != nil {
 		return WebhookSubscription{}, err
 	}
@@ -208,46 +218,50 @@ func parseWebhookSubscription(raw any, path, event, workflowID string, definitio
 func webhookOnConfig(on any) (map[string]any, error) {
 	for _, name := range rawOnSectionTriggerNames(on) {
 		switch name {
-		case "webhook", "webhook-auth", "gateway", "projects-item", "security-alert":
-			return nil, fmt.Errorf("on.%s is not supported; use on.projects-items or on.security-alerts with on.webhook-gateway: true and standard on.roles/on.bots authorization", name)
+		case "webhook", "webhook-auth", "webhook-gateway", "gateway", "projects-item", "security-alert", "repos":
+			return nil, fmt.Errorf("on.%s is not supported; use on.gateway-dispatch with nested triggers and shared repos, and standard on.roles/on.bots authorization", name)
+		}
+		if isWebhookTrigger(name) {
+			return nil, fmt.Errorf("on.%s is not supported; define %s under on.gateway-dispatch", name, name)
 		}
 	}
 	onMap, ok := on.(map[string]any)
 	if !ok {
-		for _, name := range rawOnSectionTriggerNames(on) {
-			if isWebhookTrigger(name) || name == "webhook-gateway" {
-				return nil, errors.New("webhook triggers require mapping syntax with on.webhook-gateway: true")
-			}
+		if slices.Contains(rawOnSectionTriggerNames(on), "gateway-dispatch") {
+			return nil, errors.New("on.gateway-dispatch requires mapping syntax with at least one nested gateway trigger")
 		}
 		return nil, nil
 	}
-	enabled, valid := onMap["webhook-gateway"].(bool)
-	if _, exists := onMap["webhook-gateway"]; exists && !valid {
-		return nil, errors.New("on.webhook-gateway must be a boolean; set it to true to enable webhook triggers")
+	raw, exists := onMap["gateway-dispatch"]
+	if !exists {
+		return nil, nil
 	}
-	if _, exists := onMap["repos"]; exists && !enabled {
-		return nil, errors.New("on.repos requires on.webhook-gateway: true")
+	gateway, ok := raw.(map[string]any)
+	if !ok {
+		return nil, errors.New("on.gateway-dispatch must be an object with at least one nested gateway trigger")
 	}
-	for _, name := range sortedWebhookKeys(onMap) {
-		if isWebhookTrigger(name) && !enabled {
-			return nil, fmt.Errorf("on.%s requires on.webhook-gateway: true in this workflow", name)
+	for _, dispatch := range []string{"workflow_dispatch", "repository_dispatch"} {
+		if _, exists := onMap[dispatch]; exists {
+			return nil, fmt.Errorf("on.gateway-dispatch cannot be combined with explicit on.%s; remove that trigger and let the compiler generate the gateway route", dispatch)
 		}
 	}
-	return onMap, nil
+	hasTrigger := false
+	for _, name := range sortedWebhookKeys(gateway) {
+		if isWebhookTrigger(name) {
+			hasTrigger = true
+		} else if name != "repos" {
+			return nil, fmt.Errorf("unsupported on.gateway-dispatch property %q; use supported nested gateway triggers or shared repos", name)
+		}
+	}
+	if !hasTrigger {
+		return nil, errors.New("on.gateway-dispatch requires at least one nested gateway trigger; repos alone is not a trigger")
+	}
+	return gateway, nil
 }
 
 func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string, error) {
 	events := map[string]any{}
 	paths := map[string]string{}
-	repos, err := parseWebhookRepositories(on, "on")
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(repos) > 0 {
-		if _, exists := on["security-alerts"]; !exists {
-			return nil, nil, errors.New("on.repos requires an on.security-alerts subscription")
-		}
-	}
 	for _, alias := range sortedWebhookKeys(webhookTriggerAliases) {
 		raw, exists := on[alias]
 		if !exists {
@@ -256,19 +270,19 @@ func webhookTriggerConfigs(on map[string]any) (map[string]any, map[string]string
 		event := webhookTriggerAliases[alias]
 		config, ok := raw.(map[string]any)
 		if !ok {
-			return nil, nil, fmt.Errorf("on.%s must be an object with a required project_id", alias)
+			return nil, nil, fmt.Errorf("on.gateway-dispatch.%s must be an object with a required project_id", alias)
 		}
 		if _, exists := config["project_id"]; !exists {
-			return nil, nil, fmt.Errorf("on.%s.project_id is required", alias)
+			return nil, nil, fmt.Errorf("on.gateway-dispatch.%s.project_id is required", alias)
 		}
-		config, err := promoteWebhookFilters(config, "on."+alias, "project_id")
+		config, err := promoteWebhookFilters(config, "on.gateway-dispatch."+alias, "project_id")
 		if err != nil {
 			return nil, nil, err
 		}
 		events[event] = config
-		paths[event] = "on." + alias
+		paths[event] = "on.gateway-dispatch." + alias
 	}
-	if err := addSecurityAlertConfigs(on, events, paths, repos); err != nil {
+	if err := addSecurityAlertConfigs(on, events, paths); err != nil {
 		return nil, nil, err
 	}
 	addProviderIssueConfigs(on, events, paths)

@@ -22,7 +22,7 @@ var providerIssueTriggers = map[string]string{
 func isWebhookTrigger(name string) bool {
 	_, provider := providerIssueTriggers[name]
 	_, project := webhookTriggerAliases[name]
-	return provider || project || name == "security-alerts"
+	return provider || project || name == "security-alerts" || name == "webhooks"
 }
 
 // WebhookActivityNormalization identifies the documented, payload-only policy
@@ -45,7 +45,7 @@ func addProviderIssueConfigs(on, events map[string]any, paths map[string]string)
 	for alias, event := range providerIssueTriggers {
 		if raw, exists := on[alias]; exists {
 			events[event] = raw
-			paths[event] = "on." + alias
+			paths[event] = "on.gateway-dispatch." + alias
 		}
 	}
 }

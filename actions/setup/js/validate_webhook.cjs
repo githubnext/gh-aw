@@ -5,7 +5,7 @@ const fs = require("fs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
-const { WEBHOOK_PAYLOAD_POLICY } = require("./webhook_resource.cjs");
+const { WEBHOOK_PAYLOAD_POLICY, isGenericWebhookType } = require("./webhook_resource.cjs");
 const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
@@ -90,6 +90,7 @@ function validateWebhook(event, env = process.env) {
         subscription.dispatch.payload_projection.policy === WEBHOOK_PAYLOAD_POLICY &&
         Array.isArray(subscription.types) &&
         subscription.types.every(isNonemptyString) &&
+        (subscription.event !== "webhook" || (subscription.types.length === 1 && isGenericWebhookType(subscription.types[0]) && subscription.provider === undefined && subscription.activity_normalization === undefined)) &&
         hasValidRepositorySelectors(subscription) &&
         (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription))
     )
@@ -130,7 +131,7 @@ function validateWebhook(event, env = process.env) {
   if (!normalized) {
     reject("client_payload.aw_context.webhook is required");
   }
-  const eventSubscriptions = matching.filter(subscription => subscription.event === normalized.webhook.event);
+  const eventSubscriptions = matching.filter(subscription => subscription.event === normalized.webhook.event && (subscription.event !== "webhook" || subscription.types[0] === normalized.webhook.deliveries[0].payload.type[0]));
   if (eventSubscriptions.length !== 1) {
     reject("aw_context.webhook.event must match the webhook subscription");
   }

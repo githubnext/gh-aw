@@ -1521,7 +1521,7 @@ An auto-generated slash command available when [centralized routing](#centralize
 
 A structured context payload passed by the centralized slash-command router (`agentic_commands.yml`) when dispatching target workflows via `workflow_dispatch`. Contains the original GitHub event context (issue number, repository, actor, etc.) so the dispatched workflow can act on the correct resource even though it is triggered as a `workflow_dispatch`. See [Command Triggers](/gh-aw/reference/command-triggers/).
 
-Experimental hosted `on.projects-items`, `on.security-alerts`, and [external issue triggers](/gh-aw/reference/provider-issue-triggers/) require `on.webhook-gateway: true`. They use `aw_context.webhook.deliveries` for same-kind minimal notifications containing only canonical resource URLs and event activity arrays, and `aw_context.items` for URL-derived affected references, without selecting a single implicit item. Additional resource data requires provider-authenticated workflow reads. See [Webhook Triggers](/gh-aw/reference/webhook-triggers/).
+Experimental hosted `projects-items`, `security-alerts`, and [external issue triggers](/gh-aw/reference/provider-issue-triggers/) are nested inside `on.gateway-dispatch`. Shared `repos` selects repository-aware sources. Explicit workflow/repository dispatch declarations cannot coexist with this mapping. They use `aw_context.webhook.deliveries` for same-kind minimal notifications containing only canonical resource URLs and event activity arrays, and `aw_context.items` for URL-derived affected references, without selecting a single implicit item. Additional resource data requires provider-authenticated workflow reads. See [Webhook Triggers](/gh-aw/reference/webhook-triggers/).
 
 ### Conclusion Job
 

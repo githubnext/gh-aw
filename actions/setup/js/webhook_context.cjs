@@ -44,6 +44,7 @@ function normalizeWebhookContext(awContext, env = process.env) {
   }
   const deliveries = new Map();
   const items = new Map();
+  let genericType;
   for (const delivery of webhook.deliveries) {
     if (!isObject(delivery) || Object.keys(delivery).some(key => !["delivery_id", "payload"].includes(key)) || !isNonemptyString(delivery.delivery_id)) {
       reject("each webhook delivery must contain a non-empty delivery_id and an inline payload, without per-delivery event overrides");
@@ -56,6 +57,12 @@ function normalizeWebhookContext(awContext, env = process.env) {
       reject("duplicate webhook delivery_id has conflicting payloads");
     }
     const item = resolveWebhookResource(webhook.event, delivery.payload, env);
+    if (webhook.event === "webhook") {
+      if (genericType !== undefined && genericType !== delivery.payload.type[0]) {
+        reject("generic webhook batches must contain one event identifier");
+      }
+      genericType = delivery.payload.type[0];
+    }
     if (!prior) deliveries.set(delivery.delivery_id, { delivery_id: delivery.delivery_id, payload: delivery.payload });
     const source = "source" in item ? item.source : item.repo.toLowerCase();
     const identity = JSON.stringify([item.item_type, source, item.item_number]);

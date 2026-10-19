@@ -392,7 +392,7 @@ func LoadRepoConfig(gitRoot string) (*RepoConfig, error) {
 	var sections map[string]json.RawMessage
 	if json.Unmarshal(data, &sections) == nil {
 		if _, obsolete := sections["webhook-triggers"]; obsolete {
-			return nil, fmt.Errorf("%s: webhook-triggers has been renamed to webhook-gateway; use {\"webhook-gateway\":true} and on.webhook-gateway: true in each workflow", RepoConfigFileName)
+			return nil, fmt.Errorf("%s: webhook-triggers has been renamed to webhook-gateway; use {\"webhook-gateway\":true} and nested on.gateway-dispatch triggers in each workflow", RepoConfigFileName)
 		}
 		if settings, configured := sections["work_queue"]; configured {
 			if _, err := workqueue.ParseSettings(settings); err != nil {

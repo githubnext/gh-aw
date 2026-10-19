@@ -2,10 +2,8 @@ package workflow
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
-	"strings"
 )
 
 func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *WorkflowData) (map[string]any, error) {
@@ -17,62 +15,25 @@ func (c *Compiler) processWebhookTriggers(frontmatter map[string]any, data *Work
 	if !ok {
 		return frontmatter, nil
 	}
-	_, hasGatewayFlag := on["webhook-gateway"]
-	if len(subscriptions) == 0 && !hasGatewayFlag {
+	if len(subscriptions) == 0 {
 		return frontmatter, nil
 	}
 
 	// Preserve source frontmatter for metadata and hashing; only lower the trigger copy.
 	frontmatter = maps.Clone(frontmatter)
 	on = maps.Clone(on)
-	delete(on, "webhook-gateway")
-	if len(subscriptions) > 0 {
-		if err := c.requireWebhookTriggers(c.extractRoles(frontmatter)); err != nil {
-			return nil, err
-		}
-		delete(on, "repos")
-		dispatchTypes, err := mergeWebhookDispatchTypes(on, WebhookDispatchEventType(data.WorkflowID))
-		if err != nil {
-			return nil, err
-		}
-		data.WebhookSubscriptions = subscriptions
-		delete(on, "projects-items")
-		delete(on, "security-alerts")
-		for alias := range providerIssueTriggers {
-			delete(on, alias)
-		}
-		on["repository_dispatch"] = map[string]any{"types": dispatchTypes}
+	if err := c.requireWebhookTriggers(c.extractRoles(frontmatter)); err != nil {
+		return nil, err
 	}
+	delete(on, "gateway-dispatch")
+	data.WebhookSubscriptions = subscriptions
+	on["repository_dispatch"] = map[string]any{"types": []string{WebhookDispatchEventType(data.WorkflowID)}}
 	frontmatter["on"] = on
 	data.On = c.extractTopLevelYAMLSection(frontmatter, "on")
 	if data.ParsedFrontmatter != nil {
 		data.ParsedFrontmatter.On = on
 	}
 	return frontmatter, nil
-}
-
-func mergeWebhookDispatchTypes(on map[string]any, webhookType string) ([]string, error) {
-	raw, exists := on["repository_dispatch"]
-	if !exists {
-		return []string{webhookType}, nil
-	}
-	dispatch, ok := raw.(map[string]any)
-	if !ok || len(dispatch) != 1 {
-		return nil, errors.New("webhook triggers cannot be combined with an unrestricted repository_dispatch trigger; specify disjoint literal types")
-	}
-	rawTypes, ok := dispatch["types"].([]any)
-	if !ok || len(rawTypes) == 0 {
-		return nil, errors.New("webhook triggers require repository_dispatch.types to contain disjoint literal event types")
-	}
-	types := make([]string, 0, len(rawTypes)+1)
-	for _, rawType := range rawTypes {
-		value, ok := rawType.(string)
-		if !ok || value == "" || strings.ContainsAny(value, "*?[${") || strings.EqualFold(value, webhookType) {
-			return nil, fmt.Errorf("webhook repository_dispatch type %q collides with its relay route or is not a disjoint literal type", rawType)
-		}
-		types = append(types, value)
-	}
-	return append(types, webhookType), nil
 }
 
 func buildWebhookValidationStep(data *WorkflowData) ([]string, error) {

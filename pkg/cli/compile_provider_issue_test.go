@@ -21,9 +21,9 @@ func TestCompileProviderIssueJSONContract(t *testing.T) {
 			enableWebhookTriggers(t, root)
 			path := filepath.Join(root, alias+".md")
 			scope := map[string]string{
-				"jira-issue": "project: APP", "linear-issue": "organization-id: organization-uuid\n    team-id: team-uuid", "azure-devops-issue": "project_id: project-uuid",
+				"jira-issue": "project: APP", "linear-issue": "organization-id: organization-uuid\n      team-id: team-uuid", "azure-devops-issue": "project_id: project-uuid",
 			}[alias]
-			source := "---\non:\n  webhook-gateway: true\n  " + alias + ":\n    " + scope + "\n    types: [opened, labeled]\npermissions:\n  contents: read\nengine: copilot\n---\nInspect every issue in github.aw.context.items.\n"
+			source := "---\non:\n  gateway-dispatch:\n    " + alias + ":\n      " + scope + "\n      types: [opened, labeled]\npermissions:\n  contents: read\nengine: copilot\n---\nInspect every issue in github.aw.context.items.\n"
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.True(t, result.success, "%+v", result.validationResult.Errors)
@@ -60,13 +60,13 @@ func TestCompileProviderIssueRequiresScope(t *testing.T) {
 			selector := ""
 			if wrapped {
 				name = "nested"
-				selector = "    filters:\n      " + field + ": source-scope\n"
+				selector = "      filters:\n        " + field + ": source-scope\n"
 			}
 			t.Run(alias+"/"+name, func(t *testing.T) {
 				root := t.TempDir()
 				enableWebhookTriggers(t, root)
 				path := filepath.Join(root, alias+".md")
-				source := "---\non:\n  webhook-gateway: true\n  " + alias + ":\n    types: [opened]\n" + selector +
+				source := "---\non:\n  gateway-dispatch:\n    " + alias + ":\n      types: [opened]\n" + selector +
 					"permissions:\n  contents: read\nengine: copilot\n---\nInspect issues.\n"
 				require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 				result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})

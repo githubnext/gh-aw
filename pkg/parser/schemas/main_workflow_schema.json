@@ -743,99 +743,110 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
-          "not": { "enum": ["gateway", "webhook-gateway", "projects-item", "projects-items", "security-alert", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue"] },
+          "not": { "enum": ["gateway-dispatch", "gateway", "webhook-gateway", "webhooks", "projects-item", "projects-items", "security-alert", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue"] },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
           "type": "object",
           "description": "Complex trigger configuration with event-specific filters and options",
           "dependencies": {
-            "projects-items": {
-              "required": ["webhook-gateway"],
-              "properties": { "webhook-gateway": { "const": true } }
-            },
-            "security-alerts": {
-              "required": ["webhook-gateway"],
-              "properties": { "webhook-gateway": { "const": true } }
-            },
-            "jira-issue": {
-              "required": ["webhook-gateway"],
-              "properties": { "webhook-gateway": { "const": true } }
-            },
-            "linear-issue": {
-              "required": ["webhook-gateway"],
-              "properties": { "webhook-gateway": { "const": true } }
-            },
-            "azure-devops-issue": {
-              "required": ["webhook-gateway"],
-              "properties": { "webhook-gateway": { "const": true } }
+            "gateway-dispatch": {
+              "not": {
+                "anyOf": [{ "required": ["workflow_dispatch"] }, { "required": ["repository_dispatch"] }]
+              }
             }
           },
           "properties": {
             "projects-item": false,
             "security-alert": false,
             "gateway": false,
-            "webhook-gateway": {
-              "type": "boolean",
-              "description": "Experimental. Must be true in each workflow using webhook triggers, including external issue providers. Also requires aw.json webhook-gateway: true. Does not grant gateway authority."
-            },
-            "repos": {
-              "$ref": "#/$defs/webhookRepositoryValues",
-              "description": "Experimental. Source repository selectors for security-alert webhook subscriptions; exact owner/repo or owner/* only. Selectors do not grant access."
-            },
-            "projects-items": {
+            "webhook-gateway": false,
+            "repos": false,
+            "projects-items": false,
+            "security-alerts": false,
+            "jira-issue": false,
+            "linear-issue": false,
+            "azure-devops-issue": false,
+            "webhooks": false,
+            "gateway-dispatch": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["project_id"],
+              "description": "Experimental. Nested bundled gateway triggers with shared repository selection. Requires aw.json webhook-gateway: true. Cannot be combined with explicit workflow_dispatch or repository_dispatch and does not grant gateway authority.",
+              "anyOf": [{ "required": ["projects-items"] }, { "required": ["security-alerts"] }, { "required": ["jira-issue"] }, { "required": ["linear-issue"] }, { "required": ["azure-devops-issue"] }, { "required": ["webhooks"] }],
               "properties": {
-                "project_id": {
-                  "$ref": "#/$defs/webhookStringValues",
-                  "description": "Experimental. Required Projects v2 GraphQL node ID or nonempty list of IDs; sibling of types."
-                },
-                "types": {
+                "webhooks": {
                   "type": "array",
                   "minItems": 1,
-                  "uniqueItems": true,
-                  "items": { "type": "string", "minLength": 1 }
-                },
-                "status-transitions": {
-                  "description": "Experimental. Paired from/to Status changes compiled to CAO-side predicates over the delivered payload. Each complete pair is an alternative; no runner admission step is added.",
-                  "type": "array",
-                  "minItems": 1,
-                  "uniqueItems": true,
+                  "description": "Experimental. Generic event subscriptions with unique literal type identifiers and declarative typed equality filters evaluated by an approved gateway before minimal URL/type projection. Does not register sources or grant access.",
                   "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["from", "to"],
+                    "required": ["type"],
                     "properties": {
-                      "from": { "type": "string", "minLength": 1, "pattern": "\\S" },
-                      "to": { "type": "string", "minLength": 1, "pattern": "\\S" }
+                      "type": { "$ref": "#/$defs/webhookGenericType" },
+                      "filters": { "$ref": "#/$defs/webhookGenericFilters" }
                     }
                   }
                 },
-                "filters": {
+                "repos": {
+                  "$ref": "#/$defs/webhookRepositoryValues",
+                  "description": "Experimental. Shared source repository selectors for all repository-aware gateway subscriptions; exact owner/repo or owner/* only. Ignored by non-repository event families. Selectors do not grant access."
+                },
+                "projects-items": {
                   "type": "object",
-                  "minProperties": 1,
-                  "properties": { "project_id": false }
+                  "additionalProperties": false,
+                  "required": ["project_id"],
+                  "properties": {
+                    "project_id": {
+                      "$ref": "#/$defs/webhookStringValues",
+                      "description": "Experimental. Required Projects v2 GraphQL node ID or nonempty list of IDs; sibling of types."
+                    },
+                    "types": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "status-transitions": {
+                      "description": "Experimental. Paired from/to Status changes compiled to CAO-side predicates over the delivered payload. Each complete pair is an alternative; no runner admission step is added.",
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["from", "to"],
+                        "properties": {
+                          "from": { "type": "string", "minLength": 1, "pattern": "\\S" },
+                          "to": { "type": "string", "minLength": 1, "pattern": "\\S" }
+                        }
+                      }
+                    },
+                    "filters": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "properties": { "project_id": false }
+                    }
+                  },
+                  "description": "Experimental. Batched Projects v2 item events under on.gateway-dispatch requiring a hosted CAO server and aw.json webhook-gateway: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
+                },
+                "security-alerts": {
+                  "$ref": "#/$defs/webhookSecurityAlert",
+                  "description": "Experimental. Batched security alerts under on.gateway-dispatch from optionally selected repositories. Requires a hosted CAO server and aw.json webhook-gateway: true."
+                },
+                "jira-issue": {
+                  "$ref": "#/$defs/webhookJiraIssue",
+                  "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires nested on.gateway-dispatch, the repository webhook-gateway opt-in, and an approved provider bridge; does not register webhooks or grant source access."
+                },
+                "linear-issue": {
+                  "$ref": "#/$defs/webhookLinearIssue",
+                  "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires nested on.gateway-dispatch, the repository webhook-gateway opt-in, and an approved provider bridge; does not register webhooks or grant source access."
+                },
+                "azure-devops-issue": {
+                  "$ref": "#/$defs/webhookAzureDevOpsIssue",
+                  "description": "Experimental. Azure DevOps work item webhooks with payload-derived lifecycle and tag activities. Closed/reopened require explicit closed-states. Requires nested on.gateway-dispatch, the repository webhook-gateway opt-in, and an approved provider bridge."
                 }
-              },
-              "description": "Experimental. Batched Projects v2 item events requiring a hosted CAO server, on.webhook-gateway: true, and aw.json webhook-gateway: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
-            },
-            "security-alerts": {
-              "$ref": "#/$defs/webhookSecurityAlert",
-              "description": "Experimental. Batched security alerts from optionally selected repositories. Requires a hosted CAO server, on.webhook-gateway: true, and aw.json webhook-gateway: true."
-            },
-            "jira-issue": {
-              "$ref": "#/$defs/webhookJiraIssue",
-              "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires both webhook gateway opt-ins and an approved provider bridge; does not register webhooks or grant source access."
-            },
-            "linear-issue": {
-              "$ref": "#/$defs/webhookLinearIssue",
-              "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires both webhook gateway opt-ins and an approved provider bridge; does not register webhooks or grant source access."
-            },
-            "azure-devops-issue": {
-              "$ref": "#/$defs/webhookAzureDevOpsIssue",
-              "description": "Experimental. Azure DevOps work item webhooks with payload-derived lifecycle and tag activities. Closed/reopened require explicit closed-states. Requires both webhook gateway opt-ins and an approved provider bridge."
+              }
             },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
@@ -14728,7 +14739,35 @@
           "properties": { "severity": false, "repos": false }
         }
       },
-      "description": "Experimental. Batched on.security-alerts subscriptions requiring a hosted CAO server, on.webhook-gateway: true, and aw.json webhook-gateway: true. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
+      "description": "Experimental. Batched on.gateway-dispatch.security-alerts subscriptions requiring a hosted CAO server and aw.json webhook-gateway: true. Shared on.gateway-dispatch.repos selects source repositories. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
+    },
+    "webhookGenericType": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "webhookGenericFilters": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^([A-Za-z_][A-Za-z0-9_-]*|\\*)$",
+        "not": { "enum": ["__proto__", "prototype", "constructor"] }
+      },
+      "additionalProperties": { "$ref": "#/$defs/webhookGenericFilterValue" }
+    },
+    "webhookGenericFilterValue": {
+      "oneOf": [
+        { "type": "string", "not": { "pattern": "\\$\\{\\{" } },
+        { "type": "boolean" },
+        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "oneOf": [{ "items": { "type": "string", "not": { "pattern": "\\$\\{\\{" } } }, { "items": { "type": "boolean" } }, { "items": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 } }]
+        },
+        { "$ref": "#/$defs/webhookGenericFilters" }
+      ]
     },
     "webhookStringValues": {
       "oneOf": [

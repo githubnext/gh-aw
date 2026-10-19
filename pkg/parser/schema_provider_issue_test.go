@@ -41,7 +41,7 @@ func TestProviderIssueSchema(t *testing.T) {
 					valid = false
 				}
 				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
-					"on": map[string]any{"webhook-gateway": true, alias: config},
+					"on": map[string]any{"gateway-dispatch": map[string]any{alias: config}},
 				}, "provider.md")
 				if valid {
 					require.NoError(t, err)
@@ -58,26 +58,16 @@ func TestAzureIssueClosedStatesSchema(t *testing.T) {
 		"null": nil, "empty": []any{}, "blank": " ", "number": 123, "mixed": []any{"Done", false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{
-				"webhook-gateway": true,
-				"azure-devops-issue": map[string]any{
-					"project_id": "project-uuid", "types": []any{"closed"}, "closed-states": states,
-				},
-			}}, "azure.md")
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"azure-devops-issue": map[string]any{"project_id": "project-uuid", "types": []any{"closed"}, "closed-states": states}}}}, "azure.md")
 			require.Error(t, err)
 		})
 	}
 	for _, alias := range []string{"jira-issue", "linear-issue"} {
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{
-			"webhook-gateway": true, alias: map[string]any{"closed-states": []any{"Done"}},
-		}}, "provider.md")
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{alias: map[string]any{"closed-states": []any{"Done"}}}}}, "provider.md")
 		require.Error(t, err)
 	}
 	for _, activity := range []string{"closed", "reopened"} {
-		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{
-			"webhook-gateway":    true,
-			"azure-devops-issue": map[string]any{"project_id": "project-uuid", "types": []any{activity}},
-		}}, "azure.md")
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"azure-devops-issue": map[string]any{"project_id": "project-uuid", "types": []any{activity}}}}}, "azure.md")
 		require.ErrorContains(t, err, "closed-states")
 	}
 }
@@ -87,15 +77,15 @@ func TestProviderIssueRequiredScopesSchema(t *testing.T) {
 		"jira-issue": "project", "linear-issue": "organization-id", "azure-devops-issue": "project_id",
 	} {
 		t.Run(alias, func(t *testing.T) {
-			on := map[string]any{"webhook-gateway": true, alias: map[string]any{}}
+			on := map[string]any{"gateway-dispatch": map[string]any{alias: map[string]any{}}}
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "missing.md")
 			require.ErrorContains(t, err, field)
 			for _, value := range []any{nil, "", " ", 1, []any{}, []any{"scope", ""}, []any{false}} {
-				on[alias] = map[string]any{field: value}
+				on["gateway-dispatch"].(map[string]any)[alias] = map[string]any{field: value}
 				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "invalid.md")
 				require.Error(t, err, "scope: %#v", value)
 			}
-			on[alias] = map[string]any{field: []any{"scope-a", "scope-b"}}
+			on["gateway-dispatch"].(map[string]any)[alias] = map[string]any{field: []any{"scope-a", "scope-b"}}
 			require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "scoped.md"))
 		})
 	}
@@ -104,7 +94,7 @@ func TestProviderIssueRequiredScopesSchema(t *testing.T) {
 func TestLinearIssueTeamIDSchema(t *testing.T) {
 	for _, value := range []any{"team-uuid", []any{"team-a", "team-b"}} {
 		config := map[string]any{"organization-id": "organization-uuid", "team-id": value}
-		on := map[string]any{"webhook-gateway": true, "linear-issue": config}
+		on := map[string]any{"gateway-dispatch": map[string]any{"linear-issue": config}}
 		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "linear.md"))
 	}
 	for _, config := range []map[string]any{
@@ -113,7 +103,7 @@ func TestLinearIssueTeamIDSchema(t *testing.T) {
 		{"organization_id": "org"},
 		{"organization-id": "org", "team_id": "team"},
 	} {
-		on := map[string]any{"webhook-gateway": true, "linear-issue": config}
+		on := map[string]any{"gateway-dispatch": map[string]any{"linear-issue": config}}
 		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "invalid-linear.md"))
 	}
 }

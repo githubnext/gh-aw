@@ -19,7 +19,11 @@ function reject(message) {
 }
 
 function isWebhookEvent(event) {
-  return typeof event === "string" && Object.hasOwn(WEBHOOK_TYPES, event);
+  return event === "webhook" || (typeof event === "string" && Object.hasOwn(WEBHOOK_TYPES, event));
+}
+
+function isGenericWebhookType(type) {
+  return typeof type === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$/.test(type);
 }
 
 function resourceURL(value, message) {
@@ -82,6 +86,13 @@ function resolveWebhookResource(event, payload, env = process.env) {
   if (Object.keys(payload).some(key => !["url", "type"].includes(key))) {
     reject("webhook payload accepts only a canonical resource URL and type array; fetch resource details with an authenticated provider client");
   }
+  if (event === "webhook") {
+    if (!Array.isArray(payload.type) || payload.type.length !== 1 || !isGenericWebhookType(payload.type[0])) {
+      reject("generic webhook payload type must contain exactly one literal event identifier");
+    }
+    const url = resourceURL(payload.url, "generic webhook payload requires a canonical HTTPS resource URL");
+    return { item_type: "webhook", item_number: "", repo: "", source: url.href, url: url.href };
+  }
   const supported = isWebhookEvent(event) ? WEBHOOK_TYPES[event] : undefined;
   if (!supported || !Array.isArray(payload.type) || payload.type.length === 0 || payload.type.some(type => !supported.includes(type)) || new Set(payload.type).size !== payload.type.length) {
     reject("webhook payload type must be a non-empty array of distinct supported event activities");
@@ -99,4 +110,4 @@ function resolveWebhookResource(event, payload, env = process.env) {
   return event.endsWith("_issue") ? resolveProviderResource(event, url) : resolveGitHubResource(event, url, env);
 }
 
-module.exports = { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, isWebhookEvent, resolveWebhookResource };
+module.exports = { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, isWebhookEvent, isGenericWebhookType, resolveWebhookResource };

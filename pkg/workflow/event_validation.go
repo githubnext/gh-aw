@@ -100,12 +100,7 @@ var ghAwOnSectionKeys = map[string]bool{
 	"status-comment":                     true,
 	"steps":                              true,
 	"stop-after":                         true,
-	"webhook-gateway":                    true,
-	"projects-items":                     true,
-	"security-alerts":                    true,
-	"jira-issue":                         true,
-	"linear-issue":                       true,
-	"azure-devops-issue":                 true,
+	"gateway-dispatch":                   true,
 }
 
 // ValidateEventTypes validates that the event types in the 'on:' section of a

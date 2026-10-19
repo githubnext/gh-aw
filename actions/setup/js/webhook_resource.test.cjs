@@ -28,15 +28,59 @@ describe("minimal resource notification contract", () => {
     expect([...types].sort()).toEqual([...(githubCatalog[event] ?? providerCatalog[event]).actions].sort());
   });
 
-  it("validates all six complete specification payloads against the actual runtime", () => {
+  it("validates every complete specification payload against the actual runtime", () => {
     const specification = readFileSync(new URL("../../../docs/src/content/docs/specs/webhook-gateway-specification.md", import.meta.url), "utf8");
     const payloads = [...specification.matchAll(/```json title="([^"]+)\.payload\.json"\n([\s\S]*?)\n```/g)];
-    expect(payloads.map(match => match[1]).sort()).toEqual(Object.keys(WEBHOOK_TYPES).sort());
+    expect(payloads.map(match => match[1]).sort()).toEqual([...Object.keys(WEBHOOK_TYPES), "webhook"].sort());
     for (const [, event, json] of payloads) {
       const payload = JSON.parse(json);
       expect(Object.keys(payload).sort()).toEqual(["type", "url"]);
       expect(normalizeWebhookContext({ webhook: { event, deliveries: [{ delivery_id: "example", payload }] } }).items).toHaveLength(1);
     }
+  });
+
+  it("derives generic references only from canonical URLs without guessing issue identities", () => {
+    const url = "https://service.example/releases/42";
+    expect(resolveWebhookResource("webhook", { url, type: ["com.example.release"] })).toEqual({
+      item_type: "webhook",
+      item_number: "",
+      repo: "",
+      source: url,
+      url,
+    });
+    const result = normalizeWebhookContext({
+      webhook: {
+        event: "webhook",
+        deliveries: [url, url, `${url}/other`].map((url, index) => ({
+          delivery_id: `generic-${index}`,
+          payload: { url, type: ["com.example.release"] },
+        })),
+      },
+    });
+    expect(result.items).toHaveLength(2);
+    expect(result.webhook.deliveries).toHaveLength(3);
+    expect(() => resolveWebhookResource("webhook", { url, type: ["com.example.release"], state: "private" })).toThrow(/accepts only/);
+    for (const invalid of ["http://service.example/releases/42", `${url}?token=private`, `${url}#fragment`, "https://user:private@service.example/releases/42"]) {
+      expect(() => resolveWebhookResource("webhook", { url: invalid, type: ["com.example.release"] })).toThrow(/canonical/);
+    }
+  });
+
+  it("requires homogeneous literal generic event identifiers, not activity/body side channels", () => {
+    const url = "https://service.example/releases/42";
+    for (const type of [[], [""], ["*"], ["event type"], ["${{ github.actor }}"], ["event", "other"], "event", [false], ["a".repeat(101)]]) {
+      expect(() => resolveWebhookResource("webhook", { url, type })).toThrow(/type/);
+    }
+    expect(() =>
+      normalizeWebhookContext({
+        webhook: {
+          event: "webhook",
+          deliveries: ["event", "other"].map(type => ({
+            delivery_id: type,
+            payload: { url, type: [type] },
+          })),
+        },
+      })
+    ).toThrow(/one event identifier/);
   });
 
   it.each(examples)("derives %s identity from only URL and activities, without network access", (event, url, type, number, source) => {

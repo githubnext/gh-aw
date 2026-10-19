@@ -32,7 +32,7 @@ func TestSecurityAlertSubscriptions(t *testing.T) {
 			} else {
 				config["filters"] = map[string]any{tt.filter: tt.value}
 			}
-			on := map[string]any{"webhook-gateway": true, "security-alerts": config}
+			on := map[string]any{"gateway-dispatch": map[string]any{"security-alerts": config}}
 			before, err := json.Marshal(on)
 			require.NoError(t, err)
 			subscriptions, err := ParseWebhookSubscriptions(on, "security-agent")
@@ -50,7 +50,7 @@ func TestSecurityAlertSubscriptions(t *testing.T) {
 			require.NoError(t, ValidateEventTypes(map[string]any{"on": on}))
 			assert.Equal(t, []string{tt.event}, NormalizeGitHubAppWebhookEvents(on))
 
-			on["security-alerts"] = map[string]any{"sources": tt.kind}
+			on["gateway-dispatch"].(map[string]any)["security-alerts"] = map[string]any{"sources": tt.kind}
 			all, err := ParseWebhookSubscriptions(on, "security-agent")
 			require.NoError(t, err)
 			catalog, err := WebhookCatalog()
@@ -73,26 +73,26 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 	}{
 		"null":                     {nil, "must be an object"},
 		"scalar":                   {"dependabot", "must be an object"},
-		"null sources":             {map[string]any{"sources": nil}, "on.security-alerts.sources"},
-		"empty sources":            {map[string]any{"sources": []any{}}, "on.security-alerts.sources"},
-		"blank source":             {map[string]any{"sources": " "}, "on.security-alerts.sources"},
-		"unknown source":           {map[string]any{"sources": "security_advisory"}, "on.security-alerts.sources"},
-		"known and unknown source": {map[string]any{"sources": []any{"dependabot", "secret-scanning-scan"}}, "on.security-alerts.sources"},
+		"null sources":             {map[string]any{"sources": nil}, "on.gateway-dispatch.security-alerts.sources"},
+		"empty sources":            {map[string]any{"sources": []any{}}, "on.gateway-dispatch.security-alerts.sources"},
+		"blank source":             {map[string]any{"sources": " "}, "on.gateway-dispatch.security-alerts.sources"},
+		"unknown source":           {map[string]any{"sources": "security_advisory"}, "on.gateway-dispatch.security-alerts.sources"},
+		"known and unknown source": {map[string]any{"sources": []any{"dependabot", "secret-scanning-scan"}}, "on.gateway-dispatch.security-alerts.sources"},
 		"removed secret source":    {map[string]any{"sources": "secret-scanning"}, "must select only code-scanning or dependabot"},
 		"removed secret list":      {map[string]any{"sources": []any{"secret-scanning"}}, "must select only code-scanning or dependabot"},
 		"mixed removed source":     {map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}}, "must select only code-scanning or dependabot"},
-		"mixed sources":            {map[string]any{"sources": []any{"dependabot", true}}, "on.security-alerts.sources"},
-		"scan event":               {map[string]any{"sources": "secret-scanning-scan"}, "on.security-alerts.sources"},
+		"mixed sources":            {map[string]any{"sources": []any{"dependabot", true}}, "on.gateway-dispatch.security-alerts.sources"},
+		"scan event":               {map[string]any{"sources": "secret-scanning-scan"}, "on.gateway-dispatch.security-alerts.sources"},
 		"location event": {map[string]any{
 			"sources": "secret-scanning-alert-location",
-		}, "on.security-alerts.sources"},
-		"removed type":                   {map[string]any{"sources": "dependabot", "type": "dependabot"}, "unsupported on.security-alerts property"},
-		"unsupported property":           {map[string]any{"sources": "dependabot", "typo": true}, "unsupported on.security-alerts property"},
+		}, "on.gateway-dispatch.security-alerts.sources"},
+		"removed type":                   {map[string]any{"sources": "dependabot", "type": "dependabot"}, "unsupported on.gateway-dispatch.security-alerts property"},
+		"unsupported property":           {map[string]any{"sources": "dependabot", "typo": true}, "unsupported on.gateway-dispatch.security-alerts property"},
 		"wrong action":                   {map[string]any{"sources": "dependabot", "types": []any{"completed"}}, "unsupported activity type"},
 		"wrong source action":            {map[string]any{"sources": "code-scanning", "types": []any{"publicly_leaked"}}, "unsupported activity type"},
 		"empty actions":                  {map[string]any{"sources": "dependabot", "types": []any{}}, "non-empty list"},
 		"unsupported filter":             {map[string]any{"sources": "dependabot", "filters": map[string]any{"not-a-filter": true}}, "unsupported filter"},
-		"nested severity":                {map[string]any{"sources": "dependabot", "filters": map[string]any{"severity": "high"}}, "use on.security-alerts.severity beside types"},
+		"nested severity":                {map[string]any{"sources": "dependabot", "filters": map[string]any{"severity": "high"}}, "use on.gateway-dispatch.security-alerts.severity beside types"},
 		"wrong severity type":            {map[string]any{"sources": "code-scanning", "severity": true}, "non-empty string"},
 		"empty severity":                 {map[string]any{"sources": "dependabot", "severity": ""}, "non-empty string"},
 		"invalid severity":               {map[string]any{"sources": "dependabot", "severity": "error"}, "not one of"},
@@ -100,26 +100,22 @@ func TestSecurityAlertRejectsInvalidConfiguration(t *testing.T) {
 		"secret material":                {map[string]any{"sources": "dependabot", "filters": map[string]any{"secret": "not-a-secret"}}, "unsupported filter"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, "security-alerts": tt.config}, "security-agent")
+			_, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"security-alerts": tt.config}}, "security-agent")
 			require.ErrorContains(t, err, tt.want)
-			assert.Contains(t, err.Error(), "on.security-alerts")
+			assert.Contains(t, err.Error(), "on.gateway-dispatch.security-alerts")
 		})
 	}
 
 	for _, shorthand := range []any{"security-alert", []any{"push", "security-alert"}, "security-alerts", []any{"push", "security-alerts"}} {
 		_, err := ParseWebhookSubscriptions(shorthand, "security-agent")
-		require.ErrorContains(t, err, "on.webhook-gateway: true")
+		require.ErrorContains(t, err, "on.gateway-dispatch")
 	}
 }
 
 func TestSecurityAlertRepositorySelectors(t *testing.T) {
 	for _, name := range []string{"security-alerts"} {
 		t.Run(name, func(t *testing.T) {
-			on := map[string]any{
-				"webhook-gateway": true,
-				"repos":           []any{"Foo/*", "bar/baz", "BAR/BAZ", "foo/*"},
-				name:              map[string]any{},
-			}
+			on := map[string]any{"gateway-dispatch": map[string]any{"repos": []any{"Foo/*", "bar/baz", "BAR/BAZ", "foo/*"}, name: map[string]any{}}}
 			before, err := json.Marshal(on)
 			require.NoError(t, err)
 			subscriptions, err := ParseWebhookSubscriptions(on, "multi-repo")
@@ -149,32 +145,48 @@ func TestSecurityAlertRejectsInvalidRepositorySelectors(t *testing.T) {
 		[]any{"bar/baz "}, []any{" bar/baz"}, []any{"bar/baz\n"}, []any{"bar/."}, []any{"bar/.."},
 	} {
 		t.Run(fmt.Sprint(repos), func(t *testing.T) {
-			_, err := ParseWebhookSubscriptions(map[string]any{
-				"webhook-gateway": true,
-				"repos":           repos,
-				"security-alerts": map[string]any{},
-			}, "invalid-repos")
-			require.ErrorContains(t, err, "on.repos")
+			_, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"repos": repos, "security-alerts": map[string]any{}}}, "invalid-repos")
+			require.ErrorContains(t, err, "on.gateway-dispatch.repos")
 			assert.Contains(t, err.Error(), "owner/repo or owner/*")
 		})
 	}
 }
 
-func TestWebhookRepositoriesRequireSecurityAlertsAndGatewayOptIn(t *testing.T) {
+func TestWebhookRepositoriesAreSharedOnlyWithRepositoryAwareEvents(t *testing.T) {
 	_, err := ParseWebhookSubscriptions(map[string]any{"repos": []any{"bar/baz"}}, "missing-gateway")
-	require.ErrorContains(t, err, "on.repos requires on.webhook-gateway: true")
+	require.ErrorContains(t, err, "use on.gateway-dispatch")
 
-	_, err = ParseWebhookSubscriptions(map[string]any{
-		"webhook-gateway": true,
-		"repos":           []any{"bar/baz"},
-		"projects-items":  map[string]any{"project_id": "PVT_example"},
-	}, "projects-only")
-	require.ErrorContains(t, err, "on.repos requires an on.security-alerts subscription")
+	on := map[string]any{"gateway-dispatch": map[string]any{
+		"repos":              []any{"Bar/Baz", "foo/*"},
+		"projects-items":     map[string]any{"project_id": "PVT_example"},
+		"security-alerts":    map[string]any{},
+		"jira-issue":         map[string]any{"project": "APP"},
+		"linear-issue":       map[string]any{"organization-id": "org"},
+		"azure-devops-issue": map[string]any{"project_id": "project"},
+	}}
+	before, err := json.Marshal(on)
+	require.NoError(t, err)
+	subscriptions, err := ParseWebhookSubscriptions(on, "shared-repos")
+	require.NoError(t, err)
+	require.Len(t, subscriptions, 6)
+	for _, subscription := range subscriptions {
+		switch subscription.Event {
+		case "code_scanning_alert", "dependabot_alert":
+			assert.Equal(t, []string{"bar/baz", "foo/*"}, subscription.Repos)
+		default:
+			assert.Empty(t, subscription.Repos, "non-repository events keep their own required source scopes")
+		}
+	}
+	after, err := json.Marshal(on)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(before), string(after), "shared repository normalization must not mutate source frontmatter")
+	_, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"repos": []any{"bar/baz"}, "projects-items": map[string]any{"project_id": "PVT_example"}}}, "projects-only")
+	require.NoError(t, err)
 }
 
 func TestSecurityAlertOmittedSelectors(t *testing.T) {
 	for _, name := range []string{"security-alerts"} {
-		subscriptions, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, name: map[string]any{}}, "defaults")
+		subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{name: map[string]any{}}}, "defaults")
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 2)
 		for _, subscription := range subscriptions {
@@ -183,33 +195,20 @@ func TestSecurityAlertOmittedSelectors(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, string(encoded), `"repos"`)
 		}
-		subscriptions, err = ParseWebhookSubscriptions(map[string]any{
-			"webhook-gateway": true,
-			"repos":           []string{"bar/baz"},
-			name:              map[string]any{"sources": "dependabot"},
-		}, "explicit-source")
+		subscriptions, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"repos": []string{"bar/baz"}, name: map[string]any{"sources": "dependabot"}}}, "explicit-source")
 		require.NoError(t, err)
 		require.Len(t, subscriptions, 1)
 		assert.Equal(t, "dependabot_alert", subscriptions[0].Event)
 		assert.Equal(t, []string{"bar/baz"}, subscriptions[0].Repos)
-		_, err = ParseWebhookSubscriptions(map[string]any{
-			"webhook-gateway": true,
-			name:              map[string]any{"repos": []string{"bar/baz"}, "sources": "secret-scanning"},
-		}, "secret")
-		require.ErrorContains(t, err, "on.security-alerts.repos is not supported")
-		_, err = ParseWebhookSubscriptions(map[string]any{
-			"webhook-gateway": true,
-			name:              map[string]any{"sources": "secret-scanning"},
-		}, "secret")
-		require.ErrorContains(t, err, "on."+name+".sources")
+		_, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{name: map[string]any{"repos": []string{"bar/baz"}, "sources": "secret-scanning"}}}, "secret")
+		require.ErrorContains(t, err, "on.gateway-dispatch.security-alerts.repos is not supported")
+		_, err = ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{name: map[string]any{"sources": "secret-scanning"}}}, "secret")
+		require.ErrorContains(t, err, "on.gateway-dispatch."+name+".sources")
 	}
 }
 
 func TestSecurityAlertMultipleSources(t *testing.T) {
-	on := map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{
-		"sources": []any{"dependabot", "code-scanning"},
-		"types":   []any{"created"},
-	}}
+	on := map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": []any{"dependabot", "code-scanning"}, "types": []any{"created"}}}}
 	subscriptions, err := ParseWebhookSubscriptions(on, "security-agent")
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 2)
@@ -223,9 +222,7 @@ func TestSecurityAlertMultipleSources(t *testing.T) {
 }
 
 func TestSecurityAlertSeverityAlternatives(t *testing.T) {
-	subscriptions, err := ParseWebhookSubscriptions(map[string]any{"webhook-gateway": true, "security-alerts": map[string]any{
-		"sources": []any{"dependabot"}, "types": []any{"created"}, "severity": []any{"high", "critical"},
-	}}, "security-agent")
+	subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": []any{"dependabot"}, "types": []any{"created"}, "severity": []any{"high", "critical"}}}}, "security-agent")
 	require.NoError(t, err)
 	require.Len(t, subscriptions, 1)
 	require.Len(t, subscriptions[0].Conditions, 1)
