@@ -74,6 +74,8 @@ const {
   warnCopilotSubagentEndpoints,
   applyCopilotModelAliasResolution,
   resolveCopilotSDKMultiProvider,
+  resolveCopilotSubagentModels,
+  applyCopilotCLISubagentModels,
   formatInferenceEndpointForLog,
   logCopilotInferenceConfiguration,
   resolveLongRunTokenThreshold,
@@ -4650,6 +4652,341 @@ require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))}).fetchAWFReflect
       configured_model: "claude-opus-4.8",
       resolved_model: "",
       effective_model: "",
+    });
+  });
+});
+
+describe("Copilot sub-agent model resolution (recorded /reflect from run 39304573724)", () => {
+  // Agent artifact of https://github.com/github/gh-aw/actions/runs/39304573724 (smoke-copilot-sub-agents, SDK mode):
+  // sandbox/firewall/awf-reflect.json (models_fetch_complete true, one configured Copilot endpoint with 38 models,
+  // no gpt-5.4-mini) and awf-config.json apiProxy.models (the workflow's alias map). That run silently served the
+  // mini54-whoami sub-agent (gpt-5.4-mini) on the main model gpt-5.3-codex (gh-aw#70388).
+  const fixtureDir = path.join(path.dirname(require.resolve("./copilot_harness.cjs")), "fixtures");
+  const reflectPath = path.join(fixtureDir, "awf-reflect-copilot-sub-agents-39304573724.json");
+  const awfConfigFixturePath = path.join(fixtureDir, "awf-config-models-copilot-sub-agents-39304573724.json");
+  const recordedReflect = () => JSON.parse(fs.readFileSync(reflectPath, "utf8"));
+  const aliasMap = () => JSON.parse(fs.readFileSync(awfConfigFixturePath, "utf8")).apiProxy.models;
+  const { ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
+  const { resolveMultiProviderFromReflect } = require("./awf_reflect.cjs");
+  const { qualifyModelForMultiProvider } = require("./copilot_sdk_multi_provider.cjs");
+  const tempDirs = [];
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  function tempDir(prefix) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+    tempDirs.push(dir);
+    return dir;
+  }
+
+  const readRecords = dir => {
+    const file = path.join(dir, "agent/model-resolution.json");
+    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
+  };
+
+  /** In-process: the harness sub-agent resolution step against the recorded catalogue. */
+  async function resolveAgents(agents, { reflect = recordedReflect(), refreshed = [], providerConfig = null } = {}) {
+    const dir = tempDir("copilot-subagent-models-");
+    const env = { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1" };
+    const logs = [];
+    const refetch = vi.fn().mockResolvedValue(null);
+    for (const data of refreshed) refetch.mockResolvedValueOnce(data);
+    let resolutions = null;
+    let error = null;
+    try {
+      resolutions = await resolveCopilotSubagentModels({ agents, reflectData: reflect, refetchReflectData: refetch, providerConfig, aliasMap: aliasMap(), env, logger: message => logs.push(message) });
+    } catch (err) {
+      error = err;
+    }
+    return { resolutions, error, refetch, logs, records: readRecords(dir) };
+  }
+
+  const sdkProviderConfig = () => resolveMultiProviderFromReflect({ model: "gpt-5.3-codex", reflectData: recordedReflect() });
+
+  it("case 1: model small resolves through the gh-aw alias to claude-haiku-5.5, not the main model", async () => {
+    const run = await resolveAgents([{ name: "haiku-small", model: "small" }]);
+    expect(run.error).toBeNull();
+    expect(run.resolutions).toEqual([{ name: "haiku-small", configuredModel: "small", resolvedModel: "claude-haiku-5.5", model: "claude-haiku-5.5" }]);
+    expect(run.records).toEqual([{ engine: "copilot", role: "haiku-small", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null }]);
+  });
+
+  it("case 1b: model large resolves through the gh-aw alias to claude-sonnet-5.5", async () => {
+    const run = await resolveAgents([{ name: "proposer", model: "large" }]);
+    expect(run.error).toBeNull();
+    expect(run.resolutions[0].model).toBe("claude-sonnet-5.5");
+  });
+
+  it("case 2: a live exact id claude-haiku-4.5 is unchanged", async () => {
+    const run = await resolveAgents([{ name: "haiku-whoami", model: "claude-haiku-4.5" }]);
+    expect(run.error).toBeNull();
+    expect(run.refetch).not.toHaveBeenCalled();
+    expect(run.resolutions).toEqual([{ name: "haiku-whoami", configuredModel: "claude-haiku-4.5", resolvedModel: "claude-haiku-4.5", model: "claude-haiku-4.5" }]);
+    expect(run.records).toEqual([{ engine: "copilot", role: "haiku-whoami", configured_model: "claude-haiku-4.5", resolved_model: "claude-haiku-4.5", provider: "copilot", status: "exact", cause: null }]);
+  });
+
+  it("case 3: a dead id gpt-5.4-mini fails closed with model_unavailable after one refresh", async () => {
+    const run = await resolveAgents(
+      [
+        { name: "haiku-whoami", model: "claude-haiku-4.5" },
+        { name: "mini54-whoami", model: "gpt-5.4-mini" },
+        { name: "other-mini54", model: "gpt-5.4-mini" },
+      ],
+      { refreshed: [recordedReflect()] }
+    );
+    expect(run.error).toBeInstanceOf(ModelAliasResolutionError);
+    expect(run.error.reason).toBe("model_unavailable");
+    expect(run.error.message).toContain("The requested model is not supported: 'gpt-5.4-mini' is not available in the workflow's live model catalog");
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    expect(run.resolutions).toBeNull();
+    const failure = run.logs.find(message => message.startsWith("copilot sub-agent 'mini54-whoami':"));
+    expect(failure).toContain("Refusing to start Copilot with a different sub-agent model.");
+    expect(detectErrors(failure).modelNotSupportedError).toBe(true);
+    // Every sub-agent sharing the dead model gets its own failed record.
+    expect(run.records).toEqual([
+      { engine: "copilot", role: "haiku-whoami", configured_model: "claude-haiku-4.5", resolved_model: "claude-haiku-4.5", provider: "copilot", status: "exact", cause: null },
+      { engine: "copilot", role: "mini54-whoami", configured_model: "gpt-5.4-mini", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" },
+      { engine: "copilot", role: "other-mini54", configured_model: "gpt-5.4-mini", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" },
+    ]);
+  });
+
+  it("case 3b: medium is not a gh-aw alias and fails closed as a literal id", async () => {
+    const run = await resolveAgents([{ name: "workflow-agent", model: "medium" }], { refreshed: [recordedReflect()] });
+    expect(run.error).toBeInstanceOf(ModelAliasResolutionError);
+    expect(run.error.reason).toBe("model_unavailable");
+    expect(run.records).toEqual([{ engine: "copilot", role: "workflow-agent", configured_model: "medium", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);
+  });
+
+  it("case 3c: a dead id starts when the bounded refresh lists it", async () => {
+    const refreshed = recordedReflect();
+    refreshed.endpoints.find(endpoint => endpoint.provider === "copilot").models.push("gpt-5.4-mini");
+    const run = await resolveAgents([{ name: "mini54-whoami", model: "gpt-5.4-mini" }], { refreshed: [refreshed] });
+    expect(run.error).toBeNull();
+    expect(run.refetch).toHaveBeenCalledTimes(1);
+    expect(run.resolutions[0].model).toBe("gpt-5.4-mini");
+  });
+
+  it("case 4: the qualified alias copilot/opus resolves to the newest live Opus", async () => {
+    const run = await resolveAgents([{ name: "reviewer", model: "copilot/opus" }]);
+    expect(run.error).toBeNull();
+    expect(run.resolutions).toEqual([{ name: "reviewer", configuredModel: "copilot/opus", resolvedModel: "claude-opus-5.5", model: "claude-opus-5.5" }]);
+    expect(run.records).toEqual([{ engine: "copilot", role: "reviewer", configured_model: "copilot/opus", resolved_model: "claude-opus-5.5", provider: "copilot", status: "resolved", cause: null }]);
+  });
+
+  it("case 5: a sub-agent without model inherits the main model and gets no record", async () => {
+    const run = await resolveAgents([{ name: "helper" }]);
+    expect(run.error).toBeNull();
+    expect(run.resolutions).toEqual([]);
+    expect(run.records).toBeNull();
+  });
+
+  it("case 6 (SDK): customAgents[].model is the qualified resolved model, not the session model", async () => {
+    const providerConfig = sdkProviderConfig();
+    const expected = qualifyModelForMultiProvider("claude-haiku-5.5", providerConfig);
+    expect(expected).toMatch(/^copilot-(?:responses|completions)\/claude-haiku-5\.5$/);
+    const run = await resolveAgents([{ name: "haiku-small", model: "small" }, { name: "helper" }], { providerConfig });
+    expect(run.error).toBeNull();
+    expect(run.resolutions).toEqual([{ name: "haiku-small", configuredModel: "small", resolvedModel: "claude-haiku-5.5", model: expected }]);
+
+    // The harness hands the resolved models to the SDK driver, which passes them to the session.
+    const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
+    const base = tempDir("copilot-subagent-sdk-session-");
+    fs.mkdirSync(path.join(base, ".github/agents"), { recursive: true });
+    fs.writeFileSync(path.join(base, ".github/agents/haiku-small.agent.md"), "---\nmodel: small\n---\nWho are you?");
+    fs.writeFileSync(path.join(base, ".github/agents/helper.agent.md"), "---\ndescription: helper\n---\nHelp.");
+    vi.stubEnv("GH_AW_SESSION_STATE_BASE_DIR", base);
+    vi.stubEnv("COPILOT_MODEL", "");
+    vi.stubEnv("GH_AW_MODEL_FALLBACK", "");
+    vi.stubEnv("GH_AW_MODEL_ROUTING", "");
+    vi.stubEnv("GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON", JSON.stringify(providerConfig));
+    vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", JSON.stringify(Object.fromEntries(run.resolutions.map(resolution => [resolution.name, resolution.model]))));
+    const createSession = vi.fn().mockResolvedValue({ sessionId: "subagent-models", on: () => {}, sendAndWait: async () => ({ data: { content: "done" } }), disconnect: async () => {} });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: () => {},
+      workingDirectory: base,
+      agentsBaseDir: base,
+      bare: true,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const session = createSession.mock.calls[0][0];
+    expect(session.model).toBe(providerConfig.model);
+    expect(session.customAgents.find(agent => agent.name === "haiku-small").model).toBe(expected);
+    expect(session.customAgents.find(agent => agent.name === "haiku-small").model).not.toBe(session.model);
+    expect(session.customAgents.find(agent => agent.name === "helper").model).toBe(session.model);
+  });
+
+  it("case 6 (CLI): the agent file Copilot CLI loads gets the resolved model; exact ids are left untouched", async () => {
+    const dir = tempDir("copilot-subagent-cli-files-");
+    const agentsDir = path.join(dir, ".github/agents");
+    fs.mkdirSync(agentsDir, { recursive: true });
+    const small = "---\nname: haiku-small\ndescription: Small model\nmodel: small # alias\ntools: [read]\n---\nWho are you?\nmodel: small\n";
+    const exact = "---\nmodel: claude-haiku-4.5\n---\nExact.\n";
+    fs.writeFileSync(path.join(agentsDir, "haiku-small.agent.md"), small);
+    fs.writeFileSync(path.join(agentsDir, "haiku-whoami.agent.md"), exact);
+    const awfConfigPath = path.join(dir, "awf-config.json");
+    fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
+    const resolutions = await applyCopilotCLISubagentModels({ reflectData: recordedReflect(), agentsDir, env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath }, logger: () => {} });
+    expect(resolutions.map(resolution => [resolution.name, resolution.model])).toEqual([
+      ["haiku-small", "claude-haiku-5.5"],
+      ["haiku-whoami", "claude-haiku-4.5"],
+    ]);
+    expect(fs.readFileSync(path.join(agentsDir, "haiku-small.agent.md"), "utf8")).toBe(small.replace("model: small # alias", 'model: "claude-haiku-5.5"'));
+    expect(fs.readFileSync(path.join(agentsDir, "haiku-whoami.agent.md"), "utf8")).toBe(exact);
+  });
+
+  /** Spawn the harness against the recorded catalogue with the given workspace agent files. */
+  async function runHarness({ sdk = false, agents, reflect = recordedReflect(), env: envOverrides = {} }) {
+    const dir = tempDir("copilot-subagent-harness-");
+    const workspace = path.join(dir, "workspace");
+    fs.mkdirSync(path.join(workspace, ".github/agents"), { recursive: true });
+    for (const [name, content] of Object.entries(agents)) fs.writeFileSync(path.join(workspace, ".github/agents", name), content);
+    const ostmp = path.join(dir, "ostmp");
+    fs.mkdirSync(ostmp);
+    const startedPath = path.join(dir, "copilot-started.json");
+    let providerPort = 0;
+    let sdkPort = 0;
+    if (sdk) {
+      const freePort = async () => {
+        const server = require("net").createServer();
+        await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+        const { port } = server.address();
+        await new Promise(resolve => server.close(resolve));
+        return port;
+      };
+      [providerPort, sdkPort] = [await freePort(), await freePort()];
+      for (const endpoint of reflect.endpoints.filter(endpoint => endpoint.configured)) Object.assign(endpoint, { base_url: `http://127.0.0.1:${providerPort}`, models_url: `http://127.0.0.1:${providerPort}/models` });
+    }
+    fs.writeFileSync(path.join(dir, "reflect.json"), JSON.stringify(reflect));
+    const preloadPath = path.join(dir, "reflect-preload.cjs");
+    fs.writeFileSync(
+      preloadPath,
+      `const body = require("fs").readFileSync(${JSON.stringify(path.join(dir, "reflect.json"))}, "utf8");
+require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))}).fetchAWFReflect = async () => ({ ok: true, reflectData: JSON.parse(body) });
+if (${providerPort} && process.argv[1].endsWith("copilot_harness.cjs")) require("net").createServer(socket => socket.end()).listen(${providerPort}, "127.0.0.1").unref();`
+    );
+    const stubPath = path.join(dir, "copilot-stub.cjs");
+    fs.writeFileSync(
+      stubPath,
+      `const fs = require("fs");
+const path = require("path");
+const args = process.argv.slice(2);
+fs.writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ args, subagentModels: process.env.GH_AW_COPILOT_SDK_SUBAGENT_MODELS || null }));
+if (args.includes("--session-id")) {
+  const model = args.includes("--model") ? args[args.lastIndexOf("--model") + 1] : process.env.COPILOT_MODEL;
+  const sessionDir = path.join(process.env.COPILOT_HOME, "session-state", args[args.indexOf("--session-id") + 1]);
+  fs.mkdirSync(sessionDir, { recursive: true });
+  fs.appendFileSync(path.join(sessionDir, "events.jsonl"), JSON.stringify({ type: "assistant.message", data: { model, content: "done" } }) + "\\n");
+}
+process.stdout.write("done\\n");`
+    );
+    const sidecarPath = path.join(dir, "copilot-sidecar.cjs");
+    fs.writeFileSync(sidecarPath, `#!/usr/bin/env node\nconst args = process.argv.slice(2);\nrequire("net").createServer(socket => socket.end()).listen(Number(args[args.indexOf("--port") + 1]), "127.0.0.1");\n`, { mode: 0o755 });
+    const awfConfigPath = path.join(dir, "awf-config.json");
+    fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
+    const env = {
+      ...harnessChildEnv,
+      GH_AW_TMP_DIR: dir,
+      TMPDIR: ostmp,
+      GITHUB_WORKSPACE: workspace,
+      COPILOT_HOME: path.join(dir, "copilot-home"),
+      GH_AW_HARNESS_MAX_RETRIES: "0",
+      GH_AW_HARNESS_STALL_WARNING_MS: "0",
+      NODE_OPTIONS: `--require ${preloadPath}`,
+    };
+    for (const key of [
+      "COPILOT_MODEL",
+      "GH_AW_MODEL_FALLBACK",
+      "GH_AW_MODEL_ROUTING",
+      "GH_AW_SKIP_REFLECT",
+      "COPILOT_SDK_URI",
+      "GH_AW_PHASE",
+      "GH_AW_SAFE_OUTPUTS",
+      "COPILOT_PROVIDER_WIRE_API",
+      "GH_AW_MODEL_ALIASES",
+      "GH_AW_ENGINE_CWD",
+      "GH_AW_SUB_AGENT_DIR",
+      "GH_AW_SUB_AGENT_EXT",
+      "GH_AW_COPILOT_SDK_SUBAGENT_MODELS",
+    ])
+      delete env[key];
+    Object.assign(env, { AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath, COPILOT_MODEL: "gpt-5.3-codex", ...(sdk ? { COPILOT_SDK_URI: `http://127.0.0.1:${sdkPort}` } : {}) }, envOverrides);
+    const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, ...(sdk ? [stubPath, sidecarPath] : [stubPath, "--prompt", "Hello"])], {
+      cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+      env,
+      encoding: "utf8",
+      timeout: 20000,
+    });
+    return {
+      result,
+      workspace,
+      started: fs.existsSync(startedPath) ? JSON.parse(fs.readFileSync(startedPath, "utf8")) : null,
+      records: readRecords(dir),
+      agentFile: name => fs.readFileSync(path.join(workspace, ".github/agents", name), "utf8"),
+    };
+  }
+
+  const smokeAgents = {
+    "haiku-whoami.agent.md": "---\nname: haiku-whoami\nmodel: claude-haiku-4.5\n---\nWho are you?\n",
+    "mini54-whoami.agent.md": "---\nname: mini54-whoami\nmodel: gpt-5.4-mini\n---\nWho are you?\n",
+  };
+
+  it.each([false, true])("case 3 end to end: a dead sub-agent model stops the harness before Copilot starts (sdk=%s)", async sdk => {
+    const run = await runHarness({ sdk, agents: smokeAgents });
+    expect(run.result.status, run.result.stderr).toBe(1);
+    expect(run.started).toBeNull();
+    expect(run.result.stderr).not.toContain("starting sidecar");
+    expect(run.result.stderr).toContain("copilot sub-agent 'mini54-whoami': The requested model is not supported: 'gpt-5.4-mini' is not available in the workflow's live model catalog");
+    expect(detectErrors(run.result.stderr).modelNotSupportedError).toBe(true);
+    expect(run.records).toEqual([
+      { engine: "copilot", role: "main", configured_model: "gpt-5.3-codex", resolved_model: "gpt-5.3-codex", provider: null, status: "exact", cause: null },
+      { engine: "copilot", role: "haiku-whoami", configured_model: "claude-haiku-4.5", resolved_model: "claude-haiku-4.5", provider: "copilot", status: "exact", cause: null },
+      { engine: "copilot", role: "mini54-whoami", configured_model: "gpt-5.4-mini", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" },
+    ]);
+    expect(run.agentFile("mini54-whoami.agent.md")).toBe(smokeAgents["mini54-whoami.agent.md"]);
+  });
+
+  it("case 6 end to end (CLI): Copilot CLI starts with the resolved model in the agent file", async () => {
+    const run = await runHarness({ agents: { "haiku-small.agent.md": "---\nname: haiku-small\nmodel: small\n---\nWho are you?\n" } });
+    expect(run.result.status, run.result.stderr).toBe(0);
+    expect(run.started).not.toBeNull();
+    expect(run.agentFile("haiku-small.agent.md")).toBe('---\nname: haiku-small\nmodel: "claude-haiku-5.5"\n---\nWho are you?\n');
+    expect(run.records).toContainEqual({ engine: "copilot", role: "haiku-small", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null });
+  });
+
+  it("case 6 end to end (SDK): the driver receives the qualified resolved sub-agent model", async () => {
+    const run = await runHarness({ sdk: true, agents: { "haiku-small.agent.md": "---\nname: haiku-small\nmodel: small\n---\nWho are you?\n" } });
+    expect(run.result.status, run.result.stderr).toBe(0);
+    expect(JSON.parse(run.started.subagentModels)).toEqual({ "haiku-small": qualifyModelForMultiProvider("claude-haiku-5.5", sdkProviderConfig()) });
+    expect(run.agentFile("haiku-small.agent.md")).toBe("---\nname: haiku-small\nmodel: small\n---\nWho are you?\n");
+  });
+
+  describe("case 7: routed runs (recorded /reflect routing from run 39147795806)", () => {
+    // fixtures/copilot-routed-run-39147795806/awf-reflect.json: the router selected gpt-5.6-luna; its Copilot
+    // catalogue lists claude-haiku-5.5 but no claude-opus-4.8.
+    const routedReflect = () => JSON.parse(fs.readFileSync(path.join(fixtureDir, "copilot-routed-run-39147795806", "awf-reflect.json"), "utf8"));
+
+    it.each([false, true])("still resolves and records sub-agent models without a main-role record (sdk=%s)", async sdk => {
+      const run = await runHarness({ sdk, reflect: routedReflect(), agents: { "haiku-small.agent.md": "---\nmodel: small\n---\nWho are you?\n" }, env: { GH_AW_MODEL_ROUTING: "1", COPILOT_MODEL: "" } });
+      expect(run.result.status, run.result.stderr).toBe(0);
+      expect(run.records).toEqual([{ engine: "copilot", role: "haiku-small", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null }]);
+    });
+
+    it.each([false, true])("still fails closed for a dead sub-agent model (sdk=%s)", async sdk => {
+      const run = await runHarness({ sdk, reflect: routedReflect(), agents: { "opus.agent.md": "---\nmodel: claude-opus-4.8\n---\nWho are you?\n" }, env: { GH_AW_MODEL_ROUTING: "1", COPILOT_MODEL: "" } });
+      expect(run.result.status, run.result.stderr).toBe(1);
+      expect(run.started).toBeNull();
+      expect(run.records).toEqual([{ engine: "copilot", role: "opus", configured_model: "claude-opus-4.8", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);
     });
   });
 });

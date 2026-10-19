@@ -141,6 +141,8 @@ describe("copilot_sdk_session runtime configuration", () => {
     const app = path.join(base, "packages/app");
     fs.mkdirSync(path.join(app, ".github/agents"), { recursive: true });
     fs.writeFileSync(path.join(app, ".github/agents/local.agent.md"), "---\nmodel: small\n---\nApp agent.");
+    // The harness resolved `small` before the driver started.
+    vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", JSON.stringify({ local: "claude-sonnet-4.6" }));
     vi.stubEnv("GITHUB_WORKSPACE", base);
     vi.spyOn(process, "cwd").mockReturnValue(app);
     const createSession = vi.fn().mockResolvedValue({

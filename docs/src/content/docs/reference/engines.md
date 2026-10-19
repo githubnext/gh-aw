@@ -610,10 +610,19 @@ The built-in SDK driver loads inline sub-agents and repository
 sub-agent models against the AWF model catalog. Copilot models use separate
 Responses and Chat Completions providers according to their supported endpoints,
 so GPT and Claude agents can use different wire APIs in the same session.
-The aliases `small`, `medium`, and `large` inherit the session model; an unknown
-sub-agent model logs a warning and inherits it. Sub-agent activity and final model
-results, including BYOK status, are retained in `usage/aw_session.jsonl`.
-This behavior applies to SDK mode, not the default CLI mode.
+Sub-agent activity and final model results, including BYOK status, are retained
+in `usage/aw_session.jsonl`.
+
+In both SDK and CLI mode, the harness resolves each sub-agent's `model:` before
+Copilot starts, including on routed runs. It uses gh-aw model aliases (for
+example `small` and `large`) and checks the live AWF model catalog. Each result
+is recorded as a `model.resolution` event whose role is the agent name. In CLI
+mode, the resolved id is written to the workspace agent file that Copilot CLI
+loads; in SDK mode, it is qualified against the SDK provider models. `medium` is
+not an alias and is treated as a literal model id. If a sub-agent model cannot be
+resolved, is not in the live catalog, or does not qualify in SDK mode, the run
+fails before Copilot starts instead of falling back to the main model. A
+sub-agent without `model:` inherits the main model and has no resolution record.
 
 Use top-level `max-tool-denials` to stop SDK inference when
 tool requests are repeatedly denied. The default is `5`.
