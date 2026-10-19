@@ -1,6 +1,7 @@
 // @ts-check
 
 const { iterateJsonl } = require("./jsonl_helpers.cjs");
+
 /**
  * @typedef {object} WorkingSetMetrics
  * @property {"measured" | "partial" | "unavailable"} measurement_state
