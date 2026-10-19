@@ -1,6 +1,7 @@
 // @ts-check
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { isGatewayCommand, resolveGatewayCommandResource } = require("./gateway_command_webhook.cjs");
 
 const WEBHOOK_PAYLOAD_POLICY = "resource-url-types-filters/v2";
 const ISSUE_TYPES = ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"];
@@ -11,6 +12,8 @@ const WEBHOOK_TYPES = {
   jira_issue: ISSUE_TYPES,
   linear_issue: ISSUE_TYPES,
   azure_devops_issue: [...ISSUE_TYPES, "restored"],
+  slash_command: ["opened", "edited", "reopened", "created"],
+  label_command: ["labeled"],
 };
 
 /** @returns {never} */
@@ -38,14 +41,14 @@ function validWebhookFilterValues(values) {
   return Array.isArray(values) && values.length > 0 && values.every(value => isWebhookFilterScalar(value) && typeof value === typeof values[0]) && new Set(values).size === values.length;
 }
 
-function resourceURL(value, message) {
+function resourceURL(value, message, allowFragment = false) {
   let url;
   try {
     url = new URL(value);
   } catch {
     reject(message);
   }
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.href !== value) {
+  if (url.protocol !== "https:" || url.username || url.password || url.search || (!allowFragment && url.hash) || url.href !== value) {
     reject(message);
   }
   return url;
@@ -128,7 +131,8 @@ function resolveWebhookResource(event, payload, env = process.env) {
       : event.endsWith("_alert")
         ? "security alert payload requires a canonical GitHub API alert URL"
         : "provider payload requires a canonical HTTPS resource URL";
-  const url = resourceURL(payload.url, message);
+  const url = resourceURL(payload.url, message, isGatewayCommand(event));
+  if (isGatewayCommand(event)) return resolveGatewayCommandResource(event, url, payload, env);
   return event.endsWith("_issue") ? resolveProviderResource(event, url) : resolveGitHubResource(event, url, env);
 }
 

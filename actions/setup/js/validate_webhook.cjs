@@ -7,6 +7,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeWebhookContext, WEBHOOK_SCHEMA_VERSION } = require("./webhook_context.cjs");
 const { WEBHOOK_PAYLOAD_POLICY, isGenericWebhookType, isWebhookFilterName, validWebhookFilterValues } = require("./webhook_resource.cjs");
 const { isProviderIssueEvent, validProviderIssueSubscription, matchesProviderIssueSubscription } = require("./provider_issue_webhook.cjs");
+const { isGatewayCommand, validGatewayCommandSubscription, matchesGatewayCommandSubscription } = require("./gateway_command_webhook.cjs");
 
 const MAX_CLIENT_PAYLOAD_BYTES = 65535;
 const MAX_DISPATCH_REQUEST_BYTES = 65535;
@@ -42,7 +43,7 @@ function eventName(env) {
 function hasValidRepositorySelectors(subscription) {
   if (subscription.repos === undefined) return true;
   return (
-    ["code_scanning_alert", "dependabot_alert"].includes(subscription.event) &&
+    ["code_scanning_alert", "dependabot_alert", "slash_command", "label_command"].includes(subscription.event) &&
     Array.isArray(subscription.repos) &&
     subscription.repos.length > 0 &&
     subscription.repos.every(repo => typeof repo === "string" && repo.trim() === repo && /^[a-zA-Z0-9_-]+\/([a-zA-Z0-9._-]+|\*)$/.test(repo) && !/\/\.{1,2}$/.test(repo))
@@ -60,7 +61,7 @@ function matchesRepositorySelector(repo, selectors) {
 function hasValidOrganizationSelectors(subscription) {
   return (
     subscription.orgs === undefined ||
-    (["projects_v2_item", "code_scanning_alert", "dependabot_alert"].includes(subscription.event) &&
+    (["projects_v2_item", "code_scanning_alert", "dependabot_alert", "slash_command", "label_command"].includes(subscription.event) &&
       Array.isArray(subscription.orgs) &&
       subscription.orgs.length > 0 &&
       subscription.orgs.every(org => typeof org === "string" && /^[a-zA-Z0-9*]([a-zA-Z0-9*-]{0,37}[a-zA-Z0-9*])?$/.test(org) && !/\s/.test(org)))
@@ -109,6 +110,7 @@ function validSubscriptionFilters(subscription) {
 }
 
 function matchesProjectedFilters(subscription, payload) {
+  if (isGatewayCommand(subscription.event)) return matchesGatewayCommandSubscription(subscription, payload);
   const projected = payload.filters ?? {};
   const groups = subscription.any_of ?? [[]];
   const terminal = subscription.event === "azure_devops_issue" && payload.type.some(type => ["closed", "reopened"].includes(type));
@@ -164,7 +166,8 @@ function validateWebhook(event, env = process.env) {
         (subscription.event !== "webhook" || (subscription.types.length === 1 && isGenericWebhookType(subscription.types[0]) && subscription.provider === undefined && subscription.activity_normalization === undefined)) &&
         hasValidRepositorySelectors(subscription) &&
         hasValidOrganizationSelectors(subscription) &&
-        (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription))
+        (!isProviderIssueEvent(subscription.event) || validProviderIssueSubscription(subscription)) &&
+        (isGatewayCommand(subscription.event) ? validGatewayCommandSubscription(subscription) : subscription.command_filter === undefined)
     )
   ) {
     reject("GH_AW_WEBHOOK_SUBSCRIPTIONS must contain valid version 2 batch subscriptions with resource-url-types-filters/v2 projection");
@@ -209,13 +212,14 @@ function validateWebhook(event, env = process.env) {
   }
   const subscription = eventSubscriptions[0];
   if (subscription.repos !== undefined && normalized.items.some(item => !matchesRepositorySelector(item.repo, subscription.repos))) {
-    reject("security alert source repository does not match the subscription repos");
+    reject("webhook source repository does not match the subscription repos");
   }
   if (subscription.orgs !== undefined && normalized.items.some(item => !matchesOrganizationSelector(item, subscription.orgs))) {
     reject("webhook source organization does not match the subscription orgs");
   }
   for (const delivery of normalized.webhook.deliveries) {
     if (!matchesProjectedFilters(subscription, delivery.payload)) {
+      if (isGatewayCommand(subscription.event)) reject("gateway command filters must contain exactly one declared matching source event and command/label value");
       reject("webhook payload filters must contain exactly the declared matching values for all shared conditions and one complete alternative");
     }
     if (isProviderIssueEvent(subscription.event)) {

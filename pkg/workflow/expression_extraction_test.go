@@ -161,6 +161,18 @@ func TestExpressionExtractor_ExtractExpressions(t *testing.T) {
 			wantCount:       1,
 			wantExpressions: []string{"github.aw.context.item-number"},
 		},
+		{
+			name:            "gateway events indexed matching literal",
+			markdown:        "${{ gateway.events[0].payload.filters['closed-states'][0] }}",
+			wantCount:       1,
+			wantExpressions: []string{"fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries[0].payload.filters['closed-states'][0]"},
+		},
+		{
+			name:            "gateway events transform leaves string literals alone",
+			markdown:        "${{ gateway.events[0].payload.url == 'gateway.events' }}",
+			wantCount:       1,
+			wantExpressions: []string{"fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries[0].payload.url == 'gateway.events'"},
+		},
 		// Parenthesised compound expressions
 		{
 			name:     "paren-wrapped compound || emits sub-expression env vars",

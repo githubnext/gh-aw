@@ -177,6 +177,23 @@ func validateExpressionForDangerousProps(expression string) error {
 	return nil
 }
 
+var gatewayEventsAccessorPattern = regexp.MustCompile(`^gateway\.events(?:\.[a-zA-Z_][a-zA-Z0-9_-]*|\.\*|\[[0-9]+\]|\['[a-zA-Z0-9_.-]+'\])*$`)
+
+func isGatewayEventsExpression(expression string) bool {
+	if strings.HasPrefix(expression, "toJSON(") && strings.HasSuffix(expression, ")") {
+		expression = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(expression, "toJSON("), ")"))
+	}
+	if !gatewayEventsAccessorPattern.MatchString(expression) {
+		return false
+	}
+	for _, part := range strings.FieldsFunc(expression, func(r rune) bool { return r == '.' || r == '[' || r == ']' || r == '\'' }) {
+		if _, dangerous := constants.DangerousPropertyNamesSet[part]; dangerous {
+			return false
+		}
+	}
+	return true
+}
+
 // validateSingleExpression validates a single literal expression
 func validateSingleExpression(expression string, opts ExpressionValidationOptions) error {
 	expression = strings.TrimSpace(expression)
@@ -207,6 +224,8 @@ func validateSingleExpression(expression string, opts ExpressionValidationOption
 	} else if opts.AwImportInputsRe != nil && opts.AwImportInputsRe.MatchString(expression) {
 		allowed = true
 	} else if opts.EnvRe.MatchString(expression) {
+		allowed = true
+	} else if isGatewayEventsExpression(expression) {
 		allowed = true
 	} else if _, ok := constants.AllowedExpressionsSet[expression]; ok {
 		allowed = true

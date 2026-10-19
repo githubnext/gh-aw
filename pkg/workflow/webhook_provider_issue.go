@@ -22,7 +22,7 @@ var providerIssueTriggers = map[string]string{
 func isWebhookTrigger(name string) bool {
 	_, provider := providerIssueTriggers[name]
 	_, project := webhookTriggerAliases[name]
-	return provider || project || name == "security-alerts" || name == "webhooks"
+	return provider || project || name == "security-alerts" || name == "webhooks" || name == "slash-command" || name == "label-command"
 }
 
 // WebhookActivityNormalization identifies the documented, payload-only policy

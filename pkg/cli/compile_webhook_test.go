@@ -31,6 +31,8 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 			"projects-items: {project_id: PVT_example}",
 			"security-alerts: {sources: [dependabot]}",
 			"webhooks: [{type: example.event}]",
+			"slash-command: review",
+			"label-command: {name: review, remove_label: false}",
 			"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
 			"orgs: [github, \"my-*\"]\n  security-alerts: {}",
 		} {
@@ -122,6 +124,49 @@ Inspect the batch in aw_context.webhook.deliveries and unique aw_context.items.
 	require.NoError(t, err)
 	require.NotNil(t, manifest)
 	assert.Equal(t, result.validationResult.WebhookSubscriptions, manifest.WebhookSubscriptions)
+}
+
+func TestCompileGatewayCommandJSONContract(t *testing.T) {
+	dir := t.TempDir()
+	enableWebhookTriggers(t, dir)
+	path := filepath.Join(dir, "gateway-commands.md")
+	require.NoError(t, os.WriteFile(path, []byte(`---
+on:
+  gateway-dispatch:
+    slash-command:
+      name: [review, "fix*"]
+      events: [issue_comment, pull_request_comment]
+    label-command:
+      name: review
+      events: issues
+      remove_label: false
+permissions:
+  contents: read
+engine: copilot
+---
+Notifications: ${{ toJSON(gateway.events) }}
+`), 0o600))
+	result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
+	require.True(t, result.success, "%+v", result.validationResult.Errors)
+	require.Len(t, result.validationResult.WebhookSubscriptions, 2)
+	for _, subscription := range result.validationResult.WebhookSubscriptions {
+		require.NotNil(t, subscription.CommandFilter)
+		assert.Empty(t, subscription.Conditions)
+		assert.Empty(t, subscription.Provider)
+	}
+	output, err := json.Marshal(result.validationResult)
+	require.NoError(t, err)
+	assert.Contains(t, string(output), `"command_filter":{"policy":"slash-command/v1"`)
+	assert.Contains(t, string(output), `"remove_label":false`)
+	lock, err := os.ReadFile(filepath.Join(dir, "gateway-commands.lock.yml"))
+	require.NoError(t, err)
+	manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(lock))
+	require.NoError(t, err)
+	require.NotNil(t, manifest)
+	assert.Equal(t, result.validationResult.WebhookSubscriptions, manifest.WebhookSubscriptions)
+	assert.NotContains(t, string(lock), "workflow_dispatch:")
+	assert.NotContains(t, string(lock), "check_command_position.cjs")
+	assert.Contains(t, string(lock), "toJSON(fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries)")
 }
 
 func TestCompileWebhookRejectsSecretScanning(t *testing.T) {

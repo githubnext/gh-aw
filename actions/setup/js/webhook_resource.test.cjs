@@ -6,6 +6,7 @@ const require = createRequire(import.meta.url);
 const { WEBHOOK_PAYLOAD_POLICY, WEBHOOK_TYPES, resolveWebhookResource } = require("./webhook_resource.cjs");
 const { normalizeWebhookContext } = require("./webhook_context.cjs");
 const { validateWebhook } = require("./validate_webhook.cjs");
+const { COMMAND_SOURCE_ACTIONS, isGatewayCommand } = require("./gateway_command_webhook.cjs");
 
 const examples = [
   ["projects_v2_item", "https://api.github.com/orgs/org/projectsV2/1/items/123", ["edited"], "123", "https://api.github.com/orgs/org/projectsV2/1"],
@@ -26,6 +27,10 @@ describe("minimal resource notification contract", () => {
   const githubCatalog = JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/webhook_events.json", import.meta.url), "utf8"));
   const providerCatalog = JSON.parse(readFileSync(new URL("../../../pkg/workflow/data/provider_issue_webhooks.json", import.meta.url), "utf8"));
   it.each(Object.entries(WEBHOOK_TYPES))("keeps %s activities identical to the compiler catalog", (event, types) => {
+    if (isGatewayCommand(event)) {
+      expect([...types].sort()).toEqual(event === "label_command" ? ["labeled"] : [...new Set(Object.values(COMMAND_SOURCE_ACTIONS).flat())].sort());
+      return;
+    }
     expect([...types].sort()).toEqual([...(githubCatalog[event] ?? providerCatalog[event]).actions].sort());
   });
 
@@ -42,7 +47,7 @@ describe("minimal resource notification contract", () => {
         schema_version: 2,
         event,
         types: payload.type,
-        conditions: Object.entries(payload.filters ?? {})
+        conditions: Object.entries(isGatewayCommand(event) ? {} : (payload.filters ?? {}))
           .filter(([filter]) => !(event === "azure_devops_issue" && filter === "closed-states"))
           .map(([filter, values]) => ({
             filter,
@@ -52,6 +57,18 @@ describe("minimal resource notification contract", () => {
             values,
           })),
         dispatch: { event_type: "specification", payload_projection: { policy: WEBHOOK_PAYLOAD_POLICY } },
+        ...(isGatewayCommand(event)
+          ? {
+              native_events: [event === "slash_command" ? "issue_comment" : "issues"],
+              command_filter: {
+                policy: event === "slash_command" ? "slash-command/v1" : "label-command/v1",
+                names: ["review"],
+                events: [event === "slash_command" ? "issue_comment" : "issues"],
+                strategy: "inline",
+                ...(event === "label_command" ? { remove_label: true } : {}),
+              },
+            }
+          : {}),
         ...(definition?.provider
           ? {
               provider: definition.provider,

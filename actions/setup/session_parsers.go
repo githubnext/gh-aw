@@ -31,6 +31,7 @@ import "embed"
 //go:embed js/work_queue_host.cjs
 //go:embed js/aw_context.cjs js/experiment_helpers.cjs js/finish_work_queue_claim.cjs
 //go:embed js/webhook_context.cjs js/provider_issue_webhook.cjs js/webhook_resource.cjs
+//go:embed js/gateway_command_webhook.cjs js/slash_command_matcher.cjs
 //go:embed js/messages_core.cjs
 //go:embed js/work_queue_mcp_server.cjs js/work_queue_replay.cjs js/work_queue_intents.cjs
 //go:embed js/work_queue_issue_contract.cjs

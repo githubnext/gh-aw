@@ -10,7 +10,11 @@ package workflow
 import (
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var githubAppRequirementsLog = logger.New("workflow:github_app_requirements")
 
 // permissionScopesWithoutAppManifestEquivalent lists Actions-only permission scopes
 // that have no corresponding GitHub App manifest "default_permissions" entry and
@@ -102,6 +106,35 @@ func ComputeGitHubAppManifestWebhookPermissions(onValue any) map[string]string {
 		key, supported := GitHubAppManifestPermissionKey(scope)
 		if supported {
 			result[key] = "read"
+		}
+	}
+	subscriptions, err := ParseWebhookSubscriptions(onValue, "manifest")
+	if err != nil {
+		githubAppRequirementsLog.Print("Cannot infer gateway App permissions: invalid gateway trigger declaration")
+		return nil
+	}
+	for _, subscription := range subscriptions {
+		if subscription.CommandFilter == nil {
+			continue
+		}
+		level := "read"
+		if subscription.CommandFilter.RemoveLabel != nil && *subscription.CommandFilter.RemoveLabel {
+			level = "write"
+		}
+		for _, event := range subscription.CommandFilter.Events {
+			var scope PermissionScope
+			switch event {
+			case "issues", "issue_comment":
+				scope = PermissionIssues
+			case "pull_request", "pull_request_comment", "pull_request_review_comment":
+				scope = PermissionPullRequests
+			case "discussion", "discussion_comment":
+				scope = PermissionDiscussions
+			}
+			key, supported := GitHubAppManifestPermissionKey(scope)
+			if supported && result[key] != "write" {
+				result[key] = level
+			}
 		}
 	}
 	if len(result) == 0 {
@@ -222,8 +255,9 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 	if name != "gateway-dispatch" {
 		return nil, false
 	}
-	subscriptions, err := ParseWebhookSubscriptions(onValue, "")
+	subscriptions, err := ParseWebhookSubscriptions(onValue, "manifest")
 	if err != nil {
+		githubAppRequirementsLog.Print("Cannot infer gateway App events: invalid gateway trigger declaration")
 		return nil, true
 	}
 	events := make([]string, 0, len(subscriptions))
@@ -231,7 +265,11 @@ func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
 		if subscription.Provider != "" || subscription.Event == "webhook" {
 			continue
 		}
-		events = append(events, subscription.Event)
+		if isGatewayCommand(subscription.Event) {
+			events = append(events, subscription.NativeEvents...)
+		} else {
+			events = append(events, subscription.Event)
+		}
 	}
 	return events, true
 }

@@ -743,7 +743,24 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
-          "not": { "enum": ["gateway-dispatch", "gateway", "webhook-gateway", "webhooks", "orgs", "projects-item", "projects-items", "security-alert", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue"] },
+          "not": {
+            "enum": [
+              "gateway-dispatch",
+              "gateway",
+              "webhook-gateway",
+              "webhooks",
+              "orgs",
+              "projects-item",
+              "projects-items",
+              "security-alert",
+              "security-alerts",
+              "jira-issue",
+              "linear-issue",
+              "azure-devops-issue",
+              "slash-command",
+              "label-command"
+            ]
+          },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
@@ -752,7 +769,7 @@
           "dependencies": {
             "gateway-dispatch": {
               "not": {
-                "anyOf": [{ "required": ["workflow_dispatch"] }, { "required": ["repository_dispatch"] }]
+                "anyOf": [{ "required": ["workflow_dispatch"] }, { "required": ["repository_dispatch"] }, { "required": ["slash_command"] }, { "required": ["command"] }, { "required": ["label_command"] }]
               }
             }
           },
@@ -765,6 +782,8 @@
             "orgs": false,
             "projects-items": false,
             "security-alerts": false,
+            "slash-command": false,
+            "label-command": false,
             "jira-issue": false,
             "linear-issue": false,
             "azure-devops-issue": false,
@@ -773,8 +792,25 @@
               "type": "object",
               "additionalProperties": false,
               "description": "Experimental. Nested bundled gateway triggers with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json webhook-gateway: true. Cannot coexist with explicit workflow_dispatch or repository_dispatch or grant gateway authority.",
-              "anyOf": [{ "required": ["projects-items"] }, { "required": ["security-alerts"] }, { "required": ["jira-issue"] }, { "required": ["linear-issue"] }, { "required": ["azure-devops-issue"] }, { "required": ["webhooks"] }],
+              "anyOf": [
+                { "required": ["projects-items"] },
+                { "required": ["security-alerts"] },
+                { "required": ["jira-issue"] },
+                { "required": ["linear-issue"] },
+                { "required": ["azure-devops-issue"] },
+                { "required": ["webhooks"] },
+                { "required": ["slash-command"] },
+                { "required": ["label-command"] }
+              ],
               "properties": {
+                "slash-command": {
+                  "$ref": "#/properties/on/oneOf/1/properties/slash_command",
+                  "description": "Experimental. Native slash_command configuration with matching performed by the approved gateway server, not native Actions listeners."
+                },
+                "label-command": {
+                  "$ref": "#/properties/on/oneOf/1/properties/label_command",
+                  "description": "Experimental. Native label_command configuration with matching and requested label consumption performed by the approved gateway server."
+                },
                 "webhooks": {
                   "type": "array",
                   "minItems": 1,
@@ -2400,7 +2436,7 @@
               }
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Projects-item and security-alert webhook triggers require write access or higher; only admin, maintainer, maintain, and write are allowed. For other triggers, use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. All on.gateway-dispatch subscriptions require write access or higher; only admin, maintainer, maintain, and write are allowed. For other triggers, use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",

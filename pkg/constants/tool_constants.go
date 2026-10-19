@@ -67,6 +67,8 @@ var AllowedExpressions = []string{
 	"github.actor",
 	"github.aw.context.items",
 	"github.aw.context.webhook.event",
+	"gateway.events",
+	"toJSON(gateway.events)",
 	"toJSON(github.aw.context.items)",
 	"github.event_name",
 	"github.job",

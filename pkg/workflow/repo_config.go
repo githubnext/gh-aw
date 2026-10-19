@@ -156,7 +156,7 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
-	// WebhookGateway enables experimental on.gateway triggers requiring a hosted CAO server.
+	// WebhookGateway enables experimental on.gateway-dispatch triggers requiring an approved server.
 	WebhookGateway bool
 
 	// WorkQueue holds optional scheduling overrides, never identities or credentials.

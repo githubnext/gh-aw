@@ -90,6 +90,8 @@ func webhookPromptSection(data *WorkflowData) *PromptSection {
 			"Forwarded types are only the declared matching activities; severity is a declared filter literal, not a full alert. " +
 			"Azure closed/reopened notifications additionally include exactly one matching declared terminal name at payload.filters[\"closed-states\"], never the unmatched side of the transition. " +
 			"Filter entries contain only matched literal values for the declared predicates, not complete source fields or objects. " +
+			"Prompt expressions can read the normalized delivery array through gateway.events, for example toJSON(gateway.events) or gateway.events[0].payload.url. " +
+			"Gateway slash/label commands are filtered by the approved server; their filters.event and filters.command or filters.label identify only the matching source and name, never bodies or arguments. " +
 			"Activities such as closed and reopened convey transitions, not the current resource state. Unfiltered resource details and raw source bodies are not forwarded. " +
 			"Resolve all additional data inside this workflow using provider-authenticated clients so the provider enforces access; use an authenticated GitHub App client for GitHub data. " +
 			"External issue data requires provider-specific authenticated clients; GitHub credentials do not grant Jira, Linear, or Azure DevOps access. " +

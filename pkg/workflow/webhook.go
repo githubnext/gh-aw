@@ -104,6 +104,7 @@ type WebhookSubscription struct {
 	Provider              string                        `json:"provider,omitempty"`
 	NativeEvents          []string                      `json:"native_events,omitempty"`
 	ActivityNormalization *WebhookActivityNormalization `json:"activity_normalization,omitempty"`
+	CommandFilter         *WebhookCommandFilter         `json:"command_filter,omitempty"`
 	SchemaVersion         int                           `json:"schema_version"`
 	Event                 string                        `json:"event"`
 	Types                 []string                      `json:"types"`
@@ -145,7 +146,9 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		return nil, err
 	}
 	rawWebhooks, hasWebhooks := onMap["webhooks"]
-	if len(events) == 0 && !hasWebhooks {
+	_, hasSlashCommand := onMap["slash-command"]
+	_, hasLabelCommand := onMap["label-command"]
+	if len(events) == 0 && !hasWebhooks && !hasSlashCommand && !hasLabelCommand {
 		return nil, nil
 	}
 	repos, err := parseWebhookRepositories(onMap, "on.gateway-dispatch")
@@ -185,7 +188,11 @@ func ParseWebhookSubscriptions(on any, workflowID string) ([]WebhookSubscription
 		}
 		subscriptions = append(subscriptions, generic...)
 	}
-	return subscriptions, nil
+	commands, err := parseGatewayCommandSubscriptions(onMap, workflowID, repos, orgs)
+	if err != nil {
+		return nil, err
+	}
+	return append(subscriptions, commands...), nil
 }
 
 func parseWebhookSubscription(raw any, path, event, workflowID string, definition WebhookEvent) (WebhookSubscription, error) {
@@ -251,6 +258,11 @@ func webhookOnConfig(on any) (map[string]any, error) {
 	for _, dispatch := range []string{"workflow_dispatch", "repository_dispatch"} {
 		if _, exists := onMap[dispatch]; exists {
 			return nil, fmt.Errorf("on.gateway-dispatch cannot be combined with explicit on.%s; remove that trigger and let the compiler generate the gateway route", dispatch)
+		}
+	}
+	for _, command := range []string{"slash_command", "command", "label_command"} {
+		if _, exists := onMap[command]; exists {
+			return nil, fmt.Errorf("on.gateway-dispatch cannot be combined with native on.%s; define gateway-powered commands inside on.gateway-dispatch instead", command)
 		}
 	}
 	hasTrigger := false
