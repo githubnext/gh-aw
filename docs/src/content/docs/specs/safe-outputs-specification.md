@@ -2218,7 +2218,14 @@ the typed `image` node. Its only supported attributes are `src`, `alt`, `width`,
 `height`, and `align`, without duplicates. The source MUST be a validated HTTPS
 URL without credentials, on a hostname accepted by the configured domain policy.
 Renderable images MUST NOT use the URL-policy exception for code regions,
-including when their attributes contain backticks. Width and height MUST be
+including when their attributes contain backticks. The shared image-node
+normalizer MUST enforce this policy for HTML imports, Markdown images, and
+directly constructed AST images, regardless of provenance. Data URIs MUST be
+rejected, including encoded variants; only canonical HTTPS sources are valid.
+Markdown links, angle-bracket autolinks, and bare HTTPS links imported as
+renderable nodes MUST also recheck domain policy, rather than rely on upstream
+code-region classification.
+Width and height MUST be
 integer pixel dimensions from 1 through 10,000; alignment MUST be `left`, `right`,
 or `center`. Unsupported, malformed, or disallowed HTML MUST remain visible,
 escaped text with prose URL filtering, not be passed through as raw HTML.
@@ -2227,7 +2234,8 @@ Images without layout fields retain Markdown image serialization. Images with
 layout fields MUST serialize only validated attributes, with HTML-attribute
 escaping for both URL and alt text. Attribute values MUST NOT introduce HTML,
 mentions, table delimiters, template structure, or framework provenance.
-Image-only lines in multi-line paragraphs MUST remain in Markdown inline context,
+Image-only lines and standalone subscript delimiters in multi-line paragraphs
+MUST remain in Markdown inline context,
 so subsequent code cannot become raw HTML through CommonMark HTML-block parsing.
 Adjacent generated code delimiters MUST NOT merge into a different backtick run.
 Imported images retain the source's agent taint and remain subject to ordinary

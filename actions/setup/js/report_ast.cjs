@@ -1,6 +1,6 @@
 // @ts-check
 
-const { canonicalizePublicationText } = require("./sanitize_content_core.cjs");
+const { canonicalizePublicationText, buildAllowedDomains, sanitizeUrlDomains } = require("./sanitize_content_core.cjs");
 const { redactDiagnosticText } = require("./diagnostic_sanitization.cjs");
 const { escapeMarkdown } = require("./missing_info_formatter.cjs");
 const { createExpirationLine } = require("./ephemerals.cjs");
@@ -173,6 +173,15 @@ function normalizeReportURL(value) {
   return url.href;
 }
 
+/** @param {string} value */
+function normalizeReportAllowedURL(value) {
+  const url = normalizeReportURL(value);
+  // Renderable destinations cannot use the sanitizer's code-region exemption.
+  // Reject hosts the shared URL scanner cannot parse.
+  if (!/^https:\/\/[\w.-]+(?::\d+)?\//.test(url) || sanitizeUrlDomains(url, buildAllowedDomains()) !== url) throw new TypeError("Report URLs must use an allowed HTTPS domain");
+  return url;
+}
+
 /** @param {ReportImage} node @returns {ReportImage} */
 function normalizeReportImage(node) {
   for (const dimension of [node.width, node.height]) {
@@ -181,7 +190,7 @@ function normalizeReportImage(node) {
   if (node.align !== undefined && !["left", "right", "center"].includes(node.align)) throw new TypeError("Invalid report image alignment");
   return {
     type: "image",
-    url: normalizeReportURL(node.url),
+    url: normalizeReportAllowedURL(node.url),
     alt: normalizeReportText(node.alt).replace(/\s+/g, " "),
     ...(node.width === undefined ? {} : { width: node.width }),
     ...(node.height === undefined ? {} : { height: node.height }),
@@ -585,9 +594,9 @@ function renderInlines(nodes) {
     if (rendered.endsWith("`") && fragment.startsWith("`")) rendered += " ";
     rendered += fragment;
   }
-  // A standalone image line would start a CommonMark HTML block and turn the
-  // following Markdown code into raw HTML. An encoded space keeps it inline.
-  return rendered.includes("\n") ? rendered.replace(/^([ \t]*)(<img [^<>]*>[ \t]*)$/gm, "$1&#32;$2") : rendered;
+  // Standalone generated HTML can turn following Markdown code into raw HTML.
+  // An encoded space keeps images and subscript delimiters in inline context.
+  return rendered.includes("\n") ? rendered.replace(/^([ \t]*)(<(?:img [^<>]*|\/?sub)>[ \t]*)$/gm, "$1&#32;$2") : rendered;
 }
 
 /** @param {string} value */
@@ -796,4 +805,4 @@ function renderReport(report) {
   return result;
 }
 
-module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, normalizeReportImage, redactReportForRendering, assertRedactedReport, renderReport };
+module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, normalizeReportAllowedURL, normalizeReportImage, redactReportForRendering, assertRedactedReport, renderReport };

@@ -1,6 +1,6 @@
 // @ts-check
 
-const { normalizeReportText, normalizeReportURL, normalizeReportImage } = require("./report_ast.cjs");
+const { normalizeReportText, normalizeReportAllowedURL, normalizeReportImage } = require("./report_ast.cjs");
 const { buildAllowedDomains, sanitizeUrlProtocols, sanitizeUrlDomains } = require("./sanitize_content_core.cjs");
 
 /**
@@ -63,11 +63,7 @@ function htmlImage(raw, substitute) {
     image.align = align;
   }
   try {
-    const normalized = normalizeReportImage(image);
-    // A typed image is renderable media, never a URL-policy code-region exception.
-    // Only accept hostname forms understood by the shared domain sanitizer.
-    if (!/^https:\/\/[\w.-]+(?::\d+)?\//.test(normalized.url)) return undefined;
-    return sanitizeUrlDomains(normalized.url, buildAllowedDomains()) === normalized.url ? normalized : undefined;
+    return normalizeReportImage(image);
   } catch (error) {
     if (!(error instanceof TypeError)) throw error;
     return undefined;
@@ -226,17 +222,17 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
         const label = link.image ? [fromSource({ type: "text", value: substitute(link.label) })] : inline(link.label, inlineDepth + 1, true);
         const url = substitute(link.destination);
         try {
-          nodes.push(fromSource(link.image ? { type: "image", url: normalizeReportURL(url), alt: substitute(link.label.replace(/\\([\\`*_[\]{}()#+.!|>~-])/g, "$1")) } : { type: "link", url: normalizeReportURL(url), children: label }));
+          nodes.push(fromSource(link.image ? normalizeReportImage({ type: "image", url, alt: substitute(link.label.replace(/\\([\\`*_[\]{}()#+.!|>~-])/g, "$1")) }) : { type: "link", url: normalizeReportAllowedURL(url), children: label }));
         } catch (error) {
           if (!(error instanceof TypeError)) throw error;
-          nodes.push(...label, fromSource({ type: "text", value: " (link unavailable: invalid HTTPS URL)" }));
+          nodes.push(...label, fromSource({ type: "text", value: link.image ? " (image unavailable: URL must use an allowed HTTPS domain)" : " (link unavailable: invalid HTTPS URL)" }));
         }
         source = source.slice(link.raw.length);
         continue;
       } else if (!inLink && (match = /^<(https:\/\/[^<>\s]+)>/.exec(source))) {
         const url = substitute(match[1]);
         try {
-          nodes.push(fromSource({ type: "link", url: normalizeReportURL(url), children: [fromSource({ type: "text", value: url })] }));
+          nodes.push(fromSource({ type: "link", url: normalizeReportAllowedURL(url), children: [fromSource({ type: "text", value: url })] }));
         } catch (error) {
           if (!(error instanceof TypeError)) throw error;
           text("Link unavailable: invalid HTTPS URL");
@@ -244,7 +240,7 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
       } else if (!inLink && autolink && !/[A-Za-z0-9_]/.test(original[original.length - source.length - 1] || "")) {
         const url = substitute(autolink);
         try {
-          nodes.push(fromSource({ type: "link", url: normalizeReportURL(url), children: [fromSource({ type: "text", value: url })] }));
+          nodes.push(fromSource({ type: "link", url: normalizeReportAllowedURL(url), children: [fromSource({ type: "text", value: url })] }));
         } catch (error) {
           if (!(error instanceof TypeError)) throw error;
           text("Link unavailable: invalid HTTPS URL");

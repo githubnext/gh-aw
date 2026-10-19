@@ -65,6 +65,39 @@ describe("typed report image presentation", () => {
     expect(renderReport(report([{ type: "paragraph", children: [image({})] }])).body).toBe("![Mascot](https://github.com/o/r/image.png)\n");
   });
 
+  it.each([
+    "https://outside.invalid/image.png?data=sentinel",
+    "https://github.com.outside.invalid/image.png",
+    "https://github.com@outside.invalid/image.png",
+    "https://%6futside.invalid/image.png",
+    "https://[::1]/image.png",
+    "//github.com/image.png",
+    "http://github.com/image.png",
+    "data:image/png;base64,c2VudGluZWw=",
+    "DATA:image/svg+xml,<svg/>",
+    "data&#58;image/png;base64,c2VudGluZWw=",
+    "d&#97;ta:image/png;base64,c2VudGluZWw=",
+    "data%3Aimage/png;base64,c2VudGluZWw=",
+    "javascript:attack()",
+  ])("rejects untrusted image sources in typed AST nodes without layout fields: %s", url => {
+    for (const agentTainted of [true, false, undefined]) {
+      const input = report([{ type: "paragraph", children: [image({ url, agentTainted })] }]);
+      expect(() => normalizeReport(input)).toThrow(TypeError);
+      expect(() => renderReport(input)).toThrow(TypeError);
+    }
+  });
+
+  it("rejects image destinations introduced through inline AST slots", () => {
+    const children = parseReportMarkdown("Framework {image}", { inlineSlots: { image: [image({ url: "https://outside.invalid/leak", agentTainted: false })] }, agentTainted: false });
+    expect(() => renderReport(report(children))).toThrow("Report URLs must use an allowed HTTPS domain");
+  });
+
+  it("revalidates image domains after policy changes before rendering", () => {
+    const input = redactReportForRendering(report([{ type: "paragraph", children: [image({})] }]));
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "trusted.invalid");
+    expect(() => renderReport(input)).toThrow("Report URLs must use an allowed HTTPS domain");
+  });
+
   it.each([0, -1, 10001, 1.5, NaN, Infinity, "120", '120" onerror="attack()', null, {}, []])("rejects invalid image dimensions %j without echoing them", dimension => {
     for (const field of ["width", "height"]) {
       expect(() => normalizeReportImage(image({ [field]: dimension }))).toThrow("Report image dimensions must be integers between 1 and 10000");
@@ -213,6 +246,59 @@ describe("report HTML import boundary", () => {
     expect(body).not.toContain("https://outside.invalid");
   });
 
+  it.each(["allowed-only", "allowed-or-code-region"])("rechecks Markdown image domains after HTML attributes change code boundaries under %s", policy => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_URLS", policy);
+    const source = '<img alt="`" width="120" src="https://github.com/i.png">![payload](https://outside.invalid/collect?data=sentinel)`';
+    const body = renderReport(parse(sanitizeContent(source))).body;
+    expect(body).toContain(policy === "allowed-or-code-region" ? "image unavailable: URL must use an allowed HTTPS domain" : "outside.invalid/redacted");
+    expect(body).not.toContain("https://outside.invalid");
+    const walker = new Parser().parse(body).walker();
+    let event;
+    while ((event = walker.next())) {
+      if (event.node.type === "image") expect(event.node.destination).not.toContain("outside.invalid");
+      if (event.node.type.startsWith("html_")) expect(event.node.literal).not.toContain("outside.invalid");
+    }
+  });
+
+  it.each([
+    "data:image/png;base64,c2VudGluZWw=",
+    "DATA:image/svg+xml,PHN2Zz48L3N2Zz4=",
+    "data&#58;image/png;base64,c2VudGluZWw=",
+    "d&#97;ta:image/png;base64,c2VudGluZWw=",
+    "data%3Aimage/png;base64,c2VudGluZWw=",
+    "https://outside.invalid/image.png",
+    "https://github.com.outside.invalid/image.png",
+    "https://github.com@outside.invalid/image.png",
+  ])("refuses an untrusted image destination through Markdown and HTML import: %s", url => {
+    for (const source of [`![payload](${url})`, `<img src="${url}" width="120" alt="payload">`]) {
+      const input = parse(source);
+      expect(JSON.stringify(input)).not.toContain('"type":"image"');
+      const body = renderReport(input).body;
+      const walker = new Parser().parse(body).walker();
+      let event;
+      while ((event = walker.next())) {
+        expect(event.node.type).not.toBe("image");
+        if (event.node.type.startsWith("html_")) expect(event.node.literal).not.toContain("<img");
+      }
+    }
+  });
+
+  it.each(["https://github.com/a.png", "https://media.github.com/a.png"])("allows Markdown images on configured domains: %s", url => {
+    expect(parse(`![payload](${url})`).children[0].children).toEqual([image({ url, alt: "payload", agentTainted: true })]);
+  });
+
+  it.each(["[payload](https://outside.invalid/leak)", "<https://outside.invalid/leak>", "https://outside.invalid/leak"])("rechecks other renderable destinations after HTML consumes an attribute backtick: %s", link => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_URLS", "allowed-or-code-region");
+    const source = `<img alt="\`" width="120" src="https://github.com/i.png">${link}\``;
+    const body = renderReport(parse(sanitizeContent(source))).body;
+    expect(body).toContain("unavailable");
+    const walker = new Parser().parse(body).walker();
+    let event;
+    while ((event = walker.next())) {
+      if (event.node.type === "link") expect(new URL(event.node.destination).hostname).toBe("github.com");
+    }
+  });
+
   it("uses the configured allowlist, including permitted subdomains", () => {
     vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "*.trusted.invalid");
     const body = renderReport(parse('<img src="https://media.trusted.invalid/a.png" width="120">')).body;
@@ -278,6 +364,23 @@ describe("report HTML import boundary", () => {
     }
     expect(code).toContain("<script>attack()</script>");
     expect(renderReport(parse(body)).body).toBe(body);
+  });
+
+  it.each(["https://outside.invalid/collect?data=sentinel", "data:image/svg+xml,payload"])("keeps HTML image examples inert after multiline subscript markup: %s", url => {
+    vi.stubEnv("GH_AW_SAFE_OUTPUTS_URLS", "allowed-or-code-region");
+    const example = `<img src="${url}">`;
+    const source = `<sub>\ntext</sub>\n\`${example}\``;
+    const body = renderReport(parse(sanitizeContent(source))).body;
+    expect(body).toContain("&#32;<sub>");
+    const walker = new Parser().parse(body).walker();
+    let event;
+    const code = [];
+    while ((event = walker.next())) {
+      if (event.node.type === "code") code.push(event.node.literal);
+      if (event.node.type.startsWith("html_")) expect(event.node.literal).not.toContain("<img");
+      expect(event.node.type).not.toBe("image");
+    }
+    expect(code).toContain(example);
   });
 
   it("rejects secret-bearing fence info strings rather than publishing an unredacted field", () => {
@@ -380,15 +483,19 @@ describe("seeded adversarial HTML fidelity fuzzing", () => {
         "&#104;tml-fuzz-secret-fixture",
         '<img src="https://github.com/a.png" width="120">',
         '<img src="https://outside.invalid/a.png" width="120">',
+        "![payload](https://outside.invalid/leak)",
+        "![payload](data:image/png;base64,c2VudGluZWw=)",
+        "![payload](https://github.com/image.png)",
         "@user",
         "**",
         "{body}",
+        "<sub>\ntext</sub>\n",
       ];
       for (let index = 0; index < 2000; index++) {
         let source = "";
         for (let part = 0, count = 1 + next(20); part < count; part++) source += atoms[next(atoms.length)];
         const input = parse(source);
-        if (/"language":"[^"]*html-fuzz-secret-fixture/.test(JSON.stringify(input))) {
+        if (/"language":"[^"]*html-fuzz-secret-fixture/.test(JSON.stringify(normalizeReport(input)))) {
           expect(() => renderReport(input)).toThrow("Report contains an unredacted string");
           continue;
         }
@@ -400,11 +507,19 @@ describe("seeded adversarial HTML fidelity fuzzing", () => {
         const walker = new Parser().parse(body).walker();
         let event;
         while ((event = walker.next())) {
+          if (event.entering && event.node.type === "image") {
+            expect(new URL(event.node.destination).protocol).toBe("https:");
+            expect(new URL(event.node.destination).hostname).toBe("github.com");
+          }
+          if (event.entering && event.node.type === "link") {
+            expect(new URL(event.node.destination).protocol).toBe("https:");
+            expect(new URL(event.node.destination).hostname).toBe("github.com");
+          }
           if (!event.entering || !["html_inline", "html_block"].includes(event.node.type)) continue;
           const literal = event.node.literal;
           for (const tag of literal.matchAll(/<[^>]*>/g)) {
             expect(tag[0], `seed ${seed}, case ${index}: ${JSON.stringify(source)}`).toMatch(
-              /^<img src="https:\/\/github\.com\/[^"<>]*" alt="[^"<>]*"(?: width="[1-9]\d{0,4}")?(?: height="[1-9]\d{0,4}")?(?: align="(?:left|right|center)")?>$/
+              /^(?:<img src="https:\/\/github\.com\/[^"<>]*" alt="[^"<>]*"(?: width="[1-9]\d{0,4}")?(?: height="[1-9]\d{0,4}")?(?: align="(?:left|right|center)")?>|<\/?sub>)$/
             );
           }
           expect(literal.replace(/<[^>]*>/g, ""), `seed ${seed}, case ${index}: ${JSON.stringify(source)}`).not.toContain("<");
