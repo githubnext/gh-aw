@@ -213,7 +213,7 @@ func TestSessionSubagentModels(t *testing.T) {
 	t.Run("uses canonical bootstrap trace without conclusion artifact", func(t *testing.T) {
 		root := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(root, "agent-session.jsonl"), []byte(start+"\n"+config+"\n"), 0o644))
-		requests, _, found, err := readSessionSubagentModels(root)
+		requests, _, _, found, err := readSessionSubagentModelsDetailed(root)
 		require.NoError(t, err)
 		require.True(t, found)
 		require.Len(t, requests, 1)
@@ -277,7 +277,7 @@ func TestSessionSubagentModels(t *testing.T) {
 		file := filepath.Join(root, "trace.jsonl")
 		require.NoError(t, os.WriteFile(file, []byte(start+"\n"), 0o644))
 		require.NoError(t, os.Symlink(file, filepath.Join(root, "agent-session.jsonl")))
-		_, _, _, err := readSessionSubagentModels(root)
+		_, _, _, _, err := readSessionSubagentModelsDetailed(root)
 		require.ErrorContains(t, err, "symbolic link")
 	})
 }

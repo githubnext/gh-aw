@@ -62,6 +62,7 @@ This answers the question: "Did this workflow's actions actually help?"`,
 	addOutputFlag(cmd, defaultLogsOutputDir)
 	cmd.Flags().String("outcomes-dir", "", "Write outcome JSONL to this directory for OTLP export")
 	cmd.AddCommand(NewOutcomesHistorySubcommand())
+	cmd.AddCommand(NewOutcomesEpisodesSubcommand())
 
 	return cmd
 }

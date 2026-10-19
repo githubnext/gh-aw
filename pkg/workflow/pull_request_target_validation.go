@@ -245,7 +245,3 @@ func isTrustedPullRequestTargetCheckout(cfg *CheckoutConfig) bool {
 
 	return checkoutpolicy.Base(cfg.Repository, cfg.Ref)
 }
-
-func matchesGitHubExpression(value string, expectedExpression string) bool {
-	return checkoutpolicy.MatchesExpression(value, expectedExpression)
-}
