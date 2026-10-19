@@ -15,6 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func episodeAccountingAWFRecord(id string, delta, total float64) string {
+	return fmt.Sprintf(`{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":%q,"provider":"unknown","ai_credits_this_response":%g,"ai_credits_total":%g}`, id, delta, total)
+}
+
 func retrieveEpisodeAccountingArtifacts(t *testing.T, archives []map[string]string) LogsData {
 	t.Helper()
 	fixture := newEpisodeRetrievalFixture(t)

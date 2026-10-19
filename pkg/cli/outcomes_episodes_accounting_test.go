@@ -5,7 +5,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,10 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func episodeAccountingAWFRecord(id string, delta, total float64) string {
-	return fmt.Sprintf(`{"_schema":"token-usage/v0.28.7","event":"token_usage","request_id":%q,"provider":"unknown","ai_credits_this_response":%g,"ai_credits_total":%g}`, id, delta, total)
-}
 
 func writeEpisodeAccountingFiles(t *testing.T, dir string, files map[string]string) {
 	t.Helper()
