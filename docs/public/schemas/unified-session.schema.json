@@ -1153,6 +1153,7 @@
         "dryRun": { "$ref": "#/definitions/JsonValue" },
         "workflow": { "$ref": "#/definitions/JsonValue" },
         "workflowId": { "$ref": "#/definitions/JsonValue", "description": "Executing workflow reference supplied by the compiler from job.workflow_ref." },
+        "workflowCallId": { "$ref": "#/definitions/JsonValue", "description": "Current workflow invocation ID from aw_info, separate from the caller's ID." },
         "callerWorkflowRef": { "$ref": "#/definitions/JsonValue", "description": "GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows." },
         "repository": { "$ref": "#/definitions/JsonValue" },
         "runId": { "$ref": "#/definitions/JsonValue" },

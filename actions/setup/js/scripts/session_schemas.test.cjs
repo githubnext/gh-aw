@@ -118,6 +118,7 @@ describe("Generated session schemas", () => {
         run_id: "300",
         run_attempt: "2",
         workflow_id: "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+        workflow_call_id: "300-2:org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
         caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
         context: {
           episode_id: "100-1:root",
@@ -143,6 +144,7 @@ describe("Generated session schemas", () => {
       runId: "300",
       runAttempt: "2",
       workflowId: "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+      workflowCallId: "300-2:org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
       callerWorkflowRef: "org/parent/.github/workflows/caller.yml@refs/heads/main",
       episode: { parentRepo: "org/parent", parentRunId: "200", parentRunAttempt: "1", parentWorkflowId: "caller.yml", parentWorkflowCallId: "legacy", parentEventType: "workflow_dispatch" },
     });

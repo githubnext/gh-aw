@@ -451,6 +451,8 @@ export interface WorkflowInfoData {
   workflow?: JsonValue;
   /** Executing workflow reference supplied by the compiler from job.workflow_ref. */
   workflowId?: JsonValue;
+  /** Current workflow invocation ID from aw_info, separate from the caller's ID. */
+  workflowCallId?: JsonValue;
   /** GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows. */
   callerWorkflowRef?: JsonValue;
   repository?: JsonValue;

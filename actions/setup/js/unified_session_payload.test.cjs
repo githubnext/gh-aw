@@ -669,6 +669,7 @@ describe("essential unified session payloads", () => {
         run_id: "300",
         run_attempt: "2",
         workflow_id: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+        workflow_call_id: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
         caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
         repository: "org/repo",
         ref: "refs/heads/main",
@@ -700,6 +701,7 @@ describe("essential unified session payloads", () => {
       runId: "300",
       runAttempt: "2",
       workflowId: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+      workflowCallId: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
       callerWorkflowRef: "org/parent/.github/workflows/caller.yml@refs/heads/main",
       repository: "org/repo",
       ref: "refs/heads/main",
@@ -780,17 +782,28 @@ describe("essential unified session payloads", () => {
         run_id: "300",
         run_attempt: "2",
         workflow_id: "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+        workflow_call_id: "300-2:org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
         caller_workflow_ref: "org/repo/.github/workflows/caller.yml@refs/heads/main",
-        context: { run_id: "300", workflow_id: "caller.yml", hop_id: "300-2:caller.yml", parent_hop_id: "100-1:root" },
+        context: { run_id: "300", workflow_id: "caller.yml", workflow_call_id: "300-2:caller.yml", hop_id: "300-2:caller.yml", parent_hop_id: "100-1:root" },
       },
     });
     expect(compact.data).toMatchObject({
       runId: "300",
       runAttempt: "2",
       workflowId: "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+      workflowCallId: "300-2:org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
       callerWorkflowRef: "org/repo/.github/workflows/caller.yml@refs/heads/main",
-      episode: { parentRunId: "300", parentWorkflowId: "caller.yml", hopId: "300-2:caller.yml", parentHopId: "100-1:root" },
+      episode: { parentRunId: "300", parentWorkflowId: "caller.yml", parentWorkflowCallId: "300-2:caller.yml", hopId: "300-2:caller.yml", parentHopId: "100-1:root" },
     });
+    expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
+  });
+
+  it.each(["", null, false, 0])("preserves explicit canonical workflow call ID %j over its legacy alias", workflowCallId => {
+    const compact = normalizeUnifiedSessionEvent({
+      type: "workflow.info",
+      data: { workflowCallId, workflow_call_id: "legacy" },
+    });
+    expect(compact.data).toEqual({ workflowCallId });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
   });
 

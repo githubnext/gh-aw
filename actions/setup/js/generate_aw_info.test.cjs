@@ -125,6 +125,7 @@ describe("generate_aw_info.cjs", () => {
   });
 
   it("should write aw_info.json with values from env vars and context", async () => {
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "1");
     await main(mockCore, mockContext);
 
     expect(fs.existsSync(awInfoPath)).toBe(true);
@@ -135,6 +136,7 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.model).toBe("gpt-4");
     expect(awInfo.workflow_name).toBe("my-workflow");
     expect(awInfo.workflow_id).toBe("github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
+    expect(awInfo.workflow_call_id).toBe("12345-1:github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
     expect(awInfo.experimental).toBe(false);
     expect(awInfo.supports_tools_allowlist).toBe(true);
     expect(awInfo.cache_memory).toBe(false);
@@ -157,11 +159,12 @@ describe("generate_aw_info.cjs", () => {
     process.env.GH_AW_INFO_WORKFLOW_ID = executingRef;
     vi.stubEnv("GITHUB_WORKFLOW_REF", callerRef);
     vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
-    const caller = { repo: "github/my-repo", run_id: "12345", run_attempt: "2", workflow_id: callerRef };
+    const caller = { repo: "github/my-repo", run_id: "12345", run_attempt: "2", workflow_id: callerRef, workflow_call_id: `12345-2:${callerRef}` };
     await main(mockCore, { ...mockContext, payload: { inputs: { aw_context: JSON.stringify(caller) } } });
     const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
     expect(info).toMatchObject({
       workflow_id: executingRef,
+      workflow_call_id: `12345-2:${executingRef}`,
       caller_workflow_ref: callerRef,
       run_id: 12345,
       run_attempt: "2",
@@ -170,15 +173,25 @@ describe("generate_aw_info.cjs", () => {
     });
     expect(String(info.run_id)).toBe(info.context.run_id);
     expect(info.workflow_id).not.toBe(info.context.workflow_id);
+    expect(info.workflow_call_id).not.toBe(info.context.workflow_call_id);
   });
 
   it("does not misidentify the caller as the executing workflow when its reference is unavailable", async () => {
     delete process.env.GH_AW_INFO_WORKFLOW_ID;
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
     vi.stubEnv("GITHUB_WORKFLOW_REF", "github/my-repo/.github/workflows/caller.yml@refs/heads/main");
     await main(mockCore, mockContext);
     const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
     expect(info.workflow_id).toBe("");
+    expect(info.workflow_call_id).toBe("12345-2");
     expect(info.caller_workflow_ref).toBe("github/my-repo/.github/workflows/caller.yml@refs/heads/main");
+  });
+
+  it("defaults the workflow call ID to the first attempt when the runner omits it", async () => {
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", undefined);
+    await main(mockCore, mockContext);
+    const info = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(info.workflow_call_id).toBe("12345-1:github/my-repo/.github/workflows/my-workflow.lock.yml@refs/heads/main");
   });
 
   it("should record dry-run and explicitly report unverified extension effects", async () => {

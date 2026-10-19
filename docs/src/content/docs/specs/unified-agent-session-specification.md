@@ -287,6 +287,11 @@ and `event_type` become `parentRepo`, `parentRunId`, `parentRunAttempt`,
 The current run's metadata remains separate: `workflow.info.runAttempt` and
 `workflowId` retain the recorded attempt and executing workflow's full reference
 from compiler-wired `job.workflow_ref`, including for reusable invocations.
+`workflowCallId` retains the top-level `aw_info.json.workflow_call_id`, computed
+with the existing workflow-call ID helper as `<run_id>-<run_attempt>:<workflow_id>`.
+The attempt defaults to `1`; when the executing workflow reference is unavailable,
+the ID contains only `<run_id>-<run_attempt>`. This identifies the current
+workflow, while `episode.parentWorkflowCallId` retains the caller's recorded ID.
 `callerWorkflowRef` separately retains `GITHUB_WORKFLOW_REF`, which identifies
 the top-level caller for reusable workflows (and the current workflow otherwise),
 while `ref`, `sha`, `actor`, and `targetRepo` retain the existing metadata used

@@ -6,4 +6,4 @@ Make `gh aw outcomes` the sole outcome-evaluation entry point. Remove the schedu
 
 Keep ambiguous legacy workflow calls in separate episodes and make conflicting lineage deterministic. Populate AIC per accepted outcome from full observed run usage, including detection, independently of agent-only caches. Warn on unavailable usage without discarding evaluated outcomes.
 
-Expose parent repository, run, attempt, workflow, call identity, and event type from `aw_context` in unified session episode metadata. Record the executing workflow's compiler-owned identity separately from the caller's workflow reference. Preserve the current run attempt and legacy lineage inputs.
+Expose parent repository, run, attempt, workflow, call identity, and event type from `aw_context` in unified session episode metadata. Record the executing workflow's compiler-owned identity separately from the caller's workflow reference. Add the current `workflow_call_id` to `aw_info.json` and preserve it as `workflowCallId` in the unified session. Preserve the current run attempt and legacy lineage inputs.
