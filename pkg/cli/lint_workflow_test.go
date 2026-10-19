@@ -339,6 +339,7 @@ func TestBuiltInWorkflowLintCommand(t *testing.T) {
 	assert.Contains(t, output, "safe-output-shell-expansion")
 	assert.Contains(t, output, "firewall-ssl-bump")
 	assert.Contains(t, output, "custom-job-detection")
+	assert.Contains(t, output, "grader-file-io")
 	assert.Contains(t, output, "\tCTR-008\n")
 	assert.Contains(t, output, "\tCTR-009\n")
 	assert.Contains(t, output, "\tCTR-011\n")

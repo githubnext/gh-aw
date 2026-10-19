@@ -12,7 +12,7 @@ import (
 )
 
 func registerJavaScriptLintFlags(cmd *cobra.Command) {
-	cmd.Flags().String("javascript-module", "", "Explicit directory containing the pinned @typescript/native-preview npm dependency (optional native JavaScript taint analysis)")
+	cmd.Flags().String("javascript-module", "", "Explicit directory containing the pinned @typescript/native-preview npm dependency (optional native JavaScript AST analysis)")
 	cmd.Flags().String("javascript-mode", "fast", "JavaScript analysis mode: fast (authored scripts and reviewed API summaries) or deep (traverse runtime sources; requires --javascript-module)")
 	cmd.Flags().String("javascript-root", "", "Repository source root for JavaScript entry points and relative imports (requires --javascript-module)")
 	cmd.Flags().StringArray("javascript-runtime-path", nil, "Verified runner directory=repository directory mapping; repeat for additional asset roots (requires --javascript-root)")

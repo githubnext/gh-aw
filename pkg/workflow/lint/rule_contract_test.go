@@ -19,6 +19,7 @@ type ruleContract struct {
 	path         string
 	severity     Severity
 	strictPolicy bool
+	javaScript   bool
 }
 
 const contractJob = "jobs:\n  check:\n    runs-on: ubuntu-latest\n"
@@ -26,6 +27,12 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
+		"grader-file-io": {
+			targets: AWAST, javaScript: true,
+			unsafe: "graders:\n  custom:\n    script: const fs = require('node:fs'); return fs.readFileSync('evidence');\n",
+			safe:   "graders:\n  custom:\n    script: return helpers.createSessionLookups(session).stats.toolCalls;\n",
+			path:   "graders.custom.script",
+		},
 		"custom-job-detection": {
 			targets: AWAST,
 			unsafe:  contractJob + "    needs: agent\n" + contractSafeSteps,
@@ -222,6 +229,9 @@ func runRuleContractPair(t *testing.T, id string, contract ruleContract, target 
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			input := ruleContractInput(t, test.source, target, nonstrict)
+			if contract.javaScript {
+				input.JavaScript = nativeGraderJavaScriptOptions(t)
+			}
 			before, err := json.Marshal(input)
 			require.NoError(t, err)
 			runner, err := Default().Select(id)

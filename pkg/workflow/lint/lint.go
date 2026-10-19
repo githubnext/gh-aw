@@ -231,5 +231,6 @@ func Default() *Runner {
 		SafeOutputShellExpansionRule(),
 		FirewallSSLBumpRule(),
 		CustomJobDetectionRule(),
+		GraderFileIORule(),
 	}}
 }

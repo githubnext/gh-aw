@@ -84,6 +84,12 @@ requires `direction`. Use data-only `config` for declared targets and policy.
 Each script is limited to **256 KiB (262,144 UTF-8 bytes, inclusive)**.
 Simplify oversized logic; do not move it to a file or shell command.
 
+Check authored scripts with `gh aw lint --rules grader-file-io --javascript-module
+/path/to/gh-aw/pkg/workflow/taint/javascript /path/to/repository/.github/workflows/WORKFLOW.md`.
+The pinned native parser must already be installed. Treat missing-parser warnings
+as unchecked coverage, not approval. Module loading and filesystem/host capabilities
+are rejected; collect any required evidence before grading and use session helpers.
+
 Return a finite number, `null`, or an object with `value` and optional `message`,
 `details`, and `diagnostics`. Each grader ID produces one measurement, not an
 ordered array of metric objects. Use another distinct grader ID only for an
