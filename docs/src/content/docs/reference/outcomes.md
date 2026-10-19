@@ -198,7 +198,7 @@ per-item records include `item_id` (the action's source-manifest position) and
 against episode `run_ids`, selects the latest `checked_at` for each source-run
 item, and reuses CLI outcome classifications. Repeated snapshots do not add
 accepted outcomes, and a later rejection replaces a previous acceptance.
-Conflicting statuses at the same observation time produce an error rather
+Conflicting statuses at the latest observation time produce an error rather
 than an arbitrary verdict. Distinct actions against the same object remain
 distinct items.
 
@@ -225,9 +225,14 @@ complete cost result. Outcomes whose source runs are outside selected
 membership are listed separately and excluded from all episode counts.
 
 Older JSONL without `item_id` is conservatively coalesced by source run, action
-type, repository, target, and creation time. Indistinguishable legacy actions
-can be undercounted, so these reports are qualified and efficiency is unavailable;
-reevaluate those runs to record action identities and counts. The report does
+type, repository, target, and creation time only when no precise item identities
+exist for that group. Precise observations supersede matching legacy rows once
+each item's latest observation is at least as recent as the latest legacy row.
+A newer legacy row produces an error requiring reevaluation rather than
+overriding ambiguous precise items or adding an extra item.
+Indistinguishable legacy-only actions can be undercounted, so these reports are
+qualified and efficiency is unavailable; reevaluate those runs to record action
+identities and counts. The report does
 not infer missing episode members, reevaluate GitHub objects, or automatically
 schedule observations. Generate its schema with
 `gh aw json-schema outcomes-episodes`.

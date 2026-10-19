@@ -162,9 +162,156 @@ func TestBuildEpisodeOutcomesItemIdentity(t *testing.T) {
 	observations = []EpisodeOutcomeObservation{accepted, second, legacy, legacy}
 	data, err = buildEpisodeOutcomes(episodeLogs(1), observations, map[int64]episodeOutcomeCost{1: episodeCost(6)})
 	require.NoError(t, err)
-	assert.LessOrEqual(t, data.Episodes[0].Summary.Accepted, 1, "legacy observations cannot inflate accepted counts")
-	assert.Equal(t, "partial", data.Episodes[0].OutcomeCoverage)
-	assert.Nil(t, data.Episodes[0].CostPerAcceptedOutcome)
+	assert.Equal(t, 2, data.Episodes[0].Summary.Accepted, "stale legacy observations neither merge precise items nor add items")
+	assert.Equal(t, "complete", data.Episodes[0].OutcomeCoverage)
+	require.NotNil(t, data.Episodes[0].CostPerAcceptedOutcome)
+	assert.InDelta(t, 3.0, *data.Episodes[0].CostPerAcceptedOutcome, 1e-9)
+}
+
+func TestLatestEpisodeOutcomesIdentitySnapshots(t *testing.T) {
+	t.Parallel()
+	snapshot := func(itemID string, status OutcomeStatus, checkedAt string) EpisodeOutcomeObservation {
+		item := episodeObservation(1, itemID, status)
+		item.CheckedAt = checkedAt
+		item.RunItemCount = 2
+		return item
+	}
+	const (
+		oldTime    = "2026-10-01T01:00:00Z"
+		modernTime = "2026-10-02T01:00:00Z"
+		legacyTime = "2026-10-03T01:00:00Z"
+		newTime    = "2026-10-04T01:00:00Z"
+	)
+	first := snapshot("item-1", OutcomeStatusAccepted, modernTime)
+	second := snapshot("item-2", OutcomeStatusAccepted, modernTime)
+	firstRejected := snapshot("item-1", OutcomeStatusRejected, newTime)
+	secondPending := snapshot("item-2", OutcomeStatusPending, modernTime)
+	legacyOld := snapshot("", OutcomeStatusAccepted, oldTime)
+	legacyOld.RunItemCount = 0
+	legacyRejected := snapshot("", OutcomeStatusRejected, newTime)
+	legacyOtherTarget := legacyOld
+	legacyOtherTarget.ObjectNumber++
+	firstRefreshed := snapshot("item-1", OutcomeStatusAccepted, newTime)
+	secondRefreshed := snapshot("item-2", OutcomeStatusAccepted, newTime)
+
+	for _, tc := range []struct {
+		name         string
+		observations []EpisodeOutcomeObservation
+		want         []EpisodeOutcomeObservation
+		err          string
+	}{
+		{
+			name:         "modern only replacement and repeated acceptance",
+			observations: []EpisodeOutcomeObservation{first, second, firstRejected, second, firstRejected},
+			want:         []EpisodeOutcomeObservation{firstRejected, second},
+		},
+		{
+			name:         "legacy only duplicates",
+			observations: []EpisodeOutcomeObservation{legacyOld, legacyOld},
+			want:         []EpisodeOutcomeObservation{legacyOld},
+		},
+		{
+			name:         "legacy only replacement",
+			observations: []EpisodeOutcomeObservation{legacyOld, legacyRejected, legacyOld},
+			want:         []EpisodeOutcomeObservation{legacyRejected},
+		},
+		{
+			name:         "mixed stale legacy preserves precise actions",
+			observations: []EpisodeOutcomeObservation{legacyOld, first, second, legacyOld, first, second},
+			want:         []EpisodeOutcomeObservation{first, second},
+		},
+		{
+			name:         "mixed legacy does not affect another target",
+			observations: []EpisodeOutcomeObservation{legacyOld, first, second, legacyOtherTarget, legacyOtherTarget},
+			want:         []EpisodeOutcomeObservation{legacyOtherTarget, first, second},
+		},
+		{
+			name:         "precise statuses supersede same instant legacy",
+			observations: []EpisodeOutcomeObservation{snapshot("", OutcomeStatusRejected, "2026-10-02T03:00:00+02:00"), first, secondPending},
+			want:         []EpisodeOutcomeObservation{first, secondPending},
+		},
+		{
+			name:         "later precise rejection replaces acceptance with stale legacy",
+			observations: []EpisodeOutcomeObservation{legacyOld, first, firstRejected, second},
+			want:         []EpisodeOutcomeObservation{firstRejected, second},
+		},
+		{
+			name:         "fully refreshed precise snapshots supersede newer legacy",
+			observations: []EpisodeOutcomeObservation{first, second, snapshot("", OutcomeStatusRejected, legacyTime), firstRefreshed, secondRefreshed},
+			want:         []EpisodeOutcomeObservation{firstRefreshed, secondRefreshed},
+		},
+		{
+			name:         "partially refreshed precise snapshots do not supersede newer legacy",
+			observations: []EpisodeOutcomeObservation{first, second, snapshot("", OutcomeStatusRejected, legacyTime), firstRefreshed},
+			err:          "legacy outcome for run 1 is newer than precise item observations; reevaluate the run",
+		},
+		{
+			name:         "newer legacy acceptance is ambiguous",
+			observations: []EpisodeOutcomeObservation{first, second, snapshot("", OutcomeStatusAccepted, legacyTime)},
+			err:          "legacy outcome for run 1 is newer than precise item observations; reevaluate the run",
+		},
+		{
+			name:         "newer legacy rejection is ambiguous",
+			observations: []EpisodeOutcomeObservation{first, second, snapshot("", OutcomeStatusRejected, legacyTime)},
+			err:          "legacy outcome for run 1 is newer than precise item observations; reevaluate the run",
+		},
+		{
+			name:         "newer legacy pending status is ambiguous",
+			observations: []EpisodeOutcomeObservation{first, second, snapshot("", OutcomeStatusPending, legacyTime)},
+			err:          "legacy outcome for run 1 is newer than precise item observations; reevaluate the run",
+		},
+		{
+			name:         "conflicting stale legacy is superseded by precise snapshots",
+			observations: []EpisodeOutcomeObservation{legacyOld, snapshot("", OutcomeStatusRejected, oldTime), first, second},
+			want:         []EpisodeOutcomeObservation{first, second},
+		},
+		{
+			name:         "conflicting stale modern statuses are superseded",
+			observations: []EpisodeOutcomeObservation{first, snapshot("item-1", OutcomeStatusRejected, modernTime), firstRefreshed},
+			want:         []EpisodeOutcomeObservation{firstRefreshed},
+		},
+		{
+			name:         "conflicting stale legacy statuses are superseded",
+			observations: []EpisodeOutcomeObservation{legacyOld, snapshot("", OutcomeStatusRejected, oldTime), legacyRejected},
+			want:         []EpisodeOutcomeObservation{legacyRejected},
+		},
+		{
+			name:         "conflicting latest modern statuses remain errors",
+			observations: []EpisodeOutcomeObservation{firstRefreshed, firstRejected, legacyOld},
+			err:          "conflicting outcomes",
+		},
+		{
+			name:         "conflicting latest legacy statuses remain errors",
+			observations: []EpisodeOutcomeObservation{legacyRejected, snapshot("", OutcomeStatusAccepted, newTime)},
+			err:          "conflicting outcomes",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, reverse := range []bool{false, true} {
+				input := slices.Clone(tc.observations)
+				if reverse {
+					slices.Reverse(input)
+				}
+				got, err := latestEpisodeOutcomes(input)
+				if tc.err != "" {
+					require.ErrorContains(t, err, tc.err)
+					continue
+				}
+				require.NoError(t, err)
+				assert.Equal(t, tc.want, got)
+				data, err := buildEpisodeOutcomes(episodeLogs(1), input, nil)
+				require.NoError(t, err)
+				accepted := 0
+				for _, item := range tc.want {
+					if item.OutcomeStatus == OutcomeStatusAccepted {
+						accepted++
+					}
+				}
+				assert.Equal(t, len(tc.want), data.Episodes[0].Summary.Total)
+				assert.Equal(t, accepted, data.Episodes[0].Summary.Accepted)
+			}
+		})
+	}
 }
 
 func TestBuildEpisodeOutcomesIncompleteItems(t *testing.T) {

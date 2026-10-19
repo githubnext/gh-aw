@@ -19,37 +19,29 @@ func sumAICFromUsageJSONLFilesWithWarnings(filePaths []string) (float64, bool, [
 	awfDuplicateRecordCount := 0
 	seenAWFRequestIDs := make(map[string]struct{})
 	for _, filePath := range filePaths {
-		if isKnownAWFTokenUsageJSONLFile(filePath) {
-			entries, duplicateRecordCount, err := scanKnownAWFTokenUsageJSONLFile(filePath, seenAWFRequestIDs)
-			if err != nil {
-				return 0, false, nil, err
-			}
-			awfEntries = append(awfEntries, entries...)
-			awfDuplicateRecordCount += duplicateRecordCount
-			continue
-		}
-
 		candidateSeenRequestIDs := maps.Clone(seenAWFRequestIDs)
-		entries, duplicateRecordCount, awfSchemaRecordFound, err := scanTokenUsageEntriesWithSeen(filePath, candidateSeenRequestIDs)
+		entries, duplicateRecordCount, awfSchemaRecordFound, fileWarnings, err := scanTokenUsageEntriesWithSeen(filePath, candidateSeenRequestIDs)
 		if err != nil {
 			return 0, false, nil, err
 		}
-		if awfSchemaRecordFound {
+		if isKnownAWFTokenUsageJSONLFile(filePath) || awfSchemaRecordFound {
 			// Once a file matches the AWF token-usage schema, parse the file as one
 			// AWF stream. Older token-usage records may lack _schema/event but still
 			// belong to the same stream and should share request deduplication.
 			seenAWFRequestIDs = candidateSeenRequestIDs
 			awfEntries = append(awfEntries, entries...)
 			awfDuplicateRecordCount += duplicateRecordCount
+			warnings = append(warnings, fileWarnings...)
 			continue
 		}
 
-		fileAIC, fileFound, err := processLegacyUsageJSONLFile(filePath)
+		fileAIC, fileFound, fileWarnings, err := processLegacyUsageJSONLFile(filePath)
 		if err != nil {
 			return 0, false, nil, err
 		}
 		totalAIC += fileAIC
 		found = found || fileFound
+		warnings = append(warnings, fileWarnings...)
 	}
 
 	if len(awfEntries) > 0 {
@@ -72,18 +64,10 @@ func isKnownAWFTokenUsageJSONLFile(filePath string) bool {
 		strings.EqualFold(filepath.Base(filePath), "token-usage.jsonl")
 }
 
-func scanKnownAWFTokenUsageJSONLFile(filePath string, seenRequestIDs map[string]struct{}) ([]TokenUsageEntry, int, error) {
-	entries, duplicateRecordCount, _, err := scanTokenUsageEntriesWithSeen(filePath, seenRequestIDs)
-	if err != nil {
-		return nil, 0, err
-	}
-	return entries, duplicateRecordCount, nil
-}
-
-func processLegacyUsageJSONLFile(filePath string) (total float64, found bool, err error) {
+func processLegacyUsageJSONLFile(filePath string) (total float64, found bool, warnings []string, err error) {
 	file, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
-		return 0, false, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
+		return 0, false, nil, fmt.Errorf("failed to open usage JSONL file %s: %w", filePath, err)
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil && err == nil {
@@ -93,26 +77,40 @@ func processLegacyUsageJSONLFile(filePath string) (total float64, found bool, er
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	lineNumber := 0
+	inspectUsage := strings.Contains(strings.ToLower(filepath.Base(filePath)), "usage")
 	for scanner.Scan() {
+		lineNumber++
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || !strings.HasPrefix(line, "{") {
+		if line == "" {
 			continue
 		}
-		recordAIC, recordFound := parseLegacyUsageJSONLAIC(line)
+		var parsed map[string]any
+		if err := json.Unmarshal([]byte(line), &parsed); err != nil {
+			if inspectUsage {
+				warnings = append(warnings, usageRecordWarning(filePath, lineNumber, "malformed usage record"))
+			}
+			continue
+		}
+		recordAIC, recordFound := parseLegacyUsageAIC(parsed)
 		total += recordAIC
 		found = found || recordFound
+		if inspectUsage {
+			var entry TokenUsageEntry
+			if err := json.Unmarshal([]byte(line), &entry); err != nil {
+				warnings = append(warnings, usageRecordWarning(filePath, lineNumber, "invalid usage fields"))
+			} else if !recordFound {
+				warnings = append(warnings, usageRecordWarning(filePath, lineNumber, "unpriced usage"))
+			}
+		}
 	}
 	if scanErr := scanner.Err(); scanErr != nil {
-		return 0, false, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, scanErr)
+		return 0, false, warnings, fmt.Errorf("error reading usage JSONL file %s: %w", filePath, scanErr)
 	}
-	return total, found, nil
+	return total, found, warnings, nil
 }
 
-func parseLegacyUsageJSONLAIC(line string) (float64, bool) {
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(line), &parsed); err != nil {
-		return 0, false
-	}
+func parseLegacyUsageAIC(parsed map[string]any) (float64, bool) {
 	usage := extractUsageRecord(parsed["usage"])
 	for _, keys := range [][]string{{"ai_credits", "aiCredits"}, {"aic"}} {
 		for _, key := range keys {

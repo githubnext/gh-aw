@@ -33,7 +33,7 @@ with gh aw outcomes <run-id> --outcomes-dir <directory>.`,
 			outcomesDir, _ := cmd.Flags().GetString("outcomes-dir")
 			outputDir, _ := cmd.Flags().GetString("output")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
-			return runOutcomesEpisodes(logsPath, outcomesDir, outputDir, jsonOutput)
+			return runOutcomesEpisodes(logsPath, outcomesDir, outputDir, jsonOutput, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	}
 	cmd.Flags().String("logs", "", "Full gh aw logs --verbose --json report containing episodes and runs")
@@ -45,7 +45,7 @@ with gh aw outcomes <run-id> --outcomes-dir <directory>.`,
 	return cmd
 }
 
-func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput bool) error {
+func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput bool, stdout, stderr io.Writer) error {
 	content, err := os.ReadFile(logsPath)
 	if err != nil {
 		return fmt.Errorf("failed to read episode logs: %w", err)
@@ -72,13 +72,18 @@ func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput boo
 			cost := episodeOutcomeCost{}
 			if err != nil {
 				warning := fmt.Sprintf("Failed to read usage; cost is unavailable: %v", err)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Run %d: %s", id, warning)))
 				cost.warnings = []string{warning}
-			} else if usage != nil && usage.AICFound {
-				cost.aic = &usage.TotalAIC
+			} else if usage != nil {
+				if usage.AICFound {
+					cost.aic = &usage.TotalAIC
+				}
 				cost.warnings = usage.Warnings
 			}
-			cost.warnings = append(cost.warnings, episodeUsageWarnings(runDir)...)
+			for _, warning := range cost.warnings {
+				if _, err := fmt.Fprintln(stderr, console.FormatWarningMessage(fmt.Sprintf("Run %d: %s", id, warning))); err != nil {
+					return fmt.Errorf("failed to write episode usage warning: %w", err)
+				}
+			}
 			costs[id] = cost
 		}
 	}
@@ -91,10 +96,12 @@ func runOutcomesEpisodes(logsPath, outcomesDir, outputDir string, jsonOutput boo
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(os.Stdout, string(output))
+		if _, err := fmt.Fprintln(stdout, string(output)); err != nil {
+			return fmt.Errorf("failed to write episode outcomes: %w", err)
+		}
 		return nil
 	}
-	return renderEpisodeOutcomes(os.Stderr, data)
+	return renderEpisodeOutcomes(stdout, data)
 }
 
 func readEpisodeOutcomeObservations(dir string) ([]EpisodeOutcomeObservation, error) {

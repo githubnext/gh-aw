@@ -5,17 +5,19 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRunOutcomesEpisodesOffline(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	logsPath := filepath.Join(dir, "logs.json")
 	logs := episodeLogs(1, 2)
@@ -41,21 +43,15 @@ func TestRunOutcomesEpisodesOffline(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "detection_usage.jsonl"), []byte("{\"aic\":2.5}\n"), 0o600))
 	}
 
-	run := func() EpisodeOutcomesData {
+	run := func() (EpisodeOutcomesData, string) {
 		t.Helper()
-		output, err := os.CreateTemp(dir, "stdout-")
-		require.NoError(t, err)
-		originalStdout := os.Stdout
-		os.Stdout = output
-		defer func() { os.Stdout = originalStdout }()
-		var runErr error
-		testutil.CaptureStderr(t, func() {
-			runErr = runOutcomesEpisodes(logsPath, outcomesDir, dir, true)
-		})
-		require.NoError(t, runErr)
-		require.NoError(t, output.Close())
-		content, err := os.ReadFile(output.Name())
-		require.NoError(t, err)
+		var stdout, stderr bytes.Buffer
+		cmd := NewOutcomesCommand()
+		cmd.SetOut(&stdout)
+		cmd.SetErr(&stderr)
+		cmd.SetArgs([]string{"episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir, "--json"})
+		require.NoError(t, cmd.Execute())
+		content := stdout.Bytes()
 		var data EpisodeOutcomesData
 		require.NoError(t, json.Unmarshal(content, &data))
 
@@ -68,9 +64,10 @@ func TestRunOutcomesEpisodesOffline(t *testing.T) {
 		var value any
 		require.NoError(t, json.Unmarshal(content, &value))
 		require.NoError(t, resolved.Validate(value))
-		return data
+		return data, stderr.String()
 	}
-	data := run()
+	data, warnings := run()
+	assert.Empty(t, warnings)
 	require.Len(t, data.Episodes, 1)
 	row := data.Episodes[0]
 	assert.Equal(t, 1, row.Summary.Accepted)
@@ -84,7 +81,8 @@ func TestRunOutcomesEpisodesOffline(t *testing.T) {
 	assert.Contains(t, rendered.String(), "full-episode membership is not verified")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "run-2", "usage", "agent_usage.jsonl"), []byte("invalid\n"), 0o600))
-	data = run()
+	data, warnings = run()
+	assert.Contains(t, warnings, "Run 2: agent_usage.jsonl line 1: malformed usage record")
 	assert.Equal(t, "partial", data.Episodes[0].CostCoverage)
 	assert.InDelta(t, 6.25, *data.Episodes[0].ObservedAIC, 1e-9, "only readable usage is observed")
 	assert.Contains(t, data.Episodes[0].Qualifications, "Run 2: agent_usage.jsonl line 1: malformed usage record; observed cost may be incomplete")
@@ -92,6 +90,105 @@ func TestRunOutcomesEpisodesOffline(t *testing.T) {
 	rendered.Reset()
 	require.NoError(t, renderEpisodeOutcomes(&rendered, data))
 	assert.Contains(t, rendered.String(), "AIC per accepted outcome: unavailable")
+}
+
+type episodeOutputErrorWriter struct {
+	err error
+}
+
+func (w episodeOutputErrorWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+func TestOutcomesEpisodesConfiguredWriters(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		json       bool
+		usage      string
+		usageFile  string
+		warning    string
+		cost       string
+		failStdout bool
+		failStderr bool
+		wantErr    string
+	}{
+		{name: "human stdout", usage: `{"aic":1.25}`},
+		{name: "JSON stdout", json: true, usage: `{"aic":1.25}`},
+		{name: "human warnings", usage: `{"aic":1.25}` + "\ninvalid", warning: "Run 1: agent_usage.jsonl line 2: malformed usage record"},
+		{name: "JSON warnings", json: true, usage: `{"aic":1.25}` + "\ninvalid", warning: "Run 1: agent_usage.jsonl line 2: malformed usage record"},
+		{name: "human unavailable", cost: "unavailable"},
+		{name: "human explicit zero", usage: `{"aic":0}`, cost: "0.000"},
+		{name: "unpriced warnings", usage: `{"model":"unpriced","input_tokens":10}`, cost: "unavailable", warning: "Run 1: agent_usage.jsonl line 1: unpriced usage"},
+		{name: "read error warning", usageFile: "agent_usage.json", usage: "{", cost: "unavailable", warning: "Run 1: Failed to read usage; cost is unavailable:"},
+		{name: "human write error", usage: `{"aic":1.25}`, failStdout: true, wantErr: "failed to write episode outcomes"},
+		{name: "JSON write error", json: true, usage: `{"aic":1.25}`, failStdout: true, wantErr: "failed to write episode outcomes"},
+		{name: "warning write error", usage: "invalid", failStderr: true, wantErr: "failed to write episode usage warning"},
+		{name: "JSON warning write error", json: true, usage: "invalid", failStderr: true, wantErr: "failed to write episode usage warning"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			logsPath := filepath.Join(dir, "logs.json")
+			content, err := json.Marshal(episodeLogs(1))
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(logsPath, content, 0o600))
+			outcomesDir := filepath.Join(dir, "outcomes")
+			writeOutcomeJSONL(outcomesDir, 1, []OutcomeReport{episodeObservation(1, "item-1", OutcomeStatusAccepted).OutcomeReport})
+			usageDir := filepath.Join(dir, "run-1", "usage")
+			require.NoError(t, os.MkdirAll(usageDir, 0o700))
+			usageFile := tc.usageFile
+			if usageFile == "" {
+				usageFile = "agent_usage.jsonl"
+			}
+			require.NoError(t, os.WriteFile(filepath.Join(usageDir, usageFile), []byte(tc.usage+"\n"), 0o600))
+			var stdout, stderr bytes.Buffer
+			writeErr := errors.New("writer failed")
+			cmd := NewOutcomesCommand()
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+			cmd.SetOut(&stdout)
+			cmd.SetErr(&stderr)
+			if tc.failStdout {
+				cmd.SetOut(episodeOutputErrorWriter{writeErr})
+			}
+			if tc.failStderr {
+				cmd.SetErr(episodeOutputErrorWriter{writeErr})
+			}
+			args := []string{"episodes", "--logs", logsPath, "--outcomes-dir", outcomesDir, "--output", dir}
+			if tc.json {
+				args = append(args, "--json")
+			}
+			cmd.SetArgs(args)
+			err = cmd.Execute()
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				assert.ErrorIs(t, err, writeErr)
+				if tc.failStderr {
+					assert.Empty(t, stdout.String())
+				}
+				return
+			}
+			require.NoError(t, err)
+			if tc.json {
+				assert.True(t, json.Valid(stdout.Bytes()), stdout.String())
+			} else {
+				cost := tc.cost
+				if cost == "" {
+					cost = "1.250"
+				}
+				assert.Contains(t, stdout.String(), "Observed AIC: "+cost)
+				assert.Contains(t, stdout.String(), "Observed outcomes: 1 accepted")
+			}
+			assert.NotContains(t, stderr.String(), "Observed outcomes:")
+			if tc.warning != "" {
+				assert.Contains(t, stderr.String(), tc.warning)
+				assert.NotContains(t, stdout.String(), "WARNING")
+			} else {
+				assert.Empty(t, stderr.String())
+			}
+		})
+	}
 }
 
 func TestEpisodeOutcomeCostAvailability(t *testing.T) {
@@ -116,48 +213,14 @@ func TestEpisodeOutcomeCostAvailability(t *testing.T) {
 	}
 }
 
-func TestEpisodeUsageWarnings(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name     string
-		file     string
-		content  string
-		warnings bool
-	}{
-		{"legacy zero", "agent_usage.jsonl", `{"aic":0}`, false},
-		{"legacy positive", "agent_usage.jsonl", `{"aic":2.5}`, false},
-		{"unpriced legacy", "detection_usage.jsonl", `{"model":"unpriced","input_tokens":10}`, true},
-		{"unpriced AWF", "token_usage.jsonl", `{"event":"token_usage","provider":"unknown","model":"unpriced","input_tokens":10}`, true},
-		{"malformed", "agent_usage.jsonl", `{`, true},
-		{"missing stream", "agent_usage.jsonl", "", false},
-		{"non-usage metadata", "aw-info.jsonl", `{"workflow":"test"}`, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			usageDir := filepath.Join(dir, "usage")
-			require.NoError(t, os.MkdirAll(usageDir, 0o700))
-			require.NoError(t, os.WriteFile(filepath.Join(usageDir, tc.file), []byte(tc.content+"\n"), 0o600))
-			warnings := episodeUsageWarnings(dir)
-			assert.Equal(t, tc.warnings, len(warnings) > 0)
-			if tc.name == "legacy zero" {
-				usage, err := analyzeTokenUsageAICOnly(dir, false)
-				require.NoError(t, err)
-				require.NotNil(t, usage)
-				assert.True(t, usage.AICFound)
-				assert.Zero(t, usage.TotalAIC)
-			}
-		})
-	}
-}
-
 func TestOutcomesEpisodesInputErrors(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	logs := filepath.Join(dir, "logs.json")
 	require.NoError(t, os.WriteFile(logs, []byte(`{"episodes":[]}`), 0o600))
-	require.ErrorContains(t, runOutcomesEpisodes(logs, dir, dir, true), "regenerate it")
+	require.ErrorContains(t, runOutcomesEpisodes(logs, dir, dir, true, io.Discard, io.Discard), "regenerate it")
 	require.NoError(t, os.WriteFile(logs, []byte(`{`), 0o600))
-	require.ErrorContains(t, runOutcomesEpisodes(logs, dir, dir, true), "failed to parse episode logs")
+	require.ErrorContains(t, runOutcomesEpisodes(logs, dir, dir, true, io.Discard, io.Discard), "failed to parse episode logs")
 	_, err := readEpisodeOutcomeObservations(dir)
 	require.ErrorContains(t, err, "no outcome observations")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "outcomes.jsonl"), []byte("{\n"), 0o600))

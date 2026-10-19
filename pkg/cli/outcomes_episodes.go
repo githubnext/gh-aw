@@ -68,44 +68,21 @@ type episodeOutcomeCost struct {
 	warnings []string
 }
 
+type episodeOutcomeSnapshot struct {
+	report   EpisodeOutcomeObservation
+	at       time.Time
+	conflict bool
+}
+
 // latestEpisodeOutcomes deduplicates by action identity, never by acceptance.
 func latestEpisodeOutcomes(observations []EpisodeOutcomeObservation) ([]EpisodeOutcomeObservation, error) {
-	type observedItem struct {
-		report EpisodeOutcomeObservation
-		at     time.Time
+	latest, err := selectEpisodeOutcomeSnapshots(observations)
+	if err != nil {
+		return nil, err
 	}
-	latest := make(map[string]observedItem)
-	legacyKeys := make(map[string]struct{})
-	for _, observation := range observations {
-		if observation.ItemID == "" {
-			legacyKeys[episodeOutcomeLegacyKey(observation)] = struct{}{}
-		}
-	}
-	for _, observation := range observations {
-		if observation.RunID <= 0 || observation.Type == "" {
-			return nil, errors.New("outcome observation requires a positive run_id and nonempty type")
-		}
-		at, err := time.Parse(time.RFC3339Nano, observation.CheckedAt)
-		if err != nil {
-			return nil, fmt.Errorf("invalid checked_at for outcome in run %d: %w", observation.RunID, err)
-		}
-		identity := observation.ItemID
-		if _, legacy := legacyKeys[episodeOutcomeLegacyKey(observation)]; legacy {
-			// Older JSONL lacks manifest identity; coalesce conservatively and qualify it.
-			identity = episodeOutcomeLegacyKey(observation)
-			observation.ItemID = ""
-		}
-		key := fmt.Sprintf("%d:%s", observation.RunID, identity)
-		previous, exists := latest[key]
-		if !exists || at.After(previous.at) {
-			latest[key] = observedItem{observation, at}
-		} else if at.Equal(previous.at) && observation.OutcomeStatus != previous.report.OutcomeStatus {
-			return nil, fmt.Errorf("conflicting outcomes for run %d item %q at %s; reevaluate the run", observation.RunID, identity, observation.CheckedAt)
-		}
-	}
-	reports := make([]EpisodeOutcomeObservation, 0, len(latest))
-	for _, item := range latest {
-		reports = append(reports, item.report)
+	reports, err := unshadowedEpisodeOutcomeReports(latest)
+	if err != nil {
+		return nil, err
 	}
 	slices.SortFunc(reports, func(a, b EpisodeOutcomeObservation) int {
 		if order := cmp.Compare(a.RunID, b.RunID); order != 0 {
@@ -116,6 +93,65 @@ func latestEpisodeOutcomes(observations []EpisodeOutcomeObservation) ([]EpisodeO
 		}
 		return cmp.Compare(episodeOutcomeLegacyKey(a), episodeOutcomeLegacyKey(b))
 	})
+	return reports, nil
+}
+
+func selectEpisodeOutcomeSnapshots(observations []EpisodeOutcomeObservation) (map[string]episodeOutcomeSnapshot, error) {
+	latest := make(map[string]episodeOutcomeSnapshot)
+	for _, observation := range observations {
+		if observation.RunID <= 0 || observation.Type == "" {
+			return nil, errors.New("outcome observation requires a positive run_id and nonempty type")
+		}
+		at, err := time.Parse(time.RFC3339Nano, observation.CheckedAt)
+		if err != nil {
+			return nil, fmt.Errorf("invalid checked_at for outcome in run %d: %w", observation.RunID, err)
+		}
+		identity := observation.ItemID
+		if identity == "" {
+			identity = episodeOutcomeLegacyKey(observation)
+		}
+		key := fmt.Sprintf("%d:%s", observation.RunID, identity)
+		previous, exists := latest[key]
+		if !exists || at.After(previous.at) {
+			latest[key] = episodeOutcomeSnapshot{report: observation, at: at}
+		} else if at.Equal(previous.at) && observation.OutcomeStatus != previous.report.OutcomeStatus {
+			previous.conflict = true
+			latest[key] = previous
+		}
+	}
+	return latest, nil
+}
+
+func unshadowedEpisodeOutcomeReports(latest map[string]episodeOutcomeSnapshot) ([]EpisodeOutcomeObservation, error) {
+	modernTimes := make(map[string]time.Time)
+	for _, item := range latest {
+		if item.report.ItemID != "" {
+			key := episodeOutcomeLegacyKey(item.report)
+			if at, exists := modernTimes[key]; !exists || item.at.Before(at) {
+				modernTimes[key] = item.at
+			}
+		}
+	}
+	reports := make([]EpisodeOutcomeObservation, 0, len(latest))
+	for _, item := range latest {
+		if item.report.ItemID == "" {
+			if at, modern := modernTimes[episodeOutcomeLegacyKey(item.report)]; modern {
+				// A legacy row cannot identify which precise action a newer status replaces.
+				if item.at.After(at) {
+					return nil, fmt.Errorf("legacy outcome for run %d is newer than precise item observations; reevaluate the run", item.report.RunID)
+				}
+				continue
+			}
+		}
+		if item.conflict {
+			identity := item.report.ItemID
+			if identity == "" {
+				identity = episodeOutcomeLegacyKey(item.report)
+			}
+			return nil, fmt.Errorf("conflicting outcomes for run %d item %q at %s; reevaluate the run", item.report.RunID, identity, item.report.CheckedAt)
+		}
+		reports = append(reports, item.report)
+	}
 	return reports, nil
 }
 
