@@ -90,7 +90,7 @@ imports:
 
 # Security Review
 
-Review the changed code in this pull request for potential security issues.
+Perform comprehensive security review of this pull request.
 ```
 
 ## Combining Copilot Agent Files with Other Imports

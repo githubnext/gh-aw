@@ -49,15 +49,7 @@ The `gh aw compile` command turns this Markdown file into a hardened [GitHub Act
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 
-The generated agent job uses read-only permissions and the agent firewall sandbox by default. The recommended write path is [`safe-outputs`](/gh-aw/reference/safe-outputs/): structured requests executed by separate, permission-controlled jobs. Configured actions may publish content or change repository state automatically.
-
-Direct-write permissions, custom steps and jobs, sandbox opt-outs, and credential configuration change these trust boundaries. Review the [security architecture](/gh-aw/introduction/architecture/), [sandbox configuration](/gh-aw/reference/sandbox/), and [authentication reference](/gh-aw/reference/auth/) before changing the defaults.
-
-## Review and data handling
-
-Human approval depends on the configured outputs and policy gates. Configure review requirements for the actions your workflow can perform.
-
-Workflow context may be sent to the selected AI service and enabled tools or integrations. Data handling, retention and available controls vary by service and configuration. Before enabling a workflow, review repository sensitivity, provider terms, permitted destinations, and access to logs and artifacts. See [AI engines](/gh-aw/reference/engines/) for provider-specific setup information.
+The generated agent job uses read-only permissions by default. The recommended write path is sanitized [`safe-outputs`](/gh-aw/reference/safe-outputs/), which can create issues, comments, and pull requests without granting the AI agent direct write access. Direct write permissions and custom jobs are also configurable and form separate trust boundaries. Review the [GitHub Agentic Workflows security architecture](/gh-aw/introduction/architecture/) for these boundaries and exceptions.
 
 ## Learn More
 

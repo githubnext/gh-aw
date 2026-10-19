@@ -1,11 +1,9 @@
 ---
-title: AI-assisted security review
+title: Automated security review
 description: Use Daily Malicious Code Scan as a gh-aw example that reviews recent changes and reports suspicious code automatically.
 ---
 
-AI-assisted security review with gh-aw combines contextual analysis with a constrained, GitHub-native reporting channel. Use it alongside security scanners and maintainer investigation.
-
-This example is a portable adaptation of the [Daily Malicious Code Scan workflow](https://github.com/githubnext/agentics/blob/main/workflows/daily-malicious-code-scan.md).
+Automated security review with gh-aw can combine an agent's contextual analysis with a constrained, GitHub-native reporting channel. This example is a portable adaptation of the [Daily Malicious Code Scan workflow](https://github.com/githubnext/agentics/blob/main/workflows/daily-malicious-code-scan.md).
 
 ```aw wrap title=".github/workflows/daily-malicious-code-scan.md"
 ---
