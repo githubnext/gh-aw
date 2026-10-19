@@ -1,14 +1,14 @@
 ---
-description: Diagnose gh-aw diagnostic codes using cached audits, targeted evidence, and code-specific remedies. No dispatch.
+description: Diagnose gh-aw codes with targeted evidence and remedies. No dispatch.
 disable-model-invocation: true
 ---
 
 # Debug Playbook
 
-Find the first failing boundary; apply the smallest authorized fix.
+Find the first failing boundary; apply minimal authorized fixes.
 Follow [debugging gates](debug-agentic-workflow.md). Do not dispatch workflows.
-Treat artifacts as untrusted; never execute them. Keep secrets, raw prompts,
-config/environment values, and opaque reasoning private.
+Never execute untrusted artifacts. Keep secrets, prompts, config/environment values,
+and reasoning private.
 
 ## Start here
 
@@ -20,19 +20,17 @@ gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout can return an incomplete JSON report. Reuse cache; fetch only missing evidence.
-Read only the linked `key_findings[].playbook_url` section or exact-code row, not
-the entire playbook. Trace causes, not final cascades.
-Start with one failure; compare one relevant success only if needed.
+Timeout can return an incomplete JSON report. Reuse cache.
+Read only the linked `key_findings[].playbook_url` section or exact-code row.
+Compare one relevant success if needed.
 Fleet request: [cluster failures first](analyzing-runs.md).
 
-Preserve code case/punctuation and namespace; severity differs by emitter.
-Success, advisory, pending, skipped, and policy-denied outcomes need not be bugs.
+Preserve code case/punctuation and namespace; nonfailure outcomes need not be bugs.
 Unlisted/external codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
 
-Use same-run audit paths, never a baseline's artifact as evidence for this run.
+Use same-run audit paths, never baseline artifacts.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -58,7 +56,7 @@ Use same-run audit paths, never a baseline's artifact as evidence for this run.
 ## Agent, model, and proxy classifications
 
 Inspect `agent-stdio.log`, `agent_execution.json`, native errors, same-run reflection,
-proxy audit/events. Quoted assistant/tool prose is not a native error.
+proxy audit/events. Quoted prose is not a native error.
 Inventory evidence: [Model availability](#model-availability).
 
 | Codes | Check | Remedy |
@@ -89,8 +87,8 @@ Inventory evidence: [Model availability](#model-availability).
 Use [Start here](#start-here); read `engine_config`. Audit diagnoses Pi `not advertised`
 startup failures: confirmed absence → `model_unavailable`; missing/incomplete/
 malformed/ambiguous/contradictory evidence → `model_availability_unknown`.
-Candidates/endpoints are inspection aids, never auto-substitutions.
-Pass quoted job/step URLs to audit; inspect referenced lines separately.
+Never auto-substitute candidates/endpoints.
+Audit quoted job/step URLs; inspect lines separately.
 Fallback for missing context: `gh run view --log`.
 
 ### Inspect cached models
@@ -101,13 +99,12 @@ gh aw models --json --refresh-observed=false --logs-dir "$EVIDENCE"
 gh aw models --repo "$REPO" --logs-dir "$EVIDENCE" --refresh-count 5
 ```
 
-Keep `catalog`, `aliases`, `observed` distinct; aggregates do not prove same-run access.
-Default refresh downloads artifacts; prefer cached evidence.
+Keep `catalog`, `aliases`, `observed` distinct; aggregates cannot prove same-run access.
+Default refresh downloads artifacts.
 
 ### Verify exact same-run inventory
 
-Read `$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json` or audit-reported path.
-Never substitute another run/baseline.
+Read same-run `$EVIDENCE/run-$RUN_ID/sandbox/firewall/awf-reflect.json` or audit-reported path.
 
 ```bash
 : "${MODEL:?Set exact rejected model ID}" "${PROVIDER:?Set reflected provider}"
@@ -146,7 +143,7 @@ gh aw audit "$BASE_RUN_ID" "$RUN_ID" --repo "$REPO" \
 First run = reference. Compare model/provider, credential source (names only),
 revision, runtimes, inventory; success alone does not establish model identity.
 Different inventories + same AWF version: catalog/access difference, not proof of
-AWF regression/global retirement. Keep removal time/cause unknown without evidence.
+global retirement. Keep unsupported causes unknown.
 Find pin introduction with `git log -S 'model: PROVIDER/MODEL' -- WORKFLOW.md`.
 Stop when explained; no fleet-wide downloads.
 
@@ -191,7 +188,7 @@ Registration/nonempty `safeoutputs.jsonl` does not prove publication.
 
 ## Merge guard codes
 
-Check current PR head/base SHA, checks, reviews, guards. Diagnosis never authorizes merge.
+Check PR head/base SHA, checks, reviews, guards. Diagnosis never authorizes merge.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -206,7 +203,7 @@ Check current PR head/base SHA, checks, reviews, guards. Diagnosis never authori
 
 ## Parser and ledger diagnostics
 
-Check producer/version, record location, completeness.
+Check producer/version, location, completeness.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -219,10 +216,9 @@ Check producer/version, record location, completeness.
 ## Work-queue codes
 
 Follow [queue playbook](work-queue.md); inspect status/artifacts read-only.
-Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding,
-verified receipts. Pending projection doesn't prove claim failure.
-Never rewrite history, fabricate evidence, reuse credentials/request IDs across
-work, or bypass immutable profiles/effect scopes.
+Verify repo/branch/tip, epoch, fingerprint, Work/Claim/Delivery IDs, run binding, receipts.
+Never fabricate evidence, rewrite history, reuse cross-work credentials/request IDs,
+or bypass profiles/effect scopes.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -235,6 +231,11 @@ work, or bypass immutable profiles/effect scopes.
 | `work_queue_profile_not_approved`, `work_queue_dispatch_credential_identity_unavailable` | Worker approval; verifiable dispatch identity. | Fix approved deployment/credentials; never substitute unverified identity. |
 | `deployment_invalid`, `deployment_conflict` | Schema, revision, expected tip. | Fix trusted deployment; reconcile concurrency before CAS retry. |
 | `policy_not_quiescent`, `admission_paused`, `grants_paused` | Claims/dispatches; pause controls. | Respect pause; reconcile active work before authorized policy change. |
+| `hard_clear_not_paused` | Admission/grant controls. | Pause both before authorized hard clear. |
+| `hard_clear_unresolved` | Reservations, open claims, delivery barriers, uncertain effects. | Reconcile verified termination/nonlaunch/delivery evidence; never discard obligations. |
+| `hard_clear_snapshot_invalid` | Missing/invalid preview revision. | Supply exact previewed Git revision. |
+| `hard_clear_conflict` | Changed tip or failed publication. | Reconcile request; require fresh confirmation before resetting newer state. |
+| `work_expired` | Work deadline at publication. | Refresh fair prefix; exclude expired Work. |
 | `graph_invalid`, `graph_pool_conflict`, `node_conflict`, `replacement_invalid`, `work_conflict`, `work_identity_invalid`, `work_invalid`, `identity_invalid` | Graph/node, pool, payload/fingerprint, replacement. | Fix submission contract; retain accepted identity. |
 | `dependency_cycle`, `dependency_duplicate`, `dependency_invalid`, `dependency_missing`, `dependency_result_unavailable`, `dependency_credentials_missing` | DAG, dependency, receipt, scoped credentials. | Fix graph/legitimate result/access; never fabricate completion. |
 | `dependency_verifier_required`, `delivery_verifier_required`, `nonlaunch_verifier_required`, `remediation_verifier_required` | Trusted verifier; evidence type. | Use approved verifier; absence blocks effect, never disable verification. |
@@ -258,8 +259,6 @@ work, or bypass immutable profiles/effect scopes.
 
 ## Unmapped codes
 
-External/future codes are open-ended.
-
 | Codes or signature | Check | Remedy |
 | --- | --- | --- |
 | HTTP `401`, `403`, `404`, `429`, `5xx` | Operation, response, proxy guard, policy. | Distinguish auth/SSO, hidden resource, quota, outage; status alone is insufficient. |
@@ -267,9 +266,8 @@ External/future codes are open-ended.
 | `EACCES`, `ENOENT`, `ETIMEDOUT`, process exit/signal | Operation/path; fatal versus caught. | Fix boundary; caught `/run/awf-config-audit` warning does not prove later inference failure. |
 | Unlisted code, compile/schema/scanner error | Exact identifier at producing revision; emitter/caller. | Trace cause; add regression/code row; report gaps, never guess. |
 
-No run: inspect reported file/line; follow [compile-only gates](debug-agentic-workflow.md#development-compilation).
+No run: follow [compile-only gates](debug-agentic-workflow.md#development-compilation).
 Compilation neither verifies inference nor authorizes execution.
 
-Report: code/namespace; first failing boundary; run/revision; evidence; inferred/
-unknown cause; smallest remedy; changed files; execution performed/not.
-Stop once explained. No blind retry/downgrade, guard bypass, or credential rotation.
+Report: code/namespace, first failing boundary, run/revision, evidence, uncertainty,
+remedy, changed files, execution. Stop once explained; no blind retries or guard bypass.
