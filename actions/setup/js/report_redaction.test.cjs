@@ -361,6 +361,48 @@ describe("coarse report redaction", () => {
     expect(policy).toHaveBeenCalledTimes(5);
   });
 
+  it("redacts wholly agent-origin inline containers after descendant matches", () => {
+    const input = report([
+      {
+        type: "paragraph",
+        agentTainted: false,
+        children: [
+          { type: "text", value: "Framework: ", agentTainted: false },
+          { type: "link", url: "https://private.example/secret-path", agentTainted: true, children: [{ type: "code", value: "private link label", agentTainted: true }] },
+          { type: "strong", agentTainted: true, children: [{ type: "code", value: "private strong text", agentTainted: true }] },
+          { type: "text", value: " safe ", agentTainted: false },
+          { type: "emphasis", agentTainted: true, children: [{ type: "code", value: "private emphasis text", agentTainted: true }] },
+        ],
+      },
+    ]);
+    const redacted = redactReport(input, node => node.type === "code");
+    const body = renderReport(redacted).body;
+    expect(body).toBe("Framework: Content redacted. safe Content redacted.\n");
+    expect(body).not.toContain("private.example");
+    expect(redactReport(redacted, node => node.type === "code")).toEqual(redacted);
+  });
+
+  it("traverses mixed-origin inline containers and keeps their framework descendants", () => {
+    const input = report([
+      {
+        type: "paragraph",
+        agentTainted: false,
+        children: [
+          {
+            type: "strong",
+            agentTainted: true,
+            children: [
+              { type: "code", value: "private", agentTainted: true },
+              { type: "text", value: " framework", agentTainted: false },
+            ],
+          },
+        ],
+      },
+    ]);
+    const redacted = redactReport(input, node => node.type === "code");
+    expect(renderReport(redacted).body).toBe("**Content redacted. framework**\n");
+  });
+
   it("keeps separate inline notices when an unmatched tainted node separates matches", () => {
     const children = parseReportMarkdown("Framework label: {agent}", {
       agentTainted: false,

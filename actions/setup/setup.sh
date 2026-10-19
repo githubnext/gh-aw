@@ -404,6 +404,7 @@ SAFE_OUTPUTS_FILES=(
   "messages_core.cjs"
   "messages_footer.cjs"
   "report_ast.cjs"
+  "report_markdown.cjs"
   "diagnostic_sanitization.cjs"
   "ephemerals.cjs"
   "safe_output_manifest.cjs"

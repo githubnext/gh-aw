@@ -46,13 +46,13 @@ function normalizeReportProvenance(node) {
   return { agentTainted: node.agentTainted };
 }
 
-/** @param {string} value */
-function normalizeReportText(value) {
+/** @param {string} value @param {{redact?: boolean}} [options] */
+function normalizeReportText(value, { redact = true } = {}) {
   if (typeof value !== "string") throw new TypeError("Report text must be a string");
-  let current = redactDiagnosticText(value);
+  let current = redact ? redactDiagnosticText(value) : value;
   for (let pass = 0; pass < 16; pass++) {
     const normalized = canonicalizePublicationText(current).replace(/\r\n?/g, "\n");
-    const redacted = redactDiagnosticText(normalized);
+    const redacted = redact ? redactDiagnosticText(normalized) : normalized;
     if (redacted === current) return redacted;
     current = redacted;
   }
@@ -150,7 +150,8 @@ function normalizeInlines(nodes, depth, inLink = false) {
   checkDepth(depth);
   /** @type {ReportInline[]} */
   const result = [];
-  for (const node of nodes) {
+  for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+    const node = nodes[nodeIndex];
     const provenance = normalizeReportProvenance(node);
     const start = result.length;
     switch (node.type) {
@@ -184,7 +185,8 @@ function normalizeInlines(nodes, depth, inLink = false) {
       }
       case "text":
       case "code": {
-        const value = normalizeReportText(node.value).replace(/\s+/g, " ");
+        const adjacentRun = nodes[nodeIndex - 1]?.type === node.type || nodes[nodeIndex + 1]?.type === node.type;
+        const value = normalizeReportText(node.value, { redact: !adjacentRun }).replace(/\s+/g, " ");
         if (!value) break;
         const previous = result.at(-1);
         if (previous?.type === node.type && previous.agentTainted === node.agentTainted) previous.value = (previous.value + value).replace(/\s+/g, " ");
@@ -207,7 +209,25 @@ function normalizeInlines(nodes, depth, inLink = false) {
     }
     for (let index = start; index < result.length; index++) Object.assign(result[index], provenance);
   }
-  return result;
+  /** @type {ReportInline[]} */
+  const normalized = [];
+  for (let index = 0; index < result.length;) {
+    const node = result[index];
+    if (node.type !== "text" && node.type !== "code") {
+      normalized.push(node);
+      index++;
+      continue;
+    }
+    let end = index + 1;
+    while (end < result.length && result[end].type === node.type) end++;
+    const run = result.slice(index, end);
+    if (run.every(inline => inline.agentTainted === node.agentTainted)) {
+      const value = normalizeReportText(run.map(inline => (inline.type === "text" || inline.type === "code" ? inline.value : "")).join("")).replace(/\s+/g, " ");
+      if (value) normalized.push({ type: node.type, value, ...normalizeReportProvenance(node) });
+    } else normalized.push(...run);
+    index = end;
+  }
+  return normalized;
 }
 
 /**
@@ -376,11 +396,12 @@ function renderInlines(nodes) {
   const renderingNodes = [];
   for (const node of nodes) {
     const previous = renderingNodes.at(-1);
-    if ((node.type === "text" || node.type === "code") && previous?.type === node.type) renderingNodes[renderingNodes.length - 1] = { ...previous, value: normalizeReportText(previous.value + node.value).replace(/\s+/g, " ") };
-    else renderingNodes.push(node);
+    if ((node.type === "text" || node.type === "code") && previous?.type === node.type) previous.value += node.value;
+    else renderingNodes.push(node.type === "text" || node.type === "code" ? { ...node } : node);
   }
   return renderingNodes
-    .map(node => {
+    .map(originalNode => {
+      const node = originalNode.type === "text" || originalNode.type === "code" ? { ...originalNode, value: normalizeReportText(originalNode.value).replace(/\s+/g, " ") } : originalNode;
       switch (node.type) {
         case "soft_break":
           return "\n";

@@ -54,18 +54,27 @@ function redactReport(report, shouldRedact) {
     /** @type {ReportInline[]} */
     const result = [];
     for (const node of nodes) {
-      if (isAgentSubtree(node) && shouldRedact(node)) {
+      const agentSubtree = isAgentSubtree(node);
+      if (agentSubtree && shouldRedact(node)) {
         redacted = true;
         if (!matching) result.push(inlineRedactionNotice());
         matching = true;
         continue;
       }
-      matching = false;
       if ("children" in node) {
         const children = inlines(node.children);
         redacted ||= children.redacted;
+        if (agentSubtree && children.redacted) {
+          if (!matching) result.push(inlineRedactionNotice());
+          matching = true;
+          continue;
+        }
+        matching = false;
         result.push({ ...node, children: children.nodes });
-      } else result.push(node);
+      } else {
+        matching = false;
+        result.push(node);
+      }
     }
     return { nodes: result, redacted };
   }

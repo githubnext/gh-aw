@@ -158,6 +158,36 @@ describe("report AST", () => {
     }
   });
 
+  it("redacts registered credentials across complete rendering runs and singleton AST nodes", () => {
+    const openAISecret = `sk-proj-${"a".repeat(64)}${"b".repeat(16)}`;
+    const githubSecret = `ghs_${"A".repeat(36)}.TAIL`;
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET");
+    vi.stubEnv("SECRET_RENDER_OPENAI_SECRET", openAISecret);
+    vi.stubEnv("SECRET_RENDER_GITHUB_SECRET", githubSecret);
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "sk-proj-", agentTainted: false },
+          { type: "text", value: "a".repeat(64), agentTainted: true },
+          { type: "text", value: "b".repeat(16), agentTainted: false },
+        ],
+      },
+      {
+        type: "paragraph",
+        children: [
+          { type: "code", value: `ghs_${"A".repeat(36)}`, agentTainted: true },
+          { type: "code", value: ".TAIL", agentTainted: true },
+        ],
+      },
+    ]);
+    const body = renderReport(input).body;
+    expect(body).not.toContain(openAISecret);
+    expect(body).not.toContain("b".repeat(16));
+    expect(body).not.toContain(githubSecret);
+    expect(body).not.toContain(".TAIL");
+  });
+
   it.each([
     ["@", "octocat"],
     ["&", "#64;octocat"],
