@@ -67,6 +67,14 @@ describe("CLI proxy console diagnostic sanitizer", () => {
     expect(result.stdout).toContain("safe line");
   });
 
+  it("uses the shared proxy environment names for diagnostic redaction", () => {
+    const names = fs.readFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), "utf8").trim().split(/\s+/);
+    for (const name of names) {
+      const value = `synthetic-${name}`;
+      expect(redactCliProxyDiagnostics(`proxy failure: ${value}`, { [name]: value })).not.toContain(value);
+    }
+  });
+
   it("accepts the exact byte limit", () => {
     const result = publish("a".repeat(MAX_DIAGNOSTIC_BYTES));
     expect(result.status).toBe(0);

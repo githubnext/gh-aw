@@ -129,11 +129,12 @@ if [ "${GH_AW_NETWORK_ISOLATION:-false}" = "true" ]; then
 fi
 
 PROXY_ENV_ARGS=()
-for proxy_var in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
+# Keep this shared list in sync by reading actions/setup/sh/proxy_env_names.list.
+while IFS= read -r proxy_var; do
   if [ "${!proxy_var+x}" = x ]; then
     PROXY_ENV_ARGS+=(-e "$proxy_var")
   fi
-done
+done < "${SCRIPT_DIR}/proxy_env_names.list"
 
 docker run -d --name awmg-cli-proxy "${DOCKER_NETWORK_ARGS[@]}" \
   --user "$(id -u):$(id -g)" \
@@ -178,8 +179,19 @@ if [ "$PROXY_READY" = "false" ]; then
 fi
 
 # Exercise the proxy's upstream HTTP client, not just its local health endpoint.
-if ! curl -sf --noproxy '*' --connect-timeout 5 --max-time 15 \
-  --cacert "$TLS_DIR/ca.crt" "https://localhost:18443/api/v3/rate_limit" -o /dev/null 2>/dev/null; then
+UPSTREAM_READY=false
+for attempt in 1 2 3; do
+  if curl -sf --noproxy '*' --connect-timeout 5 --max-time 15 \
+    --cacert "$TLS_DIR/ca.crt" "https://localhost:18443/api/v3/rate_limit" -o /dev/null 2>/dev/null; then
+    UPSTREAM_READY=true
+    break
+  fi
+  if [ "$attempt" -lt 3 ]; then
+    sleep 1
+  fi
+done
+
+if [ "$UPSTREAM_READY" = "false" ]; then
   docker logs awmg-cli-proxy 2>&1 | head -c "$((MAX_DIAGNOSTIC_BYTES + 1))" || true
   docker rm -f awmg-cli-proxy 2>/dev/null || true
   echo "::error::CLI proxy could not reach the upstream GitHub API. Check runner connectivity and HTTP(S)_PROXY/NO_PROXY settings."

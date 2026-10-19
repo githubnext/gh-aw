@@ -393,6 +393,14 @@ const gatewayCredentialRedactions = [
   { pattern: /(Bearer\s+)\S+/gi, replacement: "$1[REDACTED]" },
   { pattern: /((?:agent[_-]?id|api[_-]?key|token|secret|password|authorization)"?\s*[:=]\s*"?)[^\s,}"]+/gi, replacement: "$1[REDACTED]" },
 ];
+const gatewayInternalProxyHosts = ["host.docker.internal", "awf-enclave-mcp"];
+/** @type {string[]} */
+let proxyEnvNames;
+try {
+  proxyEnvNames = fs.readFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), "utf8").trim().split(/\s+/);
+} catch (error) {
+  throw new Error("Unable to read shared proxy environment names", { cause: error });
+}
 
 /**
  * Redacts common credential formats from gateway diagnostics output.
@@ -401,11 +409,7 @@ const gatewayCredentialRedactions = [
  * @returns {string}
  */
 function redactGatewayDiagnostics(text, env = process.env) {
-  let redacted = text;
-  for (const { pattern, replacement } of gatewayCredentialRedactions) {
-    redacted = redacted.replace(pattern, replacement);
-  }
-  return redactCliProxyDiagnostics(redacted, env);
+  return redactCliProxyDiagnostics(text, env, gatewayCredentialRedactions);
 }
 
 /**
@@ -503,8 +507,15 @@ function injectCustomGatewayEnvArgs(args, env = process.env) {
  * @returns {string[]}
  */
 function injectProxyEnvArgs(args, env = process.env) {
-  const names = ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"];
-  const proxyArgs = names.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
+  for (const name of ["NO_PROXY", "no_proxy"]) {
+    if (env[name] === undefined) continue;
+    const exclusions = new Set(env[name].split(",").map(host => host.trim().toLowerCase()));
+    const missingHosts = gatewayInternalProxyHosts.filter(host => !exclusions.has(host));
+    if (missingHosts.length > 0) {
+      env[name] = `${env[name]}${env[name] && !env[name].endsWith(",") ? "," : ""}${missingHosts.join(",")}`;
+    }
+  }
+  const proxyArgs = proxyEnvNames.filter(name => env[name] !== undefined).flatMap(name => ["-e", name]);
   // Insert after "run" so explicitly configured container settings still win.
   return [...args.slice(0, 1), ...proxyArgs, ...args.slice(1)];
 }
@@ -1042,8 +1053,9 @@ async function main() {
     core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND did not contain an executable command");
     return;
   }
-  args = injectCustomGatewayEnvArgs(args);
-  args = injectProxyEnvArgs(args);
+  const gatewayEnv = { ...process.env };
+  args = injectCustomGatewayEnvArgs(args, gatewayEnv);
+  args = injectProxyEnvArgs(args, gatewayEnv);
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
   const stderrPath = createGatewayStderrPath();
@@ -1051,7 +1063,7 @@ async function main() {
 
   const child = spawn(cmd, args, {
     stdio: ["pipe", outputFd, stderrFd],
-    env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
+    env: { ...gatewayEnv, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
   child.on("error", err => {

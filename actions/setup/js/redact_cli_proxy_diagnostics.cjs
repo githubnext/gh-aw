@@ -1,19 +1,27 @@
 // @ts-check
 const fs = require("node:fs");
+const path = require("node:path");
 const { redactArtifactContent } = require("./redact_secrets.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
 
 const MAX_DIAGNOSTIC_BYTES = 1024 * 1024;
+/** @type {string[]} */
+let proxyEnvNames;
+try {
+  proxyEnvNames = fs.readFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), "utf8").trim().split(/\s+/);
+} catch (error) {
+  throw new Error("Unable to read shared proxy environment names", { cause: error });
+}
 
 /**
  * @param {string} content
  * @param {NodeJS.ProcessEnv} env
  * @returns {string}
  */
-function redactCliProxyDiagnostics(content, env) {
+function redactCliProxyDiagnostics(content, env, credentialPatterns = []) {
   // Bash command substitution removes NUL bytes; normalize before matching.
   content = content.replaceAll("\0", "");
-  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
+  const names = new Set(["GH_TOKEN", "GITHUB_TOKEN", ...proxyEnvNames, ...Object.keys(env).filter(name => name.startsWith("SECRET_"))]);
   for (const name of (env.GH_AW_SECRET_NAMES || "")
     .split(",")
     .map(name => name.trim())
@@ -38,7 +46,17 @@ function redactCliProxyDiagnostics(content, env) {
   // separately so that representation cannot hide lines from the publication cap.
   return content
     .split("\n")
-    .map(line => redactArtifactContent(line, [], values).content)
+    .map(line => {
+      const patternMatches = credentialPatterns.flatMap(({ pattern, replacement }) =>
+        Array.from(line.matchAll(pattern), match => ({
+          start: match.index,
+          end: match.index + match[0].length,
+          value: match[0],
+          replacement: match[0].replace(pattern, replacement),
+        }))
+      );
+      return redactArtifactContent(line, [], values, { patternMatches }).content;
+    })
     .join("\n");
 }
 

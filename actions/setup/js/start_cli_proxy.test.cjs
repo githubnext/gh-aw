@@ -43,6 +43,7 @@ describe("CLI proxy diagnostic redaction", () => {
         .replace("for parent in /tmp", `for parent in "${systemTemp}"`)
     );
     fs.copyFileSync(path.join(__dirname, "../sh/proxy_env_lib.sh"), path.join(root, "proxy_env_lib.sh"));
+    fs.copyFileSync(path.join(__dirname, "../sh/proxy_env_names.list"), path.join(root, "proxy_env_names.list"));
     if (!options.missingSanitizer) fs.symlinkSync(path.join(__dirname, "redact_cli_proxy_diagnostics.cjs"), path.join(root, "redact_cli_proxy_diagnostics.cjs"));
     executable(
       "docker",
@@ -76,8 +77,12 @@ esac`
       "curl",
       `printf '%s\\n' "curl $*" >> "$TEST_CALLS"
 case "$*" in
-  */rate_limit*) [ "$TEST_UPSTREAM_FAILURE" != true ] ;;
-  *) [ "$TEST_READY" = true ] ;;
+    */rate_limit*)
+      attempts=$(cat "$TEST_UPSTREAM_ATTEMPTS" 2>/dev/null || echo 0)
+      attempts=$((attempts + 1))
+      printf '%s' "$attempts" > "$TEST_UPSTREAM_ATTEMPTS"
+      [ "$attempts" -gt "$TEST_UPSTREAM_FAIL_COUNT" ] ;;
+    *) [ "$TEST_READY" = true ] ;;
 esac`
     );
     executable("sleep", ":");
@@ -117,7 +122,8 @@ exec /bin/rm "$@"`
         TEST_CALLS: path.join(root, "calls"),
         TEST_TLS_DIR: tls,
         TEST_READY: options.ready ? "true" : "false",
-        TEST_UPSTREAM_FAILURE: options.upstreamFailure ? "true" : "false",
+        TEST_UPSTREAM_FAIL_COUNT: options.upstreamFailure ? "3" : String(options.upstreamFailCount || 0),
+        TEST_UPSTREAM_ATTEMPTS: path.join(root, "upstream-attempts"),
         TEST_RUN_FAILURE: options.runFailure ? "true" : "false",
         TEST_OVERSIZED: options.oversized ? "true" : "false",
         TEST_OVERSIZED_RUN: options.oversizedRun ? "true" : "false",
@@ -221,6 +227,15 @@ exec /bin/rm "$@"`
     expect(result.output).not.toContain("CLI proxy ready");
     expect(result.calls).toContain("logs awmg-cli-proxy");
     expect(result.calls.match(/rm -f awmg-cli-proxy/g)).toHaveLength(2);
+    expect(result.calls.split("\n").filter(line => line.includes("/rate_limit"))).toHaveLength(3);
+  });
+
+  it("retries a transient upstream failure and succeeds on the next probe", () => {
+    const result = runProxy({ ready: true, upstreamFailCount: 1 });
+    expect(result.status).toBe(0);
+    expect(result.output).toContain("CLI proxy ready on port 18443");
+    expect(result.calls.split("\n").filter(line => line.includes("/rate_limit"))).toHaveLength(2);
+    expect(result.calls.split("\n").filter(line => line === "rm -f awmg-cli-proxy")).toHaveLength(1);
   });
 
   it("ignores TMPDIR inside the artifact tree", () => {
