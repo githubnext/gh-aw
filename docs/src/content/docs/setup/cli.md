@@ -469,13 +469,13 @@ gh aw lint --rules secret-leak --json               # Emit structured diagnostic
 gh aw lint --rules secret-leak --debug --json       # Include incomplete-analysis warnings
 ```
 
-**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--debug`, `--javascript-module`, `--javascript-root`, `--javascript-runtime-path`
+**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--debug`, `--javascript-module`, `--javascript-mode`, `--javascript-root`, `--javascript-runtime-path`
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
 
 `--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
-Secret-leak coverage warnings are hidden by default in text and JSON output. Use `--debug` to include them when investigating incomplete analysis. Error findings, analysis failures, and other linters' warnings remain visible. This is a presentation setting: the AST runner retains all coverage diagnostics, and an empty CLI result is not proof of complete analysis.
+Secret-leak coverage warnings are hidden by default in text and JSON output, unless JavaScript analysis is explicitly enabled. Use `--debug` to include them otherwise. Error findings, analysis failures, and other linters' warnings remain visible. This is a presentation setting: the AST runner retains all coverage diagnostics, and an empty CLI result is not proof of complete analysis.
 
 Directory scans are nonrecursive and prefer an existing `.lock.yml` over its paired `.md` to avoid duplicate diagnostics. They include uncompiled Markdown with frontmatter and native Actions YAML, but skip plain Markdown documentation without frontmatter. Explicit Markdown paths are always accepted. `--list-rules` lists each rule's ID, default severity, supported ASTs, description, and known compiler threat ID (`CTR-*`).
 

@@ -178,6 +178,9 @@ func TestSharedReasonValidationFixtures(t *testing.T) {
 	commits := testGenesis(t, nil)
 	for _, test := range fixture.Cases {
 		t.Run(test.Name, func(t *testing.T) {
+			if ValidReason(test.Reason) != test.Valid {
+				t.Fatalf("reason helper disagrees with independent answer %t", test.Valid)
+			}
 			operation := mustOp(t, map[string]any{
 				"kind": "Control", "control": "admission_paused", "value": false, "reason": test.Reason,
 			})

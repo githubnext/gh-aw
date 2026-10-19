@@ -73,7 +73,7 @@ function validateWork(node, state, actor) {
   closed(
     node,
     ["kind", "work_id", "graph_id", "node_key", "pool", "priority", "fairness_key", "worker_profile", "batch_trust_domain", "payload", "depends_on", "enqueued"],
-    ["subject", "backing_issue", "replacement_of", "logical_contract", "execution_ref"],
+    ["subject", "backing_issue", "replacement_of", "logical_contract", "execution_ref", "expires_at"],
     "Work",
     "unsupported_protocol"
   );
@@ -83,6 +83,7 @@ function validateWork(node, state, actor) {
   integer(node.priority, 1, 5, "priority");
   identity(node.fairness_key, "fairness key", true, 128);
   integer(node.enqueued, 0, Number.MAX_SAFE_INTEGER, "enqueue timestamp");
+  if (node.expires_at !== undefined) integer(node.expires_at, 0, Number.MAX_SAFE_INTEGER, "Work expiration timestamp");
   const pool = poolPolicy(state, node.pool);
   validateSubmissionEntitlement(state, node, actor);
   const profile = admissionProfile(state, node);
@@ -159,6 +160,7 @@ function workDefinition(work) {
     "payload",
     "depends_on",
     "enqueued",
+    "expires_at",
     "subject",
     "backing_issue",
     "replacement_of",

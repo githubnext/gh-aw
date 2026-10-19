@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
@@ -32,17 +33,27 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 	}
 	diagnostics := make([]workflowLintDiagnostic, 0)
 	var failures []error
+	if err := primeWorkflowLintJavaScript(ctx, files, runner, configuration); err != nil {
+		return err
+	}
 	for _, file := range files {
 		if err := ctx.Err(); err != nil {
 			failures = append(failures, err)
 			break
 		}
-		current, err := lintWorkflowFile(ctx, file, runner, configuration.JavaScript)
+		input, loadErr := loadWorkflowLintInput(file, configuration.JavaScript)
+		if loadErr != nil {
+			failures = append(failures, fmt.Errorf("%s: %w", file, loadErr))
+		}
+		if input.Document == nil && input.Workflow == nil {
+			continue
+		}
+		current, err := runner.Run(ctx, input)
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s: %w", file, err))
 		}
 		for _, diagnostic := range current {
-			if diagnostic.RuleID == "secret-leak" && diagnostic.Severity == workflowlint.Warning && !configuration.Debug {
+			if diagnostic.RuleID == "secret-leak" && diagnostic.Severity == workflowlint.Warning && !configuration.Debug && configuration.JavaScript == nil {
 				continue
 			}
 			diagnostics = append(diagnostics, workflowLintDiagnostic{File: file, Diagnostic: diagnostic})
@@ -75,21 +86,71 @@ func runWorkflowLint(ctx context.Context, files []string, runner *workflowlint.R
 	return errors.Join(failures...)
 }
 
+func primeWorkflowLintJavaScript(ctx context.Context, files []string, runner *workflowlint.Runner, configuration workflowLintOptions) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if configuration.JavaScript == nil || configuration.JavaScript.Mode != taint.JavaScriptFast {
+		return nil
+	}
+	if _, ok := configuration.JavaScript.Parser.(taint.JavaScriptBatchParser); !ok {
+		return nil
+	}
+	checksJavaScript := slices.ContainsFunc(runner.Rules(), func(rule workflowlint.Rule) bool { return rule.ID == "secret-leak" })
+	if !checksJavaScript {
+		return nil
+	}
+	var documents []*aw.Document
+	for _, file := range files {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		sourceFile := file
+		if !strings.HasSuffix(file, ".md") {
+			base, paired := strings.CutSuffix(file, ".lock.yml")
+			if !paired {
+				continue
+			}
+			sourceFile = base + ".md"
+		}
+		source, err := os.ReadFile(sourceFile)
+		if err != nil {
+			continue
+		}
+		document, err := aw.Parse(string(source))
+		if err == nil {
+			documents = append(documents, document)
+		}
+	}
+	// Priming is only an optimization; per-file analysis reports failures.
+	_ = taint.PrimeAuthoredJavaScript(ctx, documents, taint.SecretLeakRule(), *configuration.JavaScript)
+	return ctx.Err()
+}
+
 func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Runner, javascript ...*taint.JavaScriptOptions) ([]workflowlint.Diagnostic, error) {
+	input, loadErr := loadWorkflowLintInput(file, javascript...)
+	if input.Workflow == nil && input.Document == nil {
+		return nil, loadErr
+	}
+	diagnostics, err := runner.Run(ctx, input)
+	return diagnostics, errors.Join(loadErr, err)
+}
+
+func loadWorkflowLintInput(file string, javascript ...*taint.JavaScriptOptions) (workflowlint.Input, error) {
+	input := workflowlint.Input{}
 	content, err := os.ReadFile(file)
 	if err != nil {
-		return nil, err
+		return input, err
 	}
-	input := workflowlint.Input{}
 	if len(javascript) > 0 {
 		input.JavaScript = javascript[0]
 	}
 	if strings.HasSuffix(file, ".md") {
 		input.Document, err = aw.Parse(string(content))
 		if err != nil {
-			return nil, errors.New("could not parse workflow AW AST")
+			return input, errors.New("could not parse workflow AW AST")
 		}
-		return runner.Run(ctx, input)
+		return input, nil
 	}
 	var failures []error
 	input.Workflow, err = actions.Parse(content)
@@ -110,8 +171,7 @@ func lintWorkflowFile(ctx context.Context, file string, runner *workflowlint.Run
 		}
 	}
 	if input.Workflow == nil && input.Document == nil {
-		return nil, errors.Join(failures...)
+		return input, errors.Join(failures...)
 	}
-	diagnostics, err := runner.Run(ctx, input)
-	return diagnostics, errors.Join(append(failures, err)...)
+	return input, errors.Join(failures...)
 }
