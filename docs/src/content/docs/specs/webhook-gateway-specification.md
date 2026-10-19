@@ -403,31 +403,6 @@ The URL is supplied by the runner and already has query parameters; this is **no
 
 That value, not the request credential, is what an OIDC-aware service would receive as its bearer credential. Neither value may be printed, included in diagnostic HTTP traces, stored in artifacts, or forwarded to the agent.
 
-#### Token expiration during action runtime execution
-
-For an OIDC-based gateway integration, the **action runtime itself MUST enforce token expiration**, not merely rely on the receiving endpoint to reject stale credentials. Acquiring a token once during activation does not make it valid for the rest of a long-running job.
-
-The action MUST acquire the token on demand in the calling job using `core.getIDToken(approvedAudience)` or the equivalent runner-provided request. It MUST keep the token only in memory and track its finite numeric `exp` in Unix seconds. Locally decoding `exp` is a scheduling safeguard, not signature verification or an authorization decision; the endpoint MUST still verify the signed token independently. A token with a missing or malformed expiration, or an untrustworthy runtime clock, MUST fail the action before credential-dependent work.
-
-Before **every authenticated HTTP attempt**, including polling, retries, and calls after waits or other work, the runtime MUST recheck its current UTC time. It MUST NOT send an expired token or start a request unless `now + request_timeout + safety_margin < exp`. Requests MUST have bounded timeouts; the safety margin may shorten usable lifetime but MUST NOT extend expiration. A timer established at startup or a successful earlier request is not a substitute for this per-attempt check.
-
-When the remaining lifetime is insufficient, the action MUST discard its cached token, request a fresh GitHub-issued OIDC token for the same approved audience in the same job, and verify that the replacement has sufficient remaining lifetime before use. Token renewal and retries MUST be bounded. If renewal fails or returns no usable token, the action MUST fail explicitly and stop credential-dependent execution; it MUST NOT continue with the old token, silently skip the operation, or switch credential classes. A request timeout or authentication retry MUST preserve the endpoint's replay/idempotency rules, not assume an earlier attempt had no effect.
-
-Later jobs and reruns MUST obtain their own tokens rather than reuse an activation token through job outputs, artifacts, or an agent environment. If a future endpoint exchanges OIDC for another runtime credential, the action MUST separately track and enforce that credential's expiry and renewal policy; refreshing OIDC does not refresh an installation token or `GITHUB_TOKEN`. Neither the OIDC lifetime nor its renewal may be assumed to cover the whole workflow.
-
-Expiration stops use of the expired credential, not independently authorized work that was already admitted. An action may continue a long-running job only when subsequent credential-dependent operations have a currently usable credential; renewing a token MUST NOT extend existing grants or bypass fresh authorization.
-
-Runtime acceptance tests MUST advance a controlled clock **while the action remains running**, rather than test only initial endpoint authentication:
-
-| Runtime case | Required result |
-| --- | --- |
-| Token expires between two calls, during a wait, or before a retry/poll | Never send the stale token; obtain a usable replacement before the next attempt. |
-| Token has less remaining lifetime than the request timeout plus safety margin | Renew before sending; the request cannot outlive its allotted token-use window. |
-| Runtime reaches `now == exp` | The old token is unusable, with no expiration grace period. |
-| Renewal fails, is repeatedly unusable, or returns a malformed expiration | Fail the action explicitly; no stale-token reuse, fallback, or unbounded renewal loop. |
-| A downstream credential expires while the OIDC token is still valid, or vice versa | Enforce each credential's own expiry; neither keeps the other alive. |
-| A later job or rerun needs authenticated access | Acquire a new token in that job; never reuse the earlier job's token. |
-
 #### What an endpoint must verify before continuation
 
 The following is an **illustrative decoded claim excerpt**, not a usable token or a newly defined CAO payload:
@@ -457,26 +432,7 @@ The following is an **illustrative decoded claim excerpt**, not a usable token o
 
 See the authoritative [OIDC claim reference](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims). Claim presence and subject templates depend on the supported GitHub host and job configuration; `job_workflow_ref`/`job_workflow_sha` concern reusable workflows and are not substitutes for the caller's identity. GitHub also supports immutable/custom subjects, so a receiver MUST NOT assume every `sub` is a legacy `repo:owner/repo:ref:...` string.
 
-An endpoint accepting this credential MUST validate the signature and allowed algorithm/key using the **preconfigured trusted issuer's** discovery metadata and JWKS, not a token-supplied arbitrary URL. For GitHub.com, discovery is [`https://token.actions.githubusercontent.com/.well-known/openid-configuration`](https://token.actions.githubusercontent.com/.well-known/openid-configuration). It MUST check exact issuer/audience, validity times under the expiration rules below, approved immutable repository/owner identities, workflow path and approved revision, event/ref, and the intended run/attempt/job binding. A valid ID token alone does not establish source grants, approved compiler/manifest content, freshness of authorization, or a job's logical name `activation`. Client-supplied JSON does not become signed OIDC claims.
-
-#### Mandatory OIDC expiration checks
-
-Any future OIDC endpoint MUST enforce the signed `exp` claim on the server before authorizing activation or continuation. `exp` is mandatory and MUST be a finite JSON number containing a UTC NumericDate in seconds since the Unix epoch, as defined by [JWT expiration semantics](https://www.rfc-editor.org/rfc/rfc7519.html#section-4.1.4). Missing, null, string-valued, non-finite, or otherwise malformed expiration claims MUST reject authentication; the endpoint MUST NOT coerce values, substitute a default lifetime, or interpret them as milliseconds.
-
-The endpoint MUST obtain `now` from its own synchronized, trusted UTC clock and authorize only while **`now < exp`**. At `now == exp`, the token is already expired. This protocol permits **no expiration grace period or positive expiration leeway**; JWT-library defaults MUST NOT extend validity beyond `exp` or disable expiration validation. A present `nbf` claim MUST also be a valid NumericDate and satisfy `now >= nbf`. An unavailable or untrustworthy server clock MUST fail closed, not defer to caller-supplied time or the token's `iat`.
-
-Every new authorization decision, including retries, positive-cache hits, and deferred requests, MUST check expiration against the current server time. A token that expires while queued MUST NOT authorize subsequent work. Cached signature verification or an earlier successful response MUST NOT bypass this check, and cached authorization MUST NOT remain usable at or after `exp`. Expiration failure MUST issue no credential or activation/continuation approval and MUST NOT fall back to another credential class. A caller retrying authentication must obtain a fresh GitHub-issued OIDC token and pass all authorization and replay/idempotency checks again; it cannot extend or rewrite the old token's expiry.
-
-An OIDC endpoint's acceptance tests MUST cover these cases using a controlled server clock and otherwise valid claims/signatures:
-
-| Case | Required result |
-| --- | --- |
-| `now < exp`, and `nbf` absent or `now >= nbf` | Eligible only if every other identity, authorization, and replay check passes. |
-| `now == exp` or `now > exp` | Reject, including within any JWT library's default clock-tolerance window. |
-| Missing or malformed `exp`, or a present malformed `nbf` | Reject; no coercion, default lifetime, or success-shaped response. |
-| `now < nbf` | Reject as not yet valid. |
-| Token expires while queued, before a retry, or after a positive authorization was cached | Reject the new authorization; cached results do not extend token validity. |
-| Server time cannot be trusted | Reject without issuing a credential or continuation approval. |
+An endpoint accepting this credential would need to validate the signature and allowed algorithm/key using the **preconfigured trusted issuer's** discovery metadata and JWKS, not a token-supplied arbitrary URL. For GitHub.com, discovery is [`https://token.actions.githubusercontent.com/.well-known/openid-configuration`](https://token.actions.githubusercontent.com/.well-known/openid-configuration). It must check exact issuer/audience, validity times, approved immutable repository/owner identities, workflow path and approved revision, event/ref, and the intended run/attempt/job binding. A valid ID token alone does not establish source grants, approved compiler/manifest content, freshness of authorization, or a job's logical name `activation`. Client-supplied JSON does not become signed OIDC claims.
 
 **No such CAO endpoint request or continuation payload is defined or implemented here.** In particular, there is no specified `POST /activate`, OIDC-to-App-token exchange, returned `allowed` field, or token that unblocks the current activation job. A future extension must separately define its endpoint, audience/trust policy, closed request/response schemas, request-to-run binding, replay/idempotency rules, timeouts, and fail-closed continuation before a compiler or receiver may claim support. It must not replace the existing App-sender gate or put bearer tokens into the closed dispatch envelope.
 
