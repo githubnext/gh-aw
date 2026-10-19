@@ -99,7 +99,7 @@ const { recordAWFModelRoutingOutcome } = require("./awf_model_routing.cjs");
 const COPILOT_ROUTING_POLICY = getAWFModelRoutingPolicy("copilot");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
-const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
+const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError, recordModelResolution, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
@@ -519,6 +519,83 @@ async function applyCopilotModelAliasResolution(options) {
     process.env.COPILOT_MODEL = resolvedModel;
   }
   return resolvedModel || configuredModel;
+}
+
+/**
+ * Whether a model (bare, `<provider>/`-prefixed, or wire-API-qualified) is listed on any
+ * configured AWF /reflect endpoint. Model parameters (`?effort=…`) are ignored.
+ * @param {string} model
+ * @param {any} reflectData
+ * @returns {boolean}
+ */
+function isModelListedOnConfiguredReflectEndpoint(model, reflectData) {
+  const { base } = splitModelIdentifier(model);
+  if (!base) return false;
+  const endpoints = Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [];
+  return endpoints.some(endpoint => endpoint?.configured === true && Array.isArray(endpoint.models) && endpoint.models.some(id => typeof id === "string" && id && (base === id || base.endsWith(`/${id}`))));
+}
+
+/**
+ * Resolve the Copilot SDK multi-provider configuration from AWF /reflect data.
+ *
+ * Without a router selection, a configured model must be listed on a configured /reflect
+ * endpoint. When it is not, one bounded /reflect refresh is attempted; if the model is still
+ * absent, this records the failure and stops the process before the SDK starts rather than
+ * running a different model (see https://github.com/github/gh-aw/issues/70317).
+ *
+ * @param {{
+ *   configuredModel: string,
+ *   requestedModel?: string,
+ *   routed?: boolean,
+ *   wireApi?: string,
+ *   reflectData: any,
+ *   modelsJson?: object | null,
+ *   refetchReflectData?: () => Promise<object|null>,
+ *   logger?: (msg: string) => void,
+ * }} options `configuredModel` is the model after alias resolution; `requestedModel` is the
+ *   model as configured before alias resolution (used in the failure record and message).
+ * @returns {Promise<ReturnType<typeof resolveMultiProviderFromReflect>>}
+ */
+async function resolveCopilotSDKMultiProvider(options) {
+  const logger = options.logger || log;
+  const configuredModel = String(options.configuredModel || "").trim();
+  const resolve = reflectData => resolveMultiProviderFromReflect({ model: configuredModel, wireApi: options.wireApi, reflectData, modelsJson: options.modelsJson, logger });
+  const isUnavailable = (multiProvider, reflectData) => Boolean(multiProvider?.configuredModelNotFound) && !isModelListedOnConfiguredReflectEndpoint(configuredModel, reflectData);
+  let reflectData = options.reflectData;
+  let multiProvider = resolve(reflectData);
+  if (options.routed || !configuredModel || !isUnavailable(multiProvider, reflectData)) {
+    return multiProvider;
+  }
+
+  logger(`copilot-sdk driver mode: configured model '${configuredModel}' is not listed on any configured awf-reflect endpoint; refreshing awf-reflect once`);
+  const refreshed = options.refetchReflectData ? await options.refetchReflectData() : null;
+  if (refreshed) {
+    reflectData = refreshed;
+    multiProvider = resolve(reflectData);
+    if (!isUnavailable(multiProvider, reflectData)) {
+      return multiProvider;
+    }
+  }
+
+  const requestedModel = String(options.requestedModel || configuredModel).trim();
+  const { base } = splitModelIdentifier(requestedModel);
+  const slash = base.indexOf("/");
+  const configuredEndpoints = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : []).filter(endpoint => endpoint?.configured === true);
+  const catalogIncomplete = reflectData?.models_fetch_complete === false || configuredEndpoints.some(endpoint => !Array.isArray(endpoint.models));
+  const failure = new ModelAliasResolutionError(requestedModel, catalogIncomplete ? "catalog_unavailable" : "model_unavailable", { provider: slash > 0 ? base.slice(0, slash) : "" });
+  const checked = configuredEndpoints
+    .map(endpoint => `${String(endpoint.provider || "unknown")} (${formatInferenceEndpointForLog(endpoint.base_url || endpoint.models_url)}, ${Array.isArray(endpoint.models) ? `${endpoint.models.length} models` : "no model list"})`)
+    .join(", ");
+  const resolvedNote = configuredModel !== requestedModel ? ` (resolved to '${configuredModel}')` : "";
+  logger(
+    `copilot-sdk driver mode: ${failure.message} Configured model '${requestedModel}'${resolvedNote} is not listed on the configured awf-reflect endpoints checked: ${checked || "(none)"}. Refusing to start the Copilot SDK with a different model.`
+  );
+  recordModelResolution({ engine: "copilot", role: "main", configured_model: requestedModel, resolved_model: null, provider: failure.provider || null, status: "failed", cause: failure.reason });
+  if (failure.reason === "model_unavailable") {
+    recordCopilotModelSelection({ status: "unavailable", configured_model: requestedModel, resolved_model: "", effective_model: "" });
+  }
+  process.exit(1);
+  return null; // unreachable, keeps TypeScript control-flow analysis happy
 }
 
 /**
@@ -1287,6 +1364,16 @@ async function main() {
     }
   }
 
+  // One bounded /reflect refresh, shared by alias resolution and the SDK model liveness check.
+  const refetchReflectData = async () => {
+    if (process.env.AWF_REFLECT_ENABLED !== "1") {
+      return null;
+    }
+    const refreshed = await fetchAWFReflect({ logger: log });
+    if (refreshed.ok && refreshed.reflectData) awfReflectData = refreshed.reflectData;
+    return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
+  };
+
   const routingResult = resolveCopilotModelRouting(awfReflectData, modelRoutingRequired, log);
   if (routingResult.error) {
     log(`unexpected error: AWF model routing failed: ${routingResult.error}; refusing to start Copilot`);
@@ -1308,14 +1395,7 @@ async function main() {
     await applyCopilotModelAliasResolution({
       awfReflectData,
       logger: log,
-      refetchReflectData: async () => {
-        if (process.env.AWF_REFLECT_ENABLED !== "1") {
-          return null;
-        }
-        const refreshed = await fetchAWFReflect({ logger: log });
-        if (refreshed.ok && refreshed.reflectData) awfReflectData = refreshed.reflectData;
-        return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
-      },
+      refetchReflectData,
     });
     if (invocationModel?.hasOverride) resolvedArgs = applyCopilotInvocationModel(resolvedArgs, process.env.COPILOT_MODEL || "");
   }
@@ -1361,9 +1441,22 @@ async function main() {
     const configuredModel = modelRoutingSelection?.wire_model || process.env.COPILOT_MODEL || "";
     const modelsJson = loadModelsJson();
 
-    const multiProvider = resolveMultiProviderFromReflect({ model: configuredModel, wireApi: process.env.COPILOT_PROVIDER_WIRE_API, reflectData: awfReflectData, modelsJson, logger: log });
-    if (!multiProvider) {
-      log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
+    const multiProvider = await resolveCopilotSDKMultiProvider({
+      configuredModel,
+      requestedModel: selectionConfiguredModel,
+      routed: Boolean(modelRoutingSelection),
+      wireApi: process.env.COPILOT_PROVIDER_WIRE_API,
+      reflectData: awfReflectData,
+      modelsJson,
+      refetchReflectData,
+      logger: log,
+    });
+    if (!multiProvider || !multiProvider.model) {
+      log(
+        multiProvider
+          ? `copilot-sdk driver mode: configured model '${configuredModel}' could not be matched to a provider model in awf-reflect data — aborting`
+          : "copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting"
+      );
       process.exit(1);
     }
     resolvedModel = multiProvider.model;
@@ -2019,6 +2112,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasTerminalSafeOutput,
     applyModelFallback,
     applyCopilotModelAliasResolution,
+    resolveCopilotSDKMultiProvider,
     applyCopilotWireAPI,
     warnCopilotSubagentEndpoints,
     resolveAWFModelRoutingSelection,
