@@ -1,6 +1,78 @@
 // @ts-check
 
-const { normalizeReportText, normalizeReportURL } = require("./report_ast.cjs");
+const { normalizeReportText, normalizeReportURL, normalizeReportImage } = require("./report_ast.cjs");
+const { buildAllowedDomains, sanitizeUrlProtocols, sanitizeUrlDomains } = require("./sanitize_content_core.cjs");
+
+/**
+ * Read a single-line HTML token without interpreting backticks or quoted ">" as delimiters.
+ * The token is literal text unless explicitly imported as a supported typed element.
+ * @param {string} source
+ */
+function htmlTag(source) {
+  const opening = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?=[\s/>])/.exec(source);
+  if (!opening) return undefined;
+  let quote = "";
+  for (let index = opening[0].length; index < source.length && source[index] !== "\n"; index++) {
+    const character = source[index];
+    if (quote) {
+      if (character === quote) quote = "";
+    } else if (character === '"' || character === "'") quote = character;
+    else if (character === "<") return undefined;
+    else if (character === ">") return { raw: source.slice(0, index + 1), name: opening[1].toLowerCase() };
+  }
+  return undefined;
+}
+
+/**
+ * Import only explicit image presentation fields. Unsupported or malformed HTML
+ * remains visible, escaped text; it never becomes a raw-HTML AST node.
+ * @param {string} raw
+ * @param {(value: string) => string} substitute
+ * @returns {import("./report_ast.cjs").ReportImage | undefined}
+ */
+function htmlImage(raw, substitute) {
+  if (!/^<img(?=[\s/>])/i.test(raw)) return undefined;
+  /** @type {Map<string, string>} */
+  const attributes = new Map();
+  const attribute = /[ \t]+(src|alt|width|height|align)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+))/giy;
+  let index = 4;
+  while (!/^[ \t]*\/?>$/.test(raw.slice(index))) {
+    attribute.lastIndex = index;
+    const match = attribute.exec(raw);
+    if (!match) return undefined;
+    const name = match[1].toLowerCase();
+    if (attributes.has(name)) return undefined;
+    attributes.set(name, substitute((match[2] ?? match[3] ?? match[4]).replace(/&quot;/gi, '"').replace(/&apos;/gi, "'")));
+    index = attribute.lastIndex;
+  }
+  const url = attributes.get("src");
+  if (url === undefined) return undefined;
+  /** @type {import("./report_ast.cjs").ReportImage} */
+  const image = { type: "image", url, alt: attributes.get("alt") ?? "" };
+  for (const name of /** @type {const} */ ["width", "height"]) {
+    const value = attributes.get(name);
+    if (value !== undefined) {
+      if (!/^[1-9]\d{0,4}$/.test(value)) return undefined;
+      image[name] = Number(value);
+    }
+  }
+  const alignment = attributes.get("align");
+  if (alignment !== undefined) {
+    const align = alignment.toLowerCase();
+    if (align !== "left" && align !== "right" && align !== "center") return undefined;
+    image.align = align;
+  }
+  try {
+    const normalized = normalizeReportImage(image);
+    // A typed image is renderable media, never a URL-policy code-region exception.
+    // Only accept hostname forms understood by the shared domain sanitizer.
+    if (!/^https:\/\/[\w.-]+(?::\d+)?\//.test(normalized.url)) return undefined;
+    return sanitizeUrlDomains(normalized.url, buildAllowedDomains()) === normalized.url ? normalized : undefined;
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+    return undefined;
+  }
+}
 
 /**
  * Scan destinations before substitution, so scalar values cannot close a link.
@@ -112,11 +184,12 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
       let match;
       const link = markdownLink(source);
       const autolink = bareURL(source);
+      const tag = htmlTag(source);
       if ((match = /^(?: {2,}|\\)\n/.exec(source))) {
         nodes.push(fromSource({ type: "hard_break" }));
       } else if ((match = /^\n/.exec(source))) {
         nodes.push(fromSource({ type: "soft_break" }));
-      } else if ((match = /^\\([\\`*_[\]{}()#+.!|>~-])/.exec(source))) {
+      } else if ((match = /^\\([\\`*_[\]{}()#+.!|<>~-])/.exec(source))) {
         text(match[1]);
       } else if ((match = /^(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s+((?:[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*)?)(\\?)#([1-9]\d*)\b/i.exec(source)) && !/\w/.test(original[original.length - source.length - 1] || "")) {
         const verb = match[1].toLowerCase();
@@ -146,6 +219,8 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
         nodes.push(fromSource({ type: "mention", login: match[1] }));
       } else if ((match = /^(`+)(?!`)([\s\S]*?)(?<!`)\1(?!`)/.exec(source))) {
         nodes.push(fromSource({ type: "code", value: substitute(match[2]) }));
+      } else if ((match = /^`+/.exec(source))) {
+        text(match[0]);
       } else if (link && (!inLink || link.image)) {
         /** @type {ReportInline[]} */
         const label = link.image ? [fromSource({ type: "text", value: substitute(link.label) })] : inline(link.label, inlineDepth + 1, true);
@@ -178,6 +253,12 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
         continue;
       } else if ((match = /^<sub>([\s\S]*?)<\/sub>/.exec(source))) {
         nodes.push(fromSource({ type: "subscript", children: inline(match[1], inlineDepth + 1, inLink) }));
+      } else if (tag) {
+        const image = tag.name === "img" ? htmlImage(tag.raw, substitute) : undefined;
+        if (image) nodes.push(fromSource(image));
+        else text(sanitizeUrlDomains(sanitizeUrlProtocols(substitute(tag.raw)), buildAllowedDomains()));
+        source = source.slice(tag.raw.length);
+        continue;
       } else if ((match = /^~~(?=\S)([\s\S]*?\S)~~/.exec(source))) {
         nodes.push(fromSource({ type: "strike", children: inline(match[1], inlineDepth + 1, inLink) }));
       } else if ((match = /^(\*{3}|_{3})(?=\S)([\s\S]*?\S)\1/.exec(source))) {
@@ -275,13 +356,13 @@ function parseReportMarkdown(markdown, { context, inlineSlots, blockSlots, onBlo
       } else if (allowFlagMarkers && (match = /^<!-- (gh-aw-threat-detected|gh-aw-threat-engine-error) -->$/.exec(line.trim()))) {
         nodes.push(fromSource({ type: "marker", name: match[1] === "gh-aw-threat-detected" ? "gh-aw-threat-detected" : "gh-aw-threat-engine-error" }));
         index++;
-      } else if ((match = /^\s*(`{3,}|~{3,})(.*)$/.exec(line))) {
+      } else if ((match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line)) && (match[1][0] !== "`" || !match[2].includes("`"))) {
         const fence = match[1];
         const language = match[2].trim();
         const content = [];
         index++;
         while (index < lines.length) {
-          const closing = /^\s*(`+|~+)\s*$/.exec(lines[index]);
+          const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(lines[index]);
           if (closing && closing[1][0] === fence[0] && closing[1].length >= fence.length) break;
           content.push(lines[index++]);
         }

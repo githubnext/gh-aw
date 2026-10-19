@@ -9,10 +9,11 @@ const { createExpirationLine } = require("./ephemerals.cjs");
  * @typedef {{agentTainted?: boolean, sizeProtected?: boolean}} ReportProvenance
  * @typedef {null | boolean | number | string | ReportData[] | {[key: string]: ReportData}} ReportData
  * @typedef {{key: string, value: string}} ReportMarkerField
+ * @typedef {ReportProvenance & {type: "image", url: string, alt: string, width?: number, height?: number, align?: "left" | "right" | "center"}} ReportImage
  * @typedef {ReportProvenance & {type: "xml_marker", name: string, value?: string, fields?: ReportMarkerField[]}} ReportXMLMarker
  * @typedef {ReportProvenance & {type: "json_marker", name: string, data: ReportData}} ReportJSONMarker
  * @typedef {ReportProvenance & {type: "closing_reference", action: "closes" | "fixes" | "resolves", target: {number: string | number, repository?: string}, enabled: boolean}} ReportClosingReference
- * @typedef {ReportProvenance & ({type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | {type: "image", url: string, alt: string} | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]})} ReportInline
+ * @typedef {ReportProvenance & ({type: "text" | "code", value: string} | {type: "soft_break" | "hard_break"} | ReportImage | {type: "mention", login: string} | {type: "issue_reference", number: string} | ReportClosingReference | {type: "strong" | "emphasis" | "strike" | "subscript", children: ReportInline[]} | {type: "link", url: string, children: ReportInline[]})} ReportInline
  * @typedef {ReportProvenance & ({type: "paragraph", children: ReportInline[]} |
  *   {type: "heading", level: number, children: ReportInline[]} |
  *   {type: "code_block", value: string, language: string} |
@@ -172,6 +173,23 @@ function normalizeReportURL(value) {
   return url.href;
 }
 
+/** @param {ReportImage} node @returns {ReportImage} */
+function normalizeReportImage(node) {
+  for (const dimension of [node.width, node.height]) {
+    if (dimension !== undefined && (!Number.isInteger(dimension) || dimension < 1 || dimension > 10000)) throw new TypeError("Report image dimensions must be integers between 1 and 10000");
+  }
+  if (node.align !== undefined && !["left", "right", "center"].includes(node.align)) throw new TypeError("Invalid report image alignment");
+  return {
+    type: "image",
+    url: normalizeReportURL(node.url),
+    alt: normalizeReportText(node.alt).replace(/\s+/g, " "),
+    ...(node.width === undefined ? {} : { width: node.width }),
+    ...(node.height === undefined ? {} : { height: node.height }),
+    ...(node.align === undefined ? {} : { align: node.align }),
+    ...normalizeReportProvenance(node),
+  };
+}
+
 /** @param {number} depth */
 function checkDepth(depth) {
   if (depth > MAX_DEPTH) throw new TypeError("Report nesting exceeds the maximum depth");
@@ -254,7 +272,7 @@ function normalizeInlines(nodes, depth, inLink = false, deferRedaction = false) 
         result.push({ type: node.type });
         break;
       case "image":
-        result.push({ type: "image", url: normalizeReportURL(node.url), alt: normalizeReportText(node.alt).replace(/\s+/g, " ") });
+        result.push(normalizeReportImage(node));
         break;
       case "mention":
         if (!/^[A-Za-z0-9](?:[A-Za-z0-9_-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?$/.test(node.login)) throw new TypeError("Invalid report mention");
@@ -518,40 +536,63 @@ function renderInlines(nodes) {
       previous.value = (previous.value + node.value).replace(/\s+/g, " ");
     } else runs.push({ ...node });
   }
-  return runs
-    .map(node => {
-      if (node.type === "text") return escapeReportText(node.value);
-      if (node.type === "code") {
-        const fence = "`".repeat(Array.from(node.value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 1));
-        const padding = /^[` ]|[` ]$/.test(node.value) && !/^ +$/.test(node.value) ? " " : "";
-        return `${fence}${padding}${node.value}${padding}${fence}`;
+  const fragments = runs.map(node => {
+    if (node.type === "text") return escapeReportText(node.value);
+    if (node.type === "code") {
+      const fence = "`".repeat(Array.from(node.value.matchAll(/`+/g)).reduce((length, match) => Math.max(length, match[0].length + 1), 1));
+      const padding = /^[` ]|[` ]$/.test(node.value) && !/^ +$/.test(node.value) ? " " : "";
+      return `${fence}${padding}${node.value}${padding}${fence}`;
+    }
+    switch (node.type) {
+      case "soft_break":
+        return "\n";
+      case "hard_break":
+        return "  \n";
+      case "image": {
+        if (node.width !== undefined || node.height !== undefined || node.align !== undefined) {
+          const attributes = [
+            `src="${escapeHTMLAttribute(node.url)}"`,
+            `alt="${escapeHTMLAttribute(node.alt)}"`,
+            ...(node.width === undefined ? [] : [`width="${node.width}"`]),
+            ...(node.height === undefined ? [] : [`height="${node.height}"`]),
+            ...(node.align === undefined ? [] : [`align="${node.align}"`]),
+          ];
+          return `<img ${attributes.join(" ")}>`;
+        }
+        return `![${escapeMarkdown(node.alt.replace(/&/g, "&amp;")).replace(/@/g, "&#64;")}](${escapeURLDestination(node.url)})`;
       }
-      switch (node.type) {
-        case "soft_break":
-          return "\n";
-        case "hard_break":
-          return "  \n";
-        case "image":
-          return `![${escapeMarkdown(node.alt.replace(/&/g, "&amp;")).replace(/@/g, "&#64;")}](${escapeURLDestination(node.url)})`;
-        case "mention":
-          return `@${node.login}`;
-        case "issue_reference":
-          return `#${node.number}`;
-        case "closing_reference":
-          return `${node.action[0].toUpperCase()}${node.action.slice(1)} ${node.target.repository || ""}${node.enabled ? "#" : "\\#"}${node.target.number}`;
-        case "strong":
-          return `**${renderInlines(node.children)}**`;
-        case "emphasis":
-          return `*${renderInlines(node.children)}*`;
-        case "strike":
-          return `~~${renderInlines(node.children)}~~`;
-        case "subscript":
-          return `<sub>${renderInlines(node.children)}</sub>`;
-        case "link":
-          return `[${renderInlines(node.children)}](${escapeURLDestination(node.url)})`;
-      }
-    })
-    .join("");
+      case "mention":
+        return `@${node.login}`;
+      case "issue_reference":
+        return `#${node.number}`;
+      case "closing_reference":
+        return `${node.action[0].toUpperCase()}${node.action.slice(1)} ${node.target.repository || ""}${node.enabled ? "#" : "\\#"}${node.target.number}`;
+      case "strong":
+        return `**${renderInlines(node.children)}**`;
+      case "emphasis":
+        return `*${renderInlines(node.children)}*`;
+      case "strike":
+        return `~~${renderInlines(node.children)}~~`;
+      case "subscript":
+        return `<sub>${renderInlines(node.children)}</sub>`;
+      case "link":
+        return `[${renderInlines(node.children)}](${escapeURLDestination(node.url)})`;
+    }
+  });
+  let rendered = "";
+  for (const fragment of fragments) {
+    // Adjacent generated code delimiters must not merge into a different run.
+    if (rendered.endsWith("`") && fragment.startsWith("`")) rendered += " ";
+    rendered += fragment;
+  }
+  // A standalone image line would start a CommonMark HTML block and turn the
+  // following Markdown code into raw HTML. An encoded space keeps it inline.
+  return rendered.includes("\n") ? rendered.replace(/^([ \t]*)(<img [^<>]*>[ \t]*)$/gm, "$1&#32;$2") : rendered;
+}
+
+/** @param {string} value */
+function escapeHTMLAttribute(value) {
+  return value.replace(/[&<>"'@|]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "@": "&#64;", "|": "&#124;" })[character]);
 }
 
 /** @param {string} url */
@@ -755,4 +796,4 @@ function renderReport(report) {
   return result;
 }
 
-module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, redactReportForRendering, assertRedactedReport, renderReport };
+module.exports = { normalizeReport, normalizeReportText, normalizeReportTitle, normalizeReportURL, normalizeReportImage, redactReportForRendering, assertRedactedReport, renderReport };

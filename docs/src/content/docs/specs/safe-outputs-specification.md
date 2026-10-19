@@ -2202,6 +2202,38 @@ or a workflow frontmatter option. Without a predicate, mandatory secret redactio
 and automatic size fitting still apply. Framework provenance MUST NOT bypass
 secret redaction, node validation, URL validation, or rendering escapes.
 
+##### HTML and code fidelity
+
+Issue-report text MUST remain literal, escaped text rather than raw HTML.
+Markdown inline code and fenced code MUST become typed code nodes; angle
+brackets and XML-comment examples inside them MUST NOT become presentation
+elements or metadata. Backtick runs without an exact matching closer MUST remain
+literal, and a backtick fence's info string MUST NOT contain backticks.
+Code nodes remain subject to secret redaction, Unicode hardening, and the
+configured URL policy; preserving code syntax MUST NOT exempt their contents
+from these controls.
+
+The report importer MAY translate a complete, single-line `<img>` token into
+the typed `image` node. Its only supported attributes are `src`, `alt`, `width`,
+`height`, and `align`, without duplicates. The source MUST be a validated HTTPS
+URL without credentials, on a hostname accepted by the configured domain policy.
+Renderable images MUST NOT use the URL-policy exception for code regions,
+including when their attributes contain backticks. Width and height MUST be
+integer pixel dimensions from 1 through 10,000; alignment MUST be `left`, `right`,
+or `center`. Unsupported, malformed, or disallowed HTML MUST remain visible,
+escaped text with prose URL filtering, not be passed through as raw HTML.
+
+Images without layout fields retain Markdown image serialization. Images with
+layout fields MUST serialize only validated attributes, with HTML-attribute
+escaping for both URL and alt text. Attribute values MUST NOT introduce HTML,
+mentions, table delimiters, template structure, or framework provenance.
+Image-only lines in multi-line paragraphs MUST remain in Markdown inline context,
+so subsequent code cannot become raw HTML through CommonMark HTML-block parsing.
+Adjacent generated code delimiters MUST NOT merge into a different backtick run.
+Imported images retain the source's agent taint and remain subject to ordinary
+secret redaction, coarse content policies, rendering assertions, and concrete
+publication-size fitting. These rules do not introduce a raw-HTML AST node.
+
 Community reports motivating this separation fall into three clusters:
 
 | Cluster | Reports | Boundary |
@@ -5314,16 +5346,18 @@ Implementations MUST apply these transformations in order:
 
 - Do NOT execute or interpret code blocks
 - Do NOT evaluate template expressions
-- Preserve code blocks verbatim (no escaping needed in markdown)
+- Preserve literal code syntax while retaining secret redaction, Unicode
+  hardening, and the configured URL policy
 
 **Excluded Content**
 
-The following content MUST NOT be sanitized:
+HTML-tag conversion and XML-comment removal MUST NOT alter Markdown code blocks
+or inline code. This is not an exemption from secret redaction or URL policy:
+the default `allowed-only` policy filters URLs inside code as well as prose.
+Only an explicit `allowed-or-code-region` setting permits URLs in code regions.
 
-- Code blocks (` ``` `)
-- Inline code (`` `code` ``)
-- System-generated footers
-- System-generated metadata
+System-generated footers and metadata retain their typed framework structure,
+but framework provenance MUST NOT bypass secret redaction or rendering checks.
 
 **Sanitization Reversibility**
 
