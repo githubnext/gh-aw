@@ -770,6 +770,7 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	exclude := map[string]struct {
 	}{
 		"conclusion":                           {},
+		string(constants.GradersJobName):       {},
 		string(constants.PreActivationJobName): {},
 		"pre-activation":                       {},
 	}

@@ -2,266 +2,73 @@ package workflow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
+
+	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestPrepareOperationalValueGrader(t *testing.T) {
-	repoRoot := t.TempDir()
-	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
-	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	content := "#!/usr/bin/env bash\nset -euo pipefail\n"
-	if err := os.WriteFile(evaluatorPath, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	data := operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh")
-
-	if err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	grader := data.Graders.Graders["operational-value"]
-	if grader.evaluatorContent != content {
-		t.Fatal("expected operational-value evaluator content to be frozen")
-	}
-	if len(grader.EvaluatorDigest()) != 64 {
-		t.Fatalf("expected SHA-256 digest, got %q", grader.EvaluatorDigest())
-	}
-}
-
-func TestPrepareOperationalValueGraderResolvesLocalDotPath(t *testing.T) {
-	repoRoot := t.TempDir()
-	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
-	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	content := "#!/usr/bin/env bash\nset -euo pipefail\n"
-	if err := os.WriteFile(evaluatorPath, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	data := operationalValueGraderWorkflowData("./graders/example-operational-value.sh")
-
-	if err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if data.Graders.Graders["operational-value"].evaluatorContent != content {
-		t.Fatal("expected ./ evaluator path to resolve relative to the workflow")
-	}
-}
-
-func TestPrepareOperationalValueGraderFreezesInlineScript(t *testing.T) {
-	repoRoot := t.TempDir()
-	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	content := "#!/usr/bin/env bash\nset -euo pipefail\n"
-	data := operationalValueGraderWorkflowData("")
-	data.Graders.Graders["operational-value"].Script = content
-
-	if err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	grader := data.Graders.Graders["operational-value"]
-	if grader.evaluatorContent != content {
-		t.Fatal("expected inline operational-value evaluator content to be frozen")
-	}
-	if grader.Run != "" {
-		t.Fatalf("inline evaluator must not expose a file-backed run path, got %q", grader.Run)
-	}
-	if grader.evaluatorSourcePath != ".github/workflows/example.md" {
-		t.Fatalf("expected inline source workflow path, got %q", grader.evaluatorSourcePath)
-	}
-}
-
-func TestPrepareOperationalValueGraderAcceptsMaximumFileSize(t *testing.T) {
-	repoRoot := t.TempDir()
-	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	evaluatorPath := filepath.Join(repoRoot, ".github", "graders", "example-operational-value.sh")
-	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	prefix := "#!/usr/bin/env bash\n#"
-	content := prefix + strings.Repeat("x", maxOperationalValueEvaluatorSize-len(prefix)-1) + "\n"
-	if err := os.WriteFile(evaluatorPath, []byte(content), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
-	if err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath); err != nil {
-		t.Fatalf("expected file-backed evaluator of exactly %d bytes to pass, got: %v", maxOperationalValueEvaluatorSize, err)
-	}
-}
-
-func TestValidateOperationalValueEvaluatorContentRejectsOneByteOverLimit(t *testing.T) {
-	prefix := "#!/usr/bin/env bash\n#"
-	content := prefix + strings.Repeat("x", maxOperationalValueEvaluatorSize-len(prefix)) + "\n"
-	err := validateOperationalValueEvaluatorContent(content)
-	if err == nil || !strings.Contains(err.Error(), "65536-byte limit") {
-		t.Fatalf("expected one-byte-over-limit error, got: %v", err)
-	}
-}
-
-func TestPrepareOperationalValueGraderRejectsInvalidInlineScript(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		errText string
-	}{
-		{name: "not bash", content: "echo operational value\n", errText: "Bash shebang"},
-		{name: "invalid bash", content: "#!/usr/bin/env bash\nif true; then\n", errText: "invalid Bash syntax"},
-		{name: "oversized", content: "#!/usr/bin/env bash\n" + strings.Repeat("x", maxOperationalValueEvaluatorSize), errText: "exceeds"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			repoRoot := t.TempDir()
-			if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-				t.Fatal(err)
+func TestOperationalValueGraderCompileBoundary(t *testing.T) {
+	for _, imported := range []bool{false, true} {
+		t.Run(map[bool]string{false: "authored", true: "imported"}[imported], func(t *testing.T) {
+			root := t.TempDir()
+			require.NoError(t, exec.Command("git", "-C", root, "init", "-q").Run())
+			directory := filepath.Join(root, ".github", "workflows")
+			require.NoError(t, os.MkdirAll(filepath.Join(directory, "shared"), 0o755))
+			declaration := "graders:\n  operational-value:\n    run: ./score.sh\n"
+			sourcePath := filepath.Join(directory, "score.sh")
+			if imported {
+				require.NoError(t, os.WriteFile(filepath.Join(directory, "shared", "grader.md"), []byte("---\n"+declaration+"---\n"), 0o600))
+				declaration = "imports:\n  - shared/grader.md\n"
+				sourcePath = filepath.Join(directory, "shared", "score.sh")
 			}
-			workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-			if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-				t.Fatal(err)
+			const source = "#!/bin/bash\nprintf '[{\"id\":\"recorded-outcome\",\"value\":1}]'\n"
+			require.NoError(t, os.WriteFile(sourcePath, []byte(source), 0o600))
+			file := filepath.Join(directory, "test.md")
+			require.NoError(t, os.WriteFile(file, []byte("---\non: workflow_dispatch\nengine: copilot\nstrict: false\n"+declaration+"---\nTest.\n"), 0o600))
+			compiler := NewCompiler(WithVersion("dev"))
+			require.NoError(t, compiler.CompileWorkflow(file))
+			lock, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
+			require.NoError(t, err)
+			conclusion := extractJobSection(string(lock), "conclusion")
+			custom := extractJobSection(string(lock), "graders")
+			assert.NotContains(t, conclusion, "recorded-outcome")
+			assert.NotContains(t, conclusion, "score.sh")
+			assert.NotContains(t, conclusion, "shellScript")
+			assert.Contains(t, conclusion, `"customGraders":["operational-value"]`)
+			assert.Contains(t, custom, `"source":"operational-value"`)
+			assert.Contains(t, custom, "recorded-outcome")
+			assert.Contains(t, custom, "contents: read")
+			assert.Contains(t, custom, "needs:\n      - activation\n      - conclusion")
+			assert.NotContains(t, custom, "Checkout repository")
+			assert.NotContains(t, custom, "persist-credentials: true")
+			assert.NotContains(t, custom, "environment:")
+			assert.NotContains(t, custom, "id-token:")
+			job, ok := compiler.jobManager.GetJob("conclusion")
+			require.True(t, ok)
+			assert.NotContains(t, job.Needs, "graders")
+			var compiled struct {
+				Jobs map[string]struct {
+					Permissions map[string]string `yaml:"permissions"`
+				} `yaml:"jobs"`
 			}
-			data := operationalValueGraderWorkflowData("")
-			data.Graders.Graders["operational-value"].Script = test.content
-
-			err := (&Compiler{}).prepareOperationalValueGrader(data, workflowPath)
-			if err == nil || !strings.Contains(err.Error(), test.errText) {
-				t.Fatalf("expected error containing %q, got %v", test.errText, err)
-			}
+			require.NoError(t, yaml.Unmarshal(lock, &compiled))
+			assert.Equal(t, map[string]string{"contents": "read"}, compiled.Jobs["graders"].Permissions)
 		})
 	}
 }
 
-func TestPrepareOperationalValueGraderRejectsInvalidFiles(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		errText string
-	}{
-		{name: "missing", errText: "cannot inspect"},
-		{name: "not bash", content: "echo operational value\n", errText: "Bash shebang"},
-		{name: "invalid bash", content: "#!/usr/bin/env bash\nif true; then\n", errText: "invalid Bash syntax"},
-		{name: "oversized", content: "#!/usr/bin/env bash\n" + strings.Repeat("x", maxOperationalValueEvaluatorSize), errText: "exceeds"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			repoRoot := t.TempDir()
-			if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-			evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
-			if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if test.content != "" {
-				if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
-					t.Fatal(err)
-				}
-				if err := os.WriteFile(evaluatorPath, []byte(test.content), 0o755); err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh"), workflowPath)
-			if err == nil || !strings.Contains(err.Error(), test.errText) {
-				t.Fatalf("expected error containing %q, got %v", test.errText, err)
-			}
-		})
-	}
-}
-
-func TestPrepareOperationalValueGraderRejectsSymlinkEscape(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation requires additional privileges on Windows")
-	}
-	repoRoot := t.TempDir()
-	outside := filepath.Join(t.TempDir(), "operational-value.sh")
-	if err := os.WriteFile(outside, []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	evaluatorPath := filepath.Join(repoRoot, ".github", "workflows", "graders", "example-operational-value.sh")
-	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Dir(evaluatorPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(outside, evaluatorPath); err != nil {
-		t.Fatal(err)
-	}
-
-	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh"), workflowPath)
-	if err == nil || !strings.Contains(err.Error(), "escapes") {
-		t.Fatalf("expected symlink escape error, got %v", err)
-	}
-}
-
-func TestPrepareOperationalValueGraderRejectsRepositorySymlink(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("symlink creation requires additional privileges on Windows")
-	}
-	repoRoot := t.TempDir()
-	if err := os.Mkdir(filepath.Join(repoRoot, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "example.md")
-	gradersDir := filepath.Join(repoRoot, ".github", "workflows", "graders")
-	targetPath := filepath.Join(gradersDir, "target.sh")
-	evaluatorPath := filepath.Join(gradersDir, "example-operational-value.sh")
-	if err := os.MkdirAll(filepath.Dir(workflowPath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(gradersDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(targetPath, []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(targetPath, evaluatorPath); err != nil {
-		t.Fatal(err)
-	}
-
-	err := (&Compiler{}).prepareOperationalValueGrader(operationalValueGraderWorkflowData(".github/workflows/graders/example-operational-value.sh"), workflowPath)
-	if err == nil || !strings.Contains(err.Error(), "must not be a symbolic link") {
-		t.Fatalf("expected symlink rejection error, got %v", err)
-	}
-}
-
-func operationalValueGraderWorkflowData(evaluatorPath string) *WorkflowData {
-	return &WorkflowData{
-		Graders: &GradersConfig{
-			Graders: map[string]*GraderDefinition{
-				"operational-value": {ID: "operational-value", Run: evaluatorPath},
-			},
-		},
+func TestOperationalValueGraderCompilationRejectsWrites(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", root, "init", "-q").Run())
+	file := filepath.Join(root, "test.md")
+	for _, enabled := range []string{"true", "false"} {
+		require.NoError(t, os.WriteFile(file, []byte("---\non: workflow_dispatch\nstrict: false\ngraders:\n  operational-value:\n    enabled: "+enabled+"\n    run: ./score.sh\n---\nTest.\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(root, "score.sh"), []byte("#!/bin/bash\nprintf changed > \"$1\"\n"), 0o600))
+		require.ErrorContains(t, NewCompiler(WithVersion("dev")).CompileWorkflow(file), "may write a file")
 	}
 }

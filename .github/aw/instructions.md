@@ -18,8 +18,35 @@ These rules override conflicting upstream guidance.
   uses `${{ github.token }}` for inference, without a PAT or `COPILOT_GITHUB_TOKEN`.
 - Before inventing workflow/shared-component/tool/safe-output patterns, inspect
   `https://github.com/gm3dmo/the-power` through GitHub APIs or `gh` for prior art.
-- Before finalizing an `operational-value` grader, use `/operational-value-designer`
-  to derive its contract from the target workflow.
+
+## Session Graders
+
+Ten fast built-ins run by default in conclusion after session collection.
+Configure them with `graders.<builtin-id>.threshold`, `enabled`, or data-only
+`config`; expensive built-ins require opt-in.
+
+For custom outcomes, use `graders.<distinct-id>.script` with a synchronous
+JavaScript body over immutable `session`, `config`, and `helpers` inputs.
+Reuse `helpers.createSessionLookups(session)` for stats and event/tool lookups.
+Return a finite number, `null` for unavailable evidence, or an object with
+`value`; do not emit legacy metric arrays. The script limit is 256 KiB.
+
+For repository-owned Bash compatibility, use `graders.operational-value.run`
+with a confined `.sh` path. Read session JSONL from `$1` / `GH_AW_SESSION_FILE`
+and JSON config from `GH_AW_GRADER_CONFIG`; retain `[{id,value}, ...]` output.
+Remove file writes and live API/checkout reads; compile/lint rejects detected
+writes. This trusted shell path is not yet microVM-isolated.
+
+The compiler owns the isolated downstream `graders` job for both custom forms.
+Never override built-in implementations, customize `jobs.graders`, or inject
+user code or steps into `jobs.conclusion`.
+Collect required evidence before session publication; graders cannot fetch it.
+Use [operational-value-designer](../skills/operational-value-designer/SKILL.md)
+for executable examples and evidence/fixture design.
+
+Audit optionally retrieves registered custom results from the `graders`
+artifact; `logs --graders` and `--artifacts graders` include both it and `usage`.
+Custom results never replace conclusion's published session.
 
 ## Repository-Wide Debugging and Optimization
 

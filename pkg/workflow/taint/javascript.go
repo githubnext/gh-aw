@@ -47,6 +47,32 @@ type JavaScriptNode struct {
 	Other               []*JavaScriptNode `json:"other"`
 }
 
+// Children includes every projected child, including otherwise unmodeled syntax.
+func (n *JavaScriptNode) Children() []*JavaScriptNode {
+	if n == nil {
+		return nil
+	}
+	var result []*JavaScriptNode
+	for _, child := range []*JavaScriptNode{
+		n.Name, n.Expression, n.Initializer, n.DeclarationList, n.Body, n.Block,
+		n.Left, n.Right, n.OperatorToken, n.Condition, n.WhenTrue, n.WhenFalse,
+		n.ThenStatement, n.ElseStatement, n.TryBlock, n.CatchClause, n.FinallyBlock,
+		n.VariableDeclaration, n.ArgumentExpression, n.ModuleSpecifier,
+		n.ImportClause, n.NamedBindings, n.PropertyName, n.Incrementor, n.Operand,
+	} {
+		if child != nil {
+			result = append(result, child)
+		}
+	}
+	for _, list := range [][]*JavaScriptNode{
+		n.Statements, n.Declarations, n.Arguments, n.Parameters, n.Elements,
+		n.Properties, n.TemplateSpans, n.Clauses, n.Other,
+	} {
+		result = append(result, list...)
+	}
+	return result
+}
+
 type JavaScriptParser interface {
 	Parse(context.Context, string) (*JavaScriptNode, error)
 }

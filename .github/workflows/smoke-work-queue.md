@@ -31,7 +31,7 @@ safe-outputs:
   noop:
 jobs:
   verify_smoke_result:
-    needs: [agent, safe_outputs]
+    needs: [agent, detection, safe_outputs]
     runs-on: ubuntu-slim
     timeout-minutes: 3
     permissions:

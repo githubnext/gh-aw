@@ -1,683 +1,53 @@
 // @ts-check
-/// <reference types="@actions/github-script" />
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
-const fs = require("fs");
-const path = require("path");
-const cp = require("child_process");
-const crypto = require("crypto");
-const { getErrorMessage } = require("./error_helpers.cjs");
-const { readExperimentAssignments } = require("./experiment_helpers.cjs");
-const { calculateWorkingSetFromEntries } = require("./working_set_metrics.cjs");
-const { executeOperationalValueEvaluator } = require("./operational_value_grader.cjs");
-const { extractStructuredToolInput } = require("./tool_call_details.cjs");
+const { createSessionLookups, stableStringify, isRecord } = require("./grader_session.cjs");
 const { TRAJECTORY_GRADERS } = require("./trajectory_graders.cjs");
 const BUILTIN_META = require("./builtin_graders.json");
 
-// --- Constants ---
-const TMP_GH_AW = "/tmp/gh-aw";
-const GRADERS_DIR = path.join(TMP_GH_AW, "agent", "graders");
-const MANIFEST_PATH = path.join(GRADERS_DIR, "grader_manifest.json");
-const PAYLOAD_PATH = path.join(GRADERS_DIR, "grader_payload.json");
-const RESULTS_PATH = path.join(GRADERS_DIR, "grader_results.json");
-const OPERATIONAL_VALUE_EVALUATOR_PATH = path.join(GRADERS_DIR, "operational_value_evaluator.sh");
+/** @typedef {import("./types/unified_session").UnifiedSession} UnifiedSession */
+/** @typedef {ReturnType<typeof createSessionLookups>} SessionLookups */
+/** @typedef {(session: UnifiedSession, config?: Record<string, any>, lookups?: SessionLookups) => any} Grader */
 
-// Trace source file paths
-const TOKEN_USAGE_PATHS = [
-  path.join(TMP_GH_AW, "sandbox/firewall-audit-logs/api-proxy-logs/token-usage.jsonl"),
-  path.join(TMP_GH_AW, "sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl"),
-  path.join(TMP_GH_AW, "sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl"),
-];
-const AGENT_USAGE_PATH = path.join(TMP_GH_AW, "agent_usage.json");
-const MCP_GATEWAY_LOG_PATHS = [path.join(TMP_GH_AW, "mcp-logs/gateway.jsonl"), path.join(TMP_GH_AW, "mcp-logs/mcp-gateway.jsonl"), path.join(TMP_GH_AW, "mcp-logs/rpc-messages.jsonl")];
-const AGENT_OUTPUT_PATH = path.join(TMP_GH_AW, "agent_output.json");
-const COPILOT_SESSION_STATE_DIR = path.join(TMP_GH_AW, "sandbox", "agent", "logs", "copilot-session-state");
-const EVALS_RESULTS_PATH = path.join(TMP_GH_AW, "evals.jsonl");
-
-// Safety limits
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
-const MAX_LINE_LENGTH = 1024 * 1024; // 1 MB per line
-const SCRIPT_TIMEOUT_MS = 5000; // 5 seconds per custom grader
-const SCRIPT_WORKER_OVERHEAD_MS = 1000; // Allow worker startup/serialization overhead.
-const SCRIPT_WORKER_PATH = path.join(__dirname, "trace_graders_worker.cjs");
-
-const GRADER_VERSION = 1;
+const GRADER_VERSION = 2;
 const IMPLEMENTATION_ID = "gh-aw/graders";
+const DEFAULT_GRADER_IDS = ["tool-success-rate", "tool-failure-count", "retries", "loops", "trajectory-efficiency", "execution-step-count", "execution-duration", "working-set-rebuild-factor", "context-growth", "artifact-production"];
 
-// --- Trace preprocessing ---
-
-/**
- * Safely read a file if it exists and is within size limits.
- * @param {string} filePath
- * @returns {string|null}
- */
-function safeReadFile(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) return null;
-    const stat = fs.statSync(filePath);
-    if (stat.size > MAX_FILE_SIZE) {
-      core.warning(`Graders: skipping oversized file ${filePath} (${stat.size} bytes)`);
-      return null;
-    }
-    return fs.readFileSync(filePath, "utf-8");
-  } catch {
-    // Intentionally ignore unreadable/missing files in fallback path probes.
-    return null;
-  }
+/** @param {(lookups: SessionLookups) => any} grade @returns {Grader} */
+function fromStats(grade) {
+  return (session, _config, lookups = createSessionLookups(session)) => grade(lookups);
 }
 
-/**
- * Safely parse JSONL, skipping malformed or oversized lines.
- * @param {string} content
- * @returns {any[]}
- */
-function safeParseJsonl(content) {
-  return Array.from(iterateJsonl(content, { lineFilter: line => line.length <= MAX_LINE_LENGTH }));
-}
-
-/**
- * Safely parse JSON, returning null on failure.
- * @param {string} content
- * @returns {object|null}
- */
-function safeParseJson(content) {
-  if (content.length > MAX_FILE_SIZE) return null;
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * @param {any} v
- * @returns {v is Record<string, any>}
- */
-function isRecord(v) {
-  return v !== null && typeof v === "object" && !Array.isArray(v);
-}
-
-/**
- * Read the first available file from a list of candidate paths.
- * @param {string[]} paths
- * @returns {string|null}
- */
-function readFirstAvailable(paths) {
-  for (const p of paths) {
-    const content = safeReadFile(p);
-    if (content !== null) return content;
-  }
-  return null;
-}
-
-/**
- * Deep-freeze an object recursively. Returns the same object.
- * @template T
- * @param {T} obj
- * @returns {T}
- */
-function deepFreeze(obj) {
-  if (obj === null || typeof obj !== "object") return obj;
-  Object.freeze(obj);
-  for (const key of Object.getOwnPropertyNames(obj)) {
-    const v = /** @type {any} */ obj[key];
-    if (v !== null && typeof v === "object" && !Object.isFrozen(v)) {
-      deepFreeze(v);
-    }
-  }
-  return obj;
-}
-
-/**
- * Deep clone via JSON round-trip (safe for plain data objects).
- * @param {any} obj
- * @returns {any}
- */
-function deepClone(obj) {
-  if (obj === null || obj === undefined) return obj;
-  try {
-    return structuredClone(obj);
-  } catch {
-    if (Array.isArray(obj)) {
-      return obj.map(item => deepClone(item));
-    }
-    if (obj !== null && typeof obj === "object") {
-      const out = {};
-      for (const [k, v] of Object.entries(obj)) {
-        out[k] = deepClone(v);
-      }
-      return out;
-    }
-    return obj;
-  }
-}
-
-/**
- * Build a compact summary of eval outputs for cross-linking with grader results.
- * @returns {{total:number, yes:number, no:number, unknown:number, byQuestion:Record<string, string>}|null}
- */
-function readEvalSummary() {
-  const content = safeReadFile(EVALS_RESULTS_PATH);
-  if (!content) {
-    return null;
-  }
-  const records = safeParseJsonl(content);
-  if (records.length === 0) {
-    return null;
-  }
-  const summary = {
-    total: 0,
-    yes: 0,
-    no: 0,
-    unknown: 0,
-    byQuestion: {},
-  };
-  for (const record of records) {
-    if (!record || typeof record !== "object") {
-      continue;
-    }
-    const id = typeof record.id === "string" ? record.id : "";
-    const answerRaw = typeof record.answer === "string" ? record.answer.toUpperCase() : "UNKNOWN";
-    const answer = answerRaw === "YES" || answerRaw === "NO" ? answerRaw : "UNKNOWN";
-    summary.total += 1;
-    if (answer === "YES") summary.yes += 1;
-    else if (answer === "NO") summary.no += 1;
-    else summary.unknown += 1;
-    if (id) {
-      summary.byQuestion[id] = answer;
-    }
-  }
-  return summary.total > 0 ? summary : null;
-}
-
-/**
- * Find staged Copilot `events.jsonl` files (native agent event logs).
- * Files are returned in sorted order so preprocessing is deterministic.
- * @param {string} [sessionStateDir]
- * @returns {string[]}
- */
-function findAgentEventsFiles(sessionStateDir = COPILOT_SESSION_STATE_DIR) {
-  /** @type {string[]} */
-  const eventPaths = [];
-  try {
-    if (!fs.existsSync(sessionStateDir)) return eventPaths;
-    for (const entry of fs.readdirSync(sessionStateDir, { withFileTypes: true })) {
-      if (entry.isFile() && entry.name === "events.jsonl") {
-        eventPaths.push(path.join(sessionStateDir, entry.name));
-      } else if (entry.isDirectory()) {
-        const candidate = path.join(sessionStateDir, entry.name, "events.jsonl");
-        if (fs.existsSync(candidate)) eventPaths.push(candidate);
-      }
-    }
-  } catch {
-    // Intentionally ignore unreadable session directories.
-    return eventPaths;
-  }
-  return eventPaths.sort();
-}
-
-/**
- * Stable JSON stringification (object keys sorted) used for dedupe keys.
- * @param {any} value
- * @returns {string}
- */
-function stableStringify(value) {
-  if (value === undefined) return "";
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
-  if (isRecord(value)) {
-    return `{${Object.keys(value)
-      .sort()
-      .map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
-      .join(",")}}`;
-  }
-  try {
-    return JSON.stringify(value) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Normalize a tool name for dedupe comparisons. Only case and surrounding
- * whitespace are ignored: separators are meaningful (`list_issues` and
- * `list-issues` may be different tools), so they are preserved.
- * @param {any} name
- * @returns {string}
- */
-function normalizeToolName(name) {
-  return typeof name === "string" ? name.trim().toLowerCase() : "";
-}
-
-/**
- * Structured arguments of a native agent tool event. Copilot CLI and the Copilot
- * SDK spell the payload differently (`input`, `arguments`, `parameters`, ...); a
- * bare `command` string is wrapped so that shell invocations still carry their
- * command text.
- * @param {any} data
- * @returns {any}
- */
-function extractToolArguments(data) {
-  if (!isRecord(data)) return undefined;
-  const input = extractStructuredToolInput(data);
-  if (input !== undefined) return input;
-  if (typeof data.command === "string" && data.command !== "") return { command: data.command };
-  return undefined;
-}
-
-/**
- * Build the dedupe keys of a tool call record. A native record may be known by
- * several aliases (bare tool name, MCP tool name, server-prefixed name), so all
- * candidates are returned and any match counts as the same call.
- * @param {any} call
- * @returns {string[]}
- */
-function toolCallDedupeKeys(call) {
-  const server = normalizeToolName(call.mcpServerName);
-  const mcpToolName = typeof call.mcpToolName === "string" ? call.mcpToolName : "";
-  /** @type {Array<string|undefined>} */
-  const baseNames = [call.name, call.tool, call.tool_name, mcpToolName];
-  /** @type {Array<string|undefined>} */
-  const names = [...baseNames];
-  if (server) {
-    // MCP calls are named differently by each producer: the gateway logs the bare
-    // tool name plus a server id, while agents report `server-tool`, `server__tool`
-    // or `mcp__server__tool`. All spellings map onto the same call.
-    for (const bare of baseNames) {
-      const normalized = normalizeToolName(bare);
-      if (!normalized) continue;
-      names.push(`${server}-${normalized}`, `${server}__${normalized}`, `mcp__${server}__${normalized}`);
-      for (const separator of ["-", "__"]) {
-        const prefix = `${server}${separator}`;
-        if (normalized.startsWith(prefix)) names.push(normalized.slice(prefix.length));
-      }
-      if (normalized.startsWith(`mcp__${server}__`)) names.push(normalized.slice(`mcp__${server}__`.length));
-    }
-  }
-  const argsKey = stableStringify(call.arguments);
-  const keys = new Set();
-  for (const name of names) {
-    const normalized = normalizeToolName(name);
-    if (normalized) keys.add(`${normalized}|${argsKey}`);
-  }
-  return [...keys];
-}
-
-/**
- * Normalize native agent `events.jsonl` records into grader tool call entries.
- * `tool.execution_start` produces the entry (name, arguments, toolCallId) and a
- * matching `tool.execution_complete` supplies the `success` value. Calls without
- * a completion stay distinguishable through `completed: false`.
- * @param {any[]} entries
- * @returns {any[]}
- */
-function extractNativeToolCalls(entries) {
-  /** @type {any[]} */
-  const calls = [];
-  /** @type {Map<string, any>} */
-  const byCallId = new Map();
-  /** @type {Map<string, any[]>} */
-  const pendingByName = new Map();
-
-  /**
-   * Drop a started call from the name-ordered pending queue once it completes.
-   * @param {string} name
-   * @param {any} call
-   */
-  const removePending = (name, call) => {
-    const queue = pendingByName.get(name);
-    if (!queue) return;
-    const index = queue.indexOf(call);
-    if (index >= 0) queue.splice(index, 1);
-  };
-
-  for (const entry of entries) {
-    if (!isRecord(entry)) continue;
-    const data = isRecord(entry.data) ? entry.data : {};
-    const toolCallId = typeof data.toolCallId === "string" ? data.toolCallId : "";
-    const mcpServerName = typeof data.mcpServerName === "string" ? data.mcpServerName : "";
-    const name = typeof data.toolName === "string" ? data.toolName : "";
-
-    if (entry.type === "tool.execution_start") {
-      if (!name) continue;
-      const args = extractToolArguments(data);
-      /** @type {any} */
-      const call = {
-        source: "agent",
-        name,
-        tool: name,
-        completed: false,
-        ...(args === undefined ? {} : { arguments: args }),
-        ...(toolCallId ? { toolCallId } : {}),
-        ...(mcpServerName ? { mcpServerName } : {}),
-        ...(typeof data.mcpToolName === "string" && data.mcpToolName ? { mcpToolName: data.mcpToolName } : {}),
-        ...(typeof entry.timestamp === "string" ? { timestamp: entry.timestamp } : {}),
-      };
-      calls.push(call);
-      if (toolCallId) byCallId.set(toolCallId, call);
-      // Every pending start is also queued by name so that a completion without a
-      // toolCallId can still be correlated when starts and completions disagree
-      // about whether ids are present.
-      const queue = pendingByName.get(name) ?? [];
-      queue.push(call);
-      pendingByName.set(name, queue);
-      continue;
-    }
-
-    if (entry.type !== "tool.execution_complete") continue;
-
-    const success = data.success === true;
-    let call = toolCallId ? byCallId.get(toolCallId) : undefined;
-    if (!call) {
-      // Copilot SDK-produced events may omit toolCallId; correlate by tool name in order.
-      const queue = name ? pendingByName.get(name) : undefined;
-      if (queue && queue.length > 0) call = queue.shift();
-    } else {
-      removePending(typeof call.name === "string" ? call.name : name, call);
-    }
-    if (!call) {
-      // Completion without a matching start: keep the record so the call is still visible.
-      if (!name) continue;
-      call = {
-        source: "agent",
-        name,
-        tool: name,
-        ...(toolCallId ? { toolCallId } : {}),
-        ...(mcpServerName ? { mcpServerName } : {}),
-        ...(typeof data.mcpToolName === "string" && data.mcpToolName ? { mcpToolName: data.mcpToolName } : {}),
-        ...(typeof entry.timestamp === "string" ? { timestamp: entry.timestamp } : {}),
-      };
-      calls.push(call);
-    }
-    if (toolCallId) {
-      call.toolCallId = toolCallId;
-      byCallId.delete(toolCallId);
-    }
-    call.completed = true;
-    call.success = success;
-    call.status = success ? "success" : "error";
-    if (!success && isRecord(data.error)) call.error = data.error;
-  }
-
-  return calls;
-}
-
-/**
- * Merge native agent tool calls with MCP gateway derived ones, dropping gateway
- * records that duplicate a native record (same tool name and arguments).
- * @param {any[]} nativeCalls
- * @param {any[]} gatewayCalls
- * @returns {any[]}
- */
-function mergeToolCalls(nativeCalls, gatewayCalls) {
-  if (nativeCalls.length === 0) return gatewayCalls;
-  /** @type {Map<string, number[]>} */
-  const index = new Map();
-  nativeCalls.forEach((call, i) => {
-    for (const key of toolCallDedupeKeys(call)) {
-      const bucket = index.get(key) ?? [];
-      bucket.push(i);
-      index.set(key, bucket);
-    }
-  });
-
-  /** @type {Set<number>} */
-  const consumed = new Set();
-  const merged = [...nativeCalls];
-  for (const gatewayCall of gatewayCalls) {
-    let duplicate = false;
-    for (const key of toolCallDedupeKeys(gatewayCall)) {
-      const bucket = index.get(key);
-      if (!bucket) continue;
-      const match = bucket.find(i => !consumed.has(i));
-      if (match === undefined) continue;
-      consumed.add(match);
-      duplicate = true;
-      break;
-    }
-    if (!duplicate) merged.push(gatewayCall);
-  }
-  return merged;
-}
-
-/**
- * @typedef {object} PreprocessedTrace
- * @property {any[]} tokenUsageEntries - Parsed token-usage JSONL records
- * @property {object|null} agentUsage - Parsed agent_usage.json
- * @property {any[]} mcpGatewayEntries - Parsed MCP gateway log records
- * @property {object|null} agentOutput - Parsed agent_output.json
- * @property {any[]} toolCalls - Extracted tool call records (native agent events + MCP gateway)
- * @property {any[]} [nativeToolCalls] - Tool calls normalized from native agent events.jsonl
- * @property {any[]} gatewayRequests - Request/response pairs from gateway
- * @property {any[]} retryEvents - Detected retry events
- * @property {any[]} errorEvents - Detected error events
- * @property {any[]} steps - Extracted execution steps (LLM requests)
- * @property {number} totalInputTokens - Sum of input tokens
- * @property {number} totalOutputTokens - Sum of output tokens
- * @property {number} totalDurationMs - Sum of duration_ms from token usage
- * @property {number} totalRequests - Count of token usage entries (LLM requests)
- * @property {any[]} files - Files mentioned in agent output
- * @property {any[]} artifacts - Artifacts/outputs from agent
- */
-
-/**
- * Single preprocessing pass over all trace files.
- * @returns {PreprocessedTrace}
- */
-function preprocessTrace() {
-  // Token usage
-  const tokenContent = readFirstAvailable(TOKEN_USAGE_PATHS);
-  const tokenUsageEntries = tokenContent ? safeParseJsonl(tokenContent) : [];
-
-  // Agent usage
-  const agentUsageContent = safeReadFile(AGENT_USAGE_PATH);
-  const agentUsage = agentUsageContent ? safeParseJson(agentUsageContent) : null;
-
-  // MCP gateway logs
-  const gatewayContent = readFirstAvailable(MCP_GATEWAY_LOG_PATHS);
-  const mcpGatewayEntries = gatewayContent ? safeParseJsonl(gatewayContent) : [];
-
-  // Agent output
-  const agentOutputContent = safeReadFile(AGENT_OUTPUT_PATH);
-  const agentOutput = agentOutputContent ? safeParseJson(agentOutputContent) : null;
-
-  // Extract tool calls from MCP gateway entries.
-  // Also support rpc fallback records that expose tool_name/payload.tool_name and
-  // the standard JSON-RPC `tools/call` shape (payload.params.name/arguments) used
-  // by rpc-messages.jsonl.
-  const gatewayToolCalls = mcpGatewayEntries
-    .filter(e => {
-      const payload = isRecord(e.payload) ? e.payload : null;
-      return e.type === "tool_call" || e.method === "tools/call" || e.event === "tool_call" || typeof e.tool_name === "string" || (payload !== null && typeof payload.tool_name === "string");
-    })
-    .map(e => {
-      const payload = isRecord(e.payload) ? e.payload : null;
-      const params = payload !== null && isRecord(payload.params) ? payload.params : null;
-      const rpcToolName = params !== null && typeof params.name === "string" ? params.name : undefined;
-      const toolName = typeof e.tool_name === "string" ? e.tool_name : payload !== null && typeof payload.tool_name === "string" ? payload.tool_name : rpcToolName;
-      // For standard JSON-RPC requests the arguments live in params.arguments; only
-      // fall back to the whole params envelope for non-standard payloads.
-      const args = payload === null ? undefined : (payload.arguments ?? (params !== null && rpcToolName !== undefined ? params.arguments : payload.params));
-      const serverName = e.mcpServerName ?? e.server_id;
-      return {
-        ...e,
-        name: e.name || e.tool || toolName,
-        tool: e.tool || toolName,
-        arguments: e.arguments ?? args,
-        ...(typeof serverName === "string" && serverName ? { mcpServerName: serverName } : {}),
-      };
-    });
-
-  // Native agent tool calls (Copilot events.jsonl), including built-in tools such
-  // as `skill` that never reach the MCP gateway.
-  const nativeToolCalls = [];
-  for (const eventsPath of findAgentEventsFiles()) {
-    const eventsContent = safeReadFile(eventsPath);
-    if (eventsContent === null) continue;
-    nativeToolCalls.push(...extractNativeToolCalls(safeParseJsonl(eventsContent)));
-  }
-
-  const toolCalls = mergeToolCalls(nativeToolCalls, gatewayToolCalls);
-
-  // Gateway request/response pairs
-  const gatewayRequests = mcpGatewayEntries.filter(e => e.type === "request" || e.type === "response" || e.method);
-
-  // Retry events
-  const retryEvents = mcpGatewayEntries.filter(e => e.retry === true || e.event === "retry" || (typeof e.message === "string" && /retry|retrying/i.test(String(e.message))));
-
-  // Error events
-  const errorEvents = mcpGatewayEntries.filter(e => e.level === "error" || e.type === "error" || e.event === "error");
-
-  // Aggregate token counts
-  let totalInputTokens = 0;
-  let totalOutputTokens = 0;
-  let totalDurationMs = 0;
-  for (const entry of tokenUsageEntries) {
-    totalInputTokens += Number(entry.input_tokens) || 0;
-    totalOutputTokens += Number(entry.output_tokens) || 0;
-    totalDurationMs += Number(entry.duration_ms) || 0;
-  }
-
-  // Steps: each token usage entry represents an LLM request/step
-  const steps = tokenUsageEntries.map((entry, i) => ({
-    index: i,
-    inputTokens: Number(entry.input_tokens) || 0,
-    outputTokens: Number(entry.output_tokens) || 0,
-    durationMs: Number(entry.duration_ms) || 0,
-    model: entry.model || null,
-  }));
-
-  // Extract files and artifacts from agent output
-  const ao = agentOutput !== null && typeof agentOutput === "object" ? agentOutput : null;
-  const files = ao && "files" in ao && Array.isArray(ao.files) ? ao.files : [];
-  const artifacts = ao && "outputs" in ao && Array.isArray(ao.outputs) ? ao.outputs : ao && "items" in ao && Array.isArray(ao.items) ? ao.items : [];
-
-  return {
-    tokenUsageEntries,
-    agentUsage,
-    mcpGatewayEntries,
-    agentOutput,
-    toolCalls,
-    nativeToolCalls,
-    gatewayRequests,
-    retryEvents,
-    errorEvents,
-    steps,
-    totalInputTokens,
-    totalOutputTokens,
-    totalDurationMs,
-    totalRequests: tokenUsageEntries.length,
-    files,
-    artifacts,
-  };
-}
-
-// --- Built-in graders ---
-
-/**
- * A tool call counts as failed when it reported an explicit failure, or when it
- * started but never completed (`completed: false`) — an unfinished call never
- * produced a successful result and must not be scored as a success.
- * @param {any} toolCall
- * @returns {boolean}
- */
-function isToolFailure(toolCall) {
-  return toolCall.success === false || toolCall.completed === false || toolCall.status === "error" || toolCall.status === "failure" || toolCall.error !== undefined;
-}
-
-/**
- * @param {PreprocessedTrace} trace
- * @returns {number} Success rate of tool calls (0-1), or 1 if no tool calls
- */
-function gradeToolSuccessRate(trace) {
-  if (trace.toolCalls.length === 0) return 1;
-  const successes = trace.toolCalls.length - trace.toolCalls.filter(isToolFailure).length;
-  return successes / trace.toolCalls.length;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeToolFailureCount(trace) {
-  return trace.toolCalls.filter(isToolFailure).length;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeRetries(trace) {
-  return trace.retryEvents.length;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeLoops(trace) {
-  let loops = 0;
-  let prevKey = "";
-  for (const t of trace.toolCalls) {
-    const key = `${String(t.name || t.tool)}:${JSON.stringify(t.arguments || t.params || "")}`;
-    if (key === prevKey) loops++;
-    prevKey = key;
-  }
-  return loops;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeTrajectoryEfficiency(trace) {
-  if (trace.toolCalls.length === 0) return 1;
-  const uniqueTools = new Set(trace.toolCalls.map(t => String(t.name || t.tool || "")));
-  return Math.min(1, uniqueTools.size / trace.toolCalls.length);
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeExecutionStepCount(trace) {
-  return trace.totalRequests;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeExecutionDuration(trace) {
-  return trace.totalDurationMs;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number|null} */
-function gradeWorkingSetRebuildFactor(trace) {
-  const { workingSet } = calculateWorkingSetFromEntries(trace.tokenUsageEntries);
-  return workingSet.rebuild_factor ?? null;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeContextGrowth(trace) {
-  if (trace.tokenUsageEntries.length < 2) return 1;
-  const first = trace.tokenUsageEntries[0];
-  const firstTokens = (Number(first.input_tokens) || 0) + (Number(first.output_tokens) || 0);
-  if (firstTokens === 0) return 1;
-  const totalTokens = trace.totalInputTokens + trace.totalOutputTokens;
-  return totalTokens / firstTokens;
-}
-
-/** @param {PreprocessedTrace} trace @returns {number} */
-function gradeArtifactProduction(trace) {
-  return trace.artifacts.length;
-}
-
-/** @type {Record<string, (trace: PreprocessedTrace, config?: Record<string, any>) => any>} */
+/** Every implementation consumes the same in-memory log; none perform I/O. @type {Record<string, Grader>} */
 const BUILTIN_GRADERS = {
-  "tool-success-rate": gradeToolSuccessRate,
-  "tool-failure-count": gradeToolFailureCount,
-  retries: gradeRetries,
-  loops: gradeLoops,
-  "trajectory-efficiency": gradeTrajectoryEfficiency,
-  "execution-step-count": gradeExecutionStepCount,
-  "execution-duration": gradeExecutionDuration,
-  "working-set-rebuild-factor": gradeWorkingSetRebuildFactor,
-  "context-growth": gradeContextGrowth,
-  "artifact-production": gradeArtifactProduction,
-  ...TRAJECTORY_GRADERS,
+  "tool-success-rate": fromStats(({ stats }) => (stats.toolCallCount ? (stats.toolCallCount - stats.failedToolCalls) / stats.toolCallCount : 1)),
+  "tool-failure-count": fromStats(({ stats }) => stats.failedToolCalls),
+  retries: fromStats(({ stats }) => stats.retryCount),
+  loops: fromStats(({ toolCalls }) => {
+    let loops = 0;
+    let previous;
+    for (const call of toolCalls) {
+      const key = stableStringify([call.sessionScope, call.name, call.arguments]);
+      if (key === previous) loops++;
+      previous = key;
+    }
+    return loops;
+  }),
+  "trajectory-efficiency": fromStats(({ toolCalls }) => (toolCalls.length ? new Set(toolCalls.map(call => call.name)).size / toolCalls.length : 1)),
+  "execution-step-count": fromStats(({ stats }) => stats.totalRequests || null),
+  "execution-duration": fromStats(({ stats }) => stats.totalDurationMs),
+  "working-set-rebuild-factor": fromStats(({ stats }) => (stats.workingSet.measurement_state === "measured" ? (stats.workingSet.rebuild_factor ?? null) : null)),
+  "context-growth": fromStats(({ trace }) => {
+    if (!trace.tokenUsageEntries.length) return null;
+    if (trace.totalInputTokens === null || trace.totalOutputTokens === null) return null;
+    const first = trace.tokenUsageEntries[0];
+    const firstTokens = (first.input_tokens ?? 0) + (first.output_tokens ?? 0);
+    return firstTokens ? (trace.totalInputTokens + trace.totalOutputTokens) / firstTokens : null;
+  }),
+  "artifact-production": fromStats(({ stats }) => stats.artifactCount),
+  ...Object.fromEntries(Object.entries(TRAJECTORY_GRADERS).map(([id, grade]) => [id, (session, config, lookups = createSessionLookups(session)) => grade(lookups.trace, config)])),
 };
 
-// --- Execution ---
-
-/**
- * Evaluate a grader's pass/fail against its threshold.
- * @param {number} value
- * @param {string} direction
- * @param {number|undefined} threshold
- * @returns {boolean|null} null if no threshold set
- */
+/** @param {number} value @param {string} direction @param {number | undefined} threshold @returns {boolean | null} */
 function evaluateThreshold(value, direction, threshold) {
   if (threshold === undefined || threshold === null) return null;
   if (direction === "higher_is_better") return value >= threshold;
@@ -693,22 +63,112 @@ function evaluateThreshold(value, direction, threshold) {
  * @property {number|null} value
  * @property {string} unit
  * @property {boolean|null} passed
- * @property {string} status - "pass" | "fail" | "error" | "unavailable"
- * @property {string} [severity]
- * @property {string} [details]
- * @property {string} [message]
+ * @property {string} status
+ * @property {string} source
  * @property {string} [error]
- * @property {string} source - "builtin" | "inline" | "value"
- * @property {{id: string, value: number|null}[]} [metrics]
+ * @property {string} [message]
+ * @property {string} [details]
+ * @property {string} [severity]
  * @property {object} [diagnostics]
- * @property {{id: string, version: number, digest?: string}} implementation
+ * @property {{id: string, version: number}} implementation
  */
 
+/** @param {string} id @param {any} raw @param {any} meta @returns {GraderResult} */
+function normalizeResult(id, raw, meta) {
+  const object = isRecord(raw) ? raw : {};
+  const value = isRecord(raw) ? raw.value : raw;
+  const passed = typeof object.passed === "boolean" ? object.passed : typeof value === "number" ? evaluateThreshold(value, meta.direction, meta.threshold) : null;
+  const finite = typeof value === "number" && Number.isFinite(value);
+  const unavailable = value === null || value === undefined;
+  return {
+    id,
+    name: meta.name || id,
+    ...(meta.description ? { description: meta.description } : {}),
+    value: finite ? value : null,
+    unit: meta.unit || "",
+    passed: finite ? passed : null,
+    status: unavailable ? "unavailable" : !finite ? "error" : passed === false ? "fail" : "pass",
+    source: "builtin",
+    implementation: { id: IMPLEMENTATION_ID, version: GRADER_VERSION },
+    ...(!finite && !unavailable ? { error: `grader ${id} returned a non-finite numeric value` } : {}),
+    ...(typeof object.message === "string" ? { message: object.message } : {}),
+    ...(typeof object.details === "string" ? { details: object.details } : {}),
+    ...(typeof object.severity === "string" ? { severity: object.severity } : {}),
+    ...(isRecord(object.diagnostics) ? { diagnostics: structuredClone(object.diagnostics) } : {}),
+  };
+}
+
+/** @param {string} id @param {UnifiedSession} session @param {any} meta @param {SessionLookups} [lookups] @returns {GraderResult} */
+function runBuiltinGrader(id, session, meta, lookups = createSessionLookups(session)) {
+  if (!Object.hasOwn(BUILTIN_GRADERS, id)) throw new Error(`unsupported grader ${id}: only built-in graders are allowed`);
+  try {
+    return normalizeResult(id, BUILTIN_GRADERS[id](session, meta.config ?? {}, lookups), meta);
+  } catch (error) {
+    return { ...normalizeResult(id, null, meta), status: "error", error: `grader ${id} runtime error: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+/** @param {any[]} graders @returns {any[]} */
+function withDefaultGraders(graders) {
+  const declared = new Set();
+  const result = graders.map(grader => {
+    if (!isRecord(grader) || !Object.hasOwn(BUILTIN_GRADERS, grader.id) || (grader.source !== undefined && grader.source !== "builtin") || Object.hasOwn(grader, "script") || Object.hasOwn(grader, "run")) {
+      throw new Error("custom graders are not supported; only built-in graders are allowed");
+    }
+    if (declared.has(grader.id)) throw new Error(`duplicate grader ${grader.id}`);
+    declared.add(grader.id);
+    return { ...BUILTIN_META[grader.id], enabled: true, ...grader, source: "builtin" };
+  });
+  for (const id of DEFAULT_GRADER_IDS) {
+    if (!declared.has(id)) result.push({ id, ...BUILTIN_META[id], enabled: true, source: "builtin" });
+  }
+  return result;
+}
+
 /**
- * Escape values for step summary rendering.
- * @param {any} value
- * @returns {string}
+ * Pure grading entry point. The caller owns log collection and result persistence.
+ * @param {UnifiedSession} session
+ * @param {any[]} [graders]
  */
+function computeGraders(session, graders = []) {
+  const manifest = { version: GRADER_VERSION, graders: withDefaultGraders(graders) };
+  const lookups = createSessionLookups(session);
+  const results = manifest.graders.filter(grader => grader.enabled).map(grader => runBuiltinGrader(grader.id, session, grader, lookups));
+  return { manifest, output: buildGraderOutput(results, lookups) };
+}
+
+/** @param {GraderResult[]} results @param {SessionLookups} lookups */
+function buildGraderOutput(results, lookups) {
+  const info = lookups.eventsOfType("workflow.info")[0]?.data;
+  const evals = lookups.eventsOfType("eval.result").map(event => event.data);
+  const byQuestion = Object.fromEntries(evals.filter(record => typeof record.id === "string").map(record => [record.id, record.answer]));
+  return {
+    version: GRADER_VERSION,
+    run: {
+      id: String(info?.runId ?? ""),
+      ...(info?.runAttempt !== undefined ? { attempt: info.runAttempt } : {}),
+      graderCount: results.length,
+      passed: results.filter(result => result.status === "pass").length,
+      failed: results.filter(result => result.status === "fail").length,
+      errors: results.filter(result => result.status === "error").length,
+    },
+    context: {
+      experiments: lookups.eventsOfType("experiment.assignment")[0]?.data.assignments,
+      evals: evals.length
+        ? {
+            total: evals.length,
+            yes: evals.filter(record => record.answer === "YES").length,
+            no: evals.filter(record => record.answer === "NO").length,
+            unknown: evals.filter(record => record.answer !== "YES" && record.answer !== "NO").length,
+            byQuestion,
+          }
+        : undefined,
+    },
+    results,
+  };
+}
+
+/** @param {any} value @returns {string} */
 function sanitizeSummaryText(value) {
   return String(value ?? "")
     .replace(/\r?\n/g, " ")
@@ -718,487 +178,38 @@ function sanitizeSummaryText(value) {
     .trim();
 }
 
-/**
- * @param {GraderResult} result
- * @returns {result is GraderResult & {value: number}}
- */
+/** @param {GraderResult[]} results @returns {string} */
+function buildGradersSummaryBody(results) {
+  const computed = results.filter(hasComputedValue);
+  if (!computed.length) return "\n\nNo grader values available.\n\n";
+  return [
+    "",
+    "",
+    "| Status | Grader | Source | Value | Unit |",
+    "| --- | --- | --- | --- | --- |",
+    ...computed.map(result => `| ${result.status === "fail" ? "Fail" : "Pass"} | ${sanitizeSummaryText(result.name)} | builtin | ${Number(result.value.toFixed(4))} | ${sanitizeSummaryText(result.unit)} |`),
+    "",
+    "",
+  ].join("\n");
+}
+
+/** @param {GraderResult} result @returns {result is GraderResult & {value: number}} */
 function hasComputedValue(result) {
   return typeof result.value === "number";
 }
 
-/**
- * Build the Graders section body for the GitHub Actions step summary.
- * @param {GraderResult[]} results
- * @returns {string}
- */
-function buildGradersSummaryBody(results) {
-  const computedResults = results.filter(hasComputedValue);
-  if (computedResults.length === 0) {
-    return "\n\nNo grader values available.\n\n";
-  }
-
-  const statusLabels = { pass: "Pass", fail: "Fail", error: "Error", unavailable: "Unavailable" };
-  const rows = computedResults.map(result => {
-    const value = String(Number(result.value.toFixed(4)));
-    return `| ${statusLabels[result.status] || "Unknown"} | ${sanitizeSummaryText(result.name)} | ${sanitizeSummaryText(result.source)} | ${value} | ${sanitizeSummaryText(result.unit || "—")} |`;
-  });
-
-  return ["", "", "| Status | Grader | Source | Value | Unit |", "| --- | --- | --- | --- | --- |", ...rows, "", ""].join("\n");
-}
-
-/**
- * Normalize a grader result from either built-in number or custom object return.
- * @param {string} id
- * @param {any} rawResult - number or {value, unit?, passed?, severity?, details?, message?}
- * @param {{name: string, description?: string, unit: string, direction: string, threshold?: number, source: string, digest?: string}} meta
- * @returns {GraderResult}
- */
-function normalizeResult(id, rawResult, meta) {
-  /** @type {GraderResult} */
-  const base = {
-    id,
-    name: meta.name || id,
-    ...(meta.description ? { description: meta.description } : {}),
-    value: null,
-    unit: meta.unit || "",
-    passed: null,
-    status: "error",
-    source: meta.source,
-    implementation: { id: IMPLEMENTATION_ID, version: GRADER_VERSION, ...(meta.digest ? { digest: meta.digest } : {}) },
-  };
-
-  if (rawResult === null || rawResult === undefined) {
-    base.status = "unavailable";
-    base.message = "grader returned null/undefined";
-    return base;
-  }
-
-  let value;
-  if (typeof rawResult === "object" && rawResult !== null && !Array.isArray(rawResult)) {
-    // Object result from custom script
-    value = rawResult.value;
-    if (typeof rawResult.severity === "string" && ["error", "warning", "info", "note"].includes(rawResult.severity)) base.severity = rawResult.severity;
-    if (rawResult.details) base.details = String(rawResult.details);
-    if (rawResult.message) base.message = String(rawResult.message);
-    if (typeof rawResult.passed === "boolean") base.passed = rawResult.passed;
-    if (Array.isArray(rawResult.metrics)) base.metrics = deepClone(rawResult.metrics);
-    if (isRecord(rawResult.diagnostics)) base.diagnostics = deepClone(rawResult.diagnostics);
-  } else {
-    value = rawResult;
-  }
-
-  if (value === null || value === undefined) {
-    base.status = "unavailable";
-    base.message ||= "grader returned no value";
-    return base;
-  }
-
-  if (typeof value !== "number" || !isFinite(value)) {
-    base.status = "error";
-    base.error = `grader ${id} returned non-finite value: ${value}`;
-    return base;
-  }
-
-  base.value = value;
-
-  // Evaluate threshold if not already set by custom script
-  if (base.passed === null) {
-    base.passed = evaluateThreshold(value, meta.direction, meta.threshold);
-  }
-
-  // Determine status
-  if (base.passed === true) base.status = "pass";
-  else if (base.passed === false) base.status = "fail";
-  else base.status = "pass"; // no threshold = informational pass
-
-  return base;
-}
-
-/**
- * Run a single built-in grader safely.
- * @param {string} id
- * @param {PreprocessedTrace} trace
- * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, config?: Record<string, any>}} meta
- * @returns {GraderResult}
- */
-function runBuiltinGrader(id, trace, meta) {
-  const fn = BUILTIN_GRADERS[id];
-  if (!fn) {
-    return { ...normalizeResult(id, null, meta), status: "error", error: `grader ${id}: no implementation found` };
-  }
-  try {
-    const value = fn(trace, meta.config || {});
-    return normalizeResult(id, value, meta);
-  } catch (err) {
-    const result = normalizeResult(id, null, meta);
-    result.status = "error";
-    result.error = `grader ${id} runtime error: ${getErrorMessage(err)}`;
-    return result;
-  }
-}
-
-/**
- * Run a custom inline script in an isolated worker subprocess.
- * Script receives {trace, run, workflow, config, helpers} and should return {value, ...} or a number.
- * @param {string} id
- * @param {string} script
- * @param {PreprocessedTrace} trace
- * @param {{name: string, unit: string, direction: string, threshold?: number, source: string, digest?: string, config?: object, graderCount?: number}} meta
- * @returns {GraderResult}
- */
-function executeCustomGraderInSubprocess(id, script, trace, meta) {
-  const payload = {
-    id,
-    script,
-    trace,
-    config: meta.config || {},
-    graderCount: Number(meta.graderCount) || 0,
-    timeoutMs: SCRIPT_TIMEOUT_MS,
-  };
-  const safeEnv = {};
-  for (const key of ["SystemRoot"]) {
-    if (process.env[key]) {
-      safeEnv[key] = process.env[key];
-    }
-  }
-  const timeoutMs = SCRIPT_TIMEOUT_MS + SCRIPT_WORKER_OVERHEAD_MS;
-  const permissionFlag = process.allowedNodeEnvironmentFlags.has("--permission") ? "--permission" : process.allowedNodeEnvironmentFlags.has("--experimental-permission") ? "--experimental-permission" : null;
-  if (!permissionFlag) {
-    throw new Error("Node.js permission support is required to run custom graders; install Node.js 20 or newer");
-  }
-  const workerPath = fs.realpathSync(SCRIPT_WORKER_PATH);
-  const proc = cp.spawnSync(process.execPath, [permissionFlag, `--allow-fs-read=${workerPath}`, workerPath], {
-    input: JSON.stringify(payload),
-    encoding: "utf-8",
-    timeout: timeoutMs,
-    maxBuffer: 1024 * 1024,
-    env: safeEnv,
-  });
-
-  const procError = proc.error;
-  if (procError) {
-    if (typeof procError.message === "string" && /ETIMEDOUT|timed out/i.test(procError.message)) {
-      throw new Error(`script worker timed out after ${timeoutMs}ms`);
-    }
-    throw procError;
-  }
-
-  if (proc.status !== 0) {
-    const stderr = (proc.stderr || "").trim();
-    throw new Error(stderr || `script worker exited with status ${String(proc.status)}`);
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(proc.stdout || "{}");
-  } catch (err) {
-    throw new Error(`invalid script worker output: ${getErrorMessage(err)}`, { cause: err });
-  }
-
-  if (!parsed || parsed.ok !== true) {
-    throw new Error(parsed && typeof parsed.error === "string" ? parsed.error : "script worker returned an error");
-  }
-  return parsed.value;
-}
-
-function runCustomGrader(id, script, trace, meta) {
-  try {
-    const rawResult = executeCustomGraderInSubprocess(id, script, trace, meta);
-    return normalizeResult(id, rawResult, meta);
-  } catch (err) {
-    const result = normalizeResult(id, null, meta);
-    result.status = "error";
-    result.error = `grader ${id} runtime error: ${getErrorMessage(err)}`;
-    return result;
-  }
-}
-
-function runOperationalValueGrader(id, evaluatorContent, meta, options) {
-  try {
-    const metrics = executeOperationalValueEvaluator(evaluatorContent, meta, options);
-    const rawResult = {
-      value: metrics[0].value,
-      metrics,
-      ...(metrics.length > 1 ? { diagnostics: Object.fromEntries(metrics.slice(1).map(metric => [metric.id, metric.value])) } : {}),
-    };
-    return normalizeResult(id, rawResult, meta);
-  } catch (err) {
-    const result = normalizeResult(id, null, meta);
-    result.status = "error";
-    result.error = `grader ${id} runtime error: ${getErrorMessage(err)}`;
-    return result;
-  }
-}
-
-function archiveOperationalValueEvaluator(evaluatorContent, expectedDigest, outputPath = OPERATIONAL_VALUE_EVALUATOR_PATH) {
-  const actualDigest = crypto.createHash("sha256").update(evaluatorContent, "utf8").digest("hex");
-  if (!expectedDigest || actualDigest !== expectedDigest) {
-    throw new Error(`operational-value evaluator digest mismatch: expected ${expectedDigest || "none"}, got ${actualDigest}`);
-  }
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, evaluatorContent, { encoding: "utf8", mode: 0o600 });
-}
-
-/**
- * Legacy adapter for existing tests. Runs a grader by id.
- * @param {string} id
- * @param {boolean} builtin
- * @param {string|undefined} script
- * @param {PreprocessedTrace} trace
- * @param {object} [config]
- * @returns {{ value: number|null, error: string|null }}
- */
-function runGrader(id, builtin, script, trace, config) {
-  const meta = { name: id, unit: "", direction: "", source: builtin ? "builtin" : "inline", config };
-  /** @type {GraderResult} */
-  let result;
-  if (builtin && BUILTIN_GRADERS[id]) {
-    result = runBuiltinGrader(id, trace, meta);
-  } else if (script) {
-    result = runCustomGrader(id, script, trace, meta);
-  } else {
-    return { value: null, error: `grader ${id}: no implementation found` };
-  }
-  return { value: result.value, error: result.error || null };
-}
-
-/**
- * Built-in graders are deterministic, in-process, and API-free, so they run on
- * every trace. Append each built-in missing from the manifest (for example a
- * manifest compiled before the grader existed, or one that lists only custom
- * graders) with its default metadata. Explicitly declared entries, including
- * disabled built-ins, retain their overrides.
- * @param {any[]} graders
- * @returns {any[]}
- */
-function withAllBuiltinGraders(graders) {
-  const declared = new Set(graders.filter(isRecord).map(g => g.id));
-  const missing = Object.keys(BUILTIN_GRADERS)
-    .filter(id => !declared.has(id))
-    .map(id => ({ id, ...BUILTIN_META[id], source: "builtin", enabled: true }));
-  return [...graders.map(g => (g?.source === "builtin" && BUILTIN_META[g.id] ? { ...BUILTIN_META[g.id], ...g } : g)), ...missing];
-}
-
-/** @param {string} prefix @returns {any} */
-function readGraderEnvironment(prefix) {
-  const countText = process.env[`${prefix}_CHUNKS`];
-  const count = Number(countText);
-  if (!countText || !Number.isSafeInteger(count) || count < 1 || count > 10000) throw new Error(`invalid ${prefix}_CHUNKS`);
-  const chunks = [];
-  for (let index = 0; index < count; index++) {
-    const chunk = process.env[`${prefix}_${index}`];
-    if (chunk === undefined) throw new Error(`missing ${prefix}_${index}`);
-    chunks.push(chunk);
-  }
-  return JSON.parse(chunks.join(""));
-}
-
-async function mainFromEnvironment() {
-  let manifest;
-  let execSpec;
-  try {
-    manifest = readGraderEnvironment("GH_AW_GRADER_MANIFEST");
-    execSpec = readGraderEnvironment("GH_AW_GRADER_EXEC");
-  } catch (err) {
-    core.setFailed(`Graders: failed to parse environment payloads: ${getErrorMessage(err)}`);
-    return;
-  }
-  await main(manifest, execSpec);
-}
-
-/**
- * Main entry point. Older compiled workflows may still supply base64 JSON.
- * @param {{version: number, graders: any[]}|string} manifestInput
- * @param {any[]|string} [execSpecInput]
- */
-async function main(manifestInput, execSpecInput) {
-  /** @type {{version: number, graders: any[]}} */
-  let manifest;
-  try {
-    manifest = typeof manifestInput === "string" ? JSON.parse(Buffer.from(manifestInput, "base64").toString("utf-8")) : manifestInput;
-  } catch (err) {
-    core.setFailed(`Graders: failed to parse manifest: ${getErrorMessage(err)}`);
-    return;
-  }
-
-  // Decode trusted executable payloads for custom graders.
-  /** @type {Record<string, {script?: string, run?: string}>} */
-  const executionMap = {};
-  if (execSpecInput) {
-    try {
-      const specs = typeof execSpecInput === "string" ? JSON.parse(Buffer.from(execSpecInput, "base64").toString("utf-8")) : execSpecInput;
-      for (const s of specs) {
-        if (s.id && (s.script || s.run)) executionMap[s.id] = { script: s.script, run: s.run };
-      }
-    } catch (err) {
-      core.warning(`Graders: failed to parse exec spec: ${getErrorMessage(err)}`);
-    }
-  }
-
-  manifest = { ...manifest, graders: withAllBuiltinGraders(Array.isArray(manifest.graders) ? manifest.graders : []) };
-
-  // Write manifest file
-  try {
-    fs.mkdirSync(GRADERS_DIR, { recursive: true });
-    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-  } catch (err) {
-    core.warning(`Graders: failed to write manifest: ${getErrorMessage(err)}`);
-  }
-
-  // Filter to enabled graders
-  const graders = manifest.graders;
-  const enabledGraders = graders.filter(g => g.enabled);
-  if (enabledGraders.length === 0) {
-    core.info("Graders: no enabled graders, skipping");
-    return;
-  }
-
-  let operationalValueEvaluatorArchiveError;
-  const operationalValueManifest = enabledGraders.find(grader => grader.source === "operational-value");
-  if (operationalValueManifest) {
-    try {
-      const evaluatorContent = executionMap[operationalValueManifest.id]?.run;
-      if (!evaluatorContent) throw new Error("operational-value evaluator is missing from the execution specification");
-      archiveOperationalValueEvaluator(evaluatorContent, operationalValueManifest.digest);
-    } catch (err) {
-      operationalValueEvaluatorArchiveError = getErrorMessage(err);
-      core.warning(`Graders: unable to archive operational-value evaluator: ${operationalValueEvaluatorArchiveError}`);
-    }
-  }
-
-  // Single preprocessing pass
-  core.info(`Graders: preprocessing trace files for ${enabledGraders.length} grader(s)...`);
-  const trace = preprocessTrace();
-  try {
-    fs.writeFileSync(PAYLOAD_PATH, JSON.stringify(trace));
-  } catch (err) {
-    core.warning(`Graders: failed to write payload: ${getErrorMessage(err)}`);
-  }
-  // Run all graders
-  /** @type {GraderResult[]} */
-  const results = [];
-  for (const grader of enabledGraders) {
-    const meta = {
-      name: grader.name || grader.id,
-      description: grader.description || "",
-      unit: grader.unit || "",
-      direction: grader.direction || "",
-      threshold: grader.threshold,
-      source: grader.source || "builtin",
-      digest: grader.digest,
-      config: grader.config,
-      graderCount: enabledGraders.length,
-    };
-    /** @type {GraderResult} */
-    let result;
-    if (grader.source === "builtin" && BUILTIN_GRADERS[grader.id]) {
-      result = runBuiltinGrader(grader.id, trace, meta);
-    } else if (grader.source === "operational-value" && operationalValueEvaluatorArchiveError) {
-      result = normalizeResult(grader.id, null, meta);
-      result.status = "error";
-      result.error = `grader ${grader.id} runtime error: ${operationalValueEvaluatorArchiveError}`;
-    } else if (grader.source === "operational-value" && executionMap[grader.id]?.run) {
-      result = runOperationalValueGrader(grader.id, executionMap[grader.id].run, meta, { outputs: trace.artifacts });
-    } else if (executionMap[grader.id]?.script) {
-      result = runCustomGrader(grader.id, executionMap[grader.id].script, trace, meta);
-    } else {
-      result = normalizeResult(grader.id, null, meta);
-      result.status = "unavailable";
-      result.error = `grader ${grader.id}: no implementation available`;
-    }
-    results.push(result);
-    if (result.error) {
-      core.warning(`Grader ${grader.id}: ${result.error}`);
-    }
-  }
-
-  // Build normalized output — NO timestamp for deterministic byte-equivalence
-  const passed = results.filter(r => r.status === "pass").length;
-  const failed = results.filter(r => r.status === "fail").length;
-  const errorCount = results.filter(r => r.status === "error").length;
-
-  const output = {
-    version: GRADER_VERSION,
-    run: {
-      id: String(process.env.GITHUB_RUN_ID || ""),
-      attempt: Number(process.env.GITHUB_RUN_ATTEMPT) || 1,
-      graderCount: results.length,
-      passed,
-      failed,
-      errors: errorCount,
-    },
-    context: {
-      experiments: readExperimentAssignments() || undefined,
-      evals: readEvalSummary() || undefined,
-    },
-    results,
-  };
-
-  // Write results
-  try {
-    fs.writeFileSync(RESULTS_PATH, JSON.stringify(output, null, 2));
-    core.info(`Graders: wrote results to ${RESULTS_PATH}`);
-  } catch (err) {
-    core.warning(`Graders: failed to write results: ${getErrorMessage(err)}`);
-  }
-
-  // Step summary
-  core.summary.addDetails("Graders", buildGradersSummaryBody(results));
-  const errResults = results.filter(r => r.error);
-  if (errResults.length > 0) {
-    const errLines = errResults.map(r => `- **${sanitizeSummaryText(r.id)}**: runtime error (see step logs)`).join("\n");
-    core.summary.addDetails("Grader Errors", errLines);
-  }
-  await core.summary.write({ overwrite: false });
-
-  core.info(`Graders: ${passed} passed, ${failed} failed, ${errorCount} errors`);
-}
-
 module.exports = {
-  mainFromEnvironment,
-  readGraderEnvironment,
-  main,
-  preprocessTrace,
-  findAgentEventsFiles,
-  COPILOT_SESSION_STATE_DIR,
-  extractNativeToolCalls,
-  mergeToolCalls,
-  safeReadFile,
-  safeParseJsonl,
-  safeParseJson,
-  readFirstAvailable,
-  readEvalSummary,
-  deepFreeze,
-  deepClone,
-  runGrader,
+  computeGraders,
+  buildGraderOutput,
+  createSessionLookups,
   runBuiltinGrader,
-  runCustomGrader,
-  withAllBuiltinGraders,
-  runOperationalValueGrader,
+  withDefaultGraders,
   normalizeResult,
-  buildGradersSummaryBody,
   evaluateThreshold,
+  buildGradersSummaryBody,
   BUILTIN_GRADERS,
   BUILTIN_META,
+  DEFAULT_GRADER_IDS,
   GRADER_VERSION,
   IMPLEMENTATION_ID,
-  GRADERS_DIR,
-  MANIFEST_PATH,
-  PAYLOAD_PATH,
-  RESULTS_PATH,
-  OPERATIONAL_VALUE_EVALUATOR_PATH,
-  archiveOperationalValueEvaluator,
-  MAX_FILE_SIZE,
-  MAX_LINE_LENGTH,
-  SCRIPT_TIMEOUT_MS,
-  gradeToolSuccessRate,
-  gradeToolFailureCount,
-  gradeRetries,
-  gradeLoops,
-  gradeTrajectoryEfficiency,
-  gradeExecutionStepCount,
-  gradeExecutionDuration,
-  gradeWorkingSetRebuildFactor,
-  gradeContextGrowth,
-  gradeArtifactProduction,
 };
