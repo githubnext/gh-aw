@@ -45,6 +45,7 @@ function readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now = 
 }
 
 function initializeLedgerCoverage({ repoMemoryDir, repository, workflowId, now }) {
+  // Validate the marker's version and identity; existence alone cannot establish coverage.
   if (readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now }) !== null) return;
   try {
     fs.writeFileSync(ledgerCoveragePath(repoMemoryDir, repository, workflowId), JSON.stringify({ version: 1, repository, workflow_id: workflowId, initialized_at: new Date(now).toISOString() }) + "\n", "utf8");
