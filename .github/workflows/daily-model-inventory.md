@@ -354,7 +354,7 @@ post-steps:
         if [ -s "$candidate" ]; then REFLECT="$candidate"; break; fi
       done
       echo "Checking workflow model pins against $REFLECT"
-      node "$GITHUB_WORKSPACE/actions/setup/js/model_pin_check.cjs" --reflect "$REFLECT" --out-dir "$OUT" --repo "$GITHUB_WORKSPACE" > /dev/null
+      node "${RUNNER_TEMP}/gh-aw/actions/model_pin_check.cjs" --reflect "$REFLECT" --out-dir "$OUT" --repo "$GITHUB_WORKSPACE" > /dev/null
       cat "$OUT/model-pins.md" >> "$GITHUB_STEP_SUMMARY"
 
   - name: Upload workflow model pin report

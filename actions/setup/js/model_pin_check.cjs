@@ -35,7 +35,7 @@ const fs = require("fs");
 const path = require("path");
 const { parseDocument } = require("./work_queue_yaml.cjs");
 const { extractInlineSubAgents } = require("./extract_inline_sub_agents.cjs");
-const { buildProviderCatalog, canonicalModelProvider, isLiveModelId, loadBuiltinModelAliases, ModelAliasResolutionError, resolveConfiguredModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
+const { buildProviderCatalog, canonicalModelProvider, isLiveModelId, loadBuiltinModelAliases, ModelAliasResolutionError, resolveConfiguredModel, resolveModelAlias, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 
 /** Keys under `models:` that are not alias names (see reservedModelsKeys in pkg/workflow/model_aliases.go). */
 const RESERVED_MODELS_KEYS = new Set(["providers", "default-ai-credits-pricing", "allowed", "blocked"]);
@@ -49,6 +49,7 @@ const MODEL_PREFIX_PROVIDER_ENGINES = new Set(["claude", "codex", "pi"]);
 const REASON_EXPRESSION = "expression";
 const REASON_PROVIDER = "provider not in the Copilot catalogue";
 const REASON_BYOK = "provider not in the Copilot catalogue (BYOK via COPILOT_PROVIDER_BASE_URL)";
+const REASON_DETECTION_DISABLED = "threat detection disabled by the main workflow";
 const REASON_INHERITED = "sentinel `inherited`: the sub-agent uses its parent's model, which is checked in its own row";
 const REASON_AUTO = "sentinel `auto`: the gateway selects the model";
 
@@ -65,6 +66,7 @@ const STATUS_ORDER = ["unresolvable", "alias", "exact", "not_checked"];
  *   provider: string,
  *   engine: string,
  *   autoSentinel: boolean,
+ *   inactiveReason?: string,
  *   aliasEntries?: string[],
  *   aliasMap: Record<string, string[]>,
  * }} ModelPin
@@ -262,7 +264,7 @@ function loadWorkflowFiles(workflowFile, repoRoot) {
 }
 
 /**
- * @typedef {{ id: string, explicitProvider: string, byok: boolean, definitionProvider: string }} EngineInfo
+ * @typedef {{ id: string, explicitProvider: string, byok: boolean, definitionProvider: string, env?: Record<string, any> }} EngineInfo
  */
 
 /**
@@ -278,8 +280,82 @@ function describeEngine(engine) {
   const provider = engine.provider;
   const explicitProvider = stringValue(engine["model-provider"]) || (typeof provider === "string" ? provider.trim() : isObject(provider) && !isObject(engine.behaviors) ? stringValue(provider.id) : "");
   const definitionProvider = isObject(provider) ? stringValue(provider.name) || stringValue(provider.id) : "";
-  const byok = isObject(engine.env) && stringValue(engine.env.COPILOT_PROVIDER_BASE_URL) !== "";
-  return { id, explicitProvider, byok, definitionProvider };
+  const env = isObject(engine.env) ? engine.env : {};
+  const byok = stringValue(env.COPILOT_PROVIDER_BASE_URL) !== "";
+  return { id, explicitProvider, byok, definitionProvider, env };
+}
+
+/**
+ * @param {EngineInfo | null} defaults
+ * @param {EngineInfo | null} overrides
+ * @returns {EngineInfo | null}
+ */
+function mergeEngineInfo(defaults, overrides) {
+  if (!defaults) return overrides;
+  if (!overrides) return defaults;
+  const env = { ...(defaults.env || {}), ...(overrides.env || {}) };
+  return {
+    id: overrides.id || defaults.id,
+    explicitProvider: overrides.explicitProvider || defaults.explicitProvider,
+    byok: stringValue(env.COPILOT_PROVIDER_BASE_URL) !== "",
+    definitionProvider: overrides.definitionProvider || defaults.definitionProvider,
+    env,
+  };
+}
+
+/**
+ * @param {unknown} engine
+ * @param {unknown} topLevelModel
+ * @param {unknown} fallbackModel
+ * @returns {string}
+ */
+function effectiveEngineModel(engine, topLevelModel, fallbackModel) {
+  return (isObject(engine) && stringValue(engine.model)) || stringValue(topLevelModel) || stringValue(fallbackModel);
+}
+
+/**
+ * @param {LoadedFile} file
+ * @returns {{ present: boolean, value: any }}
+ */
+function threatDetectionConfig(file) {
+  const safeOutputs = file.frontmatter["safe-outputs"];
+  if (!isObject(safeOutputs) || !Object.prototype.hasOwnProperty.call(safeOutputs, "threat-detection")) return { present: false, value: undefined };
+  return { present: true, value: safeOutputs["threat-detection"] };
+}
+
+/**
+ * Imports provide defaults, while any main-workflow threat-detection value replaces or
+ * overrides them. In particular, an explicit false in the main workflow disables an
+ * imported detector.
+ * @param {LoadedFile[]} imports
+ * @param {LoadedFile} main
+ * @returns {any}
+ */
+function effectiveThreatDetectionConfig(imports, main) {
+  const imported = imports.map(threatDetectionConfig).find(config => config.present);
+  const mainConfig = threatDetectionConfig(main);
+  if (!mainConfig.present) return imported?.value;
+  if (!isObject(mainConfig.value) || !isObject(imported?.value)) return mainConfig.value;
+  return { ...imported.value, ...mainConfig.value };
+}
+
+/**
+ * @param {EngineInfo} engine
+ * @param {string} provider
+ * @param {Record<string, string>} definitionDetectionEngines
+ * @returns {string}
+ */
+function threatDetectionEngineID(engine, provider, definitionDetectionEngines) {
+  const id = engine.id || "copilot";
+  if (id === "pi") return "copilot";
+  if (Object.prototype.hasOwnProperty.call(ENGINE_DEFAULT_PROVIDERS, id)) {
+    if (provider === "copilot") return "copilot";
+    if (provider === "anthropic") return "claude";
+    if (provider === "openai") return "codex";
+    return id === "copilot" || id === "claude" || id === "codex" ? id : "copilot";
+  }
+  const declared = definitionDetectionEngines[id];
+  return declared === "copilot" || declared === "claude" || declared === "codex" ? declared : "copilot";
 }
 
 /**
@@ -303,6 +379,48 @@ function engineProvider(engine, mainModel, definitionProviders) {
 }
 
 /**
+ * Whether resolving a model alias could depend on a GitHub Actions expression before
+ * reaching a statically resolvable candidate. A live exact model ID always takes
+ * precedence over an alias with the same name.
+ * @param {string} model
+ * @param {Record<string, string[]>} aliasMap
+ * @param {string[]} catalog
+ * @returns {boolean}
+ */
+function aliasResolutionUsesExpression(model, aliasMap, catalog) {
+  const { base } = splitModelIdentifier(model);
+  const slash = base.indexOf("/");
+  const aliasKey = slash > 0 ? base.slice(slash + 1) : base;
+  if (isLiveModelId(aliasKey, catalog)) return false;
+
+  /**
+   * @param {string} key
+   * @param {Set<string>} visited
+   * @returns {boolean}
+   */
+  function hasExpressionBeforeResolution(key, visited) {
+    if (isLiveModelId(key, catalog) || visited.has(key) || !Array.isArray(aliasMap[key])) return false;
+    const nextVisited = new Set(visited);
+    nextVisited.add(key);
+    for (const entry of aliasMap[key]) {
+      if (entry.includes("${{")) return true;
+      const { base: entryBase } = splitModelIdentifier(entry);
+      const entrySlash = entryBase.indexOf("/");
+      const entryProvider = entrySlash > 0 ? canonicalModelProvider(entryBase.slice(0, entrySlash)) : "";
+      const entryAlias = entrySlash > 0 ? entryBase.slice(entrySlash + 1) : entryBase;
+      if (!entryProvider && Object.prototype.hasOwnProperty.call(aliasMap, entryAlias)) {
+        if (hasExpressionBeforeResolution(entryAlias, nextVisited)) return true;
+      }
+      if ((!entryProvider || entryProvider === "copilot") && isLiveModelId(entryAlias, catalog)) return false;
+      if (resolveModelAlias(entry, aliasMap, catalog)) return false;
+    }
+    return false;
+  }
+
+  return hasExpressionBeforeResolution(aliasKey, new Set());
+}
+
+/**
  * Collect the model pins of one workflow.
  * @param {string} workflowFile absolute path
  * @param {{ repoRoot: string, builtinAliases: Record<string, string[]> }} options
@@ -316,7 +434,7 @@ function collectWorkflowPins(workflowFile, options) {
   const main = files[0];
   const imports = files.slice(1).filter(file => !file.agentFile);
 
-  // Merged alias map: built-ins, then imports (first import wins), then the main workflow.
+  // Merged alias map: built-ins, then imports (first definition wins), then the main workflow.
   /** @type {Record<string, string[]>} */
   const aliasMap = { ...builtinAliases };
   /** @type {Set<string>} */
@@ -330,36 +448,55 @@ function collectWorkflowPins(workflowFile, options) {
       if (RESERVED_MODELS_KEYS.has(name) || !Array.isArray(value)) continue;
       const entries = value.filter(entry => typeof entry === "string" && entry.trim()).map(entry => entry.trim());
       if (entries.length === 0) continue;
-      aliasDefinitions.push({ file, name, entries });
       if (file === main) {
         aliasMap[name] = entries;
-      } else if (!importedAliasKeys.has(name)) {
+        aliasDefinitions.push({ file, name, entries });
+      } else if (!Object.prototype.hasOwnProperty.call(aliasMap, name) && !importedAliasKeys.has(name)) {
         importedAliasKeys.add(name);
         aliasMap[name] = entries;
+        aliasDefinitions.push({ file, name, entries });
       }
     }
   }
 
   /** @type {Record<string, string>} */
   const definitionProviders = {};
+  /** @type {Record<string, string>} */
+  const definitionDetectionEngines = {};
   /** @type {EngineInfo | null} */
-  let mainEngine = describeEngine(main.frontmatter.engine);
+  let importedEngine = null;
+  let importedModel = "";
   for (const file of imports) {
     const info = describeEngine(file.frontmatter.engine);
     if (!info) continue;
     if (info.id && info.definitionProvider && !definitionProviders[info.id]) definitionProviders[info.id] = info.definitionProvider;
-    if (!mainEngine && info.id && !isObject(file.frontmatter.engine?.behaviors)) mainEngine = info;
+    const detectionEngine = stringValue(file.frontmatter.engine?.["detection-engine"]);
+    if (info.id && detectionEngine && !definitionDetectionEngines[info.id]) definitionDetectionEngines[info.id] = detectionEngine;
+    if (!importedEngine && info.id && !isObject(file.frontmatter.engine?.behaviors)) {
+      importedEngine = info;
+      importedModel = effectiveEngineModel(file.frontmatter.engine, file.frontmatter.model, "");
+    }
   }
-  if (mainEngine && !mainEngine.id) mainEngine = { ...mainEngine, id: "copilot" };
-  const engine = mainEngine || { id: "copilot", explicitProvider: "", byok: false, definitionProvider: "" };
-  const mainModel = stringValue(main.frontmatter.model) || (isObject(main.frontmatter.engine) ? stringValue(main.frontmatter.engine.model) : "");
+  const configuredMainEngine = describeEngine(main.frontmatter.engine);
+  const engine = configuredMainEngine?.id ? configuredMainEngine : mergeEngineInfo(importedEngine, configuredMainEngine) || { id: "copilot", explicitProvider: "", byok: false, definitionProvider: "" };
+  const mainModel = effectiveEngineModel(main.frontmatter.engine, main.frontmatter.model, importedModel);
   const mainProvider = engineProvider(engine, mainModel, definitionProviders);
 
-  const threatDetection = isObject(main.frontmatter["safe-outputs"]) ? main.frontmatter["safe-outputs"]["threat-detection"] : undefined;
+  const threatDetection = effectiveThreatDetectionConfig(imports, main);
+  const detectionDisabled = threatDetection === false || (isObject(threatDetection) && (threatDetection.enabled === false || threatDetection.engine === false));
   const detectionEngineValue = isObject(threatDetection) ? (threatDetection.engine !== undefined && threatDetection.engine !== false ? threatDetection.engine : threatDetection["engine-config"]) : undefined;
   const detectionInfo = describeEngine(detectionEngineValue);
-  const detectionEngine = detectionInfo ? { ...detectionInfo, id: detectionInfo.id || engine.id } : engine;
-  const detectionModel = (isObject(threatDetection) && stringValue(threatDetection.model)) || (isObject(detectionEngineValue) ? stringValue(detectionEngineValue.model) : "") || mainModel;
+  const detectionModel = (isObject(detectionEngineValue) && stringValue(detectionEngineValue.model)) || (isObject(threatDetection) && stringValue(threatDetection.model)) || mainModel;
+  const detectionEngineID = detectionInfo?.id
+    ? threatDetectionEngineID(detectionInfo, engineProvider(detectionInfo, detectionModel, definitionProviders), definitionDetectionEngines)
+    : threatDetectionEngineID(engine, mainProvider, definitionDetectionEngines);
+  const detectionEnv = detectionEngineID === engine.id ? { ...(engine.env || {}), ...(detectionInfo?.env || {}) } : detectionInfo?.env || {};
+  const detectionEngine = {
+    ...(detectionInfo || { id: detectionEngineID, explicitProvider: "", definitionProvider: "" }),
+    id: detectionEngineID,
+    env: detectionEnv,
+    byok: stringValue(detectionEnv.COPILOT_PROVIDER_BASE_URL) !== "",
+  };
   const detectionProvider = engineProvider(detectionEngine, detectionModel, definitionProviders);
 
   /** @type {ModelPin[]} */
@@ -368,7 +505,7 @@ function collectWorkflowPins(workflowFile, options) {
    * @param {LoadedFile} file
    * @param {string} field
    * @param {unknown} value
-   * @param {{ engine: EngineInfo, provider: string, autoSentinel?: boolean }} scope
+   * @param {{ engine: EngineInfo, provider: string, autoSentinel?: boolean, inactiveReason?: string }} scope
    */
   const addPin = (file, field, value, scope) => {
     const model = stringValue(value);
@@ -382,11 +519,12 @@ function collectWorkflowPins(workflowFile, options) {
       provider: scope.provider,
       engine: scope.engine.id || "copilot",
       autoSentinel: scope.autoSentinel ?? scope.engine.id !== "copilot",
+      ...(scope.inactiveReason ? { inactiveReason: scope.inactiveReason } : {}),
       aliasMap,
     });
   };
   const mainScope = { engine, provider: mainProvider };
-  const detectionScope = { engine: detectionEngine, provider: detectionProvider };
+  const detectionScope = { engine: detectionEngine, provider: detectionProvider, ...(detectionDisabled ? { inactiveReason: REASON_DETECTION_DISABLED } : {}) };
   const copilotScope = { engine: { id: "copilot", explicitProvider: "", byok: false, definitionProvider: "" }, provider: "copilot" };
 
   /**
@@ -432,10 +570,17 @@ function collectWorkflowPins(workflowFile, options) {
 
     const evals = fm.evals;
     if (Array.isArray(evals)) {
-      evals.forEach((question, index) => isObject(question) && addPin(file, `evals[${index}].model`, question.model, mainScope));
+      evals.forEach((question, index) => isObject(question) && addPin(file, `evals[${index}].model`, question.model, scopeForModel(question.model)));
     } else if (isObject(evals)) {
-      addPin(file, "evals.model", evals.model, mainScope);
-      if (Array.isArray(evals.questions)) evals.questions.forEach((question, index) => isObject(question) && addPin(file, `evals.questions[${index}].model`, question.model, mainScope));
+      addPin(file, "evals.model", evals.model, scopeForModel(evals.model));
+      if (Array.isArray(evals.questions)) evals.questions.forEach((question, index) => isObject(question) && addPin(file, `evals.questions[${index}].model`, question.model, scopeForModel(question.model || evals.model)));
+    }
+
+    /**
+     * @param {unknown} model
+     */
+    function scopeForModel(model) {
+      return { engine, provider: engineProvider(engine, stringValue(model) || mainModel, definitionProviders) };
     }
 
     if (Array.isArray(fm.enclaves)) {
@@ -534,12 +679,16 @@ function classifyPin(pin, reflectData) {
   if (values.some(value => value.includes("${{"))) return { ...result, reason: REASON_EXPRESSION };
   const name = pin.kind === "model" ? bareModelName(pin.model) : "";
   if (name === "inherited") return { ...result, reason: REASON_INHERITED };
+  if (pin.inactiveReason) return { ...result, reason: pin.inactiveReason };
   if (pin.provider === "byok") return { ...result, reason: REASON_BYOK };
   const prefix = pin.kind === "model" ? modelPrefixProvider(pin.model) : "";
   if ((prefix || pin.provider) !== "copilot") return { ...result, provider: prefix || pin.provider, reason: REASON_PROVIDER };
   if (name === "auto" && pin.autoSentinel) return { ...result, provider: "copilot", reason: REASON_AUTO };
 
   const catalog = buildProviderCatalog({ reflectData, provider: "copilot" });
+  if (pin.kind === "model" && aliasResolutionUsesExpression(pin.model, pin.aliasMap, catalog)) {
+    return { ...result, provider: "copilot", reason: REASON_EXPRESSION };
+  }
   try {
     // An alias definition is checked with its own entries, even when another file overrides the name.
     const aliasMap = pin.kind === "alias-definition" ? { ...pin.aliasMap, [pin.model]: pin.aliasEntries || [] } : pin.aliasMap;

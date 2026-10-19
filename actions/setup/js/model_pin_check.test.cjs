@@ -162,6 +162,185 @@ describe("model_pin_check collection and rules", () => {
     expect(pin(report, "models.c-alias").source).toBe(".github/workflows/shared/c.md");
   });
 
+  it("does not let imported aliases override built-ins, but keeps main-workflow overrides", () => {
+    const report = check({
+      ".github/workflows/aliases.md": "---\nimports:\n  - shared/aliases.md\nengine: copilot\nmodel: sonnet\n---\n",
+      ".github/workflows/shared/aliases.md": "---\nmodels:\n  sonnet: [copilot/claude-opus-5]\n---\n",
+    });
+    expect(pin(report, "model")).toMatchObject({ status: "alias", resolved: "claude-sonnet-5.5" });
+    expect(report.action_required).toEqual([]);
+    expect(report.pins.some(result => result.field === "models.sonnet")).toBe(false);
+
+    const mainOverride = check({
+      ".github/workflows/aliases.md": "---\nimports:\n  - shared/aliases.md\nengine: copilot\nmodel: sonnet\nmodels:\n  sonnet: [copilot/claude-opus-5]\n---\n",
+      ".github/workflows/shared/aliases.md": "---\nmodels:\n  sonnet: [copilot/claude-opus-5]\n---\n",
+    });
+    expect(pin(mainOverride, "model")).toMatchObject({ status: "unresolvable", cause: "model_unavailable" });
+  });
+
+  it("lets an imported engine supply a missing ID while retaining the main model preference", () => {
+    const report = check({
+      ".github/workflows/preference.md": "---\nimports:\n  - shared/engine.md\nengine:\n  model: claude-sonnet-4-6\n---\n",
+      ".github/workflows/shared/engine.md": "---\nengine: claude\n---\n",
+    });
+    expect(pin(report, "engine.model")).toMatchObject({ engine: "claude", provider: "anthropic", status: "not_checked", reason: "provider not in the Copilot catalogue" });
+  });
+
+  it("uses engine.model before top-level model and an imported model as fallback", () => {
+    const explicit = check({
+      ".github/workflows/precedence.md": ["---", "engine:", "  id: claude", "  model: copilot/gpt-5-mini", "  fallback-models: [claude-opus-5]", "model: anthropic/claude-sonnet-4-6", "---"].join("\n"),
+    });
+    expect(pin(explicit, "engine.fallback-models[0]")).toMatchObject({ provider: "copilot", status: "unresolvable", cause: "model_unavailable" });
+
+    const imported = check({
+      ".github/workflows/default.md": "---\nimports:\n  - shared/default.md\n---\n",
+      ".github/workflows/shared/default.md": "---\nengine: claude\nmodel: copilot/claude-opus-5\n---\n",
+    });
+    expect(pin(imported, "model")).toMatchObject({ engine: "claude", provider: "copilot", status: "unresolvable", cause: "model_unavailable" });
+  });
+
+  it("uses imported detection configuration unless the main workflow overrides or disables it", () => {
+    const imported = {
+      ".github/workflows/detection.md": "---\nengine: claude\nimports:\n  - shared/detection.md\n---\n",
+      ".github/workflows/shared/detection.md": "---\nsafe-outputs:\n  threat-detection:\n    engine: copilot\n    model: claude-opus-5\n---\n",
+    };
+    expect(pin(check(imported), "safe-outputs.threat-detection.model")).toMatchObject({
+      engine: "copilot",
+      provider: "copilot",
+      status: "unresolvable",
+      cause: "model_unavailable",
+    });
+
+    const overridden = check({
+      ...imported,
+      ".github/workflows/detection.md": "---\nengine: claude\nimports:\n  - shared/detection.md\nsafe-outputs:\n  threat-detection:\n    model: anthropic/claude-sonnet-4-6\n---\n",
+    });
+    expect(pin(overridden, "safe-outputs.threat-detection.model")).toMatchObject({
+      provider: "anthropic",
+      status: "not_checked",
+      reason: "provider not in the Copilot catalogue",
+    });
+
+    const disabled = check({
+      ...imported,
+      ".github/workflows/detection.md": "---\nengine: claude\nimports:\n  - shared/detection.md\nsafe-outputs:\n  threat-detection: false\n---\n",
+    });
+    expect(pin(disabled, "safe-outputs.threat-detection.model")).toMatchObject({
+      status: "not_checked",
+      reason: "threat detection disabled by the main workflow",
+    });
+    expect(disabled.action_required).toEqual([]);
+  });
+
+  it("inherits detector BYOK settings for matching engines and honors an explicit empty override", () => {
+    const inherited = check({
+      ".github/workflows/byok-detection.md": [
+        "---",
+        "engine:",
+        "  id: copilot",
+        "  env:",
+        "    COPILOT_PROVIDER_BASE_URL: https://example.invalid/openai/v1",
+        "safe-outputs:",
+        "  threat-detection:",
+        "    engine: copilot",
+        "    model: o4-mini-aw",
+        "---",
+      ].join("\n"),
+    });
+    expect(pin(inherited, "safe-outputs.threat-detection.model")).toMatchObject({ provider: "byok", status: "not_checked", reason: expect.stringContaining("BYOK") });
+
+    const overridden = check({
+      ".github/workflows/byok-detection.md": [
+        "---",
+        "engine:",
+        "  id: copilot",
+        "  env:",
+        "    COPILOT_PROVIDER_BASE_URL: https://example.invalid/openai/v1",
+        "safe-outputs:",
+        "  threat-detection:",
+        "    engine:",
+        "      id: copilot",
+        "      env:",
+        "        COPILOT_PROVIDER_BASE_URL: ''",
+        "    model: claude-opus-5",
+        "---",
+      ].join("\n"),
+    });
+    expect(pin(overridden, "safe-outputs.threat-detection.model")).toMatchObject({ provider: "copilot", status: "unresolvable", cause: "model_unavailable" });
+  });
+
+  it("uses detection engine.model and the effective detector selected from the main provider", () => {
+    const explicitModel = check({
+      ".github/workflows/detection-model.md": [
+        "---",
+        "engine: claude",
+        "safe-outputs:",
+        "  threat-detection:",
+        "    model: anthropic/claude-sonnet-4-6",
+        "    engine:",
+        "      id: claude",
+        "      model: copilot/gpt-5-mini",
+        "      fallback-models: [claude-opus-5]",
+        "---",
+      ].join("\n"),
+    });
+    expect(pin(explicitModel, "safe-outputs.threat-detection.model")).toMatchObject({ provider: "anthropic", status: "not_checked" });
+    expect(pin(explicitModel, "safe-outputs.threat-detection.engine.fallback-models[0]")).toMatchObject({ provider: "copilot", status: "unresolvable", cause: "model_unavailable" });
+
+    const providerSelected = check({
+      ".github/workflows/provider-detection.md": "---\nengine: claude\nmodel: copilot/gpt-5-mini\nsafe-outputs:\n  threat-detection:\n    model: claude-opus-5\n---\n",
+    });
+    expect(pin(providerSelected, "safe-outputs.threat-detection.model")).toMatchObject({ engine: "copilot", provider: "copilot", status: "unresolvable", cause: "model_unavailable" });
+  });
+
+  it("uses a custom engine's declared detection engine", () => {
+    const report = check({
+      ".github/workflows/custom-detection.md": "---\nimports:\n  - shared/custom-engine.md\nengine: cursor\nsafe-outputs:\n  threat-detection:\n    model: claude-opus-5\n---\n",
+      ".github/workflows/shared/custom-engine.md": "---\nengine:\n  id: cursor\n  provider: anthropic\n  detection-engine: copilot\n---\n",
+    });
+    expect(pin(report, "safe-outputs.threat-detection.model")).toMatchObject({ engine: "copilot", provider: "copilot", status: "unresolvable", cause: "model_unavailable" });
+  });
+
+  it("resolves eval model providers from the eval override", () => {
+    const report = check({
+      ".github/workflows/eval.md": "---\nengine: claude\nmodel: copilot/gpt-5-mini\nevals:\n  model: claude-sonnet-4-6\n---\n",
+    });
+    expect(pin(report, "model")).toMatchObject({ provider: "copilot", status: "exact" });
+    expect(pin(report, "evals.model")).toMatchObject({ engine: "claude", provider: "anthropic", status: "not_checked" });
+
+    const explicitProvider = check({
+      ".github/workflows/eval-provider.md": "---\nengine:\n  id: claude\n  model-provider: openai\nmodel: copilot/gpt-5-mini\nevals:\n  model: claude-sonnet-4-6\n---\n",
+    });
+    expect(pin(explicitProvider, "evals.model")).toMatchObject({ provider: "openai", status: "not_checked" });
+
+    const byok = check({
+      ".github/workflows/eval-byok.md": "---\nengine:\n  id: copilot\n  env:\n    COPILOT_PROVIDER_BASE_URL: https://example.invalid/openai/v1\nevals:\n  model: o4-mini-aw\n---\n",
+    });
+    expect(pin(byok, "evals.model")).toMatchObject({ provider: "byok", status: "not_checked", reason: expect.stringContaining("BYOK") });
+  });
+
+  it("does not check direct or nested expression aliases, but preserves ordered fallbacks and exact-ID precedence", () => {
+    const direct = check({
+      ".github/workflows/direct.md": '---\nengine: copilot\nmodel: dynamic\nmodels:\n  dynamic: ["copilot/${{ vars.MODEL }}"]\n---\n',
+    });
+    expect(pin(direct, "model")).toMatchObject({ status: "not_checked", reason: "expression" });
+
+    const nested = check({
+      ".github/workflows/nested.md": '---\nengine: copilot\nmodel: dynamic\nmodels:\n  dynamic: [intermediate]\n  intermediate: ["copilot/${{ vars.MODEL }}"]\n---\n',
+    });
+    expect(pin(nested, "model")).toMatchObject({ status: "not_checked", reason: "expression" });
+
+    const ordered = check({
+      ".github/workflows/ordered.md": '---\nengine: copilot\nmodel: dynamic\nmodels:\n  dynamic: [copilot/gpt-5-mini, "copilot/${{ vars.MODEL }}"]\n---\n',
+    });
+    expect(pin(ordered, "model")).toMatchObject({ status: "alias", resolved: "gpt-5-mini" });
+
+    const exact = check({
+      ".github/workflows/exact.md": '---\nengine: copilot\nmodel: gpt-5-mini\nmodels:\n  gpt-5-mini: ["copilot/${{ vars.MODEL }}"]\n---\n',
+    });
+    expect(pin(exact, "model")).toMatchObject({ status: "exact", resolved: "gpt-5-mini" });
+  });
+
   it("does not check Copilot BYOK pins", () => {
     const report = check({ ".github/workflows/byok.md": "---\nengine:\n  id: copilot\n  env:\n    COPILOT_PROVIDER_BASE_URL: https://example.invalid/openai/v1\nmodel: o4-mini-aw\n---\n" });
     expect(pin(report, "model")).toMatchObject({ status: "not_checked", reason: expect.stringContaining("BYOK") });
