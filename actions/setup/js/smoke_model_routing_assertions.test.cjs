@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { checkDetectionEvidence, checkModelRoutingEvidence, checkSessionContract, detectionMain, evaluateDetectionEvidence, main, normalizeEndpoint, servedModel, sessionContractMain } from "./smoke_model_routing_assertions.cjs";
 import { piRoutedSession, postFixCopilotRoutedSession, postFixCopilotSession, preFixCopilotSession } from "./fixtures/session_contract_sessions.cjs";
 
@@ -969,10 +970,24 @@ describe("smoke_model_routing_assertions", () => {
       write("usage/aw_session.jsonl", preFixCopilotSession());
       const results = contract();
       expect(results.failures).toEqual([
-        "FAIL U1 1 session.collection_warning event(s): invalid_model_inventory in sandbox/firewall/awf-reflect.json",
+        "FAIL U1 1 session.collection_warning event(s): invalid_model_inventory in sandbox/firewall/awf-reflect.json (1 occurrence(s))",
         "FAIL U2 expected exactly 1 agent-phase model.inventory, observed 0; model.inventory events: none",
       ]);
       expect(checkIds(results.passes)).toEqual(["E2", "U3"]);
+    });
+
+    it("groups repeated U1 warnings by code and path with counts and an example line", () => {
+      const warning = (code, file, line) => ({ type: "session.collection_warning", data: { code, path: file, ...(line === undefined ? {} : { line }) } });
+      write("usage/aw_session.jsonl", [
+        ...postFixCopilotSession(),
+        warning("invalid_json", "agent/log.jsonl"),
+        ...Array.from({ length: 1000 }, (_, index) => warning("invalid_json", "agent/log.jsonl", index + 2)),
+        warning("invalid_record", "agent/log.jsonl", 0),
+        warning("invalid_json", "agent/other.jsonl", 9),
+      ]);
+      expect(lineFor(contract().failures, "U1")).toBe(
+        "FAIL U1 1003 session.collection_warning event(s): invalid_json in agent/log.jsonl (1001 occurrence(s), example line 2), invalid_record in agent/log.jsonl (1 occurrence(s), example line 0), invalid_json in agent/other.jsonl (1 occurrence(s), example line 9)"
+      );
     });
 
     it("passes U1–U3 for the post-fix Smoke Copilot session (run 39176941475)", () => {
@@ -1033,6 +1048,77 @@ describe("smoke_model_routing_assertions", () => {
       const failed = postFixCopilotSession().map(event => (event.type === "model.resolution" ? { ...event, data: { ...event.data, resolved_model: null, status: "failed", cause: "model_unavailable" } } : event));
       write("usage/aw_session.jsonl", failed);
       expect(contract().failures).toEqual(["FAIL U3 role main status is failed (cause model_unavailable), expected exact or resolved; observed model.resolution: main: auto -> <none> (failed)"]);
+    });
+
+    it("fails U3 for a duplicate role resolution", () => {
+      const session = postFixCopilotSession();
+      const resolution = session.find(event => event.type === "model.resolution");
+      write("usage/aw_session.jsonl", [...session, { ...resolution }]);
+      expect(lineFor(contract().failures, "U3")).toBe(
+        "FAIL U3 expected exactly 1 model.resolution for role main, observed 2; observed model.resolution: main: auto -> claude-sonnet-5.5 (resolved), main: auto -> claude-sonnet-5.5 (resolved)"
+      );
+    });
+
+    it.each(["", null, undefined])("fails U3 for resolved_model %s despite a successful status", resolvedModel => {
+      const session = postFixCopilotSession().map(event => (event.type === "model.resolution" ? { ...event, data: { ...event.data, resolved_model: resolvedModel } } : event));
+      write("usage/aw_session.jsonl", session);
+      expect(lineFor(contract().failures, "U3")).toBe("FAIL U3 role main has no resolved_model; observed model.resolution: main: auto -> <none> (resolved)");
+    });
+
+    it("fails U2 gracefully when the session has no inventory", async () => {
+      write(
+        "usage/aw_session.jsonl",
+        postFixCopilotSession().filter(event => event.type !== "model.inventory")
+      );
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...unroutedCopilot });
+      expect(results.failures).toEqual(["FAIL U2 expected exactly 1 agent-phase model.inventory, observed 0; model.inventory events: none"]);
+      expect(core.setFailed).toHaveBeenCalledWith(`Unified-session smoke assertions failed (1):\n${results.failures[0]}`);
+    });
+
+    it.each([{ resolutionRoles: [] }, { copilotInventory: false }, { expectModelInventory: false, copilotInventory: false }])("logs when U2 is not requested: %j", async expectations => {
+      fixture({ session: [...postFixCopilotRoutedSession(), workflowInfo(), selection(), harnessOutcome()], requests: copilotRequests() });
+      for (const [entryPoint, extra] of [
+        [main, copilotExpectations],
+        [sessionContractMain, {}],
+      ]) {
+        const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+        const results = await entryPoint({ core, rootDir: root, buildSession: false, ...extra, ...expectations });
+        expect(results.failures).toEqual([]);
+        expect(core.info).toHaveBeenCalledWith("U2 not evaluated: neither expectModelInventory nor copilotInventory is true");
+        expect([...results.passes, ...results.failures].filter(line => /^(PASS|FAIL) U2 /.test(line))).toEqual([]);
+      }
+    });
+
+    it("reports E2 without throwing when the evidence root is unavailable", async () => {
+      const unavailableRoot = path.join(root, "not-a-directory");
+      fs.writeFileSync(unavailableRoot, "");
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await sessionContractMain({ core, rootDir: unavailableRoot, ...unroutedCopilot });
+      expect(results.failures.some(line => line.startsWith("FAIL E2 evidence: failed to build the unified session:"))).toBe(true);
+      expect(results.failures).toContain("FAIL E2 evidence: missing usage/aw_session.jsonl");
+      expect(core.setFailed).toHaveBeenCalled();
+    });
+
+    it("reports E2 without throwing when the session path cannot be read", async () => {
+      fs.mkdirSync(path.join(root, "usage/aw_session.jsonl"), { recursive: true });
+      const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+      const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...unroutedCopilot });
+      expect(results.failures.some(line => line.startsWith("FAIL E2 evidence: failed to read ") && line.includes("aw_session.jsonl"))).toBe(true);
+      expect(core.setFailed).toHaveBeenCalled();
+    });
+
+    it.each([undefined, "/missing-runner-temp"])("reports an unavailable runner temp path from the Smoke Claude post-step: %s", async runnerTemp => {
+      const workflow = fs.readFileSync(new URL("../../../.github/workflows/smoke-claude.md", import.meta.url), "utf8");
+      const script = workflow.match(/post-steps:[\s\S]*?      script: \|\n([\s\S]*?)\n---/)[1].replace(/^ {8}/gm, "");
+      const core = { setFailed: vi.fn() };
+      const load = vi.fn(name => {
+        if (name === "node:path") return path;
+        throw new Error("assertion module unavailable");
+      });
+      await vm.runInNewContext(`(async () => { ${script} })()`, { require: load, core, process: { env: { RUNNER_TEMP: runnerTemp } } });
+      expect(core.setFailed).toHaveBeenCalledWith(`Unable to run unified-session smoke assertions: ${runnerTemp ? "assertion module unavailable" : "RUNNER_TEMP is unavailable"}`);
+      expect(load).toHaveBeenCalledTimes(runnerTemp ? 2 : 1);
     });
 
     it("reports FAIL E2 without U checks when the session file is missing, for both entry points", async () => {

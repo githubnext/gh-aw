@@ -53,7 +53,8 @@ const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
  *   smokes): U1 no `session.collection_warning` events; U2 exactly one
  *   agent-phase `model.inventory`, and with `copilotInventory` its `copilot`
  *   endpoint is configured with a non-empty model list (when
- *   `expectModelInventory` is set); U3 every role in `resolutionRoles` has
+ *   `expectModelInventory` or `copilotInventory` is true; otherwise an info
+ *   line reports that U2 was not evaluated); U3 every role in `resolutionRoles` has
  *   exactly one `model.resolution` with status exact or resolved and a
  *   resolved model. U1–U3 are not evaluated when the session file is missing.
  *
@@ -589,7 +590,7 @@ function describeInventoryEndpoints(inventory) {
 /** @param {any[]} resolutions @returns {string} */
 function describeResolutions(resolutions) {
   if (!resolutions.length) return "none";
-  return resolutions.map(event => `${event.data?.role ?? "<no role>"}: ${event.data?.configured_model ?? "<none>"} -> ${event.data?.resolved_model ?? "<none>"} (${event.data?.status ?? "<no status>"})`).join(", ");
+  return resolutions.map(event => `${event.data?.role ?? "<no role>"}: ${event.data?.configured_model ?? "<none>"} -> ${event.data?.resolved_model || "<none>"} (${event.data?.status ?? "<no status>"})`).join(", ");
 }
 
 /**
@@ -608,8 +609,20 @@ function evaluateSessionContract({ events, expectations }) {
 
   // U1: the collector reported no data it had to drop.
   const warnings = events.filter(event => event?.type === "session.collection_warning");
-  if (warnings.length) fail("U1", `${warnings.length} session.collection_warning event(s): ${warnings.map(event => `${event.data?.code ?? "<no code>"} in ${event.data?.path ?? "<no path>"}`).join(", ")}`);
-  else pass("U1", "no session.collection_warning events");
+  if (warnings.length) {
+    const groups = new Map();
+    for (const event of warnings) {
+      const code = event.data?.code ?? "<no code>";
+      const source = event.data?.path ?? "<no path>";
+      const key = JSON.stringify([code, source]);
+      const group = groups.get(key) ?? { code, source, count: 0, line: undefined };
+      group.count++;
+      group.line ??= event.data?.line;
+      groups.set(key, group);
+    }
+    const observed = [...groups.values()].map(group => `${group.code} in ${group.source} (${group.count} occurrence(s)${group.line === undefined ? "" : `, example line ${group.line}`})`);
+    fail("U1", `${warnings.length} session.collection_warning event(s): ${observed.join(", ")}`);
+  } else pass("U1", "no session.collection_warning events");
 
   // U2: exactly one agent-phase model inventory (the collector can also add
   // detection-phase inventories and one per candidate group).
@@ -630,7 +643,7 @@ function evaluateSessionContract({ events, expectations }) {
         pass("U2", `one agent-phase model.inventory from ${source}${expectations.copilotInventory ? `; copilot endpoint configured with ${copilotModels} model(s)` : ""}`);
       }
     }
-  }
+  } else (results.info ??= []).push("U2 not evaluated: neither expectModelInventory nor copilotInventory is true");
 
   // U3: each required role recorded exactly one successful model resolution.
   const roles = expectations.resolutionRoles ?? [];
@@ -664,7 +677,14 @@ function evaluateSessionContract({ events, expectations }) {
  */
 function readJsonl(file, problems) {
   const records = [];
-  for (const event of iterateJsonlEvents(fs.readFileSync(file, "utf8"))) {
+  let content;
+  try {
+    content = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    problems.push(`failed to read ${file}: ${getErrorMessage(error)}`);
+    return records;
+  }
+  for (const event of iterateJsonlEvents(content)) {
     if (event.type === "json") records.push(event.value);
     else if (event.reason !== "blank") problems.push(`${file}:${event.lineNumber} is not valid JSON: ${getErrorMessage(event.error)}`);
   }
@@ -738,6 +758,7 @@ function appendSessionContract(results, evidence, expectations) {
   const contract = evaluateSessionContract({ events: evidence.events, expectations });
   results.passes.push(...contract.passes);
   results.failures.push(...contract.failures);
+  (results.info ??= []).push(...(contract.info ?? []));
 }
 
 /**
@@ -770,6 +791,22 @@ function checkModelRoutingEvidence(options) {
 }
 
 /**
+ * @param {any} actionsCore
+ * @param {RoutingAssertionResults} results
+ * @param {string} label
+ */
+function reportResults(actionsCore, results, label) {
+  for (const line of results.info ?? []) actionsCore.info(line);
+  for (const line of results.passes) actionsCore.info(line);
+  for (const line of results.failures) actionsCore.error(line);
+  if (results.failures.length) {
+    actionsCore.setFailed(`${label} smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
+  } else {
+    actionsCore.info(`All ${results.passes.length} ${label.toLowerCase()} smoke assertions passed`);
+  }
+}
+
+/**
  * Post-step entry point: logs every check and fails the step on any failure.
  * @param {RoutingExpectations & { rootDir?: string, engine?: string, buildSession?: boolean, core?: any }} options
  * @returns {Promise<RoutingAssertionResults>}
@@ -777,14 +814,7 @@ function checkModelRoutingEvidence(options) {
 async function main(options) {
   const { core: actionsCore = global.core, ...rest } = options;
   const results = checkModelRoutingEvidence(rest);
-  for (const line of results.info ?? []) actionsCore.info(line);
-  for (const line of results.passes) actionsCore.info(line);
-  for (const line of results.failures) actionsCore.error(line);
-  if (results.failures.length) {
-    actionsCore.setFailed(`Model-routing smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
-  } else {
-    actionsCore.info(`All ${results.passes.length} model-routing smoke assertions passed`);
-  }
+  reportResults(actionsCore, results, "Model-routing");
   return results;
 }
 
@@ -814,14 +844,7 @@ function checkSessionContract(options) {
 async function sessionContractMain(options) {
   const { core: actionsCore = global.core, ...rest } = options;
   const results = checkSessionContract(rest);
-  for (const line of results.info ?? []) actionsCore.info(line);
-  for (const line of results.passes) actionsCore.info(line);
-  for (const line of results.failures) actionsCore.error(line);
-  if (results.failures.length) {
-    actionsCore.setFailed(`Unified-session smoke assertions failed (${results.failures.length}):\n${results.failures.join("\n")}`);
-  } else {
-    actionsCore.info(`All ${results.passes.length} unified-session smoke assertions passed`);
-  }
+  reportResults(actionsCore, results, "Unified-session");
   return results;
 }
 

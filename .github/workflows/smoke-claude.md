@@ -158,14 +158,19 @@ post-steps:
     with:
       script: |
         const path = require("node:path");
-        const { sessionContractMain } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_model_routing_assertions.cjs"));
-        await sessionContractMain({
-          core,
-          engine: "claude",
-          expectModelInventory: true,
-          copilotInventory: false,
-          resolutionRoles: ["main"],
-        });
+        try {
+          if (!process.env.RUNNER_TEMP) throw new Error("RUNNER_TEMP is unavailable");
+          const { sessionContractMain } = require(path.join(process.env.RUNNER_TEMP, "gh-aw/actions/smoke_model_routing_assertions.cjs"));
+          await sessionContractMain({
+            core,
+            engine: "claude",
+            expectModelInventory: true,
+            copilotInventory: false,
+            resolutionRoles: ["main"],
+          });
+        } catch (error) {
+          core.setFailed(`Unable to run unified-session smoke assertions: ${error.message}`);
+        }
 ---
 
 # Smoke Test: Claude Engine Validation.
