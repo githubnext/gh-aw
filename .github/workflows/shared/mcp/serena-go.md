@@ -40,8 +40,33 @@ pre-agent-steps:
         echo "Serena Go runtime has no executable bin/go in the mounted toolchain." >&2
         exit 1
       fi
-      printf 'GH_AW_SERENA_GO_PATH=%s/bin:%s\n' "$go_root" "$PATH" >> "$GITHUB_ENV"
+      gopls_bin="$RUNNER_TOOL_CACHE/gopls/0.22.0/bin"
+      if ! CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN="$gopls_bin" "$go_root/bin/go" install golang.org/x/tools/gopls@v0.22.0; then
+        echo "Serena Go preflight failed: could not install gopls v0.22.0 with the selected Go toolchain." >&2
+        exit 1
+      fi
+      if ! "$gopls_bin/gopls" version; then
+        echo "Serena Go preflight failed: installed gopls cannot start." >&2
+        exit 1
+      fi
+      printf 'GH_AW_SERENA_GO_PATH=%s/bin:%s:%s\n' "$go_root" "$gopls_bin" "$PATH" >> "$GITHUB_ENV"
       "$go_root/bin/go" version
+  - name: Check Serena Go semantic analysis
+    timeout-minutes: 5
+    run: |
+      set -euo pipefail
+      if ! docker run --rm --init \
+        --network host \
+        --mount "type=bind,source=$GITHUB_WORKSPACE,target=$GITHUB_WORKSPACE" \
+        --mount "type=bind,source=$RUNNER_TOOL_CACHE,target=$RUNNER_TOOL_CACHE,readonly" \
+        --env "PATH=$GH_AW_SERENA_GO_PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        --entrypoint /usr/bin/timeout \
+        ghcr.io/oraios/serena:1.7.0@sha256:6c9459e4246a39c9deaa4f23fb05a526ac6e237b24c8e84a927a098fa1ab6730 \
+        240 /workspaces/serena/.venv/bin/serena project health-check "$GITHUB_WORKSPACE"; then
+        echo "Serena Go preflight failed: Go language-server semantic health check failed or timed out. Check the gopls and Serena diagnostics above; the agent will not start." >&2
+        exit 1
+      fi
+      echo "Serena Go preflight passed: gopls started and semantic symbol analysis succeeded."
 ---
 
 ## Go-specific constraints
@@ -54,9 +79,12 @@ The selected Go binary directory and runner PATH are forwarded explicitly throug
 the MCP gateway to Serena's PATH, preserving other setup runtimes in the mounted
 tool cache (for example Node for a project's TypeScript or Bash language servers)
 and appending the gateway's existing PATH. No additional host paths are mounted.
-The existing runner tool-cache mount remains read-only. The
-setup check verifies the runner toolchain and mount boundary, not language-server
-readiness: a healthy MCP transport alone does not prove Go semantic analysis works.
-If Serena initialization fails, report the language-server error and stop tasks
-that require semantic analysis; do not substitute text-only analysis or install
-tools ad hoc.
+The existing runner tool-cache mount remains read-only. Setup installs pinned
+gopls v0.22.0 there as a static binary and checks that it starts. Before the MCP
+gateway or agent starts, Serena's project health check runs in the same image
+with the same workspace and tool-cache mounts, exercising symbol overview and
+symbol lookup through the language server. A failed or timed-out check fails
+preflight rather than leaving the agent to report a missing tool.
+If Serena initialization later fails, report the language-server error and stop
+tasks that require semantic analysis; do not substitute text-only analysis or
+install tools ad hoc.
