@@ -6,16 +6,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHealthSamplingCollectsEvidenceForEachWorkflow(t *testing.T) {
+	stubHealthFailureCandidates(t)
 	original := healthListWorkflowRuns
 	t.Cleanup(func() { healthListWorkflowRuns = original })
 	runs, collection := healthRevisionFixture()
@@ -37,6 +40,81 @@ func TestHealthSamplingCollectsEvidenceForEachWorkflow(t *testing.T) {
 	assert.False(t, collection.Partial)
 }
 
+func TestHealthSamplingCoversFailureScopesBeforeStopping(t *testing.T) {
+	originalFailureList, originalGH, originalRunList := healthListFailureCandidates, healthRunGH, healthListWorkflowRuns
+	t.Cleanup(func() {
+		healthListFailureCandidates, healthRunGH, healthListWorkflowRuns = originalFailureList, originalGH, originalRunList
+	})
+	path := ".github/workflows/example.lock.yml"
+	start := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	metadata := &workflow.LockMetadata{FrontmatterHash: "settings", BodyHash: "prompt"}
+	collection := &HealthCollection{
+		Host: "github.com", repoOverride: "org/repo", APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
+		workflows:       []GitHubWorkflow{{ID: 1, Name: "Example", Path: path}},
+		revisions:       make(map[string]*workflow.LockMetadata),
+		headRevisions:   make(map[string]*workflow.LockMetadata),
+		sourceRevisions: make(map[string]string),
+	}
+	failure := WorkflowRun{DatabaseID: 1, WorkflowName: "Example", WorkflowPath: path, Repository: "org/repo",
+		HeadBranch: "main", HeadSha: strings.Repeat("a", 40), Event: "workflow_dispatch", Attempt: 1,
+		Status: "completed", Conclusion: "failure", CreatedAt: start.Add(-30 * time.Hour), UpdatedAt: start.Add(-29 * time.Hour)}
+	collection.revisions[healthRevisionLookupKey(failure)] = metadata
+	collection.headRevisions[healthHeadRevisionKey(failure)] = metadata
+	collection.sourceRevisions[healthSourceRevisionKey(failure, failure.HeadSha)] = strings.Repeat("c", 40)
+	collection.sourceRevisions[healthSourceRevisionKey(failure, failure.HeadBranch)] = strings.Repeat("c", 40)
+	healthListFailureCandidates = func(ListWorkflowRunsOptions, int, string, *HealthCollection) ([]workflowRunAPIResponse, time.Time, error) {
+		response := workflowRunAPIResponse{ID: failure.DatabaseID, Name: failure.WorkflowName, Path: path,
+			HeadBranch: failure.HeadBranch, HeadSHA: failure.HeadSha,
+			Event: failure.Event, Status: failure.Status, Conclusion: failure.Conclusion,
+			RunAttempt: failure.Attempt, CreatedAt: failure.CreatedAt, UpdatedAt: failure.UpdatedAt}
+		response.Repository.FullName = failure.Repository
+		return []workflowRunAPIResponse{response}, time.Time{}, nil
+	}
+	healthRunGH = func(context.Context, string, ...string) ([]byte, error) {
+		return []byte(`{"jobs":[{"id":42}]}`), nil
+	}
+	var sampledScopes []string
+	healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, _ *HealthCollection) ([]WorkflowRun, int, error) {
+		require.Equal(t, "1", opts.WorkflowName)
+		sampledScopes = append(sampledScopes, strconv.Itoa(page))
+		if page == 1 {
+			var runs []WorkflowRun
+			for i := range opts.Limit {
+				run := failure
+				run.DatabaseID = int64(100 + i)
+				run.Event = "schedule"
+				run.Conclusion = "success"
+				run.CreatedAt, run.UpdatedAt = start.Add(-time.Duration(i)*time.Minute), start.Add(-time.Duration(i)*time.Minute+time.Second)
+				collection.revisions[healthRevisionLookupKey(run)] = metadata
+				collection.headRevisions[healthHeadRevisionKey(run)] = metadata
+				collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)] = strings.Repeat("c", 40)
+				collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadBranch)] = strings.Repeat("c", 40)
+				runs = append(runs, run)
+			}
+			return runs, opts.Limit, nil
+		}
+		require.Equal(t, 2, page)
+		var runs []WorkflowRun
+		for i := range healthMinimumRuns {
+			run := failure
+			run.DatabaseID = int64(200 + i)
+			run.Conclusion = "success"
+			run.CreatedAt, run.UpdatedAt = start.Add(-time.Duration(20+i)*time.Hour), start.Add(-time.Duration(20+i)*time.Hour+time.Second)
+			collection.revisions[healthRevisionLookupKey(run)] = metadata
+			runs = append(runs, run)
+		}
+		return runs, len(runs), nil
+	}
+	collected, err := fetchWorkflowRuns("", start.Add(-48*time.Hour).Format(time.RFC3339), "org/repo", false, collection)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"1", "2"}, sampledScopes, "scheduled evidence cannot satisfy the failed dispatch scope")
+	require.Len(t, collected, 3*healthMinimumRuns+1)
+	health := calculateCurrentWorkflowHealth("Example", collected, HealthConfig{Threshold: 80, RepoOverride: "org/repo", collection: collection})
+	assert.Equal(t, "healthy", health.Status)
+	assert.Equal(t, 2*healthMinimumRuns, health.SuccessCount)
+	assert.Zero(t, health.FailureCount, "chronological dispatch successes supersede the older failure")
+}
+
 func TestHealthSamplingContinuesPastRunsAwaitingApproval(t *testing.T) {
 	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
 	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
@@ -53,6 +131,12 @@ func TestHealthSamplingContinuesPastRunsAwaitingApproval(t *testing.T) {
 		}
 		if strings.Contains(endpoint, "/contents/") {
 			assert.NotContains(t, endpoint, "unapproved", "ignored runs need no revision lookups")
+			if strings.Contains(endpoint, ".md?") {
+				if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
+					return []byte(strings.Repeat("d", 40)), nil
+				}
+				return []byte(strings.Repeat("c", 40)), nil
+			}
 			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 		}
 		pages++
@@ -122,6 +206,9 @@ func TestHealthAPIQuotaAndRevisionLookupReuse(t *testing.T) {
 	healthRunGH = func(ctx context.Context, message string, args ...string) ([]byte, error) {
 		calls++
 		assert.Contains(t, args, "github.example.com")
+		if strings.Contains(args[3], ".md?") {
+			return []byte(strings.Repeat("c", 40)), nil
+		}
 		return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"config","body_hash":"prompt"}`), nil
 	}
 	collection := &HealthCollection{Host: "github.example.com", repoOverride: "github.example.com/org/repo"}
@@ -130,18 +217,18 @@ func TestHealthAPIQuotaAndRevisionLookupReuse(t *testing.T) {
 	resolveHealthRevision(run, collection)
 	run.DatabaseID = 2
 	resolveHealthRevision(run, collection)
-	assert.Equal(t, 1, calls, "identical immutable workflow revisions should be read once")
+	assert.Equal(t, 2, calls, "identical immutable source and workflow revisions should be read once")
 	assert.Equal(t, 1, probes)
 	require.NotNil(t, collection.revisions[healthRevisionLookupKey(run)])
 	run.Event, run.HeadSha = "workflow_run", strings.Repeat("b", 40)
 	resolveHealthRevision(run, collection)
-	assert.Equal(t, 1, calls, "ambiguous head SHA must not be used as executing workflow revision")
+	assert.Equal(t, 2, calls, "ambiguous head SHA must not be used as executing workflow revision")
 	collection.APIRequests = healthMaximumAPIRequests
 	_, err := healthAPI(collection, "repos/org/repo/actions/runs")
 	require.ErrorIs(t, err, errHealthAPIBudget)
 	assert.True(t, collection.Partial)
 	assert.Equal(t, "request_budget", collection.Reason)
-	assert.Equal(t, 1, calls)
+	assert.Equal(t, 2, calls)
 }
 
 func TestHealthLowQuotaAndSecondaryLimitProducePartialJSON(t *testing.T) {
@@ -199,6 +286,10 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 					Path: run.WorkflowPath, CreatedAt: run.CreatedAt, UpdatedAt: run.UpdatedAt,
 					Event: run.Event, HeadBranch: run.HeadBranch, HeadSHA: sha, RunAttempt: 1})
 			}
+			newestFirst := make([]workflowRunAPIResponse, 0, len(responses))
+			for i := range slices.Backward(responses) {
+				newestFirst = append(newestFirst, responses[i])
+			}
 			requests := 0
 			healthRunGH = func(ctx context.Context, message string, args ...string) ([]byte, error) {
 				requests++
@@ -208,14 +299,33 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 				switch {
 				case strings.Contains(endpoint, "/actions/workflows?"):
 					return []byte(`{"workflows":[{"id":11,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
+				case strings.Contains(endpoint, "/actions/runs?status=failure"):
+					return []byte(`{"workflow_runs":[]}`), nil
 				case strings.Contains(endpoint, "/actions/workflows/11/runs?"):
+					if strings.Contains(endpoint, "status=failure") {
+						var failures []workflowRunAPIResponse
+						for _, response := range responses {
+							if response.Conclusion == "failure" {
+								failures = append(failures, response)
+							}
+						}
+						out, err := json.Marshal(map[string]any{"workflow_runs": failures})
+						require.NoError(t, err)
+						return out, nil
+					}
 					assert.Contains(t, endpoint, "per_page=10&page=1&created=")
-					out, err := json.Marshal(map[string]any{"workflow_runs": responses})
+					out, err := json.Marshal(map[string]any{"workflow_runs": newestFirst})
 					require.NoError(t, err)
 					return out, nil
 				case strings.HasSuffix(endpoint, "/jobs?per_page=1"):
 					return []byte(`{"jobs":[{"id":42}]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
+					if strings.Contains(endpoint, ".md?") {
+						if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
+							return []byte(strings.Repeat("d", 40)), nil
+						}
+						return []byte(strings.Repeat("c", 40)), nil
+					}
 					body := "fixed-prompt"
 					if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
 						body = "old-prompt"
@@ -242,11 +352,13 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 			} else {
 				assert.Equal(t, "recovery_observed", health.Status)
 				assert.Equal(t, 5, health.TotalRuns)
-				assert.Equal(t, 5, health.Revisions[0].Previous.Failures)
+				assert.Equal(t, 1, health.Revisions[0].Previous.Failures)
+				assert.Equal(t, strings.Repeat("d", 40), health.Revisions[0].Previous.SourceSHA)
+				assert.NotEqual(t, health.Revisions[0].Previous.SourceSHA, health.Revisions[0].Current.SourceSHA)
 			}
 			assert.Empty(t, report.FailureClusters)
 			assert.False(t, report.Collection.Partial)
-			assert.Equal(t, 10, requests)
+			assert.LessOrEqual(t, requests, 14, "superseded sources do not need lock metadata lookups")
 		})
 	}
 }

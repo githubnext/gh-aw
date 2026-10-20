@@ -31,6 +31,9 @@ func TestHealthSamplingContinuesPastNoJobFailures(t *testing.T) {
 					return []byte(`{"total_count":0,"jobs":[]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
 					assert.NotContains(t, endpoint, "unexecuted")
+					if strings.Contains(endpoint, ".md?") {
+						return []byte(strings.Repeat("c", 40)), nil
+					}
 					return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 				default:
 					pages++
@@ -176,6 +179,9 @@ func TestHealthSamplingWaitingJobsPreservePendingRevision(t *testing.T) {
 					}
 					return []byte(`{"jobs":[]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
+					if strings.Contains(endpoint, ".md?") {
+						return []byte(strings.Repeat("c", 40)), nil
+					}
 					body := "new-prompt"
 					if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
 						body = "old-prompt"
@@ -238,6 +244,8 @@ func TestHealthOnlyNoJobFailuresRemainInsufficient(t *testing.T) {
 		switch {
 		case strings.Contains(args[3], "/actions/workflows?"):
 			return []byte(`{"workflows":[{"id":1,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
+		case strings.Contains(args[3], "/actions/runs?status=failure"):
+			return []byte(`{"workflow_runs":[{"id":42,"path":".github/workflows/example.lock.yml","status":"completed","conclusion":"failure","run_attempt":1}]}`), nil
 		case strings.Contains(args[3], "/actions/workflows/1/runs?"):
 			return []byte(`{"workflow_runs":[{"id":42,"name":"Example","status":"completed","conclusion":"failure","run_attempt":1}]}`), nil
 		default:

@@ -93,6 +93,7 @@ func TestHealthCommandTimeWindowFlags(t *testing.T) {
 }
 
 func TestHealthTimeWindowReachesSamplingAndJSON(t *testing.T) {
+	stubHealthFailureCandidates(t)
 	originalDiscover, originalList := healthDiscoverWorkflows, healthListWorkflowRuns
 	t.Cleanup(func() { healthDiscoverWorkflows, healthListWorkflowRuns = originalDiscover, originalList })
 	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) {
@@ -160,6 +161,7 @@ func TestHealthRunListingPreservesTimeWindowAcrossPages(t *testing.T) {
 }
 
 func TestHealthDaysOnlyPeriodThroughCommand(t *testing.T) {
+	stubHealthFailureCandidates(t)
 	originalDiscover, originalList := healthDiscoverWorkflows, healthListWorkflowRuns
 	t.Cleanup(func() { healthDiscoverWorkflows, healthListWorkflowRuns = originalDiscover, originalList })
 	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) {
