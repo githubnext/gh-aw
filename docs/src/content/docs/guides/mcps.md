@@ -9,8 +9,6 @@ sidebar:
 
 ## Quick Start
 
-Get your first MCP integration running in a few minutes.
-
 ### 1. Add GitHub Tools
 
 Create a workflow file at `.github/workflows/my-workflow.md`:
@@ -103,12 +101,7 @@ Custom MCP servers should be **read-only**. Write operations must go through [sa
 
 ## Custom MCP Server Types
 
-Choose the transport that matches how the server runs:
-
-- `command` for local executables over stdio
-- `container` for packaged local servers
-- `url` for remote HTTP endpoints
-- `registry` when you want to attach registry metadata to a server definition
+Choose the transport by how the server runs: `command` (local stdio executable), `container` (packaged local server), `url` (remote HTTP endpoint), or `registry` (attaches registry metadata to a server definition).
 
 ### Stdio MCP Servers
 
@@ -223,8 +216,7 @@ Pre-configured MCP server specifications are available in [`.github/workflows/sh
 
 ### Azure shared imports (OIDC, Azure DevOps, Azure MCP)
 
-Use these shared imports together when your workflow needs Azure CLI auth plus
-Azure DevOps and Azure MCP tools:
+Combine these imports for Azure CLI auth plus Azure DevOps and Azure MCP tools:
 
 ```aw wrap
 ---
@@ -244,19 +236,8 @@ imports:
 mcp-servers:
   azure:
     command: npx
-    args:
-      - -y
-      - "@azure/mcp@latest"
-      - server
-      - start
-      - --read-only
-    allowed:
-      - subscription_list
-      - subscription_get
-      - group_list
-      - group_get
-      - resource_list
-      - resource_get
+    args: [-y, "@azure/mcp@latest", server, start, --read-only]
+    allowed: [subscription_list, subscription_get, group_list, group_get, resource_list, resource_get]
 ---
 ```
 
@@ -280,34 +261,9 @@ gh aw mcp add my-workflow makenotion/notion-mcp-server --tool-id my-notion      
 gh aw mcp add my-workflow server-name --registry https://custom.registry.com/v1  # Custom registry
 ```
 
-## Practical Examples
+## Practical Example
 
-### Example 1: Basic Issue Triage
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened]
-
-permissions:
-  contents: read
-  issues: read
-
-tools:
-  github:
-    toolsets: [default]
-
-safe-outputs:
-  add-comment:
----
-
-# Issue Triage Agent
-
-Analyze issue #${{ github.event.issue.number }} and add a comment with category, related issues, and suggested labels.
-```
-
-### Example 2: Security Audit with Discussions
+The Quick Start workflow plus `safe-outputs: add-comment:` gives a basic issue triage agent. For a security audit that publishes findings:
 
 ```aw wrap
 ---
@@ -339,12 +295,7 @@ Inspect MCP configurations with `gh aw mcp inspect my-workflow` or `gh aw mcp li
 
 For deeper diagnostics, import `shared/mcp-debug.md` to access diagnostic tools and the `report_diagnostics_to_pull_request` custom safe-output.
 
-Most failures fall into two buckets:
-
-- connection problems caused by syntax, environment variable, or network issues
-- missing tools caused by the configured toolsets or `allowed` list
-
-In both cases, `gh aw mcp inspect` is the fastest way to confirm what the workflow exposes.
+Most failures are either connection problems (syntax, environment variables, network) or missing tools (toolsets or `allowed` list). `gh aw mcp inspect` is the fastest way to confirm what the workflow exposes.
 
 ## Learn More
 
