@@ -326,9 +326,6 @@ func cloudHypervisorAllowWriteHostMkdirTarget(guestPath string) (hostPath string
 }
 
 func buildMaxAICreditsExport(config AWFCommandConfig, awfConfigJSON string) (string, string) {
-	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.MaxAICredits != 0 {
-		return "", awfConfigJSON
-	}
 	defaultMaxAICredits := strconv.FormatInt(constants.DefaultMaxAICredits, 10)
 	if config.WorkflowData != nil {
 		switch {
@@ -337,13 +334,40 @@ func buildMaxAICreditsExport(config AWFCommandConfig, awfConfigJSON string) (str
 		case config.WorkflowData.IsDetectionRun:
 			defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
 		}
+		if config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.MaxAICredits != 0 {
+			defaultMaxAICredits = strconv.FormatInt(config.WorkflowData.EngineConfig.MaxAICredits, 10)
+		}
 	}
 	awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
 	awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
-	return fmt.Sprintf(`%s="${%s:-%s}"
+	assignment := fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits)
+	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.MaxAICredits != 0 {
+		assignment = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, defaultMaxAICredits)
+	}
+	requirePrimary := ""
+	if config.WorkflowData != nil && !config.WorkflowData.IsDetectionRun && !config.WorkflowData.IsEvalsRun {
+		requirePrimary = `if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -z "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+  echo "ERR_ADMISSION: Missing required runtime admission allowance." >&2
+  exit 1
+fi
+`
+	}
+	return fmt.Sprintf(`%s
 if [[ ! "$%s" =~ ^[0-9]+$ ]]; then
   %s="%s"
-fi`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits), awfConfigJSON
+fi
+%s
+if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -n "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+  if [[ ! "$GH_AW_ADMISSION_MAX_AI_CREDITS" =~ ^[1-9][0-9]{0,9}$ ]] || (( GH_AW_ADMISSION_MAX_AI_CREDITS > 2147483647 )); then
+    echo "ERR_ADMISSION: Invalid runtime admission allowance." >&2
+    exit 1
+  fi
+  GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"
+  echo "Admission allowance applied (value withheld)."
+else
+  echo "No component admission allowance; retaining existing budget policy (value withheld)."
+fi
+unset GH_AW_ADMISSION_RESULT GH_AW_ADMISSION_MAX_AI_CREDITS`, assignment, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits, requirePrimary), awfConfigJSON
 }
 
 func buildAWFConfigPrintfArg(awfConfigJSON string, hasMaxAICreditsExport bool) string {

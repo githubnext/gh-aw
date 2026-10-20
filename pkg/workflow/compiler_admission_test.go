@@ -5,6 +5,7 @@ package workflow
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,6 +16,67 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAdmissionRuntimeBudgetSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name, result, allowance, expected string
+		component, invalid                bool
+		local                             int64
+	}{
+		{"approved overrides local", "admitted", "111", "111", false, false, 777},
+		{"approved higher allowance", "admitted", "999", "999", false, false, 777},
+		{"approved overrides unlimited", "admitted", "111", "111", false, false, -1},
+		{"disabled retains local", "", "", "777", false, false, 777},
+		{"disabled retains unlimited", "", "", "-1", false, false, -1},
+		{"ignored ignores stale allowance", "ignored", "111", "777", false, false, 777},
+		{"optional absent retains component", "admitted", "", "777", true, false, 777},
+		{"primary absent blocks", "admitted", "", "", false, true, 777},
+		{"invalid allowance blocks", "admitted", "12oops", "", false, true, 777},
+		{"overflow blocks", "admitted", "2147483648", "", false, true, 777},
+		{"shell payload blocks", "admitted", "$(echo unsafe)", "", false, true, 777},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := &WorkflowData{EngineConfig: &EngineConfig{MaxAICredits: tc.local}, IsDetectionRun: tc.component}
+			script, config := buildMaxAICreditsExport(AWFCommandConfig{WorkflowData: data}, `{"apiProxy":{"maxRuns":1,"maxAiCredits":777}}`)
+			assert.Equal(t, 1, strings.Count(config, `"maxAiCredits"`))
+			assert.Contains(t, config, `"maxAiCredits":${GH_AW_MAX_AI_CREDITS}`)
+			resultFile := filepath.Join(t.TempDir(), "budget")
+			cmd := exec.Command("bash", "-c", script+"\nprintf '%s' "+buildAWFConfigPrintfArg(config, true)+" > \"$BUDGET_RESULT\"")
+			cmd.Env = append(os.Environ(), "GH_AW_ADMISSION_RESULT="+tc.result, "GH_AW_ADMISSION_MAX_AI_CREDITS="+tc.allowance, "GH_AW_MAX_AI_CREDITS=222", "BUDGET_RESULT="+resultFile)
+			output, err := cmd.CombinedOutput()
+			if tc.invalid {
+				require.Error(t, err)
+				assert.Contains(t, string(output), "ERR_ADMISSION")
+				return
+			}
+			require.NoError(t, err, "%s", output)
+			value, err := os.ReadFile(resultFile)
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"apiProxy":{"maxRuns":1,"maxAiCredits":`+tc.expected+`}}`, string(value))
+			for _, withheld := range []string{"777", "111", "999", "222"} {
+				assert.NotContains(t, string(output), withheld)
+			}
+		})
+	}
+}
+
+func TestAdmissionComponentBudgetOutputs(t *testing.T) {
+	for _, tc := range []struct {
+		name, output     string
+		detection, evals bool
+	}{
+		{"agent", "admission-max-ai-credits", false, false},
+		{"detection", "admission-max-ai-credits-threat-detection", true, false},
+		{"evals", "admission-max-ai-credits-evals", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := map[string]string{}
+			applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{EngineConfig: &EngineConfig{MaxAICredits: 777}, IsDetectionRun: tc.detection, IsEvalsRun: tc.evals})
+			assert.Equal(t, "${{ needs.activation.outputs."+tc.output+" }}", env["GH_AW_ADMISSION_MAX_AI_CREDITS"])
+			assert.Equal(t, "${{ needs.activation.outputs.admission-result }}", env["GH_AW_ADMISSION_RESULT"])
+		})
+	}
+}
 
 func TestAdmissionRuntimeWiring(t *testing.T) {
 	t.Setenv("GH_AW_DEFAULT_ADMISSION_URL", "https://compiler-process.invalid/api/admission")
@@ -57,15 +119,13 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, yaml, admissionDailyAICFallbackIfExpr)
 	assert.NotContains(t, yaml, "\n  admission:\n")
 	for name, job := range compiler.jobManager.jobs {
-		for output := range job.Outputs {
-			assert.NotContains(t, output, "admission", "job %s", name)
-		}
 		if name == "activation" {
+			assert.Equal(t, "${{ steps.admission.outputs.max-ai-credits }}", job.Outputs["admission-max-ai-credits"])
 			continue
 		}
 		encoded, err := json.Marshal(job)
 		require.NoError(t, err)
-		for _, fragment := range []string{"GH_AW_ADMISSION", "steps.admission", "outputs.admission", "admission-aic", "admission_budget.cjs"} {
+		for _, fragment := range []string{"steps.admission", "admission-aic", "admission_budget.cjs", "GH_AW_ADMISSION_WORKFLOW_HASH"} {
 			assert.NotContains(t, string(encoded), fragment, "job %s", name)
 		}
 	}

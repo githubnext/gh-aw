@@ -52,6 +52,7 @@ Init ==
              denialAt |-> 0, malformed |-> FALSE, fatal |-> FALSE,
              timedOut |-> FALSE, dailyChecks |-> 0, dailyValidation |-> "pending",
              runtimeCap |-> context.localCap, approvedCap |-> 0,
+             runtimeDetectionCap |-> context.localCap, runtimeEvalsCap |-> context.localCap,
              approvedDetectionCap |-> 0, approvedEvalsCap |-> 0,
              runtimeAdmission |-> FALSE, started |-> FALSE,
              privilegesActor |-> "original", financialEffects |-> 0,
@@ -143,7 +144,9 @@ EvaluateAllow ==
         !.approvedDetectionCap = IF Fault = "optional-cap-ignored" THEN 0 ELSE s.reply.detectionCap,
         !.approvedEvalsCap = s.reply.evalsCap,
         !.runtimeCap = IF Fault = "agent-cap-mutation"
-                      THEN MinimumCap(s.context.localCap, s.reply.cap) ELSE @,
+                      THEN s.context.localCap ELSE s.reply.cap,
+        !.runtimeDetectionCap = IF s.reply.detectionCap > 0 THEN s.reply.detectionCap ELSE s.context.localCap,
+        !.runtimeEvalsCap = IF s.reply.evalsCap > 0 THEN s.reply.evalsCap ELSE s.context.localCap,
         !.traceId = IF Fault = "server-trace-override" THEN "trace-foreign" ELSE @,
         !.dailyValidation = IF Fault # "daily-after-admission" THEN "bypassed" ELSE @,
         !.lastEvent = "Validate200"]
@@ -239,6 +242,7 @@ TypeOK ==
                     detail : {"empty", "low", "high"}]
     /\ s.firstReplica \in 0..2 /\ s.replica \in 0..2
     /\ s.runtimeCap \in 0..3 /\ s.approvedCap \in 0..3 /\ s.financialEffects \in 0..4
+    /\ s.runtimeDetectionCap \in 0..3 /\ s.runtimeEvalsCap \in 0..3
     /\ s.approvedDetectionCap \in 0..2 /\ s.approvedEvalsCap \in 0..2
     /\ s.dailyChecks \in 0..1
     /\ s.dailyValidation \in {"pending", "bypassed", "passed", "failed"}
@@ -276,8 +280,13 @@ CeilingValidated ==
         s.approvedCap = s.reply.cap /\ s.approvedCap > 0
         /\ s.approvedDetectionCap = s.reply.detectionCap
         /\ s.approvedEvalsCap = s.reply.evalsCap
-DownstreamUnmodified ==
-    ~s.runtimeAdmission /\ s.runtimeCap = s.context.localCap
+RuntimeBudgetsResolved ==
+    /\ ~s.runtimeAdmission
+    /\ s.runtimeCap = IF s.admission = "admitted" THEN s.approvedCap ELSE s.context.localCap
+    /\ s.runtimeDetectionCap =
+        IF s.admission = "admitted" /\ s.approvedDetectionCap > 0 THEN s.approvedDetectionCap ELSE s.context.localCap
+    /\ s.runtimeEvalsCap =
+        IF s.admission = "admitted" /\ s.approvedEvalsCap > 0 THEN s.approvedEvalsCap ELSE s.context.localCap
 NoFabricatedAdmission ==
     s.admission \in {"skipped", "outage"} =>
         s.approvedCap = 0 /\ s.approvedDetectionCap = 0 /\ s.approvedEvalsCap = 0

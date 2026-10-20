@@ -21,6 +21,16 @@ func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *Workf
 	if env == nil {
 		return
 	}
+	if workflowData != nil && !workflowData.DryRun {
+		output := "admission-max-ai-credits"
+		if workflowData.IsEvalsRun {
+			output += "-evals"
+		} else if workflowData.IsDetectionRun {
+			output += "-threat-detection"
+		}
+		env["GH_AW_ADMISSION_RESULT"] = "${{ needs.activation.outputs.admission-result }}"
+		env["GH_AW_ADMISSION_MAX_AI_CREDITS"] = "${{ needs.activation.outputs." + output + " }}"
+	}
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxAICredits != 0 {
 		return
 	}
@@ -56,6 +66,12 @@ func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *Workf
 // preserving the ${varName} reference for bash expansion and escaping bare $ signs
 // (e.g. "$schema" → "\$schema").
 func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {
+	const creditsKey = `"maxAiCredits":`
+	if idx := strings.Index(awfConfigJSON, creditsKey); idx >= 0 {
+		start := idx + len(creditsKey)
+		end := len(awfConfigJSON) - len(strings.TrimLeft(awfConfigJSON[start:], "-0123456789"))
+		return awfConfigJSON[:start] + expr + awfConfigJSON[end:]
+	}
 	const maxRunsKey = `"maxRuns":`
 	idx := strings.Index(awfConfigJSON, maxRunsKey)
 	if idx == -1 {
@@ -64,9 +80,7 @@ func injectMaxAICreditsExpression(awfConfigJSON string, expr string) string {
 	}
 	// Scan past the integer value of maxRuns.
 	valueEnd := idx + len(maxRunsKey)
-	for valueEnd < len(awfConfigJSON) && awfConfigJSON[valueEnd] >= '0' && awfConfigJSON[valueEnd] <= '9' {
-		valueEnd++
-	}
+	valueEnd = len(awfConfigJSON) - len(strings.TrimLeft(awfConfigJSON[valueEnd:], "0123456789"))
 	return awfConfigJSON[:valueEnd] + `,"maxAiCredits":` + expr + awfConfigJSON[valueEnd:]
 }
 

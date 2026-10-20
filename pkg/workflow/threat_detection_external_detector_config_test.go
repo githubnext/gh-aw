@@ -511,8 +511,8 @@ func TestBuildExternalDetectorWorkflowDataMaxAICredits(t *testing.T) {
 		if strings.Contains(allSteps, "vars."+compilerenv.DefaultDetectionMaxAICredits) {
 			t.Fatalf("expected external detector steps not to reference vars.%s when explicit max-ai-credits is set, got:\n%s", compilerenv.DefaultDetectionMaxAICredits, allSteps)
 		}
-		if !strings.Contains(allSteps, `"maxAiCredits":777`) {
-			t.Fatalf("expected external detector steps to include maxAiCredits 777, got:\n%s", allSteps)
+		if !strings.Contains(allSteps, `GH_AW_MAX_AI_CREDITS="777"`) || !strings.Contains(allSteps, `GH_AW_ADMISSION_MAX_AI_CREDITS`) {
+			t.Fatalf("expected external detector steps to retain 777 as fallback and support admission, got:\n%s", allSteps)
 		}
 	})
 }

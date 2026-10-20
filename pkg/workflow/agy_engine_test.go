@@ -369,8 +369,9 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 			}
 			assert.Equal(t, 10, callee.Jobs["agent"].TimeoutMinutes)
 			assert.Equal(t, 2, callee.Jobs["safe_outputs"].TimeoutMinutes)
-			assert.Contains(t, string(lock), fmt.Sprintf(`"maxAiCredits":%d,`, entry.credits))
-			assert.Contains(t, string(lock), `"maxCacheMisses":12`)
+			assert.Contains(t, string(lock), fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="%d"`, entry.credits))
+			assert.Contains(t, string(lock), `GH_AW_ADMISSION_MAX_AI_CREDITS`)
+			assert.Contains(t, string(lock), `\"maxCacheMisses\":12`)
 			assert.Contains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
 			assert.Contains(t, string(lock), `"threat_detection":{"mode":"disabled"}`)
 			assert.NotContains(t, callee.Jobs, "detection")

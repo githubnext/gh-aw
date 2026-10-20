@@ -7,6 +7,9 @@ import (
 )
 
 func (c *Compiler) addActivationAdmissionStep(ctx *activationJobBuildContext) {
+	for _, name := range []string{"result", "max-ai-credits", "max-ai-credits-threat-detection", "max-ai-credits-evals"} {
+		ctx.outputs["admission-"+name] = "${{ steps.admission.outputs." + name + " }}"
+	}
 	ctx.steps = append(ctx.steps,
 		"      - name: Check workflow admission\n",
 		"        id: admission\n",

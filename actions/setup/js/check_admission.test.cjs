@@ -306,4 +306,55 @@ describe("bounded OIDC-only admission client", () => {
     expect(core.setOutput).not.toHaveBeenCalled();
     expect(core.warning).not.toHaveBeenCalled();
   });
+  it.each(["admitted", "ignored", "blocked"])("writes a collapsed, privacy-preserving %s summary and lifecycle logs", async outcome => {
+    for (const [key, value] of Object.entries(base)) vi.stubEnv(key, value);
+    const core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      setFailed: vi.fn(),
+      setSecret: vi.fn(),
+      setOutput: vi.fn(),
+      exportVariable: vi.fn(),
+      summary: { addRaw: vi.fn(), addDetails: vi.fn(), write: vi.fn().mockResolvedValue(undefined) },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementationOnce(oidcResponse)
+        .mockImplementation(() =>
+          outcome === "admitted" ? Response.json({ max_ai_credits: 98765, max_ai_credits_threat_detection: 87654, max_ai_credits_evals: 76543 }) : new Response("private-service-diagnostic", { status: outcome === "blocked" ? 403 : 503 })
+        )
+    );
+    await settle(main(core));
+    expect(core.summary.addRaw).toHaveBeenCalledWith("### Admission gate\n\n");
+    expect(core.summary.addDetails).toHaveBeenCalledWith(expect.stringContaining("values withheld"), expect.stringContaining(outcome));
+    expect(core.summary.write).toHaveBeenCalledOnce();
+    const diagnostics = JSON.stringify([core.info.mock.calls, core.warning.mock.calls, core.summary.addRaw.mock.calls, core.summary.addDetails.mock.calls]);
+    for (const value of [base.ACTIONS_ID_TOKEN_REQUEST_TOKEN, base.GH_AW_DEFAULT_ADMISSION_URL, base.GITHUB_REPOSITORY, base.GH_AW_ADMISSION_WORKFLOW_HASH, "rerunner", "private-service-diagnostic", "98765", "87654", "76543"]) {
+      expect(diagnostics).not.toContain(value);
+    }
+    expect(core.info).toHaveBeenCalledWith(expect.stringContaining("OIDC"));
+    if (outcome === "admitted") {
+      expect(core.setOutput).toHaveBeenCalledWith("max-ai-credits", "98765");
+      expect(core.summary.addDetails).toHaveBeenCalledWith(expect.any(String), expect.stringContaining("runtime enforcement"));
+    } else if (outcome === "blocked") expect(core.setFailed).toHaveBeenCalledExactlyOnceWith(FAILURE);
+  });
+  it("reports summary write failures without changing admission approval", async () => {
+    for (const [key, value] of Object.entries(base)) vi.stubEnv(key, value);
+    const core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      setFailed: vi.fn(),
+      setSecret: vi.fn(),
+      setOutput: vi.fn(),
+      exportVariable: vi.fn(),
+      summary: { addRaw: vi.fn(), addDetails: vi.fn(), write: vi.fn().mockRejectedValue(new Error("private-filesystem-diagnostic")) },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(oidcResponse).mockImplementationOnce(success));
+    await main(core);
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("result", "admitted");
+    expect(core.warning).toHaveBeenCalledExactlyOnceWith("ERR_ADMISSION: Unable to write admission step summary.");
+  });
 });

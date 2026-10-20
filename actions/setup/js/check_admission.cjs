@@ -50,13 +50,18 @@ function isTransient(status) {
  */
 
 /**
- * @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, mask?: (token: string) => void}} [options]
+ * @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, mask?: (token: string) => void, log?: (message: string) => void}} [options]
  * @returns {Promise<AdmissionResult>}
  */
-async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () => performance.now(), mask = () => {} } = {}) {
+async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () => performance.now(), mask = () => {}, log = () => {} } = {}) {
+  log("Admission: checking configuration (configuration values withheld).");
   const config = readAdmissionConfig(env);
-  if (!config) return { result: "skipped" };
+  if (!config) {
+    log("Admission: disabled; retaining existing budget and daily-validation policy.");
+    return { result: "skipped" };
+  }
   const body = buildAdmissionIdentity(env);
+  log("Admission: request identity validated (identity and workflow hash withheld).");
   const requestUrl = env.ACTIONS_ID_TOKEN_REQUEST_URL;
   const bootstrapToken = env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
   if (!requestUrl || !bootstrapToken) throw new AdmissionError();
@@ -88,6 +93,7 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
       async () => {
         try {
           if (!token || expiresAt <= Date.now() + 10000) {
+            log("Admission: acquiring or renewing OIDC credentials (issuer, audience and tokens withheld).");
             token = await withAdmissionTimeout(
               async signal => {
                 const response = await fetchImpl(oidcUrl, { headers: { authorization: `bearer ${bootstrapToken}`, accept: "application/json" }, redirect: "manual", signal });
@@ -121,7 +127,11 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
               deadline,
               now
             );
+            log("Admission: OIDC credentials validated and masked.");
+          } else {
+            log("Admission: reusing valid in-memory OIDC credentials.");
           }
+          log("Admission: starting service request within the remaining deadline.");
           const spanId = generateSpanId();
           const attemptStartMs = Date.now();
           try {
@@ -139,7 +149,11 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
                   discard(response);
                   throw new AdmissionError();
                 }
-                return parseAdmissionDecision(await readBoundedBody(response, 4096));
+                const result = parseAdmissionDecision(await readBoundedBody(response, 4096));
+                log("Admission: complete response validated; primary allowance supplied (values withheld).");
+                log(result.threatDetectionMaxAiCredits === undefined ? "Admission: detection allowance absent; retaining component policy." : "Admission: detection allowance supplied (value withheld).");
+                log(result.evalsMaxAiCredits === undefined ? "Admission: evals allowance absent; retaining component policy." : "Admission: evals allowance supplied (value withheld).");
+                return result;
               },
               deadline,
               now
@@ -148,6 +162,7 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
             attempts.push({ spanId, startMs: attemptStartMs, endMs: Date.now() });
           }
         } catch (error) {
+          log(error instanceof AdmissionError && !error.transient ? "Admission: non-retryable failure; activation will be blocked." : "Admission: transient failure; retry and deadline policy applies.");
           throw error instanceof AdmissionError ? error : new AdmissionError(true);
         }
       },
@@ -170,16 +185,50 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
   }
   const traceContext = { traceId, parentSpanId, operationSpanId, attempts, startMs, endMs: Date.now(), endpoints };
   if (!decision) {
-    if (config.onOutage === "block") throw new AdmissionError();
+    if (config.onOutage === "block") {
+      log("Admission: service unavailable; outage policy blocks activation.");
+      throw new AdmissionError();
+    }
+    log("Admission: service unavailable; outage policy retains existing budgets and daily validation.");
     return { result: "ignored", ...traceContext };
   }
+  log("Admission: approved; validated allowances selected for runtime enforcement; daily validation bypassed.");
   return { result: "admitted", ...decision, ...traceContext };
 }
 
-/** @param {{setOutput: (key: string, value: string) => void, exportVariable: (key: string, value: string) => void, setSecret: (value: string) => void, warning: (value: string) => void, setFailed: (value: string) => void}} core */
+/**
+ * @param {typeof import("@actions/core")} core
+ * @param {AdmissionResult | {result: "blocked"}} decision
+ */
+async function writeAdmissionSummary(core, decision) {
+  if (!core.summary) return;
+  const admitted = decision.result === "admitted";
+  const supplied = "Supplied; selected for runtime enforcement (value withheld)";
+  const fallback = decision.result === "blocked" ? "Not applied; activation blocked" : "Existing budget policy";
+  const rows = [
+    ["Decision", decision.result],
+    ["Primary allowance", admitted ? supplied : fallback],
+    ["Threat-detection allowance", admitted && decision.threatDetectionMaxAiCredits !== undefined ? supplied : fallback],
+    ["Evals allowance", admitted && decision.evalsMaxAiCredits !== undefined ? supplied : fallback],
+    ["Daily validation", admitted ? "Bypassed by admission approval" : decision.result === "blocked" ? "Activation blocked" : "Existing validation retained"],
+  ];
+  if ("attempts" in decision) rows.push(["Service attempts", String(decision.attempts.length)]);
+  try {
+    core.summary.addRaw("### Admission gate\n\n");
+    core.summary.addDetails(
+      "Admission decision and budget sources (values withheld)",
+      "\n\n| Field | Result |\n| --- | --- |\n" + rows.map(([key, value]) => `| ${key} | ${value} |`).join("\n") + "\n\nIdentity, endpoints, tokens, policy values and response diagnostics are withheld.\n"
+    );
+    await core.summary.write();
+  } catch {
+    core.warning("ERR_ADMISSION: Unable to write admission step summary.");
+  }
+}
+
+/** @param {typeof import("@actions/core")} core */
 async function main(core) {
   try {
-    const decision = await checkAdmission({ mask: token => core.setSecret(token) });
+    const decision = await checkAdmission({ mask: token => core.setSecret(token), log: message => core.info?.(message) });
     if (decision.result === "ignored") core.warning(OUTAGE);
     if (decision.result === "admitted") {
       core.setOutput("max-ai-credits", String(decision.maxAiCredits));
@@ -223,7 +272,10 @@ async function main(core) {
       }
     }
     core.setOutput("result", decision.result);
+    await writeAdmissionSummary(core, decision);
   } catch {
+    core.info?.("Admission: activation blocked; sensitive diagnostics withheld.");
+    await writeAdmissionSummary(core, { result: "blocked" });
     core.setFailed(FAILURE);
   }
 }

@@ -47,7 +47,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
 | Bundle Git operations | [`SafeOutputGit.tla`](SafeOutputGit.tla) | Explicit prerequisite recovery, offline optional discovery, bounded comparison/history work, credential roles, and separate size/protection provenance. |
 | Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
-| Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, OIDC identity, retry/outage classification, stable component allowances, activation-only scope, privacy, and caller-owned trace correlation. |
+| Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, OIDC identity, retry/outage classification, independently resolved runtime allowances, privacy, and caller-owned trace correlation. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -111,7 +111,9 @@ Four checker profiles select outage `ignore`/`block` and client OTel export enab
 Each admission has up to three attempts, two symbolic authority replicas,
 symbolic caller trace IDs, and policy allowances of two credit units. Optional
 allowances use zero only as an internal absence marker, never a valid wire value.
-No agent budget, component accounting, or admission metadata handoff is introduced.
+Validated primary and supplied component allowances replace their runtime limits.
+Missing optional allowances and skipped or ignored admissions retain local limits.
+Request identity and credentials are not handed off; component accounting is unchanged.
 
 | Contract | Checked invariants |
 |---|---|
@@ -119,7 +121,7 @@ No agent budget, component accounting, or admission metadata handoff is introduc
 | OIDC-only authentication, verified claim/workflow mapping, independently checked rerun initiator, original actor privileges | `OIDCOnly`, `IdentityVerified`, `TriggeringActorVerified`, `OriginalActorPrivileges`, `InvocationBound` |
 | Lost responses, replica changes, token-renewal abstraction, bounded retries, denial/protocol errors, explicit outage policy | `StableRetryDecision`, `RetryBound`, `DenialBlocks`, `MalformedBlocks`, `FatalErrorsBlock`, `OutagePolicyHonored` |
 | Terminal deadline expiry, approved admission bypassing daily validation, daily fallback required for skip/ignored outage | `DeadlineHonored`, `DailyAdmissionPrecedence`, `DailyFallbackEnforced` |
-| Validated primary/optional policy allowances, no invented approval on skip/outage, unchanged downstream credit controls and no admission handoff | `CeilingValidated`, `DownstreamUnmodified`, `NoFabricatedAdmission` |
+| Validated primary/optional allowances, runtime budget selection, fallback on omitted optional allowances or skip/outage, and no identity/credential handoff | `CeilingValidated`, `RuntimeBudgetsResolved`, `NoFabricatedAdmission` |
 | Empty durable-denial observation, spend-independent policy allowance, financially side-effect-free admission | `PrivateDenial`, `SpendPrivateCeiling`, `NoFinancialEffects` |
 | Required caller `traceparent`, preserved existing/generated context, correlated admission export without forcing export | `TraceparentRequired`, `CallerTracePreserved`, `CorrelationPreserved`, `OptionalExport` |
 
