@@ -307,7 +307,7 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(parent, &caller))
 	binding := caller.Jobs["agy-conformance"]
 	assert.Equal(t, map[string]string{"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}"}, binding.Secrets)
-	assert.Equal(t, map[string]string{"actions": "read", "contents": "read", "pull-requests": "read"}, binding.Permissions)
+	assert.Equal(t, map[string]string{"actions": "read", "contents": "read", "id-token": "write", "pull-requests": "read"}, binding.Permissions)
 	assert.Equal(t, "${{ inputs['agy-conformance'] }}", binding.If)
 	assert.Equal(t, "./.github/workflows/agy-conformance-reusable.lock.yml", binding.Uses)
 	for _, entry := range []struct {

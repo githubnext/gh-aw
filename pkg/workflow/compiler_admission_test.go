@@ -46,9 +46,11 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, yaml, `"frontmatter_hash":"`+hashes[1]+`"`)
 	assert.Contains(t, yaml, `"body_hash":"`+hashes[2]+`"`)
 	assert.Contains(t, yaml, strings.Join([]string{
-		"            const { setupGlobals } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/setup_globals.cjs');",
+		"            const path = require('node:path');",
+		"            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');",
+		"            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));",
 		"            setupGlobals(core, github, context, exec, io, getOctokit);",
-		"            const { main } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/check_admission.cjs');",
+		"            const { main } = require(path.join(actionsDir, 'check_admission.cjs'));",
 		"            await main(core);",
 	}, "\n"))
 	assert.Less(t, strings.Index(yaml, "id: admission"), strings.Index(yaml, "id: daily-ai-credits-workflow-guardrail"))
@@ -75,6 +77,47 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	require.Len(t, changedHashes, 3)
 	assert.Equal(t, hashes[1], changedHashes[1])
 	assert.NotEqual(t, hashes[2], changedHashes[2], "Prompt changes must invalidate workflow-content caches")
+}
+
+func TestAdmissionRejectsCodeGenerationSwitch(t *testing.T) {
+	file := filepath.Join(testutil.TempDir(t, "admission-unsupported-gate-*"), "workflow.md")
+	for _, value := range []string{"false", "true"} {
+		t.Run(value, func(t *testing.T) {
+			source := "---\non: workflow_dispatch\nadmission-gate: " + value + "\n---\nTest workflow\n"
+			require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
+			err := NewCompiler().CompileWorkflow(file)
+			require.ErrorContains(t, err, "admission-gate", "admission code generation has no frontmatter switch")
+		})
+	}
+}
+
+func TestAdmissionRepositoryReusableCallerPermissions(t *testing.T) {
+	files, err := filepath.Glob("../../.github/workflows/*.yml")
+	require.NoError(t, err)
+	callers := 0
+	for _, file := range files {
+		if strings.HasSuffix(file, ".lock.yml") {
+			continue
+		}
+		workflow, err := readWorkflowYAML(file)
+		require.NoError(t, err)
+		jobs, ok := workflow["jobs"].(map[string]any)
+		require.True(t, ok, file)
+		for name, value := range jobs {
+			job, ok := value.(map[string]any)
+			require.True(t, ok, "%s/%s", file, name)
+			uses, _ := job["uses"].(string)
+			if !strings.HasPrefix(uses, "./.github/workflows/") || !strings.HasSuffix(uses, ".lock.yml") {
+				continue
+			}
+			perms := NewPermissionsParserFromValue(job["permissions"]).ToPermissions()
+			level, exists := perms.Get(PermissionIdToken)
+			assert.True(t, exists, "%s/%s must permit the callee's activation OIDC", file, name)
+			assert.Equal(t, PermissionWrite, level, "%s/%s", file, name)
+			callers++
+		}
+	}
+	require.NotZero(t, callers, "must cover the repository's hand-authored reusable callers")
 }
 
 func TestAdmissionReusableCallerPermissionsWithStaleWorkerLock(t *testing.T) {

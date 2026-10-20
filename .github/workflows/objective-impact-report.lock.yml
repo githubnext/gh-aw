@@ -184,9 +184,11 @@ jobs:
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
         with:
           script: |
-            const { setupGlobals } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/setup_globals.cjs');
+            const path = require('node:path');
+            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
+            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/check_admission.cjs');
+            const { main } = require(path.join(actionsDir, 'check_admission.cjs'));
             await main(core);
       - name: Restore daily AIC scan observations
         id: restore-daily-aic-cache-fallback
