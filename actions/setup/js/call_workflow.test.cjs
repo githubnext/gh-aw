@@ -182,6 +182,23 @@ describe("call_workflow handler factory", () => {
     expect(result.success).toBe(true);
   });
 
+  it.each([false, true])("forwards unique webhook arrays without logging bodies, staged=%s", async staged => {
+    const previous = context.payload;
+    const first = { delivery_id: "a", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } };
+    context.payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [first, first] } } } };
+    try {
+      const handler = await main({ workflows: ["worker-a"], staged });
+      const result = await handler({ workflow_name: "worker-a", inputs: {} });
+      expect(result.success).toBe(true);
+      const forwarded = JSON.parse(JSON.parse(result.payload).aw_context);
+      expect(forwarded.items).toHaveLength(1);
+      expect(forwarded.webhook.deliveries).toEqual([first]);
+      expect(core.info.mock.calls.flat().join("\n")).not.toContain("do-not-log-webhook");
+    } finally {
+      context.payload = previous;
+    }
+  });
+
   it("should handle missing inputs gracefully", async () => {
     const config = {
       workflows: ["worker-a"],

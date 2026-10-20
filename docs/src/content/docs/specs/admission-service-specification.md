@@ -1,21 +1,21 @@
 ---
 title: AW Admission Service Specification
-description: Cooperative OIDC-authenticated admission protocol and implementation plan for centralized Agentic Workflows cost controls
+description: Cooperative OIDC-authenticated activation admission, optional component allowances, and centralized Agentic Workflows cost controls
 sidebar:
   order: 1362
 ---
 
-**Version**: 1.0 draft<br />
-**Status**: New feature proposal; no shipped admission implementation yet<br />
+**Version**: 1.2 draft<br />
+**Status**: gh-aw client implemented; admission authority deployed separately<br />
 **Date**: 2026-10-19
 
-The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This document specifies a new feature. This repository does not yet ship an admission client or service; the contracts below define the required production behavior.
+The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This repository implements the gh-aw client and compiler integration. The admission authority, trusted accounting ingestion, provisioning, and backend claim verification remain deployment-owned services; the contracts below apply to both sides.
 
 ## 1. Scope and Ownership
 
-The proposed feature adds admission as a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Once implemented, gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Without a configured endpoint, the step is skipped or completes as a successful no-op, and activation continues normally. A deployment-selected **admission authority server** (the authority) MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, and protected operator diagnostics. It MAY use a server-side GitHub App for backend verification and configuration provisioning.
+Admission runs in a separate compiler-owned `admission` job before activation. Activation MUST depend on admission while allowing an unconfigured admission job to be skipped. Only the validated result, component allowances and caller-owned trace context propagate to activation; credentials, request identity and service diagnostics remain admission-scoped. gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Admission code generation MUST NOT have a workflow-local disable switch. Without a configured endpoint, an explicit job `if` skips admission, and activation continues through its existing fallback checks. A deployment-selected **admission authority server** (the authority) MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, and protected operator diagnostics. It MAY use a server-side GitHub App for backend verification and configuration provisioning.
 
-The gate is a **cooperative admission check** for participating workflows, not an unbypassable organization policy or hard spending cap. It decides whether a cooperating AW execution may start and returns its maximum AI Credits allowance and a service-issued opaque correlation ID. It is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism.
+The gate is a **cooperative admission check** for participating workflows, not an unbypassable organization policy or hard spending cap. It decides whether an AW execution may start and returns runtime maximum AI Credits: a required primary allowance and optional, independent threat-detection and evals allowances. A validated allowance overrides that component's configured or default runtime limit, rather than adding to it or taking the minimum. Omitted optional allowances preserve existing component policy. Correlation uses the caller's W3C `traceparent`, not a response trace or correlation ID. This is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism.
 
 The protocol uses REST POST with a JSON body, authenticated exclusively by a GitHub Actions OIDC identity token with an audience restricted to the intended authority deployment. The client MUST NOT send `GITHUB_TOKEN`, a PAT, Copilot token, GitHub App JWT, installation access token, App private key, API key, or custom activation credential to the admission service. The feature MUST support only this protocol, with no GET, alternate authentication mode, negotiation, or credential fallback.
 
@@ -23,7 +23,7 @@ The protocol uses REST POST with a JSON body, authenticated exclusively by a Git
 
 ### Managed Environment Variables
 
-Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
+Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission job's step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
 
 | Actions variable | Managed YAML field | Built-in fallback |
 |------------------|--------------------|-------------------|
@@ -84,13 +84,17 @@ With administrator authorization and the applicable installation grants, the App
 
 Only non-secret configuration is provisioned. App IDs and installation IDs do not authenticate a workflow. The App does not mint the workflow's OIDC token.
 
-## 3. Activation Step and Request Contract
+## 3. Admission Job and Request Contract
 
-gh-aw MUST add the admission step to the existing activation job after applicable trigger/authorization prechecks, trusted setup, and execution-context initialization, but before agent execution and cost-incurring task work. The step MUST use trusted, pinned bootstrap and admission code, not execute repository-supplied task scripts. No separate admission job is created.
+gh-aw MUST emit a compiler-owned `admission` job after applicable trigger/authorization prerequisites and before activation and agent execution. The job MUST use trusted, pinned bootstrap and admission code, not execute repository-supplied task scripts. Its setup MUST NOT inherit workflow-specific authentication or mint telemetry App credentials. Custom `jobs.admission` configuration, including setup/pre/regular hooks, permissions, conditions, outputs and environments, MUST be rejected.
 
-The activation job MUST gain `id-token: write` to request OIDC tokens, while retaining only the GitHub API permissions required by its other steps. Permissions are job-scoped, not step-scoped; the admission step MUST NOT use or forward the activation job's GitHub API token or other available secrets. When no effective endpoint exists, the step MUST be skipped or succeed as a no-op without requesting an identity token or making a service call. Skipping the step MUST NOT skip activation or its downstream jobs. A blocking admission failure MUST fail activation and prevent agent execution through the existing activation-success dependency.
+Only the `admission` job MUST gain `id-token: write` for admission authentication; activation MUST NOT receive this permission merely because admission is generated. Independently configured OIDC features retain their own required permissions. Admission MUST NOT forward GitHub API tokens or provider secrets. The compiler MUST emit a job-level `if` requiring `${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}` so no admission runner, bootstrap or token acquisition starts without an endpoint. Audience or outage variables alone do not enable admission. Activation MUST use an explicit cancellation-safe condition allowing admission results `success` or `skipped`, while rejecting `failure` or `cancelled` and preserving its other eligibility checks. Approval skips daily validation; skipped admission and successfully ignored outages retain the existing fallback.
 
-The entire activation job is an OIDC trust boundary, not just the admission step. All custom setup, pre, and regular steps and actions, before and after admission, MUST be reviewed as able to request identity tokens for any audience, including the admission audience. OIDC attests workflow/job identity, not which step requested the token; the authority MUST NOT treat it as proof that the trusted admission helper ran. Skipping admission does not revoke the job's OIDC capability. The implementation MUST prevent untrusted code from executing in this job and review existing federated relying-party policies before granting the permission; an admission-step condition is not a permission sandbox. Trusted repository-maintained hooks remain within this cooperative boundary, without adding a job or claiming step-level isolation.
+Daily-AIC code and credentials remain in activation; the daily-limit variable MUST NOT enable the admission job. Since GitHub's implicit success gate also observes skipped ancestors, downstream jobs without explicit status-function semantics MUST use cancellation-safe direct-dependency result checks. This permits an intentionally skipped admission ancestor without admitting failed required prerequisites. Existing explicit status-function conditions retain their intended behavior.
+
+Reusable-workflow callers must also permit `id-token: write` in the calling job's permission envelope. Compiler-generated `call-workflow` jobs include that mandatory admission permission for local gh-aw Markdown targets, even before the target's lock file is regenerated. Hand-authored callers must grant it explicitly; a callee cannot elevate the caller's permissions.
+
+The entire admission job is the OIDC trust boundary, not just its client step. It contains no author-provided hooks and does not share its OIDC bootstrap environment or acquired token with activation. Jobs independently granted `id-token: write` can still request identity tokens for an admission audience: job separation is not audience restriction, and OIDC does not prove which helper executed. The authority MUST enforce its verified workflow identity policy and MUST NOT treat a bearer token alone as proof that this helper ran. Operators must review existing federated relying-party policies. Workflow editors and managed-variable owners remain within the cooperative boundary.
 
 The journey below uses GitHub.com endpoints. Other supported GitHub deployments require independently configured issuer and API hosts. Credential placeholders and decoded token examples are synthetic, not usable credentials. The GitHub response excerpts omit unrelated fields; the admission request and success bodies are complete.
 
@@ -98,7 +102,7 @@ The journey below uses GitHub.com endpoints. Other supported GitHub deployments 
 
 ```mermaid
 sequenceDiagram
-    participant A as Activation step
+    participant A as Admission job
     participant G as GitHub OIDC
     participant S as Authority server
 
@@ -106,17 +110,17 @@ sequenceDiagram
     G-->>A: 200 JSON: value = OIDC JWT
     A->>S: POST /api/admission + bearer JWT
     Note right of S: Verify identity<br/>Evaluate policy
-    S-->>A: 200 + limit + ID / 403 / transient
-    Note over A: Validate and propagate decision<br/>then complete activation
+    S-->>A: 200 + allowances / 403 / transient
+    Note over A: Validate decision and allowances<br/>then complete activation
 ```
 
-The step first resolves the endpoint and remaining settings as specified in Section 2. No endpoint means no token or request. For an enabled gate, it snapshots the current execution's nine identity strings, acquires the token below, and sends the admission request. The authority verifies the token and request bindings as specified in Section 4, optionally verifies run-attempt metadata, and returns the Section 5 decision. Only then does the client follow [Continuing After Admission](#continuing-after-admission). Transient retries follow Section 6 without changing the invocation or creating another entitlement.
+The step first resolves the endpoint and remaining settings as specified in Section 2. No endpoint means no token or request. For an enabled gate, it snapshots the current execution's nine identity strings and compiled workflow hash, acquires the token below, and sends the admission request. The authority verifies the token and request bindings as specified in Section 4, optionally verifies run-attempt metadata, and returns the Section 5 decision. Only then does the client follow [Continuing After Admission](#continuing-after-admission). Transient retries follow Section 6 without changing the invocation or creating another entitlement.
 
 ### Requesting the OIDC Token
 
 GitHub supplies `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` to the job when its effective permissions allow OIDC issuance. The permission requirement and both acquisition methods are documented in GitHub's [OIDC permissions](https://docs.github.com/en/actions/reference/security/oidc#workflow-permissions-for-the-requesting-the-oidc-token) and [methods for requesting the OIDC token](https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token). A reusable workflow cannot elevate permissions denied by its caller.
 
-The trusted helper requests the effective audience explicitly through GitHub's documented [`core.getIDToken(audience)` API](https://docs.github.com/en/actions/reference/security/oidc#standard-audience-issuer-and-subject-claims):
+The trusted helper requests the effective audience explicitly using GitHub's documented OIDC exchange. The [`core.getIDToken(audience)` API](https://docs.github.com/en/actions/reference/security/oidc#standard-audience-issuer-and-subject-claims) illustrates the same exchange:
 
 ```javascript
 const oidcToken = await core.getIDToken(effectiveAudience);
@@ -142,6 +146,8 @@ The request URL is the complete, job-issued URL, including its existing query pa
 
 The helper MUST keep both credentials in memory, mask the acquired token, and send only the OIDC JWT to the authority. It MUST NOT print either credential, decode a live token into diagnostics, or publish tokens through step/job outputs. The toolkit call illustrates the API, not a complete client: acquisition and any internal retries MUST satisfy Section 6's bounded deadline and generic-error requirements.
 
+Admission MUST NOT use `actions/create-github-app-token` or another App-token action. Such actions mint GitHub App installation access tokens, not Actions OIDC identity tokens, and require App credentials that admission MUST NOT introduce into the runner. The implemented pinned `actions/github-script` step invokes the bounded OIDC client under the endpoint `if` condition; token generation is not a separate unconditional step.
+
 See [Runtime-Minted Token Revocation](#runtime-minted-token-revocation) for OIDC disposal versus installation-token revocation.
 
 ### HTTP Request
@@ -159,6 +165,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 {
   "repo": "acme/project",
   "workflow_id": "acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
+  "workflow_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "workflow_call_id": "1234-2:acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
   "run_id": "1234",
   "run_attempt": "2",
@@ -169,26 +176,27 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 }
 ```
 
-`<OIDC_JWT>` means exactly the token returned in the preceding response's `value`, not the bootstrap request token. The `authorization` header MUST be present, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. The example includes `traceparent` for an OTel-enabled AW; this header is optional when OTel is disabled. Redirects MUST NOT be followed.
+`<OIDC_JWT>` means exactly the token returned in the preceding response's `value`, not the bootstrap request token. The `authorization` header MUST be present, and the token MUST appear nowhere else, including the body, URL, trace context, diagnostics, outputs, artifacts, or response. The caller MUST provide `traceparent` even when client OTel export is disabled. Redirects MUST NOT be followed.
 
 This POST targets the configured authority, not `api.github.com`. It is the proposed API defined by this specification, not a GitHub REST API. The authority consumes the OIDC token directly and returns an admission decision; there is no intermediate exchange for a cloud access token or a credential for continuing the workflow.
 
 ### Proxy-Friendly Header Conventions
 
-Emit lowercase application-controlled protocol field names and accept all HTTP field names case-insensitively, following [HTTP field-name semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.1). Transport-generated HTTP/1.1 fields such as `Date` or `Content-Length` MAY use conventional casing; HTTP/2 field names MUST follow its lowercase transport requirement. When propagating trace context, use the standard W3C `traceparent` field through an OpenTelemetry propagator, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The required standard request fields are `authorization`, `content-type`, and `cache-control`; `traceparent` is conditional on AW OTel enablement.
+Emit lowercase application-controlled protocol field names and accept all HTTP field names case-insensitively, following [HTTP field-name semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.1). Transport-generated HTTP/1.1 fields such as `Date` or `Content-Length` MAY use conventional casing; HTTP/2 field names MUST follow its lowercase transport requirement. Use the standard W3C `traceparent` field, not `trace-parent`, `otel-traceparent`, or `x-trace-id`. The required standard request fields are `authorization`, `content-type`, `cache-control`, and `traceparent`.
 
-Any future custom header MUST use the lowercase `gh-aw-` namespace followed by ASCII alphanumeric, hyphen-separated words: `gh-aw-[a-z0-9]+(?:-[a-z0-9]+)*`. Do not use underscores, spaces, dotted OTel attribute names, or an `x-` prefix. This protocol defines no custom headers. The service-issued correlation ID is returned in JSON and propagated as an OTel attribute; it MUST NOT replace `traceparent`.
+Any future custom header MUST use the lowercase `gh-aw-` namespace followed by ASCII alphanumeric, hyphen-separated words: `gh-aw-[a-z0-9]+(?:-[a-z0-9]+)*`. Do not use underscores, spaces, dotted OTel attribute names, or an `x-` prefix. This protocol defines no custom headers and no response trace or correlation identifier.
 
 Proxies and API gateways MUST allow and preserve the standard fields, without appending or comma-joining `traceparent` values, rewriting trace IDs, or caching admission responses. They MUST NOT forward arbitrary caller headers or use forwarded-host headers to select an issuer, audience, or tenant. Document transport limits that accommodate valid GitHub OIDC tokens and trace context. Infrastructure header/body limits still apply before protocol processing.
 
 ### JSON Request Fields
 
-All nine fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers. Standard runner sources below are defined in GitHub's [default environment variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables); the executing workflow reference uses gh-aw's existing metadata wiring:
+All ten fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers. Standard runner sources below are defined in GitHub's [default environment variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables); the executing workflow reference uses gh-aw's existing metadata wiring:
 
 | Field | Meaning and validation |
 |-------|------------------------|
 | `repo` | `GITHUB_REPOSITORY`: current execution's `owner/repository` slug; MUST match signed `repository` |
 | `workflow_id` | `GH_AW_INFO_WORKFLOW_ID`, populated from `job.workflow_ref`, matching `aw_info.workflow_id`: `owner/repository/.github/workflows/file.yml@ref`; neither a short logical AW ID nor a numeric GitHub workflow ID |
+| `workflow_hash` | `GH_AW_ADMISSION_WORKFLOW_HASH`: compiler-owned `<frontmatter_hash>:<body_hash>` from the executing workflow's existing lock-file metadata. Both components are lowercase 64-character SHA-256 hex strings. This identifies normalized workflow configuration and prompt content for potential authority-side caching, not a Git commit SHA or OIDC claim. |
 | `workflow_call_id` | Derive exactly `<run_id>-<run_attempt>:<workflow_id>`, matching `aw_info.workflow_call_id`; not a separate GitHub claim |
 | `run_id` | `GITHUB_RUN_ID`: canonical ASCII decimal run ID; preserve as a string and compare with signed `run_id` |
 | `run_attempt` | `GITHUB_RUN_ATTEMPT`: canonical ASCII decimal attempt number; MUST match signed `run_attempt` |
@@ -196,6 +204,10 @@ All nine fields are required exactly once in a UTF-8 JSON object. Every value is
 | `event_type` | `GITHUB_EVENT_NAME`: current event name; MUST match supported signed `event_name` |
 | `actor` | `GITHUB_ACTOR` / `github.actor`: original run actor login; MUST match signed `actor` |
 | `triggering_actor` | `GITHUB_TRIGGERING_ACTOR` / `github.triggering_actor`: current attempt's initiator, which may differ from `actor`; not an OIDC claim |
+
+The compiler MUST embed the workflow's existing frontmatter and body hashes directly in the admission step environment, not read a caller-supplied variable or recompute a hash from runtime event data. Prompt-only changes alter the body component; normalized configuration/import changes alter the corresponding existing hashes. The client MUST validate both components and preserve the complete value unchanged across retries. Missing or malformed hashes block an enabled gate before acquiring credentials. These hashes cover the existing compiler-defined content inputs, not a new claim that every runtime dependency or external resource is content-addressed.
+
+`workflow_hash` is untrusted cache-hint metadata, not proof of content, permission, enrollment, or authorization. The authority MAY use it to locate previously verified workflow metadata or parsed policy inputs, but MUST independently bind cached content to the authenticated repository and executing workflow revision before using it for authorization. It MUST NOT reuse another invocation's admission or skip current identity, policy, accounting-freshness, or revocation checks because hashes match. Section 8 defines cache isolation and retry identity.
 
 The client MUST pass both values from the current [GitHub Actions context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context), not infer one from the other. `actor` identifies the original run actor; `triggering_actor` identifies the current attempt's initiator. GitHub reruns retain the privileges of `github.actor`, even when `github.triggering_actor` has different privileges. Actor-specific authorization MUST use verified identity, including signed `actor_id`, and MUST NOT substitute the rerun initiator's privileges for the original actor's.
 
@@ -211,31 +223,31 @@ JSON member names and string values in requests and success responses MUST decod
 
 ### OpenTelemetry Correlation
 
-When OTel is enabled for the AW, the client MUST propagate distributed trace context with the standard W3C `traceparent` header. When OTel is disabled, `traceparent` is optional: no client trace generation, propagation, or export is required solely for admission. The authority and its ingress MUST NOT require this header for authentication or admission. When present, its 32-character lowercase hexadecimal trace ID is independent of the service-issued `correlation_id`. The version-00 form is `00-<trace-id>-<client-span-id>-<trace-flags>`, with a nonzero trace ID and a nonzero 16-character span ID. Implementations MUST use a standards-compliant propagator rather than interpolate arbitrary input.
+The caller MUST send a valid W3C `traceparent` on every admission POST, independently of client OTel enablement. The version-00 form is `00-<trace-id>-<client-span-id>-<trace-flags>`, with a nonzero 32-character lowercase hexadecimal trace ID and a nonzero 16-character span ID. Use the shared validated trace-context helpers, never arbitrary inherited header text.
 
-For OTel-enabled AWs, reuse a valid AW trace context through the existing OTLP helpers. If none exists, generate a cryptographically random trace ID, never one derived from repository, actor, run, spend, or a credential. An instrumented admission operation and its HTTP attempts share the trace ID; each HTTP attempt has a distinct client span ID. The authority parents its server span to valid incoming context when present, or starts its own context according to its instrumentation when no header is supplied.
+Reuse a valid AW trace context through the existing OTLP helpers. If none exists, generate a cryptographically random trace ID, never one derived from repository, actor, run, spend, or a credential. The admission operation and its HTTP attempts share the trace ID; each HTTP attempt has a distinct client span ID. The authority parents its server span to valid incoming context and correlates protected diagnostics with that context and the verified invocation metadata it already receives.
 
-For OTel-enabled AWs, the step MUST preserve the activation job's existing trace context and propagate validated trace/parent IDs through the existing workflow mechanism so agent and conclusion telemetry remain connected. If the step creates a trace because none exists, it MUST initialize that mechanism rather than add a job or dependency. Instrumented logs retain standard `trace_id` and `span_id` correlation; neither tracing nor the service correlation ID substitutes for authenticated invocation identity or an idempotency key.
+The admission job MUST reuse existing upstream trace context when available and pass its caller-owned trace ID to activation setup. A skipped admission job preserves activation's normal trace fallback. When client exporters are configured, admission operation and attempt spans use the existing export helpers. Trace identifiers do not substitute for authenticated invocation identity or an idempotency key.
 
-After validating the successful response, the client MUST attach `correlation_id` as the common OTel resource attribute `gh-aw.admission.correlation_id` to all subsequent OTLP records for the admitted invocation, including the completed admission span, remaining activation, engine, tool/gateway, safe-output, and conclusion telemetry. This includes spans, logs, and metrics across jobs and subprocesses, including telemetry emitted on later failure or cancellation. Components that cannot set the attribute directly MUST be enriched through the shared export path; supported telemetry paths MUST NOT silently omit it.
+Client lifecycle logs and the collapsed `### Admission gate` step summary report only fixed outcome categories, allowance presence, budget sources and attempt counts. Endpoint configuration, tokens, request/actor identity, workflow hashes, allowance amounts, spend and raw response diagnostics MUST NOT appear in these diagnostics. Summary-write failures emit a generic warning without changing the decision.
 
-The authority MUST add the same attribute to its admission server span and subsequent invocation-specific span/log records, without mutating shared service resource identity or mixing invocation IDs.
+The unified agent session artifact (`usage/aw_session.jsonl`) records validated outputs relayed through activation as a `guardrail.admission` event with admission provenance. Its `data` contains `status` and, for admitted runs, numeric `maxAiCredits` plus independently supplied `threatDetectionMaxAiCredits` and `evalsMaxAiCredits`. Omitted optional fields remain absent; skipped or ignored decisions contain no allowances. A job skipped before running the helper produces no decision event. The event records approved limits, not measured spend or proof that a component executed. Invalid metadata produces a generic collection warning without recording raw values. Credentials, endpoints, request identity, hashes and service diagnostics are excluded. Human-readable summaries continue to withhold amounts; numeric values are available only in the structured session artifact. Detection and evals execution consume their respective activation outputs through the existing runtime budget path.
 
-The validated ID MUST propagate through existing step/job outputs and runtime environment/context, without adding a job. The service-issued ID remains required on success and available independently of AW OTel enablement; retaining it MUST NOT enable telemetry export. Exporters MUST preserve it independently of trace/span IDs and prevent user-supplied context or custom attributes from replacing it. Already-emitted telemetry is not rewritten or resent; existing W3C trace context connects records emitted before admission. Independently admitted invocations receive their own service-scoped IDs rather than trusting an inherited caller value.
+Creating and sending request trace context MUST NOT enable client telemetry export. Without configured exporters, no relay, exporter, or telemetry endpoint is started for admission. The service MUST NOT return `trace_id`, `traceparent`, `correlation_id`, or another OTel trace identifier in JSON or response headers. It already receives the context needed for correlation; no service-issued resource attribute or cross-job correlation handoff is required.
 
-Trace and service correlation IDs MUST NOT be used as metric datapoint dimensions, public metric labels, or authorization to access another tenant's telemetry. Metrics carry correlation only as protected resource metadata; exporters MUST NOT promote it to high-cardinality metric labels.
+Trace IDs MUST NOT be used as metric datapoint dimensions, public metric labels, or authorization to access another tenant's telemetry.
 
 Trace context is untrusted observability data, not an authorization claim. Within overall HTTP transport limits, missing, malformed, oversized, or duplicate trace context MUST NOT change admission or outage decisions: the authority discards it and starts a fresh context without echoing or logging raw invalid values. Export failures MUST NOT change the decision, disable the check, or cause another admission request.
 
 Only `traceparent` is propagated across this boundary. Arbitrary `tracestate` and `baggage` MUST NOT be forwarded or reflected; received values are ignored. Sampling is locally controlled and independent of spend, actor privileges, or an attacker-supplied sampled flag. Credentials, policy reasons, usage, balances, and personal metadata MUST NOT be encoded in trace identifiers or propagation headers.
 
-Responses do not echo trace headers or disclose internal reason identifiers. The successful JSON response carries only the authorized run ceiling and an opaque service correlation ID. Detailed service reasons remain in protected, tenant-scoped telemetry and MUST NOT appear in workflow-visible span attributes or events. A denied, skipped, or fail-open execution without a valid success response preserves its existing OTel configuration and MUST NOT fabricate a service-issued correlation ID.
+Responses do not echo trace headers or disclose internal reason identifiers. The successful JSON response carries only the Section 5 policy allowances. Detailed service reasons remain in protected, tenant-scoped telemetry and MUST NOT appear in workflow-visible span attributes or events. Denied, skipped, and fail-open executions preserve existing OTel configuration; no response identifier is required or fabricated.
 
 ### Continuing After Admission
 
-The authority responds synchronously on the same POST; Section 5 gives the complete response and validation rules. For its example `200`, the activation helper receives `max_ai_credits = 1000` and `correlation_id = "8e53c1f4a62049b5b382704fe9d61a0c"`. It validates the entire response before publishing either field, computes the effective minimum with the existing finite local cap, and wires that limit and ID into the remaining execution. A local cap of `600` yields an effective limit of `600`; an unset local cap leaves the authority ceiling of `1000`.
+The authority responds synchronously on the same POST; Section 5 gives the complete response and validation rules. The admission helper validates the entire response, including any optional component allowances, before accepting approval or publishing job outputs. Its decision outputs are `result`, `max-ai-credits`, and, when provided, `max-ai-credits-threat-detection` and `max-ai-credits-evals`. An omitted optional allowance produces no corresponding output.
 
-Only the validated non-secret decision values, never either OIDC credential, cross the existing step/job output and runtime-context boundaries. GitHub documents [passing job outputs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/pass-job-outputs), including mapping step outputs to job outputs and consuming them through `needs.<job_id>.outputs`. The compiler MUST integrate this transport into the existing graph, without adding a job or dependency; consumers MUST validate the credit value instead of interpreting a missing or malformed string output as unlimited.
+The compiler MUST relay validated admission job outputs through activation job outputs. Activation collects the result through `GH_AW_ADMISSION_RESULT` for its daily-validation conditions. Existing agent, threat-detection and evals engine execution steps select only their own allowance when the result is `admitted`, and pass it through `GH_AW_MAX_AI_CREDITS` into the existing AWF API proxy `maxAiCredits` configuration. Explicit local limits, including unlimited sentinels, do not bypass a supplied admission allowance. Skipped or ignored admissions preserve existing configured/default limits. An admitted primary execution missing its required allowance MUST fail closed. Invalid runtime allowance values MUST fail closed with a generic diagnostic. Neither optional allowance enables a component or inherits the primary allowance.
 
 The helper then succeeds, and activation finishes its remaining checks. GitHub Actions schedules the already-dependent agent job only if the existing [job dependency and success conditions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds) permit it. The authority makes no callback or additional GitHub API call to resume the workflow. The workflow's normal engine credentials remain separate and MUST NOT be sent to the authority.
 
@@ -264,7 +276,7 @@ sequenceDiagram
     end
 ```
 
-The App private key and installation tokens never go to the runner. The key signs App JWTs, not workflow OIDC tokens. Managed variables contain only non-secret configuration. The runner's OIDC bootstrap credential is used only with GitHub; `GITHUB_TOKEN` and provider secrets are not used by admission. Transient tokens MUST NOT enter logs, traces, artifacts, or decision storage. All activation steps share the job's OIDC issuance capability, including when the admission step is skipped.
+The App private key and installation tokens never go to the admission runner. The key signs App JWTs, not workflow OIDC tokens. Managed variables contain only non-secret configuration. The admission runner's OIDC bootstrap credential is used only with GitHub; `GITHUB_TOKEN` and provider secrets are not used by admission. Transient tokens MUST NOT enter logs, traces, artifacts, or decision storage. Activation does not inherit admission's OIDC issuance capability.
 
 ### OIDC Verification
 
@@ -442,15 +454,15 @@ x-github-api-version: 2026-03-10
 HTTP/1.1 204 No Content
 ```
 
-The implementor SHOULD consider a conditionally executed, commit-SHA-pinned [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token#how-it-works) step, whose default post-job cleanup performs this revocation automatically. Its condition MUST reflect an existing authorized capability's need for an App token, not merely whether admission is configured. Scope the token to explicit repositories and required permissions, and leave [`skip-token-revoke`](https://github.com/actions/create-github-app-token#skip-token-revoke) at its default `false`. The token MUST stay within its minting job; do not disable cleanup to transport it to another job.
+Admission MUST NOT introduce an App-token generation action or installation token. If a separate, existing authorized capability mints an installation token, its condition MUST reflect that capability's need, not whether admission is configured. Scope that token to explicit repositories and required permissions, register post-job revocation, and keep it within its minting job. This separate lifecycle is not an admission authentication mechanism.
 
 Custom minting code MUST register equivalent cleanup for successful and failed job exits, and cancellation where the runner can execute cleanup. Revocation failure MUST be reported without exposing credentials or claiming confirmed revocation. Already-expired tokens do not require a revocation call. A lost or forcibly terminated runner cannot guarantee cleanup; neither action post hooks nor token deletion from local memory prove that GitHub revoked a token.
 
-This requirement applies to separately minted installation tokens, not the admission OIDC JWT or the job-provided `GITHUB_TOKEN`. GitHub's documented [OIDC API](https://docs.github.com/en/rest/actions/oidc) manages claim customization and provides no endpoint for revoking a minted Actions OIDC JWT. The admission client MUST discard its OIDC token after use, but MUST NOT claim that local deletion revokes it or send it to the installation-token revocation endpoint. `actions/create-github-app-token` does not mint or revoke OIDC JWTs; it MUST NOT be introduced as admission authentication or expose the authority's App private key to the runner. Admission remains OIDC-only.
+This requirement applies to separately minted installation tokens, not the admission OIDC JWT or the job-provided `GITHUB_TOKEN`. GitHub's documented [OIDC API](https://docs.github.com/en/rest/actions/oidc) manages claim customization and provides no endpoint for revoking a minted Actions OIDC JWT. The admission client MUST discard its OIDC token after use, but MUST NOT claim that local deletion revokes it or send it to the installation-token revocation endpoint. Admission remains OIDC-only and never exposes the authority's App private key to the runner.
 
 ## 5. Response Contract
 
-An admitted response MUST be `200 OK` with `content-type: application/json` and exactly these two fields:
+An admitted response MUST be `200 OK` with `content-type: application/json`. `max_ai_credits` is required; `max_ai_credits_threat_detection` and `max_ai_credits_evals` are independently optional. No other fields are allowed:
 
 ```http
 HTTP/1.1 200 OK
@@ -459,20 +471,26 @@ cache-control: no-store
 
 {
   "max_ai_credits": 1000,
-  "correlation_id": "8e53c1f4a62049b5b382704fe9d61a0c"
+  "max_ai_credits_threat_detection": 100,
+  "max_ai_credits_evals": 50
 }
 ```
 
 | Field | Contract |
 |-------|----------|
-| `max_ai_credits` | Required JSON number whose wire token matches `[1-9][0-9]*`, with value from `1` through `2147483647`, in the existing `max-ai-credits` AI Credit units. Decimal points and exponent notation are invalid even for integral values such as `1000.0` or `1e3`. A ceiling for the verified current workflow invocation, not remaining organization credit, actual usage, or a reservation. Zero, negative/unlimited sentinels, strings, and null are invalid. A policy permitting no credits denies execution instead. |
-| `correlation_id` | Required nonzero 32-character lowercase hexadecimal value generated by the authority using 128 cryptographically random bits. Opaque, independent of the W3C trace ID, and bound to the verified invocation. It MUST NOT encode tenant, actor, usage, budget, or denial information, and is not a bearer credential. |
+| `max_ai_credits` | Required primary policy allowance for the verified invocation. |
+| `max_ai_credits_threat_detection` | Optional threat-detection policy allowance. May appear without the evals allowance. |
+| `max_ai_credits_evals` | Optional evals policy allowance. May appear without the threat-detection allowance. |
+
+Every supplied allowance MUST be a JSON number whose wire token matches `[1-9][0-9]*`, with value from `1` through `2147483647`, in the existing `max-ai-credits` AI Credit units. Decimal points and exponent notation are invalid even for integral values such as `1000.0` or `1e3`. Zero, negative/unlimited sentinels, strings, and null are invalid, including for optional fields. A policy permitting no execution denies instead. Omission is the only way to leave an optional component allowance unspecified; it does not mean zero, unlimited, or inheritance of the primary allowance.
+
+All four shapes are valid: primary only, primary plus threat detection, primary plus evals, and all three allowances. These are independent runtime limits, not a pooled allowance or balances to add together. They MUST NOT reveal remaining organization credit, actual usage, or a reservation. Their validation and runtime handling are defined in Sections 3 and 7. No trace ID, `traceparent`, or `correlation_id` appears in a response.
 
 The client MUST validate the complete success response before continuing: supported content type, UTF-8 JSON object, exact field names and types, no duplicate/unknown fields, and a body limit of 4 KiB enforced while reading. Validation MUST preserve enough lexical information to check the credit number's wire spelling, not only its decoded numerical value, and enforce Section 3's decoded-Unicode rules. Missing fields, malformed complete JSON, invalid values, or exceeding the body limit are protocol failures that block even under `ignore`; they MUST NOT become an outage-based bypass. A transport failure while reading the body remains a retryable network failure.
 
 | Status | Meaning | Client behavior |
 |--------|---------|-----------------|
-| `200` with a valid success body | Admitted | Apply the returned ceiling and correlation ID before continuing activation; the agent remains gated on activation success |
+| `200` with a valid success body | Admitted | Validate all supplied allowances, publish budget outputs, bypass daily validation and apply corresponding runtime limits |
 | `403` | Uniform authentication, authorization, validation, or policy denial | Block immediately; no retry |
 | `408`, `429`, `500`-`599` | Transient service failure | Retry, then apply configured outage policy |
 | Any other status, including redirects and other `2xx` | Not admitted or unsupported response | Block immediately; no retry |
@@ -487,7 +505,7 @@ Every response MUST set `cache-control: no-store` and omit budget, quota, reset,
 
 The client MUST enforce a single 60-second end-to-end deadline, measured with a monotonic clock from immediately before the first OIDC acquisition through complete response validation. The deadline includes acquisition and renewal, any toolkit-internal retries, admission HTTP requests and body reads, and backoff; renewal or another attempt MUST NOT restart it. Each OIDC acquisition or renewal and each admission HTTP request, including its body read, MUST have a timeout of at most ten seconds or the remaining overall time, whichever is shorter.
 
-The client makes at most three admission HTTP attempts. Network errors, timeouts, `408`, `429`, and `5xx` are transient. Backoff is 250 ms, then 500 ms, each plus 0-249 ms random jitter, within the remaining overall time. The HTTP deadlines and maximum backoffs alone total 31.248 seconds; token operations still share the same 60-second deadline. JSON body identity, audience, and the trace ID when present remain unchanged; each instrumented HTTP attempt has its own span ID. Response headers do not affect retry timing.
+The client makes at most three admission HTTP attempts. Network errors, timeouts, `408`, `429`, and `5xx` are transient. Backoff is 250 ms, then 500 ms, each plus 0-249 ms random jitter, within the remaining overall time. The HTTP deadlines and maximum backoffs alone total 31.248 seconds; token operations still share the same 60-second deadline. JSON body identity, audience, and the caller's trace ID remain unchanged; every HTTP attempt has its own span ID. Response headers do not affect retry timing.
 
 A still-valid identity token MAY be reused across retries. If renewal is necessary, it MUST preserve the same verified invocation identity and MUST NOT expand the attempt budget. OIDC issuer transport failures MAY use the outage policy; missing `id-token: write`, missing bootstrap credentials, invalid local configuration, malformed identity, and explicit authentication failures MUST block without fallback.
 
@@ -496,12 +514,12 @@ An explicit denial after a transient failure terminates retries and blocks. On o
 | Policy | Result |
 |--------|--------|
 | `ignore`, including omitted configuration | Emit a generic warning, complete the step successfully without an affirmative decision, and continue activation |
-| `block` | Fail the admission step and activation job; do not start the agent |
+| `block` | Fail the admission job and prevent activation and agent execution |
 
 ```mermaid
 flowchart TD
     A["Call authority"] --> R{"Result"}
-    R -->|Valid success| C["Apply ceiling and ID<br/>or fail closed"]
+    R -->|Valid success| C["Apply validated runtime allowances<br/>and bypass daily validation"]
     R -->|Denial or protocol error| B["Fail activation"]
     R -->|Transient failure| T{"Attempts and time left?"}
     T -->|Yes: backoff and retry| A
@@ -512,7 +530,7 @@ flowchart TD
 
 The client parses only bounded `200` bodies using Section 5 validation and discards other bodies without parsing them. Blocking failures expose only `ERR_ADMISSION` and a generic message; ignored outages expose a generic `ERR_ADMISSION` warning. Neither path prints statuses, headers, bodies, tokens, issuer diagnostics, or transport exceptions.
 
-Without a valid success response, a skipped or fail-open execution has no service-issued ceiling or correlation ID. It MUST retain existing local/default credit controls and OTel configuration, without inventing an approval, unlimited allowance, or service ID. Consequently, `ignore` cannot guarantee that a service-defined run ceiling is available.
+Without a valid success response, a skipped or fail-open execution has no service-issued allowances. It MUST retain existing local/default credit controls and OTel configuration, without inventing approval or an unlimited allowance. Consequently, `ignore` cannot guarantee that policy allowance metadata is available.
 
 The service SHOULD complete within two seconds under expected load and MUST bound dependencies below the client's ten-second HTTP deadline. It MUST remain safe when timeouts and retries reach different instances.
 
@@ -520,29 +538,30 @@ Default `ignore` explicitly trades enforcement for availability. Strict deployme
 
 ## 7. Cost-Control Decisions
 
-The authority owns policy configuration and trusted usage aggregation. Policies MAY impose organization, repository, verified-workflow, or verified-actor controls. Organization balances, remaining credit, aggregate limits, windows, and policy reasoning remain protected operator configuration. The admitted invocation's `max_ai_credits` is the only budget value returned to the caller.
+The authority owns policy configuration and trusted usage aggregation. Policies MAY impose organization, repository, verified-workflow, or verified-actor controls. Organization balances, remaining credit, aggregate limits, windows, and policy reasoning remain protected operator configuration. Only the Section 5 primary and optional component policy allowances are returned to the caller.
 
 The implementation MUST define accounting units, authoritative usage sources, freshness bounds, policy precedence, time windows, and handling of active executions. It MUST NOT implicitly mix AI Credits, token counts, and currency. Missing, stale, or unavailable usage MUST NOT silently become zero.
 
 Disabled or unconfigured tenants and unsupported policy selectors are durable denials. Temporary inability to load configured policy or fresh accounting is an outage. This distinction MUST depend on operational state, not whether a hidden spend threshold was crossed. Applicable controls MUST use a consistent policy/usage snapshot.
 
-### Per-Run Ceiling
+### Activation-Scoped Policy Allowances
 
-The returned ceiling applies only to the verified `(issuer, repository, run_id, run_attempt, workflow identity, workflow_id)` invocation. It is a policy allowance, not the organization's remaining balance. The authority MUST NOT compute it as remaining organization credits or vary it with hidden cumulative spend; hidden spend controls instead affect the uniform admission/denial decision.
+Returned allowances apply only to the verified `(issuer, repository, run_id, run_attempt, workflow identity, workflow_id)` invocation. They are policy allowances, not the organization's remaining balance. The authority MUST NOT compute them as remaining organization credits or vary them, including optional-field presence, with hidden cumulative spend; hidden spend controls instead affect the uniform admission/denial decision.
 
-Before agent execution, gh-aw MUST pass the returned ceiling through the existing runtime credit-budget controls. The effective limit is the minimum of this ceiling and any stricter finite local/default per-run limit. An unset or disabled local per-run limit MUST NOT disable the returned ceiling; existing daily and other independent limits remain in force. Unsupported budget enforcement or failure to propagate a validated ceiling MUST block, not silently run uncapped.
+gh-aw MUST validate every supplied allowance before accepting approval and use each supplied value as the corresponding runtime proxy limit. The activation result gates allowance selection; a non-admitted execution cannot consume stale allowance outputs. Existing usage collection and telemetry reporting remain unchanged. Deployment-wide authoritative inference limits still require independent enforcement at the controlled backend because workflows and managed variables remain cooperative configuration.
 
-The existing [`max-daily-ai-credits` guardrail](/gh-aw/reference/cost-management/#cap-daily-ai-credits-per-workflow) independently aggregates the same workflow's runs across the repository over a rolling 24-hour window, regardless of actor. Admission MUST preserve its threshold resolution, accounting, trigger applicability, explicit-disable settings, and failure behavior. A successful admission or ignored admission outage MUST NOT override a daily-guardrail result that prevents agent execution; an under-budget daily result MUST NOT raise the effective per-run ceiling. The service ceiling is not a replacement daily allowance or a reset of that window.
+An approved, protocol-valid admission response MUST supersede [`max-daily-ai-credits` validation](/gh-aw/reference/cost-management/#cap-daily-ai-credits-per-workflow) for that activation. Admission runs first; approval skips the daily scan, its observation-restore/repo-memory reads, and dedicated daily-check App-token minting. An HTTP response without validated approval, including an exhausted outage under `ignore`, MUST NOT bypass daily validation. With admission disabled or an ignored outage, the daily guardrail retains its existing threshold resolution, trigger applicability, explicit-disable settings, and failure behavior. Denial, malformed approval, and invalid identity/configuration block activation rather than invoking the fallback.
 
-The cap is shared across continuations/restarts within the same admitted invocation, not granted anew per process, job, retry, or continuation. The implementation MUST document which cost-incurring components its run accounting covers and test that scope. Existing `gh-aw.max_ai_credits` telemetry reports the effective limit; it MUST NOT expose organization balances or policy reasoning.
+Approval does not erase historical usage, reset the rolling 24-hour window, or disable usage collection and ledger publication. The authority owns the centralized policy decision; its allowances are not newly granted daily credit.
+
+Optional threat-detection and evals allowances describe independently configured policy; neither field requires the other, changes which jobs run, or creates an entitlement for a retry, continuation, or reusable workflow hop. If omitted, existing component configuration remains unchanged. The client does not aggregate allowances, subtract component usage, or distribute a shared admission budget.
 
 ```mermaid
 flowchart TD
-    S["Authority ceiling"] --> M["Effective minimum"]
-    L["Finite local cap<br/>when configured"] --> M
-    M --> B["One shared<br/>invocation budget"]
-    B --> A["Agent"]
-    B --> C["Continuations"]
+    S["Authority decision<br/>primary and optional component allowances"] --> V["Validate in admission job"]
+    V --> A["Approved: bypass daily validation"]
+    A --> F["Finish existing activation checks"]
+    F --> J["Existing downstream jobs<br/>with resolved runtime limits"]
 ```
 
 ### Retry Safety and Accounting Limits
@@ -555,23 +574,25 @@ Admission is a start-time check. Concurrent executions can observe the same rema
 
 The decision key MUST include trusted GitHub issuer/deployment, signed canonical repository ID, run ID, run attempt, and verified caller/executing workflow references and SHAs. Any logical AW policy selector MUST be derived as specified in Section 4. The claimed `workflow_call_id` MUST be checked but MUST NOT be the sole key.
 
-The existing call-ID format distinguishes different executing workflow references, not repeated calls of the same reusable reference within one run attempt. Supported invocation patterns MUST have an unambiguous identity established from verified claims and authoritative workflow/run metadata. Ambiguous repeated calls MUST be denied as unsupported, not treated as retries of one execution or assigned separate entitlements using caller-controlled context, trace IDs, token `jti`, or service correlation IDs.
+The payload's `workflow_hash` MAY index an internal cache of verified workflow-content data. Cache entries MUST remain scoped to the trusted issuer/deployment, repository, executing workflow identity and revision, and the authority's applicable parser/policy version; a matching hash alone MUST NOT cause cross-tenant reuse or serve as an admission-decision key. Verify the content binding against trusted source/metadata before relying on a caller-provided hash. Content-cache reuse does not waive authentication, invocation binding, current policy/usage requirements, or response `cache-control: no-store`; intermediary response caching remains prohibited.
 
-Concurrent retries across service instances MUST NOT multiply financial or execution-accounting effects. A completed admission MUST retain the same `max_ai_credits` and `correlation_id` across retries, including lost responses and token renewal; neither field is a new entitlement or a client-selected lookup key. Independently admitted workflow hops and run attempts MUST have distinct service correlation IDs.
+The existing call-ID format distinguishes different executing workflow references, not repeated calls of the same reusable reference within one run attempt. Supported invocation patterns MUST have an unambiguous identity established from verified claims and authoritative workflow/run metadata. Ambiguous repeated calls MUST be denied as unsupported, not treated as retries of one execution or assigned separate entitlements using caller-controlled context, trace IDs, or token `jti`.
+
+Concurrent retries across service instances MUST NOT multiply financial or execution-accounting effects. A completed admission MUST retain the same `max_ai_credits` and the presence and values of both optional component allowances across retries, including lost responses and token renewal. None is a new entitlement or a client-selected lookup key. Independently admitted workflow hops and run attempts have distinct verified decision keys; trace context is not the decision key.
 
 Completed decisions and their response fields MUST be retained for at least 60 seconds after atomic commitment, covering Section 6's full client retry horizon. Retention does not extend authorization: expiry or revocation MAY change an admission to the uniform denial, never increase its credit allowance. A cached admission MUST NOT outlive its configured authorization window or admit a different invocation, workflow hop, or run attempt.
 
 The authority MUST document whether the original consistent policy/usage snapshot authorizes replay within that fixed window or whether current policy/usage revalidation is required, including applicable freshness and revocation bounds. When the documented snapshot and authorization requirements remain satisfied, it MAY return the original result without new policy or usage reads; an unavailable dependency not required for that replay does not itself make the retained result an outage. Reusing a snapshot MUST NOT waive Section 4's authentication and invocation-binding requirements.
 
-If a dependency required for current authorization or revalidation is temporarily unavailable, the authority MUST return the generic transient response without deleting or replacing the original decision. Revalidation MAY confirm the original success or revoke it to the uniform denial; it MUST NOT return a different successful ceiling or correlation ID, extend eligibility, or convert an operational outage into cached revocation.
+If a dependency required for current authorization or revalidation is temporarily unavailable, the authority MUST return the generic transient response without deleting or replacing the original decision. Revalidation MAY confirm the original success or revoke it to the uniform denial; it MUST NOT change successful allowance values or optional-field presence, extend eligibility, or convert an operational outage into cached revocation.
 
-The authority MUST document a bounded retention and late-replay lifecycle. After the retry horizon it MAY retain the original decision or uniformly deny an expired or revoked invocation, but cache eviction or a renewed identity token MUST NOT create a fresh decision, ceiling, or correlation ID for the same invocation. Decision or denial records MUST NOT be discarded until a trusted invocation-eligibility rule guarantees that later requests remain ineligible; document that rule and its bounded garbage collection. A cache TTL alone is insufficient. Authorization windows and eligibility cutoffs MUST NOT slide forward on a retry or token renewal, and MUST NOT be derived solely from the current token's issue or expiry time.
+The authority MUST document a bounded retention and late-replay lifecycle. After the retry horizon it MAY retain the original decision or uniformly deny an expired or revoked invocation, but cache eviction or a renewed identity token MUST NOT create a fresh decision or allowances for the same invocation. Decision or denial records MUST NOT be discarded until a trusted invocation-eligibility rule guarantees that later requests remain ineligible; document that rule and its bounded garbage collection. A cache TTL alone is insufficient. Authorization windows and eligibility cutoffs MUST NOT slide forward on a retry or token renewal, and MUST NOT be derived solely from the current token's issue or expiry time.
 
 Where token identifiers such as `jti` are used, repeated requests for the same invocation MUST remain compatible with legitimate retries. A blanket one-use-token rule MUST NOT reject those retries; token renewal MUST NOT create a fresh policy/accounting entitlement. Transient failures MUST NOT be cached as admission or policy denial.
 
 ## 9. Privacy and Abuse Resistance
 
-The authenticated success result intentionally reveals eligibility and a policy-defined per-run ceiling, not remaining spend, accumulated usage, or denial reason. Its correlation ID is random and carries no policy data. Complete secrecy is impossible: legitimate repeated probes can reveal eligibility changes. OIDC does not eliminate this oracle. Authenticate and authorize before policy lookup, bound probes independently of spend, and document the residual disclosure.
+The authenticated success result intentionally reveals eligibility and policy-defined primary and optional component allowances, not remaining spend, accumulated usage, or denial reason. Optional-field presence MUST reflect component policy, not hidden spend bands. Complete secrecy is impossible: legitimate repeated probes can reveal eligibility changes. OIDC does not eliminate this oracle. Authenticate and authorize before policy lookup, bound probes independently of spend, and document the residual disclosure.
 
 All durable denials MUST share status, empty body, header set, and response-size behavior across spend bands and policy reasons. Timing MUST NOT intentionally depend on spend. Implementations SHOULD use a common response path, a bounded spend-independent timing envelope, and distribution tests rather than claim constant-time networking.
 
@@ -587,7 +608,7 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 
 | ID | Case | Required result |
 |----|------|-----------------|
-| ADM-001 | `POST /api/admission` with valid OIDC identity, audience, enrollment, and permitted invocation | `200` JSON containing valid `max_ai_credits` and opaque `correlation_id`, with `cache-control: no-store` |
+| ADM-001 | `POST /api/admission` with valid OIDC identity, audience, enrollment, permitted invocation, and caller `traceparent` | `200` JSON containing required `max_ai_credits` and independently optional component allowances, with `cache-control: no-store`; no trace or correlation ID returned |
 | ADM-002 | Missing token, GitHub API token, App credential, bad signature/algorithm, wrong issuer/audience, missing/wrong-type `aud`, undeclared singleton array, additional audience recipients, expired or premature token | Same empty `403`; no credential fallback or implicit audience-profile expansion |
 | ADM-003 | Different hidden spend bands and durable denial reasons | No reason/amount differences in status, body, headers, size, or intentional timing |
 | ADM-004 | Missing/duplicate/unknown/malformed JSON field, non-string value, query parameter, invalid content type, noncanonical decimal run/attempt string, or inconsistent invocation ID | Uniform `403`, including signed/body-matching leading-zero, signed, whitespace, exponent, or non-ASCII digit forms; no normalization or unsafe downstream calls |
@@ -605,8 +626,8 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-016 | Proxy logs, tracing, exceptions, artifacts, outputs, and metrics | No raw token/App-key leakage or body capture; actor metadata minimized and protected |
 | ADM-017 | Budget denial versus operational rate limiting | Budget denial is `403`; `429` is spend-independent |
 | ADM-018 | Sustained outage under both policies | Fail-open limitation explicit; strict deployment verifies protected `block` |
-| ADM-019 | Endpoint in repository/organization managed variables, including enterprise-wide organization rollout, without any opt-in flag | Step automatically runs in activation with runtime scope precedence; no assumed enterprise variable API, new job, repository-file override, or compiler-environment capture |
-| ADM-020 | No endpoint, or audience/policy without an endpoint | Step skips or succeeds as a no-op; no OIDC request or service call; activation and agent eligibility unchanged |
+| ADM-019 | Endpoint in repository/organization managed variables, including enterprise-wide organization rollout, without any opt-in flag | Isolated admission job runs with runtime scope precedence; no assumed enterprise variable API, repository-file override, or compiler-environment capture |
+| ADM-020 | No endpoint, or audience/policy without an endpoint | Explicit job `if` skips runner bootstrap, token generation and the service call; activation still runs its existing fallback checks |
 | ADM-021 | Missing job permission, invalid config, or unsupported claim set | Fail closed without requesting another credential |
 | ADM-022 | App provisioning, private-key rotation, and unsupported scope | Server-only credentials; least privilege; explicit administrative errors |
 | ADM-023 | Issuer key rotation and malicious token key/issuer URLs | Bounded trusted refresh; no token-controlled outbound discovery |
@@ -614,32 +635,36 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-025 | GET or another unsupported method; nonempty malformed endpoint | No method fallback or spending-policy evaluation; invalid configuration never becomes a no-op |
 | ADM-026 | OTel-enabled AW with valid W3C context, retries, and downstream jobs | Stable correlation trace ID; distinct HTTP attempt spans; connected client/server and workflow telemetry |
 | ADM-027 | Missing/invalid/oversized trace context within transport limits, baggage, forced sampling, or export failure | No authorization change, raw metadata leakage, extra admission request, or attacker-controlled expensive sampling |
-| ADM-028 | Custom activation hooks/actions before or after admission, including a skipped gate | Job-wide OIDC access includes the admission audience; tokens do not attest helper execution; untrusted code excluded and skipping does not revoke OIDC |
+| ADM-028 | Custom activation hooks/actions, independent OIDC features, skipped or failed admission | Admission's OIDC capability is isolated from activation; author configuration for `jobs.admission` is rejected; unrelated OIDC grants remain independent; skipped admission allows fallback, failed/cancelled admission cannot start activation |
 | ADM-029 | HTTP/1.1 and HTTP/2 proxy traversal, application/transport field-name casing, duplicate trace fields, and transport limits | Lowercase application protocol names; conventional transport-owned HTTP/1.1 casing accepted; HTTP/2 lowercase names; case-insensitive handling; preserved single trace context; no underscore-header dependency or raw credential logging |
-| ADM-030 | Success body boundaries, missing/duplicate/unknown fields, wrong types, zero/negative/fractional/oversized credits, decimal/exponent tokens such as `1000.0`/`1e3`, invalid correlation ID, or unsupported content type | Plain-decimal numeric tokens `1` and `2147483647` accepted; other invalid bodies block even under `ignore`; lexical validation precedes information-losing conversion; interrupted transport uses bounded retries |
-| ADM-031 | Service ceiling above/below a finite local limit, disabled/unset local limit, unavailable runtime enforcement, or independent daily-guardrail result | Effective minimum enforced before agent execution; no per-continuation reset or daily-guardrail bypass, including after ignored admission outages; daily under-budget result never raises the ceiling; enforcement failure blocks |
-| ADM-032 | All subsequent OTLP spans, logs, and metrics across supported jobs, subprocesses, exporters, and later failure/cancellation | Same `gh-aw.admission.correlation_id` resource attribute preserved; W3C trace IDs unchanged; no metric-dimension promotion or untrusted attribute override |
-| ADM-033 | Lost success response, token renewal, cross-instance retries near the overall deadline, cache eviction, authorization expiry/revocation, late replay, rerun, or independently admitted workflow hop | Response fields retained at least 60 seconds after commitment; stable ceiling/ID while authorized, uniform denial after expiry/revocation; bounded cleanup preserves ineligibility without reopening an entitlement; distinct IDs for independent admissions |
-| ADM-034 | Admitted executions with differing hidden cumulative spend under the same per-run policy | Returned ceiling does not reveal remaining balance or spend bands; random IDs convey no policy state; denials remain uniform |
-| ADM-035 | Disabled endpoint or exhausted outage with `ignore`, without a valid service response | Existing local/default budget and OTel configuration preserved; no fabricated service ceiling, correlation ID, or affirmative admission |
+| ADM-030 | Success body boundaries, missing/duplicate/unknown fields, returned trace/correlation ID, invalid required or optional credit values, decimal/exponent tokens, or unsupported content type | Plain-decimal numeric tokens `1` and `2147483647` accepted for every supplied allowance; invalid bodies block even under `ignore`; lexical validation precedes conversion; interrupted transport uses bounded retries |
+| ADM-031 | Approval, daily validation, explicit/unlimited local limits, disabled admission, ignored outage, or any optional allowance combination | Approval bypasses daily validation and supplied allowances replace corresponding runtime limits; omitted optional values, disabled admission and ignored outages retain existing component policy; accounting is unchanged |
+| ADM-032 | Existing caller trace, generated trace, retries, configured client exporters, or export failure | Request trace ID remains caller-owned and stable; distinct attempt spans; no response ID, resource-enrichment relay, or downstream request identity/credential handoff |
+| ADM-033 | Lost success response, token renewal, cross-instance retries, cache eviction, expiry/revocation, late replay, rerun, or independently admitted workflow hop | Primary and optional allowance values and presence retained at least 60 seconds after commitment while authorized; uniform denial after expiry/revocation; distinct verified decision keys for independent admissions |
+| ADM-034 | Admitted executions with differing hidden cumulative spend under the same component policy | Allowances and optional-field presence do not reveal remaining balance or spend bands; denials remain uniform |
+| ADM-035 | Disabled endpoint or exhausted outage with `ignore`, without a valid service response | Existing local/default budget and OTel configuration preserved; no fabricated policy allowances or affirmative admission |
 | ADM-036 | Authority-side App JWT generation, installation-token exchange/renewal, or changed token format | Documented `RS256` JWT claims and ten-minute maximum expiry; trusted installation binding; one-hour installation-token expiry honored; tokens treated as opaque backend-only credentials |
 | ADM-037 | Missing installation approval, wrong organization/repository permission, restricted repository access, or a cross-tenant installation ID | No unauthorized provisioning/read or grant escalation; Variables and Actions permissions remain distinct; explicit administrative error without credential fallback |
-| ADM-038 | OTel-disabled AW omits `traceparent` | Same authentication, admission, retry, and outage behavior; no required client trace generation or export; successful response still includes the ceiling and service correlation ID |
+| ADM-038 | OTel-disabled AW calls admission | Valid caller-generated `traceparent` still sent; no client exporter started or export enabled; response contains no trace ID |
 | ADM-039 | Separately minted runtime installation token; skipped minting; already-expired token; normal, failed, or cancellable job exit; cleanup failure | Conditional minting registers automatic or equivalent revocation through `DELETE /installation/token`; no disabled cleanup or cross-job token handoff; cleanup failures are visible without credential leakage; OIDC-only admission neither mints App tokens nor revokes OIDC JWTs or job-provided tokens |
+| ADM-040 | Primary-only, threat-detection-only optional field, evals-only optional field, both optional fields; reordered or escaped names; invalid/duplicate optional field | All four valid shapes accepted; optional values obey the primary field's bounds and wire grammar; missing primary, null, zero, decoded duplicates, and unknown fields block; omitted allowances remain unspecified |
+| ADM-041 | Admission token acquisition and disabled endpoint | No `actions/create-github-app-token`, App private key, App JWT, or installation token introduced; the endpoint `if` gates the bounded OIDC exchange and POST together |
+| ADM-042 | Compiled workflow hash, prompt-only change, malformed/missing hash, retry, spoofed hash, or another repository/invocation with the same hash | Send exact compiler-owned frontmatter/body hashes as one `workflow_hash` string; prompt changes alter the body component; invalid hashes block before OIDC; retries retain the snapshot; authority cache hints never bypass verified content binding, tenant isolation, or current admission checks |
+| ADM-043 | Workflow-local `admission-gate` setting, including `false` | Compilation rejects the unsupported frontmatter field; all valid workflows retain admission code generation and endpoint-variable runtime gating |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix, including audience shape/cardinality, required claim types, subject policy, and caller/executing identity mappings. Each supported audience profile MUST have matching positive and negative fixtures; a declared singleton-array profile accepts only its one configured recipient.
 
-Cached-decision tests MUST cover every supported snapshot/revalidation policy: retained replay during an unrelated dependency outage, required revalidation failure, dependency recovery, and a later durable policy denial. The original successful ceiling and ID MUST survive transient revalidation failure; recovery replays those fields while authorized, and revocation returns only the uniform denial.
+Cached-decision tests MUST cover every supported snapshot/revalidation policy: retained replay during an unrelated dependency outage, required revalidation failure, dependency recovery, and a later durable policy denial. The original primary and optional allowance values and presence MUST survive transient revalidation failure; recovery replays those fields while authorized, and revocation returns only the uniform denial.
 
 ## 11. Formal Model
 
 The executable [TLA+ admission model](https://github.com/github/gh-aw/blob/main/specs/workflow-security/ActivationAdmission.tla) and [TLC configuration](https://github.com/github/gh-aw/blob/main/specs/workflow-security/ActivationAdmission.cfg) formalize a participating workflow's activation, authority response, retry, and downstream execution state machine. The [model documentation and checker](https://github.com/github/gh-aw/blob/main/specs/workflow-security/README.md#cooperative-activation-admission) describe reproduction, bounds, assumptions, and synthetic controls.
 
-Four bounded profiles cover both outage policies with and without client OTel. Safety invariants cover activation-before-agent execution; no requests for an absent endpoint; OIDC-only credentials and verified identity; independently verified policy use of the triggering actor; stable invocation-bound results; three-attempt retries; blocking denials, protocol errors, and fatal configuration/credential failures; minimum credit ceilings shared across continuations; no financial admission side effects; privacy-preserving response fields; and subsequent span/log/metric correlation without mandatory tracing. A weak-fairness temporal property checks eventual completion under the model's finite-work and abstract timeout assumptions.
+Four bounded profiles cover both outage policies with and without client OTel export. Safety invariants cover activation-before-agent execution; isolated admission OIDC permission and a success-or-skip admission dependency; no requests for an absent endpoint; OIDC-only credentials and verified identity; independently verified triggering actors; stable invocation-bound component allowances; three-attempt retries and terminal deadlines; blocking denials, protocol errors and fatal configuration/credential failures; admission-first daily validation with mandatory fallback after skip/ignored outage; primary and optional runtime budget selection with independent fallback; absence of identity/credential handoff; no financial admission side effects; private response fields; and caller-owned trace correlation. Weak fairness checks eventual completion under abstract timeout assumptions.
 
-Reachability witnesses deliberately include agent execution without a configured endpoint and after an ignored outage. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
+Reachability witnesses include approval despite a blocking daily result, daily blocks with disabled admission and ignored outages, a failed admission job blocking activation even after HTTP approval, early deadline exhaustion, existing/generated caller traces, and all four optional-allowance combinations. They deliberately include agent execution without a configured endpoint and after an ignored outage when daily fallback allows it. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
 
-This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, runtime installation-token revocation, HTTP/JSON parsing and lexical/Unicode validation, trusted URL handling, wall-clock deadline enforcement, distributed-cache concurrency/expiry and replay-state cleanup, correlation-ID entropy, timing/logging privacy, and actual runtime credit accounting remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
+This is a bounded reference specification, not proof of an implementation. Cryptographic verification, token revocation, HTTP/JSON parsing, lexical/Unicode validation, trusted URLs, monotonic deadlines, distributed-cache concurrency/expiry, replay cleanup, workflow-hash verification, trace entropy, runtime budget wiring and logging privacy remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
 
 ## 12. Implementation Plan
 
@@ -648,15 +673,15 @@ The owner map assigns implementation work to the normative contracts rather than
 | Owner / workstream | Normative sections | Deliverables |
 |--------------------|--------------------|--------------|
 | gh-aw managed configuration | 2, 6 | Register all three variable/YAML bindings and runtime hooks with repository/organization scope, precedence, validation, automatic enablement, and no-op coverage. Add CLI tests, enterprise reference, and release notes together. |
-| gh-aw activation compiler | 1, 3, 4, 6 | Integrate into the existing activation job and permissions. Review every hook/action and federated trust policy for job-wide OIDC access, including the admission audience and skipped gate. Test existing activation-success dependencies, reusable workflows, and custom job conditions without adding a job or dependency. |
-| gh-aw OIDC client and runtime budgets | 3, 4, 5-8 | Implement OIDC acquisition, POST/JSON validation, executing `aw_info` identity and distinct actor context, retries/outage handling, generic diagnostics, and effective ceiling propagation through continuations. Revoke separately minted runtime installation tokens without introducing App credentials into admission. Preserve independent daily controls and block enforcement failures. |
+| gh-aw compiler | 1, 3, 4, 6 | Generate an endpoint-gated compiler-owned admission job with isolated OIDC permissions; make activation depend on success or skip while preserving existing prerequisites. Relay validated allowances and trace context without credentials. Test reusable callers, custom conditions, independent OIDC features, and skipped/failed admission. |
+| gh-aw OIDC client | 3, 4, 5-8 | Implement bounded OIDC acquisition and POST under the job endpoint `if`, strict required/optional allowance validation, workflow and actor bindings, retries/outage handling, and generic diagnostics. Do not use App-token actions or forward credentials. Apply admission-first daily validation with fallback and runtime component limits, retaining usage accounting. |
 | Admission authority | 3-9 | Implement trusted issuer/audience, tenant and caller/executing reference/SHA binding, unambiguous invocation verification, independently verified triggering-actor policy use, stable response fields, and bounded replay storage. Keep policy evaluation protected and admission retry-safe, spend-private, and financially side-effect-free. |
 | Authority provisioning | 2, 4, 9 | Implement optional server-side App JWT/installation-token flow, approved least-privilege grants, renewal/key rotation, and authorized organization/repository provisioning. Document enterprise-wide organization rollout and the distinction between managed defaults and mandatory enforcement. |
-| gh-aw and authority observability | 3, 5-9 | Reuse OTLP trace/propagation helpers when enabled; require neither tracing nor export when disabled. Carry the service ID across every subsequent job/runtime/conclusion span, log, and metric path; retain effective-credit telemetry, tenant isolation, and redaction without metric-dimension promotion. |
+| gh-aw and authority observability | 3, 5-9 | Always send validated caller `traceparent`; reuse existing trace/export helpers without enabling export when disabled. Correlate authority telemetry using incoming trace context and verified invocation metadata. Return no trace/correlation identifier; preserve tenant isolation and redaction. |
 | Joint integration and release | 10, 11 | Satisfy every acceptance category and implementation obligation beyond the bounded model. Verify issuer/audience registration, claim mappings, ingress redaction, endpoint governance, trace continuity, and protected `block` for strict deployments. Recompile with the feature-capable compiler; no prior admission implementation requires migration. |
 
 Managed-default validation belongs in `pkg/cli/env_command.go`, alongside the existing field validators, and MUST also apply to effective runtime values that can be set outside the CLI. Apply Section 2's URL rules to `default_admission_url` (absolute HTTPS `/api/admission`, no embedded credentials, query, fragment, or expressions), its literal/no-control-character/no-expression rules to `default_admission_audience`, and Section 6's exact `ignore`/`block` enum to `default_admission_on_outage`. Preserve Section 2's empty-value fallbacks and omitted/null deletion semantics; test accepted, rejected, empty, and deleted values.
 
-Integration points are the existing [activation-job assembly](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_context.go), [activation permissions](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_activation_permissions.go), and [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). Admission-specific compiler/runtime code and tests MUST be created; the repository configuration schema MUST NOT gain admission fields.
+Integration points include [admission compilation](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_admission.go), the [bounded OIDC client](https://github.com/github/gh-aw/blob/main/actions/setup/js/check_admission.cjs), [strict protocol validation](https://github.com/github/gh-aw/blob/main/actions/setup/js/admission_protocol.cjs), and the [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). The repository configuration schema MUST NOT gain admission fields.
 
 Platform references: [GitHub Actions OIDC claims and trust configuration](https://docs.github.com/en/actions/reference/security/oidc), [GitHub App private-key management](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps), [W3C Trace Context](https://www.w3.org/TR/trace-context/), and [RFC 6648 header-naming guidance](https://www.rfc-editor.org/rfc/rfc6648.html). Existing emit-side integration points include [`send_otlp_span.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/send_otlp_span.cjs) and [`action_setup_otlp.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/action_setup_otlp.cjs).

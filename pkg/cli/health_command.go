@@ -151,6 +151,9 @@ func RunHealth(config HealthConfig) error {
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No workflow runs found created from %s to %s", config.StartDate, config.EndDate)))
+			if config.JSONOutput {
+				return displayHealthSummary(runs, config)
+			}
 		}
 		return nil
 	}

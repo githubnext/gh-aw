@@ -201,3 +201,33 @@ func TestDisplayDetailedHealthJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestRunHealthEmptySummaryJSON(t *testing.T) {
+	originalDiscover, originalList := healthDiscoverWorkflows, healthListWorkflowRuns
+	t.Cleanup(func() {
+		healthDiscoverWorkflows, healthListWorkflowRuns = originalDiscover, originalList
+	})
+	healthDiscoverWorkflows = func(*HealthCollection) ([]GitHubWorkflow, error) { return nil, nil }
+	healthListWorkflowRuns = func(ListWorkflowRunsOptions, int, *HealthCollection) ([]WorkflowRun, int, error) {
+		return nil, 0, nil
+	}
+
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Stdout = oldStdout
+		r.Close()
+		w.Close()
+	})
+	os.Stdout = w
+	runErr := RunHealth(HealthConfig{Days: 7, Threshold: 80, JSONOutput: true, RepoOverride: "owner/repo", LogsDir: t.TempDir()})
+	require.NoError(t, w.Close())
+	os.Stdout = oldStdout
+	require.NoError(t, runErr)
+	output, err := io.ReadAll(r)
+	require.NoError(t, err)
+	var summary HealthSummary
+	require.NoError(t, json.Unmarshal(output, &summary))
+	assert.Zero(t, summary.TotalWorkflows)
+}

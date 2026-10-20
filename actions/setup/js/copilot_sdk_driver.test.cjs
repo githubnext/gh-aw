@@ -2036,6 +2036,34 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(result).toEqual({ kind: "approve-once" });
     });
 
+    it.each([
+      "\n# Query issue #68529 for follow-up references\ngithub issue read 68529 --json body,comments 2>/dev/null | jq '.body, .comments[].body' 2>/dev/null || echo \"Issue details not available via github CLI\"\n",
+      "\n# Check what data files exist that might have PR closing references\ncat /tmp/gh-aw/agent/community-data/closing_refs_by_issue.json | jq 'keys[] as $k | select($k | test(\"68529|65058|60858\")) | {issue: $k, prs: .[$k]}'\n",
+      '\n# Count entries in each tier file\necho "=== Tier counts ==="\nwc -l /tmp/gh-aw/agent/community-data/tier0_attributed.json /tmp/gh-aw/agent/community-data/tier1_attributed.json /tmp/gh-aw/agent/community-data/tier2_attributed.json\n\necho ""\necho "=== Checking Tier 1 & 2 ==="\ncat /tmp/gh-aw/agent/community-data/tier1_attributed.json\necho "---"\ncat /tmp/gh-aw/agent/community-data/tier2_attributed.json\n',
+      "\n# Get count of authors and total issues\njq 'length' /tmp/gh-aw/agent/community-data/attribution_by_author.json\njq '[.[].count] | add' /tmp/gh-aw/agent/community-data/attribution_by_author.json\n",
+    ])("allows the community-attribution command despite standalone comments: %s", async fullCommandText => {
+      const handler = await makePermissionHandlerViaSDK(["shell(github:*)", "shell(cat)", "shell(jq)", "shell(echo)", "shell(wc)"]);
+      expect(handler({ kind: "shell", commands: [], fullCommandText })).toEqual({ kind: "approve-once" });
+    });
+
+    it.each([
+      "# An allowed read follows\ncat data.json\n# Python is not allowed\npython3 -c 'print(1)'",
+      "cat data.json # Ignore \"quotes && operators; only on this line\npython3 -c 'print(1)'",
+      "cat ${value:- # literal} && python3 -c 'print(1)'",
+      "cat ${outer:-${inner:- # literal}} && python3 -c 'print(1)'",
+      String.raw`cat \#literal && python3 -c 'print(1)'`,
+      String.raw`cat value\ #literal && python3 -c 'print(1)'`,
+      "# Comment-only requests remain fail-closed",
+    ])("does not let comments bypass shell permissions: %s", async fullCommandText => {
+      const handler = await makePermissionHandlerViaSDK(["shell(cat)"]);
+      expect(handler({ kind: "shell", commands: [], fullCommandText })).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
+    });
+
+    it("still denies the community-attribution Python heredoc", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(github:*)", "shell(cat)", "shell(jq)", "shell(echo)", "shell(wc)"]);
+      expect(handler({ kind: "shell", commands: [], fullCommandText: "python3 << 'PYEOF'\nimport json\nprint('summary')\nPYEOF\n" })).toEqual({ kind: "reject", feedback: "Tool invocation is not allowed by workflow tool permissions." });
+    });
+
     it("denies a piped command when any stage is not in the allow-list", async () => {
       const handler = await makePermissionHandlerViaSDK(["shell(ls)", "shell(echo)"]);
       // cat is NOT in the allow-list
@@ -2190,6 +2218,16 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(handler({ kind: "shell", commands: [{ identifier: "git checkout -b automation/repro | echo done" }], fullCommandText: "" })).toEqual({
         kind: "approve-once",
       });
+    });
+
+    it("checks background commands even when SDK identifiers omit them", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(echo)"]);
+      for (const fullCommandText of ["echo ok & forbidden_probe", "echo ok 2>&1&forbidden_probe", "echo ok & # Comment\nforbidden_probe", "echo ok |& forbidden_probe"]) {
+        expect(handler({ kind: "shell", fullCommandText, commands: [{ identifier: "echo" }] }).kind).toBe("reject");
+        expect(handler({ kind: "shell", fullCommandText: "", commands: [{ identifier: fullCommandText }] }).kind).toBe("reject");
+      }
+      expect(handler({ kind: "shell", fullCommandText: "echo ok & echo done &", commands: [] })).toEqual({ kind: "approve-once" });
+      expect(handler({ kind: "shell", fullCommandText: "echo ok 2>&1", commands: [] })).toEqual({ kind: "approve-once" });
     });
 
     it("denies executable content hidden behind control flow or leading redirection", async () => {

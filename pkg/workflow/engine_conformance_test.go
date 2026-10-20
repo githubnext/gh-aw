@@ -568,7 +568,7 @@ func TestEngineConformanceCatalogCoverage(t *testing.T) {
 			lock, err := os.ReadFile(strings.TrimSuffix(file, ".md") + ".lock.yml")
 			require.NoError(t, err)
 			compiled := string(lock)
-			require.Contains(t, compiled, fmt.Sprintf(`"maxAiCredits":%d,`, budget), "the firewall must enforce the authored credit limit")
+			require.Contains(t, compiled, fmt.Sprintf(`GH_AW_MAX_AI_CREDITS: "%d"`, budget), "the firewall must receive the authored credit limit")
 			if id == "codex" {
 				require.Contains(t, compiled, `"providers":{"openai":{"models":{"gpt-6.1-sol":{"cost":`, "the firewall must receive model-specific Codex pricing")
 				require.NotContains(t, compiled, `"defaultAiCreditsPricing"`, "conformance must not guess pricing for unknown models")

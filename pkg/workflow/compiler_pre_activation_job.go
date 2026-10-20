@@ -134,7 +134,7 @@ func (c *Compiler) buildPreActivationCheckSteps(data *WorkflowData, steps []stri
 	if len(data.Command) > 0 {
 		steps = c.appendPreActivationCommandPositionStep(data, steps)
 	}
-	if needsPermissionCheck {
+	if needsPermissionCheck && len(data.WebhookSubscriptions) == 0 {
 		steps = c.generateMembershipCheck(data, steps)
 	}
 	if data.RateLimit != nil {
@@ -415,7 +415,14 @@ func buildPreActivationActivatedConditions(data *WorkflowData, needsPermissionCh
 }
 
 func buildPreActivationMembershipAndTimeConditions(data *WorkflowData, needsPermissionCheck bool) []ConditionNode {
-	conditions := appendPreActivationCondition(nil, needsPermissionCheck, constants.CheckMembershipStepID, constants.IsTeamMemberOutput)
+	conditions := appendPreActivationCondition(nil, needsPermissionCheck && len(data.WebhookSubscriptions) == 0, constants.CheckMembershipStepID, constants.IsTeamMemberOutput)
+	if len(data.WebhookSubscriptions) > 0 {
+		conditions = append(conditions, BuildComparison(
+			BuildPropertyAccess("needs."+gatewayProvenanceJobName+".outputs.verified"),
+			"==",
+			BuildStringLiteral("true"),
+		))
+	}
 	conditions = appendPreActivationCondition(conditions, data.StopTime != "", constants.CheckStopTimeStepID, constants.StopTimeOkOutput)
 	conditions = appendPreActivationCondition(conditions, data.RateLimit != nil, constants.CheckRateLimitStepID, constants.RateLimitOkOutput)
 	return appendPreActivationCondition(conditions, data.Cooldown > 0, constants.CheckCooldownStepID, constants.CooldownOkOutput)

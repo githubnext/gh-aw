@@ -7,7 +7,9 @@ sidebar:
 
 The [`safe-outputs:`](/gh-aw/reference/glossary/#safe-outputs) (validated GitHub operations) element of your workflow's [frontmatter](/gh-aw/reference/glossary/#frontmatter) declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels - all without giving the agentic portion of the workflow any write permissions.
 
-Safe outputs enforce security through separation: agents run read-only and request actions via structured output, while separate permission-controlled jobs execute those requests. This provides least privilege, defense against prompt injection, auditability, and controlled limits per operation.
+Safe outputs separate action requests from execution: the agent requests actions through structured output, and separate permission-controlled jobs execute permitted requests. This separation limits the agent's direct permissions and supports validation, auditability and per-operation limits.
+
+Configured outputs may publish content, update metadata or merge pull requests automatically. Review requirements depend on the output configuration and applicable policy gates.
 
 When no `safe-outputs:` section is present (or when only [system types](#system-types-auto-enabled) are configured), `create-issue` is automatically enabled with conservative defaults (`max: 1`, labels and title-prefix set to the workflow ID).
 

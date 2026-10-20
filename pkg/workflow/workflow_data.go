@@ -76,6 +76,7 @@ type WorkflowData struct {
 	IncludedFiles                  []string       // list of files included via @include directives (rendered as comment in lock file)
 	ImportInputs                   map[string]any // input values from imports with inputs (for github.aw.inputs.* substitution)
 	On                             string
+	WebhookSubscriptions           []WebhookSubscription
 	Permissions                    string
 	Network                        string // top-level network permissions configuration
 	Concurrency                    string // workflow-level concurrency configuration

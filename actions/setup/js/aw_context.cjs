@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { readExperimentAssignments } = require("./experiment_helpers.cjs");
+const { normalizeWebhookContext } = require("./webhook_context.cjs");
 
 /**
  * Resolves the item type, item number, and comment id from the GitHub Actions
@@ -301,7 +302,9 @@ function normalizeLegacyWorkQueueContext(awContext, rawClaim) {
  *   otel_parent_span_id: string,
  *   trigger_label: string,
  *   experiments: string,
- *   allow_bot_authored_trigger_comment: boolean
+ *   allow_bot_authored_trigger_comment: boolean,
+ *   webhook?: {event: string, deliveries: {delivery_id: string, payload: any}[]},
+ *   items?: {item_type: string, item_number: string, repo: string, project_id?: string, url?: string, source?: string}[]
  * }}
  * Properties:
  *   - item_type: Kind of entity that triggered the workflow (issue, pull_request,
@@ -394,6 +397,7 @@ function buildAwContext() {
   const allowBotAuthoredTriggerComment = isIssueCommentEdited && triggerCommentByBot && triggerCommentAuthor !== (context.actor ?? "");
 
   return {
+    ...normalizeWebhookContext(inheritedContext),
     repo: currentRepo,
     run_id: String(context.runId ?? ""),
     run_attempt: currentRunAttempt,

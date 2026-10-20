@@ -14,5 +14,7 @@ fs.chmodSync(cli, 0o700);
 process.env.GH_AW_SAFEOUTPUTS_CLI = cli;
 process.env.PATH = `${tempDir}${path.delimiter}${process.env.PATH || ""}`;
 process.env.GH_AW_SAFE_OUTPUTS = path.join(tempDir, "safeoutputs.jsonl");
+delete process.env.GH_AW_AWF_EXECUTION_EVIDENCE_FILE;
+delete process.env.GH_AW_AWF_EXECUTION_COMPONENT;
 
 afterAll(() => fs.rmSync(tempDir, { recursive: true, force: true }));
