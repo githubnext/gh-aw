@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const guardrail = require("./check_daily_aic_workflow_guardrail.cjs");
+const ledger = require("./daily_aic_repo_memory_ledger.cjs");
 const { apiError } = require("./daily_aic_api_budget.cjs");
 
 const now = Date.parse("2025-02-03T12:00:00Z");
@@ -38,6 +39,7 @@ beforeEach(() => {
     GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: "",
     GH_AW_WORKFLOW_ID: "7",
     GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED: "false",
+    GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING: "false",
     GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC: "false",
   })) {
     vi.stubEnv(key, value);
@@ -107,6 +109,11 @@ async function check() {
   const pending = guardrail.main({ cachePath: path.join(directory, "scan.jsonl"), repoMemoryDir: directory });
   await vi.runAllTimersAsync();
   await pending;
+}
+
+function writeLedgerCoverage(start = now - ledger.WINDOW_MS, overrides = {}) {
+  fs.mkdirSync(ledger.ledgerRoot(directory), { recursive: true });
+  fs.writeFileSync(ledger.ledgerCoveragePath(directory, repository, "7"), JSON.stringify({ version: 1, repository, workflow_id: "7", initialized_at: new Date(start).toISOString(), ...overrides }));
 }
 
 function expectDecision(status, total, estimated = 0, threshold = 9) {
@@ -279,6 +286,7 @@ describe("daily AIC specification: basic conformance", () => {
     vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
     vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED", trusted);
     vi.stubEnv("GH_AW_GITHUB_TOKEN", "");
+    writeLedgerCoverage();
     await check();
     expect(outputs).toMatchObject({ daily_ai_credits_guardrail_status: status, daily_ai_credits_total: total });
     expect(global.core.setFailed).toHaveBeenCalledTimes(trusted === "true" ? 0 : 1);
@@ -290,7 +298,7 @@ describe("daily AIC specification: basic conformance", () => {
     vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED", "true");
     const entry = (id, aic, time) => JSON.stringify({ version: 1, repository, workflow_id: "7", run_id: id, aic, timestamp: new Date(time).toISOString() });
     const root = path.join(directory, "daily-aic-ledger");
-    fs.mkdirSync(root);
+    writeLedgerCoverage();
     fs.writeFileSync(
       path.join(root, "2025-02-03.jsonl"),
       ["malformed", entry(1, 1, now - 120_000), entry(1, 2, now - 60_000), entry(1, 3, now - 60_000), entry(2, 99, now - 25 * 60 * 60_000), entry(3, 99, now + 60_000), entry(4, 4, now)].join("\n")
@@ -299,5 +307,98 @@ describe("daily AIC specification: basic conformance", () => {
     await check();
     expectDecision("under_budget", 8);
     expect(github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it.each(["missing", "legacy", "warming", "future", "wrong_identity", "malformed"])("bootstraps a %s ledger from authoritative history instead of assuming zero", async state => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED", state === "missing" ? "false" : "true");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING", state === "missing" ? "true" : "false");
+    if (state === "warming") writeLedgerCoverage(now - ledger.WINDOW_MS + 1);
+    if (state === "future") writeLedgerCoverage(now + 1);
+    if (state === "wrong_identity") writeLedgerCoverage(undefined, { workflow_id: "other" });
+    if (state === "malformed") {
+      writeLedgerCoverage();
+      fs.writeFileSync(ledger.ledgerCoveragePath(directory, repository, "7"), "{");
+    }
+    await check();
+    expectDecision("under_budget", 3);
+    expect(github.rest.actions.listWorkflowRuns).toHaveBeenCalledOnce();
+    expect(client.downloadArtifact).toHaveBeenCalled();
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("Bootstrapping repo-memory AIC with authoritative artifact accounting"));
+  });
+
+  it("does not trust coverage or usage from an unclassified clone", async () => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    writeLedgerCoverage();
+    await check();
+    expect(outputs).toMatchObject({ daily_ai_credits_guardrail_status: "structural_error", daily_ai_credits_total: "", daily_ai_credits_exceeded: "false" });
+    expect(global.core.setFailed).toHaveBeenCalledOnce();
+    expect(github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("preserves the preexisting explicit insecure override without requiring coverage metadata", async () => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED", "true");
+    vi.stubEnv("GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC", "true");
+    vi.stubEnv("GH_AW_GITHUB_TOKEN", "");
+    const read = vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+      throw Object.assign(new Error("Permission denied"), { code: "EACCES" });
+    });
+    await check();
+    expectDecision("under_budget", 0);
+    expect(read).not.toHaveBeenCalled();
+    expect(github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("does not read an untrusted orphan ledger even when it contains mature coverage", async () => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING", "true");
+    writeLedgerCoverage();
+    fs.writeFileSync(path.join(ledger.ledgerRoot(directory), "2025-02-03.jsonl"), JSON.stringify({ version: 1, repository, workflow_id: "7", run_id: 1, aic: 0, timestamp }));
+    await check();
+    expectDecision("under_budget", 3);
+    expect(github.rest.actions.listWorkflowRuns).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the daily limit enforced during bootstrap", async () => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING", "true");
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS", "3");
+    await check();
+    expectDecision("exceeded", 3, 0, 3);
+    expect(outputs.daily_ai_credits_exceeded).toBe("true");
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("bootstraps the observed missing-branch failure when historical AI jobs were skipped", async () => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING", "true");
+    componentMode = "skipped";
+    await check();
+    expectDecision("under_budget", 0);
+    expect(github.rest.actions.listJobsForWorkflowRun).toHaveBeenCalled();
+    expect(client.downloadArtifact).not.toHaveBeenCalled();
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+  });
+
+  it("requires an artifact token during bootstrap instead of trusting an empty branch", async () => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING", "true");
+    vi.stubEnv("GH_AW_GITHUB_TOKEN", "");
+    await check();
+    expect(outputs).toMatchObject({ daily_ai_credits_guardrail_status: "structural_error", daily_ai_credits_total: "" });
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("no artifact lookup token"));
+    expect(github.rest.actions.getWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it.each([403, 429])("fails bootstrap closed on HTTP %i rather than using the ledger or per-run estimate", async status => {
+    vi.stubEnv("GH_AW_MAX_DAILY_AI_CREDITS_BACKEND", "repo-memory");
+    vi.stubEnv("GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING", "true");
+    github.rest.actions.listWorkflowRuns.mockRejectedValue(apiError(status, {}, "denied"));
+    await check();
+    expect(outputs.daily_ai_credits_total).toBe("");
+    expect(outputs.daily_ai_credits_exceeded).toBe("false");
+    expect(global.core.setFailed).toHaveBeenCalledOnce();
+    expect(client.downloadArtifact).not.toHaveBeenCalled();
   });
 });

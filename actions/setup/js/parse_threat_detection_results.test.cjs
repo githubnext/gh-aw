@@ -890,7 +890,42 @@ describe("main", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
     });
 
-    it("should fail when detection execution failed in warn mode", async () => {
+    // Fixture: conclude inputs of run 39191157830 (detection engine returned
+    // model_not_supported, so no detection_result.json was written).
+    it("should conclude warning (not failure) when detection execution failed in warn mode (agent_failure, run 39191157830)", async () => {
+      process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "true";
+      process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = "failure";
+      mockExistsSync.mockReturnValue(false);
+
+      await mod.main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "warning");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
+      expect(mockCore.setOutput).not.toHaveBeenCalledWith("conclusion", "failure");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "warning");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should conclude warning on parse errors when detection execution failed in warn mode (parse_error)", async () => {
+      process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = "failure";
+      mockCore.info.mockImplementationOnce(() => {
+        throw new Error("unexpected parse failure");
+      });
+
+      await mod.main();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "warning");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "parse_error");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "warning");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "parse_error");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should still fail closed when detection execution failed in strict mode (agent_failure)", async () => {
+      process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "false";
       process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = "failure";
       mockExistsSync.mockReturnValue(false);
 
@@ -900,24 +935,7 @@ describe("main", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "agent_failure");
       expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "failure");
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "agent_failure");
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Detection log file not found"));
-    });
-
-    it("should fail on parse errors when detection execution failed in warn mode", async () => {
-      process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME = "failure";
-      mockCore.info.mockImplementationOnce(() => {
-        throw new Error("unexpected parse failure");
-      });
-
-      await mod.main();
-
-      expect(mockCore.setOutput).toHaveBeenCalledWith("conclusion", "failure");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("success", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("reason", "parse_error");
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_CONCLUSION", "failure");
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_DETECTION_REASON", "parse_error");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Unexpected error in threat detection parse"));
     });
 
     // Note: The following tests are skipped because mocking fs for CJS modules

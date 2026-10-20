@@ -1,5 +1,6 @@
 > [!WARNING]
-> **Threat Detection Engine Failure** — The analysis engine could not complete. This is a tooling failure, not a security finding.
+> threat detection engine error
+> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.
 > {threat_detected_marker}
 >
 > <details>
