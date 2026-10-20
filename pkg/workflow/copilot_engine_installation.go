@@ -273,7 +273,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 		)
 	case "typescript":
 		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
-		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " " + copilotSDKWebFetchDependency + " ts-node typescript"
+		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " " + copilotSDKWebFetchDependency + " ts-node@10.9.2 typescript@5.8.3"
 	case "go":
 		spec.stepName = "Install GitHub Copilot SDK (Go)"
 		spec.command = workspaceCommandPrefix + "go get github.com/github/copilot-sdk/go@v" + version

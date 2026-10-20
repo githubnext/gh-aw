@@ -36,7 +36,7 @@ mcp-scripts:
 steps:
   - name: Install hippo-memory
     run: |
-      npm install -g hippo-memory
+      npm install -g hippo-memory@2.0.0
 
   - name: Initialize hippo store
     run: |
