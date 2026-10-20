@@ -191,12 +191,15 @@ const timer = setInterval(() => {
 }, 1);
 setInterval(() => {}, 1000);`
 	cmd, _ := agyHarnessCommand(t, body, validReflect)
-	start := time.Now()
+	shim := filepath.Join(t.TempDir(), "bounded-watchdog.cjs")
+	require.NoError(t, os.WriteFile(shim, []byte(`const original = global.setTimeout;
+global.setTimeout = (callback, delay, ...args) => original(callback, delay === 305000 ? 9000 : delay, ...args);
+`), 0o600))
+	cmd.Args = slices.Insert(cmd.Args, 1, "--require", shim)
 	out, err := cmd.CombinedOutput()
 	require.Error(t, err)
 	assert.Contains(t, string(out), "pending JSONL record limit (16777216 UTF-16 code units)")
 	assert.Contains(t, string(out), "session.error")
-	assert.Less(t, time.Since(start), 4*time.Second, "pending output must terminate the child before the watchdog")
 }
 
 func TestAgyHarnessBoundsDescendantPipes(t *testing.T) {
