@@ -249,10 +249,14 @@ INSTALLER
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "gh"), []byte(gh), 0o700))
 			curl := `#!/usr/bin/env bash
 set -euo pipefail
-[[ "$2" == "https://raw.githubusercontent.com/github/gh-aw-firewall/0123456789012345678901234567890123456789/guest/cloud-hypervisor/setup-enclave-artifacts.sh" ]]
-cp "${RUNNER_TEMP}/gh-aw/cloud-hypervisor-enclave-setup/setup-cloud-hypervisor-enclave-artifacts.sh" "$4"
+[[ "$1" == "--proto" && "$2" == "=https" ]]
+[[ "$3" == "--proto-redir" && "$4" == "=https" ]]
+[[ "$5" == "-fsSL" ]]
+[[ "$6" == "https://raw.githubusercontent.com/github/gh-aw-firewall/0123456789012345678901234567890123456789/guest/cloud-hypervisor/setup-enclave-artifacts.sh" ]]
+[[ "$7" == "-o" ]]
+cp "${RUNNER_TEMP}/gh-aw/cloud-hypervisor-enclave-setup/setup-cloud-hypervisor-enclave-artifacts.sh" "$8"
 if [[ "${SUBSTITUTE_INSTALLER:-}" == true ]]; then
-  echo '# substituted bytes' >> "$4"
+  echo '# substituted bytes' >> "$8"
 fi
 `
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "curl"), []byte(curl), 0o700))

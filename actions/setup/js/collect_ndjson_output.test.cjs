@@ -284,8 +284,11 @@ describe("collect_ndjson_output.cjs", () => {
         await eval(`(async () => { ${collectScript}; await main(); })()`);
         const output = JSON.parse(mockCore.setOutput.mock.calls.find(call => call[0] === "output")[1]);
         expect(output.items[0].reason).toBe("engine_driver_failure");
+        expect(output.items[0].failureCause).toBe("driver_crash");
         expect(output.items[0].details).toContain("Driver exit code: 139");
+        expect(output.items[0].driverExitSignal).toBe("SIGSEGV");
         expect(output.collectorEmptyOutputCause).toBe("engine_driver_failure");
+        expect(output.collectorFailureCause).toBe("driver_crash");
       } finally {
         fs.unlinkSync(exitPath);
       }

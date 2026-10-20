@@ -40,7 +40,7 @@ lsp:
 steps:
   - name: Install Node.js dependencies
     working-directory: actions/setup/js
-    run: npm install
+    run: npm ci
 safe-outputs:
   create-pull-request:
     expires: 2d

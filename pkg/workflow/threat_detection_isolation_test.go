@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1028,63 +1029,116 @@ func TestExternalDetectorCodexConfigModelProviderAtRoot(t *testing.T) {
 }
 
 // TestExternalDetectorCodexFirewallDomains verifies that the Codex external detection
-// path includes the required API domains in the AWF firewall allowlist.
-// Without the correct allowed domains the firewall blocks api.openai.com, chatgpt.com
-// and api.github.com and the detection job exits with code 1/2 (engine_error).
+// path retains concrete API transport without implicitly allowing vendor auth/telemetry.
 func TestExternalDetectorCodexFirewallDomains(t *testing.T) {
-	compiler := NewCompiler()
+	for _, tt := range []struct {
+		name, provider string
+		vendorOptIn    bool
+	}{
+		{name: "OpenAI transport", provider: "openai"},
+		{name: "GitHub transport", provider: "github"},
+		{name: "explicit vendor opt-in", provider: "openai", vendorOptIn: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
 
-	tmpDir := testutil.TempDir(t, "test-external-detector-codex-fw-*")
-	workflowPath := filepath.Join(tmpDir, "test-codex-fw.md")
+			tmpDir := testutil.TempDir(t, "test-external-detector-codex-fw-*")
+			workflowPath := filepath.Join(tmpDir, "test-codex-fw.md")
 
-	workflowContent := `---
+			network := ""
+			if tt.vendorOptIn {
+				network = "network:\n  allowed: [codex-vendor]\n"
+			}
+			workflowContent := fmt.Sprintf(`---
 on: push
-engine: codex
+engine:
+  id: codex
+  model-provider: %s
+%spermissions:
+  contents: read
+  copilot-requests: write
 safe-outputs:
   create-issue:
+  threat-detection:
+    engine:
+      id: codex
+      model-provider: %s
 features:
   gh-aw-detection: true
 tools:
   github:
     mode: gh-proxy
 ---
-Test workflow`
+Test workflow`, tt.provider, network, tt.provider)
 
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
+			if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
 
-	if err := compiler.CompileWorkflow(workflowPath); err != nil {
-		t.Fatalf("Failed to compile workflow: %v", err)
-	}
+			if err := compiler.CompileWorkflow(workflowPath); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
 
-	lockFile := stringutil.MarkdownToLockFile(workflowPath)
-	result, err := os.ReadFile(lockFile)
-	if err != nil {
-		t.Fatalf("Failed to read compiled workflow: %v", err)
-	}
+			lockFile := stringutil.MarkdownToLockFile(workflowPath)
+			result, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read compiled workflow: %v", err)
+			}
 
-	detectionSection := extractJobSection(string(result), "detection")
-	if detectionSection == "" {
-		t.Fatal("Detection job not found in compiled workflow")
-	}
+			detectionSection := extractJobSection(string(result), "detection")
+			if detectionSection == "" {
+				t.Fatal("Detection job not found in compiled workflow")
+			}
 
-	allowDomainsLine := ""
-	for line := range strings.SplitSeq(detectionSection, "\n") {
-		if strings.Contains(line, "allowDomains") {
-			allowDomainsLine = line
-			break
-		}
-	}
-	if allowDomainsLine == "" {
-		t.Fatal("Detection job AWF config must include network.allowDomains")
-	}
+			allowDomainsLine := ""
+			for line := range strings.SplitSeq(detectionSection, "\n") {
+				if strings.Contains(line, "allowDomains") {
+					allowDomainsLine = line
+					break
+				}
+			}
+			if allowDomainsLine == "" {
+				t.Fatal("Detection job AWF config must include network.allowDomains")
+			}
+			allowDomainsLine = strings.ReplaceAll(allowDomainsLine, `\"`, `"`)
 
-	// Assert against the specific AWF allowDomains JSON line to avoid false positives
-	// from unrelated occurrences elsewhere in the rendered detection job.
-	for _, domain := range []string{"api.openai.com", "chatgpt.com", "openai.com", "github.com", "api.github.com"} {
-		if !strings.Contains(allowDomainsLine, domain) {
-			t.Errorf("Codex external detector AWF allowDomains must include %q", domain)
-		}
+			// Assert against the specific AWF allowDomains JSON line to avoid false positives
+			// from unrelated occurrences elsewhere in the rendered detection job.
+			for _, domain := range []string{"github.com", "api.github.com", "host.docker.internal"} {
+				if !strings.Contains(allowDomainsLine, strconv.Quote(domain)) {
+					t.Errorf("Codex external detector AWF allowDomains must include %q", domain)
+				}
+			}
+			for _, domain := range []string{"openai.com", "chatgpt.com"} {
+				if strings.Contains(allowDomainsLine, strconv.Quote(domain)) {
+					t.Errorf("Codex external detector must not allow vendor parent %q", domain)
+				}
+			}
+			if got := strings.Contains(allowDomainsLine, strconv.Quote("api.openai.com")); got != (tt.provider == "openai") {
+				t.Errorf("OpenAI API transport allowed=%t for provider %q", got, tt.provider)
+			}
+			if tt.provider == "github" && !strings.Contains(allowDomainsLine, strconv.Quote("api.githubcopilot.com")) {
+				t.Error("GitHub-hosted detector must retain Copilot routing transport")
+			}
+			for _, domain := range []string{"auth.openai.com", "ab.chatgpt.com"} {
+				if got := strings.Contains(allowDomainsLine, strconv.Quote(domain)); got != tt.vendorOptIn {
+					t.Errorf("vendor host %q allowed=%t, want %t", domain, got, tt.vendorOptIn)
+				}
+			}
+			if tt.vendorOptIn {
+				agentSection := extractJobSection(string(result), "agent")
+				agentDomains := firewallDomainRules(t, agentSection, "allowDomains")
+				for _, domain := range []string{"auth.openai.com", "ab.chatgpt.com"} {
+					if !slices.Contains(agentDomains, domain) {
+						t.Errorf("compiled agent network.allowed codex-vendor must allow %q, got %v", domain, agentDomains)
+					}
+				}
+				for _, domain := range []string{"openai.com", "chatgpt.com", "codex-vendor"} {
+					if slices.Contains(agentDomains, domain) {
+						t.Errorf("compiled agent firewall must not contain %q", domain)
+					}
+				}
+			}
+		})
 	}
 }

@@ -2,8 +2,11 @@ package workflow
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 func writeMaintenanceConditionalActionsCheckoutStep(b *strings.Builder, opts buildMaintenanceWorkflowYAMLOptions) {
@@ -68,13 +71,45 @@ func writeMaintenanceAdminPermissionsStep(b *strings.Builder, opts buildMaintena
 `)
 }
 
-func quoteYAMLActionPin(actionPin string) string {
+// maintenanceActionPinValidator records invalid pins while jobs are built so that
+// resolver fallback behavior cannot hide validation errors at the YAML boundary.
+type maintenanceActionPinValidator struct {
+	resolver SHAResolver
+	err      error
+}
+
+func (v *maintenanceActionPinValidator) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
+	sha, err := v.resolver.ResolveSHA(ctx, repo, version)
+	if err == nil && v.err == nil {
+		if validationErr := validateYAMLActionPin(sha); validationErr != nil {
+			v.err = fmt.Errorf("maintenance action %s: %w", repo, validationErr)
+		}
+	}
+	return sha, err
+}
+
+func validateYAMLActionPin(actionPin string) error {
+	if strings.IndexFunc(actionPin, func(r rune) bool {
+		return (unicode.IsControl(r) && r != '\t') || r == '\u2028' || r == '\u2029'
+	}) >= 0 {
+		return errors.New("invalid action pin: unsupported control character or line separator")
+	}
+	if strings.Contains(actionPin, "${{") {
+		return errors.New("invalid action pin: GitHub Actions expressions are not allowed")
+	}
+	return nil
+}
+
+func quoteYAMLActionPin(actionPin string) (string, error) {
+	if err := validateYAMLActionPin(actionPin); err != nil {
+		return "", err
+	}
 	actionRef, version, hasVersion := strings.Cut(actionPin, " # ")
 	quotedActionRef := "'" + escapeYAMLSingleQuoted(actionRef) + "'"
 	if hasVersion {
-		return quotedActionRef + " # " + version
+		return quotedActionRef + " # " + version, nil
 	}
-	return quotedActionRef
+	return quotedActionRef, nil
 }
 
 func writeMaintenanceCloseExpiredJobYAML(b *strings.Builder, opts buildMaintenanceWorkflowYAMLOptions, setupActionRef, jobName, permissionLine, stepName, scriptName string) {
@@ -611,7 +646,11 @@ func buildMaintenanceValidateWorkflowsJob(ctx context.Context, opts buildMainten
 	return b.String()
 }
 
-func buildMaintenanceLabelDisableJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+func buildMaintenanceLabelDisableJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) (string, error) {
+	actionPin, err := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
+	if err != nil {
+		return "", fmt.Errorf("label_disable_agentic_workflow: %w", err)
+	}
 	var b strings.Builder
 	b.WriteString(`
   label_disable_agentic_workflow:
@@ -628,7 +667,6 @@ func buildMaintenanceLabelDisableJob(opts buildMaintenanceWorkflowYAMLOptions, s
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	writeMaintenanceAdminPermissionsStep(&b, opts, "check_permissions")
-	actionPin := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
 	b.WriteString(`      - name: Disable agentic workflow
         if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: ` + actionPin + `
@@ -640,10 +678,14 @@ func buildMaintenanceLabelDisableJob(opts buildMaintenanceWorkflowYAMLOptions, s
             const { main } = require('${{ runner.temp }}/gh-aw/actions/disable_agentic_workflow.cjs');
             await main();
 `)
-	return b.String()
+	return b.String(), nil
 }
 
-func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) (string, error) {
+	actionPin, err := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
+	if err != nil {
+		return "", fmt.Errorf("label_apply_safe_outputs: %w", err)
+	}
 	var b strings.Builder
 	b.WriteString(`
   label_apply_safe_outputs:
@@ -662,7 +704,6 @@ func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLO
 	writeMaintenanceActionsFolderCheckoutStep(&b)
 	writeMaintenanceSetupScriptsStep(&b, setupActionRef)
 	writeMaintenanceAdminPermissionsStep(&b, opts, "check_permissions")
-	actionPin := quoteYAMLActionPin(getCachedActionPinFromResolver("actions/github-script", opts.resolver))
 	b.WriteString(`      - name: Apply safe outputs from referenced run
         if: ${{ steps.check_permissions.outcome == 'success' }}
         uses: ` + actionPin + `
@@ -678,23 +719,31 @@ func buildMaintenanceLabelApplySafeOutputsJob(opts buildMaintenanceWorkflowYAMLO
             const { main } = require('${{ runner.temp }}/gh-aw/actions/label_apply_safe_outputs.cjs');
             await main();
 `)
-	return b.String()
+	return b.String(), nil
 }
 
-func buildMaintenanceLabelTriggeredJobs(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) string {
+func buildMaintenanceLabelTriggeredJobs(opts buildMaintenanceWorkflowYAMLOptions, setupActionRef string) (string, error) {
 	labelDisableJobEnabled := !opts.disableLabelTrigger && !opts.maintenanceConfig.IsJobDisabled("label_disable_agentic_workflow")
 	labelApplySafeOutputsJobEnabled := !opts.disableLabelTrigger && !opts.maintenanceConfig.IsJobDisabled("label_apply_safe_outputs")
 	if !labelDisableJobEnabled && !labelApplySafeOutputsJobEnabled {
-		return ""
+		return "", nil
 	}
 	var b strings.Builder
 	if labelDisableJobEnabled {
-		b.WriteString(buildMaintenanceLabelDisableJob(opts, setupActionRef))
+		job, err := buildMaintenanceLabelDisableJob(opts, setupActionRef)
+		if err != nil {
+			return "", err
+		}
+		b.WriteString(job)
 	}
 	if labelApplySafeOutputsJobEnabled {
-		b.WriteString(buildMaintenanceLabelApplySafeOutputsJob(opts, setupActionRef))
+		job, err := buildMaintenanceLabelApplySafeOutputsJob(opts, setupActionRef)
+		if err != nil {
+			return "", err
+		}
+		b.WriteString(job)
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 func writeMaintenanceCompileWorkflowsTokenStep(b *strings.Builder, opts buildMaintenanceWorkflowYAMLOptions) {

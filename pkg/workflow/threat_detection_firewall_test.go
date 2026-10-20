@@ -3,7 +3,10 @@
 package workflow
 
 import (
+	"encoding/json"
 	"reflect"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -230,31 +233,94 @@ func TestGetThreatDetectionAdditionalAllowedDomains_DetectionOnlyBaseURL(t *test
 	}
 }
 
-func TestThreatDetectionExecutionPreservesCopilotVendorOptIn(t *testing.T) {
+func TestThreatDetectionExecutionPreservesVendorOptIn(t *testing.T) {
 	compiler := NewCompiler()
-	data := &WorkflowData{
-		AI: "copilot",
-		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{},
-		},
-		NetworkPermissions: &NetworkPermissions{
-			Allowed: []string{"copilot-vendor"},
-		},
-	}
-
-	for name, build := range map[string]func(*WorkflowData) []string{
-		"inline":   compiler.buildDetectionEngineExecutionStep,
-		"external": compiler.buildExternalDetectorExecutionStep,
+	for _, tt := range []struct {
+		engine, domainSet, host string
+	}{
+		{"copilot", "copilot-vendor", "telemetry.enterprise.githubcopilot.com"},
+		{"codex", "codex-vendor", "auth.openai.com"},
 	} {
-		t.Run(name, func(t *testing.T) {
-			command := strings.Join(build(data), "")
-			if !strings.Contains(command, "allowDomains") {
-				t.Fatalf("expected generated detection command to configure allowDomains, got:\n%s", command)
+		t.Run(tt.engine, func(t *testing.T) {
+			data := &WorkflowData{
+				AI: tt.engine,
+				SafeOutputs: &SafeOutputsConfig{
+					ThreatDetection: &ThreatDetectionConfig{},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Allowed: []string{tt.domainSet},
+				},
 			}
-			if !strings.Contains(command, "telemetry.enterprise.githubcopilot.com") {
-				t.Fatalf("expected explicit copilot-vendor opt-in in generated detection command, got:\n%s", command)
+
+			for name, build := range map[string]func(*WorkflowData) []string{
+				"inline":   compiler.buildDetectionEngineExecutionStep,
+				"external": compiler.buildExternalDetectorExecutionStep,
+			} {
+				t.Run(name, func(t *testing.T) {
+					command := strings.Join(build(data), "")
+					if !strings.Contains(command, "allowDomains") {
+						t.Fatalf("expected generated detection command to configure allowDomains, got:\n%s", command)
+					}
+					if !strings.Contains(command, tt.host) {
+						t.Fatalf("expected explicit %s opt-in in generated detection command, got:\n%s", tt.domainSet, command)
+					}
+				})
 			}
 		})
+	}
+}
+
+func firewallDomainRules(t *testing.T, command, field string) []string {
+	t.Helper()
+	command = strings.ReplaceAll(command, `\"`, `"`)
+	match := regexp.MustCompile(`"` + field + `"\s*:\s*(\[[^\]]*\])`).FindStringSubmatch(command)
+	if len(match) != 2 {
+		t.Fatalf("expected firewall network.%s in generated command:\n%s", field, command)
+	}
+	var rules []string
+	if err := json.Unmarshal([]byte(match[1]), &rules); err != nil {
+		t.Fatalf("invalid firewall network.%s: %v", field, err)
+	}
+	return rules
+}
+
+func TestThreatDetectionExecutionPreservesBlockedVendorDomains(t *testing.T) {
+	compiler := NewCompiler()
+	for _, blocked := range []string{"auth.openai.com", "openai.com"} {
+		for name, build := range map[string]func(*WorkflowData) []string{
+			"inline":   compiler.buildDetectionEngineExecutionStep,
+			"external": compiler.buildExternalDetectorExecutionStep,
+		} {
+			t.Run(name+"/"+blocked, func(t *testing.T) {
+				data := &WorkflowData{
+					AI: "codex",
+					SafeOutputs: &SafeOutputsConfig{
+						ThreatDetection: &ThreatDetectionConfig{},
+					},
+					NetworkPermissions: &NetworkPermissions{
+						Allowed: []string{"codex-vendor"},
+						Blocked: []string{blocked},
+					},
+				}
+				command := strings.Join(build(data), "")
+				allowedRules := firewallDomainRules(t, command, "allowDomains")
+				blockedRules := firewallDomainRules(t, command, "blockDomains")
+				if !slices.Contains(allowedRules, "auth.openai.com") {
+					t.Fatal("vendor opt-in must still expand to the auth host")
+				}
+				if !reflect.DeepEqual(blockedRules, []string{blocked}) {
+					t.Fatalf("expected inherited block rule %q, got %v", blocked, blockedRules)
+				}
+				// AWF deny rules take precedence even when a vendor opt-in allows
+				// the same host; parent-domain blocks also deny their subdomains.
+				if !awfDomainAllowsHost(blockedRules[0], "auth.openai.com") {
+					t.Fatal("inherited block rule must deny the opted-in auth host")
+				}
+				if !reflect.DeepEqual(data.NetworkPermissions.Blocked, []string{blocked}) {
+					t.Fatal("building detection must not mutate source block rules")
+				}
+			})
+		}
 	}
 }
 

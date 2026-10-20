@@ -6,19 +6,19 @@ import (
 	"os"
 )
 
-// Bad case: deferred call that returns error (not assigned, not checked)
+// Direct Close calls are covered only by unchecked_deferredclose.
 func badDeferClose(filename string) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
-	defer f.Close() // want "deferred call discards error return value"
+	defer f.Close()
 	return nil
 }
 
-// Bad case: deferred method call on io.Closer
+// Direct Close calls on interfaces also belong to unchecked_deferredclose.
 func badDeferIOCloser(c io.Closer) {
-	defer c.Close() // want "deferred call discards error return value"
+	defer c.Close()
 }
 
 // Bad case: function that returns error
@@ -42,7 +42,7 @@ func (e *ErrorCloser) Close() error {
 
 func badDeferMethodError() {
 	e := &ErrorCloser{}
-	defer e.Close() // want "deferred call discards error return value"
+	defer e.Close()
 }
 
 // Bad case: interface method returning error
@@ -51,7 +51,7 @@ type GenericCloser interface {
 }
 
 func badDeferInterface(c GenericCloser) {
-	defer c.Close() // want "deferred call discards error return value"
+	defer c.Close()
 }
 
 // Bad case: nested call returning error
@@ -61,4 +61,26 @@ func nestedErrorReturner() error {
 
 func badDeferNested() {
 	defer nestedErrorReturner() // want "deferred call discards error return value"
+}
+
+func (e *ErrorCloser) Cleanup() error { return nil }
+
+func badOtherMethod(e *ErrorCloser) {
+	defer e.Cleanup() // want "deferred call discards error return value"
+}
+
+type ArgumentCloser struct{}
+
+func (*ArgumentCloser) Close(int) error { return nil }
+
+func badCloseWithArgument(c *ArgumentCloser) {
+	defer c.Close(1) // want "deferred call discards error return value"
+}
+
+func parenthesizedClose(c io.Closer) {
+	defer (c.Close)()
+}
+
+func suppressedClose(c io.Closer) {
+	defer c.Close() //nolint:unchecked_deferredclose
 }

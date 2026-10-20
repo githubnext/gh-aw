@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var nativeDeliveryLog = logger.New("workqueue:native_delivery")
 
 // NativeDeliveryScope binds approved process callbacks to the immutable member
 // and the authenticated original Actions attempt. It is not a wire credential.
@@ -133,27 +137,33 @@ func (host *NativeDeliveryHost) Verifier(branch Branch) DeliveryVerifier {
 func (host *NativeDeliveryHost) verifyNativeDelivery(ctx context.Context, branch Branch, state Projection, supplied ClaimState) (DeliveryVerification, error) {
 	unknown := DeliveryVerification{Disposition: "unknown"}
 	if host == nil || host.options.Inventory == nil {
+		nativeDeliveryLog.Print("delivery.host.inventory_unavailable")
 		return unknown, nil
 	}
 	delivery, ready, err := nativeDeliveryClaim(ctx, branch, state, supplied)
 	if err != nil || !ready {
+		nativeDeliveryLog.Printf("delivery.host.claim_not_ready ready=%t failed=%t", ready, err != nil)
 		return unknown, err
 	}
 	inventory, closed, err := host.readNativeDeliveryInventory(ctx, delivery.scope)
 	if err != nil || !closed {
+		nativeDeliveryLog.Printf("delivery.host.inventory_unavailable closed=%t failed=%t", closed, err != nil)
 		return unknown, err
 	}
 	contract, err := decodeNativeDeliveryContract(delivery.work.Payload)
 	if err != nil {
+		nativeDeliveryLog.Print("delivery.host.contract_invalid")
 		return unknown, err
 	}
 	controls := nativeControlInventory(state, delivery.scope, delivery.dispatch.DispatchID)
 	declared, complete := host.nativeDeliveryDeclarations(contract, inventory, controls)
 	if !complete {
+		nativeDeliveryLog.Printf("delivery.host.contract_incomplete outputs=%d controls=%d", len(inventory.Outputs), len(controls))
 		return unknown, nil
 	}
 	descriptors, verified, err := host.verifyNativeDeliveryOutputs(ctx, state, delivery, inventory, declared, controls)
 	if err != nil || !verified {
+		nativeDeliveryLog.Printf("delivery.host.readback_unverified verified=%t failed=%t", verified, err != nil)
 		return unknown, err
 	}
 	return nativeDeliveryReceipt(ctx, state, delivery, contract, controls, inventory, descriptors)
@@ -199,6 +209,7 @@ func nativeDeliveryClaim(ctx context.Context, branch Branch, state Projection, s
 func (host *NativeDeliveryHost) readNativeDeliveryInventory(ctx context.Context, scope NativeDeliveryScope) (NativeDeliveryInventory, bool, error) {
 	inventory, err := host.options.Inventory(ctx, copyNativeDeliveryScope(scope))
 	if err != nil || !inventory.Closed || len(inventory.Outputs) > 128 {
+		nativeDeliveryLog.Printf("delivery.inventory.rejected failed=%t closed=%t outputs=%d max_outputs=128", err != nil, inventory.Closed, len(inventory.Outputs))
 		return NativeDeliveryInventory{}, false, err
 	}
 	encodedInventory, err := canonicalValue(inventory)
@@ -218,6 +229,7 @@ func decodeNativeDeliveryContract(work json.RawMessage) (nativeDeliveryContract,
 
 func (host *NativeDeliveryHost) nativeDeliveryDeclarations(contract nativeDeliveryContract, inventory NativeDeliveryInventory, controls []QueueCommit) (map[string]nativeDeclaredOutput, bool) {
 	if (contract.Kind == "none" || contract.NoWrites) && (len(inventory.Outputs) != 0 || len(controls) != 0) {
+		nativeDeliveryLog.Printf("delivery.contract.effects_forbidden outputs=%d controls=%d", len(inventory.Outputs), len(controls))
 		return nil, false
 	}
 	declared := map[string]nativeDeclaredOutput{}
@@ -229,6 +241,7 @@ func (host *NativeDeliveryHost) nativeDeliveryDeclarations(contract nativeDelive
 				verify = host.options.Declared[output.Verification.VerifierID]
 			}
 			if verify == nil || host.options.Credentials == nil {
+				nativeDeliveryLog.Printf("delivery.output.verifier_unavailable declared=%t verifier_available=%t credentials_available=%t", output.Verification != nil, verify != nil, host.options.Credentials != nil)
 				return nil, false
 			}
 		}
@@ -236,12 +249,14 @@ func (host *NativeDeliveryHost) nativeDeliveryDeclarations(contract nativeDelive
 	}
 	for _, output := range inventory.Outputs {
 		if _, ok := declared[output.Type]; !ok {
+			nativeDeliveryLog.Print("delivery.contract.undeclared_output")
 			return nil, false
 		}
 		counts[output.Type]++
 	}
 	for name, expected := range declared {
 		if counts[name] < expected.Min || counts[name] > expected.Max {
+			nativeDeliveryLog.Printf("delivery.contract.cardinality_mismatch count=%d min=%d max=%d", counts[name], expected.Min, expected.Max)
 			return nil, false
 		}
 	}
@@ -251,7 +266,8 @@ func (host *NativeDeliveryHost) nativeDeliveryDeclarations(contract nativeDelive
 func (host *NativeDeliveryHost) verifyNativeDeliveryOutputs(ctx context.Context, state Projection, delivery nativeDeliveryContext, inventory NativeDeliveryInventory, declared map[string]nativeDeclaredOutput, controls []QueueCommit) ([]json.RawMessage, bool, error) {
 	verifiedControls := map[string]struct{}{}
 	descriptors := []json.RawMessage{}
-	for _, output := range inventory.Outputs {
+	for index, output := range inventory.Outputs {
+		nativeDeliveryLog.Printf("delivery.output.verify.start index=%d", index)
 		expected, ok := declared[output.Type]
 		if !ok {
 			return nil, false, nil
@@ -265,11 +281,14 @@ func (host *NativeDeliveryHost) verifyNativeDeliveryOutputs(ctx context.Context,
 			descriptor, verified, err = host.readNativeDeliveryOutput(ctx, state, delivery, output, expected)
 		}
 		if err != nil || !verified {
+			nativeDeliveryLog.Printf("delivery.output.verify.rejected index=%d failed=%t verified=%t", index, err != nil, verified)
 			return nil, false, err
 		}
 		descriptors = append(descriptors, descriptor)
+		nativeDeliveryLog.Printf("delivery.output.verify.complete index=%d", index)
 	}
 	if len(verifiedControls) != len(controls) {
+		nativeDeliveryLog.Printf("delivery.controls.uncovered controls=%d verified_controls=%d", len(controls), len(verifiedControls))
 		return nil, false, nil
 	}
 	return descriptors, true, nil
@@ -299,6 +318,7 @@ func verifyNativeDeliveryControl(output NativeDeliveryOutput, controls []QueueCo
 
 func (host *NativeDeliveryHost) readNativeDeliveryOutput(ctx context.Context, state Projection, delivery nativeDeliveryContext, output NativeDeliveryOutput, expected nativeDeclaredOutput) (json.RawMessage, bool, error) {
 	if err := AuthorizeEffect(state, workerDeliveryActor(delivery.scope, delivery.dispatch.DispatchID), output.Target); err != nil {
+		nativeDeliveryLog.Print("delivery.output.authorization_failed")
 		return nil, false, err
 	}
 	verify := host.options.Builtin[output.Type]
@@ -311,17 +331,20 @@ func (host *NativeDeliveryHost) readNativeDeliveryOutput(ctx context.Context, st
 		return nil, false, nil
 	}
 	if err := host.options.Credentials(ctx, copyNativeDeliveryScope(delivery.scope), copyMap(output.Target)); err != nil {
+		nativeDeliveryLog.Print("delivery.output.credentials_unavailable")
 		return nil, false, err
 	}
 	output.Target = copyMap(output.Target)
 	output.Intent = slices.Clone(output.Intent)
 	descriptor, verified, err := verify(ctx, copyNativeDeliveryScope(delivery.scope), output, intent)
 	if err != nil || !verified {
+		nativeDeliveryLog.Printf("delivery.output.readback_unverified failed=%t verified=%t", err != nil, verified)
 		return nil, false, err
 	}
 	var object map[string]json.RawMessage
 	descriptor, err = Canonical(descriptor)
 	if err != nil || json.Unmarshal(descriptor, &object) != nil || object == nil {
+		nativeDeliveryLog.Print("delivery.output.descriptor_invalid")
 		return nil, false, queueError("result_invalid", "native readback descriptor must be a canonical object")
 	}
 	return descriptor, true, nil
@@ -331,6 +354,7 @@ func nativeDeliveryReceipt(ctx context.Context, state Projection, delivery nativ
 	unknown := DeliveryVerification{Disposition: "unknown"}
 	descriptor, err := canonicalValue(map[string]any{"outputs": descriptors})
 	if err != nil || int64(len(descriptor)) > state.Policy.Limits.ResultBytes {
+		nativeDeliveryLog.Printf("delivery.descriptor.invalid bytes=%d max_bytes=%d", len(descriptor), state.Policy.Limits.ResultBytes)
 		return unknown, queueError("result_invalid", "native readback descriptor exceeds Result byte budget")
 	}
 	record, err := canonicalValue(map[string]any{
@@ -347,6 +371,7 @@ func nativeDeliveryReceipt(ctx context.Context, state Projection, delivery nativ
 	if contract.Kind == "none" || contract.NoWrites {
 		disposition = "none"
 	}
+	nativeDeliveryLog.Printf("delivery.host.verified outputs=%d controls=%d no_effects=%t", len(inventory.Outputs), len(controls), disposition == "none")
 	return DeliveryVerification{Verified: true, Descriptor: descriptor, Receipt: hashBytes(record), Disposition: disposition, PositiveNoEffects: disposition == "none"}, nil
 }
 
