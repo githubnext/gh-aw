@@ -55,10 +55,37 @@ func TestHealthPayloadInventoryFindsFleetSignalsWithoutEnrichment(t *testing.T) 
 	assert.Empty(t, collection.jobPresence)
 }
 
+func TestHealthFailureInventoryStopsWhenEveryWorkflowHasEnoughCandidates(t *testing.T) {
+	original := healthRunGH
+	t.Cleanup(func() { healthRunGH = original })
+	path := ".github/workflows/example.lock.yml"
+	collection := &HealthCollection{Host: "github.com", APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
+		workflows: []GitHubWorkflow{{Path: path}}}
+	calls := 0
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		calls++
+		require.Contains(t, args[3], "/actions/workflows/example.lock.yml/runs?status=failure")
+		responses := make([]workflowRunAPIResponse, 100)
+		for i := range responses {
+			responses[i] = workflowRunAPIResponse{ID: int64(i + 1), Path: path, Conclusion: "failure"}
+		}
+		out, err := json.Marshal(map[string]any{"workflow_runs": responses})
+		require.NoError(t, err)
+		return out, nil
+	}
+	runs, err := listHealthFailureInventory("", "org/repo", collection)
+	require.NoError(t, err)
+	assert.Equal(t, 1, calls)
+	assert.Len(t, runs, healthMinimumRuns, "candidate inventory is capped per registered workflow")
+	assert.Equal(t, healthMinimumRuns, collection.FailureCandidates)
+	assert.True(t, collection.FailureListingComplete)
+	assert.False(t, collection.Partial)
+}
+
 func TestHealthPayloadSignalsSurviveInventoryBudgetExhaustion(t *testing.T) {
 	stubHealthFailureCandidates(t)
 	path := ".github/workflows/example.lock.yml"
-	collection := &HealthCollection{workflows: []GitHubWorkflow{{Path: path}}}
+	collection := &HealthCollection{workflows: []GitHubWorkflow{{Path: path}, {Path: ".github/workflows/other.lock.yml"}}}
 	healthListFailureCandidates = func(opts ListWorkflowRunsOptions, page int, _ string, state *HealthCollection) ([]workflowRunAPIResponse, time.Time, error) {
 		if page == 2 {
 			stopHealthCollection(state, errHealthAPIBudget)
@@ -73,7 +100,7 @@ func TestHealthPayloadSignalsSurviveInventoryBudgetExhaustion(t *testing.T) {
 	runs, err := fetchWorkflowRuns("", "", "org/repo", false, collection)
 	require.NoError(t, err)
 	assert.Empty(t, runs, "unverified payloads must not become confirmed health evidence")
-	assert.Equal(t, 100, collection.FailureCandidates)
+	assert.Equal(t, healthMinimumRuns, collection.FailureCandidates)
 	require.Len(t, collection.PotentialIssues, 1)
 	assert.Equal(t, "unverified", collection.PotentialIssues[0].RepresentativeStatus)
 	assert.True(t, collection.Partial)

@@ -47,16 +47,26 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 		resolveHealthRevision(run, collection)
 		verification := "revision_unknown"
 		if healthSourceChanged(run, collection) {
-			verification = "superseded"
-		} else if metadata, _ := healthRunRevision(run, collection); metadata != nil {
+			markHealthPotentialIssue(run, collection, "superseded")
+			scopes[scope] = struct{}{}
+			continue
+		}
+		if metadata, _ := healthRunRevision(run, collection); metadata != nil {
 			verification = "revision_checked"
 		}
 		markHealthPotentialIssue(run, collection, verification)
 		if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 			run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 		}
-		runs = append(runs, run)
 		scopes[scope] = struct{}{}
+		if collection.failureScopes == nil {
+			collection.failureScopes = make(map[string]map[string]struct{})
+		}
+		if collection.failureScopes[run.WorkflowPath] == nil {
+			collection.failureScopes[run.WorkflowPath] = make(map[string]struct{})
+		}
+		collection.failureScopes[run.WorkflowPath][healthFailureSampleScope(run)] = struct{}{}
+		runs = append(runs, run)
 		if collection.APIRequests >= healthMaximumAPIRequests && !collection.stopped {
 			stopHealthCollection(collection, errHealthAPIBudget)
 		}
@@ -68,46 +78,42 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 	return runs, nil
 }
 
+func healthFailureSampleScope(run WorkflowRun) string {
+	return failureClusterKey(run.Repository, run.WorkflowPath, run.HeadBranch, run.Event)
+}
+
 func listHealthFailureInventory(startDate, repoOverride string, collection *HealthCollection) ([]WorkflowRun, error) {
 	targets := make(map[string]GitHubWorkflow)
 	for _, target := range collection.workflows {
 		targets[target.Path] = target
 	}
+	if len(targets) == 0 {
+		collection.FailureListingComplete = true
+		return nil, nil
+	}
 	opts := ListWorkflowRunsOptions{StartDate: startDate, EndDate: collection.EndDate, Limit: 100}
 	seen := make(map[int64]struct{})
 	issues := make(map[string]int)
+	candidatesByWorkflow := make(map[string]int)
 	var runs []WorkflowRun
+	listingPages := 0
 	for page := 1; ; page++ {
+		if listingPages >= healthMaximumFailureListingPages {
+			collection.Partial, collection.Reason = true, "failure_listing_limit"
+			collection.Warning = fmt.Sprintf("Health failure inventory stopped after %d pages; chronological sampling will continue", listingPages)
+			return runs, nil
+		}
 		batch, oldest, err := healthListFailureCandidates(opts, page, repoOverride, collection)
 		if err != nil {
 			return runs, err
 		}
-		for _, response := range batch {
-			run := response.workflowRun()
-			target, registered := targets[run.WorkflowPath]
-			if _, duplicate := seen[run.DatabaseID]; duplicate || !registered || run.Conclusion != "failure" {
-				continue
-			}
-			seen[run.DatabaseID] = struct{}{}
-			if run.WorkflowName == "" {
-				run.WorkflowName = target.Name
-			}
-			runs = append(runs, run)
-			collection.FailureCandidates++
-			index, exists := issues[run.WorkflowPath]
-			if !exists {
-				index = len(collection.PotentialIssues)
-				issues[run.WorkflowPath] = index
-				collection.PotentialIssues = append(collection.PotentialIssues, HealthPotentialIssue{
-					WorkflowPath: run.WorkflowPath, WorkflowName: run.WorkflowName,
-					RunID: run.DatabaseID, URL: run.URL, Evidence: "run_list_only", RepresentativeStatus: "unverified",
-				})
-				collection.FailureCandidateWorkflows++
-			}
-			issue := &collection.PotentialIssues[index] //nolint:uncheckedsliceindex // Index is inserted into the map only after appending to this slice.
-			issue.FailedRuns++
-		}
+		listingPages++
+		runs = appendHealthFailureCandidates(batch, targets, seen, candidatesByWorkflow, issues, runs, collection)
 		if len(batch) < opts.Limit {
+			collection.FailureListingComplete = true
+			return runs, nil
+		}
+		if allHealthFailureWorkflowsSaturated(targets, candidatesByWorkflow) {
 			collection.FailureListingComplete = true
 			return runs, nil
 		}
@@ -118,6 +124,49 @@ func listHealthFailureInventory(startDate, repoOverride string, collection *Heal
 			page = 0
 		}
 	}
+}
+
+func appendHealthFailureCandidates(batch []workflowRunAPIResponse, targets map[string]GitHubWorkflow, seen map[int64]struct{},
+	candidatesByWorkflow, issues map[string]int, runs []WorkflowRun, collection *HealthCollection) []WorkflowRun {
+	for _, response := range batch {
+		run := response.workflowRun()
+		target, registered := targets[run.WorkflowPath]
+		if _, duplicate := seen[run.DatabaseID]; duplicate || !registered || run.Conclusion != "failure" {
+			continue
+		}
+		seen[run.DatabaseID] = struct{}{}
+		if candidatesByWorkflow[run.WorkflowPath] >= healthMinimumRuns {
+			continue
+		}
+		candidatesByWorkflow[run.WorkflowPath]++
+		if run.WorkflowName == "" {
+			run.WorkflowName = target.Name
+		}
+		runs = append(runs, run)
+		collection.FailureCandidates++
+		index, exists := issues[run.WorkflowPath]
+		if !exists {
+			index = len(collection.PotentialIssues)
+			issues[run.WorkflowPath] = index
+			collection.PotentialIssues = append(collection.PotentialIssues, HealthPotentialIssue{
+				WorkflowPath: run.WorkflowPath, WorkflowName: run.WorkflowName,
+				RunID: run.DatabaseID, URL: run.URL, Evidence: "run_list_only", RepresentativeStatus: "unverified",
+			})
+			collection.FailureCandidateWorkflows++
+		}
+		issue := &collection.PotentialIssues[index] //nolint:uncheckedsliceindex // Index is inserted into the map only after appending to this slice.
+		issue.FailedRuns++
+	}
+	return runs
+}
+
+func allHealthFailureWorkflowsSaturated(targets map[string]GitHubWorkflow, candidatesByWorkflow map[string]int) bool {
+	for workflowPath := range targets {
+		if candidatesByWorkflow[workflowPath] < healthMinimumRuns {
+			return false
+		}
+	}
+	return true
 }
 
 func listHealthFailureCandidates(opts ListWorkflowRunsOptions, page int, repoOverride string, collection *HealthCollection) ([]workflowRunAPIResponse, time.Time, error) {
@@ -179,7 +228,7 @@ func prioritizeHealthFailureWorkflows(targets []GitHubWorkflow, failures []Workf
 	return ordered
 }
 
-func mergeHealthRunSamples(failures, runs []WorkflowRun) []WorkflowRun {
+func mergeHealthRunSamples(runs, failures []WorkflowRun) []WorkflowRun {
 	seen := make(map[int64]struct{})
 	var merged []WorkflowRun
 	for _, sample := range [][]WorkflowRun{runs, failures} {

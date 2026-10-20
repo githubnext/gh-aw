@@ -3,6 +3,7 @@ package cli
 import "time"
 
 const healthMaximumRunSearchResults = 1000
+const healthMaximumFailureListingPages = 10
 
 func advanceHealthRunWindow(opts *ListWorkflowRunsOptions, oldest time.Time, collection *HealthCollection) bool {
 	// Overlap the boundary second so that tied timestamps are not skipped.

@@ -44,6 +44,7 @@ type HealthCollection struct {
 	stopped                   bool
 	visited                   map[string]struct{}
 	jobPresence               map[healthRunAttempt]bool
+	failureScopes             map[string]map[string]struct{}
 }
 
 const healthMinimumRuns = 5

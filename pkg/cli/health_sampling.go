@@ -190,7 +190,7 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 	}
 	for _, target := range targets {
 		runs, err := sampleHealthWorkflow(target, startDate, repoOverride, verbose, collection)
-		allRuns = mergeHealthRunSamples(allRuns, runs)
+		allRuns = mergeHealthRunSamples(runs, allRuns)
 		if err != nil {
 			if collection.stopped || errors.Is(err, errHealthAPIBudget) {
 				return allRuns, nil
@@ -251,7 +251,7 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		if collection.stopped {
 			return sample, errHealthAPIBudget
 		}
-		if total < opts.Limit || healthWorkflowEvidenceEnough(sample, collection) {
+		if total < opts.Limit || (healthWorkflowEvidenceEnough(sample, collection) && healthWorkflowFailureScopesCovered(sample, target.Path, collection)) {
 			return sample, nil
 		}
 		if page*opts.Limit >= healthMaximumRunSearchResults {
@@ -261,4 +261,25 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 			page = 0
 		}
 	}
+}
+
+func healthWorkflowFailureScopesCovered(runs []WorkflowRun, workflowPath string, collection *HealthCollection) bool {
+	if collection == nil || len(collection.failureScopes[workflowPath]) == 0 {
+		return true
+	}
+	covered := make(map[string]struct{})
+	for _, status := range healthRevisionStatuses(runs, collection) {
+		if status.Current.IndependentRuns >= healthMinimumRuns && len(runs) > 0 {
+			covered[healthFailureSampleScope(WorkflowRun{
+				Repository: runs[0].Repository, WorkflowPath: status.WorkflowPath,
+				HeadBranch: status.Branch, Event: status.Event,
+			})] = struct{}{}
+		}
+	}
+	for scope := range collection.failureScopes[workflowPath] {
+		if _, ok := covered[scope]; !ok {
+			return false
+		}
+	}
+	return true
 }

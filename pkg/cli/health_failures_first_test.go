@@ -33,8 +33,10 @@ func TestHealthCollectsFailuresBeforeSuccessEvidence(t *testing.T) {
 			t.Cleanup(func() { healthListWorkflowRuns, healthRunGH = originalList, originalGH })
 			collection := &HealthCollection{
 				Host: "github.com", repoOverride: "org/repo",
-				APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
-				revisions:    make(map[string]*workflow.LockMetadata),
+				APIRateLimit:    &GitHubAPIRateLimitState{Remaining: 4000},
+				revisions:       make(map[string]*workflow.LockMetadata),
+				headRevisions:   make(map[string]*workflow.LockMetadata),
+				sourceRevisions: make(map[string]string),
 				workflows: []GitHubWorkflow{
 					{ID: 1, Name: "Alpha", Path: ".github/workflows/alpha.lock.yml"},
 					{ID: 2, Name: "Zulu", Path: ".github/workflows/zulu.lock.yml"},
@@ -50,6 +52,11 @@ func TestHealthCollectsFailuresBeforeSuccessEvidence(t *testing.T) {
 				collection.revisions[healthRevisionLookupKey(response.workflowRun())] = &workflow.LockMetadata{
 					FrontmatterHash: "settings", BodyHash: "prompt",
 				}
+				metadata := collection.revisions[healthRevisionLookupKey(response.workflowRun())]
+				collection.headRevisions[healthHeadRevisionKey(response.workflowRun())] = metadata
+				source := strings.Repeat("c", 40)
+				collection.sourceRevisions[healthSourceRevisionKey(response.workflowRun(), response.HeadSHA)] = source
+				collection.sourceRevisions[healthSourceRevisionKey(response.workflowRun(), response.HeadBranch)] = source
 			}
 			failed = append(failed, workflowRunAPIResponse{ID: 99, Path: ".github/workflows/ci.yml", Conclusion: "failure"})
 			var jobs []string
@@ -61,7 +68,9 @@ func TestHealthCollectsFailuresBeforeSuccessEvidence(t *testing.T) {
 					require.NoError(t, err)
 					return out, nil
 				}
-				jobs = append(jobs, endpoint)
+				if strings.HasSuffix(endpoint, "/jobs?per_page=1") {
+					jobs = append(jobs, endpoint)
+				}
 				assert.NotContains(t, endpoint, "/runs/99/", "ordinary CI failures must not consume evidence requests")
 				if exhaust && len(jobs) == 1 {
 					collection.APIRequests = healthMaximumAPIRequests
@@ -134,11 +143,14 @@ func TestHealthNamedWorkflowFailureListingIsScoped(t *testing.T) {
 	collection := &HealthCollection{Host: "github.com", APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
 		workflows: []GitHubWorkflow{{ID: 42, Path: ".github/workflows/example.lock.yml"}}}
 	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
-		assert.Contains(t, args[3], "repos/org/repo/actions/workflows/42/runs?status=failure")
-		assert.NotContains(t, args[3], "/actions/runs?", "named health must not scan unrelated workflows")
+		endpoint, err := url.Parse(args[3])
+		require.NoError(t, err)
+		assert.Equal(t, "repos/org/repo/actions/workflows/42/runs", endpoint.Path)
+		assert.Equal(t, "failure", endpoint.Query().Get("status"))
+		assert.Equal(t, "2026-10-19..2026-10-20", endpoint.Query().Get("created"))
 		return []byte(`{"workflow_runs":[]}`), nil
 	}
-	_, _, err := listHealthFailureCandidates(ListWorkflowRunsOptions{Limit: 100}, 1, "org/repo", collection)
+	_, _, err := listHealthFailureCandidates(ListWorkflowRunsOptions{Limit: 100, StartDate: "2026-10-19", EndDate: "2026-10-20"}, 1, "org/repo", collection)
 	require.NoError(t, err)
 	assert.Equal(t, 1, collection.APIRequests)
 }
@@ -182,9 +194,12 @@ func TestHealthFailurePassSkipsSupersededScopes(t *testing.T) {
 	}
 	runs, err := collectHealthFailures("", "org/repo", collection)
 	require.NoError(t, err)
-	assert.Len(t, runs, 2)
+	assert.Len(t, runs, 1, "the run that proves a source boundary is not current failure evidence")
+	assert.Equal(t, int64(2), runs[0].DatabaseID)
 	assert.Equal(t, 2, jobs, "stop superseded main evidence while retaining current feature evidence")
 	assert.True(t, collection.FailurePassComplete)
+	require.Len(t, collection.PotentialIssues, 1)
+	assert.Equal(t, "superseded", collection.PotentialIssues[0].RepresentativeStatus)
 }
 
 func TestHealthFailureListingErrorIsNotSuccess(t *testing.T) {
@@ -263,7 +278,17 @@ func TestHealthFailurePassPaginatesBeforeSuccessSampling(t *testing.T) {
 	runs, err := collectHealthFailures("", "org/repo", collection)
 	require.NoError(t, err)
 	assert.Empty(t, runs)
-	assert.Equal(t, 11, calls)
-	assert.True(t, collection.FailurePassComplete)
-	assert.False(t, collection.Partial)
+	assert.Equal(t, healthMaximumFailureListingPages, calls)
+	assert.False(t, collection.FailurePassComplete)
+	assert.False(t, collection.FailureListingComplete)
+	assert.True(t, collection.Partial)
+	assert.Equal(t, "failure_listing_limit", collection.Reason)
+}
+
+func TestHealthMergedSamplesPreferChronologicalRuns(t *testing.T) {
+	chronological := WorkflowRun{DatabaseID: 1, Conclusion: "success"}
+	failure := WorkflowRun{DatabaseID: 1, Conclusion: "failure"}
+	merged := mergeHealthRunSamples([]WorkflowRun{chronological}, []WorkflowRun{failure})
+	require.Len(t, merged, 1)
+	assert.Equal(t, "success", merged[0].Conclusion)
 }

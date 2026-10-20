@@ -15,6 +15,24 @@ func healthRevisionLookupKey(run WorkflowRun) string {
 }
 
 func resolveHealthRevision(run WorkflowRun, collection *HealthCollection) {
+	if !healthRunHasWorkflowRevision(run) {
+		if collection.revisions == nil {
+			collection.revisions = make(map[string]*workflow.LockMetadata)
+		}
+		if _, known := collection.revisions[healthRevisionLookupKey(run)]; known {
+			return
+		}
+		collection.revisions[healthRevisionLookupKey(run)] = nil
+		healthLog.Printf("Workflow revision unavailable for run %d: event=%s, path=%s", run.DatabaseID, run.Event, run.WorkflowPath)
+		return
+	}
+	enableHealthLocalGit(run, collection)
+	// Remote fallback may read the run source, current branch source, and lock metadata; local Git and per-ref caches amortize these reads under the shared API budget.
+	resolveHealthSourceRevision(run, run.HeadSha, collection)
+	resolveHealthHeadRevision(run, collection)
+	if healthSourceChanged(run, collection) {
+		return
+	}
 	if collection.revisions == nil {
 		collection.revisions = make(map[string]*workflow.LockMetadata)
 	}
@@ -23,16 +41,6 @@ func resolveHealthRevision(run WorkflowRun, collection *HealthCollection) {
 		return
 	}
 	collection.revisions[key] = nil
-	if !healthRunHasWorkflowRevision(run) {
-		healthLog.Printf("Workflow revision unavailable for run %d: event=%s, path=%s", run.DatabaseID, run.Event, run.WorkflowPath)
-		return
-	}
-	enableHealthLocalGit(run, collection)
-	resolveHealthSourceRevision(run, run.HeadSha, collection)
-	resolveHealthHeadRevision(run, collection)
-	if healthSourceChanged(run, collection) {
-		return
-	}
 	metadata, err := readHealthLockMetadata(run, run.HeadSha, collection)
 	if err != nil {
 		healthLog.Printf("Workflow revision unavailable for run %d: %v", run.DatabaseID, err)
@@ -120,6 +128,9 @@ func healthSourceChanged(run WorkflowRun, collection *HealthCollection) bool {
 }
 
 func healthContentRevisionKey(metadata *workflow.LockMetadata, source string) string {
+	if metadata == nil && source != "" {
+		return failureClusterKey("source-only", source)
+	}
 	return failureClusterKey(metadata.FrontmatterHash, metadata.BodyHash, metadata.CompilerVersion, source)
 }
 
