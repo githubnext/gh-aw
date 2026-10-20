@@ -35,6 +35,25 @@ describe("splitOnPipelineOperators", () => {
     expect(splitOnPipelineOperators("ls -la | grep pattern")).toEqual(["ls -la", "grep pattern"]);
   });
 
+  it.each([
+    ["echo ok & cat data.json", ["echo ok", "cat data.json"]],
+    ["echo ok&cat data.json&", ["echo ok", "cat data.json"]],
+    ["echo ok |& cat data.json", ["echo ok", "cat data.json"]],
+    ["echo ok 2>&1&cat data.json", ["echo ok 2>&1", "cat data.json"]],
+    ["echo ok 2<&0 & cat data.json", ["echo ok 2<&0", "cat data.json"]],
+    ["echo ok &>output & cat data.json", ["echo ok &>output", "cat data.json"]],
+    ["echo ok &>>output&cat data.json", ["echo ok &>>output", "cat data.json"]],
+    [String.raw`echo ok \>&cat data.json`, [String.raw`echo ok \>`, "cat data.json"]],
+  ])("separates background and stderr-pipe commands in %s", (script, segments) => {
+    expect(splitOnPipelineOperators(script)).toEqual(segments);
+    expect(extractCommandNamesFromPipeline(script)).toEqual(["echo", "cat"]);
+  });
+
+  it.each(["echo ok 2>&1", "echo ok 1>&2", "echo ok 2<&0", "echo ok &>output", "echo ok &>>output", "echo 'a & b |& c'", 'echo "a & b |& c"', String.raw`echo a\&b`])("preserves redirections and literal ampersands in %s", script => {
+    expect(splitOnPipelineOperators(script)).toEqual([script]);
+    expect(extractCommandNamesFromPipeline(script)).toEqual(["echo"]);
+  });
+
   it("splits on ; (sequential)", () => {
     expect(splitOnPipelineOperators("echo a; echo b")).toEqual(["echo a", "echo b"]);
   });

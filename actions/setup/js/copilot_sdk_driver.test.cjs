@@ -2197,6 +2197,16 @@ describe("copilot_sdk_driver.cjs", () => {
       });
     });
 
+    it("checks background commands even when SDK identifiers omit them", async () => {
+      const handler = await makePermissionHandlerViaSDK(["shell(echo)"]);
+      for (const fullCommandText of ["echo ok & forbidden_probe", "echo ok 2>&1&forbidden_probe", "echo ok & # Comment\nforbidden_probe", "echo ok |& forbidden_probe"]) {
+        expect(handler({ kind: "shell", fullCommandText, commands: [{ identifier: "echo" }] }).kind).toBe("reject");
+        expect(handler({ kind: "shell", fullCommandText: "", commands: [{ identifier: fullCommandText }] }).kind).toBe("reject");
+      }
+      expect(handler({ kind: "shell", fullCommandText: "echo ok & echo done &", commands: [] })).toEqual({ kind: "approve-once" });
+      expect(handler({ kind: "shell", fullCommandText: "echo ok 2>&1", commands: [] })).toEqual({ kind: "approve-once" });
+    });
+
     it("denies executable content hidden behind control flow or leading redirection", async () => {
       const handler = await makePermissionHandlerViaSDK(["shell(echo)", "shell(git:*)"]);
       // A segment whose first token is a redirection yields no extractable
