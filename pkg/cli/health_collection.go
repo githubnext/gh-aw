@@ -14,27 +14,36 @@ import (
 
 // HealthCollection describes a bounded sample, including any quota-related truncation.
 type HealthCollection struct {
-	Partial             bool                     `json:"partial"`
-	Reason              string                   `json:"reason,omitempty"`
-	Warning             string                   `json:"warning,omitempty"`
-	Host                string                   `json:"host"`
-	APIRateLimit        *GitHubAPIRateLimitState `json:"api_rate_limit,omitempty"`
-	RevisionLookups     int                      `json:"revision_lookups"`
-	APIRequests         int                      `json:"api_requests"`
-	MinimumRuns         int                      `json:"minimum_runs"`
-	MaximumDays         int                      `json:"maximum_days"`
-	StartDate           string                   `json:"start_date,omitempty"`
-	EndDate             string                   `json:"end_date,omitempty"`
-	FailurePassComplete bool                     `json:"failure_pass_complete"`
-	workflows           []GitHubWorkflow
-	revisions           map[string]*workflow.LockMetadata
-	headRevisions       map[string]*workflow.LockMetadata
-	sourceRevisions     map[string]string
-	checkedRequests     int
-	repoOverride        string
-	stopped             bool
-	visited             map[string]struct{}
-	jobPresence         map[healthRunAttempt]bool
+	Partial                   bool                     `json:"partial"`
+	Reason                    string                   `json:"reason,omitempty"`
+	Warning                   string                   `json:"warning,omitempty"`
+	Host                      string                   `json:"host"`
+	APIRateLimit              *GitHubAPIRateLimitState `json:"api_rate_limit,omitempty"`
+	RevisionLookups           int                      `json:"revision_lookups"`
+	APIRequests               int                      `json:"api_requests"`
+	MinimumRuns               int                      `json:"minimum_runs"`
+	MaximumDays               int                      `json:"maximum_days"`
+	StartDate                 string                   `json:"start_date,omitempty"`
+	EndDate                   string                   `json:"end_date,omitempty"`
+	FailurePassComplete       bool                     `json:"failure_pass_complete"`
+	FailureListingComplete    bool                     `json:"failure_listing_complete"`
+	FailureCandidates         int                      `json:"failure_candidates"`
+	FailureCandidateWorkflows int                      `json:"failure_candidate_workflows"`
+	PotentialIssues           []HealthPotentialIssue   `json:"potential_issues,omitempty"`
+	workflows                 []GitHubWorkflow
+	revisions                 map[string]*workflow.LockMetadata
+	headRevisions             map[string]*workflow.LockMetadata
+	sourceRevisions           map[string]string
+	fileSnapshots             map[string]healthFileSnapshot
+	lockSnapshots             map[string]healthLockSnapshot
+	localGit                  *healthLocalGit
+	localGitChecked           bool
+	LocalRevisionReads        int `json:"local_revision_reads"`
+	checkedRequests           int
+	repoOverride              string
+	stopped                   bool
+	visited                   map[string]struct{}
+	jobPresence               map[healthRunAttempt]bool
 }
 
 const healthMinimumRuns = 5
@@ -110,7 +119,16 @@ func (config HealthConfig) collectionWorkflows() []GitHubWorkflow {
 }
 
 func renderHealthCollection(w io.Writer, collection *HealthCollection) error {
-	if collection == nil || (!collection.Partial && collection.Warning == "") {
+	if collection == nil {
+		return nil
+	}
+	if collection.FailureCandidates > 0 {
+		if _, err := fmt.Fprintf(w, "\n[health_candidates] failed_runs=%d workflows=%d listing_complete=%t; list-only signals may include jobless or superseded runs, not a fleet failure rate\n",
+			collection.FailureCandidates, collection.FailureCandidateWorkflows, collection.FailureListingComplete); err != nil {
+			return err
+		}
+	}
+	if !collection.Partial && collection.Warning == "" {
 		return nil
 	}
 	_, err := fmt.Fprintf(w, "\n[health_collection]\npartial=%t reason=%s warning=%q\n",

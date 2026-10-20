@@ -21,16 +21,26 @@ Honor supplied scope. Default: current repository, last 24 hours. Record actual
 window and collection limits.
 
 For "healthy now" or fix-verification questions, use `gh aw health --json`.
-It collects registered AW runs with explicit `failure` conclusions first, then
-samples successful and pending evidence, prioritizing workflows with recent
-failures. `collection.failure_pass_complete` reports whether that initial pass
-finished within the API budget; a truncated failure-first sample is not a fleet
-failure rate or proof that remaining workflows are healthy.
+It inventories registered AW `failure` conclusions from run-list payloads before
+any job or revision lookups, then verifies one job-backed representative per
+branch/event. `collection.potential_issues` are approximate, list-only signals;
+they may include jobless, historical, or superseded failures. Check each
+`representative_status`; do not audit a `superseded` representative.
+`failure_listing_complete` covers the cheap inventory; `failure_pass_complete`
+covers representative verification. Counts survive budget exhaustion even if
+verification is unfinished. The later chronological pass adds successful and
+pending evidence, prioritizing recently failing workflows. A truncated sample is
+not a fleet failure rate or proof that remaining workflows are healthy.
 It samples backward per AW toward five completed first-attempt runs, bounded by
 `--days` and API quota. Read `collection` and `workflows[].revisions`: compare
 `gh-aw-metadata` frontmatter/body hashes, not repository commits alone.
 Health also compares the workflow Markdown source's blob SHA at each supported run
 with the pushed branch source, even when the lock file has not been recompiled.
+It reads committed Git objects from a matching local checkout first, never dirty
+files or stale tracking refs. A pushed branch head is resolved once per collection;
+missing local history or blobs fall back to GitHub without fetching or deepening
+the checkout. Fleet API fallback reuses directory snapshots per ref and lock
+metadata per blob SHA, rather than reading each file for each run.
 It stops collecting older revisions of that branch/event when the source differs
 and excludes those superseded failures from investigation. `source_sha` identifies
 the pushed source and the previous source in revision cohorts. Wait for evidence

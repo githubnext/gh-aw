@@ -218,6 +218,17 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 				case strings.Contains(endpoint, "/actions/runs?status=failure"):
 					return []byte(`{"workflow_runs":[]}`), nil
 				case strings.Contains(endpoint, "/actions/workflows/11/runs?"):
+					if strings.Contains(endpoint, "status=failure") {
+						var failures []workflowRunAPIResponse
+						for _, response := range responses {
+							if response.Conclusion == "failure" {
+								failures = append(failures, response)
+							}
+						}
+						out, err := json.Marshal(map[string]any{"workflow_runs": failures})
+						require.NoError(t, err)
+						return out, nil
+					}
 					assert.Contains(t, endpoint, "per_page=10&page=1&created=")
 					out, err := json.Marshal(map[string]any{"workflow_runs": responses})
 					require.NoError(t, err)

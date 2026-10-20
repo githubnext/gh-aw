@@ -45,7 +45,9 @@ Shows health metrics for workflows including:
 - Average execution duration
 - Warnings when success rate drops below threshold
 
-Collects explicit failures first, then samples successful and pending runs.
+Inventories failure signals from run-list payloads, verifies one representative
+per branch/event, then samples successful and pending runs. Reuses local Git
+objects when the checkout matches the target, with GitHub API fallback.
 When called without a workflow name, displays summary for all workflows.
 When called with a specific workflow name, displays detailed metrics for that workflow.
 

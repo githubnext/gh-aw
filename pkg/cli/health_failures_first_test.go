@@ -72,7 +72,10 @@ func TestHealthCollectsFailuresBeforeSuccessEvidence(t *testing.T) {
 			healthListWorkflowRuns = func(opts ListWorkflowRunsOptions, page int, _ *HealthCollection) ([]WorkflowRun, int, error) {
 				require.False(t, exhaust, "no successful evidence requests after budget exhaustion")
 				require.True(t, collection.FailurePassComplete)
-				require.Len(t, jobs, 2, "collect all obvious failures before sampling any success evidence")
+				require.Len(t, jobs, 1, "verify one representative per scope before sampling success evidence")
+				assert.True(t, collection.FailureListingComplete)
+				assert.Equal(t, 2, collection.FailureCandidates)
+				assert.Equal(t, 1, collection.FailureCandidateWorkflows)
 				require.Equal(t, 1, page)
 				order = append(order, opts.WorkflowName)
 				if opts.WorkflowName == "2" {
@@ -122,6 +125,22 @@ func TestHealthFailureCandidatesPreserveBoundsAndValidateJSON(t *testing.T) {
 			require.ErrorContains(t, err, "failed to parse health failure runs")
 		}
 	}
+
+}
+
+func TestHealthNamedWorkflowFailureListingIsScoped(t *testing.T) {
+	original := healthRunGH
+	t.Cleanup(func() { healthRunGH = original })
+	collection := &HealthCollection{Host: "github.com", APIRateLimit: &GitHubAPIRateLimitState{Remaining: 4000},
+		workflows: []GitHubWorkflow{{ID: 42, Path: ".github/workflows/example.lock.yml"}}}
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		assert.Contains(t, args[3], "repos/org/repo/actions/workflows/42/runs?status=failure")
+		assert.NotContains(t, args[3], "/actions/runs?", "named health must not scan unrelated workflows")
+		return []byte(`{"workflow_runs":[]}`), nil
+	}
+	_, _, err := listHealthFailureCandidates(ListWorkflowRunsOptions{Limit: 100}, 1, "org/repo", collection)
+	require.NoError(t, err)
+	assert.Equal(t, 1, collection.APIRequests)
 }
 
 func TestHealthFailurePassSkipsSupersededScopes(t *testing.T) {
@@ -213,7 +232,7 @@ func TestHealthFailurePassIsBoundedAndKeepsHealthyChronologicalSample(t *testing
 	}
 	collected, err := fetchWorkflowRuns("", "", "org/repo", false, collection)
 	require.NoError(t, err)
-	assert.Equal(t, healthMinimumRuns, jobs, "only five failed candidates per scope need evidence requests")
+	assert.Equal(t, 1, jobs, "one representative per scope is enough for initial detection")
 	config := HealthConfig{Threshold: 80, RepoOverride: "org/repo", LogsDir: t.TempDir(), collection: collection}
 	health := calculateCurrentWorkflowHealth("Example", collected, config)
 	assert.Equal(t, "healthy", health.Status)

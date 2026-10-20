@@ -5,21 +5,77 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path"
 	"slices"
+	"strconv"
 	"time"
 )
 
 var healthListFailureCandidates = listHealthFailureCandidates
 
-// Collect explicit failures before spending the shared budget on successful runs.
+type HealthPotentialIssue struct {
+	WorkflowPath         string `json:"workflow_path"`
+	WorkflowName         string `json:"workflow_name"`
+	FailedRuns           int    `json:"failed_runs"`
+	RunID                int64  `json:"representative_run_id"`
+	URL                  string `json:"url,omitempty"`
+	Evidence             string `json:"evidence"`
+	RepresentativeStatus string `json:"representative_status"`
+}
+
+// Inventory list-only signals before verifying one representative per scope.
 func collectHealthFailures(startDate, repoOverride string, collection *HealthCollection) ([]WorkflowRun, error) {
+	candidates, err := listHealthFailureInventory(startDate, repoOverride, collection)
+	if err != nil {
+		return nil, err
+	}
+	scopes := make(map[string]struct{})
+	var runs []WorkflowRun
+	for _, run := range candidates {
+		scope := failureClusterKey(run.Repository, run.WorkflowPath, run.HeadBranch, run.Event)
+		if _, sampled := scopes[scope]; sampled {
+			continue
+		}
+		hasJobs, err := healthRunHasJobs(run, collection)
+		if err != nil {
+			return runs, err
+		}
+		if !hasJobs {
+			markHealthPotentialIssue(run, collection, "jobless")
+			continue
+		}
+		resolveHealthRevision(run, collection)
+		verification := "revision_unknown"
+		if healthSourceChanged(run, collection) {
+			verification = "superseded"
+		} else if metadata, _ := healthRunRevision(run, collection); metadata != nil {
+			verification = "revision_checked"
+		}
+		markHealthPotentialIssue(run, collection, verification)
+		if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
+			run.Duration = run.UpdatedAt.Sub(run.StartedAt)
+		}
+		runs = append(runs, run)
+		scopes[scope] = struct{}{}
+		if collection.APIRequests >= healthMaximumAPIRequests && !collection.stopped {
+			stopHealthCollection(collection, errHealthAPIBudget)
+		}
+		if collection.stopped {
+			return runs, errHealthAPIBudget
+		}
+	}
+	collection.FailurePassComplete = collection.FailureListingComplete
+	return runs, nil
+}
+
+func listHealthFailureInventory(startDate, repoOverride string, collection *HealthCollection) ([]WorkflowRun, error) {
 	targets := make(map[string]GitHubWorkflow)
 	for _, target := range collection.workflows {
 		targets[target.Path] = target
 	}
 	opts := ListWorkflowRunsOptions{StartDate: startDate, EndDate: collection.EndDate, Limit: 100}
 	seen := make(map[int64]struct{})
-	scopes := make(map[string]int)
+	issues := make(map[string]int)
 	var runs []WorkflowRun
 	for page := 1; ; page++ {
 		batch, oldest, err := healthListFailureCandidates(opts, page, repoOverride, collection)
@@ -36,32 +92,23 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 			if run.WorkflowName == "" {
 				run.WorkflowName = target.Name
 			}
-			scope := failureClusterKey(run.Repository, run.WorkflowPath, run.HeadBranch, run.Event)
-			if scopes[scope] >= healthMinimumRuns {
-				continue
-			}
-			hasJobs, err := healthRunHasJobs(run, collection)
-			if err != nil {
-				return runs, err
-			}
-			if !hasJobs {
-				continue
-			}
-			resolveHealthRevision(run, collection)
-			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
-				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
-			}
 			runs = append(runs, run)
-			scopes[scope]++
-			if healthSourceChanged(run, collection) {
-				scopes[scope] = healthMinimumRuns
+			collection.FailureCandidates++
+			index, exists := issues[run.WorkflowPath]
+			if !exists {
+				index = len(collection.PotentialIssues)
+				issues[run.WorkflowPath] = index
+				collection.PotentialIssues = append(collection.PotentialIssues, HealthPotentialIssue{
+					WorkflowPath: run.WorkflowPath, WorkflowName: run.WorkflowName,
+					RunID: run.DatabaseID, URL: run.URL, Evidence: "run_list_only", RepresentativeStatus: "unverified",
+				})
+				collection.FailureCandidateWorkflows++
 			}
-			if collection.stopped {
-				return runs, errHealthAPIBudget
-			}
+			issue := &collection.PotentialIssues[index] //nolint:uncheckedsliceindex // Index is inserted into the map only after appending to this slice.
+			issue.FailedRuns++
 		}
 		if len(batch) < opts.Limit {
-			collection.FailurePassComplete = true
+			collection.FailureListingComplete = true
 			return runs, nil
 		}
 		if page*opts.Limit >= healthMaximumRunSearchResults {
@@ -74,8 +121,18 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 }
 
 func listHealthFailureCandidates(opts ListWorkflowRunsOptions, page int, repoOverride string, collection *HealthCollection) ([]workflowRunAPIResponse, time.Time, error) {
-	endpoint := fmt.Sprintf("%s/actions/runs?status=failure&per_page=%d&page=%d&created=%s",
-		healthRepositoryEndpoint(repoOverride), opts.Limit, page,
+	base := path.Join(healthRepositoryEndpoint(repoOverride), "actions/runs")
+	if len(collection.workflows) == 1 {
+		for _, target := range collection.workflows {
+			id := path.Base(target.Path)
+			if target.ID > 0 {
+				id = strconv.FormatInt(target.ID, 10)
+			}
+			base = path.Join(healthRepositoryEndpoint(repoOverride), "actions/workflows", url.PathEscape(id), "runs")
+		}
+	}
+	endpoint := fmt.Sprintf("%s?status=failure&per_page=%d&page=%d&created=%s",
+		base, opts.Limit, page,
 		url.QueryEscape(buildCreatedFilter(opts.StartDate, opts.EndDate, opts.BeforeDate)))
 	out, err := healthAPI(collection, endpoint)
 	if err != nil {
@@ -97,6 +154,15 @@ func listHealthFailureCandidates(opts ListWorkflowRunsOptions, page int, repoOve
 		}
 	}
 	return data.Runs, oldest, nil
+}
+
+func markHealthPotentialIssue(run WorkflowRun, collection *HealthCollection, status string) {
+	for i := range collection.PotentialIssues {
+		if collection.PotentialIssues[i].RunID == run.DatabaseID {
+			collection.PotentialIssues[i].RepresentativeStatus = status
+			return
+		}
+	}
 }
 
 func prioritizeHealthFailureWorkflows(targets []GitHubWorkflow, failures []WorkflowRun) []GitHubWorkflow {
