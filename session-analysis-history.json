@@ -226,8 +226,25 @@
         "Duration mean 8.0min/median 0.0min, driven by instant CI-gate fires, not real agent sessions.",
         "0/8 open PRs orphaned, 47th healthy day. Standard run (roll=30)."
       ]
+    },
+    {
+      "date": "2026-10-20",
+      "sessions_analyzed": 50,
+      "completion_rate": 72.0,
+      "average_duration_minutes": 2.51,
+      "median_duration_minutes": 2.508,
+      "orphan_rate_pct": 0.0,
+      "escalations": 0,
+      "experimental_strategy": null,
+      "key_insights": [
+        "DATA PIPELINE FAILURE 3rd consecutive day: 0/50 conv logs; population remains CI-gate workflows not agent sessions. NEW: zero true-agentic runs today (0/0), only 2nd zero-volume day on record (prev 09-17). Recommend urgent review of fetch module filter.",
+        "72.0% completion (36/50: 36 success, 13 action_required, 1 cancelled), +6pts vs 10-19 (66.0%); 2nd-highest of 48 days; 47-day mean 35.0%.",
+        "provenance 100.0% bot-driven (36/36), ties all-time record; Squad (5 runs, 0 success) excluded as ambiguous.",
+        "4 branches (dominant 60%), ~256min window; duration mean 2.51min/median 2.508min, CI-gate timing only.",
+        "0/13 open PRs orphaned (max gate=1) -> NORMAL, 48th healthy day. Standard run (roll=78)."
+      ]
     }
   ],
-  "last_updated": "2026-10-17",
+  "last_updated": "2026-10-20",
   "version": "1.10"
 }

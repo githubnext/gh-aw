@@ -222,3 +222,11 @@ _(Prior peak 06-27: 40% (20 succ); superseded by 54% on 07-04. Per-day detail in
 
 ## Active patterns (continued)
 - 10-19 update: **data pipeline regression** -- conversation-log fetch returned 0/50 (new worst) and the fetched "sessions" are CI gate/check-run workflows, not agent sessions; provenance_inversion hit a new record high (93.9% bot-driven); narrowest-ever branch spread (2 branches). Flagged as the primary actionable finding for this run; all downstream completion/duration/branch stats are CI-gate-population metadata, not agent-session behavioral data.
+
+## 2026-10-20 snapshot
+- **DATA PIPELINE FAILURE, 3rd consecutive day, deepening**: 0/50 conv/event logs again; population remains CI-gate workflows, not agent sessions. NEW: **zero true-agentic runs** today (0/0) -- only 2nd zero-volume true-agentic day on record (prev 09-17). Recommend urgent review of `copilot-session-data-fetch` filter.
+- 72.0% raw completion (36 success/13 action_required/1 cancelled/0 failure), +6pts vs 10-19; 2nd-highest of 48 days (behind 09-02 78%); 47-day mean 35.0%.
+- provenance_inversion ties all-time 100% bot-driven record (36/36: 31 core-CI-gate + 5 code-scanning); Squad (5, 0 succ) excluded as ambiguous.
+- 4 branches (add-declarative-webhook-triggers 60%, fix-copilot-sub-agent-models 20%, expand-experiment-model-expressions 14%, fix-sub-agent-model-resolution 6%), ~256min window.
+- Duration mean 2.51min/median 2.508min (13/50 zero-dur) -- CI-gate timing only.
+- Orphans 0/13 (max gate_count=1) -> 0% NORMAL, 48th healthy day; roll=78, no experimental.
