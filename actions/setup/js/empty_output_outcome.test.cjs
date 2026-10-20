@@ -265,17 +265,52 @@ describe("empty output outcome", () => {
     expect(buildEmptyOutputOutcome([], rootDir)).not.toHaveProperty("engineErrorType");
   });
 
-  it.each([1, 137, 139])("classifies a silent driver exit %s as unknown rather than an outage", exitCode => {
+  it.each([1, 127, 137, 139, 159])("classifies a silent driver exit %s as a driver crash rather than an outage", exitCode => {
     fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.reason).toBe("engine_driver_failure");
-    expect(outcome.failureCause).toBe("unknown");
+    expect(outcome.failureCause).toBe("driver_crash");
     expect(outcome.driverExitCode).toBe(exitCode);
     expect(outcome.details).toContain(`Driver exit code: ${exitCode}`);
     expect(outcome.details.match(/Driver exit code:/g)).toHaveLength(1);
-    expect(outcome.details).toContain("Failure classification: unknown");
+    expect(outcome.details).toContain("Failure classification: driver_crash");
     expect(outcome.details).not.toContain("engine_outage");
     expect(outcome.details).toContain("Last engine error type: unknown");
+  });
+
+  it.each([
+    [137, "SIGKILL"],
+    [139, "SIGSEGV"],
+    [159, "SIGSYS"],
+  ])("reports the inferred signal for driver exit %s without inferring a provider outage", (exitCode, signal) => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.driverExitSignal).toBe(signal);
+    expect(outcome.details).toContain(`Driver exit signal (inferred from exit code): ${signal}`);
+    expect(outcome.details).not.toContain("engine_outage");
+  });
+
+  it("prefers a fatal driver signal over an earlier request rejection", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "139");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Error: Authentication failed\n");
+    expect(buildEmptyOutputOutcome([], rootDir).failureCause).toBe("driver_crash");
+  });
+
+  it("summarizes the last attributed driver stderr diagnostic without publishing its payload", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Error: Authentication failed\n[copilot-sdk-driver] unhandled error: private-payload\n");
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("driver_crash");
+    expect(outcome.details).toContain("Last driver stderr summary: SDK driver reported an error");
+    expect(outcome.details).not.toContain("private-payload");
+  });
+
+  it("does not publish quoted driver stderr diagnostics", () => {
+    const content = "[copilot-sdk-driver] unhandled error: private-payload";
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    writeEvents([{ type: "assistant.message", data: { content } }]);
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), content);
+    expect(buildEmptyOutputOutcome([], rootDir).details).toContain("Last driver stderr summary: not recorded");
   });
 
   it("includes a successful driver exit code when no terminal output was emitted", () => {
@@ -647,9 +682,9 @@ describe("empty output outcome", () => {
   it.each([
     ["capi_server_error", [502], "engine_outage"],
     ["agentic_engine_timeout", [], "engine_outage"],
-    ["sandbox_runtime_crash", [], "unknown"],
+    ["sandbox_runtime_crash", [], "driver_crash"],
     ["", [503], "engine_outage"],
-    ["", [], "unknown"],
+    ["", [], "driver_crash"],
     ["http_400_response_error", [400], "request_rejection"],
     ["invocation_cap_exceeded", [], "prompt_exhaustion"],
   ])("classifies %s using collector execution metadata", (category, errorCodes, failureCause) => {

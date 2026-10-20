@@ -623,6 +623,53 @@ describe("handle_agent_failure", () => {
       expect(rendered).toContain("No additional engine error was captured.");
     });
 
+    it("reports the redaction step's own error instead of a generic driver exit", async () => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        {
+          id: 456,
+          name: "agent",
+          conclusion: "failure",
+          steps: [
+            { name: "Run agent", conclusion: "failure" },
+            { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
+            { name: "Post Run agent", conclusion: "failure" },
+          ],
+        },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockResolvedValue({
+        data: [
+          "2026-10-10T10:00:01.500Z ##[error]Secret redaction failed (stage=read, code=EIO)",
+          "2026-10-10T10:00:02.500Z ##[warning]Secret redaction failed (stage=unlink, code=EACCES)",
+          "2026-10-10T10:00:03.000Z ##[error]ERR_VALIDATION: Secret redaction failed: ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=12)",
+          "2026-10-10T10:00:03.100Z ##[error]private-exception-message",
+          "2026-10-10T10:00:03.200Z ##[error]Secret redaction failed (stage=read, code=private-code)",
+          "2026-10-10T10:00:05.000Z ##[error]Secret redaction failed (stage=write, code=ENOSPC)",
+        ].join("\n"),
+      });
+      const diagnostics = await getFailedAgentDiagnostics();
+      expect(diagnostics).toMatchObject({ failingStep: "Redact secrets in logs", secretRedactionFailed: true });
+      expect(global.github.rest.actions.downloadJobLogsForWorkflowRun).toHaveBeenCalledWith({ owner: "owner", repo: "repo", job_id: 456 });
+      const rendered = buildFailureDiagnosticsContext({ ...diagnostics, failureCategories: ["engine_driver_failure"], engineFailureContext: "generic driver exit" });
+      expect(rendered).toContain("Secret redaction failed (stage=unlink, code=EACCES)");
+      expect(rendered).toContain("ERR_VALIDATION: Failed to remove artifact source after secret redaction failed (input_bytes=12)");
+      expect(rendered).not.toContain("generic driver exit");
+      expect(rendered).not.toContain("private-");
+      expect(rendered).not.toContain("code=EIO");
+      expect(rendered).not.toContain("code=ENOSPC");
+    });
+
+    it("keeps a redaction-specific explanation when its job log is unavailable", async () => {
+      mockFailedStepLog("");
+      global.github.paginate.mockResolvedValue([
+        { id: 456, name: "agent", conclusion: "failure", steps: [{ name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" }] },
+      ]);
+      global.github.rest.actions.downloadJobLogsForWorkflowRun = vi.fn().mockRejectedValue(new Error("private-api-error"));
+      const diagnostics = await getFailedAgentDiagnostics();
+      expect(diagnostics.stepError).toContain("Secret redaction failed; error details are unavailable.");
+      expect(JSON.stringify(global.core.warning.mock.calls)).not.toContain("private-api-error");
+    });
+
     it("includes the first failing startup step for a recorded not_started agent", async () => {
       mockFailedStepLog("private startup error");
       global.github.paginate.mockResolvedValue([
@@ -903,6 +950,8 @@ describe("handle_agent_failure", () => {
 
     it.each([
       ["agent_startup_failure", "[aw] Test Workflow: failed before agent execution started"],
+      ["driver_crash", "[aw] Test Workflow: engine driver crashed"],
+      ["secret_redaction_failure", "[aw] Test Workflow: failed to redact secrets in logs"],
       ["engine_outage", "[aw] Test Workflow: experienced an engine outage"],
       ["request_rejection", "[aw] Test Workflow: had a request rejected"],
       ["prompt_exhaustion", "[aw] Test Workflow: reported incomplete result"],
@@ -913,9 +962,9 @@ describe("handle_agent_failure", () => {
     });
 
     it.each([
-      [1, [], [], "[aw] Test Workflow: failed (cause unknown)"],
-      [137, [], [], "[aw] Test Workflow: failed (cause unknown)"],
-      [139, [], [], "[aw] Test Workflow: failed (cause unknown)"],
+      [1, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [137, [], [], "[aw] Test Workflow: engine driver crashed"],
+      [139, [], [], "[aw] Test Workflow: engine driver crashed"],
       [1, ["capi_server_error"], [502], "[aw] Test Workflow: experienced an engine outage"],
     ])("uses runtime evidence rather than a bare driver exit %s to choose an outage title", (exitCode, categories, errorCodes, title) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");
@@ -1343,6 +1392,55 @@ describe("handle_agent_failure", () => {
       delete process.env.GITHUB_WORKSPACE;
       if (tmpDir && fs.existsSync(tmpDir)) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("publishes a redaction failure with its own title, cause and step error after a successful driver", async () => {
+      const output = path.join(tmpDir, "output.json");
+      fs.writeFileSync(output, JSON.stringify({ items: [{ type: "noop", message: "Done" }] }));
+      vi.stubEnv("GH_AW_AGENT_OUTPUT", output);
+      vi.stubEnv("GH_AW_AGENT_CONCLUSION", "failure");
+      vi.stubEnv("GH_AW_FAILURE_REPORT_AS_ISSUE", "true");
+      fs.writeFileSync(path.join(promptsDir, "agent_failure_issue.md"), fs.readFileSync(new URL("../md/agent_failure_issue.md", import.meta.url), "utf8"));
+      const create = vi.fn().mockResolvedValue({ data: { number: 101, html_url: "https://github.com/owner/repo/issues/101", node_id: "I_101" } });
+      global.github = {
+        rest: {
+          search: { issuesAndPullRequests: vi.fn(async () => ({ data: { total_count: 0, items: [] } })) },
+          issues: { create, createComment: vi.fn() },
+          pulls: { get: vi.fn() },
+          actions: {
+            listJobsForWorkflowRun: vi.fn(),
+            downloadJobLogsForWorkflowRun: vi.fn().mockResolvedValue({
+              data: "2026-10-10T10:00:04.500Z ##[error]ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)",
+            }),
+          },
+        },
+        paginate: vi.fn(async () => [
+          {
+            id: 456,
+            name: "agent",
+            conclusion: "failure",
+            steps: [
+              { name: "Run agent", conclusion: "success" },
+              { name: "Redact secrets in logs", conclusion: "failure", started_at: "2026-10-10T10:00:02Z", completed_at: "2026-10-10T10:00:04Z" },
+            ],
+          },
+        ]),
+        graphql: vi.fn(),
+      };
+      try {
+        await main();
+        expect(global.core.setFailed.mock.calls).toEqual([]);
+        expect(create).toHaveBeenCalledOnce();
+        const issue = create.mock.calls[0][0];
+        expect(issue.title).toBe("[aw] Test Workflow: failed to redact secrets in logs");
+        expect(issue.body).toContain("failure_cause: secret_redaction_failure");
+        expect(issue.body).toContain("Failing step:** `Redact secrets in logs`");
+        expect(issue.body).toContain("ERR_VALIDATION: Removed artifact source after secret redaction failed (input_bytes=12)");
+        expect(issue.body).not.toContain("No additional engine error was captured");
+        expect(global.core.setFailed).not.toHaveBeenCalled();
+      } finally {
+        vi.unstubAllEnvs();
       }
     });
 
@@ -5759,9 +5857,9 @@ describe("handle_agent_failure", () => {
 
   describe("buildReportIncompleteContext", () => {
     it.each([
-      [1, [], [], "unknown"],
-      [137, [], [], "unknown"],
-      [139, [], [], "unknown"],
+      [1, [], [], "driver_crash"],
+      [137, [], [], "driver_crash"],
+      [139, [], [], "driver_crash"],
       [1, ["capi_server_error"], [502], "engine_outage"],
     ])("renders a driver failure classification supported by runtime evidence for exit %s", (exitCode, categories, errorCodes, failureCause) => {
       const { buildEmptyOutputOutcome } = require("./empty_output_outcome.cjs");

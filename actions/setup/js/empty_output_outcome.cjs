@@ -4,7 +4,8 @@ const { iterateJsonl, iterateJsonlEvents } = require("./jsonl_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const { collectUnifiedSession } = require("./unified_session.cjs");
-const { agentErrorSummaryText } = require("./agent_execution.cjs");
+const { agentErrorSummaryText, collectAgentErrorEvidence } = require("./agent_execution.cjs");
+const { crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { sessionContext, isNestedSessionEvent } = require("./agent_session.cjs");
 const { collectArtifactSecretValues } = require("./safe_output_manifest.cjs");
 const { collectAddMaskedValues } = require("./add_mask_redaction.cjs");
@@ -21,6 +22,8 @@ const EMPTY_OUTPUT_CAUSES = Object.freeze({
 });
 const EMPTY_OUTPUT_FAILURE_CAUSES = Object.freeze({
   agent_startup_failure: "failed before agent execution started",
+  driver_crash: "engine driver crashed",
+  secret_redaction_failure: "failed to redact secrets in logs",
   engine_outage: "experienced an engine outage",
   request_rejection: "had a request rejected",
   prompt_exhaustion: "reported incomplete result",
@@ -170,6 +173,7 @@ function hasFailedFinalResult(events) {
  *   reason: string,
  *   failureCause: string,
  *   driverExitCode?: number,
+ *   driverExitSignal?: string,
  *   retryCount: number,
  *   engineErrorType?: string,
  *   details?: string
@@ -306,6 +310,18 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   const rawSourceEngine = process.env.GH_AW_ENGINE_ID === "aider" || events.some(event => event.type === "workflow.info" && event.provenance.component === "workflow" && event.data.engineId === "aider") ? "aider" : undefined;
   const engineSummary = agentNotStarted ? "" : agentErrorSummaryText(safeStdio, events, rawSourceEngine);
   if (engineSummary) diagnostics.add(engineSummary);
+  const driverExitSignal = crashSignalNameForExitCode(driverExitCode) ?? ({ 130: "SIGINT", 137: "SIGKILL", 143: "SIGTERM" }[driverExitCode] || undefined);
+  let driverStderrSummary = "";
+  if (!agentNotStarted && driverExitCode > 0) {
+    const evidence = collectAgentErrorEvidence(safeStdio, events, rawSourceEngine);
+    for (const line of evidence.diagnostics.slice().reverse()) {
+      driverStderrSummary = agentErrorSummaryText(line, [], rawSourceEngine);
+      if (!driverStderrSummary && /^\[(?:copilot-sdk-driver|sdk-driver)\]\s+(?:\[sdk-driver\]\s+)?(?:error|unhandled error):/i.test(line)) {
+        driverStderrSummary = "SDK driver reported an error";
+      }
+      if (driverStderrSummary) break;
+    }
+  }
   const engineErrorType = engineSummary.match(/\(([a-z][a-z0-9_]*)\)/)?.[1] || "";
   const errorCodes = executionErrorCodes.filter(code => Number.isSafeInteger(code) && code >= 400 && code <= 599);
   const isPromptExhaustion = executionCategories.some(category => PROMPT_EXHAUSTION_ERROR_CATEGORIES.has(category));
@@ -316,15 +332,19 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   // Missing completion and nonzero driver exits are observed outcomes, not evidence of budget exhaustion or an outage.
   const failureCause = agentNotStarted
     ? "agent_startup_failure"
-    : isPromptExhaustion
-      ? "prompt_exhaustion"
-      : isRequestRejection
-        ? "request_rejection"
-        : isEngineOutage
-          ? "engine_outage"
-          : reason === "missing_terminal_safe_output"
-            ? "missing_terminal_safe_output"
-            : "unknown";
+    : crashSignalNameForExitCode(driverExitCode) || executionCategories.includes("sandbox_runtime_crash") || driverStderrSummary === "SDK driver reported an error"
+      ? "driver_crash"
+      : isPromptExhaustion
+        ? "prompt_exhaustion"
+        : isRequestRejection
+          ? "request_rejection"
+          : isEngineOutage
+            ? "engine_outage"
+            : reason === "missing_terminal_safe_output"
+              ? "missing_terminal_safe_output"
+              : driverExitCode > 0
+                ? "driver_crash"
+                : "unknown";
   const retryEvents = events.filter(event => event.type === "claude.api_retry" || (event.type === "system" && event.data.subtype === "api_retry"));
   const harnessRetryLines = stdio.split(/\r?\n/).filter(line => /^\[(?:copilot|claude|codex)-harness\].*\bretrying\b/i.test(line));
   const harnessRetryCount = harnessRetryLines.length;
@@ -361,6 +381,8 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
           reason === "engine_driver_failure" && !failedFinalResult
             ? `Driver exit code: ${driverExitCode ?? "not recorded"}. The engine driver exited before a terminal safe output was recorded.`
             : `Driver exit code: ${driverExitCode ?? "not recorded"}`,
+          ...(driverExitSignal ? [`Driver exit signal (inferred from exit code): ${driverExitSignal}`] : []),
+          ...(driverExitCode > 0 ? [`Last driver stderr summary: ${driverStderrSummary || "not recorded (no classified stderr diagnostic)"}`] : []),
           `Last tool call status: ${lastToolCallStatus}`,
           ...(lastToolExitCode !== undefined ? [`Last tool exit code: ${lastToolExitCode}`] : []),
           `Failed tool calls observed: ${failedToolCalls}`,
@@ -387,6 +409,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
     reason,
     failureCause,
     ...(driverExitCode !== undefined ? { driverExitCode } : {}),
+    ...(driverExitSignal ? { driverExitSignal } : {}),
     retryCount,
     ...(engineErrorType ? { engineErrorType } : {}),
     ...(sanitized ? { details: sanitized } : {}),
