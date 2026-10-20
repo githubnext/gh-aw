@@ -46,6 +46,7 @@ func toEngineEnvValueString(value any) (string, bool) {
 type EngineConfig struct {
 	ID                 string
 	Version            string
+	ChecksumsSHA256    string      // Trusted release checksum-manifest digest (Copilot CLI only)
 	LLMProvider        LLMProvider // Inference provider override for this engine (engine.provider / engine.model-provider)
 	ContextWindow      int         // Model context window metadata for engines that need explicit model catalog entries
 	PermissionMode     string
@@ -441,6 +442,9 @@ func extractReferencedEngineConfig(engineObj map[string]any, topLevel engineTopL
 	}
 	if version, hasVersion := engineObj["version"]; hasVersion {
 		config.Version = stringutil.ParseVersionValue(version)
+	}
+	if digest, ok := engineObj["checksums-sha256"].(string); ok {
+		config.ChecksumsSHA256 = digest
 	}
 	resolvedModel := resolveEngineModel(engineObj, topLevel, "")
 	applyReferencedEngineFields(config, engineObj, topLevel)
