@@ -286,6 +286,7 @@ func TestActivationStepsAddVersionCheckStep(t *testing.T) {
 		steps := strings.Join(ctx.steps, "")
 		assert.Contains(t, steps, "Check compile-agentic version")
 		assert.Contains(t, steps, "GH_AW_COMPILED_VERSION: \"v1.2.3\"")
+		assert.Contains(t, steps, "GH_AW_HAS_SAFE_OUTPUTS: \"false\"")
 		assert.Contains(t, steps, "GH_AW_BLOCKED_VERSION_REPORT_AS_ISSUE: \"true\"")
 		assert.Contains(t, steps, "GH_AW_WORKFLOW_NAME: \"\"")
 		assert.Contains(t, steps, "check_version_updates.cjs")
@@ -305,6 +306,7 @@ func TestActivationStepsAddVersionCheckStep(t *testing.T) {
 
 		steps := strings.Join(ctx.steps, "")
 		assert.Contains(t, steps, "GH_AW_BLOCKED_VERSION_REPORT_AS_ISSUE: \"false\"")
+		assert.Contains(t, steps, "GH_AW_HAS_SAFE_OUTPUTS: \"true\"")
 	})
 
 	t.Run("disables blocked version issue reporting when on.report-blocked-version is false", func(t *testing.T) {
