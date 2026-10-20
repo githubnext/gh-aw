@@ -1832,6 +1832,7 @@ jobs:
         - group: Workflow-Core
           tests: >-
             FuzzExpressionParser:./pkg/workflow/
+            FuzzBashCommandParserModel:./pkg/workflow/
             FuzzMentionsFiltering:./pkg/workflow/
             FuzzSanitizeOutput:./pkg/workflow/
             FuzzSanitizeIncomingText:./pkg/workflow/
