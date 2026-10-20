@@ -5,6 +5,8 @@ set +o histexpand
 # Run: bash install_awf_binary_test.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=actions/setup/sh/release_integrity.sh
+source "${SCRIPT_DIR}/release_integrity.sh"
 
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -107,7 +109,7 @@ test_curl_retry_all_errors() {
   local test_dir
   local option_index
   local -a actual_options
-  local -a expected_options=(-fsSL --retry 5 --retry-delay 10 --retry-max-time 180)
+  local -a expected_options=(-fsSL --proto '=https' --proto-redir '=https' --retry 5 --retry-delay 10 --retry-max-time 180)
   TEST_FAILURE_REASON=""
   if [ "${expected}" = true ]; then
     expected_options+=(--retry-all-errors)
@@ -140,7 +142,7 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 if [[ "${output}" == *checksums.txt ]]; then
-  printf 'checksum awf-linux-x64\n' > "${output}"
+  printf '%064d awf-linux-x64\n' 0 > "${output}"
 else
   printf '#!/usr/bin/env bash\nexit 0\n' > "${output}"
 fi
@@ -151,7 +153,11 @@ echo v18.0.0
 EOF
   cat > "${test_dir}/bin/sha256sum" <<'EOF'
 #!/usr/bin/env bash
-printf 'checksum %s\n' "$1"
+if [[ "$1" == *checksums.txt ]]; then
+  printf '%s %s\n' "$AWF_TEST_MANIFEST_SHA256" "$1"
+else
+  printf '%064d %s\n' 0 "$1"
+fi
 EOF
   cat > "${test_dir}/bin/uname" <<'EOF'
 #!/usr/bin/env bash
@@ -160,10 +166,13 @@ case "$1" in
   -m) echo x86_64 ;;
 esac
 EOF
+  printf '#!/usr/bin/env bash\nexit 0\n' >"${test_dir}/bin/sudo"
+  printf '#!/usr/bin/env bash\nexit 0\n' >"${test_dir}/bin/find"
   chmod +x "${test_dir}/bin/"*
-  if ! CURL_HELP_ALL_OUTPUT="${curl_help_all}" CURL_HELP_OUTPUT="${curl_help}" CURL_HELP_ALL_FAILS="${help_all_fails}" CURL_ARGS_FILE="${test_dir}/curl-args" \
+  if ! AWF_TEST_MANIFEST_SHA256="$(release_artifact_sha256 github/gh-aw-firewall v0.28.62 checksums.txt)" \
+    CURL_HELP_ALL_OUTPUT="${curl_help_all}" CURL_HELP_OUTPUT="${curl_help}" CURL_HELP_ALL_FAILS="${help_all_fails}" CURL_ARGS_FILE="${test_dir}/curl-args" \
     HOME="${test_dir}/home" GITHUB_PATH="${test_dir}/github-path" \
-    PATH="${test_dir}/bin:/usr/bin:/bin" bash "${SCRIPT_DIR}/install_awf_binary.sh" vtest --rootless >/dev/null; then
+    PATH="${test_dir}/bin:${PATH}" bash "${SCRIPT_DIR}/install_awf_binary.sh" v0.28.62 --rootless >/dev/null; then
     TEST_FAILURE_REASON="installer exited unsuccessfully"
     rm -rf "${test_dir}"
     return 1

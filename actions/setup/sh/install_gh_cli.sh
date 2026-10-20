@@ -44,8 +44,17 @@ KEYRING_PATH="/usr/share/keyrings/githubcli-archive-keyring.gpg"
 SOURCE_LIST="/etc/apt/sources.list.d/github-cli.list"
 
 echo "Adding GitHub CLI apt repository..."
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-  | sudo dd of="${KEYRING_PATH}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=actions/setup/sh/release_integrity.sh
+source "${SCRIPT_DIR}/release_integrity.sh"
+key_file="$(mktemp)"
+trap 'rm -f "$key_file"' EXIT
+curl --proto '=https' --proto-redir '=https' -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  -o "$key_file"
+# Source: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+# Review policy recorded 2026-10-20: authenticate key rotation before updating this pin.
+verify_release_digest "$key_file" 6084d5d7bd8e288441e0e94fc6275570895da18e6751f70f057485dc2d1a811b
+sudo cp "$key_file" "${KEYRING_PATH}"
 sudo chmod go+r "${KEYRING_PATH}"
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=${KEYRING_PATH}] https://cli.github.com/packages stable main" \

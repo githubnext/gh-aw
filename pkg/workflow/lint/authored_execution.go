@@ -26,8 +26,8 @@ func checkAuthoredActionPins(ctx context.Context, input Input) ([]Diagnostic, er
 		uses, ok := raw.(string)
 		if !ok {
 			failures = append(failures, fmt.Errorf("action-pin requires a string at %s", path))
-		} else if message := integrityReference(uses, reusable); message != "" {
-			diagnostics = append(diagnostics, Diagnostic{Severity: severity, Path: path, Message: message})
+		} else if diagnostic := integrityPinDiagnostic(uses, reusable, severity, path); diagnostic != nil {
+			diagnostics = append(diagnostics, *diagnostic)
 		}
 	}
 	for _, block := range blocks {

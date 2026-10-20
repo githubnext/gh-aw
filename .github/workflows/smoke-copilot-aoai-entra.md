@@ -78,7 +78,7 @@ tools:
   cli-proxy: true
 runtimes:
   go:
-    version: "1.26"
+    version: "1.27.3"
 safe-outputs:
     allowed-domains: [default-safe-outputs]
     upload-artifact:
