@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
@@ -22,21 +23,25 @@ func TestAdmissionRuntimeBudgetSelection(t *testing.T) {
 		name, result, allowance, expected string
 		component, invalid                bool
 		local                             int64
+		evals                             bool
 	}{
-		{"approved overrides local", "admitted", "111", "111", false, false, 777},
-		{"approved higher allowance", "admitted", "999", "999", false, false, 777},
-		{"approved overrides unlimited", "admitted", "111", "111", false, false, -1},
-		{"disabled retains local", "", "", "777", false, false, 777},
-		{"disabled retains unlimited", "", "", "-1", false, false, -1},
-		{"ignored ignores stale allowance", "ignored", "111", "777", false, false, 777},
-		{"optional absent retains component", "admitted", "", "777", true, false, 777},
-		{"primary absent blocks", "admitted", "", "", false, true, 777},
-		{"invalid allowance blocks", "admitted", "12oops", "", false, true, 777},
-		{"overflow blocks", "admitted", "2147483648", "", false, true, 777},
-		{"shell payload blocks", "admitted", "$(echo unsafe)", "", false, true, 777},
+		{"approved overrides local", "admitted", "111", "111", false, false, 777, false},
+		{"approved higher allowance", "admitted", "999", "999", false, false, 777, false},
+		{"approved overrides unlimited", "admitted", "111", "111", false, false, -1, false},
+		{"disabled retains local", "", "", "777", false, false, 777, false},
+		{"disabled retains unlimited", "", "", "-1", false, false, -1, false},
+		{"ignored ignores stale allowance", "ignored", "111", "777", false, false, 777, false},
+		{"optional absent retains component", "admitted", "", "777", true, false, 777, false},
+		{"primary absent blocks", "admitted", "", "", false, true, 777, false},
+		{"invalid allowance blocks", "admitted", "12oops", "", false, true, 777, false},
+		{"overflow blocks", "admitted", "2147483648", "", false, true, 777, false},
+		{"shell payload blocks", "admitted", "$(echo unsafe)", "", false, true, 777, false},
+		{"detection selects allowance", "admitted", "111", "111", true, false, 777, false},
+		{"evals selects allowance", "admitted", "999", "999", false, false, 777, true},
+		{"evals missing optional retains policy", "admitted", "", "777", false, false, 777, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			data := &WorkflowData{EngineConfig: &EngineConfig{MaxAICredits: tc.local}, IsDetectionRun: tc.component}
+			data := &WorkflowData{EngineConfig: &EngineConfig{MaxAICredits: tc.local}, IsDetectionRun: tc.component, IsEvalsRun: tc.evals}
 			script, config := buildMaxAICreditsExport(AWFCommandConfig{WorkflowData: data}, `{"apiProxy":{"maxRuns":1,"maxAiCredits":777}}`)
 			assert.Equal(t, 1, strings.Count(config, `"maxAiCredits"`))
 			assert.Contains(t, config, `"maxAiCredits":${GH_AW_MAX_AI_CREDITS}`)
@@ -74,6 +79,44 @@ func TestAdmissionComponentBudgetOutputs(t *testing.T) {
 			applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{EngineConfig: &EngineConfig{MaxAICredits: 777}, IsDetectionRun: tc.detection, IsEvalsRun: tc.evals})
 			assert.Equal(t, "${{ needs.activation.outputs."+tc.output+" }}", env["GH_AW_ADMISSION_MAX_AI_CREDITS"])
 			assert.Equal(t, "${{ needs.activation.outputs.admission-result }}", env["GH_AW_ADMISSION_RESULT"])
+		})
+	}
+}
+
+func TestAdmissionSessionOutputs(t *testing.T) {
+	for _, daily := range []bool{false, true} {
+		step := strings.Join(buildUsageActivityGenerationStep(daily, false, func(action string) string { return action }), "")
+		for env, output := range map[string]string{
+			"GH_AW_ADMISSION_RESULT":                          "admission-result",
+			"GH_AW_ADMISSION_MAX_AI_CREDITS":                  "admission-max-ai-credits",
+			"GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION": "admission-max-ai-credits-threat-detection",
+			"GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS":            "admission-max-ai-credits-evals",
+		} {
+			assert.Contains(t, step, env+": ${{ needs.activation.outputs."+output+" }}")
+		}
+	}
+}
+
+func TestAdmissionComponentExecutionWiring(t *testing.T) {
+	for _, engine := range []string{"copilot", "claude", "codex", "pi"} {
+		t.Run(engine, func(t *testing.T) {
+			data := &WorkflowData{
+				AI:           engine,
+				EngineConfig: &EngineConfig{ID: engine, MaxAICredits: 777},
+				SafeOutputs:  &SafeOutputsConfig{ThreatDetection: &ThreatDetectionConfig{}},
+			}
+			compiler := NewCompiler()
+			evals := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+			assert.Contains(t, evals, "GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits-evals }}")
+			assert.NotContains(t, evals, "needs.activation.outputs.admission-max-ai-credits-threat-detection")
+			assert.Contains(t, evals, `GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"`)
+			for _, external := range []bool{false, true} {
+				data.Features = map[string]any{string(constants.GHAWDetectionFeatureFlag): external}
+				detection := strings.Join(compiler.buildDetectionJobSteps(data), "")
+				assert.Contains(t, detection, "GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits-threat-detection }}")
+				assert.NotContains(t, detection, "needs.activation.outputs.admission-max-ai-credits-evals")
+				assert.Contains(t, detection, `GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"`)
+			}
 		})
 	}
 }

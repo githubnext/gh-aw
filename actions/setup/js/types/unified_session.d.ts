@@ -404,6 +404,23 @@ export interface WorkflowJobResultData {
   durationMs?: SessionCount;
 }
 
+/** Validated admission allowances, not spend or credentials. */
+export interface AdmissionDecisionData {
+  status: "admitted" | "ignored" | "skipped";
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  maxAiCredits?: number;
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  threatDetectionMaxAiCredits?: number;
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  evalsMaxAiCredits?: number;
+}
+
 export interface DailyAICDecisionData {
   status: "disabled" | "skipped" | "under_budget" | "exceeded" | "structural_error" | "transient_error";
   exceeded?: boolean;
@@ -643,6 +660,7 @@ export interface UnifiedSessionEventDataMap {
   "usage.report": UsageReportData;
   "execution.result": ExecutionResultData;
   "detection.result": DetectionResultData;
+  "guardrail.admission": AdmissionDecisionData;
   "guardrail.daily_aic": DailyAICDecisionData;
   "workflow.info": WorkflowInfoData;
   "plugin.installation": PluginInstallationData;

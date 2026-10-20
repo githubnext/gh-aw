@@ -383,9 +383,13 @@ func buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations bo
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
 	}
-	if reuseJobDurations || hasDailyAICGuardrail || len(gradersEnv) > 0 {
-		steps = append(steps, "        env:\n")
-	}
+	steps = append(steps,
+		"        env:\n",
+		"          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}\n",
+		"          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}\n",
+		"          GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: ${{ needs.activation.outputs.admission-max-ai-credits-threat-detection }}\n",
+		"          GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: ${{ needs.activation.outputs.admission-max-ai-credits-evals }}\n",
+	)
 	steps = append(steps, gradersEnv...)
 	if reuseJobDurations {
 		steps = append(steps, "          GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}\n")
