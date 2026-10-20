@@ -42,6 +42,14 @@ This was rejected because the conclusion job performs safe-output and reporting 
 
 Both checks could always run, with either able to block. This was rejected because it duplicates accounting that the central authority is meant to own, and it keeps the cost of the App-token mint, cache restore, and ledger clone on every admitted run. Keeping daily-AIC as the fallback preserves protection when admission is disabled or ignored during an outage.
 
+#### Alternative 6: Discover completion through polling or `workflow_run` webhooks
+
+This was rejected for this delivery path because it requires separate completion discovery and artifact lookup. The callback delivers bounded metadata and artifact locators directly after publication, without waiting for a workflow-completion event.
+
+#### Alternative 7: Send the full unified session inline
+
+This was rejected because full sessions contain unbounded agent messages and tool payloads. A bounded metadata-only callback keeps request size and disclosure limited while preserving the full artifact for separately authorized retrieval.
+
 ### Consequences
 
 #### Positive
@@ -55,7 +63,7 @@ Both checks could always run, with either able to block. This was rejected becau
 
 #### Negative
 - Configured admission adds a runner/job boundary before activation. Its explicit success-or-skip dependency condition must preserve other prerequisite checks.
-- Conclusion delivery adds a small callback job and passes its bounded preview and artifact locators through conclusion outputs.
+- Conclusion delivery adds a small callback job and passes its bounded preview and artifact locators through conclusion outputs. Its static OIDC permission must be included in reusable caller envelopes even when the endpoint-gated job is skipped; ordinary conclusion steps gain no admission OIDC access.
 - Reusable `workflow_call` callers must grant `id-token: write`. Existing caller envelopes (and the hand-authored Windows probe caller) had to change, and third-party callers that do not grant it will fail.
 - Admission remains cooperative, not an unbypassable organization spending cap. Supplied allowances configure existing runtime proxy limits, but deployments still need a separately deployed authority and protected backend policy/accounting.
 - When the authority is unavailable, activation can wait up to the 60-second deadline before the outage policy applies.
@@ -63,6 +71,7 @@ Both checks could always run, with either able to block. This was rejected becau
 
 #### Neutral
 - `workflow_hash` (frontmatter hash + body hash) is sent as an untrusted cache hint only. The authority must not treat it as authorization.
+- Artifact IDs are untrusted locators, not authorization. Full-session retrieval requires independently authenticated GitHub access and verification that each artifact belongs to the authenticated repository, run and workflow invocation/attempt.
 - The response contract has no trace or correlation ID. Tracing relies on the caller-provided W3C `traceparent`.
 - Most of the original diff is regenerated lock files, and the TLA+ model (`specs/workflow-security/ActivationAdmission.tla`) and its checker were revised to match the admission contract.
 - `gh aw env` defaults gain three new keys (`default_admission_url`, `default_admission_audience`, `default_admission_on_outage`), with validation.
