@@ -125,8 +125,8 @@ func (c *Compiler) appendConclusionUsageSteps(steps []string, data *WorkflowData
 	}
 	steps = append(steps, buildUsageArtifactCollectionStep(IsDetectionJobEnabled(data.SafeOutputs))...)
 	steps = append(steps, buildUsageActivityGenerationStep(hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin, gradersEnv)...)
-	steps = append(steps, c.buildConclusionAdmissionStep(data)...)
 	steps = append(steps, buildUsageArtifactUploadStep(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
+	steps = append(steps, c.buildConclusionAdmissionStep(data)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}

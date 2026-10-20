@@ -47,7 +47,8 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
 | Bundle Git operations | [`SafeOutputGit.tla`](SafeOutputGit.tla) | Explicit prerequisite recovery, offline optional discovery, bounded comparison/history work, credential roles, and separate size/protection provenance. |
 | Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
-| Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, OIDC identity, retry/outage classification, independently resolved runtime allowances, privacy, and caller-owned trace correlation. |
+| Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, isolated admission/conclusion OIDC capabilities, verified identity, retry/outage classification, independently resolved runtime allowances, privacy, and caller-owned trace correlation. |
+| Admission conclusion delivery | [`AdmissionConclusion.tla`](AdmissionConclusion.tla) | Artifact-first completion delivery, fresh OIDC, stable full-session retries, outcome-preserving warnings, and durable deduplicated acceptance. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -97,7 +98,7 @@ represented by a skipped state-machine slot, not a real runtime job.
 [`ActivationAdmission.tla`](ActivationAdmission.tla) formalizes the
 [admission service contract](../../docs/src/content/docs/specs/admission-service-specification.md),
 including the implemented client's daily-validation precedence, optional
-component allowances, and isolated admission-job OIDC capability. It is a bounded reference model, not a proof of the runtime
+component allowances, and admission/conclusion OIDC capability isolated from activation. It is a bounded reference model, not a proof of the runtime
 or deployment-owned authority. Admission runs in an endpoint-gated job.
 Activation requires successful or intentionally skipped admission; a successful
 activation is required before agent execution. Independent OIDC features are
@@ -158,7 +159,7 @@ TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
   --results /tmp/activation-admission-results
 ```
 
-The default `check.py` run also includes admission. Results retain model/config
+The default `check.py` run also includes admission and its companion conclusion model. Results retain model/config
 hashes, effective profile settings, state counts, logs, and normalized
 counterexample/witness traces. Secure profiles must exhaust without error;
 each negative control or witness must violate exactly its named invariant
@@ -193,6 +194,57 @@ profiles, canonical run/attempt parsing, and completed-decision policy/usage
 revalidation are also implementation obligations, not separate model dimensions.
 Neither the compiler nor an authority implementation has been shown to refine
 this model.
+
+## Admission conclusion delivery
+
+[`AdmissionConclusion.tla`](AdmissionConclusion.tla) and
+[`AdmissionConclusion.cfg`](AdmissionConclusion.cfg) model completion independently
+of start-time admission, avoiding a product of unrelated protocol states.
+The eligible conclusion job consumes a symbolic completed agent outcome and a
+valid or invalid redacted unified-session file. A skipped conclusion job makes
+no upload or authority request.
+
+For an eligible job, generation precedes the first artifact upload. A failed
+upload receives one retry, and both attempts must settle before callback
+preparation, credential acquisition or POST. Direct session delivery remains
+reachable even when both artifact attempts fail. The model includes absent,
+valid and invalid endpoints; valid/invalid independently verified identity;
+admitted and ignored admission results; and success, failure and cancellation.
+Both admission outage policies are checked without allowing completion failures
+to change the captured outcome.
+
+| Contract | Checked invariants |
+|---|---|
+| Artifact-first order, existing job eligibility, absent endpoint and invalid session/configuration | `ArtifactBeforeConclusion`, `JobEligibility`, `NoEndpointNoRequest`, `InvalidInputNoRequest` |
+| Fresh conclusion-owned OIDC, independently verified identity, complete redacted snapshot and unchanged retries | `ConclusionOIDCOnly`, `InvocationVerified`, `CompleteSession`, `StablePayload` |
+| Three-attempt maximum, terminal deadline, preserved workflow outcome and caller trace | `RetryBound`, `DeadlineHonored`, `BestEffort`, `TraceCorrelation` |
+| Durable acceptance before acknowledgement, deduplicated processing, immutable accepted payload and no billing mutation | `DurableAcceptance`, `SingleProcessing`, `AcceptedSessionImmutable`, `NoFinancialEffects` |
+
+The checker runs two secure profiles, fifteen single-guard negative controls
+and seven reachability witnesses. Witnesses cover acceptance, lost-acknowledgement
+recovery through another replica, successful delivery after failed artifact
+publication, delivery after agent failure or ignored admission, rejected
+conflicting replay, and a warning after deadline expiry.
+`Termination` requires eventual protocol completion under weak fairness;
+token/HTTP deadlines and upload completion are abstract atomic transitions.
+
+`--model admission` includes both admission models; use `--model conclusion`
+to run only this companion:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  python3 specs/workflow-security/check.py --model conclusion \
+  --results /tmp/admission-conclusion-results
+```
+
+Session bytes, schema validation, issuer/audience verification, redirect handling,
+redaction and tenant partitioning are implementation obligations, not proven by
+symbolic payloads. The store is one atomic record for one verified invocation;
+the model specifies durable idempotency, but does not prove a deployment's
+distributed transaction, storage retention or replay cleanup. It does not prove
+that GitHub will schedule a conclusion job after abrupt cancellation, nor that
+artifact publication succeeds. Compiler tests separately check generated
+generation/upload/retry/callback ordering for ordinary and work-queue workflows.
 
 ## Evidence and invariants
 
@@ -588,7 +640,7 @@ asset SHA-256 published by GitHub for asset `644223998`, updated on
 2026-10-15; the release notes publish SHA-1):
 
 ```text
-15d103b7e5617780bcc904c0af12f1ad242e2b345c0301136c5be4588f17edac
+5bd7b64db99ae4c6c35f290de5e809c0ee41af43f8699cf696099ffb6452b1e2
 ```
 
 When updating the release pin, verify the downloaded bytes against the release

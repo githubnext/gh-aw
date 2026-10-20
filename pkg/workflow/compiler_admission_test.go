@@ -179,7 +179,8 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, conclusionSteps, "conclusion_admission.cjs")
 	assert.Contains(t, conclusionSteps, "GH_AW_ADMISSION_WORKFLOW_HASH: \""+hashes[1]+":"+hashes[2]+"\"")
 	assert.Less(t, strings.Index(conclusionSteps, "Generate usage activity summary and unified session"), strings.Index(conclusionSteps, "Report admission conclusion"))
-	assert.Less(t, strings.Index(conclusionSteps, "Report admission conclusion"), strings.Index(conclusionSteps, "Upload usage artifact"))
+	assert.Less(t, strings.Index(conclusionSteps, "Upload usage artifact"), strings.Index(conclusionSteps, "Report admission conclusion"))
+	assert.Less(t, strings.Index(conclusionSteps, "Retry upload usage artifact"), strings.Index(conclusionSteps, "Report admission conclusion"))
 	for name, job := range compiler.jobManager.jobs {
 		if name == "admission" {
 			continue
@@ -222,6 +223,33 @@ func TestAdmissionConclusionWorkQueueParticipant(t *testing.T) {
 	}
 	assert.Less(t, strings.Index(steps, "reconcile_work_queue_run.cjs"), strings.Index(steps, "Report admission conclusion"))
 	assert.Less(t, strings.Index(steps, "Generate usage activity summary and unified session"), strings.Index(steps, "Report admission conclusion"))
+	assert.Less(t, strings.Index(steps, "Retry upload usage artifact"), strings.Index(steps, "Report admission conclusion"))
+}
+
+func TestAdmissionConclusionUploadOrdering(t *testing.T) {
+	for _, worker := range []bool{false, true} {
+		data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{}}
+		if worker {
+			data.Tools = map[string]any{"work-queue": map[string]any{"worker": true}}
+		}
+		job, err := NewCompiler().buildConclusionJob(data, "agent", nil)
+		require.NoError(t, err)
+		require.NotNil(t, job)
+		steps := strings.Join(job.Steps, "")
+		previous := -1
+		for _, name := range []string{
+			"Generate usage activity summary and unified session",
+			"Upload usage artifact",
+			"Wait before retrying usage artifact upload",
+			"Retry upload usage artifact",
+			"Report admission conclusion",
+		} {
+			index := strings.Index(steps, "      - name: "+name+"\n")
+			require.Greater(t, index, previous, "%s must follow preceding publication steps", name)
+			previous = index
+		}
+		assert.Contains(t, steps[previous:], "if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
+	}
 }
 
 func TestAdmissionActivationDependencyConditions(t *testing.T) {
