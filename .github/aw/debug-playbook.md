@@ -20,13 +20,13 @@ gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout: incomplete JSON report possible. Reuse cache; fetch missing evidence only.
+Timeout: possible incomplete JSON report. Reuse cache; fetch missing evidence only.
 Read only the linked `key_findings[].playbook_url` section or exact-code row.
-Trace causes, not cascades; compare one relevant success if needed.
+Trace causes, not cascades; compare one relevant success.
 Fleet: [cluster first](analyzing-runs.md).
 
 Preserve code case/punctuation/namespace; emitter determines severity.
-Success, advisory, pending, skipped and policy-denied outcomes need not be bugs.
+Success/advisory/pending/skipped/policy-denied outcomes need not be bugs.
 Unknown codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
@@ -154,16 +154,17 @@ Runtime defect: follow [model/engine guide](debug-model-engine-misconfiguration.
 
 ## Completion and safe-output errors
 
-Check registration → invocation → persistence → validation → publication.
-Registration/nonempty `safeoutputs.jsonl` does not prove publication.
+Trace registration → invocation → persistence → validation → publication.
+Registration/nonempty `safeoutputs.jsonl` doesn't prove publication.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
-| `agent_startup_failure` | First setup/engine error. | Fix startup; missing output need not be agent choice. |
-| `engine_driver_failure` | Driver exit; final native event. | Fix driver before output instructions. |
+| `agent_startup_failure` | First setup/engine error. | Fix startup; missing output isn't necessarily intentional. |
+| `engine_driver_failure`, `driver_crash` | Final exit/signal; bounded diagnostic. | Fix driver first; nonzero exit alone doesn't prove outage. |
+| `secret_redaction_failure` | Failed redaction step; operation/error code. | Repair redactor; retain secret protection/startup-failure priority. |
 | `safeoutputs_cli_error` | Arguments, registration, denial. | Fix supported invocation/allowlist; no unauthorized `gh` writes. |
-| `invalid_safe_outputs` | Record errors; generated schema. | Fix emitted type/fields; retain validation. |
-| `missing_terminal_safe_output` | Expected terminal tool, denied calls, last session event. | Repair publication path or prompt completion contract; silence is not an intentional noop. |
+| `invalid_safe_outputs` | Errors/schema. | Fix type/fields; retain validation. |
+| `missing_terminal_safe_output` | Terminal tool, denials, final event. | Repair publication/completion; silence is not an intentional noop. |
 | `request_rejection`, `prompt_exhaustion`, `unknown` | Native error, budget, missing evidence. | Resolve cause; retain unknown without evidence. |
 | `ERR_VALIDATION`, `E001` | Fields/types, target IDs, schema. | Fix producer; no silent coercion. |
 | `E002`, `MAX_COUNT_REACHED` | Operation cap; accepted records. | Reduce count; never replay applied mutations. |
