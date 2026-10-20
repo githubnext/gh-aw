@@ -409,6 +409,16 @@ describe("resolveSubAgentExperimentReferences", () => {
     expect(resolveSubAgentExperimentReferences("reader", "---\nmodel: ${{ experiments.my-model }}\n---\nBody", env)).toBe("---\nmodel: gpt-5.4-mini\n---\nBody");
   });
 
+  it.each(["gpt-5.4?effort=low", "gpt-5.4?effort=low&context=128000"])("preserves parameterized model selector %s", value => {
+    expect(resolveSubAgentExperimentReferences("reader", "---\nmodel: ${{ experiments.subagent_model }}\n---\nBody", { GH_AW_EXPERIMENTS_SUBAGENT_MODEL: value })).toBe(`---\nmodel: ${value}\n---\nBody`);
+  });
+
+  it.each(["__GH_AW_EXPR_0498E4C3__", "${{ secrets.MODEL }}", "__GH_AW_INPUTS_MODEL__"])("rejects unresolved model token %s without evaluating other expressions", model => {
+    expect(() => resolveSubAgentExperimentReferences("reader", `---\nmodel: ${model}\n---\nBody`, { ...env, GH_AW_EXPR_0498E4C3: "large", GH_AW_INPUTS_MODEL: "large" })).toThrow(
+      'inline sub-agent "reader" field "model" contains an unresolved expression or placeholder'
+    );
+  });
+
   it("returns content without frontmatter or references unchanged", () => {
     expect(resolveSubAgentExperimentReferences("reader", "No frontmatter ${{ experiments.subagent_model }}", env)).toBe("No frontmatter ${{ experiments.subagent_model }}");
     const plain = "---\nmodel: small\n---\nBody";

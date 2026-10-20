@@ -73,7 +73,7 @@ const EXPERIMENT_REFERENCE_RE = /\$\{\{[ \t]*experiments\.([A-Za-z_][A-Za-z0-9_-
 
 // Selected variants are written into YAML frontmatter, so only plain scalars
 // such as model IDs and aliases (small, large, provider/model-1.2) are accepted.
-const SAFE_EXPERIMENT_VALUE_RE = /^[A-Za-z0-9][A-Za-z0-9._/@+:-]*$/;
+const SAFE_EXPERIMENT_VALUE_RE = /^[A-Za-z0-9][A-Za-z0-9._/@+:?=&%-]*$/;
 
 /**
  * Env var holding the selected variant for an experiment, matching
@@ -100,7 +100,7 @@ function experimentEnvVarName(experimentName) {
  * @returns {string} Content with frontmatter experiment references resolved.
  */
 function resolveSubAgentExperimentReferences(agentName, content, env = process.env) {
-  const match = /^---[ \t]*\n([\s\S]*?)\n---[ \t]*(?=\n|$)/.exec(content);
+  const match = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?(?=\n|$)/.exec(content);
   if (!match) return content;
   const frontmatter = match[1];
   const resolved = frontmatter
@@ -123,6 +123,9 @@ function resolveSubAgentExperimentReferences(agentName, content, env = process.e
       })
     )
     .join("\n");
+  if (/^[ \t]*model[ \t]*:[^\n]*(?:\$\{\{|__GH_AW_)/m.test(resolved)) {
+    throw new Error(`${ERR_CONFIG}: inline sub-agent "${agentName}" field "model" contains an unresolved expression or placeholder. Use a literal model selector or a declared experiment assignment.`);
+  }
   if (resolved === frontmatter) return content;
   const start = match.index + match[0].indexOf("\n") + 1;
   return content.slice(0, start) + resolved + content.slice(start + frontmatter.length);

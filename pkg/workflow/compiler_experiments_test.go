@@ -4,7 +4,9 @@ package workflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -391,6 +393,64 @@ func TestSubagentMetadataMatchesSelectedExperimentVariant(t *testing.T) {
 			assert.NotContains(t, declarations[0].Model, "experiments.", "a literal experiment expression must not be recorded as a model ID")
 			assert.NotContains(t, declarations[0].Model, "${{", "an unevaluated expression must not be recorded as a model ID")
 		})
+	}
+}
+
+func TestInlinedSubagentExperimentCompilerToRuntime(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is required for compiler-to-runtime coverage")
+	}
+	runtime, err := filepath.Abs("../../actions/setup/js/interpolate_prompt.cjs")
+	require.NoError(t, err)
+	workspace := t.TempDir()
+	workflows := filepath.Join(workspace, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflows, 0700))
+	const importPath = ".github/workflows/reader.md"
+	require.NoError(t, os.WriteFile(filepath.Join(workspace, importPath), []byte(
+		"## agent: `reader`\n---\nmodel: ${{ experiments.subagent_model }}\n---\nSummarize the file.\n"), 0600))
+	compiler := NewCompiler()
+	compiler.markdownPath = filepath.Join(workflows, "workflow.md")
+
+	for _, ordered := range []bool{true, false} {
+		data := &WorkflowData{InlinedImports: true, ImportPaths: []string{importPath}}
+		if ordered {
+			data.PromptImports = []parser.PromptImportEntry{{ImportPath: importPath}}
+		}
+		chunks, mappings := compiler.processPromptImportEntries(data)
+		prompt := strings.Join(chunks, "\n")
+		require.Contains(t, prompt, "model: __GH_AW_EXPERIMENTS_SUBAGENT_MODEL__")
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "GH_AW_EXPERIMENTS_SUBAGENT_MODEL", mappings[0].EnvVar)
+		assert.Equal(t, "steps.pick-experiment.outputs.subagent_model", mappings[0].Content)
+
+		for _, variant := range []string{"small", "large", "gpt-5.4?effort=low"} {
+			t.Run(fmt.Sprintf("ordered=%t/%s", ordered, variant), func(t *testing.T) {
+				promptPath := filepath.Join(t.TempDir(), "prompt.txt")
+				require.NoError(t, os.WriteFile(promptPath, []byte(prompt), 0600))
+				cmd := exec.Command(node, "-e", `
+const fs = require("fs");
+global.core = { info() {}, warning() {}, debug() {}, setFailed(message) { throw new Error(message); } };
+const write = fs.writeFileSync;
+const agents = [];
+fs.writeFileSync = (file, content, ...args) => {
+  if (String(file).endsWith(".agent.md")) agents.push(String(content));
+  else write(file, content, ...args);
+};
+require(process.argv[1]).main().then(() => {
+  if (agents.length !== 1) throw new Error("Expected one agent file write");
+  process.stdout.write(agents[0]);
+}).catch(error => { console.error(error); process.exitCode = 1; });
+`, runtime)
+				cmd.Dir = workspace
+				cmd.Env = append(os.Environ(), "GH_AW_PROMPT="+promptPath, "GITHUB_WORKSPACE="+workspace, "GH_AW_ENGINE_ID=copilot", "GH_AW_EXPERIMENTS_SUBAGENT_MODEL="+variant)
+				output, err := cmd.CombinedOutput()
+				require.NoError(t, err, "%s", output)
+				assert.Contains(t, string(output), "model: "+variant+"\n")
+				assert.NotContains(t, string(output), "__GH_AW_")
+				assert.NotContains(t, string(output), "${{")
+			})
+		}
 	}
 }
 

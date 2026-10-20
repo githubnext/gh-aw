@@ -1198,6 +1198,28 @@ describe("smoke_model_routing_assertions", () => {
         expect(lineFor(results.failures, "U4")).toMatch(/^FAIL U4 sub-agent file-summarizer: 1 of 2 invocation\(s\) have no subagent\.completed; /);
       });
 
+      it("fails when completion is cancellation only", async () => {
+        const cancelled = { ...completed(), data: { ...completed().data, cancelled: true } };
+        const { results, core } = await run([started(), cancelled]);
+        expect(lineFor(results.failures, "U4")).toMatch(/1 of 1 invocation\(s\) have no subagent\.completed/);
+        expect(core.setFailed).toHaveBeenCalled();
+      });
+
+      it("preserves a genuine completion followed by cleanup cancellation", async () => {
+        const cancelled = { ...completed(), data: { ...completed().data, cancelled: true } };
+        const { results, core } = await run([started(), completed(), cancelled]);
+        expect(results.failures).toEqual([]);
+        expect(lineFor(results.passes, "U4")).toContain("started 1 time(s) and completed");
+        expect(core.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("requires non-cancelled completion for each invocation", async () => {
+        const second = "second-invocation";
+        const cancelled = { ...completed("claude-haiku-4.5", second), data: { ...completed().data, cancelled: true } };
+        const { results } = await run([started(), completed(), started("claude-haiku-4.5", second), cancelled]);
+        expect(lineFor(results.failures, "U4")).toMatch(/1 of 2 invocation\(s\) have no subagent\.completed/);
+      });
+
       it("smoke_fails_when_file_summarizer_is_not_invoked", async () => {
         const { results, core } = await run([]);
         expect(results.failures).toEqual(["FAIL U4 sub-agent file-summarizer: never started (no subagent.started); observed events: none"]);

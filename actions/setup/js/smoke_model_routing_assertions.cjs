@@ -719,7 +719,7 @@ function evaluateSessionContract({ events, expectations }) {
     const label = `sub-agent ${name}`;
     const { started, activity } = subAgentLifecycle(subagentEvents, name);
     const failed = subagentEvents.filter(event => event.type === "subagent.failed" && (activity.includes(event) || event.data?.agentName === name));
-    const completedKeys = new Set(activity.filter(event => event.type === "subagent.completed").map(invocationKey));
+    const completedKeys = new Set(activity.filter(event => event.type === "subagent.completed" && event.data?.cancelled !== true).map(invocationKey));
     const incomplete = started.filter(event => !completedKeys.has(invocationKey(event)));
     const models = [
       ...new Set([...activity, ...failed].flatMap(event => [event.data?.model, event.data?.selectedModel, event.data?.resolvedModel, event.data?.firstDispatchedModel]).filter(value => typeof value === "string" && value !== "")),
