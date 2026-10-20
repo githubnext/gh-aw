@@ -1,6 +1,7 @@
 // @ts-check
 
 const { readJsonlFile } = require("./jsonl_helpers.cjs");
+const { createHash } = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { findJSONLFiles, isDailyAICUsageJSONLFile, sumAICFromUsageJSONLFiles } = require("./daily_aic_workflow_helpers.cjs");
@@ -21,6 +22,37 @@ function repoMemoryDirOrThrow(repoMemoryDir = process.env.GH_AW_DAILY_AIC_REPO_M
 
 function ledgerRoot(repoMemoryDir) {
   return path.join(repoMemoryDirOrThrow(repoMemoryDir), LEDGER_SUBDIR);
+}
+
+function ledgerCoveragePath(repoMemoryDir, repository, workflowId) {
+  const identity = createHash("sha256")
+    .update(JSON.stringify([repository, workflowId]))
+    .digest("hex");
+  return path.join(ledgerRoot(repoMemoryDir), `coverage-${identity}.json`);
+}
+
+function readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now = Date.now() }) {
+  let coverage;
+  try {
+    coverage = JSON.parse(fs.readFileSync(ledgerCoveragePath(repoMemoryDir, repository, workflowId), "utf8"));
+  } catch (error) {
+    if (error instanceof SyntaxError || (error && typeof error === "object" && "code" in error && error.code === "ENOENT")) return null;
+    throw new Error(`Failed to read daily AIC repo-memory coverage: ${getErrorMessage(error)}`, { cause: error });
+  }
+  const start = Date.parse(coverage?.initialized_at);
+  if (!Number.isFinite(start)) return null;
+  return coverage?.version === 1 && coverage.repository === repository && coverage.workflow_id === workflowId && typeof coverage.initialized_at === "string" && start <= now ? start : null;
+}
+
+function initializeLedgerCoverage({ repoMemoryDir, repository, workflowId, now }) {
+  // Validate the marker's version and identity; existence alone cannot establish coverage.
+  if (readLedgerCoverageStart({ repoMemoryDir, repository, workflowId, now }) !== null) return;
+  try {
+    fs.writeFileSync(ledgerCoveragePath(repoMemoryDir, repository, workflowId), JSON.stringify({ version: 1, repository, workflow_id: workflowId, initialized_at: new Date(now).toISOString() }) + "\n", "utf8");
+  } catch (error) {
+    throw new Error(`Failed to initialize daily AIC repo-memory coverage: ${getErrorMessage(error)}`, { cause: error });
+  }
+  core.info("[daily-workflow-aic] Initialized repo-memory coverage; authoritative artifact accounting is required for the first 24 hours.");
 }
 
 function utcDay(ms) {
@@ -114,6 +146,7 @@ function appendCurrentRunLedgerEntry({ repoMemoryDir, usageRoot = USAGE_STAGING_
     repoMemoryDir,
     now
   );
+  initializeLedgerCoverage({ repoMemoryDir, repository, workflowId, now });
   core.info(`[daily-workflow-aic] Appended repo-memory ledger entry: ${JSON.stringify({ runId, workflowId, aic, files: usageFiles.length })}`);
 }
 
@@ -123,8 +156,10 @@ module.exports = {
   USAGE_STAGING_ROOT,
   appendCurrentRunLedgerEntry,
   appendLedgerEntry,
+  ledgerCoveragePath,
   ledgerReadPaths,
   ledgerRoot,
   repoMemoryDirOrThrow,
   readLedgerEntries,
+  readLedgerCoverageStart,
 };

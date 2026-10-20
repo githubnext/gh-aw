@@ -1692,6 +1692,7 @@ jobs:
       detection_conclusion: ${{ steps.detection_conclusion.outputs.conclusion }}
       detection_reason: ${{ steps.detection_conclusion.outputs.reason }}
       detection_success: ${{ steps.detection_conclusion.outputs.success }}
+      run_detection: ${{ steps.detection_guard.outputs.run_detection }}
     steps:
       - name: Checkout actions folder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -2113,6 +2114,7 @@ jobs:
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_RUN_DETECTION: ${{ needs.detection.outputs.run_detection }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 📚 *Specification review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"📚 Specification Librarian online! [{workflow_name}]({run_url}) is reviewing all package specifications...\",\"runSuccess\":\"✅ Specification review complete! [{workflow_name}]({run_url}) has audited all package specs. Report delivered! 📋\",\"runFailure\":\"📚 Specification review failed! [{workflow_name}]({run_url}) {status}.\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_TRACKER_ID: "spec-librarian"

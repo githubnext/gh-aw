@@ -33,6 +33,7 @@ const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.c
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
+const { getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 const {
@@ -1021,7 +1022,8 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   });
   const processingOrder = sortMessageIndicesByTemporaryIdDependencies(messages);
   const results = [];
-  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+  const detectionConclusion = getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, process.env.GH_AW_DETECTION_REASON);
+  const detectionConclusionMissing = String(process.env.GH_AW_RUN_DETECTION || "").trim() === "true" && detectionConclusion === "";
 
   // Collect missing_tool, missing_data, noop, and report_incomplete messages first
   const missings = collectMissingMessages(messages.filter(message => !currentClaimHandle() || !message._claimScopeError));
@@ -1092,6 +1094,28 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
     if (!messageType) {
       core.warning(`Skipping message ${i + 1} without type`);
+      continue;
+    }
+
+    if (detectionConclusion === "failure" || detectionConclusionMissing) {
+      // Defence in depth: a failure conclusion that is not a warn-mode tooling failure
+      // (those are normalized to "warning" above), or a missing conclusion when detection
+      // was required, never reaches safe_outputs in a valid run. Never apply outputs
+      // unrestricted when it does.
+      const errorCode = detectionConclusionMissing ? "threat_detection_conclusion_missing" : "threat_detection_failure_blocked";
+      const error = detectionConclusionMissing
+        ? `Threat detection was required but reported no conclusion; "${messageType}" was not applied.`
+        : `Threat detection concluded failure (reason: ${process.env.GH_AW_DETECTION_REASON || "unknown"}); "${messageType}" was not applied.`;
+      core.warning(`🚫 ${error}`);
+      results.push({
+        type: messageType,
+        messageIndex: i,
+        success: false,
+        cancelled: true,
+        threatDetected: true,
+        errorCode,
+        error,
+      });
       continue;
     }
 

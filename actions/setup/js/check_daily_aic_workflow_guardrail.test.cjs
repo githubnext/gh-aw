@@ -45,6 +45,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     process.env.GITHUB_EVENT_NAME = "schedule";
     delete process.env.GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC;
     delete process.env.GH_AW_DAILY_AIC_REPO_MEMORY_TRUSTED;
+    delete process.env.GH_AW_DAILY_AIC_REPO_MEMORY_BRANCH_MISSING;
     vi.resetModules();
     const mod = await import("./check_daily_aic_workflow_guardrail.cjs");
     exports = mod.default || mod;
@@ -70,7 +71,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
-  it("accepts a prior-run ledger written by the normal writer when provenance is trusted", async () => {
+  it("accepts a prior-run ledger when provenance is trusted and coverage has matured", async () => {
     const outputs = {};
     const setFailed = vi.fn();
     global.core = {
@@ -105,6 +106,10 @@ describe("check_daily_aic_workflow_guardrail", () => {
         usageRoot,
         now: now - 60_000,
       });
+      fs.writeFileSync(
+        ledger.ledgerCoveragePath(repoMemoryDir, "test-owner/test-repo", "daily-code-metrics"),
+        JSON.stringify({ version: 1, repository: "test-owner/test-repo", workflow_id: "daily-code-metrics", initialized_at: new Date(now - ledger.WINDOW_MS).toISOString() })
+      );
 
       await exports.main({ repoMemoryDir });
 

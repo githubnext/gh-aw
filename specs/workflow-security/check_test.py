@@ -312,7 +312,8 @@ class RuntimeCheckoutModelTest(unittest.TestCase):
                  patch.object(check, "run_case", side_effect=run_case), patch("sys.stdout"):
                 check.main()
             report = json.loads((results / "results.json").read_text())
-            self.assertEqual(report["additional_models"], ["RuntimeRepositoryCheckout", "MCPCompile"])
+            self.assertEqual(report["additional_models"],
+                             ["RuntimeRepositoryCheckout", "MCPCompile", "ActivationAdmission"])
             cases = {case["case"] for case in report["cases"]
                      if case["model"] == "RuntimeRepositoryCheckout"}
             self.assertEqual(cases, {"secure-runtime-checkout"} |
@@ -323,6 +324,9 @@ class RuntimeCheckoutModelTest(unittest.TestCase):
             self.assertEqual(mcp_cases, {"secure-mcp-compile"} |
                              {f"mcp-compile-{fault}" for fault in check.MCP_COMPILE_MUTATIONS} |
                              {f"mcp-compile-{name}" for name in check.MCP_COMPILE_WITNESSES})
+            self.assertEqual(sum(case["model"] == "ActivationAdmission"
+                                 for case in report["cases"]),
+                             4 + len(check.ADMISSION_MUTATIONS) + len(check.ADMISSION_WITNESSES))
 
 
 class MCPCompileModelTest(unittest.TestCase):
@@ -354,6 +358,96 @@ class MCPCompileModelTest(unittest.TestCase):
                 call.kwargs.get("invariant"), call.kwargs.get("witness", False))
         self.assertEqual(observed, expected)
         self.assertEqual(len(cases), len(expected))
+
+
+class AdmissionModelTest(unittest.TestCase):
+    def test_controls_and_witnesses_are_declared(self):
+        model = (check.ROOT / "ActivationAdmission.tla").read_text()
+        config = (check.ROOT / "ActivationAdmission.cfg").read_text()
+        for fault, invariant in check.ADMISSION_MUTATIONS.items():
+            with self.subTest(fault=fault):
+                self.assertIn(f'"{fault}"', model)
+                self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+                self.assertRegex(config, rf"(?m)^\s+{invariant}$")
+        for invariant in check.ADMISSION_WITNESSES.values():
+            self.assertRegex(model, rf"(?m)^{invariant}\s*==")
+            self.assertNotRegex(config, rf"(?m)^\s+{invariant}$")
+        self.assertIn("PROPERTY Termination", config)
+
+    def test_runner_checks_profiles_controls_and_witnesses(self):
+        with patch.object(check, "run_case", return_value={}) as run_case:
+            cases = check.check_activation_admission("java", Path("jar"), Path("results"))
+        calls = run_case.call_args_list
+        self.assertEqual({(call.kwargs["outage_policy"], call.kwargs["otel_enabled"])
+                          for call in calls[:4]},
+                         {("ignore", True), ("ignore", False), ("block", True), ("block", False)})
+        controls = calls[4:4 + len(check.ADMISSION_MUTATIONS)]
+        self.assertEqual({call.args[4]: call.kwargs["invariant"] for call in controls},
+                         check.ADMISSION_MUTATIONS)
+        for call in controls:
+            for key, value in check.ADMISSION_MUTATION_SETTINGS.get(call.args[4], {}).items():
+                self.assertEqual(call.kwargs[key], value)
+        witnesses = calls[4 + len(check.ADMISSION_MUTATIONS):]
+        self.assertEqual({call.args[3]: call.kwargs["invariant"] for call in witnesses},
+                         {f"admission-{name}": invariant
+                          for name, invariant in check.ADMISSION_WITNESSES.items()})
+        self.assertTrue(all(call.kwargs["witness"] for call in witnesses))
+        self.assertTrue(all(call.kwargs["model"] == "ActivationAdmission" for call in calls))
+        self.assertEqual(len(cases), 4 + len(controls) + len(witnesses))
+
+    def test_profile_reaches_tlc_and_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+
+            def tlc(command, cwd, **options):
+                config = (cwd / "model.cfg").read_text()
+                self.assertEqual(command[-1], "ActivationAdmission.tla")
+                self.assertIn('OutagePolicy = "block"', config)
+                self.assertIn("OTelEnabled = FALSE", config)
+                self.assertIn("PROPERTY Termination", config)
+                return subprocess.CompletedProcess(
+                    command, 0, "Model checking completed. No error has been found.\n"
+                    "10 states generated, 8 distinct states found", "")
+
+            with patch.object(check.subprocess, "run", side_effect=tlc), patch("sys.stdout"):
+                report = check.run_case("java", root / "jar", root, "profile",
+                                        model="ActivationAdmission", outage_policy="block",
+                                        otel_enabled=False)
+            self.assertEqual(report["outage_policy"], "block")
+            self.assertFalse(report["otel_enabled"])
+            self.assertNotIn("profile", report)
+
+    def test_focused_main_skips_unrelated_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jar = root / "fixture.jar"
+            jar.write_bytes(b"runtime fixture")
+            results = root / "results"
+            case = {"model": "ActivationAdmission", "model_sha256": hashlib.sha256(
+                (check.ROOT / "ActivationAdmission.tla").read_bytes()).hexdigest()}
+            with patch.dict(os.environ, {"TLA2TOOLS_JAR": str(jar)}), \
+                 patch.object(sys, "argv", ["check.py", "--model", "admission",
+                                           "--results", str(results)]), \
+                 patch.object(check, "JAR_SHA256", hashlib.sha256(jar.read_bytes()).hexdigest()), \
+                 patch.object(check, "check_workflow_models") as other_models, \
+                 patch.object(check, "check_activation_admission", return_value=[case]), \
+                 patch("sys.stdout"):
+                check.main()
+            other_models.assert_not_called()
+            report = json.loads((results / "results.json").read_text())
+            self.assertEqual(report["model"], "ActivationAdmission")
+            self.assertEqual(report["additional_models"], [])
+
+    def test_focused_mode_rejects_unrelated_options(self):
+        for options in [["--write-examples"], ["--compiler", "binary"],
+                        ["--verifier", "binary", "--compiled-workflows", "workflows"]]:
+            with self.subTest(options=options), \
+                 patch.object(sys, "argv", ["check.py", "--model", "admission", *options]), \
+                 patch.object(check, "run_case") as run, patch("sys.stderr"):
+                with self.assertRaises(SystemExit) as error:
+                    check.main()
+                self.assertEqual(error.exception.code, 2)
+                run.assert_not_called()
 
 
 if __name__ == "__main__":

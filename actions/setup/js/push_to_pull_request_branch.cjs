@@ -28,7 +28,7 @@ const gitHelpers = require("./git_helpers.cjs");
 const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = gitHelpers;
 const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
-const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
+const { getThreatWarningPresentation, getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 const { buildManualBranchApplyCommands, withTransientPushRetry } = require("./create_pull_request_helpers.cjs");
@@ -1483,7 +1483,7 @@ async function main(config = {}) {
       // When threat detection produced a warning, create a review PR instead of pushing
       // directly to the existing PR branch. This allows manual review of the changes
       // before they are merged into the target PR.
-      const detectionConclusionEnv = process.env.GH_AW_DETECTION_CONCLUSION;
+      const detectionConclusionEnv = getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, process.env.GH_AW_DETECTION_REASON);
       if (detectionConclusionEnv === "warning") {
         core.info("⚠️ Threat detection warning: creating review PR instead of direct push");
 

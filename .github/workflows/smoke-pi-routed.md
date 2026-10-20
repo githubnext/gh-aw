@@ -71,6 +71,9 @@ post-steps:
             { name: "haiku-whoami", model: "claude-haiku-4.5", endpoint: "/v1/messages" },
             { name: "mini-whoami", model: "gpt-5.4-mini", endpoint: "/responses" },
           ],
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: ["haiku-whoami", "mini-whoami"],
         });
 ---
 

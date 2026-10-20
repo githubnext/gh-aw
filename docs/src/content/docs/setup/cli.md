@@ -674,6 +674,84 @@ Each safe-output entity recorded for a run (the same provider-neutral records su
 
 Pass a trailing wildcard prefix such as `--cached-jsonl 'logs-*'` to load all matching `logs-*.jsonl` files as the starting cache and write newly downloaded data to a unique `logs-<unix-time>-<random>.jsonl` file. With `--start-date` or `--end-date`, wildcard cache files containing exclusively dated run records outside the requested range are deleted.
 
+##### `logs episode <run-id-or-url>`
+
+Retrieve a canonical episode starting from a recorded run. The command visits
+recorded parents and roots, then scans the allowed repositories for runs sharing
+the seed's `context.episode_id`. It does not infer membership from workflow names,
+revisions, or event types.
+
+```bash wrap
+gh aw logs episode 1234567890 --repo owner/repo \
+  --allow-repo owner/downstream --start-date -2d \
+  --max-runs 100 --max-api-requests 500 --timeout 5m --json > episode.json
+```
+
+| Option | Default | Bound |
+|--------|---------|-------|
+| `--repo/-r` | Repository in the seed URL | Required for numeric run IDs; accepts `[HOST/]owner/repo`. |
+| `--allow-repo` | None | Additional `owner/repo` repositories on the seed host; repeatable. Recorded metadata cannot expand this allowlist. |
+| `--start-date`, `--end-date` | Seven days ago, now | Candidate creation-time window, including explicitly recorded parents and roots. Accepts dates, RFC3339 timestamps, and relative dates. |
+| `--max-runs` | `100` | Distinct candidates examined, including the seed, nonmembers, and failed lookups. |
+| `--max-api-requests` | `500` | REST requests initiated by the collector, including metadata, discovery pages, artifact inventories, and archive downloads. Artifact-storage redirect transfers are excluded. |
+| `--timeout` | `5m` | Collection deadline, expressed as a duration. |
+| `--output/-o` | `.github/aw/logs` | Compact artifacts, isolated by host, repository, run, attempt, and immutable artifact ID. |
+| `--json` | Disabled | Standard logs JSON plus `episode_retrieval` bounds, counters, stop reasons, and evidence gaps. |
+| `--view` | `summary` | Display `summary` or recorded `hops`; JSON includes both views' data. |
+| `--refresh` | Disabled | Recollect instead of reading the cached episode snapshot; immutable artifact downloads are still reused. |
+
+Run, request, and timeout bounds must be positive. This subcommand downloads only
+compact `info` and `usage` artifacts, with a 64 MiB limit on each archive and its
+total extracted contents. Missing seed identity is an error; unavailable
+related runs, conflicting identity, excluded repositories, expired artifacts, and
+truncated discovery qualify the returned episode coverage. Coverage remains
+`selected_runs` with status `unknown` or `partial`, never complete, even after all
+pages in the bounded window are exhausted.
+
+The command automatically caches a snapshot for the seed, host, repository
+allowlist, dates, and collection bounds beneath `--output`. Repeating the same
+query or switching `--view` reads that snapshot without GitHub requests, even
+offline. Snapshots remain unchanged until `--refresh`; relative dates such as
+`-7d` retain the original snapshot window until refreshed. Changing bounds
+collects a separate snapshot. `episode_retrieval.collected_at` records collection
+time and `cached` marks reuse; REST counters describe the original collection.
+
+Use `--refresh` to rescan with the same bounds. A larger-bound query also reuses
+downloaded immutable artifacts; discovery rescans rather than resuming an
+unstable page cursor. GitHub's 1,000-result
+limit on filtered run discovery is reported as a gap; narrow the time window
+when reached. Unlike `logs --max-github-api-rate-limit`, the request cap applies
+to this retrieval, not the account's previously consumed quota.
+
+Each collection records its own artifact inventory and `logs_path`. Later
+collections do not delete cached evidence referenced by earlier reports, and
+completed local downloads remain usable after remote expiration.
+
+The MCP `logs` tool exposes the same operation through `episode_run`,
+`episode_repository`, `allow_repositories`, `max_api_requests`, and `refresh`; `count`
+becomes the candidate cap. Workflow-discovery filters cannot be combined with
+episode retrieval.
+
+To retrieve an ordinary workflow named `episode`, use `gh aw logs -- episode`.
+
+Use `--view hops` on the same episode command to inspect recorded invocations:
+
+```bash wrap
+gh aw logs episode 1234567890 --repo owner/repo --view hops
+```
+
+No separate explanation command or JSON input file is needed. The first query
+collects and caches the episode; subsequent queries with the same collection
+options reuse it. `--json` always returns the standard logs report, described by
+`gh aw json-schema logs`, regardless of the selected display view.
+
+The view shows recorded hop IDs, parent-hop and run edges, reusable-workflow
+hops sharing one run ID, and missing or conflicting evidence. Costs appear
+once per selected run in `run_costs`, not on hops. Missing hop IDs remain
+missing; the view does not reconstruct them or claim complete membership.
+Logs JSON includes the same data under `episodes[].explanation`, including in
+compact and MCP reports.
+
 #### `audit`
 
 Analyze workflow runs with detailed reports. The `audit` command has two modes: a single-run audit (default) and a multi-run analysis.

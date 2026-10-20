@@ -111,7 +111,7 @@ func TestBuiltInThreatRulesCLI(t *testing.T) {
 	}{
 		{
 			name:     "mutable action",
-			workflow: "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@main\n",
+			workflow: "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@main\n        with:\n          persist-credentials: false\n",
 			ruleID:   "action-pin", severity: workflowlint.Warning,
 		},
 		{
