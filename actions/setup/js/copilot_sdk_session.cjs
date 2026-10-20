@@ -386,7 +386,7 @@ async function runWithCopilotSDK({
     // The harness resolves declared sub-agent models (aliases included) before the driver starts.
     const resolvedSubagentModels = parseSubagentModelsJson(process.env.GH_AW_COPILOT_SDK_SUBAGENT_MODELS);
     const customAgents = loadCopilotSDKCustomAgents(workingDirectory, agentsBaseDir, log).map(agent => {
-      if (!agent.model) return { ...agent, model: sessionModel || undefined };
+      if (!agent.model || agent.model.trim().toLowerCase() === "inherited") return { ...agent, model: sessionModel || undefined };
       const requested = Object.prototype.hasOwnProperty.call(resolvedSubagentModels, agent.name) ? resolvedSubagentModels[agent.name] : agent.model;
       const qualified = providerConfig ? qualifyModelForMultiProvider(requested, providerConfig) : requested;
       if (!qualified) throw new Error(`Cannot qualify custom agent "${agent.name}" model "${agent.model}" against the configured provider models`);

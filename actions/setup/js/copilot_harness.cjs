@@ -106,7 +106,6 @@ const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoin
 const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError, recordModelResolution, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
 const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
-const { resolveCopilotSDKWorkingDirectory } = require("./copilot_sdk_session.cjs");
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
 
@@ -655,8 +654,8 @@ async function resolveCopilotSDKMultiProvider(options) {
 }
 
 /**
- * Read the Copilot custom agent files in one directory, one entry per regular `.md` file.
- * The name is the frontmatter `name` or the file name without `.agent.md` / `.md`;
+ * Read the Copilot custom agent files in one directory, one entry per regular `.agent.md` file.
+ * The name is the frontmatter `name` or the file name without `.agent.md`;
  * `model` is the trimmed frontmatter `model` string, when declared.
  * @param {string} directory
  * @param {(msg: string) => void} [logger]
@@ -674,7 +673,7 @@ function listCopilotAgentFiles(directory, logger = log) {
   }
   const agents = [];
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    if (!entry.isFile() || !entry.name.endsWith(".agent.md")) continue;
     const agentPath = path.join(directory, entry.name);
     try {
       const { frontmatterText } = extractFrontmatterAndBody(fs.readFileSync(agentPath, "utf8"));
@@ -683,7 +682,7 @@ function listCopilotAgentFiles(directory, logger = log) {
       if (!document || document.errors.length) throw new Error("cannot parse agent frontmatter");
       const frontmatter = document.toJS() || {};
       if (typeof frontmatter !== "object" || Array.isArray(frontmatter)) throw new Error("agent frontmatter must be a mapping");
-      const name = typeof frontmatter.name === "string" && frontmatter.name.trim() ? frontmatter.name.trim() : entry.name.replace(/(?:\.agent)?\.md$/, "");
+      const name = typeof frontmatter.name === "string" && frontmatter.name.trim() ? frontmatter.name.trim() : entry.name.slice(0, -".agent.md".length);
       agents.push({ name, path: agentPath, ...(typeof frontmatter.model === "string" ? { model: frontmatter.model.trim() } : {}) });
     } catch (error) {
       logger(`warning: cannot read custom agent ${agentPath}: ${getErrorMessage(error)}`);
@@ -693,22 +692,60 @@ function listCopilotAgentFiles(directory, logger = log) {
 }
 
 /**
- * Replace the top-level frontmatter `model:` of a Copilot agent file. Only the `model:` line
- * changes; the rest of the file is preserved byte for byte.
+ * Locate the top-level YAML model scalar in a Copilot agent file.
+ * @param {string} content
+ * @returns {{ value: string, source: string, start: number, end: number }}
+ */
+function getCopilotAgentModelScalar(content) {
+  const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+  const { parseDocument } = require("./work_queue_yaml.cjs");
+  const { frontmatterText } = extractFrontmatterAndBody(content);
+  /** @type {any} */
+  const document = parseDocument(frontmatterText);
+  if (!document || document.errors.length || !document.contents || !Array.isArray(document.contents.items)) {
+    throw new Error("cannot parse agent frontmatter");
+  }
+  const pairs = document.contents.items.filter(pair => pair?.key?.value === "model");
+  if (pairs.length !== 1 || typeof pairs[0].value?.value !== "string" || !Array.isArray(pairs[0].value.range)) {
+    throw new Error("expected exactly one top-level string 'model:' scalar in the frontmatter");
+  }
+  const frontmatterStart = content.indexOf("\n") + 1;
+  const start = frontmatterStart + pairs[0].value.range[0];
+  const end = frontmatterStart + pairs[0].value.range[1];
+  return { value: pairs[0].value.value, source: content.slice(start, end), start, end };
+}
+
+/**
+ * Replace the complete YAML model scalar, including any block-scalar continuation lines.
+ * @param {string} content
+ * @param {string} model
+ * @returns {string}
+ */
+function replaceCopilotAgentFileModelContent(content, model) {
+  const scalar = getCopilotAgentModelScalar(content);
+  const lineEnding = scalar.source.match(/(?:\r?\n)+$/)?.[0] || "";
+  return content.slice(0, scalar.start) + JSON.stringify(model) + lineEnding + content.slice(scalar.end);
+}
+
+/**
+ * Replace the top-level frontmatter `model:` scalar of a Copilot agent file. The rest of the
+ * file, including comments and the body, is preserved byte for byte.
  * @param {string} agentPath
  * @param {string} model
  */
 function rewriteCopilotAgentFileModel(agentPath, model) {
-  const content = fs.readFileSync(agentPath, "utf8");
-  const lines = content.split("\n");
-  const end = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
-  const modelLines = lines.map((line, index) => (index > 0 && index < end && /^model[ \t]*:/.test(line) ? index : -1)).filter(index => index >= 0);
-  if (lines[0]?.trim() !== "---" || end < 0 || modelLines.length !== 1) {
-    throw new Error(`cannot rewrite model in ${agentPath}: expected exactly one top-level 'model:' line in the frontmatter`);
+  let content;
+  try {
+    content = fs.readFileSync(agentPath, "utf8");
+  } catch (error) {
+    throw new Error(`cannot read agent file ${agentPath}: ${getErrorMessage(error)}`, { cause: error });
   }
-  const index = modelLines[0];
-  lines[index] = `model: ${JSON.stringify(model)}${lines[index].endsWith("\r") ? "\r" : ""}`;
-  fs.writeFileSync(agentPath, lines.join("\n"));
+  const updated = replaceCopilotAgentFileModelContent(content, model);
+  try {
+    fs.writeFileSync(agentPath, updated);
+  } catch (error) {
+    throw new Error(`cannot rewrite model in ${agentPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
 }
 
 /**
@@ -729,6 +766,7 @@ function rewriteCopilotAgentFileModel(agentPath, model) {
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   providerConfig?: { providers: Array<{name: string}>, models: Array<{id: string, provider: string}> } | null,
+ *   refreshProviderConfig?: (reflectData: any) => Promise<{ providers: Array<{name: string}>, models: Array<{id: string, provider: string}> } | null>,
  *   aliasMap?: Record<string, string[]> | null,
  *   env?: NodeJS.ProcessEnv,
  *   logger?: (msg: string) => void,
@@ -739,15 +777,24 @@ function rewriteCopilotAgentFileModel(agentPath, model) {
 async function resolveCopilotSubagentModels(options) {
   const logger = options.logger || log;
   const env = options.env || process.env;
-  const declared = options.agents.filter(agent => typeof agent.model === "string" && agent.model.trim());
+  const declared = options.agents.filter(agent => typeof agent.model === "string" && agent.model.trim() && agent.model.trim().toLowerCase() !== "inherited");
   if (declared.length === 0) return [];
   const aliasMap = options.aliasMap !== undefined ? options.aliasMap : (loadAwfConfigData()?.apiProxy?.models ?? loadModelAliasMap({ reflectData: options.reflectData, env }));
   let reflectData = options.reflectData;
+  let providerConfig = options.providerConfig;
   /** @type {Promise<any> | null} */
   let refresh = null;
   const refreshOnce = () => {
     refresh ??= (options.refetchReflectData ? options.refetchReflectData() : Promise.resolve(null)).then(refreshed => {
-      if (refreshed) reflectData = refreshed;
+      if (refreshed) {
+        reflectData = refreshed;
+        if (options.refreshProviderConfig) {
+          return options.refreshProviderConfig(refreshed).then(config => {
+            if (config) providerConfig = config;
+            return refreshed;
+          });
+        }
+      }
       return refreshed || null;
     });
     return refresh;
@@ -787,18 +834,29 @@ async function resolveCopilotSubagentModels(options) {
     const resolvedModel = result.engineModel;
     const resolvedNote = resolvedModel !== configuredModel ? ` (resolved to '${resolvedModel}')` : "";
     const failureProvider = scope.providers && scope.providers !== REFLECT_PROVIDER_ALIASES.github ? scope.prefix : "copilot";
-    if (liveCheck && !isModelListedOnConfiguredReflectEndpoint(resolvedModel, reflectData)) {
-      const initialReason = classifyUnlistedReflectModel(resolvedModel, reflectData);
+    const scopedResolvedModel = scope.prefix ? `${scope.prefix}/${resolvedModel}` : resolvedModel;
+    if (liveCheck && !isModelListedOnConfiguredReflectEndpoint(scopedResolvedModel, reflectData)) {
+      const initialReason = classifyUnlistedReflectModel(scopedResolvedModel, reflectData);
       const refreshed = await refreshOnce();
-      if (!refreshed || !isModelListedOnConfiguredReflectEndpoint(resolvedModel, refreshed)) {
-        const reason = initialReason === "model_unavailable" || !refreshed ? initialReason : classifyUnlistedReflectModel(resolvedModel, refreshed);
+      if (!refreshed || !isModelListedOnConfiguredReflectEndpoint(scopedResolvedModel, refreshed)) {
+        const reason = initialReason === "model_unavailable" || !refreshed ? initialReason : classifyUnlistedReflectModel(scopedResolvedModel, refreshed);
         fail(new ModelAliasResolutionError(configuredModel, reason, { provider: failureProvider }), `Sub-agent model '${configuredModel}'${resolvedNote} is not listed on the configured awf-reflect endpoints.`);
         continue;
       }
     }
     let model = resolvedModel;
-    if (options.providerConfig) {
-      const qualified = qualifyModelForMultiProvider(resolvedModel, options.providerConfig);
+    if (providerConfig) {
+      let qualified;
+      try {
+        const qualificationModel = scope.providers === REFLECT_PROVIDER_ALIASES.github ? `copilot/${resolvedModel}` : scope.prefix ? `${scope.prefix}/${resolvedModel}` : resolvedModel;
+        qualified = qualifyModelForMultiProvider(qualificationModel, providerConfig);
+      } catch (error) {
+        fail(
+          new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: failureProvider }),
+          `Sub-agent model '${configuredModel}'${resolvedNote} could not be qualified against the Copilot SDK provider models: ${getErrorMessage(error)}`
+        );
+        continue;
+      }
       if (!qualified) {
         fail(
           new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: failureProvider }),
@@ -825,6 +883,7 @@ async function resolveCopilotSubagentModels(options) {
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   agentsDir?: string,
+ *   rewrittenFiles?: Array<{ path: string, configuredModel: string, resolvedModel: string, modelSource: string }>,
  *   env?: NodeJS.ProcessEnv,
  *   logger?: (msg: string) => void,
  * }} options
@@ -833,7 +892,7 @@ async function resolveCopilotSubagentModels(options) {
 async function applyCopilotCLISubagentModels(options) {
   const logger = options.logger || log;
   const env = options.env || process.env;
-  const agentsDir = options.agentsDir || path.join(env.GITHUB_WORKSPACE || process.cwd(), ".github", "agents");
+  const agentsDir = options.agentsDir || path.join(env.GH_AW_ENGINE_CWD || env.GITHUB_WORKSPACE || process.cwd(), ".github", "agents");
   const files = listCopilotAgentFiles(agentsDir, logger);
   let resolutions;
   try {
@@ -846,13 +905,35 @@ async function applyCopilotCLISubagentModels(options) {
   for (const resolution of resolutions) {
     if (resolution.model === resolution.configuredModel) continue;
     for (const file of files.filter(file => file.name === resolution.name && file.model === resolution.configuredModel)) {
-      const original = fs.readFileSync(file.path);
-      rewriteCopilotAgentFileModel(file.path, resolution.model);
-      if (!hideTrackedAgentFileRewrite(file.path, logger)) {
+      let original;
+      let modelScalar;
+      try {
+        original = fs.readFileSync(file.path, "utf8");
+        modelScalar = getCopilotAgentModelScalar(original);
+        rewriteCopilotAgentFileModel(file.path, resolution.model);
+      } catch (error) {
+        if (typeof original === "string") {
+          try {
+            fs.writeFileSync(file.path, original);
+          } catch (restoreError) {
+            logger(`warning: cannot restore ${file.path} after a rewrite failure: ${getErrorMessage(restoreError)}`);
+          }
+        }
+        if (options.rewrittenFiles) restoreCopilotCLIAgentFiles(options.rewrittenFiles, logger);
+        logger(`copilot sub-agent '${resolution.name}': cannot rewrite ${file.path}: ${getErrorMessage(error)}. Refusing to start Copilot.`);
+        process.exit(1);
+        return [];
+      }
+      const trackingState = hideTrackedAgentFileRewrite(file.path, logger);
+      if (!trackingState) {
         fs.writeFileSync(file.path, original);
+        if (options.rewrittenFiles) restoreCopilotCLIAgentFiles(options.rewrittenFiles, logger);
         logger(`copilot sub-agent '${resolution.name}': cannot keep the resolved model out of commits for tracked file ${file.path}. Refusing to start Copilot with an unresolved sub-agent model.`);
         process.exit(1);
         return [];
+      }
+      if (trackingState === true) {
+        options.rewrittenFiles?.push({ path: file.path, configuredModel: resolution.configuredModel, resolvedModel: resolution.model, modelSource: modelScalar.source });
       }
       logger(`copilot sub-agent '${resolution.name}': wrote model '${resolution.model}' to ${file.path}`);
     }
@@ -861,25 +942,68 @@ async function applyCopilotCLISubagentModels(options) {
 }
 
 /**
- * Keep a harness rewrite of a git-tracked agent file out of the agent's commits and
- * safe-output patches by marking it skip-worktree. Untracked files (restored inline
- * sub-agents) need nothing. Returns false when a tracked file cannot be hidden.
+ * Keep a harness rewrite of a git-tracked agent file out of the agent's commits by marking it
+ * skip-worktree until the harness restores the model and clears the flag. Untracked files need
+ * nothing. Returns false when tracking state or the index flag cannot be verified.
  * @param {string} agentPath
  * @param {(msg: string) => void} logger
- * @returns {boolean}
+ * @returns {boolean|"untracked"}
  */
 function hideTrackedAgentFileRewrite(agentPath, logger) {
   const { spawnSync } = require("child_process");
   const cwd = path.dirname(agentPath);
   const file = path.basename(agentPath);
-  const tracked = spawnSync("git", ["ls-files", "--error-unmatch", "--", file], { cwd, stdio: "ignore" });
-  if (tracked.error || tracked.status !== 0) return true;
-  const hidden = spawnSync("git", ["update-index", "--skip-worktree", "--", file], { cwd, encoding: "utf8" });
+  const tracked = spawnSync("git", ["ls-files", "--error-unmatch", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
+  if (tracked.error || (tracked.status !== 0 && tracked.status !== 1)) {
+    logger(`warning: git ls-files could not determine tracking state for ${agentPath}: ${tracked.error ? getErrorMessage(tracked.error) : String(tracked.stderr || "").trim()}`);
+    return false;
+  }
+  if (tracked.status === 1) return "untracked";
+  const hidden = spawnSync("git", ["update-index", "--skip-worktree", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
   if (hidden.error || hidden.status !== 0) {
     logger(`warning: git update-index --skip-worktree failed for ${agentPath}: ${hidden.error ? getErrorMessage(hidden.error) : String(hidden.stderr || "").trim()}`);
     return false;
   }
+  const verified = spawnSync("git", ["ls-files", "-t", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
+  if (verified.error || verified.status !== 0 || !/^S\s/.test(verified.stdout || "")) {
+    logger(`warning: git did not retain skip-worktree for ${agentPath}: ${verified.error ? getErrorMessage(verified.error) : String(verified.stderr || verified.stdout || "").trim()}`);
+    spawnSync("git", ["update-index", "--no-skip-worktree", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
+    return false;
+  }
   return true;
+}
+
+/**
+ * Restore harness-only model substitutions while preserving any other agent-file edits.
+ * @param {Array<{ path: string, configuredModel: string, resolvedModel: string, modelSource: string }>} rewrittenFiles
+ * @param {(msg: string) => void} logger
+ * @returns {boolean}
+ */
+function restoreCopilotCLIAgentFiles(rewrittenFiles, logger = log) {
+  const { spawnSync } = require("child_process");
+  let success = true;
+  for (const file of rewrittenFiles) {
+    const cwd = path.dirname(file.path);
+    const name = path.basename(file.path);
+    const cleared = spawnSync("git", ["update-index", "--no-skip-worktree", "--", name], { cwd, encoding: "utf8", timeout: 5000 });
+    const verified = cleared.error || cleared.status !== 0 ? null : spawnSync("git", ["ls-files", "-t", "--", name], { cwd, encoding: "utf8", timeout: 5000 });
+    if (!verified || verified.error || verified.status !== 0 || /^S\s/.test(verified.stdout || "")) {
+      logger(`warning: cannot clear skip-worktree for ${file.path}: ${cleared.error ? getErrorMessage(cleared.error) : String(cleared.stderr || verified?.stderr || "").trim()}`);
+      success = false;
+      continue;
+    }
+    try {
+      const content = fs.readFileSync(file.path, "utf8");
+      const current = getCopilotAgentModelScalar(content);
+      if (current.value === file.resolvedModel && file.resolvedModel !== file.configuredModel) {
+        fs.writeFileSync(file.path, content.slice(0, current.start) + file.modelSource + content.slice(current.end));
+      }
+    } catch (error) {
+      logger(`warning: cannot restore harness model substitution in ${file.path}: ${getErrorMessage(error)}`);
+      success = false;
+    }
+  }
+  return success;
 }
 
 /**
@@ -1588,6 +1712,7 @@ function resolvePromptFileInput(args) {
  */
 async function main() {
   const [, , command, ...args] = process.argv;
+  const cliAgentFileRestorations = [];
   const retryConfig = resolveRetryConfig(process.env, log);
   const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
 
@@ -1685,10 +1810,6 @@ async function main() {
     });
     if (invocationModel?.hasOverride) resolvedArgs = applyCopilotInvocationModel(resolvedArgs, process.env.COPILOT_MODEL || "");
   }
-  // Sub-agent models are resolved on routed runs too.
-  if (!copilotSDKMode) {
-    await applyCopilotCLISubagentModels({ reflectData: awfReflectData, refetchReflectData, logger: log });
-  }
   if (!copilotSDKMode) {
     try {
       applyCopilotWireAPI({
@@ -1717,6 +1838,17 @@ async function main() {
     process.exit(0);
   }
 
+  // Sub-agent models are resolved on routed runs too, but a pre-existing noop must not
+  // make startup depend on sub-agent model availability.
+  if (!copilotSDKMode) {
+    await applyCopilotCLISubagentModels({
+      reflectData: awfReflectData,
+      refetchReflectData,
+      rewrittenFiles: cliAgentFileRestorations,
+      logger: log,
+    });
+  }
+
   // Resolve BYOK provider from live reflect data (SDK mode only).
   // Multi-provider BYOK is the only supported mode — fail immediately if the
   // provider cannot be resolved so retries are not wasted on a misconfigured environment.
@@ -1732,7 +1864,7 @@ async function main() {
     const configuredModel = modelRoutingSelection?.wire_model || process.env.COPILOT_MODEL || "";
     const modelsJson = loadModelsJson();
 
-    const multiProvider = await resolveCopilotSDKMultiProvider({
+    let multiProvider = await resolveCopilotSDKMultiProvider({
       configuredModel,
       requestedModel: selectionConfiguredModel,
       routed: Boolean(modelRoutingSelection),
@@ -1771,14 +1903,40 @@ async function main() {
     });
 
     // The same custom agents the SDK driver loads: workflow definitions override repository ones.
-    const agents = loadCopilotSDKCustomAgents(resolveCopilotSDKWorkingDirectory(), path.join(os.tmpdir(), "gh-aw"), log);
+    const sdkWorkingDirectory = path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), process.env.GH_AW_ENGINE_CWD || ".");
+    const agents = loadCopilotSDKCustomAgents(sdkWorkingDirectory, path.join(os.tmpdir(), "gh-aw"), log);
     try {
-      const resolutions = await resolveCopilotSubagentModels({ agents, reflectData: awfReflectData, refetchReflectData, providerConfig: multiProvider, logger: log });
+      const resolutions = await resolveCopilotSubagentModels({
+        agents,
+        reflectData: awfReflectData,
+        refetchReflectData,
+        providerConfig: multiProvider,
+        refreshProviderConfig: async reflectData => {
+          multiProvider = resolveMultiProviderFromReflect({
+            model: configuredModel,
+            wireApi: process.env.COPILOT_PROVIDER_WIRE_API,
+            reflectData,
+            modelsJson,
+            logger: log,
+          }) || { model: "", providers: [], models: [] };
+          return multiProvider;
+        },
+        logger: log,
+      });
       subagentModelsJson = JSON.stringify(Object.fromEntries(resolutions.map(resolution => [resolution.name, resolution.model])));
     } catch (failure) {
       if (!(failure instanceof ModelAliasResolutionError)) throw failure;
       process.exit(1);
     }
+
+    resolvedModel = multiProvider.model;
+    primaryProviderName = multiProvider.models.find(m => `${m.provider}/${m.id}` === resolvedModel)?.provider ?? multiProvider.providers[0]?.name ?? "";
+    const refreshedPrimaryProvider = multiProvider.providers.find(p => p.name === primaryProviderName) ?? multiProvider.providers[0];
+    providerBaseUrl = refreshedPrimaryProvider?.baseUrl ?? "";
+    providerType = refreshedPrimaryProvider?.type ?? "openai";
+    const configuredProviderWireApi = process.env.COPILOT_PROVIDER_WIRE_API;
+    providerWireApi = configuredProviderWireApi === "responses" || configuredProviderWireApi === "completions" ? configuredProviderWireApi : refreshedPrimaryProvider?.wireApi || "";
+    multiProviderJson = JSON.stringify({ model: multiProvider.model, providers: multiProvider.providers, models: multiProvider.models });
 
     const uniqueProviderBaseUrls = [...new Set(multiProvider.providers.map(provider => String(provider.baseUrl || "").trim()).filter(Boolean))];
     if (uniqueProviderBaseUrls.length === 0) {
@@ -2337,6 +2495,9 @@ async function main() {
       await fetchAWFReflect({ logger: log });
     }
   } finally {
+    if (!restoreCopilotCLIAgentFiles(cliAgentFileRestorations, log)) {
+      lastExitCode = 1;
+    }
     await stopCopilotSDKServer(copilotSDKServer, { logger: log });
   }
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
@@ -2419,6 +2580,8 @@ if (typeof module !== "undefined" && module.exports) {
     applyCopilotCLISubagentModels,
     listCopilotAgentFiles,
     rewriteCopilotAgentFileModel,
+    hideTrackedAgentFileRewrite,
+    restoreCopilotCLIAgentFiles,
     applyCopilotWireAPI,
     warnCopilotSubagentEndpoints,
     resolveAWFModelRoutingSelection,
