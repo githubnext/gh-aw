@@ -7,3 +7,5 @@ Add OIDC-authenticated activation admission configured through managed Actions v
 Include the compiled workflow's frontmatter/body hash in admission requests as a cache hint, without replacing authenticated invocation identity or authorization checks.
 
 Isolate admission in an endpoint-gated, compiler-owned job so its OIDC permission is not shared with activation hooks. Activation consumes validated outputs and permits skipped admission without bypassing daily validation. Record the approved numeric allowances in the unified session artifact while keeping human-readable diagnostics redacted.
+
+Post the complete redacted unified session to the same authority's `/api/conclusion` route immediately after conclusion generates it. Use fresh conclusion-owned OIDC credentials, invocation-bound identity, bounded retries and generic delivery warnings; preserve completed workflow results and artifact publication if delivery fails.

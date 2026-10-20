@@ -171,6 +171,15 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Equal(t, "${{ needs.admission.outputs.result }}", activation.Env["GH_AW_ADMISSION_RESULT"])
 	assert.NotContains(t, strings.Join(activation.Steps, ""), "activation_admission.cjs")
 	assert.Contains(t, strings.Join(activation.Steps, ""), "daily-ai-credits-workflow-guardrail")
+	conclusion, exists := compiler.jobManager.GetJob("conclusion")
+	require.True(t, exists)
+	assert.Contains(t, conclusion.Permissions, "id-token: write")
+	conclusionSteps := strings.Join(conclusion.Steps, "")
+	assert.Contains(t, conclusionSteps, "if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
+	assert.Contains(t, conclusionSteps, "conclusion_admission.cjs")
+	assert.Contains(t, conclusionSteps, "GH_AW_ADMISSION_WORKFLOW_HASH: \""+hashes[1]+":"+hashes[2]+"\"")
+	assert.Less(t, strings.Index(conclusionSteps, "Generate usage activity summary and unified session"), strings.Index(conclusionSteps, "Report admission conclusion"))
+	assert.Less(t, strings.Index(conclusionSteps, "Report admission conclusion"), strings.Index(conclusionSteps, "Upload usage artifact"))
 	for name, job := range compiler.jobManager.jobs {
 		if name == "admission" {
 			continue
@@ -180,10 +189,14 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 		}
 		encoded, err := json.Marshal(job)
 		require.NoError(t, err)
-		for _, fragment := range []string{"steps.admission", "admission-aic", "admission_budget.cjs", "GH_AW_ADMISSION_WORKFLOW_HASH"} {
+		for _, fragment := range []string{"steps.admission", "admission-aic", "admission_budget.cjs"} {
 			assert.NotContains(t, string(encoded), fragment, "job %s", name)
 		}
+		if name != "conclusion" {
+			assert.NotContains(t, string(encoded), "GH_AW_ADMISSION_WORKFLOW_HASH", "job %s", name)
+		}
 	}
+
 	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nChanged admission prompt\n"), 0o644))
 	require.NoError(t, NewCompiler().CompileWorkflow(file))
 	changed, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
@@ -192,6 +205,23 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	require.Len(t, changedHashes, 3)
 	assert.Equal(t, hashes[1], changedHashes[1])
 	assert.NotEqual(t, hashes[2], changedHashes[2], "Prompt changes must invalidate workflow-content caches")
+}
+
+func TestAdmissionConclusionWorkQueueParticipant(t *testing.T) {
+	data := &WorkflowData{
+		Tools:       map[string]any{"work-queue": map[string]any{"worker": true}},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+	job, err := NewCompiler().buildConclusionJob(data, "agent", []string{"safe_outputs"})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	assert.Contains(t, job.Permissions, "id-token: write")
+	steps := strings.Join(job.Steps, "")
+	for _, name := range []string{"Generate usage activity summary and unified session", "Report admission conclusion", "Upload usage artifact"} {
+		assert.Equal(t, 1, strings.Count(steps, "name: "+name+"\n"))
+	}
+	assert.Less(t, strings.Index(steps, "reconcile_work_queue_run.cjs"), strings.Index(steps, "Report admission conclusion"))
+	assert.Less(t, strings.Index(steps, "Generate usage activity summary and unified session"), strings.Index(steps, "Report admission conclusion"))
 }
 
 func TestAdmissionActivationDependencyConditions(t *testing.T) {

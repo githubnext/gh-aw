@@ -1,13 +1,13 @@
 ---
 title: AW Admission Service Specification
-description: Cooperative OIDC-authenticated activation admission, optional component allowances, and centralized Agentic Workflows cost controls
+description: Cooperative OIDC-authenticated admission, conclusion session delivery, optional component allowances, and centralized Agentic Workflows cost controls
 sidebar:
   order: 1362
 ---
 
-**Version**: 1.2 draft<br />
+**Version**: 1.3 draft<br />
 **Status**: gh-aw client implemented; admission authority deployed separately<br />
-**Date**: 2026-10-19
+**Date**: 2026-10-20
 
 The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This repository implements the gh-aw client and compiler integration. The admission authority, trusted accounting ingestion, provisioning, and backend claim verification remain deployment-owned services; the contracts below apply to both sides.
 
@@ -16,6 +16,8 @@ The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This 
 Admission runs in a separate compiler-owned `admission` job before activation. Activation MUST depend on admission while allowing an unconfigured admission job to be skipped. Only the validated result, component allowances and caller-owned trace context propagate to activation; credentials, request identity and service diagnostics remain admission-scoped. gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Admission code generation MUST NOT have a workflow-local disable switch. Without a configured endpoint, an explicit job `if` skips admission, and activation continues through its existing fallback checks. A deployment-selected **admission authority server** (the authority) MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, and protected operator diagnostics. It MAY use a server-side GitHub App for backend verification and configuration provisioning.
 
 The gate is a **cooperative admission check** for participating workflows, not an unbypassable organization policy or hard spending cap. It decides whether an AW execution may start and returns runtime maximum AI Credits: a required primary allowance and optional, independent threat-detection and evals allowances. A validated allowance overrides that component's configured or default runtime limit, rather than adding to it or taking the minimum. Omitted optional allowances preserve existing component policy. Correlation uses the caller's W3C `traceparent`, not a response trace or correlation ID. This is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism.
+
+The compiler-owned `conclusion` job provides the corresponding **completion notification**: it posts the generated unified agentic session to `/api/conclusion` so the authority can process the session as soon as conclusion produces it, without waiting for artifact polling or a workflow-completion webhook. This is end-of-session delivery, not a live event stream while the agent runs. It neither authorizes execution nor settles billing. Delivery is best-effort and does not change completed agent or safe-output results.
 
 The protocol uses REST POST with a JSON body, authenticated exclusively by a GitHub Actions OIDC identity token with an audience restricted to the intended authority deployment. The client MUST NOT send `GITHUB_TOKEN`, a PAT, Copilot token, GitHub App JWT, installation access token, App private key, API key, or custom activation credential to the admission service. The feature MUST support only this protocol, with no GET, alternate authentication mode, negotiation, or credential fallback.
 
@@ -40,6 +42,8 @@ default_admission_on_outage: ignore
 ```
 
 The service route is `/api/admission`; the deployment origin is configurable. A nonempty URL MUST be the full absolute HTTPS URL for that route, without embedded credentials, query parameters, fragments, or GitHub Actions expressions. A nonempty audience MUST be a literal deployment-specific value without control characters or expressions. It identifies the intended recipient; it is not a secret or a GitHub App identifier.
+
+The conclusion route MUST be `/api/conclusion` on that same configured origin, including any explicit port. It MUST NOT have an independently configurable destination or audience. Both operations use the effective admission audience; when the audience is unset, its fallback remains the configured `/api/admission` URL, not the derived conclusion URL. An empty endpoint disables both operations before token acquisition.
 
 Each effective runtime variable takes precedence over its built-in fallback; repository Actions variables override organization variables. Enterprise-wide rollout provisions organization variables in each enrolled organization, not an assumed native enterprise Actions-variable scope. Compiler-process environment variables MUST NOT determine these values, and workflow-local configuration MUST NOT introduce another override layer. A configured endpoint automatically enables admission. An unset or empty endpoint makes the check a no-op; an audience or outage policy alone MUST NOT enable it. A nonempty but invalid endpoint MUST fail validation, not silently disable the check.
 
@@ -88,7 +92,7 @@ Only non-secret configuration is provisioned. App IDs and installation IDs do no
 
 gh-aw MUST emit a compiler-owned `admission` job after applicable trigger/authorization prerequisites and before activation and agent execution. The job MUST use trusted, pinned bootstrap and admission code, not execute repository-supplied task scripts. Its setup MUST NOT inherit workflow-specific authentication or mint telemetry App credentials. Custom `jobs.admission` configuration, including setup/pre/regular hooks, permissions, conditions, outputs and environments, MUST be rejected.
 
-Only the `admission` job MUST gain `id-token: write` for admission authentication; activation MUST NOT receive this permission merely because admission is generated. Independently configured OIDC features retain their own required permissions. Admission MUST NOT forward GitHub API tokens or provider secrets. The compiler MUST emit a job-level `if` requiring `${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}` so no admission runner, bootstrap or token acquisition starts without an endpoint. Audience or outage variables alone do not enable admission. Activation MUST use an explicit cancellation-safe condition allowing admission results `success` or `skipped`, while rejecting `failure` or `cancelled` and preserving its other eligibility checks. Approval skips daily validation; skipped admission and successfully ignored outages retain the existing fallback.
+The `admission` and `conclusion` jobs MUST gain `id-token: write` for their respective authority requests; activation and agent MUST NOT receive this permission merely because admission is generated. Independently configured OIDC features retain their own required permissions. Admission MUST NOT forward GitHub API tokens or provider secrets. The compiler MUST emit a job-level `if` requiring `${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}` so no admission runner, bootstrap or token acquisition starts without an endpoint. Audience or outage variables alone do not enable admission. Activation MUST use an explicit cancellation-safe condition allowing admission results `success` or `skipped`, while rejecting `failure` or `cancelled` and preserving its other eligibility checks. Approval skips daily validation; skipped admission and successfully ignored outages retain the existing fallback.
 
 Daily-AIC code and credentials remain in activation; the daily-limit variable MUST NOT enable the admission job. Since GitHub's implicit success gate also observes skipped ancestors, downstream jobs without explicit status-function semantics MUST use cancellation-safe direct-dependency result checks. This permits an intentionally skipped admission ancestor without admitting failed required prerequisites. Existing explicit status-function conditions retain their intended behavior.
 
@@ -252,6 +256,55 @@ The compiler MUST relay validated admission job outputs through activation job o
 The helper then succeeds, and activation finishes its remaining checks. GitHub Actions schedules the already-dependent agent job only if the existing [job dependency and success conditions](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds) permit it. The authority makes no callback or additional GitHub API call to resume the workflow. The workflow's normal engine credentials remain separate and MUST NOT be sent to the authority.
 
 The agent and its continuations consume the same effective invocation budget; they do not acquire another entitlement by repeating admission. All subsequent supported OTLP records retain the returned resource attribute as described above. If the endpoint is absent or an outage is ignored, there are no service decision values to transport; existing local/default controls remain. A denial, invalid success, or failed budget propagation blocks the agent instead of taking this continuation path.
+
+### Conclusion Notification
+
+The compiler MUST emit a trusted conclusion-notification step immediately after unified-session generation and before usage-artifact upload, including for work-queue participants. The step MUST use `always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''`, allowing delivery after earlier conclusion failures without changing the conclusion job's existing eligibility. An unsuccessful agent can still produce a useful session. Failure or cancellation that prevents the conclusion job from running cannot guarantee a notification; consumers MUST NOT interpret absence as zero usage or successful completion.
+
+The step reconstructs the same ten identity fields from compiler metadata and the current Actions context; it MUST NOT transport admission's identity or credentials through job outputs. It obtains a fresh OIDC JWT using the conclusion job's own bootstrap credentials and the same effective audience. Admission tokens MUST NOT be persisted or reused across jobs. The authority MUST apply Section 4's issuer, audience, tenant, invocation and executing-workflow verification to conclusion requests independently of admission. A client-side `admitted` result is not required: executions allowed by the ignored-outage fallback also need session delivery.
+
+The complete request is a JSON object containing exactly Section 3's ten admission identity strings plus `session`, a string containing the entire UTF-8 JSONL contents of `/tmp/gh-aw/usage/aw_session.jsonl`. The JSON envelope escapes this string once; decoding it MUST recover the file contents unchanged, including event order and newlines. The client MUST read the existing generated, redacted unified session, not regenerate it from raw engine logs or substitute a usage summary, local pathname, artifact URL, or partial session.
+
+```http
+POST /api/conclusion HTTP/1.1
+host: admission.example.org
+authorization: bearer <FRESH_CONCLUSION_OIDC_JWT>
+content-type: application/json
+cache-control: no-store
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-a3ce929d0e0e4736-01
+
+{
+  "repo": "acme/project",
+  "workflow_id": "acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
+  "workflow_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "workflow_call_id": "1234-2:acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
+  "run_id": "1234",
+  "run_attempt": "2",
+  "ref": "refs/heads/main",
+  "event_type": "workflow_dispatch",
+  "actor": "octocat",
+  "triggering_actor": "hubot",
+  "session": "{\"type\":\"session.start\",\"id\":\"synthetic-example\"}\n"
+}
+```
+
+The session line above illustrates wire encoding only; a real request carries every event from the generated unified-session file and follows its published schema. The compiler MUST wire the exact same workflow hashes and executing `job.workflow_ref` used by admission, including reusable-workflow executions and reruns.
+
+Missing, empty, non-regular, symlinked, invalid UTF-8, or oversized files MUST produce a generic warning without a request. The client MUST bound the session read and enforce a 64 MiB limit on the complete UTF-8 JSON request, including identity and JSON escaping. It MUST NOT truncate, silently omit events, or send a success-shaped replacement. The authority MUST bound its incoming body and validate the decoded unified-session schema and invocation binding before processing. Session contents remain untrusted agent-generated data, not authorization instructions or authoritative billing evidence.
+
+| Response | Meaning | Client behavior |
+|----------|---------|-----------------|
+| `202` or `204` | Accepted for asynchronous processing, or already accepted | Complete delivery; discard any response body |
+| `408`, `429`, `5xx`, network failure or timeout | Transient delivery failure | Bounded retry |
+| Any other status, including redirects | Rejected or unsupported | Stop immediately and warn; never follow redirects |
+
+The client MUST reuse Section 6's three-attempt maximum, ten-second per-token/per-HTTP timeout, 60-second monotonic end-to-end deadline, credential masking and renewal, and bounded backoff. It snapshots the complete request once before the first token acquisition. Retries MUST retain identical identity and session bytes, audience and trace ID; each HTTP attempt uses a fresh span ID. A valid existing workflow trace is reused; otherwise the client generates one without enabling telemetry export.
+
+Unlike admission, all conclusion-delivery failures MUST warn without failing the job, undoing safe outputs, altering allowances, or changing completed execution results. `GH_AW_DEFAULT_ADMISSION_ON_OUTAGE` controls only the start-time gate; `block` MUST NOT turn completion-notification outages into failed workflow outcomes. Artifact publication MUST still be attempted after callback failures. Successful delivery means acceptance, not proof that backend processing has finished.
+
+The authority MUST durably enqueue or record the session before acknowledging acceptance. A lost acknowledgement and cross-instance retries MUST NOT enqueue duplicate processing or double-count usage. Deduplication MUST use the verified invocation identity from Section 8 and operation type, not trace IDs, `jti`, hashes, or unverified body fields alone. An identical accepted payload is acknowledged again; a conflicting payload for the same verified invocation MUST NOT overwrite the accepted session. Token renewal or a repeated notification MUST NOT grant new entitlements, change admission decisions, reserve or settle funds, or rewrite prior results.
+
+Session data can include prompts, tool arguments, code and other sensitive content beyond usage counts. Managed-endpoint enrollment therefore also authorizes transfer of the redacted unified session to that deployment. Both client and authority MUST withhold raw session bodies, credentials and response diagnostics from logs, traces, summaries and metrics; ingress body sampling MUST remain disabled. The authority MUST enforce tenant isolation, access control and bounded retention for stored sessions, and MUST NOT assume redaction makes session content public or secret-free.
 
 ## 4. Authentication and Trust Boundary
 
@@ -651,6 +704,12 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-041 | Admission token acquisition and disabled endpoint | No `actions/create-github-app-token`, App private key, App JWT, or installation token introduced; the endpoint `if` gates the bounded OIDC exchange and POST together |
 | ADM-042 | Compiled workflow hash, prompt-only change, malformed/missing hash, retry, spoofed hash, or another repository/invocation with the same hash | Send exact compiler-owned frontmatter/body hashes as one `workflow_hash` string; prompt changes alter the body component; invalid hashes block before OIDC; retries retain the snapshot; authority cache hints never bypass verified content binding, tenant isolation, or current admission checks |
 | ADM-043 | Workflow-local `admission-gate` setting, including `false` | Compilation rejects the unsupported frontmatter field; all valid workflows retain admission code generation and endpoint-variable runtime gating |
+| ADM-044 | Conclusion after success, agent failure, earlier conclusion-step failure, or ignored admission outage; ordinary or work-queue workflow | Endpoint-gated callback follows unified-session generation and precedes artifact upload; complete session delivered without requiring affirmative admission; existing job eligibility preserved |
+| ADM-045 | Disabled endpoint, custom audience, reusable invocation, rerun, or missing conclusion OIDC permission | No endpoint means no file read/token/request; otherwise fresh conclusion-owned OIDC uses the same admission audience and exact identity/hash bindings, without credential fallback or cross-job token handoff |
+| ADM-046 | Full JSONL with escaped strings, Unicode and newlines; missing, empty, symlinked, invalid UTF-8 or oversized session | Decode the complete generated file unchanged; invalid inputs warn without sending; bound both file read and the fully encoded 64 MiB request, never truncate |
+| ADM-047 | Conclusion acceptance, lost acknowledgement, transient errors, redirect, denial, or deadline exhaustion under either outage policy | Accept only `202`/`204`; stable request and trace across bounded retries; no redirected credential; generic warnings without changing workflow results or preventing artifact publication |
+| ADM-048 | Duplicate or conflicting conclusion payload, cross-instance retry, token renewal, or cross-tenant forgery | Independently verified invocation-bound acceptance; durable deduplication before acknowledgement; no repeated processing, overwrite, billing mutation or admission entitlement |
+| ADM-049 | Session ingestion access logs, tracing, diagnostics and storage | No raw session/token capture; redacted source file only; tenant-scoped access and bounded retention; no assumption that session content is trusted or secret-free |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix, including audience shape/cardinality, required claim types, subject policy, and caller/executing identity mappings. Each supported audience profile MUST have matching positive and negative fixtures; a declared singleton-array profile accepts only its one configured recipient.
 
@@ -664,7 +723,7 @@ Four bounded profiles cover both outage policies with and without client OTel ex
 
 Reachability witnesses include approval despite a blocking daily result, daily blocks with disabled admission and ignored outages, a failed admission job blocking activation even after HTTP approval, early deadline exhaustion, existing/generated caller traces, and all four optional-allowance combinations. They deliberately include agent execution without a configured endpoint and after an ignored outage when daily fallback allows it. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
 
-This is a bounded reference specification, not proof of an implementation. Cryptographic verification, token revocation, HTTP/JSON parsing, lexical/Unicode validation, trusted URLs, monotonic deadlines, distributed-cache concurrency/expiry, replay cleanup, workflow-hash verification, trace entropy, runtime budget wiring and logging privacy remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
+This is a bounded reference specification, not proof of an implementation. The model covers start-time admission, not conclusion notification or backend session ingestion/deduplication. Cryptographic verification, token revocation, HTTP/JSON parsing, lexical/Unicode validation, trusted URLs, monotonic deadlines, distributed-cache concurrency/expiry, replay cleanup, workflow-hash verification, trace entropy, runtime budget wiring and logging privacy remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
 
 ## 12. Implementation Plan
 
@@ -675,6 +734,7 @@ The owner map assigns implementation work to the normative contracts rather than
 | gh-aw managed configuration | 2, 6 | Register all three variable/YAML bindings and runtime hooks with repository/organization scope, precedence, validation, automatic enablement, and no-op coverage. Add CLI tests, enterprise reference, and release notes together. |
 | gh-aw compiler | 1, 3, 4, 6 | Generate an endpoint-gated compiler-owned admission job with isolated OIDC permissions; make activation depend on success or skip while preserving existing prerequisites. Relay validated allowances and trace context without credentials. Test reusable callers, custom conditions, independent OIDC features, and skipped/failed admission. |
 | gh-aw OIDC client | 3, 4, 5-8 | Implement bounded OIDC acquisition and POST under the job endpoint `if`, strict required/optional allowance validation, workflow and actor bindings, retries/outage handling, and generic diagnostics. Do not use App-token actions or forward credentials. Apply admission-first daily validation with fallback and runtime component limits, retaining usage accounting. |
+| gh-aw conclusion and authority ingestion | 1-4, 6, 8-10 | Emit the conclusion-owned OIDC callback after unified-session generation and before artifact upload. Deliver the complete redacted JSONL to the derived same-origin route with bounded best-effort retries. Independently authenticate and durably deduplicate ingestion before acknowledgement; protect session access and retention. |
 | Admission authority | 3-9 | Implement trusted issuer/audience, tenant and caller/executing reference/SHA binding, unambiguous invocation verification, independently verified triggering-actor policy use, stable response fields, and bounded replay storage. Keep policy evaluation protected and admission retry-safe, spend-private, and financially side-effect-free. |
 | Authority provisioning | 2, 4, 9 | Implement optional server-side App JWT/installation-token flow, approved least-privilege grants, renewal/key rotation, and authorized organization/repository provisioning. Document enterprise-wide organization rollout and the distinction between managed defaults and mandatory enforcement. |
 | gh-aw and authority observability | 3, 5-9 | Always send validated caller `traceparent`; reuse existing trace/export helpers without enabling export when disabled. Correlate authority telemetry using incoming trace context and verified invocation metadata. Return no trace/correlation identifier; preserve tenant isolation and redaction. |
@@ -682,6 +742,6 @@ The owner map assigns implementation work to the normative contracts rather than
 
 Managed-default validation belongs in `pkg/cli/env_command.go`, alongside the existing field validators, and MUST also apply to effective runtime values that can be set outside the CLI. Apply Section 2's URL rules to `default_admission_url` (absolute HTTPS `/api/admission`, no embedded credentials, query, fragment, or expressions), its literal/no-control-character/no-expression rules to `default_admission_audience`, and Section 6's exact `ignore`/`block` enum to `default_admission_on_outage`. Preserve Section 2's empty-value fallbacks and omitted/null deletion semantics; test accepted, rejected, empty, and deleted values.
 
-Integration points include [admission compilation](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_admission.go), the [bounded OIDC client](https://github.com/github/gh-aw/blob/main/actions/setup/js/check_admission.cjs), [strict protocol validation](https://github.com/github/gh-aw/blob/main/actions/setup/js/admission_protocol.cjs), and the [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). The repository configuration schema MUST NOT gain admission fields.
+Integration points include [admission compilation](https://github.com/github/gh-aw/blob/main/pkg/workflow/compiler_admission.go), the [bounded OIDC client](https://github.com/github/gh-aw/blob/main/actions/setup/js/check_admission.cjs), the [conclusion client](https://github.com/github/gh-aw/blob/main/actions/setup/js/conclusion_admission.cjs), [strict protocol validation](https://github.com/github/gh-aw/blob/main/actions/setup/js/admission_protocol.cjs), and the [managed-default registry](https://github.com/github/gh-aw/blob/main/pkg/cli/env_command.go). The repository configuration schema MUST NOT gain admission fields.
 
 Platform references: [GitHub Actions OIDC claims and trust configuration](https://docs.github.com/en/actions/reference/security/oidc), [GitHub App private-key management](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps), [W3C Trace Context](https://www.w3.org/TR/trace-context/), and [RFC 6648 header-naming guidance](https://www.rfc-editor.org/rfc/rfc6648.html). Existing emit-side integration points include [`send_otlp_span.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/send_otlp_span.cjs) and [`action_setup_otlp.cjs`](https://github.com/github/gh-aw/blob/main/actions/setup/js/action_setup_otlp.cjs).

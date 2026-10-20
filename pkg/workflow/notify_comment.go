@@ -73,7 +73,8 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 	if isWorkQueueParticipant(data) {
 		// Queue outputs and failure reports are settled only in their trusted Claim pass.
 		// Native job failure is diagnostic, not authority for anonymous follow-up writes.
-		return append(steps, c.buildConclusionDetectionRunsStep(data, mainJobName)...), nil
+		steps = append(steps, c.buildConclusionDetectionRunsStep(data, mainJobName)...)
+		return c.appendConclusionUsageSteps(steps, data)
 	}
 	steps = append(steps, c.buildConclusionNoOpStep(data, mainJobName)...)
 	steps = append(steps, c.buildConclusionDetectionRunsStep(data, mainJobName)...)
@@ -114,11 +115,18 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 		})...)
 	}
 	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
+	return c.appendConclusionUsageSteps(steps, data)
+}
+
+func (c *Compiler) appendConclusionUsageSteps(steps []string, data *WorkflowData) ([]string, error) {
 	gradersEnv, err := graderEnvironment(data.Graders)
 	if err != nil {
 		return nil, fmt.Errorf("cannot serialize grader configuration: %w", err)
 	}
-	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin, gradersEnv)...)
+	steps = append(steps, buildUsageArtifactCollectionStep(IsDetectionJobEnabled(data.SafeOutputs))...)
+	steps = append(steps, buildUsageActivityGenerationStep(hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin, gradersEnv)...)
+	steps = append(steps, c.buildConclusionAdmissionStep(data)...)
+	steps = append(steps, buildUsageArtifactUploadStep(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -126,8 +134,8 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 }
 
 // computeConclusionJobPermissions resolves the GITHUB_TOKEN permissions for the conclusion
-// job: the base safe-outputs permissions plus the extra scopes required by the OTLP OIDC
-// token, session job-duration collection, and any issue-creating conclusion mechanism.
+// job: safe-outputs permissions plus the scopes required by admission/OTLP OIDC,
+// session job-duration collection, and any issue-creating conclusion mechanism.
 func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
 	// Session job-duration collection is always enabled, independently of failure
@@ -146,9 +154,7 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 			conclusionPerms.Set(PermissionContents, PermissionWrite)
 			conclusionPerms.Set(PermissionIssues, PermissionWrite)
 		}
-		if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
-			conclusionPerms.Set(PermissionIdToken, PermissionWrite)
-		}
+		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 		return conclusionPerms
 	}
 	if isWorkQueueEnabled(data) {
@@ -156,12 +162,8 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 			conclusionPerms.Set(PermissionContents, PermissionRead)
 		}
 	}
-	// When observability.otlp.github-app is configured without app-id/private-key
-	// credentials, id-token: write is needed so the conclusion job can mint the OTLP
-	// OIDC token via core.getIDToken(audience) (mirrors threat_detection_job.go).
-	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
-		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
-	}
+	// Managed admission settings can enable the conclusion callback without recompilation.
+	conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 	// The agent-failure handler checks the PR state and agent job steps before
 	// reporting a failed PR merge-ref checkout; Actions access is already granted above.
 	if conclusionReportFailureAsIssueEnabled(data) {
@@ -294,9 +296,14 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, experimentArtif
 }
 
 func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string, gradersEnv ...string) []string {
-	usageArtifactName := prefix + "usage"
 	steps := buildUsageArtifactCollectionStep(hasDetection)
 	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations, pinAction, gradersEnv...)...)
+	return append(steps, buildUsageArtifactUploadStep(prefix, pinAction)...)
+}
+
+func buildUsageArtifactUploadStep(prefix string, pinAction func(string) string) []string {
+	usageArtifactName := prefix + "usage"
+	var steps []string
 	usageArtifactUploadAction := pinAction("actions/upload-artifact")
 	usageArtifactUploadWithLines := []string{
 		"        with:\n",

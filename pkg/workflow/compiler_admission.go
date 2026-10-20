@@ -12,6 +12,27 @@ import (
 
 const admissionJobResultCondition = "(needs.admission.result == 'success' || needs.admission.result == 'skipped')"
 
+func (c *Compiler) buildConclusionAdmissionStep(data *WorkflowData) []string {
+	return []string{
+		"      - name: Report admission conclusion\n",
+		"        if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        env:\n",
+		fmt.Sprintf("          %s: ${{ vars.%s }}\n", compilerenv.DefaultAdmissionURL, compilerenv.DefaultAdmissionURL),
+		fmt.Sprintf("          %s: ${{ vars.%s }}\n", compilerenv.DefaultAdmissionAudience, compilerenv.DefaultAdmissionAudience),
+		fmt.Sprintf("          %s: ${{ vars.%s }}\n", compilerenv.DefaultAdmissionOnOutage, compilerenv.DefaultAdmissionOnOutage),
+		fmt.Sprintf("          GH_AW_ADMISSION_WORKFLOW_HASH: %q\n", data.FrontmatterHash+":"+data.BodyHash),
+		"          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}\n",
+		"          GITHUB_ACTOR: ${{ github.actor }}\n",
+		"          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}\n",
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'setup_globals.cjs'));\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'conclusion_admission.cjs')).main(core);\n",
+	}
+}
+
 func addActivationAdmissionOutputs(ctx *activationJobBuildContext) {
 	for _, name := range []string{"result", "max-ai-credits", "max-ai-credits-threat-detection", "max-ai-credits-evals"} {
 		ctx.outputs["admission-"+name] = "${{ needs.admission.outputs." + name + " }}"

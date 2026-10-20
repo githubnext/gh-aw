@@ -54,6 +54,8 @@ Configure an OIDC-authenticated admission authority using organization or reposi
 
 Approved admission supersedes daily-AIC validation and supplies the primary and optional component allowances used by the existing runtime credit limits. Omitted optional allowances retain their configured component limits. Disabled admission and ignored transient outages retain daily validation and existing limits. The default outage policy is `ignore`; select and protect `block` when availability must not bypass admission. Variables remain cooperative defaults, not mandatory organization policy. Reusable workflow callers must grant `id-token: write` to the caller job; see [enterprise environment controls](/gh-aw/reference/compiler-enterprise-environment-controls/) for the permission envelope and rollout requirements. See also the [admission service specification](/gh-aw/specs/admission-service-specification/).
 
+The same configuration enables a conclusion notification to `/api/conclusion` on the authority's origin. The conclusion job sends the complete redacted unified-session JSONL with fresh OIDC credentials and the same audience, immediately after generation and before artifact upload. Enrolling an endpoint therefore also enables session-content transfer, not just an admission metadata check. Delivery failures warn without changing completed workflow results, even with outage policy `block`; the authority remains responsible for secure, deduplicated session processing and retention.
+
 ## Copilot Engine on GHES
 
 For Copilot-specific prerequisites, licensing requirements, and firewall configuration on GHES, see [Copilot Engine Prerequisites on GHES](/gh-aw/troubleshooting/common-issues/#copilot-engine-prerequisites-on-ghes).
