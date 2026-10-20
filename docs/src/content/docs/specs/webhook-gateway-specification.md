@@ -15,6 +15,8 @@ sidebar:
 
 **Required dispatch provenance:** Approved CAO GitHub App installation token and mandatory destination App-identity verification.
 
+**Required workflow-version admission:** Workflow-hash-bound OIDC `getToken` verification and on-demand server reconciliation; specified below, not yet implemented by the compiler.
+
 This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers GitHub issues, pull requests, discussions, every comment family, reviews/threads, Projects, security alerts, external issues, and commands. Custom webhooks are unsupported. It does not register webhook sources and is unrelated to the MCP gateway.
 
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
@@ -244,7 +246,7 @@ The batch envelope remains numeric version `2`; the explicit projection policy v
 
 Discovery collects compiled **subscription declarations**, not historical webhook deliveries or Actions runs. The receiver builds a dispatch table from those declarations intersected with independently approved source/destination bindings. Incoming authenticated deliveries query that table; dispatch attempts and outcomes belong in the separate durable records described under [Receiver durability and recovery](#receiver-durability-and-recovery).
 
-This section specifies receiver behavior and measurable refresh requirements; gh-aw does not implement a discovery service, scheduler, or dispatch table. It adds no frontmatter, manifest fields, enrollment endpoint, or approval mechanism.
+This section specifies discovery completeness, authority, and workflow-version consistency; gh-aw does not implement a discovery service, scheduler, or dispatch table. Discovery timing is a backend decision. The [hash-bound `getToken` contract](#workflow-hash-bound-gettoken-admission) provides request-driven version checking and refresh without prescribing a polling interval. Neither discovery nor refresh grants source or destination approval.
 
 ### Discovery scope and snapshot
 
@@ -272,52 +274,40 @@ The logical row key is `(GitHub API origin/base path, destination repository ID,
 | Row data | Required purpose |
 | --- | --- |
 | Destination and route | Verified repository ID/current name, installation ID, Actions workflow ID/path, and exact emitted `event_type`. Names are API addressing data, not identity replacements. |
-| Artifact binding | Observed default-branch name/commit, compiled blob identity, and independently approved artifact/subscription identity under the deployment's declared binding policy. |
+| Artifact binding | Observed default-branch name/commit, compiled blob identity and `workflow_hash`, and independently approved artifact/subscription identity under the deployment's declared binding policy. |
 | Subscription | Complete normalized declaration, including `native_events`, types, `repos`, `orgs`, conditions, complete `any_of` groups, and applicable normalization/command policies. |
 | Authority | Approved source enrollment/scope and destination/artifact approval generation; no credentials or bearer tokens. |
-| Freshness and state | Monotonic table generation, observation/check timestamps, publication time, hard expiry, and eligibility or explicit blocked reason. |
+| Freshness and state | Monotonic table generation, observation/check timestamps, publication time, backend-defined cache/revalidation state, and eligibility or explicit blocked reason. |
 
 An index MAY select candidate rows by authenticated provider/source enrollment and native event discriminator. The receiver MUST then evaluate each candidate's full predicates against the original delivery. It MUST NOT flatten paired alternatives, treat an index hit as authorization, merge distinct source authorities, or interpret `native_events` as permission to register new provider hooks. A source delivery MAY match several workflows; each has its own admission/dispatch identity. A route/event MUST resolve to exactly one subscription, and a route MUST NOT identify multiple workflow paths in the same repository.
 
 `repository_dispatch` has no workflow-path parameter: `dispatch.workflow` is a binding/check, not an API-side file selector. Other matching listeners can also start on a repository dispatch, which is why collision detection covers native and unrestricted listeners, not just duplicate table rows.
 
-Publish a fully reconciled repository snapshot **atomically**, replacing that repository's prior rows, including removals and explicit ineligible entries. Never incrementally expose mixed old/new subscriptions or retain deleted rows by append-only upsert. Incomplete scans MUST NOT publish or renew freshness. An implementation MAY retain its previous unexpired snapshot after a transient refresh failure or missed refresh objective only while no invalidation or approval withdrawal has made it ineligible and every dispatch attempt passes the current authorization checks below. A missed refresh is degraded discovery, not by itself revocation of that snapshot.
+Publish a fully reconciled repository snapshot **atomically**, replacing that repository's prior rows, including removals and explicit ineligible entries. Never incrementally expose mixed old/new subscriptions or retain deleted rows by append-only upsert. Incomplete scans MUST NOT publish or be reported as successful revalidation. An implementation MAY retain its previous snapshot under its documented cache policy only while no invalidation or approval withdrawal has made it ineligible and current authorization checks still pass. Retaining a snapshot MUST NOT bypass an unresolved `getToken` workflow-hash mismatch.
 
 Refresh workers MUST use durable generation/leader fencing and compare the candidate's approval/invalidation generation at publication. A slow scan started before a newer scan, disablement, or revocation MUST NOT overwrite the newer result or resurrect a route. Matching/admission MUST use one published generation and persist that binding with queued work. A later snapshot MUST NOT silently rematch admitted work under new predicates or newly approved destinations. Unsent work MAY continue through newer generations with identical approved row bindings; a generation number alone is neither authorization nor a configuration change.
 
-### Refresh and freshness guarantees
+### Backend-owned refresh policy
 
-The receiver MUST publish its refresh policy in protected operator configuration, not frontmatter or delivery metadata. The policy distinguishes **refresh objectives** from the **hard eligibility expiry**. Defaults are a periodic delay `R` of 15 minutes, scan budget `B` of 5 minutes, initial/hint scheduling delay `H` of 60 seconds, and maximum snapshot age `F` of 60 minutes. Deployments MAY tune these finite positive durations to their documented repository/workflow capacity, but MUST require `R + 2B < F` so a healthy reconciliation cycle fits inside the freshness lease. Configuration changes MUST NOT retroactively extend an existing snapshot's expiry; an increased lease requires a complete successful reconciliation, and a reduced lease applies immediately.
+**This specification prescribes no discovery refresh rate, polling requirement, scheduling model, default interval, scan deadline, convergence deadline, or cache lifetime.** The backend chooses periodic, event-driven, lazy/request-driven, or combined discovery, along with startup/restart revalidation, coalescing, timeouts, retry/backoff, and any expiry policy. It MUST document that policy and any operational guarantees it offers; those are deployment guarantees, not portable gateway requirements.
 
-Scheduling delay includes queueing, jitter, and debounce; the scan budget includes all API calls, validation, and publication. Healthy operation means the receiver is running within its declared capacity, durable state is available, and required GitHub APIs return complete usable responses within that budget. The following refresh objectives apply under those conditions; missed objectives require explicit degraded status and recovery, not a false claim of convergence. Hard expiry and current authorization checks apply regardless of health.
+An authenticated `getToken` request with a workflow version missing from or inconsistent with the server's verified cache MUST trigger the [exact-revision verification and refresh path](#server-verification-and-on-demand-refresh) before authorization can succeed. The backend MAY perform that work synchronously or return an explicit retryable result while it refreshes. It MUST NOT grant the requested credential or continuation against unresolved stale metadata, silently accept a mismatching hash, or require the workflow to wait for a prescribed discovery timer.
 
-| Operation | Required behavior |
-| --- | --- |
-| Enrollment or process restart | Begin initial reconciliation within `H`, then publish a complete result or report failure within `B`: 6 minutes total with defaults. No route becomes ready from persisted rows alone after restart. |
-| Periodic reconciliation | Begin reconciliation of installation-access inventories and **each approved repository** no later than `R` after its last complete successful reconciliation finishes, not on a start-to-start timer. The default pause is 15 minutes; a scan has its own 5-minute budget. Unchanged content does not skip mutable approval, installation, or workflow-state checks. Failed attempts MUST NOT move the periodic due time forward. |
-| Authenticated change hint or protected administrative refresh request | Invalidate affected eligibility when the hint is accepted; begin reconciliation within `H` and publish a result or report failure within a further `B`: 6 minutes total with defaults. Push hints for the default branch, default-branch changes, and installation/access changes schedule reconciliation; hints never carry authoritative replacement rows. |
-| Stable change without a hint | Reflect the change or record its explicit ineligible result within `R + 2B` under healthy operation: 25 minutes with defaults. The two scan budgets cover a change just after an observation in the current scan and completion of the next scan. This includes additions, edits, removals, opt-out, and workflow disablement. |
-| Maximum active snapshot age | Hard-expire eligibility at `F` after the **earliest mutable-authority observation** used by the last complete successful reconciliation, not after publication or the last attempt: 60 minutes with defaults. Dispatch authorization MUST check the stored expiry even if a timer/worker is delayed. |
-| Locally committed approval withdrawal or accepted access-revocation evidence | Block affected new admissions and dispatch authorizations at the local revocation ordering point, without waiting for a scan or hard expiry. Already transmitted requests cannot be recalled. |
-| Before every dispatch attempt, including retries | Check current source/destination approval, table eligibility/expiry and generation, installation binding, active workflow state, and current default-branch opt-in/artifact/listener bindings. A stale/failed/unverifiable check does not authorize dispatch. |
+Change hints MUST be authenticated and bound to enrolled identities; they are not authoritative replacement rows or approval. The backend decides when to reconcile them. Once it knows that a row is invalidated or approval has been withdrawn, it MUST block affected authorization until valid bindings are established. Changes observed during a scan require fenced reconciliation, not publication of a knowingly obsolete candidate.
 
-For example, a change just after the current scan's authority read can wait the remaining 5-minute scan budget, the 15-minute pause, and the next 5-minute scan: 25 minutes, not 15 minutes. The 60-minute default hard expiry provides bounded recovery headroom; it is not a normal propagation target or permission to ignore an observed change. New/changed rows still require approval; discovery convergence does not promise activation within that interval.
+Conditional requests and immutable-blob caching MAY reduce API work. A `304` revalidates only that representation under the same host, identity, and request parameters, not installation access, workflow state, approvals, or an entire snapshot. Cache reuse and failed refresh attempts MUST NOT be recorded as successful checks of evidence that was not actually revalidated.
 
-Change hints MUST be authenticated and bound to enrolled identities. They accelerate refresh but MUST NOT be the sole mechanism: missing/delayed hints are repaired by periodic reconciliation. Repeated hints MAY coalesce into one pending scan but MUST NOT postpone the oldest deadline indefinitely. Changes observed during a scan mark it dirty and require a fresh, fenced reconciliation before eligibility is restored.
+A missed backend-defined refresh objective is an operational failure, not automatic approval revocation. The backend MAY retain an otherwise eligible last-known-good table under its declared policy, but MUST surface failed refreshes, respect API backoff, and preserve current source/destination authorization and hash-bound admission. If it defines a hard expiry, expiry MUST be checked at authorization even when a worker/timer is delayed; failures MUST NOT silently extend that expiry. Restart MUST NOT turn unverified persisted state into fresh evidence.
 
-Conditional requests and immutable-blob caching MAY reduce API work. A `304` renews only the particular representation actually revalidated with the same host, identity, and request parameters; it is not proof that installation access, workflow state, approvals, or the entire snapshot are unchanged. Reusing a cached blob, receiving a hint, failing a scan, or retrying a rate-limited request MUST NOT advance the successful authority-check timestamp.
+Before every dispatch attempt, including retries, the receiver MUST recheck current source/destination approval, installation binding, and eligible workflow/route/artifact bindings under its declared revalidation policy. Locally committed revocation blocks later authorization at the local ordering point; it cannot recall a request already transmitted. Discovery timing never permits bypassing the App-provenance gate or the workflow-hash check at `getToken`.
 
-Rate limits, `Retry-After`, outages, capacity overruns, or repeated branch churn can prevent the healthy refresh objectives. On a missed scheduling/convergence objective or failed/over-budget scan, the receiver MUST mark affected discovery degraded, surface the reason, and schedule a retry with bounded exponential backoff and jitter. The retry policy MUST document its initial/maximum delays, respect API backoff, and avoid postponement until the next full periodic interval. A server-mandated delay beyond hard expiry MUST be honored without extending eligibility. Failed or abandoned workers MUST be fenced from publishing after their scan budget.
+No eligible snapshot means no new dispatch authorization. Ingress MUST explicitly reject/backpressure or durably hold work under a documented bounded pending-authorization policy; it MUST NOT acknowledge durable acceptance and silently drop events or call them nonmatches against an unavailable table. Unsent admitted work remains bound to its original approved configuration. Request-driven hash checking does not by itself discover an entirely new workflow that has never made a request, replay historical provider events, or recover events received before a route became eligible; bootstrap and discovery coverage remain backend responsibilities.
 
-A missed refresh objective alone MUST NOT clear or revoke an otherwise eligible, unexpired last-known-good table. It also MUST NOT add rows, renew freshness, reset the periodic due time, or bypass current dispatch authorization. Accepted invalidations, explicit access/approval failures, and failed pre-dispatch checks still block the affected authorization immediately. At or after hard expiry, new admissions and dispatch attempts MUST fail closed until complete successful reconciliation restores eligibility; retries continue independently. Successful reconciliation clears refresh degradation only after fenced atomic publication. Restarts require fresh reconciliation and MUST NOT reset snapshot age; use monotonic elapsed-time checks while running and reject uncertain persisted clock/age evidence.
-
-No eligible fresh snapshot means no new dispatch authorization. Ingress MUST explicitly reject/backpressure or durably hold work under a documented bounded pending-authorization policy; it MUST NOT acknowledge durable acceptance and silently drop events or call them nonmatches against an unavailable table. Unsent admitted work MAY wait within its documented retention/retry budget, but resumption requires its original approval/artifact binding to remain valid. Discovery does not replay historical provider events or promise recovery of events received before a route became eligible.
-
-The receiver MUST expose its configured `R`, `B`, `H`, and `F`, and per-repository last attempt/start, last complete authority-check/publication, next refresh due time, next retry/backoff, snapshot age/hard expiry, generation, active/blocked row counts, and failure reason. Report `degraded` refresh separately from `expired` or explicitly `blocked` eligibility; alert on missed objectives and hard expiry without logging credentials or original resource bodies. These guarantees concern discovery convergence and authorization freshness, not provider delivery latency, queue latency, GitHub run start/completion, exactly-once execution, or atomic execution-revision pinning.
+The receiver MUST expose the verified workflow hash/revision, table generation, last successful reconciliation, eligibility, and failure reason. It SHOULD expose its own scheduling/retry/expiry status when applicable, without logging credentials or original resource bodies. No provider-delivery, queue-latency, Actions-run, exactly-once, or atomic execution-revision guarantee follows from a discovery policy.
 
 ### Discovery acceptance cases
 
-Receiver tests MUST use a controlled clock and synthetic GitHub/approval responses to establish these properties before claiming this discovery contract:
+Receiver tests MUST use synthetic GitHub/approval responses to establish these properties before claiming this discovery contract. Timing tests exercise the backend's own documented policy, not a specification-defined cadence.
 
 | Case | Required result |
 | --- | --- |
@@ -325,11 +315,11 @@ Receiver tests MUST use a controlled clock and synthetic GitHub/approval respons
 | Default branch changes between file reads/publication | No mixed-revision table; discard/fence the candidate and reconcile the current branch. |
 | Deleted/disabled workflow, removed subscription/opt-in, or reused repository name | Remove/block the old route atomically; never retarget by name or keep obsolete rows through upsert. |
 | Copied manifest, duplicate route/family, native catch-all listener, or unsupported policy | Explicitly nonactivating; a manifest/route string alone cannot make an executable destination eligible. |
-| Stable unhinted change and burst of duplicate hints | Exercise completion-to-start scheduling and the configured `R + 2B` convergence and `H + B` hint objectives without debounce starvation. Test nondefault policy values, not only the 25-minute and 6-minute defaults. |
+| Periodic, event-driven, or lazy discovery; burst of duplicate hints | Preserve complete, fenced reconciliation under the backend's declared policy; no fixed polling interval is required for conformance. |
 | Unchanged commit with changed workflow state/access/approval, or representation-specific `304` | Recheck mutable authority; a blob/cache hit cannot renew unrelated evidence. |
-| Missed refresh or timeout/rate limit with an eligible unexpired snapshot | Mark degraded and retry without clearing rows or renewing freshness; allow existing rows only if current dispatch authorization succeeds. A later successful reconciliation restores normal status. |
-| Accepted invalidation, failed authorization, hard expiry, delayed timer, restart, or uncertain clock | No stale dispatch or readiness from persisted rows alone. Authorization at or after hard expiry rejects even when refresh/retry workers are late; an invalidated row cannot use the last-known-good exception. |
-| Refresh-policy change or attempt to extend freshness through failures | Require positive durations and `R + 2B < F`; an increased lease cannot extend an existing snapshot without successful reconciliation. Failed attempts, cache hits alone, and retry scheduling never reset age or periodic due time. |
+| Missing/mismatching `getToken` workflow hash | Verify the exact signed revision and refresh as required before granting access; stale metadata cannot authorize the request. |
+| Missed backend objective, timeout, or rate limit | Surface failure and apply the documented recovery/cache policy without manufacturing successful revalidation or bypassing current authorization. |
+| Accepted invalidation, failed authorization, backend-defined expiry, or restart | Block invalid authorization; persisted state and delayed timers cannot override required checks. No universal expiry duration or restart scan deadline is imposed. |
 | Older worker finishes after new publication/revocation; queued work meets a changed approval | Fencing prevents resurrection; the attempt remains bound to its original approved configuration or stays blocked. |
 | Dispatch authorized before a later revocation or branch change | Document the external race; do not claim the local table can recall requests or select GitHub's execution revision. |
 
@@ -458,7 +448,9 @@ This check authenticates the approved App principal, not a particular CAO proces
 
 ### Actions run, activation requests, and continuation
 
-**The current gateway has no activation-to-CAO authorization endpoint, token exchange, or continuation response.** The specified direction is CAO → GitHub dispatch → `gateway_provenance` → `pre_activation` → `activation` → agent. gh-aw implements the destination gate and local batch validation; the server-side calls above are CAO requirements, not evidence that a particular receiver revision is deployed or conforming. An Actions OIDC request is not part of this path, and gateway configuration alone does not grant `id-token: write`.
+The required integration path is CAO → GitHub dispatch → `gateway_provenance` → hash-bound `getToken` admission → the remaining activation checks → agent. The App gate authenticates the dispatch principal; `getToken` separately checks that the executing workflow version matches the server's verified workflow configuration and refreshes that configuration when necessary.
+
+**Implementation status:** gh-aw currently implements the App gate and local batch validation, not the gateway `getToken` call or its server. The hash-bound admission requirements below specify the extension to implement; compilation alone does not prove it is present. The existing compiler does not grant `id-token: write` for this new operation.
 
 | Stage | Credential, input, and continuation |
 | --- | --- |
@@ -466,6 +458,7 @@ This check authenticates the approved App principal, not a particular CAO proces
 | `gateway_provenance` starts | GitHub supplies this job's own read-only [`GITHUB_TOKEN`](https://docs.github.com/en/actions/concepts/security/github_token). It is distinct from the incoming CAO installation token and authenticates the gate's outgoing metadata requests only. No OIDC token or App private key is requested. |
 | The gate requests GitHub metadata | Pinned `actions/github-script` calls `github.rest.apps.getBySlug({app_slug: "cao", ...})` and `github.rest.users.getByUsername({username: "cao[bot]", ...})` using the job's `GITHUB_TOKEN`. These are the two REST requests below, not a call to a CAO endpoint. |
 | The gate decides | Both responses must be `200`. The App response's `id`/`slug` and bot response's `id`/`login`/`type` must match the central App/bot binding and original sender/actor. The route and event repository must match GitHub's destination context. Failure keeps `verified=false` and fails the job; success publishes only `verified=true`, not a bearer token. |
+| Hash-bound `getToken` admission, required extension | Trusted compiler-owned control-plane code obtains an OIDC token with the executing workflow hash in its audience and calls the approved backend. The server validates the signed run/revision and independently verified hash, refreshing stale workflow metadata before granting access. This phase MUST follow successful App provenance and precede custom pre-activation/activation steps, agent execution, or runtime credential grants. Failure MUST NOT be bypassed by custom activation outputs or conditions. |
 | `pre_activation` runs | Its direct dependency and mandatory condition require the successful provenance result and `verified == 'true'`. Its normal stop-time, rate, cooldown, and other configured checks still apply. The generated activation decision consumes the provenance output instead of generic role/bot membership. |
 | `activation` runs | After setup, `validate-webhook.cjs` reads `GITHUB_EVENT_PATH` locally and checks the route, closed numeric-v2 envelope, byte limits, projection, resource URLs, selected activities, and matching filter literals against compiled subscriptions. **This validation makes no HTTP request.** `generate_aw_info.cjs` then derives normalized deliveries and unique items for context and prompt expressions. |
 | The workflow continues | With the normal generated conditions, failed activation does not start the agent. After successful activation and the remaining configured guards, the agent stages the minimal event and handles every intended item. Additional data requires separately authorized provider clients; neither a URL nor successful provenance grants read access. Every job retains the direct provenance dependency, even when it uses `always()`. |
@@ -510,56 +503,65 @@ The successful response is `204 No Content`; Enterprise cleanup MUST use the app
 
 This requirement concerns explicitly minted runtime installation tokens, not the original server-held CAO dispatch credential, an OIDC ID token, or GitHub's platform-managed `GITHUB_TOKEN`. Using the action MUST NOT copy CAO's protected dispatch private key into a destination workflow or introduce token minting into the read-only `gateway_provenance` job. Runtime acceptance tests MUST cover successful, failed, and cancelled execution, skipped conditional minting, and explicit cleanup for service-minted tokens.
 
-### OIDC tokens: a separate, unimplemented endpoint journey
+### Workflow-hash-bound getToken admission
 
-An activation job **can** authenticate to an independently designed OIDC-aware service, but that would be an additional protocol, not the App-token verification above. GitHub documents token issuance and claims; it does not define a CAO request path, request body, authorization decision, or response schema.
+The agentic workflow MUST include its executing workflow hash when obtaining the OIDC credential for the backend's logical `getToken` operation. The server MUST validate that version before granting the requested credential or authorization to continue. This is additional to, not a replacement for, App-sender provenance, original-source admission, or current enrollment approval.
+
+`getToken` names the backend admission operation, not a GitHub REST endpoint. Its deployment endpoint and request/response framing remain backend-owned and MUST be documented, including closed schemas, bounded request handling, run/attempt correlation, replay/idempotency behavior, and explicit retryable/denied outcomes. GitHub's Actions toolkit method for obtaining the OIDC credential is `core.getIDToken(audience)`; a wrapper named `getToken` MUST preserve the same hash-bound audience.
+
+Here, **`workflow_hash` is the lowercase 64-character hexadecimal SHA-256 of the exact compiled `.lock.yml` Git blob bytes executing for the caller**, including its headers. No YAML reserialization, newline normalization, or field exclusion is applied. The trusted workflow control plane obtains those bytes from the compiled path and immutable `github.workflow_sha` supplied by GitHub, not a moving branch, arbitrary checkout, dispatch payload, or user-step output. The digest is computed from that blob; it is not a literal embedded in the blob being hashed, which would introduce a self-reference.
+
+This identifies the AW configuration/artifact version, not just the gh-aw CLI semantic version. A workflow ID, dispatch route, frontmatter hash alone, body hash alone, or current default-branch commit is not a substitute. GitHub's signed `workflow_sha` is the **commit** containing the workflow file, not this SHA-256 file digest; the server uses the signed repository/path/commit to verify the digest independently.
 
 The credentials involved MUST NOT be interchanged:
 
 | Credential | Issuer or holder | Intended recipient and authority |
 | --- | --- | --- |
 | `ACTIONS_ID_TOKEN_REQUEST_TOKEN` | GitHub Actions runner | Authenticates only the request to the runner-provided OIDC request URL. It MUST NOT be sent to CAO or to resource URLs. |
-| Actions OIDC ID token | GitHub's OIDC issuer | Proves signed workflow/job claims to the specifically approved audience. It is not a GitHub REST API access token or an App JWT; current gateway provenance does not use it. |
+| Actions OIDC ID token | GitHub's OIDC issuer | Binds the hash-bearing audience and GitHub-owned workflow/run claims for `getToken` admission. It is not a GitHub REST API access token or an App JWT; the separate App-provenance job does not use it. |
 | CAO App JWT | CAO, signed with its App private key | Authenticates CAO to GitHub's installation lookup and token-minting endpoints. It MUST remain server-side. |
 | CAO installation access token | GitHub, issued for the approved CAO installation | Authorizes the destination-scoped dispatch with `contents: write`. It MUST NOT be returned to the workflow as a provenance proof. |
 | Job `GITHUB_TOKEN` | GitHub Actions | Authorizes the particular job's GitHub API operations under its declared permissions, not calls to an arbitrary external service. |
 
-#### Requesting an Actions OIDC token
+#### Encoding the workflow hash in the OIDC call
 
-An OIDC-calling job needs **`id-token: write`** in its effective GitHub Actions permissions; grant it at job level for least privilege. That permission enables ID-token issuance; it does not grant repository write access. This is not currently added for gateway provenance. Optional observability OIDC elsewhere in a workflow has its own audience and is unrelated to gateway admission.
+The trusted job owning this call needs **`id-token: write`** and the read permission needed to obtain its exact compiled blob. Those permissions MUST be limited to the owning job; they do not grant repository write access. Keep `gateway_provenance` read-only and free of OIDC/App-token minting. Optional observability OIDC has its own audience and MUST NOT substitute for gateway admission.
 
-GitHub's [OIDC request methods](https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token) expose `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` to an authorized job. A custom action can request an ID token with the [Actions toolkit](https://docs.github.com/en/actions/concepts/security/openid-connect#authenticating-custom-actions-using-oidc):
+Trusted onboarding MUST configure a canonical HTTPS audience base without a trailing slash, query, or fragment. The audience is exactly `<approved-audience-base>/gh-aw/gateway/v1/workflow/sha256/<workflow_hash>`. This audience-format version is independent of subscription/envelope version `2`. The base is protected service identity configuration, not a URL supplied by a delivery, and the audience string is not itself a `getToken` endpoint.
 
-```javascript
-const audience = process.env.APPROVED_SERVICE_AUDIENCE;
-if (!audience) throw new Error("An approved OIDC service audience is required");
+GitHub's [OIDC request methods](https://docs.github.com/en/actions/reference/security/oidc#methods-for-requesting-the-oidc-token) permit a custom audience through the [Actions toolkit](https://docs.github.com/en/actions/concepts/security/openid-connect#authenticating-custom-actions-using-oidc). With `exactWorkflowBytes` obtained as specified above and `approvedAudienceBase` from trusted configuration:
+
+```javascript title="getToken-oidc.js"
+const { createHash } = require("node:crypto");
+const workflowHash = createHash("sha256").update(exactWorkflowBytes).digest("hex");
+const audience = `${approvedAudienceBase}/gh-aw/gateway/v1/workflow/sha256/${workflowHash}`;
 const idToken = await core.getIDToken(audience);
 core.setSecret(idToken);
 ```
 
-For an illustrative audience of `https://cao.example`, the equivalent request is:
+The hash MUST be in the audience passed to token issuance, not only an unsigned `getToken` request body/header. GitHub signs the resulting `aud`; the caller cannot add an arbitrary signed `workflow_hash` claim. If the backend request also carries a hash, it MUST equal the audience's hash. For an illustrative base of `https://cao.example`, the runner request is:
 
 ```http
-GET <ACTIONS_ID_TOKEN_REQUEST_URL>&audience=https%3A%2F%2Fcao.example HTTP/1.1
+GET <ACTIONS_ID_TOKEN_REQUEST_URL>&audience=https%3A%2F%2Fcao.example%2Fgh-aw%2Fgateway%2Fv1%2Fworkflow%2Fsha256%2F<workflow_hash> HTTP/1.1
 Authorization: Bearer <ACTIONS_ID_TOKEN_REQUEST_TOKEN>
 ```
 
-The URL is supplied by the runner and already has query parameters; this is **not** `GET https://api.github.com/...`. The actual audience must be URL-encoded, centrally approved, and explicitly supplied rather than relying on the default repository-owner audience. The JSON response's `value` field contains the signed ID token:
+The request URL and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` come from the runner; this is **not** a GitHub REST or CAO call. The audience must be URL-encoded and explicitly supplied rather than using the default repository-owner audience. The JSON response's `value` field contains the signed ID token:
 
 ```json
 {"value":"<signed GitHub Actions OIDC JWT>"}
 ```
 
-That value, not the request credential, is what an OIDC-aware service would receive as its bearer credential. Neither value may be printed, included in diagnostic HTTP traces, stored in artifacts, or forwarded to the agent.
+The workflow presents that value, not the runner's request credential, to the independently configured `getToken` endpoint over HTTPS. Neither credential may be printed, included in diagnostic HTTP traces, stored in artifacts, or forwarded to the agent. No hash or bearer-token field is added to the closed repository-dispatch envelope.
 
-#### What an endpoint must verify before continuation
+#### Server verification and on-demand refresh
 
-The following is an **illustrative decoded claim excerpt**, not a usable token or a newly defined CAO payload:
+The following is an **illustrative decoded claim excerpt**, not a usable token or a `getToken` request body:
 
 ```json
 {
   "iss": "https://token.actions.githubusercontent.com",
-  "aud": "https://cao.example",
+  "aud": "https://cao.example/gh-aw/gateway/v1/workflow/sha256/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "sub": "<subject allowed by the configured trust policy>",
   "repository": "owner/repo",
   "repository_id": "789",
@@ -581,9 +583,19 @@ The following is an **illustrative decoded claim excerpt**, not a usable token o
 
 See the authoritative [OIDC claim reference](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims). Claim presence and subject templates depend on the supported GitHub host and job configuration; `job_workflow_ref`/`job_workflow_sha` concern reusable workflows and are not substitutes for the caller's identity. GitHub also supports immutable/custom subjects, so a receiver MUST NOT assume every `sub` is a legacy `repo:owner/repo:ref:...` string.
 
-An endpoint accepting this credential would need to validate the signature and allowed algorithm/key using the **preconfigured trusted issuer's** discovery metadata and JWKS, not a token-supplied arbitrary URL. For GitHub.com, discovery is [`https://token.actions.githubusercontent.com/.well-known/openid-configuration`](https://token.actions.githubusercontent.com/.well-known/openid-configuration). It must check exact issuer/audience, validity times, approved immutable repository/owner identities, workflow path and approved revision, event/ref, and the intended run/attempt/job binding. A valid ID token alone does not establish source grants, approved compiler/manifest content, freshness of authorization, or a job's logical name `activation`. Client-supplied JSON does not become signed OIDC claims.
+The server MUST perform these checks before granting access:
 
-**No such CAO endpoint request or continuation payload is defined or implemented here.** In particular, there is no specified `POST /activate`, OIDC-to-App-token exchange, returned `allowed` field, or token that unblocks the current activation job. A future extension must separately define its endpoint, audience/trust policy, closed request/response schemas, request-to-run binding, replay/idempotency rules, timeouts, and fail-closed continuation before a compiler or receiver may claim support. It must not replace the existing App-sender gate or put bearer tokens into the closed dispatch envelope.
+1. Validate signature, allowed algorithm/key, exact issuer, and token validity using the **preconfigured trusted issuer's** discovery metadata and JWKS, never a token-supplied URL. For GitHub.com, discovery is [`https://token.actions.githubusercontent.com/.well-known/openid-configuration`](https://token.actions.githubusercontent.com/.well-known/openid-configuration). Validate the complete canonical hash-bearing audience against the enrolled base and format, not a permissive prefix or service-origin check.
+2. Bind the signed immutable repository/owner IDs, `workflow_ref` path, `workflow_sha`, expected event/ref, and run/attempt/job identity to the approved destination and backend admission record. A valid token/hash alone does not enroll a repository, approve a source, prove the dispatch action, or prove that a job's logical name is `activation`. Missing required claims or an unsupported reusable-workflow binding is nonactivating; client-supplied copies cannot replace signed claims.
+3. Resolve `(trusted GitHub host, repository ID, compiled workflow path, signed workflow_sha)` to the exact compiled blob using an authenticated GitHub read or a previously verified immutable-blob cache. Independently compute its `workflow_hash` and require equality with the signed audience. A caller chooses its requested audience: GitHub signing that string is **not** GitHub attesting the supplied content digest. Even a hash matching an old table row cannot bypass verification against the caller's signed revision.
+4. If the verified executing version is missing from or differs from the server's dispatch-table artifact binding, fetch its compiled workflow and corresponding AW source/imports as needed through approved repository/path mappings at that exact revision. Validate the manifest, supported compiler/subscription/projection policies, gate, source/destination approval, and artifact bindings. Reconcile and atomically publish eligible dispatch-table changes using the discovery/fencing rules. The server MUST NOT grant access while this mismatch remains unresolved; it MAY return an explicit retryable result and finish refresh asynchronously.
+5. Recheck token validity, current grants, and the request's admitted route/configuration before granting the requested credential or continuation, including after asynchronous refresh. Newly fetched content is not automatically approved. If approval is absent/revoked, a digest differs after retrieval, required source cannot be verified, or refresh fails, fail closed for that request without a fallback credential or success-shaped continuation.
+
+The exact signed revision is authoritative for identifying the executing workflow. Fetching only today's default-branch HEAD cannot validate an older running attempt. Conversely, an old attempt MUST NOT roll the live dispatch table back: current routing rows still describe the currently eligible default-branch artifacts. An older version MAY be retained for in-flight verification only under explicit version/admission approval; otherwise the request is denied. Unrelated default-branch commits need not force reapproval when the independently approved artifact binding is unchanged.
+
+The server SHOULD coalesce concurrent refreshes for the same verified repository/path/revision and bound fetches/cache growth under its own capacity policy. Authenticate and authorize the request before it can trigger expensive source retrieval. Durable generation fencing MUST prevent a late refresh from overwriting newer routing or resurrecting revoked approval. Backend-selected refresh scheduling, budgets, and retries MUST NOT change the hash equality or approval requirements.
+
+This binds admission to the actual executing artifact after GitHub has selected it; it does not make `repository_dispatch` select a ref or eliminate later source/runtime changes. It defines no OIDC lifetime override, renewal cadence, runtime-token expiry policy, or CAO dispatch-token exchange. The server-held dispatch App key/token remain server-side. An implementation MUST NOT claim hash-bound admission until the compiler-owned call, backend verification/refresh, and fail-closed continuation are wired together.
 
 ### Conformance and adoption
 
@@ -600,6 +612,13 @@ Receiver and compiler/runtime acceptance tests MUST cover the following cases be
 | Rerun by a different authorized user | Check the original dispatch principal, not the rerun requester; preserve GitHub's separate rerun authorization. |
 | Wrong destination installation/repository, excessive token scope, expired/revoked token, or mint failure | CAO refuses dispatch; no fallback token or broader installation-wide mint. |
 | Invalid batch from the approved App | Reject under existing route, projection, selector, size, and batch rules. |
+| Valid hash-bearing OIDC audience and independently verified compiled artifact at the signed workflow revision | Grant `getToken` access only after current enrollment/admission checks; the App gate remains independently required. |
+| Missing/malformed hash, unsigned hash only, wrong audience base/path, digest mismatch, or conflicting request-body hash | Reject before credential issuance or continuation, even if the requested hash matches a cached older row. |
+| Server table is behind the verified executing workflow | Fetch the exact revision, validate approved configuration, and refresh with atomic fencing before granting access; an explicit retryable result is permitted while refresh is pending. |
+| Refresh failure, unsupported/unapproved source, or revoked approval | Fail closed without automatic approval, fallback credentials, or success-shaped continuation. |
+| Repeated OIDC request or asynchronous refresh completion | Require valid authentication and current grants; reuse only the explicitly authorized idempotent outcome under the documented run/attempt/replay policy, never a fresh duplicate credential grant. |
+| Old running attempt after newer table publication | Verify the old artifact only if separately permitted for that admitted attempt; never replace current routing rows with the old snapshot. |
+| Changed compiled bytes, headers, or line endings; unrelated repository commit with identical workflow bytes | The first changes `workflow_hash`; the second preserves it. Verify the actual file at each signed revision rather than equating commit ID with content digest. |
 
 The envelope and subscription schema remain numeric version `2`; this contract adds no bearer token, payload proof, or projection field. Version `2`, the projection policy, and successful compilation alone MUST NOT be interpreted as provenance conformance. Receiver and destination workflow/compiler revisions MUST be independently approved together before activation. Older role/bot-only workflows are not conforming, and an unsupported destination MUST remain nonactivating rather than receive a permissive compatibility dispatch. Native non-gateway workflows retain their existing authorization behavior.
 
@@ -607,7 +626,7 @@ Receiver implementations MUST document their supported provider/authentication p
 
 Ingress body limits, provider API-response limits, and numeric representation/precision limits MUST be documented separately from the dispatch byte limits. Unsupported or oversized input MUST fail closed, not be truncated or coerced into a different resource identity/filter literal. A small permitted projection does not imply that a receiver accepts every provider-sized original body.
 
-Approved enrollment MUST bind the source identity/scope, destination GitHub host/repository/installation, workflow route, and reviewed compiled artifact/subscription configuration. A receiver MUST revalidate these bindings before a dispatch attempt, including retries; changed or revoked approval MUST NOT silently authorize queued work under a new configuration. The deployment MUST establish current default-branch workflow availability and approved artifact identity under [Workflow discovery and dispatch table](#workflow-discovery-and-dispatch-table), including its refresh/freshness bounds. A whole-branch commit pin or an artifact-content digest is an implementation choice, not a shared digest protocol. GitHub's dispatch API cannot select a workflow ref or atomically attest the revision that will execute; a preceding discovery check alone MUST NOT be advertised as that guarantee. Reviewed deployment controls must prevent unapproved destination workflow changes from becoming executable.
+Approved enrollment MUST bind the source identity/scope, destination GitHub host/repository/installation, workflow route, and reviewed compiled artifact/subscription configuration. A receiver MUST revalidate these bindings before a dispatch attempt, including retries; changed or revoked approval MUST NOT silently authorize queued work under a new configuration. The deployment MUST establish default-branch workflow availability and approved artifact identity under [Workflow discovery and dispatch table](#workflow-discovery-and-dispatch-table) using its own refresh policy, and verify the executing artifact through [hash-bound `getToken` admission](#workflow-hash-bound-gettoken-admission). Administrative approval may use a whole-branch pin or artifact-based policy; that choice does not change the specified SHA-256 `workflow_hash`. GitHub's dispatch API cannot select a workflow ref or atomically attest the revision that will execute; a preceding discovery check alone MUST NOT be advertised as that guarantee. Reviewed deployment controls and fail-closed admission must prevent unapproved destination workflow versions from gaining runtime authority.
 
 ## Dispatch envelope
 
@@ -841,9 +860,9 @@ The agent MUST handle every intended item explicitly, not silently use the first
 | Component | Contract responsibility |
 | --- | --- |
 | Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata, restricted dispatch routing, and the mandatory App-provenance activation gate. External providers do not create GitHub source-webhook requirements; all gateway families still require the CAO destination App-token contract. |
-| Approved receiver | Reconcile approved default-branch subscriptions into an atomically published, freshness-bounded dispatch table; verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch using the scoped installation token for the approved CAO App. Keep administrative grants and minting authority separate from untrusted metadata. |
+| Approved receiver | Reconcile approved default-branch subscriptions into an atomically published dispatch table under a backend-owned refresh policy; verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch using the scoped installation token for the approved CAO App. Verify hash-bound `getToken` requests and refresh stale workflow configuration before granting access. Keep administrative grants and minting authority separate from untrusted metadata. |
 | Runner | Validate route, schema, projection policy, sizes, closed payload/filter key/value allowlist, complete condition alternatives, URL-derived identity, selected activities/native registration, and explicit repository/organization selectors. It does not fetch resource details or re-derive source transitions. Invalid elements fail the whole batch. |
-| Workflow | Resolve any additional resource data through configured provider-authenticated clients so the provider enforces access. Handle denied/deleted resources without falling back to native webhook bodies. |
+| Workflow | Complete compiler-owned hash-bound `getToken` admission before custom steps, agent execution, or runtime credential grants. Resolve any additional resource data through configured provider-authenticated clients so the provider enforces access. Handle denied/deleted resources without falling back to native webhook bodies. |
 | App-provenance gate | Require the approved GitHub-owned CAO App sender and original actor identity before custom steps or privileged work. Role/bot rules cannot widen this trust boundary. It does not authenticate original provider signatures. |
 
 The runner checks projected filter values against `conditions` and a complete `any_of` group, but cannot independently prove the original-payload predicates or lifecycle/label evidence. Original-source matching belongs to the authenticated receiver before projection. Types and filter values describe the delivered event, not an assurance of current state or continuing access. A correctly shaped URL is not proof of source authorization or provider access.
@@ -860,7 +879,7 @@ The workflow MUST use an authenticated GitHub App client for additional GitHub d
 
 Triggers do not provision provider credentials, tools, or read permissions. Workflows without an authorized reader MUST report unresolved or denied resources rather than infer unavailable details.
 
-Receiver deployment, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility are not implemented by these declarations. Secret scanning, Projects (classic), custom webhook identifiers, and non-batch payload envelopes are unsupported.
+Receiver deployment, hash-bound `getToken` calls and server verification/refresh, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility are not implemented by these declarations. Secret scanning, Projects (classic), custom webhook identifiers, and non-batch payload envelopes are unsupported.
 
 ## References
 
