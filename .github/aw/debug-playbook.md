@@ -5,7 +5,7 @@ disable-model-invocation: true
 
 # Debug Playbook
 
-Fix the first failing boundary within authorization.
+Fix first failing boundary within authorization.
 Follow [debugging gates](debug-agentic-workflow.md). Do not dispatch workflows.
 Never execute untrusted artifacts. Keep secrets, prompts, config/environment
 values and opaque reasoning private.
@@ -20,18 +20,18 @@ gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout: incomplete JSON report possible. Reuse cache; fetch missing evidence only.
+Timeout: incomplete JSON report possible. Fetch only missing evidence.
 Read only the linked `key_findings[].playbook_url` section or exact-code row.
-Trace causes, not cascades; compare one relevant success if needed.
+Trace causes, not cascades.
 Fleet: [cluster first](analyzing-runs.md).
 
 Preserve code case/punctuation/namespace; emitter determines severity.
-Success, advisory, pending, skipped and policy-denied outcomes need not be bugs.
+Success/advisory/pending/skipped/policy-denied outcomes need not be bugs.
 Unknown codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
 
-Use same-run artifacts, never baseline evidence.
+Use same-run artifacts, never baseline.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -160,7 +160,8 @@ Registration/nonempty `safeoutputs.jsonl` does not prove publication.
 | Codes | Check | Remedy |
 | --- | --- | --- |
 | `agent_startup_failure` | First setup/engine error. | Fix startup; missing output need not be agent choice. |
-| `engine_driver_failure` | Driver exit; final native event. | Fix driver before output instructions. |
+| `engine_driver_failure`, `driver_crash` | Driver exit/signal; final native event. | Fix driver before output instructions. |
+| `secret_redaction_failure` | Redaction diagnostic. | Repair redaction; never publish unredacted logs. |
 | `safeoutputs_cli_error` | Arguments, registration, denial. | Fix supported invocation/allowlist; no unauthorized `gh` writes. |
 | `invalid_safe_outputs` | Record errors; generated schema. | Fix emitted type/fields; retain validation. |
 | `missing_terminal_safe_output` | Expected terminal tool, denied calls, last session event. | Repair publication path or prompt completion contract; silence is not an intentional noop. |
