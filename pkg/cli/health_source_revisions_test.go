@@ -171,6 +171,15 @@ func TestHealthSourceLookupFailuresDoNotProveAChange(t *testing.T) {
 }
 
 func TestHealthSourceLookupFailureKeepsRunAsCurrentEvidence(t *testing.T) {
+	for _, lockBody := range []string{"prompt", "older-prompt"} {
+		t.Run(lockBody, func(t *testing.T) {
+			testHealthSourceLookupFailureKeepsRunAsCurrentEvidence(t, lockBody)
+		})
+	}
+}
+
+func testHealthSourceLookupFailureKeepsRunAsCurrentEvidence(t *testing.T, lockBody string) {
+	t.Helper()
 	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
 	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
 	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
@@ -185,17 +194,28 @@ func TestHealthSourceLookupFailureKeepsRunAsCurrentEvidence(t *testing.T) {
 		if strings.HasSuffix(endpoint.Path, ".md") {
 			return []byte(strings.Repeat("c", 40)), nil
 		}
+		if endpoint.Query().Get("ref") != "main" {
+			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"` + lockBody + `"}`), nil
+		}
 		return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 	}
 	run := WorkflowRun{DatabaseID: 1, Repository: "org/repo", WorkflowPath: ".github/workflows/example.lock.yml", Event: "schedule",
 		HeadBranch: "main", HeadSha: strings.Repeat("a", 40), Attempt: 1, Status: "completed", Conclusion: "failure"}
 	collection := &HealthCollection{Host: "github.com", repoOverride: "org/repo"}
 	resolveHealthRevision(run, collection)
+	require.NotNil(t, collection.revisions[healthRevisionLookupKey(run)], "the immutable lock lookup succeeds")
+	require.NotNil(t, collection.headRevisions[healthHeadRevisionKey(run)], "the branch lock lookup succeeds")
+	assert.NotEmpty(t, collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadBranch)], "the branch source lookup succeeds")
 	assert.False(t, healthSourceChanged(run, collection), "a missing run-source lookup is not evidence of a source change")
 	health := calculateCurrentWorkflowHealth("Example", []WorkflowRun{run}, HealthConfig{Threshold: 80, RepoOverride: "org/repo", collection: collection})
-	assert.Equal(t, "failures_observed", health.Status)
+	assert.Equal(t, "revision_unknown", health.Status)
 	assert.Equal(t, []int64{run.DatabaseID}, health.Revisions[0].Current.RunIDs)
+	assert.Nil(t, health.Revisions[0].Previous, "an unavailable lookup must not create a revision boundary")
 	assert.Equal(t, 1, health.FailureCount)
+	clusters, plan := buildHealthFailureClusters([]WorkflowRun{run}, HealthConfig{Threshold: 80, RepoOverride: "org/repo", collection: collection})
+	require.Len(t, clusters, 1)
+	require.NotNil(t, plan)
+	assert.Equal(t, 1, plan.UniqueFailedRuns)
 }
 
 func TestHealthBranchSourceChecksAreIndependentOfRevisionMetadataCache(t *testing.T) {

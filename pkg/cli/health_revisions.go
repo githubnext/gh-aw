@@ -26,6 +26,7 @@ type HealthRevisionCohort struct {
 	LastSeen         time.Time `json:"last_seen"`
 	lastCompleted    time.Time
 	key              string
+	revisionUnknown  bool
 }
 
 type HealthRevisionStatus struct {
@@ -41,10 +42,7 @@ func healthRunRevision(run WorkflowRun, collection *HealthCollection) (*workflow
 	if collection != nil {
 		source, checked := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)]
 		if checked && source == "" {
-			source = collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadBranch)]
-			if source == "" {
-				return nil, "unknown:" + run.HeadSha
-			}
+			return nil, "unknown:" + run.HeadSha
 		}
 		if checked && healthSourceChanged(run, collection) {
 			return nil, healthContentRevisionKey(nil, source)
@@ -112,6 +110,11 @@ func appendHealthRevisionRun(status *HealthRevisionStatus, run WorkflowRun, meta
 	if status.Current == nil {
 		status.Current = newHealthRevisionCohort(metadata, key)
 	}
+	unknownCurrent := status.Previous == nil && strings.HasPrefix(key, "unknown:")
+	if unknownCurrent {
+		// A failed lookup does not establish a revision boundary or remove current evidence.
+		key = status.Current.key
+	}
 	cohort := status.Current
 	if status.Previous != nil {
 		cohort = status.Previous
@@ -124,6 +127,7 @@ func appendHealthRevisionRun(status *HealthRevisionStatus, run WorkflowRun, meta
 	if cohort.key != key || cohort.IndependentRuns >= healthMinimumRuns {
 		return
 	}
+	cohort.revisionUnknown = cohort.revisionUnknown || unknownCurrent
 	cohort.RunIDs = append(cohort.RunIDs, run.DatabaseID)
 	cohort.FirstSeen = run.CreatedAt
 	if cohort.LastSeen.IsZero() {
@@ -155,7 +159,7 @@ func newHealthRevisionCohort(metadata *workflow.LockMetadata, key string) *Healt
 
 func classifyHealthRevision(status HealthRevisionStatus) string {
 	current := status.Current
-	if strings.HasPrefix(current.key, "unknown:") {
+	if current.revisionUnknown || strings.HasPrefix(current.key, "unknown:") {
 		return "revision_unknown"
 	}
 	if len(current.RunIDs) == 0 {
