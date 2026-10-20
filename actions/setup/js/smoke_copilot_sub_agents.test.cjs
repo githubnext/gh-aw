@@ -12,15 +12,21 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 function evidence() {
   const agents = [
-    ["haiku-whoami", "copilot-completions/claude-haiku-4.5", "/chat/completions"],
-    ["mini-whoami", "copilot-responses/gpt-5-mini", "/responses"],
-    ["mini54-whoami", "copilot-responses/gpt-5.4-mini", "/responses"],
+    ["haiku-whoami", "copilot-completions/claude-haiku-4.5", "/chat/completions", "claude-haiku-4.5", "exact"],
+    ["gpt5-whoami", "copilot-responses/gpt-5.6-luna", "/responses", "gpt-5", "resolved"],
+    ["luna-whoami", "copilot-responses/gpt-5.6-luna", "/responses", "gpt-5.6-luna", "exact"],
   ];
   return {
-    events: agents.flatMap(([agentName, model]) => [
-      { type: "subagent.started", data: { agentName, model, invocationId: agentName } },
-      { type: "subagent.completed", data: { model, invocationId: agentName } },
-    ]),
+    events: [
+      ...agents.flatMap(([agentName, model]) => [
+        { type: "subagent.started", data: { agentName, model, invocationId: agentName } },
+        { type: "subagent.completed", data: { model, invocationId: agentName } },
+      ]),
+      ...agents.map(([role, model, , configured_model, status]) => ({
+        type: "model.resolution",
+        data: { engine: "copilot", role, configured_model, resolved_model: model.split("/")[1], provider: "copilot", status, cause: null },
+      })),
+    ],
     requests: agents.map(([, model, endpoint]) => ({ model: model.split("/")[1], path: endpoint, status: 200 })),
   };
 }
@@ -53,7 +59,26 @@ describe("Copilot sub-agent smoke evidence", () => {
   });
 
   test("rejects success without delegation", async () => {
-    await expect(assertEvidence({ events: [], requests: evidence().requests })).rejects.toThrow("must actually run");
+    const data = evidence();
+    await expect(assertEvidence({ events: data.events.filter(event => event.type === "model.resolution"), requests: data.requests })).rejects.toThrow("must actually run");
+  });
+
+  test("rejects a sub-agent without a model.resolution record", async () => {
+    const data = evidence();
+    data.events = data.events.filter(event => !(event.type === "model.resolution" && event.data.role === "gpt5-whoami"));
+    await expect(assertEvidence(data)).rejects.toThrow("gpt5-whoami must have exactly one model.resolution record");
+  });
+
+  test("rejects a failed sub-agent model resolution", async () => {
+    const data = evidence();
+    Object.assign(data.events.find(event => event.type === "model.resolution" && event.data.role === "luna-whoami").data, { resolved_model: null, status: "failed", cause: "model_unavailable" });
+    await expect(assertEvidence(data)).rejects.toThrow("luna-whoami model.resolution status is failed, expected exact");
+  });
+
+  test("expects the alias sub-agent to serve the model the harness resolved", async () => {
+    const data = evidence();
+    data.events.find(event => event.type === "model.resolution" && event.data.role === "gpt5-whoami").data.resolved_model = "gpt-6-luna";
+    await expect(assertEvidence(data)).rejects.toThrow("gpt5-whoami changed or fell back from gpt-6-luna");
   });
 
   test("rejects a sub-agent that falls back to the main model", async () => {
@@ -64,7 +89,7 @@ describe("Copilot sub-agent smoke evidence", () => {
 
   test("rejects selection of a different model", async () => {
     const data = evidence();
-    data.events.push({ type: "subagent.selected", data: { invocationId: "haiku-whoami", selectedModel: "copilot-responses/gpt-5-mini" } });
+    data.events.push({ type: "subagent.selected", data: { invocationId: "haiku-whoami", selectedModel: "copilot-responses/gpt-5.6-luna" } });
     await expect(assertEvidence(data)).rejects.toThrow("changed or fell back");
   });
 

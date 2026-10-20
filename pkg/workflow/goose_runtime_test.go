@@ -214,7 +214,7 @@ func TestGooseSmokeEvidenceContract(t *testing.T) {
 	require.NoError(t, err)
 	for _, expected := range []string{
 		"max-turns: 30", "max-ai-credits: 20", "fetch-homepage:",
-		"model: copilot/gpt-5.4",
+		"model: copilot/claude-haiku-5.5",
 		"Assert Goose smoke evidence", "if: always()", `"Goose execution failed"`,
 		`["bash", "build", "fileWrite", "runtime", "webFetch"]`,
 		`"No successful native GitHub MCP round-trip"`,
