@@ -7,6 +7,12 @@ sidebar:
 
 GitHub Agentic Workflows uses an [AI engine](/gh-aw/reference/glossary/#engine) - usually a coding agent - to interpret a workflow's Markdown instructions. Set the engine in YAML frontmatter; GitHub Actions then runs that engine with the workflow's configured tools, permissions, sandbox, and outputs.
 
+## Data handling before setup
+
+The selected engine, model service and enabled integrations determine where workflow context is processed. Authentication, data handling, retention and available safeguards vary by provider and configuration; not every workflow uses GitHub Copilot services.
+
+Before enabling an engine, review its setup documentation and applicable provider terms. Check which repository content and credentials are accessible, which tools and outbound destinations are permitted, and who can access retained logs and artifacts.
+
 ## Built-in AI engines
 
 Set `engine:` in workflow frontmatter and configure the corresponding authentication method:
@@ -570,6 +576,8 @@ Threat detection runs default `max-retries` to **0** instead of inheriting the h
 - Without AWF (`sandbox.agent: false`) there is no live model list. Exact ids pass through, and so does a value whose id is listed in gh-aw's bundled model catalogue (`models.json`) even when an alias has the same name, such as `copilot/gpt-5.4` or `gpt-5-mini`. Other aliases, such as `small` or `opus`, fail with `catalog_unavailable`; Claude never falls back to Claude Code's own `opus`, `sonnet` or `haiku`.
 
 The harness logs the configured and resolved model and records them as a `model.resolution` event in `usage/aw_session.jsonl`, so audits show when an alias moved to a different model. Gemini and declarative engines do not resolve aliases yet: they receive the configured model unchanged, and the compiler warns when one of them is given an alias. Built-in aliases are listed in [Model Aliases](/gh-aw/reference/model-tables/).
+
+If Pi rejects a sub-agent's model during its startup availability check, the resolution record for every sub-agent using that model reports `status: failed`, `cause: model_unavailable`, and `resolved_model: null`. This replaces the earlier successful resolution record in both routed and unrouted runs; startup stops before the sub-agent executes.
 
 ### Ordered model fallback (`fallback-models`)
 

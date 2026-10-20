@@ -9,6 +9,7 @@
 const HANDLER_TYPE = "call_workflow";
 
 const { buildAwContext } = require("./aw_context.cjs");
+const { redactWebhookPayloads } = require("./webhook_context.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
@@ -93,10 +94,11 @@ async function main(config = {}) {
         inputs.aw_context = JSON.stringify(inputs.aw_context);
       }
       const payloadJson = JSON.stringify(inputs);
+      const logPayloadJson = JSON.stringify({ ...inputs, aw_context: redactWebhookPayloads(inputs.aw_context) });
 
       // If in staged mode, preview the workflow call without executing it
       if (isStaged) {
-        logStagedPreviewInfo(`Would call workflow: ${workflowName} with payload: ${payloadJson}`);
+        logStagedPreviewInfo(`Would call workflow: ${workflowName} with payload: ${logPayloadJson}`);
         return {
           success: true,
           staged: true,
@@ -110,7 +112,7 @@ async function main(config = {}) {
       core.setOutput("call_workflow_payload", payloadJson);
 
       core.info(`✓ Selected workflow: ${workflowName}`);
-      core.info(`  Payload: ${payloadJson}`);
+      core.info(`  Payload: ${logPayloadJson}`);
 
       return {
         success: true,

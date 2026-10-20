@@ -10,7 +10,11 @@ package workflow
 import (
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var githubAppRequirementsLog = logger.New("workflow:github_app_requirements")
 
 // permissionScopesWithoutAppManifestEquivalent lists Actions-only permission scopes
 // that have no corresponding GitHub App manifest "default_permissions" entry and
@@ -83,6 +87,41 @@ func ComputeGitHubAppManifestPermissions(frontmatterPermissions any, safeOutputs
 	return result
 }
 
+// ComputeGitHubAppManifestWebhookPermissions derives the receiving GitHub App
+// permissions required for the selected webhook events in a workflow's "on" value.
+// These are separate from permissions granted to the workflow's GITHUB_TOKEN.
+func ComputeGitHubAppManifestWebhookPermissions(onValue any) map[string]string {
+	eventPermissions := map[string]PermissionScope{
+		"projects_v2_item":    PermissionOrganizationProj,
+		"code_scanning_alert": PermissionSecurityEvents,
+		"dependabot_alert":    PermissionVulnerabilityAlerts,
+	}
+
+	result := make(map[string]string)
+	for _, event := range NormalizeGitHubAppWebhookEvents(onValue) {
+		scope, ok := eventPermissions[event]
+		if !ok {
+			continue
+		}
+		key, supported := GitHubAppManifestPermissionKey(scope)
+		if supported {
+			result[key] = "read"
+		}
+	}
+	subscriptions, err := ParseWebhookSubscriptions(onValue, "manifest")
+	if err != nil {
+		githubAppRequirementsLog.Print("Cannot infer gateway App permissions: invalid gateway trigger declaration")
+		return nil
+	}
+	for _, subscription := range subscriptions {
+		addGatewaySubscriptionPermissions(result, subscription)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
 // nonWebhookOnTriggers lists workflow "on:" triggers that Actions supports but that
 // are not deliverable to a GitHub App webhook subscription: they are driven by
 // Actions scheduling/dispatch/composition, not by a webhook event delivered to an
@@ -135,6 +174,10 @@ func rawOnSectionTriggerNames(onValue any) []string {
 // on:-section extension keys (reaction, status-comment, github-app, bots, roles,
 // etc.) that are not themselves webhook events.
 func NormalizeGitHubAppWebhookEvents(onValue any) []string {
+	if !exclusiveGatewayDispatchEnrollment(onValue) {
+		githubAppRequirementsLog.Print("Cannot infer gateway App events: gateway-dispatch cannot be combined with other triggers")
+		return nil
+	}
 	eventSet := map[string]struct{}{}
 	addEvents := func(events []string) {
 		for _, event := range events {
@@ -145,6 +188,10 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 	for _, name := range rawOnSectionTriggerNames(onValue) {
 		name = strings.TrimSpace(name)
 		if name == "" {
+			continue
+		}
+		if events, ok := firstClassWebhookEvents(name, onValue); ok {
+			addEvents(events)
 			continue
 		}
 
@@ -185,4 +232,38 @@ func NormalizeGitHubAppWebhookEvents(onValue any) []string {
 	}
 	sort.Strings(events)
 	return events
+}
+
+func exclusiveGatewayDispatchEnrollment(onValue any) bool {
+	on, ok := onValue.(map[string]any)
+	if !ok {
+		return true
+	}
+	if _, gateway := on["gateway-dispatch"]; !gateway {
+		return true
+	}
+	return validateGatewayDispatchExclusive(on) == nil
+}
+
+func firstClassWebhookEvents(name string, onValue any) ([]string, bool) {
+	if name != "gateway-dispatch" {
+		return nil, false
+	}
+	subscriptions, err := ParseWebhookSubscriptions(onValue, "manifest")
+	if err != nil {
+		githubAppRequirementsLog.Print("Cannot infer gateway App events: invalid gateway trigger declaration")
+		return nil, true
+	}
+	events := make([]string, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		if subscription.Provider != "" {
+			continue
+		}
+		if len(subscription.NativeEvents) > 0 {
+			events = append(events, subscription.NativeEvents...)
+		} else {
+			events = append(events, subscription.Event)
+		}
+	}
+	return events, true
 }
