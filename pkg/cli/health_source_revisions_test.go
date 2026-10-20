@@ -170,6 +170,74 @@ func TestHealthSourceLookupFailuresDoNotProveAChange(t *testing.T) {
 	}
 }
 
+func TestHealthSourceLookupFailureKeepsRunAsCurrentEvidence(t *testing.T) {
+	originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+	t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+	fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+		return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+	}
+	healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		endpoint, err := url.Parse(args[3])
+		require.NoError(t, err)
+		if strings.HasSuffix(endpoint.Path, ".md") && endpoint.Query().Get("ref") != "main" {
+			return nil, errors.New("HTTP 404")
+		}
+		if strings.HasSuffix(endpoint.Path, ".md") {
+			return []byte(strings.Repeat("c", 40)), nil
+		}
+		return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
+	}
+	run := WorkflowRun{DatabaseID: 1, Repository: "org/repo", WorkflowPath: ".github/workflows/example.lock.yml", Event: "schedule",
+		HeadBranch: "main", HeadSha: strings.Repeat("a", 40), Attempt: 1, Status: "completed", Conclusion: "failure"}
+	collection := &HealthCollection{Host: "github.com", repoOverride: "org/repo"}
+	resolveHealthRevision(run, collection)
+	assert.False(t, healthSourceChanged(run, collection), "a missing run-source lookup is not evidence of a source change")
+	health := calculateCurrentWorkflowHealth("Example", []WorkflowRun{run}, HealthConfig{Threshold: 80, RepoOverride: "org/repo", collection: collection})
+	assert.Equal(t, "failures_observed", health.Status)
+	assert.Equal(t, []int64{run.DatabaseID}, health.Revisions[0].Current.RunIDs)
+	assert.Equal(t, 1, health.FailureCount)
+}
+
+func TestHealthBranchSourceChecksAreIndependentOfRevisionMetadataCache(t *testing.T) {
+	for _, order := range [][]string{{"main", "feature"}, {"feature", "main"}} {
+		t.Run(strings.Join(order, "-first"), func(t *testing.T) {
+			originalRate, originalGH := fetchRateLimitForHostFunc, healthRunGH
+			t.Cleanup(func() { fetchRateLimitForHostFunc, healthRunGH = originalRate, originalGH })
+			fetchRateLimitForHostFunc = func(context.Context, string) (rateLimitResource, error) {
+				return rateLimitResource{Limit: 5000, Remaining: 4000}, nil
+			}
+			runSHA, oldSource, updatedSource := strings.Repeat("a", 40), strings.Repeat("d", 40), strings.Repeat("c", 40)
+			healthRunGH = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				endpoint, err := url.Parse(args[3])
+				require.NoError(t, err)
+				ref := endpoint.Query().Get("ref")
+				if strings.HasSuffix(endpoint.Path, ".md") {
+					if ref == "feature" {
+						return []byte(updatedSource), nil
+					}
+					return []byte(oldSource), nil
+				}
+				return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
+			}
+			collection := &HealthCollection{Host: "github.example.com", repoOverride: "github.example.com/org/repo"}
+			runs := make(map[string]WorkflowRun)
+			for _, branch := range []string{"main", "feature"} {
+				runs[branch] = WorkflowRun{DatabaseID: 1, Repository: "org/repo", WorkflowPath: ".github/workflows/example.lock.yml",
+					HeadBranch: branch, HeadSha: runSHA, Event: "schedule", Attempt: 1, Status: "completed", Conclusion: "failure"}
+			}
+			for _, branch := range order {
+				resolveHealthRevision(runs[branch], collection)
+			}
+			assert.False(t, healthSourceChanged(runs["main"], collection))
+			assert.True(t, healthSourceChanged(runs["feature"], collection))
+			require.NotNil(t, collection.revisions[healthRevisionLookupKey(runs["main"])],
+				"the superseded branch must not cache nil metadata for the unchanged branch")
+			_, key := healthRunRevision(runs["main"], collection)
+			assert.NotContains(t, key, "unknown:")
+		})
+	}
+}
+
 func TestHealthSourceBoundaryDoesNotHideOtherScopes(t *testing.T) {
 	originalList, originalGH := healthListWorkflowRuns, healthRunGH
 	t.Cleanup(func() { healthListWorkflowRuns, healthRunGH = originalList, originalGH })

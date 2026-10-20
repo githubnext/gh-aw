@@ -31,6 +31,9 @@ covers representative verification. Counts survive budget exhaustion even if
 verification is unfinished. The later chronological pass adds successful and
 pending evidence, prioritizing recently failing workflows. A truncated sample is
 not a fleet failure rate or proof that remaining workflows are healthy.
+The inventory keeps up to five candidates per workflow and stops when every
+registered workflow reaches that count or after ten pages. The page cap marks
+collection partial while leaving chronological sampling available.
 It samples backward per AW toward five completed first-attempt runs, bounded by
 `--days` and API quota. Read `collection` and `workflows[].revisions`: compare
 `gh-aw-metadata` frontmatter/body hashes, not repository commits alone.

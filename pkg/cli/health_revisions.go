@@ -41,7 +41,13 @@ func healthRunRevision(run WorkflowRun, collection *HealthCollection) (*workflow
 	if collection != nil {
 		source, checked := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)]
 		if checked && source == "" {
-			return nil, "unknown:" + run.HeadSha
+			source = collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadBranch)]
+			if source == "" {
+				return nil, "unknown:" + run.HeadSha
+			}
+		}
+		if checked && healthSourceChanged(run, collection) {
+			return nil, healthContentRevisionKey(nil, source)
 		}
 		if metadata := collection.revisions[healthRevisionLookupKey(run)]; metadata != nil {
 			return metadata, healthContentRevisionKey(metadata, source)
@@ -89,9 +95,9 @@ func healthRevisionStatuses(runs []WorkflowRun, collection *HealthCollection) []
 		appendHealthRevisionRun(status, run, metadata, key)
 		if collection != nil {
 			source := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)]
-			if status.Current.key == key {
+			if status.Current.key == key && source != "" {
 				status.Current.SourceSHA = source
-			} else if status.Previous != nil && status.Previous.key == key {
+			} else if status.Previous != nil && status.Previous.key == key && source != "" {
 				status.Previous.SourceSHA = source
 			}
 		}
@@ -169,6 +175,33 @@ func classifyHealthRevision(status HealthRevisionStatus) string {
 	return "healthy"
 }
 
+func higherPriorityHealthStatus(current, candidate string) bool {
+	return healthStatusPriority(candidate) > healthStatusPriority(current)
+}
+
+func healthStatusPriority(status string) int {
+	switch status {
+	case "failures_observed":
+		return 7
+	case "not_collected":
+		return 6
+	case "revision_unknown":
+		return 5
+	case "no_current_revision_runs":
+		return 4
+	case "insufficient_evidence":
+		return 3
+	case "recovery_observed":
+		return 2
+	case "healthy":
+		return 1
+	case "no_recent_runs":
+		return 0
+	default:
+		return -1
+	}
+}
+
 func healthWorkflowEvidenceEnough(runs []WorkflowRun, collection *HealthCollection) bool {
 	statuses := healthRevisionStatuses(runs, collection)
 	if len(statuses) == 0 {
@@ -196,7 +229,7 @@ func calculateCurrentWorkflowHealth(name string, runs []WorkflowRun, config Heal
 		health.Status = "not_collected"
 	}
 	for _, revision := range revisions {
-		if revision.Status == "failures_observed" || health.Status == "no_recent_runs" || health.Status == "healthy" || health.Status == "recovery_observed" {
+		if higherPriorityHealthStatus(health.Status, revision.Status) {
 			health.Status = revision.Status
 		}
 	}

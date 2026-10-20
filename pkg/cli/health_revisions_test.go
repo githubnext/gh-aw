@@ -51,6 +51,22 @@ func TestHealthRevisionRecoveryAndCurrentClusters(t *testing.T) {
 	assert.Equal(t, health, calculateCurrentWorkflowHealth("Example", runs, config))
 }
 
+func TestHealthFailureStatusPrecedesInsufficientRevisionEvidenceInEitherOrder(t *testing.T) {
+	for _, statuses := range [][]string{
+		{"insufficient_evidence", "failures_observed"},
+		{"failures_observed", "insufficient_evidence"},
+	} {
+		current := "no_recent_runs"
+		for _, candidate := range statuses {
+			if higherPriorityHealthStatus(current, candidate) {
+				current = candidate
+			}
+		}
+		assert.Equal(t, "failures_observed", current)
+	}
+	assert.False(t, higherPriorityHealthStatus("failures_observed", "insufficient_evidence"))
+}
+
 func TestHealthIgnoresNonDispatchedConclusions(t *testing.T) {
 	for _, blocked := range []WorkflowRun{
 		{Status: "waiting", Conclusion: "action_required"},
