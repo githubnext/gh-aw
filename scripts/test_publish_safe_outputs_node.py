@@ -144,6 +144,19 @@ class PublishSafeOutputsNodeTests(unittest.TestCase):
         )[0]
         self.assertIn("python3 scripts/test_publish_safe_outputs_node.py", recipe)
 
+    def test_npm_patches_require_reported_fixed_versions(self):
+        dockerfile = (
+            WORKFLOW.parents[2] / "actions/setup/js/Dockerfile.safe-outputs-mcp"
+        ).read_text()
+        for package, version in (
+            ("brace-expansion", "5.0.11"),
+            ("undici", "6.28.1"),
+            ("tar", "7.5.22"),
+            ("ip-address", "10.3.1"),
+        ):
+            with self.subTest(package=package):
+                self.assertIn(f'"{package}@^{version}"', dockerfile)
+
 
 if __name__ == "__main__":
     unittest.main()
