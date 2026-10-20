@@ -106,10 +106,11 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `bazel` | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
 | `clojure` | Clojure packages (`clojars.org`) |
 | `copilot-vendor` | Plan-specific Copilot API hosts (`api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`) and Copilot telemetry (`telemetry.enterprise.githubcopilot.com`) — not enabled by default, since agents route inference through the firewall gateway |
+| `codex-vendor` | Optional Codex authentication and telemetry (`auth.openai.com`, `ab.chatgpt.com`) — explicit opt-in |
 | `copilot` | Copilot engine transport (`api.githubcopilot.com`, GitHub API/web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `claude` | Claude engine gateway/GitHub transport (`api.github.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`); direct Anthropic API is added only when the effective target is Anthropic |
-| `codex` | Codex engine transport (`api.openai.com`, `chatgpt.com`, GitHub API/web, `host.docker.internal`) |
-| `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, `*.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
+| `codex` | Codex engine transport (`172.30.0.1`, `api.openai.com`, GitHub API/web, `host.docker.internal`) |
+| `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi` | Pi engine transport (`api.githubcopilot.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi-base` | Pi provider-independent baseline (`github.com`, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `threat-detection` | Compatibility alias for Copilot threat-detection network access (`api.githubcopilot.com`, Copilot plan APIs, `api.github.com`, `github.com`, `host.docker.internal`, `registry.npmjs.org`) |

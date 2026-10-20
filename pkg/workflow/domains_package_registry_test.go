@@ -133,39 +133,93 @@ func TestEngineDefaultDomainsKeepTransportDomains(t *testing.T) {
 	}
 }
 
+type engineEcosystemDomainOverlap struct {
+	engine, rule, ecosystem, domain string
+}
+
+func engineDefaultEcosystemOverlaps(ecosystems, defaults map[string][]string) []engineEcosystemDomainOverlap {
+	// These categories describe shared transport or vendor services rather than
+	// gated package ecosystems. Chrome's broad Google vendor rules also cover
+	// Gemini's inference API; do not treat those as package registry rules.
+	excludedEcosystems := []string{
+		"chrome", "codex-vendor", "copilot-vendor", "defaults", "dev-tools",
+		"fonts", "gh-aw", "github", "github-actions", "local", "threat-detection",
+	}
+
+	var overlaps []engineEcosystemDomainOverlap
+	for ecosystem, domains := range ecosystems {
+		if slices.Contains(excludedEcosystems, ecosystem) {
+			continue
+		}
+		for engine, rules := range defaults {
+			for _, domain := range domains {
+				for _, rule := range rules {
+					if rule == "github.com" && slices.Contains(githubPackageRegistryDomains, domain) {
+						continue
+					}
+					if engine == "threat-detection" && rule == "registry.npmjs.org" {
+						continue // Detection intentionally permits read-only npm lockfile validation.
+					}
+					if awfDomainRulesOverlap(rule, domain) {
+						overlaps = append(overlaps, engineEcosystemDomainOverlap{engine, rule, ecosystem, domain})
+					}
+				}
+			}
+		}
+	}
+	return overlaps
+}
+
 // Compare effective suffix/wildcard coverage, not just identical strings. Only the
 // exact github.com rule may overlap the four documented GitHub Packages hosts.
 func TestEngineDefaultDomainsDoNotOverlapEcosystems(t *testing.T) {
-	gatedEcosystems := []string{
-		"clojure", "dart", "deno", "dotnet", "elixir", "go", "haskell", "java",
-		"julia", "kotlin", "latex", "lean", "lua", "node", "node-cdns", "ocaml",
-		"perl", "php", "powershell", "python", "python-native", "r", "ruby",
-		"rust", "scala", "swift", "terraform", "zig",
+	ecosystems := getLoadedDomainSets().Ecosystems
+	require.NotEmpty(t, ecosystems)
+	assert.Empty(t, engineDefaultEcosystemOverlaps(ecosystems, engineDefaultDomainSets),
+		"package ecosystems require explicit opt-in via network.allowed or runtimes")
+}
+
+func TestEngineDefaultEcosystemOverlapGuard(t *testing.T) {
+	tests := []struct {
+		engine, rule, ecosystem, domain string
+	}{
+		{"copilot", "*.bazel.build", "bazel", "releases.bazel.build"},
+		{"copilot", "*.docker.io", "containers", "*.docker.io"},
+		{"copilot", "*.debian.org", "linux-distros", "deb.debian.org"},
+		{"threat-detection", "*.bazel.build", "bazel", "releases.bazel.build"},
+		{"threat-detection", "*.docker.io", "containers", "*.docker.io"},
+		{"threat-detection", "*.debian.org", "linux-distros", "deb.debian.org"},
+		{"threat-detection", "*.npmjs.org", "node", "registry.npmjs.org"},
+		{"threat-detection", "pypi.org", "python", "pypi.org"},
+		{"copilot", "registry.npmjs.org", "node", "registry.npmjs.org"},
+		{"copilot", "*.github.com", "node", "npm.pkg.github.com"},
+		{"threat-detection", "*.github.com", "node", "npm.pkg.github.com"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.engine+"/"+tt.rule, func(t *testing.T) {
+			defaults := maps.Clone(engineDefaultDomainSets)
+			defaults[tt.engine] = append(slices.Clone(defaults[tt.engine]), tt.rule)
+			assert.Contains(t, engineDefaultEcosystemOverlaps(getLoadedDomainSets().Ecosystems, defaults),
+				engineEcosystemDomainOverlap{tt.engine, tt.rule, tt.ecosystem, tt.domain})
+		})
 	}
 
-	for _, ecosystem := range gatedEcosystems {
-		ecosystemDomains := getEcosystemDomains(ecosystem)
-		require.NotEmpty(t, ecosystemDomains, "ecosystem %q must resolve to a non-empty domain list", ecosystem)
+	t.Run("new ecosystems are checked automatically", func(t *testing.T) {
+		ecosystems := maps.Clone(getLoadedDomainSets().Ecosystems)
+		ecosystems["future-packages"] = []string{"registry.example.com"}
+		defaults := map[string][]string{"copilot": {"*.example.com"}}
+		assert.Equal(t, []engineEcosystemDomainOverlap{
+			{"copilot", "*.example.com", "future-packages", "registry.example.com"},
+		}, engineDefaultEcosystemOverlaps(ecosystems, defaults))
+	})
 
-		for engine, defaults := range engineDefaultDomainSets {
-			if engine == "threat-detection" {
-				continue // Detection intentionally permits read-only npm lockfile validation.
-			}
-			t.Run(ecosystem+"/"+engine, func(t *testing.T) {
-				for _, domain := range ecosystemDomains {
-					for _, rule := range defaults {
-						if rule == "github.com" && slices.Contains(githubPackageRegistryDomains, domain) {
-							continue
-						}
-						assert.False(t, awfDomainRulesOverlap(rule, domain),
-							"engine %q rule %q overlaps %q ecosystem domain %q; "+
-								"package/language ecosystems require explicit opt-in via network.allowed or runtimes",
-							engine, rule, ecosystem, domain)
-					}
-				}
-			})
+	t.Run("exact exceptions remain allowed", func(t *testing.T) {
+		defaults := map[string][]string{
+			"copilot":          {"github.com"},
+			"threat-detection": {"github.com", "registry.npmjs.org"},
 		}
-	}
+		assert.Empty(t, engineDefaultEcosystemOverlaps(getLoadedDomainSets().Ecosystems, defaults))
+	})
 }
 
 func TestGitHubTransportPackageRegistryException(t *testing.T) {

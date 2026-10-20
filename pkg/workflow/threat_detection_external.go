@@ -532,6 +532,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data, engineID),
 	}
+	if data.NetworkPermissions != nil {
+		threatDetectionData.NetworkPermissions.Blocked = slices.Clone(data.NetworkPermissions.Blocked)
+	}
 	// Add a read-write mount so the threat-detect binary can write
 	// detection_result.json inside the container and it becomes visible
 	// on the host through the bind mount.

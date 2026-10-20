@@ -1,8 +1,8 @@
 # ADR-70619: Narrow Engine Allowlists to Concrete Hosts and Guard Effective Suffix/Wildcard Coverage
 
 **Date**: 2026-10-20
-**Status**: Draft
-**Deciders**: pelikhan, [TODO: verify additional reviewers]
+**Status**: Proposed (pending maintainer acceptance)
+**Proposed decider**: pelikhan (PR author). No additional human decider or ADR acceptance is recorded in the PR reviews as of 2026-10-20; automated reviews do not establish design approval.
 
 ---
 
@@ -22,7 +22,7 @@ We could leave `openai.com`, `chatgpt.com`, and `*.googleapis.com` in place and 
 
 #### Alternative 2: Add an exact-host matching mode to the firewall
 
-We could add an exact-host-only syntax to AWF. Then `github.com` could be allowed without also allowing `*.pkg.github.com`, and there would be no exception. This is the most precise fix. We did not choose it because it requires a firewall feature that is outside this repository and this change. The PR uses a documented `network.blocked: [pkg.github.com]` workaround instead. [TODO: verify whether this is tracked upstream]
+We could add an exact-host-only syntax to AWF. Then `github.com` could be allowed without also allowing `*.pkg.github.com`, and there would be no exception. This is the most precise fix. We did not choose it because it requires a firewall feature that is outside this repository and this change. The PR uses a documented `network.blocked: [pkg.github.com]` workaround instead. No dedicated upstream exact-host-only tracking issue was verified in the 2026-10-20 review: searches of open and closed `github/gh-aw-firewall` issues for `"exact-host"` and `"exact domain"` did not identify one. This records the verification limit, not a claim that no related work exists; the decision does not depend on an upstream feature or commitment.
 
 #### Alternative 3: Fold vendor hosts into the engine bundle as exact subdomains
 
@@ -31,13 +31,13 @@ We could replace `openai.com` and `chatgpt.com` with `auth.openai.com` and `ab.c
 ### Consequences
 
 #### Positive
-- Engine opt-ins grant only the concrete hosts the engine needs for transport. This removes implicit access to unrelated OpenAI, ChatGPT, and googleapis subdomains.
+- Engine opt-ins name concrete transport hosts rather than vendor-wide parent domains. AWF still applies suffix matching to those hosts; this removes implicit access to sibling OpenAI, ChatGPT, and googleapis subdomains, not to descendants of each retained host.
 - The guard test now models AWF suffix and wildcard semantics. A future broad or wildcard entry that overlaps a package ecosystem fails the build instead of passing a literal comparison.
 - GitHub-hosted Codex detection no longer reaches `api.openai.com`, which reduces the detection job's egress surface.
 - Vendor opt-ins are modeled consistently (`copilot-vendor`, `codex-vendor`).
 
 #### Negative
-- Workflows that relied on Codex interactive login or telemetry hosts, or on other `*.googleapis.com` endpoints through the Gemini bundle, will now be blocked until they add `codex-vendor` or the matching ecosystem opt-in. This is a potentially breaking behavior change.
+- Workflows that relied on hosts removed from the Codex or Gemini bundles must explicitly opt into the required hosts or ecosystems. This is a potentially breaking behavior change; `codex-vendor` restores only its two listed hosts, not the former vendor-wide suffixes.
 - `github.com` remains a documented exception: it still permits GitHub Packages hosts, so the invariant is not absolute.
 - The overlap helper is test-only, so its AWF matching semantics must stay in sync with the firewall's real behavior.
 
@@ -45,6 +45,14 @@ We could replace `openai.com` and `chatgpt.com` with `auth.openai.com` and `ab.c
 - 32 compiled `.lock.yml` workflows were regenerated. Their only change is the removal of the two Codex parent domains.
 - `docs/src/content/docs/reference/network.md` was updated to describe the narrowed bundles, the `codex-vendor` set, and the GitHub Packages exception.
 
+#### Compatibility migration
+
+For Codex authentication or telemetry at `auth.openai.com` and `ab.chatgpt.com`, add `codex-vendor` to the existing `network.allowed` list. Keep existing entries: this is an additional opt-in, not a replacement allowlist. Any other host formerly reachable through `openai.com` or `chatgpt.com` needs its own explicit domain.
+
+For Gemini workflows that used other Google API hosts, add the required concrete domain or a matching ecosystem. For example, `dart` grants `storage.googleapis.com` for Dart/Flutter downloads; `codex-vendor` does not restore Google API access.
+
+GitHub-hosted Codex inference and detection no longer inherit direct `api.openai.com` access. A workflow intentionally making separate direct OpenAI requests must explicitly allow `api.openai.com`; the normal GitHub-hosted transport does not need it. Explicit `codex-vendor` access is preserved through inline and external detection.
+
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Reviewed for PR #70619 on 2026-10-20. Maintainer acceptance remains pending; linking this record does not itself signify approval.*

@@ -3,6 +3,7 @@ package workflow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -119,6 +120,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed:  getThreatDetectionAdditionalAllowedDomains(data, engineSetting),
 		Firewall: detectionFirewall,
+	}
+	if data.NetworkPermissions != nil {
+		threatDetectionData.NetworkPermissions.Blocked = slices.Clone(data.NetworkPermissions.Blocked)
 	}
 
 	var steps []string

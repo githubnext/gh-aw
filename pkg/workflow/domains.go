@@ -320,6 +320,7 @@ func getDomainsFromRuntimes(runtimes map[string]any) []string {
 //   - "clojure": Clojure/Clojars
 //   - "containers": container registries (Docker, GHCR, etc.)
 //   - "copilot-vendor": plan-specific Copilot API hosts and Copilot telemetry (opt-in)
+//   - "codex-vendor": optional Codex authentication and telemetry hosts (opt-in)
 //   - "dart": Dart/Flutter ecosystem
 //   - "deno": Deno runtime (deno.land, jsr.io, googleapis.deno.dev, fresh.deno.dev)
 //   - "dotnet": .NET and NuGet ecosystem
@@ -391,6 +392,7 @@ var ecosystemPriority = []string{
 	"clojure",
 	"containers",
 	"copilot-vendor",
+	"codex-vendor",
 	"dart",
 	"defaults",
 	"dev-tools",
@@ -469,7 +471,8 @@ func GetDomainEcosystem(domain string) string {
 	return "" // No ecosystem found
 }
 
-// matchesDomain checks if a domain matches a pattern (supports wildcards)
+// matchesDomain classifies ecosystem domains using exact or explicit wildcard matches.
+// This is not AWF enforcement: AWF also treats bare domains as suffix rules.
 func matchesDomain(domain, pattern string) bool {
 	// Exact match
 	if domain == pattern {

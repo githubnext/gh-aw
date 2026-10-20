@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1122,6 +1123,20 @@ Test workflow`, tt.provider, network, tt.provider)
 			for _, domain := range []string{"auth.openai.com", "ab.chatgpt.com"} {
 				if got := strings.Contains(allowDomainsLine, strconv.Quote(domain)); got != tt.vendorOptIn {
 					t.Errorf("vendor host %q allowed=%t, want %t", domain, got, tt.vendorOptIn)
+				}
+			}
+			if tt.vendorOptIn {
+				agentSection := extractJobSection(string(result), "agent")
+				agentDomains := firewallDomainRules(t, agentSection, "allowDomains")
+				for _, domain := range []string{"auth.openai.com", "ab.chatgpt.com"} {
+					if !slices.Contains(agentDomains, domain) {
+						t.Errorf("compiled agent network.allowed codex-vendor must allow %q, got %v", domain, agentDomains)
+					}
+				}
+				for _, domain := range []string{"openai.com", "chatgpt.com", "codex-vendor"} {
+					if slices.Contains(agentDomains, domain) {
+						t.Errorf("compiled agent firewall must not contain %q", domain)
+					}
 				}
 			}
 		})
