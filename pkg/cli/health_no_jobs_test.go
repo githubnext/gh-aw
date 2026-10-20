@@ -244,6 +244,8 @@ func TestHealthOnlyNoJobFailuresRemainInsufficient(t *testing.T) {
 		switch {
 		case strings.Contains(args[3], "/actions/workflows?"):
 			return []byte(`{"workflows":[{"id":1,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
+		case strings.Contains(args[3], "/actions/runs?status=failure"):
+			return []byte(`{"workflow_runs":[{"id":42,"path":".github/workflows/example.lock.yml","status":"completed","conclusion":"failure","run_attempt":1}]}`), nil
 		case strings.Contains(args[3], "/actions/workflows/1/runs?"):
 			return []byte(`{"workflow_runs":[{"id":42,"name":"Example","status":"completed","conclusion":"failure","run_attempt":1}]}`), nil
 		default:

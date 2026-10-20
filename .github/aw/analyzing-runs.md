@@ -21,6 +21,11 @@ Honor supplied scope. Default: current repository, last 24 hours. Record actual
 window and collection limits.
 
 For "healthy now" or fix-verification questions, use `gh aw health --json`.
+It collects registered AW runs with explicit `failure` conclusions first, then
+samples successful and pending evidence, prioritizing workflows with recent
+failures. `collection.failure_pass_complete` reports whether that initial pass
+finished within the API budget; a truncated failure-first sample is not a fleet
+failure rate or proof that remaining workflows are healthy.
 It samples backward per AW toward five completed first-attempt runs, bounded by
 `--days` and API quota. Read `collection` and `workflows[].revisions`: compare
 `gh-aw-metadata` frontmatter/body hashes, not repository commits alone.

@@ -177,9 +177,20 @@ func fetchWorkflowRuns(workflowName, startDate, repoOverride string, verbose boo
 		targets = []GitHubWorkflow{{Name: workflowName, Path: workflowName}}
 	}
 	var allRuns []WorkflowRun
+	if len(collection.workflows) > 0 {
+		failures, err := collectHealthFailures(startDate, repoOverride, collection)
+		allRuns = failures
+		if err != nil {
+			if collection.stopped {
+				return allRuns, nil
+			}
+			return allRuns, err
+		}
+		targets = prioritizeHealthFailureWorkflows(targets, failures)
+	}
 	for _, target := range targets {
 		runs, err := sampleHealthWorkflow(target, startDate, repoOverride, verbose, collection)
-		allRuns = append(allRuns, runs...)
+		allRuns = mergeHealthRunSamples(allRuns, runs)
 		if err != nil {
 			if collection.stopped || errors.Is(err, errHealthAPIBudget) {
 				return allRuns, nil

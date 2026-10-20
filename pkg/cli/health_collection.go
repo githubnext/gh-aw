@@ -14,26 +14,27 @@ import (
 
 // HealthCollection describes a bounded sample, including any quota-related truncation.
 type HealthCollection struct {
-	Partial         bool                     `json:"partial"`
-	Reason          string                   `json:"reason,omitempty"`
-	Warning         string                   `json:"warning,omitempty"`
-	Host            string                   `json:"host"`
-	APIRateLimit    *GitHubAPIRateLimitState `json:"api_rate_limit,omitempty"`
-	RevisionLookups int                      `json:"revision_lookups"`
-	APIRequests     int                      `json:"api_requests"`
-	MinimumRuns     int                      `json:"minimum_runs"`
-	MaximumDays     int                      `json:"maximum_days"`
-	StartDate       string                   `json:"start_date,omitempty"`
-	EndDate         string                   `json:"end_date,omitempty"`
-	workflows       []GitHubWorkflow
-	revisions       map[string]*workflow.LockMetadata
-	headRevisions   map[string]*workflow.LockMetadata
-	sourceRevisions map[string]string
-	checkedRequests int
-	repoOverride    string
-	stopped         bool
-	visited         map[string]struct{}
-	jobPresence     map[healthRunAttempt]bool
+	Partial             bool                     `json:"partial"`
+	Reason              string                   `json:"reason,omitempty"`
+	Warning             string                   `json:"warning,omitempty"`
+	Host                string                   `json:"host"`
+	APIRateLimit        *GitHubAPIRateLimitState `json:"api_rate_limit,omitempty"`
+	RevisionLookups     int                      `json:"revision_lookups"`
+	APIRequests         int                      `json:"api_requests"`
+	MinimumRuns         int                      `json:"minimum_runs"`
+	MaximumDays         int                      `json:"maximum_days"`
+	StartDate           string                   `json:"start_date,omitempty"`
+	EndDate             string                   `json:"end_date,omitempty"`
+	FailurePassComplete bool                     `json:"failure_pass_complete"`
+	workflows           []GitHubWorkflow
+	revisions           map[string]*workflow.LockMetadata
+	headRevisions       map[string]*workflow.LockMetadata
+	sourceRevisions     map[string]string
+	checkedRequests     int
+	repoOverride        string
+	stopped             bool
+	visited             map[string]struct{}
+	jobPresence         map[healthRunAttempt]bool
 }
 
 const healthMinimumRuns = 5

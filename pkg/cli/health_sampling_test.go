@@ -16,6 +16,7 @@ import (
 )
 
 func TestHealthSamplingCollectsEvidenceForEachWorkflow(t *testing.T) {
+	stubHealthFailureCandidates(t)
 	original := healthListWorkflowRuns
 	t.Cleanup(func() { healthListWorkflowRuns = original })
 	runs, collection := healthRevisionFixture()
@@ -214,6 +215,8 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 				switch {
 				case strings.Contains(endpoint, "/actions/workflows?"):
 					return []byte(`{"workflows":[{"id":11,"name":"Example","path":".github/workflows/example.lock.yml","state":"active"}]}`), nil
+				case strings.Contains(endpoint, "/actions/runs?status=failure"):
+					return []byte(`{"workflow_runs":[]}`), nil
 				case strings.Contains(endpoint, "/actions/workflows/11/runs?"):
 					assert.Contains(t, endpoint, "per_page=10&page=1&created=")
 					out, err := json.Marshal(map[string]any{"workflow_runs": responses})
@@ -255,7 +258,7 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 			}
 			assert.Empty(t, report.FailureClusters)
 			assert.False(t, report.Collection.Partial)
-			assert.Equal(t, 13, requests)
+			assert.Equal(t, 14, requests)
 		})
 	}
 }
