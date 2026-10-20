@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -11,15 +13,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// packageRegistryDomains are the package-registry domains that must never be reachable
-// from the agent sandbox unless the workflow explicitly opts into the corresponding
-// ecosystem (via network.allowed or runtimes).
+// GitHub Packages is a documented exception, tested separately below.
 var packageRegistryDomains = []string{
 	"registry.npmjs.org",
 	"registry.npmjs.com",
-	"npm.pkg.github.com",
 	"pypi.org",
 	"files.pythonhosted.org",
+}
+
+var githubPackageRegistryDomains = []string{
+	"npm.pkg.github.com",
+	"nuget.pkg.github.com",
+	"maven.pkg.github.com",
+	"rubygems.pkg.github.com",
+}
+
+// AWF treats both bare domains and leading wildcards as suffix rules. Do not use
+// matchesDomain here: that helper intentionally has different classification semantics.
+func awfDomainAllowsHost(rule, host string) bool {
+	suffix := strings.TrimPrefix(rule, "*.")
+	return host == suffix || strings.HasSuffix(host, "."+suffix)
+}
+
+func awfDomainRulesOverlap(a, b string) bool {
+	return awfDomainAllowsHost(a, strings.TrimPrefix(b, "*.")) ||
+		awfDomainAllowsHost(b, strings.TrimPrefix(a, "*."))
+}
+
+func TestAWFDomainRulesOverlap(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want bool
+	}{
+		{"*.googleapis.com", "storage.googleapis.com", true},
+		{"googleapis.com", "maven-central.storage-download.googleapis.com", true},
+		{"github.com", "npm.pkg.github.com", true},
+		{"api.github.com", "npm.pkg.github.com", false},
+		{"generativelanguage.googleapis.com", "storage.googleapis.com", false},
+		{"*.pythonhosted.org", "files.pythonhosted.org", true},
+		{"*.example.com", "*.nested.example.com", true},
+		{"example.com", "*.example.com", true},
+		{"example.com", "notexample.com", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.a+"/"+tt.b, func(t *testing.T) {
+			assert.Equal(t, tt.want, awfDomainRulesOverlap(tt.a, tt.b))
+			assert.Equal(t, tt.want, awfDomainRulesOverlap(tt.b, tt.a))
+		})
+	}
 }
 
 // allEngines is the set of engines whose default domain lists are asserted below.
@@ -53,8 +94,10 @@ func TestEngineDefaultDomainsExcludePackageRegistries(t *testing.T) {
 			defaults, err := GetDefaultDomainsForEngine(engine, "")
 			require.NoError(t, err)
 			for _, registry := range packageRegistryDomains {
-				assert.NotContains(t, defaults, registry,
-					"engine %q default domains must not include package registry %q", engine, registry)
+				for _, rule := range defaults {
+					assert.False(t, awfDomainAllowsHost(rule, registry),
+						"engine %q rule %q must not allow package registry %q", engine, rule, registry)
+				}
 			}
 		})
 	}
@@ -90,47 +133,71 @@ func TestEngineDefaultDomainsKeepTransportDomains(t *testing.T) {
 	}
 }
 
-// TestEngineDefaultDomainsDoNotOverlapEcosystems is a broader, self-updating regression guard
-// for the invariant enforced above: it does not rely on a manually curated list of registry
-// domains (packageRegistryDomains), so it also catches future additions of *any* domain from
-// the full "node" or "python" ecosystem definitions (pkg/workflow/data/ecosystem_domains.json)
-// into an engine's static default domain list, even ones not anticipated when this test was
-// written. If this test fails, the fix is almost always to remove the offending domain from
-// the engine default list, not to relax this test — see the invariant documented above
-// CopilotDefaultDomains in domains.go.
+// Compare effective suffix/wildcard coverage, not just identical strings. Only the
+// exact github.com rule may overlap the four documented GitHub Packages hosts.
 func TestEngineDefaultDomainsDoNotOverlapEcosystems(t *testing.T) {
-	gatedEcosystems := []string{"node", "python"}
+	gatedEcosystems := []string{
+		"clojure", "dart", "deno", "dotnet", "elixir", "go", "haskell", "java",
+		"julia", "kotlin", "latex", "lean", "lua", "node", "node-cdns", "ocaml",
+		"perl", "php", "powershell", "python", "python-native", "r", "ruby",
+		"rust", "scala", "swift", "terraform", "zig",
+	}
 
 	for _, ecosystem := range gatedEcosystems {
 		ecosystemDomains := getEcosystemDomains(ecosystem)
 		require.NotEmpty(t, ecosystemDomains, "ecosystem %q must resolve to a non-empty domain list", ecosystem)
 
-		for _, engine := range allEngines {
-			t.Run(ecosystem+"/"+string(engine), func(t *testing.T) {
-				defaults, err := GetDefaultDomainsForEngine(engine, "")
-				require.NoError(t, err)
+		for engine, defaults := range engineDefaultDomainSets {
+			if engine == "threat-detection" {
+				continue // Detection intentionally permits read-only npm lockfile validation.
+			}
+			t.Run(ecosystem+"/"+engine, func(t *testing.T) {
 				for _, domain := range ecosystemDomains {
-					assert.NotContains(t, defaults, domain,
-						"engine %q default domains must not include %q ecosystem domain %q; "+
-							"package/language ecosystems require explicit opt-in via network.allowed or runtimes",
-						engine, ecosystem, domain)
+					for _, rule := range defaults {
+						if rule == "github.com" && slices.Contains(githubPackageRegistryDomains, domain) {
+							continue
+						}
+						assert.False(t, awfDomainRulesOverlap(rule, domain),
+							"engine %q rule %q overlaps %q ecosystem domain %q; "+
+								"package/language ecosystems require explicit opt-in via network.allowed or runtimes",
+							engine, rule, ecosystem, domain)
+					}
 				}
 			})
 		}
+	}
+}
 
-		t.Run(ecosystem+"/PiBaseDefaultDomains", func(t *testing.T) {
-			for _, domain := range ecosystemDomains {
-				assert.NotContains(t, PiBaseDefaultDomains, domain,
-					"PiBaseDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
-			}
-		})
-		t.Run(ecosystem+"/PiDefaultDomains", func(t *testing.T) {
-			for _, domain := range ecosystemDomains {
-				assert.NotContains(t, PiDefaultDomains, domain,
-					"PiDefaultDomains must not include %q ecosystem domain %q", ecosystem, domain)
+func TestGitHubTransportPackageRegistryException(t *testing.T) {
+	// Direct repository clone/web access needs github.com. AWF has no exact-host-only
+	// spelling, so that capability also permits GitHub Packages without a language opt-in.
+	sets := map[string][]string{"github": getEcosystemDomains("github")}
+	maps.Copy(sets, engineDefaultDomainSets)
+	for name, domains := range sets {
+		t.Run(name, func(t *testing.T) {
+			require.Contains(t, domains, "github.com", "preserve direct GitHub repository access")
+			for _, registry := range githubPackageRegistryDomains {
+				assert.True(t, awfDomainAllowsHost("github.com", registry))
+				assert.NotContains(t, domains, registry, "do not add registries as transport hosts")
 			}
 		})
 	}
+
+	t.Run("explicit package restriction preserves repository access", func(t *testing.T) {
+		network := &NetworkPermissions{Allowed: []string{"github"}, Blocked: []string{"pkg.github.com"}}
+		allowed := GetAllowedDomains(network)
+		blocked := GetBlockedDomains(network)
+		for _, host := range append([]string{"github.com", "api.github.com"}, githubPackageRegistryDomains...) {
+			reachable, denied := false, false
+			for _, rule := range allowed {
+				reachable = reachable || awfDomainAllowsHost(rule, host)
+			}
+			for _, rule := range blocked {
+				denied = denied || awfDomainAllowsHost(rule, host)
+			}
+			assert.Equal(t, !slices.Contains(githubPackageRegistryDomains, host), reachable && !denied, host)
+		}
+	})
 }
 
 // TestNetworkPermissionsGatePackageRegistries is the end-to-end guarantee: a restrictive
@@ -198,8 +265,10 @@ func TestNetworkPermissionsGatePackageRegistries(t *testing.T) {
 						"engine %q should allow %q for %s", engine, expected, tt.name)
 				}
 				for _, unexpected := range tt.expectNotContains {
-					assert.NotContains(t, domains, unexpected,
-						"engine %q must not allow %q for %s", engine, unexpected, tt.name)
+					for rule := range domains {
+						assert.False(t, awfDomainAllowsHost(rule, unexpected),
+							"engine %q rule %q must not allow %q for %s", engine, rule, unexpected, tt.name)
+					}
 				}
 			})
 		}

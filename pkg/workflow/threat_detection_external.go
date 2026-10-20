@@ -545,16 +545,14 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 	excludeEnvVarNames := ComputeAWFExcludeEnvVarNames(threatDetectionData, coreSecretVarNames)
 
-	// Compute allowed domains for the detection engine. The AWF firewall for the
-	// detection job must permit the engine's required API endpoints. Without this,
-	// engines such as Codex (which connects to api.openai.com and chatgpt.com) fail
-	// with "domain not in allowlist" and the detection job exits with code 1/2.
+	// Preserve the concrete API transport hosts required by external detection.
+	// Codex authentication/telemetry is separate and requires codex-vendor opt-in;
+	// detection authenticates through the API proxy, not interactive vendor login.
 	var allowedDomains string
 	if engineID == string(constants.CodexEngine) {
 		// Codex's allowed domains depend on the resolved LLM provider (e.g. GitHub-hosted
 		// inference adds CopilotDefaultDomains), which GetAllowedDomainsForEngine's static
-		// defaults do not account for. Compute domains the same way the main Codex
-		// execution path does so GitHub-hosted detection requests are not blocked.
+		// defaults do not account for. Avoid OpenAI access for GitHub-hosted detection.
 		allowedDomains = mergeDomainsWithNetworkToolsAndRuntimes(NewCodexEngine().defaultDomains(threatDetectionData), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)
 	} else {
 		allowedDomains = GetAllowedDomainsForEngine(constants.EngineName(engineID), threatDetectionData.NetworkPermissions, data.Tools, data.Runtimes)

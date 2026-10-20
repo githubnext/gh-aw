@@ -79,15 +79,13 @@ func getLoadedEcosystemDomains() map[string][]string {
 // documented behavior that package ecosystems require explicit opt-in
 // (`network: { allowed: [node] }`, `[python]`, or a matching `runtimes:` entry).
 //
-// This invariant is enforced for runtime engine defaults by
-// TestEngineDefaultDomainsDoNotOverlapEcosystems in domains_package_registry_test.go, which
-// fails if those default domain lists overlap with the full "node" or "python" ecosystem
-// domain sets in data/ecosystem_domains.json — not just the registries known when this comment
-// was written. If you need to add a package-registry domain to a runtime engine default and
-// that test starts failing, the domain belongs behind an explicit ecosystem/runtime opt-in
-// instead, not in the unconditional default list. Copilot threat detection is the exception:
-// its dedicated detection allow-list includes registry.npmjs.org for read-only lockfile
-// validation, and that list is not part of normal agent engine defaults.
+// TestEngineDefaultDomainsDoNotOverlapEcosystems checks effective suffix/wildcard coverage
+// against package ecosystems, not just literal registry membership. GitHub transport is
+// a deliberate exception: github.com is needed for repository access and AWF also permits
+// its package subdomains. TestGitHubTransportPackageRegistryException documents this limit;
+// callers can explicitly block pkg.github.com when that capability is unwanted.
+// Copilot threat detection is another exception: its dedicated detection allow-list includes
+// registry.npmjs.org for read-only lockfile validation, outside normal agent engine defaults.
 
 // engineDefaultDomainSets centralizes every engine allow-list. These sets are
 // user-selectable domain lists: workflows opt into them through network.allowed
@@ -112,7 +110,8 @@ func copyEngineDefaultDomainSet(domains []string) []string {
 // so those vendor hosts require an explicit `network: { allowed: [copilot-vendor] }` opt-in.
 var CopilotDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["copilot"])
 
-// CodexDefaultDomains are the minimal default domains required for Codex CLI operation.
+// CodexDefaultDomains retain gateway/GitHub transport and the concrete OpenAI API host.
+// Optional authentication/telemetry hosts require an explicit codex-vendor opt-in.
 var CodexDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["codex"])
 
 // ClaudeDefaultDomains are the opt-in Claude gateway/GitHub transport baseline.
@@ -122,7 +121,8 @@ var CodexDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["co
 // statsig.anthropic.com. Infrastructure and downloads belong in ecosystem opt-ins.
 var ClaudeDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["claude"])
 
-// GeminiDefaultDomains are the default domains required for Google Gemini CLI authentication and operation.
+// GeminiDefaultDomains retain the concrete model API, not the googleapis.com wildcard
+// that would also grant access to unrelated package and browser download hosts.
 var GeminiDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["gemini"])
 
 var AgyDefaultDomains = copyEngineDefaultDomainSet(engineDefaultDomainSets["agy"])
