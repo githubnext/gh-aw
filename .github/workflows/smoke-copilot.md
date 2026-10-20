@@ -25,7 +25,6 @@ permissions:
 name: Smoke Copilot
 engine:
   id: copilot
-  args: ["--allow-url", "github.com"]
   fallback-models:
     - copilot/gpt-5.4
     - copilot/claude-sonnet-5
