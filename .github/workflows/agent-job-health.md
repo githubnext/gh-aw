@@ -71,9 +71,9 @@ You are the **owner of agent-job health** for this repository's agentic workflow
 
 ### Phase 0: Setup
 
-- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the `agentic-workflows` MCP server instead.
-- Do not attempt to download the `gh aw` extension or build it. If the MCP fails, give up and call `noop`.
-- Run the `status` tool of the `gh-aw` MCP server to verify configuration.
+- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the mounted `agenticworkflows` CLI proxy from the shell instead; native MCP tools are not exposed by `tools.cli-proxy: true`.
+- Do not attempt to download the `gh aw` extension or build it. If the CLI proxy fails, give up and call `noop`.
+- Run `agenticworkflows status` to verify configuration.
 
 ### Phase 1: Collect Runs
 
@@ -86,7 +86,7 @@ For every run directory, record:
 - the **failing step name** when available (for example `Execute Claude Code CLI`, `Execute GitHub Copilot CLI`, `Ingest agent output`)
 - a short normalized error signature (first meaningful error line, with run IDs, timestamps, paths, and hashes stripped)
 
-Use the `logs` and `audit` MCP tools for any run where the local log directory is missing the detail you need.
+Use `agenticworkflows logs` and `agenticworkflows audit` through the CLI proxy for any run where the local log directory is missing the detail you need. References to agentic-workflows MCP tools in imported guidance refer to these mounted CLI commands, not native MCP calls.
 
 ### Phase 2: Compute the Fleet Rate
 
