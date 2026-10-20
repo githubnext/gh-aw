@@ -298,6 +298,9 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if err := c.addGatewayProvenanceJob(data); err != nil {
 		return err
 	}
+	if err := c.addGatewayAdmissionJob(data); err != nil {
+		return err
+	}
 
 	if err := c.resolveSafeOutputActionSchemas(data, markdownPath); err != nil {
 		return fmt.Errorf("failed to resolve safe-output action schemas: %w", err)

@@ -102,6 +102,10 @@ jobs:
 		} else {
 			assert.Contains(t, job.Needs, gatewayProvenanceJobName, name)
 		}
+		if name != gatewayAdmissionJobName {
+			assert.Contains(t, job.Needs, gatewayAdmissionJobName, name)
+			assert.Contains(t, job.If, "needs.gateway_admission.result == 'success' && needs.gateway_admission.outputs.verified == 'true'", name)
+		}
 		assert.True(t, strings.HasPrefix(job.If, "${{ needs.gateway_provenance.result == 'success' && needs.gateway_provenance.outputs.verified == 'true'"), "%s: %s", name, job.If)
 		assert.True(t, strings.HasSuffix(strings.TrimSpace(job.If), "}}"), "%s: %s", name, job.If)
 		assert.Equal(t, strings.TrimSpace(job.If), job.If, "trailing scalar text must not turn the gate into a truthy string: %s", name)
@@ -140,6 +144,7 @@ func TestGatewayProvenanceGuardsLoweredTypedAndStatusConditions(t *testing.T) {
 		Name:    gatewayProvenanceJobName,
 		Outputs: map[string]string{"verified": "${{ steps.verify.outputs.verified }}"},
 	}))
+	require.NoError(t, compiler.jobManager.AddJob(&Job{Name: gatewayAdmissionJobName, Needs: []string{gatewayProvenanceJobName}}))
 	for name, condition := range map[string]string{
 		"always": "always()", "failure": "${{ failure() }}", "cancelled": "cancelled()",
 		"disjunction": "${{ always() || true }}", "unconditional": "",
@@ -168,7 +173,13 @@ func TestGatewayProvenanceGuardsLoweredTypedAndStatusConditions(t *testing.T) {
 		if name == gatewayProvenanceJobName {
 			continue
 		}
-		assert.Equal(t, gatewayProvenanceJobName, job.Needs, name)
+		if name == gatewayAdmissionJobName {
+			assert.Equal(t, gatewayProvenanceJobName, job.Needs, name)
+		} else {
+			assert.Contains(t, job.Needs, gatewayProvenanceJobName, name)
+			assert.Contains(t, job.Needs, gatewayAdmissionJobName, name)
+			assert.Contains(t, job.If, "needs.gateway_admission.result == 'success' && needs.gateway_admission.outputs.verified == 'true'", name)
+		}
 		assert.Contains(t, job.If, "needs.gateway_provenance.result == 'success' && needs.gateway_provenance.outputs.verified == 'true'", name)
 		assert.NotContains(t, job.If, "${{ ${{", name)
 		assert.Equal(t, strings.TrimSpace(job.If), job.If, name)
@@ -215,6 +226,7 @@ func TestGatewayProvenanceDoesNotChangeNativeAuthorization(t *testing.T) {
 	output, err := compiler.CompileToYAML(data, "native.md")
 	require.NoError(t, err)
 	assert.NotContains(t, output, "gateway_provenance")
+	assert.NotContains(t, output, "gateway_admission")
 	assert.Contains(t, output, "check_membership.cjs")
 }
 
@@ -279,6 +291,9 @@ safe-outputs:
 	gate := extractJobSection(output, gatewayProvenanceJobName)
 	assert.NotContains(t, gate, "create-github-app-token")
 	assert.NotContains(t, gate, "GH_AW_APP_PRIVATE_KEY")
+	admission := extractJobSection(output, gatewayAdmissionJobName)
+	assert.NotContains(t, admission, "create-github-app-token")
+	assert.NotContains(t, admission, "GH_AW_APP_PRIVATE_KEY")
 	var mintedJobs []string
 	for name, job := range compiled.Jobs {
 		for _, value := range job.Outputs {
@@ -296,6 +311,7 @@ safe-outputs:
 			assert.Contains(t, step.If, "env.GH_AW_IGNORE_IF_MISSING_APP_ID != ''", name)
 			assert.Contains(t, step.If, "env.GH_AW_IGNORE_IF_MISSING_PRIVATE_KEY != ''", name)
 			assert.Contains(t, job.If, "needs.gateway_provenance.outputs.verified == 'true'", name)
+			assert.Contains(t, job.If, "needs.gateway_admission.outputs.verified == 'true'", name)
 		}
 	}
 	assert.Contains(t, mintedJobs, "agent")

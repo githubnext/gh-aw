@@ -58,19 +58,31 @@ func (c *Compiler) addGatewayProvenanceJob(data *WorkflowData) error {
 }
 
 // Apply after job augmentation and typed condition lowering so no author-defined
-// job, status function, or activation output can bypass the App identity gate.
+// job, status function, or activation output can bypass either gateway gate.
 func (c *Compiler) guardGatewayProvenanceJobs(data *WorkflowData) error {
 	if len(data.WebhookSubscriptions) == 0 {
 		return nil
 	}
 	for name, job := range c.jobManager.GetAllJobs() {
+		// Central trust settings must not resolve from an author-selected environment.
 		if name == gatewayProvenanceJobName {
+			job.Environment = ""
 			continue
 		}
-		if !slices.Contains(job.Needs, gatewayProvenanceJobName) {
-			job.Needs = append(job.Needs, gatewayProvenanceJobName)
+		gates := []string{gatewayProvenanceJobName}
+		if name == gatewayAdmissionJobName {
+			job.Environment = ""
+		} else {
+			gates = append(gates, gatewayAdmissionJobName)
 		}
-		condition := "needs." + gatewayProvenanceJobName + ".result == 'success' && needs." + gatewayProvenanceJobName + ".outputs.verified == 'true'"
+		conditions := make([]string, 0, len(gates))
+		for _, gate := range gates {
+			if !slices.Contains(job.Needs, gate) {
+				job.Needs = append(job.Needs, gate)
+			}
+			conditions = append(conditions, "needs."+gate+".result == 'success' && needs."+gate+".outputs.verified == 'true'")
+		}
+		condition := strings.Join(conditions, " && ")
 		if job.If != "" {
 			existing := stripExpressionWrapper(job.If)
 			if !isGatewayProvenanceCondition(existing) {

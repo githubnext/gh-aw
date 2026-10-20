@@ -15,14 +15,14 @@ sidebar:
 
 **Required dispatch provenance:** Approved CAO GitHub App installation token and mandatory destination App-identity verification.
 
-**Required workflow-version admission:** Workflow-hash-bound OIDC `getToken` verification and on-demand server reconciliation; specified below, not yet implemented by the compiler.
+**Required workflow-version admission:** Compiler-owned workflow-hash-bound OIDC `getToken` call and fail-closed continuation; server verification and on-demand reconciliation remain integration responsibilities.
 
 This specification defines the compiler-to-receiver and receiver-to-runner contract for `on.gateway-dispatch`. It covers GitHub issues, pull requests, discussions, every comment family, reviews/threads, Projects, security alerts, external issues, and commands. Custom webhooks are unsupported. It does not register webhook sources and is unrelated to the MCP gateway.
 
 The terms **MUST**, **MUST NOT**, and **MAY** describe requirements for conforming integrations. Receiver requirements are not claims that gh-aw ships a receiver: provider onboarding, signature verification, source authorization, durable admission, and dispatch remain integration responsibilities. This contract does not establish compatibility with the proposed hosted CAO RFC-033 interchange.
 
 > [!IMPORTANT]
-> The compiler generates the mandatory App-token provenance gate described below, replacing generic role/bot authorization for gateway ingress. This destination implementation does not verify a CAO deployment or establish hosted readiness. An integration MUST remain nonactivating until both the receiver token flow and the approved destination revision satisfy this contract.
+> The compiler generates the mandatory App-token provenance and hash-bound admission gates described below, replacing generic role/bot authorization for gateway ingress. This destination implementation does not verify a CAO deployment or establish hosted readiness. An integration MUST remain nonactivating until both the receiver token flow and the approved destination revision satisfy this contract.
 
 ## Configuration and experimental status
 
@@ -346,7 +346,7 @@ The destination gate needs only this public App/bot binding, not the CAO private
 
 ### Admission-server provisioning recommendation
 
-The admission server SHOULD provision and rotate the approved App information in Actions secrets as part of trusted destination enrollment. Provision `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID` with the independently verified public identity binding above. Use repository secrets or organization secrets restricted to approved destination repositories; environment-only secrets are insufficient because the root `gateway_provenance` job has no environment. This is a recommended admission-server responsibility, not an implemented provisioning endpoint or permission granted by subscription discovery.
+The admission server SHOULD provision and rotate the approved App information in Actions secrets as part of trusted destination enrollment. Provision `GH_AW_GATEWAY_APP_ID` and `GH_AW_GATEWAY_APP_BOT_ID` with the independently verified public identity binding above, alongside the approved `GH_AW_GATEWAY_GET_TOKEN_URL` and `GH_AW_GATEWAY_OIDC_AUDIENCE` configuration. Use repository secrets or organization secrets restricted to approved destination repositories; environment-only secrets are insufficient because neither control-plane job has an environment. This is a recommended admission-server responsibility, not an implemented provisioning endpoint or permission granted by subscription discovery.
 
 For each repository secret, the provisioner uses GitHub's [Get a repository public key API](https://docs.github.com/en/rest/actions/secrets#get-a-repository-public-key), `GET /repos/{owner}/{repo}/actions/secrets/public-key` (`200 OK`), encrypts the value using [LibSodium sealed-box encryption](https://docs.github.com/en/rest/guides/encrypting-secrets-for-the-rest-api), and calls [Create or update a repository secret](https://docs.github.com/en/rest/actions/secrets#create-or-update-a-repository-secret):
 
@@ -450,7 +450,7 @@ This check authenticates the approved App principal, not a particular CAO proces
 
 The required integration path is CAO → GitHub dispatch → `gateway_provenance` → hash-bound `getToken` admission → the remaining activation checks → agent. The App gate authenticates the dispatch principal; `getToken` separately checks that the executing workflow version matches the server's verified workflow configuration and refreshes that configuration when necessary.
 
-**Implementation status:** gh-aw currently implements the App gate and local batch validation, not the gateway `getToken` call or its server. The hash-bound admission requirements below specify the extension to implement; compilation alone does not prove it is present. The existing compiler does not grant `id-token: write` for this new operation.
+**Implementation status:** gh-aw implements the App gate, the compiler-owned `gateway_admission` client job, and local batch validation. Only the admission job receives `id-token: write` for this operation, alongside `contents: read`; the App-provenance job remains read-only. The admission server, independent JWT/artifact verification, discovery, and dispatch-table refresh are external integration responsibilities, not shipped services.
 
 | Stage | Credential, input, and continuation |
 | --- | --- |
@@ -458,10 +458,10 @@ The required integration path is CAO → GitHub dispatch → `gateway_provenance
 | `gateway_provenance` starts | GitHub supplies this job's own read-only [`GITHUB_TOKEN`](https://docs.github.com/en/actions/concepts/security/github_token). It is distinct from the incoming CAO installation token and authenticates the gate's outgoing metadata requests only. No OIDC token or App private key is requested. |
 | The gate requests GitHub metadata | Pinned `actions/github-script` calls `github.rest.apps.getBySlug({app_slug: "cao", ...})` and `github.rest.users.getByUsername({username: "cao[bot]", ...})` using the job's `GITHUB_TOKEN`. These are the two REST requests below, not a call to a CAO endpoint. |
 | The gate decides | Both responses must be `200`. The App response's `id`/`slug` and bot response's `id`/`login`/`type` must match the central App/bot binding and original sender/actor. The route and event repository must match GitHub's destination context. Failure keeps `verified=false` and fails the job; success publishes only `verified=true`, not a bearer token. |
-| Hash-bound `getToken` admission, required extension | Trusted compiler-owned control-plane code obtains an OIDC token with the executing workflow hash in its audience and calls the approved backend. The server validates the signed run/revision and independently verified hash, refreshing stale workflow metadata before granting access. This phase MUST follow successful App provenance and precede custom pre-activation/activation steps, agent execution, or runtime credential grants. Failure MUST NOT be bypassed by custom activation outputs or conditions. |
-| `pre_activation` runs | Its direct dependency and mandatory condition require the successful provenance result and `verified == 'true'`. Its normal stop-time, rate, cooldown, and other configured checks still apply. The generated activation decision consumes the provenance output instead of generic role/bot membership. |
+| `gateway_admission` runs | After successful App provenance, trusted compiler-owned code reads the exact compiled blob at `github.workflow_sha`, obtains an OIDC token with its hash in the audience, and calls the approved backend using the [continuation profile](#compiler-continuation-profile). The server validates the signed run/revision and independently verified hash, refreshing stale workflow metadata before granting access. Failure leaves `verified=false` and blocks custom steps and runtime credential grants. |
+| `pre_activation` runs | Its direct dependencies and mandatory job condition require successful provenance and admission results and both `verified == 'true'` outputs. Its normal stop-time, rate, cooldown, and other configured checks still apply. The generated activation decision cannot run without both proofs; App provenance replaces generic role/bot membership. |
 | `activation` runs | After setup, `validate-webhook.cjs` reads `GITHUB_EVENT_PATH` locally and checks the route, closed numeric-v2 envelope, byte limits, projection, resource URLs, selected activities, and matching filter literals against compiled subscriptions. **This validation makes no HTTP request.** `generate_aw_info.cjs` then derives normalized deliveries and unique items for context and prompt expressions. |
-| The workflow continues | With the normal generated conditions, failed activation does not start the agent. After successful activation and the remaining configured guards, the agent stages the minimal event and handles every intended item. Additional data requires separately authorized provider clients; neither a URL nor successful provenance grants read access. Every job retains the direct provenance dependency, even when it uses `always()`. |
+| The workflow continues | With the normal generated conditions, failed activation does not start the agent. After successful activation and the remaining configured guards, the agent stages the minimal event and handles every intended item. Additional data requires separately authorized provider clients; neither a URL nor successful provenance grants read access. Every remaining job retains direct dependencies and success checks for both gates, even when it uses `always()`. |
 
 The gate's equivalent HTTP requests have no request body:
 
@@ -507,7 +507,7 @@ This requirement concerns explicitly minted runtime installation tokens, not the
 
 The agentic workflow MUST include its executing workflow hash when obtaining the OIDC credential for the backend's logical `getToken` operation. The server MUST validate that version before granting the requested credential or authorization to continue. This is additional to, not a replacement for, App-sender provenance, original-source admission, or current enrollment approval.
 
-`getToken` names the backend admission operation, not a GitHub REST endpoint. Its deployment endpoint and request/response framing remain backend-owned and MUST be documented, including closed schemas, bounded request handling, run/attempt correlation, replay/idempotency behavior, and explicit retryable/denied outcomes. GitHub's Actions toolkit method for obtaining the OIDC credential is `core.getIDToken(audience)`; a wrapper named `getToken` MUST preserve the same hash-bound audience.
+`getToken` names the backend admission operation, not a GitHub REST endpoint. Its deployment endpoint remains backend-owned. The compiler implements the closed [continuation profile](#compiler-continuation-profile) below; integrations using another client MUST document equivalent closed schemas, bounds, run/attempt correlation, replay/idempotency, and explicit retryable/denied outcomes. GitHub's Actions toolkit method for obtaining the OIDC credential is `core.getIDToken(audience)`; a wrapper named `getToken` MUST preserve the same hash-bound audience.
 
 Here, **`workflow_hash` is the lowercase 64-character hexadecimal SHA-256 of the exact compiled `.lock.yml` Git blob bytes executing for the caller**, including its headers. No YAML reserialization, newline normalization, or field exclusion is applied. The trusted workflow control plane obtains those bytes from the compiled path and immutable `github.workflow_sha` supplied by GitHub, not a moving branch, arbitrary checkout, dispatch payload, or user-step output. The digest is computed from that blob; it is not a literal embedded in the blob being hashed, which would introduce a self-reference.
 
@@ -553,6 +553,41 @@ The request URL and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` come from the runner; this 
 ```
 
 The workflow presents that value, not the runner's request credential, to the independently configured `getToken` endpoint over HTTPS. Neither credential may be printed, included in diagnostic HTTP traces, stored in artifacts, or forwarded to the agent. No hash or bearer-token field is added to the closed repository-dispatch envelope.
+
+#### Compiler continuation profile
+
+The reserved `gateway_admission` job MUST follow successful `gateway_provenance`. Every other job, including custom, reusable, and `on.needs` jobs, directly requires both gates' successful results and `verified == 'true'` outputs. Custom conditions, activation outputs, or `strict: false` cannot bypass either gate. Customizing `jobs.gateway_admission` is rejected. Both control-plane jobs remain outside job environments, including when `--environment` is used, so environment-specific settings cannot replace central trust configuration. Their setup does not mint user-configured App or observability credentials.
+
+Trusted onboarding configures `GH_AW_GATEWAY_GET_TOKEN_URL` and `GH_AW_GATEWAY_OIDC_AUDIENCE` as organization/repository Actions secrets or variables; each nonempty secret takes precedence over its matching variable. Missing or malformed values fail closed. The first is an exact canonical HTTPS endpoint without credentials, query, or fragment; its path is deployment-selected. The second is the approved audience base without a trailing slash, query, or fragment. A host-only base such as `https://cao.example` is supported. Workflow-global environment values and dispatch fields do not supply either setting.
+
+The client first authenticates `GET /repos/{owner}/{repo}` with its read-only job `GITHUB_TOKEN` and checks the repository ID/name. It then requests `GET /repos/{owner}/{repo}/contents/{compiled-path}?ref={github.workflow_sha}` with `Accept: application/vnd.github.raw+json`. The response bytes, including headers/BOM/newlines inside the file, are hashed without decoding or reserialization. The API base comes from `github.api_url`, including an Enterprise prefix. No checkout, moving branch, raw provider URL, or dispatch payload supplies these bytes.
+
+After `core.getIDToken(audience)`, the client masks the token and checks its audience, workflow/run claims, validity times, and required `check_run_id` for consistency. This local decoding is **not signature verification**; the server MUST still perform every verification below. Hosts missing the required claims and unsupported reusable-workflow identities remain nonactivating.
+
+The client sends one `POST` to the configured endpoint, with `Authorization: Bearer <OIDC ID token>`, `Content-Type: application/json`, and `Accept: application/json`. Its UTF-8 JSON object contains exactly these fields:
+
+| Field | Required value |
+| --- | --- |
+| `schema_version` | Numeric `1`, independent of dispatch-envelope version `2`. |
+| `repository` | GitHub-owned `owner/repository` name. |
+| `repository_id`, `repository_owner_id`, `actor_id` | Canonical positive decimal strings from the corresponding GitHub context. |
+| `workflow_path` | Compiler-owned `.github/workflows/<workflow-id>.lock.yml` path. |
+| `workflow_ref` | GitHub-owned repository/path/ref, matching `repository`, `workflow_path`, and `ref`. |
+| `workflow_sha` | GitHub-owned immutable lowercase 40-character commit SHA. |
+| `workflow_hash` | Lowercase 64-character SHA-256 of the exact compiled bytes; identical to the audience suffix. |
+| `run_id`, `run_attempt` | Canonical positive decimal strings from GitHub's run context. |
+| `check_run_id` | Canonical positive decimal string from the issued JWT identifying the owning job. |
+| `ref` | The GitHub-owned `refs/heads/...` execution ref. |
+| `event_name` | Literal `repository_dispatch`. |
+| `event_type` | The compiler-defined route for this workflow ID, already checked by App provenance. It is not a signed OIDC claim; the server independently binds it to the approved artifact/admission. |
+
+Success is **only** `200 OK` with a UTF-8 JSON object containing exactly every request field unchanged plus boolean `allowed: true`. Missing, different, additional, or credential-bearing fields reject continuation. The endpoint returns an authorization decision, not CAO's dispatch token or a new runtime credential. Only the boolean `verified` is published as a job output; the OIDC and job tokens are never outputs or agent inputs.
+
+The backend MUST enforce a bounded closed request schema and validate all copies against the signed identity and independently verified artifact. It MUST authorize the signed `check_run_id` as the expected admission job for this run/attempt, using trusted GitHub job metadata as needed; a caller-provided logical job name is not proof. It MUST correlate the decision with the current backend admission and route. Duplicate requests for the same issuer/repository/workflow revision/hash/run/attempt/check-run/route binding MUST be idempotent and recheck current token validity and approval; conflicting reuse of a signed token identity MUST reject. A stored decision MUST NOT bypass a later revocation.
+
+Denied/unsupported requests use non-`200` statuses such as `403` or `409`. A backend performing asynchronous refresh MAY return `503` (optionally `Retry-After`), but the current job fails closed: the client does not sleep, retry, poll, or accept `202`, `204`, redirects, or a pending/success-shaped response as approval. A later workflow attempt makes a new bound request; this profile does not schedule workflow runs. Backend error bodies are not forwarded to logs.
+
+The compiler client limits each GitHub response and compiled artifact to 1 MiB, the OIDC token to 32 KiB, and each serialized admission request/response to 16 KiB. Repository IDs returned as unsafe JavaScript numbers reject rather than round. Each client HTTP request has a 30-second deadline including response-body reads, redirects/retries are disabled, and the owning job has a five-minute timeout. These are **client capability limits**, not discovery refresh rates, cache lifetimes, or server scan deadlines. Server scheduling and reconciliation guarantees remain [backend-owned](#backend-owned-refresh-policy). No runtime token lifetime or renewal policy changes.
 
 #### Server verification and on-demand refresh
 
@@ -859,7 +894,7 @@ The agent MUST handle every intended item explicitly, not silently use the first
 
 | Component | Contract responsibility |
 | --- | --- |
-| Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata, restricted dispatch routing, and the mandatory App-provenance activation gate. External providers do not create GitHub source-webhook requirements; all gateway families still require the CAO destination App-token contract. |
+| Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata, restricted dispatch routing, and mandatory App-provenance and hash-bound admission gates. External providers do not create GitHub source-webhook requirements; all gateway families still require the CAO destination App-token contract. |
 | Approved receiver | Reconcile approved default-branch subscriptions into an atomically published dispatch table under a backend-owned refresh policy; verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch using the scoped installation token for the approved CAO App. Verify hash-bound `getToken` requests and refresh stale workflow configuration before granting access. Keep administrative grants and minting authority separate from untrusted metadata. |
 | Runner | Validate route, schema, projection policy, sizes, closed payload/filter key/value allowlist, complete condition alternatives, URL-derived identity, selected activities/native registration, and explicit repository/organization selectors. It does not fetch resource details or re-derive source transitions. Invalid elements fail the whole batch. |
 | Workflow | Complete compiler-owned hash-bound `getToken` admission before custom steps, agent execution, or runtime credential grants. Resolve any additional resource data through configured provider-authenticated clients so the provider enforces access. Handle denied/deleted resources without falling back to native webhook bodies. |
@@ -879,7 +914,7 @@ The workflow MUST use an authenticated GitHub App client for additional GitHub d
 
 Triggers do not provision provider credentials, tools, or read permissions. Workflows without an authorized reader MUST report unresolved or denied resources rather than infer unavailable details.
 
-Receiver deployment, hash-bound `getToken` calls and server verification/refresh, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility are not implemented by these declarations. Secret scanning, Projects (classic), custom webhook identifiers, and non-batch payload envelopes are unsupported.
+The compiler implements hash-bound `getToken` calls and fail-closed client continuation. Receiver deployment, server JWT/artifact verification and discovery/refresh, credential isolation, approved artifact/revision binding, durable queues, budgets, retries, cross-run exactly-once behavior, and hosted gateway compatibility remain external integration responsibilities. Secret scanning, Projects (classic), custom webhook identifiers, and non-batch payload envelopes are unsupported.
 
 ## References
 
