@@ -53,6 +53,7 @@ negative controls and validated readable traces without live effects.
 | [`no-math-minmax-array-spread`](#no-math-minmax-array-spread) | Disallow spreading a non-literal array into `Math.min(...)` / `Math.max(...)` |
 | [`no-map-parseint-callback`](#no-map-parseint-callback) | Disallow passing `parseInt` directly as an array callback, because the element index is used as the radix |
 | [`no-misplaced-error-code-definition`](#no-misplaced-error-code-definition) | Require exported error-code constants to be defined in `error_codes.cjs` |
+| [`no-date-parse-sort-comparator`](#no-date-parse-sort-comparator) | Disallow sort comparators that subtract raw `Date.parse()` results, which yield NaN for invalid timestamps |
 | [`no-single-char-string-replace`](#no-single-char-string-replace) | Disallow `String.prototype.replace()` with a single-character string pattern, which replaces only the first occurrence |
 | [`no-split-filter-trim-without-trim-map`](#no-split-filter-trim-without-trim-map) | Require split values to be trimmed before filtering out empty entries |
 | [`no-string-fallback-for-non-string-message`](#no-string-fallback-for-non-string-message) | Disallow stringifying a container object instead of its non-string `.message` value in a fallback |
@@ -1262,6 +1263,21 @@ for (const item of items) {
 }
 
 await Promise.all(items.map(async item => processItem(item)));
+```
+
+### `no-date-parse-sort-comparator`
+
+Disallow `.sort()` / `.toSorted()` comparators that return a subtraction involving a raw `Date.parse()` call. An invalid timestamp produces `NaN`, making the comparator inconsistent and the order implementation-defined.
+
+**Flagged form:**
+```js
+entries.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+```
+
+**Safe alternative:**
+```js
+const ms = value => Date.parse(value) || 0;
+entries.sort((a, b) => ms(b.timestamp) - ms(a.timestamp));
 ```
 
 ### `no-single-char-string-replace`

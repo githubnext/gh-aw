@@ -63,6 +63,7 @@ import { preferActionsExecOverChildProcessRule } from "./rules/prefer-actions-ex
 import { noMisplacedErrorCodeDefinitionRule } from "./rules/no-misplaced-error-code-definition";
 import { requireFsChmodTryCatchRule } from "./rules/require-fs-chmod-try-catch";
 
+import { noDateParseSortComparatorRule } from "./rules/no-date-parse-sort-comparator";
 import { noSingleCharStringReplaceRule } from "./rules/no-single-char-string-replace";
 import { noAsyncForEachCallbackRule } from "./rules/no-async-foreach-callback";
 import { noUnguardedAsyncTimerCallbackRule } from "./rules/no-unguarded-async-timer-callback";
@@ -139,6 +140,7 @@ const plugin = {
     "prefer-actions-exec-over-child-process": preferActionsExecOverChildProcessRule,
     "no-misplaced-error-code-definition": noMisplacedErrorCodeDefinitionRule,
     "require-fs-chmod-try-catch": requireFsChmodTryCatchRule,
+    "no-date-parse-sort-comparator": noDateParseSortComparatorRule,
     "no-single-char-string-replace": noSingleCharStringReplaceRule,
     "no-unguarded-async-timer-callback": noUnguardedAsyncTimerCallbackRule,
     "no-async-foreach-callback": noAsyncForEachCallbackRule,
