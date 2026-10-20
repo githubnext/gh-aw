@@ -33,7 +33,7 @@ const { testSplitOnPipelineOperators, testExtractCommandName, testExtractCommand
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Pipeline operators that should split segments */
-const OPERATORS = ["&&", "||", "|", ";"];
+const OPERATORS = ["&&", "||", "|", "|&", ";", "&"];
 
 /** Commands that should be recognised as safe (typically in the workflow allow-list) */
 const SAFE_COMMANDS = ["ls", "cat", "echo", "grep", "wc", "find", "jq", "printf", "pwd", "date", "head", "tail", "sort", "uniq", "yq", "safeoutputs", "gh", "git"];

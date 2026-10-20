@@ -1,13 +1,27 @@
 // @ts-check
 "use strict";
 
+const SHELL_BLANK_RE = /^[ \t]$/;
+
+function trimShellWhitespace(value) {
+  return value.replace(/^(?:[ \t]|\r?\n)+|(?:[ \t]|\r?\n)+$/g, "");
+}
+
+function findShellExpansionOpener(commandText, dollarIndex) {
+  let openerIndex = dollarIndex + 1;
+  while (commandText[openerIndex] === "\\" && commandText[openerIndex + 1] === "\n") {
+    openerIndex += 2;
+  }
+  return ["{", "(", "'"].includes(commandText[openerIndex]) ? openerIndex : -1;
+}
+
 /**
  * bash_command_parser.cjs
  *
  * Dedicated bash command parser for permission checking in the Copilot SDK driver.
  *
  * Provides utilities to:
- *   - Split a shell command text on pipeline operators (&&, ||, |, ;)
+ *   - Split a shell command text on pipeline operators (&&, ||, |, |&, ;, &)
  *   - Extract the executable command name from a shell segment
  *   - Extract all command names from a complex piped/chained command
  *
@@ -25,15 +39,58 @@
  */
 
 /**
+ * Find the end of a quoted word, rejecting nested syntax this parser cannot
+ * safely distinguish from the surrounding quote.
+ *
+ * @param {string} commandText
+ * @param {number} start
+ * @returns {number} Exclusive end offset, or -1 for unsupported/unclosed quoting.
+ */
+function findShellQuoteEnd(commandText, start) {
+  const quote = commandText[start];
+  let parameterDepth = 0;
+  for (let i = start + 1; i < commandText.length; i++) {
+    const ch = commandText[i];
+    if (quote === '"') {
+      if (ch === "\\") {
+        i++;
+        continue;
+      }
+      if (ch === "`") return -1;
+      if (ch === "$") {
+        const openerIndex = findShellExpansionOpener(commandText, i);
+        if (openerIndex > i + 1) return -1;
+        if (openerIndex === i + 1 && (commandText[openerIndex] === "(" || commandText[openerIndex] === "'")) return -1;
+        if (openerIndex === i + 1 && commandText[openerIndex] === "{") {
+          parameterDepth++;
+          i = openerIndex;
+          continue;
+        }
+      }
+      if (ch === "}" && parameterDepth > 0) {
+        parameterDepth--;
+        continue;
+      }
+      if (parameterDepth > 0 && (ch === "'" || ch === '"')) return -1;
+    }
+    if (ch === quote) return i + 1;
+  }
+  return -1;
+}
+
+/**
  * Split a shell command text into individual pipeline segments.
- * Splits on the following shell operators: &&, ||, |, ; and newlines.
+ * Splits on the following shell operators: &&, ||, |, |&, ;, & and newlines.
  *
  * The split respects:
  *   - Single-quoted strings (no escaping inside)
  *   - Double-quoted strings (backslash-escape aware)
+ *   - Unquoted backslash escapes and shell comments (terminated by LF, not bare CR)
  *   - $(...) subshell expressions (balanced parentheses)
  *
  * Operators embedded inside any of these constructs are not treated as separators.
+ * Unsupported nested quoting, unquoted grouping/glob parentheses, and unclosed
+ * constructs fail closed.
  *
  * @param {string} commandText - Raw bash command text that may contain pipeline operators
  * @returns {string[]} Non-empty trimmed segments (operators removed)
@@ -43,54 +100,96 @@ function splitOnPipelineOperators(commandText) {
 
   const segments = [];
   let current = "";
+  let atWordStart = true;
+  let parameterDepth = 0;
   let i = 0;
   const len = commandText.length;
 
   while (i < len) {
     const ch = commandText[i];
 
-    // ── Single-quoted string: no escape sequences, copy verbatim until closing ' ──
-    if (ch === "'") {
-      current += ch;
-      i++;
-      while (i < len && commandText[i] !== "'") {
-        current += commandText[i];
-        i++;
-      }
-      if (i < len) {
-        current += commandText[i]; // closing '
-        i++;
+    if (ch === "#" && atWordStart && parameterDepth === 0) {
+      while (i < len && commandText[i] !== "\n") i++;
+      continue;
+    }
+
+    if (ch === "`") return [];
+
+    if (ch === "$") {
+      const openerIndex = findShellExpansionOpener(commandText, i);
+      if (openerIndex > i + 1) return [];
+      if (openerIndex === i + 1 && commandText[openerIndex] === "'") return [];
+    }
+
+    if (ch === "\\" && i + 1 < len) {
+      if (commandText[i + 1] === "\n") {
+        i += 2;
+        while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
+        if (current && !/[ \t]$/.test(current)) {
+          current += " ";
+        }
+      } else {
+        current += ch + commandText[i + 1];
+        i += 2;
+        atWordStart = false;
       }
       continue;
     }
 
-    // ── Double-quoted string: backslash escapes are recognised ──
-    if (ch === '"') {
-      current += ch;
-      i++;
-      while (i < len && commandText[i] !== '"') {
-        if (commandText[i] === "\\" && i + 1 < len) {
-          current += commandText[i] + commandText[i + 1];
-          i += 2;
-        } else {
-          current += commandText[i];
-          i++;
-        }
-      }
-      if (i < len) {
-        current += commandText[i]; // closing "
-        i++;
-      }
+    if (ch === "$" && commandText[i + 1] === "{") {
+      current += "${";
+      parameterDepth++;
+      atWordStart = false;
+      i += 2;
+      continue;
+    }
+    if (ch === "}" && parameterDepth > 0) parameterDepth--;
+
+    if (ch === "'" || ch === '"') {
+      const end = findShellQuoteEnd(commandText, i);
+      if (end < 0) return [];
+      atWordStart = false;
+      current += commandText.slice(i, end);
+      i = end;
       continue;
     }
 
     // ── $(...) subshell: skip balanced parentheses as a unit ──
     if (ch === "$" && i + 1 < len && commandText[i + 1] === "(") {
+      atWordStart = false;
       current += ch;
       i++;
       let depth = 0;
+      let subshellParameterDepth = 0;
       while (i < len) {
         const sc = commandText[i];
+        if (sc === "#" || sc === "`") return [];
+        if (sc === "$") {
+          const openerIndex = findShellExpansionOpener(commandText, i);
+          if (openerIndex > i + 1) return [];
+          if (openerIndex === i + 1 && commandText[openerIndex] === "'") return [];
+          if (openerIndex === i + 1 && commandText[openerIndex] === "{") {
+            current += commandText.slice(i, openerIndex + 1);
+            subshellParameterDepth++;
+            i = openerIndex + 1;
+            continue;
+          }
+        }
+        if (sc === "\\" && i + 1 < len) {
+          current += sc + commandText[i + 1];
+          i += 2;
+          continue;
+        }
+        if (sc === "'" || sc === '"') {
+          const end = findShellQuoteEnd(commandText, i);
+          if (end < 0) return [];
+          if (subshellParameterDepth > 0 && /[()]/.test(commandText.slice(i, end))) return [];
+          current += commandText.slice(i, end);
+          i = end;
+          continue;
+        }
+        if (sc === "}" && subshellParameterDepth > 0) subshellParameterDepth--;
+        if (subshellParameterDepth > 0 && (sc === "(" || sc === ")")) return [];
         if (sc === "(") depth++;
         else if (sc === ")") {
           depth--;
@@ -102,17 +201,45 @@ function splitOnPipelineOperators(commandText) {
         current += sc;
         i++;
       }
+      if (depth !== 0 || subshellParameterDepth !== 0) return [];
+      continue;
+    }
+
+    // Extended globs can contain literal hashes; their parentheses need a full lexer.
+    if (ch === "(") return [];
+
+    if (parameterDepth > 0) {
+      current += ch;
+      i++;
       continue;
     }
 
     // ── Pipeline operators ──
 
+    // Keep redirection ampersands distinct from background separators.
+    if (((ch === ">" || ch === "<") && commandText[i + 1] === "&") || (ch === "&" && commandText[i + 1] === ">")) {
+      current += ch + commandText[i + 1];
+      atWordStart = true;
+      i += 2;
+      continue;
+    }
+
     // && (AND-then)
     if (ch === "&" && i + 1 < len && commandText[i + 1] === "&") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i += 2;
-      while (i < len && commandText[i] !== undefined && /\s/.test(commandText[i])) i++;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
+      continue;
+    }
+
+    if (ch === "&") {
+      segments.push(current);
+      current = "";
+      atWordStart = true;
+      i++;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
 
@@ -120,17 +247,19 @@ function splitOnPipelineOperators(commandText) {
     if (ch === "|" && i + 1 < len && commandText[i + 1] === "|") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i += 2;
-      while (i < len && /\s/.test(commandText[i])) i++;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
 
-    // | (pipe)
+    // | and |& (pipe stdout, or stdout and stderr)
     if (ch === "|") {
       segments.push(current);
       current = "";
-      i++;
-      while (i < len && /\s/.test(commandText[i])) i++;
+      atWordStart = true;
+      i += commandText[i + 1] === "&" ? 2 : 1;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
 
@@ -138,15 +267,31 @@ function splitOnPipelineOperators(commandText) {
     if (ch === ";") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i++;
-      while (i < len && /\s/.test(commandText[i])) i++;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
 
     // Newline (sequential) — treat line breaks as command separators,
     // except when escaped as a shell line continuation ("\\" + newline).
-    // Handles LF, CRLF, and CR forms.
-    if (ch === "\n" || ch === "\r") {
+    // Handles LF and CRLF; a bare CR remains part of the shell word.
+    if (ch === "\r" && commandText[i + 1] === "\n") {
+      let backslashRunLength = 0;
+      for (let j = current.length - 1; j >= 0 && current[j] === "\\"; j--) {
+        backslashRunLength++;
+      }
+      if (backslashRunLength % 2 === 1) {
+        current += ch;
+        i++;
+        atWordStart = false;
+      } else {
+        i++;
+      }
+      continue;
+    }
+
+    if (ch === "\n") {
       let backslashRunLength = 0;
       for (let j = current.length - 1; j >= 0 && current[j] === "\\"; j--) {
         backslashRunLength++;
@@ -156,11 +301,8 @@ function splitOnPipelineOperators(commandText) {
       if (backslashRunLength % 2 === 1) {
         current = current.slice(0, -1);
         i++;
-        if (ch === "\r" && i < len && commandText[i] === "\n") {
-          i++;
-        }
-        while (i < len && (commandText[i] === " " || commandText[i] === "\t")) i++;
-        if (current && !/\s$/.test(current)) {
+        while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
+        if (current && !/[ \t]$/.test(current)) {
           current += " ";
         }
         continue;
@@ -168,24 +310,24 @@ function splitOnPipelineOperators(commandText) {
 
       segments.push(current);
       current = "";
+      atWordStart = true;
       i++;
-      if (ch === "\r" && i < len && commandText[i] === "\n") {
-        i++;
-      }
-      while (i < len && /\s/.test(commandText[i])) i++;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
 
     current += ch;
+    atWordStart = /[ \t&<>]/.test(ch);
     i++;
   }
 
   // Push the final segment
-  if (current.trim()) {
+  if (parameterDepth !== 0) return [];
+  if (trimShellWhitespace(current)) {
     segments.push(current);
   }
 
-  return segments.map(s => s.trim()).filter(s => s.length > 0);
+  return segments.map(trimShellWhitespace).filter(s => s.length > 0);
 }
 
 /**
@@ -208,7 +350,7 @@ const SHELL_KEYWORDS = new Set([...CLAUSE_KEYWORDS, ...STRUCTURE_KEYWORDS]);
 // - "(...)" double-quoted text (supports escapes like \")
 // - '(...)' single-quoted text
 // - an unquoted non-space token
-const ENV_ASSIGNMENT_PREFIX_RE = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'[^']*'|\S*)\s*/;
+const ENV_ASSIGNMENT_PREFIX_RE = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'[^']*'|[^ \t\n]*)[ \t]*/;
 
 /**
  * Extract the executable command name from a single shell command segment.
@@ -228,21 +370,21 @@ const ENV_ASSIGNMENT_PREFIX_RE = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:\\.|[^"\\])*"|'
 function extractCommandName(segment) {
   if (!segment || typeof segment !== "string") return null;
 
-  let remaining = segment.trim();
+  let remaining = trimShellWhitespace(segment);
   if (!remaining) return null;
 
   // Skip leading env-var assignments: IDENTIFIER=anything  (repeat)
   for (;;) {
     const m = remaining.match(ENV_ASSIGNMENT_PREFIX_RE);
     if (!m) break;
-    remaining = remaining.slice(m[0].length).trim();
+    remaining = trimShellWhitespace(remaining.slice(m[0].length));
   }
 
   if (!remaining) return null;
 
   for (;;) {
     // Get the first word
-    const wordMatch = remaining.match(/^(\S+)/);
+    const wordMatch = remaining.match(/^([^ \t\n]+)/);
     if (!wordMatch) return null;
 
     const word = wordMatch[1];
@@ -254,7 +396,7 @@ function extractCommandName(segment) {
 
     // Shell negation / grouping — skip and continue scanning
     if (word === "!" || word === "{" || word === "}") {
-      remaining = remaining.slice(word.length).trim();
+      remaining = trimShellWhitespace(remaining.slice(word.length));
       if (!remaining) return null;
       continue;
     }
@@ -262,7 +404,7 @@ function extractCommandName(segment) {
     // Flow-control keywords are not executable commands
     if (SHELL_KEYWORDS.has(word)) {
       if (CLAUSE_KEYWORDS.has(word)) {
-        remaining = remaining.slice(word.length).trim();
+        remaining = trimShellWhitespace(remaining.slice(word.length));
         if (!remaining) return null;
         continue;
       }
@@ -276,7 +418,7 @@ function extractCommandName(segment) {
 /**
  * Extract all unique command names from a bash pipeline or command sequence.
  *
- * Splits the text on &&, ||, |, and ; and extracts the executable command name
+ * Splits the text on &&, ||, |, |&, ;, and & and extracts the executable command name
  * from each resulting segment.  Returns a deduplicated array preserving
  * first-occurrence order.
  *
@@ -290,7 +432,7 @@ function extractCommandName(segment) {
 function extractCommandNamesFromPipeline(commandText) {
   if (!commandText || typeof commandText !== "string") return [];
 
-  const text = commandText.trim();
+  const text = trimShellWhitespace(commandText);
   if (!text) return [];
 
   const segments = splitOnPipelineOperators(text);
