@@ -41,7 +41,7 @@ safe-outputs:
     max: 25
   close-issue:
     target: "*"
-    required-title-prefix: "[container-image-scan] Container findings for "
+    required-title-prefix: "[container-image-scan] "
     required-labels: [cookie, security]
     state-reason: duplicate
     max: 25
@@ -87,7 +87,7 @@ steps:
       echo "" >> "$output_dir/compile-output.txt"
       "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee -a "$output_dir/compile-output.txt" || true
 post-steps:
-  - name: Enforce critical vulnerability and license gates
+  - name: Enforce vendored vulnerability and license gates
     if: always()
     run: |
       output="/tmp/gh-aw/agent/image-scan/compile-output.txt"
@@ -103,6 +103,10 @@ post-steps:
       vendored_pattern='(^|[[:space:]])ghcr\.io/github/gh-aw-node(@|:)'
       if grep -E "$vendored_pattern" "$output" | grep -qE ': error: \[Critical\]'; then
         echo "::error::Critical vulnerabilities detected in the vendored ghcr.io/github/gh-aw-node container image."
+        exit 1
+      fi
+      if grep -E "$vendored_pattern" "$output" | grep -qE ': (error|warning): \[High\].* \(fix: [^)]+\)'; then
+        echo "::error::High vulnerabilities with available fixes detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
       if grep -E "$vendored_pattern" "$output" | grep -q ': error: license policy violation:'; then
@@ -177,6 +181,11 @@ or close legacy findings without complete scan evidence.
      - **Vendored**: the image's Dockerfile/build config lives in this
        repository (`github/gh-aw`), so a fix (code change, dependency bump,
        or config change) can land here directly.
+       `ghcr.io/github/gh-aw-node` is **vendored**: its Dockerfile is
+       `actions/setup/js/Dockerfile.safe-outputs-mcp`, published by
+       `.github/workflows/publish-safe-outputs-node.yml`. Do not classify it
+       as upstream merely because it is derived from `node:lts-alpine`;
+       the unmodified `node:lts-alpine` image itself is upstream.
      - **Upstream**: the image is built and owned by a different repository
        or a third party, e.g. `ghcr.io/github/gh-aw-firewall/*` (owned by
        `github/gh-aw-firewall`), `ghcr.io/github/gh-aw-mcpg` (owned by
@@ -186,9 +195,16 @@ or close legacy findings without complete scan evidence.
      pin/digest refresh to a newer upstream release is possible here.
 5. For every image family in the scan, maintain exactly one burn-down issue
      using the configured title prefix followed by `<Family> CVE burn-down`.
-     Search for that exact full title before writing: update the existing issue
-     if found (reopen it if needed), otherwise create it. Never create a
-     separate issue for an image tag, digest, component, or individual CVE.
+     Search all issues for that exact full title before writing: update the
+     existing issue if found (reopen it if needed), otherwise create it. If multiple issues have
+     the exact family title, use the matching tracker already linked in #52657;
+     otherwise use the lowest issue number. Read every duplicate's body and
+     comments, preserve unique unresolved findings and tracking links in the
+     canonical issue, and update that issue before closing any duplicate.
+     Close only exact-title duplicates carrying both `cookie` and `security`
+     labels, with `duplicate_of` set to the canonical issue. Never close the
+     canonical tracker, #52657, or operational-failure issues as duplicates.
+     Never create a separate issue for an image tag, digest, component, or individual CVE.
      Assign each family issue to `pelikhan` if it is unassigned. Put the current
      scan's family summary and collapsible details in that issue, including an
      explicit clean status when it has no findings:
@@ -225,11 +241,15 @@ or close legacy findings without complete scan evidence.
 10. In each family issue, state the remediation SLA cadence: Critical findings
      are remediated or explicitly risk-accepted within 7 days, High within 30
      days, and every scanned image is rebuilt on a refreshed base image at least
-     weekly (this workflow runs `gh aw compile --force-refresh-container-pins`
-     daily, so a pin refresh PR is the default remediation step). For findings
+     weekly. The daily `gh aw compile --force-refresh-container-pins` resolves
+     digests for the currently configured image tags in this scan's checkout;
+     it does not rebuild images, select newer release tags, or publish a pin
+     refresh PR. Do not report an upstream fix as adopted until the configured
+     tag/digest has been updated and rescanned. For findings
      on **upstream** images, do not request a local code-fix PR or task an
      agent to patch the vendored image directly — the daily pin-refresh
-     already picks up upstream fixes automatically once released. Instead,
+     can pick up same-tag rebuilds, but newer release tags require an explicit
+     version update. Instead,
      label the finding "Upstream — tracked only" and, when available, link to
      the corresponding issue/advisory in the owning repository so the fix is
      pursued there, not here.

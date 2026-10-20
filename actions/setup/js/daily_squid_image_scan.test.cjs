@@ -18,8 +18,76 @@ const config = parseCopilotSDKToolConfig(configLine?.[1]);
 const onPermission = buildCopilotSDKPermissionHandler(config.permissions, () => {
   throw new Error("The scanner must not rely on unrestricted permission approval");
 });
+const gate = source
+  .split("  - name: Enforce vendored vulnerability and license gates\n")[1]
+  .split("timeout-minutes:")[0]
+  .split("    run: |\n")[1]
+  .replace(/^      /gm, "");
 
 describe("daily container image scan analysis", () => {
+  it("uses the same immutable Node image pin in the compiler caches and compiled manifest", () => {
+    const image = "ghcr.io/github/gh-aw-node";
+    const cachePaths = ["../../../.github/aw/actions-lock.json", "../../../pkg/actionpins/data/action_pins.json", "../../../pkg/workflow/data/action_pins.json"];
+    const pins = cachePaths.map(path => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")).containers[image].pinned_image);
+    expect(pins[0]).toMatch(/^ghcr\.io\/github\/gh-aw-node@sha256:[a-f0-9]{64}$/);
+    expect(new Set(pins).size).toBe(1);
+    const manifest = JSON.parse(lock.match(/^# gh-aw-manifest: (.+)$/m)[1]);
+    expect(manifest.containers.find(container => container.image === image).pinned_image).toBe(pins[0]);
+  });
+
+  it("classifies the locally built Node image as vendored without promising automatic release upgrades", () => {
+    expect(source).toContain("`ghcr.io/github/gh-aw-node` is **vendored**");
+    expect(source).toContain("actions/setup/js/Dockerfile.safe-outputs-mcp");
+    expect(source).toContain("it does not rebuild images, select newer release tags, or publish a pin");
+    expect(source).toContain("tag/digest has been updated and rescanned");
+  });
+
+  it("consolidates exact-title family duplicates without closing canonical or operational trackers", () => {
+    const closeConfig = source.split("  close-issue:\n")[1].split("  noop:\n")[0];
+    expect(closeConfig).toContain('required-title-prefix: "[container-image-scan] "');
+    expect(closeConfig).toContain("required-labels: [cookie, security]");
+    expect(closeConfig).toContain("state-reason: duplicate");
+    expect(source).toContain("preserve unique unresolved findings and tracking links");
+    expect(source).toContain("update that issue before closing any duplicate");
+    expect(source).toContain("Close only exact-title duplicates");
+    expect(source).toContain("`duplicate_of` set to the canonical issue");
+    expect(source).toContain("canonical tracker, #52657, or operational-failure issues");
+  });
+
+  it("wires the same gates and duplicate constraints into the compiled workflow", () => {
+    const compiledGate = lock.match(/name: Enforce vendored vulnerability and license gates\n\s+run: (".+")/);
+    expect(compiledGate).not.toBeNull();
+    expect(JSON.parse(compiledGate[1]).trim()).toBe(gate.trim());
+    const configLine = lock.match(/^\s+GH_AW_SAFE_OUTPUTS_CONFIG: (".+")$/m);
+    expect(configLine).not.toBeNull();
+    const closeConfig = JSON.parse(JSON.parse(configLine[1])).close_issue;
+    expect(closeConfig.required_title_prefix).toBe("[container-image-scan] ");
+    expect(closeConfig.required_labels).toEqual(["cookie", "security"]);
+    expect(closeConfig.state_reason).toBe("duplicate");
+  });
+
+  it.each([
+    ["ghcr.io/github/gh-aw-node@sha256:abc:1:1: warning: [High] CVE-2026-1234: pkg@1 (fix: 2)", 1],
+    ["ghcr.io/github/gh-aw-node:latest:1:1: error: [Critical] CVE-2026-1234: pkg@1", 1],
+    ["ghcr.io/github/gh-aw-node@sha256:abc:1:1: warning: [High] CVE-2026-1234: pkg@1", 0],
+    ["ghcr.io/github/gh-aw-node@sha256:abc:1:1: warning: [Medium] CVE-2026-1234: pkg@1 (fix: 2)", 0],
+    ["node:lts-alpine:1:1: warning: [High] CVE-2026-1234: pkg@1 (fix: 2)", 0],
+    ["ghcr.io/github/gh-aw-mcpg:v1:1:1: error: [Critical] CVE-2026-1234: pkg@1 (fix: 2)", 0],
+    ["ghcr.io/github/gh-aw-node-other:1:1:1: warning: [High] CVE-2026-1234: pkg@1 (fix: 2)", 0],
+    ["ghcr.io/github/gh-aw-node@sha256:abc:1:1: error: license policy violation: pkg@1", 1],
+  ])("enforces vendored gates for %s", (finding, status) => {
+    const directory = mkdtempSync(join(tmpdir(), "image-gate-"));
+    try {
+      const fixture = join(directory, "compile-output.txt");
+      writeFileSync(fixture, `${finding}\n`);
+      const result = spawnSync("bash", ["-c", gate.replaceAll(scanLog, fixture)], { encoding: "utf8", timeout: 10000 });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stdout + result.stderr).toBe(status);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("documents paginated native reads and shell commands allowed by the compiled SDK contract", () => {
     expect(source).toContain("native `grep`");
     expect(source).toContain("native `view` with\n`view_range`");
