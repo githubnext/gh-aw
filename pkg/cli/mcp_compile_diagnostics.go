@@ -15,11 +15,12 @@ const (
 	maxMCPCompileDiagnosticBytes = 4 << 10
 	maxMCPCompileFallbackBytes   = 48 << 10
 	compileDiagnosticTruncation  = "\n... (diagnostic truncated)"
+	compileDebugNamespace        = `[[:alnum:]_]+(?:[:./-][[:alnum:]_]+)*`
 )
 
 // Match the logger's namespace/message/elapsed format, not a fixed namespace set.
-var compileDebugLinePattern = regexp.MustCompile(`^[[:alnum:]_]+(?:[:./-][[:alnum:]_]+)* .* \+[0-9]+(?:\.[0-9]+)?(?:ns|[µμ]s|ms|s|m|h)$`)
-var compileDebugStartPattern = regexp.MustCompile(`^[[:alnum:]_]+(?:[:./-][[:alnum:]_]+)+ `)
+var compileDebugLinePattern = regexp.MustCompile(`^` + compileDebugNamespace + ` .* \+[0-9]+(?:\.[0-9]+)?(?:ns|[µμ]s|ms|s|m|h)$`)
+var compileDebugStartPattern = regexp.MustCompile(`^` + compileDebugNamespace + ` `)
 var compileDebugEndPattern = regexp.MustCompile(`(?:^| )\+[0-9]+(?:\.[0-9]+)?(?:ns|[µμ]s|ms|s|m|h)$`)
 
 // compileDiagnosticText retains both ends of a line without buffering debug floods.
@@ -69,7 +70,8 @@ type mcpCompileDiagnostics struct {
 	inWarning  bool
 	shellcheck strings.Builder
 	inFinding  bool
-	inDebug    bool
+	debugLines []string
+	debugBytes int
 }
 
 func (diagnostics *mcpCompileDiagnostics) Write(data []byte) (int, error) {
@@ -81,13 +83,20 @@ func (diagnostics *mcpCompileDiagnostics) Write(data []byte) (int, error) {
 			break
 		}
 		diagnostics.line.Write(data[:index])
-		diagnostics.finishLine()
+		diagnostics.consumeLine()
 		data = data[index+1:]
 	}
 	return size, nil
 }
 
 func (diagnostics *mcpCompileDiagnostics) finishLine() {
+	if diagnostics.line.total > 0 {
+		diagnostics.consumeLine()
+	}
+	diagnostics.replayDebugLines()
+}
+
+func (diagnostics *mcpCompileDiagnostics) consumeLine() {
 	line := diagnostics.line.String()
 	if diagnostics.line.total > maxMCPCompileDiagnosticBytes {
 		diagnostics.omitted = true
@@ -96,13 +105,55 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 	if strings.ContainsRune(line, '\x1b') {
 		line = stringutil.StripANSI(line)
 	}
+	debugStart := compileDebugStartPattern.MatchString(line)
+	unindented := line == strings.TrimLeft(line, " \t")
 	line = strings.TrimSpace(line)
-	// A logger record can contain YAML and blank lines before its elapsed suffix.
-	if diagnostics.inDebug || isCompileDebugLine(line) || compileDebugStartPattern.MatchString(line) {
-		diagnostics.inDebug = !compileDebugEndPattern.MatchString(line)
+	if unindented && (isCompileErrorLine(line) || isCompileWarningLine(line) || strings.Contains(line, "shellcheck findings in ")) {
+		diagnostics.replayDebugLines()
+		diagnostics.recordDiagnosticLine(line)
+		return
+	}
+	if isCompileDebugLine(line) && (len(diagnostics.debugLines) == 0 || debugStart) {
+		// A new complete record cannot confirm an earlier incomplete record.
+		diagnostics.replayDebugLines()
 		diagnostics.omitted = true
 		return
 	}
+	// Namespace-like diagnostics are ambiguous until an elapsed suffix confirms
+	// a multiline logger record. Replay unconfirmed text at EOF or the byte limit.
+	if debugStart && !compileDebugEndPattern.MatchString(line) {
+		diagnostics.replayDebugLines()
+	}
+	if len(diagnostics.debugLines) > 0 {
+		if diagnostics.debugBytes+len(line)+1 > maxMCPCompileDiagnosticBytes {
+			diagnostics.replayDebugLines()
+		} else {
+			diagnostics.debugLines = append(diagnostics.debugLines, line)
+			diagnostics.debugBytes += len(line) + 1
+			if compileDebugEndPattern.MatchString(line) {
+				diagnostics.debugLines = nil
+				diagnostics.debugBytes = 0
+				diagnostics.omitted = true
+			}
+			return
+		}
+	} else if debugStart && len(line)+1 <= maxMCPCompileDiagnosticBytes {
+		diagnostics.debugLines = []string{line}
+		diagnostics.debugBytes = len(line) + 1
+		return
+	}
+	diagnostics.recordDiagnosticLine(line)
+}
+
+func (diagnostics *mcpCompileDiagnostics) replayDebugLines() {
+	for _, line := range diagnostics.debugLines {
+		diagnostics.recordDiagnosticLine(line)
+	}
+	diagnostics.debugLines = nil
+	diagnostics.debugBytes = 0
+}
+
+func (diagnostics *mcpCompileDiagnostics) recordDiagnosticLine(line string) {
 	switch {
 	case strings.Contains(line, "shellcheck findings in "):
 		diagnostics.inWarning = false
@@ -122,9 +173,7 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 		diagnostics.inBlock = false
 		return
 	}
-	isError := strings.HasPrefix(line, "✗") || strings.HasPrefix(line, "Error:") ||
-		strings.HasPrefix(line, "error:") || strings.HasPrefix(line, "fatal:") ||
-		strings.Contains(line, ": error:")
+	isError := isCompileErrorLine(line)
 	if isCompileWarningLine(line) {
 		diagnostics.recordWarning(line)
 		diagnostics.inWarning = true
@@ -144,6 +193,12 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 		return
 	}
 	diagnostics.recordFailureLine(line, isError)
+}
+
+func isCompileErrorLine(line string) bool {
+	return strings.HasPrefix(line, "✗") || strings.HasPrefix(line, "Error:") ||
+		strings.HasPrefix(line, "error:") || strings.HasPrefix(line, "fatal:") ||
+		strings.Contains(line, ": error:")
 }
 
 func (diagnostics *mcpCompileDiagnostics) recordFailureLine(line string, isError bool) {

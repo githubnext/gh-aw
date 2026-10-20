@@ -1,6 +1,6 @@
 # ADR-70614: Filter Multiline Debug Records in MCP Compile Diagnostics
 
-**Date**: 2026-05-14
+**Date**: 2026-10-20
 **Status**: Draft
 **Deciders**: pelikhan, Unknown (PR #70614 reviewers)
 
@@ -12,13 +12,15 @@ The MCP `compile` tool captures compiler output and returns the actionable warni
 
 ### Decision
 
-We will treat a logger debug record as a span that can cover several lines. The `mcpCompileDiagnostics` writer will track an `inDebug` state. A record starts on a line that either matches the full single-line pattern or starts with a namespaced token (`compileDebugStartPattern`, which needs at least one `:./-` separator). The record ends on the first line that ends with the elapsed suffix (`compileDebugEndPattern`). Every line in that span is omitted. Both micro-sign variants are accepted. We are keeping heuristic, stream-based filtering on the output, not changing how the compiler emits logs. This fixes the leak with a small, local change, and the writer still streams output without buffering it.
+We will recognize complete logger records while preserving ambiguous text. A namespace-like line starts a provisional buffer limited to the existing 4 KiB diagnostic budget. Namespace syntax is shared with the single-line matcher and includes delimiter-free names such as `bootstrap`. Only a complete record ending in an elapsed suffix is discarded. Both micro-sign variants are accepted.
+
+Unconfirmed candidates are replayed through normal diagnostic extraction at EOF, on buffer overflow, before a new record, or at an unindented error, warning, or ShellCheck finding boundary. A later elapsed suffix cannot confirm a candidate across such a diagnostic boundary. Indented YAML and blank lines can remain part of a confirmed multiline record. This keeps memory bounded without changing compiler logging or suppressing subsequent actionable failures when a record is incomplete.
 
 ### Alternatives Considered
 
 #### Alternative 1: Disable or redirect debug logging in the MCP compile subprocess
 
-Compile with `DEBUG` unset, or send logger output to a separate stream, so no debug records reach the diagnostics at all. This is cleaner because no heuristic is needed. It was not chosen because the PR keeps the existing captured-output design. Splitting the streams would mean changing the logger or the process plumbing, and debug output could no longer coexist with diagnostics when a user explicitly enables it. [TODO: verify whether this was considered]
+Compile with `DEBUG` unset, or send logger output to a separate stream, so no debug records reach the diagnostics at all. This avoids heuristic parsing, but changes the existing captured-output design or removes explicitly requested debug evidence. The scoped fix retains the current subprocess streams.
 
 #### Alternative 2: Keep line-by-line filtering and extend the single-line regex
 
@@ -36,8 +38,8 @@ Make the logger emit records that can be parsed unambiguously. This would be rob
 - A regression test compiles the real `agent-job-health` workflow twice with `dry_run` and `strict`. It checks deterministic locks and the batch gate.
 
 #### Negative
-- The filter is a heuristic state machine. A real compiler warning that starts with a namespaced token (for example `a:b ...`) would be treated as the start of a debug record. The filter would then hide it and keep hiding later lines until it sees a line ending in an elapsed suffix.
-- If a record never ends with the elapsed suffix (truncated output), `inDebug` stays set and later actionable diagnostics could be hidden.
+- Logger-shaped plain text is inherently ambiguous. Unconfirmed or oversized records are retained rather than silently discarded, so truncated debug text can remain in the bounded diagnostic result.
+- Provisional buffering can delay diagnostic extraction until confirmation, a diagnostic boundary, the byte limit, or EOF.
 - Correctness now depends on `pkg/logger` keeping its `namespace message +elapsed` format. A format change requires updating this filter.
 
 #### Neutral

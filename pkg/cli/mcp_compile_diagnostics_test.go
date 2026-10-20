@@ -125,8 +125,8 @@ func TestCompileToolAgentJobHealthStrictDryRun(t *testing.T) {
 	require.NoError(t, os.CopyFS(filepath.Join(workflowsDir, "shared"), os.DirFS(filepath.Join(root, ".github", "workflows", "shared"))))
 	require.NoError(t, os.CopyFS(filepath.Join(dir, ".github", "skills", "jqschema"), os.DirFS(filepath.Join(root, ".github", "skills", "jqschema"))))
 	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		require.Contains(t, args, "--dry-run")
-		require.Contains(t, args, "--strict")
+		assert.Contains(t, args, "--dry-run")
+		assert.Contains(t, args, "--strict")
 		cmd := compileDiagnosticChild("agent-job-health")(ctx)
 		cmd.Dir = dir
 		cmd.Env = append(cmd.Env, "DEBUG=workflow:prompts")
