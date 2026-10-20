@@ -20,11 +20,15 @@ set +o histexpand
 #
 # Security features:
 #   - Downloads directly from GitHub releases
-#   - Verifies SHA256 checksum against official checksums.txt
+#   - Authenticates checksums.txt against a digest bundled in the trusted action
 #   - Fails fast if checksum verification fails
 #   - Eliminates trust dependency on installer scripts
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=actions/setup/sh/release_integrity.sh
+source "${SCRIPT_DIR}/release_integrity.sh"
 
 # Configuration
 AWF_VERSION="${1:-}"
@@ -66,6 +70,12 @@ if [ -z "$AWF_VERSION" ]; then
   echo "Usage: $0 VERSION [--rootless]"
   exit 1
 fi
+AWF_VERSION="v${AWF_VERSION#v}"
+if [[ ! "$AWF_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "ERROR: AWF version must be a pinned semantic release tag" >&2
+  exit 1
+fi
+CHECKSUMS_SHA256="$(release_artifact_sha256 "$AWF_REPO" "$AWF_VERSION" checksums.txt)"
 
 # Detect OS and architecture
 OS="$(uname -s)"
@@ -102,7 +112,7 @@ fi
 # Download URLs
 BASE_URL="https://github.com/${AWF_REPO}/releases/download/${AWF_VERSION}"
 CHECKSUMS_URL="${BASE_URL}/checksums.txt"
-CURL_RETRY_OPTS=(--retry 5 --retry-delay 10 --retry-max-time 180)
+CURL_RETRY_OPTS=(--proto '=https' --proto-redir '=https' --retry 5 --retry-delay 10 --retry-max-time 180)
 # --retry-all-errors was added in curl 7.71, so it must not be passed to older curl
 # builds found on some self-hosted runners. Probe the help output instead of parsing
 # `curl --version`, which reports vendor-patched version strings that do not reliably
@@ -134,16 +144,17 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL@Q}..."
 curl -fsSL "${CURL_RETRY_OPTS[@]}" -o "${TEMP_DIR}/checksums.txt" "${CHECKSUMS_URL}"
+verify_release_digest "${TEMP_DIR}/checksums.txt" "$CHECKSUMS_SHA256"
 
 verify_checksum() {
   local file="$1"
   local fname="$2"
 
   echo "Verifying SHA256 checksum for ${fname}..."
-  EXPECTED_CHECKSUM=$(awk -v fname="${fname}" '$2 == fname {print $1; exit}' "${TEMP_DIR}/checksums.txt" | tr 'A-F' 'a-f')
+  EXPECTED_CHECKSUM=$(awk -v fname="${fname}" '$2 == fname || $2 == "*" fname {count++; digest=$1} END {if (count == 1) print digest}' "${TEMP_DIR}/checksums.txt" | tr 'A-F' 'a-f')
 
-  if [ -z "$EXPECTED_CHECKSUM" ]; then
-    echo "ERROR: Could not find checksum for ${fname} in checksums.txt"
+  if [[ ! "$EXPECTED_CHECKSUM" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "ERROR: Expected exactly one valid checksum for ${fname} in authenticated checksums.txt" >&2
     return 1
   fi
 
@@ -192,8 +203,8 @@ install_bundle() {
 
   # Verify checksum
   if ! verify_checksum "${TEMP_DIR}/${bundle_name}" "${bundle_name}"; then
-    echo "⚠ Bundle checksum verification failed"
-    return 1
+    echo "ERROR: Bundle checksum verification failed; refusing fallback" >&2
+    exit 1
   fi
 
   # Install bundle to lib directory

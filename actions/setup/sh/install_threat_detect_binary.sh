@@ -227,7 +227,7 @@ install_linux_binary() {
 
   local binary_url="${BASE_URL}/${binary_name}"
   echo "Downloading binary from \"${binary_url}\"..."
-  curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/${binary_name}" "${binary_url}"
+  curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 10 --retry-max-time 180 --retry-all-errors -o "${TEMP_DIR}/${binary_name}" "${binary_url}"
 
   # Verify checksum
   verify_checksum "${TEMP_DIR}/${binary_name}" "${binary_name}" "${expected_checksum}"

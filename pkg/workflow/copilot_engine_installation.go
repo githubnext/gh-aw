@@ -458,9 +458,13 @@ func generateDockerComposeInstallStep() GitHubActionStep {
 		`          export DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"`,
 		`          mkdir -p "$DOCKER_CONFIG/cli-plugins"`,
 		`          arch="$(uname -m)"`,
-		`          case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="aarch64" ;; *) echo "Unsupported architecture for docker compose plugin: $arch" >&2; exit 1 ;; esac`,
-		`          curl -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-$arch" -o "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
-		`          chmod +x "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
+		`          case "$arch" in x86_64|amd64) arch="x86_64"; digest="9040bd35b2cc0783ce6c5de491de7e52e24d4137dbfc5de8a524f718fc23556c" ;; aarch64|arm64) arch="aarch64"; digest="d1148609319706a57b755ff0f61d604a63a8cf57adb24c17535baa766ff14b4f" ;; *) echo "Unsupported architecture for docker compose plugin: $arch" >&2; exit 1 ;; esac`,
+		`          download="$(mktemp)"`,
+		`          trap 'rm -f "$download"' EXIT`,
+		`          curl --proto '=https' --proto-redir '=https' -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-$arch" -o "$download"`,
+		`          source "${RUNNER_TEMP}/gh-aw/actions/release_integrity.sh"`,
+		`          verify_release_digest "$download" "$digest"`,
+		`          install -m 0755 "$download" "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
 		`          docker compose version`,
 	})
 }

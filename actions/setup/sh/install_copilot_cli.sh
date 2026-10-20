@@ -21,7 +21,7 @@ set +o histexpand
 #
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)
-#   - Verifies SHA256 checksum against official SHA256SUMS.txt
+#   - Authenticates SHA256SUMS.txt against digests bundled in the trusted action
 #   - Fails fast if checksum verification fails
 
 set -euo pipefail
@@ -42,6 +42,8 @@ COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
 COPILOT_MIN_VERSION_OVERRIDE="${GH_AW_COPILOT_MIN_VERSION:-}"
 COPILOT_GUEST_LIBC="${GH_AW_COPILOT_GUEST_LIBC:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=actions/setup/sh/release_integrity.sh
+source "${SCRIPT_DIR}/release_integrity.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
 COMPAT_MATCHED_MIN_AGENT=""
@@ -294,7 +296,7 @@ download_compat_json() {
   local source_file="$2"
 
   echo "Attempting to download compatibility matrix from ${COMPAT_URL}..." >&2
-  if curl -fsSL --retry 3 --retry-delay 5 --retry-all-errors -o "$compat_file" "$COMPAT_URL"; then
+  if curl --proto '=https' --proto-redir '=https' -fsSL --retry 3 --retry-delay 5 --retry-all-errors -o "$compat_file" "$COMPAT_URL"; then
     echo "$COMPAT_URL" > "$source_file"
     echo "Successfully downloaded compatibility matrix from ${COMPAT_URL}" >&2
     return 0
@@ -615,6 +617,7 @@ stage_musl_guest_copilot() {
   local actual_checksum=""
   local extract_dir="${TEMP_DIR}/guest-copilot"
   local destination=""
+  local manifest_digest=""
 
   if [ "$COPILOT_GUEST_LIBC" != "musl" ]; then
     return 0
@@ -640,9 +643,11 @@ stage_musl_guest_copilot() {
 
   guest_tarball="copilot-linuxmusl-${ARCH_NAME}.tar.gz"
   guest_archive="${TEMP_DIR}/${guest_tarball}"
+  manifest_digest="$(release_artifact_sha256 "$COPILOT_REPO" "$version" SHA256SUMS.txt)" || return 1
   echo "Staging checksum-verified ${guest_tarball} for the musl NVX guest..."
-  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$checksums_file" "${base_url}/SHA256SUMS.txt"
-  curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$guest_archive" "${base_url}/${guest_tarball}"
+  curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$checksums_file" "${base_url}/SHA256SUMS.txt"
+  verify_release_digest "$checksums_file" "$manifest_digest" || return 1
+  curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$guest_archive" "${base_url}/${guest_tarball}"
 
   expected_checksum="$(awk -v fname="$guest_tarball" '$2 == fname {print $1; exit}' "$checksums_file" | tr 'A-F' 'a-f')"
   if [ -z "$expected_checksum" ]; then
@@ -739,14 +744,16 @@ fi
 
 TARBALL_URL="${BASE_URL}/${TARBALL_NAME}"
 CHECKSUMS_URL="${BASE_URL}/SHA256SUMS.txt"
+CHECKSUMS_SHA256="$(release_artifact_sha256 "$COPILOT_REPO" "$VERSION" SHA256SUMS.txt)"
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
+curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
+verify_release_digest "${TEMP_DIR}/SHA256SUMS.txt" "$CHECKSUMS_SHA256"
 
 # Download binary tarball
 echo "Downloading binary from ${TARBALL_URL}..."
-curl -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
+curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
 
 # Verify checksum
 echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."

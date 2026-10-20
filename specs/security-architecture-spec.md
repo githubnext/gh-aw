@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Agentic Workflows Security Architecture Specification
 
-**Version**: 1.1.3<br>
+**Version**: 1.1.4<br>
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/security-architecture-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,7 +78,7 @@ This specification does NOT cover:
 - Application-level security for workflows (responsibility of workflow authors)
 - GitHub Actions platform security (covered by GitHub documentation)
 - Operational security procedures for managing workflows
-- Incident response or security monitoring procedures
+- General incident response or security monitoring procedures (the transport-trust update procedure in §6.8 is included)
 
 ### 1.3 Design Goals
 
@@ -229,6 +229,7 @@ The security architecture protects against:
 4. **Privilege Escalation**: Unauthorized elevation of permissions or capabilities
 5. **Supply Chain Attacks**: Compromised dependencies or actions
 6. **Resource Exhaustion**: Denial of service through infinite loops or resource consumption
+7. **Compromised Certificate Authorities**: An attacker with network interception capability and a formerly trusted intermediate CA key can impersonate allowed HTTPS destinations to clients that have not applied distrust updates. Domain allowlisting, browser updates, and unsigned checksums fetched alongside artifacts do not independently prevent this attack.
 
 **Threat Model Clarification**: While the input sanitization layer prevents template injection through GitHub event context, AI agents may still access untrusted data at runtime through MCP tools. For example, the GitHub MCP server can return issue titles, PR bodies, and comments that were not pre-sanitized by the activation job. This is an accepted architectural tradeoff that enables dynamic workflows while relying on:
 - **Threat detection**: Analyzes agent output for malicious behavior before execution
@@ -537,6 +538,42 @@ network:
 **NI-14**: The network allowlist MUST also apply to content sanitization:
 - URIs from non-allowed domains MUST be replaced with `(redacted)`
 - GitHub domains SHOULD be allowed by default
+
+### 6.8 Transport Trust and Bootstrap Integrity
+
+Destination authorization, endpoint authentication, and artifact authentication are separate boundaries. Ordinary hostname/chain validation is necessary but insufficient when the client still trusts a compromised CA. SSL interception adds another verifier: updating the client-side proxy CA does not update the proxy's upstream trust store.
+
+| Requirement | Contract and evidence |
+|---|---|
+| **TT-01 TLS policy** | Bootstrap curl downloads MUST restrict both initial and redirected URLs to HTTPS and MUST retain hostname/chain validation. No insecure certificate override or HTTP retry is permitted. `install_awf_binary.sh`, `install_copilot_cli.sh`, `install_threat_detect_binary.sh`, the GitHub CLI key installer, Cloud Hypervisor setup downloads, and the generated Compose installer implement this policy. |
+| **TT-02 Independent release integrity** | AWF and downloaded Copilot CLI archives MUST authenticate their checksum manifest against a release-bound SHA256 digest shipped in the trusted setup action's `release_integrity.sh` before consuming it. Missing, duplicate or malformed trusted pins and mismatched bytes MUST fail installation before archive extraction, installation or execution. Replacing both the artifact and its network-served checksum MUST NOT bypass authentication. A bundle integrity failure MUST NOT trigger an AWF binary fallback. Threat-detect retains compiler-supplied asset digests; Compose retains architecture-specific compiler digests; the GitHub CLI apt signing key is authenticated before installation. Cloud Hypervisor/NVX attestation checks remain independent requirements. |
+| **TT-03 Toolchain evidence** | Release builds MUST reject stable Go toolchains older than 1.26.10 on the 1.26 branch or 1.27.3 on the 1.27 branch, unsupported older branches, and development/prerelease toolchains. `scripts/check-go-toolchain.sh` checks the actual compiler; `scripts/build-release.sh` inspects each native binary's embedded toolchain and records `dist/build-toolchain.txt`. The module's preferred toolchain and default generated Go setup are patched; user-selected Go runtimes remain author-controlled and are not attested by compilation. |
+| **TT-04 Runtime evidence** | Setup MUST log a bounded inventory of available host TLS consumers without credentials, environment dumps, or authenticated URLs. Missing inspection tools and uninspected container/proxy trust stores MUST be identified rather than reported as compliant. `runtime_trust_inventory.sh` supplies host versions; image operators retain responsibility for image contents and actual trust-store selection. |
+
+The trusted bootstrap baseline includes the setup action and its digest table, compiler, GitHub Actions control plane, and runner/toolcache provisioning. It excludes attacker-controlled network responses. A preinstalled Copilot CLI from a trusted runner toolcache retains the existing cache policy; cache contents are not newly authenticated by download checks. An arbitrary runner binary, compromised setup action, or malicious workflow author is not repaired by a digest table.
+
+#### Runtime trust inventory and ownership
+
+| Consumer | Trust authority to inspect | Owner and required update evidence |
+|---|---|---|
+| gh-aw and gh Go binaries | Embedded Go `crypto/x509` plus platform verifier/root store | Release maintainers record the actual build toolchain; runner operators inspect separately provisioned `gh`. A newer `go` executable does not patch existing binaries. |
+| Host Git/curl and apt | curl TLS backend, OS CA/blocklist packages, apt signing keys | Runner-image operators update and rebuild images; TLS bootstrap of signing keys also requires independent key authentication. |
+| Node and engine CLIs | Node/OpenSSL version, bundled/system CAs and vendor distrust implementation | Runtime vendors and runner operators provide patched-version/distrust evidence. Do not invent a Node patch floor while its vendor fix is pending. |
+| Python clients | OpenSSL/system CAs or requests/certifi bundle actually selected by the client | Runtime-image operators update the selected bundle; certifi 2026.10.19 addresses this incident. Merely installing certifi does not change every client's CA source. |
+| AWF Squid/API/CLI proxies | Upstream TLS verifier inside each digest-pinned image | AWF maintainers rebuild affected images; gh-aw maintainers review and refresh digests. Pinning freezes bytes, including an outdated trust store. |
+| MCP servers and guest/container engines | Each image or guest's TLS implementation, custom CA configuration and dependency bundles | Image/guest owners rebuild and attest each consumer separately. Updating only the host or browser is insufficient. |
+
+#### Emergency distrust procedure
+
+1. Confirm affected keys, cross-signs and vendor guidance from the [incident report](https://emudhra.we-have-a-problem.com) and [Go advisory](https://groups.google.com/g/golang-announce/c/66pojueaQek). Track key/SPKI identity across alternative chains, not only one certificate fingerprint. Do not download or use compromised private keys.
+2. Inventory the consumers above and their deployed versions/digests. Treat unavailable vendor evidence as unknown, not protected. Do not rely on universal OCSP/CRL consumption or a successful HTTPS probe.
+3. Update supported trust stores and runtimes, rebuild distributed Go binaries and affected images, and review new pins from an independently authenticated release process. Never acquire an emergency trusted pin solely from the same potentially intercepted download channel. Reject rollback to known-vulnerable releases; do not change historical run results.
+4. Exercise offline distrust tests for affected keys and their cross-signs, artifact-plus-checksum replacement, rejection before execution, supported architecture selection, and HTTPS downgrade rejection. Keep a valid-chain control to distinguish a deliberate distrust failure from an otherwise broken verifier.
+5. Publish new compiler/setup releases and refreshed image digests through the normal release process. Record build-toolchain evidence and remaining unpatched consumers. Do not disable certificate validation or weaken the sandbox to restore availability; temporarily suspend affected execution where no trustworthy client is available.
+
+#### Conformance evidence and limits
+
+`release_integrity_test.sh`, `install_awf_binary_test.sh`, `install_threat_detect_binary_test.sh`, `scripts/check-go-toolchain_test.sh`, and the focused Go installer/compiler tests exercise these controls. `TestTransportTrustRejectsCompromisedCAKeysAcrossCrossSigns` checks a representative original/cross-signed public-certificate pair against Go's native key-level distrust using explicit trust anchors; `TestTransportTrustAcceptsUnaffectedCA` is the valid-chain control. These are offline verifier tests, not live TLS or comprehensive vendor/store attestations. `TestTransportTrustBootstrapRedirectPolicy` uses a local trusted HTTPS server to verify that an HTTP redirect is refused before its destination is contacted. Broader package-manager downloads and upstream images need their own signature/lockfile and vendor deployment evidence; this change does not attest or patch upstream images. A compiler-wide rejection rule for unauthenticated downloads is a candidate, not an active `CTR-*` rule, until implementation and deployment evidence satisfy the compiler specification's candidacy process.
 
 ---
 
@@ -2052,6 +2089,14 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 ---
 
 ## Change Log
+
+### Version 1.1.4 (Transport Trust and Bootstrap Integrity)
+
+**Published**: October 20, 2026
+
+- Adds the compromised-intermediate-CA threat and TT-01 through TT-04 bootstrap, toolchain and inventory contracts, separate from domain authorization.
+- Authenticates AWF/Copilot checksum manifests independently, pins Compose and apt signing-key bytes, and rejects HTTPS bootstrap downgrade.
+- Documents per-consumer trust ownership, emergency distrust updates and remaining upstream/package-manager coverage limitations.
 
 ### Version 1.1.3 (RS-05a Same-Repository Bot PR Event Checkout)
 
