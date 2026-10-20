@@ -234,6 +234,7 @@ func TestMCPServer_ToolIcons(t *testing.T) {
 	// Expected icons for each tool
 	expectedIcons := map[string]string{
 		"status":      mcpEmojiIconSource("📊"),
+		"health":      mcpEmojiIconSource("📊"),
 		"compile":     mcpEmojiIconSource("📋"),
 		"logs":        mcpEmojiIconSource("📝"),
 		"audit":       mcpEmojiIconSource("🔍"),

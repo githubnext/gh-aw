@@ -13,6 +13,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 |---|---|---|---|
 | `action-pin` | `CTR-002` | AW, Actions | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
 | `job-timeout` | `CTR-026` | AW, Actions | An explicit workflow/job timeout is a positive integer literal, not an expression. Omission is allowed. |
+| `needs-consistency` | — | AW, Actions | Dependencies name existing jobs without self-edges or cycles. Literal `needs` accesses name direct dependencies and declared job outputs; ordering-only dependencies are valid. |
 | `template-injection` | `CTR-006` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` or `actions/github-script` code. Use environment bindings and quoted shell expansions or `process.env` instead. |
 | `workflow-run-scope` | `CTR-021` | AW, Actions | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
 | `secret-leak` | `CTR-017` | AW, Actions | Symbolic secrets do not reach modeled disclosure sinks. AW-only checks report missing generated execution coverage. |
@@ -88,6 +89,16 @@ sandbox:
 ```
 
 The compiler rejects `network.firewall` regardless of its SSL setting. Remove that legacy block and use `network.allowed` for domain policy; do not add `network.firewall.ssl-bump` as a remedy.
+
+### Needs consistency
+
+`needs-consistency` reports warnings in either strict mode. Dot and literal bracket accesses, including bare job and step `if` conditions, are parsed as Actions expressions. A transitive dependency is not available in `needs`: the consumer must declare the producer directly. Job properties are `result` and `outputs`. Output accesses require a producer `outputs` entry; reusable-workflow outputs are exempt because their declarations are external. Native Actions parsing already rejects missing dependency targets and cycles before linting.
+
+The compiled Actions graph takes precedence over companion AW source. AW-only checks cover explicit `jobs`, `safe-jobs`, and `safe-outputs.jobs`, normalize safe-job dependency IDs, and defer missing imported or compiler-generated producers and outputs. Compiler-owned scopes and safe-job defaults are not reconstructed. Imports also defer missing direct edges that may be inherited. Prompts and root execution scopes require the compiled graph for dependency analysis. Wildcard projections, whole-context reads, and computed indexes do not select a statically known producer or output; their nested literal accesses are still checked. Dependencies used only for ordering are not treated as unused.
+
+```bash wrap
+gh aw lint --rules needs-consistency .github/workflows/example.md
+```
 
 ### Custom job detection gates
 

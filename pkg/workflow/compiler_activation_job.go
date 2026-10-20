@@ -60,7 +60,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	c.configureActivationNeedsAndCondition(ctx)
 	compilerActivationJobLog.Print("Generating prompt in activation job")
-	c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation)
+	if err := c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation, ctx.outputs); err != nil {
+		return nil, err
+	}
 	c.addWorkQueueSnapshotStep(ctx)
 	c.addActivationArtifactUploadStep(ctx)
 	if len(ctx.steps) == 0 {
@@ -334,7 +336,7 @@ func buildCentralizedCommandOnSection(commandEvents []string) string {
 // beforeActivationJobs is the list of custom job names that run before (i.e., are dependencies of) activation.
 // Passing nil or an empty slice means no custom jobs run before activation; expressions referencing any
 // custom job will be filtered out of the substitution step to avoid actionlint errors.
-func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string) {
+func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *WorkflowData, preActivationJobCreated bool, beforeActivationJobs []string, outputs map[string]string) error {
 	compilerActivationJobLog.Print("Generating prompt steps in activation job")
 
 	// Use a string builder to collect the YAML
@@ -344,10 +346,14 @@ func (c *Compiler) generatePromptInActivationJob(steps *[]string, data *Workflow
 	c.generatePrompt(&yaml, data, preActivationJobCreated, beforeActivationJobs)
 
 	// Append the generated YAML content as a single string to steps
-	yamlContent := yaml.String()
+	yamlContent, err := rewriteActivationPromptOutputs(yaml.String(), outputs)
+	if err != nil {
+		return err
+	}
 	*steps = append(*steps, yamlContent)
 
 	compilerActivationJobLog.Print("Prompt generation steps added to activation job")
+	return nil
 }
 
 // generateResolveHostRepoStep generates a step that resolves the platform (host) repository
@@ -367,7 +373,7 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
 	step.WriteString("        id: resolve-host-repo\n")
-	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
+	step.WriteString("        uses: " + getCachedActionPin("actions/github-script", data) + "\n")
 	step.WriteString("        env:\n")
 	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
 	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")
