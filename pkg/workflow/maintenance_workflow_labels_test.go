@@ -188,23 +188,25 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 		name    string
 		jobName string
 		step    string
-		content string
+		build   func(buildMaintenanceWorkflowYAMLOptions, string) (string, error)
 	}{
 		{
 			name:    "disable workflow",
 			jobName: "label_disable_agentic_workflow",
 			step:    "Disable agentic workflow",
-			content: buildMaintenanceLabelDisableJob(opts, "./actions/setup"),
+			build:   buildMaintenanceLabelDisableJob,
 		},
 		{
 			name:    "apply safe outputs",
 			jobName: "label_apply_safe_outputs",
 			step:    "Apply safe outputs from referenced run",
-			content: buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup"),
+			build:   buildMaintenanceLabelApplySafeOutputsJob,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Contains(t, tc.content, "uses: '"+expectedActionRef+"' # ")
+			content, err := tc.build(opts, "./actions/setup")
+			require.NoError(t, err)
+			require.Contains(t, content, "uses: '"+expectedActionRef+"' # ")
 			var parsed struct {
 				Jobs map[string]struct {
 					Steps []struct {
@@ -213,7 +215,7 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 					} `yaml:"steps"`
 				} `yaml:"jobs"`
 			}
-			require.NoError(t, yamlv3.Unmarshal([]byte("jobs:\n"+tc.content), &parsed))
+			require.NoError(t, yamlv3.Unmarshal([]byte("jobs:\n"+content), &parsed))
 			job, ok := parsed.Jobs[tc.jobName]
 			require.True(t, ok, "expected generated job %q", tc.jobName)
 			for _, step := range job.Steps {
@@ -225,6 +227,74 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 			t.Fatalf("expected step %q in generated job %q", tc.step, tc.jobName)
 		})
 	}
+}
+
+func TestQuoteYAMLActionPin(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		pin     string
+		wantRef string
+	}{
+		{"plain", "owner/action@sha", "owner/action@sha"},
+		{"version comment", "owner/action@sha # v1", "owner/action@sha"},
+		{"apostrophes", "owner/action@ref'with'quotes # v1's label", "owner/action@ref'with'quotes"},
+		{"YAML punctuation", "owner/action@ref: [value] # v1", "owner/action@ref: [value]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			quoted, err := quoteYAMLActionPin(tc.pin)
+			require.NoError(t, err)
+			var parsed struct {
+				Uses string `yaml:"uses"`
+			}
+			require.NoError(t, yamlv3.Unmarshal([]byte("uses: "+quoted+"\n"), &parsed))
+			require.Equal(t, tc.wantRef, parsed.Uses)
+		})
+	}
+}
+
+func TestQuoteYAMLActionPinRejectsUnsafeStrings(t *testing.T) {
+	for _, pin := range []string{
+		"owner/action@sha\nrun: injected",
+		"owner/action@sha # v1\nrun: injected",
+		"owner/action@sha # v1\rrun: injected",
+		"owner/action@sha # v1\u0085run: injected",
+		"owner/action@sha # v1\u2028run: injected",
+		"owner/action@sha # v1\u2029run: injected",
+		"owner/action@sha\x00",
+		"owner/action@${{ github.token }}",
+		"owner/action@sha # ${{ github.token }}",
+	} {
+		t.Run(pin, func(t *testing.T) {
+			quoted, err := quoteYAMLActionPin(pin)
+			require.ErrorContains(t, err, "invalid action pin")
+			require.Empty(t, quoted)
+		})
+	}
+}
+
+type unsafeActionPinResolver string
+
+func (r unsafeActionPinResolver) ResolveSHA(context.Context, string, string) (string, error) {
+	return string(r), nil
+}
+
+func TestMaintenanceLabelJobsRejectUnsafeActionPins(t *testing.T) {
+	opts := buildMaintenanceWorkflowYAMLOptions{
+		runsOnValue: "ubuntu-latest",
+		resolver:    unsafeActionPinResolver("sha # v1\n        run: injected"),
+	}
+	for _, build := range []func(buildMaintenanceWorkflowYAMLOptions, string) (string, error){
+		buildMaintenanceLabelDisableJob,
+		buildMaintenanceLabelApplySafeOutputsJob,
+		buildMaintenanceLabelTriggeredJobs,
+	} {
+		content, err := build(opts, "./actions/setup")
+		require.ErrorContains(t, err, "invalid action pin")
+		require.Empty(t, content)
+	}
+	content, err := buildMaintenanceWorkflowYAML(context.Background(), opts)
+	require.ErrorContains(t, err, "invalid action pin")
+	require.Empty(t, content)
 }
 
 func TestGenerateMaintenanceWorkflow_LabelTriggers_ActionMappings(t *testing.T) {

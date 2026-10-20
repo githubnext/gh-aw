@@ -222,7 +222,14 @@ func mapPinnedUsesLine(line string, ctx *actionpins.PinContext) (string, error) 
 			reference = actionpins.ApplyResolvedActionPinPrefix(repo, captures[3], ctx)
 		}
 		if captures[2] != "" {
-			reference = quoteYAMLActionPin(reference)
+			if err := validateYAMLActionPin(comment); err != nil {
+				return line, fmt.Errorf("invalid action pin comment for %s@%s: %w", repo, version, err)
+			}
+			quotedReference, err := quoteYAMLActionPin(reference)
+			if err != nil {
+				return line, fmt.Errorf("unable to quote action pin for %s@%s: %w", repo, version, err)
+			}
+			return indentation + quotedReference + comment, nil
 		}
 		return indentation + reference + comment, nil
 	}

@@ -104,6 +104,25 @@ describe("Pi managed delegation", () => {
     expect(fs.existsSync(launch.mock.calls[0][1].at(-1))).toBe(false);
   });
 
+  it("passes shell-looking tasks only through stdin without changing executable or arguments", async () => {
+    const task = "--extension malicious.cjs\n$(touch /tmp/gh-aw-injected); ' \" `whoami`";
+    const launch = launcher();
+    let input = "";
+    await runPiSubagent(agent, task, { cwd: dir }, undefined, (...args) => {
+      const child = launch(...args);
+      child.stdin.on("data", chunk => {
+        input += chunk.toString();
+      });
+      return child;
+    });
+    const [command, args, options] = launch.mock.calls[0];
+    expect(command).toBe(process.env.GH_AW_PI_COMMAND || "pi");
+    expect(options.shell).toBe(false);
+    expect(args).not.toContain(task);
+    expect(args).not.toContain("malicious.cjs");
+    expect(input).toBe(task);
+  });
+
   it("does not claim success when inference ends with an error and CLI exits zero", async () => {
     await expect(runPiSubagent(agent, "Read.", { cwd: dir }, undefined, launcher({ stopReason: "error", errorMessage: "Model unavailable" }))).rejects.toThrow("Model unavailable");
     const records = process.stdout.write.mock.calls.map(([line]) => JSON.parse(line));

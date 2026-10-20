@@ -2078,6 +2078,19 @@ func TestMapPinnedUsesQuotedScalars(t *testing.T) {
 	}
 }
 
+func TestMapPinnedUsesRejectsUnsafeQuotedPins(t *testing.T) {
+	const sha = "0123456789012345678901234567890123456789"
+	input := "        uses: 'actions/upload-artifact@" + sha + "' # v7\n"
+	for _, prefix := range []string{"mirror/\nrun: injected\n", "${{ github.token }}/"} {
+		_, err := mapPinnedUsesInYAML(input, nil, map[string]string{"actions/": prefix}, nil, nil)
+		require.ErrorContains(t, err, "invalid action pin")
+	}
+	_, err := mapPinnedUsesInYAML(input,
+		map[string]string{"actions/upload-artifact@v7": "internal/artifacts@v1"}, nil,
+		nil, unsafeActionPinResolver("sha # v1\nrun: injected"))
+	require.ErrorContains(t, err, "invalid action pin")
+}
+
 func TestMapPinnedUsesMatchesExactMappingSourceVersion(t *testing.T) {
 	const sha = "0123456789012345678901234567890123456789"
 	input := "        uses: actions/upload-artifact@" + sha + " # v7.0.1 (source v4)\n"

@@ -66,7 +66,11 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(buildMaintenanceForecastReportJob(ctx, opts, setupActionRef))
 	yaml.WriteString(buildMaintenanceCloseIssuesJob(opts, setupActionRef))
 	yaml.WriteString(buildMaintenanceValidateWorkflowsJob(ctx, opts, setupActionRef))
-	yaml.WriteString(buildMaintenanceLabelTriggeredJobs(opts, setupActionRef))
+	labelJobs, err := buildMaintenanceLabelTriggeredJobs(opts, setupActionRef)
+	if err != nil {
+		return "", err
+	}
+	yaml.WriteString(labelJobs)
 	yaml.WriteString(buildMaintenanceDevOnlyJobs(ctx, opts, setupActionRef))
 	ledgerJobs, err := buildMaintenanceLedgerCompactionJobs(opts, setupActionRef)
 	if err != nil {
