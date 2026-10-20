@@ -65,6 +65,7 @@ function buildAdmissionIdentity(env) {
   const identity = {
     repo: env.GITHUB_REPOSITORY || "",
     workflow_id: env.GH_AW_INFO_WORKFLOW_ID || "",
+    workflow_hash: env.GH_AW_ADMISSION_WORKFLOW_HASH || "",
     workflow_call_id: "",
     run_id: env.GITHUB_RUN_ID || "",
     run_attempt: env.GITHUB_RUN_ATTEMPT || "",
@@ -76,6 +77,7 @@ function buildAdmissionIdentity(env) {
   if (!DECIMAL.test(identity.run_id) || !DECIMAL.test(identity.run_attempt)) throw new AdmissionError();
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(identity.repo)) throw new AdmissionError();
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[^/]+\.ya?ml@.+$/u.test(identity.workflow_id)) throw new AdmissionError();
+  if (!/^[0-9a-f]{64}:[0-9a-f]{64}$/.test(identity.workflow_hash)) throw new AdmissionError();
   identity.workflow_call_id = `${identity.run_id}-${identity.run_attempt}:${identity.workflow_id}`;
   if (Object.values(identity).some(value => !value || value.length > 4096 || !isScalarString(value) || CONTROL.test(value))) throw new AdmissionError();
   const body = JSON.stringify(identity);

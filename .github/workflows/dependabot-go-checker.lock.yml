@@ -222,11 +222,14 @@ jobs:
           GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
           GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
           GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "0900a3b706f171f1413e452e7e9dbe0f49dfee4ef27bab117ae242fdb44a5e72:3dd63422743efd749cadfffe6b6b625eef5a9de21468880acab32c4190ce3613"
           GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
         with:
           script: |
+            const { setupGlobals } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/check_admission.cjs');
             await main(core);
       - name: Restore daily AIC scan observations

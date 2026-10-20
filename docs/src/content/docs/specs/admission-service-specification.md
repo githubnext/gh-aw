@@ -112,7 +112,7 @@ sequenceDiagram
     Note over A: Validate activation-only decision<br/>then complete activation
 ```
 
-The step first resolves the endpoint and remaining settings as specified in Section 2. No endpoint means no token or request. For an enabled gate, it snapshots the current execution's nine identity strings, acquires the token below, and sends the admission request. The authority verifies the token and request bindings as specified in Section 4, optionally verifies run-attempt metadata, and returns the Section 5 decision. Only then does the client follow [Continuing After Admission](#continuing-after-admission). Transient retries follow Section 6 without changing the invocation or creating another entitlement.
+The step first resolves the endpoint and remaining settings as specified in Section 2. No endpoint means no token or request. For an enabled gate, it snapshots the current execution's nine identity strings and compiled workflow hash, acquires the token below, and sends the admission request. The authority verifies the token and request bindings as specified in Section 4, optionally verifies run-attempt metadata, and returns the Section 5 decision. Only then does the client follow [Continuing After Admission](#continuing-after-admission). Transient retries follow Section 6 without changing the invocation or creating another entitlement.
 
 ### Requesting the OIDC Token
 
@@ -163,6 +163,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 {
   "repo": "acme/project",
   "workflow_id": "acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
+  "workflow_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "workflow_call_id": "1234-2:acme/project/.github/workflows/triage.lock.yml@refs/heads/main",
   "run_id": "1234",
   "run_attempt": "2",
@@ -187,12 +188,13 @@ Proxies and API gateways MUST allow and preserve the standard fields, without ap
 
 ### JSON Request Fields
 
-All nine fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers. Standard runner sources below are defined in GitHub's [default environment variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables); the executing workflow reference uses gh-aw's existing metadata wiring:
+All ten fields are required exactly once in a UTF-8 JSON object. Every value is a string, including run IDs and attempt numbers. Standard runner sources below are defined in GitHub's [default environment variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#default-environment-variables); the executing workflow reference uses gh-aw's existing metadata wiring:
 
 | Field | Meaning and validation |
 |-------|------------------------|
 | `repo` | `GITHUB_REPOSITORY`: current execution's `owner/repository` slug; MUST match signed `repository` |
 | `workflow_id` | `GH_AW_INFO_WORKFLOW_ID`, populated from `job.workflow_ref`, matching `aw_info.workflow_id`: `owner/repository/.github/workflows/file.yml@ref`; neither a short logical AW ID nor a numeric GitHub workflow ID |
+| `workflow_hash` | `GH_AW_ADMISSION_WORKFLOW_HASH`: compiler-owned `<frontmatter_hash>:<body_hash>` from the executing workflow's existing lock-file metadata. Both components are lowercase 64-character SHA-256 hex strings. This identifies normalized workflow configuration and prompt content for potential authority-side caching, not a Git commit SHA or OIDC claim. |
 | `workflow_call_id` | Derive exactly `<run_id>-<run_attempt>:<workflow_id>`, matching `aw_info.workflow_call_id`; not a separate GitHub claim |
 | `run_id` | `GITHUB_RUN_ID`: canonical ASCII decimal run ID; preserve as a string and compare with signed `run_id` |
 | `run_attempt` | `GITHUB_RUN_ATTEMPT`: canonical ASCII decimal attempt number; MUST match signed `run_attempt` |
@@ -200,6 +202,10 @@ All nine fields are required exactly once in a UTF-8 JSON object. Every value is
 | `event_type` | `GITHUB_EVENT_NAME`: current event name; MUST match supported signed `event_name` |
 | `actor` | `GITHUB_ACTOR` / `github.actor`: original run actor login; MUST match signed `actor` |
 | `triggering_actor` | `GITHUB_TRIGGERING_ACTOR` / `github.triggering_actor`: current attempt's initiator, which may differ from `actor`; not an OIDC claim |
+
+The compiler MUST embed the workflow's existing frontmatter and body hashes directly in the admission step environment, not read a caller-supplied variable or recompute a hash from runtime event data. Prompt-only changes alter the body component; normalized configuration/import changes alter the corresponding existing hashes. The client MUST validate both components and preserve the complete value unchanged across retries. Missing or malformed hashes block an enabled gate before acquiring credentials. These hashes cover the existing compiler-defined content inputs, not a new claim that every runtime dependency or external resource is content-addressed.
+
+`workflow_hash` is untrusted cache-hint metadata, not proof of content, permission, enrollment, or authorization. The authority MAY use it to locate previously verified workflow metadata or parsed policy inputs, but MUST independently bind cached content to the authenticated repository and executing workflow revision before using it for authorization. It MUST NOT reuse another invocation's admission or skip current identity, policy, accounting-freshness, or revocation checks because hashes match. Section 8 defines cache isolation and retry identity.
 
 The client MUST pass both values from the current [GitHub Actions context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context), not infer one from the other. `actor` identifies the original run actor; `triggering_actor` identifies the current attempt's initiator. GitHub reruns retain the privileges of `github.actor`, even when `github.triggering_actor` has different privileges. Actor-specific authorization MUST use verified identity, including signed `actor_id`, and MUST NOT substitute the rerun initiator's privileges for the original actor's.
 
@@ -562,6 +568,8 @@ Admission is a start-time check. Concurrent executions can observe the same rema
 
 The decision key MUST include trusted GitHub issuer/deployment, signed canonical repository ID, run ID, run attempt, and verified caller/executing workflow references and SHAs. Any logical AW policy selector MUST be derived as specified in Section 4. The claimed `workflow_call_id` MUST be checked but MUST NOT be the sole key.
 
+The payload's `workflow_hash` MAY index an internal cache of verified workflow-content data. Cache entries MUST remain scoped to the trusted issuer/deployment, repository, executing workflow identity and revision, and the authority's applicable parser/policy version; a matching hash alone MUST NOT cause cross-tenant reuse or serve as an admission-decision key. Verify the content binding against trusted source/metadata before relying on a caller-provided hash. Content-cache reuse does not waive authentication, invocation binding, current policy/usage requirements, or response `cache-control: no-store`; intermediary response caching remains prohibited.
+
 The existing call-ID format distinguishes different executing workflow references, not repeated calls of the same reusable reference within one run attempt. Supported invocation patterns MUST have an unambiguous identity established from verified claims and authoritative workflow/run metadata. Ambiguous repeated calls MUST be denied as unsupported, not treated as retries of one execution or assigned separate entitlements using caller-controlled context, trace IDs, or token `jti`.
 
 Concurrent retries across service instances MUST NOT multiply financial or execution-accounting effects. A completed admission MUST retain the same `max_ai_credits` and the presence and values of both optional component allowances across retries, including lost responses and token renewal. None is a new entitlement or a client-selected lookup key. Independently admitted workflow hops and run attempts have distinct verified decision keys; trace context is not the decision key.
@@ -635,6 +643,7 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-039 | Separately minted runtime installation token; skipped minting; already-expired token; normal, failed, or cancellable job exit; cleanup failure | Conditional minting registers automatic or equivalent revocation through `DELETE /installation/token`; no disabled cleanup or cross-job token handoff; cleanup failures are visible without credential leakage; OIDC-only admission neither mints App tokens nor revokes OIDC JWTs or job-provided tokens |
 | ADM-040 | Primary-only, threat-detection-only optional field, evals-only optional field, both optional fields; reordered or escaped names; invalid/duplicate optional field | All four valid shapes accepted; optional values obey the primary field's bounds and wire grammar; missing primary, null, zero, decoded duplicates, and unknown fields block; omitted allowances remain unspecified |
 | ADM-041 | Admission token acquisition and disabled endpoint | No `actions/create-github-app-token`, App private key, App JWT, or installation token introduced; the endpoint `if` gates the bounded OIDC exchange and POST together |
+| ADM-042 | Compiled workflow hash, prompt-only change, malformed/missing hash, retry, spoofed hash, or another repository/invocation with the same hash | Send exact compiler-owned frontmatter/body hashes as one `workflow_hash` string; prompt changes alter the body component; invalid hashes block before OIDC; retries retain the snapshot; authority cache hints never bypass verified content binding, tenant isolation, or current admission checks |
 
 Tests MUST use synthetic credentials and accounting fixtures, not production secrets or real spend. Supported GitHub deployments, triggers, and reusable-workflow paths MUST have an explicit verified claim matrix, including audience shape/cardinality, required claim types, subject policy, and caller/executing identity mappings. Each supported audience profile MUST have matching positive and negative fixtures; a declared singleton-array profile accepts only its one configured recipient.
 
@@ -648,7 +657,7 @@ Four bounded profiles cover both outage policies with and without client OTel ex
 
 Reachability witnesses include approval despite a blocking daily result, daily blocks with disabled admission and ignored outages, early deadline exhaustion, existing/generated caller traces, and all four optional-allowance combinations. They deliberately include agent execution without a configured endpoint and after an ignored outage when daily fallback allows it. The formalization therefore preserves the cooperative boundary rather than assuming mandatory participation or authority approval for every run.
 
-This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, runtime installation-token revocation, HTTP/JSON parsing and lexical/Unicode validation, trusted URL handling, wall-clock deadline enforcement, distributed-cache concurrency/expiry and replay-state cleanup, trace-ID entropy, timing/logging privacy, and unchanged generated agent definitions remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
+This is a bounded reference specification, not proof of a compiler, client, or admission authority implementation. Cryptographic verification, runtime installation-token revocation, HTTP/JSON parsing and lexical/Unicode validation, trusted URL handling, wall-clock deadline enforcement, distributed-cache concurrency/expiry and replay-state cleanup, workflow-hash/content-cache verification, trace-ID entropy, timing/logging privacy, and unchanged generated agent definitions remain implementation obligations. Symbolic spend classes constrain response fields; they do not prove full noninterference or a hard spending cap. Section 10 conformance tests remain required.
 
 ## 12. Implementation Plan
 

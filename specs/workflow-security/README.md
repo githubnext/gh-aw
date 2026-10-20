@@ -177,6 +177,10 @@ The daily fallback result is explicit; other activation checks are assumed satis
 Telemetry samples admission trace export without introducing a relay or downstream
 metadata handoff. Equality of actual generated agent jobs and strict HTTP response
 shapes require implementation-level tests.
+The request's compiled frontmatter/body workflow hash is a cache hint, not a new
+authorization input in this model. Hash derivation, trusted content binding,
+and isolation of authority-side content caches require implementation tests;
+matching hashes never replace the modeled invocation/identity checks.
 Retry/token renewal and replicas reuse one abstract verified invocation and
 shared decision store; actual concurrency, foreign invocation partitioning,
 retention, and revocation require implementation-level tests. Audience claim

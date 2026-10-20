@@ -7,6 +7,7 @@ export const identityEnv = {
   ACTIONS_ID_TOKEN_REQUEST_TOKEN: "synthetic-bootstrap",
   GITHUB_REPOSITORY: "acme/project",
   GH_AW_INFO_WORKFLOW_ID: "platform/ops/.github/workflows/triage.lock.yml@refs/heads/main",
+  GH_AW_ADMISSION_WORKFLOW_HASH: `${"a".repeat(64)}:${"b".repeat(64)}`,
   GITHUB_RUN_ID: "90071992547409931234567890",
   GITHUB_RUN_ATTEMPT: "2",
   GITHUB_REF: "refs/heads/main",
@@ -50,7 +51,8 @@ describe("admission configuration and identity", () => {
 
   it("preserves executing identity, distinct actors, Unicode, and large decimal strings", () => {
     const body = JSON.parse(buildAdmissionIdentity({ ...identityEnv, GITHUB_REF: 'refs/heads/🦊"\\x' }));
-    expect(Object.keys(body)).toHaveLength(9);
+    expect(Object.keys(body)).toHaveLength(10);
+    expect(body.workflow_hash).toBe(identityEnv.GH_AW_ADMISSION_WORKFLOW_HASH);
     expect(body.run_id).toBe(identityEnv.GITHUB_RUN_ID);
     expect(body.actor).toBe("original");
     expect(body.triggering_actor).toBe("rerunner");
@@ -63,6 +65,9 @@ describe("admission configuration and identity", () => {
   });
   it.each(["GH_AW_INFO_WORKFLOW_ID", "GITHUB_TRIGGERING_ACTOR", "GITHUB_ACTOR"])("requires explicit current context: %s", key => {
     expect(() => buildAdmissionIdentity({ ...identityEnv, [key]: "" })).toThrow(FAILURE);
+  });
+  it.each(["", "unknown", "a".repeat(64), `${"a".repeat(63)}:${"b".repeat(64)}`, `${"A".repeat(64)}:${"b".repeat(64)}`, `${"a".repeat(64)}:${"b".repeat(64)}\n`])("rejects absent or malformed workflow hashes (%s)", value => {
+    expect(() => buildAdmissionIdentity({ ...identityEnv, GH_AW_ADMISSION_WORKFLOW_HASH: value })).toThrow(FAILURE);
   });
   it("rejects unpaired surrogates, controls, and oversize identities", () => {
     for (const value of ["\ud800", "x\nx", "a".repeat(4097)]) expect(() => buildAdmissionIdentity({ ...identityEnv, GITHUB_REF: value })).toThrow(FAILURE);

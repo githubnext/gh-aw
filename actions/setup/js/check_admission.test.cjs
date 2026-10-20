@@ -7,6 +7,7 @@ const base = {
   ACTIONS_ID_TOKEN_REQUEST_TOKEN: "synthetic-bootstrap",
   GITHUB_REPOSITORY: "acme/project",
   GH_AW_INFO_WORKFLOW_ID: "platform/ops/.github/workflows/triage.lock.yml@refs/heads/main",
+  GH_AW_ADMISSION_WORKFLOW_HASH: `${"a".repeat(64)}:${"b".repeat(64)}`,
   GITHUB_RUN_ID: "90071992547409931234567890",
   GITHUB_RUN_ATTEMPT: "2",
   GITHUB_REF: "refs/heads/main",
@@ -38,12 +39,12 @@ describe("bounded OIDC-only admission client", () => {
     expect(await checkAdmission({ env: {}, fetchImpl })).toEqual({ result: "skipped" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
-  it.each(["ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "GH_AW_INFO_WORKFLOW_ID", "GITHUB_RUN_ATTEMPT"])("blocks missing %s without a fallback", async key => {
+  it.each(["ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "GH_AW_INFO_WORKFLOW_ID", "GH_AW_ADMISSION_WORKFLOW_HASH", "GITHUB_RUN_ATTEMPT"])("blocks missing %s without a fallback", async key => {
     const fetchImpl = vi.fn();
     await expect(checkAdmission({ ...options({ [key]: "" }), fetchImpl })).rejects.toThrow(FAILURE);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
-  it("sends exactly the OIDC bearer, nine strings, and no other credentials or context", async () => {
+  it("sends exactly the OIDC bearer, ten strings including the workflow hash, and no other credentials or context", async () => {
     const fetchImpl = vi.fn().mockImplementationOnce(oidcResponse).mockImplementationOnce(success);
     const mask = vi.fn();
     const decision = await checkAdmission({ ...options({ GITHUB_TOKEN: "never-forward", COPILOT_GITHUB_TOKEN: "never-forward", GH_AW_DEFAULT_ADMISSION_AUDIENCE: "aud/?&=🦊" }), fetchImpl, mask });
@@ -58,8 +59,8 @@ describe("bounded OIDC-only admission client", () => {
     expect(request.method).toBe("POST");
     expect(request.redirect).toBe("manual");
     expect(request.headers).toEqual({ authorization: `bearer ${jwt()}`, "content-type": "application/json", "cache-control": "no-store", traceparent: expect.stringMatching(new RegExp(`^00-${decision.traceId}-[0-9a-f]{16}-01$`)) });
-    expect(JSON.parse(request.body)).toMatchObject({ actor: "original", triggering_actor: "rerunner", workflow_id: base.GH_AW_INFO_WORKFLOW_ID, run_id: base.GITHUB_RUN_ID });
-    expect(Object.keys(JSON.parse(request.body))).toHaveLength(9);
+    expect(JSON.parse(request.body)).toMatchObject({ actor: "original", triggering_actor: "rerunner", workflow_id: base.GH_AW_INFO_WORKFLOW_ID, workflow_hash: base.GH_AW_ADMISSION_WORKFLOW_HASH, run_id: base.GITHUB_RUN_ID });
+    expect(Object.keys(JSON.parse(request.body))).toHaveLength(10);
     expect(request.body).not.toContain("never-forward");
     expect(mask).toHaveBeenCalledExactlyOnceWith(jwt());
   });
@@ -84,6 +85,7 @@ describe("bounded OIDC-only admission client", () => {
       .mockImplementationOnce(oidcResponse)
       .mockImplementationOnce(() => {
         env.GITHUB_ACTOR = "changed-after-snapshot";
+        env.GH_AW_ADMISSION_WORKFLOW_HASH = `${"c".repeat(64)}:${"d".repeat(64)}`;
         return new Response(null, { status });
       })
       .mockImplementationOnce(success);
@@ -92,6 +94,7 @@ describe("bounded OIDC-only admission client", () => {
     expect(fetchImpl.mock.calls[1][1].body).toBe(fetchImpl.mock.calls[2][1].body);
     expect(fetchImpl.mock.calls[1][1].headers.authorization).toBe(fetchImpl.mock.calls[2][1].headers.authorization);
     expect(JSON.parse(fetchImpl.mock.calls[2][1].body).actor).toBe("original");
+    expect(JSON.parse(fetchImpl.mock.calls[2][1].body).workflow_hash).toBe(base.GH_AW_ADMISSION_WORKFLOW_HASH);
   });
   it("stops on explicit denial after a transient failure", async () => {
     const fetchImpl = vi

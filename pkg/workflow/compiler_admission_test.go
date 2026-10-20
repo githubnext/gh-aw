@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -17,6 +18,7 @@ import (
 
 func TestAdmissionRuntimeWiring(t *testing.T) {
 	t.Setenv("GH_AW_DEFAULT_ADMISSION_URL", "https://compiler-process.invalid/api/admission")
+	t.Setenv("GH_AW_ADMISSION_WORKFLOW_HASH", "compiler-process-hash")
 	dir := testutil.TempDir(t, "admission-runtime-*")
 	file := filepath.Join(dir, "admission.md")
 	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nAdmission runtime\n"), 0o644))
@@ -37,6 +39,18 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 		assert.Contains(t, yaml, fragment)
 	}
 	assert.NotContains(t, yaml, "compiler-process.invalid")
+	assert.NotContains(t, yaml, "compiler-process-hash")
+	hashPattern := regexp.MustCompile(`GH_AW_ADMISSION_WORKFLOW_HASH: "([0-9a-f]{64}):([0-9a-f]{64})"`)
+	hashes := hashPattern.FindStringSubmatch(yaml)
+	require.Len(t, hashes, 3)
+	assert.Contains(t, yaml, `"frontmatter_hash":"`+hashes[1]+`"`)
+	assert.Contains(t, yaml, `"body_hash":"`+hashes[2]+`"`)
+	assert.Contains(t, yaml, strings.Join([]string{
+		"            const { setupGlobals } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/setup_globals.cjs');",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);",
+		"            const { main } = require(process.env.RUNNER_TEMP + '/gh-aw/actions/check_admission.cjs');",
+		"            await main(core);",
+	}, "\n"))
 	assert.Less(t, strings.Index(yaml, "id: admission"), strings.Index(yaml, "id: daily-ai-credits-workflow-guardrail"))
 	assert.Contains(t, yaml, admissionDailyAICFallbackIfExpr)
 	assert.NotContains(t, yaml, "\n  admission:\n")
@@ -53,6 +67,14 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 			assert.NotContains(t, string(encoded), fragment, "job %s", name)
 		}
 	}
+	require.NoError(t, os.WriteFile(file, []byte("---\non:\n  workflow_dispatch:\n  stale-check: false\nsafe-outputs:\n  add-comment:\n    max: 1\n---\nChanged admission prompt\n"), 0o644))
+	require.NoError(t, NewCompiler().CompileWorkflow(file))
+	changed, err := os.ReadFile(stringutil.MarkdownToLockFile(file))
+	require.NoError(t, err)
+	changedHashes := hashPattern.FindStringSubmatch(string(changed))
+	require.Len(t, changedHashes, 3)
+	assert.Equal(t, hashes[1], changedHashes[1])
+	assert.NotEqual(t, hashes[2], changedHashes[2], "Prompt changes must invalidate workflow-content caches")
 }
 
 func TestAdmissionReusableCallerPermissionsWithStaleWorkerLock(t *testing.T) {
