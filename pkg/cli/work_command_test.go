@@ -131,6 +131,9 @@ func TestWorkCommandInfersRepositoryFromLocalOrigin(t *testing.T) {
 	} {
 		for _, repo := range []string{"", "explicit/repo"} {
 			t.Run(tc.use+"/"+tc.invocation+"/"+repo, func(t *testing.T) {
+				if repo != "" {
+					t.Setenv("GH_REPO", "environment/repo")
+				}
 				command := NewWorkCommand()
 				command.Use = tc.use
 				child, _, err := command.Find([]string{"replay"})

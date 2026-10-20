@@ -51,7 +51,7 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 			repo, _ := cmd.Flags().GetString("repo")
 			fileReplay := cmd.Name() == "replay" && cmd.Flags().Changed("file")
 			if repo == "" && cmd.Parent() == root && !fileReplay {
-				repo, err := GetCurrentRepoSlug()
+				repo, err := getWorkQueueRepoSlug()
 				if err != nil {
 					return err
 				}

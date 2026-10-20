@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -14,22 +15,15 @@ import (
 )
 
 var repoLog = logger.New("cli:repo")
+var localRepoSlugPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 // Global cache for current repository info
 var currentRepoSlugCache syncutil.OnceLoader[string]
 
-// getCurrentRepoSlugUncached prefers the local origin over a hosted lookup,
-// while preserving gh's explicit GH_REPO override.
+// getCurrentRepoSlugUncached preserves gh's canonical, selected repository.
+// Local origin parsing is a fallback when gh cannot resolve a repository.
 func getCurrentRepoSlugUncached() (string, error) {
 	repoLog.Print("Fetching current repository slug")
-
-	if os.Getenv("GH_REPO") == "" { //nolint:osgetenvlibrary // Preserve gh's explicit repository selection at the CLI boundary.
-		if repoSlug, err := getCurrentRepoSlugFromGit(); err == nil {
-			return repoSlug, nil
-		} else {
-			repoLog.Printf("Local repository lookup unavailable: %v", err)
-		}
-	}
 
 	repoLog.Print("Attempting to get repository slug via gh CLI")
 	output, err := workflow.RunGH("Fetching repository info...", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
@@ -45,9 +39,27 @@ func getCurrentRepoSlugUncached() (string, error) {
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("failed to get current repository via gh CLI: %w", err)
+		repoLog.Print("gh CLI lookup unavailable")
 	}
-	return "", errors.New("failed to get current repository: gh CLI returned an invalid repository slug")
+	// An explicit selection must never silently fall back to another checkout.
+	if os.Getenv("GH_REPO") != "" { //nolint:osgetenvlibrary // Preserve gh's explicit repository selection at the CLI boundary.
+		if err != nil {
+			return "", fmt.Errorf("failed to get current repository via gh CLI: %w", err)
+		}
+		return "", errors.New("failed to get current repository: gh CLI returned an invalid repository slug")
+	}
+	return getCurrentRepoSlugFromGit()
+}
+
+// getWorkQueueRepoSlug discovers only the queue target locally. Other commands
+// retain gh's selected repository, including a configured parent of a fork.
+func getWorkQueueRepoSlug() (string, error) {
+	if os.Getenv("GH_REPO") == "" { //nolint:osgetenvlibrary // Preserve gh's explicit repository selection at the CLI boundary.
+		if repo, err := getCurrentRepoSlugFromGit(); err == nil {
+			return repo, nil
+		}
+	}
+	return GetCurrentRepoSlug()
 }
 
 func getCurrentRepoSlugFromGit() (string, error) {
@@ -67,9 +79,13 @@ func getCurrentRepoSlugFromGit() (string, error) {
 	}
 
 	// Validate format (should be owner/repo)
-	if _, _, err := repoutil.SplitRepoSlug(repoPath); err != nil {
-		repoLog.Printf("Invalid repository format: %s", repoPath)
-		return "", fmt.Errorf("invalid repository format: %s. Expected format: owner/repo. Example: github/gh-aw", repoPath)
+	if !localRepoSlugPattern.MatchString(repoPath) {
+		return "", errors.New("invalid repository format. Expected format: owner/repo. Example: github/gh-aw")
+	}
+	for part := range strings.SplitSeq(repoPath, "/") {
+		if part == "." || part == ".." {
+			return "", errors.New("invalid repository format. Expected format: owner/repo. Example: github/gh-aw")
+		}
 	}
 
 	repoLog.Printf("Successfully parsed repository slug from git remote: %s", repoPath)

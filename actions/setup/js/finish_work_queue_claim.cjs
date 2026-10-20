@@ -384,7 +384,7 @@ async function finalizeWorkerResults(options = {}) {
       const verifiedControlsDigest = verifiedSnapshot?.controls_digest;
       const verificationReceipt = typeof verification?.receipt === "string" && verification.receipt.length > 0 ? verification.receipt : undefined;
       if (typeof verifiedControlsDigest !== "string" || !/^[0-9a-f]{64}$/.test(verifiedControlsDigest) || verifiedControlsDigest !== controlsDigest) {
-        log.debug("delivery.verifier.controls_mismatch", { proof_verified: !!verified, digest_present: typeof verifiedControlsDigest === "string", controls: controls.length });
+        if (verified) log.debug("delivery.verifier.controls_mismatch", { proof_verified: true, digest_present: typeof verifiedControlsDigest === "string", controls: controls.length });
         verified = null;
       }
       const checkedAt = options.now ?? Date.now();

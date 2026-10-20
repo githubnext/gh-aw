@@ -19,7 +19,16 @@ credential-free.
 
 Queue commands infer the repository from the local `origin` remote when `--repo`
 is omitted, falling back to `gh repo view` when local information is unavailable.
-`GH_REPO` retains precedence over local inference. Repeated runtime reads recheck
+`--repo` takes precedence over `GH_REPO`, which takes precedence over local
+inference. An unresolved explicit environment selection fails rather than
+silently selecting the checkout. This local-first rule is queue-specific:
+workflow runs, secret uploads and other commands retain `gh`'s selected default.
+For fork checkouts, queues infer the fork even if `gh repo set-default` selects
+its parent. Use an explicit canonical repository after a repository rename;
+local discovery does not resolve renamed origins or relax queue identity checks.
+Offline `replay --file` does not infer a repository.
+
+Repeated runtime reads recheck
 remote access and the queue head, but reuse validated local Git history when the
 head is unchanged. Missing or invalid ancestry fails closed without an API fallback.
 

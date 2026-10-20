@@ -11,6 +11,16 @@ const receipts = new WeakMap();
 const REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 const names = values => [...new Set(values.map(value => String(typeof value === "string" ? value : value.name || value.login).toLowerCase()))].sort();
 
+function nativeIdentityMatches(value, expected) {
+  const identity = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : value;
+  return typeof identity === "string" && /^[1-9][0-9]{0,255}$/.test(identity) && nativeDecimalIdentity(value) === expected;
+}
+
+function diagnosticNamesMatch(actual, expected) {
+  const valid = values => Array.isArray(values) && values.every(value => typeof value === "string" || (value !== null && typeof value === "object" && typeof (value.name || value.login) === "string"));
+  return valid(actual) && valid(expected) && canonical(names(actual)) === canonical(names(expected));
+}
+
 function captureDiscussionDelivery(result, message, expected) {
   if (currentClaimHandle()) receipts.set(result, { ...claimIdentity(currentClaimHandle()), type: "create_discussion", message: canonical({ ...message, repo: expected.repository }), ...structuredClone(expected) });
   return result;
@@ -125,6 +135,8 @@ async function verifyDiscussion(options, receipt) {
       title_matches: node?.title === receipt.title,
       body_matches: node?.body === receipt.body,
       labels_complete: node?.labels?.pageInfo?.hasNextPage === false,
+      labels_matches: diagnosticNamesMatch(node?.labels?.nodes, receipt.labels),
+      url_matches: node?.url === receipt.url,
     });
     return { verified: false };
   }
@@ -153,7 +165,7 @@ async function verifyPullRequest(options, receipt) {
   const { data } = await github.rest.pulls.get({ owner, repo, pull_number: receipt.number });
   if (
     !data ||
-    nativeDecimalIdentity(data.id) !== receipt.id ||
+    !nativeIdentityMatches(data.id, receipt.id) ||
     data.number !== receipt.number ||
     data.html_url !== receipt.url ||
     data.title !== receipt.title ||
@@ -166,20 +178,25 @@ async function verifyPullRequest(options, receipt) {
     data.base?.ref !== receipt.baseBranch ||
     data.base.sha !== receipt.base ||
     data.base.repo?.full_name !== receipt.repository ||
-    nativeDecimalIdentity(data.base.repo.id) !== receipt.repositoryId ||
-    nativeDecimalIdentity(data.head.repo.id) !== receipt.headRepositoryId ||
+    !nativeIdentityMatches(data.base.repo.id, receipt.repositoryId) ||
+    !nativeIdentityMatches(data.head.repo.id, receipt.headRepositoryId) ||
     canonical(names(data.labels || [])) !== canonical(names(receipt.labels)) ||
     canonical(names(data.assignees || [])) !== canonical(names(receipt.assignees))
   ) {
     log.debug("pull_request.readback.mismatch", {
       resource_present: !!data,
-      identity_matches: !!data && nativeDecimalIdentity(data.id) === receipt.id && data.number === receipt.number,
+      identity_matches: !!data && nativeIdentityMatches(data.id, receipt.id) && data.number === receipt.number,
       title_matches: data?.title === receipt.title,
       body_matches: data?.body === receipt.body,
       open: data?.state === "open",
       draft_matches: data?.draft === receipt.draft,
       head_matches: data?.head?.sha === receipt.commit && data?.head?.ref === receipt.branch && data?.head?.repo?.full_name === receipt.headRepository,
       base_matches: data?.base?.sha === receipt.base && data?.base?.ref === receipt.baseBranch && data?.base?.repo?.full_name === receipt.repository,
+      labels_matches: diagnosticNamesMatch(data?.labels || [], receipt.labels),
+      assignees_matches: diagnosticNamesMatch(data?.assignees || [], receipt.assignees),
+      url_matches: data?.html_url === receipt.url,
+      repository_id_matches: nativeIdentityMatches(data?.base?.repo?.id, receipt.repositoryId),
+      head_repository_id_matches: nativeIdentityMatches(data?.head?.repo?.id, receipt.headRepositoryId),
     });
     return { verified: false };
   }

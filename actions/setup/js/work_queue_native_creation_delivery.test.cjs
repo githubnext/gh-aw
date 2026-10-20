@@ -150,6 +150,125 @@ function fixture(type) {
 }
 
 describe("native creation Claim delivery", () => {
+  it.each([
+    ["labels_matches", "labels", { nodes: [{ name: "private-label" }], pageInfo: { hasNextPage: false } }],
+    ["url_matches", "url", "https://github.com/private-repository/discussions/987654321"],
+  ])("diagnoses independent Discussion %s failures without values", async (flag, field, value) => {
+    const f = fixture("create_discussion");
+    process.env.DEBUG = "work-queue:native_delivery";
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    await f.execute(async () => {
+      await f.capture();
+      f.discussion[field] = value;
+      expect((await f.settle()).verification).toBe("unknown");
+    });
+    const output = stderr.mock.calls.map(call => call[0]).join("");
+    const mismatch = output.split("\n").find(line => line.includes("discussion.readback.mismatch"));
+    expect(mismatch).toContain(`${flag}=false`);
+    for (const other of ["discussion_present", "identity_matches", "repository_matches", "category_matches", "title_matches", "body_matches", "labels_complete", "labels_matches", "url_matches"]) {
+      if (other !== flag) expect(mismatch).toContain(`${other}=true`);
+    }
+    expect(output).not.toContain("creation.readback.unverified");
+    for (const secret of ["private-label", "private-repository", "987654321", REPOSITORY, f.discussion.id, f.member.claim_id, f.member.work_id, f.assignment.dispatch_id, "Final title", "Final body"]) {
+      expect(output).not.toContain(secret);
+    }
+  });
+
+  it.each([
+    ["labels_matches", ["labels"], [{ name: "private-label" }]],
+    ["assignees_matches", ["assignees"], [{ login: "private-assignee" }]],
+    ["url_matches", ["html_url"], "https://github.com/private-repository/pull/987654321"],
+    ["repository_id_matches", ["base", "repo", "id"], 987654321],
+    ["head_repository_id_matches", ["head", "repo", "id"], "987654321"],
+    ["repository_id_matches", ["base", "repo", "id"], undefined],
+    ["head_repository_id_matches", ["head", "repo", "id"], undefined],
+    ["repository_id_matches", ["base", "repo", "id"], "private-invalid-identity"],
+    ["head_repository_id_matches", ["head", "repo", "id"], "private-invalid-identity"],
+    ["repository_id_matches", ["base", "repo", "id"], null],
+    ["repository_id_matches", ["base", "repo", "id"], {}],
+    ["repository_id_matches", ["base", "repo", "id"], []],
+    ["repository_id_matches", ["base", "repo", "id"], 0],
+    ["repository_id_matches", ["base", "repo", "id"], -1],
+    ["repository_id_matches", ["base", "repo", "id"], 1.5],
+    ["repository_id_matches", ["base", "repo", "id"], Number.MAX_SAFE_INTEGER + 1],
+    ["repository_id_matches", ["base", "repo", "id"], "007"],
+    ["identity_matches", ["id"], undefined],
+  ])("diagnoses independent PR %s failures at %j without throwing or logging values: %j", async (flag, fields, value) => {
+    const f = fixture("create_pull_request");
+    process.env.DEBUG = "work-queue:native_delivery";
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    await f.execute(async () => {
+      await f.capture();
+      const parent = fields.slice(0, -1).reduce((object, field) => object[field], f.pull);
+      if (value === undefined) delete parent[fields.at(-1)];
+      else parent[fields.at(-1)] = value;
+      expect((await f.settle()).verification).toBe("unknown");
+    });
+    const output = stderr.mock.calls.map(call => call[0]).join("");
+    const mismatch = output.split("\n").find(line => line.includes("pull_request.readback.mismatch"));
+    expect(mismatch).toContain(`${flag}=false`);
+    for (const other of [
+      "resource_present",
+      "identity_matches",
+      "title_matches",
+      "body_matches",
+      "open",
+      "draft_matches",
+      "head_matches",
+      "base_matches",
+      "labels_matches",
+      "assignees_matches",
+      "url_matches",
+      "repository_id_matches",
+      "head_repository_id_matches",
+    ]) {
+      if (other !== flag) expect(mismatch).toContain(`${other}=true`);
+    }
+    expect(output).not.toContain("creation.readback.unverified");
+    for (const secret of [
+      "private-label",
+      "private-assignee",
+      "private-repository",
+      "private-invalid-identity",
+      "987654321",
+      REPOSITORY,
+      f.member.claim_id,
+      f.member.work_id,
+      f.assignment.dispatch_id,
+      COMMIT,
+      TREE,
+      "Final title",
+      "Final body",
+    ]) {
+      expect(output).not.toContain(secret);
+    }
+  });
+
+  describe.each([
+    ["create_discussion", "labels", "labels_matches"],
+    ["create_pull_request", "labels", "labels_matches"],
+    ["create_pull_request", "assignees", "assignees_matches"],
+  ])("%s malformed %s diagnostics", (type, field, flag) => {
+    it.each([{}, [null], [undefined], [{ name: { toString: null } }], [{ login: ["private-invalid-name"] }]])("does not introduce exceptions after an earlier rejection: %j", async value => {
+      const f = fixture(type);
+      process.env.DEBUG = "work-queue:native_delivery";
+      const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      await f.execute(async () => {
+        await f.capture();
+        const resource = type === "create_discussion" ? f.discussion : f.pull;
+        resource.body = "private-body-mismatch";
+        resource[field] = type === "create_discussion" ? { nodes: value, pageInfo: { hasNextPage: false } } : value;
+        expect((await f.settle()).verification).toBe("unknown");
+      });
+      const output = stderr.mock.calls.map(call => call[0]).join("");
+      expect(output).toContain(`${type === "create_discussion" ? "discussion" : "pull_request"}.readback.mismatch`);
+      expect(output).toContain(`${flag}=false`);
+      expect(output).toContain("body_matches=false");
+      expect(output).not.toContain("creation.readback.unverified");
+      expect(output).not.toContain("private-");
+    });
+  });
+
   it.each(["create_discussion", "create_pull_request"])("diagnoses %s content mismatches without logging identities or content", async type => {
     const f = fixture(type);
     process.env.DEBUG = "work-queue:delivery,work-queue:native_delivery";
