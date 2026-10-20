@@ -47,6 +47,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
 | Bundle Git operations | [`SafeOutputGit.tla`](SafeOutputGit.tla) | Explicit prerequisite recovery, offline optional discovery, bounded comparison/history work, credential roles, and separate size/protection provenance. |
 | Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
+| Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, OIDC identity, retry/outage classification, stable decisions, per-invocation credit accounting, privacy, and optional tracing with service correlation. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -90,6 +91,92 @@ cannot be bypassed merely by omitting the job. Disabled/conditionally skipped
 configurations retain authorization, provenance, credential, and validation
 invariants but do not claim detector approval. The inactive detector is
 represented by a skipped state-machine slot, not a real runtime job.
+
+## Cooperative activation admission
+
+[`ActivationAdmission.tla`](ActivationAdmission.tla) formalizes the proposed
+[admission service contract](../../docs/src/content/docs/specs/admission-service-specification.md),
+not an existing implementation. It extends neither the compiled-workflow model
+nor the product's runtime. Admission remains a step within the existing
+activation job; a successful activation is required before agent execution.
+
+The finite model covers 288 combinations of effective endpoint
+(absent/valid/invalid), verified invocation identity (valid/invalid), triggering
+actor use (unused/independently verified/unverified), local cap
+(disabled/stricter/equal/looser), runtime budget support, and hidden spend band.
+Four checker profiles select outage `ignore`/`block` and OTel enabled/disabled.
+Each admission has up to three attempts, two symbolic authority replicas, two
+opaque correlation IDs, a policy allowance of two credit units, and one
+continuation. Unit consumption is bounded at six units even for uncapped
+skipped/fail-open runs.
+
+| Contract | Checked invariants |
+|---|---|
+| Optional configuration and activation dependency | `NoEndpointNoRequest`, `InvalidConfigurationBlocks`, `ActivationGate` |
+| OIDC-only authentication, verified claim/workflow mapping, independently checked rerun initiator, original actor privileges | `OIDCOnly`, `IdentityVerified`, `TriggeringActorVerified`, `OriginalActorPrivileges`, `InvocationBound` |
+| Lost responses, replica changes, token-renewal abstraction, bounded retries, denial/protocol errors, explicit outage policy | `StableRetryDecision`, `RetryBound`, `DenialBlocks`, `MalformedBlocks`, `FatalErrorsBlock`, `OutagePolicyHonored` |
+| Effective minimum, mandatory budget support, cumulative continuation accounting, no invented service approval on skip/outage | `CeilingApplied`, `SharedBudget`, `NoFabricatedAdmission` |
+| Empty durable-denial observation, spend-independent policy allowance, financially side-effect-free admission | `PrivateDenial`, `SpendPrivateCeiling`, `NoFinancialEffects` |
+| Service correlation on subsequent span/log/metric records, including failure/cancellation, without forcing tracing | `CorrelationPreserved`, `OptionalTracing` |
+
+`Termination` checks eventual completion under weak fairness of protocol
+progress. HTTP/OIDC deadlines, backoff, cancellation delivery, and bounded
+credit-consuming work are abstract atomic steps, not a verification of the
+60-second end-to-end deadline, its early retry exhaustion, or minimum
+decision-retention duration. A transient result can occur on any attempt; the
+environment need not eventually return an approval. Policy revocation can
+return the same uniform denial after a cached approval.
+
+The checker includes 20 synthetic single-guard faults and eight reachability
+witnesses. Witnesses demonstrate admitted, skipped, and fail-open agent starts;
+lost-response recovery through another replica; a verified rerun initiator;
+admission without client tracing; shared continuation accounting; and terminal
+denial. In particular, skipped and fail-open starts deliberately demonstrate
+why this is **cooperative admission, not unbypassable organization policy or a
+hard spending cap**. The model consumes already-resolved runtime settings;
+repository-variable shadowing and an editor removing the step remain outside
+the participating-workflow machine.
+
+Use the same checksum-pinned TLA+ Tools v1.8.0 described below:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  python3 specs/workflow-security/check.py --model admission \
+  --results /tmp/activation-admission-results
+```
+
+The default `check.py` run also includes admission. Results retain model/config
+hashes, effective profile settings, state counts, logs, and normalized
+counterexample/witness traces. Secure profiles must exhaust without error;
+each negative control or witness must violate exactly its named invariant
+with TLC exit code 12. Tooling and parser failures never satisfy a control.
+
+This model does not prove JWT cryptography, issuer/JWKS trust, HTTP/TLS or JSON
+parsers (including integer wire spelling and Unicode scalar validity),
+URL/redirect safety, GitHub App provisioning or installation-token
+revocation, distributed cache correctness/expiry or bounded replay-state cleanup,
+randomness, logging redaction, timing noninterference, or actual engine billing
+enforcement. `identity = "valid"` assumes all required
+signed claims, executing workflow-reference bindings, unambiguous invocation
+identity, and any logical-policy mapping have been independently verified;
+`triggeringActor = "verified"` assumes the specified authoritative run-attempt
+lookup. Opaque IDs are symbolic, not entropy proofs. Two hidden spend classes
+check explicit response-field constraints, not full observational
+noninterference: eligibility itself is an intentional disclosure. Shared
+accounting is an abstract guard, not a reservation protocol or an assertion
+that concurrent invocations cannot overshoot an organizational budget.
+Independent daily-credit guardrails and other activation checks are assumed
+satisfied in this per-invocation machine; preserving them requires integration
+tests.
+Telemetry samples one subsequent span/log/metric batch at conclusion, plus
+cross-process correlation handoff; it does not enumerate every live exporter.
+Retry/token renewal and replicas reuse one abstract verified invocation and
+shared decision store; actual concurrency, foreign invocation partitioning,
+retention, and revocation require implementation-level tests. Audience claim
+profiles, canonical run/attempt parsing, and completed-decision policy/usage
+revalidation are also implementation obligations, not separate model dimensions.
+Neither the compiler nor an authority implementation has been shown to refine
+this model.
 
 ## Evidence and invariants
 
