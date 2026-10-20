@@ -11,7 +11,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 
 | Built-in rule | Threat ID | ASTs | Checks |
 |---|---|---|---|
-| `action-pin` | `CTR-002` | AW, Actions | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
+| `action-pin` | `CTR-002` | AW, Actions | All action and reusable-workflow references are well-formed literals without expressions, control characters, or whitespace. Remote references use full commit SHAs; Docker actions use digests. Local paths are exempt from immutable pinning, not format validation. |
 | `job-timeout` | `CTR-026` | AW, Actions | An explicit workflow/job timeout is a positive integer literal, not an expression. Omission is allowed. |
 | `needs-consistency` | — | AW, Actions | Dependencies name existing jobs without self-edges or cycles. Literal `needs` accesses name direct dependencies and declared job outputs; ordering-only dependencies are valid. |
 | `template-injection` | `CTR-006` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` or `actions/github-script` code. Use environment bindings and quoted shell expansions or `process.env` instead. |
@@ -68,6 +68,8 @@ This is not complete zizmor parity. Creator-verification findings such as [#5001
 ## Severity and source policy
 
 Action pinning, workflow-run branch scope, blanket write permissions, disabled version checking, private-to-public opt-outs, enabled Node install hooks, and bare network wildcard allowances are errors for an AW document with strict mode enabled (the AW default), and warnings for explicit non-strict AW. Native Actions policy-sensitive findings are warnings; AW-only rules skip native Actions without an AW document. Conditional imports, bare label-allowlist wildcards, invalid OIDC read grants, missing or malformed `workflow_run.workflows`, invalid explicit timeouts, and direct template injection are errors. Unconstrained wildcard push targets remain warnings even in strict mode. The linter does not reconstruct CLI/repository strict overrides, load imported configurations, infer missing permissions, or determine whether each repository-write grant is authorized.
+
+Malformed `uses` references are always `action-pin` errors, including native Actions and non-strict AW. This includes invalid repository/path syntax, missing refs, malformed image digests, expressions, invalid UTF-8, control characters, and Unicode whitespace or line separators. Valid but mutable tags, branches, and abbreviated SHAs retain the policy-sensitive severity above. Single-quoted, double-quoted, and plain references are checked after YAML parsing; version labels belong in YAML comments outside the scalar. Comments and imports not present in the AST are not analyzed. Check either format with `gh aw lint --rules action-pin .github/workflows/example.yml` or the corresponding `.md` source.
 
 Tool-scope and sandbox-config use the authored strict-policy error/warning distinction, including explicit non-strict sandbox opt-outs and internal customizations. Image-argument, checkout-mode, and fork-association findings are always errors. Checkout and tool checks defer absent prerequisites that unresolved imports may supply; they still report explicit contradictions. Image checks cover image operands, not inferred package-manager arguments.
 
