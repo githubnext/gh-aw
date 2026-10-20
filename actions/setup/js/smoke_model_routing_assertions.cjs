@@ -65,6 +65,12 @@ const { iterateJsonlEvents } = require("./jsonl_helpers.cjs");
  *   line reports that U2 was not evaluated); U3 every role in `resolutionRoles` has
  *   exactly one `model.resolution` with status exact or resolved and a
  *   resolved model. U1–U3 are not evaluated when the session file is missing.
+ *   - `requiredSubAgents` (array of names) opts in and enables U4: each named
+ *     sub-agent has at least one `subagent.started`, every started invocation
+ *     has a `subagent.completed`, no `subagent.failed` is recorded for it, and
+ *     its events record a model that is not an unresolved `${{ ... }}`
+ *     expression or `__GH_AW_*__` placeholder. A sub-agent that never started
+ *     fails U4. Lifecycle events are correlated as in S1/S2.
  *
  * Every check that iterates over requests fails when there are none to check.
  *
@@ -105,6 +111,7 @@ const RESOLVED_STATUSES = ["exact", "resolved"];
  *   expectModelInventory?: boolean,
  *   copilotInventory?: boolean,
  *   resolutionRoles?: string[],
+ *   requiredSubAgents?: string[],
  * }} SessionContractExpectations
  * @typedef {SessionContractExpectations & {
  *   allowedModels: string[],
@@ -249,6 +256,37 @@ function supportedEfforts(model, reflect) {
   return efforts;
 }
 
+/** @param {any} event @returns {string} */
+function invocationKey(event) {
+  return idString(event?.data?.invocationId ?? event?.agentId ?? event?.data?.toolCallId);
+}
+
+/**
+ * Lifecycle events for one declared sub-agent: its `subagent.started` events
+ * (by agent name) and every `subagent.*` event correlated to them by
+ * invocation or agent ID (or tool call ID when no agent ID is recorded).
+ * @param {any[]} subagentEvents - All `subagent.*` events in the session.
+ * @param {string} name - Declared sub-agent name.
+ * @returns {{ started: any[], ids: Set<string>, activity: any[] }}
+ */
+function subAgentLifecycle(subagentEvents, name) {
+  const started = subagentEvents.filter(event => event.type === "subagent.started" && event.data?.agentName === name);
+  const ids = new Set(started.map(event => idString(event.data?.invocationId ?? event.agentId)).filter(Boolean));
+  const toolCallIds = new Set(
+    started
+      .filter(event => !idString(event.data?.invocationId ?? event.agentId))
+      .map(event => idString(event.data?.toolCallId))
+      .filter(Boolean)
+  );
+  const activity = subagentEvents.filter(event => ids.has(idString(event.data?.invocationId)) || ids.has(idString(event.agentId)) || toolCallIds.has(idString(event.data?.toolCallId)));
+  return { started, ids, activity };
+}
+
+/** @param {any[]} events @returns {any[]} */
+function subagentLifecycleEvents(events) {
+  return events.filter(event => typeof event?.type === "string" && event.type.startsWith("subagent."));
+}
+
 /**
  * Evaluate model-routing evidence against the smoke expectations.
  * @param {{ events: any[], requests: any[], reflect?: any, expectations: RoutingExpectations }} input
@@ -320,7 +358,7 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
   // agent made it.
   const agentTraffic = requests.filter(request => !isClassifierRequest(request));
 
-  const subagentEvents = events.filter(event => typeof event?.type === "string" && event.type.startsWith("subagent."));
+  const subagentEvents = subagentLifecycleEvents(events);
   const startedEvents = subagentEvents.filter(event => event.type === "subagent.started");
   const observedNames = [...new Set(startedEvents.map(event => event.data?.agentName ?? "<none>"))];
 
@@ -328,9 +366,7 @@ function evaluateModelRoutingEvidence({ events, requests, reflect = null, expect
   // (request IDs on sub-agent events, or sub-agent IDs on proxy records), and
   // fall back to the declared model.
   const subAgentEvidence = subAgents.map(agent => {
-    const started = startedEvents.filter(event => event.data?.agentName === agent.name);
-    const ids = new Set(started.map(event => idString(event.data?.invocationId ?? event.agentId)).filter(Boolean));
-    const activity = subagentEvents.filter(event => ids.has(idString(event.data?.invocationId)) || ids.has(idString(event.agentId)));
+    const { started, ids, activity } = subAgentLifecycle(subagentEvents, agent.name);
     const eventRequestIds = new Set(activity.map(eventRequestId).filter(Boolean));
     const correlated = agentTraffic.filter(request => eventRequestIds.has(requestId(request)) || ids.has(requestAgentId(request)));
     return { agent, model: servedModel(agent.model), started, activity, correlated };
@@ -586,7 +622,7 @@ function evaluateSteeringEvidence({ events, requests, routingRecords = [], expec
  * @returns {boolean}
  */
 function hasSessionContract(expectations) {
-  return expectations.expectModelInventory === true || expectations.copilotInventory === true || Array.isArray(expectations.resolutionRoles);
+  return expectations.expectModelInventory === true || expectations.copilotInventory === true || Array.isArray(expectations.resolutionRoles) || Array.isArray(expectations.requiredSubAgents);
 }
 
 /** @param {any} inventory @returns {string} */
@@ -675,6 +711,29 @@ function evaluateSessionContract({ events, expectations }) {
   if (u3Problems.length) fail("U3", `${u3Problems.join("; ")}; observed model.resolution: ${describeResolutions(resolutions)}`);
   else if (roles.length) pass("U3", `model.resolution recorded for ${describeResolutions(resolutions.filter(event => roles.includes(event.data?.role)))}`);
   else pass("U3", `no model.resolution roles required; observed model.resolution: ${describeResolutions(resolutions)}`);
+
+  // U4: each required sub-agent was invoked, every invocation completed, none
+  // failed, and its recorded model is not an unresolved expression or placeholder.
+  const subagentEvents = subagentLifecycleEvents(events);
+  for (const name of expectations.requiredSubAgents ?? []) {
+    const label = `sub-agent ${name}`;
+    const { started, activity } = subAgentLifecycle(subagentEvents, name);
+    const failed = subagentEvents.filter(event => event.type === "subagent.failed" && (activity.includes(event) || event.data?.agentName === name));
+    const completedKeys = new Set(activity.filter(event => event.type === "subagent.completed" && event.data?.cancelled !== true).map(invocationKey));
+    const incomplete = started.filter(event => !completedKeys.has(invocationKey(event)));
+    const models = [
+      ...new Set([...activity, ...failed].flatMap(event => [event.data?.model, event.data?.selectedModel, event.data?.resolvedModel, event.data?.firstDispatchedModel]).filter(value => typeof value === "string" && value !== "")),
+    ];
+    const unresolved = models.filter(model => /\$\{\{|__GH_AW_/.test(model));
+    const u4Problems = [];
+    if (!started.length) u4Problems.push("never started (no subagent.started)");
+    if (failed.length) u4Problems.push(`${failed.length} subagent.failed event(s)${failed.map(event => (event.data?.error ? `: ${String(event.data.error).slice(0, 200)}` : "")).join("")}`);
+    if (started.length && incomplete.length) u4Problems.push(`${incomplete.length} of ${started.length} invocation(s) have no subagent.completed`);
+    if (started.length && !models.length) u4Problems.push("no model recorded on its lifecycle events");
+    if (unresolved.length) u4Problems.push(`unresolved model expression(s) [${unresolved.join(", ")}]`);
+    if (u4Problems.length) fail("U4", `${label}: ${u4Problems.join("; ")}; observed events: ${describeEvents(started.length ? [...new Set([...activity, ...failed])] : subagentEvents)}`);
+    else pass("U4", `${label} started ${started.length} time(s) and completed on model(s) [${models.join(", ")}]`);
+  }
 
   return results;
 }

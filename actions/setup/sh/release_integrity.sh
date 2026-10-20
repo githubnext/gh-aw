@@ -17,6 +17,7 @@ release_artifact_sha256() {
 github/gh-aw-firewall v0.28.62 checksums.txt 0b03f6ea5b638356a799fa541ade4fd7902a6ac8d7c3f0252ee09d8259a4ce8f
 github/copilot-cli v1.0.98 SHA256SUMS.txt 372f0c8d3d50076455cd19ef080dc59dc2a32401d8b2d4f77ce190c8ab13bc59
 github/copilot-cli v1.0.21 SHA256SUMS.txt fd9b2fb92a39aeb2a41815a6aa0bf3853307c812b3451a45f5a2217be003987d
+github/gh-aw-firewall v0.28.70 checksums.txt 9a35879a2f405fa7a1aa275a67b96d01eb0d0c6c8fd850637a1ad8ad55b500da
 PINS
     ) || {
       echo "ERROR: No reviewed SHA256 pin for ${repository} ${version} ${asset}; supply checksums-sha256 in trusted workflow frontmatter or update the setup action's release_integrity.sh" >&2
