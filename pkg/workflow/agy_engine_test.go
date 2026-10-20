@@ -360,6 +360,13 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 				if name == "admission" {
 					allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 				}
+				if name == "conclusion" {
+					if entry.id != "engine-conformance-agy" {
+						allowedPermissions = map[string]string{"actions": "read"}
+					}
+					allowedPermissions["id-token"] = "write"
+					assert.Equal(t, allowedPermissions, config.Permissions, "conclusion must have only its required reporting and admission permissions")
+				}
 				for permission, level := range config.Permissions {
 					expectedLevel, allowed := allowedPermissions[permission]
 					assert.True(t, allowed, "%s must not grant unscoped %s permission", name, permission)
@@ -369,6 +376,17 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					assert.Equal(t, allowedPermissions, config.Permissions, "%s must retain queue-worker permissions", name)
 				}
 			}
+			steps, _, _ := agyConformanceStepContent(callee)
+			callback := steps["Report admission conclusion"]
+			require.NotNil(t, callback)
+			assert.Equal(t, "always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''", callback["if"])
+			callbackWith, ok := callback["with"].(map[string]any)
+			require.True(t, ok)
+			assert.Contains(t, callbackWith["script"], "conclusion_admission.cjs")
+			callbackEnv, ok := callback["env"].(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, "${{ steps.upload-usage-artifact.outputs.artifact-id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_ID"])
+			assert.Equal(t, "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_RETRY_ID"])
 			assert.Equal(t, 10, callee.Jobs["agent"].TimeoutMinutes)
 			assert.Equal(t, 2, callee.Jobs["safe_outputs"].TimeoutMinutes)
 			assert.Contains(t, string(lock), fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="%d"`, entry.credits))

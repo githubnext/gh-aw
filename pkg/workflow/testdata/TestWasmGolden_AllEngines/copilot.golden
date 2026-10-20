@@ -1150,6 +1150,7 @@ jobs:
     # Permissions for the conclusion job (workflow permissions default to none).
     permissions:
       actions: read
+      id-token: write
       issues: write
       pull-requests: read
     concurrency:
@@ -1387,6 +1388,24 @@ jobs:
           if-no-files-found: ignore
           overwrite: true
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
+      - name: Report admission conclusion
+        if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
+          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
+          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "f64d45623222432f05232cab1409280f2ad6bd1d381c7a812182687fea988db9:62cebd9f73a631138abb5d9674807e5fd5cc437df706431179e5d79e534ac2a7"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}
+          GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}
+        with:
+          script: |
+            const { setupGlobals } = require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'setup_globals.cjs'));
+            setupGlobals(core, github, context, exec, io, getOctokit);
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'conclusion_admission.cjs')).main(core);
 
   safe_outputs:
     name: safe_outputs
