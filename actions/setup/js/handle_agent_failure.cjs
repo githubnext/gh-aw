@@ -314,6 +314,7 @@ function buildFailureMatchCategories(options) {
   if (options.hasMissingData) categories.push("missing_data");
   if (options.hasCacheMissMisconfiguration) categories.push("cache_miss_misconfiguration");
   if (options.secretVerificationFailed) categories.push("secret_verification_failed");
+  if (options.secretRedactionFailed) categories.push("secret_redaction_failure");
   if (options.inferenceAccessError) categories.push("inference_access_error");
   if (options.copilotOrgBillingError) categories.push("copilot_org_billing_error");
   if (options.copilotAgentNotFound) categories.push("copilot_agent_not_found");
@@ -470,6 +471,10 @@ function buildFailureIssueTitle(options) {
 
 /** @param {Parameters<typeof buildFailureIssueTitle>[0]} options */
 function buildFailureIssueSummary(options) {
+  // Fatal runtime outcomes outrank historical request errors and timeout signals.
+  if (typeof options.terminalOutputFailureCause === "string" && ["agent_startup_failure", "driver_crash", "secret_redaction_failure"].includes(options.terminalOutputFailureCause)) {
+    return EMPTY_OUTPUT_FAILURE_CAUSES[options.terminalOutputFailureCause];
+  }
   if (options.hasDailyAICExceeded) return "exceeded daily AI credits budget";
   if (options.hasDailyAICGuardrailError) return "could not verify daily AI credits";
   if (options.maxAICreditsExceeded) return "exceeded max AI credits";
@@ -1845,11 +1850,15 @@ async function getSecretRedactionError(jobId, step) {
       // Actions step timestamps have second precision; include the final second.
       if (timestamp < start || timestamp >= end + 1000) continue;
       const message = record[2];
-      const operation = message.match(/^Secret redaction failed \(stage=(read|redact|write|replace|unlink), code=(EACCES|EPERM|ENOSPC|ENOENT|EBUSY|EIO|EROFS|EMFILE|ENFILE|EDQUOT|EISDIR|ENOTDIR|EXDEV|unknown)\)$/);
+      const operation = message.match(
+        /^(?:ERR_VALIDATION: Secret redaction failed: )?Secret redaction failed \(stage=(read|redact|write|replace|unlink), code=(EACCES|EPERM|ENOSPC|ENOENT|EBUSY|EIO|EROFS|EMFILE|ENFILE|EDQUOT|EISDIR|ENOTDIR|EXDEV|unknown)\)$/
+      );
       const removal = message.match(/^(?:ERR_VALIDATION: Secret redaction failed: |AggregateError: )?(ERR_VALIDATION: (?:Failed to remove|Removed) artifact source after secret redaction failed) \(input_bytes=(\d{1,15}|unknown)\)$/);
+      const maskCollection = message.match(/^(?:ERR_VALIDATION: Secret redaction failed: )?(ERR_VALIDATION: Removed artifact sources after runtime mask collection failed)$/);
       if (message === "ERR_VALIDATION: AWF resolved configuration was not collected safely") summaries.add(message);
       if (operation) summaries.add(`Secret redaction failed (stage=${operation[1]}, code=${operation[2]})`);
       if (removal) summaries.add(`${removal[1]} (input_bytes=${removal[2]})`);
+      if (maskCollection) summaries.add(maskCollection[1]);
     }
     return [...summaries].slice(-6).join("\n") || unavailable;
   } catch {
@@ -1906,6 +1915,7 @@ async function getFailedAgentDiagnostics({ startupFailure = false } = {}) {
   const steps = agentJob.steps?.slice();
   if (!startupFailure) steps?.reverse();
   const redactionStep = steps?.find(step => step.name === "Redact secrets in logs" && ["failure", "timed_out"].includes(step.conclusion));
+  // Failed redaction blocks safe diagnostics even after an agent crash; startup keeps priority.
   const failedStep = (!startupFailure && redactionStep) || steps?.find(step => ["failure", "timed_out"].includes(step.conclusion) && typeof step.name === "string");
   if (!failedStep) {
     return { failingStep: "", agentConclusion, attributionUnavailable: "The failed agent job had no failed step metadata." };
@@ -1918,7 +1928,7 @@ async function getFailedAgentDiagnostics({ startupFailure = false } = {}) {
   return {
     failingStep,
     agentConclusion,
-    ...(redactionStep ? { secretRedactionFailed: true, stepError: await getSecretRedactionError(agentJob.id, redactionStep) } : {}),
+    ...(failedStep === redactionStep ? { secretRedactionFailed: true, stepError: await getSecretRedactionError(agentJob.id, redactionStep) } : {}),
   };
 }
 
@@ -4485,18 +4495,15 @@ async function main() {
     const modelEndpointMismatch = agentConclusion === "success" && modelEndpointMismatchCandidate?.phase !== "startup" ? undefined : modelEndpointMismatchCandidate;
     const hasModelEndpointMismatch = modelEndpointMismatchError || Boolean(modelEndpointMismatch);
     const modelEndpointMismatchContext = buildModelEndpointMismatchContext(modelEndpointMismatch);
-    // A model/endpoint mismatch explains the missing terminal output, so the collector's
-    // generic empty-output classification (e.g. engine_outage) must not override it.
+    // A model mismatch explains generic empty output, but not a fatal final runtime signal.
     const hasModelConfigurationError = hasModelEndpointMismatch || modelNotSupportedError;
-    const emptyOutputCause = hasModelConfigurationError || isCancelledMissingTerminalOutput ? undefined : collectorEmptyOutputCause;
-    const terminalOutputFailureCause = failureDiagnostics.secretRedactionFailed
-      ? "secret_redaction_failure"
-      : hasModelConfigurationError || !agentOutputResult.success || isCancelledMissingTerminalOutput
-        ? undefined
-        : agentOutputResult.collectorFailureCause;
+    const collectorFailureCause = agentOutputResult.success && !isCancelledMissingTerminalOutput ? agentOutputResult.collectorFailureCause : undefined;
+    const modelConfigurationExplainsEmptyOutput = hasModelConfigurationError && !failureDiagnostics.secretRedactionFailed && !["agent_startup_failure", "driver_crash"].includes(collectorFailureCause);
+    const emptyOutputCause = modelConfigurationExplainsEmptyOutput || isCancelledMissingTerminalOutput ? undefined : collectorEmptyOutputCause;
+    const terminalOutputFailureCause = failureDiagnostics.secretRedactionFailed ? "secret_redaction_failure" : modelConfigurationExplainsEmptyOutput ? undefined : collectorFailureCause;
     const reportItems = (Array.isArray(agentOutputResult.items) ? agentOutputResult.items : []).filter(
       item =>
-        !(hasModelConfigurationError && collectorEmptyOutputCause && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause && typeof item.failureCause === "string") &&
+        !(modelConfigurationExplainsEmptyOutput && collectorEmptyOutputCause && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause && typeof item.failureCause === "string") &&
         !(isCancelledMissingTerminalOutput && item?.type === "report_incomplete" && item.reason === collectorEmptyOutputCause)
     );
     const hasReportedIncomplete = hasReportIncomplete && reportItems.some(item => item?.type === "report_incomplete");
@@ -4552,6 +4559,7 @@ async function main() {
       hasMissingData,
       hasCacheMissMisconfiguration,
       secretVerificationFailed: hasSecretVerificationFailed,
+      secretRedactionFailed: failureDiagnostics.secretRedactionFailed,
       inferenceAccessError,
       copilotOrgBillingError,
       copilotAgentNotFound: Boolean(copilotAgentNotFound),

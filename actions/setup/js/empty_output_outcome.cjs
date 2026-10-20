@@ -312,12 +312,16 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   if (engineSummary) diagnostics.add(engineSummary);
   const driverExitSignal = crashSignalNameForExitCode(driverExitCode) ?? ({ 130: "SIGINT", 137: "SIGKILL", 143: "SIGTERM" }[driverExitCode] || undefined);
   let driverStderrSummary = "";
+  let unhandledDriverError = false;
   if (!agentNotStarted && driverExitCode > 0) {
     const evidence = collectAgentErrorEvidence(safeStdio, events, rawSourceEngine);
     for (const line of evidence.diagnostics.slice().reverse()) {
       driverStderrSummary = agentErrorSummaryText(line, [], rawSourceEngine);
       if (!driverStderrSummary && /^\[(?:copilot-sdk-driver|sdk-driver)\]\s+(?:\[sdk-driver\]\s+)?(?:error|unhandled error):/i.test(line)) {
         driverStderrSummary = "SDK driver reported an error";
+        // Session errors use "error:" too; only the outer driver's unhandled
+        // exception establishes a crash rather than a handled provider failure.
+        unhandledDriverError = /^\[copilot-sdk-driver\]\s+unhandled error:/i.test(line);
       }
       if (driverStderrSummary) break;
     }
@@ -332,7 +336,7 @@ function buildEmptyOutputOutcome(errors, rootDir = "/tmp/gh-aw", session) {
   // Missing completion and nonzero driver exits are observed outcomes, not evidence of budget exhaustion or an outage.
   const failureCause = agentNotStarted
     ? "agent_startup_failure"
-    : crashSignalNameForExitCode(driverExitCode) || executionCategories.includes("sandbox_runtime_crash") || driverStderrSummary === "SDK driver reported an error"
+    : crashSignalNameForExitCode(driverExitCode) || (driverExitCode === undefined && executionCategories.includes("sandbox_runtime_crash")) || unhandledDriverError
       ? "driver_crash"
       : isPromptExhaustion
         ? "prompt_exhaustion"
