@@ -13,7 +13,7 @@ global.core = {
   setFailed: () => {},
 };
 
-const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter, closeUnterminatedSubAgentMarkers, loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
+const { extractInlineSubAgents, writeInlineSubAgents, preserveSubAgentFrontmatter, resolveSubAgentExperimentReferences, closeUnterminatedSubAgentMarkers, loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
 
 // Helper: returns a ## agent: `name` start marker line.
 const agentMarker = name => `## agent: \`${name}\``;
@@ -393,5 +393,45 @@ describe("preserveSubAgentFrontmatter", () => {
     const content = "---\ndescription: Summarizes files\n---\nYou are a summarizer.";
     const result = preserveSubAgentFrontmatter(content);
     expect(result).toBe(content);
+  });
+});
+
+describe("resolveSubAgentExperimentReferences", () => {
+  const env = { GH_AW_EXPERIMENTS_SUBAGENT_MODEL: "large", GH_AW_EXPERIMENTS_MY_MODEL: "gpt-5.4-mini" };
+
+  it("resolves direct and placeholder references in frontmatter only", () => {
+    const content = "---\nname: reader\nmodel: ${{experiments.subagent_model}}\ntools: [read]\n---\nKeep ${{ experiments.subagent_model }} and __GH_AW_EXPERIMENTS_SUBAGENT_MODEL__ in the body.";
+    expect(resolveSubAgentExperimentReferences("reader", content, env)).toBe("---\nname: reader\nmodel: large\ntools: [read]\n---\nKeep ${{ experiments.subagent_model }} and __GH_AW_EXPERIMENTS_SUBAGENT_MODEL__ in the body.");
+    expect(resolveSubAgentExperimentReferences("reader", "---\nmodel: __GH_AW_EXPERIMENTS_SUBAGENT_MODEL__\n---\nBody", env)).toBe("---\nmodel: large\n---\nBody");
+  });
+
+  it("maps hyphenated experiment names to the normalized env var", () => {
+    expect(resolveSubAgentExperimentReferences("reader", "---\nmodel: ${{ experiments.my-model }}\n---\nBody", env)).toBe("---\nmodel: gpt-5.4-mini\n---\nBody");
+  });
+
+  it.each(["gpt-5.4?effort=low", "gpt-5.4?effort=low&context=128000"])("preserves parameterized model selector %s", value => {
+    expect(resolveSubAgentExperimentReferences("reader", "---\nmodel: ${{ experiments.subagent_model }}\n---\nBody", { GH_AW_EXPERIMENTS_SUBAGENT_MODEL: value })).toBe(`---\nmodel: ${value}\n---\nBody`);
+  });
+
+  it.each(["__GH_AW_EXPR_0498E4C3__", "${{ secrets.MODEL }}", "__GH_AW_INPUTS_MODEL__"])("rejects unresolved model token %s without evaluating other expressions", model => {
+    expect(() => resolveSubAgentExperimentReferences("reader", `---\nmodel: ${model}\n---\nBody`, { ...env, GH_AW_EXPR_0498E4C3: "large", GH_AW_INPUTS_MODEL: "large" })).toThrow(
+      'inline sub-agent "reader" field "model" contains an unresolved expression or placeholder'
+    );
+  });
+
+  it("returns content without frontmatter or references unchanged", () => {
+    expect(resolveSubAgentExperimentReferences("reader", "No frontmatter ${{ experiments.subagent_model }}", env)).toBe("No frontmatter ${{ experiments.subagent_model }}");
+    const plain = "---\nmodel: small\n---\nBody";
+    expect(resolveSubAgentExperimentReferences("reader", plain, env)).toBe(plain);
+  });
+
+  it("fails with the sub-agent and field name when no assignment is available", () => {
+    expect(() => resolveSubAgentExperimentReferences("file-summarizer", "---\nmodel: ${{ experiments.subagent_model }}\n---\nBody", {})).toThrow(
+      'inline sub-agent "file-summarizer" field "model" references ${{ experiments.subagent_model }}, but no experiment assignment is available (GH_AW_EXPERIMENTS_SUBAGENT_MODEL is not set)'
+    );
+  });
+
+  it.each(["small\nmodel: other", "a b", "${{ secrets.TOKEN }}", "-dash"])("rejects selected variant %j that is not a plain scalar", value => {
+    expect(() => resolveSubAgentExperimentReferences("reader", "---\nmodel: ${{ experiments.subagent_model }}\n---\nBody", { GH_AW_EXPERIMENTS_SUBAGENT_MODEL: value })).toThrow("is not a plain model or alias value");
   });
 });

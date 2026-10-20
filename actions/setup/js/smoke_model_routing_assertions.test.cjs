@@ -1147,6 +1147,91 @@ describe("smoke_model_routing_assertions", () => {
       expect(core.info).toHaveBeenLastCalledWith("All 4 unified-session smoke assertions passed");
     });
 
+    describe("required sub-agent lifecycle (U4)", () => {
+      // Copilot CLI lifecycle record shapes (copilot-cli-builtin-subagents golden
+      // and the failed start in run 39181772988).
+      const FS_ID = "6f1c9a52-3d0e-4c55-9a7e-0b2f6d1e8c41";
+      const cliEvent = (type, data, agentId = FS_ID) => ({
+        type,
+        agentId,
+        data: { toolCallId: "call_fs", ...data },
+        provenance: { component: "agent", phase: "agent", path: "sandbox/agent/logs/copilot-session-state/s/events.jsonl", index: 0 },
+      });
+      const started = (model = "claude-haiku-4.5", agentId = FS_ID) =>
+        cliEvent("subagent.started", { agentName: "file-summarizer", agentType: "file-summarizer", model, modelSelectionSource: "agent_definition_default", executionMode: "sync" }, agentId);
+      const completed = (model = "claude-haiku-4.5", agentId = FS_ID) => cliEvent("subagent.completed", { agentName: "file-summarizer", model, firstDispatchedModel: model, durationMs: 4100, totalToolCalls: 1 }, agentId);
+      const failed = (model, error) => cliEvent("subagent.failed", { agentName: "file-summarizer", durationMs: 280, totalToolCalls: 0, error: `400 Unsupported model selector "${model}" on copilot: no advertised display name matches.` });
+      const smokeCopilot = { ...unroutedCopilot, requiredSubAgents: ["file-summarizer"] };
+      const run = async session => {
+        write("usage/aw_session.jsonl", [...postFixCopilotSession(), ...session]);
+        const core = { info: vi.fn(), error: vi.fn(), setFailed: vi.fn() };
+        const results = await sessionContractMain({ core, rootDir: root, buildSession: false, ...smokeCopilot });
+        return { results, core };
+      };
+
+      it("passes when file-summarizer starts and completes on a resolved model", async () => {
+        const { results, core } = await run([started(), cliEvent("subagent.configured", { model: "claude-haiku-4.5" }), completed()]);
+        expect(results.failures).toEqual([]);
+        expect(lineFor(results.passes, "U4")).toBe("PASS U4 sub-agent file-summarizer started 1 time(s) and completed on model(s) [claude-haiku-4.5]");
+        expect(checkIds(results.passes)).toEqual(["E2", "U1", "U2", "U3", "U4"]);
+        expect(core.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("smoke_fails_when_file_summarizer_fails_to_start", async () => {
+        const expression = "${{ experiments.subagent_model }}";
+        const { results, core } = await run([started(expression), failed(expression)]);
+        expect(results.failures).toEqual([
+          `FAIL U4 sub-agent file-summarizer: 1 subagent.failed event(s): 400 Unsupported model selector "${expression}" on copilot: no advertised display name matches.; 1 of 1 invocation(s) have no subagent.completed; unresolved model expression(s) [${expression}]; observed events: subagent.started(agentName=file-summarizer model=${expression}), subagent.failed(agentName=file-summarizer)`,
+        ]);
+        expect(core.setFailed).toHaveBeenCalled();
+
+        // A failed start on an unresolved alias fails as well, without the expression problem.
+        const alias = await run([started("small"), failed("small")]);
+        expect(lineFor(alias.results.failures, "U4")).toMatch(
+          /^FAIL U4 sub-agent file-summarizer: 1 subagent\.failed event\(s\): 400 Unsupported model selector "small".*; 1 of 1 invocation\(s\) have no subagent\.completed; observed events: /
+        );
+      });
+
+      it("fails when a later invocation fails or never completes", async () => {
+        const second = "9a0d7c11-5b2e-4f8a-8c3d-2e6f4b1a7d90";
+        const { results } = await run([started(), completed(), started("claude-haiku-4.5", second)]);
+        expect(lineFor(results.failures, "U4")).toMatch(/^FAIL U4 sub-agent file-summarizer: 1 of 2 invocation\(s\) have no subagent\.completed; /);
+      });
+
+      it("fails when completion is cancellation only", async () => {
+        const cancelled = { ...completed(), data: { ...completed().data, cancelled: true } };
+        const { results, core } = await run([started(), cancelled]);
+        expect(lineFor(results.failures, "U4")).toMatch(/1 of 1 invocation\(s\) have no subagent\.completed/);
+        expect(core.setFailed).toHaveBeenCalled();
+      });
+
+      it("preserves a genuine completion followed by cleanup cancellation", async () => {
+        const cancelled = { ...completed(), data: { ...completed().data, cancelled: true } };
+        const { results, core } = await run([started(), completed(), cancelled]);
+        expect(results.failures).toEqual([]);
+        expect(lineFor(results.passes, "U4")).toContain("started 1 time(s) and completed");
+        expect(core.setFailed).not.toHaveBeenCalled();
+      });
+
+      it("requires non-cancelled completion for each invocation", async () => {
+        const second = "second-invocation";
+        const cancelled = { ...completed("claude-haiku-4.5", second), data: { ...completed().data, cancelled: true } };
+        const { results } = await run([started(), completed(), started("claude-haiku-4.5", second), cancelled]);
+        expect(lineFor(results.failures, "U4")).toMatch(/1 of 2 invocation\(s\) have no subagent\.completed/);
+      });
+
+      it("smoke_fails_when_file_summarizer_is_not_invoked", async () => {
+        const { results, core } = await run([]);
+        expect(results.failures).toEqual(["FAIL U4 sub-agent file-summarizer: never started (no subagent.started); observed events: none"]);
+        expect(checkIds(results.passes)).toEqual(["E2", "U1", "U2", "U3"]);
+        expect(core.setFailed).toHaveBeenCalled();
+
+        // Another sub-agent's successful lifecycle does not satisfy the requirement.
+        const other = await run([{ ...started(), data: { ...started().data, agentName: "explore" } }, completed()]);
+        expect(lineFor(other.results.failures, "U4")).toMatch(/^FAIL U4 sub-agent file-summarizer: never started \(no subagent\.started\); observed events: subagent\.started\(agentName=explore /);
+      });
+    });
+
     it("counts U failures in T4 when steering is configured", () => {
       write("usage/aw_session.jsonl", preFixCopilotSession());
       write(TOKEN_USAGE, copilotRequests());

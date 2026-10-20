@@ -128,9 +128,13 @@ func (e *ExpressionExtractor) processMatch(originalExpr, rawContent string) {
 		))
 	}
 
+	envVar := e.generateEnvVarName(content)
+	if name, ok := regexSubmatchAt(experimentNameRegex.FindStringSubmatch(originalContent), 1); ok {
+		envVar = ExperimentEnvVarName(name)
+	}
 	e.mappings[originalExpr] = &ExpressionMapping{
 		Original: originalExpr,
-		EnvVar:   e.generateEnvVarName(content),
+		EnvVar:   envVar,
 		Content:  content,
 	}
 

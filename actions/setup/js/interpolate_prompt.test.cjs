@@ -488,3 +488,134 @@ describe("interpolate_prompt", () => {
         }));
     }));
 });
+
+describe("inline sub-agent experiment model expansion", () => {
+  const { main } = require("./interpolate_prompt.cjs");
+  const agentBlock = model => ["## agent: `file-summarizer`", "---", `model: ${model}`, "description: Summarizes the content of a file in a few concise sentences", "---", "You are a file summarization assistant."].join("\n");
+  let tmpDir, promptPath, originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "interpolate-subagent-test-"));
+    promptPath = path.join(tmpDir, "prompt.txt");
+    process.env.GH_AW_PROMPT = promptPath;
+    process.env.GITHUB_WORKSPACE = tmpDir;
+    process.env.GH_AW_ENGINE_ID = "copilot";
+    core.debug ??= vi.fn();
+    core.info.mockClear();
+    core.setFailed.mockClear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    Object.keys(process.env).forEach(k => {
+      if (!(k in originalEnv)) delete process.env[k];
+    });
+    Object.assign(process.env, originalEnv);
+  });
+
+  /**
+   * Runs the real interpolate_prompt main() and returns the sub-agent file it writes.
+   * @param {string} prompt
+   * @returns {Promise<string>}
+   */
+  async function runAndReadAgent(prompt) {
+    fs.writeFileSync(promptPath, prompt, "utf8");
+    const realWriteFileSync = fs.writeFileSync;
+    /** @type {Map<string, string>} */
+    const agentWrites = new Map();
+    vi.spyOn(fs, "writeFileSync").mockImplementation((file, data, ...args) => {
+      if (String(file).endsWith("file-summarizer.agent.md")) agentWrites.set(String(file), String(data));
+      else realWriteFileSync(file, data, ...args);
+    });
+    await main();
+    vi.restoreAllMocks();
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect([...agentWrites.keys()]).toEqual([expect.stringMatching(/\.github\/agents\/file-summarizer\.agent\.md$/)]);
+    return [...agentWrites.values()][0];
+  }
+
+  const forms = {
+    "runtime-import": async model => {
+      fs.mkdirSync(path.join(tmpDir, ".github", "workflows"), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, ".github", "workflows", "smoke.md"), `---\non: workflow_dispatch\nexperiments:\n  subagent_model: [small, large]\n---\nUse file-summarizer on README.md.\n\n${agentBlock(model)}\n`);
+      return runAndReadAgent("{{#runtime-import .github/workflows/smoke.md}}\n");
+    },
+    inlined: async model => runAndReadAgent(`Use file-summarizer on README.md.\n\n${agentBlock(model)}\n`),
+  };
+
+  describe.each(Object.keys(forms))("%s prompt content", form => {
+    it.each([
+      ["${{ experiments.subagent_model }}", "small"],
+      ["${{ experiments.subagent_model }}", "large"],
+      ["__GH_AW_EXPERIMENTS_SUBAGENT_MODEL__", "small"],
+      ["__GH_AW_EXPERIMENTS_SUBAGENT_MODEL__", "large"],
+      ["${{ experiments.subagent_model }}", "gpt-5.4?effort=low&context=128000"],
+    ])("writes_selected_experiment_model_before_agent_file_write: %s with assignment %s", async (reference, variant) => {
+      process.env.GH_AW_EXPERIMENTS_SUBAGENT_MODEL = variant;
+      const written = await forms[form](reference);
+      expect(written.startsWith(`---\nmodel: ${variant}\n`)).toBe(true);
+      expect(written).not.toContain("${{");
+      expect(written).not.toContain("experiments.");
+      expect(written).not.toContain("__GH_AW_");
+      expect(written).toContain("description: Summarizes the content of a file in a few concise sentences");
+      expect(written).toContain("You are a file summarization assistant.");
+      expect(fs.readFileSync(promptPath, "utf8")).not.toContain("file summarization assistant");
+    });
+
+    it("both_subagent_model_variants_are_reachable", async () => {
+      /** @type {string[]} */
+      const models = [];
+      for (const variant of ["small", "large"]) {
+        process.env.GH_AW_EXPERIMENTS_SUBAGENT_MODEL = variant;
+        const written = await forms[form]("${{ experiments.subagent_model }}");
+        models.push(/^model: (.*)$/m.exec(written)?.[1] ?? "");
+      }
+      expect(models).toEqual(["small", "large"]);
+    });
+
+    it("preserves_plain_subagent_model_and_frontmatter", async () => {
+      process.env.GH_AW_EXPERIMENTS_SUBAGENT_MODEL = "large";
+      const written = await forms[form]("claude-haiku-4.5");
+      expect(written).toBe("---\nmodel: claude-haiku-4.5\ndescription: Summarizes the content of a file in a few concise sentences\n---\nYou are a file summarization assistant.\n");
+    });
+
+    it("fails activation instead of writing an unresolved experiment model", async () => {
+      delete process.env.GH_AW_EXPERIMENTS_SUBAGENT_MODEL;
+      fs.writeFileSync(promptPath, "", "utf8");
+      const writeSpy = vi.spyOn(fs, "writeFileSync");
+      if (form === "runtime-import") {
+        fs.mkdirSync(path.join(tmpDir, ".github", "workflows"), { recursive: true });
+        fs.writeFileSync(path.join(tmpDir, ".github", "workflows", "smoke.md"), `Task.\n\n${agentBlock("${{ experiments.subagent_model }}")}\n`);
+        fs.writeFileSync(promptPath, "{{#runtime-import .github/workflows/smoke.md}}\n", "utf8");
+      } else {
+        fs.writeFileSync(promptPath, `Task.\n\n${agentBlock("${{ experiments.subagent_model }}")}\n`, "utf8");
+      }
+      writeSpy.mockClear();
+      await main();
+      expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('inline sub-agent "file-summarizer" field "model" references ${{ experiments.subagent_model }}'));
+      expect(writeSpy.mock.calls.some(call => String(call[0]).endsWith("file-summarizer.agent.md"))).toBe(false);
+    });
+
+    it.each(["small", undefined])("handles CRLF runtime imports with assignment %s", async variant => {
+      fs.mkdirSync(path.join(tmpDir, ".github", "workflows"), { recursive: true });
+      const imported = `Task.\n\n${agentBlock("${{ experiments.subagent_model }}")}\n`.replace(/\n/g, "\r\n");
+      fs.writeFileSync(path.join(tmpDir, ".github", "workflows", "smoke.md"), imported);
+      const prompt = "{{#runtime-import .github/workflows/smoke.md}}\n";
+      if (variant) {
+        process.env.GH_AW_EXPERIMENTS_SUBAGENT_MODEL = variant;
+        const written = await runAndReadAgent(prompt);
+        expect(written).toContain(`---\r\nmodel: ${variant}\r\n`);
+        expect(written).not.toContain("${{");
+      } else {
+        delete process.env.GH_AW_EXPERIMENTS_SUBAGENT_MODEL;
+        fs.writeFileSync(promptPath, prompt);
+        const writeSpy = vi.spyOn(fs, "writeFileSync");
+        await main();
+        expect(core.setFailed).toHaveBeenCalledWith(expect.stringContaining('inline sub-agent "file-summarizer" field "model" references ${{ experiments.subagent_model }}'));
+        expect(writeSpy.mock.calls.some(call => String(call[0]).endsWith("file-summarizer.agent.md"))).toBe(false);
+      }
+    });
+  });
+});
