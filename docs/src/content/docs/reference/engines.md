@@ -250,7 +250,7 @@ Workflows can specify extended configuration for the coding agent:
 ```yaml wrap
 engine:
   id: copilot
-  version: latest                      # optional; defaults to a compiler-pinned version
+  version: "1.0.98"                    # optional; other downloads require checksums-sha256
   model: gpt-5                          # example override; omit to use engine default
   command: /usr/local/bin/copilot       # custom executable path
   args: ["--add-dir", "/workspace"]     # custom CLI arguments
@@ -264,7 +264,7 @@ By default, workflows install a compiler-pinned version of each engine CLI. To o
 
 | Engine | `id` | Example `version` |
 |--------|------|-------------------|
-| GitHub Copilot CLI | `copilot` | `"0.0.422"` |
+| GitHub Copilot CLI | `copilot` | `"1.0.98"` |
 | Claude Code | `claude` | `"2.1.70"` |
 | Codex | `codex` | `"0.111.0"` |
 | Gemini CLI | `gemini` | `"0.31.0"` |
@@ -273,10 +273,31 @@ By default, workflows install a compiler-pinned version of each engine CLI. To o
 ```yaml wrap
 engine:
   id: copilot
-  version: "0.0.422"
+  version: "1.0.98"
 ```
 
 Pinning is useful when you need reproducible builds or want to avoid breakage from a new CLI release while testing. Remember to update the pinned version periodically to pick up bug fixes and new features.
+
+#### Copilot release checksum pins
+
+To download a Copilot CLI version not covered by the setup action's built-in pins, provide `engine.checksums-sha256` alongside `engine.version`:
+
+```yaml wrap
+engine:
+  id: copilot
+  version: "1.0.98"
+  checksums-sha256: "372f0c8d3d50076455cd19ef080dc59dc2a32401d8b2d4f77ce190c8ab13bc59"
+```
+
+The example uses the manifest digest for v1.0.98; change both fields together for another release. The digest authenticates **`SHA256SUMS.txt`**, not an individual platform archive. It must be a literal string of exactly 64 lowercase hexadecimal characters obtained through an independently trusted channel. Fetching a checksum from the same potentially intercepted origin as the executable is not independent authentication.
+
+An explicit pin overrides the built-in manifest pin and bypasses the runner toolcache. Both the host archive and a requested musl guest archive are verified against the authenticated manifest. Omit `command`, which replaces the built-in installer. This field is only supported by the built-in Copilot CLI installer, not other engines or inline engine definitions.
+
+The engine's version and pin are inherited by detection and eval jobs that reuse that engine. A separate `safe-outputs.threat-detection.engine` override accepts its own `version` and `checksums-sha256`. For AWF, use [`sandbox.agent.checksums-sha256`](/gh-aw/reference/sandbox/#release-integrity-sandboxagentchecksums-sha256).
+
+Without an explicit pin, the existing trusted toolcache policy and built-in release pins apply. An unreviewed download still fails closed. A supplied pin requires a literal semantic release version such as `"1.0.98"` or `"v1.0.98"`; it cannot be combined with `latest`, an omitted version, or a version expression.
+
+#### Parameterized versions
 
 `version` also accepts a GitHub Actions expression string, enabling `workflow_call` reusable workflows to parameterize the engine version via caller inputs. Expressions are passed injection-safely through an environment variable rather than direct shell interpolation:
 
@@ -286,7 +307,7 @@ on:
     inputs:
       engine-version:
         type: string
-        default: latest
+        default: "1.0.98"
 
 ---
 
@@ -294,6 +315,8 @@ engine:
   id: copilot
   version: ${{ inputs.engine-version }}
 ```
+
+For Copilot, a parameterized version must resolve to a trusted cached version or a release covered by the setup action's built-in manifest pins. `checksums-sha256` cannot be parameterized; use a literal version/pin pair for other releases.
 
 ### Copilot Custom Configuration
 

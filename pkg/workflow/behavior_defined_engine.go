@@ -61,17 +61,13 @@ func NewBehaviorDefinedEngine(def *EngineDefinition) (*BehaviorDefinedEngine, er
 	}
 
 	engine := &BehaviorDefinedEngine{
-		UniversalLLMConsumerEngine: UniversalLLMConsumerEngine{
-			BaseEngine: BaseEngine{
-				id:               def.ID,
-				displayName:      def.DisplayName,
-				description:      def.Description,
-				experimental:     def.Experimental,
-				ghSkillAgentName: def.GHSkillAgentName,
-				capabilities:     capabilities,
-			},
-		},
-		definition: def,
+		id:               def.ID,
+		displayName:      def.DisplayName,
+		description:      def.Description,
+		experimental:     def.Experimental,
+		ghSkillAgentName: def.GHSkillAgentName,
+		capabilities:     capabilities,
+		definition:       def,
 	}
 	return engine, nil
 }

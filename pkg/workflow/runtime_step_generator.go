@@ -33,7 +33,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement, data *Workflow
 			// for /proc/self/exe resolution. actions/setup-go does NOT export GOROOT to the
 			// environment, so we must capture it explicitly.
 			runtimeStepGeneratorLog.Print("Adding GOROOT capture step for chroot mode compatibility")
-			steps = append(steps, generateEnvCaptureStep("GOROOT", "go env GOROOT"))
+			steps = append(steps, generateGoRootCaptureStep())
 		case "elixir":
 			// erlef/setup-beam installs OTP to ${RUNNER_TEMP}/.setup-beam/otp/ via core.addPath(),
 			// not to RUNNER_TOOL_CACHE. GetNpmBinPathSetup() only scans RUNNER_TOOL_CACHE, so
@@ -50,6 +50,22 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement, data *Workflow
 
 	runtimeStepGeneratorLog.Printf("Generated %d runtime setup steps", len(steps))
 	return steps
+}
+
+func generateGoRootCaptureStep() GitHubActionStep {
+	return GitHubActionStep{
+		"      - name: Capture GOROOT for AWF chroot mode",
+		"        shell: bash",
+		"        run: |",
+		"          set -euo pipefail",
+		"          unset GOROOT",
+		`          go_root="$(GOTOOLCHAIN=local go env GOROOT)"`,
+		`          if [ -z "$go_root" ] || [ ! -x "$go_root/bin/go" ]; then`,
+		`            echo "ERROR: Selected Go toolchain has no executable bin/go; check actions/setup-go." >&2`,
+		"            exit 1",
+		"          fi",
+		`          printf 'GOROOT=%s\n' "$go_root" >> "$GITHUB_ENV"`,
+	}
 }
 
 // generateEnvCaptureStep creates a step to capture an environment variable and export it.
