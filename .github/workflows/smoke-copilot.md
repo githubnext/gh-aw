@@ -214,6 +214,10 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
   - A `pull-request-number` is shown in `<github-context>`: post the brief PR summary comment (pass `item_number` with that PR number explicitly), and **skip** the fun discussion follow-up comment.
   - No `pull-request-number` in `<github-context>`: **skip** the PR summary comment and post the fun discussion follow-up comment.
 
+## Required First Step: `file-summarizer` Sub-agent
+
+Your first action in this run must be a `task` tool call to the `file-summarizer` agent asking it to summarize `README.md`. Do this before any numbered test below. This step is mandatory and must not be skipped. Record the sub-agent's one-line summary of `README.md`; you will report it as test 14.
+
 ## Test Requirements
 
 Run these checks and mark each as ✅/❌:
@@ -231,7 +235,7 @@ Run these checks and mark each as ✅/❌:
 11. Workflow dispatch: call `dispatch_workflow` for `haiku-printer`, set top-level `ref` to `${{ github.event.repository.default_branch }}`, and include `inputs.message` with an original testing/automation haiku (non-empty string).
 12. PR review tools: add 1-2 inline `create_pull_request_review_comment` comments, submit review with event `COMMENT`, then reply to most recent existing review comment ID when available.
 13. Comment memory: append an original 3-line haiku to `/tmp/gh-aw/comment-memory/*.md`.
-14. Sub-agent: use `file-summarizer` on `README.md`.
+14. Sub-agent: report the result of the required first step (the `task` call to `file-summarizer` on `README.md`), including its one-line summary. Do not call it again here.
 15. Check run: call `create_check_run` with `conclusion=success`, title `Smoke Copilot - Run ${{ github.run_id }}`, summary `All smoke tests completed.`, text `Detailed results attached.`
 16. **LSP TypeScript Testing**: Use the TypeScript language server (configured via `lsp.typescript` frontmatter) to count the number of functions in `${{ github.workspace }}/actions/setup/js/safe_output_helpers.cjs`:
     - Open the file `${{ github.workspace }}/actions/setup/js/safe_output_helpers.cjs` via LSP
