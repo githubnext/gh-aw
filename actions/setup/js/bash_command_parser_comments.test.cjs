@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createRequire } from "module";
+import { spawnSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
 const { splitOnPipelineOperators, extractCommandNamesFromPipeline } = require("./bash_command_parser.cjs");
@@ -234,7 +235,7 @@ describe("commented Bash script fixtures", () => {
 });
 
 describe.each(lineEndings)("comment placement with $name line endings", ({ value: newline }) => {
-  for (const separator of ["\n", ";", "&&", "||", "|"]) {
+  for (const separator of ["\n", ";", "&&", "||", "|", "&", "|&"]) {
     it(`ignores inert comments around ${JSON.stringify(separator)} separators`, () => {
       const text = "inert comment";
       const operator = separator === "\n" ? newline : separator;
@@ -271,6 +272,58 @@ describe.each(lineEndings)("comment placement with $name line endings", ({ value
 });
 
 describe("comment parser security boundaries", () => {
+  it.each([
+    "echo ok & forbidden_probe",
+    "echo ok&forbidden_probe",
+    "echo ok & # Background command\nforbidden_probe",
+    "echo ok 2>&1&forbidden_probe",
+    String.raw`echo ok \>&forbidden_probe`,
+    'echo ok "${value:-"x #"}"; forbidden_probe',
+    '#\recho ok "\nforbidden_probe\n#"',
+    "echo ok\r#; forbidden_probe",
+    "echo ok $\\\n{value:-x #}; forbidden_probe",
+    "shopt -s extglob\necho ok @(x #); forbidden_probe",
+  ])("rejects scripts whose disallowed command is reached by the Bash oracle: %j", fullCommandText => {
+    const result = spawnSync("bash", ["--noprofile", "--norc", "-c", 'forbidden_probe() { builtin printf "\\nMOCK_REACHED\\n"; }\n' + fullCommandText], {
+      env: {},
+      encoding: "utf8",
+      timeout: 2000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("\nMOCK_REACHED\n");
+    for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
+      const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(shopt)", grant] }, () => ({ kind: "approve-once" }));
+      expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+    }
+  });
+
+  it.each([
+    "echo ok & forbidden_probe",
+    "echo ok&forbidden_probe",
+    "echo ok & # Background command\nforbidden_probe",
+    "echo ok # Commented ampersand &\nforbidden_probe",
+    "echo ok 2>&1&forbidden_probe",
+    "echo ok 2<&0 & forbidden_probe",
+    "echo ok &>output & forbidden_probe",
+    "echo ok &>>output&forbidden_probe",
+    String.raw`echo ok \>&forbidden_probe`,
+    "echo ok |& forbidden_probe",
+  ])("checks every command around ampersands: %s", fullCommandText => {
+    expect(extractCommandNamesFromPipeline(fullCommandText)).toContain("forbidden_probe");
+    for (const grant of ["shell(echo)", "shell(echo:*)", "shell(echo ok:*)"]) {
+      const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
+      expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+    }
+  });
+
+  it.each(["echo ok & echo done &", "echo ok & # Background command\ncat data.json", "echo ok 2>&1", "echo ok &>output", "echo ok |& cat data.json", "echo ${value:-a&b} # Actual comment"])(
+    "preserves permitted commands and ampersand redirections: %s",
+    fullCommandText => {
+      expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("approve-once");
+    }
+  );
+
   it.each(["echo ok ${value:-foo|bar} && cat data.json", "echo ok ${value:-foo;bar} && cat data.json"])("keeps command separators inside parameter expansions: %s", fullCommandText => {
     expect(splitOnPipelineOperators(fullCommandText)).toEqual([fullCommandText.slice(0, fullCommandText.indexOf(" && ")), "cat data.json"]);
     expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual(["echo", "cat"]);
@@ -282,6 +335,14 @@ describe("comment parser security boundaries", () => {
     for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
       const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
       expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+    }
+  });
+
+  it.each(["\r", "\v", "\f", "\u00a0", "\u2003", "\u2028", "\u2029", "\ufeff"])("preserves non-Bash word characters after separators: %j", character => {
+    for (const separator of [";", "&&", "||", "|", "&", "\n"]) {
+      const fullCommandText = `echo ok${separator}${character}#; forbidden_probe`;
+      expect(extractCommandNamesFromPipeline(fullCommandText)).toContain("forbidden_probe");
+      expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("reject");
     }
   });
 

@@ -21,7 +21,7 @@ function findShellExpansionOpener(commandText, dollarIndex) {
  * Dedicated bash command parser for permission checking in the Copilot SDK driver.
  *
  * Provides utilities to:
- *   - Split a shell command text on pipeline operators (&&, ||, |, ;)
+ *   - Split a shell command text on pipeline operators (&&, ||, |, |&, ;, &)
  *   - Extract the executable command name from a shell segment
  *   - Extract all command names from a complex piped/chained command
  *
@@ -80,7 +80,7 @@ function findShellQuoteEnd(commandText, start) {
 
 /**
  * Split a shell command text into individual pipeline segments.
- * Splits on the following shell operators: &&, ||, |, ; and newlines.
+ * Splits on the following shell operators: &&, ||, |, |&, ;, & and newlines.
  *
  * The split respects:
  *   - Single-quoted strings (no escaping inside)
@@ -216,12 +216,29 @@ function splitOnPipelineOperators(commandText) {
 
     // ── Pipeline operators ──
 
+    // Keep redirection ampersands distinct from background separators.
+    if (((ch === ">" || ch === "<") && commandText[i + 1] === "&") || (ch === "&" && commandText[i + 1] === ">")) {
+      current += ch + commandText[i + 1];
+      atWordStart = true;
+      i += 2;
+      continue;
+    }
+
     // && (AND-then)
     if (ch === "&" && i + 1 < len && commandText[i + 1] === "&") {
       segments.push(current);
       current = "";
       atWordStart = true;
       i += 2;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
+      continue;
+    }
+
+    if (ch === "&") {
+      segments.push(current);
+      current = "";
+      atWordStart = true;
+      i++;
       while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
@@ -236,12 +253,12 @@ function splitOnPipelineOperators(commandText) {
       continue;
     }
 
-    // | (pipe)
+    // | and |& (pipe stdout, or stdout and stderr)
     if (ch === "|") {
       segments.push(current);
       current = "";
       atWordStart = true;
-      i++;
+      i += commandText[i + 1] === "&" ? 2 : 1;
       while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }
@@ -401,7 +418,7 @@ function extractCommandName(segment) {
 /**
  * Extract all unique command names from a bash pipeline or command sequence.
  *
- * Splits the text on &&, ||, |, and ; and extracts the executable command name
+ * Splits the text on &&, ||, |, |&, ;, and & and extracts the executable command name
  * from each resulting segment.  Returns a deduplicated array preserving
  * first-occurrence order.
  *
