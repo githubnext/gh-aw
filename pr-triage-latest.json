@@ -1,26 +1,26 @@
 {
-  "run_date": "2026-10-20T06:39:24Z",
-  "run_id": "39381290693",
+  "run_date": "2026-10-20T12:40:25.199556Z",
+  "run_id": "39423077303",
   "source": "pr-triage",
   "eligible_total": 9,
-  "cooldown_skipped": 5,
-  "open_copilot_prs": 14,
+  "cooldown_skipped": 0,
+  "open_copilot_prs": 9,
   "category_counts": {
     "bug": 8,
     "feature": 1
   },
   "risk_counts": {
-    "low": 4,
-    "medium": 3,
+    "low": 3,
+    "medium": 4,
     "high": 2
   },
   "priority_counts": {
-    "medium": 7,
-    "high": 2
+    "medium": 5,
+    "high": 4
   },
   "action_counts": {
-    "auto_merge": 4,
-    "fast_track": 3,
+    "auto_merge": 3,
+    "fast_track": 4,
     "defer": 2,
     "batch_review": 0,
     "close": 0
@@ -28,51 +28,71 @@
   "batches": [
     {
       "id": "guardrails",
-      "members": [70343, 70344, 70346, 70347, 70348],
-      "reason": "policy, guardrail, and proxy safety fix cluster"
+      "members": [
+        70343,
+        70346,
+        70347
+      ],
+      "reason": "policy, proxy, and guardrail changes"
     }
   ],
   "selected_candidates": [
     {
-      "number": 56568,
-      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
+      "number": 70389,
+      "title": "Resolve Copilot sub-agent models in the harness (CLI and SDK) and fail closed",
       "category": "bug",
-      "risk": "high",
-      "priority_score": 57,
-      "score_breakdown": { "impact": 33, "urgency": 12, "quality": 12 },
-      "action": "defer",
-      "review_state": "changes_requested",
-      "ci_state": "no check runs"
-    },
-    {
-      "number": 69586,
-      "title": "Protect behavior-defined engine session capture",
-      "category": "bug",
-      "risk": "high",
-      "priority_score": 60,
-      "score_breakdown": { "impact": 30, "urgency": 18, "quality": 12 },
-      "action": "defer",
-      "review_state": "commented",
-      "ci_state": "partial failure"
-    },
-    {
-      "number": 69772,
-      "title": "Add declarative webhook triggers and versioned CAO subscriptions",
-      "category": "feature",
       "risk": "medium",
-      "priority_score": 72,
-      "score_breakdown": { "impact": 38, "urgency": 18, "quality": 16 },
+      "priority_score": 68,
+      "score_breakdown": {
+        "impact": 35,
+        "urgency": 17,
+        "quality": 16
+      },
       "action": "fast_track",
       "review_state": "commented",
       "ci_state": "pass"
     },
     {
-      "number": 69997,
-      "title": "Allow digest-pinned MCP images in local gateway schemas",
+      "number": 70387,
+      "title": "Resolve experiment references in inline sub-agent frontmatter before writing the agent file; fail smoke-copilot when `file-summarizer` doesn't run",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 64,
+      "score_breakdown": {
+        "impact": 32,
+        "urgency": 15,
+        "quality": 17
+      },
+      "action": "fast_track",
+      "review_state": "commented",
+      "ci_state": "pass"
+    },
+    {
+      "number": 70347,
+      "title": "Honor runner proxy settings in CLI proxy and MCP gateway containers",
+      "category": "bug",
+      "risk": "medium",
+      "priority_score": 65,
+      "score_breakdown": {
+        "impact": 30,
+        "urgency": 15,
+        "quality": 20
+      },
+      "action": "fast_track",
+      "review_state": "approved",
+      "ci_state": "pass"
+    },
+    {
+      "number": 70346,
+      "title": "Normalize scalar allowed-repos in GitHub guard policies",
       "category": "bug",
       "risk": "low",
       "priority_score": 60,
-      "score_breakdown": { "impact": 25, "urgency": 15, "quality": 20 },
+      "score_breakdown": {
+        "impact": 25,
+        "urgency": 15,
+        "quality": 20
+      },
       "action": "auto_merge",
       "review_state": "approved",
       "ci_state": "pass"
@@ -83,54 +103,74 @@
       "category": "bug",
       "risk": "low",
       "priority_score": 55,
-      "score_breakdown": { "impact": 20, "urgency": 15, "quality": 20 },
+      "score_breakdown": {
+        "impact": 20,
+        "urgency": 15,
+        "quality": 20
+      },
       "action": "auto_merge",
       "review_state": "commented",
       "ci_state": "pass"
     },
     {
-      "number": 70344,
-      "title": "Record authoritative zero AIC evidence for pre-flight noops",
-      "category": "bug",
-      "risk": "low",
-      "priority_score": 57,
-      "score_breakdown": { "impact": 22, "urgency": 15, "quality": 20 },
-      "action": "auto_merge",
-      "review_state": "approved",
-      "ci_state": "pass"
-    },
-    {
-      "number": 70346,
-      "title": "Normalize scalar allowed-repos in GitHub guard policies",
+      "number": 69997,
+      "title": "Allow digest-pinned MCP images in local gateway schemas",
       "category": "bug",
       "risk": "low",
       "priority_score": 60,
-      "score_breakdown": { "impact": 25, "urgency": 15, "quality": 20 },
+      "score_breakdown": {
+        "impact": 25,
+        "urgency": 15,
+        "quality": 20
+      },
       "action": "auto_merge",
       "review_state": "approved",
       "ci_state": "pass"
     },
     {
-      "number": 70347,
-      "title": "Honor runner proxy settings in CLI proxy and MCP gateway containers",
-      "category": "bug",
+      "number": 69772,
+      "title": "Add declarative webhook triggers and versioned CAO subscriptions",
+      "category": "feature",
       "risk": "medium",
-      "priority_score": 65,
-      "score_breakdown": { "impact": 30, "urgency": 15, "quality": 20 },
-      "action": "fast_track",
-      "review_state": "approved",
-      "ci_state": "pass"
-    },
-    {
-      "number": 70348,
-      "title": "Fail activation early for stale provenance workflows",
-      "category": "bug",
-      "risk": "medium",
-      "priority_score": 70,
-      "score_breakdown": { "impact": 35, "urgency": 15, "quality": 20 },
+      "priority_score": 72,
+      "score_breakdown": {
+        "impact": 38,
+        "urgency": 18,
+        "quality": 16
+      },
       "action": "fast_track",
       "review_state": "commented",
       "ci_state": "pass"
+    },
+    {
+      "number": 69586,
+      "title": "Protect behavior-defined engine session capture",
+      "category": "bug",
+      "risk": "high",
+      "priority_score": 60,
+      "score_breakdown": {
+        "impact": 30,
+        "urgency": 18,
+        "quality": 12
+      },
+      "action": "defer",
+      "review_state": "commented",
+      "ci_state": "partial failure"
+    },
+    {
+      "number": 56568,
+      "title": "Fall back to unsigned push instead of failing when a rebase hits a genuine merge conflict in `pushSignedCommits`",
+      "category": "bug",
+      "risk": "high",
+      "priority_score": 57,
+      "score_breakdown": {
+        "impact": 33,
+        "urgency": 12,
+        "quality": 12
+      },
+      "action": "defer",
+      "review_state": "changes_requested",
+      "ci_state": "unknown"
     }
   ]
 }
