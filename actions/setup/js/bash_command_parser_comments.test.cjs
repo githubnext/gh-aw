@@ -314,15 +314,18 @@ describe("comment parser security boundaries", () => {
     });
   });
 
-  it.each([
-    "echo '@(x #)' # Actual comment\ncat data.json",
-    'echo "!(x #)" # Actual comment\ncat data.json',
-    String.raw`echo @\(x\ \#\) # Actual comment` + "\ncat data.json",
-    "# Ignore @(x #) and $(unclosed\necho ok\ncat data.json",
-    "echo $(printf '%s' '@(x #)') # Actual comment\ncat data.json",
-  ])("preserves quoted, escaped, and commented glob syntax: %s", fullCommandText => {
+  it.each(["echo '@(x #)' # Actual comment\ncat data.json", 'echo "!(x #)" # Actual comment\ncat data.json', String.raw`echo @\(x\ \#\) # Actual comment` + "\ncat data.json", "# Ignore @(x #) and $(unclosed\necho ok\ncat data.json"])(
+    "preserves quoted, escaped, and commented glob syntax: %s",
+    fullCommandText => {
+      expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual(["echo", "cat"]);
+      expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("approve-once");
+    }
+  );
+
+  it("does not let an allowed command inherit permission for a nested command substitution", () => {
+    const fullCommandText = "echo $(printf '%s' '@(x #)') # Actual comment\ncat data.json";
     expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual(["echo", "cat"]);
-    expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("approve-once");
+    expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("reject");
   });
 
   it.each([
@@ -358,13 +361,48 @@ describe("comment parser security boundaries", () => {
     expect(checkPermission({ kind: "shell", fullCommandText: script }).kind).toBe("reject");
   });
 
-  it.each(['echo "${value:-#literal}" # Actual comment\ncat data.json', 'echo "${outer:-${inner:-#literal}}" # Actual comment\ncat data.json', "echo $(printf ${value:-fallback}) # Actual comment\ncat data.json"])(
-    "preserves simple parameter expansions: %s",
-    script => {
-      expect(extractCommandNamesFromPipeline(script)).toEqual(["echo", "cat"]);
-      expect(checkPermission({ kind: "shell", fullCommandText: script }).kind).toBe("approve-once");
-    }
-  );
+  it.each(['echo "${value:-#literal}" # Actual comment\ncat data.json', 'echo "${outer:-${inner:-#literal}}" # Actual comment\ncat data.json'])("preserves simple parameter expansions: %s", script => {
+    expect(extractCommandNamesFromPipeline(script)).toEqual(["echo", "cat"]);
+    expect(checkPermission({ kind: "shell", fullCommandText: script }).kind).toBe("approve-once");
+  });
+
+  describe("permission checks for command substitutions", () => {
+    it.each(["echo $(python3 -c 'print(1)')", "echo \"$(python3 -c 'print(1)')\"", "echo ${value:-$(python3 -c 'print(1)')}", "echo `python3 -c 'print(1)'`", "echo <(python3 -c 'print(1)')", "echo >(python3 -c 'print(1)')"])(
+      "does not inherit the outer command grant for %s",
+      fullCommandText => {
+        for (const grant of ["shell(echo)", "shell(echo:*)"]) {
+          const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
+          expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+        }
+      }
+    );
+
+    it.each(["echo '$(python3 -c \"print(1)\")'", "echo \"\\$(python3 -c 'print(1)')\""])("keeps quoted or escaped substitution text literal: %s", fullCommandText => {
+      const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(echo)"] }, () => ({ kind: "approve-once" }));
+      expect(handler({ kind: "shell", fullCommandText })).toEqual({ kind: "approve-once" });
+    });
+  });
+
+  describe("permission checks for background command boundaries", () => {
+    const disallowedCommand = "python3 -c 'print(1)'";
+    const backgroundCommandCases = [
+      `sleep 1 & ${disallowedCommand}`,
+      `sleep 1&${disallowedCommand}`,
+      `sleep 1 2>&1 & ${disallowedCommand}`,
+      `sleep 1 &>output; ${disallowedCommand}`,
+      `sleep 1 & # background job\n${disallowedCommand}`,
+      `sleep 1 & \\\n  ${disallowedCommand}`,
+      `sleep 1 & echo ready && ${disallowedCommand}`,
+    ];
+
+    it.each(backgroundCommandCases)("rejects an unallowed command after a background job: %s", fullCommandText => {
+      expect(extractCommandNamesFromPipeline(fullCommandText)).toContain("python3");
+      for (const grant of ["shell(sleep)", "shell(sleep 1:*)"]) {
+        const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
+        expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+      }
+    });
+  });
 
   it.each(["echo ok 'unclosed #", 'echo ok "unclosed #', "echo ok ${value:- #", "echo ok $(printf value"])("rejects unclosed contexts instead of approving a partial parse: %s", fullCommandText => {
     expect(splitOnPipelineOperators(fullCommandText)).toEqual([]);

@@ -265,6 +265,39 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
   }
 
   /**
+   * Command substitutions execute commands that must not inherit permission
+   * from the outer executable's allowlist entry.
+   *
+   * @param {string} segmentText
+   * @returns {boolean}
+   */
+  function containsActiveCommandSubstitution(segmentText) {
+    let quote = "";
+    for (let i = 0; i < segmentText.length; i++) {
+      const ch = segmentText[i];
+      if (quote === "'") {
+        if (ch === "'") quote = "";
+        continue;
+      }
+      if (ch === "\\") {
+        i++;
+        continue;
+      }
+      if (quote === '"') {
+        if (ch === '"') {
+          quote = "";
+          continue;
+        }
+      } else if (ch === "'" || ch === '"') {
+        quote = ch;
+        continue;
+      }
+      if (ch === "`" || (ch === "$" && segmentText[i + 1] === "(")) return true;
+    }
+    return false;
+  }
+
+  /**
    * @param {string} segmentText
    * @returns {boolean}
    */
@@ -297,6 +330,7 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
   function isSegmentAllowedByShellRules(segmentText) {
     const trimmedSegment = String(segmentText || "").trim();
     if (!trimmedSegment) return false;
+    if (containsActiveCommandSubstitution(trimmedSegment)) return false;
     const name = extractCommandNamesFromPipeline(trimmedSegment)[0];
     if (!name) {
       const keywordMatch = trimmedSegment.match(/^(if|while|until|time|coproc)\b\s*(.*)$/s);

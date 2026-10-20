@@ -21,7 +21,7 @@ function findShellExpansionOpener(commandText, dollarIndex) {
  * Dedicated bash command parser for permission checking in the Copilot SDK driver.
  *
  * Provides utilities to:
- *   - Split a shell command text on pipeline operators (&&, ||, |, ;)
+ *   - Split a shell command text on pipeline operators (&&, ||, |, ;, &)
  *   - Extract the executable command name from a shell segment
  *   - Extract all command names from a complex piped/chained command
  *
@@ -80,7 +80,7 @@ function findShellQuoteEnd(commandText, start) {
 
 /**
  * Split a shell command text into individual pipeline segments.
- * Splits on the following shell operators: &&, ||, |, ; and newlines.
+ * Splits on the following shell operators: &&, ||, |, ;, &, and newlines.
  *
  * The split respects:
  *   - Single-quoted strings (no escaping inside)
@@ -214,7 +214,7 @@ function splitOnPipelineOperators(commandText) {
       continue;
     }
 
-    // ── Pipeline operators ──
+    // ── Command separators ──
 
     // && (AND-then)
     if (ch === "&" && i + 1 < len && commandText[i + 1] === "&") {
@@ -222,6 +222,17 @@ function splitOnPipelineOperators(commandText) {
       current = "";
       atWordStart = true;
       i += 2;
+      while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
+      continue;
+    }
+
+    // A lone ampersand backgrounds the preceding command. Ampersands adjacent
+    // to redirection operators are part of the redirection, not separators.
+    if (ch === "&" && commandText[i - 1] !== ">" && commandText[i + 1] !== ">") {
+      segments.push(current);
+      current = "";
+      atWordStart = true;
+      i++;
       while (i < len && SHELL_BLANK_RE.test(commandText[i])) i++;
       continue;
     }

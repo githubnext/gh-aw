@@ -3,7 +3,7 @@
  * Tests for bash_command_parser.cjs
  *
  * Covers:
- *   - splitOnPipelineOperators: &&, ||, |, ; operators; quoted strings; subshells
+ *   - splitOnPipelineOperators: &&, ||, |, ;, & separators; quoted strings; subshells
  *   - extractCommandName: env-var skipping, redirection, keywords, negation
  *   - extractCommandNamesFromPipeline: end-to-end piping scenarios
  */
@@ -37,6 +37,16 @@ describe("splitOnPipelineOperators", () => {
 
   it("splits on ; (sequential)", () => {
     expect(splitOnPipelineOperators("echo a; echo b")).toEqual(["echo a", "echo b"]);
+  });
+
+  it.each(["sleep 1 & python3 -c 'print(1)'", "sleep 1&python3 -c 'print(1)'"])("splits background commands at a single ampersand: %s", command => {
+    expect(splitOnPipelineOperators(command)).toEqual(["sleep 1", "python3 -c 'print(1)'"]);
+    expect(extractCommandNamesFromPipeline(command)).toEqual(["sleep", "python3"]);
+  });
+
+  it.each(["echo hi 2>&1", "echo hi >&output", "echo hi &>output", "echo hi &>>output", String.raw`echo hi \& value`, "echo '&'"])("does not treat ampersands in redirects or escapes as background separators: %s", command => {
+    expect(splitOnPipelineOperators(command)).toEqual([command]);
+    expect(extractCommandNamesFromPipeline(command)).toEqual(["echo"]);
   });
 
   it("handles a complex mixed pipeline", () => {

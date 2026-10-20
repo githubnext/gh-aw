@@ -32,8 +32,8 @@ const { testSplitOnPipelineOperators, testExtractCommandName, testExtractCommand
 // Fixtures
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Pipeline operators that should split segments */
-const OPERATORS = ["&&", "||", "|", ";"];
+/** Shell separators that should split segments */
+const OPERATORS = ["&&", "||", "|", ";", "&"];
 
 /** Commands that should be recognised as safe (typically in the workflow allow-list) */
 const SAFE_COMMANDS = ["ls", "cat", "echo", "grep", "wc", "find", "jq", "printf", "pwd", "date", "head", "tail", "sort", "uniq", "yq", "safeoutputs", "gh", "git"];
@@ -130,6 +130,7 @@ describe("fuzz_bash_command_parser – correctness: expected segment counts", ()
     { input: "ls || echo fallback", count: 2, desc: "|| two commands" },
     { input: "ls | grep x", count: 2, desc: "| pipe two commands" },
     { input: "echo a; echo b", count: 2, desc: "; sequential two commands" },
+    { input: "echo a & echo b", count: 2, desc: "& background command separator" },
     { input: "a && b && c", count: 3, desc: "three &&-chained commands" },
     { input: "a || b || c", count: 3, desc: "three ||-chained commands" },
     { input: "a | b | c", count: 3, desc: "three pipe-chained commands" },
@@ -210,6 +211,11 @@ describe("fuzz_bash_command_parser – correctness: extractCommandNamesFromPipel
       desc: "three commands via ;",
     },
     {
+      input: "echo a & date & pwd",
+      expected: ["echo", "date", "pwd"],
+      desc: "three commands via background separators",
+    },
+    {
       input: 'ls /tmp 2>/dev/null && echo "---" && cat file.json 2>/dev/null || echo "not found"',
       expected: ["ls", "echo", "cat"],
       desc: "GEO optimizer command 1",
@@ -276,10 +282,10 @@ describe("fuzz_bash_command_parser – correctness: redirection-only segments", 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Exhaustive operator × command matrix: every operator splits every command pair
+// Exhaustive separator × command matrix: every separator splits every command pair
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("fuzz_bash_command_parser – exhaustive operator × command-pair matrix", () => {
+describe("fuzz_bash_command_parser – exhaustive separator × command-pair matrix", () => {
   /** Build every ordered pair (a, b) of distinct commands from the first N items. */
   function generateCommandPairs(commands, limit) {
     const pairs = [];
