@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.63
+**Version**: 1.0.64
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -32,6 +32,7 @@ Each version maps to the minimum compatible binary. A version change MUST update
 
 | Versions | Minimum gh-aw | Compatibility |
 |---|---:|---|
+| `1.0.64` | Unreleased | Separates compromised-CA transport authentication from CTR-011 destination authorization. Maps trusted release digests, HTTPS-only bootstrap redirects, patched release toolchains and runtime inventory to security architecture §6.8. Adds optional literal `engine.checksums-sha256` and `sandbox.agent.checksums-sha256` overrides bound to explicit versions, including matching detection/eval installations. Unreviewed downloads without a supplied pin fail closed; no new `CTR-*` identifier or lock-file schema change. |
 | `1.0.63` | Unreleased | Audit-only; distinguishes staged Copilot SDK skill registration and runtime permission-denial enforcement from compiler controls. Preserves CTR-023 engine-capability validation and CTR-028/030 configuration provenance. No new threat identifier, permission grant, or lock-file schema change. |
 | `1.0.62` | Unreleased | Adds authored AST checks for `pull_request_target` checkout trust (CTR-008 subset) and multiline, malformed, or blocked-property prompt expressions (CTR-010 subset). Shares checkout trust predicates with the compiler and expression parsing with secret-flow analysis. Preserves unresolved-import uncertainty and native Actions evidence boundaries. No new threat identifier or lock-file schema change. |
 | `1.0.61` | Unreleased | Exposes known compiler threat IDs in AST rule metadata, text/JSON diagnostics, rule listings, and the standalone linter reference. Checks URL-filter SSL prerequisites in accepted non-strict `sandbox.agent.args`; reports schema-rejected legacy `network.firewall` as requiring migration rather than recommending an invalid remedy. No new threat identifier or lock-file schema change. |
@@ -74,6 +75,12 @@ Each version maps to the minimum compatible binary. A version change MUST update
 ## 3. Threat Model Overview
 
 Generated workflows run with elevated permissions and consume untrusted content (issues, PRs, comments, external tool output). The catalog in Section 5 groups the threats a conforming compiler MUST detect into five classes: unauthorized privilege or scope expansion, unsafe or bypassed sandboxing, injection (template, shell, or subprocess argument), unsafe output and supply-chain routes (including forged execution attribution), and compile-time drift between manifests, mappings, and the rules that reference them. Each class maps to one or more `CTR-*` rules with a stable trigger and compiler action.
+
+An adversary may also intercept network traffic while possessing a formerly trusted intermediate CA private key, as in the [October 2026 eMudhra compromise](https://emudhra.we-have-a-problem.com). Such an adversary can impersonate an allowlisted HTTPS service to an unpatched client and replace both an executable and an unsigned checksum served beside it. CTR-011 authorizes destinations; it does not authenticate their operators or attest client distrust updates. CTR-002 action pins and CTR-016 manifest checks likewise do not establish remote TLS identity.
+
+Compiler-controlled bootstrap code uses independently provisioned release digests and HTTPS-only redirects as mapped in [security architecture §6.8](security-architecture-spec.md#68-transport-trust-and-bootstrap-integrity). The trusted setup action authenticates AWF and Copilot checksum manifests before consuming asset digests; threat-detect uses compiler-supplied asset digests, and Docker Compose uses compiler-supplied per-architecture digests. Release builds enforce the actual Go toolchain floor independently of `go.mod`. These are bootstrap/runtime controls, not a new `CTR-*` rejection of workflow network declarations. Broader executable-download enforcement remains a candidate under §5.3 until all engine/package-manager paths have independent authentication and deployment evidence. Compilation cannot attest arbitrary runner, proxy, MCP, or container trust stores; runtime inventory is diagnostic evidence, not conformance proof.
+
+Authors can independently provision manifest digests through literal `engine.checksums-sha256` (Copilot) and `sandbox.agent.checksums-sha256` (AWF) frontmatter paired with explicit versions. The compiler validates these declarations and preserves their version binding through main, detection and eval installer generation; Copilot pins bypass trusted cache selection to ensure downloaded bytes are checked. These values authenticate checksum manifests, not individual executables or live TLS trust stores. Unsupported/custom installers and nonliteral or unbound pins are rejected rather than silently ignored.
 
 Runtime trust boundaries inside the agent workspace are out of scope for this specification. In particular, the safe-outputs repository checkout discovery path (`actions/setup/js/find_repo_checkout.cjs`) resolves an `owner/repo` target from agent-writable workspace state; its normative controls — manifest precedence, workspace confinement, per-invocation `safe.directory` scoping, read-only discovery, remote host constraint, and deferred durable trust — are specified as Threat T7 and requirements RCR1–RCR7 in the Safe Outputs MCP Gateway Specification and as §3.5 of the Checkout Behavior Specification. A conforming compiler is not required to detect this class, because the compiler emits no generated-workflow construct that selects the checkout directory.
 

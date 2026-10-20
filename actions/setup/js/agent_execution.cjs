@@ -353,4 +353,4 @@ function collectAgentExecution({ content = "", events = [], categories = [], exi
   return { type: "agent.execution", data };
 }
 
-module.exports = { collectAgentExecution, agentErrorDiagnosticText, agentErrorSummaryText, validateAgentExecution, validateAgentExitCode, parseAgentExitCode, isAgentExecutionEvent };
+module.exports = { collectAgentExecution, collectAgentErrorEvidence, agentErrorDiagnosticText, agentErrorSummaryText, validateAgentExecution, validateAgentExitCode, parseAgentExitCode, isAgentExecutionEvent };

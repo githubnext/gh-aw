@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/github/gh-aw/pkg/workqueue"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
 )
 
 type workAPIRoundTripper func(*http.Request) (*http.Response, error)
@@ -107,6 +110,76 @@ func TestWorkCommandPersistentOutputAndRepositoryFlags(t *testing.T) {
 		if child.InheritedFlags().ShorthandLookup(shorthand) == nil {
 			t.Errorf("stats does not inherit -%s", shorthand)
 		}
+	}
+}
+
+func TestWorkCommandInfersRepositoryFromLocalOrigin(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("GH_REPO", "")
+	t.Setenv("GITHUB_SERVER_URL", "https://github.com")
+	ClearCurrentRepoSlugCache()
+	t.Cleanup(ClearCurrentRepoSlugCache)
+	require.NoError(t, exec.Command("git", "init", "--quiet", "--template=").Run())
+	require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://github.com/local/repo.git").Run())
+	for _, tc := range []struct {
+		use, invocation string
+	}{
+		{"work-queue", "work-queue"},
+		{"renamed-queue", "renamed-queue"},
+		{"work-queue", "work"},
+		{"renamed-queue", "work"},
+	} {
+		for _, repo := range []string{"", "explicit/repo"} {
+			t.Run(tc.use+"/"+tc.invocation+"/"+repo, func(t *testing.T) {
+				if repo != "" {
+					t.Setenv("GH_REPO", "environment/repo")
+				}
+				command := NewWorkCommand()
+				command.Use = tc.use
+				child, _, err := command.Find([]string{"replay"})
+				require.NoError(t, err)
+				child.RunE = func(cmd *cobra.Command, _ []string) error {
+					actual, err := cmd.Flags().GetString("repo")
+					require.NoError(t, err)
+					expected := repo
+					if expected == "" {
+						expected = "local/repo"
+					}
+					require.Equal(t, expected, actual)
+					return nil
+				}
+				parent := &cobra.Command{Use: "aw"}
+				parent.AddCommand(command)
+				args := []string{tc.invocation, "replay"}
+				if repo != "" {
+					args = append(args, "--repo", repo)
+				}
+				parent.SetArgs(args)
+				require.NoError(t, parent.Execute())
+			})
+		}
+	}
+}
+
+func TestWorkCommandRootHelpDoesNotInferRepository(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, embedded := range []bool{false, true} {
+		command := NewWorkCommand()
+		executor := command
+		args := []string{}
+		if embedded {
+			executor = &cobra.Command{Use: "aw"}
+			executor.AddCommand(command)
+			args = append(args, "work")
+		}
+		var output bytes.Buffer
+		executor.SetOut(&output)
+		executor.SetArgs(args)
+		require.NoError(t, executor.Execute())
+		require.Contains(t, output.String(), command.Long)
+		repo, err := command.Flags().GetString("repo")
+		require.NoError(t, err)
+		require.Empty(t, repo)
 	}
 }
 

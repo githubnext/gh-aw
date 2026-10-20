@@ -188,23 +188,25 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 		name    string
 		jobName string
 		step    string
-		content string
+		build   func(buildMaintenanceWorkflowYAMLOptions, string) (string, error)
 	}{
 		{
 			name:    "disable workflow",
 			jobName: "label_disable_agentic_workflow",
 			step:    "Disable agentic workflow",
-			content: buildMaintenanceLabelDisableJob(opts, "./actions/setup"),
+			build:   buildMaintenanceLabelDisableJob,
 		},
 		{
 			name:    "apply safe outputs",
 			jobName: "label_apply_safe_outputs",
 			step:    "Apply safe outputs from referenced run",
-			content: buildMaintenanceLabelApplySafeOutputsJob(opts, "./actions/setup"),
+			build:   buildMaintenanceLabelApplySafeOutputsJob,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Contains(t, tc.content, "uses: '"+expectedActionRef+"' # ")
+			content, err := tc.build(opts, "./actions/setup")
+			require.NoError(t, err)
+			require.Contains(t, content, "uses: '"+expectedActionRef+"' # ")
 			var parsed struct {
 				Jobs map[string]struct {
 					Steps []struct {
@@ -213,7 +215,7 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 					} `yaml:"steps"`
 				} `yaml:"jobs"`
 			}
-			require.NoError(t, yamlv3.Unmarshal([]byte("jobs:\n"+tc.content), &parsed))
+			require.NoError(t, yamlv3.Unmarshal([]byte("jobs:\n"+content), &parsed))
 			job, ok := parsed.Jobs[tc.jobName]
 			require.True(t, ok, "expected generated job %q", tc.jobName)
 			for _, step := range job.Steps {
@@ -225,6 +227,184 @@ func TestMaintenanceLabelJobsQuoteActionPins(t *testing.T) {
 			t.Fatalf("expected step %q in generated job %q", tc.step, tc.jobName)
 		})
 	}
+}
+
+func TestQuoteYAMLActionPin(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		pin     string
+		wantRef string
+	}{
+		{"plain", "owner/action@sha", "owner/action@sha"},
+		{"version comment", "owner/action@sha # v1", "owner/action@sha"},
+		{"apostrophes", "owner/action@ref'with'quotes # v1's label", "owner/action@ref'with'quotes"},
+		{"YAML punctuation", "owner/action@ref: [value] # v1", "owner/action@ref: [value]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			quoted, err := quoteYAMLActionPin(tc.pin)
+			require.NoError(t, err)
+			var parsed struct {
+				Uses string `yaml:"uses"`
+			}
+			require.NoError(t, yamlv3.Unmarshal([]byte("uses: "+quoted+"\n"), &parsed))
+			require.Equal(t, tc.wantRef, parsed.Uses)
+		})
+	}
+}
+
+func TestQuoteYAMLActionPinRejectsUnsafeStrings(t *testing.T) {
+	for _, pin := range []string{
+		"owner/action@sha\nrun: injected",
+		"owner/action@sha # v1\nrun: injected",
+		"owner/action@sha # v1\rrun: injected",
+		"owner/action@sha # v1\u0085run: injected",
+		"owner/action@sha # v1\u2028run: injected",
+		"owner/action@sha # v1\u2029run: injected",
+		"owner/action@sha\x00",
+		"owner/action@${{ github.token }}",
+		"owner/action@sha # ${{ github.token }}",
+	} {
+		t.Run(pin, func(t *testing.T) {
+			quoted, err := quoteYAMLActionPin(pin)
+			require.ErrorContains(t, err, "invalid action pin")
+			require.Empty(t, quoted)
+		})
+	}
+}
+
+type unsafeActionPinResolver string
+
+func (r unsafeActionPinResolver) ResolveSHA(context.Context, string, string) (string, error) {
+	return string(r), nil
+}
+
+func TestMaintenanceLabelJobsRejectUnsafeActionPins(t *testing.T) {
+	opts := buildMaintenanceWorkflowYAMLOptions{
+		runsOnValue: "ubuntu-latest",
+		resolver:    unsafeActionPinResolver("sha # v1\n        run: injected"),
+	}
+	for _, build := range []func(buildMaintenanceWorkflowYAMLOptions, string) (string, error){
+		buildMaintenanceLabelDisableJob,
+		buildMaintenanceLabelApplySafeOutputsJob,
+		buildMaintenanceLabelTriggeredJobs,
+	} {
+		content, err := build(opts, "./actions/setup")
+		require.ErrorContains(t, err, "invalid action pin")
+		require.Empty(t, content)
+	}
+	content, err := buildMaintenanceWorkflowYAML(context.Background(), opts)
+	require.ErrorContains(t, err, "invalid action pin")
+	require.Empty(t, content)
+}
+
+func TestMaintenanceWorkflowRejectsUnsafeActionPinsWithoutLabelTriggers(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		config *MaintenanceConfig
+	}{
+		{name: "default jobs"},
+		{
+			name: "permission check without close expired jobs",
+			config: &MaintenanceConfig{DisabledJobs: []string{
+				"close-expired-entities",
+			}},
+		},
+		{
+			name: "label jobs individually disabled",
+			config: &MaintenanceConfig{DisabledJobs: []string{
+				"label_disable_agentic_workflow",
+				"label_apply_safe_outputs",
+			}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, pin := range []string{
+				"sha\n        run: injected",
+				"sha\rrun: injected",
+				"sha\u0085run: injected",
+				"sha\u2028run: injected",
+				"sha\u2029run: injected",
+				"sha\x00",
+				"${{ github.token }}",
+			} {
+				opts := buildMaintenanceWorkflowYAMLOptions{
+					actionMode:          ActionModeDev,
+					runsOnValue:         "ubuntu-latest",
+					resolver:            unsafeActionPinResolver(pin),
+					disableLabelTrigger: tc.name != "label jobs individually disabled",
+					maintenanceConfig:   tc.config,
+				}
+				content, err := buildMaintenanceWorkflowYAML(context.Background(), opts)
+				require.ErrorContains(t, err, "invalid action pin")
+				require.Empty(t, content)
+			}
+		})
+	}
+}
+
+func TestGenerateMaintenanceWorkflow_DefaultRejectsUnsafeActionPin(t *testing.T) {
+	dir := t.TempDir()
+	cache := NewActionCache(dir)
+	_, version, _ := strings.Cut(getActionPin("actions/github-script"), " # ")
+	cache.Set("actions/github-script", version, "sha\n        run: injected")
+	_, nodeVersion, _ := strings.Cut(getActionPin("actions/setup-node"), " # ")
+	cache.Set("actions/setup-node", nodeVersion, strings.Repeat("a", 40))
+	err := GenerateMaintenanceWorkflow(context.Background(), GenerateMaintenanceWorkflowOptions{
+		WorkflowDataList: []*WorkflowData{{
+			Name:           "test",
+			ActionResolver: NewActionResolver(cache),
+			SafeOutputs:    &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{Expires: 48}},
+		}},
+		WorkflowDir: dir,
+		Version:     "dev",
+		ActionMode:  ActionModeDev,
+	})
+	require.ErrorContains(t, err, "invalid action pin")
+	_, err = os.Stat(filepath.Join(dir, "agentics-maintenance.yml"))
+	require.True(t, os.IsNotExist(err))
+}
+
+type maintenanceActionPinsResolver map[string]string
+
+func (r maintenanceActionPinsResolver) ResolveSHA(_ context.Context, repo, _ string) (string, error) {
+	return r[repo], nil
+}
+
+func TestMaintenanceWorkflowValidatesOnlyResolvedActionPins(t *testing.T) {
+	for _, tc := range []struct {
+		repo string
+		mode ActionMode
+	}{
+		{"actions/github-script", ActionModeDev},
+		{"actions/setup-node", ActionModeDev},
+		{"github/gh-aw/actions/setup", ActionModeRelease},
+		{"github/gh-aw-actions/setup-cli", ActionModeRelease},
+	} {
+		t.Run(tc.repo, func(t *testing.T) {
+			content, err := buildMaintenanceWorkflowYAML(context.Background(), buildMaintenanceWorkflowYAMLOptions{
+				actionMode:          tc.mode,
+				version:             "v1.0.0",
+				runsOnValue:         "ubuntu-latest",
+				disableLabelTrigger: true,
+				resolver:            maintenanceActionPinsResolver{tc.repo: "sha\n        run: injected"},
+			})
+			require.ErrorContains(t, err, "maintenance action "+tc.repo+": invalid action pin")
+			require.Empty(t, content)
+		})
+	}
+	opts := buildMaintenanceWorkflowYAMLOptions{
+		actionMode:          ActionModeRelease,
+		version:             "dev",
+		runsOnValue:         "ubuntu-latest",
+		disableLabelTrigger: true,
+	}
+	expected, err := buildMaintenanceWorkflowYAML(context.Background(), opts)
+	require.NoError(t, err)
+	// setup-node is used only by dev-mode jobs, so this pin must not be resolved.
+	opts.resolver = maintenanceActionPinsResolver{"actions/setup-node": "sha\n        run: injected"}
+	content, err := buildMaintenanceWorkflowYAML(context.Background(), opts)
+	require.NoError(t, err)
+	require.Equal(t, expected, content)
 }
 
 func TestGenerateMaintenanceWorkflow_LabelTriggers_ActionMappings(t *testing.T) {

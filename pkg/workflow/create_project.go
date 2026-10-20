@@ -47,7 +47,7 @@ func (c *Compiler) parseCreateProjectsConfig(outputMap map[string]any) *CreatePr
 			createProjectsConfig.FieldDefinitions = parseProjectFieldDefinitions(configMap, createProjectLog)
 		}
 
-		createProjectLog.Printf("Parsed create-project config: max=%d, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v, viewCount=%d, fieldDefinitionCount=%d",
+		createProjectLog.Printf("Parsed create-project config: max=%v, hasCustomToken=%v, hasTargetOwner=%v, hasTitlePrefix=%v, viewCount=%d, fieldDefinitionCount=%d",
 			createProjectsConfig.Max, createProjectsConfig.GitHubToken != "", createProjectsConfig.TargetOwner != "", createProjectsConfig.TitlePrefix != "", len(createProjectsConfig.Views), len(createProjectsConfig.FieldDefinitions))
 		return createProjectsConfig
 	}

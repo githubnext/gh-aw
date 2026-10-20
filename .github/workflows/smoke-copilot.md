@@ -75,7 +75,7 @@ lsp:
       ".tsx": typescriptreact
 runtimes:
   go:
-    version: "1.26"
+    version: "1.27.3"
   node:
     version: "24"
 models:

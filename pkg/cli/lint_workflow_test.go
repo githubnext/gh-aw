@@ -191,6 +191,33 @@ func TestNeedsConsistencyCLI(t *testing.T) {
 	}
 }
 
+func TestActionPinFormattingCLI(t *testing.T) {
+	const source = "jobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: \"./action\\u2028PRIVATE_PIN\"\n"
+	for _, extension := range []string{".yml", ".md"} {
+		t.Run(extension, func(t *testing.T) {
+			content := source
+			if extension == ".md" {
+				content = "---\nstrict: false\n" + source + "---\n"
+			}
+			file := filepath.Join(t.TempDir(), "workflow"+extension)
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=action-pin", "--json", file})
+			require.ErrorContains(t, cmd.Execute(), "workflow lint found 1 error")
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, "action-pin", diagnostics[0].RuleID)
+			assert.Equal(t, workflowlint.Error, diagnostics[0].Severity)
+			assert.Equal(t, "jobs.check.steps[0].uses", diagnostics[0].Path)
+			assert.NotContains(t, output.String(), "PRIVATE_PIN")
+		})
+	}
+}
+
 func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 	for _, tt := range []struct {
 		ruleID string

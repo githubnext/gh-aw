@@ -14,8 +14,10 @@ import (
 func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
-	report := OutcomeReport{Type: item.Type, ObjectURL: item.URL, ObjectNumber: num, Repo: repo}
-	report.OutcomeEvaluation = outcomeEvidence(OutcomeStatusUnknown, EvidenceNone, "missing_reference")
+	report := OutcomeReport{
+		Type: item.Type, ObjectURL: item.URL, ObjectNumber: num, Repo: repo,
+		OutcomeEvaluation: outcomeEvidence(OutcomeStatusUnknown, EvidenceNone, "missing_reference"),
+	}
 	if num == 0 || repo == "" {
 		return report
 	}
