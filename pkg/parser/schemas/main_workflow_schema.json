@@ -3126,8 +3126,7 @@
             "type": "object",
             "description": "Service containers for the job",
             "additionalProperties": {
-              "type": "object",
-              "additionalProperties": false
+              "$ref": "#/properties/services/additionalProperties/oneOf/1"
             }
           },
           "outputs": {
