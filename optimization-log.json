@@ -1,14 +1,5 @@
 [
   {
-    "date": "2026-06-30",
-    "workflow_name": "Test Quality Sentinel",
-    "workflow_file": "test-quality-sentinel",
-    "total_aic_analyzed": 373.279,
-    "runs_audited": 5,
-    "recommendations_count": 5,
-    "estimated_aic_savings_per_run": 12
-  },
-  {
     "date": "2026-07-01",
     "workflow_name": "CLI Consistency Checker",
     "workflow_file": "cli-consistency-checker",
@@ -293,5 +284,15 @@
     "recommendations_count": 5,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 8
+  },
+  {
+    "date": "2026-10-20",
+    "workflow_name": "Package Specification Enforcer",
+    "workflow_file": "spec-enforcer",
+    "total_aic_analyzed": 102.206,
+    "runs_audited": 1,
+    "recommendations_count": 4,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 60
   }
 ]
