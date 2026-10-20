@@ -3,9 +3,12 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -207,6 +210,35 @@ func TestValidateNetworkAllowedDomains_EcosystemIdentifiers(t *testing.T) {
 		require.ErrorContains(t, err, "rustxxxx", "Error should mention the invalid identifier")
 		require.ErrorContains(t, err, "fakeecosystem", "Error should mention the other invalid identifier")
 	})
+}
+
+func TestCompileWorkflowAcceptsCodexVendorNetworkAllowed(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "codex-vendor-network")
+	workflowPath := filepath.Join(tmpDir, "workflow.md")
+	workflow := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: codex
+network:
+  allowed:
+    - codex-vendor
+---
+
+# Codex vendor network opt-in
+
+Compile-time network permission validation accepts the codex-vendor ecosystem.
+`
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflow), 0o644))
+
+	compiler := NewCompiler(WithVersion("dev"))
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockPath := filepath.Join(tmpDir, "workflow.lock.yml")
+	lock, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(lock), "auth.openai.com")
+	assert.Contains(t, string(lock), "ab.chatgpt.com")
 }
 
 func TestValidateNetworkFirewallConfig_Integration(t *testing.T) {
