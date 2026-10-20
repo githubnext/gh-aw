@@ -444,17 +444,28 @@ func TestCollectDockerImages_DefaultAlpineContainerPinMapping(t *testing.T) {
 }
 
 // TestResolveGatewayContainerFromMappings verifies that resolveGatewayContainerFromMappings
-// applies the container_pins redirect and strips the digest for MCP Gateway compatibility.
+// applies the container_pins redirect without discarding the digest.
 func TestResolveGatewayContainerFromMappings(t *testing.T) {
 	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-	t.Run("mapped image has digest stripped for gateway", func(t *testing.T) {
+	t.Run("mapped image preserves digest for gateway", func(t *testing.T) {
 		mappings := map[string]string{
 			"ghcr.io/owner/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
 		}
 		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", mappings)
-		assert.Equal(t, "registry.acme.com/image:v1", got,
-			"digest should be stripped from mapped image for MCP Gateway compatibility")
+		assert.Equal(t, "registry.acme.com/image:v1@sha256:"+digest, got)
+	})
+
+	t.Run("digest-only mapping preserves digest", func(t *testing.T) {
+		mapped := "registry.acme.com/image@sha256:" + digest
+		mappings := map[string]string{"ghcr.io/owner/image:v1": mapped}
+		assert.Equal(t, mapped, resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", mappings))
+	})
+
+	t.Run("unmapped pinned image preserves digest", func(t *testing.T) {
+		image := "ghcr.io/owner/image@sha256:" + digest
+		mappings := map[string]string{"other.io/image:v1": "registry.acme.com/image:v1@sha256:" + digest}
+		assert.Equal(t, image, resolveGatewayContainerFromMappings(image, mappings))
 	})
 
 	t.Run("unmapped image passes through unchanged", func(t *testing.T) {
@@ -468,6 +479,29 @@ func TestResolveGatewayContainerFromMappings(t *testing.T) {
 	t.Run("nil mappings returns image unchanged", func(t *testing.T) {
 		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", nil)
 		assert.Equal(t, "ghcr.io/owner/image:v1", got)
+	})
+}
+
+func TestResolveMCPGatewayContainerImagePreservesDigest(t *testing.T) {
+	image := "example.com/server:v1"
+	pinned := image + "@sha256:" + strings.Repeat("a", 64)
+	t.Run("explicit digest", func(t *testing.T) {
+		assert.Equal(t, pinned, resolveMCPGatewayContainerImage(pinned, nil))
+	})
+	t.Run("cached digest", func(t *testing.T) {
+		cache := NewActionCache(t.TempDir())
+		cache.SetContainerPin(image, "sha256:"+strings.Repeat("a", 64), pinned)
+		assert.Equal(t, pinned, resolveMCPGatewayContainerImage(image, &WorkflowData{ActionCache: cache}))
+	})
+	t.Run("embedded digest", func(t *testing.T) {
+		pin, ok := getEmbeddedContainerPin(constants.DefaultGhAwNodeImage)
+		require.True(t, ok)
+		require.Contains(t, pin.PinnedImage, "@sha256:")
+		assert.Equal(t, pin.PinnedImage, resolveMCPGatewayContainerImage(constants.DefaultGhAwNodeImage, nil))
+	})
+	t.Run("mapped digest", func(t *testing.T) {
+		data := &WorkflowData{ContainerPinMappings: map[string]string{image: pinned}}
+		assert.Equal(t, pinned, resolveMCPGatewayContainerImage(image, data))
 	})
 }
 

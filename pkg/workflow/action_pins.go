@@ -323,21 +323,14 @@ func resolveContainerImage(image string, data *WorkflowData) string {
 	return image
 }
 
-// resolveMCPGatewayContainerImage returns an MCP Gateway-compatible container
-// reference. MCP Gateway container fields accept image[:tag] but not digest
-// references, so digest-pinned images are normalized back to their base image.
+// resolveMCPGatewayContainerImage resolves container mappings and digest pins
+// for MCP Gateway server images.
 func resolveMCPGatewayContainerImage(image string, data *WorkflowData) string {
-	resolved := resolveContainerImage(image, data)
-	base, _, hasDigest := strings.Cut(resolved, "@")
-	if hasDigest {
-		return base
-	}
-	return resolved
+	return resolveContainerImage(image, data)
 }
 
 // resolveGatewayContainerFromMappings applies the container_pins redirect from
-// the provided mappings map and strips any digest component, returning an
-// MCP Gateway-compatible image reference (image[:tag] only).
+// the provided mappings map, preserving the replacement's digest.
 // When mappings is nil or the image is not present in the map, the original
 // image is returned unchanged.
 func resolveGatewayContainerFromMappings(image string, mappings map[string]string) string {
@@ -347,12 +340,7 @@ func resolveGatewayContainerFromMappings(image string, mappings map[string]strin
 	// Build a minimal PinContext with no warning tracking (deduplication occurs
 	// during pre-download collection; here we only need the redirect).
 	ctx := &actionpins.PinContext{ContainerMappings: mappings}
-	mapped := actionpins.ApplyContainerPinMapping(image, ctx)
-	base, _, hasDigest := strings.Cut(mapped, "@")
-	if hasDigest {
-		return base
-	}
-	return mapped
+	return actionpins.ApplyContainerPinMapping(image, ctx)
 }
 
 // applyContainerPinMappingFromData applies the container_pins redirect from aw.json
