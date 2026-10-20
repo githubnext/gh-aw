@@ -155,6 +155,44 @@ describe("admission conclusion notification", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { type: "assistant.message", data: { content: "private conversation" } },
+    { type: "usage.report", data: { aic: 1, toolOutput: "private output" } },
+    { type: "usage.report", data: { model: "x".repeat(257) } },
+    { type: "workflow.info", data: { awContext: { nested: "private context" } } },
+    null,
+    ["not an event"],
+  ])("rejects non-compact records supplied through job outputs (%j)", async event => {
+    options.env.GH_AW_ADMISSION_COMPACT_SESSION = JSON.stringify({
+      version: 1,
+      session: JSON.stringify(event) + "\n",
+      included_events: 1,
+      omitted_events: 0,
+      oversized_lines: 0,
+      scan_truncated: false,
+      truncated: false,
+    });
+    const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
+    await expect(sendConclusion({ ...options, fetchImpl })).rejects.toThrow();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each(["omitted_events", "oversized_lines"])("rejects unsafe integer coverage counters in %s", async field => {
+    options.env.GH_AW_ADMISSION_COMPACT_SESSION = JSON.stringify({
+      version: 1,
+      session: compactSession,
+      included_events: 2,
+      omitted_events: 0,
+      oversized_lines: 0,
+      scan_truncated: false,
+      truncated: false,
+      [field]: 1e100,
+    });
+    const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
+    await expect(sendConclusion({ ...options, fetchImpl })).rejects.toThrow();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it.each(["missing", "empty", "invalid UTF-8", "invalid JSON", "symlink"])("rejects %s session files before requesting OIDC", async kind => {
     if (kind === "missing") fs.unlinkSync(sessionFile);
     if (kind === "empty") fs.writeFileSync(sessionFile, "");

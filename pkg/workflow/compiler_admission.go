@@ -47,7 +47,7 @@ func (c *Compiler) buildConclusionAdmissionMetadataStep(data *WorkflowData) []st
 		"          script: |\n",
 		"            const path = require('node:path');\n",
 		"            const { readCompactUnifiedSession } = require(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'compact_unified_session.cjs'));\n",
-		"            const compact = readCompactUnifiedSession(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'usage', 'aw_session.jsonl'));\n",
+		"            const compact = readCompactUnifiedSession('/tmp/gh-aw/usage/aw_session.jsonl');\n",
 		"            core.setOutput('compact_session', JSON.stringify({ version: compact.version, session: compact.session, included_events: compact.includedEvents, omitted_events: compact.omittedEvents, oversized_lines: compact.oversizedLines, scan_truncated: compact.scanTruncated, truncated: compact.truncated }));\n",
 	}
 }

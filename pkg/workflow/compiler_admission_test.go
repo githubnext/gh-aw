@@ -177,6 +177,8 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	conclusionSteps := strings.Join(conclusion.Steps, "")
 	assert.NotContains(t, conclusionSteps, "conclusion_admission.cjs")
 	assert.Contains(t, conclusionSteps, "Prepare admission conclusion metadata")
+	assert.Contains(t, conclusionSteps, "readCompactUnifiedSession('/tmp/gh-aw/usage/aw_session.jsonl')")
+	assert.NotContains(t, conclusionSteps, "path.join(process.env.RUNNER_TEMP, 'gh-aw', 'usage'")
 	assert.Equal(t, "${{ steps.admission-conclusion-metadata.outputs.compact_session }}", conclusion.Outputs["admission_compact_session"])
 	assert.Equal(t, "${{ steps.upload-usage-artifact.outputs.artifact-id }}", conclusion.Outputs["usage_artifact_id"])
 	assert.Equal(t, "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}", conclusion.Outputs["usage_artifact_retry_id"])
@@ -293,7 +295,11 @@ func TestAdmissionActivationDependencyConditions(t *testing.T) {
 		t.Run(condition, func(t *testing.T) {
 			compiler := NewCompiler()
 			activation := &Job{If: condition, Needs: []string{"pre_activation", "select"}}
-			admission, err := compiler.buildAdmissionJob(&WorkflowData{Name: "test"}, activation)
+			admission, err := compiler.buildAdmissionJob(&WorkflowData{
+				Name:            "test",
+				FrontmatterHash: strings.Repeat("a", 64),
+				BodyHash:        strings.Repeat("b", 64),
+			}, activation)
 			require.NoError(t, err)
 			assert.Equal(t, []string{"pre_activation", "select"}, admission.Needs)
 			assert.Contains(t, admission.If, "vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
@@ -310,16 +316,18 @@ func TestAdmissionActivationDependencyConditions(t *testing.T) {
 }
 
 func TestAdmissionJobCannotBeCustomized(t *testing.T) {
-	for _, config := range []map[string]any{
-		{}, {"if": "always()"}, {"needs": "agent"}, {"env": map[string]any{"UNTRUSTED": "value"}},
-		{"permissions": map[string]any{"contents": "write"}}, {"continue-on-error": true},
-		{"setup-steps": []any{map[string]any{"run": "echo unsafe"}}},
-		{"pre-steps": []any{map[string]any{"run": "echo unsafe"}}},
-		{"steps": []any{map[string]any{"run": "echo unsafe"}}},
-	} {
-		data := &WorkflowData{Jobs: map[string]any{"admission": config}}
-		require.ErrorContains(t, NewCompiler().applyBuiltinJobPreSteps(data), "jobs.admission is compiler-owned")
-		require.ErrorContains(t, NewCompiler().applyBuiltinJobAugmentations(data), "jobs.admission is compiler-owned")
+	for _, name := range []string{"admission", "conclusion_admission"} {
+		for _, config := range []map[string]any{
+			{}, {"if": "always()"}, {"needs": "agent"}, {"env": map[string]any{"UNTRUSTED": "value"}},
+			{"permissions": map[string]any{"contents": "write"}}, {"continue-on-error": true},
+			{"setup-steps": []any{map[string]any{"run": "echo unsafe"}}},
+			{"pre-steps": []any{map[string]any{"run": "echo unsafe"}}},
+			{"steps": []any{map[string]any{"run": "echo unsafe"}}},
+		} {
+			data := &WorkflowData{Jobs: map[string]any{name: config}}
+			require.ErrorContains(t, NewCompiler().applyBuiltinJobPreSteps(data), "jobs."+name+" is compiler-owned")
+			require.ErrorContains(t, NewCompiler().applyBuiltinJobAugmentations(data), "jobs."+name+" is compiler-owned")
+		}
 	}
 
 }
@@ -353,13 +361,15 @@ func TestAdmissionSkipSafeDownstreamConditions(t *testing.T) {
 }
 
 func TestAdmissionRejectsFrontmatterHooks(t *testing.T) {
-	for _, hook := range []string{"setup-steps", "pre-steps", "steps"} {
-		t.Run(hook, func(t *testing.T) {
-			file := filepath.Join(t.TempDir(), "workflow.md")
-			source := "---\non: workflow_dispatch\njobs:\n  admission:\n    " + hook + ":\n      - run: echo author-hook\n---\nTest\n"
-			require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
-			require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "jobs.admission is compiler-owned")
-		})
+	for _, name := range []string{"admission", "conclusion_admission"} {
+		for _, hook := range []string{"setup-steps", "pre-steps", "steps"} {
+			t.Run(name+"/"+hook, func(t *testing.T) {
+				file := filepath.Join(t.TempDir(), "workflow.md")
+				source := "---\non: workflow_dispatch\njobs:\n  " + name + ":\n    " + hook + ":\n      - run: echo author-hook\n---\nTest\n"
+				require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
+				require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "jobs."+name+" is compiler-owned")
+			})
+		}
 	}
 }
 

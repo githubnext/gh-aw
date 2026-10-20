@@ -36,18 +36,23 @@ func TestConclusionJobDurationPermissions(t *testing.T) {
 }
 
 func TestConclusionJobOIDCIsLimitedToConfiguredOTLP(t *testing.T) {
-	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{}}
-	_, ok := computeConclusionJobPermissions(data).Get(PermissionIdToken)
-	require.False(t, ok, "admission callback OIDC must not be granted to unrelated conclusion steps")
+	for _, worker := range []bool{false, true} {
+		data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{}}
+		if worker {
+			data.Tools = map[string]any{"work-queue": map[string]any{"worker": true}}
+		}
+		_, ok := computeConclusionJobPermissions(data).Get(PermissionIdToken)
+		require.False(t, ok, "admission callback OIDC must not be granted to unrelated conclusion steps")
 
-	data.RawFrontmatter = map[string]any{
-		"observability": map[string]any{
-			"otlp": map[string]any{
-				"github-app": map[string]any{"audience": "https://otel.example.com"},
+		data.RawFrontmatter = map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"github-app": map[string]any{"audience": "https://otel.example.com"},
+				},
 			},
-		},
+		}
+		level, ok := computeConclusionJobPermissions(data).Get(PermissionIdToken)
+		require.True(t, ok)
+		require.Equal(t, PermissionWrite, level)
 	}
-	level, ok := computeConclusionJobPermissions(data).Get(PermissionIdToken)
-	require.True(t, ok)
-	require.Equal(t, PermissionWrite, level)
 }

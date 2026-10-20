@@ -3,7 +3,7 @@
 
 const { AdmissionError, readAdmissionConfig, buildAdmissionIdentity } = require("./admission_protocol.cjs");
 const { requestAuthority } = require("./check_admission.cjs");
-const { readCompactUnifiedSession, MAX_COMPACT_SESSION_BYTES, MAX_COMPACT_SESSION_EVENTS } = require("./compact_unified_session.cjs");
+const { compactUnifiedSession, readCompactUnifiedSession, MAX_COMPACT_SESSION_BYTES, MAX_COMPACT_SESSION_EVENTS } = require("./compact_unified_session.cjs");
 
 const SESSION_FILE = "/tmp/gh-aw/usage/aw_session.jsonl";
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -38,9 +38,9 @@ function readCompactSession(env, sessionFile) {
     !Number.isInteger(compact.included_events) ||
     compact.included_events < 0 ||
     compact.included_events > MAX_COMPACT_SESSION_EVENTS ||
-    !Number.isInteger(compact.omitted_events) ||
+    !Number.isSafeInteger(compact.omitted_events) ||
     compact.omitted_events < 0 ||
-    !Number.isInteger(compact.oversized_lines) ||
+    !Number.isSafeInteger(compact.oversized_lines) ||
     compact.oversized_lines < 0 ||
     typeof compact.scan_truncated !== "boolean" ||
     typeof compact.truncated !== "boolean"
@@ -51,7 +51,8 @@ function readCompactSession(env, sessionFile) {
   if (lines.at(-1) === "") lines.pop();
   if ((!compact.session.endsWith("\n") && compact.session !== "") || lines.length !== compact.included_events) throw new AdmissionError();
   try {
-    for (const line of lines) JSON.parse(line);
+    const projected = compactUnifiedSession(lines.map(line => JSON.parse(line)));
+    if (projected.session !== compact.session || projected.includedEvents !== compact.included_events) throw new AdmissionError();
   } catch {
     throw new AdmissionError();
   }

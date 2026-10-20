@@ -1421,7 +1421,7 @@ jobs:
           script: |
             const path = require('node:path');
             const { readCompactUnifiedSession } = require(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'compact_unified_session.cjs'));
-            const compact = readCompactUnifiedSession(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'usage', 'aw_session.jsonl'));
+            const compact = readCompactUnifiedSession('/tmp/gh-aw/usage/aw_session.jsonl');
             core.setOutput('compact_session', JSON.stringify({ version: compact.version, session: compact.session, included_events: compact.includedEvents, omitted_events: compact.omittedEvents, oversized_lines: compact.oversizedLines, scan_truncated: compact.scanTruncated, truncated: compact.truncated }));
       - name: Upload usage artifact
         id: upload-usage-artifact

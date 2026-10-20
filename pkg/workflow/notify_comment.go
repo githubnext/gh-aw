@@ -138,9 +138,6 @@ func (c *Compiler) appendConclusionUsageSteps(steps []string, data *WorkflowData
 // session job-duration collection, and any issue-creating conclusion mechanism.
 func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
-	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
-		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
-	}
 	// Session job-duration collection is always enabled, independently of failure
 	// reporting, and reads the current run attempt's Actions jobs.
 	if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
@@ -157,7 +154,13 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 			conclusionPerms.Set(PermissionContents, PermissionWrite)
 			conclusionPerms.Set(PermissionIssues, PermissionWrite)
 		}
+		if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+			conclusionPerms.Set(PermissionIdToken, PermissionWrite)
+		}
 		return conclusionPerms
+	}
+	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 	}
 	if isWorkQueueEnabled(data) {
 		if level, ok := conclusionPerms.Get(PermissionContents); !ok || level == PermissionNone {
