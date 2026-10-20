@@ -1889,6 +1889,181 @@
       "published": "2026-10-16",
       "relevant": false,
       "analyzed_at": "2026-10-19-08-50-44"
+    },
+    {
+      "id": "2610.26860v1",
+      "title": "OpenVLHarness: Real World Visual Agentic Tool-Use with Multimodal Memory",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26852v1",
+      "title": "CoopUQ: Robust Multi-Robot Social Navigation via Uncertainty-Aware Cooperative Forecasting",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26848v1",
+      "title": "Where is Physical RSI capability from? An Observational Scaling Law of LLM-as-policy",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26847v1",
+      "title": "WeAct: Dynamic Weight Switching as Agent Actions",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26845v1",
+      "title": "Train An Imaginative Agent",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26844v1",
+      "title": "AnyGoal: On World Model Generalization Beyond Expert Rollouts",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26836v1",
+      "title": "Same Simulation, Different Evidence: Where Retrieved Tool Output Costs LLM Agents Accuracy",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26829v1",
+      "title": "ProteinGeoBench: Frontier Structural-Biology Agents Are Fluent at Lookup but Lost in Geometry",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26828v1",
+      "title": "Agent World Model in the Wild: Computer-Use Agent Environment Synthesis",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26826v1",
+      "title": "RefCraft: Benchmarking Visual-Reference-Conditioned Agentic Generation through Web Development",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26825v1",
+      "title": "MemT-1.0: Towards Memory-Native Evolution",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26789v1",
+      "title": "Cooperative Multi-Agent Reinforcement Learning for Market Making on Prediction-Market Order Books",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26781v1",
+      "title": "Game of Phones: Harnessing Game Theory and LLMs in 'Bot Wars' to Counteract Phone Scams",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26777v1",
+      "title": "Topological Sheaves of Irreducibility: A Theoretical Framework for Multi-Agent Task Obstructions",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26770v1",
+      "title": "HarnessPro: Recursive Harness Self-Improvement with Pareto Optimization for Performance-Cost Trade-offs",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26679v1",
+      "title": "StebBench: Diagnosing Real-World Procedural Understanding in AI Agents",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26676v1",
+      "title": "Which Model for Which Role? Cost-Efficient Pareto Recommendation for LLM Agentic Workflows",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26671v1",
+      "title": "PACT: Plan-Augmented Coordination via Trace-Graphs for Dynamic Multi-Agent Combinatorial Optimization",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26664v1",
+      "title": "Honeypots for AI Agent Insider Threats",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26662v1",
+      "title": "AllPath: Layered Verification for a Deployed, Self-Revising LLM Trading Agent under Human-Gated and Autonomous Regimes",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26660v1",
+      "title": "Tandem: Serving Hybrid Linear-Attention GUI Agents on Mobile NPUs",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26636v1",
+      "title": "Revision-Based Learning from Interactive Experience and Feedback",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26632v1",
+      "title": "When the harness decides success: state that cannot be re-observed",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26568v1",
+      "title": "Reward Objectives for Robust (PO)MDPs: A Law-Preserving Equivalence with (Partially Observable) Games",
+      "published": "2026-10-19",
+      "relevant": false,
+      "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.26554v1",
+      "title": "BetaMem: Learning to Remember a Changing World for Embodied Agents",
+      "published": "2026-10-19",
+      "relevant": true,
+      "analyzed_at": "2026-10-20-08-44-51"
     }
   ]
 }

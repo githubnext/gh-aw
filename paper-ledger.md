@@ -1096,3 +1096,181 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 - **Published**: 2026-10-16
 - **Categories**: cs.LG,cs.AI
 - **Relevant**: No
+
+### [OpenVLHarness: Real World Visual Agentic Tool-Use with Multimodal Memory](https://arxiv.org/abs/2610.26860v1)
+- **ID**: 2610.26860v1
+- **Published**: 2026-10-19
+- **Categories**: cs.CL, cs.AI, cs.CV
+- **Relevant**: Yes
+- **Opportunity**: Add a standardized evidence-artifact layer for large or multimodal tool results.
+- **Area**: tool interfaces and persistent multimodal memory
+
+### [CoopUQ: Robust Multi-Robot Social Navigation via Uncertainty-Aware Cooperative Forecasting](https://arxiv.org/abs/2610.26852v1)
+- **ID**: 2610.26852v1
+- **Published**: 2026-10-19
+- **Categories**: cs.RO, cs.AI, cs.LG
+- **Relevant**: No
+
+### [Where is Physical RSI capability from? An Observational Scaling Law of LLM-as-policy](https://arxiv.org/abs/2610.26848v1)
+- **ID**: 2610.26848v1
+- **Published**: 2026-10-19
+- **Categories**: cs.RO, cs.AI, cs.CV
+- **Relevant**: No
+
+### [WeAct: Dynamic Weight Switching as Agent Actions](https://arxiv.org/abs/2610.26847v1)
+- **ID**: 2610.26847v1
+- **Published**: 2026-10-19
+- **Categories**: cs.LG, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Explore typed capability selection for phase-specific engine or sub-agent routing.
+- **Area**: dynamic capability and engine routing
+
+### [Train An Imaginative Agent](https://arxiv.org/abs/2610.26845v1)
+- **ID**: 2610.26845v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [AnyGoal: On World Model Generalization Beyond Expert Rollouts](https://arxiv.org/abs/2610.26844v1)
+- **ID**: 2610.26844v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Same Simulation, Different Evidence: Where Retrieved Tool Output Costs LLM Agents Accuracy](https://arxiv.org/abs/2610.26836v1)
+- **ID**: 2610.26836v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Preserve authoritative artifact identity and provenance through compacted tool results.
+- **Area**: token optimization and evidence provenance
+
+### [ProteinGeoBench: Frontier Structural-Biology Agents Are Fluent at Lookup but Lost in Geometry](https://arxiv.org/abs/2610.26829v1)
+- **ID**: 2610.26829v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI, cs.LG, q-bio.BM
+- **Relevant**: Yes
+- **Opportunity**: Record harness version, access policy, task family, and repeated-run uncertainty in engine benchmarks.
+- **Area**: agent evaluation methodology
+
+### [Agent World Model in the Wild: Computer-Use Agent Environment Synthesis](https://arxiv.org/abs/2610.26828v1)
+- **ID**: 2610.26828v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI, cs.CL, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Build synthetic multi-interface workflow fixtures with verifier robustness probes.
+- **Area**: workflow evaluation and verifier robustness
+
+### [RefCraft: Benchmarking Visual-Reference-Conditioned Agentic Generation through Web Development](https://arxiv.org/abs/2610.26826v1)
+- **ID**: 2610.26826v1
+- **Published**: 2026-10-19
+- **Categories**: cs.CL, cs.AI, cs.CV
+- **Relevant**: Yes
+- **Opportunity**: Add reference-conditioned artifact evaluations with explicit keypoints and multiple judges.
+- **Area**: evaluation
+
+### [MemT-1.0: Towards Memory-Native Evolution](https://arxiv.org/abs/2610.26825v1)
+- **ID**: 2610.26825v1
+- **Published**: 2026-10-19
+- **Categories**: cs.CL, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Distill trajectories into typed procedural experience with provenance and capacity budgets.
+- **Area**: memory
+
+### [Cooperative Multi-Agent Reinforcement Learning for Market Making on Prediction-Market Order Books](https://arxiv.org/abs/2610.26789v1)
+- **ID**: 2610.26789v1
+- **Published**: 2026-10-19
+- **Categories**: stat.ML, cs.LG, cs.MA
+- **Relevant**: No
+
+### [Game of Phones: Harnessing Game Theory and LLMs in 'Bot Wars' to Counteract Phone Scams](https://arxiv.org/abs/2610.26781v1)
+- **ID**: 2610.26781v1
+- **Published**: 2026-10-19
+- **Categories**: cs.CR, cs.AI, cs.CL
+- **Relevant**: No
+
+### [Topological Sheaves of Irreducibility: A Theoretical Framework for Multi-Agent Task Obstructions](https://arxiv.org/abs/2610.26777v1)
+- **ID**: 2610.26777v1
+- **Published**: 2026-10-19
+- **Categories**: cs.LG, cs.MA
+- **Relevant**: No
+
+### [HarnessPro: Recursive Harness Self-Improvement with Pareto Optimization for Performance-Cost Trade-offs](https://arxiv.org/abs/2610.26770v1)
+- **ID**: 2610.26770v1
+- **Published**: 2026-10-19
+- **Categories**: cs.LG, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Build offline trajectory-driven harness tuning with quality-cost Pareto presets.
+- **Area**: harness optimization
+
+### [StebBench: Diagnosing Real-World Procedural Understanding in AI Agents](https://arxiv.org/abs/2610.26679v1)
+- **ID**: 2610.26679v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add deterministic missing, incorrect, and misordered-step diagnostics to agent evaluations.
+- **Area**: planning evaluation
+
+### [Which Model for Which Role? Cost-Efficient Pareto Recommendation for LLM Agentic Workflows](https://arxiv.org/abs/2610.26676v1)
+- **ID**: 2610.26676v1
+- **Published**: 2026-10-19
+- **Categories**: cs.LG, cs.CL, stat.ML
+- **Relevant**: Yes
+- **Opportunity**: Evaluate role-to-engine assignments on uncertainty-aware quality, cost, and latency frontiers.
+- **Area**: engine routing
+
+### [PACT: Plan-Augmented Coordination via Trace-Graphs for Dynamic Multi-Agent Combinatorial Optimization](https://arxiv.org/abs/2610.26671v1)
+- **ID**: 2610.26671v1
+- **Published**: 2026-10-19
+- **Categories**: cs.LG
+- **Relevant**: No
+
+### [Honeypots for AI Agent Insider Threats](https://arxiv.org/abs/2610.26664v1)
+- **ID**: 2610.26664v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Evaluate opt-in canary tools and resources as independent authority-violation signals.
+- **Area**: security and runtime monitoring
+
+### [AllPath: Layered Verification for a Deployed, Self-Revising LLM Trading Agent under Human-Gated and Autonomous Regimes](https://arxiv.org/abs/2610.26662v1)
+- **ID**: 2610.26662v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Surface state transitions lacking an active verifier and keep verification layers distinct.
+- **Area**: safe outputs and layered verification
+
+### [Tandem: Serving Hybrid Linear-Attention GUI Agents on Mobile NPUs](https://arxiv.org/abs/2610.26660v1)
+- **ID**: 2610.26660v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Revision-Based Learning from Interactive Experience and Feedback](https://arxiv.org/abs/2610.26636v1)
+- **ID**: 2610.26636v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [When the harness decides success: state that cannot be re-observed](https://arxiv.org/abs/2610.26632v1)
+- **ID**: 2610.26632v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI, cs.CL, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Classify observations by re-observability before compaction and preserve one-shot state.
+- **Area**: token optimization and context management
+
+### [Reward Objectives for Robust (PO)MDPs: A Law-Preserving Equivalence with (Partially Observable) Games](https://arxiv.org/abs/2610.26568v1)
+- **ID**: 2610.26568v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI, cs.FL
+- **Relevant**: No
+
+### [BetaMem: Learning to Remember a Changing World for Embodied Agents](https://arxiv.org/abs/2610.26554v1)
+- **ID**: 2610.26554v1
+- **Published**: 2026-10-19
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Use typed source-linked memory writes with verification and replay-gated policy changes.
+- **Area**: persistent memory reliability
