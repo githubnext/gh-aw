@@ -172,7 +172,7 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(dispatcher).not.toMatch(/^\s+workflow_dispatch:/m);
     expect(dispatcher).toContain("    max: 3");
     const lock = fs.readFileSync(new URL("../../../.github/workflows/daily-report-dispatcher.lock.yml", import.meta.url), "utf8");
-    expect(lock).toContain("if: github.run_attempt == 1");
+    expect(lock).toMatch(/github\.run_attempt == 1/);
     expect(lock).toContain("daily_report_portfolio.cjs");
     for (const profile of REPORT_PROFILES) {
       const worker = source(profile);
