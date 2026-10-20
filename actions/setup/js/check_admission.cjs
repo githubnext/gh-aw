@@ -3,41 +3,34 @@
 
 const { performance } = require("node:perf_hooks");
 const { AdmissionError, FAILURE, readAdmissionConfig, buildAdmissionIdentity, parseAdmissionDecision, readBoundedBody } = require("./admission_protocol.cjs");
-const { withRetry } = require("./error_recovery.cjs");
+const { withRetry, sleep } = require("./error_recovery.cjs");
 
 const OUTAGE = "ERR_ADMISSION: Admission service unavailable; continuing without a service decision.";
 
 /**
- * The operation must honor its signal. The race also prevents a noncooperative
- * transport from supplying a late success after the monotonic deadline.
  * @template T
  * @param {(signal: AbortSignal) => Promise<T>} operation
  * @param {number} deadline
  * @param {() => number} now
- * @param {number} [maximum]
  * @returns {Promise<T>}
  */
-async function bounded(operation, deadline, now, maximum = 10000) {
-  const remaining = Math.min(maximum, deadline - now());
-  if (remaining <= 0) throw new AdmissionError(true);
-  const controller = new AbortController();
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let timer;
+async function withAdmissionTimeout(operation, deadline, now) {
   try {
-    const result = await Promise.race([
-      operation(controller.signal),
-      new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          controller.abort();
-          reject(new AdmissionError(true));
-        }, remaining);
-      }),
-    ]);
-    if (now() >= deadline) throw new AdmissionError(true);
-    return result;
-  } finally {
-    clearTimeout(timer);
-    controller.abort();
+    return await withRetry(
+      async signal => {
+        if (!signal) throw new AdmissionError();
+        try {
+          return await operation(signal);
+        } catch (error) {
+          throw error instanceof AdmissionError ? error : new AdmissionError(true);
+        }
+      },
+      { maxRetries: 0, timeoutMs: 10000, deadline, now, timeoutError: () => new AdmissionError(true), shouldRetry: () => false },
+      "workflow admission request"
+    );
+  } catch (error) {
+    const original = error instanceof Error && "originalError" in error ? error.originalError : error;
+    throw original instanceof AdmissionError ? original : new AdmissionError();
   }
 }
 
@@ -95,7 +88,7 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
       async () => {
         try {
           if (!token || expiresAt <= Date.now() + 10000) {
-            token = await bounded(
+            token = await withAdmissionTimeout(
               async signal => {
                 const response = await fetchImpl(oidcUrl, { headers: { authorization: `bearer ${bootstrapToken}`, accept: "application/json" }, redirect: "manual", signal });
                 if (response.status !== 200) {
@@ -132,7 +125,7 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
           const spanId = generateSpanId();
           const attemptStartMs = Date.now();
           try {
-            return await bounded(
+            return await withAdmissionTimeout(
               async signal => {
                 /** @type {Record<string, string>} */
                 const headers = { authorization: `bearer ${token}`, "content-type": "application/json", "cache-control": "no-store" };
@@ -165,23 +158,7 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
         maxDelayMs: 1000,
         jitterMs: 250,
         shouldRetry: error => error instanceof AdmissionError && error.transient && now() < deadline,
-        sleep: delay =>
-          bounded(
-            signal =>
-              new Promise((resolve, reject) => {
-                const timer = setTimeout(resolve, delay);
-                signal.addEventListener(
-                  "abort",
-                  () => {
-                    clearTimeout(timer);
-                    reject(new AdmissionError(true));
-                  },
-                  { once: true }
-                );
-              }),
-            deadline,
-            now
-          ),
+        sleep: delay => withAdmissionTimeout(signal => sleep(delay, signal), deadline, now),
       },
       "workflow admission"
     );
@@ -251,4 +228,4 @@ async function main(core) {
   }
 }
 
-module.exports = { checkAdmission, main, bounded, OUTAGE };
+module.exports = { checkAdmission, main, OUTAGE };
