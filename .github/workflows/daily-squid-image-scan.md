@@ -22,6 +22,7 @@ tools:
   cli-proxy: true
   bash:
     - "cat /tmp/gh-aw/agent/image-scan/compile-output.txt"
+    - "cat /tmp/gh-aw/agent/image-scan/candidate-output.txt"
 safe-outputs:
   create-issue:
     title-prefix: "[container-image-scan] "
@@ -53,6 +54,13 @@ steps:
       set -e
       make build
       "$GITHUB_WORKSPACE/gh-aw" --version
+  - name: Scan committed container image pins
+    continue-on-error: true
+    run: |
+      set -uo pipefail
+      output_dir="/tmp/gh-aw/agent/image-scan"
+      mkdir -p "$output_dir"
+      "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee "$output_dir/compile-output.txt" || true
   - name: Install crane (digest resolution fallback)
     continue-on-error: true
     run: |
@@ -67,25 +75,24 @@ steps:
       output_dir="/tmp/gh-aw/agent/image-scan"
       mkdir -p "$output_dir"
       # A failure to resolve a digest for one image (e.g. an upstream registry
-      # returning 403/rate-limited) must not block the Syft/Grype/Grant scan
-      # below, so this step is intentionally decoupled and best-effort: any
-      # images that fail to refresh here simply keep their last-known pin.
-      "$GITHUB_WORKSPACE/gh-aw" compile --force-refresh-container-pins 2>&1 | tee "$output_dir/compile-output.txt"
+      # returning 403/rate-limited) must not replace the committed scan evidence.
+      # Candidate scans retain the last-known pin for images that cannot refresh.
+      "$GITHUB_WORKSPACE/gh-aw" compile --force-refresh-container-pins 2>&1 | tee "$output_dir/candidate-output.txt"
       # continue-on-error above keeps the job running even on failure; this
       # explicit check additionally surfaces a visible ::warning:: annotation
       # in the run summary so recurring resolution failures aren't missed.
       refresh_status="${PIPESTATUS[0]}"
       if [ "$refresh_status" -ne 0 ]; then
-        echo "::warning::Container pin refresh failed (exit $refresh_status) for one or more images; continuing with last-known pins. See $output_dir/compile-output.txt for details."
+        echo "::warning::Container pin refresh failed (exit $refresh_status) for one or more images; candidates may retain last-known pins. See $output_dir/candidate-output.txt for details."
       fi
-  - name: Run compile with vulnerability scanners
+  - name: Scan refreshed candidate container image pins
     continue-on-error: true
     run: |
       set -uo pipefail
       output_dir="/tmp/gh-aw/agent/image-scan"
       mkdir -p "$output_dir"
-      echo "" >> "$output_dir/compile-output.txt"
-      "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee -a "$output_dir/compile-output.txt" || true
+      echo "" >> "$output_dir/candidate-output.txt"
+      "$GITHUB_WORKSPACE/gh-aw" compile --syft --grype --grant 2>&1 | tee -a "$output_dir/candidate-output.txt" || true
 post-steps:
   - name: Enforce vendored vulnerability and license gates
     if: always()
@@ -101,15 +108,15 @@ post-steps:
       # github-mcp-server, grafana) are tracked-only per the workflow's policy and
       # must not fail this daily scan; they are remediated via upstream pin refreshes.
       vendored_pattern='(^|[[:space:]])ghcr\.io/github/gh-aw-node(@|:)'
-      if grep -E "$vendored_pattern" "$output" | grep -qE ': error: \[Critical\]'; then
+      if grep -qE "$vendored_pattern.*: error: \[Critical\]" "$output"; then
         echo "::error::Critical vulnerabilities detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
-      if grep -E "$vendored_pattern" "$output" | grep -qE ': (error|warning): \[High\].* \(fix: [^)]+\)'; then
+      if grep -qE "$vendored_pattern.*: (error|warning): \[High\].* \(fix: [^)]+\)" "$output"; then
         echo "::error::High vulnerabilities with available fixes detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
-      if grep -E "$vendored_pattern" "$output" | grep -q ': error: license policy violation:'; then
+      if grep -qE "$vendored_pattern.*: error: license policy violation:" "$output"; then
         echo "::error::License policy violations detected in the vendored ghcr.io/github/gh-aw-node container image."
         exit 1
       fi
@@ -134,7 +141,14 @@ features:
 # Daily Container Image Security Scan
 
 Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
-`/tmp/gh-aw/agent/image-scan/compile-output.txt`.
+`/tmp/gh-aw/agent/image-scan/compile-output.txt`. This scan runs before any pin
+refresh and is the authoritative evidence for committed pins, security gates,
+finding counts, and legacy-issue closure.
+
+The separate `/tmp/gh-aw/agent/image-scan/candidate-output.txt` contains the
+best-effort refresh and candidate scan. Compare exact image digests and label
+any differences as candidate-only; never replace committed findings or infer
+adoption from candidate results, including a clean candidate scan.
 
 ### Read the scan with permitted tools
 
@@ -144,6 +158,7 @@ The log can exceed 500 KB. Use native `grep` with line numbers to locate
 finding, including lower severities, license results, and scanner errors; a
 truncated tool response or a severity summary is not the complete evidence.
 Keep using the absolute log path, without changing directories.
+Read the candidate log separately with the same native tools and pagination.
 
 These shell commands are supported by the existing allowlist: the first gives
 the line count for pagination, and the second counts findings per image
@@ -245,7 +260,10 @@ or close legacy findings without complete scan evidence.
      digests for the currently configured image tags in this scan's checkout;
      it does not rebuild images, select newer release tags, or publish a pin
      refresh PR. Do not report an upstream fix as adopted until the configured
-     tag/digest has been updated and rescanned. For findings
+     tag/digest and compiler pin caches have been updated in a commit, affected
+     workflows regenerated and committed, and those committed pins rescanned.
+     A temporary checkout refresh or its regenerated candidate workflows is
+     not adoption. For findings
      on **upstream** images, do not request a local code-fix PR or task an
      agent to patch the vendored image directly — the daily pin-refresh
      can pick up same-tag rebuilds, but newer release tags require an explicit

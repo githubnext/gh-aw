@@ -9,8 +9,10 @@ const require = createRequire(import.meta.url);
 const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.cjs");
 const { parseCopilotSDKToolConfig } = require("./copilot_sdk_tool_config.cjs");
 const { main: createCloseIssueHandler } = require("./close_issue.cjs");
+const { processMessages } = require("./safe_output_handler_manager.cjs");
 
 const scanLog = "/tmp/gh-aw/agent/image-scan/compile-output.txt";
+const candidateLog = "/tmp/gh-aw/agent/image-scan/candidate-output.txt";
 const source = readFileSync(new URL("../../../.github/workflows/daily-squid-image-scan.md", import.meta.url), "utf8");
 const lock = readFileSync(new URL("../../../.github/workflows/daily-squid-image-scan.lock.yml", import.meta.url), "utf8");
 const safeOutputsConfigLine = lock.match(/^\s+GH_AW_SAFE_OUTPUTS_CONFIG: (".+")$/m);
@@ -27,6 +29,13 @@ const gate = source
   .split("timeout-minutes:")[0]
   .split("    run: |\n")[1]
   .replace(/^      /gm, "");
+const scanSteps = ["Scan committed container image pins", "Refresh container image pins (best effort)", "Scan refreshed candidate container image pins"];
+const stepScript = name =>
+  source
+    .split(`  - name: ${name}\n`)[1]
+    .split(/  - name:|post-steps:/)[0]
+    .split("    run: |\n")[1]
+    .replace(/^      /gm, "");
 
 describe("daily container image scan analysis", () => {
   it("uses the same immutable Node image pin in the compiler caches and compiled manifest", () => {
@@ -43,7 +52,9 @@ describe("daily container image scan analysis", () => {
     expect(source).toContain("`ghcr.io/github/gh-aw-node` is **vendored**");
     expect(source).toContain("actions/setup/js/Dockerfile.safe-outputs-mcp");
     expect(source).toContain("it does not rebuild images, select newer release tags, or publish a pin");
-    expect(source).toContain("tag/digest has been updated and rescanned");
+    expect(source).toContain("tag/digest and compiler pin caches have been updated in a commit");
+    expect(source).toContain("workflows regenerated and committed, and those committed pins rescanned");
+    expect(source).toContain("not adoption");
   });
 
   it("reports family duplicates for review while restricting closure to legacy findings", () => {
@@ -116,6 +127,97 @@ describe("daily container image scan analysis", () => {
         expect(graphql).not.toHaveBeenCalled();
       }
     });
+
+    it("cannot close a family duplicate even after the canonical update fails", async () => {
+      const issues = {
+        get: vi.fn(async () => ({
+          data: { number: 100, title: "[container-image-scan] Node CVE burn-down", labels: [{ name: "cookie" }, { name: "security" }], state: "open" },
+        })),
+        update: vi.fn(),
+        createComment: vi.fn(),
+      };
+      const graphql = vi.fn();
+      vi.stubGlobal("core", { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn() });
+      vi.stubGlobal("github", { rest: { issues }, graphql });
+      vi.stubGlobal("context", { repo: { owner: "github", repo: "gh-aw" }, payload: {} });
+      const update = vi.fn(async () => ({ success: false, error: "Canonical update rejected" }));
+      const close = vi.fn(await createCloseIssueHandler(compiledCloseConfig));
+
+      const result = await processMessages(
+        new Map([
+          ["update_issue", update],
+          ["close_issue", close],
+        ]),
+        [
+          { type: "update_issue", issue_number: 50, body: "Preserve unique unresolved findings." },
+          { type: "close_issue", issue_number: 100, body: "Duplicate family tracker.", duplicate_of: 50 },
+        ]
+      );
+
+      expect(update).toHaveBeenCalledOnce();
+      expect(close).toHaveBeenCalledOnce();
+      expect(result.results).toEqual([
+        expect.objectContaining({ type: "update_issue", success: false, error: "Canonical update rejected" }),
+        expect.objectContaining({ type: "close_issue", success: false, error: expect.stringContaining("doesn't start with") }),
+      ]);
+      expect(issues.update).not.toHaveBeenCalled();
+      expect(issues.createComment).not.toHaveBeenCalled();
+      expect(graphql).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps vulnerable committed evidence authoritative when a refreshed candidate is clean", () => {
+    const directory = mkdtempSync(join(tmpdir(), "image-evidence-"));
+    const finding = "ghcr.io/github/gh-aw-node@sha256:committed:1:1: warning: [High] CVE-2026-1234: pkg@1 (fix: 2)";
+    const candidate = "syft scanned ghcr.io/github/gh-aw-node@sha256:candidate: no vulnerabilities";
+    try {
+      writeFileSync(
+        join(directory, "gh-aw"),
+        `#!/bin/bash
+if [[ "$*" == "compile --force-refresh-container-pins" ]]; then
+  touch "$GITHUB_WORKSPACE/refreshed"
+  echo "Resolved candidate digest"
+elif [[ -f "$GITHUB_WORKSPACE/refreshed" ]]; then
+  echo "${candidate}"
+else
+  echo "${finding}"
+fi
+`,
+        { mode: 0o700 }
+      );
+      const positions = scanSteps.map(name => source.indexOf(`  - name: ${name}\n`));
+      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+      for (const name of scanSteps) {
+        const result = spawnSync("bash", ["-c", stepScript(name).replaceAll("/tmp/gh-aw/agent/image-scan", directory)], {
+          encoding: "utf8",
+          env: { ...process.env, GITHUB_WORKSPACE: directory },
+          timeout: 10000,
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stdout + result.stderr).toBe(0);
+        const compiledRun = lock.split(`        name: ${name}\n`)[1].split("\n      - ")[0].split("        run: ")[1];
+        const compiledScript = compiledRun.startsWith("|")
+          ? compiledRun
+              .split("\n")
+              .slice(1)
+              .join("\n")
+              .replace(/^          /gm, "")
+          : JSON.parse(compiledRun.split("\n")[0]);
+        expect(compiledScript.trim()).toBe(stepScript(name).trim());
+      }
+      expect(readFileSync(join(directory, "compile-output.txt"), "utf8")).toBe(`${finding}\n`);
+      expect(readFileSync(join(directory, "candidate-output.txt"), "utf8")).toContain(candidate);
+      expect(readFileSync(join(directory, "candidate-output.txt"), "utf8")).not.toContain(finding);
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", gate.replaceAll(scanLog, join(directory, "compile-output.txt"))], {
+        encoding: "utf8",
+        timeout: 10000,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stdout).toContain("High vulnerabilities with available fixes");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it.each([
@@ -132,9 +234,46 @@ describe("daily container image scan analysis", () => {
     try {
       const fixture = join(directory, "compile-output.txt");
       writeFileSync(fixture, `${finding}\n`);
-      const result = spawnSync("bash", ["-c", gate.replaceAll(scanLog, fixture)], { encoding: "utf8", timeout: 10000 });
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", gate.replaceAll(scanLog, fixture)], { encoding: "utf8", timeout: 10000 });
       expect(result.error).toBeUndefined();
       expect(result.status, result.stdout + result.stderr).toBe(status);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["clean vendored image with upstream Critical and license failures", [], 0, ""],
+    ["unfixed vendored High and fixed Medium findings", ["warning: [High] CVE-2026-1111: openssl@1", "warning: [Medium] CVE-2026-2222: zlib@1 (fix: 2)"], 0, ""],
+    ["fixable vendored High among mixed findings", ["warning: [High] CVE-2026-3333: libexpat@1 (fix: 2)"], 1, "High vulnerabilities with available fixes"],
+    ["vendored Critical among mixed findings", ["error: [Critical] CVE-2026-4444: openssl@1"], 1, "Critical vulnerabilities"],
+    ["vendored license failure among mixed findings", ["error: license policy violation: package@1"], 1, "License policy violations"],
+  ])("gates realistic multi-image logs: %s", (_name, vendoredFindings, status, message) => {
+    const directory = mkdtempSync(join(tmpdir(), "image-mixed-gate-"));
+    try {
+      const vendored = "ghcr.io/github/gh-aw-node@sha256:committed";
+      const lines = [
+        ...Array(10000).fill("Compilation progress without image findings.".repeat(2)),
+        "Running syft on ghcr.io/github/gh-aw-mcpg:v1@sha256:upstream",
+        "ghcr.io/github/gh-aw-mcpg:v1@sha256:upstream:1:1: error: [Critical] CVE-2026-5555: package@1 (fix: 2)",
+        "node:lts-alpine@sha256:upstream:1:1: warning: [High] CVE-2026-6666: package@1 (fix: 2)",
+        "ghcr.io/github/gh-aw-firewall/squid:v1@sha256:upstream:1:1: error: license policy violation: package@1",
+        "ghcr.io/github/gh-aw-node-other:v1:1:1: error: [Critical] CVE-2026-7777: package@1",
+        `Running grype on ${vendored}`,
+        ...["Low", "Negligible", "Unknown"].map(severity => `${vendored}:1:1: info: [${severity}] CVE-2026-8888: package@1`),
+        ...vendoredFindings.map(finding => `${vendored}:1:1: ${finding}`),
+        ...Array(10000).fill(`${vendored}:1:1: info: [Low] CVE-2026-9999: package@1`),
+        `syft scanned ${vendored}`,
+      ];
+      const fixture = join(directory, "compile-output.txt");
+      const log = `${lines.join("\n")}\n`;
+      expect(Buffer.byteLength(log)).toBeGreaterThan(500000);
+      writeFileSync(fixture, log);
+      const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", gate.replaceAll(scanLog, fixture)], { encoding: "utf8", timeout: 10000 });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stdout + result.stderr).toBe(status);
+      if (message) expect(result.stdout).toContain(message);
+      else expect(result.stdout).not.toContain("::error::");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -146,6 +285,8 @@ describe("daily container image scan analysis", () => {
     expect(source).toContain("Read every\nfinding, including lower severities, license results, and scanner errors");
     expect(source).toContain("Do not retry with another unapproved command");
     expect(onPermission({ kind: "read", path: scanLog })).toEqual({ kind: "approve-once" });
+    expect(onPermission({ kind: "read", path: candidateLog })).toEqual({ kind: "approve-once" });
+    expect(onPermission({ kind: "shell", fullCommandText: `cat ${candidateLog}` })).toEqual({ kind: "approve-once" });
     expect(commands).toHaveLength(2);
     for (const command of commands) {
       expect(command).toContain(scanLog);
