@@ -28,11 +28,11 @@ func cancelFuncAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracke
 	if !ok || len(assign.Rhs) != 1 || len(assign.Lhs) < 2 {
 		return nil
 	}
-	call, ok := assign.Rhs[0].(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(assign.Rhs[0]).(*ast.CallExpr) //nolint:uncheckedsliceindex // len(assign.Rhs) is checked above
 	if !ok || !isContextWithCancelCall(pass, call) {
 		return nil
 	}
-	ident, ok := assign.Lhs[1].(*ast.Ident)
+	ident, ok := assign.Lhs[1].(*ast.Ident) //nolint:uncheckedsliceindex // len(assign.Lhs) is checked above
 	if !ok || ident.Name == "_" {
 		return nil
 	}
@@ -46,7 +46,7 @@ func cancelFuncAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracke
 // isContextWithCancelCall returns true if the call is context.WithCancel,
 // context.WithTimeout, or context.WithDeadline.
 func isContextWithCancelCall(pass *analysis.Pass, call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
@@ -64,7 +64,7 @@ func isContextWithCancelCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 // cancelCallKey returns the object for the function invoked by call, enabling
 // matching of cancel() invocations against tracked cancel functions.
 func cancelCallKey(pass *analysis.Pass, call *ast.CallExpr) (types.Object, bool) {
-	ident, ok := call.Fun.(*ast.Ident)
+	ident, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.Ident)
 	if !ok {
 		return nil, false
 	}

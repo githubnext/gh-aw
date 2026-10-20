@@ -19,16 +19,14 @@ var _ MCPConfigAdapterProvider = (*AgyEngine)(nil)
 
 func NewAgyEngine() *AgyEngine {
 	return &AgyEngine{
-		BaseEngine: BaseEngine{
-			id:           string(constants.AgyEngine),
-			displayName:  "Google Antigravity CLI",
-			description:  "Experimental native Agy CLI with Gemini API-key authentication",
-			experimental: true,
-			capabilities: EngineCapabilities{
-				MCP: true,
-			},
-			dedicatedLLMGatewayPort: constants.GeminiLLMGatewayPort,
+		id:           string(constants.AgyEngine),
+		displayName:  "Google Antigravity CLI",
+		description:  "Experimental native Agy CLI with Gemini API-key authentication",
+		experimental: true,
+		capabilities: EngineCapabilities{
+			MCP: true,
 		},
+		dedicatedLLMGatewayPort: constants.GeminiLLMGatewayPort,
 	}
 }
 

@@ -31,14 +31,14 @@ func fileOpenAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracker.
 
 	var acquisitions []resourcetracker.Acquisition[types.Object]
 	for i, rhs := range assign.Rhs {
-		call, ok := rhs.(*ast.CallExpr)
+		call, ok := astutil.UnwrapParenExpr(rhs).(*ast.CallExpr)
 		if !ok || !isFileOpenCall(pass, call) {
 			continue
 		}
 		if i >= len(assign.Lhs) {
 			continue
 		}
-		ident, ok := assign.Lhs[i].(*ast.Ident)
+		ident, ok := assign.Lhs[i].(*ast.Ident) //nolint:uncheckedsliceindex // i is a range index and checked against len(assign.Lhs) above
 		if !ok || ident.Name == "_" {
 			continue
 		}
@@ -53,7 +53,7 @@ func fileOpenAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracker.
 
 // isFileOpenCall returns true if the call is os.Open, os.Create, or os.OpenFile
 func isFileOpenCall(pass *analysis.Pass, call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
@@ -66,11 +66,11 @@ func isFileOpenCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 // closeCallKey returns the types.Object for the receiver if call is like file.Close(),
 // enabling correct identification across variable shadowing.
 func closeCallKey(pass *analysis.Pass, call *ast.CallExpr) (types.Object, bool) {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != "Close" {
 		return nil, false
 	}
-	ident, ok := sel.X.(*ast.Ident)
+	ident, ok := astutil.UnwrapParenExpr(sel.X).(*ast.Ident)
 	if !ok {
 		return nil, false
 	}

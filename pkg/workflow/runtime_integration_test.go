@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
@@ -360,8 +361,8 @@ Test workflow that uses Go without go.mod file.
 	if !strings.Contains(lockStr, "actions/setup-go@") {
 		t.Error("Expected actions/setup-go action in lock file")
 	}
-	if !strings.Contains(lockStr, "go-version: '1.26'") {
-		t.Error("Expected go-version: '1.26' in lock file (default version)")
+	if !strings.Contains(lockStr, "go-version: '"+string(constants.DefaultGoVersion)+"'") {
+		t.Error("Expected patched default go-version in lock file")
 	}
 	// Ensure it does NOT use go-version-file
 	if strings.Contains(lockStr, "go-version-file") {

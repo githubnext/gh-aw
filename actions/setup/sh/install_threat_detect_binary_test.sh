@@ -40,14 +40,22 @@ EOF
 out=""
 url=""
 prev=""
+https_only=false
+https_redirects=false
 for arg in "$@"; do
   if [ "$prev" = "-o" ]; then
     out="$arg"
   elif [ "${arg#-}" = "$arg" ]; then
     url="$arg"
   fi
+  if [ "$prev" = "--proto" ] && [ "$arg" = "=https" ]; then https_only=true; fi
+  if [ "$prev" = "--proto-redir" ] && [ "$arg" = "=https" ]; then https_redirects=true; fi
   prev="$arg"
 done
+if [ "$https_only" != true ] || [ "$https_redirects" != true ]; then
+  echo "missing HTTPS-only initial/redirect policy" >&2
+  exit 96
+fi
 echo "$url" >>"${SANDBOX_URL_LOG}"
 printf '%s\n' '#!/usr/bin/env bash' 'echo verified >>"${SANDBOX_EXECUTION_LOG}"' >"$out"
 EOF

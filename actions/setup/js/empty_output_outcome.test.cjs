@@ -265,17 +265,113 @@ describe("empty output outcome", () => {
     expect(buildEmptyOutputOutcome([], rootDir)).not.toHaveProperty("engineErrorType");
   });
 
-  it.each([1, 137, 139])("classifies a silent driver exit %s as unknown rather than an outage", exitCode => {
+  it.each([1, 127, 137, 139, 159])("classifies a silent driver exit %s as a driver crash rather than an outage", exitCode => {
     fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
     const outcome = buildEmptyOutputOutcome([], rootDir);
     expect(outcome.reason).toBe("engine_driver_failure");
-    expect(outcome.failureCause).toBe("unknown");
+    expect(outcome.failureCause).toBe("driver_crash");
     expect(outcome.driverExitCode).toBe(exitCode);
     expect(outcome.details).toContain(`Driver exit code: ${exitCode}`);
     expect(outcome.details.match(/Driver exit code:/g)).toHaveLength(1);
-    expect(outcome.details).toContain("Failure classification: unknown");
+    expect(outcome.details).toContain("Failure classification: driver_crash");
     expect(outcome.details).not.toContain("engine_outage");
     expect(outcome.details).toContain("Last engine error type: unknown");
+  });
+
+  it.each([
+    [137, "SIGKILL"],
+    [139, "SIGSEGV"],
+    [159, "SIGSYS"],
+  ])("reports the inferred signal for driver exit %s without inferring a provider outage", (exitCode, signal) => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.driverExitSignal).toBe(signal);
+    expect(outcome.details).toContain(`Driver exit signal (inferred from exit code): ${signal}`);
+    expect(outcome.details).not.toContain("engine_outage");
+  });
+
+  it("prefers a fatal driver signal over an earlier request rejection", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "139");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Error: Authentication failed\n");
+    expect(buildEmptyOutputOutcome([], rootDir).failureCause).toBe("driver_crash");
+  });
+
+  it("summarizes the last attributed driver stderr diagnostic without publishing its payload", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Error: Authentication failed\n[copilot-sdk-driver] unhandled error: private-payload\n");
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("driver_crash");
+    expect(outcome.details).toContain("Last driver stderr summary: SDK driver reported an error");
+    expect(outcome.details).not.toContain("private-payload");
+  });
+
+  it("keeps the last classifiable stderr diagnostic despite later noise and unclassifiable diagnostics", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    fs.writeFileSync(
+      path.join(rootDir, "agent-stdio.log"),
+      ["Error: Authentication failed", "Maximum LLM invocations exceeded", "[copilot-harness] process completed with no additional diagnostic", "[ERROR] private-unclassifiable-diagnostic", "private-trailing-noise", ""].join("\n")
+    );
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.details).toContain("Last driver stderr summary: Engine error: Maximum LLM invocations exceeded (invocation_cap_exceeded)");
+    expect(outcome.details).not.toContain("Last driver stderr summary: Engine error: Authentication failed");
+    expect(outcome.details).not.toContain("private-");
+  });
+
+  it.each([
+    ["Copilot model response blocked by content filtering; task completion could not be confirmed.", "request_rejection", "content_filter"],
+    ["CAPIError: 503 Service Unavailable", "engine_outage"],
+    ["Response status code does not indicate success: 401 (Unauthorized)", "request_rejection"],
+    ["Maximum effective tokens exceeded", "prompt_exhaustion"],
+  ])("preserves a handled SDK session failure: %s", (message, failureCause, code) => {
+    fs.writeFileSync(path.join(rootDir, "aw_info.json"), JSON.stringify({ engine_id: "copilot" }));
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    writeEvents([
+      { type: "session.start", data: { sessionId: "observed-sdk-session" } },
+      ...(code === "content_filter" ? [{ type: "assistant.message", data: { content: "The model returned no content because the response was blocked by content filtering.", rte: true, toolRequests: [] } }] : []),
+      { type: "session.error", data: { errorType: "sdk_driver", message, ...(code ? { code } : {}) } },
+    ]);
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), `[copilot-sdk-driver] [sdk-driver] error: ${message}\n`);
+    expect(buildEmptyOutputOutcome([], rootDir)).toMatchObject({ failureCause, driverExitCode: 1 });
+  });
+
+  it("does not let an unclassified handled SDK error override a confirmed request rejection", () => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), "Error: Authentication failed\n[copilot-sdk-driver] [sdk-driver] error: private-session-failure\n");
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("request_rejection");
+    expect(outcome.details).toContain("Last driver stderr summary: SDK driver reported an error");
+    expect(outcome.details).not.toContain("private-session-failure");
+  });
+
+  it.each([
+    [0, "", "missing_terminal_safe_output"],
+    [1, "Error: Authentication failed\n", "request_rejection"],
+  ])("does not let a recovered crash override final exit %s", (exitCode, finalDiagnostic, failureCause) => {
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), String(exitCode));
+    fs.writeFileSync(
+      path.join(rootDir, "agent-stdio.log"),
+      `[claude-harness] attempt 1: fatal-signal crash exitCode=139 (signal=SIGSEGV, failure_reason=sandbox_runtime_crash) — will retry with fresh run (--continue disabled permanently) (attempt 2/4)\n${finalDiagnostic}[claude-harness] done: exitCode=${exitCode} totalDuration=1s\n`
+    );
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome).toMatchObject({ failureCause, driverExitCode: exitCode });
+  });
+
+  it("preserves category-only crash evidence when no final exit was recorded", () => {
+    fs.writeFileSync(
+      path.join(rootDir, "agent-stdio.log"),
+      "[claude-harness] attempt 1: fatal-signal crash exitCode=139 (signal=SIGSEGV, failure_reason=sandbox_runtime_crash) — will retry with fresh run (--continue disabled permanently) (attempt 2/4)\n"
+    );
+    const outcome = buildEmptyOutputOutcome([], rootDir);
+    expect(outcome.failureCause).toBe("driver_crash");
+    expect(outcome).not.toHaveProperty("driverExitCode");
+  });
+
+  it("does not publish quoted driver stderr diagnostics", () => {
+    const content = "[copilot-sdk-driver] unhandled error: private-payload";
+    fs.writeFileSync(path.join(rootDir, "agent_execution_exit_code.txt"), "1");
+    writeEvents([{ type: "assistant.message", data: { content } }]);
+    fs.writeFileSync(path.join(rootDir, "agent-stdio.log"), content);
+    expect(buildEmptyOutputOutcome([], rootDir).details).toContain("Last driver stderr summary: not recorded");
   });
 
   it("includes a successful driver exit code when no terminal output was emitted", () => {
@@ -647,9 +743,9 @@ describe("empty output outcome", () => {
   it.each([
     ["capi_server_error", [502], "engine_outage"],
     ["agentic_engine_timeout", [], "engine_outage"],
-    ["sandbox_runtime_crash", [], "unknown"],
+    ["sandbox_runtime_crash", [], "driver_crash"],
     ["", [503], "engine_outage"],
-    ["", [], "unknown"],
+    ["", [], "driver_crash"],
     ["http_400_response_error", [400], "request_rejection"],
     ["invocation_cap_exceeded", [], "prompt_exhaustion"],
   ])("classifies %s using collector execution metadata", (category, errorCodes, failureCause) => {

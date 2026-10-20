@@ -67,7 +67,7 @@ func (c *Compiler) parseUpdateProjectConfig(outputMap map[string]any) *UpdatePro
 			updateProjectConfig.FieldDefinitions = parseProjectFieldDefinitions(configMap, updateProjectLog)
 		}
 
-		updateProjectLog.Printf("Parsed update-project config: max=%d, hasCustomToken=%v, hasCustomProject=%v, targetRepo=%q, allowedReposCount=%d, viewCount=%d, fieldDefinitionCount=%d",
+		updateProjectLog.Printf("Parsed update-project config: max=%v, hasCustomToken=%v, hasCustomProject=%v, targetRepo=%q, allowedReposCount=%d, viewCount=%d, fieldDefinitionCount=%d",
 			updateProjectConfig.Max, updateProjectConfig.GitHubToken != "", updateProjectConfig.Project != "", updateProjectConfig.TargetRepoSlug, len(updateProjectConfig.AllowedRepos), len(updateProjectConfig.Views), len(updateProjectConfig.FieldDefinitions))
 		return updateProjectConfig
 	}
