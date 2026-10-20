@@ -778,6 +778,13 @@ fs.appendFileSync(process.env.GH_AW_SAFE_OUTPUTS, JSON.stringify(item) + "\\n");
       expect(result.CODEX_API_KEY).toBeUndefined();
       expect(result.OPENAI_API_KEY).toBeUndefined();
     });
+
+    it("does not pass execution evidence metadata to the engine child", () => {
+      const result = buildCodexChildEnv({ PATH: "/usr/bin", GH_AW_AWF_EXECUTION_COMPONENT: "agent", GH_AW_AWF_EXECUTION_EVIDENCE_FILE: "/tmp/evidence.json" }, undefined, undefined);
+
+      expect(result).not.toHaveProperty("GH_AW_AWF_EXECUTION_COMPONENT");
+      expect(result).not.toHaveProperty("GH_AW_AWF_EXECUTION_EVIDENCE_FILE");
+    });
   });
 
   describe("context rebuild circuit breaker", () => {

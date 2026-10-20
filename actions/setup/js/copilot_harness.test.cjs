@@ -20,6 +20,7 @@ const {
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
   buildCopilotSDKChildEnv,
+  buildCopilotEngineChildEnv,
   envFlagEnabled,
   countPermissionDeniedIssues,
   detectCopilotErrors,
@@ -549,6 +550,16 @@ describe("copilot_harness.cjs", () => {
       });
 
       expect(env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+  });
+
+  describe("buildCopilotEngineChildEnv", () => {
+    it("does not pass execution evidence metadata to the engine child", () => {
+      const env = buildCopilotEngineChildEnv({ PATH: "/usr/bin", GH_AW_AWF_EXECUTION_COMPONENT: "agent", GH_AW_AWF_EXECUTION_EVIDENCE_FILE: "/tmp/evidence.json" }, { COPILOT_MODEL: "gpt-6.1-sol" });
+
+      expect(env).toMatchObject({ PATH: "/usr/bin", COPILOT_MODEL: "gpt-6.1-sol" });
+      expect(env).not.toHaveProperty("GH_AW_AWF_EXECUTION_COMPONENT");
+      expect(env).not.toHaveProperty("GH_AW_AWF_EXECUTION_EVIDENCE_FILE");
     });
   });
 
@@ -3028,6 +3039,8 @@ process.exit(1);`,
     it("skips the agent when a noop is already in safe-outputs before the run", () => {
       const tempDir = makeHarnessTempDir("copilot-noop-preflight-");
       const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const evidenceFile = path.join(tempDir, "agent_execution.json");
+      fs.writeFileSync(evidenceFile, '{"state":"started"}');
       fs.writeFileSync(safeOutputsPath, '{"type":"noop","message":"nothing to do"}\n', "utf8");
       const stubPath = path.join(tempDir, "stub.cjs");
       const promptPath = path.join(tempDir, "prompt.txt");
@@ -3044,7 +3057,15 @@ process.exit(0);`,
 
       const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...harnessChildEnv, COPILOT_HARNESS_STUB_CALLS: callsPath, GH_AW_SAFE_OUTPUTS: safeOutputsPath },
+        env: {
+          ...harnessChildEnv,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_AWF_EXECUTION_EVIDENCE_FILE: evidenceFile,
+          GH_AW_AWF_EXECUTION_COMPONENT: "agent",
+          GITHUB_RUN_ID: "123",
+          GITHUB_RUN_ATTEMPT: "2",
+        },
         encoding: "utf8",
         timeout: 10000,
       });
@@ -3053,6 +3074,7 @@ process.exit(0);`,
       expect(stubCallCount).toBe(0);
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("pre-flight: noop message found in safe-outputs");
+      expect(JSON.parse(fs.readFileSync(evidenceFile, "utf8"))).toEqual({ version: 1, component: "agent", run_id: 123, run_attempt: 2, state: "not_started" });
     });
 
     it("does not retry after a failed run when a noop was written to safe-outputs", () => {

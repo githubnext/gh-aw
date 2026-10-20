@@ -39,7 +39,7 @@ const { DEFAULT_MCP_CALL_WATCHDOG_MS, MCP_CALL_TRANSPORT_GRACE_MS } = require(".
 const { loadCompiledConfig, mergeConfig } = require("./codex_config.cjs");
 const { parseJsonPrefix } = require("./parse_json_prefix.cjs");
 const { runProcess, formatDuration, sleep, MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS, MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS, resolvePostResultWatchdogIdleTimeoutMs } = require("./process_runner.cjs");
-const { runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
+const { captureExecutionEvidenceConfiguration, runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs, stripExecutionEvidenceEnv } = require("./harness_retry_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -580,7 +580,7 @@ function buildCodexChildEnv(baseEnv, codexApiKey, openaiApiKey) {
   if (openaiApiKey) {
     childEnv.OPENAI_API_KEY = openaiApiKey;
   }
-  return childEnv;
+  return stripExecutionEvidenceEnv(childEnv);
 }
 
 /**
@@ -862,6 +862,8 @@ function evaluateContextRebuildCircuitBreakerForAttempt(workingSet, config, opti
  * Eligible retries use Codex's native exact-session resume command.
  */
 async function main() {
+  const executionEvidence = captureExecutionEvidenceConfiguration(process.env);
+  stripExecutionEvidenceEnv(process.env);
   const driverStartTime = Date.now();
   const [, , command, ...args] = process.argv;
 
@@ -878,7 +880,7 @@ async function main() {
   // would be wasteful and potentially harmful.  This check runs before API key validation so
   // that a noop can be honoured even when credentials are absent.
   const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, executionEvidence })) {
     process.exit(0);
   }
 
