@@ -14,27 +14,51 @@ import (
 
 func TestDeliveryVerificationLogsAreDiagnosticAndPrivate(t *testing.T) {
 	if os.Getenv("GH_AW_DELIVERY_LOG_TEST") != "1" {
-		command := exec.Command(os.Args[0], "-test.run=^TestDeliveryVerificationLogsAreDiagnosticAndPrivate$")
-		command.Env = append(os.Environ(), "GH_AW_DELIVERY_LOG_TEST=1", "DEBUG=workqueue:delivery,workqueue:native_delivery", "DEBUG_COLORS=0")
-		output, err := command.CombinedOutput()
-		if err != nil {
-			t.Fatalf("delivery logging subprocess failed: %v\n%s", err, output)
-		}
-		for _, event := range []string{
-			"delivery.verifier.budget max_attempts=1",
-			"delivery.verifier.checked attempt=1 failed=true",
-			"delivery.verifier.exhausted attempts=1 max_attempts=1",
-			"delivery.inventory.rejected failed=false closed=false outputs=0",
-			"delivery.failure.persisted",
+		for _, test := range []struct {
+			name  string
+			debug bool
+		}{
+			{name: "debug", debug: true},
+			{name: "no_debug"},
 		} {
-			if !strings.Contains(string(output), event) {
-				t.Errorf("missing diagnostic %q in:\n%s", event, output)
-			}
-		}
-		for _, secret := range []string{"private-verifier-error", "private-receipt", testRepository} {
-			if strings.Contains(string(output), secret) {
-				t.Errorf("delivery logs exposed private data %q", secret)
-			}
+			t.Run(test.name, func(t *testing.T) {
+				command := exec.Command(os.Args[0], "-test.run=^TestDeliveryVerificationLogsAreDiagnosticAndPrivate$")
+				for _, entry := range os.Environ() {
+					key, _, _ := strings.Cut(entry, "=")
+					switch key {
+					case "DEBUG", "ACTIONS_RUNNER_DEBUG", "RUNNER_DEBUG", "GH_AW_DELIVERY_LOG_TEST", "DEBUG_COLORS":
+						continue
+					}
+					command.Env = append(command.Env, entry)
+				}
+				command.Env = append(command.Env, "GH_AW_DELIVERY_LOG_TEST=1", "DEBUG_COLORS=0")
+				if test.debug {
+					command.Env = append(command.Env, "DEBUG=workqueue:delivery,workqueue:native_delivery")
+				}
+				output, err := command.CombinedOutput()
+				if err != nil {
+					t.Fatalf("delivery logging subprocess failed: %v\n%s", err, output)
+				}
+				summary := "delivery.verifier.exhausted attempts=1 max_attempts=1 deadline_exhausted=false receipt_present=false unknown_effects=true"
+				if count := strings.Count(string(output), summary); count != 2 {
+					t.Errorf("expected one exhaustion summary per recovery, got %d:\n%s", count, output)
+				}
+				for _, event := range []string{
+					"delivery.verifier.budget max_attempts=1",
+					"delivery.verifier.checked attempt=1 failed=true",
+					"delivery.inventory.rejected failed=false closed=false outputs=0",
+					"delivery.failure.persisted",
+				} {
+					if strings.Contains(string(output), event) != test.debug {
+						t.Errorf("diagnostic %q visibility did not match debug=%t:\n%s", event, test.debug, output)
+					}
+				}
+				for _, secret := range []string{"private-verifier-error", "private-receipt", testRepository, "operator"} {
+					if strings.Contains(string(output), secret) {
+						t.Errorf("delivery logs exposed private data %q", secret)
+					}
+				}
+			})
 		}
 		return
 	}

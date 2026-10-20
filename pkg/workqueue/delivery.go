@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -216,8 +218,8 @@ func (b Branch) recoverDeliveryFailure(ctx context.Context, session *LedgerSessi
 		terminal.Receipt = last.Receipt
 	}
 	terminal.Attempts, terminal.Effects = result.Attempts, disposition
-	deliveryLog.Printf("delivery.verifier.exhausted attempts=%d max_attempts=%d deadline_exhausted=%t receipt_present=%t unknown_effects=%t",
-		result.Attempts, recovery.MaxAttempts, time.Now().UnixMilli()-work.completionAt >= recovery.DeadlineMS, last.Receipt != "", disposition == "unknown")
+	console.PrintWarningMessage(fmt.Sprintf("delivery.verifier.exhausted attempts=%d max_attempts=%d deadline_exhausted=%t receipt_present=%t unknown_effects=%t",
+		result.Attempts, recovery.MaxAttempts, time.Now().UnixMilli()-work.completionAt >= recovery.DeadlineMS, last.Receipt != "", disposition == "unknown"))
 	operation, err := Op(map[string]any{
 		"kind": "DeliveryFailure", "work_id": work.WorkID, "claim_id": claim.ClaimID,
 		"completion_id": work.CompletionID, "reason": "delivery_verification_exhausted",
