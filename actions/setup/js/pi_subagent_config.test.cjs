@@ -29,18 +29,21 @@ const prepare = overrides => preparePiSubagents({ agentDir: dir, sdk, provider: 
 
 describe("Pi sub-agent model resolution", () => {
   it("derives name from the marker filename and qualifies bare models through the gateway", () => {
-    expect(prepare()).toEqual([expect.objectContaining({ name: "reader", model: "aw-gateway/claude-haiku-4.5", tools: ["read"] })]);
+    expect(prepare()).toEqual([expect.objectContaining({ name: "reader", requested: "claude-haiku-4.5", model: "aw-gateway/claude-haiku-4.5", tools: ["read"] })]);
     expect(JSON.parse(fs.readFileSync(path.join(dir, "subagents.json"), "utf8"))[0].declaredModel).toBe("claude-haiku-4.5");
   });
 
   it.each(["small", "recursive"])("resolves alias %s only on the parent's provider", model => {
     frontmatter.model = model;
-    expect(prepare()[0].model).toBe("aw-gateway/claude-haiku-4.5");
+    expect(prepare()[0]).toMatchObject({ requested: model, model: "aw-gateway/claude-haiku-4.5" });
   });
 
   it("inherits an unspecified model and supports native execution", () => {
     delete frontmatter.model;
-    expect(prepare({ gateway: false })[0].model).toBe("github-copilot/gpt-5.6-luna");
+    const [agent] = prepare({ gateway: false });
+    expect(agent).toMatchObject({ requested: "github-copilot/gpt-5.6-luna", model: "github-copilot/gpt-5.6-luna" });
+    expect(agent.declaredModel).toBeUndefined();
+    expect(JSON.parse(fs.readFileSync(path.join(dir, "agent/model-resolution.json"), "utf8"))[0].configured_model).toBe(agent.requested);
   });
 
   it.each(["none", "minimal", "low", "medium", "high", "xhigh", "max"])("translates %s effort into Pi thinking settings", effort => {

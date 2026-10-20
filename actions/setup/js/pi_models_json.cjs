@@ -519,7 +519,8 @@ async function main(options = {}) {
     const runtime = await sdk.ModelRuntime.create({ modelsPath: null });
     // Sub-agent aliases resolve against the live /reflect catalogue only (never Pi's static
     // model list); an incomplete catalogue is refetched once before failing.
-    const prepare = (/** @type {any} */ data) => preparePiSubagents({ agentDir, sdk, provider: nativeProvider, reflectData: data, gateway: true, parentModel: `${nativeProvider}/${modelId}`, logger });
+    const parentModel = `${nativeProvider}/${modelId}`;
+    const prepare = (/** @type {any} */ data) => preparePiSubagents({ agentDir, sdk, provider: nativeProvider, reflectData: data, gateway: true, parentModel, logger });
     let agents;
     try {
       agents = prepare(reflectData);
@@ -535,7 +536,18 @@ async function main(options = {}) {
     for (const agent of agents) {
       if (seen.has(agent.modelId)) continue;
       seen.add(agent.modelId);
-      validatePiModelAvailability({ provider, modelId: agent.modelId, configuredModel: agent.declaredModel || agent.modelId, reflectData, logger });
+      try {
+        validatePiModelAvailability({ provider, modelId: agent.modelId, configuredModel: agent.requested, reflectData, logger });
+      } catch (error) {
+        if (error instanceof ModelAliasResolutionError) {
+          // Replace the earlier "exact"/"resolved" record for every role sharing the unavailable model.
+          for (const failed of agents) {
+            if (failed.modelId !== agent.modelId) continue;
+            recordModelResolution({ engine: "pi", role: failed.name, configured_model: failed.requested, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason });
+          }
+        }
+        throw error;
+      }
       const catalogModel = runtime.getModel(nativeProvider, agent.modelId);
       const childApi = resolvePiApiForModel({ provider, modelId: agent.modelId, model: catalogModel, modelsJson, logger });
       const childMetadata = {};

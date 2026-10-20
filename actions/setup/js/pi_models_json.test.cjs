@@ -719,6 +719,99 @@ describe("pi_models_json.cjs", () => {
       expect(records()).toEqual([{ engine: "pi", role: "main", configured_model: "copilot/claude-opus-5", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);
     });
 
+    // Recorded /reflect from Smoke Pi Routed run https://github.com/github/gh-aw/actions/runs/39325995892
+    // (agent artifact, sandbox/firewall/awf-reflect.json): models_fetch_complete: true and 36 Copilot
+    // models including claude-haiku-4.5 and gpt-5.6-luna, but not gpt-5.4-mini.
+    describe("sub-agent model availability (recorded /reflect from run 39325995892)", () => {
+      const piRoutedReflect = () => JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/awf-reflect-pi-routed-39325995892.json"), "utf8"));
+      const runWithSubagents = (subagents, routing = false, parentModel = "copilot/gpt-5.6-luna") => {
+        configure(parentModel, {});
+        if (routing) process.env.GH_AW_MODEL_ROUTING = "1";
+        const agentsDir = path.join(process.env.GH_AW_PI_STAGING_DIR, "agents");
+        fs.mkdirSync(agentsDir, { recursive: true });
+        for (const [name, model] of subagents) fs.writeFileSync(path.join(agentsDir, `${name}.md`), JSON.stringify({ name, model }));
+        // Directory order is filesystem-dependent; pin it to the declaration order.
+        const order = subagents.map(([name]) => `${name}.md`);
+        const readdirSync = fs.readdirSync;
+        vi.spyOn(fs, "readdirSync").mockImplementation((dir, ...rest) => {
+          const entries = readdirSync(dir, ...rest);
+          return path.resolve(String(dir)) === path.resolve(tmpDir, "agents") ? entries.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)) : entries;
+        });
+        const catalog = [
+          { provider: "github-copilot", id: "gpt-5.6-luna", api: "openai-responses" },
+          { provider: "github-copilot", id: "claude-haiku-4.5", api: "anthropic-messages" },
+        ];
+        const sdk = {
+          parseFrontmatter: content => {
+            const { name, model } = JSON.parse(content);
+            return { frontmatter: { name, description: `Report ${name}`, model }, body: name };
+          },
+          ModelRuntime: { create: async () => ({ getModels: () => catalog, getModel: (_provider, id) => catalog.find(model => model.id === id) }) },
+        };
+        return run([piRoutedReflect()], { loadSDK: async () => sdk }).promise;
+      };
+      const subagentRecords = () => records().filter(record => record.role !== "main");
+      const failedMini = role => ({ engine: "pi", role, configured_model: "copilot/gpt-5.4-mini", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" });
+      const exactHaiku = role => ({ engine: "pi", role, configured_model: "copilot/claude-haiku-4.5", resolved_model: "claude-haiku-4.5", provider: "copilot", status: "exact", cause: null });
+
+      it.each([false, true])("records failed model_unavailable for a sub-agent pinned to a model missing from /reflect (run 39325995892) (routing=%s)", async routing => {
+        const error = await runWithSubagents([["mini-whoami", "copilot/gpt-5.4-mini"]], routing).catch(err => err);
+        expect(error.name).toBe("ModelAliasResolutionError");
+        expect(error.reason).toBe("model_unavailable");
+        expect(error.message).toMatch(/^Pi model "gpt-5\.4-mini" is not advertised by the configured copilot proxy endpoint/);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+        expect(subagentRecords()).toEqual([failedMini("mini-whoami")]);
+      });
+
+      it("keeps exact resolution for a sub-agent on a live model", async () => {
+        await runWithSubagents([["haiku-whoami", "copilot/claude-haiku-4.5"]]);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(true);
+        expect(subagentRecords()).toEqual([exactHaiku("haiku-whoami")]);
+      });
+
+      it("keeps the configured parent model for a sub-agent with no model declaration", async () => {
+        await runWithSubagents([["inherited-whoami"]]);
+        expect(subagentRecords()).toEqual([{ engine: "pi", role: "inherited-whoami", configured_model: "github-copilot/gpt-5.6-luna", resolved_model: "gpt-5.6-luna", provider: "copilot", status: "exact", cause: null }]);
+      });
+
+      it("rejects an unavailable inherited parent model before preparing sub-agents", async () => {
+        const error = await runWithSubagents([["inherited-whoami"]], false, "copilot/gpt-5.4-mini").catch(err => err);
+        expect(error).toMatchObject({ name: "ModelAliasResolutionError", reason: "model_unavailable" });
+        expect(records()).toEqual([failedMini("main")]);
+        expect(subagentRecords()).toEqual([]);
+        expect(fs.existsSync(path.join(tmpDir, "subagents.json"))).toBe(false);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+      });
+
+      it.each([
+        ["haiku-whoami", "mini-whoami"],
+        ["mini-whoami", "haiku-whoami"],
+      ])("marks only the unavailable sub-agent failed when one of two sub-agents is live (%s, %s)", async (first, second) => {
+        const live = first.includes("haiku") ? first : second;
+        const dead = first.includes("mini") ? first : second;
+        const error = await runWithSubagents([
+          [first, first.includes("haiku") ? "copilot/claude-haiku-4.5" : "copilot/gpt-5.4-mini"],
+          [second, second.includes("haiku") ? "copilot/claude-haiku-4.5" : "copilot/gpt-5.4-mini"],
+        ]).catch(err => err);
+        expect(error.reason).toBe("model_unavailable");
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
+        expect(JSON.parse(fs.readFileSync(path.join(tmpDir, "subagents.json"), "utf8")).map(agent => agent.name)).toEqual([first, second]);
+        expect(stderrOutput.join("").includes("model availability confirmed (provider=copilot, model=claude-haiku-4.5)")).toBe(first === live);
+        const byRole = Object.fromEntries(subagentRecords().map(record => [record.role, record]));
+        expect(byRole).toEqual({ [live]: exactHaiku(live), [dead]: failedMini(dead) });
+      });
+
+      it("marks every sub-agent sharing the unavailable model failed", async () => {
+        const error = await runWithSubagents([
+          ["mini-one", "copilot/gpt-5.4-mini"],
+          ["mini-two", "copilot/gpt-5.4-mini"],
+        ]).catch(err => err);
+        expect(error.reason).toBe("model_unavailable");
+        const byRole = Object.fromEntries(subagentRecords().map(record => [record.role, record]));
+        expect(byRole).toEqual({ "mini-one": failedMini("mini-one"), "mini-two": failedMini("mini-two") });
+      });
+    });
+
     // gpt-5-mini is both a built-in alias and a live id in the recorded /reflect; the
     // "absent" case removes it from a copy of the recording.
     it("a live exact id wins over an alias with the same name", async () => {
