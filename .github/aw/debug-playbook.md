@@ -154,13 +154,14 @@ Runtime defect: follow [model/engine guide](debug-model-engine-misconfiguration.
 
 ## Completion and safe-output errors
 
-Check registration → invocation → persistence → validation → publication.
-Registration/nonempty `safeoutputs.jsonl` does not prove publication.
+Check registration/invocation/persistence/validation/publication.
+Registration/nonempty `safeoutputs.jsonl` isn't publication proof.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
 | `agent_startup_failure` | First setup/engine error. | Fix startup; missing output need not be agent choice. |
-| `engine_driver_failure` | Driver exit; final native event. | Fix driver before output instructions. |
+| `engine_driver_failure`, `driver_crash` | Driver exit/signal/error. | Repair driver. |
+| `secret_redaction_failure` | Redaction status/stage. | Repair redaction; withhold unredacted artifacts. |
 | `safeoutputs_cli_error` | Arguments, registration, denial. | Fix supported invocation/allowlist; no unauthorized `gh` writes. |
 | `invalid_safe_outputs` | Record errors; generated schema. | Fix emitted type/fields; retain validation. |
 | `missing_terminal_safe_output` | Expected terminal tool, denied calls, last session event. | Repair publication path or prompt completion contract; silence is not an intentional noop. |
