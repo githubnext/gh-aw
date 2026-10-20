@@ -242,7 +242,11 @@ func resolveRemoteURL(dir string) (string, string, error) {
 	}
 
 	// Exactly one remote — use it
-	remoteName := remoteNames[0]
+	remoteName := ""
+	for _, name := range remoteNames {
+		remoteName = name
+		break
+	}
 	urlOutput, err := gitArgs("config", "--get", "remote."+remoteName+".url").Output()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get URL for remote %q: %w", remoteName, err)
@@ -450,7 +454,11 @@ func ensureRequiredGitAttributesEntry(lines []string) ([]string, bool) {
 		}
 		if !found {
 			gitLog.Printf("Adding new .gitattributes entry: %s", required)
-			if len(lines) > 0 && lines[len(lines)-1] != "" {
+			lastLineIsNonEmpty := false
+			for _, line := range lines {
+				lastLineIsNonEmpty = line != ""
+			}
+			if lastLineIsNonEmpty {
 				lines = append(lines, "")
 			}
 			lines = append(lines, required)
@@ -723,8 +731,10 @@ func populateLocalWorkflowStatus(gitRoot, relPath string, status *WorkflowFileSt
 
 	gitLog.Printf("Git status output: %q", statusOutput)
 	if len(statusOutput) >= 2 {
-		stagedStatus := statusOutput[0]
-		unstagedStatus := statusOutput[1]
+		var statusBytes [2]byte
+		copy(statusBytes[:], statusOutput)
+		stagedStatus := statusBytes[0]
+		unstagedStatus := statusBytes[1]
 		if stagedStatus != ' ' && stagedStatus != '?' {
 			status.IsStaged = true
 			gitLog.Print("File has staged changes")
