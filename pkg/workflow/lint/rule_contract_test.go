@@ -31,6 +31,12 @@ const contractSafeSteps = "    steps:\n      - shell: bash\n        run: echo pu
 
 func builtInRuleContracts() map[string]ruleContract {
 	return map[string]ruleContract{
+		"needs-consistency": {
+			targets: ActionsAST | AWAST, severity: Warning,
+			unsafe: "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo build}]\n  check:\n    runs-on: ubuntu-latest\n    if: needs.build.result == 'success'\n    steps: [{run: echo check}]\n",
+			safe:   "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo build}]\n  check:\n    runs-on: ubuntu-latest\n    needs: build\n    if: needs.build.result == 'success'\n    steps: [{run: echo check}]\n",
+			path:   "jobs.check.if",
+		},
 		"gateway-dispatch-literals": {
 			targets: AWAST,
 			unsafe:  "on: {gateway-dispatch: {issue: {filters: {labels: ['${{ vars.PRIVATE_VALUE }}']}}}}\n",

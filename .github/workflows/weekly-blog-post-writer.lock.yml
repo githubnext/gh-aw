@@ -354,7 +354,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
           GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_pull_request, missing_tool, missing_data, noop(max:2)\n"
           GH_AW_PROMPT_CONTENT_0002: "<issue-steering>\nThe steering issue for this run is #__GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER__.\n\n"
@@ -412,7 +412,7 @@ jobs:
           GH_AW_MEMORY_DESCRIPTION: ' Agent of the Week history – tracks which workflows have been featured so we rotate fairly'
           GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
           GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
-          GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ needs.activation.outputs.steering_issue_number }}
+          GH_AW_NEEDS_ACTIVATION_OUTPUTS_STEERING_ISSUE_NUMBER: ${{ (steps.create-steering-issue.outputs.issue_number) }}
           GH_AW_WIKI_NOTE: "\n\n> **GitHub Wiki**: This memory is backed by the GitHub Wiki for this repository. Files use GitHub Wiki Markdown syntax. Follow GitHub Wiki conventions when creating or editing pages (e.g., use standard Markdown headers, use `[[Page Name]]` syntax for internal wiki links, name page files with spaces replaced by hyphens or use the wiki page title as the filename)."
         with:
           script: |
