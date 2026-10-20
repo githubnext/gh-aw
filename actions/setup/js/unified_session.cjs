@@ -660,7 +660,7 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
       }
     }
     if (valid) {
-      sources.push({ component: "guardrail", phase: "activation", path: "usage/aw_session.jsonl", events: [{ type: "guardrail.admission", data }] });
+      sources.push({ component: "guardrail", phase: "admission", path: "usage/aw_session.jsonl", events: [{ type: "guardrail.admission", data }] });
     } else {
       report(path.join(rootDir, "usage/aw_session.jsonl"), "invalid_admission_metadata", undefined);
     }

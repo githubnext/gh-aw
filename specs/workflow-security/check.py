@@ -124,6 +124,8 @@ MCP_COMPILE_WITNESSES = {
     "trusted-no-emit-import-refresh": "NoTrustedNoEmitImportRefresh",
 }
 ADMISSION_MUTATIONS = {
+    "shared-activation-oidc": "AdmissionJobIsolation",
+    "admission-dependency-bypass": "AdmissionDependency",
     "endpoint-bypass": "NoEndpointNoRequest",
     "credential-delegation": "OIDCOnly",
     "identity-bypass": "IdentityVerified",
@@ -157,6 +159,7 @@ ADMISSION_MUTATION_SETTINGS = {
     "force-export": {"otel_enabled": False},
 }
 ADMISSION_WITNESSES = {
+    "failed-admission-job-block": "NoFailedAdmissionJobBlock",
     "admitted-start": "NoAdmittedStart",
     "skipped-start": "NoSkippedStart",
     "outage-start": "NoOutageStart",

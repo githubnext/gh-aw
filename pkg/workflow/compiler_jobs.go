@@ -501,12 +501,8 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	// Build activation job if needed (preamble job that handles runtime conditions)
 	if c.isActivationJobNeeded() {
 		compilerJobsLog.Print("Building activation job")
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
-		if err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("activation job could not be built: %w. Check the workflow triggers and activation-related frontmatter fields", err)
-		}
-		if err := c.jobManager.AddJob(activationJob); err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("activation job could not be added: %w. Check that no other job in the workflow reuses its name", err)
+		if err := c.buildActivationAndAdmissionJobs(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename); err != nil {
+			return preActivationJobCreated, false, err
 		}
 		compilerJobsLog.Print("Successfully added activation job")
 		activationJobCreated = true

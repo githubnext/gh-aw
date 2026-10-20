@@ -134,7 +134,7 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	yaml := string(content)
 	for _, fragment := range []string{
 		"id: admission", "id-token: write", "activation_admission.cjs",
-		"if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}",
+		"vars.GH_AW_DEFAULT_ADMISSION_URL != ''",
 		"GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}",
 		"GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}",
 		"GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}",
@@ -143,6 +143,7 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	} {
 		assert.Contains(t, yaml, fragment)
 	}
+
 	assert.NotContains(t, yaml, "compiler-process.invalid")
 	assert.NotContains(t, yaml, "compiler-process-hash")
 	hashPattern := regexp.MustCompile(`GH_AW_ADMISSION_WORKFLOW_HASH: "([0-9a-f]{64}):([0-9a-f]{64})"`)
@@ -153,13 +154,29 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, yaml, strings.Join([]string{
 		"            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);",
 	}, "\n"))
-	assert.Less(t, strings.Index(yaml, "id: admission"), strings.Index(yaml, "id: daily-ai-credits-workflow-guardrail"))
 	assert.Contains(t, yaml, admissionDailyAICFallbackIfExpr)
-	assert.NotContains(t, yaml, "\n  admission:\n")
+	admission, exists := compiler.jobManager.GetJob("admission")
+	require.True(t, exists)
+	assert.Contains(t, admission.If, "vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
+	assert.Contains(t, admission.Permissions, "id-token: write")
+	assert.NotContains(t, strings.Join(admission.Steps, ""), "create-github-app-token")
+	assert.NotContains(t, strings.Join(admission.Steps, ""), "daily-ai-credits-workflow-guardrail")
+	assert.NotContains(t, admission.If, "MAX_DAILY_AI_CREDITS")
+	activation, exists := compiler.jobManager.GetJob("activation")
+	require.True(t, exists)
+	assert.Contains(t, activation.Needs, "admission")
+	assert.Contains(t, activation.If, "!cancelled()")
+	assert.Contains(t, activation.If, admissionJobResultCondition)
+	assert.NotContains(t, activation.Permissions, "id-token: write")
+	assert.Equal(t, "${{ needs.admission.outputs.result }}", activation.Env["GH_AW_ADMISSION_RESULT"])
+	assert.NotContains(t, strings.Join(activation.Steps, ""), "activation_admission.cjs")
+	assert.Contains(t, strings.Join(activation.Steps, ""), "daily-ai-credits-workflow-guardrail")
 	for name, job := range compiler.jobManager.jobs {
-		if name == "activation" {
-			assert.Equal(t, "${{ steps.admission.outputs.max-ai-credits }}", job.Outputs["admission-max-ai-credits"])
+		if name == "admission" {
 			continue
+		}
+		if name == "activation" {
+			assert.Equal(t, "${{ needs.admission.outputs.max-ai-credits }}", job.Outputs["admission-max-ai-credits"])
 		}
 		encoded, err := json.Marshal(job)
 		require.NoError(t, err)
@@ -175,6 +192,70 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	require.Len(t, changedHashes, 3)
 	assert.Equal(t, hashes[1], changedHashes[1])
 	assert.NotEqual(t, hashes[2], changedHashes[2], "Prompt changes must invalidate workflow-content caches")
+}
+
+func TestAdmissionActivationDependencyConditions(t *testing.T) {
+	for _, condition := range []string{"", "github.event_name == 'push'", "always()"} {
+		t.Run(condition, func(t *testing.T) {
+			compiler := NewCompiler()
+			activation := &Job{If: condition, Needs: []string{"pre_activation", "select"}}
+			admission, err := compiler.buildAdmissionJob(&WorkflowData{Name: "test"}, activation)
+			require.NoError(t, err)
+			assert.Equal(t, []string{"pre_activation", "select"}, admission.Needs)
+			assert.Contains(t, admission.If, "vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
+			compiler.connectActivationAdmission(activation)
+			assert.Equal(t, []string{"pre_activation", "select", "admission"}, activation.Needs)
+			assert.Contains(t, activation.If, "!cancelled()")
+			assert.Contains(t, activation.If, admissionJobResultCondition)
+			if condition != "always()" {
+				assert.Contains(t, activation.If, "needs.pre_activation.result == 'success'")
+				assert.Contains(t, activation.If, "needs.select.result == 'success'")
+			}
+		})
+	}
+}
+
+func TestAdmissionJobCannotBeCustomized(t *testing.T) {
+	for _, config := range []map[string]any{
+		{}, {"if": "always()"}, {"needs": "agent"}, {"env": map[string]any{"UNTRUSTED": "value"}},
+		{"permissions": map[string]any{"contents": "write"}}, {"continue-on-error": true},
+		{"setup-steps": []any{map[string]any{"run": "echo unsafe"}}},
+		{"pre-steps": []any{map[string]any{"run": "echo unsafe"}}},
+		{"steps": []any{map[string]any{"run": "echo unsafe"}}},
+	} {
+		data := &WorkflowData{Jobs: map[string]any{"admission": config}}
+		require.ErrorContains(t, NewCompiler().applyBuiltinJobPreSteps(data), "jobs.admission is compiler-owned")
+		require.ErrorContains(t, NewCompiler().applyBuiltinJobAugmentations(data), "jobs.admission is compiler-owned")
+	}
+
+}
+
+func TestAdmissionSkipSafeDownstreamConditions(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager.jobs = map[string]*Job{
+		"admission":  {Name: "admission", If: "vars.GH_AW_DEFAULT_ADMISSION_URL != ''"},
+		"activation": {Name: "activation", Needs: []string{"admission"}},
+		"agent":      {Name: "agent", Needs: []string{"activation", "custom"}, If: "needs.activation.outputs.daily_ai_credits_exceeded != 'true'"},
+		"custom":     {Name: "custom"},
+		"detection":  {Name: "detection", Needs: []string{"agent"}, If: "needs.agent.outputs.output != ''"},
+		"conclusion": {Name: "conclusion", Needs: []string{"agent"}, If: "always()"},
+	}
+	compiler.ensureAdmissionSkipSafeConditions()
+	assert.Equal(t, "vars.GH_AW_DEFAULT_ADMISSION_URL != ''", compiler.jobManager.jobs["admission"].If)
+	assert.Contains(t, compiler.jobManager.jobs["activation"].If, admissionJobResultCondition)
+	assert.NotContains(t, compiler.jobManager.jobs["activation"].If, "&& needs.admission.result == 'success'")
+	for _, name := range []string{"activation", "agent", "detection"} {
+		assert.Contains(t, compiler.jobManager.jobs[name].If, "!cancelled()")
+	}
+	agentCondition := compiler.jobManager.jobs["agent"].If
+	assert.Contains(t, agentCondition, "needs.activation.result == 'success'")
+	assert.Contains(t, agentCondition, "needs.custom.result == 'success'")
+	assert.Contains(t, agentCondition, "needs.activation.outputs.daily_ai_credits_exceeded != 'true'")
+	assert.Contains(t, compiler.jobManager.jobs["detection"].If, "needs.agent.result == 'success'")
+	assert.Empty(t, compiler.jobManager.jobs["custom"].If)
+	assert.Equal(t, "always()", compiler.jobManager.jobs["conclusion"].If)
+	compiler.ensureAdmissionSkipSafeConditions()
+	assert.Equal(t, agentCondition, compiler.jobManager.jobs["agent"].If)
 }
 
 func TestAdmissionRejectsCodeGenerationSwitch(t *testing.T) {
@@ -210,7 +291,7 @@ func TestAdmissionRepositoryReusableCallerPermissions(t *testing.T) {
 			}
 			perms := NewPermissionsParserFromValue(job["permissions"]).ToPermissions()
 			level, exists := perms.Get(PermissionIdToken)
-			assert.True(t, exists, "%s/%s must permit the callee's activation OIDC", file, name)
+			assert.True(t, exists, "%s/%s must permit the callee's admission OIDC", file, name)
 			assert.Equal(t, PermissionWrite, level, "%s/%s", file, name)
 			callers++
 		}

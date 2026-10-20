@@ -97,9 +97,11 @@ represented by a skipped state-machine slot, not a real runtime job.
 [`ActivationAdmission.tla`](ActivationAdmission.tla) formalizes the
 [admission service contract](../../docs/src/content/docs/specs/admission-service-specification.md),
 including the implemented client's daily-validation precedence, optional
-component allowances, and activation-only scope. It is a bounded reference model, not a proof of the runtime
-or deployment-owned authority. Admission remains a step within the existing
-activation job; a successful activation is required before agent execution.
+component allowances, and isolated admission-job OIDC capability. It is a bounded reference model, not a proof of the runtime
+or deployment-owned authority. Admission runs in an endpoint-gated job.
+Activation requires successful or intentionally skipped admission; a successful
+activation is required before agent execution. Independent OIDC features are
+outside this admission-only permission model.
 
 The finite model covers 2,304 combinations of effective endpoint
 (absent/valid/invalid), verified invocation identity (valid/invalid), triggering
@@ -117,7 +119,7 @@ Request identity and credentials are not handed off; component accounting is unc
 
 | Contract | Checked invariants |
 |---|---|
-| Optional configuration and activation dependency | `NoEndpointNoRequest`, `InvalidConfigurationBlocks`, `ActivationGate` |
+| Optional configuration, isolated OIDC capability and activation dependency | `NoEndpointNoRequest`, `InvalidConfigurationBlocks`, `AdmissionJobIsolation`, `AdmissionDependency`, `ActivationGate` |
 | OIDC-only authentication, verified claim/workflow mapping, independently checked rerun initiator, original actor privileges | `OIDCOnly`, `IdentityVerified`, `TriggeringActorVerified`, `OriginalActorPrivileges`, `InvocationBound` |
 | Lost responses, replica changes, token-renewal abstraction, bounded retries, denial/protocol errors, explicit outage policy | `StableRetryDecision`, `RetryBound`, `DenialBlocks`, `MalformedBlocks`, `FatalErrorsBlock`, `OutagePolicyHonored` |
 | Terminal deadline expiry, approved admission bypassing daily validation, daily fallback required for skip/ignored outage | `DeadlineHonored`, `DailyAdmissionPrecedence`, `DailyFallbackEnforced` |
@@ -134,17 +136,18 @@ environment need not eventually return an approval. Deadline expiry may terminat
 attempts and excludes late responses and further retries. Policy revocation can
 return the same uniform denial after a cached approval.
 
-The checker includes 27 synthetic single-guard faults and 17 reachability
+The checker includes 29 synthetic single-guard faults and 18 reachability
 witnesses. Witnesses demonstrate admitted, skipped, and fail-open agent starts;
 lost-response recovery through another replica; a verified rerun initiator;
 admission with request trace context but no client export; existing and generated
 caller traces; all four optional-allowance combinations; terminal denial;
 admission despite a blocking daily result; daily blocks after skipped
-admission and ignored outages; and early timeout fallback.
+admission and ignored outages; early timeout fallback; and an admission job
+failing after approval still preventing activation.
 In particular, skipped and fail-open starts deliberately demonstrate
 why this is **cooperative admission, not unbypassable organization policy or a
 hard spending cap**. The model consumes already-resolved runtime settings;
-repository-variable shadowing and an editor removing the step remain outside
+repository-variable shadowing and an editor removing the job remain outside
 the participating-workflow machine.
 
 Use the same checksum-pinned TLA+ Tools v1.8.0 described below:

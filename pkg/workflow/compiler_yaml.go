@@ -46,6 +46,7 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	if err := c.jobManager.resolveActions(); err != nil {
 		return fmt.Errorf("resolving GitHub Actions workflow: %w", err)
 	}
+	c.ensureAdmissionSkipSafeConditions()
 
 	// Validate no duplicate steps within jobs (compiler bug detection)
 	if err := c.jobManager.ValidateDuplicateSteps(); err != nil {

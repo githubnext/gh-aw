@@ -49,7 +49,7 @@ func (c *Compiler) applyEnvironmentOverride() error {
 
 	environment := "environment: " + strconv.Quote(c.environmentOverride)
 	for _, job := range jobs {
-		if job.Name == string(constants.GradersJobName) {
+		if job.Name == string(constants.GradersJobName) || job.Name == string(constants.AdmissionJobName) {
 			continue
 		}
 		job.Environment = environment

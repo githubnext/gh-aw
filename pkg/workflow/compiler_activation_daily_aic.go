@@ -15,7 +15,7 @@ import (
 
 const dailyAICAppTokenStepID = "daily-aic-app-token"
 const dailyAICDefaultRepoMemoryID = "default"
-const admissionDailyAICFallbackIfExpr = "${{ steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
+const admissionDailyAICFallbackIfExpr = "${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}"
 
 // buildDailyAICAppTokenMintStep generates a GitHub App token mint step dedicated
 // to the daily AIC guardrail. The minted token is used only for the guardrail API
@@ -157,7 +157,7 @@ func (c *Compiler) buildActivationDailyAICGuardrailStep(data *WorkflowData) []st
 	steps = append(steps, "            await main();\n")
 	if data.WorkflowID != "" && data.MaxDailyAICBackend != maxDailyAICBackendRepoMemory {
 		steps = append(steps, "      - name: Publish daily AIC scan observations\n")
-		steps = append(steps, "        if: always() && steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''\n")
+		steps = append(steps, "        if: always() && env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''\n")
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/upload-artifact", data)))
 		steps = append(steps, "        with:\n")

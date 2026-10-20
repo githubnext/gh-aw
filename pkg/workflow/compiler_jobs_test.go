@@ -463,7 +463,7 @@ Marker: ${{ needs.select.outputs.marker }}
 		t.Fatal(err)
 	}
 	lock := string(lockContent)
-	if !strings.Contains(lock, "  activation:\n    name: activation\n    needs: select") {
+	if !strings.Contains(extractJobSection(lock, "activation"), "      - select") {
 		t.Fatalf("activation should depend on runtime-import referenced job; lock excerpt:\n%s", lock)
 	}
 	var compiledWorkflow map[string]any
@@ -478,8 +478,8 @@ Marker: ${{ needs.select.outputs.marker }}
 	if !ok {
 		t.Fatal("compiled workflow is missing activation job")
 	}
-	needs, ok := activation["needs"].(string)
-	if !ok || needs != "select" {
+	needs, ok := activation["needs"].([]any)
+	if !ok || !slices.Contains(needs, any("select")) || !slices.Contains(needs, any("admission")) {
 		t.Errorf("activation should depend on runtime-import referenced job select; got needs: %#v", activation["needs"])
 	}
 	if !strings.Contains(lock, "GH_AW_NEEDS_SELECT_OUTPUTS_ISSUE_NUMBERS: ${{ needs.select.outputs.issue_numbers }}") {

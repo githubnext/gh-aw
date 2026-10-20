@@ -61,7 +61,7 @@ describe("Unified conclusion session", () => {
       ...optional,
     };
     const events = writeUnifiedSession({ rootDir: root, admission });
-    expect(events.filter(event => event.type === "guardrail.admission")).toEqual([{ type: "guardrail.admission", data: expected, provenance: { component: "guardrail", phase: "activation", path: "usage/aw_session.jsonl", index: 0 } }]);
+    expect(events.filter(event => event.type === "guardrail.admission")).toEqual([{ type: "guardrail.admission", data: expected, provenance: { component: "guardrail", phase: "admission", path: "usage/aw_session.jsonl", index: 0 } }]);
     const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
     expect(persisted).not.toContain("PRIVATE_");
     expect(validateSession(persisted)).toBe(events.length);
