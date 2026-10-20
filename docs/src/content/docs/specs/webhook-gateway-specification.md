@@ -240,6 +240,93 @@ No content beyond these references, type values, and declared matching literals 
 
 The batch envelope remains numeric version `2`; the explicit projection policy versions its per-delivery data boundary. The older `resource-url-types/v1` and `resource-url-types-filters/v1` policies, native-body Projects/provider payloads, URL-only security payloads without types, and `source_path`/`target_path` projection declarations are unsupported. Receivers MUST NOT silently ignore the new policy or fall back to forwarding native bodies. Subscription metadata or source payloads MUST NOT supply gateway authority.
 
+## Workflow discovery and dispatch table
+
+Discovery collects compiled **subscription declarations**, not historical webhook deliveries or Actions runs. The receiver builds a dispatch table from those declarations intersected with independently approved source/destination bindings. Incoming authenticated deliveries query that table; dispatch attempts and outcomes belong in the separate durable records described under [Receiver durability and recovery](#receiver-durability-and-recovery).
+
+This section specifies receiver behavior and measurable refresh requirements; gh-aw does not implement a discovery service, scheduler, or dispatch table. It adds no frontmatter, manifest fields, enrollment endpoint, or approval mechanism.
+
+### Discovery scope and snapshot
+
+The discovery root MUST be the protected set of approved GitHub hosts, App installations, and destination repository IDs. Installation access is necessary but is not destination approval. A receiver MUST reconcile the installation's accessible repository inventory, intersect it with that approved set, and address repositories by immutable ID plus the verified current name. Public code search, source-event repository names, payload URLs, and frontmatter `repos`/`orgs` MUST NOT expand discovery authority. Repository transfers or installation changes require a verified current approval binding; name reuse MUST NOT retarget an existing row.
+
+Discovery SHOULD use a separate repository-restricted read credential with only the required metadata, Contents read, and Actions read permissions. It MUST NOT widen or reuse the dispatch token's scope to enumerate installations or read unrelated repositories. All API calls use the centrally approved GitHub API origin/base path; discovery MUST NOT execute repository code, compile untrusted Markdown, or follow credential-bearing redirects.
+
+For each destination, a refresh MUST perform the following reconciliation:
+
+1. Verify current approval and installation access, read the repository's current default-branch name, and resolve its full commit ID. Read `.github/workflows/aw.json` and workflow blobs from **that immutable commit**, not separate reads of a moving branch. Missing or disabled repository opt-in leaves no active gateway rows.
+2. Enumerate the complete `.github/workflows/` directory at that commit. Candidate declarations are regular `.lock.yml` blobs in that directory. Read their single-line `# gh-aw-manifest: <JSON>` headers; an absent `webhook_subscriptions` means no gateway declaration. Source `.md` files, pull-request refs, nondefault branches, artifacts, and a locally supplied `compile --json` result are not substitutes for the deployed artifact.
+3. Validate each declaration's supported manifest version, numeric subscription version `2`, complete predicates, normalization/command policies, projection, context, and limits against this specification and the supported catalogs. Missing/malformed/duplicate manifest headers, ambiguous JSON keys, or unsupported gateway metadata MUST leave the affected workflow nonactivating with an explicit reason. Preserve all declarations, not only the first subscription or first event family.
+4. Bind `dispatch.repository`'s literal `${{ github.repository }}` placeholder to this verified discovery repository. Require `dispatch.method: repository_dispatch`, `dispatch.workflow` equal to the discovered compiled path, and `dispatch.event_type` equal to the compiler-defined route for that workflow ID. Validate the reviewed compiled artifact and mandatory provenance gate; a correct manifest copied onto unrelated YAML does not establish eligibility.
+5. Reconcile current [Actions workflow IDs, paths, and states](https://docs.github.com/en/rest/actions/workflows#list-repository-workflows). Only an explicitly `active` workflow with the expected path is eligible. Inspect all default-branch `.yml` and `.yaml` workflow listeners for competing `repository_dispatch` consumers, including native workflows and unrestricted listeners. The emitted route MUST select only the approved gateway workflow among active listeners; a collision or unverifiable listener remains nonactivating. Reading listeners for this check MUST NOT replace manifest-based subscription discovery.
+6. Intersect eligible subscriptions with current approved source scopes, destination installation, and reviewed artifact/subscription bindings. Added declarations and changed predicates, routes, source scopes, or artifacts MUST NOT self-approve. Re-read the default-branch name/head and current approval generation before publication; drift invalidates the candidate and schedules another refresh.
+
+Every paginated inventory MUST be exhausted. A truncated [Git tree response](https://docs.github.com/en/rest/git/trees#get-a-tree) requires complete subtree traversal or another complete enumeration; a page limit, timeout, unreadable blob, or incomplete Actions inventory MUST NOT masquerade as an empty or complete scan. Definitive missing/unsupported configuration is an explicit ineligible result; inability to establish completeness is a refresh failure. Other repositories MAY refresh independently.
+
+Git content comes from one immutable revision, but workflow states, installation access, and approvals are mutable observations, not a GitHub-wide transaction. Publication MUST be fenced against locally observed invalidations; the pre-dispatch checks below remain necessary. Checking listeners cannot pin GitHub's eventual execution revision.
+
+### Table shape, matching, and publication
+
+The logical row key is `(GitHub API origin/base path, destination repository ID, compiled workflow path, semantic event)`. Each row MUST retain the following information; storage layout and index implementation remain deployment choices:
+
+| Row data | Required purpose |
+| --- | --- |
+| Destination and route | Verified repository ID/current name, installation ID, Actions workflow ID/path, and exact emitted `event_type`. Names are API addressing data, not identity replacements. |
+| Artifact binding | Observed default-branch name/commit, compiled blob identity, and independently approved artifact/subscription identity under the deployment's declared binding policy. |
+| Subscription | Complete normalized declaration, including `native_events`, types, `repos`, `orgs`, conditions, complete `any_of` groups, and applicable normalization/command policies. |
+| Authority | Approved source enrollment/scope and destination/artifact approval generation; no credentials or bearer tokens. |
+| Freshness and state | Monotonic table generation, observation/check timestamps, publication time, hard expiry, and eligibility or explicit blocked reason. |
+
+An index MAY select candidate rows by authenticated provider/source enrollment and native event discriminator. The receiver MUST then evaluate each candidate's full predicates against the original delivery. It MUST NOT flatten paired alternatives, treat an index hit as authorization, merge distinct source authorities, or interpret `native_events` as permission to register new provider hooks. A source delivery MAY match several workflows; each has its own admission/dispatch identity. A route/event MUST resolve to exactly one subscription, and a route MUST NOT identify multiple workflow paths in the same repository.
+
+`repository_dispatch` has no workflow-path parameter: `dispatch.workflow` is a binding/check, not an API-side file selector. Other matching listeners can also start on a repository dispatch, which is why collision detection covers native and unrestricted listeners, not just duplicate table rows.
+
+Publish a fully reconciled repository snapshot **atomically**, replacing that repository's prior rows, including removals and explicit ineligible entries. Never incrementally expose mixed old/new subscriptions or retain deleted rows by append-only upsert. Incomplete scans MUST NOT publish or renew freshness. An implementation MAY retain its previous unexpired snapshot after a transient refresh failure only while no invalidation or approval withdrawal has made it ineligible, and only until the failed reconciliation's deadline below. Failure before that deadline MUST NOT cancel the deadline; a complete successful replacement is required to avoid blocking.
+
+Refresh workers MUST use durable generation/leader fencing and compare the candidate's approval/invalidation generation at publication. A slow scan started before a newer scan, disablement, or revocation MUST NOT overwrite the newer result or resurrect a route. Matching/admission MUST use one published generation and persist that binding with queued work. A later snapshot MUST NOT silently rematch admitted work under new predicates or newly approved destinations. Unsent work MAY continue through newer generations with identical approved row bindings; a generation number alone is neither authorization nor a configuration change.
+
+### Refresh and freshness guarantees
+
+The following are **required upper bounds**, not polling suggestions or claims about an available hosted receiver. Faster refreshes are permitted. Healthy operation means the receiver is running within its documented repository/workflow capacity, its durable state is available, and the required GitHub APIs return complete usable responses within the scan budget.
+
+| Operation | Required bound |
+| --- | --- |
+| Enrollment or process restart | Schedule initial reconciliation within 60 seconds; each repository scan publishes a complete result or reports failure within a further 60 seconds. No route becomes ready from persisted rows alone after restart. |
+| Periodic reconciliation | Start reconciliation of installation-access inventories and **each approved repository** at intervals no greater than 5 minutes, measured start-to-start. Unchanged default-branch content does not skip mutable approval, installation, or workflow-state checks. |
+| Authenticated change hint or protected administrative refresh request | Invalidate affected eligibility when the hint is accepted; publish a reconciled result or report refresh failure within 60 seconds of that acceptance, including queue/debounce time. Push hints for the default branch, default-branch changes, and installation/access changes schedule reconciliation; hints never carry authoritative replacement rows. |
+| Stable change without a hint | Reflect the change, or block the affected routes with a refresh failure, within 6 minutes after it becomes observable through the required GitHub APIs: at most 5 minutes to the next scan plus 60 seconds to finish. This includes additions, edits, removals, opt-out, and workflow disablement. |
+| Maximum active snapshot age | Hard-expire eligibility no later than 10 minutes after the **earliest mutable-authority observation** used by the last complete successful reconciliation, not 10 minutes after publication or the last attempt. Dispatch authorization MUST check expiry even if a timer/worker is delayed. |
+| Locally committed approval withdrawal or accepted access-revocation evidence | Block affected new admissions and dispatch authorizations at the local revocation ordering point, without waiting for a scan or the 10-minute expiry. Already transmitted requests cannot be recalled. |
+| Before every dispatch attempt, including retries | Check current source/destination approval, table eligibility/expiry and generation, installation binding, active workflow state, and current default-branch opt-in/artifact/listener bindings. A stale/failed/unverifiable check does not authorize dispatch. |
+
+For example, a stable edit first visible just after a periodic scan starts MUST be reflected or explicitly blocked within 6 minutes, not “5 minutes after the next successful scan.” A ten-minute hard expiry is an outage safety ceiling, not a normal propagation target or permission to dispatch for ten minutes after an observed change. New/changed rows still require approval; observing them within the deadline does not promise activation within that deadline.
+
+Change hints MUST be authenticated and bound to enrolled identities. They accelerate refresh but MUST NOT be the sole mechanism: missing/delayed hints are repaired by periodic reconciliation. Repeated hints MAY coalesce into one pending scan but MUST NOT postpone the oldest deadline indefinitely. Changes observed during a scan mark it dirty and require a fresh, fenced reconciliation before eligibility is restored.
+
+Conditional requests and immutable-blob caching MAY reduce API work. A `304` renews only the particular representation actually revalidated with the same host, identity, and request parameters; it is not proof that installation access, workflow state, approvals, or the entire snapshot are unchanged. Reusing a cached blob, receiving a hint, failing a scan, or retrying a rate-limited request MUST NOT advance the successful authority-check timestamp.
+
+Rate limits, `Retry-After`, outages, capacity overruns, or repeated branch churn can prevent the healthy refresh bounds. The receiver MUST respect API backoff, expose the missed deadline, and fail closed rather than silently lengthen the bounds or declare a successful refresh. A deadline failure MUST block the affected repository's eligibility until a complete successful reconciliation; an explicit access/approval failure blocks immediately. Dispatch authorization MUST independently reject a missed reconciliation deadline even if a delayed worker/timer has not recorded the failure; the 10-minute expiry MUST NOT extend that deadline. Restarts require fresh reconciliation and MUST NOT reset snapshot age; use monotonic elapsed-time checks while running and reject uncertain persisted clock/age evidence.
+
+No eligible fresh snapshot means no new dispatch authorization. Ingress MUST explicitly reject/backpressure or durably hold work under a documented bounded pending-authorization policy; it MUST NOT acknowledge durable acceptance and silently drop events or call them nonmatches against an unavailable table. Unsent admitted work MAY wait within its documented retention/retry budget, but resumption requires its original approval/artifact binding to remain valid. Discovery does not replay historical provider events or promise recovery of events received before a route became eligible.
+
+The receiver MUST expose per-repository last attempt/start, last complete authority-check/publication, next deadline, snapshot age/expiry, generation, active/blocked row counts, and failure reason. Alert on missed refresh deadlines and expired eligibility without logging credentials or original resource bodies. These guarantees concern discovery convergence and authorization freshness, not provider delivery latency, queue latency, GitHub run start/completion, exactly-once execution, or atomic execution-revision pinning.
+
+### Discovery acceptance cases
+
+Receiver tests MUST use a controlled clock and synthetic GitHub/approval responses to establish these properties before claiming this discovery contract:
+
+| Case | Required result |
+| --- | --- |
+| More than one inventory page, truncated tree, or several families/workflows | Collect the complete approved inventory and all declarations; incomplete enumeration cannot publish or renew eligibility. |
+| Default branch changes between file reads/publication | No mixed-revision table; discard/fence the candidate and reconcile the current branch. |
+| Deleted/disabled workflow, removed subscription/opt-in, or reused repository name | Remove/block the old route atomically; never retarget by name or keep obsolete rows through upsert. |
+| Copied manifest, duplicate route/family, native catch-all listener, or unsupported policy | Explicitly nonactivating; a manifest/route string alone cannot make an executable destination eligible. |
+| Stable unhinted change and burst of duplicate hints | Enforce the 6-minute convergence and 60-second hint deadlines without debounce starvation. |
+| Unchanged commit with changed workflow state/access/approval, or representation-specific `304` | Recheck mutable authority; a blob/cache hit cannot renew unrelated evidence. |
+| Timeout/rate limit, partial scan, delayed timer, restart, or uncertain clock | No success-shaped refresh, deadline extension, stale dispatch, or readiness from persisted rows alone. Exercise exactly the 60-second, 6-minute, and 10-minute boundaries; authorization at or after hard expiry rejects. |
+| Older worker finishes after new publication/revocation; queued work meets a changed approval | Fencing prevents resurrection; the attempt remains bound to its original approved configuration or stays blocked. |
+| Dispatch authorized before a later revocation or branch change | Document the external race; do not claim the local table can recall requests or select GitHub's execution revision. |
+
 ## GitHub App token provenance
 
 The CAO-to-workflow hop MUST use the following GitHub App token contract. Provider authentication at receiver ingress and App authentication at workflow ingress are separate requirements; neither replaces the other.
@@ -514,7 +601,7 @@ Receiver implementations MUST document their supported provider/authentication p
 
 Ingress body limits, provider API-response limits, and numeric representation/precision limits MUST be documented separately from the dispatch byte limits. Unsupported or oversized input MUST fail closed, not be truncated or coerced into a different resource identity/filter literal. A small permitted projection does not imply that a receiver accepts every provider-sized original body.
 
-Approved enrollment MUST bind the source identity/scope, destination GitHub host/repository/installation, workflow route, and reviewed compiled artifact/subscription configuration. A receiver MUST revalidate these bindings before a dispatch attempt, including retries; changed or revoked approval MUST NOT silently authorize queued work under a new configuration. The deployment MUST define how current default-branch workflow availability and approved artifact identity are established. A whole-branch commit pin or an artifact-content digest is an implementation choice, not a shared digest protocol. GitHub's dispatch API cannot select a workflow ref or atomically attest the revision that will execute; a preceding discovery check alone MUST NOT be advertised as that guarantee. Reviewed deployment controls must prevent unapproved destination workflow changes from becoming executable.
+Approved enrollment MUST bind the source identity/scope, destination GitHub host/repository/installation, workflow route, and reviewed compiled artifact/subscription configuration. A receiver MUST revalidate these bindings before a dispatch attempt, including retries; changed or revoked approval MUST NOT silently authorize queued work under a new configuration. The deployment MUST establish current default-branch workflow availability and approved artifact identity under [Workflow discovery and dispatch table](#workflow-discovery-and-dispatch-table), including its refresh/freshness bounds. A whole-branch commit pin or an artifact-content digest is an implementation choice, not a shared digest protocol. GitHub's dispatch API cannot select a workflow ref or atomically attest the revision that will execute; a preceding discovery check alone MUST NOT be advertised as that guarantee. Reviewed deployment controls must prevent unapproved destination workflow changes from becoming executable.
 
 ## Dispatch envelope
 
@@ -748,7 +835,7 @@ The agent MUST handle every intended item explicitly, not silently use the first
 | Component | Contract responsibility |
 | --- | --- |
 | Compiler | Validate declarations, opt-ins, activity/filter compatibility, and write-minimum roles; emit discovery metadata, restricted dispatch routing, and the mandatory App-provenance activation gate. External providers do not create GitHub source-webhook requirements; all gateway families still require the CAO destination App-token contract. |
-| Approved receiver | Verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch using the scoped installation token for the approved CAO App. Keep administrative grants and minting authority separate from untrusted metadata. |
+| Approved receiver | Reconcile approved default-branch subscriptions into an atomically published, freshness-bounded dispatch table; verify the original provider delivery and current source/destination authorization; normalize, filter, project, batch, and dispatch using the scoped installation token for the approved CAO App. Keep administrative grants and minting authority separate from untrusted metadata. |
 | Runner | Validate route, schema, projection policy, sizes, closed payload/filter key/value allowlist, complete condition alternatives, URL-derived identity, selected activities/native registration, and explicit repository/organization selectors. It does not fetch resource details or re-derive source transitions. Invalid elements fail the whole batch. |
 | Workflow | Resolve any additional resource data through configured provider-authenticated clients so the provider enforces access. Handle denied/deleted resources without falling back to native webhook bodies. |
 | App-provenance gate | Require the approved GitHub-owned CAO App sender and original actor identity before custom steps or privileged work. Role/bot rules cannot widen this trust boundary. It does not authenticate original provider signatures. |
