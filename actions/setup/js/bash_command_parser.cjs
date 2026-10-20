@@ -70,7 +70,8 @@ function findShellQuoteEnd(commandText, start) {
  *   - $(...) subshell expressions (balanced parentheses)
  *
  * Operators embedded inside any of these constructs are not treated as separators.
- * Unsupported nested quoting and unclosed constructs fail closed.
+ * Unsupported nested quoting, unquoted grouping/glob parentheses, and unclosed
+ * constructs fail closed.
  *
  * @param {string} commandText - Raw bash command text that may contain pipeline operators
  * @returns {string[]} Non-empty trimmed segments (operators removed)
@@ -159,6 +160,9 @@ function splitOnPipelineOperators(commandText) {
       if (depth !== 0) return [];
       continue;
     }
+
+    // Extended globs can contain literal hashes; their parentheses need a full lexer.
+    if (ch === "(") return [];
 
     // ── Pipeline operators ──
 

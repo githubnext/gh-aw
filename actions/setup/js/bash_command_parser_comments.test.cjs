@@ -279,6 +279,31 @@ describe.each(lineEndings)("comment placement with $name line endings", ({ value
 });
 
 describe("comment parser security boundaries", () => {
+  describe.each(["?", "*", "+", "@", "!"])("unsupported %s(...) patterns", operator => {
+    it.each(["", "\\\n", "\\\n\\\n"])("rejects glob operators separated from parentheses by %j", continuation => {
+      for (const prefix of ["", "shopt -s extglob\n"]) {
+        const fullCommandText = `${prefix}echo ok ${operator}${continuation}(x #); forbidden_probe`;
+        for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
+          const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(shopt)", grant] }, () => ({ kind: "approve-once" }));
+          expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+        }
+        expect(splitOnPipelineOperators(fullCommandText)).toEqual([]);
+        expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual([]);
+      }
+    });
+  });
+
+  it.each([
+    "echo '@(x #)' # Actual comment\ncat data.json",
+    'echo "!(x #)" # Actual comment\ncat data.json',
+    String.raw`echo @\(x\ \#\) # Actual comment` + "\ncat data.json",
+    "# Ignore @(x #) and $(unclosed\necho ok\ncat data.json",
+    "echo $(printf '%s' '@(x #)') # Actual comment\ncat data.json",
+  ])("preserves quoted, escaped, and commented glob syntax: %s", fullCommandText => {
+    expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual(["echo", "cat"]);
+    expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("approve-once");
+  });
+
   it.each([
     'echo ok "${value:-"x #"}"; forbidden_probe',
     'echo ok "${value:+"x #"}"; forbidden_probe',
