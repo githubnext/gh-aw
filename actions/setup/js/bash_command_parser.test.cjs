@@ -110,6 +110,35 @@ describe("splitOnPipelineOperators", () => {
     expect(segments).toEqual(["pwd", "ls -la", "safeoutputs --help"]);
   });
 
+  it.each(["\n", "\r\n", "\r"])("ignores standalone comments with %j line endings", newline => {
+    const command = `# Check attribution data${newline}  # Ignore "quotes, && operators; and $(subshells)${newline}cat data.json${newline}# Done`;
+    expect(splitOnPipelineOperators(command)).toEqual(["cat data.json"]);
+  });
+
+  it("ignores inline comments without hiding the next command", () => {
+    expect(splitOnPipelineOperators('echo ready # Ignore "quotes && operators; too\ncat data.json')).toEqual(["echo ready", "cat data.json"]);
+  });
+
+  it("returns no segments for a comment-only script", () => {
+    expect(splitOnPipelineOperators("  # Nothing to execute\n\t# Still a comment")).toEqual([]);
+  });
+
+  it.each(["echo '# literal'", 'echo "# literal"', "echo value#literal", String.raw`echo \#literal`, String.raw`echo value\ #literal`, String.raw`echo \"#literal`])("preserves literal hashes in %s", command => {
+    expect(splitOnPipelineOperators(`${command} && cat data.json`)).toEqual([command, "cat data.json"]);
+  });
+
+  it("recognizes a comment after an escaped backslash and unescaped whitespace", () => {
+    expect(splitOnPipelineOperators(String.raw`echo \\ # Ignore this && command` + "\ncat data.json")).toEqual([String.raw`echo \\`, "cat data.json"]);
+  });
+
+  it.each(["echo ${value:- # literal}", "echo ${outer:-${inner:- # literal}}", "echo ${value:-'quoted }' # literal}"])("preserves literal hashes inside parameter expansions: %s", command => {
+    expect(splitOnPipelineOperators(`${command} && cat data.json`)).toEqual([command, "cat data.json"]);
+  });
+
+  it("does not continue a comment ending in a backslash", () => {
+    expect(splitOnPipelineOperators("# Comment \\\ncat data.json")).toEqual(["cat data.json"]);
+  });
+
   it("does not split on escaped newline continuations", () => {
     const segments = splitOnPipelineOperators("git log \\\n  --oneline \\\n  --max-count=1");
     expect(segments).toEqual(["git log --oneline --max-count=1"]);
@@ -287,6 +316,10 @@ describe("extractCommandNamesFromPipeline", () => {
 
   it("returns empty array for whitespace-only string", () => {
     expect(extractCommandNamesFromPipeline("   ")).toEqual([]);
+  });
+
+  it("extracts only executable commands from a commented script", () => {
+    expect(extractCommandNamesFromPipeline("# Check counts\njq length data.json # Count entries\n# Read the data\ncat data.json")).toEqual(["jq", "cat"]);
   });
 
   it("handles command with $() subshell — does not split inside subshell", () => {

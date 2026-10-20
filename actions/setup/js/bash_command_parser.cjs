@@ -31,6 +31,7 @@
  * The split respects:
  *   - Single-quoted strings (no escaping inside)
  *   - Double-quoted strings (backslash-escape aware)
+ *   - Unquoted backslash escapes and shell comments
  *   - $(...) subshell expressions (balanced parentheses)
  *
  * Operators embedded inside any of these constructs are not treated as separators.
@@ -43,14 +44,42 @@ function splitOnPipelineOperators(commandText) {
 
   const segments = [];
   let current = "";
+  let atWordStart = true;
+  let parameterDepth = 0;
   let i = 0;
   const len = commandText.length;
 
   while (i < len) {
     const ch = commandText[i];
 
+    if (ch === "#" && atWordStart && parameterDepth === 0) {
+      while (i < len && commandText[i] !== "\n" && commandText[i] !== "\r") i++;
+      continue;
+    }
+
+    if (ch === "\\" && i + 1 < len) {
+      current += ch;
+      i++;
+      if (commandText[i] !== "\n" && commandText[i] !== "\r") {
+        current += commandText[i];
+        i++;
+        atWordStart = false;
+      }
+      continue;
+    }
+
+    if (ch === "$" && commandText[i + 1] === "{") {
+      current += "${";
+      parameterDepth++;
+      atWordStart = false;
+      i += 2;
+      continue;
+    }
+    if (ch === "}" && parameterDepth > 0) parameterDepth--;
+
     // ── Single-quoted string: no escape sequences, copy verbatim until closing ' ──
     if (ch === "'") {
+      atWordStart = false;
       current += ch;
       i++;
       while (i < len && commandText[i] !== "'") {
@@ -66,6 +95,7 @@ function splitOnPipelineOperators(commandText) {
 
     // ── Double-quoted string: backslash escapes are recognised ──
     if (ch === '"') {
+      atWordStart = false;
       current += ch;
       i++;
       while (i < len && commandText[i] !== '"') {
@@ -86,6 +116,7 @@ function splitOnPipelineOperators(commandText) {
 
     // ── $(...) subshell: skip balanced parentheses as a unit ──
     if (ch === "$" && i + 1 < len && commandText[i + 1] === "(") {
+      atWordStart = false;
       current += ch;
       i++;
       let depth = 0;
@@ -111,6 +142,7 @@ function splitOnPipelineOperators(commandText) {
     if (ch === "&" && i + 1 < len && commandText[i + 1] === "&") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i += 2;
       while (i < len && commandText[i] !== undefined && /\s/.test(commandText[i])) i++;
       continue;
@@ -120,6 +152,7 @@ function splitOnPipelineOperators(commandText) {
     if (ch === "|" && i + 1 < len && commandText[i + 1] === "|") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i += 2;
       while (i < len && /\s/.test(commandText[i])) i++;
       continue;
@@ -129,6 +162,7 @@ function splitOnPipelineOperators(commandText) {
     if (ch === "|") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i++;
       while (i < len && /\s/.test(commandText[i])) i++;
       continue;
@@ -138,6 +172,7 @@ function splitOnPipelineOperators(commandText) {
     if (ch === ";") {
       segments.push(current);
       current = "";
+      atWordStart = true;
       i++;
       while (i < len && /\s/.test(commandText[i])) i++;
       continue;
@@ -168,6 +203,7 @@ function splitOnPipelineOperators(commandText) {
 
       segments.push(current);
       current = "";
+      atWordStart = true;
       i++;
       if (ch === "\r" && i < len && commandText[i] === "\n") {
         i++;
@@ -177,6 +213,7 @@ function splitOnPipelineOperators(commandText) {
     }
 
     current += ch;
+    atWordStart = /[ \t&()<>]/.test(ch);
     i++;
   }
 
