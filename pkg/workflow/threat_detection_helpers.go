@@ -257,6 +257,7 @@ func cloneThreatDetectionEngineConfig(engineID string, source *EngineConfig) *En
 	if source.ID != "" && source.ID != engineID {
 		threatLog.Printf("Resetting runtime settings when normalizing %q to detection engine %q", source.ID, engineID)
 		cloned.Version = ""
+		cloned.ChecksumsSHA256 = ""
 		cloned.Command = ""
 		cloned.Config = ""
 		cloned.Args = nil

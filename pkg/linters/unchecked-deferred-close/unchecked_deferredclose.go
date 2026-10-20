@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"github.com/github/gh-aw/pkg/linters/internal/analyzerutil"
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 )
@@ -45,7 +46,7 @@ func analyzeDeferClose(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 	}
 
 	// Check if the call is to a Close() method
-	selector, ok := callExpr.Fun.(*ast.SelectorExpr)
+	selector, ok := astutil.UnwrapParenExpr(callExpr.Fun).(*ast.SelectorExpr)
 	if !ok || selector.Sel.Name != "Close" {
 		return
 	}

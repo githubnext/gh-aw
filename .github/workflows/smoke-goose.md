@@ -39,7 +39,7 @@ network:
     - go
 runtimes:
   go:
-    version: "1.26.8"
+    version: "1.27.3"
 tools:
   cache-memory: true
   github:

@@ -1790,6 +1790,7 @@ safe-outputs:
 | `report_incomplete` | Agent reported that the task could not be completed (infrastructure or tool failures) |
 | `agent_startup_failure` | Runtime recorded `not_started`: setup failed before agent execution, so missing outputs are downstream |
 | `engine_driver_failure` | Engine driver exited with a non-zero code before recording a terminal safe output, or the final engine result reported an error even if the process exited 0 and safe outputs exist |
+| `secret_redaction_failure` | The selected failing step is secret redaction; can be included or excluded independently of generic agent failures |
 | `safeoutputs_cli_error` | Safeoutputs CLI failed and no terminal safe output was recorded |
 | `invalid_safe_outputs` | Output validation rejected the agent's outputs, leaving no terminal safe output |
 | `missing_terminal_safe_output` | Agent finished with no terminal safe output, including diagnostic-only exits |
@@ -1808,6 +1809,8 @@ safe-outputs:
 When no terminal safe output is recorded, post-agent validation adds a `report_incomplete` signal with the detected cause. Driver exit codes and CLI audit errors distinguish runtime failures from agent behavior. Diagnostic-only outputs (`missing_tool` or `missing_data`) do not confirm task completion; silence is not treated as an intentional `noop`.
 
 An observed `not_started` agent execution marker is classified as `agent_startup_failure`, not agent omission. Failure reports identify the failing startup step when available and direct investigation to setup and gateway logs. Missing, unreadable, invalid, or mismatched run evidence does not establish a startup failure; observed agent execution takes precedence over a stale marker.
+
+An unexplained nonzero driver exit is classified as `driver_crash`, not `unknown` or an inferred provider outage. Fatal-signal exits take precedence over earlier request errors; crash categories from recovered attempts do not override a recorded non-crash final exit. Reports include the exit code, an inferred signal when recognized, and a fixed summary of the last classified driver diagnostic; raw stderr and agent text are excluded. Explicit provider, request, and budget evidence still explains ordinary nonzero exits, including handled SDK errors. A failed **Redact secrets in logs** step is reported separately as `secret_redaction_failure`, with its own bounded redactor operation/error-code diagnostics when available, rather than a generic driver-exit message. A recorded startup failure retains priority over a later redaction failure.
 
 When the Actions jobs API confirms that the entire run has no jobs, failure reporting stays silent: no failure issue, update, or parent report is created. Such runs may be awaiting or lacking user approval and are not agent failures. API errors or missing agent metadata in a nonempty job list do not establish this condition; genuine setup failures within a started job remain reportable.
 

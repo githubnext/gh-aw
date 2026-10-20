@@ -3,11 +3,39 @@
 package workflow
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
+
+func TestCopilotSDKInstallDependenciesArePinned(t *testing.T) {
+	t.Parallel()
+	exactVersion := regexp.MustCompile(`^(@[^/]+/)?[^@]+@[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$`)
+	for name, spec := range map[string]copilotSDKInstallSpec{
+		"node":              getCopilotSDKInstallSpec("node driver.js"),
+		"typescript":        getCopilotSDKInstallSpec("ts-node driver.ts"),
+		"inline-node":       getInlineCopilotSDKInstallSpec("node"),
+		"inline-typescript": getInlineCopilotSDKInstallSpec("typescript"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, dependencies, found := strings.Cut(spec.command, "npm install --ignore-scripts --no-save ")
+			if !found {
+				t.Fatalf("expected SDK npm install command in %q", spec.command)
+			}
+			packages := strings.Fields(dependencies)
+			if len(packages) < 2 {
+				t.Fatalf("expected SDK and web-fetch dependencies in %q", spec.command)
+			}
+			for _, pkg := range packages {
+				if !exactVersion.MatchString(pkg) {
+					t.Errorf("generated SDK dependency must use an exact version: %q", pkg)
+				}
+			}
+		})
+	}
+}
 
 func TestCopilotEngine(t *testing.T) {
 	engine := NewCopilotEngine()
@@ -268,7 +296,7 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			name:          "ts-node command installs ts-node and typescript alongside sdk",
 			command:       "ts-node driver.ts",
 			expectedName:  "name: Install GitHub Copilot SDK (TypeScript)",
-			expectedRun:   "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion) + " " + copilotSDKWebFetchDependency + " ts-node typescript",
+			expectedRun:   "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion) + " " + copilotSDKWebFetchDependency + " ts-node@10.9.2 typescript@5.8.3",
 			expectedSteps: 1,
 		},
 		{

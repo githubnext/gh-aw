@@ -516,7 +516,7 @@ func (c *Compiler) loadOrInitGoModLines(path string) ([]string, error) {
 		dependabotLog.Print("Creating new go.mod")
 		lines = append(lines, "module github.com/github/gh-aw-workflows-deps")
 		lines = append(lines, "")
-		lines = append(lines, "go 1.21")
+		lines = append(lines, "go "+string(constants.DefaultGoVersion))
 	}
 
 	return lines, nil

@@ -35,7 +35,7 @@ source_commit="$(jq -er --arg tag "${version}" \
   echo "::error::invalid enclave artifact source commit"
   exit 1
 }
-curl -fsSL \
+curl --proto '=https' --proto-redir '=https' -fsSL \
   "https://raw.githubusercontent.com/github/gh-aw-firewall/${source_commit}/guest/cloud-hypervisor/setup-enclave-artifacts.sh" \
   -o "${setup_dir}/source-installer.sh"
 cmp "${setup_dir}/source-installer.sh" "${setup_dir}/setup-cloud-hypervisor-enclave-artifacts.sh"
