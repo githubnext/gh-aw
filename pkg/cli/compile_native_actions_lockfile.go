@@ -44,17 +44,19 @@ type nativeDependency struct {
 }
 
 type nativeDependencyUse struct {
-	repository string
-	ref        string
-	actionPath string
+	repository     string
+	ref            string
+	actionPath     string
+	selfRepository bool
 }
 
 type nativeDependencyResolution struct {
-	ref     string
-	commit  string
-	ownerID int64
-	repoID  int64
-	uses    []nativeDependencyUse
+	hostname string
+	ref      string
+	commit   string
+	ownerID  int64
+	repoID   int64
+	uses     []nativeDependencyUse
 }
 
 type nativeWorkflowInput struct {
@@ -63,19 +65,130 @@ type nativeWorkflowInput struct {
 	refHints map[string]string
 }
 
-type nativeDependencyResolver func(context.Context, nativeDependencyUse, string) (nativeDependencyResolution, error)
+func unmarshalNativeActionsLockfile(content []byte, lockfile *nativeActionsLockfile) error {
+	var header struct {
+		Version string `yaml:"version"`
+	}
+	if err := yaml.Unmarshal(content, &header); err != nil {
+		return err
+	}
+	if header.Version != "v0.0.2" && header.Version != "v0.0.3" {
+		return fmt.Errorf("unsupported GitHub Actions lockfile version %q", header.Version)
+	}
+	decoder := yaml.NewDecoder(bytes.NewReader(content))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(lockfile); err != nil {
+		return err
+	}
+	if lockfile.Workflows == nil || lockfile.Dependencies == nil {
+		return errors.New("lockfile must define workflows and dependencies")
+	}
+	for workflowPath, pins := range lockfile.Workflows {
+		if workflowPath == "" {
+			return errors.New("lockfile workflow path must not be empty")
+		}
+		for _, pin := range pins {
+			if !validNativePinKey(pin) {
+				return fmt.Errorf("invalid dependency key %q in workflow %s", pin, workflowPath)
+			}
+		}
+	}
+	for key, dependency := range lockfile.Dependencies {
+		if !validNativePinKey(key) || !validNativeRef(dependency.Ref) ||
+			!strings.HasPrefix(dependency.Commit, "sha1-") ||
+			!fullCommitSHA.MatchString(strings.TrimPrefix(dependency.Commit, "sha1-")) ||
+			dependency.OwnerID <= 0 || dependency.RepoID <= 0 {
+			return fmt.Errorf("invalid dependency entry %q in lockfile", key)
+		}
+		for _, child := range dependency.Uses {
+			if !validNativePinKey(child) {
+				return fmt.Errorf("invalid dependency key %q in dependency %s", child, key)
+			}
+		}
+	}
+	return nil
+}
+
+func canonicalizeNativeActionsLockfile(lockfile *nativeActionsLockfile) error {
+	dependencies := make(map[string]nativeDependency, len(lockfile.Dependencies))
+	for key, dependency := range lockfile.Dependencies {
+		canonicalKey, ok := canonicalNativePinKey(key)
+		if !ok {
+			return fmt.Errorf("invalid dependency key %q", key)
+		}
+		for i, child := range dependency.Uses {
+			canonicalChild, ok := canonicalNativePinKey(child)
+			if !ok {
+				return fmt.Errorf("invalid child dependency key %q in %s", child, key)
+			}
+			dependency.Uses[i] = canonicalChild
+		}
+		slices.Sort(dependency.Uses)
+		dependency.Uses = slices.Compact(dependency.Uses)
+		if previous, found := dependencies[canonicalKey]; found && !sameNativeDependency(previous, dependency) {
+			return fmt.Errorf("conflicting dependency entries normalize to %s", canonicalKey)
+		}
+		dependencies[canonicalKey] = dependency
+	}
+	lockfile.Dependencies = dependencies
+	for workflowPath, pins := range lockfile.Workflows {
+		canonicalPins := make([]string, 0, len(pins))
+		seen := make(map[string]struct{}, len(pins))
+		for _, pin := range pins {
+			canonicalPin, ok := canonicalNativePinKey(pin)
+			if !ok {
+				return fmt.Errorf("invalid dependency key %q in workflow %s", pin, workflowPath)
+			}
+			if _, found := seen[canonicalPin]; !found {
+				seen[canonicalPin] = struct{}{}
+				canonicalPins = append(canonicalPins, canonicalPin)
+			}
+		}
+		slices.Sort(canonicalPins)
+		lockfile.Workflows[workflowPath] = canonicalPins
+	}
+	return nil
+}
+
+func sameNativeDependency(a, b nativeDependency) bool {
+	return a.Hostname == b.Hostname && a.Ref == b.Ref && a.Commit == b.Commit &&
+		a.OwnerID == b.OwnerID && a.RepoID == b.RepoID && slices.Equal(a.Uses, b.Uses)
+}
+
+func canonicalNativePinKey(key string) (string, bool) {
+	use, ok := parseNativeDependencyUse(key)
+	if !ok || use.selfRepository || use.actionPath != "" {
+		return "", false
+	}
+	return nativeDependencyKey(use), true
+}
+
+func validNativePinKey(key string) bool {
+	_, ok := canonicalNativePinKey(key)
+	return ok
+}
+
+type nativeDependencyResolver func(context.Context, nativeDependencyUse, string, *nativeDependency) (nativeDependencyResolution, error)
 
 func generateNativeActionsLockfile(ctx context.Context, repoRoot string, compiledLockFiles []string, actionResolver *workflow.ActionResolver) error {
 	repositoryIDs := make(map[string]nativeRepositoryIDs)
 	resolutions := make(map[string]nativeDependencyResolution)
-	resolver := func(ctx context.Context, use nativeDependencyUse, refHint string) (nativeDependencyResolution, error) {
-		cacheKey := strings.Join([]string{nativeDependencyKey(use), use.actionPath, refHint}, "\x00")
+	resolver := func(ctx context.Context, use nativeDependencyUse, refHint string, existing *nativeDependency) (nativeDependencyResolution, error) {
+		existingCommit := ""
+		if existing != nil {
+			existingCommit = existing.Commit
+		}
+		cacheKey := strings.Join([]string{nativeDependencyVisitKey(use), refHint, existingCommit}, "\x00")
+		if existing != nil {
+			cacheKey = strings.Join([]string{nativeDependencyVisitKey(use), existingCommit}, "\x00")
+		}
 		if resolution, ok := resolutions[cacheKey]; ok {
 			return resolution, nil
 		}
-		resolution, err := resolveNativeDependency(ctx, use, refHint, actionResolver, repositoryIDs)
+		resolution, err := resolveNativeDependency(ctx, use, refHint, actionResolver, repositoryIDs, existing)
 		if err == nil {
 			resolutions[cacheKey] = resolution
+			resolutions[strings.Join([]string{nativeDependencyVisitKey(use), resolution.commit}, "\x00")] = resolution
 		}
 		return resolution, err
 	}
@@ -101,31 +214,18 @@ func generateNativeActionsLockfileWithResolver(
 	}
 
 	lockPath := filepath.Join(repoRoot, filepath.FromSlash(nativeActionsLockfilePath))
-	lockfile := nativeActionsLockfile{
-		Version:      "v0.0.3",
-		Workflows:    make(map[string][]string),
-		Dependencies: make(map[string]nativeDependency),
-	}
-	if content, err := os.ReadFile(lockPath); err == nil {
-		if err := yaml.Unmarshal(content, &lockfile); err != nil {
-			return fmt.Errorf("failed to parse existing GitHub Actions lockfile: %w", err)
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to read existing GitHub Actions lockfile: %w", err)
-	}
-	if lockfile.Workflows == nil {
-		lockfile.Workflows = make(map[string][]string)
-	}
-	if lockfile.Dependencies == nil {
-		lockfile.Dependencies = make(map[string]nativeDependency)
+	lockfile, err := readNativeActionsLockfile(lockPath)
+	if err != nil {
+		return err
 	}
 
-	generatedDependencies := make(map[string]nativeDependency)
+	generatedDependencies := make(map[string]nativeDependency, len(lockfile.Dependencies))
+	maps.Copy(generatedDependencies, lockfile.Dependencies)
 	for _, input := range inputs {
 		pins := make(map[string]struct{})
 		visited := make(map[string]struct{})
 		for _, use := range input.uses {
-			if err := collectNativeDependency(ctx, use, input.refHints, resolve, generatedDependencies, pins, visited); err != nil {
+			if _, err := collectNativeDependency(ctx, use, input.refHints, resolve, generatedDependencies, pins, visited); err != nil {
 				return fmt.Errorf("failed to resolve dependencies for %s: %w", input.path, err)
 			}
 		}
@@ -145,6 +245,36 @@ func generateNativeActionsLockfileWithResolver(
 		return err
 	}
 	return nil
+}
+
+func readNativeActionsLockfile(lockPath string) (nativeActionsLockfile, error) {
+	lockfile := nativeActionsLockfile{
+		Version:      "v0.0.3",
+		Workflows:    make(map[string][]string),
+		Dependencies: make(map[string]nativeDependency),
+	}
+	content, err := os.ReadFile(lockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return lockfile, nil
+		}
+		return nativeActionsLockfile{}, fmt.Errorf("failed to read existing GitHub Actions lockfile: %w", err)
+	}
+	if err := unmarshalNativeActionsLockfile(content, &lockfile); err != nil {
+		return nativeActionsLockfile{}, fmt.Errorf("failed to parse existing GitHub Actions lockfile: %w", err)
+	}
+	if err := canonicalizeNativeActionsLockfile(&lockfile); err != nil {
+		return nativeActionsLockfile{}, fmt.Errorf("failed to validate existing GitHub Actions lockfile: %w", err)
+	}
+	if lockfile.Version == "v0.0.2" {
+		for key, dependency := range lockfile.Dependencies {
+			if dependency.Hostname == "" {
+				dependency.Hostname = "github.com"
+				lockfile.Dependencies[key] = dependency
+			}
+		}
+	}
+	return lockfile, nil
 }
 
 func readNativeWorkflowInputs(repoRoot string, compiledLockFiles []string) ([]nativeWorkflowInput, error) {
@@ -170,26 +300,29 @@ func readNativeWorkflowInputs(repoRoot string, compiledLockFiles []string) ([]na
 		if err != nil {
 			return nil, fmt.Errorf("failed to read compiled workflow %s: %w", lockFile, err)
 		}
-		uses, err := parseNativeWorkflowUses(content)
+		uses, localWorkflowPaths, err := parseNativeWorkflowUsesAndLocalCalls(content, "", "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse compiled workflow %s: %w", lockFile, err)
+		}
+		refHints := make(map[string]string)
+		if err := collectLocalNativeWorkflowUses(repoRoot, localWorkflowPaths, make(map[string]struct{}), &uses, refHints); err != nil {
+			return nil, fmt.Errorf("failed to collect local reusable workflows for %s: %w", lockFile, err)
 		}
 		manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(content))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read gh-aw manifest from %s: %w", lockFile, err)
 		}
-		hints := make(map[string]string)
 		if manifest != nil {
 			for _, action := range manifest.Actions {
 				if use, ok := parseNativeDependencyUse(action.Repo + "@" + action.SHA); ok {
-					hints[nativeDependencyKey(use)] = action.Version
+					refHints[nativeDependencyKey(use)] = action.Version
 				}
 			}
 		}
 		inputs = append(inputs, nativeWorkflowInput{
-			path:     strings.TrimSuffix(relative, ".lock.yml") + ".yml",
+			path:     relative,
 			uses:     uses,
-			refHints: hints,
+			refHints: refHints,
 		})
 	}
 	slices.SortFunc(inputs, func(a, b nativeWorkflowInput) int {
@@ -218,25 +351,128 @@ func collectNativeLockFilesForDirectory(workflowsDir string) ([]string, error) {
 }
 
 func parseNativeWorkflowUses(content []byte) ([]nativeDependencyUse, error) {
+	return parseNativeWorkflowUsesWithContext(content, "", "")
+}
+
+func parseNativeWorkflowUsesWithContext(content []byte, repository, commit string) ([]nativeDependencyUse, error) {
+	uses, _, err := parseNativeWorkflowUsesAndLocalCalls(content, repository, commit)
+	return uses, err
+}
+
+func parseNativeWorkflowUsesAndLocalCalls(content []byte, repository, commit string) ([]nativeDependencyUse, []string, error) {
 	ast, parseErrors := actionlint.Parse(content)
 	if ast == nil {
 		if len(parseErrors) > 0 {
-			return nil, fmt.Errorf("failed to parse GitHub Actions workflow: %w", parseErrors[0])
+			return nil, nil, fmt.Errorf("failed to parse GitHub Actions workflow: %w", parseErrors[0])
 		}
-		return nil, errors.New("workflow must be a YAML mapping")
+		return nil, nil, errors.New("workflow must be a YAML mapping")
 	}
+	values, selfUses, localWorkflowPaths, err := collectNativeWorkflowReferences(ast, repository, commit)
+	if err != nil {
+		return nil, nil, err
+	}
+	uses, err := normalizeNativeUses(values)
+	if err != nil {
+		return nil, nil, err
+	}
+	if repository == "" || commit == "" {
+		filtered := uses[:0]
+		for _, use := range uses {
+			if !use.selfRepository {
+				filtered = append(filtered, use)
+			}
+		}
+		uses = filtered
+	}
+	for i := range uses {
+		if uses[i].selfRepository {
+			uses[i].repository = repository
+			uses[i].ref = commit
+		}
+	}
+	uses = append(uses, selfUses...)
+	uses = sortUniqueNativeUses(uses)
+	slices.Sort(localWorkflowPaths)
+	localWorkflowPaths = slices.Compact(localWorkflowPaths)
+	return uses, localWorkflowPaths, nil
+}
+
+func collectNativeWorkflowReferences(ast *actionlint.Workflow, repository, commit string) ([]string, []nativeDependencyUse, []string, error) {
 	var values []string
+	var selfUses []nativeDependencyUse
+	var localWorkflowPaths []string
 	for _, job := range ast.Jobs {
 		if job.WorkflowCall != nil && job.WorkflowCall.Uses != nil {
-			values = append(values, job.WorkflowCall.Uses.Value)
+			value := strings.TrimSpace(job.WorkflowCall.Uses.Value)
+			if strings.HasPrefix(value, "./") {
+				workflowPath, ok := nativeRelativeWorkflowPath(value)
+				if !ok {
+					return nil, nil, nil, fmt.Errorf("unsupported relative reusable workflow reference %q", value)
+				}
+				if repository != "" && commit != "" {
+					selfUses = append(selfUses, nativeDependencyUse{
+						repository:     repository,
+						ref:            commit,
+						actionPath:     workflowPath,
+						selfRepository: true,
+					})
+				} else {
+					localWorkflowPaths = append(localWorkflowPaths, workflowPath)
+				}
+			} else {
+				values = append(values, value)
+			}
 		}
 		for _, step := range job.Steps {
 			if action, ok := step.Exec.(*actionlint.ExecAction); ok && action.Uses != nil {
-				values = append(values, action.Uses.Value)
+				value := strings.TrimSpace(action.Uses.Value)
+				if strings.HasPrefix(value, "./") {
+					return nil, nil, nil, fmt.Errorf("local action reference %q is unsupported in native lockfiles", value)
+				}
+				values = append(values, value)
 			}
 		}
 	}
-	return normalizeNativeUses(values)
+	return values, selfUses, localWorkflowPaths, nil
+}
+
+func collectLocalNativeWorkflowUses(
+	repoRoot string,
+	paths []string,
+	visited map[string]struct{},
+	uses *[]nativeDependencyUse,
+	refHints map[string]string,
+) error {
+	for _, workflowPath := range paths {
+		if _, found := visited[workflowPath]; found {
+			continue
+		}
+		visited[workflowPath] = struct{}{}
+		content, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(workflowPath)))
+		if err != nil {
+			return fmt.Errorf("failed to read local reusable workflow %s: %w", workflowPath, err)
+		}
+		children, childPaths, err := parseNativeWorkflowUsesAndLocalCalls(content, "", "")
+		if err != nil {
+			return fmt.Errorf("failed to parse local reusable workflow %s: %w", workflowPath, err)
+		}
+		*uses = append(*uses, children...)
+		manifest, err := workflow.ExtractGHAWManifestFromLockFile(string(content))
+		if err != nil {
+			return fmt.Errorf("failed to read gh-aw manifest from local reusable workflow %s: %w", workflowPath, err)
+		}
+		if manifest != nil {
+			for _, action := range manifest.Actions {
+				if use, ok := parseNativeDependencyUse(action.Repo + "@" + action.SHA); ok {
+					refHints[nativeDependencyKey(use)] = action.Version
+				}
+			}
+		}
+		if err := collectLocalNativeWorkflowUses(repoRoot, childPaths, visited, uses, refHints); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func parseNativeActionUses(content []byte) ([]nativeDependencyUse, error) {
@@ -266,7 +502,17 @@ func parseNativeActionUses(content []byte) ([]nativeDependencyUse, error) {
 			values = append(values, uses.Value)
 		}
 	}
-	return normalizeNativeUses(values)
+	uses, err := normalizeNativeUses(values)
+	if err != nil {
+		return nil, err
+	}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if strings.HasPrefix(value, "./") {
+			return nil, fmt.Errorf("local action reference %q is unsupported in native lockfiles", value)
+		}
+	}
+	return uses, nil
 }
 
 func nativeYAMLMapValue(node *yaml.Node, key string) *yaml.Node {
@@ -299,24 +545,30 @@ func normalizeNativeUses(values []string) ([]nativeDependencyUse, error) {
 	uses := make([]nativeDependencyUse, 0, len(values))
 	for _, value := range values {
 		value = strings.TrimSpace(value)
-		if value == "" || strings.HasPrefix(value, "./") || strings.HasPrefix(value, "docker://") {
+		if value == "" || strings.HasPrefix(value, "docker://") {
 			continue
 		}
 		use, ok := parseNativeDependencyUse(value)
 		if !ok {
 			return nil, fmt.Errorf("unsupported GitHub dependency reference %q", value)
 		}
-		key := nativeDependencyKey(use)
+		key := nativeDependencyVisitKey(use)
 		if _, found := seen[key]; found {
 			continue
 		}
 		seen[key] = struct{}{}
 		uses = append(uses, use)
 	}
+	return sortUniqueNativeUses(uses), nil
+}
+
+func sortUniqueNativeUses(uses []nativeDependencyUse) []nativeDependencyUse {
 	slices.SortFunc(uses, func(a, b nativeDependencyUse) int {
-		return strings.Compare(nativeDependencyKey(a), nativeDependencyKey(b))
+		return strings.Compare(nativeDependencyVisitKey(a), nativeDependencyVisitKey(b))
 	})
-	return uses, nil
+	return slices.CompactFunc(uses, func(a, b nativeDependencyUse) bool {
+		return nativeDependencyVisitKey(a) == nativeDependencyVisitKey(b)
+	})
 }
 
 func parseNativeDependencyUse(value string) (nativeDependencyUse, bool) {
@@ -324,7 +576,24 @@ func parseNativeDependencyUse(value string) (nativeDependencyUse, bool) {
 	if value == "" || strings.HasPrefix(value, "./") || strings.HasPrefix(value, "docker://") {
 		return nativeDependencyUse{}, false
 	}
-	at := strings.LastIndexByte(value, '@')
+	if rawPath, selfRepository := strings.CutPrefix(value, "$/"); selfRepository {
+		for part := range strings.SplitSeq(rawPath, "/") {
+			if !validNativeRepositoryPart(part) {
+				return nativeDependencyUse{}, false
+			}
+		}
+		actionPath := path.Clean(rawPath)
+		if actionPath == "" || strings.HasPrefix(actionPath, "../") || actionPath == ".." {
+			return nativeDependencyUse{}, false
+		}
+		for part := range strings.SplitSeq(actionPath, "/") {
+			if !validNativeRepositoryPart(part) {
+				return nativeDependencyUse{}, false
+			}
+		}
+		return nativeDependencyUse{actionPath: actionPath, selfRepository: true}, true
+	}
+	at := strings.IndexByte(value, '@')
 	if at <= 0 || at == len(value)-1 {
 		return nativeDependencyUse{}, false
 	}
@@ -348,10 +617,28 @@ func parseNativeDependencyUse(value string) (nativeDependencyUse, bool) {
 		return nativeDependencyUse{}, false
 	}
 	return nativeDependencyUse{
-		repository: path.Join(owner, repository),
+		repository: strings.ToLower(path.Join(owner, repository)),
 		ref:        ref,
 		actionPath: actionPath,
 	}, true
+}
+
+func nativeRelativeWorkflowPath(value string) (string, bool) {
+	if !strings.HasPrefix(value, "./") {
+		return "", false
+	}
+	relativePath := strings.TrimPrefix(value, "./")
+	for part := range strings.SplitSeq(relativePath, "/") {
+		if !validNativeRepositoryPart(part) {
+			return "", false
+		}
+	}
+	cleanPath := path.Clean(relativePath)
+	if !strings.HasPrefix(cleanPath, logsWorkflowsPathSegment) ||
+		(!strings.HasSuffix(cleanPath, ".yml") && !strings.HasSuffix(cleanPath, ".yaml")) {
+		return "", false
+	}
+	return cleanPath, true
 }
 
 func validNativeRef(ref string) bool {
@@ -387,7 +674,11 @@ func validNativeRepositoryPart(part string) bool {
 }
 
 func nativeDependencyKey(use nativeDependencyUse) string {
-	return use.repository + "@" + use.ref
+	return strings.ToLower(use.repository) + "@" + use.ref
+}
+
+func nativeDependencyVisitKey(use nativeDependencyUse) string {
+	return strings.Join([]string{nativeDependencyKey(use), use.actionPath, strconv.FormatBool(use.selfRepository)}, "\x00")
 }
 
 func collectNativeDependency(
@@ -398,41 +689,112 @@ func collectNativeDependency(
 	dependencies map[string]nativeDependency,
 	pins map[string]struct{},
 	visited map[string]struct{},
-) error {
+) ([]string, error) {
 	key := nativeDependencyKey(use)
-	pins[key] = struct{}{}
-	visitKey := strings.Join([]string{key, use.actionPath}, "\x00")
+	if !use.selfRepository {
+		pins[key] = struct{}{}
+	}
+	visitKey := nativeDependencyVisitKey(use)
 	if _, ok := visited[visitKey]; ok {
-		return nil
+		return nil, nil
 	}
 	visited[visitKey] = struct{}{}
+	defer delete(visited, visitKey)
 
-	resolution, err := resolve(ctx, use, refHints[key])
+	var existing *nativeDependency
+	if dependency, ok := dependencies[key]; ok && !use.selfRepository {
+		existing = &dependency
+	}
+	resolution, err := resolve(ctx, use, refHints[key], existing)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if use.selfRepository {
+		return collectNativeSelfDependencies(ctx, resolution.uses, refHints, resolve, dependencies, pins, visited)
 	}
 	dependency := dependencies[key]
 	if dependency.Commit != "" && (dependency.Commit != resolution.commit || dependency.RepoID != resolution.repoID) {
-		return fmt.Errorf("conflicting resolutions for %s", key)
+		return nil, fmt.Errorf("conflicting resolutions for %s", key)
 	}
+	dependency.Hostname = resolution.hostname
 	dependency.Ref = resolution.ref
 	dependency.Commit = resolution.commit
 	dependency.OwnerID = resolution.ownerID
 	dependency.RepoID = resolution.repoID
-	childPins := make(map[string]struct{}, len(dependency.Uses)+len(resolution.uses))
-	for _, child := range dependency.Uses {
-		childPins[child] = struct{}{}
+	dependencies[key] = dependency
+	childPins, err := collectNativeDependencyChildren(ctx, key, resolution.uses, refHints, resolve, dependencies, pins, visited)
+	if err != nil {
+		return nil, err
 	}
-	for _, child := range resolution.uses {
-		childKey := nativeDependencyKey(child)
-		childPins[childKey] = struct{}{}
-		if err := collectNativeDependency(ctx, child, refHints, resolve, dependencies, pins, visited); err != nil {
-			return err
-		}
-	}
+	dependency = dependencies[key]
 	dependency.Uses = sortedNativeKeys(childPins)
 	dependencies[key] = dependency
-	return nil
+	return []string{key}, nil
+}
+
+func collectNativeSelfDependencies(
+	ctx context.Context,
+	children []nativeDependencyUse,
+	refHints map[string]string,
+	resolve nativeDependencyResolver,
+	dependencies map[string]nativeDependency,
+	pins map[string]struct{},
+	visited map[string]struct{},
+) ([]string, error) {
+	childPins := make(map[string]struct{})
+	for _, child := range children {
+		childKeys, err := collectNativeDependency(ctx, child, refHints, resolve, dependencies, pins, visited)
+		if err != nil {
+			return nil, err
+		}
+		for _, childKey := range childKeys {
+			childPins[childKey] = struct{}{}
+		}
+	}
+	return sortedNativeKeys(childPins), nil
+}
+
+func collectNativeDependencyChildren(
+	ctx context.Context,
+	key string,
+	children []nativeDependencyUse,
+	refHints map[string]string,
+	resolve nativeDependencyResolver,
+	dependencies map[string]nativeDependency,
+	pins map[string]struct{},
+	visited map[string]struct{},
+) (map[string]struct{}, error) {
+	childPins := make(map[string]struct{}, len(children)+len(dependencies[key].Uses))
+	for _, childKey := range dependencies[key].Uses {
+		childPins[childKey] = struct{}{}
+	}
+	for _, child := range children {
+		childKey := nativeDependencyKey(child)
+		if child.selfRepository {
+			childKeys, err := collectNativeDependency(ctx, child, refHints, resolve, dependencies, pins, visited)
+			if err != nil {
+				return nil, err
+			}
+			for _, key := range childKeys {
+				childPins[key] = struct{}{}
+			}
+		} else {
+			childKeys, err := collectNativeDependency(ctx, child, refHints, resolve, dependencies, pins, visited)
+			if err != nil {
+				return nil, err
+			}
+			if childKey != key && slices.Contains(childKeys, childKey) {
+				childPins[childKey] = struct{}{}
+			}
+		}
+	}
+	for _, childKey := range dependencies[key].Uses {
+		if childKey != key {
+			childPins[childKey] = struct{}{}
+		}
+	}
+	delete(childPins, key)
+	return childPins, nil
 }
 
 func sortedNativeKeys(values map[string]struct{}) []string {
@@ -519,31 +881,87 @@ func resolveNativeDependency(
 	refHint string,
 	actionResolver *workflow.ActionResolver,
 	repositoryIDs map[string]nativeRepositoryIDs,
+	existing *nativeDependency,
 ) (nativeDependencyResolution, error) {
+	commit, repoIDs, hostname, resolvedRef, err := resolveNativeDependencyPin(ctx, use, refHint, actionResolver, repositoryIDs, existing)
+	if err != nil {
+		return nativeDependencyResolution{}, err
+	}
+	_, children, err := readNativeDependencyUses(ctx, use, commit)
+	if err != nil {
+		return nativeDependencyResolution{}, err
+	}
+	return nativeDependencyResolution{
+		hostname: hostname,
+		ref:      resolvedRef,
+		commit:   "sha1-" + strings.ToLower(commit),
+		ownerID:  repoIDs.ownerID,
+		repoID:   repoIDs.repoID,
+		uses:     children,
+	}, nil
+}
+
+func resolveNativeDependencyPin(
+	ctx context.Context,
+	use nativeDependencyUse,
+	refHint string,
+	actionResolver *workflow.ActionResolver,
+	repositoryIDs map[string]nativeRepositoryIDs,
+	existing *nativeDependency,
+) (string, nativeRepositoryIDs, string, string, error) {
 	commit := use.ref
+	repoIDs := nativeRepositoryIDs{}
+	hostname := "github.com"
+	resolvedRef := use.ref
+	if use.selfRepository {
+		commit = strings.TrimPrefix(commit, "sha1-")
+		if !fullCommitSHA.MatchString(commit) || use.repository == "" || use.actionPath == "" {
+			return "", repoIDs, "", "", fmt.Errorf("invalid self-repository reference %q", use.actionPath)
+		}
+		return commit, repoIDs, hostname, resolvedRef, nil
+	}
+	if existing != nil {
+		commit = strings.TrimPrefix(existing.Commit, "sha1-")
+		repoIDs = nativeRepositoryIDs{ownerID: existing.OwnerID, repoID: existing.RepoID}
+		hostname = existing.Hostname
+		resolvedRef = existing.Ref
+		if !fullCommitSHA.MatchString(commit) || repoIDs.ownerID <= 0 || repoIDs.repoID <= 0 {
+			return "", repoIDs, "", "", fmt.Errorf("invalid existing resolution for %s", nativeDependencyKey(use))
+		}
+		return commit, repoIDs, hostname, resolvedRef, nil
+	}
 	if !fullCommitSHA.MatchString(commit) {
 		if actionResolver == nil {
-			return nativeDependencyResolution{}, fmt.Errorf("no action resolver is available for %s", nativeDependencyKey(use))
+			return "", repoIDs, "", "", fmt.Errorf("no action resolver is available for %s", nativeDependencyKey(use))
 		}
 		resolvedCommit, err := actionResolver.ResolveSHA(ctx, use.repository, use.ref)
 		if err != nil {
-			return nativeDependencyResolution{}, fmt.Errorf("failed to resolve %s: %w", nativeDependencyKey(use), err)
+			return "", repoIDs, "", "", fmt.Errorf("failed to resolve %s: %w", nativeDependencyKey(use), err)
 		}
 		commit = resolvedCommit
 	}
 	if !fullCommitSHA.MatchString(commit) {
-		return nativeDependencyResolution{}, fmt.Errorf("resolved %s to an invalid commit SHA", nativeDependencyKey(use))
+		return "", repoIDs, "", "", fmt.Errorf("resolved %s to an invalid commit SHA", nativeDependencyKey(use))
 	}
-
-	repoIDs, ok := repositoryIDs[use.repository]
+	var ok bool
+	repoIDs, ok = repositoryIDs[use.repository]
 	if !ok {
 		var err error
 		repoIDs, err = getNativeRepositoryIDs(ctx, use.repository)
 		if err != nil {
-			return nativeDependencyResolution{}, err
+			return "", repoIDs, "", "", err
 		}
 		repositoryIDs[use.repository] = repoIDs
 	}
+	if actionResolver != nil {
+		if validatedHint := validateNativeRefHint(ctx, use.repository, refHint, use.ref, commit, actionResolver.ResolveSHA); validatedHint != "" {
+			resolvedRef = validatedHint
+		}
+	}
+	return commit, repoIDs, hostname, resolvedRef, nil
+}
+
+func readNativeDependencyUses(ctx context.Context, use nativeDependencyUse, commit string) (string, []nativeDependencyUse, error) {
 	sourcePath := use.actionPath
 	isReusableWorkflow := strings.HasPrefix(sourcePath, logsWorkflowsPathSegment)
 	if sourcePath == "" {
@@ -556,28 +974,33 @@ func resolveNativeDependency(
 		content, err = getNativeDependencyFile(ctx, use.repository, strings.TrimSuffix(sourcePath, ".yml")+".yaml", commit)
 	}
 	if err != nil {
-		return nativeDependencyResolution{}, err
+		return sourcePath, nil, err
 	}
 	var children []nativeDependencyUse
 	if isReusableWorkflow {
-		children, err = parseNativeWorkflowUses(content)
+		children, err = parseNativeWorkflowUsesWithContext(content, use.repository, commit)
 	} else {
 		children, err = parseNativeActionUses(content)
 	}
 	if err != nil {
-		return nativeDependencyResolution{}, fmt.Errorf("failed to parse %s at %s: %w", sourcePath, nativeDependencyKey(use), err)
+		return sourcePath, nil, fmt.Errorf("failed to parse %s at %s: %w", sourcePath, nativeDependencyKey(use), err)
 	}
-	resolvedRef := use.ref
-	if refHint != "" {
-		resolvedRef = refHint
+	return sourcePath, children, nil
+}
+
+func validateNativeRefHint(
+	ctx context.Context,
+	repository, hint, sourceRef, commit string,
+	resolveSHA func(context.Context, string, string) (string, error),
+) string {
+	if hint == "" || hint == sourceRef || !validNativeRef(hint) || resolveSHA == nil {
+		return ""
 	}
-	return nativeDependencyResolution{
-		ref:     resolvedRef,
-		commit:  "sha1-" + strings.ToLower(commit),
-		ownerID: repoIDs.ownerID,
-		repoID:  repoIDs.repoID,
-		uses:    children,
-	}, nil
+	hintedCommit, err := resolveSHA(ctx, repository, hint)
+	if err != nil || !strings.EqualFold(hintedCommit, commit) {
+		return ""
+	}
+	return hint
 }
 
 type nativeRepositoryIDs struct {
