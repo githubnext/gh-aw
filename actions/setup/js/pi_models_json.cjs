@@ -519,7 +519,8 @@ async function main(options = {}) {
     const runtime = await sdk.ModelRuntime.create({ modelsPath: null });
     // Sub-agent aliases resolve against the live /reflect catalogue only (never Pi's static
     // model list); an incomplete catalogue is refetched once before failing.
-    const prepare = (/** @type {any} */ data) => preparePiSubagents({ agentDir, sdk, provider: nativeProvider, reflectData: data, gateway: true, parentModel: `${nativeProvider}/${modelId}`, logger });
+    const parentModel = `${nativeProvider}/${modelId}`;
+    const prepare = (/** @type {any} */ data) => preparePiSubagents({ agentDir, sdk, provider: nativeProvider, reflectData: data, gateway: true, parentModel, logger });
     let agents;
     try {
       agents = prepare(reflectData);
@@ -540,9 +541,12 @@ async function main(options = {}) {
       } catch (error) {
         if (error instanceof ModelAliasResolutionError) {
           // Replace the earlier "exact"/"resolved" record for every role sharing the unavailable model.
+          // configured_model mirrors pi_subagent_config.cjs (declaredModel || parentModel). The parentModel
+          // fallback is unreachable in practice: a role without its own model shares the main model, which
+          // is validated first and skipped via `seen`.
           for (const failed of agents) {
             if (failed.modelId !== agent.modelId) continue;
-            recordModelResolution({ engine: "pi", role: failed.name, configured_model: failed.declaredModel || `${nativeProvider}/${modelId}`, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason });
+            recordModelResolution({ engine: "pi", role: failed.name, configured_model: failed.declaredModel || parentModel, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason });
           }
         }
         throw error;
