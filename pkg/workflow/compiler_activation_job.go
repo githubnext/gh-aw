@@ -45,6 +45,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		ctx.steps = append(ctx.steps, buildPolicyStrictEnforcementStep()...)
 	}
 
+	c.addActivationAdmissionStep(ctx)
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
 		return nil, fmt.Errorf("failed to add activation feedback and validation steps: %w", err)
 	}
@@ -361,7 +362,7 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 	var step strings.Builder
 	step.WriteString("      - name: Resolve host repo for activation checkout\n")
 	step.WriteString("        id: resolve-host-repo\n")
-	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data))
+	fmt.Fprintf(&step, "        uses: %s\n", getCachedActionPin("actions/github-script", data)) //nolint:fprintferrorunchecked // strings.Builder writes cannot fail.
 	step.WriteString("        env:\n")
 	step.WriteString("          JOB_WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}\n")
 	step.WriteString("          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}\n")

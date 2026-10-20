@@ -48,6 +48,12 @@ gh aw compile --ghes my-workflow.md
 
 For `gh` CLI configuration, host authentication, and `GH_HOST` setup on GHES, see [GitHub Enterprise Server Support](/gh-aw/setup/cli/#github-enterprise-server-support) in the CLI reference.
 
+## Centralized Activation Admission
+
+Configure an OIDC-authenticated admission authority using organization or repository Actions variables: `GH_AW_DEFAULT_ADMISSION_URL`, `GH_AW_DEFAULT_ADMISSION_AUDIENCE`, and `GH_AW_DEFAULT_ADMISSION_ON_OUTAGE`. The endpoint automatically enables admission; an empty endpoint disables it. For enterprise-wide rollout, provision organization variables in each enrolled organization. Deployments must explicitly configure their issuer, accepted claims, and trusted workflow identities on the authority.
+
+Approved admission supersedes daily-AIC validation; its primary and optional component policy allowances stay within activation and do not alter runtime budgets or downstream jobs. Disabled admission and ignored transient outages retain daily validation as fallback. The default outage policy is `ignore`; select and protect `block` when availability must not bypass admission. Variables remain cooperative defaults, not mandatory organization policy. See [enterprise environment controls](/gh-aw/reference/compiler-enterprise-environment-controls/) and the [admission service specification](/gh-aw/specs/admission-service-specification/).
+
 ## Copilot Engine on GHES
 
 For Copilot-specific prerequisites, licensing requirements, and firewall configuration on GHES, see [Copilot Engine Prerequisites on GHES](/gh-aw/troubleshooting/common-issues/#copilot-engine-prerequisites-on-ghes).

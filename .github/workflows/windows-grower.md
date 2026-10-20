@@ -36,6 +36,7 @@ jobs:
       contents: read
       copilot-requests: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/windows.lock.yml

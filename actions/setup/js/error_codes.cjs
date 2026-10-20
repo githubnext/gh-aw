@@ -42,6 +42,9 @@ const ERR_PARSE = "ERR_PARSE";
 /** @type {string} System and I/O errors */
 const ERR_SYSTEM = "ERR_SYSTEM";
 
+/** @type {string} Admission failures (diagnostics must not expose remote details) */
+const ERR_ADMISSION = "ERR_ADMISSION";
+
 /** @type {string} Safe output validation/input errors (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E001 = "E001";
 
@@ -82,6 +85,7 @@ module.exports = {
   ERR_NOT_FOUND,
   ERR_PARSE,
   ERR_SYSTEM,
+  ERR_ADMISSION,
   SAFE_OUTPUT_E001,
   SAFE_OUTPUT_E002,
   SAFE_OUTPUT_E007,
