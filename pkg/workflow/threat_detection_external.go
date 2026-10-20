@@ -135,9 +135,10 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		ContainerPinMappings: maps.Clone(data.ContainerPinMappings),
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				Type:   SandboxTypeAWF,
-				Images: maps.Clone(getSandboxAgentImages(data)),
-				CACert: resolveThreatDetectionCACert(data, engineID),
+				Type:            SandboxTypeAWF,
+				ChecksumsSHA256: getAWFChecksumsSHA256(data),
+				Images:          maps.Clone(getSandboxAgentImages(data)),
+				CACert:          resolveThreatDetectionCACert(data, engineID),
 			},
 		},
 	}
@@ -170,6 +171,13 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 	}
 
 	return detectionData
+}
+
+func getAWFChecksumsSHA256(data *WorkflowData) string {
+	if agent := getAgentConfig(data); agent != nil {
+		return agent.ChecksumsSHA256
+	}
+	return ""
 }
 
 // resolveThreatDetectionCACert prefers an explicit detection CA path, honors

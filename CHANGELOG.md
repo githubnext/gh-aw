@@ -7,13 +7,17 @@ All notable changes to this project will be documented in this file.
 ### Breaking changes
 
 AWF and downloaded Copilot CLI releases now require a reviewed checksum-manifest
-digest bundled in the trusted setup action. Unreviewed custom versions and
-`latest` downloads fail closed instead of trusting a checksum from the same
-HTTPS origin. Use a reviewed pinned release (AWF v0.28.62 or Copilot CLI
-v1.0.98; the legacy Copilot v1.0.21 manifest remains available), or add the
-release-bound digest to `actions/setup/sh/release_integrity.sh` through a trusted
-setup-action release. Update/recompile workflows to consume that action.
-Trusted runner toolcache selection is unchanged. Go release builds require
+digest bundled in the trusted setup action or supplied as literal
+`sandbox.agent.checksums-sha256` (AWF) / `engine.checksums-sha256` (Copilot)
+frontmatter alongside an explicit release version. These values pin
+`checksums.txt` / `SHA256SUMS.txt`, not individual executables. Unreviewed
+downloads without a supplied pin and `latest` downloads fail closed instead of
+trusting a checksum from the same HTTPS origin. Built-in pins cover AWF v0.28.62,
+Copilot CLI v1.0.98, and the legacy Copilot v1.0.21 manifest. Obtain other
+manifest digests through an independently trusted channel and update/recompile
+workflows to consume the new setup action. Explicit Copilot pins bypass
+toolcache selection; without a supplied pin, trusted toolcache behavior is
+unchanged. Go release builds require
 1.26.10, 1.27.3, or a newer supported stable toolchain.
 
 Logs episode rollups now require a recorded nonempty `context.episode_id`.

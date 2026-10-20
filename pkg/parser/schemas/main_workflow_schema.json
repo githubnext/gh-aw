@@ -4189,6 +4189,11 @@
                       "type": "string",
                       "description": "AWF version override used to install and run the matching firewall version."
                     },
+                    "checksums-sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "Literal SHA256 digest of the AWF release's checksums.txt manifest. Requires an explicit semantic release version. Overrides the trusted setup action's built-in manifest pin; obtain the digest through an independently trusted channel."
+                    },
                     "platform": {
                       "type": "string",
                       "enum": ["github.com", "ghes", "ghec", "ghec-self-hosted"],
@@ -15578,6 +15583,11 @@
               "type": ["string", "number"],
               "description": "Optional version of the AI engine action (e.g., 'beta', 'stable', 20). Has sensible defaults and can typically be omitted. Numeric values are automatically converted to strings at runtime. GitHub Actions expressions (e.g., '${{ inputs.engine-version }}') are accepted and compiled with injection-safe env var handling.",
               "examples": ["beta", "stable", 20, 3.11, "${{ inputs.engine-version }}"]
+            },
+            "checksums-sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Copilot CLI only: literal SHA256 digest of the release's SHA256SUMS.txt manifest. Requires an explicit semantic release version and bypasses the runner toolcache so the downloaded archives are verified. Overrides the trusted setup action's built-in manifest pin."
             },
             "model": {
               "type": "string",

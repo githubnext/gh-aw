@@ -2,7 +2,7 @@
 set +o histexpand
 
 # Install GitHub Copilot CLI with SHA256 checksum verification
-# Usage: install_copilot_cli.sh [VERSION] [--rootless]
+# Usage: install_copilot_cli.sh [VERSION] [--checksums-sha256 DIGEST] [--rootless]
 #
 # This script downloads and installs the GitHub Copilot CLI directly from GitHub
 # releases with SHA256 checksum verification, following the secure pattern from
@@ -15,6 +15,8 @@ set +o histexpand
 #   --rootless - Install to ~/.local/bin without sudo; appends that directory to
 #                $GITHUB_PATH so subsequent steps find the binary.  Use this on
 #                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
+#   --checksums-sha256 - Independently trusted SHA256SUMS.txt digest for VERSION.
+#                       Requires a literal release version and bypasses toolcache.
 #
 # Environment overrides (testing):
 #   COPILOT_INSTALL_DIR - Override the install directory (default: /usr/local/bin).
@@ -50,20 +52,44 @@ COMPAT_MATCHED_MIN_AGENT=""
 COMPAT_MATCHED_MAX_AGENT=""
 COMPAT_CACHE_TTL_DAYS=""
 
-# Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
 VERSION=""
 ROOTLESS=false
-for arg in "$@"; do
-  case "$arg" in
-    --rootless) ROOTLESS=true ;;
-    --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
+COPILOT_CHECKSUMS_SHA256=""
+SEEN_CHECKSUMS_SHA256=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --rootless) ROOTLESS=true; shift ;;
+    --checksums-sha256)
+      if [ "$SEEN_CHECKSUMS_SHA256" = true ] || [ "$#" -lt 2 ]; then
+        echo "ERROR: --checksums-sha256 requires exactly one digest" >&2
+        exit 1
+      fi
+      COPILOT_CHECKSUMS_SHA256="$2"
+      SEEN_CHECKSUMS_SHA256=true
+      shift 2
+      ;;
+    --*) echo "ERROR: Unknown Copilot installer flag: $1" >&2; exit 1 ;;
     *)
       if [ -z "$VERSION" ]; then
-        VERSION="$arg"
+        VERSION="$1"
+      else
+        echo "ERROR: Unexpected Copilot installer argument: $1" >&2
+        exit 1
       fi
+      shift
       ;;
   esac
 done
+if [ "$SEEN_CHECKSUMS_SHA256" = true ]; then
+  if [[ ! "$COPILOT_CHECKSUMS_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "ERROR: --checksums-sha256 requires 64 lowercase hexadecimal characters" >&2
+    exit 1
+  fi
+  if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "ERROR: --checksums-sha256 requires an explicit semantic release version, for example 1.0.98" >&2
+    exit 1
+  fi
+fi
 
 OS="$(uname -s)"
 IS_WINDOWS=false
@@ -643,7 +669,7 @@ stage_musl_guest_copilot() {
 
   guest_tarball="copilot-linuxmusl-${ARCH_NAME}.tar.gz"
   guest_archive="${TEMP_DIR}/${guest_tarball}"
-  manifest_digest="$(release_artifact_sha256 "$COPILOT_REPO" "$version" SHA256SUMS.txt)" || return 1
+  manifest_digest="$(release_artifact_sha256 "$COPILOT_REPO" "$version" SHA256SUMS.txt "$COPILOT_CHECKSUMS_SHA256")" || return 1
   echo "Staging checksum-verified ${guest_tarball} for the musl NVX guest..."
   curl --proto '=https' --proto-redir '=https' -fsSL --retry 5 --retry-delay 2 --retry-max-time 60 --retry-all-errors -o "$checksums_file" "${base_url}/SHA256SUMS.txt"
   verify_release_digest "$checksums_file" "$manifest_digest" || return 1
@@ -702,8 +728,12 @@ else
   echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
 fi
 
-# Prefer the runner toolcache when a compatible Copilot CLI is already available.
-if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then
+# A supplied manifest pin authenticates downloads, not a runner's existing cache.
+if [ -n "$COPILOT_CHECKSUMS_SHA256" ]; then
+  echo "Explicit checksum-manifest pin supplied; downloading verified archives instead of using toolcache."
+fi
+if [ -z "$COPILOT_CHECKSUMS_SHA256" ] &&
+  CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then
   echo "Using cached GitHub Copilot CLI from ${CACHED_COPILOT_BIN}"
   activate_cached_copilot_bin "$CACHED_COPILOT_BIN"
 
@@ -744,7 +774,7 @@ fi
 
 TARBALL_URL="${BASE_URL}/${TARBALL_NAME}"
 CHECKSUMS_URL="${BASE_URL}/SHA256SUMS.txt"
-CHECKSUMS_SHA256="$(release_artifact_sha256 "$COPILOT_REPO" "$VERSION" SHA256SUMS.txt)"
+CHECKSUMS_SHA256="$(release_artifact_sha256 "$COPILOT_REPO" "$VERSION" SHA256SUMS.txt "$COPILOT_CHECKSUMS_SHA256")"
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
@@ -819,11 +849,11 @@ if [ "$ROOTLESS" = "true" ]; then
     echo "ERROR: Copilot CLI installation failed - binary not found at ${INSTALL_DIR}/copilot"
     exit 1
   fi
-elif command -v copilot >/dev/null 2>&1; then
-  copilot --version
+elif [ -x "${INSTALL_DIR}/copilot" ]; then
+  "${INSTALL_DIR}/copilot" --version
   stage_musl_guest_copilot "$VERSION"
   echo "✓ Copilot CLI installation complete"
 else
-  echo "ERROR: Copilot CLI installation failed - command not found"
+  echo "ERROR: Copilot CLI installation failed - executable not found at ${INSTALL_DIR}/copilot"
   exit 1
 fi

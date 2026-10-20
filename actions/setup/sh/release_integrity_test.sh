@@ -21,8 +21,9 @@ manifest_digest="$(shasum -a 256 "$TEMP_DIR/checksums.txt" | awk '{print $1}')"
 cp "$TEMP_DIR/payload" "$TEMP_DIR/copilot-fixture/copilot"
 chmod +x "$TEMP_DIR/copilot-fixture/copilot"
 tar -czf "$TEMP_DIR/copilot-linux-x64.tar.gz" -C "$TEMP_DIR/copilot-fixture" copilot
+cp "$TEMP_DIR/copilot-linux-x64.tar.gz" "$TEMP_DIR/copilot-linuxmusl-x64.tar.gz"
 archive_digest="$(shasum -a 256 "$TEMP_DIR/copilot-linux-x64.tar.gz" | awk '{print $1}')"
-printf '%s  copilot-linux-x64.tar.gz\n' "$archive_digest" >"$TEMP_DIR/SHA256SUMS.txt"
+printf '%s  copilot-linux-x64.tar.gz\n%s  copilot-linuxmusl-x64.tar.gz\n' "$archive_digest" "$archive_digest" >"$TEMP_DIR/SHA256SUMS.txt"
 copilot_digest="$(shasum -a 256 "$TEMP_DIR/SHA256SUMS.txt" | awk '{print $1}')"
 # Test pins live only beside copies of the real installers, never in production inputs.
 sed -e "s/0b03f6ea5b638356a799fa541ade4fd7902a6ac8d7c3f0252ee09d8259a4ce8f/$manifest_digest/" \
@@ -59,6 +60,7 @@ case "$url" in
   */SHA256SUMS.txt) cp "$TEST_ROOT/SHA256SUMS.txt" "$out" ;;
   */awf-bundle.js|*/awf-linux-*|*/awf-darwin-*) cp "$TEST_ROOT/payload" "$out" ;;
   */copilot-linux-x64.tar.gz) cp "$TEST_ROOT/copilot-linux-x64.tar.gz" "$out" ;;
+  */copilot-linuxmusl-x64.tar.gz) cp "$TEST_ROOT/copilot-linuxmusl-x64.tar.gz" "$out" ;;
   *) echo "unexpected download: $url" >&2; exit 97 ;;
 esac
 EOF
@@ -70,9 +72,12 @@ cat >"$TEMP_DIR/bin/uname" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in -s) echo "${AWF_TEST_OS:-Linux}" ;; -m) echo "${AWF_TEST_ARCH:-x86_64}" ;; esac
 EOF
-for command in sudo find; do
-  printf '#!/usr/bin/env bash\nexit 0\n' >"$TEMP_DIR/bin/$command"
-done
+printf '#!/usr/bin/env bash\nexit 0\n' >"$TEMP_DIR/bin/sudo"
+cat >"$TEMP_DIR/bin/find" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = /tmp ]; then exit 0; fi
+exec /usr/bin/find "$@"
+EOF
 chmod +x "$TEMP_DIR/bin/"*
 
 run_awf() {
@@ -83,6 +88,7 @@ run_awf() {
 run_copilot() {
   env TEST_ROOT="$TEMP_DIR" EXECUTION_LOG="$TEMP_DIR/executions" HOME="$TEMP_DIR/home" \
     GITHUB_PATH="$TEMP_DIR/github-path" RUNNER_TOOL_CACHE="$TEMP_DIR/empty-cache" \
+    GH_AW_COPILOT_GUEST_LIBC="${PIN_TEST_GUEST_LIBC:-}" RUNNER_TEMP="$TEMP_DIR/runner" \
     GH_AW_COMPILED_VERSION="" PATH="$TEMP_DIR/bin:$PATH" \
     bash "$TEMP_DIR/scripts/install_copilot_cli.sh" "$@" >"$TEMP_DIR/output" 2>&1
 }
@@ -102,6 +108,53 @@ for platform in Linux Darwin; do
   done
 done
 echo "PASS: authenticated AWF fallback binaries cover Linux/macOS x64/arm64"
+
+run_awf v9.9.9 --checksums-sha256 "$manifest_digest" --rootless
+grep -q '/v9.9.9/awf-bundle.js' "$TEMP_DIR/curl.log"
+echo "PASS: frontmatter-style AWF pin enables a different version"
+
+cache_bin="$TEMP_DIR/empty-cache/copilot-cli/9.9.9/x64/bin"
+mkdir -p "$cache_bin"
+printf '#!/usr/bin/env bash\necho CACHED_EXECUTED >>"$EXECUTION_LOG"\n' >"$cache_bin/copilot"
+chmod +x "$cache_bin/copilot"
+rm -f "$TEMP_DIR/curl.log" "$TEMP_DIR/executions"
+PIN_TEST_GUEST_LIBC=musl run_copilot 9.9.9 --rootless --checksums-sha256 "$copilot_digest"
+grep -q '/v9.9.9/copilot-linux-x64.tar.gz' "$TEMP_DIR/curl.log"
+grep -q '/v9.9.9/copilot-linuxmusl-x64.tar.gz' "$TEMP_DIR/curl.log"
+test -x "$TEMP_DIR/runner/gh-aw/nvx-engine/copilot"
+if grep -q CACHED_EXECUTED "$TEMP_DIR/executions"; then
+  echo "FAIL: explicit pin was bypassed by an unverified cache hit" >&2; exit 1
+fi
+rm -f "$cache_bin/copilot" "$TEMP_DIR/home/.local/bin/copilot"
+echo "PASS: explicit Copilot pin verifies both host/musl archives and bypasses toolcache"
+
+rm -f "$TEMP_DIR/curl.log" "$TEMP_DIR/executions"
+for bad_pin in "" abc "${copilot_digest^^}" '${{ inputs.pin }}'; do
+  if run_awf v9.9.9 --checksums-sha256 "$bad_pin" --rootless ||
+    run_copilot 9.9.9 --checksums-sha256 "$bad_pin" --rootless; then
+    echo "FAIL: malformed explicit digest accepted" >&2; exit 1
+  fi
+  test ! -e "$TEMP_DIR/curl.log"
+done
+if run_awf v9.9.9 --checksums-sha256 ||
+  run_copilot 9.9.9 --checksums-sha256 ||
+  run_awf v9.9.9 --checksums-sha256 "$manifest_digest" --checksums-sha256 "$manifest_digest" ||
+  run_copilot 9.9.9 --checksums-sha256 "$copilot_digest" --checksums-sha256 "$copilot_digest" ||
+  run_awf latest --checksums-sha256 "$manifest_digest" ||
+  run_copilot latest --checksums-sha256 "$copilot_digest" ||
+  run_copilot --checksums-sha256 "$copilot_digest"; then
+  echo "FAIL: duplicate, missing or unbound explicit pin accepted" >&2; exit 1
+fi
+test ! -e "$TEMP_DIR/curl.log"
+echo "PASS: malformed, duplicate and unbound explicit pins fail before network access"
+
+wrong_pin="$(printf '0%.0s' {1..64})"
+if run_awf v9.9.9 --rootless --checksums-sha256 "$wrong_pin" ||
+  run_copilot 9.9.9 --rootless --checksums-sha256 "$wrong_pin"; then
+  echo "FAIL: mismatched explicit manifest pin accepted" >&2; exit 1
+fi
+test ! -e "$TEMP_DIR/executions"
+echo "PASS: mismatched explicit pins never execute downloaded code"
 
 # Replacing the manifest and executable together must fail before any execution.
 rm -f "$TEMP_DIR/executions" "$TEMP_DIR/curl.log"

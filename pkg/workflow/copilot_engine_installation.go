@@ -148,7 +148,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// the rootless location to ${RUNNER_TEMP}/gh-aw/bin/copilot where AWF expects it.
 	rootless := isArcDindTopology(workflowData)
 	compiledVersion := workflowData.CompiledVersion
-	npmSteps := generateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless, compiledVersion, string(constants.CopilotSessionIDMinVersion), getNVXGuestLibc(workflowData))
+	checksumsSHA256 := ""
+	if workflowData.EngineConfig != nil {
+		checksumsSHA256 = workflowData.EngineConfig.ChecksumsSHA256
+	}
+	npmSteps := generateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless, compiledVersion, string(constants.CopilotSessionIDMinVersion), getNVXGuestLibc(workflowData), checksumsSHA256)
 	if len(inlineDriverWriteStep) > 0 {
 		npmSteps = append(npmSteps, inlineDriverWriteStep)
 	}
@@ -428,6 +432,9 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 	}
 
 	installCmd := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh\" " + version
+	if agentConfig != nil && agentConfig.ChecksumsSHA256 != "" {
+		installCmd += " --checksums-sha256 " + agentConfig.ChecksumsSHA256
+	}
 	// Rootless runtime profiles run AWF as the runner user: pass --rootless so the
 	// install script installs into $HOME/.local/{bin,lib/awf} (always writable, even on
 	// standard GitHub-hosted runners where /usr/local is root-owned) and exports
