@@ -164,6 +164,33 @@ func TestBuiltInThreatRulesCLI(t *testing.T) {
 	}
 }
 
+func TestNeedsConsistencyCLI(t *testing.T) {
+	const source = "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps: [{run: echo build}]\n  check:\n    runs-on: ubuntu-latest\n    if: needs.build.result == 'success'\n    steps: [{run: echo check}]\n"
+	for _, extension := range []string{".yml", ".md"} {
+		t.Run(extension, func(t *testing.T) {
+			content := source
+			if extension == ".md" {
+				content = "---\n" + source + "---\nA prompt.\n"
+			}
+			file := filepath.Join(t.TempDir(), "workflow"+extension)
+			require.NoError(t, os.WriteFile(file, []byte(content), 0o600))
+			cmd := NewLintCommand()
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			cmd.SetArgs([]string{"--rules=needs-consistency", "--json", file})
+			require.NoError(t, cmd.Execute())
+			var diagnostics []workflowLintDiagnostic
+			require.NoError(t, json.NewDecoder(&output).Decode(&diagnostics))
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, "needs-consistency", diagnostics[0].RuleID)
+			assert.Equal(t, workflowlint.Warning, diagnostics[0].Severity)
+			assert.Equal(t, "jobs.check.if", diagnostics[0].Path)
+			assert.Equal(t, file, diagnostics[0].File)
+		})
+	}
+}
+
 func TestBuiltInSourcePolicyRulesCLI(t *testing.T) {
 	for _, tt := range []struct {
 		ruleID string
