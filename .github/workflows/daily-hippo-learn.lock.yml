@@ -1854,7 +1854,7 @@ jobs:
           GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
           GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
           GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
-          GH_AW_ADMISSION_WORKFLOW_HASH: "e5fd6dfb289f1b895f5fe2fd75ef682eac730e5e0d8eeab2865952dd6be8108c:bd918e03120fdb8d3aa4e20a6485bbd5347f4ddd95ab60c19ecd1fa0acd6b4f0"
+          GH_AW_ADMISSION_WORKFLOW_HASH: "375f0da2a2a312c6bf3c51403015fc6aa6e9dd7b4bc6bf7d7ab8cff4da5d3f7d:bd918e03120fdb8d3aa4e20a6485bbd5347f4ddd95ab60c19ecd1fa0acd6b4f0"
           GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
