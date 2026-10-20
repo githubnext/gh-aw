@@ -17,6 +17,12 @@ the selected queue credential through ephemeral authentication; it does not
 reuse persisted checkout credentials. Agents and snapshot MCP servers remain
 credential-free.
 
+Queue commands infer the repository from the local `origin` remote when `--repo`
+is omitted, falling back to `gh repo view` when local information is unavailable.
+`GH_REPO` retains precedence over local inference. Repeated runtime reads recheck
+remote access and the queue head, but reuse validated local Git history when the
+head is unchanged. Missing or invalid ancestry fails closed without an API fallback.
+
 The native queue enforces fair scheduling, immutable task dependency graphs,
 and worker effects authorized by individual Claims. Its only source of
 authority is `work-queue.jsonl`, a transaction log that records events in causal

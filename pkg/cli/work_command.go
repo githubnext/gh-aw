@@ -47,6 +47,15 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 			if storage != "git" {
 				return errors.New("unsupported_backend: work queues require Git storage; Issues storage is not supported")
 			}
+			repo, _ := cmd.Flags().GetString("repo")
+			fileReplay := cmd.Name() == "replay" && cmd.Flags().Changed("file")
+			if repo == "" && cmd.HasParent() && cmd.Parent().Name() == "work-queue" && !fileReplay {
+				repo, err := GetCurrentRepoSlug()
+				if err != nil {
+					return err
+				}
+				return cmd.Flags().Set("repo", repo)
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },

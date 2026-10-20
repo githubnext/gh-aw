@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -16,12 +18,19 @@ var repoLog = logger.New("cli:repo")
 // Global cache for current repository info
 var currentRepoSlugCache syncutil.OnceLoader[string]
 
-// getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
-// Falls back to git remote parsing if gh CLI is not available
+// getCurrentRepoSlugUncached prefers the local origin over a hosted lookup,
+// while preserving gh's explicit GH_REPO override.
 func getCurrentRepoSlugUncached() (string, error) {
 	repoLog.Print("Fetching current repository slug")
 
-	// Try gh CLI first (most reliable)
+	if os.Getenv("GH_REPO") == "" { //nolint:osgetenvlibrary // Preserve gh's explicit repository selection at the CLI boundary.
+		if repoSlug, err := getCurrentRepoSlugFromGit(); err == nil {
+			return repoSlug, nil
+		} else {
+			repoLog.Printf("Local repository lookup unavailable: %v", err)
+		}
+	}
+
 	repoLog.Print("Attempting to get repository slug via gh CLI")
 	output, err := workflow.RunGH("Fetching repository info...", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
 	if err == nil {
@@ -35,23 +44,26 @@ func getCurrentRepoSlugUncached() (string, error) {
 		}
 	}
 
-	// Fallback to git remote parsing if gh CLI is not available or fails
-	repoLog.Print("gh CLI failed, falling back to git remote parsing")
+	if err != nil {
+		return "", fmt.Errorf("failed to get current repository via gh CLI: %w", err)
+	}
+	return "", errors.New("failed to get current repository: gh CLI returned an invalid repository slug")
+}
+
+func getCurrentRepoSlugFromGit() (string, error) {
 	gitCmd := exec.Command("git", "remote", "get-url", "origin")
 	gitOutput, err := gitCmd.Output()
 	if err != nil {
 		repoLog.Printf("Failed to get git remote URL: %v", err)
-		return "", fmt.Errorf("failed to get current repository (gh CLI and git remote both failed): %w", err)
+		return "", fmt.Errorf("failed to get local Git origin: %w", err)
 	}
 
 	remoteURL := strings.TrimSpace(string(gitOutput))
-	repoLog.Printf("Parsing git remote URL: %s", remoteURL)
-
 	// Delegate to the shared helper which supports both HTTPS and SSH formats,
 	// including GitHub Enterprise hosts configured via getGitHubHost().
 	repoPath := parseGitHubRepoSlugFromURL(remoteURL)
 	if repoPath == "" {
-		return "", fmt.Errorf("remote URL does not appear to be a GitHub repository: %s", remoteURL)
+		return "", errors.New("local origin does not identify a GitHub repository")
 	}
 
 	// Validate format (should be owner/repo)

@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/github/gh-aw/pkg/workqueue"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/require"
 )
 
 type workAPIRoundTripper func(*http.Request) (*http.Response, error)
@@ -107,6 +110,37 @@ func TestWorkCommandPersistentOutputAndRepositoryFlags(t *testing.T) {
 		if child.InheritedFlags().ShorthandLookup(shorthand) == nil {
 			t.Errorf("stats does not inherit -%s", shorthand)
 		}
+	}
+}
+
+func TestWorkCommandInfersRepositoryFromLocalOrigin(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("GH_REPO", "")
+	t.Setenv("GITHUB_SERVER_URL", "https://github.com")
+	ClearCurrentRepoSlugCache()
+	t.Cleanup(ClearCurrentRepoSlugCache)
+	require.NoError(t, exec.Command("git", "init", "--quiet", "--template=").Run())
+	require.NoError(t, exec.Command("git", "remote", "add", "origin", "https://github.com/local/repo.git").Run())
+	for _, repo := range []string{"", "explicit/repo"} {
+		command := NewWorkCommand()
+		child, _, err := command.Find([]string{"replay"})
+		require.NoError(t, err)
+		child.RunE = func(cmd *cobra.Command, _ []string) error {
+			actual, err := cmd.Flags().GetString("repo")
+			require.NoError(t, err)
+			expected := repo
+			if expected == "" {
+				expected = "local/repo"
+			}
+			require.Equal(t, expected, actual)
+			return nil
+		}
+		args := []string{"replay"}
+		if repo != "" {
+			args = append(args, "--repo", repo)
+		}
+		command.SetArgs(args)
+		require.NoError(t, command.Execute())
 	}
 }
 
