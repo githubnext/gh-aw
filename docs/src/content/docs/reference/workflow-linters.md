@@ -13,6 +13,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 |---|---|---|---|
 | `action-pin` | `CTR-002` | AW, Actions | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
 | `job-timeout` | `CTR-026` | AW, Actions | An explicit workflow/job timeout is a positive integer literal, not an expression. Omission is allowed. |
+| `needs-consistency` | — | AW, Actions | Dependencies name existing jobs without self-edges or cycles. Literal `needs` accesses name direct dependencies and declared job outputs; ordering-only dependencies are valid. |
 | `template-injection` | `CTR-006` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` or `actions/github-script` code. Use environment bindings and quoted shell expansions or `process.env` instead. |
 | `workflow-run-scope` | `CTR-021` | AW, Actions | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
 | `secret-leak` | `CTR-017` | AW, Actions | Symbolic secrets do not reach modeled disclosure sinks. AW-only checks report missing generated execution coverage. |
@@ -32,6 +33,7 @@ The compiler threat IDs reference the [Compiler Threat Detection Specification](
 | `pull-request-target-roles` | `CTR-008` | AW | `pull_request_target` does not admit explicit `read` or `all` roles. Checkout disablement and risk acknowledgment do not bypass this policy. Does not infer checkout safety or generated authorization. |
 | `pull-request-target-checkout` | `CTR-008` | AW | Checkouts on `pull_request_target` use supported base-repository/ref forms or exact allowed literal repository/ref pairs, without additional fetches. Omission is not `checkout: false`. Does not resolve imported checkout policy or infer generated provenance. |
 | `prompt-expression` | `CTR-010` | AW | Authored prompt interpolations are valid, single-line Actions expressions without blocked JavaScript property traversal through dot or literal-index access. Does not implement the compiler's complete context allowlist or inspect imported prompts. |
+| `gateway-dispatch-literals` | — | AW | Every key and value inside `on.gateway-dispatch` is literal. Rejects strings containing `${{`, including incomplete expressions, throughout nested objects and lists. Shares the compiler's mandatory check before gateway normalization/lowering. Expressions outside this section and compiler-generated dispatch metadata are unaffected. |
 | `safe-output-shell-expansion` | `CTR-009` | AW | Authored `safe-outputs.steps[*].run` scripts avoid the shell expansion patterns blocked by the compiler/harness: parameter transformation, indirect expansion, command substitution, and backticks. Arithmetic and ordinary variables remain allowed. |
 | `firewall-ssl-bump` | `CTR-011` | AW | Nonempty literal `--allow-urls` in `sandbox.agent.args` requires `--ssl-bump` in the same list. Unsupported legacy `network.firewall` blocks require migration, even with `ssl-bump: true`. Does not prove runtime HTTPS enforcement. |
 | `custom-job-detection` | — | AW | Authored custom jobs with a direct `agent` dependency also need `detection` and require its success. Checks every `||` branch when a status function overrides Actions' implicit success gate. Compiler-owned jobs and disabled detection are exempt. |
@@ -75,6 +77,8 @@ Pull-request-target-checkout is an error in strict mode and a warning in non-str
 
 Prompt-expression findings are errors in either mode and include prompt-relative line numbers, never expression contents. The shared Actions lexer handles quoted `}}` delimiters. Blocked property names follow case-insensitive Actions semantics; string literals containing those names are not property accesses. Computed property values, frontmatter expressions, imported content, and the full context allowlist remain outside this rule. A malformed interpolation reports an error and stops further prompt traversal while retaining earlier findings.
 
+Gateway-dispatch-literals findings are errors in either strict mode and identify the offending configuration path without including expression contents. Run `gh aw lint --rules gateway-dispatch-literals .github/workflows/example.md` to check declarations without compiling. Normal compilation enforces the same rule even when lint is not run; the rule inspects authored gateway declarations, not the lowered Actions `repository_dispatch` listener.
+
 Firewall argument checks inspect separate `--allow-urls`, URL operands and `--allow-urls=...` tokens before an option terminator (`--`). A literal `--ssl-bump` or `--ssl-bump=true` satisfies the lint prerequisite unless followed by `--ssl-bump=false`; the last SSL setting wins. The rule does not interpret arbitrary command strings, resolve imports, or validate runtime AWF option semantics. Internal `sandbox.agent.args` overrides require `strict: false`; adding SSL inspection does not make them valid in strict mode. A non-strict example is:
 
 ```aw wrap
@@ -85,6 +89,16 @@ sandbox:
 ```
 
 The compiler rejects `network.firewall` regardless of its SSL setting. Remove that legacy block and use `network.allowed` for domain policy; do not add `network.firewall.ssl-bump` as a remedy.
+
+### Needs consistency
+
+`needs-consistency` reports warnings in either strict mode. Dot and literal bracket accesses, including bare job and step `if` conditions, are parsed as Actions expressions. A transitive dependency is not available in `needs`: the consumer must declare the producer directly. Job properties are `result` and `outputs`. Output accesses require a producer `outputs` entry; reusable-workflow outputs are exempt because their declarations are external. Native Actions parsing already rejects missing dependency targets and cycles before linting.
+
+The compiled Actions graph takes precedence over companion AW source. AW-only checks cover explicit `jobs`, `safe-jobs`, and `safe-outputs.jobs`, normalize safe-job dependency IDs, and defer missing imported or compiler-generated producers and outputs. Compiler-owned scopes and safe-job defaults are not reconstructed. Imports also defer missing direct edges that may be inherited. Prompts and root execution scopes require the compiled graph for dependency analysis. Wildcard projections, whole-context reads, and computed indexes do not select a statically known producer or output; their nested literal accesses are still checked. Dependencies used only for ordering are not treated as unused.
+
+```bash wrap
+gh aw lint --rules needs-consistency .github/workflows/example.md
+```
 
 ### Custom job detection gates
 

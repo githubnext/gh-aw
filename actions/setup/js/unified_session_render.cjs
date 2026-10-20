@@ -50,6 +50,7 @@ const RUNTIME_TYPES = new Set([
   "workflow.job_result",
   "github_api.rate_limit",
   "guardrail.daily_aic",
+  "guardrail.admission",
   "otel.span",
   "otel.span_event",
   "otel.log",
@@ -217,6 +218,8 @@ function eventDetail(event) {
       return fields(data, ["event", "serverName", "level", "status", "message", "reason"]);
     case "firewall.event":
       return fields(data, ["event", "level", "status", "message", "reason"]);
+    case "guardrail.admission":
+      return fields(data, ["status"]) + " (allowance values available in session JSONL)";
     case "guardrail.daily_aic":
       return fields(data, ["status", "exceeded", "total", "estimated", "threshold"]);
     case "github_api.rate_limit":

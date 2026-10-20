@@ -42,7 +42,7 @@ func TestMCPServer_ListTools(t *testing.T) {
 	}
 
 	// Verify expected tools are present
-	expectedTools := []string{"status", "compile", "logs", "audit", "audit-diff", "checks", "mcp-inspect", "work-queue", "add", "update", "fix"}
+	expectedTools := []string{"status", "health", "compile", "logs", "audit", "audit-diff", "checks", "mcp-inspect", "work-queue", "add", "update", "fix"}
 	toolNames := make(map[string]bool)
 	for _, tool := range result.Tools {
 		toolNames[tool.Name] = true
@@ -234,6 +234,7 @@ func TestMCPServer_ToolIcons(t *testing.T) {
 	// Expected icons for each tool
 	expectedIcons := map[string]string{
 		"status":      mcpEmojiIconSource("📊"),
+		"health":      mcpEmojiIconSource("📊"),
 		"compile":     mcpEmojiIconSource("📋"),
 		"logs":        mcpEmojiIconSource("📝"),
 		"audit":       mcpEmojiIconSource("🔍"),

@@ -11,7 +11,7 @@ global.core = {
   debug: vi.fn(),
 };
 
-import { withRetry, isTransientError, getRetryAfterMs, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG, RATE_LIMIT_RETRY_CONFIG } from "./error_recovery.cjs";
+import { withRetry, sleep, isTransientError, getRetryAfterMs, enhanceError, createValidationError, createOperationError, DEFAULT_RETRY_CONFIG, RATE_LIMIT_RETRY_CONFIG } from "./error_recovery.cjs";
 import { TransportIntegrityError } from "./transport_integrity.cjs";
 
 describe("error_recovery", () => {
@@ -212,6 +212,27 @@ describe("error_recovery", () => {
       expect(shouldRetry).toHaveBeenCalled();
     });
 
+    it("should use a custom sleep for each calculated retry delay", async () => {
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
+      await expect(withRetry(operation, { maxRetries: 2, initialDelayMs: 125, jitterMs: 0, sleep }, "test-operation")).resolves.toBe("success");
+
+      expect(sleep.mock.calls).toEqual([[250], [500]]);
+      expect(operation).toHaveBeenCalledTimes(3);
+    });
+
+    it("should stop before the next operation when a custom wait is cancelled", async () => {
+      const cancelled = new Error("Retry deadline exceeded");
+      const sleep = vi.fn().mockRejectedValue(cancelled);
+      const operation = vi.fn().mockRejectedValue(new Error("Network timeout"));
+
+      await expect(withRetry(operation, { maxRetries: 2, sleep, shouldRetry: error => error !== cancelled }, "test-operation")).rejects.toHaveProperty("originalError", cancelled);
+
+      expect(sleep).toHaveBeenCalledOnce();
+      expect(operation).toHaveBeenCalledOnce();
+    });
+
     it("should add random jitter to delay when jitterMs is configured", async () => {
       const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
       const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
@@ -268,6 +289,10 @@ describe("error_recovery", () => {
       ["maxDelayMs", 2 ** 31],
       ["jitterMs", 1.5],
       ["backoffMultiplier", 0],
+      ["timeoutMs", -1],
+      ["timeoutMs", Number.NaN],
+      ["timeoutMs", 2 ** 31],
+      ["deadline", Number.NaN],
     ])("should reject invalid %s configuration", async (key, value) => {
       const operation = vi.fn();
 
@@ -284,6 +309,139 @@ describe("error_recovery", () => {
     it("should reject a non-function retry predicate", async () => {
       // @ts-expect-error Deliberately exercise runtime input validation.
       await expect(withRetry(vi.fn(), { shouldRetry: true }, "test-operation")).rejects.toThrow("Retry configuration shouldRetry must be a function");
+    });
+    it("should reject a non-function sleep before executing the operation", async () => {
+      const operation = vi.fn();
+      // @ts-expect-error Deliberately exercise runtime input validation.
+      await expect(withRetry(operation, { sleep: true }, "test-operation")).rejects.toThrow("Retry configuration sleep must be a function");
+      expect(operation).not.toHaveBeenCalled();
+    });
+    it.each(["now", "timeoutError"])("should reject a non-function %s", async key => {
+      const operation = vi.fn();
+      await expect(withRetry(operation, { [key]: true }, "test-operation")).rejects.toThrow(`Retry configuration ${key} must be a function`);
+      expect(operation).not.toHaveBeenCalled();
+    });
+
+    describe("timeout and deadline budgets", () => {
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+      });
+
+      it("should preserve the no-argument operation call without a budget", async () => {
+        const operation = vi.fn().mockResolvedValue("success");
+        await expect(withRetry(operation)).resolves.toBe("success");
+        expect(operation).toHaveBeenCalledExactlyOnceWith();
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should time out and abort a noncooperative operation", async () => {
+        let signal;
+        const operation = vi.fn(current => {
+          signal = current;
+          return new Promise(() => {});
+        });
+        const assertion = expect(withRetry(operation, { maxRetries: 0, timeoutMs: 100, now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        await vi.advanceTimersByTimeAsync(100);
+        await assertion;
+        expect(signal.aborted).toBe(true);
+        expect(operation).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should include synchronous setup in the operation timeout", async () => {
+        const start = Date.now();
+        const operation = vi.fn(() => {
+          vi.advanceTimersByTime(50);
+          return new Promise(() => {});
+        });
+        const assertion = expect(withRetry(operation, { maxRetries: 0, timeoutMs: 100, now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        await vi.advanceTimersByTimeAsync(50);
+        await assertion;
+        expect(Date.now() - start).toBe(100);
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should cap each operation at the shared deadline", async () => {
+        const start = Date.now();
+        const timeout = new Error("Custom deadline");
+        const operation = vi.fn(() => new Promise(() => {}));
+        const assertion = expect(withRetry(operation, { timeoutMs: 100, deadline: start + 60, now: () => Date.now(), timeoutError: () => timeout })).rejects.toHaveProperty("originalError", timeout);
+        await vi.advanceTimersByTimeAsync(60);
+        await assertion;
+        expect(Date.now() - start).toBe(60);
+        expect(operation).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should reject late success even when the timeout callback has not run", async () => {
+        const start = Date.now();
+        const operation = vi.fn(async () => {
+          vi.setSystemTime(start + 101);
+          return "late success";
+        });
+        await expect(withRetry(operation, { maxRetries: 0, timeoutMs: 100, now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should cancel backoff at the deadline without starting another attempt", async () => {
+        const start = Date.now();
+        const operation = vi.fn().mockRejectedValue(new Error("Network timeout"));
+        const assertion = expect(withRetry(operation, { maxRetries: 2, initialDelayMs: 100, jitterMs: 0, timeoutMs: 10, deadline: start + 100, now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        await vi.advanceTimersByTimeAsync(100);
+        await assertion;
+        expect(operation).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should retry operation timeouts within the overall budget", async () => {
+        const start = Date.now();
+        const operation = vi
+          .fn()
+          .mockImplementationOnce(() => new Promise(() => {}))
+          .mockResolvedValueOnce("recovered");
+        const assertion = expect(withRetry(operation, { maxRetries: 1, initialDelayMs: 5, jitterMs: 0, timeoutMs: 100, deadline: start + 1000, now: () => Date.now() })).resolves.toBe("recovered");
+        await vi.advanceTimersByTimeAsync(110);
+        await assertion;
+        expect(operation).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should not invoke operations after an expired deadline or zero timeout", async () => {
+        const operation = vi.fn();
+        await expect(withRetry(operation, { deadline: Date.now(), now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        await expect(withRetry(operation, { deadline: -1, now: () => 0 })).rejects.toThrow("Operation timeout exceeded");
+        await expect(withRetry(operation, { maxRetries: 0, timeoutMs: 0, now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        expect(operation).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should reject invalid clocks and unsafe deadline timers before invoking operations", async () => {
+        const operation = vi.fn();
+        await expect(withRetry(operation, { maxRetries: 0, timeoutMs: 100, now: () => Number.NaN })).rejects.toThrow("Retry clock must return a finite number");
+        await expect(withRetry(operation, { deadline: Date.now() + 2 ** 31, now: () => Date.now() })).rejects.toThrow("Retry deadline must be within");
+        expect(operation).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should remove the cancellation listener after a successful sleep", async () => {
+        const controller = new AbortController();
+        const remove = vi.spyOn(controller.signal, "removeEventListener");
+        const promise = sleep(100, controller.signal);
+        await vi.advanceTimersByTimeAsync(100);
+        await promise;
+        expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+        expect(vi.getTimerCount()).toBe(0);
+      });
+
+      it("should not schedule a sleep that is already aborted", async () => {
+        const controller = new AbortController();
+        const reason = new Error("Already cancelled");
+        controller.abort(reason);
+        await expect(sleep(100, controller.signal)).rejects.toBe(reason);
+        expect(vi.getTimerCount()).toBe(0);
+      });
     });
   });
 

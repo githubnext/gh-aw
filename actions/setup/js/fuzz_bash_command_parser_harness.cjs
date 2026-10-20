@@ -126,14 +126,18 @@ if (require.main === module) {
     input += chunk;
   });
 
-  process.stdin.on("end", () => {
+  process.stdin.on("end", async () => {
     try {
-      // Expected JSON: { commandText: string, mode?: "split" | "name" | "pipeline" }
-      const { commandText, mode } = JSON.parse(input);
+      // Expected JSON: { commandText: string, mode?: "split" | "name" | "pipeline" | "model", bytes?: number[] }
+      const { commandText, mode, bytes } = JSON.parse(input);
       const text = commandText ?? "";
 
       let result;
       switch (mode) {
+        case "model":
+          await require("./fuzz_bash_command_model.cjs").checkShellProgramModel(bytes ?? [], text);
+          result = { ok: true };
+          break;
         case "split":
           result = testSplitOnPipelineOperators(text);
           break;
