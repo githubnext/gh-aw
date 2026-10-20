@@ -18,7 +18,9 @@ const (
 )
 
 // Match the logger's namespace/message/elapsed format, not a fixed namespace set.
-var compileDebugLinePattern = regexp.MustCompile(`^[[:alnum:]_]+(?:[:./-][[:alnum:]_]+)* .* \+[0-9]+(?:\.[0-9]+)?(?:ns|µs|ms|s|m|h)$`)
+var compileDebugLinePattern = regexp.MustCompile(`^[[:alnum:]_]+(?:[:./-][[:alnum:]_]+)* .* \+[0-9]+(?:\.[0-9]+)?(?:ns|[µμ]s|ms|s|m|h)$`)
+var compileDebugStartPattern = regexp.MustCompile(`^[[:alnum:]_]+(?:[:./-][[:alnum:]_]+)+ `)
+var compileDebugEndPattern = regexp.MustCompile(`(?:^| )\+[0-9]+(?:\.[0-9]+)?(?:ns|[µμ]s|ms|s|m|h)$`)
 
 // compileDiagnosticText retains both ends of a line without buffering debug floods.
 type compileDiagnosticText struct {
@@ -67,6 +69,7 @@ type mcpCompileDiagnostics struct {
 	inWarning  bool
 	shellcheck strings.Builder
 	inFinding  bool
+	inDebug    bool
 }
 
 func (diagnostics *mcpCompileDiagnostics) Write(data []byte) (int, error) {
@@ -94,7 +97,9 @@ func (diagnostics *mcpCompileDiagnostics) finishLine() {
 		line = stringutil.StripANSI(line)
 	}
 	line = strings.TrimSpace(line)
-	if isCompileDebugLine(line) {
+	// A logger record can contain YAML and blank lines before its elapsed suffix.
+	if diagnostics.inDebug || isCompileDebugLine(line) || compileDebugStartPattern.MatchString(line) {
+		diagnostics.inDebug = !compileDebugEndPattern.MatchString(line)
 		diagnostics.omitted = true
 		return
 	}

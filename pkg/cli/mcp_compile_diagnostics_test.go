@@ -30,6 +30,17 @@ func TestMCPCompileDiagnosticChild(t *testing.T) {
 	if scenario == "" {
 		return
 	}
+	if scenario == "agent-job-health" {
+		_, err := CompileWorkflows(context.Background(), CompileConfig{
+			MarkdownFiles: []string{"agent-job-health"}, DryRun: true, Strict: true,
+			JSONOutput: true, activeModels: &activeModelInventory{},
+		})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	if scenario == "cancel" {
 		time.Sleep(time.Minute)
 		os.Exit(1)
@@ -92,6 +103,72 @@ func compileDiagnosticChild(scenario string) execCmdFunc {
 		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestMCPCompileDiagnosticChild$")
 		cmd.Env = append(os.Environ(), "GH_AW_COMPILE_DIAGNOSTIC_CHILD="+scenario, "DEBUG=workflow:mcp_compile_test,console:mcp_compile_test", "DEBUG_COLORS=0")
 		return cmd
+	}
+}
+
+func TestCompileToolAgentJobHealthStrictDryRun(t *testing.T) {
+	t.Parallel()
+	if _, err := exec.LookPath("shellcheck"); err != nil {
+		t.Skip("shellcheck is required for strict dry-run compilation")
+	}
+	root, err := filepath.Abs("../..")
+	require.NoError(t, err)
+	dir := t.TempDir()
+	workflowsDir := filepath.Join(dir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+	require.NoError(t, initTestGitRepo(dir))
+	for _, name := range []string{"agent-job-health.md", "agent-job-health.lock.yml"} {
+		content, err := os.ReadFile(filepath.Join(root, ".github", "workflows", name))
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, name), content, 0o600))
+	}
+	require.NoError(t, os.CopyFS(filepath.Join(workflowsDir, "shared"), os.DirFS(filepath.Join(root, ".github", "workflows", "shared"))))
+	require.NoError(t, os.CopyFS(filepath.Join(dir, ".github", "skills", "jqschema"), os.DirFS(filepath.Join(root, ".github", "skills", "jqschema"))))
+	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		require.Contains(t, args, "--dry-run")
+		require.Contains(t, args, "--strict")
+		cmd := compileDiagnosticChild("agent-job-health")(ctx)
+		cmd.Dir = dir
+		cmd.Env = append(cmd.Env, "DEBUG=workflow:prompts")
+		return cmd
+	}
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
+	require.NoError(t, registerCompileTool(server, execCmd, "", true))
+	session := connectInMemory(t, server)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	var previousLock []byte
+	for range 2 {
+		result, err := session.CallTool(ctx, &mcp.CallToolParams{
+			Name: "compile", Arguments: map[string]any{
+				"workflows": []string{"agent-job-health"}, "dry_run": true, "strict": true,
+			},
+		})
+		require.NoError(t, err)
+		require.False(t, result.IsError)
+		output := extractTextResult(t, result)
+		var results []ValidationResult
+		require.NoError(t, json.Unmarshal([]byte(output), &results), output)
+		require.NotEmpty(t, results)
+		var report *DryRunCompileReport
+		for _, validation := range results {
+			require.True(t, validation.Valid, output)
+			if validation.DryRun != nil {
+				report = validation.DryRun
+			}
+			for _, warning := range validation.Warnings {
+				assert.NotContains(t, warning.Message, "workflow:prompts")
+				assert.NotContains(t, warning.Message, "workflow_dispatch: null")
+			}
+		}
+		require.NotNil(t, report, output)
+		assert.Equal(t, "passed", report.Gate, output)
+		lock, err := os.ReadFile(filepath.Join(workflowsDir, "agent-job-health.lock.yml"))
+		require.NoError(t, err)
+		if previousLock != nil {
+			assert.Equal(t, previousLock, lock, "repeated strict dry-run compiles must be deterministic")
+		}
+		previousLock = lock
 	}
 }
 
@@ -158,6 +235,8 @@ func TestMCPCompileDiagnosticsStreaming(t *testing.T) {
 		{"debug-only", "cli:test noise +1ms\n", "exit status 1"},
 		{"multiple-errors", "✗ earlier error\n✗ terminal cause\n  remediation\n", "✗ terminal cause\nremediation"},
 		{"interleaved-debug", "✗ cause\nworkflow:compile noisy debug +1ms\n  remediation\n", "✗ cause\nremediation"},
+		{"multiline-debug-before-error", "workflow:compile on:\n  workflow_dispatch: null +380μs\n✗ cause\n  remediation\n", "✗ cause\nremediation"},
+		{"multiline-debug-in-error", "✗ cause\nworkflow:compile on:\n  workflow_dispatch: null +380μs\n  remediation\n", "✗ cause\nremediation"},
 		{"unlisted-debug-only", "console:render Rendering table +1ms\ngitutil:gitutil Running git command +1ms\n", "exit status 1"},
 		{"shellcheck-only", "shellcheck findings in a.lock.yml:\nscript: line 1: SC2086 quote variable\n\n", "exit status 1"},
 		{"shellcheck-warning", "⚠ dependency unavailable\n⚠ shellcheck findings in a.lock.yml:\nscript: line 1: SC2086\n\n", "⚠ dependency unavailable"},
@@ -215,7 +294,7 @@ func TestMCPCompileDiagnosticsExcludeScannerFindingsFromFailure(t *testing.T) {
 func TestMCPCompileDiagnosticsLoggerFormat(t *testing.T) {
 	t.Parallel()
 	for _, namespace := range []string{"console:render", "gitutil:gitutil", "jsonutil:parse", "typeutil:types", "future-package:new_namespace", "bootstrap"} {
-		for _, duration := range []string{"0ns", "5µs", "12ms", "1.5s", "2.0m", "3.0h"} {
+		for _, duration := range []string{"0ns", "5µs", "380μs", "12ms", "1.5s", "2.0m", "3.0h"} {
 			line := namespace + " debug message +" + duration
 			assert.True(t, isCompileDebugLine(line), line)
 			diagnostics := &mcpCompileDiagnostics{}
@@ -235,6 +314,38 @@ func TestMCPCompileDiagnosticsLoggerFormat(t *testing.T) {
 		"✗ shellcheck not available",
 	} {
 		assert.False(t, isCompileDebugLine(line), line)
+	}
+}
+
+func TestMCPCompileDiagnosticsExcludeMultilineDebugWarnings(t *testing.T) {
+	t.Parallel()
+	for _, duration := range []string{"380μs", "5µs", "1ms"} {
+		t.Run(duration, func(t *testing.T) {
+			t.Parallel()
+			diagnostics := &mcpCompileDiagnostics{}
+			input := "⚠ actionable warning\n  retain this remediation\n" +
+				"workflow:prompts Checking triggers: on=\"on\":\n" +
+				"  workflow_dispatch: null\n\n" +
+				"  warning: debug payload only\n" +
+				"  schedule: daily +" + duration + "\n" +
+				"⚠ another actionable warning\n  retain this too\n"
+			for _, char := range []byte(input) {
+				_, err := diagnostics.Write([]byte{char})
+				require.NoError(t, err)
+			}
+			diagnostics.finishLine()
+			output := injectDevelopmentCompilerDiagnostics(`[{"scope":"batch","workflow":"compiler","valid":false,"errors":[{"type":"compiler_warning","message":"compiler reported warnings"}],"warnings":[]}]`, diagnostics)
+			var results []ValidationResult
+			require.NoError(t, json.Unmarshal([]byte(output), &results))
+			message := results[0].Errors[0].Message
+			assert.Contains(t, message, "actionable warning\nretain this remediation")
+			assert.Contains(t, message, "another actionable warning\nretain this too")
+			assert.NotContains(t, message, "workflow:prompts")
+			assert.NotContains(t, message, "workflow_dispatch")
+			assert.NotContains(t, message, "debug payload")
+			assert.NotContains(t, message, "schedule: daily")
+			assert.Empty(t, diagnostics.message)
+		})
 	}
 }
 
