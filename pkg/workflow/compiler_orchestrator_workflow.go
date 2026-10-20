@@ -791,6 +791,12 @@ func (c *Compiler) processOnSectionAndFilters( //nolint:largefunc // Existing or
 ) error {
 	orchestratorWorkflowLog.Print("Processing on section and filters")
 
+	var err error
+	frontmatter, err = c.processWebhookTriggers(frontmatter, workflowData)
+	if err != nil {
+		return err
+	}
+
 	// Process stop-after configuration from the on: section
 	if err := c.processStopAfterConfiguration(frontmatter, workflowData, cleanPath); err != nil {
 		return err

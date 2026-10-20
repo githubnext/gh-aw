@@ -9,6 +9,7 @@ const { sessionContext } = require("./agent_session.cjs");
 const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./mcp_rate_limit.cjs");
+const { redactWebhookPayloads } = require("./webhook_context.cjs");
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
@@ -626,7 +627,7 @@ function normalizeUnifiedSessionEvent(event, phase) {
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
     if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {
-      data.awContext = structuredClone(awContext);
+      data.awContext = structuredClone(redactWebhookPayloads(awContext));
     }
     const modelRouting = source.modelRouting ?? source.model_routing;
     if (modelRouting && typeof modelRouting === "object" && !Array.isArray(modelRouting)) {
