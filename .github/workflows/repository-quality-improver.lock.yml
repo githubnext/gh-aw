@@ -98,20 +98,21 @@ env:
 jobs:
   activation:
     name: activation
+    needs: activation_admission
+    if: always() && (needs.activation_admission.result == 'success' || needs.activation_admission.result == 'skipped')
     runs-on: ubuntu-slim
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
       actions: read
       contents: read
-      id-token: write
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
-      admission-max-ai-credits: ${{ steps.admission.outputs.max-ai-credits }}
-      admission-max-ai-credits-evals: ${{ steps.admission.outputs.max-ai-credits-evals }}
-      admission-max-ai-credits-threat-detection: ${{ steps.admission.outputs.max-ai-credits-threat-detection }}
-      admission-result: ${{ steps.admission.outputs.result }}
+      admission-max-ai-credits: ${{ needs.activation_admission.outputs.max-ai-credits }}
+      admission-max-ai-credits-evals: ${{ needs.activation_admission.outputs.max-ai-credits-evals }}
+      admission-max-ai-credits-threat-detection: ${{ needs.activation_admission.outputs.max-ai-credits-threat-detection }}
+      admission-result: ${{ needs.activation_admission.outputs.result }}
       aw_context: ${{ steps.generate_aw_info.outputs.aw_context }}
       comment_id: ""
       comment_repo: ""
@@ -187,24 +188,9 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'generate_aw_info.cjs'));
             await main(core, context);
-      - name: Check workflow admission
-        id: admission
-        if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
-          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
-          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
-          GH_AW_ADMISSION_WORKFLOW_HASH: "b0c8e33b3c60d89b581d1a61e4bd93c022a2265b8c0965b74ca24170f92c1bf8:e3df8af3ed6b8a78cf864a1fa2f41c23e3674b0c3aa79188616c9a84d4ad47d1"
-          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
-        with:
-          script: |
-            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);
       - name: Restore daily AIC scan observations
         id: restore-daily-aic-cache-fallback
-        if: ${{ steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ needs.activation_admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_HAS_SLASH_COMMAND: "false"
@@ -220,7 +206,7 @@ jobs:
             await main();
       - name: Check daily workflow token guardrail
         id: daily-ai-credits-workflow-guardrail
-        if: ${{ steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ needs.activation_admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Repository Quality Improvement Agent"
@@ -242,7 +228,7 @@ jobs:
             const { main } = require(path.join(actionsDir, 'check_daily_aic_workflow_guardrail.cjs'));
             await main();
       - name: Publish daily AIC scan observations
-        if: always() && steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
+        if: always() && needs.activation_admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -447,6 +433,53 @@ jobs:
             /tmp/gh-aw/skill_inventory.json
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '1' }}
+
+  activation_admission:
+    name: activation_admission
+    if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}
+    runs-on: ubuntu-slim
+    # Permissions for the activation_admission job (workflow permissions default to none).
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      max-ai-credits: ${{ steps.admission.outputs.max-ai-credits }}
+      max-ai-credits-evals: ${{ steps.admission.outputs.max-ai-credits-evals }}
+      max-ai-credits-threat-detection: ${{ steps.admission.outputs.max-ai-credits-threat-detection }}
+      result: ${{ steps.admission.outputs.result }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          fetch-depth: 1
+          clean: false
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Repository Quality Improvement Agent"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/repository-quality-improver.lock.yml@${{ github.ref }}
+      - name: Check workflow admission
+        id: admission
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
+          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
+          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "b0c8e33b3c60d89b581d1a61e4bd93c022a2265b8c0965b74ca24170f92c1bf8:e3df8af3ed6b8a78cf864a1fa2f41c23e3674b0c3aa79188616c9a84d4ad47d1"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);
 
   agent:
     name: agent
@@ -1303,6 +1336,7 @@ jobs:
     name: conclusion
     needs:
       - activation
+      - activation_admission
       - agent
       - detection
       - safe_outputs
@@ -1324,9 +1358,9 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"safe_outputs\":\"safe_outputs\",\"update_cache_memory\":\"update_cache_memory\"}"
-      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"},\"update_cache_memory\":{\"result\":\"${{ needs.update_cache_memory.result }}\"}}"
-      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"safe_outputs\":true,\"update_cache_memory\":true}"
+      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"activation_admission\":\"activation_admission\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"detection\":\"detection\",\"safe_outputs\":\"safe_outputs\",\"update_cache_memory\":\"update_cache_memory\"}"
+      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"activation_admission\":{\"result\":\"${{ needs.activation_admission.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"detection\":{\"result\":\"${{ needs.detection.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"},\"update_cache_memory\":{\"result\":\"${{ needs.update_cache_memory.result }}\"}}"
+      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"activation_admission\":true,\"agent\":true,\"conclusion\":true,\"detection\":true,\"safe_outputs\":true,\"update_cache_memory\":true}"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}

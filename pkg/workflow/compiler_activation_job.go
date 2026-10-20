@@ -37,28 +37,38 @@ var activationMetadataTriggerFields = map[string]struct{}{
 // buildActivationJob creates the activation job that handles timestamp checking, reactions, and locking.
 // This job depends on the pre-activation job if it exists, and runs before the main agent job.
 func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, error) {
+	activationJob, _, err := c.buildActivationJobAndAdmission(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
+	return activationJob, err
+}
+
+func (c *Compiler) buildActivationJobAndAdmission(data *WorkflowData, preActivationJobCreated bool, workflowRunRepoSafety string, lockFilename string) (*Job, *Job, error) {
 	ctx, err := c.newActivationJobBuildContext(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create activation job build context: %w", err)
+		return nil, nil, fmt.Errorf("failed to create activation job build context: %w", err)
 	}
 	if !c.effectiveStrictMode(data.RawFrontmatter) {
 		ctx.steps = append(ctx.steps, buildPolicyStrictEnforcementStep()...)
 	}
 
-	c.addActivationAdmissionStep(ctx)
+	c.configureActivationNeedsAndCondition(ctx)
+	admissionJob, err := c.buildActivationAdmissionJob(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build activation admission job: %w", err)
+	}
+	addActivationAdmissionOutputs(ctx)
+	addActivationAdmissionDependency(ctx)
 	if err := c.addActivationFeedbackAndValidationSteps(ctx); err != nil {
-		return nil, fmt.Errorf("failed to add activation feedback and validation steps: %w", err)
+		return nil, nil, fmt.Errorf("failed to add activation feedback and validation steps: %w", err)
 	}
 	if err := c.addActivationRepositoryAndOutputSteps(ctx); err != nil {
-		return nil, fmt.Errorf("failed to add activation repository and output steps: %w", err)
+		return nil, nil, fmt.Errorf("failed to add activation repository and output steps: %w", err)
 	}
 	c.addActivationSkillInstallSteps(ctx)
 	if err := c.addActivationCommandAndLabelOutputs(ctx); err != nil {
-		return nil, fmt.Errorf("failed to add activation command and label outputs: %w", err)
+		return nil, nil, fmt.Errorf("failed to add activation command and label outputs: %w", err)
 	}
 	ctx.steps = append(ctx.steps, buildRuntimeFeaturesSummaryStep()...)
 
-	c.configureActivationNeedsAndCondition(ctx)
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation)
 	c.addWorkQueueSnapshotStep(ctx)
@@ -73,10 +83,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	permissions, err := c.buildActivationPermissions(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build activation permissions: %w", err)
+		return nil, nil, fmt.Errorf("failed to build activation permissions: %w", err)
 	}
 
-	return &Job{
+	activationJob := &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         ctx.activationCondition,
 		HasWorkflowRunSafetyChecks: workflowRunRepoSafety != "",
@@ -87,7 +97,8 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		Steps:                      ctx.steps,
 		Outputs:                    ctx.outputs,
 		Needs:                      ctx.activationNeeds,
-	}, nil
+	}
+	return activationJob, admissionJob, nil
 }
 
 func addActivationInteractionPermissions(

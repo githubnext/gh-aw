@@ -13,7 +13,7 @@ The terms MUST, MUST NOT, SHOULD, and MAY indicate normative requirements. This 
 
 ## 1. Scope and Ownership
 
-Admission is a step in gh-aw's existing activation job, before agent execution. It MUST NOT add a job or a new job dependency. Only the validated result and component allowances propagate through activation job outputs to existing runtime credit enforcement; credentials, request identity and service diagnostics remain activation-scoped. gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Admission code generation MUST NOT have a workflow-local disable switch. Without a configured endpoint, an explicit step `if` skips admission, and activation continues through its existing fallback checks. A deployment-selected **admission authority server** (the authority) MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, and protected operator diagnostics. It MAY use a server-side GitHub App for backend verification and configuration provisioning.
+Admission runs in a compiler-owned `activation_admission` job before the existing activation and agent jobs. Only its validated result and component allowances propagate through activation job outputs to existing runtime credit enforcement; credentials, request identity and service diagnostics remain in the admission job. gh-aw MUST include admission support by default: managed Actions variables automatically enable the check, without a separate opt-in flag. Admission code generation MUST NOT have a workflow-local disable switch. Without a configured endpoint, the admission job is skipped and activation continues through its existing fallback checks. A deployment-selected **admission authority server** (the authority) MUST implement the HTTPS admission service, trusted usage ingestion, policy evaluation, and protected operator diagnostics. It MAY use a server-side GitHub App for backend verification and configuration provisioning.
 
 The gate is a **cooperative admission check** for participating workflows, not an unbypassable organization policy or hard spending cap. It decides whether an AW execution may start and returns runtime maximum AI Credits: a required primary allowance and optional, independent threat-detection and evals allowances. A validated allowance overrides that component's configured or default runtime limit, rather than adding to it or taking the minimum. Omitted optional allowances preserve existing component policy. Correlation uses the caller's W3C `traceparent`, not a response trace or correlation ID. This is not a billing API, spend-inspection endpoint, inference proxy, or mid-execution cancellation mechanism.
 
@@ -23,7 +23,7 @@ The protocol uses REST POST with a JSON body, authenticated exclusively by a Git
 
 ### Managed Environment Variables
 
-Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
+Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission job's step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
 
 | Actions variable | Managed YAML field | Built-in fallback |
 |------------------|--------------------|-------------------|
@@ -86,13 +86,13 @@ Only non-secret configuration is provisioned. App IDs and installation IDs do no
 
 ## 3. Activation Step and Request Contract
 
-gh-aw MUST add the admission step to the existing activation job after applicable trigger/authorization prechecks, trusted setup, and execution-context initialization, but before agent execution and cost-incurring task work. The step MUST use trusted, pinned bootstrap and admission code, not execute repository-supplied task scripts. No separate admission job is created.
+gh-aw MUST add a compiler-owned `activation_admission` job that runs after the activation job's applicable trigger/authorization prechecks and before agent execution and cost-incurring task work. The job MUST use trusted, pinned bootstrap and admission code and MUST NOT execute workflow-authored steps or repository-supplied task scripts. The existing activation job MUST depend on it, permitting a skipped admission job when the endpoint is unset and blocking activation when admission fails.
 
-The activation job MUST gain `id-token: write` while retaining only the API permissions required by its other steps. Admission MUST NOT forward GitHub API tokens or provider secrets. The compiler MUST emit `if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}` to skip both OIDC acquisition and admission when no endpoint exists. Audience or outage variables alone do not enable admission. A blocking failure fails activation through its existing dependency; no new agent eligibility condition is added. Only validated result and allowance outputs cross the activation boundary for runtime budget selection.
+Only the `activation_admission` job MUST receive `id-token: write` for admission, alongside `contents: read` for trusted setup. The activation job MUST retain only the API permissions required by its own steps. Admission MUST NOT forward GitHub API tokens or provider secrets. The compiler MUST emit a job-level `if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}` to skip the job, OIDC acquisition, and admission when no endpoint exists. Audience or outage variables alone do not enable admission. A blocking failure prevents activation through the new job dependency; no agent job condition is added. Only validated result and allowance outputs cross the admission-to-activation boundary for runtime budget selection.
 
 Reusable-workflow callers must also permit `id-token: write` in the calling job's permission envelope. Compiler-generated `call-workflow` jobs include that mandatory activation permission for local gh-aw Markdown targets, even before the target's lock file is regenerated. Hand-authored callers must grant it explicitly; a callee cannot elevate the caller's permissions.
 
-The entire activation job is an OIDC trust boundary, not just the admission step. All custom setup, pre, and regular steps and actions, before and after admission, MUST be reviewed as able to request identity tokens for any audience, including the admission audience. OIDC attests workflow/job identity, not which step requested the token; the authority MUST NOT treat it as proof that the trusted admission helper ran. Skipping admission does not revoke the job's OIDC capability. The implementation MUST prevent untrusted code from executing in this job and review existing federated relying-party policies before granting the permission; an admission-step condition is not a permission sandbox. Trusted repository-maintained hooks remain within this cooperative boundary, without adding a job or claiming step-level isolation.
+The `activation_admission` job is the OIDC trust boundary for admission. It MUST contain only compiler-owned setup and the trusted admission step; workflow-authored hooks and custom steps MUST remain in the separate activation job, which does not receive admission's OIDC permission. OIDC attests workflow/job identity, not which step requested the token; the authority MUST NOT treat it as proof that the trusted admission helper ran. When the endpoint is empty, the admission job is skipped and no job with admission's permission runs. Existing federated relying-party policies MUST still be reviewed before granting the permission.
 
 The journey below uses GitHub.com endpoints. Other supported GitHub deployments require independently configured issuer and API hosts. Credential placeholders and decoded token examples are synthetic, not usable credentials. The GitHub response excerpts omit unrelated fields; the admission request and success bodies are complete.
 
@@ -100,7 +100,7 @@ The journey below uses GitHub.com endpoints. Other supported GitHub deployments 
 
 ```mermaid
 sequenceDiagram
-    participant A as Activation step
+    participant A as Admission job
     participant G as GitHub OIDC
     participant S as Authority server
 
@@ -274,7 +274,7 @@ sequenceDiagram
     end
 ```
 
-The App private key and installation tokens never go to the runner. The key signs App JWTs, not workflow OIDC tokens. Managed variables contain only non-secret configuration. The runner's OIDC bootstrap credential is used only with GitHub; `GITHUB_TOKEN` and provider secrets are not used by admission. Transient tokens MUST NOT enter logs, traces, artifacts, or decision storage. All activation steps share the job's OIDC issuance capability, including when the admission step is skipped.
+The App private key and installation tokens never go to the runner. The key signs App JWTs, not workflow OIDC tokens. Managed variables contain only non-secret configuration. The runner's OIDC bootstrap credential is used only with GitHub; `GITHUB_TOKEN` and provider secrets are not used by admission. Transient tokens MUST NOT enter logs, traces, artifacts, or decision storage. Only the admission job receives the admission OIDC issuance capability; when the endpoint is unset, that job does not run.
 
 ### OIDC Verification
 
@@ -512,7 +512,7 @@ An explicit denial after a transient failure terminates retries and blocks. On o
 | Policy | Result |
 |--------|--------|
 | `ignore`, including omitted configuration | Emit a generic warning, complete the step successfully without an affirmative decision, and continue activation |
-| `block` | Fail the admission step and activation job; do not start the agent |
+| `block` | Fail the admission job so activation and the agent do not start |
 
 ```mermaid
 flowchart TD
@@ -633,7 +633,7 @@ Both implementations MUST provide automated coverage before rollout. Each ID def
 | ADM-025 | GET or another unsupported method; nonempty malformed endpoint | No method fallback or spending-policy evaluation; invalid configuration never becomes a no-op |
 | ADM-026 | OTel-enabled AW with valid W3C context, retries, and downstream jobs | Stable correlation trace ID; distinct HTTP attempt spans; connected client/server and workflow telemetry |
 | ADM-027 | Missing/invalid/oversized trace context within transport limits, baggage, forced sampling, or export failure | No authorization change, raw metadata leakage, extra admission request, or attacker-controlled expensive sampling |
-| ADM-028 | Custom activation hooks/actions before or after admission, including a skipped gate | Job-wide OIDC access includes the admission audience; tokens do not attest helper execution; untrusted code excluded and skipping does not revoke OIDC |
+| ADM-028 | Admission job isolation, including a skipped gate | Only the compiler-owned admission job receives admission OIDC permission; tokens do not attest helper execution; when admission is disabled the job is skipped |
 | ADM-029 | HTTP/1.1 and HTTP/2 proxy traversal, application/transport field-name casing, duplicate trace fields, and transport limits | Lowercase application protocol names; conventional transport-owned HTTP/1.1 casing accepted; HTTP/2 lowercase names; case-insensitive handling; preserved single trace context; no underscore-header dependency or raw credential logging |
 | ADM-030 | Success body boundaries, missing/duplicate/unknown fields, returned trace/correlation ID, invalid required or optional credit values, decimal/exponent tokens, or unsupported content type | Plain-decimal numeric tokens `1` and `2147483647` accepted for every supplied allowance; invalid bodies block even under `ignore`; lexical validation precedes conversion; interrupted transport uses bounded retries |
 | ADM-031 | Approval, daily validation, explicit/unlimited local limits, disabled admission, ignored outage, or any optional allowance combination | Approval bypasses daily validation and supplied allowances replace corresponding runtime limits; omitted optional values, disabled admission and ignored outages retain existing component policy; accounting is unchanged |
@@ -671,7 +671,7 @@ The owner map assigns implementation work to the normative contracts rather than
 | Owner / workstream | Normative sections | Deliverables |
 |--------------------|--------------------|--------------|
 | gh-aw managed configuration | 2, 6 | Register all three variable/YAML bindings and runtime hooks with repository/organization scope, precedence, validation, automatic enablement, and no-op coverage. Add CLI tests, enterprise reference, and release notes together. |
-| gh-aw activation compiler | 1, 3, 4, 6 | Integrate into the existing activation job and permissions. Review every hook/action and federated trust policy for job-wide OIDC access, including the admission audience and skipped gate. Test existing activation-success dependencies, reusable workflows, and custom job conditions without adding a job or dependency. |
+| gh-aw activation compiler | 1, 3, 4, 6 | Add the compiler-owned admission job with least-privilege permissions and connect its validated outputs to activation. Review the admission job and federated trust policy; test skipped admission, activation dependencies, reusable workflows, and custom job conditions. |
 | gh-aw OIDC client | 3, 4, 5-8 | Implement bounded OIDC acquisition and POST under the endpoint `if`, strict required/optional allowance validation, executing `aw_info` identity and distinct actor context, retries/outage handling, and generic diagnostics. Do not use App-token actions or propagate admission state beyond activation. Apply admission-first daily validation with fallback, and retain existing runtime limits and usage accounting. |
 | Admission authority | 3-9 | Implement trusted issuer/audience, tenant and caller/executing reference/SHA binding, unambiguous invocation verification, independently verified triggering-actor policy use, stable response fields, and bounded replay storage. Keep policy evaluation protected and admission retry-safe, spend-private, and financially side-effect-free. |
 | Authority provisioning | 2, 4, 9 | Implement optional server-side App JWT/installation-token flow, approved least-privilege grants, renewal/key rotation, and authorized organization/repository provisioning. Document enterprise-wide organization rollout and the distinction between managed defaults and mandatory enforcement. |

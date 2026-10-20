@@ -134,7 +134,6 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	yaml := string(content)
 	for _, fragment := range []string{
 		"id: admission", "id-token: write", "activation_admission.cjs",
-		"if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}",
 		"GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}",
 		"GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}",
 		"GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}",
@@ -153,12 +152,21 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, yaml, strings.Join([]string{
 		"            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);",
 	}, "\n"))
-	assert.Less(t, strings.Index(yaml, "id: admission"), strings.Index(yaml, "id: daily-ai-credits-workflow-guardrail"))
 	assert.Contains(t, yaml, admissionDailyAICFallbackIfExpr)
+	assert.Contains(t, yaml, "\n  activation_admission:\n")
 	assert.NotContains(t, yaml, "\n  admission:\n")
+	admissionJob := compiler.jobManager.jobs[activationAdmissionJobName]
+	require.NotNil(t, admissionJob)
+	assert.Contains(t, admissionJob.Permissions, "id-token: write")
+	assert.Contains(t, admissionJob.If, "vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
+	assert.NotContains(t, compiler.jobManager.jobs["activation"].Permissions, "id-token: write")
+	assert.Contains(t, compiler.jobManager.jobs["activation"].Needs, activationAdmissionJobName)
 	for name, job := range compiler.jobManager.jobs {
 		if name == "activation" {
-			assert.Equal(t, "${{ steps.admission.outputs.max-ai-credits }}", job.Outputs["admission-max-ai-credits"])
+			assert.Equal(t, "${{ needs.activation_admission.outputs.max-ai-credits }}", job.Outputs["admission-max-ai-credits"])
+			continue
+		}
+		if name == activationAdmissionJobName {
 			continue
 		}
 		encoded, err := json.Marshal(job)

@@ -135,10 +135,9 @@ func (c *Compiler) buildActivationPermissions(ctx *activationJobBuildContext) (s
 }
 
 func (c *Compiler) buildActivationBasePermissions(ctx *activationJobBuildContext) map[PermissionScope]PermissionLevel {
+	// Admission OIDC is isolated in the endpoint-gated activation_admission job.
 	permsMap := map[PermissionScope]PermissionLevel{
 		PermissionContents: PermissionRead,
-		// GitHub Actions permissions cannot depend on runtime variables; admission configuration is resolved by a later activation step.
-		PermissionIdToken: PermissionWrite,
 	}
 	if isWorkQueueWorker(ctx.data) {
 		permsMap[PermissionContents] = PermissionWrite
