@@ -14,15 +14,6 @@ const lineEndings = [
   { name: "CRLF", value: "\r\n" },
 ];
 
-const commentBodies = [
-  { name: "ordinary text", text: "Read the precomputed attribution data" },
-  { name: "operators", text: "ignored_tool && another_tool || third_tool | fourth_tool; fifth_tool" },
-  { name: "unclosed quotes", text: `Unclosed single ' and double " quotes` },
-  { name: "unclosed substitutions", text: "Ignore $(unclosed and ${unclosed and (( parentheses" },
-  { name: "hashes and redirections", text: "### ignored_tool >output 2>&1 <input &" },
-  { name: "trailing backslash", text: "This comment does not continue \\" },
-];
-
 describe("commented Bash script fixtures", () => {
   it.each([
     {
@@ -244,7 +235,8 @@ describe("commented Bash script fixtures", () => {
 
 describe.each(lineEndings)("comment placement with $name line endings", ({ value: newline }) => {
   for (const separator of ["\n", ";", "&&", "||", "|"]) {
-    it.each(commentBodies)(`ignores $name around ${JSON.stringify(separator)} separators`, ({ text }) => {
+    it(`ignores inert comments around ${JSON.stringify(separator)} separators`, () => {
+      const text = "inert comment";
       const operator = separator === "\n" ? newline : separator;
       const script = [`# ${text}`, `cat data.json ${operator} # ${text}`, `jq length ${operator} # ${text}`, `wc -l # ${text}`, `# ${text}`].join(newline);
       expect(splitOnPipelineOperators(script)).toEqual(["cat data.json", "jq length", "wc -l"]);
@@ -279,6 +271,35 @@ describe.each(lineEndings)("comment placement with $name line endings", ({ value
 });
 
 describe("comment parser security boundaries", () => {
+  it.each(["echo ok ${value:-foo|bar} && cat data.json", "echo ok ${value:-foo;bar} && cat data.json"])("keeps command separators inside parameter expansions: %s", fullCommandText => {
+    expect(splitOnPipelineOperators(fullCommandText)).toEqual([fullCommandText.slice(0, fullCommandText.indexOf(" && ")), "cat data.json"]);
+    expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual(["echo", "cat"]);
+    expect(checkPermission({ kind: "shell", fullCommandText })).toEqual({ kind: "approve-once" });
+  });
+
+  it.each(["echo ok\r#; forbidden_probe", "echo ok\\\r#; forbidden_probe", "echo ok;\v#; forbidden_probe", "echo ok;\u00a0#; forbidden_probe"])("does not treat non-Bash whitespace as a comment boundary: %j", fullCommandText => {
+    expect(extractCommandNamesFromPipeline(fullCommandText)).toContain("forbidden_probe");
+    for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
+      const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
+      expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+    }
+  });
+
+  it.each(["echo ok $\\\n{value:-x #}; forbidden_probe", "echo ok $\\\n'x #'; forbidden_probe", 'echo ok "$\\\n(echo x)"; forbidden_probe', 'echo ok "$\\\n{value:-x #}"; forbidden_probe'])(
+    "rejects expansion openers separated by escaped newlines: %s",
+    fullCommandText => {
+      for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
+        const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
+        expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+      }
+    }
+  );
+
+  it("does not reinterpret escaped-newline openers in comments or single quotes", () => {
+    const fullCommandText = "# $\\\n# {comment text\ncat data.json && echo '$\\\n{literal}'";
+    expect(extractCommandNamesFromPipeline(fullCommandText)).toEqual(["cat", "echo"]);
+  });
+
   describe.each(["?", "*", "+", "@", "!"])("unsupported %s(...) patterns", operator => {
     it.each(["", "\\\n", "\\\n\\\n"])("rejects glob operators separated from parentheses by %j", continuation => {
       for (const prefix of ["", "shopt -s extglob\n"]) {
@@ -311,6 +332,7 @@ describe("comment parser security boundaries", () => {
     'echo ok "$(printf "x #")"; forbidden_probe',
     'echo ok "`printf "x #"`"; forbidden_probe',
     "echo ok $(printf ')x #'); forbidden_probe",
+    "echo ok $(printf %s ${value:-)x #}); forbidden_probe",
     "echo ok $'x \\' #'; forbidden_probe",
   ])("cannot hide a following command using nested shell quoting: %s", fullCommandText => {
     for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
