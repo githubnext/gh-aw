@@ -2,6 +2,7 @@ package lint
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
@@ -96,4 +97,35 @@ func TestAWASTPartialDiagnostics(t *testing.T) {
 	cancel()
 	_, err = aw.ExecutionBlocks(ctx, document)
 	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestActionPinMalformedAuthoredScopes(t *testing.T) {
+	for _, scope := range []struct {
+		fields string
+		path   string
+	}{
+		{"steps: [{uses: %s}]", "steps[0].uses"},
+		{"post-steps: [{uses: %s}]", "post-steps[0].uses"},
+		{"safe-outputs: {steps: [{uses: %s}]}", "safe-outputs.steps[0].uses"},
+		{"safe-outputs: {post-steps: [{uses: %s}]}", "safe-outputs.post-steps[0].uses"},
+		{"jobs: {check: {steps: [{uses: %s}]}}", "jobs.check.steps[0].uses"},
+		{"safe-jobs: {check: {steps: [{uses: %s}]}}", "safe-jobs.check.steps[0].uses"},
+		{"safe-outputs: {jobs: {check: {steps: [{uses: %s}]}}}", "safe-outputs.jobs.check.steps[0].uses"},
+		{"jobs: {check: {uses: %s}}", "jobs.check.uses"},
+	} {
+		for _, pin := range []string{`"./action\u2028PRIVATE_PIN"`, `"actions/checkout@${{ secrets.PRIVATE_PIN }}"`, `"actions/checkout@"`, `"docker://alpine@sha256:PRIVATE_PIN"`} {
+			t.Run(scope.path+pin, func(t *testing.T) {
+				for _, strict := range []bool{false, true} {
+					source := fmt.Sprintf("---\nstrict: %t\n"+scope.fields+"\n---\n", strict, pin)
+					document, err := aw.Parse(source)
+					require.NoError(t, err)
+					diagnostics := integrityTestRun(t, ActionPinRule(), Input{Document: document})
+					require.Len(t, diagnostics, 1)
+					assert.Equal(t, Error, diagnostics[0].Severity)
+					assert.Equal(t, scope.path, diagnostics[0].Path)
+					assert.NotContains(t, diagnostics[0].Message, "PRIVATE_PIN")
+				}
+			})
+		}
+	}
 }

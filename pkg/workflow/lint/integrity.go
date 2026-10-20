@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/github/gh-aw/pkg/workflow/actions"
 )
@@ -21,12 +23,13 @@ var (
 
 // ActionPinRule checks reference integrity, not action provenance or existence.
 // AW documents establish the authored strict policy; native Actions has no
-// strict setting, so its findings default to warnings.
+// strict setting, so mutable references default to warnings. Malformed references
+// are errors for either AST regardless of strict policy.
 func ActionPinRule() Rule {
 	return Rule{
 		ID:           "action-pin",
 		ThreatRuleID: "CTR-002",
-		Description:  "Require immutable remote action and reusable-workflow references",
+		Description:  "Require well-formed action pins and immutable remote references",
 		Severity:     Warning,
 		Targets:      ActionsAST | AWAST,
 		Check:        checkActionPins,
@@ -52,8 +55,8 @@ func checkActionPins(ctx context.Context, input Input) ([]Diagnostic, error) {
 		}
 		path := "jobs." + string(job.ID)
 		if job.Uses != "" {
-			if message := integrityReference(job.Uses, true); message != "" {
-				diagnostics = append(diagnostics, Diagnostic{Severity: severity, Path: path + ".uses", Message: message})
+			if diagnostic := integrityPinDiagnostic(job.Uses, true, severity, path+".uses"); diagnostic != nil {
+				diagnostics = append(diagnostics, *diagnostic)
 			}
 		}
 		for index, step := range job.Steps {
@@ -74,8 +77,8 @@ func checkActionPins(ctx context.Context, input Input) ([]Diagnostic, error) {
 					failures = append(failures, fmt.Errorf("cannot inspect action reference at %s.uses: expected a string", stepPath))
 					continue
 				}
-				if message := integrityReference(uses, false); message != "" {
-					diagnostics = append(diagnostics, Diagnostic{Severity: severity, Path: stepPath + ".uses", Message: message})
+				if diagnostic := integrityPinDiagnostic(uses, false, severity, stepPath+".uses"); diagnostic != nil {
+					diagnostics = append(diagnostics, *diagnostic)
 				}
 			}
 		}
@@ -87,49 +90,63 @@ func integrityPinSeverity(input Input) (Severity, error) {
 	return sourcePolicySeverity(input, "action-pin")
 }
 
-func integrityReference(uses string, reusable bool) string {
+func integrityPinDiagnostic(uses string, reusable bool, severity Severity, path string) *Diagnostic {
+	message, malformed := integrityReference(uses, reusable)
+	if message == "" {
+		return nil
+	}
+	if malformed {
+		severity = Error
+	}
+	return &Diagnostic{Severity: severity, Path: path, Message: message}
+}
+
+func integrityReference(uses string, reusable bool) (string, bool) {
 	const malformed = "Malformed action or reusable-workflow reference; use a repository-relative path, a remote reference pinned to a full commit SHA, or an action image pinned to a digest"
-	if uses == "" || strings.Contains(uses, "${{") || strings.ContainsAny(uses, " \t\r\n\\") {
-		return malformed
+	if uses == "" || !utf8.ValidString(uses) || strings.Contains(uses, "${{") ||
+		strings.Contains(uses, "\\") || strings.IndexFunc(uses, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.IsSpace(r)
+	}) >= 0 {
+		return malformed, true
 	}
 	if local, ok := strings.CutPrefix(uses, "./"); ok {
 		if strings.Contains(local, "@") || !integrityPath(local, true) {
-			return malformed
+			return malformed, true
 		}
 		if reusable && !integrityWorkflowPath(local) {
-			return malformed
+			return malformed, true
 		}
-		return ""
+		return "", false
 	}
 	if strings.HasPrefix(uses, "docker://") {
 		if reusable {
-			return malformed
+			return malformed, true
 		}
 		image, digest, pinned := strings.Cut(strings.TrimPrefix(uses, "docker://"), "@")
 		if !integrityDockerPattern.MatchString(image) || pinned && !integrityDigestPattern.MatchString(digest) {
-			return "Malformed Docker action reference; use a valid image followed by an immutable sha256, sha384, or sha512 digest"
+			return "Malformed Docker action reference; use a valid image followed by an immutable sha256, sha384, or sha512 digest", true
 		}
 		if !pinned {
-			return "Docker action reference is mutable; pin the image to an immutable digest"
+			return "Docker action reference is mutable; pin the image to an immutable digest", false
 		}
-		return ""
+		return "", false
 	}
 	repository, ref, hasRef := strings.Cut(uses, "@")
 	if !hasRef || !integrityRemotePattern.MatchString(repository) ||
 		!integrityPath(repository, false) || !integrityGitRef(ref) {
-		return malformed
+		return malformed, true
 	}
 	if reusable {
 		_, repositoryPath, _ := strings.Cut(repository, "/")
 		_, workflowPath, found := strings.Cut(repositoryPath, "/")
 		if !found || !integrityWorkflowPath(workflowPath) {
-			return malformed
+			return malformed, true
 		}
 	}
 	if !integrityCommitPattern.MatchString(ref) {
-		return "Remote action or reusable-workflow reference is mutable or abbreviated; pin it to a full 40-character commit SHA"
+		return "Remote action or reusable-workflow reference is mutable or abbreviated; pin it to a full 40-character commit SHA", false
 	}
-	return ""
+	return "", false
 }
 
 func integrityPath(value string, rootAllowed bool) bool {
