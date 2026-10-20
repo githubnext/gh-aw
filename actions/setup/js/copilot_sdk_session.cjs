@@ -383,14 +383,24 @@ async function runWithCopilotSDK({
     const providerConfig = providers && providerModels ? { providers, models: providerModels } : null;
     const sessionModel = providerConfig ? qualifyModelForMultiProvider(requestedModel, providerConfig) : requestedModel;
     if (providerConfig && !sessionModel) throw new Error(`Cannot qualify session model "${requestedModel || "(none)"}" against the configured provider models`);
-    // The harness resolves declared sub-agent models (aliases included) before the driver starts.
+    // The harness resolves sub-agent models (aliases included) before the driver starts and
+    // stops the run when a workflow-declared sub-agent fails. A repository agent whose model
+    // the harness could not resolve is absent from the map and inherits the session model.
     const resolvedSubagentModels = parseSubagentModelsJson(process.env.GH_AW_COPILOT_SDK_SUBAGENT_MODELS);
+    const unavailableModels = [];
     const customAgents = loadCopilotSDKCustomAgents(workingDirectory, agentsBaseDir, log).map(agent => {
       if (!agent.model || agent.model.trim().toLowerCase() === "inherited") return { ...agent, model: sessionModel || undefined };
-      const requested = Object.prototype.hasOwnProperty.call(resolvedSubagentModels, agent.name) ? resolvedSubagentModels[agent.name] : agent.model;
-      const qualified = providerConfig ? qualifyModelForMultiProvider(requested, providerConfig) : requested;
-      if (!qualified) throw new Error(`Cannot qualify custom agent "${agent.name}" model "${agent.model}" against the configured provider models`);
-      return { ...agent, model: qualified };
+      if (Object.prototype.hasOwnProperty.call(resolvedSubagentModels, agent.name)) {
+        const resolved = resolvedSubagentModels[agent.name];
+        const qualified = providerConfig ? qualifyModelForMultiProvider(resolved, providerConfig) : resolved;
+        if (!qualified) throw new Error(`Cannot qualify custom agent "${agent.name}" model "${resolved}" against the configured provider models`);
+        return { ...agent, model: qualified };
+      }
+      const qualified = providerConfig ? qualifyModelForMultiProvider(agent.model, providerConfig) : agent.model;
+      if (qualified) return { ...agent, model: qualified };
+      log(`warning: custom agent "${agent.name}" model "${agent.model}" is not in the configured provider models; using session model "${sessionModel || "(none)"}"`);
+      unavailableModels.push({ agentName: agent.name, declaredModel: agent.model, model: sessionModel || undefined });
+      return { ...agent, model: sessionModel || undefined };
     });
     const skillsDirectory = path.resolve(agentsBaseDir, ".github", "skills");
     const skillsStat = fs.lstatSync(skillsDirectory, { throwIfNoEntry: false });
@@ -422,6 +432,7 @@ async function runWithCopilotSDK({
     fs.mkdirSync(sessionDir, { recursive: true });
     const eventsPath = path.join(sessionDir, "events.jsonl");
     eventsStream = fs.createWriteStream(eventsPath, { flags: "a" });
+    for (const unavailable of unavailableModels) writeDriverEvent("subagent.model_unavailable", unavailable);
     // Snapshot to a non-null local for closure-safe writes (JSDoc nullability narrowing).
     const stream = eventsStream;
     const assistantEvents = [];

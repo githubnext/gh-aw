@@ -78,7 +78,7 @@ const {
   resolveCopilotSubagentModels,
   applyCopilotCLISubagentModels,
   listCopilotAgentFiles,
-  restoreCopilotCLIAgentFiles,
+  listCopilotSubagents,
   formatInferenceEndpointForLog,
   logCopilotInferenceConfiguration,
   resolveLongRunTokenThreshold,
@@ -4904,24 +4904,110 @@ describe("Copilot sub-agent model resolution (recorded /reflect from run 3930457
     expect(session.customAgents.find(agent => agent.name === "helper").model).toBe(session.model);
   });
 
-  it("case 6 (CLI): the agent file Copilot CLI loads gets the resolved model; exact ids are left untouched", async () => {
-    const dir = tempDir("copilot-subagent-cli-files-");
-    const agentsDir = path.join(dir, ".github/agents");
+  const vscodePinnedAgent = "---\nname: planner\ndescription: Plans work\nmodel: GPT-5.4 (copilot)\n---\nPlan the work.\n";
+
+  it("a repository agent pinned to the VS Code name GPT-5.4 (copilot) records failed and warns without stopping the run", async () => {
+    // `model: GPT-5.4 (copilot)` is a real VS Code pin (adamgell/cmtraceopen planner.agent.md).
+    const agentPath = "/repo/.github/agents/planner.agent.md";
+    const run = await resolveAgents([{ name: "planner", model: "GPT-5.4 (copilot)", declared: false, path: agentPath }], { refreshed: [recordedReflect()] });
+    expect(run.error).toBeNull();
+    expect(run.resolutions).toEqual([]);
+    expect(run.records).toEqual([{ engine: "copilot", role: "planner", configured_model: "GPT-5.4 (copilot)", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);
+    const warning = run.logs.find(message => message.startsWith("warning: repository agent 'planner'"));
+    expect(warning).toContain(agentPath);
+    expect(warning).toContain("'GPT-5.4 (copilot)'");
+    expect(warning).toContain("model_unavailable");
+    expect(detectErrors(run.logs.join("\n")).modelNotSupportedError).toBe(false);
+  });
+
+  it("a repository agent with model small resolves to claude-haiku-5.5", async () => {
+    const run = await resolveAgents([{ name: "haiku-small", model: "small", declared: false, path: "/repo/.github/agents/haiku-small.agent.md" }]);
+    expect(run.error).toBeNull();
+    expect(run.resolutions).toEqual([{ name: "haiku-small", configuredModel: "small", resolvedModel: "claude-haiku-5.5", model: "claude-haiku-5.5" }]);
+    expect(run.records).toEqual([{ engine: "copilot", role: "haiku-small", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null }]);
+  });
+
+  it("SDK mode: a repository agent pinned to GPT-5.4 (copilot) gets the session model with a warning", async () => {
+    const providerConfig = sdkProviderConfig();
+    const run = await resolveAgents(
+      [
+        { name: "planner", model: "GPT-5.4 (copilot)", declared: false, path: "planner.agent.md" },
+        { name: "haiku-small", model: "small", declared: false, path: "haiku-small.agent.md" },
+      ],
+      { providerConfig, refreshed: [recordedReflect()] }
+    );
+    expect(run.error).toBeNull();
+    expect(run.records).toContainEqual({ engine: "copilot", role: "planner", configured_model: "GPT-5.4 (copilot)", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" });
+    expect(run.resolutions.map(resolution => resolution.name)).toEqual(["haiku-small"]);
+
+    const { runWithCopilotSDK } = require("./copilot_sdk_session.cjs");
+    const base = tempDir("copilot-subagent-sdk-repository-");
+    fs.mkdirSync(path.join(base, ".github/agents"), { recursive: true });
+    fs.writeFileSync(path.join(base, ".github/agents/planner.agent.md"), vscodePinnedAgent);
+    fs.writeFileSync(path.join(base, ".github/agents/haiku-small.agent.md"), "---\nmodel: small\n---\nWho are you?");
+    vi.stubEnv("GH_AW_SESSION_STATE_BASE_DIR", base);
+    vi.stubEnv("COPILOT_MODEL", "");
+    vi.stubEnv("GH_AW_MODEL_FALLBACK", "");
+    vi.stubEnv("GH_AW_MODEL_ROUTING", "");
+    vi.stubEnv("GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON", JSON.stringify(providerConfig));
+    vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", JSON.stringify(Object.fromEntries(run.resolutions.map(resolution => [resolution.name, resolution.model]))));
+    const createSession = vi.fn().mockResolvedValue({ sessionId: "repository-agent-models", on: () => {}, sendAndWait: async () => ({ data: { content: "done" } }), disconnect: async () => {} });
+    class FakeCopilotClient {
+      start = async () => {};
+      stop = async () => {};
+      createSession = createSession;
+    }
+    const logs = [];
+    const result = await runWithCopilotSDK({
+      sdkUri: "http://127.0.0.1:3002",
+      prompt: "test",
+      logger: message => logs.push(message),
+      workingDirectory: base,
+      agentsBaseDir: base,
+      bare: true,
+      sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: () => ({}) }, approveAll: () => "allow" },
+    });
+    expect(result.exitCode).toBe(0);
+    const session = createSession.mock.calls[0][0];
+    expect(session.customAgents.find(agent => agent.name === "planner").model).toBe(session.model);
+    expect(session.customAgents.find(agent => agent.name === "haiku-small").model).toBe(qualifyModelForMultiProvider("claude-haiku-5.5", providerConfig));
+    expect(logs).toContainEqual(expect.stringMatching(/warning: custom agent "planner" model "GPT-5\.4 \(copilot\)".*using session model/));
+  });
+
+  it("CLI mode writes a personal agent copy with the same file name and the resolved model; the checkout stays untouched", async () => {
+    const { execFileSync } = require("child_process");
+    const dir = tempDir("copilot-subagent-cli-personal-");
+    const workspace = path.join(dir, "workspace");
+    const agentsDir = path.join(workspace, ".github/agents");
     fs.mkdirSync(agentsDir, { recursive: true });
-    const small = "---\nname: haiku-small\ndescription: Small model\nmodel: small # alias\ntools: [read]\n---\nWho are you?\nmodel: small\n";
-    const exact = "---\nmodel: claude-haiku-4.5\n---\nExact.\n";
-    fs.writeFileSync(path.join(agentsDir, "haiku-small.agent.md"), small);
-    fs.writeFileSync(path.join(agentsDir, "haiku-whoami.agent.md"), exact);
-    initGitRepo(dir);
+    const files = {
+      "haiku-small.agent.md": "---\nname: haiku-small\ndescription: Small model\nmodel: small # alias\ntools: [read]\n---\nWho are you?\nmodel: small\n",
+      "haiku-whoami.agent.md": "---\nmodel: claude-haiku-4.5\n---\nExact.\n",
+      "multiline.agent.md": "---\nname: multiline\nmodel: >-\n  small\ndescription: retained\n---\nPrompt retained.\n",
+    };
+    for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(agentsDir, name), content);
+    initGitRepo(workspace);
     const awfConfigPath = path.join(dir, "awf-config.json");
     fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
-    const resolutions = await applyCopilotCLISubagentModels({ reflectData: recordedReflect(), agentsDir, env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath }, logger: () => {} });
+    const copilotHome = path.join(dir, "copilot-home");
+    const resolutions = await applyCopilotCLISubagentModels({
+      reflectData: recordedReflect(),
+      workingDirectory: workspace,
+      agentsBaseDir: path.join(dir, "gh-aw"),
+      env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath, COPILOT_HOME: copilotHome },
+      logger: () => {},
+    });
     expect(resolutions.map(resolution => [resolution.name, resolution.model])).toEqual([
       ["haiku-small", "claude-haiku-5.5"],
       ["haiku-whoami", "claude-haiku-4.5"],
+      ["multiline", "claude-haiku-5.5"],
     ]);
-    expect(fs.readFileSync(path.join(agentsDir, "haiku-small.agent.md"), "utf8")).toBe(small.replace("model: small # alias", 'model: "claude-haiku-5.5" # alias'));
-    expect(fs.readFileSync(path.join(agentsDir, "haiku-whoami.agent.md"), "utf8")).toBe(exact);
+    const personalAgentsDir = path.join(copilotHome, "agents");
+    expect(fs.readdirSync(personalAgentsDir).sort()).toEqual(["haiku-small.agent.md", "multiline.agent.md"]);
+    expect(fs.readFileSync(path.join(personalAgentsDir, "haiku-small.agent.md"), "utf8")).toBe(files["haiku-small.agent.md"].replace("model: small # alias", 'model: "claude-haiku-5.5" # alias'));
+    expect(fs.readFileSync(path.join(personalAgentsDir, "multiline.agent.md"), "utf8")).toBe('---\nname: multiline\nmodel: "claude-haiku-5.5"\ndescription: retained\n---\nPrompt retained.\n');
+    for (const [name, content] of Object.entries(files)) expect(fs.readFileSync(path.join(agentsDir, name), "utf8")).toBe(content);
+    expect(execFileSync("git", ["status", "--porcelain"], { cwd: workspace, encoding: "utf8" })).toBe("");
   });
 
   it("lists only .agent.md files and derives fallback names from that suffix", () => {
@@ -4951,117 +5037,60 @@ Module._load = function(request, ...args) {
     expect(result.status, result.stderr).toBe(0);
   });
 
-  it("rewrites the complete multiline model scalar in CLI custom agents", async () => {
-    const dir = tempDir("copilot-subagent-cli-multiline-");
-    const agentsDir = path.join(dir, ".github/agents");
-    fs.mkdirSync(agentsDir, { recursive: true });
-    const original = "---\nname: multiline\nmodel: >-\n  small\ndescription: retained\n---\nPrompt retained.\n";
-    fs.writeFileSync(path.join(agentsDir, "multiline.agent.md"), original);
-    initGitRepo(dir);
-    const awfConfigPath = path.join(dir, "awf-config.json");
-    fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
-    const resolutions = await applyCopilotCLISubagentModels({
-      reflectData: recordedReflect(),
-      agentsDir,
-      env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath },
-      logger: () => {},
-    });
-    expect(resolutions[0].model).toBe("claude-haiku-5.5");
-    expect(fs.readFileSync(path.join(agentsDir, "multiline.agent.md"), "utf8")).toBe('---\nname: multiline\nmodel: "claude-haiku-5.5"\ndescription: retained\n---\nPrompt retained.\n');
+  it("treats an inline sub-agent as declared and lets it override a repository agent with the same name", () => {
+    const dir = tempDir("copilot-subagent-declared-");
+    const workspace = path.join(dir, "workspace");
+    const base = path.join(dir, "gh-aw");
+    fs.mkdirSync(path.join(workspace, ".github/agents"), { recursive: true });
+    fs.mkdirSync(path.join(base, ".github/agents"), { recursive: true });
+    fs.writeFileSync(path.join(workspace, ".github/agents/planner.agent.md"), vscodePinnedAgent);
+    fs.writeFileSync(path.join(workspace, ".github/agents/shared.agent.md"), "---\nmodel: GPT-5.4 (copilot)\n---\nRepository.\n");
+    fs.writeFileSync(path.join(base, ".github/agents/shared.agent.md"), "---\nmodel: small\n---\nInline.\n");
+    expect(listCopilotSubagents(workspace, base, () => {})).toEqual([
+      { name: "planner", path: path.join(workspace, ".github/agents/planner.agent.md"), model: "GPT-5.4 (copilot)", declared: false },
+      { name: "shared", path: path.join(base, ".github/agents/shared.agent.md"), model: "small", declared: true },
+    ]);
   });
 
-  it("case 6 (CLI, tracked file): a rewritten repository agent file stays out of git status and commits", async () => {
-    const { execFileSync } = require("child_process");
-    const dir = tempDir("copilot-subagent-cli-tracked-");
-    const git = (/** @type {string[]} */ ...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: dir, encoding: "utf8" });
-    git("init", "-q");
-    const agentsDir = path.join(dir, ".github/agents");
+  it.each([true, false])("CLI mode: a personal copy that cannot be written fails closed only for a declared sub-agent (declared=%s)", async declared => {
+    const dir = tempDir("copilot-subagent-cli-copy-failure-");
+    const workspace = path.join(dir, "workspace");
+    const base = path.join(dir, "gh-aw");
+    const agentsDir = path.join(declared ? base : workspace, ".github/agents");
     fs.mkdirSync(agentsDir, { recursive: true });
-    fs.writeFileSync(path.join(agentsDir, "repo-small.agent.md"), "---\nmodel: small\n---\nRepository agent.\n");
-    git("add", "-A");
-    git("commit", "-q", "-m", "init");
+    fs.writeFileSync(path.join(agentsDir, "haiku-small.agent.md"), "---\nmodel: small\n---\nWho are you?\n");
     const awfConfigPath = path.join(dir, "awf-config.json");
     fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
-    await applyCopilotCLISubagentModels({ reflectData: recordedReflect(), agentsDir, env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath }, logger: () => {} });
-    expect(fs.readFileSync(path.join(agentsDir, "repo-small.agent.md"), "utf8")).toBe('---\nmodel: "claude-haiku-5.5"\n---\nRepository agent.\n');
-    expect(git("ls-files", "-t", "--", ".github/agents/repo-small.agent.md").startsWith("S ")).toBe(true);
-    git("add", "-A");
-    expect(git("status", "--porcelain", "--", ".github")).toBe("");
-    expect(git("diff", "--cached", "--name-only", "--", ".github")).toBe("");
-  });
-
-  it("clears skip-worktree after CLI and preserves edits to a tracked agent file", async () => {
-    const { execFileSync } = require("child_process");
-    const dir = tempDir("copilot-subagent-cli-restore-");
-    const git = (/** @type {string[]} */ ...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: dir, encoding: "utf8" });
-    git("init", "-q");
-    const agentsDir = path.join(dir, ".github/agents");
-    fs.mkdirSync(agentsDir, { recursive: true });
-    const agentPath = path.join(agentsDir, "repo-small.agent.md");
-    fs.writeFileSync(agentPath, "---\nmodel: small\n---\nOriginal prompt.\n");
-    git("add", "-A");
-    git("commit", "-q", "-m", "init");
-    const awfConfigPath = path.join(dir, "awf-config.json");
-    fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
-    const rewrittenFiles = [];
-    await applyCopilotCLISubagentModels({
-      reflectData: recordedReflect(),
-      agentsDir,
-      rewrittenFiles,
-      env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath },
-      logger: () => {},
-    });
-    fs.writeFileSync(agentPath, '---\nmodel: "claude-haiku-5.5"\n---\nEdited prompt.\n');
-    expect(git("status", "--porcelain", "--", ".github")).toBe("");
-    expect(restoreCopilotCLIAgentFiles(rewrittenFiles, () => {})).toBe(true);
-    expect(git("ls-files", "-t", "--", ".github/agents/repo-small.agent.md").startsWith("H ")).toBe(true);
-    expect(fs.readFileSync(agentPath, "utf8")).toBe("---\nmodel: small\n---\nEdited prompt.\n");
-    expect(git("status", "--porcelain", "--", ".github")).toContain(".github/agents/repo-small.agent.md");
-  });
-
-  it.each(["tracking-state-error", "skip-worktree-error", "skip-worktree-not-retained"])("restores the original tracked agent file when %s", async failureMode => {
-    const { execFileSync } = require("child_process");
-    const childProcess = require("child_process");
-    const dir = tempDir("copilot-subagent-cli-skip-failure-");
-    const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: dir, encoding: "utf8" });
-    git("init", "-q");
-    const agentsDir = path.join(dir, ".github/agents");
-    fs.mkdirSync(agentsDir, { recursive: true });
-    const agentPath = path.join(agentsDir, "repo-small.agent.md");
-    const original = "---\nmodel: small\n---\nOriginal prompt.\n";
-    fs.writeFileSync(agentPath, original);
-    git("add", "-A");
-    git("commit", "-q", "-m", "init");
-    const awfConfigPath = path.join(dir, "awf-config.json");
-    fs.copyFileSync(awfConfigFixturePath, awfConfigPath);
-    const realSpawnSync = childProcess.spawnSync;
-    vi.spyOn(childProcess, "spawnSync").mockImplementation((command, args, options) => {
-      if (command === "git" && args[0] === "ls-files" && args.includes("--error-unmatch")) {
-        if (failureMode === "tracking-state-error") return { status: 128, stdout: "", stderr: "index unavailable" };
-        return { status: 0, stdout: ".github/agents/repo-small.agent.md\n", stderr: "" };
-      }
-      if (command === "git" && args[0] === "update-index" && args.includes("--skip-worktree")) {
-        return { status: failureMode === "skip-worktree-error" ? 1 : 0, stdout: "", stderr: "index unavailable" };
-      }
-      if (command === "git" && args[0] === "ls-files" && args.includes("-t")) return { status: 0, stdout: "H .github/agents/repo-small.agent.md\n", stderr: "" };
-      return realSpawnSync(command, args, options);
-    });
+    // COPILOT_HOME is a file, so the personal agents directory cannot be created.
+    const copilotHome = path.join(dir, "copilot-home");
+    fs.writeFileSync(copilotHome, "not a directory");
     vi.spyOn(process, "exit").mockImplementation(code => {
       throw new Error(`exit ${code}`);
     });
-    await expect(
-      applyCopilotCLISubagentModels({
-        reflectData: recordedReflect(),
-        agentsDir,
-        env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath },
-        logger: () => {},
-      })
-    ).rejects.toThrow("exit 1");
-    expect(fs.readFileSync(agentPath, "utf8")).toBe(original);
+    const logs = [];
+    const apply = applyCopilotCLISubagentModels({
+      reflectData: recordedReflect(),
+      workingDirectory: workspace,
+      agentsBaseDir: base,
+      env: { GH_AW_TMP_DIR: dir, AWF_REFLECT_ENABLED: "1", GH_AW_AWF_CONFIG_PATH: awfConfigPath, COPILOT_HOME: copilotHome },
+      logger: message => logs.push(message),
+    });
+    if (declared) {
+      await expect(apply).rejects.toThrow("exit 1");
+      expect(logs).toContainEqual(expect.stringContaining("copilot sub-agent 'haiku-small': cannot write personal agent copy"));
+    } else {
+      expect((await apply).map(resolution => resolution.model)).toEqual(["claude-haiku-5.5"]);
+      expect(logs).toContainEqual(expect.stringContaining("warning: repository agent 'haiku-small'"));
+    }
+    expect(fs.readFileSync(path.join(agentsDir, "haiku-small.agent.md"), "utf8")).toBe("---\nmodel: small\n---\nWho are you?\n");
   });
 
-  /** Spawn the harness against the recorded catalogue with the given workspace agent files. */
-  async function runHarness({ sdk = false, agents, workspaceAgents = {}, noop = false, reflect = recordedReflect(), env: envOverrides = {} }) {
+  /**
+   * Spawn the harness against the recorded catalogue. `agents` are repository agent files in the engine
+   * working directory; `inlineAgents` are workflow-declared sub-agents, staged under `<os.tmpdir()>/gh-aw`
+   * and restored (untracked) into the workspace as `restore_inline_sub_agents.sh` does.
+   */
+  async function runHarness({ sdk = false, agents = {}, inlineAgents = {}, workspaceAgents = {}, noop = false, reflect = recordedReflect(), env: envOverrides = {} }) {
     const dir = tempDir("copilot-subagent-harness-");
     const workspace = path.join(dir, "workspace");
     const engineCwd = envOverrides.GH_AW_ENGINE_CWD || workspace;
@@ -5072,7 +5101,11 @@ Module._load = function(request, ...args) {
     initGitRepo(workspace);
     if (engineCwd !== workspace) initGitRepo(engineCwd);
     const ostmp = path.join(dir, "ostmp");
-    fs.mkdirSync(ostmp);
+    fs.mkdirSync(path.join(ostmp, "gh-aw", ".github/agents"), { recursive: true });
+    for (const [name, content] of Object.entries(inlineAgents)) {
+      fs.writeFileSync(path.join(ostmp, "gh-aw", ".github/agents", name), content);
+      fs.writeFileSync(path.join(workspace, ".github/agents", name), content);
+    }
     const startedPath = path.join(dir, "copilot-started.json");
     let providerPort = 0;
     let sdkPort = 0;
@@ -5102,8 +5135,10 @@ if (${providerPort} && process.argv[1].endsWith("copilot_harness.cjs")) require(
 const path = require("path");
 const args = process.argv.slice(2);
 const agentsDir = path.join(process.env.GH_AW_ENGINE_CWD || process.env.GITHUB_WORKSPACE || process.cwd(), ".github", "agents");
-const agentFiles = fs.existsSync(agentsDir) ? Object.fromEntries(fs.readdirSync(agentsDir).filter(name => name.endsWith(".agent.md")).map(name => [name, fs.readFileSync(path.join(agentsDir, name), "utf8")])) : {};
-fs.writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ args, agentFiles, subagentModels: process.env.GH_AW_COPILOT_SDK_SUBAGENT_MODELS || null }));
+const readAgents = dir => (fs.existsSync(dir) ? Object.fromEntries(fs.readdirSync(dir).filter(name => name.endsWith(".agent.md")).map(name => [name, fs.readFileSync(path.join(dir, name), "utf8")])) : {});
+const agentFiles = readAgents(agentsDir);
+const personalAgents = readAgents(path.join(process.env.COPILOT_HOME, "agents"));
+fs.writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ args, agentFiles, personalAgents, subagentModels: process.env.GH_AW_COPILOT_SDK_SUBAGENT_MODELS || null }));
 if (args.includes("--session-id")) {
   const model = args.includes("--model") ? args[args.lastIndexOf("--model") + 1] : process.env.COPILOT_MODEL;
   const sessionDir = path.join(process.env.COPILOT_HOME, "session-state", args[args.indexOf("--session-id") + 1]);
@@ -5160,6 +5195,8 @@ process.stdout.write("done\\n");`
       started: fs.existsSync(startedPath) ? JSON.parse(fs.readFileSync(startedPath, "utf8")) : null,
       records: readRecords(dir),
       agentFile: name => fs.readFileSync(path.join(engineCwd, ".github/agents", name), "utf8"),
+      personalAgentsDir: path.join(dir, "copilot-home", "agents"),
+      gitStatus: () => require("child_process").execFileSync("git", ["status", "--porcelain"], { cwd: workspace, encoding: "utf8" }),
     };
   }
 
@@ -5168,8 +5205,8 @@ process.stdout.write("done\\n");`
     "mini54-whoami.agent.md": "---\nname: mini54-whoami\nmodel: gpt-5.4-mini\n---\nWho are you?\n",
   };
 
-  it.each([false, true])("case 3 end to end: a dead sub-agent model stops the harness before Copilot starts (sdk=%s)", async sdk => {
-    const run = await runHarness({ sdk, agents: smokeAgents });
+  it.each([false, true])("case 3 end to end: a dead declared sub-agent model stops the harness before Copilot starts (sdk=%s)", async sdk => {
+    const run = await runHarness({ sdk, inlineAgents: smokeAgents });
     expect(run.result.status, run.result.stderr).toBe(1);
     expect(run.started).toBeNull();
     expect(run.result.stderr).not.toContain("starting sidecar");
@@ -5183,8 +5220,43 @@ process.stdout.write("done\\n");`
     expect(run.agentFile("mini54-whoami.agent.md")).toBe(smokeAgents["mini54-whoami.agent.md"]);
   });
 
+  it.each([false, true])("a repository agent pinned to GPT-5.4 (copilot) does not stop the run (sdk=%s)", async sdk => {
+    const run = await runHarness({ sdk, agents: { "planner.agent.md": vscodePinnedAgent } });
+    expect(run.result.status, run.result.stderr).toBe(0);
+    expect(run.started).not.toBeNull();
+    expect(run.records).toContainEqual({ engine: "copilot", role: "planner", configured_model: "GPT-5.4 (copilot)", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" });
+    expect(run.result.stderr).toMatch(/warning: repository agent 'planner' \(.*planner\.agent\.md\) declares model 'GPT-5\.4 \(copilot\)'/);
+    expect(run.result.stderr).toContain(sdk ? "the SDK session gives it the session model" : "Copilot CLI uses the agent file unchanged");
+    expect(detectErrors(run.result.stderr).modelNotSupportedError).toBe(false);
+    if (sdk) expect(JSON.parse(run.started.subagentModels)).toEqual({});
+    expect(run.started.personalAgents).toEqual({});
+    expect(run.agentFile("planner.agent.md")).toBe(vscodePinnedAgent);
+  });
+
+  it.each([false, true])("a declared inline sub-agent with gpt-5.4-mini still fails closed beside the same repository agent (sdk=%s)", async sdk => {
+    const run = await runHarness({ sdk, agents: { "planner.agent.md": vscodePinnedAgent }, inlineAgents: { "mini54-whoami.agent.md": smokeAgents["mini54-whoami.agent.md"] } });
+    expect(run.result.status, run.result.stderr).toBe(1);
+    expect(run.started).toBeNull();
+    expect(run.result.stderr).toContain("copilot sub-agent 'mini54-whoami': The requested model is not supported: 'gpt-5.4-mini' is not available in the workflow's live model catalog");
+    expect(run.result.stderr).toContain("warning: repository agent 'planner'");
+    expect(run.records).toContainEqual({ engine: "copilot", role: "planner", configured_model: "GPT-5.4 (copilot)", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" });
+    expect(run.records).toContainEqual({ engine: "copilot", role: "mini54-whoami", configured_model: "gpt-5.4-mini", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" });
+  });
+
+  it("skips sub-agent resolution in the threat-detection phase", async () => {
+    const repositoryAgents = { "dead.agent.md": "---\nmodel: gpt-5.4-mini\n---\nDead.\n", "haiku-small.agent.md": "---\nmodel: small\n---\nWho are you?\n" };
+    const run = await runHarness({ agents: repositoryAgents, inlineAgents: { "mini54-whoami.agent.md": smokeAgents["mini54-whoami.agent.md"] }, env: { GH_AW_PHASE: "detection" } });
+    expect(run.result.status, run.result.stderr).toBe(0);
+    expect(run.started).not.toBeNull();
+    expect(run.result.stderr).not.toContain("copilot sub-agent");
+    expect(run.result.stderr).not.toContain("repository agent");
+    expect((run.records || []).filter(record => record.role !== "main")).toEqual([]);
+    expect(fs.existsSync(run.personalAgentsDir)).toBe(false);
+    for (const [name, content] of Object.entries(repositoryAgents)) expect(run.agentFile(name)).toBe(content);
+  });
+
   it("skips CLI sub-agent validation when a noop is already present", async () => {
-    const run = await runHarness({ agents: { "dead.agent.md": "---\nmodel: gpt-5.4-mini\n---\nUnused.\n" }, noop: true });
+    const run = await runHarness({ inlineAgents: { "dead.agent.md": "---\nmodel: gpt-5.4-mini\n---\nUnused.\n" }, noop: true });
     expect(run.result.status, run.result.stderr).toBe(0);
     expect(run.started).toBeNull();
     expect(run.result.stderr).toContain("pre-flight: noop message found in safe-outputs");
@@ -5203,15 +5275,26 @@ process.stdout.write("done\\n");`
     expect(run.result.status, run.result.stderr).toBe(0);
     expect(run.started).not.toBeNull();
     expect(run.records).toContainEqual({ engine: "copilot", role: "effective", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null });
+    expect(run.records.map(record => record.role)).not.toContain("unrelated");
   });
 
-  it("case 6 end to end (CLI): Copilot CLI starts with the resolved model in the agent file", async () => {
+  it("case 6 end to end (CLI): Copilot CLI starts with a personal copy of a repository agent carrying the resolved model", async () => {
     const run = await runHarness({ agents: { "haiku-small.agent.md": "---\nname: haiku-small\nmodel: small\n---\nWho are you?\n" } });
     expect(run.result.status, run.result.stderr).toBe(0);
     expect(run.started).not.toBeNull();
-    expect(run.started.agentFiles["haiku-small.agent.md"]).toBe('---\nname: haiku-small\nmodel: "claude-haiku-5.5"\n---\nWho are you?\n');
+    expect(run.started.personalAgents).toEqual({ "haiku-small.agent.md": '---\nname: haiku-small\nmodel: "claude-haiku-5.5"\n---\nWho are you?\n' });
+    expect(run.started.agentFiles["haiku-small.agent.md"]).toBe("---\nname: haiku-small\nmodel: small\n---\nWho are you?\n");
     expect(run.agentFile("haiku-small.agent.md")).toBe("---\nname: haiku-small\nmodel: small\n---\nWho are you?\n");
+    expect(run.gitStatus()).toBe("");
     expect(run.records).toContainEqual({ engine: "copilot", role: "haiku-small", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null });
+  });
+
+  it("case 6 end to end (CLI): a declared inline sub-agent gets a personal copy with the resolved model", async () => {
+    const inline = "---\nname: inline-large\nmodel: large\n---\nPropose.\n";
+    const run = await runHarness({ inlineAgents: { "inline-large.agent.md": inline } });
+    expect(run.result.status, run.result.stderr).toBe(0);
+    expect(run.started.personalAgents).toEqual({ "inline-large.agent.md": '---\nname: inline-large\nmodel: "claude-sonnet-5.5"\n---\nPropose.\n' });
+    expect(run.agentFile("inline-large.agent.md")).toBe(inline);
   });
 
   it("case 6 end to end (SDK): the driver receives the qualified resolved sub-agent model", async () => {
@@ -5232,8 +5315,8 @@ process.stdout.write("done\\n");`
       expect(run.records).toEqual([{ engine: "copilot", role: "haiku-small", configured_model: "small", resolved_model: "claude-haiku-5.5", provider: "copilot", status: "resolved", cause: null }]);
     });
 
-    it.each([false, true])("still fails closed for a dead sub-agent model (sdk=%s)", async sdk => {
-      const run = await runHarness({ sdk, reflect: routedReflect(), agents: { "opus.agent.md": "---\nmodel: claude-opus-4.8\n---\nWho are you?\n" }, env: { GH_AW_MODEL_ROUTING: "1", COPILOT_MODEL: "" } });
+    it.each([false, true])("still fails closed for a dead declared sub-agent model (sdk=%s)", async sdk => {
+      const run = await runHarness({ sdk, reflect: routedReflect(), inlineAgents: { "opus.agent.md": "---\nmodel: claude-opus-4.8\n---\nWho are you?\n" }, env: { GH_AW_MODEL_ROUTING: "1", COPILOT_MODEL: "" } });
       expect(run.result.status, run.result.stderr).toBe(1);
       expect(run.started).toBeNull();
       expect(run.records).toEqual([{ engine: "copilot", role: "opus", configured_model: "claude-opus-4.8", resolved_model: null, provider: "copilot", status: "failed", cause: "model_unavailable" }]);

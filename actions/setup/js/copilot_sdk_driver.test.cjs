@@ -102,11 +102,14 @@ describe("copilot_sdk_driver.cjs", () => {
       );
     });
 
-    it.each(["medium", "unavailable-model"])("fails closed for an unresolved custom agent model %s instead of using the session model", async agentModel => {
-      const workflow = path.join(testSessionStateDir, `unresolved-${agentModel}-workflow`);
+    it.each(["medium", "GPT-5.4 (copilot)"])("gives a repository agent whose model %s the harness could not resolve the session model with a warning", async agentModel => {
+      const workflow = path.join(testSessionStateDir, `unresolved-${agentModel.replace(/\W+/g, "-")}-workflow`);
       fs.mkdirSync(path.join(workflow, ".github/agents"), { recursive: true });
       fs.writeFileSync(path.join(workflow, ".github/agents/unknown.agent.md"), `---\nname: unknown-agent\nmodel: ${agentModel}\n---\nUnknown model.`);
-      const createSession = vi.fn();
+      // The harness recorded the failure and left the repository agent out of the resolved map.
+      vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", "{}");
+      const sessionId = `unresolved-${agentModel.replace(/\W+/g, "-")}-session`;
+      const createSession = vi.fn().mockResolvedValue({ sessionId, on: () => {}, sendAndWait: vi.fn().mockResolvedValue({ data: { content: "done" } }), disconnect: vi.fn().mockResolvedValue(undefined) });
       class FakeCopilotClient {
         start = vi.fn().mockResolvedValue(undefined);
         createSession = createSession;
@@ -125,9 +128,15 @@ describe("copilot_sdk_driver.cjs", () => {
         logger,
         sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: vi.fn(() => ({})) }, approveAll: () => "allow" },
       });
-      expect(result.exitCode).toBe(1);
-      expect(result.output).toContain(`Cannot qualify custom agent "unknown-agent" model "${agentModel}"`);
-      expect(createSession).not.toHaveBeenCalled();
+      expect(result.exitCode).toBe(0);
+      expect(createSession.mock.calls[0][0].customAgents).toEqual([{ name: "unknown-agent", displayName: "unknown-agent", prompt: "Unknown model.", model: "copilot-responses/gpt-5.4" }]);
+      expect(logger).toHaveBeenCalledWith(expect.stringMatching(/warning:.*unknown-agent.*session model/i));
+      const captured = fs
+        .readFileSync(path.join(testSessionStateDir, `${sessionId}/events.jsonl`), "utf8")
+        .trim()
+        .split("\n")
+        .map(JSON.parse);
+      expect(captured.filter(event => event.type === "subagent.model_unavailable")).toEqual([expect.objectContaining({ data: { agentName: "unknown-agent", declaredModel: agentModel, model: "copilot-responses/gpt-5.4" } })]);
     });
 
     it("captures ephemeral selection and final model results including BYOK and subagent context", async () => {

@@ -105,7 +105,8 @@ const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
 const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError, recordModelResolution, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
-const { loadCopilotSDKCustomAgents } = require("./extract_inline_sub_agents.cjs");
+const { getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
+const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
 
@@ -692,6 +693,27 @@ function listCopilotAgentFiles(directory, logger = log) {
 }
 
 /**
+ * List the Copilot sub-agents of a run. Repository agents come from
+ * `<workingDirectory>/.github/agents`; workflow-declared inline sub-agents come from the
+ * directory they are staged in under `agentsBaseDir` (the one `loadCopilotSDKCustomAgents`
+ * reads). An inline sub-agent overrides a repository agent with the same name and is declared.
+ * @param {string} workingDirectory
+ * @param {string} agentsBaseDir
+ * @param {(msg: string) => void} [logger]
+ * @returns {Array<{ name: string, model?: string, path: string, declared: boolean }>}
+ */
+function listCopilotSubagents(workingDirectory, agentsBaseDir, logger = log) {
+  const declaredDir = path.resolve(agentsBaseDir, inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("copilot")).dir);
+  const repositoryDir = path.resolve(workingDirectory, ".github", "agents");
+  const agents = new Map();
+  if (repositoryDir !== declaredDir) {
+    for (const agent of listCopilotAgentFiles(repositoryDir, logger)) agents.set(agent.name, { ...agent, declared: false });
+  }
+  for (const agent of listCopilotAgentFiles(declaredDir, logger)) agents.set(agent.name, { ...agent, declared: true });
+  return [...agents.values()];
+}
+
+/**
  * Locate the top-level YAML model scalar in a Copilot agent file.
  * @param {string} content
  * @returns {{ value: string, source: string, start: number, end: number }}
@@ -728,12 +750,16 @@ function replaceCopilotAgentFileModelContent(content, model) {
 }
 
 /**
- * Replace the top-level frontmatter `model:` scalar of a Copilot agent file. The rest of the
- * file, including comments and the body, is preserved byte for byte.
+ * Write a copy of a Copilot agent file to Copilot CLI's personal agents directory with only
+ * the frontmatter `model:` scalar replaced. The copy keeps the file name, which Copilot CLI
+ * uses as the agent ID, so it overrides the repository agent with the same ID. The source
+ * file is never modified.
  * @param {string} agentPath
+ * @param {string} personalAgentsDir
  * @param {string} model
+ * @returns {string} The path of the copy.
  */
-function rewriteCopilotAgentFileModel(agentPath, model) {
+function writeCopilotPersonalAgentCopy(agentPath, personalAgentsDir, model) {
   let content;
   try {
     content = fs.readFileSync(agentPath, "utf8");
@@ -741,11 +767,14 @@ function rewriteCopilotAgentFileModel(agentPath, model) {
     throw new Error(`cannot read agent file ${agentPath}: ${getErrorMessage(error)}`, { cause: error });
   }
   const updated = replaceCopilotAgentFileModelContent(content, model);
+  const target = path.join(personalAgentsDir, path.basename(agentPath));
   try {
-    fs.writeFileSync(agentPath, updated);
+    fs.mkdirSync(personalAgentsDir, { recursive: true });
+    fs.writeFileSync(target, updated);
   } catch (error) {
-    throw new Error(`cannot rewrite model in ${agentPath}: ${getErrorMessage(error)}`, { cause: error });
+    throw new Error(`cannot write personal agent ${target}: ${getErrorMessage(error)}`, { cause: error });
   }
+  return target;
 }
 
 /**
@@ -757,20 +786,24 @@ function rewriteCopilotAgentFileModel(agentPath, model) {
  * not recorded.
  *
  * Every sub-agent with a model gets a `model.resolution` record (role = agent name), so
- * several sub-agents sharing one dead model each get a `failed` record. When any sub-agent
- * fails, the first failure is thrown as a ModelAliasResolutionError after all records are
- * written; callers must not start Copilot. `/reflect` is refreshed at most once.
+ * several sub-agents sharing one dead model each get a `failed` record. Workflow-declared
+ * sub-agents (the default) fail closed: when any of them fails, the first failure is thrown
+ * as a ModelAliasResolutionError after all records are written; callers must not start
+ * Copilot. A repository agent (`declared: false`) that fails gets a warning and a `failed`
+ * record, is left out of the result, and does not stop the run. `/reflect` is refreshed at
+ * most once.
  *
  * @param {{
- *   agents: Array<{ name: string, model?: string }>,
+ *   agents: Array<{ name: string, model?: string, path?: string, declared?: boolean }>,
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   providerConfig?: { providers: Array<{name: string}>, models: Array<{id: string, provider: string}> } | null,
  *   refreshProviderConfig?: (reflectData: any) => Promise<{ providers: Array<{name: string}>, models: Array<{id: string, provider: string}> } | null>,
  *   aliasMap?: Record<string, string[]> | null,
+ *   repositoryFallback?: string,
  *   env?: NodeJS.ProcessEnv,
  *   logger?: (msg: string) => void,
- * }} options
+ * }} options `repositoryFallback` describes what happens to a repository agent whose model fails.
  * @returns {Promise<Array<{ name: string, configuredModel: string, resolvedModel: string, model: string }>>}
  *   `resolvedModel` is the resolved Copilot id; `model` is the id to hand to Copilot (qualified in SDK mode).
  */
@@ -805,10 +838,20 @@ async function resolveCopilotSubagentModels(options) {
   const resolutions = [];
   for (const agent of declared) {
     const configuredModel = String(agent.model).trim();
+    const repositoryAgent = agent.declared === false;
+    // A repository agent the workflow may never use must not make the run look like an
+    // unsupported-model failure, so its resolver failure is reported by the warning below.
+    const agentLogger = repositoryAgent ? (/** @type {string} */ message) => (MODEL_NOT_SUPPORTED_PATTERN.test(message) ? undefined : logger(message)) : logger;
     const scope = scopeModelToReflectProviders(configuredModel);
     const fail = (/** @type {InstanceType<typeof ModelAliasResolutionError>} */ failure, /** @type {string} */ detail) => {
-      logger(`copilot sub-agent '${agent.name}': ${failure.message}${detail ? ` ${detail}` : ""} Refusing to start Copilot with a different sub-agent model.`);
       recordModelResolution({ engine: "copilot", role: agent.name, configured_model: configuredModel, resolved_model: null, provider: failure.provider || null, status: "failed", cause: failure.reason }, env);
+      if (repositoryAgent) {
+        logger(
+          `warning: repository agent '${agent.name}' (${agent.path || "unknown file"}) declares model '${configuredModel}', which could not be resolved (cause: ${failure.reason}); ${options.repositoryFallback || "the agent is left unchanged"}.`
+        );
+        return;
+      }
+      logger(`copilot sub-agent '${agent.name}': ${failure.message}${detail ? ` ${detail}` : ""} Refusing to start Copilot with a different sub-agent model.`);
       failures.push(failure);
     };
     let result;
@@ -824,7 +867,7 @@ async function resolveCopilotSubagentModels(options) {
         logPrefix: `copilot sub-agent '${agent.name}' model alias resolution`,
         normalize: r => normalizeForCopilotCLI(r.resolvedModel),
         env,
-        logger,
+        logger: agentLogger,
       });
     } catch (failure) {
       if (!(failure instanceof ModelAliasResolutionError)) throw failure;
@@ -874,16 +917,20 @@ async function resolveCopilotSubagentModels(options) {
 }
 
 /**
- * CLI mode: resolve the sub-agent models of the agent files Copilot CLI loads from
- * `<workspace>/.github/agents` (repository agents and restored inline sub-agents) and write
- * each resolved id back into the file's `model:` when it differs from the declared value.
- * Stops the process before Copilot starts when a sub-agent model cannot be resolved.
+ * CLI mode: resolve the sub-agent models of the agents Copilot CLI loads (repository agents
+ * in the engine working directory and workflow-declared inline sub-agents) and, for each
+ * resolved id that differs from the declared value, write a copy of the agent file with the
+ * resolved `model:` to Copilot CLI's personal agents directory
+ * (`${COPILOT_HOME:-$HOME/.copilot}/agents`). Files in the checkout are never modified.
+ * Stops the process before Copilot starts when a declared sub-agent model cannot be resolved
+ * or its copy cannot be written; repository agents only produce warnings.
  *
  * @param {{
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
- *   agentsDir?: string,
- *   rewrittenFiles?: Array<{ path: string, configuredModel: string, resolvedModel: string, modelSource: string }>,
+ *   workingDirectory?: string,
+ *   agentsBaseDir?: string,
+ *   personalAgentsDir?: string,
  *   env?: NodeJS.ProcessEnv,
  *   logger?: (msg: string) => void,
  * }} options
@@ -892,11 +939,20 @@ async function resolveCopilotSubagentModels(options) {
 async function applyCopilotCLISubagentModels(options) {
   const logger = options.logger || log;
   const env = options.env || process.env;
-  const agentsDir = options.agentsDir || path.join(env.GH_AW_ENGINE_CWD || env.GITHUB_WORKSPACE || process.cwd(), ".github", "agents");
-  const files = listCopilotAgentFiles(agentsDir, logger);
+  const workingDirectory = options.workingDirectory || path.resolve(env.GITHUB_WORKSPACE || process.cwd(), env.GH_AW_ENGINE_CWD || ".");
+  const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
+  const personalAgentsDir = options.personalAgentsDir || path.join(env.COPILOT_HOME || path.join(env.HOME || os.homedir(), ".copilot"), "agents");
+  const agents = listCopilotSubagents(workingDirectory, agentsBaseDir, logger);
   let resolutions;
   try {
-    resolutions = await resolveCopilotSubagentModels({ agents: files, reflectData: options.reflectData, refetchReflectData: options.refetchReflectData, env, logger });
+    resolutions = await resolveCopilotSubagentModels({
+      agents,
+      reflectData: options.reflectData,
+      refetchReflectData: options.refetchReflectData,
+      repositoryFallback: "Copilot CLI uses the agent file unchanged",
+      env,
+      logger,
+    });
   } catch (failure) {
     if (!(failure instanceof ModelAliasResolutionError)) throw failure;
     process.exit(1);
@@ -904,106 +960,24 @@ async function applyCopilotCLISubagentModels(options) {
   }
   for (const resolution of resolutions) {
     if (resolution.model === resolution.configuredModel) continue;
-    for (const file of files.filter(file => file.name === resolution.name && file.model === resolution.configuredModel)) {
-      let original;
-      let modelScalar;
-      try {
-        original = fs.readFileSync(file.path, "utf8");
-        modelScalar = getCopilotAgentModelScalar(original);
-        rewriteCopilotAgentFileModel(file.path, resolution.model);
-      } catch (error) {
-        if (typeof original === "string") {
-          try {
-            fs.writeFileSync(file.path, original);
-          } catch (restoreError) {
-            logger(`warning: cannot restore ${file.path} after a rewrite failure: ${getErrorMessage(restoreError)}`);
-          }
-        }
-        if (options.rewrittenFiles) restoreCopilotCLIAgentFiles(options.rewrittenFiles, logger);
-        logger(`copilot sub-agent '${resolution.name}': cannot rewrite ${file.path}: ${getErrorMessage(error)}. Refusing to start Copilot.`);
-        process.exit(1);
-        return [];
+    const agent = agents.find(candidate => candidate.name === resolution.name);
+    if (!agent) continue;
+    try {
+      const target = writeCopilotPersonalAgentCopy(agent.path, personalAgentsDir, resolution.model);
+      logger(`copilot sub-agent '${resolution.name}': wrote model '${resolution.model}' to personal agent ${target}`);
+    } catch (error) {
+      if (!agent.declared) {
+        logger(
+          `warning: repository agent '${resolution.name}' (${agent.path}): cannot write personal agent copy with model '${resolution.model}' to ${personalAgentsDir}: ${getErrorMessage(error)}; Copilot CLI uses the agent file unchanged.`
+        );
+        continue;
       }
-      const trackingState = hideTrackedAgentFileRewrite(file.path, logger);
-      if (!trackingState) {
-        fs.writeFileSync(file.path, original);
-        if (options.rewrittenFiles) restoreCopilotCLIAgentFiles(options.rewrittenFiles, logger);
-        logger(`copilot sub-agent '${resolution.name}': cannot keep the resolved model out of commits for tracked file ${file.path}. Refusing to start Copilot with an unresolved sub-agent model.`);
-        process.exit(1);
-        return [];
-      }
-      if (trackingState === true) {
-        options.rewrittenFiles?.push({ path: file.path, configuredModel: resolution.configuredModel, resolvedModel: resolution.model, modelSource: modelScalar.source });
-      }
-      logger(`copilot sub-agent '${resolution.name}': wrote model '${resolution.model}' to ${file.path}`);
+      logger(`copilot sub-agent '${resolution.name}': cannot write personal agent copy of ${agent.path} to ${personalAgentsDir}: ${getErrorMessage(error)}. Refusing to start Copilot with an unresolved sub-agent model.`);
+      process.exit(1);
+      return []; // unreachable, keeps TypeScript control-flow analysis happy
     }
   }
   return resolutions;
-}
-
-/**
- * Keep a harness rewrite of a git-tracked agent file out of the agent's commits by marking it
- * skip-worktree until the harness restores the model and clears the flag. Untracked files need
- * nothing. Returns false when tracking state or the index flag cannot be verified.
- * @param {string} agentPath
- * @param {(msg: string) => void} logger
- * @returns {boolean|"untracked"}
- */
-function hideTrackedAgentFileRewrite(agentPath, logger) {
-  const { spawnSync } = require("child_process");
-  const cwd = path.dirname(agentPath);
-  const file = path.basename(agentPath);
-  const tracked = spawnSync("git", ["ls-files", "--error-unmatch", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
-  if (tracked.error || (tracked.status !== 0 && tracked.status !== 1)) {
-    logger(`warning: git ls-files could not determine tracking state for ${agentPath}: ${tracked.error ? getErrorMessage(tracked.error) : String(tracked.stderr || "").trim()}`);
-    return false;
-  }
-  if (tracked.status === 1) return "untracked";
-  const hidden = spawnSync("git", ["update-index", "--skip-worktree", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
-  if (hidden.error || hidden.status !== 0) {
-    logger(`warning: git update-index --skip-worktree failed for ${agentPath}: ${hidden.error ? getErrorMessage(hidden.error) : String(hidden.stderr || "").trim()}`);
-    return false;
-  }
-  const verified = spawnSync("git", ["ls-files", "-t", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
-  if (verified.error || verified.status !== 0 || !/^S\s/.test(verified.stdout || "")) {
-    logger(`warning: git did not retain skip-worktree for ${agentPath}: ${verified.error ? getErrorMessage(verified.error) : String(verified.stderr || verified.stdout || "").trim()}`);
-    spawnSync("git", ["update-index", "--no-skip-worktree", "--", file], { cwd, encoding: "utf8", timeout: 5000 });
-    return false;
-  }
-  return true;
-}
-
-/**
- * Restore harness-only model substitutions while preserving any other agent-file edits.
- * @param {Array<{ path: string, configuredModel: string, resolvedModel: string, modelSource: string }>} rewrittenFiles
- * @param {(msg: string) => void} logger
- * @returns {boolean}
- */
-function restoreCopilotCLIAgentFiles(rewrittenFiles, logger = log) {
-  const { spawnSync } = require("child_process");
-  let success = true;
-  for (const file of rewrittenFiles) {
-    const cwd = path.dirname(file.path);
-    const name = path.basename(file.path);
-    const cleared = spawnSync("git", ["update-index", "--no-skip-worktree", "--", name], { cwd, encoding: "utf8", timeout: 5000 });
-    const verified = cleared.error || cleared.status !== 0 ? null : spawnSync("git", ["ls-files", "-t", "--", name], { cwd, encoding: "utf8", timeout: 5000 });
-    if (!verified || verified.error || verified.status !== 0 || /^S\s/.test(verified.stdout || "")) {
-      logger(`warning: cannot clear skip-worktree for ${file.path}: ${cleared.error ? getErrorMessage(cleared.error) : String(cleared.stderr || verified?.stderr || "").trim()}`);
-      success = false;
-      continue;
-    }
-    try {
-      const content = fs.readFileSync(file.path, "utf8");
-      const current = getCopilotAgentModelScalar(content);
-      if (current.value === file.resolvedModel && file.resolvedModel !== file.configuredModel) {
-        fs.writeFileSync(file.path, content.slice(0, current.start) + file.modelSource + content.slice(current.end));
-      }
-    } catch (error) {
-      logger(`warning: cannot restore harness model substitution in ${file.path}: ${getErrorMessage(error)}`);
-      success = false;
-    }
-  }
-  return success;
 }
 
 /**
@@ -1723,7 +1697,6 @@ async function main() {
   const executionEvidence = captureExecutionEvidenceConfiguration(process.env);
   stripExecutionEvidenceEnv(process.env);
   const [, , command, ...args] = process.argv;
-  const cliAgentFileRestorations = [];
   const retryConfig = resolveRetryConfig(process.env, log);
   const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
 
@@ -1850,12 +1823,13 @@ async function main() {
   }
 
   // Sub-agent models are resolved on routed runs too, but a pre-existing noop must not
-  // make startup depend on sub-agent model availability.
-  if (!copilotSDKMode) {
+  // make startup depend on sub-agent model availability. Threat detection uses no
+  // sub-agents, so it neither reads, resolves, records nor writes agent files.
+  const resolveSubagentModels = !isDetectionPhase(process.env.GH_AW_PHASE);
+  if (!copilotSDKMode && resolveSubagentModels) {
     await applyCopilotCLISubagentModels({
       reflectData: awfReflectData,
       refetchReflectData,
-      rewrittenFiles: cliAgentFileRestorations,
       logger: log,
     });
   }
@@ -1915,10 +1889,11 @@ async function main() {
 
     // The same custom agents the SDK driver loads: workflow definitions override repository ones.
     const sdkWorkingDirectory = path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), process.env.GH_AW_ENGINE_CWD || ".");
-    const agents = loadCopilotSDKCustomAgents(sdkWorkingDirectory, path.join(os.tmpdir(), "gh-aw"), log);
+    const agents = resolveSubagentModels ? listCopilotSubagents(sdkWorkingDirectory, path.join(os.tmpdir(), "gh-aw"), log) : [];
     try {
       const resolutions = await resolveCopilotSubagentModels({
         agents,
+        repositoryFallback: "the SDK session gives it the session model",
         reflectData: awfReflectData,
         refetchReflectData,
         providerConfig: multiProvider,
@@ -2506,9 +2481,6 @@ async function main() {
       await fetchAWFReflect({ logger: log });
     }
   } finally {
-    if (!restoreCopilotCLIAgentFiles(cliAgentFileRestorations, log)) {
-      lastExitCode = 1;
-    }
     await stopCopilotSDKServer(copilotSDKServer, { logger: log });
   }
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
@@ -2591,9 +2563,8 @@ if (typeof module !== "undefined" && module.exports) {
     resolveCopilotSubagentModels,
     applyCopilotCLISubagentModels,
     listCopilotAgentFiles,
-    rewriteCopilotAgentFileModel,
-    hideTrackedAgentFileRewrite,
-    restoreCopilotCLIAgentFiles,
+    listCopilotSubagents,
+    writeCopilotPersonalAgentCopy,
     applyCopilotWireAPI,
     warnCopilotSubagentEndpoints,
     resolveAWFModelRoutingSelection,

@@ -624,13 +624,24 @@ in `usage/aw_session.jsonl`.
 In both SDK and CLI mode, the harness resolves each sub-agent's `model:` before
 Copilot starts, including on routed runs. It uses gh-aw model aliases (for
 example `small` and `large`) and checks the live AWF model catalog. Each result
-is recorded as a `model.resolution` event whose role is the agent name. In CLI
-mode, the resolved id is written to the workspace agent file that Copilot CLI
-loads; in SDK mode, it is qualified against the SDK provider models. `medium` is
-not an alias and is treated as a literal model id. If a sub-agent model cannot be
-resolved, is not in the live catalog, or does not qualify in SDK mode, the run
-fails before Copilot starts instead of falling back to the main model. A
-sub-agent without `model:` inherits the main model and has no resolution record.
+is recorded as a `model.resolution` event whose role is the agent name. `medium`
+is not an alias and is treated as a literal model id. A sub-agent without
+`model:` inherits the main model and has no resolution record.
+
+Workflow-declared sub-agents (inline `## agent:` blocks) fail closed: if a model
+cannot be resolved, is not in the live catalog, or does not qualify in SDK mode,
+the run fails before Copilot starts. Other repository `.github/agents/*.agent.md`
+files, which are often shared with VS Code, do not stop the run: a model that
+cannot be resolved is recorded with `status: failed` and logged as a warning. In
+CLI mode, that agent is used unchanged; in SDK mode, it inherits the session
+model. An inline sub-agent overrides a repository agent with the same name.
+
+In CLI mode, when the resolved id differs from the declared `model:`, the harness
+writes a copy of the agent file, with the same file name and only `model:`
+changed, to Copilot CLI's personal agents directory
+(`${COPILOT_HOME:-$HOME/.copilot}/agents/`). A personal agent overrides the
+repository agent with the same ID, so files in the checkout are never modified.
+Sub-agent resolution is skipped in the threat-detection phase.
 
 Use top-level `max-tool-denials` to stop SDK inference when
 tool requests are repeatedly denied. The default is `5`.
