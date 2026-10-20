@@ -461,7 +461,9 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 func generateDockerComposeInstallStep() GitHubActionStep {
 	return GitHubActionStep([]string{
 		"      - name: Install Docker Compose plugin",
+		"        shell: bash",
 		"        run: |",
+		`          set -euo pipefail`,
 		`          export DOCKER_CONFIG="${DOCKER_CONFIG:-$HOME/.docker}"`,
 		`          mkdir -p "$DOCKER_CONFIG/cli-plugins"`,
 		`          arch="$(uname -m)"`,
@@ -469,8 +471,16 @@ func generateDockerComposeInstallStep() GitHubActionStep {
 		`          download="$(mktemp)"`,
 		`          trap 'rm -f "$download"' EXIT`,
 		`          curl --proto '=https' --proto-redir '=https' -fsSL "https://github.com/docker/compose/releases/download/v2.36.2/docker-compose-linux-$arch" -o "$download"`,
-		`          source "${RUNNER_TEMP}/gh-aw/actions/release_integrity.sh"`,
-		`          verify_release_digest "$download" "$digest"`,
+		`          if command -v sha256sum >/dev/null 2>&1; then`,
+		`            actual="$(sha256sum "$download")"`,
+		`          elif command -v shasum >/dev/null 2>&1; then`,
+		`            actual="$(shasum -a 256 "$download")"`,
+		`          else`,
+		`            echo "ERROR: No sha256sum or shasum found" >&2; exit 1`,
+		`          fi`,
+		`          if [[ "${actual%% *}" != "$digest" ]]; then`,
+		`            echo "ERROR: Trusted SHA256 verification failed for Docker Compose; refusing installation" >&2; exit 1`,
+		`          fi`,
 		`          install -m 0755 "$download" "$DOCKER_CONFIG/cli-plugins/docker-compose"`,
 		`          docker compose version`,
 	})

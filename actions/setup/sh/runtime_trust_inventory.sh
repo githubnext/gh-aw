@@ -5,17 +5,23 @@ set -euo pipefail
 # Version evidence only: do not dump environment variables, proxy URLs or headers.
 echo "::group::Runtime TLS inventory (not a trust-store attestation)"
 if command -v curl >/dev/null 2>&1; then
-  curl --version | sed -n '1p'
+  if ! curl --version | sed -n '1p'; then
+    echo "WARNING: curl version inspection failed; trust status unknown" >&2
+  fi
 else
   echo "curl: unavailable"
 fi
 if command -v node >/dev/null 2>&1; then
-  node -p '"Node " + process.version + "; OpenSSL " + process.versions.openssl'
+  if ! node -p '"Node " + process.version + "; OpenSSL " + process.versions.openssl'; then
+    echo "WARNING: Node/OpenSSL version inspection failed; trust status unknown" >&2
+  fi
 else
   echo "Node: unavailable"
 fi
 if command -v go >/dev/null 2>&1; then
-  GOTOOLCHAIN=local go env GOVERSION
+  if ! GOTOOLCHAIN=local go env GOVERSION; then
+    echo "WARNING: Go version inspection failed; trust status unknown" >&2
+  fi
   for binary in gh gh-aw; do
     if command -v "$binary" >/dev/null 2>&1; then
       if ! GOTOOLCHAIN=local go version -m "$(command -v "$binary")" | sed -n '1p'; then

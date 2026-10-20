@@ -210,7 +210,9 @@ fi
 
 echo "Successfully copied ${FILE_COUNT} files to ${DESTINATION}"
 
-bash "${DESTINATION}/runtime_trust_inventory.sh"
+if ! bash "${DESTINATION}/runtime_trust_inventory.sh"; then
+  echo "::warning::Runtime TLS inventory inspection failed; trust status unknown. Continuing setup; artifact-integrity checks remain required."
+fi
 
 # Copy prompt markdown files to their expected directory
 PROMPTS_DEST="${GH_AW_ROOT}/prompts"

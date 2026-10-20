@@ -541,6 +541,13 @@ find_cached_copilot_bin() {
         continue
       fi
 
+      # A musl guest still needs a verified download even when the host uses cache.
+      if [ "$COPILOT_GUEST_LIBC" = "musl" ] &&
+        ! release_artifact_sha256 "$COPILOT_REPO" "$candidate_version_normalized" SHA256SUMS.txt >/dev/null 2>&1; then
+        echo "  Skipping candidate (no reviewed manifest pin for musl guest: ${candidate_version_normalized})" >&2
+        continue
+      fi
+
       if [ -n "$requested_version_normalized" ]; then
         if [ "$candidate_version_normalized" = "$requested_version_normalized" ]; then
           echo "  Exact version match found: ${candidate}" >&2

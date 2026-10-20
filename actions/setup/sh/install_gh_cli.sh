@@ -51,6 +51,8 @@ key_file="$(mktemp)"
 trap 'rm -f "$key_file"' EXIT
 curl --proto '=https' --proto-redir '=https' -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
   -o "$key_file"
+# Source: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+# Review policy recorded 2026-10-20: authenticate key rotation before updating this pin.
 verify_release_digest "$key_file" 6084d5d7bd8e288441e0e94fc6275570895da18e6751f70f057485dc2d1a811b
 sudo cp "$key_file" "${KEYRING_PATH}"
 sudo chmod go+r "${KEYRING_PATH}"

@@ -3,6 +3,7 @@ set +o histexpand
 
 # Sourced by installers from the trusted setup action, never from the download origin.
 # Review new pins against authenticated release provenance before committing them.
+# Add pins with scripts/update-release-pins.sh using an independently trusted manifest SHA256.
 # Each entry binds repository, immutable release version, asset name, and SHA256.
 # The optional fourth argument is a literal pin from trusted workflow frontmatter.
 release_artifact_sha256() {

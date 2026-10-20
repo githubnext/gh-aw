@@ -12,7 +12,7 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
-  version: 1.0.92
+  version: 1.0.98
   dynamic-workflows: true
   args: ["--experimental"]
 checkout:

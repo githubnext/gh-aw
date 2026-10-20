@@ -127,6 +127,119 @@ esac
 	assert.NotContains(t, string(curlOutput), "copilot-linux-x64.tar.gz")
 }
 
+func TestInstallCopilotCLIScriptMuslCacheRequiresReviewedManifest(t *testing.T) {
+	t.Parallel()
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	projectRoot := filepath.Join(wd, "..", "..")
+
+	for _, guestLibc := range []string{"musl", ""} {
+		t.Run("guest_libc="+guestLibc, func(t *testing.T) {
+			t.Parallel()
+			tempDir := t.TempDir()
+			toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", "1.0.97", "x64", "bin")
+			require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
+			cachedCopilot := filepath.Join(toolcacheBin, "copilot")
+			require.NoError(t, os.WriteFile(cachedCopilot, []byte("#!/usr/bin/env bash\necho 'copilot 1.0.97'\n"), 0o755))
+
+			var archive bytes.Buffer
+			gzipWriter := gzip.NewWriter(&archive)
+			tarWriter := tar.NewWriter(gzipWriter)
+			binary := []byte("#!/usr/bin/env bash\necho 'copilot 1.0.98'\n")
+			require.NoError(t, tarWriter.WriteHeader(&tar.Header{Name: "copilot", Mode: 0o755, Size: int64(len(binary)), Typeflag: tar.TypeReg}))
+			_, err := tarWriter.Write(binary)
+			require.NoError(t, err)
+			require.NoError(t, tarWriter.Close())
+			require.NoError(t, gzipWriter.Close())
+			archiveFile := filepath.Join(tempDir, "copilot.tar.gz")
+			require.NoError(t, os.WriteFile(archiveFile, archive.Bytes(), 0o644))
+			checksum := sha256.Sum256(archive.Bytes())
+			manifest := []byte(fmt.Sprintf("%x  copilot-linux-x64.tar.gz\n%x  copilot-linuxmusl-x64.tar.gz\n", checksum, checksum))
+			checksums := filepath.Join(tempDir, "SHA256SUMS.txt")
+			require.NoError(t, os.WriteFile(checksums, manifest, 0o644))
+
+			installer, err := os.ReadFile(filepath.Join(projectRoot, "actions", "setup", "sh", "install_copilot_cli.sh"))
+			require.NoError(t, err)
+			installScript := filepath.Join(tempDir, "install_copilot_cli.sh")
+			require.NoError(t, os.WriteFile(installScript, installer, 0o755))
+			integrity, err := os.ReadFile(filepath.Join(projectRoot, "actions", "setup", "sh", "release_integrity.sh"))
+			require.NoError(t, err)
+			lines := strings.Split(string(integrity), "\n")
+			for i, line := range lines {
+				if strings.HasPrefix(line, "github/copilot-cli v1.0.98 SHA256SUMS.txt ") {
+					lines[i] = fmt.Sprintf("github/copilot-cli v1.0.98 SHA256SUMS.txt %x", sha256.Sum256(manifest))
+				}
+			}
+			require.NoError(t, os.WriteFile(filepath.Join(tempDir, "release_integrity.sh"), []byte(strings.Join(lines, "\n")), 0o644))
+
+			fakeBinDir := filepath.Join(tempDir, "fake-bin")
+			prepareCopilotInstallerTestBin(t, fakeBinDir)
+			require.NoError(t, os.WriteFile(filepath.Join(fakeBinDir, "curl"), []byte(`#!/usr/bin/env bash
+set -euo pipefail
+output=""
+url=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in -o) output="$2"; shift 2 ;; *) url="$1"; shift ;; esac
+done
+echo "$url" >> "$CURL_LOG"
+case "$url" in
+  */compat.json)
+    printf '%s\n' '{"agent-compat-v1":{"copilot":[{"min-gh-aw":"0.0.0","max-gh-aw":"*","min-agent":"1.0.21","max-agent":"1.0.98"}]}}' > "$output"
+    ;;
+  */v1.0.98/SHA256SUMS.txt) cp "$FIXTURE_CHECKSUMS" "$output" ;;
+  */v1.0.98/copilot-linux-x64.tar.gz|*/v1.0.98/copilot-linuxmusl-x64.tar.gz) cp "$FIXTURE_ARCHIVE" "$output" ;;
+  *) echo "unexpected URL: $url" >&2; exit 97 ;;
+esac
+`), 0o755))
+			home := filepath.Join(tempDir, "home")
+			installDir := filepath.Join(home, ".local", "bin")
+			require.NoError(t, os.MkdirAll(installDir, 0o755))
+			runnerTemp := filepath.Join(tempDir, "runner-temp")
+			curlLog := filepath.Join(tempDir, "curl.log")
+			githubPath := filepath.Join(tempDir, "github-path")
+			cmd := exec.Command("bash", installScript, "--rootless")
+			cmd.Env = append(os.Environ(),
+				"HOME="+home,
+				"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
+				"COPILOT_INSTALL_DIR="+installDir,
+				"GH_AW_COMPILED_VERSION=v1.0.0",
+				"GH_AW_COPILOT_GUEST_LIBC="+guestLibc,
+				"RUNNER_TEMP="+runnerTemp,
+				"GITHUB_PATH="+githubPath,
+				"CURL_LOG="+curlLog,
+				"FIXTURE_CHECKSUMS="+checksums,
+				"FIXTURE_ARCHIVE="+archiveFile,
+				"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
+			)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", output)
+			curlOutput, err := os.ReadFile(curlLog)
+			require.NoError(t, err)
+			installed, err := os.ReadFile(filepath.Join(installDir, "copilot"))
+			require.NoError(t, err)
+			pathOutput, err := os.ReadFile(githubPath)
+			require.NoError(t, err)
+			if guestLibc == "musl" {
+				assert.Contains(t, string(output), "Skipping candidate (no reviewed manifest pin for musl guest: 1.0.97)")
+				assert.NotContains(t, string(output), "Activating cached Copilot CLI")
+				assert.Contains(t, string(curlOutput), "/v1.0.98/copilot-linux-x64.tar.gz")
+				assert.Contains(t, string(curlOutput), "/v1.0.98/copilot-linuxmusl-x64.tar.gz")
+				assert.Equal(t, binary, installed)
+				assert.NotContains(t, string(pathOutput), toolcacheBin)
+				staged, err := os.ReadFile(filepath.Join(runnerTemp, "gh-aw", "nvx-engine", "copilot"))
+				require.NoError(t, err)
+				assert.Equal(t, binary, staged)
+			} else {
+				assert.Contains(t, string(output), "Using cached GitHub Copilot CLI")
+				assert.NotContains(t, string(output), "no reviewed manifest pin for musl guest")
+				assert.NotContains(t, string(curlOutput), "SHA256SUMS.txt")
+				assert.Contains(t, string(installed), cachedCopilot)
+				assert.Contains(t, string(pathOutput), toolcacheBin)
+			}
+		})
+	}
+}
+
 func TestInstallCopilotCLIScriptUsesToolcacheBeforeDownload(t *testing.T) {
 	t.Parallel()
 	wd, err := os.Getwd()

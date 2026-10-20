@@ -532,6 +532,7 @@ test-scripts: build
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash scripts/update-threat-detect-pins_test.sh
+	bash scripts/update-release-pins_test.sh
 	bash scripts/check-go-toolchain_test.sh
 	python3 scripts/test_super_linter_scope.py
 	python3 scripts/test_publish_safe_outputs_node.py
@@ -540,8 +541,10 @@ test-scripts: build
 	bash actions/setup/sh/create_gh_aw_tmp_dir_test.sh
 	bash actions/setup/sh/download_docker_images_local_test.sh
 	bash actions/setup/sh/install_awf_binary_test.sh
+	bash actions/setup/sh/install_gh_cli_test.sh
 	bash actions/setup/sh/install_threat_detect_binary_test.sh
 	bash actions/setup/sh/release_integrity_test.sh
+	bash actions/setup/sh/runtime_trust_inventory_test.sh
 	@echo "✓ All script tests passed"
 
 # Test all code and guidance (Go, JavaScript, wasm golden, shell scripts, and guidance contracts)
