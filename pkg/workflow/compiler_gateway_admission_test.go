@@ -19,6 +19,7 @@ env:
   GH_AW_GATEWAY_GET_TOKEN_URL: https://attacker.invalid/getToken
   GH_AW_GATEWAY_OIDC_AUDIENCE: https://attacker.invalid
   GH_AW_GATEWAY_WORKFLOW_SHA: forged
+  GH_AW_GATEWAY_WORKFLOW_HASH: forged
   GH_AW_GATEWAY_WORKFLOW_PATH: forged
   GITHUB_API_URL: https://attacker.invalid
 on:
@@ -75,6 +76,8 @@ jobs:
 	assert.Equal(t, "${{ secrets.GH_AW_GATEWAY_OIDC_AUDIENCE || vars.GH_AW_GATEWAY_OIDC_AUDIENCE }}", verify.Env["GH_AW_GATEWAY_OIDC_AUDIENCE"])
 	assert.Equal(t, "${{ github.workflow_sha }}", verify.Env["GH_AW_GATEWAY_WORKFLOW_SHA"])
 	assert.Equal(t, "${{ github.workflow_ref }}", verify.Env["GH_AW_GATEWAY_WORKFLOW_REF"])
+	require.Regexp(t, "^[a-f0-9]{64}$", data.FrontmatterHash)
+	assert.Equal(t, data.FrontmatterHash, verify.Env["GH_AW_GATEWAY_WORKFLOW_HASH"])
 	assert.Equal(t, ".github/workflows/version-check.lock.yml", verify.Env["GH_AW_GATEWAY_WORKFLOW_PATH"])
 	assert.Equal(t, "${{ github.run_id }}", verify.Env["GH_AW_GATEWAY_RUN_ID"])
 	assert.Equal(t, "${{ github.run_attempt }}", verify.Env["GH_AW_GATEWAY_RUN_ATTEMPT"])
@@ -129,6 +132,7 @@ func TestGatewayAdmissionSetupDoesNotMintOtherCredentials(t *testing.T) {
 			compiler.jobManager = NewJobManager()
 			data := &WorkflowData{
 				Name: "configured", WorkflowID: "configured",
+				FrontmatterHash:      strings.Repeat("a", 64),
 				WebhookSubscriptions: []WebhookSubscription{{Event: "projects_v2_item"}},
 				ParsedFrontmatter: &FrontmatterConfig{
 					Observability: &ObservabilityConfig{OTLP: &OTLPConfig{
@@ -136,6 +140,7 @@ func TestGatewayAdmissionSetupDoesNotMintOtherCredentials(t *testing.T) {
 					}},
 				},
 			}
+
 			require.NoError(t, compiler.addGatewayAdmissionJob(data))
 			compiler.ensureOTLPOIDCJobPermissions(data)
 			job, exists := compiler.jobManager.GetJob(gatewayAdmissionJobName)
@@ -147,4 +152,13 @@ func TestGatewayAdmissionSetupDoesNotMintOtherCredentials(t *testing.T) {
 			assert.Contains(t, job.Permissions, "id-token: write")
 		})
 	}
+}
+
+func TestGatewayAdmissionRequiresCompiledFrontmatterHash(t *testing.T) {
+	compiler := newWebhookCompiler()
+	err := compiler.addGatewayAdmissionJob(&WorkflowData{
+		WorkflowID:           "missing-hash",
+		WebhookSubscriptions: []WebhookSubscription{{Event: "projects_v2_item"}},
+	})
+	require.ErrorContains(t, err, "compiler-generated frontmatter hash")
 }

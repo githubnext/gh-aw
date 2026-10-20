@@ -1904,6 +1904,7 @@ jobs:
           GH_AW_GATEWAY_OWNER_ID: ${{ github.repository_owner_id }}
           GH_AW_GATEWAY_WORKFLOW_REF: ${{ github.workflow_ref }}
           GH_AW_GATEWAY_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GH_AW_GATEWAY_WORKFLOW_HASH: "d8e148021af75a7869c20aa9bba297351e79b68489f4b2e1fb703ef66892da68"
           GH_AW_GATEWAY_WORKFLOW_PATH: ".github/workflows/smoke-security-alerts.lock.yml"
           GH_AW_GATEWAY_RUN_ID: ${{ github.run_id }}
           GH_AW_GATEWAY_RUN_ATTEMPT: ${{ github.run_attempt }}

@@ -152,6 +152,17 @@ func assertGatewayDispatchIntegrationLock(t *testing.T, name string, lock []byte
 		"repository_dispatch": map[string]any{"types": []any{route}},
 	}, compiled.On, "gateway-dispatch must lower to only its workflow-specific repository_dispatch route")
 	require.NotEmpty(t, compiled.Jobs)
+	metadata, legacy, err := workflow.ExtractMetadataFromLockFile(string(lock))
+	require.NoError(t, err)
+	require.False(t, legacy)
+	require.NotNil(t, metadata)
+	require.Regexp(t, "^[a-f0-9]{64}$", metadata.FrontmatterHash)
+	require.Contains(t, compiled.Jobs, "gateway_admission")
+	admissionSteps := compiled.Jobs["gateway_admission"].Steps
+	require.NotEmpty(t, admissionSteps)
+	admission := admissionSteps[len(admissionSteps)-1]
+	assert.Equal(t, "verify-gateway-admission", admission.ID)
+	assert.Equal(t, metadata.FrontmatterHash, admission.Env["GH_AW_GATEWAY_WORKFLOW_HASH"])
 	require.Contains(t, compiled.Jobs, "gateway_provenance")
 	assert.Empty(t, compiled.Jobs["gateway_provenance"].Needs)
 	assert.Equal(t, map[string]string{"contents": "read"}, compiled.Jobs["gateway_provenance"].Permissions)

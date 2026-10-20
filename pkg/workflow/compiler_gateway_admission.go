@@ -16,6 +16,9 @@ func (c *Compiler) addGatewayAdmissionJob(data *WorkflowData) error {
 	if _, exists := data.Jobs[gatewayAdmissionJobName]; exists {
 		return fmt.Errorf("jobs.%s is compiler-owned and cannot be customized; configure GH_AW_GATEWAY_GET_TOKEN_URL and GH_AW_GATEWAY_OIDC_AUDIENCE through central Actions secrets or variables", gatewayAdmissionJobName)
 	}
+	if data.FrontmatterHash == "" {
+		return errors.New("gateway workflow admission requires the compiler-generated frontmatter hash; compile the workflow from its Markdown source")
+	}
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef == "" {
 		return errors.New("setup action reference is required for gateway workflow admission")
@@ -35,6 +38,7 @@ func (c *Compiler) addGatewayAdmissionJob(data *WorkflowData) error {
 		"          GH_AW_GATEWAY_OWNER_ID: ${{ github.repository_owner_id }}\n",
 		"          GH_AW_GATEWAY_WORKFLOW_REF: ${{ github.workflow_ref }}\n",
 		"          GH_AW_GATEWAY_WORKFLOW_SHA: ${{ github.workflow_sha }}\n",
+		fmt.Sprintf("          GH_AW_GATEWAY_WORKFLOW_HASH: %q\n", data.FrontmatterHash),
 		fmt.Sprintf("          GH_AW_GATEWAY_WORKFLOW_PATH: %q\n", constants.WorkflowsDirSlash+data.WorkflowID+".lock.yml"),
 		"          GH_AW_GATEWAY_RUN_ID: ${{ github.run_id }}\n",
 		"          GH_AW_GATEWAY_RUN_ATTEMPT: ${{ github.run_attempt }}\n",

@@ -5,7 +5,6 @@ const { createHash } = require("node:crypto");
 const { ERR_API, ERR_CONFIG, ERR_PERMISSION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-const MAX_WORKFLOW_BYTES = 1024 * 1024;
 const MAX_ADMISSION_BYTES = 16 * 1024;
 const MAX_OIDC_BYTES = 32 * 1024;
 
@@ -39,6 +38,7 @@ function admissionBinding(env) {
     workflow_path: env.GH_AW_GATEWAY_WORKFLOW_PATH || "",
     workflow_ref: env.GH_AW_GATEWAY_WORKFLOW_REF || "",
     workflow_sha: env.GH_AW_GATEWAY_WORKFLOW_SHA || "",
+    workflow_hash: env.GH_AW_GATEWAY_WORKFLOW_HASH || "",
     run_id: env.GH_AW_GATEWAY_RUN_ID || "",
     run_attempt: env.GH_AW_GATEWAY_RUN_ATTEMPT || "",
     actor_id: env.GH_AW_GATEWAY_ACTOR_ID || "",
@@ -52,12 +52,13 @@ function admissionBinding(env) {
     ![binding.repository_id, binding.repository_owner_id, binding.run_id, binding.run_attempt, binding.actor_id].every(positiveId) ||
     !/^\.github\/workflows\/[^/\\\x00-\x1f\x7f]+\.lock\.yml$/u.test(binding.workflow_path) ||
     !/^[a-f0-9]{40}$/.test(binding.workflow_sha) ||
+    !/^[a-f0-9]{64}$/.test(binding.workflow_hash) ||
     !/^refs\/heads\/[^\x00-\x20\x7f]+$/u.test(binding.ref) ||
     binding.workflow_ref !== `${binding.repository}/${binding.workflow_path}@${binding.ref}` ||
     binding.event_name !== "repository_dispatch" ||
     binding.event_type !== `gh-aw-webhook-${createHash("sha256").update(workflowId).digest("hex").slice(0, 24)}`
   ) {
-    reject("GitHub-owned repository, workflow revision, run, and route context is required");
+    reject("GitHub-owned repository, workflow revision, run, and route context and the compiler-generated frontmatter hash are required");
   }
   return binding;
 }
@@ -154,27 +155,8 @@ function oidcClaims(token, audience, binding) {
 async function verifyGatewayAdmission(actionsCore, env, fetchImpl = fetch) {
   const endpoint = httpsConfiguration(env.GH_AW_GATEWAY_GET_TOKEN_URL, "GH_AW_GATEWAY_GET_TOKEN_URL");
   const audienceBase = httpsConfiguration(env.GH_AW_GATEWAY_OIDC_AUDIENCE, "GH_AW_GATEWAY_OIDC_AUDIENCE", true);
-  const apiBase = httpsConfiguration(env.GITHUB_API_URL, "GitHub-owned GITHUB_API_URL", true);
   const binding = admissionBinding(env);
-  let githubToken;
-  try {
-    githubToken = actionsCore.getInput("github-token", { required: true });
-    if (!githubToken || /[\r\n]/.test(githubToken)) throw new Error();
-  } catch {
-    throw new Error(`${ERR_CONFIG}: The admission job requires its repository-read GITHUB_TOKEN.`);
-  }
-  actionsCore.setSecret(githubToken);
-  const repositoryPath = binding.repository.split("/").map(encodeURIComponent).join("/");
-  const repositoryURL = `${apiBase}/repos/${repositoryPath}`;
-  const headers = { Authorization: `Bearer ${githubToken}`, Accept: "application/vnd.github+json" };
-  const repository = parseObject(await requestBytes(repositoryURL, { headers }, MAX_WORKFLOW_BYTES, fetchImpl, "repository identity lookup"), "GitHub repository lookup");
-  if (!Number.isSafeInteger(repository.id) || String(repository.id) !== binding.repository_id || repository.full_name !== binding.repository) {
-    reject("the authenticated repository lookup must match GitHub's destination identity");
-  }
-  const workflowURL = `${repositoryURL}/contents/${binding.workflow_path.split("/").map(encodeURIComponent).join("/")}?ref=${binding.workflow_sha}`;
-  const bytes = await requestBytes(workflowURL, { headers: { ...headers, Accept: "application/vnd.github.raw+json" } }, MAX_WORKFLOW_BYTES, fetchImpl, "exact-revision workflow read");
-  if (!bytes.length) reject("the executing compiled workflow must not be empty");
-  const workflowHash = createHash("sha256").update(bytes).digest("hex");
+  const workflowHash = binding.workflow_hash;
   const audience = `${audienceBase}/gh-aw/gateway/v1/workflow/sha256/${workflowHash}`;
   let idToken;
   try {
@@ -184,7 +166,7 @@ async function verifyGatewayAdmission(actionsCore, env, fetchImpl = fetch) {
   }
   if (typeof idToken === "string" && idToken) actionsCore.setSecret(idToken);
   const claims = oidcClaims(idToken, audience, binding);
-  const request = { schema_version: 1, ...binding, workflow_hash: workflowHash, check_run_id: claims.check_run_id };
+  const request = { schema_version: 1, ...binding, check_run_id: claims.check_run_id };
   const body = JSON.stringify(request);
   if (Buffer.byteLength(body, "utf8") > MAX_ADMISSION_BYTES) reject("the getToken request exceeds its UTF-8 byte limit");
   const decision = parseObject(
