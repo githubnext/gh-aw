@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -506,10 +507,8 @@ func TestCodexDefaultDomains(t *testing.T) {
 		"172.30.0.1", // AWF gateway IP - Codex resolves host.docker.internal to this IP
 		"api.github.com",
 		"api.openai.com",
-		"chatgpt.com", // Codex CLI connects to chatgpt.com (and subdomains e.g. ab.chatgpt.com) for auth/telemetry
 		"github.com",
 		"host.docker.internal",
-		"openai.com",
 	}
 
 	// Create a map for O(1) lookups
@@ -527,6 +526,53 @@ func TestCodexDefaultDomains(t *testing.T) {
 	// Verify the count matches (no extra domains)
 	if len(CodexDefaultDomains) != len(expectedDomains) {
 		t.Errorf("CodexDefaultDomains has %d domains, expected %d", len(CodexDefaultDomains), len(expectedDomains))
+	}
+}
+
+func TestCodexVendorDomainsRequireOptIn(t *testing.T) {
+	for _, optIn := range []bool{false, true} {
+		t.Run(fmt.Sprintf("opt-in=%t", optIn), func(t *testing.T) {
+			allowed := []string{"codex"}
+			if optIn {
+				allowed = append(allowed, "codex-vendor")
+			}
+			domains := domainSet(t, GetAllowedDomainsForEngine(constants.CodexEngine,
+				&NetworkPermissions{Allowed: allowed}, nil, nil))
+			for _, host := range []string{"auth.openai.com", "ab.chatgpt.com"} {
+				reachable := false
+				for rule := range domains {
+					reachable = reachable || awfDomainAllowsHost(rule, host)
+				}
+				assert.Equal(t, optIn, reachable, "optional vendor host %q", host)
+			}
+			assert.NotContains(t, domains, "openai.com")
+			assert.NotContains(t, domains, "chatgpt.com")
+		})
+	}
+}
+
+func TestGeminiDomainSetRequiresPackageOptIn(t *testing.T) {
+	for _, ecosystem := range []string{"node", "go", "dart", "java"} {
+		t.Run(ecosystem, func(t *testing.T) {
+			for _, optIn := range []bool{false, true} {
+				allowed := []string{"gemini"}
+				if optIn {
+					allowed = append(allowed, ecosystem)
+				}
+				domains := domainSet(t, GetAllowedDomainsForEngine(constants.GeminiEngine,
+					&NetworkPermissions{Allowed: allowed}, nil, nil))
+				assert.Contains(t, domains, "generativelanguage.googleapis.com")
+				host := "storage.googleapis.com"
+				if ecosystem == "java" {
+					host = "maven-central.storage-download.googleapis.com"
+				}
+				reachable := false
+				for rule := range domains {
+					reachable = reachable || awfDomainAllowsHost(rule, host)
+				}
+				assert.Equal(t, optIn, reachable, "ecosystem %q host %q", ecosystem, host)
+			}
+		})
 	}
 }
 

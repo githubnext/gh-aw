@@ -100,7 +100,7 @@ func getThreatDetectionAdditionalAllowedDomains(data *WorkflowData, engineID str
 		if _, exists := seen[entry]; exists {
 			continue
 		}
-		if entry == "copilot-vendor" {
+		if entry == "copilot-vendor" || (entry == "codex-vendor" && engineID == string(constants.CodexEngine)) {
 			seen[entry] = struct{}{}
 			additional = append(additional, entry)
 			continue

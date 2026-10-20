@@ -41,22 +41,43 @@ function fixture() {
   }
   store(queue.transactions);
   const calls = [];
+  const networkCalls = [];
   const forbidden = () => {
     calls.push("API");
     throw new Error("Ledger verification must not call a hosted API");
   };
   const githubClient = {
-    auth: async () => ({ type: "token", token: "queue-test-token" }),
+    auth: async () => {
+      networkCalls.push("Git");
+      return { type: "token", token: "queue-test-token" };
+    },
     graphql: forbidden,
     rest: new Proxy({}, { get: forbidden }),
   };
   const ledger = createGitLedgerClient({ githubClient, owner: "owner", repo: "repo", branch: "work-queue", remote: directory });
   registerQueueLedgerClient(githubClient, ledger);
   cleanups.push(() => ledger.close());
-  return { queue, githubClient, ledger, calls, store, git, options: { githubClient, owner: "owner", repo: "repo" }, head: () => head };
+  return { queue, githubClient, ledger, calls, networkCalls, store, git, options: { githubClient, owner: "owner", repo: "repo" }, head: () => head };
 }
 
 describe("Git-only work queue ledger", { timeout: 30000 }, () => {
+  it("looks up unchanged history locally but fetches a changed remote head", async () => {
+    const f = fixture();
+    const current = await readWorkQueueLog(f.options);
+    expect(f.networkCalls).toHaveLength(2);
+    await f.ledger.rest.repos.get();
+    const files = await f.ledger.readFiles(current.sha, ["work-queue.jsonl"]);
+    expect(files.get("work-queue.jsonl")).toBe(serializeTransactionLog(f.queue.transactions));
+    expect(f.networkCalls).toHaveLength(3);
+
+    f.store(f.queue.transactions);
+    const refreshed = await readWorkQueueLog(f.options);
+    expect(refreshed.sha).toBe(f.head());
+    expect(refreshed.sha).not.toBe(current.sha);
+    expect(f.networkCalls).toHaveLength(5);
+    expect(f.calls).toEqual([]);
+  });
+
   it("verifies nested checkpoints and detached repeated reads without REST or GraphQL", async () => {
     const f = fixture();
     const first = compactTransactions(f.queue.transactions, f.head(), f.queue.administrator, f.queue.at);

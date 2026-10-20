@@ -5,6 +5,7 @@ import (
 	"maps"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -449,6 +450,8 @@ func (e *CodexEngine) codexAllowedDomains(workflowData *WorkflowData) string {
 func (e *CodexEngine) defaultDomains(workflowData *WorkflowData) []string {
 	defaults := append([]string{}, CodexDefaultDomains...)
 	if e.ResolveLLMProvider(workflowData) == LLMProviderGitHub {
+		// GitHub-hosted inference does not need direct OpenAI API access.
+		defaults = slices.DeleteFunc(defaults, func(domain string) bool { return domain == "api.openai.com" })
 		defaults = append(defaults, CopilotDefaultDomains...)
 	}
 	return defaults

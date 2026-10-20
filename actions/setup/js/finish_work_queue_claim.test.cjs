@@ -210,6 +210,33 @@ describe("independent trusted Claim finalization", () => {
     );
   }
 
+  it.each(["unverified", "verified", "controls_changed"])("logs control mismatch only when discarding verified proof: %s", async scenario => {
+    vi.stubEnv("DEBUG", "work-queue:claims");
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      const { fixture, options } = setup(1);
+      finish(options, "h1", "completed");
+      await reconcileWorkerClaim(options);
+      const protectedVerifier = noWriteClaimVerifier(options);
+      const verifyEffects = async (member, scope) => {
+        if (scenario === "unverified") return { verified: false, effects: "unknown" };
+        const proof = await protectedVerifier(member, scope);
+        if (scenario === "controls_changed") publishChild(fixture, member, "private-concurrent-control");
+        return proof;
+      };
+      const result = await finalizeWorkerResults({ ...options, verifyEffects });
+      expect(result.claims.h1.state).toBe(scenario === "verified" ? "result" : "pending");
+      const output = stderr.mock.calls.map(call => call[0]).join("");
+      if (scenario === "controls_changed") expect(output).toContain("delivery.verifier.controls_mismatch proof_verified=true digest_present=true controls=1");
+      else expect(output).not.toContain("delivery.verifier.controls_mismatch");
+      for (const secret of ["private-concurrent-control", REPOSITORY, fixture.assignment.dispatch_id, fixture.assignment.claims[0].claim_id, fixture.assignment.claims[0].work_id]) {
+        expect(output).not.toContain(secret);
+      }
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
   it("preserves declared verification intent without allowing it to replace a protected verifier", async () => {
     const contract = { version: 1, outputs: [{ type: "create_issue", min: 1, max: 1, verification: { verifier_id: "issue-readback-v1", expected: { title: "Claim outcome" } } }] };
     const { fixture, options } = setup(1, { workDefaults: { payload: { effect_contract: contract } } });

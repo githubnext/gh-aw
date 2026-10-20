@@ -17,6 +17,21 @@ the selected queue credential through ephemeral authentication; it does not
 reuse persisted checkout credentials. Agents and snapshot MCP servers remain
 credential-free.
 
+Queue commands infer the repository from the local `origin` remote when `--repo`
+is omitted, falling back to `gh repo view` when local information is unavailable.
+`--repo` takes precedence over `GH_REPO`, which takes precedence over local
+inference. An unresolved explicit environment selection fails rather than
+silently selecting the checkout. This local-first rule is queue-specific:
+workflow runs, secret uploads and other commands retain `gh`'s selected default.
+For fork checkouts, queues infer the fork even if `gh repo set-default` selects
+its parent. Use an explicit canonical repository after a repository rename;
+local discovery does not resolve renamed origins or relax queue identity checks.
+Offline `replay --file` does not infer a repository.
+
+Repeated runtime reads recheck
+remote access and the queue head, but reuse validated local Git history when the
+head is unchanged. Missing or invalid ancestry fails closed without an API fallback.
+
 The native queue enforces fair scheduling, immutable task dependency graphs,
 and worker effects authorized by individual Claims. Its only source of
 authority is `work-queue.jsonl`, a transaction log that records events in causal
@@ -418,6 +433,17 @@ native launch and binding, independent verification, and durable settlement.
 staged previews, binding and job counts, release outcomes, and sanitized failure categories,
 without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+For delivery failures, use
+`DEBUG=work-queue:claims,work-queue:delivery,work-queue:native_delivery`.
+Events distinguish output cardinality, missing or untrusted receipts, independent
+content and Git ancestry mismatches, uncovered effects, control-inventory changes,
+and retry/deadline exhaustion. Exhausted delivery verification always emits a
+budget summary, even without debug logging. Expected and observed content,
+resource identities, receipt bodies, and credentials are never logged.
+Native operator recovery uses
+`DEBUG=workqueue:delivery,workqueue:native_delivery` for verifier availability,
+closed effect inventory, approved readback and credential checks, attempt budgets,
+and durable Result or DeliveryFailure publication.
 HTTP failure explanations also include a validated GitHub request ID, or
 `unknown` when unavailable. Deployment metadata diagnostics distinguish
 repository reads from default-reference reads.

@@ -12,9 +12,9 @@ ARG NPM_VERSION=11.19.0
 # Intentional: upgrade all packages to pick up security fixes; downstream digest pins the result.
 # After upgrading npm, patch its bundled dependencies to meet minimum safe versions.
 # Install into a temp prefix (avoids npm's own private package.json) then replace the package
-# directories in npm's bundled node_modules: brace-expansion >= 5.0.8 (GHSA-mh99-v99m-4gvg),
-# ip-address >= 10.3.1 (GHSA-mwp4-54f8-5fhr), tar >= 7.5.22, and undici >= 6.27.0
-# (GHSA-vxpw-j846-p89q). Each replaced package is loaded by absolute path to verify the patch:
+# directories in npm's bundled node_modules: brace-expansion >= 5.0.11 (GHSA-qhr7-859c-m2p7),
+# ip-address >= 10.3.1 (GHSA-mwp4-54f8-5fhr), tar >= 7.5.22, and undici >= 6.28.1
+# (GHSA-rfgv-xxqx-mfg5). Each replaced package is loaded by absolute path to verify the patch:
 # the globally installed npm tree is not on Node's default resolution path, so a bare
 # require("<pkg>") would always fail with MODULE_NOT_FOUND and break the build.
 RUN apk upgrade --no-cache \
@@ -22,7 +22,7 @@ RUN apk upgrade --no-cache \
     && apk info -v | sort \
     && npm install --global "npm@${NPM_VERSION}" \
     && tmpdir=$(mktemp -d) \
-    && npm --prefix "$tmpdir" install --no-save "tar@^7.5.22" "brace-expansion@^5.0.8" "ip-address@^10.3.1" "undici@^6.27.0" \
+    && npm --prefix "$tmpdir" install --no-save "tar@^7.5.22" "brace-expansion@^5.0.11" "ip-address@^10.3.1" "undici@^6.28.1" \
     && npm_modules="$(npm root -g)/npm/node_modules" \
     && for pkg in brace-expansion ip-address tar undici; do \
          rm -rf "$npm_modules/$pkg" || exit 1; \
