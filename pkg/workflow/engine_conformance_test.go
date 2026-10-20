@@ -60,6 +60,37 @@ func runConformanceNode(t *testing.T, env []string, args ...string) ([]byte, err
 	return command.CombinedOutput()
 }
 
+func conformanceQueueEnv(t *testing.T, engine string) []string {
+	t.Helper()
+	assignment, err := json.Marshal(map[string]any{
+		"version": 3, "dispatch_id": "dispatch", "request_id": "request",
+		"commit_id": "commit", "policy_epoch": "policy", "pool": "engine-conformance",
+		"worker_profile": "engine-conformance-" + engine,
+		"claims": []map[string]any{{
+			"handle": "original-" + engine, "claim_id": "claim", "work_id": "work",
+			"work":        map[string]any{"engine": engine, "effect_contract": map[string]string{"kind": "none"}},
+			"result_refs": []any{},
+		}},
+	})
+	require.NoError(t, err)
+	actionsDir, err := filepath.Abs("../../actions/setup/js")
+	require.NoError(t, err)
+	return []string{
+		"CONFORMANCE_ASSIGNMENT=" + string(assignment), "GH_AW_ACTIONS_DIR=" + actionsDir,
+		"GITHUB_EVENT_PATH=" + conformanceEventPath(t, string(assignment)),
+		"GH_AW_WORK_QUEUE_ENABLED=true", "GH_AW_WORK_QUEUE_ROLE=worker",
+	}
+}
+
+func conformanceEventPath(t *testing.T, assignment string) string {
+	t.Helper()
+	event, err := json.Marshal(map[string]any{"inputs": map[string]string{"work_queue_assignment": assignment}})
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "event.json")
+	require.NoError(t, os.WriteFile(path, event, 0o600))
+	return path
+}
+
 func TestEngineConformanceJavaScript(t *testing.T) {
 	var suite conformanceSuite
 	readConformanceFrontmatter(t, "../../.github/workflows/shared/engine-conformance.md", &suite)
@@ -77,8 +108,12 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 		mutate     string
 		execution  string
 		wantFailed string
+		standalone bool
 	}{
 		{name: "success", execution: "success"},
+		{name: "codex success", engine: "codex", execution: "success"},
+		{name: "agy success", engine: "agy", execution: "success"},
+		{name: "standalone agy success", engine: "agy", execution: "success", standalone: true},
 		{name: "pi success", engine: "pi", execution: "success"},
 		{name: "gemini success", engine: "gemini", execution: "success"},
 		{name: "pi interrupted before noop", engine: "pi", execution: "success", mutate: `fs.unlinkSync(process.env.CONFORMANCE_SAFE_OUTPUTS);`, wantFailed: "staged-safe-output"},
@@ -99,8 +134,18 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 		{name: "symlink result", execution: "success", mutate: `fs.renameSync(resultPath, resultPath + ".real"); fs.symlinkSync(resultPath + ".real", resultPath);`, wantFailed: "result-schema"},
 		{name: "missing safe output", execution: "success", mutate: `fs.unlinkSync(process.env.CONFORMANCE_SAFE_OUTPUTS);`, wantFailed: "staged-safe-output"},
 		{name: "empty safe-output placeholder", execution: "success", mutate: `fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, "");`, wantFailed: "staged-safe-output"},
-		{name: "wrong safe-output type", execution: "success", mutate: `fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, JSON.stringify({ type: "missing_tool", message: "Conformance probes completed" }));`, wantFailed: "staged-safe-output"},
-		{name: "wrong noop message", execution: "success", mutate: `fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, JSON.stringify({ type: "noop", message: "guessed" }));`, wantFailed: "staged-safe-output"},
+		{name: "malformed safe output", execution: "success", mutate: `fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, "{");`, wantFailed: "staged-safe-output"},
+		{name: "oversized safe output", execution: "success", mutate: `fs.appendFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, " ".repeat(16384));`, wantFailed: "staged-safe-output"},
+		{name: "missing claim handle", execution: "success", mutate: `delete noop.claim_handle; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "foreign claim handle", execution: "success", mutate: `noop.claim_handle = "foreign"; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "hardcoded claim handle", execution: "success", mutate: `noop.claim_handle = "h1"; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "null claim handle", execution: "success", mutate: `noop.claim_handle = null; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "conflicting claim selector", execution: "success", mutate: `noop.claim_id = "foreign"; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "conflicting work selector", execution: "success", mutate: `noop.work_id = "foreign"; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "extra field in noop", execution: "success", mutate: `noop.passed = true; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "extra scope", execution: "success", mutate: `noop.assignment = {}; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "wrong safe-output type", execution: "success", mutate: `noop.type = "missing_tool"; saveNoop();`, wantFailed: "staged-safe-output"},
+		{name: "wrong noop message", execution: "success", mutate: `noop.message = "guessed"; saveNoop();`, wantFailed: "staged-safe-output"},
 		{name: "duplicate noop", execution: "success", mutate: `fs.appendFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, fs.readFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS));`, wantFailed: "staged-safe-output"},
 		{name: "symlink safe output", execution: "success", mutate: `fs.renameSync(process.env.CONFORMANCE_SAFE_OUTPUTS, process.env.CONFORMANCE_SAFE_OUTPUTS + ".real"); fs.symlinkSync(process.env.CONFORMANCE_SAFE_OUTPUTS + ".real", process.env.CONFORMANCE_SAFE_OUTPUTS);`, wantFailed: "staged-safe-output"},
 	}
@@ -119,6 +164,11 @@ func TestEngineConformanceJavaScript(t *testing.T) {
 				"ENGINE_CONFORMANCE_SENTINEL=conformance-" + engine,
 				"GITHUB_STEP_SUMMARY=" + filepath.Join(directory, "summary.md"),
 				"CONFORMANCE_SAFE_OUTPUTS=" + filepath.Join(host, "safeoutputs.jsonl"),
+			}
+			env = append(env, conformanceQueueEnv(t, engine)...)
+			if test.standalone {
+				env = append(env, "CONFORMANCE_ASSIGNMENT=", "GH_AW_WORK_QUEUE_ENABLED=false", "GH_AW_WORK_QUEUE_ROLE=",
+					"GITHUB_EVENT_PATH="+conformanceEventPath(t, ""))
 			}
 			output, err := runConformanceNode(t, env, "-e", prepare)
 			require.NoError(t, err, "%s", output)
@@ -144,8 +194,25 @@ async function execute(file_nonce) {
   save();
   const { createHandlers } = require("../../actions/setup/js/safe_outputs_handlers.cjs");
   const { createAppendFunction } = require("../../actions/setup/js/safe_outputs_append.cjs");
-  createHandlers({ debug() {} }, createAppendFunction(process.env.CONFORMANCE_SAFE_OUTPUTS))
-    .defaultHandler("noop")({ message: "Conformance probes completed" });
+  const { withClaimExecution } = require("../../actions/setup/js/work_queue_claim_scope.cjs");
+  const assignment = process.env.CONFORMANCE_ASSIGNMENT ? JSON.parse(process.env.CONFORMANCE_ASSIGNMENT) : null;
+  const emit = () => {
+    const handler = createHandlers({ debug() {} }, createAppendFunction(process.env.CONFORMANCE_SAFE_OUTPUTS)).defaultHandler("noop");
+    if (assignment) {
+      for (const selector of [{ claim_handle: "foreign" }, { claim_id: "foreign" }, { work_id: "foreign" }, { assignment: {} }]) {
+        require("node:assert/strict").throws(() => handler({ message: "Conformance probes completed", ...selector }));
+      }
+    }
+    handler({ message: "Conformance probes completed" });
+  };
+  if (assignment) withClaimExecution({ assignment, claim_handle: assignment.claims[0].handle }, emit);
+  else emit();
+  const noop = JSON.parse(fs.readFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, "utf8"));
+  require("node:assert/strict").deepEqual(noop, {
+    type: "noop", message: "Conformance probes completed",
+    ...(assignment && { claim_handle: assignment.claims[0].handle }),
+  });
+  const saveNoop = () => fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, JSON.stringify(noop));
   ` + test.mutate + `
 })().catch(error => { console.error(error); process.exitCode = 1; });
 `
@@ -181,6 +248,51 @@ async function execute(file_nonce) {
 	}
 }
 
+func TestEngineConformanceRequiresOriginalSingletonAssignment(t *testing.T) {
+	var suite conformanceSuite
+	readConformanceFrontmatter(t, "../../.github/workflows/shared/engine-conformance.md", &suite)
+	prepare := conformanceNodeScript(t, suite.PreAgentSteps[0].Run)
+	for _, test := range []struct{ name, mutate string }{
+		{"missing assignment", `delete process.env.CONFORMANCE_ASSIGNMENT;`},
+		{"malformed assignment", `process.env.CONFORMANCE_ASSIGNMENT = "{";`},
+		{"legacy scalar assignment", `supplied = { claim_id: "claim", work_id: "work" };`},
+		{"unsupported version", `supplied.version = 2;`},
+		{"empty assignment", `supplied.claims = [];`},
+		{"multiple original claims", `supplied.claims.push({ ...supplied.claims[0], handle: "other", claim_id: "other", work_id: "other" });`},
+		{"duplicate original claims", `supplied.claims.push(supplied.claims[0]);`},
+		{"invalid handle", `supplied.claims[0].handle = null;`},
+		{"unknown authority", `supplied.authorized = true;`},
+		{"wrong compiler role", `process.env.GH_AW_WORK_QUEUE_ROLE = "dispatcher";`},
+		{"disabled worker", `process.env.GH_AW_WORK_QUEUE_ENABLED = "false";`},
+		{"standalone assignment", `process.env.GH_AW_WORK_QUEUE_ENABLED = "false"; delete process.env.GH_AW_WORK_QUEUE_ROLE;`},
+		{"wrong worker profile", `supplied.worker_profile = "engine-conformance-codex";`},
+		{"wrong work engine", `supplied.claims[0].work.engine = "codex";`},
+		{"write effect contract", `supplied.claims[0].work.effect_contract = { kind: "write" };`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			directory := t.TempDir()
+			host := filepath.Join(directory, "host")
+			env := append(conformanceQueueEnv(t, "copilot"),
+				"CONFORMANCE_ENGINE=copilot", "CONFORMANCE_ROOT="+filepath.Join(directory, "agent"),
+				"CONFORMANCE_STATE="+host)
+			script := `
+let supplied = JSON.parse(process.env.CONFORMANCE_ASSIGNMENT);
+` + test.mutate + `
+if (process.env.CONFORMANCE_ASSIGNMENT && process.env.CONFORMANCE_ASSIGNMENT !== "{") {
+  process.env.CONFORMANCE_ASSIGNMENT = JSON.stringify(supplied);
+}
+require("node:fs").writeFileSync(process.env.GITHUB_EVENT_PATH, JSON.stringify({
+  inputs: { work_queue_assignment: process.env.CONFORMANCE_ASSIGNMENT },
+}));
+` + prepare
+			output, err := runConformanceNode(t, env, "-e", script)
+			require.Error(t, err, "%s", output)
+			_, statErr := os.Stat(filepath.Join(host, "expected.json"))
+			require.True(t, os.IsNotExist(statErr), "invalid assignments must not prepare conformance evidence")
+		})
+	}
+}
+
 func TestAgyNativeConformanceRequiresStagedNoop(t *testing.T) {
 	var suite conformanceSuite
 	readConformanceFrontmatter(t, "../../.github/workflows/shared/agy-conformance.md", &suite)
@@ -188,19 +300,33 @@ func TestAgyNativeConformanceRequiresStagedNoop(t *testing.T) {
 	for _, item := range []struct {
 		name, output string
 		passed       bool
+		standalone   bool
 	}{
-		{"exact noop", `{"type":"noop","message":"Conformance probes completed"}` + "\n", true},
-		{"empty placeholder", "", false},
-		{"wrong type", `{"type":"missing_tool","message":"Conformance probes completed"}`, false},
-		{"wrong message", `{"type":"noop","message":"guessed"}`, false},
-		{"duplicate noop", `{"type":"noop","message":"Conformance probes completed"}` + "\n" + `{"type":"noop","message":"Conformance probes completed"}`, false},
+		{name: "exact scoped noop", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy"}` + "\n", passed: true},
+		{name: "standalone exact noop", output: `{"type":"noop","message":"Conformance probes completed"}`, passed: true, standalone: true},
+		{name: "standalone unexpected scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy"}`, standalone: true},
+		{name: "unscoped noop", output: `{"type":"noop","message":"Conformance probes completed"}`},
+		{name: "foreign scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"foreign"}`},
+		{name: "hardcoded scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"h1"}`},
+		{name: "null scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":null}`},
+		{name: "extra scope", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy","work_id":"foreign"}`},
+		{name: "empty placeholder"},
+		{name: "wrong type", output: `{"type":"missing_tool","message":"Conformance probes completed","claim_handle":"original-agy"}`},
+		{name: "wrong message", output: `{"type":"noop","message":"guessed","claim_handle":"original-agy"}`},
+		{name: "duplicate noop", output: `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy"}` + "\n" + `{"type":"noop","message":"Conformance probes completed","claim_handle":"original-agy"}`},
 	} {
 		t.Run(item.name, func(t *testing.T) {
 			dir := t.TempDir()
 			logPath := filepath.Join(dir, "native.jsonl")
 			outputPath := filepath.Join(dir, "outputs.jsonl")
+			expected := map[string]string{"fileNonce": "fixture"}
+			if !item.standalone {
+				expected["claimHandle"] = "original-agy"
+			}
+			expectedJSON, err := json.Marshal(expected)
+			require.NoError(t, err)
 			for name, content := range map[string]string{
-				"expected.json":                      `{"fileNonce":"fixture"}`,
+				"expected.json":                      string(expectedJSON),
 				"native-receipt.json":                `{"fileNonce":"fixture","toolNonce":"` + strings.Repeat("a", 48) + `"}`,
 				"native-infrastructure-receipt.json": `{"fileNonce":"fixture","toolNonce":"` + strings.Repeat("b", 48) + `"}`,
 				"outputs.jsonl":                      item.output,
@@ -295,10 +421,10 @@ const entries = [
   { event: "result", result: { status: "SUCCESS", num_turns: 1, usage: { input_tokens: 10, output_tokens: 2 } } },
 ];
 fs.writeFileSync(path.join(host, "native.jsonl"), entries.map(entry => JSON.stringify(entry)).join("\n"));
-fs.writeFileSync(path.join(host, "expected.json"), JSON.stringify({ fileNonce: "fixture" }));
+fs.writeFileSync(path.join(host, "expected.json"), JSON.stringify({ fileNonce: "fixture", claimHandle: "original-agy" }));
 fs.writeFileSync(path.join(host, "native-receipt.json"), JSON.stringify({ fileNonce: "fixture", toolNonce }));
 fs.writeFileSync(path.join(host, "native-infrastructure-receipt.json"), JSON.stringify({ fileNonce: "fixture", toolNonce: infrastructureNonce }));
-fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, JSON.stringify({ type: "noop", message: "Conformance probes completed" }) + "\n");
+fs.writeFileSync(process.env.CONFORMANCE_SAFE_OUTPUTS, JSON.stringify({ type: "noop", message: "Conformance probes completed", claim_handle: "original-agy" }) + "\n");
 `
 			env := []string{"CONFORMANCE_STATE=" + dir, "CONFORMANCE_SAFE_OUTPUTS=" + outputPath}
 			out, err := runConformanceNode(t, env, "-e", prepare)
@@ -442,7 +568,7 @@ func TestEngineConformanceCatalogCoverage(t *testing.T) {
 			lock, err := os.ReadFile(strings.TrimSuffix(file, ".md") + ".lock.yml")
 			require.NoError(t, err)
 			compiled := string(lock)
-			require.Contains(t, compiled, fmt.Sprintf(`"maxAiCredits":%d,`, budget), "the firewall must enforce the authored credit limit")
+			require.Contains(t, compiled, fmt.Sprintf(`GH_AW_MAX_AI_CREDITS: "%d"`, budget), "the firewall must receive the authored credit limit")
 			if id == "codex" {
 				require.Contains(t, compiled, `"providers":{"openai":{"models":{"gpt-6.1-sol":{"cost":`, "the firewall must receive model-specific Codex pricing")
 				require.NotContains(t, compiled, `"defaultAiCreditsPricing"`, "conformance must not guess pricing for unknown models")

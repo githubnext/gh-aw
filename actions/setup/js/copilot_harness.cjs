@@ -55,6 +55,8 @@ require("./shim.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { maskSecret } = require("./actions_secret_masking.cjs");
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 const {
@@ -69,7 +71,7 @@ const {
 } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
-const { runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
+const { captureExecutionEvidenceConfiguration, runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs, stripExecutionEvidenceEnv } = require("./harness_retry_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -84,6 +86,8 @@ const {
   fetchModelsFromUrl,
   inferProviderTypeForModel,
   resolveMultiProviderFromReflect,
+  normalizeReflectProviderName,
+  REFLECT_PROVIDER_ALIASES,
 } = require("./awf_reflect.cjs");
 const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissionIssue, emitInfrastructureIncomplete, hasExpectedSafeOutputs, hasTerminalSafeOutput, hasNoopInSafeOutputs } = require("./safeoutputs_cli.cjs");
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
@@ -91,7 +95,7 @@ const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSi
 const { isCrashSignalExitCode, crashSignalNameForExitCode } = require("./harness_crash_signals.cjs");
 const { isCAPIQuotaExceededError, isCAPIServerError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
-const { parseMultiProviderJson, qualifyModelForMultiProvider } = require("./copilot_sdk_multi_provider.cjs");
+const { parseMultiProviderJson, qualifyModelForMultiProvider, isCopilotProviderName } = require("./copilot_sdk_multi_provider.cjs");
 const { copilotSessionContext, getCopilotMessageRefusal } = require("./copilot_session.cjs");
 const { isRoutingReasoningEffort } = require("./copilot_routing_effort.cjs");
 const { resolveAWFModelRoutingSelection, isModelAvailableInReflectData, getAWFModelRoutingPolicy, getAWFModelRoutingFailureCode } = require("./awf_model_routing.cjs");
@@ -99,8 +103,10 @@ const { recordAWFModelRoutingOutcome } = require("./awf_model_routing.cjs");
 const COPILOT_ROUTING_POLICY = getAWFModelRoutingPolicy("copilot");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { applyCopilotWireAPI: configureCopilotWireAPI, warnCopilotSubagentEndpoints, recordModelEndpointMismatch, getSupportedEndpoints, MODEL_ENDPOINT_FIX } = require("./copilot_wire_api.cjs");
-const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError } = require("./resolve_model_alias.cjs");
+const { loadModelAliasMap, resolveEngineModel, normalizeForCopilotCLI, ModelAliasResolutionError, recordModelResolution, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 const { createCopilotModelObserver, recordCopilotModelSelection } = require("./copilot_model_selection.cjs");
+const { getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
+const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
 const MODEL_NOT_SUPPORTED_PATTERN = /The requested model is not supported|No model available\b[^\n]*policy enablement/i;
 const { parseAICreditsErrorInfoFromAuditLog, parseMaxAICreditsFromAuditLog, parseMaxAICreditsExceededFromAuditLog, parseAPIProxyGuardRejectionFromEventLog, formatAPIProxyGuardRejection } = require("./ai_credits_context.cjs");
 
@@ -519,6 +525,459 @@ async function applyCopilotModelAliasResolution(options) {
     process.env.COPILOT_MODEL = resolvedModel;
   }
   return resolvedModel || configuredModel;
+}
+
+/**
+ * The AWF /reflect provider names a `<provider>/` model prefix refers to, or null for a bare
+ * model id. Copilot prefixes, including the SDK's wire-API-qualified names
+ * (`copilot-responses/…`, `copilot-completions/…`), refer to the GitHub provider aliases.
+ * @param {string} prefix
+ * @returns {Set<string>|null}
+ */
+function reflectProvidersForModelPrefix(prefix) {
+  const normalized = normalizeReflectProviderName(prefix);
+  if (!normalized) return null;
+  if (isCopilotProviderName(normalized) || REFLECT_PROVIDER_ALIASES.github.has(normalized)) return REFLECT_PROVIDER_ALIASES.github;
+  const unsuffixed = normalized.replace(/-\d+$/, "");
+  const known = [normalized, unsuffixed].find(name => Object.prototype.hasOwnProperty.call(REFLECT_PROVIDER_ALIASES, name));
+  return known ? REFLECT_PROVIDER_ALIASES[known] : new Set([normalized, unsuffixed]);
+}
+
+/**
+ * Split a configured model into its model id and the /reflect providers it is scoped to.
+ * Model parameters (`?effort=…`) are ignored.
+ * @param {string} model
+ * @returns {{ id: string, prefix: string, providers: Set<string>|null }}
+ */
+function scopeModelToReflectProviders(model) {
+  const { base } = splitModelIdentifier(model);
+  const slash = base.indexOf("/");
+  if (slash <= 0) return { id: base, prefix: "", providers: null };
+  const prefix = base.slice(0, slash);
+  return { id: base.slice(slash + 1), prefix, providers: reflectProvidersForModelPrefix(prefix) };
+}
+
+/**
+ * Whether a model is listed on a configured AWF /reflect endpoint. A bare id may be listed by
+ * any provider; a `<provider>/`-prefixed id only by that provider.
+ * @param {string} model
+ * @param {any} reflectData
+ * @returns {boolean}
+ */
+function isModelListedOnConfiguredReflectEndpoint(model, reflectData) {
+  const { id, providers } = scopeModelToReflectProviders(model);
+  return Boolean(id) && isModelAvailableInReflectData(id, reflectData, providers);
+}
+
+/**
+ * Classify why a configured model is not listed in AWF /reflect data: `catalog_unavailable`
+ * when discovery is missing or incomplete for the model's providers (no /reflect data, no
+ * configured endpoint, `models_fetch_complete: false`, or a relevant endpoint with a missing
+ * or empty model list); otherwise `model_unavailable`.
+ * @param {string} model
+ * @param {any} reflectData
+ * @returns {"catalog_unavailable" | "model_unavailable"}
+ */
+function classifyUnlistedReflectModel(model, reflectData) {
+  const { providers } = scopeModelToReflectProviders(model);
+  const configuredEndpoints = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : []).filter(endpoint => endpoint?.configured === true);
+  const relevantEndpoints = configuredEndpoints.filter(endpoint => !providers || providers.has(normalizeReflectProviderName(endpoint.provider)));
+  const incomplete = !reflectData || reflectData.models_fetch_complete === false || configuredEndpoints.length === 0 || relevantEndpoints.some(endpoint => !Array.isArray(endpoint.models) || endpoint.models.length === 0);
+  return incomplete ? "catalog_unavailable" : "model_unavailable";
+}
+
+/**
+ * Resolve the Copilot SDK multi-provider configuration from AWF /reflect data.
+ *
+ * Without a router selection, a configured model must be listed on a configured /reflect
+ * endpoint (scoped to its provider when prefixed). When it is not, or no catalogue is
+ * available, one bounded /reflect refresh is attempted; if the model is still absent, this
+ * records the failure and stops the process before the SDK starts rather than running a
+ * different model (see https://github.com/github/gh-aw/issues/70317). A `model_unavailable`
+ * result from a complete initial catalogue wins over a degraded refresh, as in
+ * `resolveConfiguredModelWithRefresh`.
+ *
+ * @param {{
+ *   configuredModel: string,
+ *   requestedModel?: string,
+ *   routed?: boolean,
+ *   wireApi?: string,
+ *   reflectData: any,
+ *   modelsJson?: object | null,
+ *   refetchReflectData?: () => Promise<object|null>,
+ *   logger?: (msg: string) => void,
+ * }} options `configuredModel` is the model after alias resolution; `requestedModel` is the
+ *   model as configured before alias resolution (used in the failure record and message).
+ * @returns {Promise<ReturnType<typeof resolveMultiProviderFromReflect>>}
+ */
+async function resolveCopilotSDKMultiProvider(options) {
+  const logger = options.logger || log;
+  const configuredModel = String(options.configuredModel || "").trim();
+  const resolve = reflectData => resolveMultiProviderFromReflect({ model: configuredModel, wireApi: options.wireApi, reflectData, modelsJson: options.modelsJson, logger });
+  const isUnavailable = (multiProvider, reflectData) => (!multiProvider || Boolean(multiProvider.configuredModelNotFound)) && !isModelListedOnConfiguredReflectEndpoint(configuredModel, reflectData);
+  const initialReflectData = options.reflectData;
+  let multiProvider = resolve(initialReflectData);
+  if (options.routed || !configuredModel || !isUnavailable(multiProvider, initialReflectData)) {
+    return multiProvider;
+  }
+
+  logger(`copilot-sdk driver mode: configured model '${configuredModel}' is not listed on any configured awf-reflect endpoint; refreshing awf-reflect once`);
+  const refreshed = options.refetchReflectData ? await options.refetchReflectData() : null;
+  if (refreshed) {
+    multiProvider = resolve(refreshed);
+    if (!isUnavailable(multiProvider, refreshed)) {
+      return multiProvider;
+    }
+  }
+
+  const initialReason = classifyUnlistedReflectModel(configuredModel, initialReflectData);
+  const refreshedReason = refreshed ? classifyUnlistedReflectModel(configuredModel, refreshed) : initialReason;
+  const reason = initialReason === "model_unavailable" ? initialReason : refreshedReason;
+  // Report the catalogue the failure reason came from: the latest one, unless only the initial one was complete.
+  const reflectData = refreshed && (reason === "catalog_unavailable" || refreshedReason === "model_unavailable") ? refreshed : initialReflectData;
+  const requestedModel = String(options.requestedModel || configuredModel).trim();
+  const requestedScope = scopeModelToReflectProviders(requestedModel);
+  const failure = new ModelAliasResolutionError(requestedModel, reason, { provider: requestedScope.providers === REFLECT_PROVIDER_ALIASES.github ? "copilot" : requestedScope.prefix });
+  const checked = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : [])
+    .filter(endpoint => endpoint?.configured === true)
+    .map(endpoint => `${String(endpoint.provider || "unknown")} (${formatInferenceEndpointForLog(endpoint.base_url || endpoint.models_url)}, ${Array.isArray(endpoint.models) ? `${endpoint.models.length} models` : "no model list"})`)
+    .join(", ");
+  const resolvedNote = configuredModel !== requestedModel ? ` (resolved to '${configuredModel}')` : "";
+  logger(
+    `copilot-sdk driver mode: ${failure.message} Configured model '${requestedModel}'${resolvedNote} is not listed on the configured awf-reflect endpoints checked: ${checked || "(none)"}. Refusing to start the Copilot SDK with a different model.`
+  );
+  recordModelResolution({ engine: "copilot", role: "main", configured_model: requestedModel, resolved_model: null, provider: failure.provider || null, status: "failed", cause: failure.reason });
+  if (failure.reason === "model_unavailable") {
+    recordCopilotModelSelection({ status: "unavailable", configured_model: requestedModel, resolved_model: "", effective_model: "" });
+  }
+  process.exit(1);
+  return null; // unreachable, keeps TypeScript control-flow analysis happy
+}
+
+/**
+ * Read the Copilot custom agent files in one directory, one entry per regular `.agent.md` file.
+ * The name is the frontmatter `name` or the file name without `.agent.md`;
+ * `model` is the trimmed frontmatter `model` string, when declared.
+ * @param {string} directory
+ * @param {(msg: string) => void} [logger]
+ * @returns {Array<{ name: string, model?: string, path: string }>}
+ */
+function listCopilotAgentFiles(directory, logger = log) {
+  const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+  const { parseDocument } = require("./work_queue_yaml.cjs");
+  let entries;
+  try {
+    entries = fs.readdirSync(directory, { withFileTypes: true });
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) logger(`warning: cannot read custom agents in ${directory}: ${getErrorMessage(error)}`);
+    return [];
+  }
+  const agents = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isFile() || !entry.name.endsWith(".agent.md")) continue;
+    const agentPath = path.join(directory, entry.name);
+    try {
+      const { frontmatterText } = extractFrontmatterAndBody(fs.readFileSync(agentPath, "utf8"));
+      /** @type {any} */
+      const document = parseDocument(frontmatterText);
+      if (!document || document.errors.length) throw new Error("cannot parse agent frontmatter");
+      const frontmatter = document.toJS() || {};
+      if (typeof frontmatter !== "object" || Array.isArray(frontmatter)) throw new Error("agent frontmatter must be a mapping");
+      const name = typeof frontmatter.name === "string" && frontmatter.name.trim() ? frontmatter.name.trim() : entry.name.slice(0, -".agent.md".length);
+      agents.push({ name, path: agentPath, ...(typeof frontmatter.model === "string" ? { model: frontmatter.model.trim() } : {}) });
+    } catch (error) {
+      logger(`warning: cannot read custom agent ${agentPath}: ${getErrorMessage(error)}`);
+    }
+  }
+  return agents;
+}
+
+/**
+ * List the Copilot sub-agents of a run. Repository agents come from
+ * `<workingDirectory>/.github/agents`; workflow-declared inline sub-agents come from the
+ * directory they are staged in under `agentsBaseDir` (the one `loadCopilotSDKCustomAgents`
+ * reads). An inline sub-agent overrides a repository agent with the same name and is declared.
+ * @param {string} workingDirectory
+ * @param {string} agentsBaseDir
+ * @param {(msg: string) => void} [logger]
+ * @returns {Array<{ name: string, model?: string, path: string, declared: boolean }>}
+ */
+function listCopilotSubagents(workingDirectory, agentsBaseDir, logger = log) {
+  const declaredDir = path.resolve(agentsBaseDir, inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("copilot")).dir);
+  const repositoryDir = path.resolve(workingDirectory, ".github", "agents");
+  const agents = new Map();
+  if (repositoryDir !== declaredDir) {
+    for (const agent of listCopilotAgentFiles(repositoryDir, logger)) agents.set(agent.name, { ...agent, declared: false });
+  }
+  for (const agent of listCopilotAgentFiles(declaredDir, logger)) agents.set(agent.name, { ...agent, declared: true });
+  return [...agents.values()];
+}
+
+/**
+ * Locate the top-level YAML model scalar in a Copilot agent file.
+ * @param {string} content
+ * @returns {{ value: string, source: string, start: number, end: number }}
+ */
+function getCopilotAgentModelScalar(content) {
+  const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
+  const { parseDocument } = require("./work_queue_yaml.cjs");
+  const { frontmatterText } = extractFrontmatterAndBody(content);
+  /** @type {any} */
+  const document = parseDocument(frontmatterText);
+  if (!document || document.errors.length || !document.contents || !Array.isArray(document.contents.items)) {
+    throw new Error("cannot parse agent frontmatter");
+  }
+  const pairs = document.contents.items.filter(pair => pair?.key?.value === "model");
+  if (pairs.length !== 1 || typeof pairs[0].value?.value !== "string" || !Array.isArray(pairs[0].value.range)) {
+    throw new Error("expected exactly one top-level string 'model:' scalar in the frontmatter");
+  }
+  const frontmatterStart = content.indexOf("\n") + 1;
+  const start = frontmatterStart + pairs[0].value.range[0];
+  const end = frontmatterStart + pairs[0].value.range[1];
+  return { value: pairs[0].value.value, source: content.slice(start, end), start, end };
+}
+
+/**
+ * Replace the complete YAML model scalar, including any block-scalar continuation lines.
+ * @param {string} content
+ * @param {string} model
+ * @returns {string}
+ */
+function replaceCopilotAgentFileModelContent(content, model) {
+  const scalar = getCopilotAgentModelScalar(content);
+  const lineEnding = scalar.source.match(/(?:\r?\n)+$/)?.[0] || "";
+  return content.slice(0, scalar.start) + JSON.stringify(model) + lineEnding + content.slice(scalar.end);
+}
+
+/**
+ * Write a copy of a Copilot agent file to Copilot CLI's personal agents directory with only
+ * the frontmatter `model:` scalar replaced. The copy keeps the file name, which Copilot CLI
+ * uses as the agent ID, so it overrides the repository agent with the same ID. The source
+ * file is never modified.
+ * @param {string} agentPath
+ * @param {string} personalAgentsDir
+ * @param {string} model
+ * @returns {string} The path of the copy.
+ */
+function writeCopilotPersonalAgentCopy(agentPath, personalAgentsDir, model) {
+  let content;
+  try {
+    content = fs.readFileSync(agentPath, "utf8");
+  } catch (error) {
+    throw new Error(`cannot read agent file ${agentPath}: ${getErrorMessage(error)}`, { cause: error });
+  }
+  const updated = replaceCopilotAgentFileModelContent(content, model);
+  const target = path.join(personalAgentsDir, path.basename(agentPath));
+  try {
+    fs.mkdirSync(personalAgentsDir, { recursive: true });
+    fs.writeFileSync(target, updated);
+  } catch (error) {
+    throw new Error(`cannot write personal agent ${target}: ${getErrorMessage(error)}`, { cause: error });
+  }
+  return target;
+}
+
+/**
+ * Resolve the declared models of Copilot sub-agents before Copilot starts, in CLI and SDK
+ * mode and on routed runs. Each `model:` goes through the shared resolver (Copilot provider
+ * scope, the workflow alias map, `normalizeForCopilotCLI`) and the live-catalogue check that
+ * the main SDK model uses. With `providerConfig` (SDK mode), the resolved id must also qualify
+ * against the SDK provider models. A sub-agent without `model:` inherits the main model and is
+ * not recorded.
+ *
+ * Every sub-agent with a model gets a `model.resolution` record (role = agent name), so
+ * several sub-agents sharing one dead model each get a `failed` record. Workflow-declared
+ * sub-agents (the default) fail closed: when any of them fails, the first failure is thrown
+ * as a ModelAliasResolutionError after all records are written; callers must not start
+ * Copilot. A repository agent (`declared: false`) that fails gets a warning and a `failed`
+ * record, is left out of the result, and does not stop the run. `/reflect` is refreshed at
+ * most once.
+ *
+ * @param {{
+ *   agents: Array<{ name: string, model?: string, path?: string, declared?: boolean }>,
+ *   reflectData: any,
+ *   refetchReflectData?: () => Promise<any>,
+ *   providerConfig?: { providers: Array<{name: string}>, models: Array<{id: string, provider: string}> } | null,
+ *   refreshProviderConfig?: (reflectData: any) => Promise<{ providers: Array<{name: string}>, models: Array<{id: string, provider: string}> } | null>,
+ *   aliasMap?: Record<string, string[]> | null,
+ *   repositoryFallback?: string,
+ *   env?: NodeJS.ProcessEnv,
+ *   logger?: (msg: string) => void,
+ * }} options `repositoryFallback` describes what happens to a repository agent whose model fails.
+ * @returns {Promise<Array<{ name: string, configuredModel: string, resolvedModel: string, model: string }>>}
+ *   `resolvedModel` is the resolved Copilot id; `model` is the id to hand to Copilot (qualified in SDK mode).
+ */
+async function resolveCopilotSubagentModels(options) {
+  const logger = options.logger || log;
+  const env = options.env || process.env;
+  const declared = options.agents.filter(agent => typeof agent.model === "string" && agent.model.trim() && agent.model.trim().toLowerCase() !== "inherited");
+  if (declared.length === 0) return [];
+  const aliasMap = options.aliasMap !== undefined ? options.aliasMap : (loadAwfConfigData()?.apiProxy?.models ?? loadModelAliasMap({ reflectData: options.reflectData, env }));
+  let reflectData = options.reflectData;
+  let providerConfig = options.providerConfig;
+  /** @type {Promise<any> | null} */
+  let refresh = null;
+  const refreshOnce = () => {
+    refresh ??= (options.refetchReflectData ? options.refetchReflectData() : Promise.resolve(null)).then(refreshed => {
+      if (refreshed) {
+        reflectData = refreshed;
+        if (options.refreshProviderConfig) {
+          return options.refreshProviderConfig(refreshed).then(config => {
+            if (config) providerConfig = config;
+            return refreshed;
+          });
+        }
+      }
+      return refreshed || null;
+    });
+    return refresh;
+  };
+  const liveCheck = env.AWF_REFLECT_ENABLED === "1" || Boolean(options.reflectData);
+  /** @type {InstanceType<typeof ModelAliasResolutionError>[]} */
+  const failures = [];
+  const resolutions = [];
+  for (const agent of declared) {
+    const configuredModel = String(agent.model).trim();
+    const repositoryAgent = agent.declared === false;
+    // A repository agent the workflow may never use must not make the run look like an
+    // unsupported-model failure, so its resolver failure is reported by the warning below.
+    const agentLogger = repositoryAgent ? (/** @type {string} */ message) => (MODEL_NOT_SUPPORTED_PATTERN.test(message) ? undefined : logger(message)) : logger;
+    const scope = scopeModelToReflectProviders(configuredModel);
+    const fail = (/** @type {InstanceType<typeof ModelAliasResolutionError>} */ failure, /** @type {string} */ detail) => {
+      recordModelResolution({ engine: "copilot", role: agent.name, configured_model: configuredModel, resolved_model: null, provider: failure.provider || null, status: "failed", cause: failure.reason }, env);
+      if (repositoryAgent) {
+        logger(
+          `warning: repository agent '${agent.name}' (${agent.path || "unknown file"}) declares model '${configuredModel}', which could not be resolved (cause: ${failure.reason}); ${options.repositoryFallback || "the agent is left unchanged"}.`
+        );
+        return;
+      }
+      logger(`copilot sub-agent '${agent.name}': ${failure.message}${detail ? ` ${detail}` : ""} Refusing to start Copilot with a different sub-agent model.`);
+      failures.push(failure);
+    };
+    let result;
+    try {
+      result = await resolveEngineModel({
+        engine: "copilot",
+        role: agent.name,
+        configuredModel,
+        aliasMap,
+        reflectData,
+        provider: "copilot",
+        refetchReflectData: refreshOnce,
+        logPrefix: `copilot sub-agent '${agent.name}' model alias resolution`,
+        normalize: r => normalizeForCopilotCLI(r.resolvedModel),
+        env,
+        logger: agentLogger,
+      });
+    } catch (failure) {
+      if (!(failure instanceof ModelAliasResolutionError)) throw failure;
+      fail(failure, "");
+      continue;
+    }
+    const resolvedModel = result.engineModel;
+    const resolvedNote = resolvedModel !== configuredModel ? ` (resolved to '${resolvedModel}')` : "";
+    const failureProvider = scope.providers && scope.providers !== REFLECT_PROVIDER_ALIASES.github ? scope.prefix : "copilot";
+    const scopedResolvedModel = scope.prefix ? `${scope.prefix}/${resolvedModel}` : resolvedModel;
+    if (liveCheck && !isModelListedOnConfiguredReflectEndpoint(scopedResolvedModel, reflectData)) {
+      const initialReason = classifyUnlistedReflectModel(scopedResolvedModel, reflectData);
+      const refreshed = await refreshOnce();
+      if (!refreshed || !isModelListedOnConfiguredReflectEndpoint(scopedResolvedModel, refreshed)) {
+        const reason = initialReason === "model_unavailable" || !refreshed ? initialReason : classifyUnlistedReflectModel(scopedResolvedModel, refreshed);
+        fail(new ModelAliasResolutionError(configuredModel, reason, { provider: failureProvider }), `Sub-agent model '${configuredModel}'${resolvedNote} is not listed on the configured awf-reflect endpoints.`);
+        continue;
+      }
+    }
+    let model = resolvedModel;
+    if (providerConfig) {
+      let qualified;
+      try {
+        const qualificationModel = scope.providers === REFLECT_PROVIDER_ALIASES.github ? `copilot/${resolvedModel}` : scope.prefix ? `${scope.prefix}/${resolvedModel}` : resolvedModel;
+        qualified = qualifyModelForMultiProvider(qualificationModel, providerConfig);
+      } catch (error) {
+        fail(
+          new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: failureProvider }),
+          `Sub-agent model '${configuredModel}'${resolvedNote} could not be qualified against the Copilot SDK provider models: ${getErrorMessage(error)}`
+        );
+        continue;
+      }
+      if (!qualified) {
+        fail(
+          new ModelAliasResolutionError(configuredModel, "model_unavailable", { provider: failureProvider }),
+          `Sub-agent model '${configuredModel}'${resolvedNote} is not in the Copilot SDK provider models (models without a supported wire API are skipped).`
+        );
+        continue;
+      }
+      model = qualified;
+    }
+    logger(`copilot sub-agent '${agent.name}': model '${configuredModel}' -> '${model}'`);
+    resolutions.push({ name: agent.name, configuredModel, resolvedModel, model });
+  }
+  if (failures.length > 0) throw failures[0];
+  return resolutions;
+}
+
+/**
+ * CLI mode: resolve the sub-agent models of the agents Copilot CLI loads (repository agents
+ * in the engine working directory and workflow-declared inline sub-agents) and, for each
+ * resolved id that differs from the declared value, write a copy of the agent file with the
+ * resolved `model:` to Copilot CLI's personal agents directory
+ * (`${COPILOT_HOME:-$HOME/.copilot}/agents`). Files in the checkout are never modified.
+ * Stops the process before Copilot starts when a declared sub-agent model cannot be resolved
+ * or its copy cannot be written; repository agents only produce warnings.
+ *
+ * @param {{
+ *   reflectData: any,
+ *   refetchReflectData?: () => Promise<any>,
+ *   workingDirectory?: string,
+ *   agentsBaseDir?: string,
+ *   personalAgentsDir?: string,
+ *   env?: NodeJS.ProcessEnv,
+ *   logger?: (msg: string) => void,
+ * }} options
+ * @returns {Promise<Array<{ name: string, configuredModel: string, resolvedModel: string, model: string }>>}
+ */
+async function applyCopilotCLISubagentModels(options) {
+  const logger = options.logger || log;
+  const env = options.env || process.env;
+  const workingDirectory = options.workingDirectory || path.resolve(env.GITHUB_WORKSPACE || process.cwd(), env.GH_AW_ENGINE_CWD || ".");
+  const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
+  const personalAgentsDir = options.personalAgentsDir || path.join(env.COPILOT_HOME || path.join(env.HOME || os.homedir(), ".copilot"), "agents");
+  const agents = listCopilotSubagents(workingDirectory, agentsBaseDir, logger);
+  let resolutions;
+  try {
+    resolutions = await resolveCopilotSubagentModels({
+      agents,
+      reflectData: options.reflectData,
+      refetchReflectData: options.refetchReflectData,
+      repositoryFallback: "Copilot CLI uses the agent file unchanged",
+      env,
+      logger,
+    });
+  } catch (failure) {
+    if (!(failure instanceof ModelAliasResolutionError)) throw failure;
+    process.exit(1);
+    return []; // unreachable, keeps TypeScript control-flow analysis happy
+  }
+  for (const resolution of resolutions) {
+    if (resolution.model === resolution.configuredModel) continue;
+    const agent = agents.find(candidate => candidate.name === resolution.name);
+    if (!agent) continue;
+    try {
+      const target = writeCopilotPersonalAgentCopy(agent.path, personalAgentsDir, resolution.model);
+      logger(`copilot sub-agent '${resolution.name}': wrote model '${resolution.model}' to personal agent ${target}`);
+    } catch (error) {
+      if (!agent.declared) {
+        logger(
+          `warning: repository agent '${resolution.name}' (${agent.path}): cannot write personal agent copy with model '${resolution.model}' to ${personalAgentsDir}: ${getErrorMessage(error)}; Copilot CLI uses the agent file unchanged.`
+        );
+        continue;
+      }
+      logger(`copilot sub-agent '${resolution.name}': cannot write personal agent copy of ${agent.path} to ${personalAgentsDir}: ${getErrorMessage(error)}. Refusing to start Copilot with an unresolved sub-agent model.`);
+      process.exit(1);
+      return []; // unreachable, keeps TypeScript control-flow analysis happy
+    }
+  }
+  return resolutions;
 }
 
 /**
@@ -983,10 +1442,11 @@ function detectCopilotErrors(output) {
  *   resolvedModel: string,
  *   routingEffort?: string|null,
  *   multiProviderJson?: string,
- * }} options
+ *   subagentModelsJson?: string,
+ * }} options `subagentModelsJson` maps custom agent names to their resolved, qualified models.
  * @returns {NodeJS.ProcessEnv}
  */
-function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToken, providerBaseUrl, providerType, providerWireApi, resolvedModel, routingEffort, multiProviderJson }) {
+function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToken, providerBaseUrl, providerType, providerWireApi, resolvedModel, routingEffort, multiProviderJson, subagentModelsJson }) {
   if (!copilotSDKMode) {
     return sdkEnv;
   }
@@ -999,6 +1459,7 @@ function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToke
     ...sdkEnv,
     COPILOT_CONNECTION_TOKEN: copilotConnectionToken,
     ...(multiProviderJson ? { GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON: multiProviderJson } : {}),
+    ...(subagentModelsJson ? { GH_AW_COPILOT_SDK_SUBAGENT_MODELS: subagentModelsJson } : {}),
     COPILOT_MODEL: qualifiedModel || resolvedModel,
     ...(routingEffort ? { COPILOT_REASONING_EFFORT: routingEffort } : {}),
     // Native Copilot CLI BYOK env vars — consumed by the headless sidecar for all sessions.
@@ -1006,6 +1467,15 @@ function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToke
     COPILOT_PROVIDER_TYPE: providerType,
     ...(providerWireApi ? { COPILOT_PROVIDER_WIRE_API: providerWireApi } : {}),
   };
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} baseEnv
+ * @param {NodeJS.ProcessEnv} sdkEnv
+ * @returns {NodeJS.ProcessEnv}
+ */
+function buildCopilotEngineChildEnv(baseEnv, sdkEnv) {
+  return stripExecutionEvidenceEnv({ ...baseEnv, ...sdkEnv });
 }
 
 /**
@@ -1224,6 +1694,8 @@ function resolvePromptFileInput(args) {
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
+  const executionEvidence = captureExecutionEvidenceConfiguration(process.env);
+  stripExecutionEvidenceEnv(process.env);
   const [, , command, ...args] = process.argv;
   const retryConfig = resolveRetryConfig(process.env, log);
   const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
@@ -1287,6 +1759,16 @@ async function main() {
     }
   }
 
+  // One bounded /reflect refresh, shared by alias resolution and the SDK model liveness check.
+  const refetchReflectData = async () => {
+    if (process.env.AWF_REFLECT_ENABLED !== "1") {
+      return null;
+    }
+    const refreshed = await fetchAWFReflect({ logger: log });
+    if (refreshed.ok && refreshed.reflectData) awfReflectData = refreshed.reflectData;
+    return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
+  };
+
   const routingResult = resolveCopilotModelRouting(awfReflectData, modelRoutingRequired, log);
   if (routingResult.error) {
     log(`unexpected error: AWF model routing failed: ${routingResult.error}; refusing to start Copilot`);
@@ -1308,14 +1790,7 @@ async function main() {
     await applyCopilotModelAliasResolution({
       awfReflectData,
       logger: log,
-      refetchReflectData: async () => {
-        if (process.env.AWF_REFLECT_ENABLED !== "1") {
-          return null;
-        }
-        const refreshed = await fetchAWFReflect({ logger: log });
-        if (refreshed.ok && refreshed.reflectData) awfReflectData = refreshed.reflectData;
-        return refreshed.ok && refreshed.reflectData ? refreshed.reflectData : null;
-      },
+      refetchReflectData,
     });
     if (invocationModel?.hasOverride) resolvedArgs = applyCopilotInvocationModel(resolvedArgs, process.env.COPILOT_MODEL || "");
   }
@@ -1343,8 +1818,20 @@ async function main() {
   // legitimate noop exit is never turned into an infrastructure-incomplete failure by an
   // unrelated listener being unavailable.
   const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, executionEvidence })) {
     process.exit(0);
+  }
+
+  // Sub-agent models are resolved on routed runs too, but a pre-existing noop must not
+  // make startup depend on sub-agent model availability. Threat detection uses no
+  // sub-agents, so it neither reads, resolves, records nor writes agent files.
+  const resolveSubagentModels = !isDetectionPhase(process.env.GH_AW_PHASE);
+  if (!copilotSDKMode && resolveSubagentModels) {
+    await applyCopilotCLISubagentModels({
+      reflectData: awfReflectData,
+      refetchReflectData,
+      logger: log,
+    });
   }
 
   // Resolve BYOK provider from live reflect data (SDK mode only).
@@ -1356,14 +1843,28 @@ async function main() {
   let providerWireApi = "";
   let resolvedModel = "";
   let multiProviderJson = "";
+  let subagentModelsJson = "";
   let primaryProviderName = "";
   if (copilotSDKMode) {
     const configuredModel = modelRoutingSelection?.wire_model || process.env.COPILOT_MODEL || "";
     const modelsJson = loadModelsJson();
 
-    const multiProvider = resolveMultiProviderFromReflect({ model: configuredModel, wireApi: process.env.COPILOT_PROVIDER_WIRE_API, reflectData: awfReflectData, modelsJson, logger: log });
-    if (!multiProvider) {
-      log("copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting");
+    let multiProvider = await resolveCopilotSDKMultiProvider({
+      configuredModel,
+      requestedModel: selectionConfiguredModel,
+      routed: Boolean(modelRoutingSelection),
+      wireApi: process.env.COPILOT_PROVIDER_WIRE_API,
+      reflectData: awfReflectData,
+      modelsJson,
+      refetchReflectData,
+      logger: log,
+    });
+    if (!multiProvider || !multiProvider.model) {
+      log(
+        multiProvider
+          ? `copilot-sdk driver mode: configured model '${configuredModel}' could not be matched to a provider model in awf-reflect data — aborting`
+          : "copilot-sdk driver mode: BYOK provider is required but could not be resolved from awf-reflect data — aborting"
+      );
       process.exit(1);
     }
     resolvedModel = multiProvider.model;
@@ -1385,6 +1886,43 @@ async function main() {
       providers: multiProvider.providers,
       models: multiProvider.models,
     });
+
+    // The same custom agents the SDK driver loads: workflow definitions override repository ones.
+    const sdkWorkingDirectory = path.resolve(process.env.GITHUB_WORKSPACE || process.cwd(), process.env.GH_AW_ENGINE_CWD || ".");
+    const agents = resolveSubagentModels ? listCopilotSubagents(sdkWorkingDirectory, path.join(os.tmpdir(), "gh-aw"), log) : [];
+    try {
+      const resolutions = await resolveCopilotSubagentModels({
+        agents,
+        repositoryFallback: "the SDK session gives it the session model",
+        reflectData: awfReflectData,
+        refetchReflectData,
+        providerConfig: multiProvider,
+        refreshProviderConfig: async reflectData => {
+          multiProvider = resolveMultiProviderFromReflect({
+            model: configuredModel,
+            wireApi: process.env.COPILOT_PROVIDER_WIRE_API,
+            reflectData,
+            modelsJson,
+            logger: log,
+          }) || { model: "", providers: [], models: [] };
+          return multiProvider;
+        },
+        logger: log,
+      });
+      subagentModelsJson = JSON.stringify(Object.fromEntries(resolutions.map(resolution => [resolution.name, resolution.model])));
+    } catch (failure) {
+      if (!(failure instanceof ModelAliasResolutionError)) throw failure;
+      process.exit(1);
+    }
+
+    resolvedModel = multiProvider.model;
+    primaryProviderName = multiProvider.models.find(m => `${m.provider}/${m.id}` === resolvedModel)?.provider ?? multiProvider.providers[0]?.name ?? "";
+    const refreshedPrimaryProvider = multiProvider.providers.find(p => p.name === primaryProviderName) ?? multiProvider.providers[0];
+    providerBaseUrl = refreshedPrimaryProvider?.baseUrl ?? "";
+    providerType = refreshedPrimaryProvider?.type ?? "openai";
+    const configuredProviderWireApi = process.env.COPILOT_PROVIDER_WIRE_API;
+    providerWireApi = configuredProviderWireApi === "responses" || configuredProviderWireApi === "completions" ? configuredProviderWireApi : refreshedPrimaryProvider?.wireApi || "";
+    multiProviderJson = JSON.stringify({ model: multiProvider.model, providers: multiProvider.providers, models: multiProvider.models });
 
     const uniqueProviderBaseUrls = [...new Set(multiProvider.providers.map(provider => String(provider.baseUrl || "").trim()).filter(Boolean))];
     if (uniqueProviderBaseUrls.length === 0) {
@@ -1435,8 +1973,9 @@ async function main() {
     resolvedModel,
     routingEffort: modelRoutingSelection?.effort ?? null,
     multiProviderJson,
+    subagentModelsJson,
   });
-  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
+  const childEnv = Object.keys(sdkChildEnv).length > 0 ? buildCopilotEngineChildEnv(process.env, sdkChildEnv) : undefined;
 
   let delay = initialDelayMs;
   let lastExitCode = 1;
@@ -1968,6 +2507,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
     buildCopilotSDKChildEnv,
+    buildCopilotEngineChildEnv,
     envFlagEnabled,
     generateCopilotConnectionToken,
     buildCopilotSDKServerArgs,
@@ -2019,6 +2559,12 @@ if (typeof module !== "undefined" && module.exports) {
     hasTerminalSafeOutput,
     applyModelFallback,
     applyCopilotModelAliasResolution,
+    resolveCopilotSDKMultiProvider,
+    resolveCopilotSubagentModels,
+    applyCopilotCLISubagentModels,
+    listCopilotAgentFiles,
+    listCopilotSubagents,
+    writeCopilotPersonalAgentCopy,
     applyCopilotWireAPI,
     warnCopilotSubagentEndpoints,
     resolveAWFModelRoutingSelection,

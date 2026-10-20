@@ -1140,6 +1140,46 @@ describe("create_issue", () => {
   });
 
   describe("error handling", () => {
+    it.each([false, true])("fits oversized agent text for publication with staged=%s", async staged => {
+      const handler = await main({ max: 1, staged });
+      const result = await handler({ title: "Oversized issue", body: "x".repeat(100000) });
+      expect(result.success).toBe(true);
+      if (staged) expect(result.previewInfo.bodyLength).toBeLessThanOrEqual(65536);
+      else {
+        expect(result.body.length).toBeLessThanOrEqual(65536);
+        expect(result.body).toContain("Content redacted to fit size limit.");
+        expect(result.body).toContain("<!-- gh-aw-execution:");
+      }
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(staged ? 0 : 1);
+    });
+
+    it.each([false, true])("rejects oversized protected footers before reserving a max-count slot with staged=%s", async staged => {
+      const handler = await main({ max: 1, staged });
+
+      vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", JSON.stringify({ footer: "f".repeat(65536) }));
+      await expect(handler({ title: "Oversized issue", body: "Normal body" })).rejects.toThrow("protected markers, footers, and framework content cannot be reduced");
+
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+      expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
+
+      vi.stubEnv("GH_AW_SAFE_OUTPUT_MESSAGES", "");
+      const result = await handler({ title: "Valid issue", body: "Issue content" });
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(staged ? 0 : 1);
+    });
+
+    it("should allow a rendered issue body exactly at GitHub's maximum length", async () => {
+      const handler = await main({});
+      const initial = await handler({ title: "Boundary issue", body: "x" });
+      const attributionLength = initial.body.length - 1;
+
+      const result = await handler({ title: "Boundary issue", body: "x".repeat(65536 - attributionLength) });
+
+      expect(result.success).toBe(true);
+      expect(result.body).toHaveLength(65536);
+      expect(mockGithub.rest.issues.create.mock.calls[1][0].body).toBe(result.body);
+    });
+
     it("should handle issues disabled error gracefully", async () => {
       mockGithub.rest.issues.create.mockRejectedValueOnce(new Error("Issues has been disabled in this repository"));
 

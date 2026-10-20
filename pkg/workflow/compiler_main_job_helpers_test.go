@@ -153,6 +153,13 @@ func TestBuildMainJobDependencies(t *testing.T) {
 
 // TestBuildMainJobOutputs tests that the output map contains expected keys under various config.
 func TestBuildMainJobOutputs(t *testing.T) {
+	t.Run("PR checkout invalidation is distinct from ordinary checkout failure", func(t *testing.T) {
+		data := &WorkflowData{AI: "copilot", Permissions: "permissions:\n  contents: read"}
+		outputs := NewCompiler().buildMainJobOutputs(data)
+		assert.Equal(t, "${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}", outputs["checkout_pr_invalidated"])
+		data.CheckoutDisabled = true
+		assert.NotContains(t, NewCompiler().buildMainJobOutputs(data), "checkout_pr_invalidated")
+	})
 	t.Run("core outputs are always present", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{AI: "copilot"}
@@ -352,9 +359,11 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("operational value preserves declared permissions", func(t *testing.T) {
+	t.Run("graders preserve declared permissions", func(t *testing.T) {
 		c := NewCompiler()
-		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		graders, err := ParseGradersFromFrontmatter(map[string]any{})
+		require.NoError(t, err)
+		data := &WorkflowData{Graders: graders}
 		data.Permissions = "permissions:\n  contents: read"
 		perms, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
@@ -362,20 +371,24 @@ func TestBuildMainJobPermissions(t *testing.T) {
 		assert.Contains(t, perms, "contents: read")
 	})
 
-	t.Run("operational value allows explicit empty permissions", func(t *testing.T) {
+	t.Run("graders allow explicit empty permissions", func(t *testing.T) {
 		c := NewCompiler()
-		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		graders, err := ParseGradersFromFrontmatter(map[string]any{})
+		require.NoError(t, err)
+		data := &WorkflowData{Graders: graders}
 		data.Permissions = "permissions: {}"
-		_, err := c.buildMainJobPermissions(data)
+		_, err = c.buildMainJobPermissions(data)
 		require.NoError(t, err)
 	})
 
-	t.Run("disabled operational value does not add actions read", func(t *testing.T) {
+	t.Run("disabled grader does not add actions read", func(t *testing.T) {
 		c := NewCompiler()
 		disabled := false
-		data := operationalValueGraderWorkflowData(".github/graders/example-operational-value.sh")
+		graders, err := ParseGradersFromFrontmatter(map[string]any{})
+		require.NoError(t, err)
+		data := &WorkflowData{Graders: graders}
 		data.Permissions = "permissions:\n  contents: read"
-		data.Graders.Graders["operational-value"].Enabled = &disabled
+		data.Graders.Graders["loops"].Enabled = &disabled
 		perms, err := c.buildMainJobPermissions(data)
 		require.NoError(t, err)
 		assert.NotContains(t, perms, "actions: read")

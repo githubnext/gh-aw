@@ -3737,6 +3737,9 @@
               "signal": {
                 "type": "string"
               },
+              "item_id": {
+                "type": "string"
+              },
               "type": {
                 "type": "string"
               },
@@ -4295,6 +4298,613 @@
                         "state",
                         "released",
                         "claims"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "diagnostics": {
+                      "type": [
+                        "null",
+                        "object"
+                      ],
+                      "properties": {
+                        "work": {
+                          "type": "integer"
+                        },
+                        "available": {
+                          "type": "integer"
+                        },
+                        "claimed": {
+                          "type": "integer"
+                        },
+                        "completed": {
+                          "type": "integer"
+                        },
+                        "cancelled": {
+                          "type": "integer"
+                        },
+                        "claims": {
+                          "type": "integer"
+                        },
+                        "dispatches": {
+                          "type": "integer"
+                        },
+                        "transactions": {
+                          "type": "integer"
+                        },
+                        "nodes": {
+                          "type": "integer"
+                        },
+                        "evaluated_at": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "tip": {
+                          "type": "string"
+                        },
+                        "policy_epoch": {
+                          "type": "string"
+                        },
+                        "repository": {
+                          "type": "string"
+                        },
+                        "branch": {
+                          "type": "string"
+                        },
+                        "admission_paused": {
+                          "type": "boolean"
+                        },
+                        "grants_paused": {
+                          "type": "boolean"
+                        },
+                        "policy_mode": {
+                          "type": "string"
+                        },
+                        "claims_by_state": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "claim_cancellation_reasons": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "delivery_by_state": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "delivery_failure_reasons": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "native_reservations": {
+                          "type": "integer"
+                        },
+                        "dispatches_total": {
+                          "type": "integer"
+                        },
+                        "dispatches_by_state": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "reservations_by_state": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "pools": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "pool": {
+                                "type": "string"
+                              },
+                              "policy_installed": {
+                                "type": "boolean"
+                              },
+                              "work_by_state": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer"
+                                }
+                              },
+                              "claims_by_state": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer"
+                                }
+                              },
+                              "delivery_by_state": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer"
+                                }
+                              },
+                              "native_reservations": {
+                                "type": "integer"
+                              },
+                              "logical_limit": {
+                                "type": "integer"
+                              },
+                              "native_limit": {
+                                "type": "integer"
+                              },
+                              "max_attempts": {
+                                "type": "integer"
+                              },
+                              "scheduling_eligible": {
+                                "type": "integer"
+                              },
+                              "ineligible_reasons": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "integer"
+                                }
+                              },
+                              "oldest_available": {
+                                "type": [
+                                  "null",
+                                  "object"
+                                ],
+                                "properties": {
+                                  "work_id": {
+                                    "type": "string"
+                                  },
+                                  "admitted_at": {
+                                    "type": "integer"
+                                  },
+                                  "age_ms": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "work_id",
+                                  "admitted_at",
+                                  "age_ms"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "available_age_unknown": {
+                                "type": "integer"
+                              },
+                              "prediction": {
+                                "type": "object",
+                                "properties": {
+                                  "reason": {
+                                    "type": "string"
+                                  },
+                                  "assignments": {
+                                    "type": [
+                                      "null",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "worker_profile": {
+                                          "type": "string"
+                                        },
+                                        "work_ids": {
+                                          "type": [
+                                            "null",
+                                            "array"
+                                          ],
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "worker_profile",
+                                        "work_ids"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "reason",
+                                  "assignments"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "pool",
+                              "policy_installed",
+                              "work_by_state",
+                              "claims_by_state",
+                              "delivery_by_state",
+                              "native_reservations",
+                              "logical_limit",
+                              "native_limit",
+                              "max_attempts",
+                              "scheduling_eligible",
+                              "ineligible_reasons",
+                              "oldest_available",
+                              "available_age_unknown",
+                              "prediction"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "activity": {
+                          "type": "object",
+                          "properties": {
+                            "since": {
+                              "type": "integer"
+                            },
+                            "until": {
+                              "type": "integer"
+                            },
+                            "transactions": {
+                              "type": "integer"
+                            },
+                            "operations": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "integer"
+                              }
+                            },
+                            "last_commit_id": {
+                              "type": "string"
+                            },
+                            "last_at": {
+                              "type": [
+                                "null",
+                                "integer"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "since",
+                            "until",
+                            "transactions",
+                            "operations",
+                            "last_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "assigned_claims": {
+                          "type": [
+                            "null",
+                            "array"
+                          ],
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "work": {
+                                "type": "object",
+                                "properties": {
+                                  "work_id": {
+                                    "type": "string"
+                                  },
+                                  "graph_id": {
+                                    "type": "string"
+                                  },
+                                  "node_key": {
+                                    "type": "string"
+                                  },
+                                  "pool": {
+                                    "type": "string"
+                                  },
+                                  "worker_profile": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string"
+                                  },
+                                  "priority": {
+                                    "type": "integer"
+                                  },
+                                  "admitted_priority": {
+                                    "type": "integer"
+                                  },
+                                  "fairness_key": {
+                                    "type": "string"
+                                  },
+                                  "position": {
+                                    "type": "object",
+                                    "properties": {
+                                      "commit": {
+                                        "type": "integer"
+                                      },
+                                      "operation": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "commit",
+                                      "operation"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "enqueued_at": {
+                                    "type": "integer"
+                                  },
+                                  "admitted_at": {
+                                    "type": [
+                                      "null",
+                                      "integer"
+                                    ]
+                                  },
+                                  "attempts": {
+                                    "type": "integer"
+                                  },
+                                  "max_attempts": {
+                                    "type": [
+                                      "null",
+                                      "integer"
+                                    ]
+                                  },
+                                  "retry_not_before": {
+                                    "type": "integer"
+                                  },
+                                  "claim_id": {
+                                    "type": "string"
+                                  },
+                                  "delivery": {
+                                    "type": "string"
+                                  },
+                                  "completion_id": {
+                                    "type": "string"
+                                  },
+                                  "result_commit_id": {
+                                    "type": "string"
+                                  },
+                                  "disposition": {
+                                    "type": "string"
+                                  },
+                                  "cancellation_reason": {
+                                    "type": "string"
+                                  },
+                                  "depends_on": {
+                                    "type": [
+                                      "null",
+                                      "array"
+                                    ],
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string"
+                                        },
+                                        "work_id": {
+                                          "type": "string"
+                                        },
+                                        "resource": {
+                                          "type": [
+                                            "null",
+                                            "object"
+                                          ],
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string"
+                                            },
+                                            "host": {
+                                              "type": "string"
+                                            },
+                                            "repository": {
+                                              "type": "string"
+                                            },
+                                            "repository_id": {
+                                              "type": "string"
+                                            },
+                                            "resource_id": {
+                                              "type": "string"
+                                            },
+                                            "number": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "host",
+                                            "repository",
+                                            "repository_id",
+                                            "resource_id",
+                                            "number"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "condition": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "issue": {
+                                    "type": [
+                                      "null",
+                                      "object"
+                                    ],
+                                    "properties": {
+                                      "kind": {
+                                        "type": "string"
+                                      },
+                                      "host": {
+                                        "type": "string"
+                                      },
+                                      "repository": {
+                                        "type": "string"
+                                      },
+                                      "repository_id": {
+                                        "type": "string"
+                                      },
+                                      "resource_id": {
+                                        "type": "string"
+                                      },
+                                      "number": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "kind",
+                                      "host",
+                                      "repository",
+                                      "repository_id",
+                                      "resource_id",
+                                      "number"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "work_id",
+                                  "graph_id",
+                                  "node_key",
+                                  "pool",
+                                  "worker_profile",
+                                  "state",
+                                  "priority",
+                                  "admitted_priority",
+                                  "fairness_key",
+                                  "position",
+                                  "enqueued_at",
+                                  "admitted_at",
+                                  "attempts",
+                                  "max_attempts",
+                                  "retry_not_before",
+                                  "delivery",
+                                  "depends_on"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "claim": {
+                                "type": "object",
+                                "properties": {
+                                  "claim_id": {
+                                    "type": "string"
+                                  },
+                                  "work_id": {
+                                    "type": "string"
+                                  },
+                                  "dispatch_id": {
+                                    "type": "string"
+                                  },
+                                  "claim_handle": {
+                                    "type": "string"
+                                  },
+                                  "state": {
+                                    "type": "string"
+                                  },
+                                  "current": {
+                                    "type": "boolean"
+                                  },
+                                  "request_id": {
+                                    "type": "string"
+                                  },
+                                  "commit_id": {
+                                    "type": "string"
+                                  },
+                                  "terminal_commit_id": {
+                                    "type": "string"
+                                  },
+                                  "granted_at": {
+                                    "type": [
+                                      "null",
+                                      "integer"
+                                    ]
+                                  },
+                                  "terminal_at": {
+                                    "type": [
+                                      "null",
+                                      "integer"
+                                    ]
+                                  },
+                                  "cancellation_reason": {
+                                    "type": "string"
+                                  },
+                                  "retry_not_before": {
+                                    "type": "integer"
+                                  },
+                                  "keep_open": {
+                                    "type": "boolean"
+                                  },
+                                  "delivery": {
+                                    "type": "string"
+                                  },
+                                  "delivery_failure_reason": {
+                                    "type": "string"
+                                  },
+                                  "disposition": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "claim_id",
+                                  "work_id",
+                                  "dispatch_id",
+                                  "claim_handle",
+                                  "state",
+                                  "current",
+                                  "request_id",
+                                  "commit_id",
+                                  "granted_at",
+                                  "terminal_at",
+                                  "retry_not_before",
+                                  "keep_open",
+                                  "delivery"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "work",
+                              "claim"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "work",
+                        "available",
+                        "claimed",
+                        "completed",
+                        "cancelled",
+                        "claims",
+                        "dispatches",
+                        "transactions",
+                        "nodes",
+                        "evaluated_at",
+                        "status",
+                        "tip",
+                        "policy_epoch",
+                        "repository",
+                        "branch",
+                        "admission_paused",
+                        "grants_paused",
+                        "policy_mode",
+                        "claims_by_state",
+                        "claim_cancellation_reasons",
+                        "delivery_by_state",
+                        "delivery_failure_reasons",
+                        "native_reservations",
+                        "dispatches_total",
+                        "dispatches_by_state",
+                        "reservations_by_state",
+                        "pools",
+                        "activity"
                       ],
                       "additionalProperties": false
                     }

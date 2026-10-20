@@ -469,82 +469,19 @@ gh aw lint --rules secret-leak --json               # Emit structured diagnostic
 gh aw lint --rules secret-leak --debug --json       # Include incomplete-analysis warnings
 ```
 
-**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--debug`, `--javascript-module`, `--javascript-root`, `--javascript-runtime-path`
+**Options:** `--dir/-d`, `--shellcheck`, `--pyflakes`, `--rules`, `--list-rules`, `--json`, `--debug`, `--javascript-module`, `--javascript-mode`, `--javascript-root`, `--javascript-runtime-path`
 
 By default, shellcheck and pyflakes integrations are disabled to reduce noise for generated `run:` scripts. Built-in actionlint ignore patterns cover gh-aw-specific extensions such as `job.workflow_*` context properties and the `copilot-requests` permission scope.
 
-`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules`; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
+`--rules` accepts comma-separated rule IDs; `--rules=` selects all registered rules without actionlint. Unknown IDs fail explicitly. `--json` requires `--rules` and has no `-j` shorthand; `--shellcheck` and `--pyflakes` apply only to actionlint. In the default mode, both linters run even if one reports errors, and either linter's failure produces a nonzero exit status.
 
-Secret-leak coverage warnings are hidden by default in text and JSON output. Use `--debug` to include them when investigating incomplete analysis. Error findings, analysis failures, and other linters' warnings remain visible. This is a presentation setting: the AST runner retains all coverage diagnostics, and an empty CLI result is not proof of complete analysis.
+Secret-leak coverage warnings are hidden by default in text and JSON output, unless JavaScript analysis is explicitly enabled. Use `--debug` to include them otherwise. Error findings, analysis failures, and other linters' warnings remain visible. This is a presentation setting: the AST runner retains all coverage diagnostics, and an empty CLI result is not proof of complete analysis.
 
-Directory scans are nonrecursive and prefer an existing `.lock.yml` over its paired `.md` to avoid duplicate diagnostics. They include uncompiled Markdown with frontmatter and native Actions YAML, but skip plain Markdown documentation without frontmatter. Explicit Markdown paths are always accepted. `--list-rules` lists each rule's ID, default severity, supported ASTs, and description.
+Directory scans are nonrecursive and prefer an existing `.lock.yml` over its paired `.md` to avoid duplicate diagnostics. They include uncompiled Markdown with frontmatter and native Actions YAML, but skip plain Markdown documentation without frontmatter. Explicit Markdown paths are always accepted. `--list-rules` lists each rule's ID, default severity, supported ASTs, description, and known compiler threat ID (`CTR-*`).
 
 **Migration from actionlint-only linting:** the default now also enforces registered AST rules and may fail on findings that actionlint did not report. Review those findings, or run `actionlint` directly on the generated `.lock.yml` files to retain actionlint-only behavior. `--rules` selects AST rules and skips actionlint; it does not provide an actionlint-only mode.
 
-| Built-in rule | ASTs | Checks |
-|---|---|---|
-| `action-pin` | AW, Actions | Remote actions and reusable workflows use full commit SHAs; Docker actions use digests. Local references are exempt. |
-| `job-timeout` | AW, Actions | An explicit workflow/job timeout is a positive integer literal, not an expression. Omission is allowed. |
-| `template-injection` | AW, Actions | Known attacker-controlled expressions are not interpolated into executable `run` text. Use environment bindings and quoted shell expansions instead. |
-| `workflow-run-scope` | AW, Actions | `workflow_run` selects workflows and has a positive branch scope, not just wildcard, negated-only, or empty branch filters. |
-| `secret-leak` | AW, Actions | Symbolic secrets do not reach modeled disclosure sinks. AW-only checks report missing generated execution coverage. |
-| `permission-scope` | AW, Actions | Explicit permissions avoid blanket `write-all` grants; OIDC does not use invalid `id-token: read`. Scoped writes and `id-token: write` are not automatically violations. |
-| `version-check` | AW | Authored source does not disable `check-for-updates`. |
-| `conditional-import` | AW | Configuration import entries do not contain `if`, even if false or null. Runtime prompt conditionals are unaffected. |
-| `private-to-public` | AW | GitHub tool configuration does not opt out of private-to-public flow protections, globally or for selected servers. |
-| `install-scripts` | AW | Authored Node configuration does not enable dependency install hooks. Other runtimes and arbitrary shell commands are not inferred. |
-| `allowed-labels` | AW | Issue, discussion, discussion-update, and PR creation label allowlists do not contain a bare `*`. Narrow patterns and literal required-label names are unaffected. |
-| `network-scope` | AW | Network allowances do not contain a bare `*`, including alongside `defaults`. Domain wildcards such as `*.example.com` are allowed; omission does not imply missing firewall protection. |
-| `push-target` | AW | A literal wildcard PR-branch push target has an authored title or label constraint. Respects deprecated aliases and defers when unresolved imports may supply constraints. |
-| `tool-scope` | AW | Shell refusal does not conflict with CLI/gh proxies; `min-integrity: none` declares shell intent; cache memory avoids repository-wide scope. Missing prerequisites defer when imports may supply them. |
-| `sandbox-config` | AW | The agent sandbox is not explicitly disabled and internal agent/MCP command, environment, argument, image, or version overrides are not enabled. Empty overrides are ignored. |
-| `image-argument` | AW, Actions | Job/service and authored MCP container image operands do not start with `-`. Does not inspect registries or infer dynamically computed images. |
-| `checkout-mode` | AW | Repository-list expansion is explicitly boolean; literal lists require multi mode, which requires a literal non-root prefix and scoped allowlist without LFS, submodules, current identity, or wiki expansion. Does not prove runtime selector trust or repository visibility. |
-| `fork-association` | AW | Explicit fork admission uses GitHub's uppercase author-association enum. Empty lists and repository wildcard patterns are valid; generated admission guards are not reconstructed. |
-
-Action pinning, workflow-run branch scope, blanket write permissions, disabled version checking, private-to-public opt-outs, enabled Node install hooks, and bare network wildcard allowances are errors for an AW document with strict mode enabled (the AW default), and warnings for explicit non-strict AW. Native Actions policy-sensitive findings are warnings; AW-only rules skip native Actions without an AW document. Conditional imports, bare label-allowlist wildcards, invalid OIDC read grants, missing or malformed `workflow_run.workflows`, invalid explicit timeouts, and direct template injection are errors. Unconstrained wildcard push targets remain warnings even in strict mode. The linter does not reconstruct CLI/repository strict overrides, load imported configurations, infer missing permissions, or determine whether each repository-write grant is authorized.
-
-Tool-scope and sandbox-config use the authored strict-policy error/warning distinction, including explicit non-strict sandbox opt-outs and internal customizations. Image-argument, checkout-mode, and fork-association findings are always errors. Checkout and tool checks defer absent prerequisites that unresolved imports may supply; they still report explicit contradictions. Image checks cover image operands, not inferred package-manager arguments.
-
-The `secret-leak` rule tracks symbolic secret references, `github.token`, and known app-token action outputs through environment scopes, shell assignments, step outputs, and dependent job outputs. It detects disclosures to logs, step summaries, workflow outputs, request URLs/bodies, known publication inputs, cache keys, and artifacts containing modeled secret-bearing files. Authentication headers, token inputs, and the reusable workflow `secrets:` channel are not disclosure sinks. Boolean comparisons and predicates filter secret values; formatting, JSON serialization, encoding, and `add-mask` registration do not sanitize subsequent uses.
-
-In Bash/sh, recognized `test`/`[` string and file predicates and the `:`, `true`, and `false` builtins do not disclose their arguments. Presence-only alternate expansions such as `${TOKEN:+present}` do not contain the token, but secret-bearing replacements remain tainted. Nested command disclosures, parameter-expansion error messages, and `set -x` output are still checked. Numeric comparisons, malformed tests, and potentially word-splitting predicates retain coverage warnings because their error diagnostics can expose operands.
-
-Unknown file reads produce secret-flow coverage warnings when they could select a modeled secret-bearing file or involve a secret-bearing filename. Unknown output targets warn when the output or filename is tainted; unrelated public file operations do not introduce secret-flow warnings.
-
-For `.lock.yml` inputs, a companion `.md` adds authored-policy and prompt checks to the existing execution graph. Native `.yml`/`.yaml` inputs never acquire an assumed AW companion. Explicit `.md` inputs inspect the AW AST independently: the prompt, top-level `steps`/`post-steps`, and authored `jobs`/`safe-jobs`. No compiled graph is fabricated. Secret analysis retains a coverage warning for missing imports, generated steps, cross-job flows, and compiler defaults, visible with `--debug`; scripts without an observable shell remain unknown. JSON diagnostics contain the file, rule ID, severity, AST path, optional script-relative line, message, and symbolic source locations, never resolved secrets or script contents. Errors produce a nonzero exit status; coverage warnings alone do not.
-
-Analysis is conservative within Bash/sh control flow and can report infeasible paths. It does not execute analyzed code or inspect external actions, sourced shell scripts, Python/PowerShell programs, dynamically constructed shell code, or arbitrary filesystem operations. JavaScript inspection requires the explicit configuration below. Imported runtime prompt files are not recursively loaded. Authentication arguments are treated as intentional credential use; endpoint trust is not inferred. A clean result is not proof that a workflow cannot leak secrets.
-
-##### Optional native JavaScript analysis
-
-This analysis is experimental and opt-in. `--javascript-module` enables JavaScript secret-flow analysis using Microsoft's Go TypeScript compiler through the upstream-exported, **unstable** `@typescript/native-preview/unstable/sync` and AST APIs. The exact supported package version is `7.0.0-dev.20260707.2`. Node.js 22.12 or newer and its platform-native compiler executable must already be installed; the CLI does not download dependencies or assume its own developer `node_modules` directory exists.
-
-For a gh-aw source checkout, install the optional pinned dependency and supply absolute paths:
-
-```bash wrap
-npm ci --prefix /path/to/gh-aw/pkg/workflow/taint/javascript --ignore-scripts
-gh aw lint --rules secret-leak --json \
-  --javascript-module /path/to/gh-aw/pkg/workflow/taint/javascript \
-  --javascript-root /path/to/repository
-```
-
-The checker follows literal `node`/`nodejs` file and `--eval` invocations, `--print` expressions, `shell: node {0}`, `actions/github-script` scripts, and available relative CommonJS/ES module imports. It tracks symbolic environment/argument/stdin sources, aliases, object members, local function calls, selected stdin callbacks, JSON/string transformations, and known file writes/reads. Object rest preserves member shapes: credential-bearing environment members do not taint an unrelated public timeout, while a secret-derived timeout remains tainted. Logging, summaries, outputs, and non-authentication request fields are disclosure sinks. Comparison/presence results and type-proven public length/index metadata remove values; arbitrary object properties and numeric coercions do not. Genuine escaped, single-record stdout `add-mask` registrations are recognized without sanitizing later uses or captured stdout. Dynamic reads remain explicit gaps rather than invented all-environment return values.
-
-`--javascript-root` bounds source reads to the supplied repository, including symlink confinement. Repeated `--javascript-runtime-path 'runner-directory=repository-relative-directory'` flags can map generated runtime asset paths to **operator-verified matching source**. For example, only when the workflow uses the exact checkout's gh-aw setup assets, pass `--javascript-runtime-path '${RUNNER_TEMP}/gh-aw/actions=actions/setup/js'`. This mapping loads and analyzes source; it does not declare any helper safe. Unknown interpreter paths are not identified by basename.
-
-Missing or incompatible compiler installations, unresolved sources/calls/modules, cycles, unsupported syntax, loop convergence, and traversal/budget limits retain incomplete-analysis warnings, visible with `--debug`. Unknown boundaries do not invent transformed stdout or confirmed leaks. Without `--javascript-module`, Bash analysis remains active and records unavailable JavaScript analysis at secret-bearing Node command boundaries; additional inline/action JavaScript inspection is opt-in. Configured analysis can substantially expand diagnostics and report infeasible source-flow paths; findings require review and are not a vulnerability count. An empty errors-only report does not imply complete coverage or whole-program JavaScript safety.
-
-##### Linter performance
-
-`DEBUG=workflow:lint:perf` emits per-rule start/completion markers, elapsed nanoseconds, diagnostic counts, and failure status to stderr. Separate markers measure diagnostic sorting/deduplication and total runner time. These markers contain no AST contents, source symbols, or error text and do not change JSON diagnostics or enable coverage warnings:
-
-```bash wrap
-DEBUG=workflow:lint:perf DEBUG_COLORS=0 gh aw lint --rules= --json \
-  > lint.json 2> lint-performance.log
-```
-
-Go execution traces include `workflow:lint`, `workflow:lint:rule:<id>`, and `workflow:lint:diagnostics` regions. Native JavaScript compiler time is included in the calling rule's wall time; the external compiler's CPU work is not part of a Go CPU profile.
+See [Workflow Linters](/gh-aw/reference/workflow-linters/) for the rule catalog and compiler threat IDs, severity policy, analysis boundaries, optional JavaScript configuration, and performance diagnostics.
 
 ### Testing
 
@@ -650,8 +587,36 @@ gh aw logs --ref main --parse --json      # With markdown/JSON output for branch
 
 With `--json`, the output also includes deterministic lineage data under `.episodes[]` and `.edges[]`. Use these fields to group orchestrated runs into execution episodes instead of reconstructing relationships from `.runs[]` alone.
 
+Episode grouping requires a nonempty `context.episode_id`; runs without it remain in `.runs[]` and overall totals but have no episode rollup or edges. There is no call-ID or metadata-based lineage inference. Episode totals cover selected canonical members only. `recorded_roots[]` preserves recorded root identities, while `representative_run_id` and `representative_workflow` name the selected-data representative. The episode-level `root_run_id` and `primary_workflow` fields are removed; migrate to the representative fields for selected-data identity or `recorded_roots[]` for canonical identity. `coverage` reports `scope: selected_runs`, `status: unknown` or `partial`, reason codes, missing recorded parent run IDs, and collection truncation independently of lineage confidence. No logs selection establishes complete episode coverage. Both compact and verbose JSON retain all canonical episodes. See [episode-level usage](/gh-aw/reference/cost-management/#interpret-episode-level-usage) for field semantics.
+
+`--count` defaults to 10, including with `--start-date` or `--end-date`. A larger date range does not remove that cap. `.continuation` and `.continuations[]` provide continuation parameters when collection is truncated; their absence does not prove that an episode has no unselected ancestors or descendants.
+
 > [!NOTE]
 > A downstream warning that a workflow file returned HTTP 404 does not mean `gh aw logs` failed to download the run. The command downloads run artifacts by run ID; workflow source lookup is a separate operation performed by the consumer. GitHub's workflows API can retain entries for deleted or renamed files. Live-inventory consumers should ignore non-active workflows and paths absent from the repository contents listing. Historical consumers should use each JSON run's `repository`, `workflow_path`, and `sha` fields instead of the current default branch, and treat missing source as unavailable metadata rather than a failed log download.
+
+Logs preserve each run's raw GitHub conclusion. `job_count: 0` means the Jobs API
+confirmed no jobs for that attempt; an absent `job_count` means unavailable evidence.
+Confirmed jobless failures remain visible as `confirmed_no_jobs` clusters, but
+are not runtime-audit candidates. They can represent validation failures or
+platform-side lifecycle invalidation; missing artifacts alone establishes neither.
+
+An originally queued `pull_request` run is classified with
+`exclusion_reason: obsolete_pr` only when its exact attempt has no jobs and the
+uniquely associated PR closed after the attempt was queued but before GitHub
+finalized it as failed or cancelled. `obsolete_pr` retains the PR number,
+closure time, and attempt as evidence. Such runs remain in the raw run list and
+`summary.obsolete_pr_runs`, but are excluded from actionable failure clusters
+and investigations. Explicit startup-validation conclusions, observed failure
+signals, job-backed failures, unavailable API evidence, and closed-event runs
+are not classified as obsolete. Association is resolved from the run's exact
+commit, even if that PR's head advanced before closure; ambiguous associations
+remain unknown.
+
+`summary.executed_runs` and `summary.executed_success_runs` count only completed
+runs with confirmed jobs. Use these for executed-run success rates rather than
+the raw `total_runs`; unknown evidence and jobless runs are not successes.
+`summary.non_execution_runs` counts confirmed jobless runs. No in-job guard can
+change GitHub's platform-side conclusion for a run whose jobs never started.
 
 To diagnose an actual download failure, enable the logs API and download debug namespaces:
 
@@ -697,6 +662,10 @@ When multiple targets run concurrently, `--count` limits the combined number of 
 
 `--evals` and `--graders` each pull in a matching artifact set automatically: `--evals` includes results from `evals.jsonl`, `--graders` includes deterministic grader results and their artifacts. `--audit` generates `audit.json` in each downloaded run's cache directory (comparisons use only the runs downloaded in that invocation). `--ignore-workflow-runs` excludes specific run IDs (or `slug/ID` values, where the slug is informational and matching uses the numeric ID) from an otherwise matching set.
 
+The `graders` artifact set includes conclusion's built-in results in `usage`
+and the optional combined `graders` artifact from the separate custom-grader job,
+with workflow-call-prefixed and historical agent artifacts supported.
+
 `--max-storage` bounds total logs cache size in MB after pruning non-essential data. It defaults to 1024 MB (1 GB); `--max-storage 0` disables the limit. Concurrent in-flight downloads can temporarily exceed this soft budget. `--prune-older-runs` additionally removes the oldest completed runs when that pruning alone can't satisfy `--max-storage`. `--max-github-api-rate-limit` pauses (single target) or stops (multiple targets) further downloads once the given number of core API requests have been used — pass a positive value for an absolute budget or a negative value to reserve that many requests from the current rate limit. `--drain3-weights` points `--train` at an existing `drain3_weights.json` to seed pattern training instead of starting from scratch.
 
 `--cached-jsonl` reuses compatible, schema-versioned run records and workflow-run discovery responses. It writes exactly one JSON value per line, appending every complete `gh run list` payload before downloading artifacts and available GitHub API rate-limit reports after collection. Each enriched `run` record includes job execution data, sanitized MCP tool-call metadata, and available engine, model, runtime, and component versions for downstream dashboards. Raw tool errors, arguments, responses, and artifact bodies are excluded. Discovered runs therefore remain available when a timeout or API limit interrupts processing. Records from incompatible schema versions are ignored. Use `gh aw json-schema logs-jsonl` to generate the schema for each JSON Lines item.
@@ -704,6 +673,84 @@ When multiple targets run concurrently, `--count` limits the combined number of 
 Each safe-output entity recorded for a run (the same provider-neutral records surfaced in `usage/activity/summary.json`) is also appended as its own `safe_output_item` line immediately after the `run` record, carrying a `run_id` correlating it back to the run plus the entity's type, provider, durable ID, human-readable identifier, URL, and target/state metadata. These per-entity lines are informational projections of the `run` record's `safe_outputs` array and are ignored by the in-memory run cache used to skip already-downloaded runs.
 
 Pass a trailing wildcard prefix such as `--cached-jsonl 'logs-*'` to load all matching `logs-*.jsonl` files as the starting cache and write newly downloaded data to a unique `logs-<unix-time>-<random>.jsonl` file. With `--start-date` or `--end-date`, wildcard cache files containing exclusively dated run records outside the requested range are deleted.
+
+##### `logs episode <run-id-or-url>`
+
+Retrieve a canonical episode starting from a recorded run. The command visits
+recorded parents and roots, then scans the allowed repositories for runs sharing
+the seed's `context.episode_id`. It does not infer membership from workflow names,
+revisions, or event types.
+
+```bash wrap
+gh aw logs episode 1234567890 --repo owner/repo \
+  --allow-repo owner/downstream --start-date -2d \
+  --max-runs 100 --max-api-requests 500 --timeout 5m --json > episode.json
+```
+
+| Option | Default | Bound |
+|--------|---------|-------|
+| `--repo/-r` | Repository in the seed URL | Required for numeric run IDs; accepts `[HOST/]owner/repo`. |
+| `--allow-repo` | None | Additional `owner/repo` repositories on the seed host; repeatable. Recorded metadata cannot expand this allowlist. |
+| `--start-date`, `--end-date` | Seven days ago, now | Candidate creation-time window, including explicitly recorded parents and roots. Accepts dates, RFC3339 timestamps, and relative dates. |
+| `--max-runs` | `100` | Distinct candidates examined, including the seed, nonmembers, and failed lookups. |
+| `--max-api-requests` | `500` | REST requests initiated by the collector, including metadata, discovery pages, artifact inventories, and archive downloads. Artifact-storage redirect transfers are excluded. |
+| `--timeout` | `5m` | Collection deadline, expressed as a duration. |
+| `--output/-o` | `.github/aw/logs` | Compact artifacts, isolated by host, repository, run, attempt, and immutable artifact ID. |
+| `--json` | Disabled | Standard logs JSON plus `episode_retrieval` bounds, counters, stop reasons, and evidence gaps. |
+| `--view` | `summary` | Display `summary` or recorded `hops`; JSON includes both views' data. |
+| `--refresh` | Disabled | Recollect instead of reading the cached episode snapshot; immutable artifact downloads are still reused. |
+
+Run, request, and timeout bounds must be positive. This subcommand downloads only
+compact `info` and `usage` artifacts, with a 64 MiB limit on each archive and its
+total extracted contents. Missing seed identity is an error; unavailable
+related runs, conflicting identity, excluded repositories, expired artifacts, and
+truncated discovery qualify the returned episode coverage. Coverage remains
+`selected_runs` with status `unknown` or `partial`, never complete, even after all
+pages in the bounded window are exhausted.
+
+The command automatically caches a snapshot for the seed, host, repository
+allowlist, dates, and collection bounds beneath `--output`. Repeating the same
+query or switching `--view` reads that snapshot without GitHub requests, even
+offline. Snapshots remain unchanged until `--refresh`; relative dates such as
+`-7d` retain the original snapshot window until refreshed. Changing bounds
+collects a separate snapshot. `episode_retrieval.collected_at` records collection
+time and `cached` marks reuse; REST counters describe the original collection.
+
+Use `--refresh` to rescan with the same bounds. A larger-bound query also reuses
+downloaded immutable artifacts; discovery rescans rather than resuming an
+unstable page cursor. GitHub's 1,000-result
+limit on filtered run discovery is reported as a gap; narrow the time window
+when reached. Unlike `logs --max-github-api-rate-limit`, the request cap applies
+to this retrieval, not the account's previously consumed quota.
+
+Each collection records its own artifact inventory and `logs_path`. Later
+collections do not delete cached evidence referenced by earlier reports, and
+completed local downloads remain usable after remote expiration.
+
+The MCP `logs` tool exposes the same operation through `episode_run`,
+`episode_repository`, `allow_repositories`, `max_api_requests`, and `refresh`; `count`
+becomes the candidate cap. Workflow-discovery filters cannot be combined with
+episode retrieval.
+
+To retrieve an ordinary workflow named `episode`, use `gh aw logs -- episode`.
+
+Use `--view hops` on the same episode command to inspect recorded invocations:
+
+```bash wrap
+gh aw logs episode 1234567890 --repo owner/repo --view hops
+```
+
+No separate explanation command or JSON input file is needed. The first query
+collects and caches the episode; subsequent queries with the same collection
+options reuse it. `--json` always returns the standard logs report, described by
+`gh aw json-schema logs`, regardless of the selected display view.
+
+The view shows recorded hop IDs, parent-hop and run edges, reusable-workflow
+hops sharing one run ID, and missing or conflicting evidence. Costs appear
+once per selected run in `run_costs`, not on hops. Missing hop IDs remain
+missing; the view does not reconstruct them or claim complete membership.
+Logs JSON includes the same data under `episodes[].explanation`, including in
+compact and MCP reports.
 
 #### `audit`
 
@@ -799,19 +846,26 @@ The command and its output formats may change.
 
 #### `graders`
 
-Run one grader declared by a local workflow against a saved run payload or JSON
-from standard input. Operational-value evaluators use the same one-shot request
-shape as workflow execution and return an ordered metric array. The command
-executes either Bash embedded in `graders.operational-value.script` or a Bash
-file referenced by `graders.operational-value.run`; operational-value graders
-require standard input because historical replay is not supported.
+Run one enabled built-in, custom JavaScript, or operational-value Bash grader against a unified session from a saved run's
+`usage` artifact or from standard input. Input accepts unified-session JSONL
+or a JSON event array. The ten fast built-ins are available without explicit
+frontmatter configuration. Custom JavaScript uses a separate restricted worker
+with the same in-memory interface as the downstream graders job. Repository-owned
+`graders.operational-value.run` Bash uses that job's session-file compatibility
+runtime: session JSONL in `$1` / `GH_AW_SESSION_FILE`, config JSON in
+`GH_AW_GRADER_CONFIG`, and legacy metric-array output.
 
-JavaScript graders (built-in and custom) require Node.js 20+ with the permission model; the CLI picks `--permission` or `--experimental-permission` as supported and never runs a grader without permissions enabled.
+Pure built-in/JavaScript replay requires Node.js 20+ with the permission model. The CLI picks
+`--permission` or `--experimental-permission` as supported, restricts reads to
+the staged runtime modules, and passes the session in memory to the grader.
+Bash replay requires Node.js and Bash with the same bounded, stripped-environment
+runtime as the separate job. It is trusted code, not a filesystem/network sandbox
+or microVM; compilation and lint reject detected file writes.
 
 ```bash wrap
 gh aw graders run weekly-research loops 123456789
-cat payload.json | gh aw graders run weekly-research loops
-cat request.json | gh aw graders run daily-file-diet operational-value
+cat aw_session.jsonl | gh aw graders run weekly-research loops
+cat aw_session.jsonl | gh aw graders run weekly-research operational-value
 ```
 
 **Options:** `--repo/-r`
@@ -840,6 +894,27 @@ gh aw outcomes history --repo owner/repo --json     # JSON output for another re
 ```
 
 **Options:** `--limit`, `--source`, `--json/-j`, `--repo/-r`
+
+##### `outcomes episodes`
+
+Join episode membership from a full logs JSON report with the latest recorded
+safe-output outcome observations. Reads downloaded usage artifacts locally;
+does not query GitHub or evaluate outcomes.
+
+```bash wrap
+gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes
+gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --output ./logs --json
+```
+
+**Required:** `--logs` (generated with `gh aw logs --verbose --json`),
+`--outcomes-dir` (JSONL written by `gh aw outcomes <run-id>`).
+
+**Options:** `--output/-o` (downloaded `run-*` directory, default
+`.github/aw/logs`), `--json/-j`.
+
+Reports are scoped to selected runs and qualify missing membership, outcomes,
+and cost. See [Episode Outcome Summaries](/gh-aw/reference/outcomes/#episode-outcome-summaries)
+for the JSON contract and unavailable-cost semantics.
 
 #### `models`
 
@@ -884,6 +959,14 @@ For release-scoped evidence, pass the release's publication timestamp as `--star
 Runs with `skipped` or `action_required` conclusions are excluded from health metrics, revision evidence, and failure clusters. Waiting and failed runs are excluded only when the Jobs API confirms their run attempt has no jobs, including runs whose approval expired. Job-backed waiting runs remain pending revision evidence. Successful job-presence lookups are reused per run ID and attempt within the collection, including across overlapping search windows. Collection continues past ignored runs to find executed runs within the requested window and API limits. An unavailable or malformed Jobs API response is reported as an error, not treated as evidence that no jobs ran.
 
 Filtered runs do not consume the minimum sample. Health searches backward for five completed first-attempt runs per current-revision scope, stopping at the requested time boundary or API budget rather than a fixed page count. It narrows the search window to continue beyond GitHub's 1,000-run search limit, overlapping boundary timestamps and deduplicating runs. If timestamp ties prevent further progress, the report explicitly marks collection as partial.
+
+Collection prioritizes early detection over exhaustive verification. It inventories registered AW `failure` conclusions using run-list payloads alone, then checks jobs and revisions for one job-backed representative per branch/event. The inventory retains at most five candidates per workflow and stops when all registered workflows reach that count or after ten pages. Hitting the page limit marks collection partial with `failure_listing_limit`; chronological sampling continues. A named-workflow check scopes that inventory to the selected workflow rather than scanning unrelated repository runs. The normal chronological sample adds successful, pending, and other failed conclusions, visiting recently failing workflows first and deduplicating runs across passes. `collection.failure_listing_complete` covers the bounded inventory; `failure_pass_complete` covers representative verification.
+
+`collection.failure_candidates`, `failure_candidate_workflows`, and `potential_issues` retain approximate signals even when verification exhausts the budget. Potential issues include a representative run URL and `run_list_only` evidence; these counts may include jobless, historical, or superseded failures. `representative_status` distinguishes unverified, jobless, superseded, revision-unknown, and revision-checked representatives. These signals do not establish a current issue, recovery, or a fleet failure rate. Confirmed current-revision clusters remain separate.
+
+For events whose head SHA identifies the executing workflow, health also compares the workflow's Markdown source at that SHA with the pushed source on the run's branch. Source blob SHAs are included as `revisions[].current.source_sha` and `previous.source_sha`. A source change stops older evidence collection for that branch/event and excludes superseded failures from current failure clusters and investigation targets, even if the lock file is unchanged. A pushed source with no matching runs has `no_current_revision_runs`, not a healthy or fixed status. Unrelated repository commits do not stop collection. Unavailable source revisions produce a warning and unknown revision evidence rather than proof of recovery.
+
+Revision reads prefer committed Git objects in the current checkout when its origin matches the target repository and host. Dirty files, local-only branch tips, and stale remote-tracking refs are not source evidence. The pushed branch head is resolved once, then local objects are reused; missing history or blobs fall back to GitHub without fetching or deepening the checkout. Fleet fallback shares workflow-directory snapshots across workflows at each ref and lock metadata across identical blob SHAs. `collection.local_revision_reads` reports successful local reads; `revision_lookups` counts remote file and directory requests. Workflow-registry timestamps are not used as source-change evidence. Actions run discovery remains REST-based because the GraphQL repository schema does not expose a workflow-run connection.
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 
@@ -1179,9 +1262,20 @@ gh aw work-queue explain --repo owner/repo --work-id my-work
 gh aw work-queue stats --repo owner/repo
 ```
 
-**Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (`owner/repo`), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
+**Persistent options:** `--branch` (queue branch, default `work-queue`), `--json/-j`, `--repo/-r` (explicit `owner/repo` for repository operations; no host prefix or current-repository default), `--request-id` (publication handle or committed request selector), `--storage` (`git` only).
 
-**Subcommands:** `cancel-claim`, `cancel-work`, `compact`, `control`, `deploy`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for subcommand-specific options.
+**Subcommands:** `cancel-claim`, `cancel-work`, `clear`, `compact`, `control`, `deploy`, `dispatch`, `dispatch-next`, `evidence`, `explain`, `inspect`, `policy`, `reconcile`, `replay`, `reprioritize`, `state`, `stats`, `submit-work`, `submit-graph`, `trace`, `tui`. Use `gh aw work-queue <subcommand> --help` for all subcommand-specific options.
+
+| Subcommand | Options and behavior |
+| --- | --- |
+| `submit-work` | `--graph-id` sets a nonempty graph namespace (default: canonical payload SHA-256); `--node-key` sets a nonempty node identity within the graph (default: `root`). `--fairness-key` selects an entitled accounting key (default: one shared bucket). |
+| `dispatch-next` | `--max-bytes` limits assignment bytes (default: 49,152), subject to policy and host limits. Grants and reserves assignments without launching workflows. |
+| `dispatch <dispatcher>` | Starts a verified dispatcher at the repository's default-branch snapshot revision. `--dry-run` previews the route without granting Claims or launching workflows; `--wait` waits for the dispatcher, not verification of worker Results. |
+| `control` | `--name credential_generation` requires `--generation`, an opaque identifier for an equivalent-scope credential generation, never a secret. Pause controls (`admission_paused`, `grants_paused`) require explicit `--paused=true` or `--paused=false`. All controls require `--reason`. |
+| `reconcile` | `--cancel-reserved` requires `--dispatch-id` and cancels only when compare-and-set proves no launch-start marker exists. It cannot force-release a possible native run and cannot be combined with `--work-id`. |
+| `clear` | Requires maintain or admin permission and `--reason CODE`. `--dry-run` validates and previews without publishing; `--hard` resets a paused, fully settled ledger. All modes, including previews, refuse CI. Mutations require interactive confirmation. |
+
+Normal `clear` cancels unfinished snapshot Work without pending deliveries and preserves completed Work, history, fairness debt, and native reservations. It neither stops native runs nor pauses admission or grants. `--hard` requires admission and grants already paused, all reservations released, and all effects settled; it forgets active identities and fairness debt while retaining Git ancestry, so old identities can be submitted again and repeat effects. See [clearing unfinished Work](/gh-aw/reference/work-queue/#clear-unfinished-work) for limits and operator procedures.
 
 #### `version`
 
@@ -1255,6 +1349,7 @@ Print the JSON Schema for structured command output.
 gh aw json-schema audit        # Schema for gh aw audit --json
 gh aw json-schema logs         # Schema for gh aw logs --json
 gh aw json-schema logs-jsonl   # Schema for each gh aw logs --cached-jsonl line
+gh aw json-schema outcomes-episodes # Schema for gh aw outcomes episodes --json
 ```
 
 **Schema arguments:** `audit`, `logs`, `logs-jsonl`. The schema is written to stdout. See [JSON output schemas](/gh-aw/reference/audit/#json-output-schemas).

@@ -14,9 +14,21 @@ import (
 // AnalyzeAuthoredDocument follows explicit AW execution nodes and the prompt.
 // It does not compile, expand imports, or assume generated execution behavior.
 func AnalyzeAuthoredDocument(ctx context.Context, document *aw.Document, rule Rule) (Result, error) {
+	result, err := analyzeAuthoredDocument(ctx, document, rule)
+	if document == nil {
+		return result, err
+	}
+	scripts, scriptErr := AnalyzeAuthoredScripts(ctx, document, rule)
+	result.Findings = append(result.Findings, scripts.Findings...)
+	result.Gaps = append(result.Gaps, scripts.Gaps...)
+	return result, errors.Join(err, scriptErr)
+}
+
+func analyzeAuthoredDocument(ctx context.Context, document *aw.Document, rule Rule) (Result, error) {
 	if rule.ID == "" || rule.IsSource == nil || rule.IsSink == nil {
 		return Result{}, errors.New("taint rule requires an id, sources, and sinks")
 	}
+
 	blocks, err := aw.ExecutionBlocks(ctx, document)
 	if document == nil {
 		return Result{}, err
@@ -69,6 +81,26 @@ func AnalyzeAuthoredDocument(ctx context.Context, document *aw.Document, rule Ru
 		}
 	}
 	return a.result, errors.Join(failures...)
+}
+
+// AnalyzeAuthoredJavaScript returns new authored script flows without duplicating
+// the ordinary shell/prompt findings already checked in the compiled graph.
+func AnalyzeAuthoredJavaScript(ctx context.Context, document *aw.Document, rule Rule) (Result, error) {
+	result, err := AnalyzeAuthoredDocument(ctx, document, rule)
+	// A JS-disabled baseline removes ordinary shell/prompt duplicates without
+	// dropping shell findings whose taint came from JavaScript stdout or files.
+	baselineRule := rule
+	baselineRule.JavaScript = nil
+	baseline, baselineErr := analyzeAuthoredDocument(ctx, document, baselineRule)
+	result.Findings = slices.DeleteFunc(result.Findings, func(finding Finding) bool {
+		return slices.ContainsFunc(baseline.Findings, func(previous Finding) bool {
+			return finding.Site == previous.Site && slices.Equal(finding.Sources, previous.Sources)
+		})
+	})
+	result.Gaps = slices.DeleteFunc(result.Gaps, func(gap CoverageGap) bool {
+		return slices.Contains(baseline.Gaps, gap)
+	})
+	return result, errors.Join(err, baselineErr)
 }
 
 func (a *analyzer) authoredWorkflowInputs(ctx context.Context, block aw.ExecutionBlock, bindings scope) error {

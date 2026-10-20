@@ -57,6 +57,7 @@ func (m MCPServerID) String() string {
 
 // Job name constants for GitHub Actions workflow jobs
 const AgentJobName JobName = "agent"
+const AdmissionJobName JobName = "admission"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
 const PreActivationHyphenJobName JobName = "pre-activation"
@@ -68,6 +69,7 @@ const UploadAssetsJobName JobName = "upload_assets"
 const UploadCodeScanningJobName JobName = "upload_code_scanning_sarif"
 const UploadCodeCoverageJobName JobName = "upload_code_coverage"
 const ConclusionJobName JobName = "conclusion"
+const GradersJobName JobName = "graders"
 const UnlockJobName JobName = "unlock"
 
 // AgentFailureStepName is the generated conclusion step that reports agent failures.
@@ -79,6 +81,7 @@ const AgentFailureStepName = "Handle agent failure"
 // can check this map before treating a frontmatter jobs.<name> entry as a custom job.
 var KnownBuiltInJobNames = map[string]struct{}{
 	string(AgentJobName):               {},
+	string(AdmissionJobName):           {},
 	string(ActivationJobName):          {},
 	string(PreActivationJobName):       {},
 	string(PreActivationHyphenJobName): {},
@@ -90,6 +93,7 @@ var KnownBuiltInJobNames = map[string]struct{}{
 	string(UploadCodeScanningJobName):  {},
 	string(UploadCodeCoverageJobName):  {},
 	string(ConclusionJobName):          {},
+	string(GradersJobName):             {},
 	string(UnlockJobName):              {},
 }
 
@@ -114,6 +118,9 @@ const DetectionArtifactName ArtifactName = "detection"
 // EvalsArtifactName is the artifact name for the BinEval evaluation results.
 const EvalsArtifactName ArtifactName = "evals"
 
+// GradersArtifactName contains combined results from the isolated custom graders job.
+const GradersArtifactName ArtifactName = "graders"
+
 // EvalsResultFilename is the filename of the evaluation results JSONL file.
 const EvalsResultFilename Filename = "evals.jsonl"
 
@@ -135,12 +142,10 @@ const SafeOutputsFilename Filename = "safeoutputs.jsonl"
 // consume structured token data without parsing the step summary or GITHUB_OUTPUT.
 const TokenUsageFilename Filename = "agent_usage.json"
 
-// GradersDirName is the directory name holding grader manifest and results files. The agent
-// job writes them under /tmp/gh-aw/agent/graders/ and the conclusion job mirrors them into
-// the graders/ subdirectory of the usage artifact.
+// GradersDirName holds the manifest and results computed by the conclusion job.
 const GradersDirName ArtifactName = "graders"
 
-// GraderManifestFilename is the filename of the grader manifest JSON written to /tmp/gh-aw/agent/graders/
+// GraderManifestFilename is the filename of the grader manifest in the usage artifact.
 // by trace_graders.cjs. Lists which graders were configured and their enabled state.
 const GraderManifestFilename Filename = "grader_manifest.json"
 
@@ -148,14 +153,8 @@ const GraderManifestFilename Filename = "grader_manifest.json"
 // by trace_graders.cjs. Contains deterministic metric values computed from trace files.
 const GraderResultsFilename Filename = "grader_results.json"
 
-// GraderPayloadFilename is the filename of the preprocessed trace payload consumed by graders.
-const GraderPayloadFilename Filename = "grader_payload.json"
-
-// OperationalValueEvaluatorFilename is the filename of the frozen operational-value evaluator archived with a run.
-const OperationalValueEvaluatorFilename Filename = "operational_value_evaluator.sh"
-
-// GradersDir is the subdirectory under TmpGhAwAgentDir where grader output files are written.
-const GradersDir = TmpGhAwDir + "/agent/graders"
+// GradersDir is the directory where conclusion writes grader output files.
+const GradersDir = TmpGhAwDir + "/usage/graders"
 
 // GradersDirSlash is GradersDir with a trailing slash.
 const GradersDirSlash = GradersDir + "/"

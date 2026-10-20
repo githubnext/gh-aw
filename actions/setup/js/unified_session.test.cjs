@@ -41,6 +41,109 @@ describe("Unified conclusion session", () => {
     return target;
   }
 
+  it.each([
+    ["primary", {}, { status: "admitted", maxAiCredits: 321 }],
+    [
+      "all components",
+      { GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: "123", GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "2147483647" },
+      { status: "admitted", maxAiCredits: 321, threatDetectionMaxAiCredits: 123, evalsMaxAiCredits: 2147483647 },
+    ],
+    ["detection only", { GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: "1" }, { status: "admitted", maxAiCredits: 321, threatDetectionMaxAiCredits: 1 }],
+    ["evals only", { GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "456" }, { status: "admitted", maxAiCredits: 321, evalsMaxAiCredits: 456 }],
+  ])("persists validated admission allowances for %s without private context", (_name, optional, expected) => {
+    const admission = {
+      GH_AW_ADMISSION_RESULT: "admitted",
+      GH_AW_ADMISSION_MAX_AI_CREDITS: "321",
+      GH_AW_DEFAULT_ADMISSION_URL: "PRIVATE_ENDPOINT",
+      GH_AW_ADMISSION_WORKFLOW_HASH: "PRIVATE_HASH",
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "PRIVATE_TOKEN",
+      GITHUB_ACTOR: "PRIVATE_ACTOR",
+      ...optional,
+    };
+    const events = writeUnifiedSession({ rootDir: root, admission });
+    expect(events.filter(event => event.type === "guardrail.admission")).toEqual([{ type: "guardrail.admission", data: expected, provenance: { component: "guardrail", phase: "admission", path: "usage/aw_session.jsonl", index: 0 } }]);
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("PRIVATE_");
+    expect(validateSession(persisted)).toBe(events.length);
+    expect(writeUnifiedSession({ rootDir: root, admission }).filter(event => event.type === "guardrail.admission")).toHaveLength(1);
+  });
+
+  it.each(["ignored", "skipped"])("records %s without stale service allowances", status => {
+    const { events } = collectUnifiedSession({ rootDir: root, admission: { GH_AW_ADMISSION_RESULT: status, GH_AW_ADMISSION_MAX_AI_CREDITS: "321", GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "123" } });
+    expect(events.filter(event => event.type === "guardrail.admission")).toMatchObject([{ data: { status } }]);
+    expect(events.find(event => event.type === "guardrail.admission").data).toEqual({ status });
+  });
+
+  it.each(["", "0", "-1", "1.5", "1e2", "01", "2147483648", "PRIVATE_INVALID", "$(echo PRIVATE_PAYLOAD)"])("rejects invalid admission allowances without exposing values: %s", raw => {
+    const warn = vi.fn();
+    const { events } = collectUnifiedSession({ rootDir: root, admission: { GH_AW_ADMISSION_RESULT: "admitted", GH_AW_ADMISSION_MAX_AI_CREDITS: raw }, warn });
+    expect(events.some(event => event.type === "guardrail.admission")).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("invalid_admission_metadata"));
+    expect(JSON.stringify([events, warn.mock.calls])).not.toContain("PRIVATE_");
+  });
+
+  it("rejects invalid optional allowances and unknown decisions atomically", () => {
+    for (const admission of [{ GH_AW_ADMISSION_RESULT: "admitted", GH_AW_ADMISSION_MAX_AI_CREDITS: "123", GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: "0" }, { GH_AW_ADMISSION_RESULT: "PRIVATE_STATUS" }]) {
+      const warn = vi.fn();
+      const { events } = collectUnifiedSession({ rootDir: root, admission, warn });
+      expect(events.some(event => event.type === "guardrail.admission")).toBe(false);
+      expect(warn).toHaveBeenCalled();
+      expect(JSON.stringify([events, warn.mock.calls])).not.toContain("PRIVATE_");
+    }
+    expect(collectUnifiedSession({ rootDir: root, admission: {} }).events.some(event => event.type === "guardrail.admission")).toBe(false);
+  });
+
+  it("grades the complete redacted log before persisting conclusion results", () => {
+    write("aw_info.json", { engine_id: "copilot", run_id: 123, run_attempt: 2 });
+    write("agent-session.jsonl", [
+      { type: "tool.execution_start", data: { toolName: "view", toolCallId: "a", input: { path: "private-one" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "a", success: true } },
+      { type: "tool.execution_start", data: { toolName: "view", toolCallId: "b", input: { path: "private-two" } } },
+      { type: "tool.execution_complete", data: { toolCallId: "b", success: true } },
+    ]);
+    write("agent-stdio.log", "::add-mask::private-one\n::add-mask::private-two\n");
+    write("safe-output-items.jsonl", [{ type: "issue", number: 1 }]);
+    write("evals.jsonl", [{ runid: "123", id: "goal", answer: "YES" }]);
+    const events = writeUnifiedSession({ rootDir: root, graders: [] });
+    const output = JSON.parse(fs.readFileSync(path.join(root, "usage/graders/grader_results.json"), "utf8"));
+    expect(output.results.find(result => result.id === "loops").value).toBe(1);
+    expect(output.results.find(result => result.id === "artifact-production").value).toBe(1);
+    expect(output.context.evals.byQuestion.goal).toBe("YES");
+    const resultEvent = events.find(event => event.type === "grader.result");
+    expect(resultEvent.provenance).toMatchObject({ component: "grader", phase: "conclusion" });
+    expect(resultEvent.data.results).toMatchObject(output.results.map(({ id, value, status }) => ({ id, value, status })));
+    expect(events.find(event => event.type === "session.collection").data.absentComponents).not.toContain("grader");
+    expect(events.find(event => event.type === "session.collection").data.sources.filter(source => source.component === "grader")).toHaveLength(2);
+    const persisted = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(persisted).not.toContain("private-one");
+    expect(persisted).not.toContain("private-two");
+    expect(persisted.trim().split("\n").map(JSON.parse)).toEqual(events);
+    expect(validateSession(persisted)).toBe(events.length);
+    expect(writeUnifiedSession({ rootDir: root, graders: [] }).filter(event => event.type === "grader.result")).toEqual([resultEvent]);
+  });
+
+  it("removes stale grading artifacts when the unified session cannot be published", () => {
+    write("usage/graders/grader_manifest.json", {});
+    write("usage/graders/grader_results.json", {});
+    expect(() => writeUnifiedSession({ rootDir: root, graders: [{ id: "custom", script: "return 1" }] })).toThrow(/custom graders/);
+    for (const file of ["aw_session.jsonl", "graders/grader_manifest.json", "graders/grader_results.json"]) {
+      expect(fs.existsSync(path.join(root, "usage", file))).toBe(false);
+    }
+  });
+
+  it("records custom IDs without executing code found in collected evidence", () => {
+    const marker = path.join(root, "must-not-exist");
+    const script = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "executed")`;
+    write("graders/grader_manifest.json", { graders: [{ id: "custom-count", source: "inline", script }] });
+    write("agent-session.jsonl", [{ type: "assistant.message", data: { content: script } }]);
+    const events = writeUnifiedSession({ rootDir: root, graders: [], customGraderIds: ["custom-count"] });
+    const manifest = events.find(event => event.type === "grader.manifest").data;
+    expect(manifest.customGraders).toEqual(["custom-count"]);
+    expect(manifest.graders.every(grader => grader.source === "builtin" && !Object.hasOwn(grader, "script"))).toBe(true);
+    expect(fs.existsSync(marker)).toBe(false);
+    expect(validateSession(fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8"))).toBe(events.length);
+  });
+
   it("persists dependency job outcomes without outputs or invented timing", () => {
     process.env.GH_AW_JOB_RESULTS = JSON.stringify({
       safe_outputs: { result: "failure", outputs: { token: "PRIVATE_OUTPUT" } },
@@ -186,6 +289,8 @@ describe("Unified conclusion session", () => {
     '{"providers":{"copilot":{"models":["a",false]}}}',
     '{"provider":"copilot","models":["a",42]}',
     '{"endpoints":[{"provider":"copilot","models":[],"routing_models":[{"model_id":42}]}]}',
+    '{"endpoints":[{"provider":"copilot","configured":true,"models":["a"],"routing_models":[{"model_id":"a","supported_reasoning_efforts":["very high"]}]}]}',
+    '{"endpoints":[{"provider":"copilot","configured":true,"models":["a"],"routing_models":[{"model_id":"a","context_window_tokens":0}]}]}',
   ])("warns once and skips malformed model inventories: %s", content => {
     write("sandbox/firewall/models.json", content);
     const warn = vi.fn();
@@ -232,7 +337,7 @@ describe("Unified conclusion session", () => {
     ],
     [{ providers: {} }, { endpoints: [] }],
     [{ provider: "copilot", models: [] }, { endpoints: [{ provider: "copilot", models: [] }] }],
-    [{ endpoints: [{ provider: "copilot", configured: false, models: null }] }, { endpoints: [{ provider: "copilot", models: [] }] }],
+    [{ endpoints: [{ provider: "copilot", configured: false, models: null }] }, { endpoints: [{ provider: "copilot", configured: false }] }],
   ])("keeps genuine empty or unconfigured preferred inventories instead of stale mirrors: %j", (inventory, expected) => {
     write("agent/awf-reflect.json", inventory);
     write("sandbox/firewall/awf-reflect.json", { endpoints: [{ provider: "stale", models: ["stale"] }] });
@@ -1029,10 +1134,19 @@ describe("Unified conclusion session", () => {
     expect(events.at(-1).data.absentComponents).not.toContain("workflow");
   });
 
-  it.each(["aw_info.json", "activation/aw_info.json", "usage/aw_info.json"])("persists caller context and observed episode lineage from trusted %s", metadataPath => {
+  it.each(["runtime/aw_info.json", "aw_info.json", "activation/aw_info.json", "usage/aw_info.json"])("persists caller context and observed episode lineage from trusted %s", metadataPath => {
     write(metadataPath, {
       engine_id: "copilot",
       run_id: "300",
+      run_attempt: "2",
+      workflow_id: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+      workflow_call_id: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
+      caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+      repository: "org/repo",
+      ref: "refs/heads/main",
+      sha: "abc123",
+      actor: "octocat",
+      target_repo: "org/target",
       context: {
         episode_id: "100-1:root",
         hop_id: "200-1:caller",
@@ -1042,6 +1156,11 @@ describe("Unified conclusion session", () => {
         root_workflow_id: "root.yml",
         root_run_id: "100",
         workflow_call_id: "200-1:caller",
+        repo: "org/parent",
+        run_id: "200",
+        run_attempt: "1",
+        workflow_id: "caller.yml",
+        event_type: "workflow_dispatch",
         work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
         secret: "PRIVATE_CONTEXT",
       },
@@ -1055,12 +1174,35 @@ describe("Unified conclusion session", () => {
     expect(workflow).toMatchObject({
       data: {
         runId: "300",
+        runAttempt: "2",
+        workflowId: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+        workflowCallId: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
+        callerWorkflowRef: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+        repository: "org/repo",
+        ref: "refs/heads/main",
+        sha: "abc123",
+        actor: "octocat",
+        targetRepo: "org/target",
         awContext: {
           workflow_call_id: "200-1:caller",
           work_queue_assignment: { payload: { enabled: false, count: 0, optional: null } },
           secret: "***",
         },
-        episode: { episodeId: "100-1:root", hopId: "200-1:caller", parentHopId: "100-1:root", originEvent: "issues", rootRepo: "org/repo", rootWorkflowId: "root.yml", rootRunId: "100" },
+        episode: {
+          episodeId: "100-1:root",
+          hopId: "200-1:caller",
+          parentHopId: "100-1:root",
+          originEvent: "issues",
+          rootRepo: "org/repo",
+          rootWorkflowId: "root.yml",
+          rootRunId: "100",
+          parentRepo: "org/parent",
+          parentRunId: "200",
+          parentRunAttempt: "1",
+          parentWorkflowId: "caller.yml",
+          parentWorkflowCallId: "200-1:caller",
+          parentEventType: "workflow_dispatch",
+        },
       },
       provenance: { component: "workflow", path: metadataPath },
     });

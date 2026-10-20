@@ -2,6 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { createReportIssue } = require("./issue_report.cjs");
+const { getStalePullRequestReason, StalePullRequestError } = require("./pr_lifecycle.cjs");
 
 /** @type {typeof import("fs")} */
 const fs = require("fs");
@@ -19,14 +20,15 @@ const { detectForkPR, checkBranchPushable } = require("./pr_helpers.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
-const { POLICY_FILE_PROTECTION_DENIED_REASON_CODE } = require("./error_codes.cjs");
+const { ERR_SYSTEM, POLICY_FILE_PROTECTION_DENIED_REASON_CODE } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
-const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
+const gitHelpers = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, importLocalBundle, offlineGitOptions, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = gitHelpers;
 const { extractPatchBaseCommit } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
-const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
+const { getThreatWarningPresentation, getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 const { buildManualBranchApplyCommands, withTransientPushRetry } = require("./create_pull_request_helpers.cjs");
@@ -37,6 +39,17 @@ const { buildManualBranchApplyCommands, withTransientPushRetry } = require("./cr
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "push_to_pull_request_branch";
+const MAX_BUNDLE_PARENT_COMPARISONS = 4;
+const MAX_BUNDLE_HISTORY_COMMITS = 100;
+const BUNDLE_VALIDATION_TIMEOUT_MS = 5000;
+const BUNDLE_VALIDATION_MAX_OUTPUT = 1024 * 1024;
+
+/**
+ * @param {Record<string, unknown>} options
+ */
+function validationGitOptions(options) {
+  return { cwd: options.cwd, env: options.env, timeout: BUNDLE_VALIDATION_TIMEOUT_MS, maxBuffer: BUNDLE_VALIDATION_MAX_OUTPUT, killSignal: "SIGKILL", stdio: "pipe" };
+}
 const MISSING_BRANCH_ERROR_TEMPLATE = branchName => `Branch ${branchName} no longer exists on origin (it may have been deleted), can't push to it.`;
 const MISSING_REMOTE_REF_PATTERNS = [
   "couldn't find remote ref",
@@ -133,30 +146,30 @@ async function getBundlePreApplyFiles(exec, gitOptions, rangeBaseRef, bundleRef,
  * markers remain in the tree. Track conflicted paths too: binary and modify/delete
  * conflicts may keep one side unchanged without inserting conflict markers.
  *
- * @param {{ getExecOutput: Function }} exec
+ * @param {{ execGitSyncResult: Function }} git
  * @param {Record<string, unknown>} gitOptions
  * @param {string} oldHead
  * @param {string} candidate
  * @param {string} trustedBase
  * @returns {Promise<{ ref: string, conflictedFiles: string[] }>}
  */
-async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, trustedBase) {
+async function getBundleValidationBase(git, gitOptions, oldHead, candidate, trustedBase) {
   const fallback = { ref: oldHead, conflictedFiles: [] };
   if (!trustedBase) return fallback;
   try {
-    const opts = { ...offlineGitOptions(gitOptions), ignoreReturnCode: true };
-    const oldAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", oldHead, candidate], opts);
-    const baseAncestor = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, candidate], opts);
-    const alreadyMerged = await exec.getExecOutput("git", ["merge-base", "--is-ancestor", trustedBase, oldHead], opts);
-    if (oldAncestor.exitCode !== 0 || baseAncestor.exitCode !== 0 || alreadyMerged.exitCode !== 1) return fallback;
+    const opts = validationGitOptions(offlineGitOptions(gitOptions));
+    const oldAncestor = await git.execGitSyncResult(["merge-base", "--is-ancestor", oldHead, candidate], opts);
+    const baseAncestor = await git.execGitSyncResult(["merge-base", "--is-ancestor", trustedBase, candidate], opts);
+    const alreadyMerged = await git.execGitSyncResult(["merge-base", "--is-ancestor", trustedBase, oldHead], opts);
+    if (oldAncestor.status !== 0 || baseAncestor.status !== 0 || alreadyMerged.status !== 1) return fallback;
 
-    const merge = await exec.getExecOutput("git", ["merge-tree", "--write-tree", "--name-only", "-z", oldHead, trustedBase], opts);
+    const merge = await git.execGitSyncResult(["merge-tree", "--write-tree", "--name-only", "-z", oldHead, trustedBase], opts);
     const [tree, ...fields] = merge.stdout.split("\0");
-    if ((merge.exitCode === 0 || merge.exitCode === 1) && /^[0-9a-f]{40}$/.test(tree)) {
+    if ((merge.status === 0 || merge.status === 1) && /^[0-9a-f]{40}$/.test(tree)) {
       const separatorIndex = fields.indexOf("");
       return {
         ref: tree,
-        conflictedFiles: merge.exitCode === 1 ? fields.slice(0, separatorIndex === -1 ? fields.length : separatorIndex) : [],
+        conflictedFiles: merge.status === 1 ? fields.slice(0, separatorIndex === -1 ? fields.length : separatorIndex) : [],
       };
     }
     core.warning("Unable to compute trusted base merge tree; using PR-head validation");
@@ -172,25 +185,25 @@ async function getBundleValidationBase(exec, gitOptions, oldHead, candidate, tru
  * The target checkout's origin credentials must remain in effect, not the fork
  * token temporarily installed for PR-head operations.
  *
- * @param {{ getExecOutput: Function }} exec
+ * @param {{ execGitSyncResult: Function }} git
  * @param {Object} gitOptions
  * @param {unknown} baseRef
  * @returns {Promise<string>}
  */
-async function resolveTrustedBaseTip(exec, gitOptions, baseRef) {
+async function resolveTrustedBaseTip(git, gitOptions, baseRef) {
   if (typeof baseRef !== "string" || !baseRef) {
     core.debug("Bundle validation: base branch metadata unavailable; using PR-head validation");
     return "";
   }
   const ref = `refs/heads/${baseRef}`;
-  const opts = { ...gitOptions, env: { ...process.env, ...gitOptions.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "Never", GIT_ASKPASS: "/bin/echo" }, silent: true, ignoreReturnCode: true };
+  const opts = validationGitOptions({ ...gitOptions, env: { ...process.env, ...gitOptions.env } });
   try {
-    const valid = await exec.getExecOutput("git", ["check-ref-format", ref], { ...offlineGitOptions(gitOptions), ignoreReturnCode: true });
-    if (valid.exitCode !== 0) throw new Error("Invalid base ref");
-    const result = await exec.getExecOutput("git", ["ls-remote", "--refs", "--exit-code", "origin", ref], opts);
+    const valid = await git.execGitSyncResult(["check-ref-format", ref], validationGitOptions(offlineGitOptions(gitOptions)));
+    if (valid.status !== 0) throw new Error("Invalid base ref");
+    const result = await git.execGitSyncResult(["ls-remote", "--refs", "--exit-code", "origin", ref], opts);
     const lines = result.stdout.trim().split("\n");
     const fields = lines[0].split("\t");
-    if (result.exitCode === 0 && lines.length === 1 && fields.length === 2 && /^[0-9a-f]{40}$/.test(fields[0]) && fields[1] === ref) {
+    if (result.status === 0 && lines.length === 1 && fields.length === 2 && /^[0-9a-f]{40}$/.test(fields[0]) && fields[1] === ref) {
       core.debug("Bundle validation: pinned trusted base branch tip from remote metadata");
       return fields[0];
     }
@@ -198,6 +211,81 @@ async function resolveTrustedBaseTip(exec, gitOptions, baseRef) {
     // Neither command errors nor remote diagnostics are safe to log.
   }
   core.warning("Unable to resolve trusted PR base metadata; using PR-head validation");
+  return "";
+}
+
+/**
+ * Recognize a newly merged ancestor of the pinned remote tip for size checks.
+ * Reachability does not prove a historical base-branch tip: only the exact pinned
+ * tip can exempt protected files or history. Topological order prefers newer
+ * parents without relying on timestamps. All object inspection stays offline.
+ *
+ * @param {{ execGitSyncResult: Function }} git
+ * @param {Record<string, unknown>} gitOptions
+ * @param {string} oldHead
+ * @param {string} candidate
+ * @param {string} trustedTip
+ * @param {typeof github} githubClient
+ * @param {{ owner: string, repo: string }} repoParts
+ * @returns {Promise<string>}
+ */
+async function resolveBundleTrustedBase(git, gitOptions, oldHead, candidate, trustedTip, githubClient, repoParts, allowMergedBaseBaseline = false) {
+  if (!trustedTip) return "";
+  const opts = validationGitOptions(offlineGitOptions(gitOptions));
+  try {
+    const tipAncestor = await git.execGitSyncResult(["merge-base", "--is-ancestor", trustedTip, candidate], opts);
+    if (tipAncestor.status === 0) return trustedTip;
+    if (!allowMergedBaseBaseline) {
+      core.debug("Bundle validation: merged base ancestor discovery is disabled");
+      return "";
+    }
+
+    const merges = await git.execGitSyncResult(["rev-list", "--merges", "--parents", `--max-count=${MAX_BUNDLE_HISTORY_COMMITS + 1}`, `${oldHead}..${candidate}`], opts);
+    if (merges.status !== 0) return "";
+    const mergeLines = merges.stdout.trim().split("\n").filter(Boolean);
+    if (mergeLines.length > MAX_BUNDLE_HISTORY_COMMITS || mergeLines.some(line => line.split(" ").length > 3)) {
+      core.debug("Bundle validation: merge history exceeds the discovery budget");
+      return "";
+    }
+    const parents = new Set(mergeLines.flatMap(line => line.split(" ").slice(1)).filter(sha => /^[0-9a-f]{40}$/.test(sha)));
+    if (!parents.size) return "";
+    const ordered = await git.execGitSyncResult(["rev-list", "--topo-order", `--max-count=${MAX_BUNDLE_HISTORY_COMMITS + 1}`, ...parents, "--not", oldHead], opts);
+    if (ordered.status !== 0) return "";
+    const orderedParents = ordered.stdout.trim().split("\n").filter(Boolean);
+    if (orderedParents.length > MAX_BUNDLE_HISTORY_COMMITS) {
+      core.debug("Bundle validation: parent history exceeds the discovery budget");
+      return "";
+    }
+    let comparisonAttempts = 0;
+    for (const parent of orderedParents) {
+      if (!parents.has(parent)) continue;
+      if (comparisonAttempts >= MAX_BUNDLE_PARENT_COMPARISONS) {
+        core.debug("Bundle validation: merge parent comparison budget exhausted");
+        break;
+      }
+      comparisonAttempts++;
+      try {
+        // Comparing tip...parent reports "behind" when parent is an ancestor.
+        const { data } = await githubClient.rest.repos.compareCommits({
+          ...repoParts,
+          base: trustedTip,
+          head: parent,
+          per_page: 1,
+          request: { timeout: BUNDLE_VALIDATION_TIMEOUT_MS, retries: 0, signal: AbortSignal.timeout(BUNDLE_VALIDATION_TIMEOUT_MS) },
+        });
+        if (data.status === "behind" || data.status === "identical") return parent;
+      } catch (error) {
+        core.debug("Bundle validation: merge parent comparison unavailable");
+        // Only a missing parent is candidate-specific; other failures stop this optional check.
+        if (typeof error === "object" && error !== null && "status" in error && error.status === 404) continue;
+        break;
+      }
+    }
+  } catch {
+    // Missing local history must not trigger a fetch or expose remote diagnostics.
+    core.debug("Bundle validation: merged base history unavailable");
+  }
+  core.debug("Bundle validation: no trusted merged base ancestor confirmed; using PR-head validation");
   return "";
 }
 
@@ -400,6 +488,7 @@ async function main(config = {}) {
   const fallbackAsPullRequest = config.fallback_as_pull_request !== false;
   const checkBranchProtection = config.check_branch_protection !== false;
   const signedCommits = config.signed_commits !== false;
+  const allowMergedBaseBaseline = config.allow_merged_base_baseline === true;
   const commitTitleSuffix = config.commit_title_suffix || "";
   const maxSizeKb = parsePositiveInteger(config.max_patch_size) ?? 4096;
   const maxCount = config.max || 0; // 0 means no limit
@@ -509,6 +598,10 @@ async function main(config = {}) {
     const hasPatchFile = !!(patchFilePath && fs.existsSync(patchFilePath));
     const applyTransport = hasBundleFile ? "bundle" : "patch";
     const deferBundleValidation = hasBundleFile && !signedCommits && !isStaged;
+    const mergedBaseBaselineHint =
+      hasBundleFile && !signedCommits && !allowMergedBaseBaseline
+        ? ". If the bundle includes commits already merged into the current base branch, set allow-merged-base-baseline: true under safe-outputs.push-to-pull-request-branch to recognize the merged base ancestor."
+        : "";
     core.info(`Apply transport mode: ${applyTransport} (patch file present: ${hasPatchFile}, bundle file present: ${hasBundleFile})`);
     if (bundleFilePath && !hasBundleFile) {
       core.warning(`Bundle file path was provided but file is not present on disk: ${bundleFilePath}; falling back to patch transport`);
@@ -590,8 +683,7 @@ async function main(config = {}) {
         core.info(`${sizeLabel}: ${sizeForCheckKb} KB (maximum allowed: ${maxSizeKb} KB)`);
 
         if (sizeForCheckKb > maxSizeKb) {
-          let msg;
-          msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+          const msg = `Patch size (${sizeForCheckKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)${mergedBaseBaselineHint}`;
           return { error: { success: false, error: msg }, fallbackFiles };
         }
 
@@ -779,6 +871,11 @@ async function main(config = {}) {
         pull_number: pullNumber,
       });
       pullRequest = response.data;
+      if (pullRequest.state === "closed") {
+        const reason = `Pull request #${pullNumber} is closed; refusing to push to its branch`;
+        core.info(reason);
+        return { skipped: true, reason };
+      }
       branchName = pullRequest.head.ref;
       prTitle = pullRequest.title || "";
       prLabels = pullRequest.labels.map(label => label.name);
@@ -1069,6 +1166,7 @@ async function main(config = {}) {
     let pushedCommitSha = "";
     let rangeBaseRef = branchRemoteRef;
     let validationBaseRef = branchRemoteRef;
+    let protectionBaseRef = branchRemoteRef;
     let validationConflictFiles = [];
     if (hasChanges) {
       // Capture HEAD before applying changes to compute new-commit count later
@@ -1122,7 +1220,7 @@ async function main(config = {}) {
         core.info(`Applying changes from bundle: ${bundleFilePath}`);
         const bundleRef = `refs/bundles/push-${branchName.replace(/[^a-zA-Z0-9-]/g, "-")}`;
         try {
-          const trustedBase = signedCommits ? "" : await resolveTrustedBaseTip(exec, baseGitOpts, pullRequest.base?.ref);
+          const trustedTip = signedCommits ? "" : await resolveTrustedBaseTip(gitHelpers, baseGitOpts, pullRequest.base?.ref);
           const bundleGitOpts = offlineGitOptions(baseGitOpts);
           await ensureFullHistoryForBundle(
             exec,
@@ -1140,7 +1238,8 @@ async function main(config = {}) {
 
           await importLocalBundle(exec, bundleFilePath, `refs/heads/${branchName}`, bundleRef, baseGitOpts);
           core.info(`Imported local bundle to ${bundleRef}`);
-          const validationBase = await getBundleValidationBase(exec, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
+          const trustedBase = await resolveBundleTrustedBase(gitHelpers, baseGitOpts, rangeBaseRef, bundleRef, trustedTip, githubClient, repoParts, allowMergedBaseBaseline);
+          const validationBase = await getBundleValidationBase(gitHelpers, baseGitOpts, rangeBaseRef, bundleRef, trustedBase);
           validationBaseRef = validationBase.ref;
           validationConflictFiles = validationBase.conflictedFiles;
           const trustedBaseInValidationBase = validationBaseRef !== rangeBaseRef;
@@ -1149,10 +1248,18 @@ async function main(config = {}) {
           } else {
             core.info("Bundle validation baseline uses PR head");
           }
-          const agentHistoryExclusions = [rangeBaseRef];
-          if (trustedBaseInValidationBase) agentHistoryExclusions.push(trustedBase);
+          const sizeHistoryExclusions = [rangeBaseRef];
+          if (trustedBaseInValidationBase) sizeHistoryExclusions.push(trustedBase);
+          // An ancestor may be an intermediate side-branch state that was reverted
+          // before reaching the base branch. Only the pinned tip has state provenance.
+          const hasTrustedBaseState = trustedBaseInValidationBase && trustedBase === trustedTip;
+          protectionBaseRef = hasTrustedBaseState ? validationBaseRef : rangeBaseRef;
+          const agentHistoryExclusions = hasTrustedBaseState ? sizeHistoryExclusions : [rangeBaseRef];
+          if (trustedBaseInValidationBase && !hasTrustedBaseState) {
+            core.info("Bundle file protection uses PR head: merged ancestor is not the pinned base tip");
+          }
           if (deferBundleValidation) {
-            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
+            const agentPatchStream = await exec.getExecOutput("git", ["log", "--format=", "--patch", "--binary", "--no-ext-diff", "--no-textconv", "--diff-merges=remerge", bundleRef, "--not", ...sizeHistoryExclusions], bundleGitOpts);
             const validation = validatePatch(agentPatchStream.stdout);
             if (validation.error) return validation.error;
             if (validation.fallbackFiles.length) return await createProtectedFilesFallbackIssue(validation.fallbackFiles);
@@ -1164,14 +1271,14 @@ async function main(config = {}) {
           // patch artifact under-detects files (for example, merge-resolution
           // content preserved only by the bundle transport).
           {
-            let bundleFiles = await getBundlePreApplyFiles(exec, bundleGitOpts, validationBaseRef, bundleRef, validationConflictFiles);
+            let bundleFiles = await getBundlePreApplyFiles(exec, bundleGitOpts, protectionBaseRef, bundleRef, validationConflictFiles);
             if (deferBundleValidation) {
               const octopus = await exec.getExecOutput("git", ["rev-list", "--min-parents=3", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
               if (octopus.stdout.trim()) {
                 return { success: false, error: "Cannot validate agent-created octopus merge commits in the bundle. Use two-parent merges instead." };
               }
-              // Preserve protection for agent commits that change then revert a
-              // file, without attributing trusted base-branch commits to the agent.
+              // Preserve changes that were later reverted. Ancestor reachability
+              // alone must not exempt side-branch commits from file protection.
               const history = await exec.getExecOutput("git", ["log", "--format=", "--name-only", "--no-renames", "--diff-merges=remerge", "-z", bundleRef, "--not", ...agentHistoryExclusions], bundleGitOpts);
               bundleFiles = [...new Set([...bundleFiles, ...history.stdout.split("\0").filter(Boolean)])];
             }
@@ -1331,7 +1438,7 @@ async function main(config = {}) {
           }
         }
       } // end else (patch path)
-      if (!hasBundleFile) validationBaseRef = rangeBaseRef;
+      if (!hasBundleFile) validationBaseRef = protectionBaseRef = rangeBaseRef;
       core.info(`Apply transport completed; signed-push base ref: ${rangeBaseRef}`);
 
       // POST-APPLY FILE PROTECTION: Verify actual files written match policy.
@@ -1343,9 +1450,10 @@ async function main(config = {}) {
         const diffResult = await exec.getExecOutput("git", ["diff", "--name-only", "--no-renames", "-z", `${validationBaseRef}..HEAD`], hasBundleFile ? offlineGitOptions(baseGitOpts) : baseGitOpts);
         const actualFiles = [...new Set([...diffResult.stdout.split("\0").filter(Boolean), ...validationConflictFiles])];
         agentChangedFiles = actualFiles;
-        if (actualFiles.length > 0) {
-          core.info(`Post-apply verification: ${actualFiles.length} file(s) actually modified`);
-          const postApplyProtection = checkFileProtectionPostApply(actualFiles, config);
+        const protectionFiles = protectionBaseRef === validationBaseRef ? actualFiles : await getBundlePreApplyFiles(exec, baseGitOpts, protectionBaseRef, "HEAD", validationConflictFiles);
+        if (protectionFiles.length > 0) {
+          core.info(`Post-apply verification: ${protectionFiles.length} file(s) actually modified`);
+          const postApplyProtection = checkFileProtectionPostApply(protectionFiles, config);
           if (postApplyProtection.action === "deny") {
             const filesStr = postApplyProtection.files.join(", ");
             const msg = `SECURITY: Post-apply file-protection check failed. ` + `The patch applied files that were not detected by the pre-apply parser: ${filesStr}. ` + `This may indicate a patch-parser bypass attempt. Aborting push.`;
@@ -1359,12 +1467,13 @@ async function main(config = {}) {
             await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
             return await createProtectedFilesFallbackIssue(postApplyProtection.files);
           }
-
+        }
+        if (actualFiles.length > 0) {
           const changedBlobSizeBytes = getChangedBlobSizeBytes(baseGitOpts, actualFiles);
           const changedBlobSizeKb = Math.ceil(changedBlobSizeBytes / 1024);
           core.info(`Changed content size: ${changedBlobSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
           if (changedBlobSizeKb > maxSizeKb) {
-            const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+            const msg = `Changed content size (${changedBlobSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)${mergedBaseBaselineHint}`;
             await exec.exec("git", ["reset", "--hard", rangeBaseRef], baseGitOpts);
             return { success: false, error: msg };
           }
@@ -1374,7 +1483,7 @@ async function main(config = {}) {
       // When threat detection produced a warning, create a review PR instead of pushing
       // directly to the existing PR branch. This allows manual review of the changes
       // before they are merged into the target PR.
-      const detectionConclusionEnv = process.env.GH_AW_DETECTION_CONCLUSION;
+      const detectionConclusionEnv = getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, process.env.GH_AW_DETECTION_REASON);
       if (detectionConclusionEnv === "warning") {
         core.info("⚠️ Threat detection warning: creating review PR instead of direct push");
 
@@ -1534,7 +1643,9 @@ async function main(config = {}) {
         // "Unable to determine if workflow can be created or updated due to timeout; `workflows`
         // scope may be required." — a transient server-side condition, not a real scope problem.
         // Retry with exponential backoff before treating the push as failed.
-        const pushedSha = await withTransientPushRetry(() => {
+        const pushedSha = await withTransientPushRetry(async () => {
+          const staleReason = await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } });
+          if (staleReason) throw new StalePullRequestError(staleReason);
           transport.assertUnchanged();
           return pushSignedCommits({
             assertTransportUnchanged: transport.assertUnchanged,
@@ -1548,6 +1659,7 @@ async function main(config = {}) {
             pushRemoteUrl,
             pushToken: headGitHubToken,
             signedCommits,
+            requireExistingBranch: true,
             resolvedTemporaryIds,
             currentRepo: itemRepo,
             validationConfig: config,
@@ -1560,14 +1672,18 @@ async function main(config = {}) {
         core.info(`Changes committed and pushed to branch: ${branchName}`);
       } catch (pushError) {
         transport.assertUnchanged();
+        if (pushError instanceof StalePullRequestError) {
+          core.info(pushError.message);
+          return { skipped: true, reason: pushError.message };
+        }
         const pushErrorMessage = getErrorMessage(pushError);
-        core.error(`Failed to push changes: ${pushErrorMessage}`);
 
         // Missing workflow scope is handled by the preflight above. Any workflow-scope
         // rejection that reaches this catch is GitHub's transient permission-check timeout.
         const isWorkflowsScopeTimeout = isWorkflowsScopeRejection(pushErrorMessage);
 
-        const nonFastForwardPatterns = ["non-fast-forward", "rejected", "fetch first", "Updates were rejected"];
+        // A generic rejection can be a real authentication, permission, or validation failure.
+        const nonFastForwardPatterns = ["non-fast-forward", "(fetch first)"];
         const isNonFastForward = !isWorkflowsScopeTimeout && nonFastForwardPatterns.some(pattern => pushErrorMessage.includes(pattern));
         let userMessage = isNonFastForward
           ? "Failed to push changes: remote PR branch changed while the workflow was running (non-fast-forward). Re-run the workflow on the latest PR branch state."
@@ -1596,6 +1712,16 @@ async function main(config = {}) {
         // Fallback path for diverged branches: create a new pull request so changes
         // can still be reviewed and merged into the original PR branch.
         if ((isNonFastForward || isWorkflowsScopeTimeout) && fallbackAsPullRequest) {
+          const staleReason = await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } });
+          if (staleReason) {
+            if (isNonFastForward) {
+              core.info(staleReason);
+              return { skipped: true, reason: staleReason };
+            }
+            core.error(`Failed to push changes: ${pushErrorMessage}`);
+            core.warning(staleReason);
+            return { success: false, error: `Failed to push changes: ${pushErrorMessage}`, error_type: "push_failed" };
+          }
           const fallbackBranchName = normalizeBranchName(`${branchName}-fallback`, String(Date.now()));
           const fallbackReason = isNonFastForward ? "Non-fast-forward push detected" : "Transient workflow-permission check timeout on push";
           core.warning(`${fallbackReason}; creating fallback pull request from '${fallbackBranchName}' to '${branchName}'`);
@@ -1685,6 +1811,7 @@ async function main(config = {}) {
           }
         }
 
+        core.error(`Failed to push changes: ${pushErrorMessage}`);
         return { success: false, error_type: "push_failed", error: userMessage };
       }
 
@@ -1745,7 +1872,9 @@ async function main(config = {}) {
     //
     // Skip the activation comment for empty commits (0 file changes, e.g. CI trigger commits).
     // These are noise — they don't represent meaningful work and would clutter PRs on every scheduled run.
-    if (hasChanges) {
+    const commentStaleReason = hasChanges ? await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } }) : null;
+    if (commentStaleReason) core.info(commentStaleReason);
+    if (hasChanges && !commentStaleReason) {
       let isEmptyCommit = false;
       if (rangeBaseRef) {
         try {
@@ -1790,7 +1919,9 @@ async function main(config = {}) {
     // This works around the GITHUB_TOKEN limitation where pushes don't trigger CI events.
     // Restricting to exactly 1 new commit prevents the CI trigger token being used on
     // multi-commit branches where workflow files may have been iteratively modified.
-    if (hasChanges) {
+    const ciStaleReason = hasChanges ? await getStalePullRequestReason(githubClient, { repo: repoParts, payload: { pull_request: { number: pullNumber, state: "open" } } }) : null;
+    if (ciStaleReason) core.info(ciStaleReason);
+    if (hasChanges && !ciStaleReason) {
       transport.assertUnchanged();
       const ciTriggerResult = await pushExtraEmptyCommit({
         assertTransportUnchanged: transport.assertUnchanged,
@@ -1798,6 +1929,7 @@ async function main(config = {}) {
         repoOwner: pushRepoParts.owner,
         repoName: pushRepoParts.repo,
         newCommitCount,
+        requireExistingBranch: true,
       });
       if (ciTriggerResult.success && !ciTriggerResult.skipped) {
         core.info("Extra empty commit pushed - CI checks should start shortly");
@@ -1821,4 +1953,4 @@ async function main(config = {}) {
   });
 }
 
-module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip };
+module.exports = { main, HANDLER_TYPE, getBundlePreApplyFiles, getBundleValidationBase, resolveTrustedBaseTip, resolveBundleTrustedBase };

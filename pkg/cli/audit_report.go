@@ -17,7 +17,6 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
-	"github.com/github/gh-aw/pkg/github"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -310,9 +309,8 @@ type OverviewDisplay struct {
 }
 
 // buildAuditData creates structured audit data from workflow run information
-func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
-	auditData, createdItems := buildLocalAuditData(processedRun, metrics, mcpToolUsage)
-	addAuditOutcomeSummary(ctx, &auditData, createdItems)
+func buildAuditData(_ context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
+	auditData, _ := buildLocalAuditData(processedRun, metrics, mcpToolUsage)
 	return auditData
 }
 
@@ -617,17 +615,6 @@ func auditEngineConfigWarnings(config *AuditEngineConfig) []ValidationIssue {
 		return nil
 	}
 	return []ValidationIssue{{Type: "model_routing_outcome_disagreement", Message: config.RoutingWarning}}
-}
-
-func addAuditOutcomeSummary(ctx context.Context, auditData *AuditData, createdItems []CreatedItemReport) {
-	if len(createdItems) == 0 {
-		return
-	}
-	mapping := github.LoadObjectiveMapping()
-	outcomeReports := EvaluateOutcomes(ctx, createdItems, "", mapping)
-	auditData.Outcomes = outcomeReports
-	outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
-	auditData.OutcomeSummary = &outcomeSummary
 }
 
 // extractDownloadedFiles scans the logs directory recursively and returns file information.

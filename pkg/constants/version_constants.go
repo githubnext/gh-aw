@@ -72,7 +72,7 @@ const DefaultGitHubMCPServerVersion Version = "v2.0.2"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.28.62"
+const DefaultFirewallVersion Version = "v0.28.70"
 
 // AWFFallbackModelsMinVersion is the first AWF release with ordered request-level fallback.
 const AWFFallbackModelsMinVersion Version = "v0.28.31"
@@ -257,7 +257,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.35"
+const DefaultMCPGatewayVersion Version = "v0.4.36"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.
@@ -349,7 +349,7 @@ const DefaultJavaVersion Version = "21"
 const DefaultElixirVersion Version = "1.17"
 
 // DefaultGoVersion is the default version of Go for runtime setup
-const DefaultGoVersion Version = "1.26"
+const DefaultGoVersion Version = "1.27.3"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion Version = "9.10"

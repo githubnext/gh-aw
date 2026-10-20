@@ -14,6 +14,18 @@ type tokenUsageAICFieldState struct {
 	hasExplicitCacheSemantics bool
 }
 
+func tokenUsageEntryHasAIC(entry TokenUsageEntry) bool {
+	if _, _, valid := parseOptionalNonNegativeFloat(entry.AICreditsThisResponse); valid {
+		return true
+	}
+	if _, _, valid := parseOptionalNonNegativeFloat(entry.AICreditsTotal); valid {
+		return true
+	}
+	includeCache, _, _ := parseOptionalBool(entry.InputTokensIncludeCache)
+	return computeModelInferenceAICWithCacheSemantics(entry.Provider, entry.Model, entry.InputTokens, entry.OutputTokens,
+		entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens, includeCache) > 0
+}
+
 func parseOptionalNonNegativeFloat(raw json.RawMessage) (value float64, present, valid bool) {
 	if len(raw) == 0 {
 		return 0, false, false

@@ -130,7 +130,15 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
             const assert = require("node:assert/strict");
             const manifest = require("./safe_output_manifest.cjs");
             const summary = require("./work_queue_summary_renderer.cjs");
+            const native = require("./work_queue_native.cjs");
+            const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
             assert.equal(typeof summary.renderWorkQueue, "function");
+            assert.equal(typeof native.authenticatePublisher, "function");
+            assert.equal(typeof provisioning.verifiedDefaultReference, "function");
             const token = "ghp_" + "a".repeat(36);
             assert.equal(
               manifest.redactManifestValue(token + " fixture-custom-secret", ["fixture-custom-secret"]),
@@ -184,6 +192,14 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
             const assert = require("node:assert/strict");
             const { getFooterMessage } = require("./messages_footer.cjs");
             const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
+            const native = require("./work_queue_native.cjs");
+            const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
+            assert.equal(typeof native.authenticatePublisher, "function");
+            assert.equal(typeof provisioning.verifiedDefaultReference, "function");
             const assignment = {
               version: 3, dispatch_id: "dispatch", request_id: "request", commit_id: "commit",
               policy_epoch: "policy", pool: "default", worker_profile: "default",

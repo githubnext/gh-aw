@@ -251,6 +251,7 @@ func (c *Compiler) buildMainJobOutputs(data *WorkflowData) map[string]string {
 	// The checkout-pr step is only generated when the workflow has contents read permission
 	if ShouldGeneratePRCheckoutStep(data) {
 		outputs["checkout_pr_success"] = "${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}"
+		outputs["checkout_pr_invalidated"] = "${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}"
 		compilerMainJobLog.Print("Added checkout_pr_success output (workflow has contents read access)")
 	} else {
 		compilerMainJobLog.Print("Skipped checkout_pr_success output (workflow lacks contents read access)")
@@ -431,14 +432,6 @@ func augmentPermissionsForLedger(data *WorkflowData, permissions string) string 
 		return filterJobLevelPermissions(parsed.RenderToYAML())
 	}
 	return permissions
-}
-
-func operationalValueGraderEnabled(data *WorkflowData) bool {
-	if data == nil || data.Graders == nil {
-		return false
-	}
-	grader, ok := data.Graders.Graders["operational-value"]
-	return ok && (grader.Enabled == nil || *grader.Enabled)
 }
 
 // augmentPermissionsForDevMode adds contents: read to permissions when the compiler is in

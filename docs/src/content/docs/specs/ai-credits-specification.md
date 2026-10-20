@@ -587,7 +587,13 @@ An unresolved scan MUST NOT report `under_budget` from a partial total. It calls
 
 ### 9.15 Repo-Memory Backend
 
-`backend: repo-memory` is a separate accounting source, not an automatic fallback after artifact/API failure. Its ledger must be marked trusted by the clone step, unless `GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC=true` explicitly accepts an insecure ledger. A directory is required; no artifact API token is required.
+`backend: repo-memory` is a separate accounting source, not an automatic fallback after artifact/API failure. Its ledger must be marked trusted by the clone step, unless `GH_AW_ALLOW_INSECURE_REPO_MEMORY_AIC=true` explicitly accepts an insecure ledger. A directory is required.
+
+When a successful clone step confirms the branch is absent, activation MUST bootstrap with the authoritative artifact/API accounting contract above, not trust the newly created local orphan or assume zero usage. The trusted downstream ledger writer records a repository/workflow-scoped coverage start alongside the ledger. Trusted branches with missing, invalid, future-dated, or less-than-24-hour coverage metadata also require artifact accounting. This migrates existing ledgers without discarding recent historical usage. Bootstrap requires an Actions-read token and preserves all artifact accounting, quota, threshold, and fail-closed rules; an unclassified clone failure never authorizes bootstrap.
+
+After the trusted coverage start is at least 24 hours old, activation uses the cloned ledger without requiring an artifact API token. The coverage marker is maintained by the trusted writer after replacing agent-supplied ledger content with the branch snapshot; it is not accepted from agent output. Restoring or initializing an empty branch alone does not establish a full rolling window. The explicit insecure override retains its existing ledger-only behavior.
+
+The selected daily AIC memory's trusted writer persists date-bucket JSONL shards and hash-scoped JSON coverage markers together, independently of agent-memory extension and glob filters, only after the compiler-owned reset step successfully removes agent-supplied ledger files. Ordinary memory files and memories without that trusted writer retain their configured filters; file-size, file-count, and patch-size limits still apply.
 
 Read current and previous UTC-day JSONL shards, retaining version-1 records for the same repository/workflow, positive integer run IDs, finite non-negative AIC, and timestamps within the inclusive preceding-24-hour interval ending at the read time. For each run ID, the greatest timestamp wins; equal timestamps use the later encountered line. Sum these records once and report estimated credits as zero.
 

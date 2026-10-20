@@ -56,7 +56,10 @@ safe-outputs:
     if-no-changes: warn
     allowed-files:
       - "eslint-factory/**"
-    protected-files: fallback-to-issue
+    protected-files:
+      policy: fallback-to-issue
+      exclude:
+        - /eslint-factory/README.md
   noop:
 timeout-minutes: 120
 max-turns: 1000

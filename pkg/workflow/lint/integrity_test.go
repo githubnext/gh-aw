@@ -54,6 +54,13 @@ func TestActionPinReferences(t *testing.T) {
 		{name: "URL", uses: "https://github.com/actions/checkout@" + sha, message: "Malformed"},
 		{name: "remote expression", uses: "actions/checkout@${{ secrets.PRIVATE_REF }}", message: "Malformed"},
 		{name: "whitespace", uses: "actions/checkout@" + sha + " ", message: "Malformed"},
+		{name: "local NEL", uses: "./action\u0085suffix", message: "Malformed"},
+		{name: "local line separator", uses: "./action\u2028suffix", message: "Malformed"},
+		{name: "local paragraph separator", uses: "./action\u2029suffix", message: "Malformed"},
+		{name: "local unicode space", uses: "./action\u00a0suffix", message: "Malformed"},
+		{name: "local expression", uses: "./${{ secrets.PRIVATE_REF }}", message: "Malformed"},
+		{name: "quoted version comment", uses: "actions/checkout@" + sha + " # v4", message: "Malformed"},
+		{name: "reference line separator", uses: "actions/checkout@branch\u2028name", message: "Malformed"},
 		{name: "extra at", uses: "actions/checkout@v4@" + sha, message: "Malformed"},
 		{name: "invalid git ref", uses: "actions/checkout@branch..name", message: "Malformed"},
 		{name: "invalid git ref component", uses: "actions/checkout@refs/.hidden", message: "Malformed"},
@@ -91,7 +98,11 @@ func TestActionPinReferences(t *testing.T) {
 				}
 				require.Len(t, diagnostics, 1)
 				assert.Equal(t, "action-pin", diagnostics[0].RuleID)
-				assert.Equal(t, Warning, diagnostics[0].Severity)
+				severity := Warning
+				if strings.HasPrefix(tt.message, "Malformed") {
+					severity = Error
+				}
+				assert.Equal(t, severity, diagnostics[0].Severity)
 				assert.Equal(t, path, diagnostics[0].Path)
 				assert.Contains(t, diagnostics[0].Message, tt.message)
 				assert.NotContains(t, diagnostics[0].Message, tt.uses)
@@ -116,6 +127,41 @@ func TestActionPinTypedAndRawSteps(t *testing.T) {
 	assert.Equal(t, "jobs.test.steps[0].uses", diagnostics[0].Path)
 	assert.Equal(t, "jobs.test.steps[1].uses", diagnostics[1].Path)
 	assert.Equal(t, diagnostics[0].Message, diagnostics[1].Message)
+}
+
+func TestActionPinFormattingAcrossASTs(t *testing.T) {
+	const sha = "0123456789abcdef0123456789abcdef01234567"
+	for _, reference := range []string{
+		"actions/checkout@" + sha,
+		"owner/repo/.github/workflows/build.yml@" + sha,
+		"./.github/actions/setup",
+		"docker://alpine@sha256:" + strings.Repeat("a", 64),
+	} {
+		for _, quote := range []string{"", "'", `"`} {
+			t.Run(reference+quote, func(t *testing.T) {
+				source := "jobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: " + quote + reference + quote + " # version label\n"
+				workflow, err := actions.Parse([]byte(source))
+				require.NoError(t, err)
+				document, err := aw.Parse("---\nstrict: false\n" + source + "---\n")
+				require.NoError(t, err)
+				for _, input := range []Input{{Workflow: workflow}, {Document: document}} {
+					assert.Empty(t, integrityTestRun(t, ActionPinRule(), input))
+				}
+			})
+		}
+	}
+}
+
+func TestActionPinControlAndEncoding(t *testing.T) {
+	for _, uses := range []string{"./action\x00", "./action\x1b", "./action\x7f", "./action\xff"} {
+		workflow := &actions.Workflow{Jobs: []*actions.Job{{
+			ID: "check", Steps: []actions.Step{actions.ActionStep{Uses: uses}},
+		}}}
+		diagnostics := integrityTestRun(t, ActionPinRule(), Input{Workflow: workflow})
+		require.Len(t, diagnostics, 1)
+		assert.Equal(t, Error, diagnostics[0].Severity)
+		assert.Contains(t, diagnostics[0].Message, "Malformed")
+	}
 }
 
 func TestActionPinStrictContext(t *testing.T) {

@@ -46,6 +46,7 @@ function fixture({ otherPool = false } = {}) {
     config: { work_queue_workflows: ["worker"], aw_context_workflows: ["worker"] },
     readWorkQueueLog: f.readWorkQueueLog,
     publishWorkQueueRequest: f.publishWorkQueueRequest,
+    sleepFn: vi.fn(async () => {}),
   };
   const trusted = { ...f.dispatcher, authenticated: true, roles: ["dispatcher"] };
   return { f, options, trusted };
@@ -85,7 +86,7 @@ describe("verified default worker deployment authority", () => {
     expect(worker.revisions[BRANCH_REF]).toBeUndefined();
     expect(f.state.deployments.get("default").get("other")).toEqual(before.deployments.get("default").get("other"));
     expect(f.state.clocks).toEqual(before.clocks);
-    expect(f.githubClient.rest.git.getRef).toHaveBeenCalledWith({ owner: "owner", repo: "repo", ref: "heads/release/main" });
+    expect(f.githubClient.rest.git.getRef).toHaveBeenCalledWith({ owner: "owner", repo: "repo", ref: "heads/release/main", request: { retries: 0, retryCount: 0, timeout: 15000 } });
     expect(f.githubClient.rest.repos.getContent.mock.calls.every(([call]) => call.path.startsWith(".github/workflows/worker.") && call.ref !== BRANCH_REF)).toBe(true);
     const transactions = canonical(f.transactions);
     await synchronizeDeployments(options, trusted);
@@ -142,8 +143,67 @@ describe("verified default worker deployment authority", () => {
     expect(f.state.stats.claims).toBe(2);
   });
 
+  it.each([
+    ["repository", { status: 500 }],
+    ["repository", { response: { status: 503 } }],
+    ["repository", { code: "ETIMEDOUT" }],
+    ["repository", { code: "ECONNRESET" }],
+    ["repository", { cause: { cause: { code: "UND_ERR_SOCKET" } } }],
+    ["reference", { status: 500 }],
+    ["reference", { response: { status: 503 } }],
+    ["reference", { code: "ETIMEDOUT" }],
+    ["reference", { code: "ECONNRESET" }],
+    ["reference", { cause: { code: "UND_ERR_CONNECT_TIMEOUT" } }],
+  ])("retries only the transient %s metadata read before updating deployments: %j", async (endpoint, failure) => {
+    const { f, options, trusted } = fixture();
+    const read = endpoint === "repository" ? f.githubClient.rest.repos.get : f.githubClient.rest.git.getRef;
+    read.mockRejectedValueOnce(failure);
+    await synchronizeDeployments(options, trusted);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read.mock.calls.every(([parameters]) => parameters.request.retries === 0 && parameters.request.retryCount === 0 && parameters.request.timeout === 15000)).toBe(true);
+    expect(options.sleepFn).toHaveBeenCalledExactlyOnceWith(1000);
+    expect(f.state.deployments.get("default").get("default").current_ref).toBe(DEFAULT_REF);
+    expect(f.state.claims.size).toBe(0);
+  });
+
+  it.each(["repository", "reference"])("stops after three failed %s reads without publishing or exposing provider data", async endpoint => {
+    const { f, options, trusted } = fixture();
+    const requestId = "1B41:A4F74:930C3C:1DF33D1:6AD4920C";
+    const failure = Object.assign(new Error("private-token-and-body"), { status: 500, response: { headers: { "x-github-request-id": requestId, authorization: "private-token" } } });
+    const read = endpoint === "repository" ? f.githubClient.rest.repos.get : f.githubClient.rest.git.getRef;
+    read.mockRejectedValue(failure);
+    const before = canonical(f.transactions);
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    try {
+      await expect(synchronizeDeployments(options, trusted)).rejects.toBe(failure);
+      expect(read).toHaveBeenCalledTimes(3);
+      expect(options.sleepFn.mock.calls).toEqual([[1000], [1000]]);
+      expect(canonical(f.transactions)).toBe(before);
+      expect(f.githubClient.rest.repos.getContent).not.toHaveBeenCalled();
+      const output = stderr.mock.calls.map(call => call[0]).join("");
+      expect(output).toContain(`deployment.${endpoint}.read.failed`);
+      expect(output).toContain(`GitHub request ID: ${requestId}.`);
+      expect(output).not.toContain("private");
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+
+  it.each([
+    { status: 403, code: "ETIMEDOUT", response: { status: 503 } },
+    { status: 503, code: "ERR_TRANSPORT_INTEGRITY" },
+  ])("does not retry access denials or transport-integrity failures: %j", async failure => {
+    const { f, options, trusted } = fixture();
+    f.githubClient.rest.repos.get.mockRejectedValue(failure);
+    const before = canonical(f.transactions);
+    await expect(synchronizeDeployments(options, trusted)).rejects.toBe(failure);
+    expect(f.githubClient.rest.repos.get).toHaveBeenCalledTimes(1);
+    expect(options.sleepFn).not.toHaveBeenCalled();
+    expect(canonical(f.transactions)).toBe(before);
+  });
+
   it.each(["repository", "reference", "source", "lock", "registration"])("propagates permission/rate/transport errors at %s without publishing unavailability", async endpoint => {
-    for (const status of [401, 403, 429, 500, undefined]) {
+    for (const status of [401, 403, 422, 429, 500, undefined, ...(["repository", "reference"].includes(endpoint) ? [404] : [])]) {
       const { f, options, trusted } = fixture();
       const failure = Object.assign(new Error("verified metadata denied"), status === undefined ? {} : { status });
       const reject = vi.fn(async () => {
@@ -162,6 +222,10 @@ describe("verified default worker deployment authority", () => {
       const before = canonical(f.transactions);
       await expect(synchronizeDeployments(options, trusted)).rejects.toBe(failure);
       expect(canonical(f.transactions)).toBe(before);
+      if (endpoint === "repository" || endpoint === "reference") {
+        expect(reject).toHaveBeenCalledTimes(status === 500 ? 3 : 1);
+        expect(options.sleepFn).toHaveBeenCalledTimes(status === 500 ? 2 : 0);
+      }
     }
   });
 

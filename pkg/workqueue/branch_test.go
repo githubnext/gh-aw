@@ -46,6 +46,8 @@ type queueAPI struct {
 	workerReads          int
 	workerRef            string
 	noAdmin              bool
+	maintain             bool
+	noPush               bool
 	settings             string
 	settingsStatus       int
 	sources              map[string]string
@@ -157,7 +159,8 @@ func (mock *queueAPI) serve(t *testing.T, w http.ResponseWriter, r *http.Request
 		}
 		respond(map[string]any{"id": id, "login": "operator"})
 	case r.Method == http.MethodGet && r.URL.Path == "/repos/"+testRepository:
-		respond(map[string]any{"id": 1, "full_name": testRepository, "default_branch": "main", "permissions": map[string]bool{"push": true, "admin": !mock.noAdmin}})
+		respond(map[string]any{"id": 1, "full_name": testRepository, "default_branch": "main",
+			"permissions": map[string]bool{"push": !mock.noPush, "admin": !mock.noAdmin, "maintain": mock.maintain}})
 	case r.Method == http.MethodGet && path == "issues/7":
 		mock.resourceReads++
 		if mock.resourceRead != nil {

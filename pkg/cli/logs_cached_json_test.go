@@ -1002,6 +1002,11 @@ func TestBuildLogsDataPreservesCachedRunRecord(t *testing.T) {
 	require.Len(t, data.Episodes, 1)
 	assert.Equal(t, cached.AwContext.EpisodeID, data.Episodes[0].EpisodeID)
 	assert.Equal(t, cached.AwContext, data.Runs[0].AwContext)
+	assert.Equal(t, int64(42), data.Episodes[0].RepresentativeRunID)
+	assert.Equal(t, []EpisodeRoot{{RunID: "40", Repository: "org/repo", WorkflowID: "root"}}, data.Episodes[0].RecordedRoots)
+	assert.Equal(t, "partial", data.Episodes[0].Coverage.Status)
+	assert.Equal(t, []int64{41}, data.Episodes[0].Coverage.MissingParentRunIDs)
+	assert.False(t, data.Episodes[0].Coverage.CollectionTruncated, "coverage is recomputed from this selection, not cached globally")
 }
 
 func TestHydrateProcessedRunWithCachedAuditLedger(t *testing.T) {

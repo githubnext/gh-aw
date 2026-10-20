@@ -9,57 +9,68 @@
  */
 
 const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPromptPath } = require("./messages_core.cjs");
-const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
+const { getMissingInfoSections, getCollectedMissings, generateMissingInfoReportSections } = require("./missing_messages_helper.cjs");
 const { getBlockedDomains, generateBlockedDomainsSection } = require("./firewall_blocked_domains.cjs");
 const { getDifcFilteredEvents, generateDifcFilteredSection } = require("./gateway_difc_filtered.cjs");
 const { formatCompactInteger } = require("./compact_numbers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 const { getDetectionWarningMessage } = require("./messages_run_status.cjs");
+const { getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const { getEffectiveModelLabel, resolveEffectiveModel, validateModelIdentifier } = require("./model_attribution.cjs");
 const { currentClaimHandle, claimIdentity } = require("./work_queue_claim_scope.cjs");
-const { renderReport } = require("./report_ast.cjs");
+const reportAST = require("./report_ast.cjs");
 
-function getWorkQueueClaimFooter() {
+/** @typedef {{type: "quote_line", children: import("./report_ast.cjs").ReportInline[]}} FooterQuoteLine */
+/** @typedef {{type: "diagnostic_sections", markdown: string, buildChildren: () => import("./report_ast.cjs").ReportBlock[]}} FooterDiagnosticSections */
+/** @typedef {string | FooterQuoteLine | FooterDiagnosticSections} FooterPart */
+
+/** @returns {[] | [FooterQuoteLine]} */
+function buildWorkQueueClaimFooter() {
   const handle = currentClaimHandle();
-  if (!handle) return "";
+  if (!handle) return [];
   const { work_id, claim_id } = claimIdentity(handle);
-  return renderReport({
-    type: "report",
-    title: "Work queue attribution",
-    children: [
-      {
-        type: "quote",
-        children: [
-          {
-            type: "paragraph",
-            children: [
-              { type: "text", value: "Work " },
-              { type: "code", value: work_id },
-              { type: "text", value: " · Claim " },
-              { type: "code", value: claim_id },
-            ],
-          },
-        ],
-      },
-    ],
-  }).body.trimEnd();
+  return [
+    {
+      type: "quote_line",
+      children: [
+        { type: "text", value: "Work " },
+        { type: "code", value: work_id },
+        { type: "text", value: " · Claim " },
+        { type: "code", value: claim_id },
+      ],
+    },
+  ];
+}
+
+/**
+ * Compatibility renderer for string-only, non-issue publishers.
+ * Issue documents consume the parts directly without rendering fragments.
+ * Keep literal templates and legacy diagnostic formatting untouched.
+ * @param {FooterPart[]} parts
+ */
+function renderFooterParts(parts) {
+  const claims = parts.filter(part => typeof part !== "string" && part.type === "quote_line");
+  if (claims.length > 1) throw new TypeError("Footer must contain at most one Claim line");
+  const claim = claims[0];
+  const renderedClaim = claim ? reportAST.renderReport({ type: "report", title: "Footer", children: [{ type: "quote", children: [{ type: "paragraph", children: claim.children }] }] }).body.trimEnd() : "";
+  return parts.map(part => (typeof part === "string" ? part : part.type === "quote_line" ? renderedClaim : part.markdown)).join("");
 }
 
 /**
  * Get the detection caution alert if the detection job found a potential issue.
  * Reads GH_AW_DETECTION_CONCLUSION and GH_AW_DETECTION_REASON from environment variables.
- * Returns the caution alert markdown when conclusion is "warning", or empty string otherwise.
+ * Returns the caution alert markdown when the effective conclusion is "warning" (including a
+ * warn-mode detection engine failure, see getEffectiveDetectionConclusion), or empty string otherwise.
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
  * @returns {string} Caution alert markdown or empty string
  */
 function getDetectionCautionAlert(workflowName, runUrl) {
-  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
-  if (detectionConclusion !== "warning") {
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
+  if (getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, detectionReason) !== "warning") {
     return "";
   }
-  const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   return getDetectionWarningMessage({ workflowName, runUrl, reason: detectionReason });
 }
 
@@ -206,6 +217,15 @@ function getAICFromEnv() {
  * @returns {string} Footer message
  */
 function getFooterMessage(ctx) {
+  return renderFooterParts(getFooterMessageParts(ctx));
+}
+
+/**
+ * Keep programmatic attribution as nodes until the complete document is rendered.
+ * @param {FooterContext} ctx
+ * @returns {FooterPart[]}
+ */
+function getFooterMessageParts(ctx) {
   const messages = getMessages();
 
   const {
@@ -286,16 +306,17 @@ function getFooterMessage(ctx) {
       if (hints) hints += "\n";
       hints += `> <sub>Add label <em>{label_command}</em> to run again</sub>`;
     }
-    const renderedHints = [getWorkQueueClaimFooter(), renderTemplate(hints, templateContext)].filter(Boolean).join("\n");
-    if (!renderedHints) return "";
+    const claim = buildWorkQueueClaimFooter();
+    const renderedHints = renderTemplate(hints, templateContext);
+    if (!claim.length && !renderedHints) return [];
     const separator = renderedFooter && !renderedFooter.endsWith("\n") ? "\n" : "";
-    return separator + renderedHints;
+    return [separator, ...claim, ...(claim.length && renderedHints ? ["\n"] : []), renderedHints];
   };
 
   // Use custom footer template if configured
   if (messages?.footer) {
     const renderedCustomFooter = renderTemplate(messages.footer, templateContext);
-    return renderedCustomFooter + getFooterHints(renderedCustomFooter);
+    return [renderedCustomFooter, ...getFooterHints(renderedCustomFooter)];
   }
 
   // Default footer template - includes emoji prefix when available
@@ -320,7 +341,7 @@ function getFooterMessage(ctx) {
     defaultFooter += " · [◷]({history_url})";
   }
   const renderedDefaultFooter = renderTemplate(defaultFooter, templateContext);
-  return renderedDefaultFooter + getFooterHints(renderedDefaultFooter);
+  return [renderedDefaultFooter, ...getFooterHints(renderedDefaultFooter)];
 }
 
 /**
@@ -739,6 +760,22 @@ function getAgenticWorkflowMetadata(workflowName, runUrl) {
  * @returns {string} Complete footer text
  */
 function generateFooterWithMessages(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options) {
+  return renderFooterParts(buildGeneratedFooterParts(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options));
+}
+
+/**
+ * @param {string} workflowName
+ * @param {string} runUrl
+ * @param {string} workflowSource
+ * @param {string} workflowSourceURL
+ * @param {number|undefined} triggeringIssueNumber
+ * @param {number|undefined} triggeringPRNumber
+ * @param {number|undefined} triggeringDiscussionNumber
+ * @param {string|null|undefined} [historyUrl]
+ * @param {GenerateFooterOptions} [options]
+ * @returns {FooterPart[]}
+ */
+function buildGeneratedFooterParts(workflowName, runUrl, workflowSource, workflowSourceURL, triggeringIssueNumber, triggeringPRNumber, triggeringDiscussionNumber, historyUrl, options) {
   // Determine triggering number (issue takes precedence, then PR, then discussion)
   let triggeringNumber;
   /** @type {"issue"|"PR"|"discussion"|undefined} */
@@ -815,29 +852,36 @@ function generateFooterWithMessages(workflowName, runUrl, workflowSource, workfl
     // ignore errors so the rest of the footer is always preserved
   }
 
-  // Attribution footer line comes after any guard notices
   // Attribution footer line comes after any guard notices. Only add the separating
   // blank line when guard notices are present, otherwise the footer would start with
   // stray blank lines that render as a large gap after the body.
-  let footer = guardNotices ? guardNotices.trim() + "\n\n" + getFooterMessage(ctx) : getFooterMessage(ctx);
+  const parts = [...(guardNotices ? [guardNotices.trim() + "\n\n"] : []), ...getFooterMessageParts(ctx)];
+  let suffix = "";
 
   // Add installation instructions if source is available
   const installMessage = getFooterInstallMessage(ctx);
   if (installMessage) {
-    footer += "\n>\n" + installMessage;
+    suffix += "\n>\n" + installMessage;
   }
 
   // Add missing tools and data sections if available
+  const collectedMissings = getCollectedMissings();
   const missingInfoSections = getMissingInfoSections();
   if (missingInfoSections) {
-    footer += missingInfoSections;
+    parts.push(suffix, {
+      type: "diagnostic_sections",
+      markdown: missingInfoSections,
+      // Legacy string publishers do not parse diagnostic text.
+      buildChildren: () => generateMissingInfoReportSections(collectedMissings),
+    });
+    suffix = "";
   }
 
   // Add XML comment marker for traceability
-  footer += "\n\n" + generateXMLMarker(workflowName, runUrl);
+  suffix += "\n\n" + generateXMLMarker(workflowName, runUrl);
 
-  footer += "\n";
-  return footer;
+  parts.push(suffix + "\n");
+  return parts;
 }
 
 module.exports = {
@@ -852,5 +896,6 @@ module.exports = {
   getAgenticWorkflowMetadata,
   getFooterAgentFailureCommentMessage,
   generateFooterWithMessages,
+  buildGeneratedFooterParts,
   generateXMLMarker,
 };

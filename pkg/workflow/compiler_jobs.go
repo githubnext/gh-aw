@@ -295,6 +295,13 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	frontmatter := data.RawFrontmatter
 	lockFilename := filepath.Base(stringutil.MarkdownToLockFile(markdownPath))
 
+	if err := c.addGatewayProvenanceJob(data); err != nil {
+		return err
+	}
+	if err := c.addGatewayAdmissionJob(data); err != nil {
+		return err
+	}
+
 	if err := c.resolveSafeOutputActionSchemas(data, markdownPath); err != nil {
 		return fmt.Errorf("failed to resolve safe-output action schemas: %w", err)
 	}
@@ -479,16 +486,10 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	//   - skip-roles/bots checks, rate limit check, command position check
 	//   - on.steps injection, label-names filter
 	if needsPermissionCheck || hasStopTime || hasSkipIfMatch || hasSkipIfNoMatch || hasSkipRoles || hasSkipBots || hasSkipAuthorAssociations || hasCommandTrigger || hasRateLimit || hasCooldown || hasOnSteps || hasOnNeeds || hasLabelNames {
-		compilerJobsLog.Print("Building pre-activation job")
-		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
+		preActivationJobCreated, err = c.addPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
-			return false, false, fmt.Errorf("%s job could not be built: %w. Check the activation-related frontmatter fields (roles, if, stop-time, etc.)", constants.PreActivationJobName, err)
+			return false, false, err
 		}
-		if err := c.jobManager.AddJob(preActivationJob); err != nil {
-			return false, false, fmt.Errorf("%s job could not be added: %w. Check that no other job in the workflow reuses its name", constants.PreActivationJobName, err)
-		}
-		compilerJobsLog.Printf("Successfully added pre-activation job: %s", constants.PreActivationJobName)
-		preActivationJobCreated = true
 	}
 
 	// Determine if we need to add workflow_run repository safety check
@@ -501,18 +502,27 @@ func (c *Compiler) buildPreActivationAndActivationJobs(data *WorkflowData, front
 	// Build activation job if needed (preamble job that handles runtime conditions)
 	if c.isActivationJobNeeded() {
 		compilerJobsLog.Print("Building activation job")
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename)
-		if err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("activation job could not be built: %w. Check the workflow triggers and activation-related frontmatter fields", err)
-		}
-		if err := c.jobManager.AddJob(activationJob); err != nil {
-			return preActivationJobCreated, false, fmt.Errorf("activation job could not be added: %w. Check that no other job in the workflow reuses its name", err)
+		if err := c.buildActivationAndAdmissionJobs(data, preActivationJobCreated, workflowRunRepoSafety, lockFilename); err != nil {
+			return preActivationJobCreated, false, err
 		}
 		compilerJobsLog.Print("Successfully added activation job")
 		activationJobCreated = true
 	}
 
 	return preActivationJobCreated, activationJobCreated, nil
+}
+
+func (c *Compiler) addPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (bool, error) {
+	compilerJobsLog.Print("Building pre-activation job")
+	preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
+	if err != nil {
+		return false, fmt.Errorf("%s job could not be built: %w. Check the activation-related frontmatter fields (roles, if, stop-time, etc.)", constants.PreActivationJobName, err)
+	}
+	if err := c.jobManager.AddJob(preActivationJob); err != nil {
+		return false, fmt.Errorf("%s job could not be added: %w. Check that no other job in the workflow reuses its name", constants.PreActivationJobName, err)
+	}
+	compilerJobsLog.Printf("Successfully added pre-activation job: %s", constants.PreActivationJobName)
+	return true, nil
 }
 
 // buildMainJobWrapper builds the main workflow job and adds it to the job manager.
@@ -770,6 +780,7 @@ func (c *Compiler) ensureConclusionIsLastJob() error {
 	exclude := map[string]struct {
 	}{
 		"conclusion":                           {},
+		string(constants.GradersJobName):       {},
 		string(constants.PreActivationJobName): {},
 		"pre-activation":                       {},
 	}

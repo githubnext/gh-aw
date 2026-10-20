@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"97e0dbc4e82491eab13bbf3e400486476b2320e5f2e9a657b1e77530e71fc3fb","body_hash":"ec775619d1fdfc45d57c8a0ed1c6e0648060f284797e8f190b9b1c5fbcd6a329","strict":true,"agent_id":"agy","agent_model":"gemini-3.8-flash-medium","engine_versions":{"agy":"1.3.6"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GEMINI_API_KEY","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.62","digest":"sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.62@sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62","digest":"sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62@sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.62","digest":"sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.62@sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.35","digest":"sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.35@sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"}],"mcp_servers":[{"name":"agy-native","tools":["native_challenge"]},{"name":"mcpscripts","tools":["conformance-challenge","native-challenge","native-infrastructure-challenge"]},{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"disabled"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"eaf19777a62806d06bc6f890ce32b31771258bfeaa953d526e8cdb6259edd50f","body_hash":"ec775619d1fdfc45d57c8a0ed1c6e0648060f284797e8f190b9b1c5fbcd6a329","strict":true,"agent_id":"agy","agent_model":"gemini-3.8-flash-medium","engine_versions":{"agy":"1.3.6"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GEMINI_API_KEY","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.70","digest":"sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70","digest":"sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.70","digest":"sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.36","digest":"sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382","pinned_image":"ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382"}],"mcp_servers":[{"name":"agy-native","tools":["native_challenge"]},{"name":"mcpscripts","tools":["conformance-challenge","native-challenge","native-infrastructure-challenge"]},{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"disabled"}}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -49,11 +49,11 @@
 #   - actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
 #
 # Container images used:
-#   - ghcr.io/github/gh-aw-firewall/agent:0.28.62@sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f
-#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62@sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d
-#   - ghcr.io/github/gh-aw-firewall/squid:0.28.62@sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef
-#   - ghcr.io/github/gh-aw-mcpg:v0.4.35@sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858
-#   - ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f
+#   - ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34
+#   - ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a
+#   - ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917
+#   - ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2
+#   - ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382
 
 name: "Agy Conformance Reusable (Experimental)"
 on:
@@ -105,17 +105,26 @@ env:
 jobs:
   activation:
     name: activation
-    needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    needs:
+      - admission
+      - pre_activation
+    if: >
+      ((!cancelled()) && (needs.admission.result == 'success' || needs.admission.result == 'skipped') && needs.pre_activation.result == 'success') &&
+      (needs.pre_activation.outputs.activated == 'true')
     runs-on: ubuntu-slim
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
       actions: read
       contents: read
     env:
+      GH_AW_ADMISSION_RESULT: ${{ needs.admission.outputs.result }}
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
+      admission-max-ai-credits: ${{ needs.admission.outputs.max-ai-credits }}
+      admission-max-ai-credits-evals: ${{ needs.admission.outputs.max-ai-credits-evals }}
+      admission-max-ai-credits-threat-detection: ${{ needs.admission.outputs.max-ai-credits-threat-detection }}
+      admission-result: ${{ needs.admission.outputs.result }}
       artifact_prefix: ${{ steps.artifact-prefix.outputs.prefix }}
       aw_context: ${{ steps.generate_aw_info.outputs.aw_context }}
       comment_id: ""
@@ -151,14 +160,14 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
+          trace-id: ${{ needs.admission.outputs.trace-id || needs.pre_activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
           safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agy-conformance-reusable.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.3.6"
-          GH_AW_INFO_AWF_VERSION: "v0.28.62"
+          GH_AW_INFO_AWF_VERSION: "v0.28.70"
           GH_AW_INFO_ENGINE_ID: "agy"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Mask OTLP telemetry headers
@@ -177,12 +186,13 @@ jobs:
           GH_AW_INFO_VERSION: "1.3.6"
           GH_AW_INFO_AGENT_VERSION: "1.3.6"
           GH_AW_INFO_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
           GH_AW_INFO_EXPERIMENTAL: "true"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "false"
           GH_AW_INFO_STAGED: "true"
           GH_AW_INFO_ALLOWED_DOMAINS: '["defaults"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
-          GH_AW_INFO_AWF_VERSION: "v0.28.62"
+          GH_AW_INFO_AWF_VERSION: "v0.28.70"
           GH_AW_INFO_AWMG_VERSION: ""
           GH_AW_INFO_FIREWALL_TYPE: "squid"
           GH_AW_INFO_AGENT_RUNTIME: ""
@@ -199,7 +209,7 @@ jobs:
             await main(core, context);
       - name: Restore daily AIC scan observations
         id: restore-daily-aic-cache-fallback
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_HAS_SLASH_COMMAND: "false"
@@ -215,7 +225,7 @@ jobs:
             await main();
       - name: Check daily workflow token guardrail
         id: daily-ai-credits-workflow-guardrail
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
@@ -237,7 +247,7 @@ jobs:
             const { main } = require(path.join(actionsDir, 'check_daily_aic_workflow_guardrail.cjs'));
             await main();
       - name: Publish daily AIC scan observations
-        if: always() && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
+        if: always() && env.GH_AW_ADMISSION_RESULT != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -307,7 +317,7 @@ jobs:
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "</system>\n"
           GH_AW_PROMPT_CONTENT_0004: "Execute the imported engine configuration conformance suite once.\n\nAlso call the `native_challenge` tool through the native MCP server `agy-native`,\nusing the actual fixture `fileNonce`. Do not call `mcpscripts native-challenge`\nor substitute a shell/HTTP request; the checker requires a native MCP tool event.\nComplete this native challenge before the shared suite's final safe-output call.\nAlso call `native_infrastructure_challenge` through the native MCP server\n`mcpscripts`, using the same fixture `fileNonce`. Do not use its CLI wrapper.\nFor this suite, emit the final noop exactly once through the native MCP server\n`safeoutputs`, with message `\"Conformance probes completed\"`, after all probes.\nThis replaces the shared suite's default CLI completion call; do not also run\n`safeoutputs noop` or emit another completion message.\n"
-          GH_AW_PROMPT_CONTENT_0005: "# Engine configuration conformance\n\nThis is a small configuration test, not a repository task. Do not change repository\nfiles, install dependencies, or publish GitHub resources. Do not edit fixtures,\nthe shell probe, or the checker. Stop immediately if a required operation fails;\ndo not claim success or substitute a guessed value.\n\n1. Read `/tmp/gh-aw/agent/engine-conformance/input.json` with your file-reading\n   capability. Retain `fileNonce`, `left`, and `right`.\n2. Use your shell capability to execute exactly:\n   `node /tmp/gh-aw/agent/engine-conformance/shell-probe.cjs`.\n   Retain the returned `shellDigest` and `engineEnv`.\n3. Use the mounted MCP CLI through your shell capability:\n   `mcpscripts conformance_challenge --file_nonce \"<fileNonce>\"`.\n   Pass the actual fixture nonce, then retain the returned `toolNonce`.\n   This tests the production MCP gateway/CLI transport, including for engines\n   without a native MCP client.\n4. Use your file-editing capability to create\n   `/tmp/gh-aw/agent/engine-conformance/result.json` with exactly these fields:\n   `fileNonce` (string), `sum` (number, `left + right`), `shellDigest` (string),\n   `engineEnv` (string), and `toolNonce` (string).\n\nAfter writing the result and completing any additional imported probes, emit\nexactly one noop with message `\"Conformance probes completed\"`. Unless an imported\nsuite specifies a native MCP completion call, use\n`safeoutputs noop --message \"Conformance probes completed\"`.\nUse only the specified transport; do not emit a second noop through another tool.\nSafe outputs are staged; do not create an issue or comment. Your final reply\nshould be one short line. The JavaScript post-step, not your reply, decides\nwhether the suite passed.\n"
+          GH_AW_PROMPT_CONTENT_0005: "# Engine configuration conformance\n\nThis is a small configuration test, not a repository task. Do not change repository\nfiles, install dependencies, or publish GitHub resources. Do not edit fixtures,\nthe shell probe, or the checker. Stop immediately if a required operation fails;\ndo not claim success or substitute a guessed value.\n\nFor queue workers, the host records the original singleton assignment's handle\nbefore agent execution and requires the staged noop to match that handle and\nexact content. Non-queue suites retain their exact unscoped noop.\n\n1. Read `/tmp/gh-aw/agent/engine-conformance/input.json` with your file-reading\n   capability. Retain `fileNonce`, `left`, and `right`.\n2. Use your shell capability to execute exactly:\n   `node /tmp/gh-aw/agent/engine-conformance/shell-probe.cjs`.\n   Retain the returned `shellDigest` and `engineEnv`.\n3. Use the mounted MCP CLI through your shell capability:\n   `mcpscripts conformance_challenge --file_nonce \"<fileNonce>\"`.\n   Pass the actual fixture nonce, then retain the returned `toolNonce`.\n   This tests the production MCP gateway/CLI transport, including for engines\n   without a native MCP client.\n4. Use your file-editing capability to create\n   `/tmp/gh-aw/agent/engine-conformance/result.json` with exactly these fields:\n   `fileNonce` (string), `sum` (number, `left + right`), `shellDigest` (string),\n   `engineEnv` (string), and `toolNonce` (string).\n\nAfter writing the result and completing any additional imported probes, emit\nexactly one noop with message `\"Conformance probes completed\"`. Unless an imported\nsuite specifies a native MCP completion call, use\n`safeoutputs noop --message \"Conformance probes completed\"`.\nUse only the specified transport; do not emit a second noop through another tool.\nSafe outputs are staged; do not create an issue or comment. Your final reply\nshould be one short line. The JavaScript post-step, not your reply, decides\nwhether the suite passed.\n"
           GH_AW_PROMPT_CONTENT_0006: "Execute the imported Agy conformance gate once.\n\n"
         with:
           script: |
@@ -395,10 +405,63 @@ jobs:
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '1' }}
 
+  admission:
+    name: admission
+    needs: pre_activation
+    if: (needs.pre_activation.outputs.activated == 'true') && (vars.GH_AW_DEFAULT_ADMISSION_URL != '')
+    runs-on: ubuntu-slim
+    # Permissions for the admission job (workflow permissions default to none).
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 5
+    outputs:
+      max-ai-credits: ${{ steps.admission.outputs.max-ai-credits }}
+      max-ai-credits-evals: ${{ steps.admission.outputs.max-ai-credits-evals }}
+      max-ai-credits-threat-detection: ${{ steps.admission.outputs.max-ai-credits-threat-detection }}
+      result: ${{ steps.admission.outputs.result }}
+      trace-id: ${{ steps.admission.outputs.trace-id }}
+    steps:
+      - name: Checkout actions folder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          fetch-depth: 1
+          clean: false
+          persist-credentials: false
+      - name: Setup Scripts
+        id: setup
+        uses: ./actions/setup
+        with:
+          destination: ${{ runner.temp }}/gh-aw/actions
+          job-name: ${{ github.job }}
+          trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
+          parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
+        env:
+          GH_AW_SETUP_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/unknown.lock.yml@${{ github.ref }}
+      - name: Check workflow admission
+        id: admission
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
+          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
+          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "eaf19777a62806d06bc6f890ce32b31771258bfeaa953d526e8cdb6259edd50f:ec775619d1fdfc45d57c8a0ed1c6e0648060f284797e8f190b9b1c5fbcd6a329"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);
+
   agent:
     name: agent
     needs: activation
-    if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
+    if: >
+      ((!cancelled()) && needs.activation.result == 'success') && (needs.activation.outputs.daily_ai_credits_exceeded != 'true')
     runs-on: ubuntu-latest
     # Permissions for the agent job (workflow permissions default to none).
     permissions:
@@ -429,6 +492,7 @@ jobs:
       aic: ${{ steps.parse-token-usage.outputs.aic }}
       ambient_context: ${{ steps.parse-token-usage.outputs.ambient_context }}
       artifact_prefix: ${{ needs.activation.outputs.artifact_prefix }}
+      checkout_pr_invalidated: ${{ steps.checkout-pr.outputs.checkout_pr_invalidated || 'false' }}
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       model: ${{ needs.activation.outputs.model }}
@@ -460,7 +524,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agy-conformance-reusable.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.3.6"
-          GH_AW_INFO_AWF_VERSION: "v0.28.62"
+          GH_AW_INFO_AWF_VERSION: "v0.28.70"
           GH_AW_INFO_ENGINE_ID: "agy"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Set runtime paths
@@ -534,7 +598,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install AWF binary
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.62 --rootless
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.28.70 --rootless
       - name: Restore agent config folders from base branch
         if: steps.checkout-pr.outcome == 'success'
         env:
@@ -554,11 +618,12 @@ jobs:
           CONFORMANCE_ENGINE: agy
           CONFORMANCE_ROOT: /tmp/gh-aw/agent/engine-conformance
           CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
+          GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
         name: Prepare engine conformance fixtures
-        run: "set -euo pipefail\nnode <<'JS'\nconst crypto = require(\"node:crypto\");\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst engine = process.env.CONFORMANCE_ENGINE;\nif (!/^[a-z][a-z0-9-]*$/.test(engine || \"\")) throw new Error(\"Invalid conformance engine ID\");\nconst root = process.env.CONFORMANCE_ROOT;\nconst host = process.env.CONFORMANCE_STATE;\nif (!root || !host) throw new Error(\"Conformance paths are missing\");\nfs.mkdirSync(root, { recursive: true });\nfs.mkdirSync(host, { recursive: true, mode: 0o700 });\nconst fixture = {\n  fileNonce: crypto.randomBytes(24).toString(\"hex\"),\n  left: crypto.randomInt(100, 1000),\n  right: crypto.randomInt(100, 1000),\n};\nconst expected = {\n  engine,\n  ...fixture,\n  engineEnv: `conformance-${engine}`,\n  shellDigest: crypto.createHash(\"sha256\").update(fixture.fileNonce).digest(\"hex\"),\n};\nfs.writeFileSync(path.join(host, \"expected.json\"), JSON.stringify(expected), { mode: 0o600, flag: \"wx\" });\nfs.writeFileSync(path.join(root, \"input.json\"), JSON.stringify(fixture), { mode: 0o644, flag: \"wx\" });\nfs.writeFileSync(path.join(root, \"shell-probe.cjs\"), [\n  'const crypto = require(\"node:crypto\");',\n  'const fs = require(\"node:fs\");',\n  'const path = require(\"node:path\");',\n  'const input = JSON.parse(fs.readFileSync(path.join(__dirname, \"input.json\"), \"utf8\"));',\n  'const shellDigest = crypto.createHash(\"sha256\").update(input.fileNonce).digest(\"hex\");',\n  'const result = { shellDigest, engineEnv: process.env.ENGINE_CONFORMANCE_SENTINEL };',\n  'if (!result.engineEnv) throw new Error(\"ENGINE_CONFORMANCE_SENTINEL is missing\");',\n  'fs.writeFileSync(path.join(__dirname, \"shell.json\"), JSON.stringify(result));',\n  'console.log(JSON.stringify(result));',\n  \"\",\n].join(\"\\n\"), { mode: 0o644, flag: \"wx\" });\nJS\n"
+        run: "set -euo pipefail\nnode <<'JS'\nconst assert = require(\"node:assert/strict\");\nconst crypto = require(\"node:crypto\");\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst { normalizeAssignment } = require(path.join(process.env.GH_AW_ACTIONS_DIR, \"work_queue_claim_scope.cjs\"));\nconst engine = process.env.CONFORMANCE_ENGINE;\nif (!/^[a-z][a-z0-9-]*$/.test(engine || \"\")) throw new Error(\"Invalid conformance engine ID\");\nconst event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, \"utf8\"));\nconst rawAssignment = event.inputs?.work_queue_assignment;\nlet claimHandle;\nif (process.env.GH_AW_WORK_QUEUE_ENABLED === \"true\") {\n  assert.equal(process.env.GH_AW_WORK_QUEUE_ROLE, \"worker\", \"Conformance requires the compiler-provided worker role\");\n  const assignment = normalizeAssignment(JSON.parse(rawAssignment));\n  assert.equal(assignment.claims.length, 1, \"Conformance requires exactly one original Claim\");\n  assert.equal(assignment.worker_profile, `engine-conformance-${engine}`);\n  const claim = assignment.claims[0];\n  assert.equal(claim.work.engine, engine);\n  assert.deepEqual(claim.work.effect_contract, { kind: \"none\" });\n  claimHandle = claim.handle;\n} else {\n  assert.notEqual(process.env.GH_AW_WORK_QUEUE_ROLE, \"worker\", \"Queue workers cannot run standalone\");\n  assert.ok(!rawAssignment, \"Standalone conformance cannot accept a Claim assignment\");\n}\nconst root = process.env.CONFORMANCE_ROOT;\nconst host = process.env.CONFORMANCE_STATE;\nif (!root || !host) throw new Error(\"Conformance paths are missing\");\nfs.mkdirSync(root, { recursive: true });\nfs.mkdirSync(host, { recursive: true, mode: 0o700 });\nconst fixture = {\n  fileNonce: crypto.randomBytes(24).toString(\"hex\"),\n  left: crypto.randomInt(100, 1000),\n  right: crypto.randomInt(100, 1000),\n};\nconst expected = {\n  engine,\n  ...(claimHandle !== undefined && { claimHandle }),\n  ...fixture,\n  engineEnv: `conformance-${engine}`,\n  shellDigest: crypto.createHash(\"sha256\").update(fixture.fileNonce).digest(\"hex\"),\n};\nfs.writeFileSync(path.join(host, \"expected.json\"), JSON.stringify(expected), { mode: 0o600, flag: \"wx\" });\nfs.writeFileSync(path.join(root, \"input.json\"), JSON.stringify(fixture), { mode: 0o644, flag: \"wx\" });\nfs.writeFileSync(path.join(root, \"shell-probe.cjs\"), [\n  'const crypto = require(\"node:crypto\");',\n  'const fs = require(\"node:fs\");',\n  'const path = require(\"node:path\");',\n  'const input = JSON.parse(fs.readFileSync(path.join(__dirname, \"input.json\"), \"utf8\"));',\n  'const shellDigest = crypto.createHash(\"sha256\").update(input.fileNonce).digest(\"hex\");',\n  'const result = { shellDigest, engineEnv: process.env.ENGINE_CONFORMANCE_SENTINEL };',\n  'if (!result.engineEnv) throw new Error(\"ENGINE_CONFORMANCE_SENTINEL is missing\");',\n  'fs.writeFileSync(path.join(__dirname, \"shell.json\"), JSON.stringify(result));',\n  'console.log(JSON.stringify(result));',\n  \"\",\n].join(\"\\n\"), { mode: 0o644, flag: \"wx\" });\nJS\n"
 
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.62@sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62@sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d ghcr.io/github/gh-aw-firewall/squid:0.28.62@sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef ghcr.io/github/gh-aw-mcpg:v0.4.35@sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858 ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.28.70@sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34 ghcr.io/github/gh-aw-firewall/api-proxy:0.28.70@sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a ghcr.io/github/gh-aw-firewall/squid:0.28.70@sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917 ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2 ghcr.io/github/gh-aw-node@sha256:41835613992df88f51e923bad486f96dfb2e6cda29f13e217df41833284ae382
       - name: Prepare Safe Outputs Directories
         run: |
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
@@ -942,7 +1007,7 @@ jobs:
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
-          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_AGENT_ID -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_TARGET_REPO_SLUG -e GH_AW_PR_HEAD_BASE_BRANCH -e GH_AW_PR_HEAD_BASE_SHA -e GH_AW_PR_HEAD_BASE_REPO -e GH_AW_PR_HEAD_BASE_PR_NUMBER -e GH_AW_PR_HEAD_BASE_REF -e GH_AW_PR_HEAD_REPO -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e RUNNER_TOOL_CACHE -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e CONFORMANCE_STATE -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.35@sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858'
+          export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_AGENT_ID -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_TARGET_REPO_SLUG -e GH_AW_PR_HEAD_BASE_BRANCH -e GH_AW_PR_HEAD_BASE_SHA -e GH_AW_PR_HEAD_BASE_REPO -e GH_AW_PR_HEAD_BASE_PR_NUMBER -e GH_AW_PR_HEAD_BASE_REF -e GH_AW_PR_HEAD_REPO -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GH_AW_SINK_VISIBILITY -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e RUNNER_TOOL_CACHE -e MCP_GATEWAY_ALLOWED_MOUNT_ROOTS -e GH_AW_MCP_SCRIPTS_PORT -e GH_AW_MCP_SCRIPTS_API_KEY -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e CONFORMANCE_STATE -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.36@sha256:b4d2856018959c798b3e3f81ae4ab5b275e06354e123e1f7971de931f2f450f2'
 
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
           cat << GH_AW_MCP_CONFIG_1b59532890724ce8_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
@@ -1053,8 +1118,27 @@ jobs:
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
           touch /tmp/gh-aw/agent-step-summary.md
           (umask 177 && touch /tmp/gh-aw/agent-stdio.log)
-          # shellcheck disable=SC2016
-          printf '%s\n' '{"$schema":"https://github.com/github/gh-aw-firewall/releases/download/v0.28.62/awf-config.schema.json","network":{"allowDomains":["api.github.com","api.npms.io","api.snapcraft.io","archive.ubuntu.com","azure.archive.ubuntu.com","bun.sh","cdn.jsdelivr.net","crl.geotrust.com","crl.globalsign.com","crl.identrust.com","crl.sectigo.com","crl.thawte.com","crl.usertrust.com","crl.verisign.com","crl3.digicert.com","crl4.digicert.com","crls.ssl.com","deb.nodesource.com","deno.land","esm.sh","get.pnpm.io","github.com","googleapis.deno.dev","googlechromelabs.github.io","host.docker.internal","json-schema.org","json.schemastore.org","jsr.io","keyserver.ubuntu.com","nodejs.org","npm.pkg.github.com","npmjs.com","npmjs.org","objects.githubusercontent.com","ocsp.digicert.com","ocsp.geotrust.com","ocsp.globalsign.com","ocsp.identrust.com","ocsp.sectigo.com","ocsp.ssl.com","ocsp.thawte.com","ocsp.usertrust.com","ocsp.verisign.com","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","ppa.launchpad.net","registry.bower.io","registry.npmjs.com","registry.npmjs.org","registry.yarnpkg.com","release-assets.githubusercontent.com","repo.yarnpkg.com","s.symcb.com","s.symcd.com","security.ubuntu.com","skimdb.npmjs.com","storage.googleapis.com","telemetry.vercel.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","www.googleapis.com","www.npmjs.com","www.npmjs.org","yarnpkg.com"],"isolation":true,"topologyAttach":["awmg-mcpg"]},"apiProxy":{"enabled":true,"enableTokenSteering":true,"maxRuns":500,"maxCacheMisses":12,"maxAiCredits":5,"targets":{"gemini":{"host":"generativelanguage.googleapis.com"}},"models":{"agent":["sonnet-6x","gpt-6","gpt-5.4","gpt-5.5","gpt-5.6","gpt-5.3","gemini-pro","any"],"antigravity":["copilot/antigravity*","google/antigravity*","gemini/antigravity*"],"any":["copilot/*","anthropic/*","openai/*","google/*","gemini/*"],"auto":["copilot/auto","large"],"claude":["agent"],"codex":["agent"],"coding":["copilot/gpt-5*codex*","openai/gpt-5*codex*","gpt-5-codex","kimi"],"computer-use":["copilot/*computer-use*","google/*computer-use*","gemini/*computer-use*","openai/*computer-use*"],"copilot":["agent"],"deep-research":["copilot/deep-research*","copilot/o3-deep-research*","copilot/o4-mini-deep-research*","google/deep-research*","gemini/deep-research*","openai/o3-deep-research*","openai/o4-mini-deep-research*"],"detection":["small"],"evals":["small"],"fable":["copilot/*fable*","anthropic/*fable*"],"gemini":["agent"],"gemini-3-flash":["copilot/gemini-3*flash*","google/gemini-3*flash*","gemini/gemini-3*flash*"],"gemini-3-pro":["copilot/gemini-3*pro*","google/gemini-3*pro*","google/nano-banana*","gemini/gemini-3*pro*"],"gemini-3.1-flash":["copilot/gemini-3.1*flash*","google/gemini-3.1*flash*","gemini/gemini-3.1*flash*"],"gemini-3.1-pro":["copilot/gemini-3.1*pro*","google/gemini-3.1*pro*","gemini/gemini-3.1*pro*"],"gemini-3.5-flash":["copilot/gemini-3.5*flash*","google/gemini-3.5*flash*","gemini/gemini-3.5*flash*"],"gemini-3.6-flash":["copilot/gemini-3.6*flash*","google/gemini-3.6*flash*","gemini/gemini-3.6*flash*"],"gemini-3.7-flash":["copilot/gemini-3.7*flash*","google/gemini-3.7*flash*","gemini/gemini-3.7*flash*"],"gemini-3.8-flash":["copilot/gemini-3.8*flash*","google/gemini-3.8*flash*","gemini/gemini-3.8*flash*"],"gemini-flash":["copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"],"gemini-flash-lite":["copilot/gemini-*flash*lite*","google/gemini-*flash*lite*","gemini/gemini-*flash*lite*"],"gemini-omni":["copilot/gemini-omni*","google/gemini-omni*","gemini/gemini-omni*"],"gemini-pro":["copilot/gemini-*pro*","google/gemini-*pro*","gemini/gemini-*pro*"],"gemma":["copilot/gemma*","google/gemma*","gemini/gemma*"],"gpt-5":["copilot/gpt-5*","openai/gpt-5*"],"gpt-5-codex":["copilot/gpt-5*codex*","openai/gpt-5*codex*"],"gpt-5-mini":["copilot/gpt-5*mini*","openai/gpt-5*mini*"],"gpt-5-nano":["copilot/gpt-5*nano*","openai/gpt-5*nano*"],"gpt-5-pro":["copilot/gpt-5*pro*","openai/gpt-5*pro*"],"gpt-5.1":["copilot/gpt-5.1*","openai/gpt-5.1*"],"gpt-5.2":["copilot/gpt-5.2*","openai/gpt-5.2*"],"gpt-5.3":["copilot/gpt-5.3*","openai/gpt-5.3*"],"gpt-5.4":["copilot/gpt-5.4*","openai/gpt-5.4*"],"gpt-5.5":["copilot/gpt-5.5*","openai/gpt-5.5*"],"gpt-5.6":["copilot/gpt-5.6*","openai/gpt-5.6*"],"gpt-6":["copilot/gpt-6*","openai/gpt-6*"],"grok":["copilot/*grok*","openai/*grok*"],"haiku":["copilot/*haiku*","anthropic/*haiku*"],"image-generation":["copilot/gpt-image*","openai/gpt-image*","openai/chatgpt-image*","copilot/gemini-*image*","google/gemini-*image*","gemini/gemini-*image*","google/imagen*"],"kimi":["copilot/kimi*","openai/kimi*"],"kiwi":["copilot/kiwi*","openai/kiwi*"],"large":["sonnet","gpt-6","gpt-5-pro","gpt-5","gemini-pro"],"lyria":["google/lyria*","gemini/lyria*","copilot/lyria*"],"mai-code":["copilot/MAI-Code*","copilot/mai-code*","openai/MAI-Code*"],"mai-code-1-flash-picker":["copilot/MAI-Code-1-Flash-picker*","copilot/mai-code-1-flash-picker*","openai/MAI-Code-1-Flash-picker*"],"mini":["haiku","gpt-5-mini","gpt-5-nano","gemini-flash-lite"],"nano-banana":["copilot/nano-banana*","google/nano-banana*","gemini/nano-banana*"],"opus":["copilot/*opus*","anthropic/*opus*"],"opusplan":["opus?effort=high"],"raptor-mini":["copilot/raptor*","openai/raptor*"],"reasoning":["copilot/o1*","copilot/o3*","copilot/o4*","openai/o1*","openai/o3*","openai/o4*"],"robotics":["copilot/*robotics*","google/*robotics*","gemini/*robotics*"],"small":["mini"],"small-agent":["haiku","gpt-5-mini","gemini-flash"],"sonnet":["copilot/*sonnet*","anthropic/*sonnet*"],"sonnet-6x":["copilot/*sonnet-4.5*","copilot/*sonnet-4.6*","copilot/*sonnet-5*","copilot/*sonnet-4-5-*","anthropic/*sonnet-4-5-*","copilot/*sonnet-4-6*","anthropic/*sonnet-4-6*","anthropic/*sonnet-5*"],"summarization":["haiku","gpt-5-mini","gemini-flash-lite","mini"],"veo":["google/veo*","gemini/veo*"],"vision":["copilot/gemini-*image*","google/gemini-*image*","gemini/gemini-*image*","copilot/gemini-*flash*","google/gemini-*flash*","gemini/gemini-*flash*"]}},"container":{"imageTag":"0.28.62,squid=sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef,agent=sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f,api-proxy=sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d,cli-proxy=sha256:b23bbe2c025f60ea9aacde67c078ea937b54b4039552bca072ae9610d9e1c294","agentTimeout":10},"logging":{"proxyLogsDir":"/tmp/gh-aw/sandbox/firewall/logs","auditDir":"/tmp/gh-aw/sandbox/firewall/audit"}}' > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+          GH_AW_MAX_AI_CREDITS="5"
+          if [[ ! "$GH_AW_MAX_AI_CREDITS" =~ ^[0-9]+$ ]]; then
+            GH_AW_MAX_AI_CREDITS="5"
+          fi
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -z "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            echo "ERR_ADMISSION: Missing required runtime admission allowance." >&2
+            exit 1
+          fi
+
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -n "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            if [[ ! "$GH_AW_ADMISSION_MAX_AI_CREDITS" =~ ^[1-9][0-9]{0,9}$ ]] || (( GH_AW_ADMISSION_MAX_AI_CREDITS > 2147483647 )); then
+              echo "ERR_ADMISSION: Invalid runtime admission allowance." >&2
+              exit 1
+            fi
+            GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"
+            echo "Admission allowance applied (value withheld)."
+          else
+            echo "No component admission allowance; retaining existing budget policy (value withheld)."
+          fi
+          unset GH_AW_ADMISSION_RESULT GH_AW_ADMISSION_MAX_AI_CREDITS
+          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.70/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"api.github.com\",\"api.npms.io\",\"api.snapcraft.io\",\"archive.ubuntu.com\",\"azure.archive.ubuntu.com\",\"bun.sh\",\"cdn.jsdelivr.net\",\"crl.geotrust.com\",\"crl.globalsign.com\",\"crl.identrust.com\",\"crl.sectigo.com\",\"crl.thawte.com\",\"crl.usertrust.com\",\"crl.verisign.com\",\"crl3.digicert.com\",\"crl4.digicert.com\",\"crls.ssl.com\",\"deb.nodesource.com\",\"deno.land\",\"esm.sh\",\"get.pnpm.io\",\"github.com\",\"googleapis.deno.dev\",\"googlechromelabs.github.io\",\"host.docker.internal\",\"json-schema.org\",\"json.schemastore.org\",\"jsr.io\",\"keyserver.ubuntu.com\",\"nodejs.org\",\"npm.pkg.github.com\",\"npmjs.com\",\"npmjs.org\",\"objects.githubusercontent.com\",\"ocsp.digicert.com\",\"ocsp.geotrust.com\",\"ocsp.globalsign.com\",\"ocsp.identrust.com\",\"ocsp.sectigo.com\",\"ocsp.ssl.com\",\"ocsp.thawte.com\",\"ocsp.usertrust.com\",\"ocsp.verisign.com\",\"packagecloud.io\",\"packages.cloud.google.com\",\"packages.microsoft.com\",\"ppa.launchpad.net\",\"registry.bower.io\",\"registry.npmjs.com\",\"registry.npmjs.org\",\"registry.yarnpkg.com\",\"release-assets.githubusercontent.com\",\"repo.yarnpkg.com\",\"s.symcb.com\",\"s.symcd.com\",\"security.ubuntu.com\",\"skimdb.npmjs.com\",\"storage.googleapis.com\",\"telemetry.vercel.com\",\"ts-crl.ws.symantec.com\",\"ts-ocsp.ws.symantec.com\",\"www.googleapis.com\",\"www.npmjs.com\",\"www.npmjs.org\",\"yarnpkg.com\"],\"isolation\":true,\"topologyAttach\":[\"awmg-mcpg\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxCacheMisses\":12,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"targets\":{\"gemini\":{\"host\":\"generativelanguage.googleapis.com\"}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.70,squid=sha256:b5bc53f4becfd96e926e63c83831f1b3c9512f713c83161d2b8c9b7204b3e917,agent=sha256:b15ab48cbbab02904eb9bbd359a398db59690eebbea1e6934d47ed2bb407dd34,api-proxy=sha256:9ac8f9c7294e892c916de3da9d2588dfd8cd4931e5c39b00143266d7ed9fd52a,cli-proxy=sha256:372ac51a5cccffdfe484f3f7be427d2d1c566e8ae550d55bd45d9fd166a154b4\",\"agentTimeout\":10},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -1079,6 +1163,8 @@ jobs:
           CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
           ENGINE_CONFORMANCE_SENTINEL: conformance-agy
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
           GH_AW_AGY_MODEL: gemini-3.8-flash-medium
           GH_AW_ENGINE_VERSION: 1.3.6
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
@@ -1244,7 +1330,7 @@ jobs:
           CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
         if: always()
         name: Assert engine conformance
-        run: "set -euo pipefail\nnode <<'JS'\nconst assert = require(\"node:assert/strict\");\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst root = process.env.CONFORMANCE_ROOT;\nconst host = process.env.CONFORMANCE_STATE;\nif (!root || !host) throw new Error(\"Conformance paths are missing\");\nconst checks = [];\nconst check = (name, run) => {\n  try {\n    run();\n    checks.push({ name, status: \"passed\" });\n  } catch (error) {\n    checks.push({ name, status: \"failed\", error: error.message });\n  }\n};\nconst read = (directory, name) => {\n  const directoryStat = fs.lstatSync(directory);\n  assert.ok(directoryStat.isDirectory() && !directoryStat.isSymbolicLink(), \"Evidence directory must not be a symlink\");\n  const file = path.join(directory, name);\n  const stat = fs.lstatSync(file);\n  assert.ok(stat.isFile() && !stat.isSymbolicLink(), `${name} must be a regular file`);\n  assert.ok(stat.size <= 16384, `${name} exceeds 16 KiB`);\n  return JSON.parse(fs.readFileSync(file, \"utf8\"));\n};\nlet expected, result, receipt, shell;\ncheck(\"agent-execution\", () => assert.equal(process.env.CONFORMANCE_EXECUTION, \"success\"));\ncheck(\"fixtures\", () => {\n  expected = read(host, \"expected.json\");\n  assert.equal(expected.engine, process.env.CONFORMANCE_ENGINE);\n  assert.deepEqual(read(root, \"input.json\"), {\n    fileNonce: expected.fileNonce, left: expected.left, right: expected.right,\n  });\n});\ncheck(\"result-schema\", () => {\n  result = read(root, \"result.json\");\n  assert.deepEqual(Object.keys(result).sort(), [\n    \"engineEnv\", \"fileNonce\", \"shellDigest\", \"sum\", \"toolNonce\",\n  ]);\n  assert.equal(typeof result.sum, \"number\");\n  for (const key of [\"engineEnv\", \"fileNonce\", \"shellDigest\", \"toolNonce\"]) {\n    assert.equal(typeof result[key], \"string\", `${key} must be a string`);\n  }\n});\ncheck(\"file-read\", () => assert.equal(result.fileNonce, expected.fileNonce));\ncheck(\"inference\", () => assert.equal(result.sum, expected.left + expected.right));\ncheck(\"shell-and-environment\", () => {\n  shell = read(root, \"shell.json\");\n  assert.deepEqual(shell, { shellDigest: expected.shellDigest, engineEnv: expected.engineEnv });\n  assert.equal(result.shellDigest, shell.shellDigest);\n  assert.equal(result.engineEnv, shell.engineEnv);\n});\ncheck(\"tool-round-trip\", () => {\n  receipt = read(host, \"receipt.json\");\n  assert.equal(receipt.fileNonce, expected.fileNonce);\n  assert.match(receipt.toolNonce, /^[a-f0-9]{48}$/);\n  assert.equal(result.toolNonce, receipt.toolNonce);\n});\ncheck(\"staged-safe-output\", () => {\n  const file = process.env.CONFORMANCE_SAFE_OUTPUTS;\n  assert.ok(file, \"Safe-output evidence path is required\");\n  assert.deepEqual(read(path.dirname(file), path.basename(file)), {\n    type: \"noop\", message: \"Conformance probes completed\",\n  });\n});\nconst passed = checks.every(item => item.status === \"passed\");\nconst report = { engine: process.env.CONFORMANCE_ENGINE, status: passed ? \"passed\" : \"failed\", checks };\nfs.mkdirSync(host, { recursive: true, mode: 0o700 });\nfs.writeFileSync(path.join(host, \"report.json\"), JSON.stringify(report, null, 2), { mode: 0o600, flag: \"wx\" });\nconst summary = [\n  `## Engine conformance: ${report.engine}`,\n  \"\",\n  \"| Probe | Result |\",\n  \"|---|---|\",\n  ...checks.map(item => `| ${item.name} | ${item.status} |`),\n  \"\",\n  `Overall: **${report.status.toUpperCase()}**`,\n  \"\",\n].join(\"\\n\");\nif (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);\nconsole.log(summary);\nfor (const item of checks.filter(item => item.status === \"failed\")) {\n  const message = `${item.name}: ${item.error}`.replace(/%/g, \"%25\").replace(/\\r/g, \"%0D\").replace(/\\n/g, \"%0A\");\n  console.error(`::error::${message}`);\n}\nif (!passed) process.exitCode = 1;\nJS\n"
+        run: "set -euo pipefail\nnode <<'JS'\nconst assert = require(\"node:assert/strict\");\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst root = process.env.CONFORMANCE_ROOT;\nconst host = process.env.CONFORMANCE_STATE;\nif (!root || !host) throw new Error(\"Conformance paths are missing\");\nconst checks = [];\nconst check = (name, run) => {\n  try {\n    run();\n    checks.push({ name, status: \"passed\" });\n  } catch (error) {\n    checks.push({ name, status: \"failed\", error: error.message });\n  }\n};\nconst read = (directory, name) => {\n  const directoryStat = fs.lstatSync(directory);\n  assert.ok(directoryStat.isDirectory() && !directoryStat.isSymbolicLink(), \"Evidence directory must not be a symlink\");\n  const file = path.join(directory, name);\n  const stat = fs.lstatSync(file);\n  assert.ok(stat.isFile() && !stat.isSymbolicLink(), `${name} must be a regular file`);\n  assert.ok(stat.size <= 16384, `${name} exceeds 16 KiB`);\n  return JSON.parse(fs.readFileSync(file, \"utf8\"));\n};\nlet expected, result, receipt, shell;\ncheck(\"agent-execution\", () => assert.equal(process.env.CONFORMANCE_EXECUTION, \"success\"));\ncheck(\"fixtures\", () => {\n  expected = read(host, \"expected.json\");\n  assert.equal(expected.engine, process.env.CONFORMANCE_ENGINE);\n  assert.deepEqual(read(root, \"input.json\"), {\n    fileNonce: expected.fileNonce, left: expected.left, right: expected.right,\n  });\n});\ncheck(\"result-schema\", () => {\n  result = read(root, \"result.json\");\n  assert.deepEqual(Object.keys(result).sort(), [\n    \"engineEnv\", \"fileNonce\", \"shellDigest\", \"sum\", \"toolNonce\",\n  ]);\n  assert.equal(typeof result.sum, \"number\");\n  for (const key of [\"engineEnv\", \"fileNonce\", \"shellDigest\", \"toolNonce\"]) {\n    assert.equal(typeof result[key], \"string\", `${key} must be a string`);\n  }\n});\ncheck(\"file-read\", () => assert.equal(result.fileNonce, expected.fileNonce));\ncheck(\"inference\", () => assert.equal(result.sum, expected.left + expected.right));\ncheck(\"shell-and-environment\", () => {\n  shell = read(root, \"shell.json\");\n  assert.deepEqual(shell, { shellDigest: expected.shellDigest, engineEnv: expected.engineEnv });\n  assert.equal(result.shellDigest, shell.shellDigest);\n  assert.equal(result.engineEnv, shell.engineEnv);\n});\ncheck(\"tool-round-trip\", () => {\n  receipt = read(host, \"receipt.json\");\n  assert.equal(receipt.fileNonce, expected.fileNonce);\n  assert.match(receipt.toolNonce, /^[a-f0-9]{48}$/);\n  assert.equal(result.toolNonce, receipt.toolNonce);\n});\ncheck(\"staged-safe-output\", () => {\n  const file = process.env.CONFORMANCE_SAFE_OUTPUTS;\n  assert.ok(file, \"Safe-output evidence path is required\");\n  assert.deepEqual(read(path.dirname(file), path.basename(file)), {\n    type: \"noop\", message: \"Conformance probes completed\",\n    ...(expected.claimHandle !== undefined && { claim_handle: expected.claimHandle }),\n  });\n});\nconst passed = checks.every(item => item.status === \"passed\");\nconst report = { engine: process.env.CONFORMANCE_ENGINE, status: passed ? \"passed\" : \"failed\", checks };\nfs.mkdirSync(host, { recursive: true, mode: 0o700 });\nfs.writeFileSync(path.join(host, \"report.json\"), JSON.stringify(report, null, 2), { mode: 0o600, flag: \"wx\" });\nconst summary = [\n  `## Engine conformance: ${report.engine}`,\n  \"\",\n  \"| Probe | Result |\",\n  \"|---|---|\",\n  ...checks.map(item => `| ${item.name} | ${item.status} |`),\n  \"\",\n  `Overall: **${report.status.toUpperCase()}**`,\n  \"\",\n].join(\"\\n\");\nif (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);\nconsole.log(summary);\nfor (const item of checks.filter(item => item.status === \"failed\")) {\n  const message = `${item.name}: ${item.error}`.replace(/%/g, \"%25\").replace(/\\r/g, \"%0D\").replace(/\\n/g, \"%0A\");\n  console.error(`::error::${message}`);\n}\nif (!passed) process.exitCode = 1;\nJS\n"
       - if: always()
         name: Upload engine conformance evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1258,7 +1344,7 @@ jobs:
           CONFORMANCE_STATE: ${{ runner.temp }}/engine-conformance
         if: always()
         name: Assert native Agy MCP transport and inference accounting
-        run: "set -euo pipefail\nnode <<'JS'\nconst assert = require(\"node:assert/strict\");\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst host = process.env.CONFORMANCE_STATE;\nconst receipt = JSON.parse(fs.readFileSync(path.join(host, \"native-receipt.json\"), \"utf8\"));\nconst expected = JSON.parse(fs.readFileSync(path.join(host, \"expected.json\"), \"utf8\"));\nassert.equal(receipt.fileNonce, expected.fileNonce);\nassert.match(receipt.toolNonce, /^[a-f0-9]{48}$/);\nconst entries = fs.readFileSync(\"/tmp/gh-aw/agent-stdio.log\", \"utf8\").split(/\\r?\\n/).flatMap(line => {\n  try { return [JSON.parse(line)]; } catch { return []; }\n});\nconst tools = entries.filter(entry => entry.event === \"step_update\" && entry.step_update?.step_type === \"tool\");\nconst completedCall = (server, tool, args) => tools.find(entry => {\n  const step = entry.step_update;\n  const info = step.tool_info;\n  return step.state === \"DONE\" && info?.name === \"call_mcp_tool\" &&\n    info.parameters?.ServerName === server &&\n    info.parameters?.ToolName === tool &&\n    Object.entries(args).every(([key, value]) => info.parameters?.Arguments?.[key] === value);\n})?.step_update.tool_info;\nconst native = completedCall(\"agy-native\", \"native_challenge\", { file_nonce: expected.fileNonce });\nassert.ok(native,\n  \"The challenge must be called through the native MCP client, not its CLI wrapper\");\nassert.equal(native.error, undefined, \"The native MCP challenge must complete without an error\");\nassert.deepEqual(JSON.parse(native.output), { toolNonce: receipt.toolNonce });\nconst infrastructureReceipt = JSON.parse(fs.readFileSync(path.join(host, \"native-infrastructure-receipt.json\"), \"utf8\"));\nassert.equal(infrastructureReceipt.fileNonce, expected.fileNonce);\nassert.match(infrastructureReceipt.toolNonce, /^[a-f0-9]{48}$/);\nconst infrastructure = completedCall(\"mcpscripts\", \"native_infrastructure_challenge\", { file_nonce: expected.fileNonce });\nassert.ok(infrastructure, \"MCP scripts must be called through the native MCP client\");\nassert.equal(infrastructure.error, undefined, \"The native MCP scripts challenge must complete without an error\");\nassert.deepEqual(JSON.parse(infrastructure.output), { toolNonce: infrastructureReceipt.toolNonce });\nconst noop = completedCall(\"safeoutputs\", \"noop\", { message: \"Conformance probes completed\" });\nassert.ok(noop, \"The final noop must be called through the native safeoutputs MCP server\");\nassert.equal(noop.error, undefined, \"The native safe-output call must complete without an error\");\nconst terminal = entries.filter(entry => entry.event === \"result\").at(-1)?.result;\nassert.equal(terminal?.status, \"SUCCESS\");\nassert.ok(Number.isSafeInteger(terminal?.num_turns) && terminal.num_turns > 0);\nassert.ok(terminal?.usage?.input_tokens > 0);\nassert.ok(terminal?.usage?.output_tokens > 0);\nassert.ok(entries.some(entry => entry.event === \"init\" && entry.init?.model === \"gemini-3.8-flash-medium\"));\nconst outputs = process.env.CONFORMANCE_SAFE_OUTPUTS;\nassert.ok(outputs, \"Safe-output evidence path is required\");\nconst outputStat = fs.lstatSync(outputs);\nassert.ok(outputStat.isFile() && !outputStat.isSymbolicLink() && outputStat.size <= 16384);\nassert.deepEqual(JSON.parse(fs.readFileSync(outputs, \"utf8\")), {\n  type: \"noop\", message: \"Conformance probes completed\",\n});\nconst usage = {};\nfor (const name of [\"input_tokens\", \"output_tokens\", \"thinking_tokens\", \"cache_read_tokens\", \"total_tokens\"]) {\n  const count = terminal.usage[name];\n  if (count !== undefined) {\n    assert.ok(Number.isSafeInteger(count) && count >= 0, `Invalid ${name}`);\n    usage[name] = count;\n  }\n}\nfs.writeFileSync(path.join(host, \"native-report.json\"),\n  JSON.stringify({ status: \"passed\", nativeMCP: true, nativeInfrastructureMCP: true, nativeSafeOutputs: true, inference: true, stagedSafeOutputs: true, usage }, null, 2),\n  { mode: 0o600 });\nJS\n"
+        run: "set -euo pipefail\nnode <<'JS'\nconst assert = require(\"node:assert/strict\");\nconst fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst host = process.env.CONFORMANCE_STATE;\nconst receipt = JSON.parse(fs.readFileSync(path.join(host, \"native-receipt.json\"), \"utf8\"));\nconst expected = JSON.parse(fs.readFileSync(path.join(host, \"expected.json\"), \"utf8\"));\nassert.equal(receipt.fileNonce, expected.fileNonce);\nassert.match(receipt.toolNonce, /^[a-f0-9]{48}$/);\nconst entries = fs.readFileSync(\"/tmp/gh-aw/agent-stdio.log\", \"utf8\").split(/\\r?\\n/).flatMap(line => {\n  try { return [JSON.parse(line)]; } catch { return []; }\n});\nconst tools = entries.filter(entry => entry.event === \"step_update\" && entry.step_update?.step_type === \"tool\");\nconst completedCall = (server, tool, args) => tools.find(entry => {\n  const step = entry.step_update;\n  const info = step.tool_info;\n  return step.state === \"DONE\" && info?.name === \"call_mcp_tool\" &&\n    info.parameters?.ServerName === server &&\n    info.parameters?.ToolName === tool &&\n    Object.entries(args).every(([key, value]) => info.parameters?.Arguments?.[key] === value);\n})?.step_update.tool_info;\nconst native = completedCall(\"agy-native\", \"native_challenge\", { file_nonce: expected.fileNonce });\nassert.ok(native,\n  \"The challenge must be called through the native MCP client, not its CLI wrapper\");\nassert.equal(native.error, undefined, \"The native MCP challenge must complete without an error\");\nassert.deepEqual(JSON.parse(native.output), { toolNonce: receipt.toolNonce });\nconst infrastructureReceipt = JSON.parse(fs.readFileSync(path.join(host, \"native-infrastructure-receipt.json\"), \"utf8\"));\nassert.equal(infrastructureReceipt.fileNonce, expected.fileNonce);\nassert.match(infrastructureReceipt.toolNonce, /^[a-f0-9]{48}$/);\nconst infrastructure = completedCall(\"mcpscripts\", \"native_infrastructure_challenge\", { file_nonce: expected.fileNonce });\nassert.ok(infrastructure, \"MCP scripts must be called through the native MCP client\");\nassert.equal(infrastructure.error, undefined, \"The native MCP scripts challenge must complete without an error\");\nassert.deepEqual(JSON.parse(infrastructure.output), { toolNonce: infrastructureReceipt.toolNonce });\nconst noop = completedCall(\"safeoutputs\", \"noop\", { message: \"Conformance probes completed\" });\nassert.ok(noop, \"The final noop must be called through the native safeoutputs MCP server\");\nassert.equal(noop.error, undefined, \"The native safe-output call must complete without an error\");\nconst terminal = entries.filter(entry => entry.event === \"result\").at(-1)?.result;\nassert.equal(terminal?.status, \"SUCCESS\");\nassert.ok(Number.isSafeInteger(terminal?.num_turns) && terminal.num_turns > 0);\nassert.ok(terminal?.usage?.input_tokens > 0);\nassert.ok(terminal?.usage?.output_tokens > 0);\nassert.ok(entries.some(entry => entry.event === \"init\" && entry.init?.model === \"gemini-3.8-flash-medium\"));\nconst outputs = process.env.CONFORMANCE_SAFE_OUTPUTS;\nassert.ok(outputs, \"Safe-output evidence path is required\");\nconst outputStat = fs.lstatSync(outputs);\nassert.ok(outputStat.isFile() && !outputStat.isSymbolicLink() && outputStat.size <= 16384);\nassert.deepEqual(JSON.parse(fs.readFileSync(outputs, \"utf8\")), {\n  type: \"noop\", message: \"Conformance probes completed\",\n  ...(expected.claimHandle !== undefined && { claim_handle: expected.claimHandle }),\n});\nconst usage = {};\nfor (const name of [\"input_tokens\", \"output_tokens\", \"thinking_tokens\", \"cache_read_tokens\", \"total_tokens\"]) {\n  const count = terminal.usage[name];\n  if (count !== undefined) {\n    assert.ok(Number.isSafeInteger(count) && count >= 0, `Invalid ${name}`);\n    usage[name] = count;\n  }\n}\nfs.writeFileSync(path.join(host, \"native-report.json\"),\n  JSON.stringify({ status: \"passed\", nativeMCP: true, nativeInfrastructureMCP: true, nativeSafeOutputs: true, inference: true, stagedSafeOutputs: true, usage }, null, 2),\n  { mode: 0o600 });\nJS\n"
       - if: always()
         name: Upload native Agy conformance evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1306,6 +1392,7 @@ jobs:
     name: conclusion
     needs:
       - activation
+      - admission
       - agent
       - safe_outputs
     if: >
@@ -1322,9 +1409,9 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"pre_activation\":\"pre_activation\",\"safe_outputs\":\"safe_outputs\"}"
-      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"}}"
-      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"agent\":true,\"conclusion\":true,\"pre_activation\":true,\"safe_outputs\":true}"
+      GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"activation\",\"admission\":\"admission\",\"agent\":\"agent\",\"conclusion\":\"conclusion\",\"pre_activation\":\"pre_activation\",\"safe_outputs\":\"safe_outputs\"}"
+      GH_AW_JOB_RESULTS: "{\"activation\":{\"result\":\"${{ needs.activation.result }}\"},\"admission\":{\"result\":\"${{ needs.admission.result }}\"},\"agent\":{\"result\":\"${{ needs.agent.result }}\"},\"safe_outputs\":{\"result\":\"${{ needs.safe_outputs.result }}\"}}"
+      GH_AW_JOB_TIMING_ELIGIBLE: "{\"activation\":true,\"admission\":true,\"agent\":true,\"conclusion\":true,\"pre_activation\":true,\"safe_outputs\":true}"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
@@ -1354,7 +1441,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agy-conformance-reusable.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.3.6"
-          GH_AW_INFO_AWF_VERSION: "v0.28.62"
+          GH_AW_INFO_AWF_VERSION: "v0.28.70"
           GH_AW_INFO_ENGINE_ID: "agy"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Download agent output artifact
@@ -1465,6 +1552,7 @@ jobs:
           GH_AW_ENGINE_ID: "agy"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
+          GH_AW_CHECKOUT_PR_INVALIDATED: ${{ needs.agent.outputs.checkout_pr_invalidated }}
           GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.agent.outputs.ai_credits_rate_limit_error || 'false' }}
           GH_AW_UNKNOWN_MODEL_AI_CREDITS: ${{ needs.agent.outputs.unknown_model_ai_credits || 'false' }}
           GH_AW_AIC: ${{ needs.agent.outputs.aic }}
@@ -1505,6 +1593,12 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: ${{ needs.activation.outputs.admission-max-ai-credits-threat-detection }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: ${{ needs.activation.outputs.admission-max-ai-credits-evals }}
+          GH_AW_GRADER_MANIFEST_0: '{"version":2,"graders":[]}'
+          GH_AW_GRADER_MANIFEST_CHUNKS: '1'
           GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS: ${{ needs.activation.outputs.daily_ai_credits_guardrail_status }}
           GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}
           GH_AW_DAILY_AI_CREDITS_TOTAL: ${{ needs.activation.outputs.daily_ai_credits_total }}
@@ -1621,7 +1715,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agy-conformance-reusable.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.3.6"
-          GH_AW_INFO_AWF_VERSION: "v0.28.62"
+          GH_AW_INFO_AWF_VERSION: "v0.28.70"
           GH_AW_INFO_ENGINE_ID: "agy"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Check team membership for workflow
@@ -1647,7 +1741,8 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped'
     runs-on: ubuntu-slim
     # Permissions for the safe_outputs job (workflow permissions default to none).
-    permissions: {}
+    permissions:
+      pull-requests: read
     timeout-minutes: 2
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
@@ -1702,7 +1797,7 @@ jobs:
           GH_AW_SETUP_WORKFLOW_NAME: "Agy Conformance Reusable (Experimental)"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/agy-conformance-reusable.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.3.6"
-          GH_AW_INFO_AWF_VERSION: "v0.28.62"
+          GH_AW_INFO_AWF_VERSION: "v0.28.70"
           GH_AW_INFO_ENGINE_ID: "agy"
           GH_AW_SETUP_AW_CONTEXT: ${{ inputs.aw_context }}
       - name: Mask OTLP telemetry headers

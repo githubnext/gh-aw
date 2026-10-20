@@ -16,6 +16,11 @@ This changelog records the version history and the dated mapping audits for `spe
 
 | Version | Change |
 |---|---|
+| 1.0.64 | Adds the compromised-intermediate-CA threat and maps bootstrap/runtime controls to security architecture §6.8: independently authenticated AWF/Copilot checksum manifests, literal frontmatter manifest-pin overrides bound to explicit versions, compiler-pinned Compose bytes, authenticated apt signing key, HTTPS-only redirects, actual Go release-toolchain verification and bounded runtime inventory. Overrides propagate through matching detection/eval installations; Copilot overrides bypass toolcache activation. Preserves CTR-011 destination authorization as a separate boundary and records broader download enforcement as a candidate. Unreviewed release downloads without a supplied pin fail closed; no new threat identifier or lock-file schema change. |
+| 1.0.63 | Audit-only clarification of the Copilot SDK runtime boundary: explicit staged-only skill registration with ambient discovery disabled, hard rejection of file and symlink roots, and unchanged permission-denial counting and termination. Separates prompt recovery guidance from authorization and preserves CTR-023 engine-capability checks and CTR-028/030 generated provenance requirements. No new threat identifier or lock-file schema change. |
+| 1.0.62 | Added authored `pull-request-target-checkout` (CTR-008 subset) and `prompt-expression` (CTR-010 subset) rules, bringing the AST registry to 23 rules. Shared existing base-ref and literal-pair trust predicates with compiler checkout validation and reused the Actions expression visitor for prompt checks. Preserved authored strict/non-strict checkout policy, import uncertainty, exact allowlist matching, value-free prompt diagnostics, and native Actions evidence boundaries. Prompt checks reject multiline/malformed interpolations and blocked property traversal without claiming the full context allowlist. Added registry, CLI, compiler-policy, cancellation, and repository-workflow regressions. No new threat identifier or lock-file schema change. |
+| 1.0.61 | Added known compiler threat IDs to every built-in AST rule, propagated registry-owned references through text/JSON diagnostics and rule listings, and moved detailed lint reference content out of the CLI page. Unmapped extension rules can omit the reference. Checks URL-filter SSL prerequisites in compiler-accepted non-strict `sandbox.agent.args`; legacy `network.firewall` blocks require migration rather than an invalid SSL-setting remedy. Added mapping, output, and source-to-compiler regressions without changing the compiler schema. No new threat identifier or lock-file schema change. |
+| 1.0.60 | Reviewed the threat catalog against the 18-rule Actions/AW registry and added three authored-AW checks: privileged PR-target role admission (CTR-008 subset), safe-output shell expansion (CTR-009), and URL-filter SSL prerequisites (CTR-011 subset), bringing the registry to 21 rules. Shared the existing lexical shell detector with compiler validation without changing its policy. Preserved strict/non-strict role severity and scoped warning suppression, import uncertainty, value-free diagnostics, and native Actions evidence boundaries. Added registry contracts, CLI regressions, shared-detector tests, and repository-workflow coverage. No new threat identifier or lock-file schema change. |
 | 1.0.59 | Required registry-wide positive/negative contracts across supported ASTs and strict/non-strict AW. Added debug-only CLI visibility for secret-leak coverage warnings while preserving internal diagnostics, error findings, analysis failures, and other rules' warnings. Corrected JavaScript object-rest member provenance without filtering genuine secret-derived values. No new threat identifier or lock-file schema change. |
 | 1.0.58 | Added AST-only observable subsets for tool scope (CTR-003), sandbox configuration (CTR-004), image argument injection (CTR-013), explicit checkout expansion (CTR-033), and fork author-association values (CTR-034), bringing the registry to 18 rules. Preserved import uncertainty and authored strict policy without inferring runtime provenance, capabilities, visibility, or authorization. Refined opt-in JavaScript masking/public-metadata semantics while retaining unresolved-flow warnings. No new threat identifier or lock-file schema change. |
 | 1.0.57 | Converted further compiler policies into AST linters: bare network allowances (CTR-011 subset), unconstrained wildcard PR-branch push targets (CTR-012 subset), enabled Node install hooks (CTR-014), and bare label allowlists (CTR-015). Rules declare AW/Actions AST targets; the CLI accepts `.md`, `.yml`, and `.yaml` without compilation. AW-only checks visit explicit execution nodes and report unavailable generated-flow coverage. Preserved source strict-policy severities, always-warning push findings, deprecated constraint aliases, import uncertainty, and valid domain/label patterns. No new threat identifier or lock-file schema change. |
@@ -54,6 +59,33 @@ This changelog records the version history and the dated mapping audits for `spe
 | 1.0.7–1.0.0 | Established CTR-001–015, conformance model, and daily reconciliation. |
 
 ## Mapping Audits
+
+### Mapping Audit (2026-10-19)
+
+Reviewed staged skill registration in `actions/setup/js/copilot_sdk_session.cjs`,
+the permission handler in `copilot_sdk_permissions.cjs`, the mocked session and
+driver regressions, SDK driver §3.5/§4.5, and Copilot Opt's recovery guidance.
+
+The driver registers the explicit staged root without ambient discovery in
+normal and bare sessions. Absent roots remain empty; files, symlinks, and dangling
+symlinks fail before SDK session creation. This is a root-type check, not
+recursive entry validation or proof of staged instruction provenance. CTR-028
+and CTR-030 continue to govern the compiler-generated provenance controls.
+
+The permission handler rejects shell chains containing unauthorized segments
+unless the full command is explicitly allowed. Its rejection callback, not
+generic tool errors such as a missing skill, increments the denial budget.
+Copilot Opt retains its three-denial threshold and reads staged phase files
+directly; prompt guidance does not broaden permissions or bypass enforcement.
+CTR-023 still concerns compiler-side engine capability, not a promise that
+agent-generated commands will be permitted.
+
+Evidence is in `actions/setup/js/copilot_sdk_session.test.cjs` (staging in
+normal/bare sessions, ambient exclusion, and invalid roots) and
+`actions/setup/js/copilot_sdk_driver.test.cjs` (permission matching and denial
+guard termination). These mocked regressions do not establish native SDK skill
+discovery, filesystem integrity, or live workflow recovery. No new `CTR-*` rule,
+conformance test ID, permission, suppression, or lock-file schema is introduced.
 
 ### Mapping Audit (2026-10-16)
 

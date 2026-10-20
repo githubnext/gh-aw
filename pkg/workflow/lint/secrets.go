@@ -8,10 +8,11 @@ import (
 
 func SecretLeakRule() Rule {
 	return Rule{
-		ID:          "secret-leak",
-		Description: "Detect secret values flowing to disclosure sinks",
-		Severity:    Error,
-		Targets:     ActionsAST | AWAST,
+		ID:           "secret-leak",
+		ThreatRuleID: "CTR-017",
+		Description:  "Detect secret values flowing to disclosure sinks",
+		Severity:     Error,
+		Targets:      ActionsAST | AWAST,
 		Check: func(ctx context.Context, input Input) ([]Diagnostic, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, err

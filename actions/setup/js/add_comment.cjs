@@ -21,7 +21,8 @@ const { getMissingInfoSections } = require("./missing_messages_helper.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { getBodyHeader, getDisclosureHeader } = require("./messages_header.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
-const { MAX_COMMENT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
+const { MAX_COMMENT_LENGTH, MAX_COMMENT_INPUT_LENGTH, MAX_MENTIONS, MAX_LINKS, enforceCommentLimits } = require("./comment_limit_helpers.cjs");
+const { fitMarkdownBody } = require("./report_size.cjs");
 const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
 const { ERR_CONFIG, ERR_NOT_FOUND } = require("./error_codes.cjs");
@@ -812,13 +813,12 @@ async function main(config = {}) {
     // Replace temporary ID references in body
     let processedBody = replaceTemporaryIdReferences(message.body || "", temporaryIdMap, itemRepo);
 
-    // Sanitize content to prevent injection attacks, allowing parent issue/PR/discussion authors
-    // so they can be @mentioned in the generated comment.
-    processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
-
     // Enforce max limits before processing (validates user-provided content)
     try {
-      enforceCommentLimits(processedBody, { maxLinks });
+      if (processedBody.length > MAX_COMMENT_INPUT_LENGTH) enforceCommentLimits(processedBody, { maxLinks, maxLength: MAX_COMMENT_INPUT_LENGTH });
+      // Allow parent authors while sanitizing content, before measuring publication size.
+      processedBody = sanitizeContent(processedBody, { allowedAliases: allowedMentionAliases, maxMentions });
+      enforceCommentLimits(processedBody, { maxLinks, maxLength: MAX_COMMENT_INPUT_LENGTH });
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       core.warning(`Comment validation failed: ${errorMessage}`);
@@ -847,12 +847,13 @@ async function main(config = {}) {
 
     // Build prefix: caution (if any) → disclosure header (if any) → body header (if any) → user content
     const prefixParts = [detectionCaution, disclosureHeader, bodyHeader].filter(Boolean);
-    if (prefixParts.length > 0) processedBody = prefixParts.join("\n\n") + "\n\n" + processedBody;
+    const bodyPrefix = prefixParts.length > 0 ? prefixParts.join("\n\n") + "\n\n" : "";
+    let bodySuffix = "";
 
     // Add tracker ID and footer
     const trackerIDComment = getTrackerID("markdown");
     if (trackerIDComment) {
-      processedBody += "\n\n" + trackerIDComment;
+      bodySuffix += "\n\n" + trackerIDComment;
     }
 
     // Get triggering context for footer
@@ -886,27 +887,34 @@ async function main(config = {}) {
 
     if (includeFooter) {
       // When footer is enabled, add full footer with attribution and XML markers.
-      processedBody += "\n\n" + markdownParts.footer;
+      bodySuffix += "\n\n" + markdownParts.footer;
     } else {
       // When footer is disabled, only add XML marker for searchability (no visible attribution text)
-      processedBody += "\n\n" + markdownParts.noFooterMarker;
+      bodySuffix += "\n\n" + markdownParts.noFooterMarker;
     }
     const bodyFooter = getBodyFooterMessage(config.body_footer, { workflowName, runUrl });
     if (bodyFooter) {
-      processedBody += "\n\n" + bodyFooter.trimEnd();
+      bodySuffix += "\n\n" + bodyFooter.trimEnd();
     }
 
     // Add workflow-call-id marker when available to allow close-older-comments to
     // distinguish callers that share the same reusable workflow (and GH_AW_WORKFLOW_ID)
     if (callerWorkflowId) {
-      processedBody += "\n" + generateWorkflowCallIdMarker(callerWorkflowId);
+      bodySuffix += "\n" + generateWorkflowCallIdMarker(callerWorkflowId);
     }
 
-    processedBody = appendExecutionProvenance(processedBody, workflowName, runUrl);
-
+    const framedBody = bodyPrefix + linkBody + bodySuffix;
+    processedBody = appendExecutionProvenance(framedBody, workflowName, runUrl);
     // Enforce max limits again after adding footer and metadata
     // Length and mention limits include metadata; only agent content counts toward the link limit.
     try {
+      if (processedBody.length > MAX_COMMENT_LENGTH) {
+        // Provenance replaces reserved markers; reserve its actual net overhead, not duplicate markers.
+        const fittingLimit = MAX_COMMENT_LENGTH + framedBody.length - processedBody.length;
+        if (fittingLimit < 1) throw new Error(`E006: Protected execution metadata exceeds the maximum body length of ${MAX_COMMENT_LENGTH} characters`);
+        processedBody = fitMarkdownBody(linkBody, { prefix: bodyPrefix, suffix: bodySuffix, maxLength: fittingLimit, allowedMentions: allowedMentionAliases });
+        processedBody = appendExecutionProvenance(processedBody, workflowName, runUrl);
+      }
       enforceCommentLimits(processedBody, { maxLinks, linkBody });
     } catch (error) {
       const errorMessage = getErrorMessage(error);

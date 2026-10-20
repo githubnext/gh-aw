@@ -16,10 +16,12 @@ import (
 
 // findTokenUsageFile searches for token-usage.jsonl in the run directory
 func findTokenUsageFile(runDir string) string {
-	usageArtifactCandidate := filepath.Join(runDir, "usage", "agent", "token_usage.jsonl")
-	if fileutil.FileExists(usageArtifactCandidate) {
-		tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
-		return usageArtifactCandidate
+	if usageDir := findArtifactDir(runDir, "usage", ""); usageDir != "" {
+		usageArtifactCandidate := filepath.Join(usageDir, "agent", "token_usage.jsonl")
+		if fileutil.FileExists(usageArtifactCandidate) {
+			tokenUsageLog.Printf("Found token usage file in usage artifact: %s", usageArtifactCandidate)
+			return usageArtifactCandidate
+		}
 	}
 
 	// Primary path: sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl
@@ -77,6 +79,12 @@ func findAgentUsageFile(runDir string) string {
 		tokenUsageLog.Printf("Found agent usage file at primary path: %s", primary)
 		return primary
 	}
+	if usageDir := findArtifactDir(runDir, "usage", ""); usageDir != "" {
+		candidate := filepath.Join(usageDir, agentUsageJSONPath)
+		if fileutil.FileExists(candidate) {
+			return candidate
+		}
+	}
 
 	var found string
 	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
@@ -102,31 +110,50 @@ func findAgentUsageFile(runDir string) string {
 	return found
 }
 
-func findUsageJSONLFiles(runDir string) []string {
-	usageDir := filepath.Join(runDir, "usage")
-	if _, err := os.Stat(usageDir); err != nil {
-		return nil
-	}
-
-	var files []string
-	if walkErr := filepath.Walk(usageDir, func(path string, info os.FileInfo, err error) error {
+func findUsageJSONLFiles(runDir string) ([]string, []string) {
+	if dirs, episode, err := readEpisodeArtifactDirs(runDir); episode || err != nil {
 		if err != nil {
-			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil, []string{fmt.Sprintf("Cannot inspect episode usage inventory: %v", err)}
+		}
+		return findUsageJSONLFilesInDirs(dirs)
+	}
+	usageDir := findArtifactDir(runDir, "usage", "")
+	if usageDir == "" {
+		usageDir = filepath.Join(runDir, "usage")
+	}
+	return findUsageJSONLFilesInDirs([]string{usageDir})
+}
+
+func findUsageJSONLFilesInDirs(dirs []string) ([]string, []string) {
+	var files, warnings []string
+	for _, usageDir := range dirs {
+		if _, err := os.Stat(usageDir); err != nil {
+			if !os.IsNotExist(err) {
+				warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", err))
+			}
+			continue
+		}
+		if walkErr := filepath.Walk(usageDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				tokenUsageLog.Printf("walk error at %s: %v", path, err)
+				warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", err))
+				return nil
+			}
+			if info == nil || info.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(strings.ToLower(info.Name()), ".jsonl") {
+				files = append(files, path)
+			}
 			return nil
+		}); walkErr != nil {
+			tokenUsageLog.Printf("usage walk error at %s: %v", usageDir, walkErr)
+			warnings = append(warnings, fmt.Sprintf("Cannot inspect usage directory: %v", walkErr))
 		}
-		if info == nil || info.IsDir() {
-			return nil
-		}
-		if strings.HasSuffix(strings.ToLower(info.Name()), ".jsonl") {
-			files = append(files, path)
-		}
-		return nil
-	}); walkErr != nil {
-		tokenUsageLog.Printf("usage walk error at %s: %v", usageDir, walkErr)
 	}
 
 	sort.Strings(files)
-	return files
+	return files, warnings
 }
 
 func findLegacyAPIProxyLogFile(runDir, relativePath string) string {

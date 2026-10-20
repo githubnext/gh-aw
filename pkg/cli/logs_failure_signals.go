@@ -38,7 +38,7 @@ func failureSignalRole(signal FailureSignal) string {
 	switch signal.Kind {
 	case "failed_job", "failed_step", "mcp_failure":
 		return "failure_boundary"
-	case "workflow_failure":
+	case "workflow_failure", "no_jobs":
 		return "metadata_only"
 	default:
 		return "context"

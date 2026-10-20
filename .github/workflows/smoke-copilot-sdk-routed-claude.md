@@ -60,6 +60,9 @@ post-steps:
           mainEndpoint: "/chat/completions",
           subAgents: [{ name: "mini-whoami", model: "gpt-5.4-mini", endpoint: "/responses" }],
           requireDeclaredAgentNames: true,
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: [],
         });
 ---
 

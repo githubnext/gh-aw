@@ -13,7 +13,7 @@ import (
 
 type auditCacheSource string
 
-const auditSchemaVersion = 8
+const auditSchemaVersion = 9
 
 const (
 	auditCacheSourceFull auditCacheSource = "full"
@@ -49,6 +49,8 @@ func loadCachedAuditData(runOutputDir string, run WorkflowRun, source auditCache
 		auditData.CacheSource != source {
 		return AuditData{}, false
 	}
+	auditData.Outcomes = nil
+	auditData.OutcomeSummary = nil
 	return auditData, true
 }
 

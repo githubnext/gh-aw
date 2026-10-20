@@ -529,6 +529,7 @@ export default defineConfig({
             { label: "Tools (Serena)", link: "/reference/serena/" },
             { label: "Tools (Web Search)", link: "/reference/web-search/" },
             { label: "Work Queues", link: "/reference/work-queue/" },
+            { label: "Workflow Linters", link: "/reference/workflow-linters/" },
             { label: "Workflows", link: "/reference/workflow-structure/" },
             { label: "Workflows (Frontmatter)", link: "/reference/frontmatter/" },
             { label: "Workflows (Markdown)", link: "/reference/markdown/" },

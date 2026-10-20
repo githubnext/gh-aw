@@ -9,6 +9,7 @@ const { parseSettings } = require("./work_queue_settings.cjs");
 const { nativeId, authenticatePublisher } = require("./work_queue_native.cjs");
 const { actorFromContext } = require("./work_queue_policy.cjs");
 const { newRequest, generateRequestOperations } = require("./work_queue_replay.cjs");
+const { workExpired } = require("./work_queue_expiration.cjs");
 const { publishWorkQueueRequest } = require("./work_queue_store.cjs");
 const { readCheckedQueue } = require("./work_queue_checked_transport.cjs");
 const { expectedGitHubHost } = require("./work_queue_host.cjs");
@@ -112,6 +113,7 @@ async function main(options = {}) {
         if (!current || current.work_id !== work.work_id) throw queueError("issue_binding_invalid", "related Issue binding changed");
         if (current.state === "cancelled" || current.state === "completed") return { operations: [], reason: "already_terminal" };
         if (!(await fresh(githubClient, context, resource, config))) return { operations: [], reason: "issue_reopened" };
+        if (workExpired(current, Math.max(at, state.time_watermark ?? 0))) return { operations: [], reason: "work_expired" };
         return generateRequestOperations(state, stable, currentActor, at, id, observations);
       },
     });
@@ -121,7 +123,14 @@ async function main(options = {}) {
   const ownReceipt = receipt && receipt.request.fingerprint === request.fingerprint && receipt.operations.some(op => canonical(op) === canonical(operation));
   // A checked terminal commit, whether ours or an earlier request's, is the
   // only authority for the outcome reported in the Issue.
-  const terminal = finalWork?.state === "completed" ? finalWork.completion_id : finalWork?.state === "cancelled" ? finalWork.cancellation_commit_id : undefined;
+  // Derived expiration has no cancellation receipt; a retained commit or
+  // checked checkpoint receipt, not an as-of watermark, must reach its deadline.
+  const committedExpiration =
+    finalWork?.state === "cancelled" &&
+    finalWork.cancellation_reason === "work_expired" &&
+    finalWork.expires_at !== undefined &&
+    (confirmed.state.transactions.some(commit => commit.at >= finalWork.expires_at) || confirmed.state.historicalTransactions?.some(commit => commit.at >= finalWork.expires_at));
+  const terminal = finalWork?.state === "completed" ? finalWork.completion_id : finalWork?.state === "cancelled" ? finalWork.cancellation_commit_id || committedExpiration : undefined;
   if (!terminal || (result?.publishedNow === true && !ownReceipt)) return { status: "pending" };
   const state = finalWork.state;
   const marker = `<!-- gh-aw-issue-closure:${closureIdentity(resource, work.work_id)} -->`;

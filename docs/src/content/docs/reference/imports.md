@@ -396,7 +396,9 @@ Executable safe-output JSON/JSONL preserves public field names, aliases, and enu
 
 Custom hooks must tolerate absent optional files and files that disappear between discovery and reading (`ENOENT`). Earlier cleanup or redaction can remove files, including symbolic links and artifacts that could not be sanitized. Do not create empty placeholders for missing logs or outputs.
 
-Custom hooks run during the initial workspace redaction, before graders execute. The later grader-output redaction pass sanitizes newly generated results but does not rerun custom hooks, so it does not prepare unchanged files for them.
+Custom hooks run during workspace redaction in the agent job. Graders execute
+later in conclusion using the redacted in-memory unified session; they do not
+read source files or rerun custom hooks.
 
 Permission errors and other redaction failures are not equivalent to missing files. Report them explicitly and remove any unsanitized artifact source before upload; do not silently skip it or use `continue-on-error` as a workaround. For files outside the built-in scan, custom hooks are responsible for preparing writable files and avoiding symbolic links. Stop log writers before redaction so they cannot append sensitive content after sanitization.
 

@@ -179,6 +179,7 @@ func submissionMatchesOperations(request Request, operations []Operation) bool {
 }
 
 func (state *Projection) replayCommit(commit QueueCommit, ordinal int, epochs, generations identitySet) error {
+	state.advanceExpiration(commit.At)
 	isPolicy, err := state.validateReplayCommit(commit, ordinal)
 	if err != nil {
 		return err
@@ -227,6 +228,9 @@ func (state *Projection) replayCommit(commit QueueCommit, ordinal int, epochs, g
 	} else if commit.Request.Kind == "dispatch_next" {
 		return queueError("request_invalid", "no-grant evaluation must not consume request identity")
 	}
+	// Operations may admit Work or make it expirable by cancelling a Claim or
+	// verifying retained delivery; the pre-operation pass cannot cover these changes.
+	state.advanceExpiration(commit.At)
 	if err := state.accountReplayCommit(commit, hasAdmission, hasObservations); err != nil {
 		return err
 	}
@@ -512,6 +516,7 @@ func buildCandidateWithObservations(commits []QueueCommit, actor Actor, request 
 		}
 		return commits, &existing, decision, nil
 	}
+	state.advanceExpiration(at)
 	if actor.Repository != state.Repository {
 		return nil, nil, Decision{}, queueError("actor_unauthorized", "request originates from another queue repository")
 	}

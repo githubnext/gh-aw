@@ -42,23 +42,5 @@ func (data *WorkflowData) ShellScriptResources() []ShellScriptResource {
 		}
 	}
 
-	if data.Graders != nil {
-		for _, name := range sliceutil.SortedKeys(data.Graders.Graders) {
-			grader := data.Graders.Graders[name]
-			if grader != nil && (grader.Enabled == nil || *grader.Enabled) && grader.evaluatorContent != "" {
-				source := workflowID
-				if grader.Run != "" {
-					source = grader.Run
-				}
-				resources = append(resources, ShellScriptResource{
-					Name:   "graders." + name,
-					Script: grader.evaluatorContent,
-					Shell:  "bash",
-					Source: source,
-				})
-			}
-		}
-	}
-
 	return resources
 }

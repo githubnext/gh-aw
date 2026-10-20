@@ -13,7 +13,7 @@ import os from "os";
  *
  * Tests verify that:
  * 1. Valid comments pass through successfully
- * 2. E006 error is returned for length violations (>65536 chars)
+ * 2. Large input is accepted for publication fitting; E006 rejects input over 524288 chars
  * 3. E007 error is returned for mention violations (>10 mentions)
  * 4. E008 error is returned for link violations (>50 links)
  * 5. Errors use MCP JSON-RPC error format with code -32602
@@ -267,8 +267,32 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
   });
 
   describe("E006: Comment Length Violations", () => {
+    it.each([
+      ["E007", Array.from({ length: 11 }, (_, index) => `@user${index}`).join(" ")],
+      ["E008", "https://example.com/repeated ".repeat(51)],
+    ])("rejects oversized source content with trailing %s violations before it can be fitted away", async (code, tail) => {
+      const response = await handleRequest(server, {
+        jsonrpc: "2.0",
+        id: 51,
+        method: "tools/call",
+        params: { name: "add_comment", arguments: { body: "x".repeat(100000) + "\n\n" + tail } },
+      });
+      expect(response.error.code).toBe(-32602);
+      expect(response.error.message).toContain(code);
+      expect(fs.existsSync(outputFile)).toBe(false);
+    });
+
+    it.each([65537, 70000, 524288])("accepts %s characters for automatic publication fitting", async length => {
+      vi.stubGlobal("context", { eventName: "pull_request", payload: { pull_request: { number: 42 } }, repo: { owner: "owner", repo: "repo" } });
+      const body = "a".repeat(length);
+      const response = await handleRequest(server, { jsonrpc: "2.0", id: 50, method: "tools/call", params: { name: "add_comment", arguments: { body } } });
+      expect(response).not.toHaveProperty("error");
+      expect(response.result.isError).not.toBe(true);
+      expect(JSON.parse(fs.readFileSync(outputFile, "utf8").trim()).body).toBe(body);
+    });
+
     it("should reject comment exceeding maximum length", async () => {
-      const longBody = "a".repeat(65537); // One character over limit
+      const longBody = "a".repeat(524289);
       const request = {
         jsonrpc: "2.0",
         id: 5,
@@ -288,12 +312,12 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
       expect(response).toHaveProperty("error");
       expect(response.error.code).toBe(-32602); // Invalid params
       expect(response.error.message).toMatch(/E006/);
-      expect(response.error.message).toMatch(/65536/); // Max length
-      expect(response.error.message).toMatch(/65537/); // Actual length
+      expect(response.error.message).toMatch(/524288/);
+      expect(response.error.message).toMatch(/524289/);
     });
 
     it("should provide actionable error message for length violation", async () => {
-      const longBody = "a".repeat(70000);
+      const longBody = "a".repeat(600000);
       const request = {
         jsonrpc: "2.0",
         id: 6,
@@ -434,7 +458,7 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
 
   describe("MCP Error Format Compliance", () => {
     it("should use JSON-RPC error format with code -32602", async () => {
-      const longBody = "a".repeat(70000);
+      const longBody = "a".repeat(524289);
       const request = {
         jsonrpc: "2.0",
         id: 11,
@@ -605,7 +629,7 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
         params: {
           name: "add_comment",
           arguments: {
-            body: "a".repeat(70000),
+            body: "a".repeat(524289),
           },
         },
       };
@@ -621,7 +645,7 @@ describe("Safe Outputs MCP Server - add_comment Constraint Enforcement", () => {
             const entry = JSON.parse(line);
             // Should not have recorded the too-long body
             if (entry.type === "add_comment") {
-              expect(entry.body.length).toBeLessThanOrEqual(65536);
+              expect(entry.body.length).toBeLessThanOrEqual(524288);
             }
           });
         }

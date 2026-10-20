@@ -218,10 +218,75 @@ describe("safe_outputs_handlers", () => {
 
     it("matches test placeholders against the corresponding field name", () => {
       expect(validateCreateIssueIntent({ title: "test title" })).toContain("Refusing to record an exploratory issue");
-      expect(validateCreateIssueIntent({ title: "test title", body: "Actual investigation details" })).toBeNull();
+      expect(validateCreateIssueIntent({ title: "test title", body: "Actual investigation details" })).toContain("Refusing to record an exploratory issue");
       expect(validatePushToPullRequestBranchIntent({ branch: "test branch", message: "Real commit message" })).toContain("Refusing to record an exploratory pull request branch update");
       expect(validatePushToPullRequestBranchIntent({ branch: "feature/probe-auth", message: "test message" })).toContain("Refusing to record an exploratory pull request branch update");
       expect(validateAddCommentIntent({ body: "test title" })).toBeNull();
+    });
+
+    it.each([
+      "test",
+      "testing",
+      "test no base",
+      "probe",
+      "placeholder",
+      "dummy",
+      "temp",
+      "temporary",
+      "todo",
+      "tbd",
+      "wip",
+      "example",
+      "Test Title",
+      "Testing Title",
+      "Test No Base Title",
+      "Probe Title",
+      "Placeholder Title",
+      "Dummy Title",
+      "Temp Title",
+      "Temporary Title",
+      "Todo Title",
+      "TBD Title",
+      "WIP Title",
+      "Example Title",
+      "  TEST \n\t TITLE  ",
+    ])("rejects placeholder issue title %j even with a substantive body", title => {
+      expect(validateCreateIssueIntent({ title, body: "MSBuild fails to resolve dependencies after upgrading the SDK. See the attached reproduction and build logs." })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ body: `## ${title}\n\nActual investigation details` })).toContain("Refusing to record an exploratory issue");
+    });
+
+    it.each(["[bot] Test Title", "[bot]: Test Title", "[bot] - Test Title", "[bot] | Test Title", "[bot] [bot] Test Title", "［bot］ Test Title"])("rejects prefixed placeholder issue title %j", title => {
+      expect(validateCreateIssueIntent({ title, body: "Actual investigation details" }, "[bot] ")).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ body: `## ${title}\n\nActual investigation details` }, "[bot] ")).toContain("Refusing to record an exploratory issue");
+    });
+
+    it.each([
+      "\n\n## Test Title\n\nActual investigation details",
+      "## Placeholder Title\n\nActual investigation details",
+      "# Dummy Title\n\nActual investigation details",
+      "### Example Title\n\nActual investigation details",
+      "test body\n\nActual investigation details",
+    ])("rejects body-derived placeholder issue title from %j", body => {
+      expect(validateCreateIssueIntent({ body })).toContain("Refusing to record an exploratory issue");
+      expect(validateCreateIssueIntent({ title: " \t ", body })).toContain("Refusing to record an exploratory issue");
+    });
+
+    it.each(["Test title normalization rejects placeholders", "Fix placeholder title rendering", "Dummy title is shown in the report", "Example title from the documentation", "Investigate test failures in MSBuild"])(
+      "allows descriptive issue title %j",
+      title => {
+        expect(validateCreateIssueIntent({ title, body: "Actual investigation details" })).toBeNull();
+        expect(validateCreateIssueIntent({ body: `## ${title}\n\nActual investigation details` })).toBeNull();
+        expect(validateCreateIssueIntent({ title: `[bot]: ${title}`, body: "Actual investigation details" }, "[bot] ")).toBeNull();
+        expect(validateCreateIssueIntent({ body: `## [bot] ${title}\n\nActual investigation details` }, "[bot] ")).toBeNull();
+      }
+    );
+
+    it("preserves issue fallback and other intent validation behavior", () => {
+      expect(validateCreateIssueIntent({})).toBeNull();
+      expect(validateCreateIssueIntent({ title: " ", body: "\n " })).toBeNull();
+      expect(validateCreateIssueIntent({ title: "Investigate build failures", body: "test" })).toBeNull();
+      expect(validateCreatePullRequestIntent({ title: "Test Title", body: "Actual implementation details", branch: "feature/real-work" })).toBeNull();
+      expect(validateAddCommentIntent({ body: "Placeholder Title" })).toBeNull();
     });
 
     it.each(["Test coverage improved", "Test body sanitization with nested HTML", "Example body contains a reproduction", "The probe body was rejected", "test body\n\nActual research findings"])(
@@ -3258,7 +3323,7 @@ describe("safe_outputs_handlers", () => {
     });
 
     it("should throw validation error for oversized comment body", () => {
-      const longBody = "a".repeat(70000);
+      const longBody = "a".repeat(524289);
 
       expect(() => handlers.addCommentHandler({ body: longBody })).toThrow();
     });
@@ -3650,6 +3715,46 @@ describe("safe_outputs_handlers", () => {
       expect(responseData.error).toContain("Refusing to record an exploratory issue");
       expect(responseData.error).toContain("noop or report_incomplete");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: "complete report", body: "MSBuild fails to resolve dependencies after upgrading the SDK. Reproduction: build the attached project with the new SDK.", titlePrefix: "" },
+      { name: "oversized report", body: LARGE_CONTENT_BODY, titlePrefix: "" },
+      { name: "prefixed complete report", body: "MSBuild fails to resolve dependencies after upgrading the SDK. Reproduction: build the attached project with the new SDK.", titlePrefix: "[bot] " },
+      { name: "prefixed oversized report", body: LARGE_CONTENT_BODY, titlePrefix: "[bot] " },
+    ])("should reject placeholder titles before offloading or consuming quota for $name", ({ body, titlePrefix }) => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: { max: 1, title_prefix: titlePrefix },
+      });
+      const writeSpy = vi.spyOn(fs, "writeFileSync");
+      try {
+        const placeholderTitles = titlePrefix ? [`${titlePrefix}Test Title`, `${titlePrefix.trim()}: Test Title`] : ["Test Title", "Placeholder Title"];
+        for (const args of placeholderTitles.flatMap(title => [{ title, body }, { body: `\n## ${title}\n\n${body}` }])) {
+          const result = h.createIssueHandler(args);
+          expect(result.isError).toBe(true);
+          expect(JSON.parse(result.content[0].text).error).toContain("Replace the placeholder title");
+          expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+          expect(writeSpy).not.toHaveBeenCalled();
+        }
+
+        const corrected = h.createIssueHandler({ title: "MSBuild dependency resolution fails after SDK upgrade", body });
+        expect(corrected).not.toHaveProperty("isError");
+        expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+        const entry = mockAppendSafeOutput.mock.calls[0][0];
+        expect(entry.title).toBe("MSBuild dependency resolution fails after SDK upgrade");
+        if (body === LARGE_CONTENT_BODY) {
+          expect(entry.body).toContain("[Content too large, saved to file:");
+          expect(writeSpy).toHaveBeenCalledWith(expect.any(String), body, "utf8");
+        } else {
+          expect(JSON.parse(corrected.content[0].text).result).toBe("success");
+          expect(entry.body).toBe(body);
+        }
+
+        expect(() => h.createIssueHandler({ title: "Another real issue", body: "Independent investigation details" })).toThrow(expect.objectContaining({ code: -32602, message: expect.stringContaining("E002") }));
+        expect(mockAppendSafeOutput).toHaveBeenCalledTimes(1);
+      } finally {
+        writeSpy.mockRestore();
+      }
     });
 
     it("should require temporary_id when configured", () => {

@@ -5,6 +5,7 @@ package cli
 import (
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,90 @@ func TestHealthRevisionRecoveryAndCurrentClusters(t *testing.T) {
 	assert.Nil(t, plan)
 	slices.Reverse(runs)
 	assert.Equal(t, health, calculateCurrentWorkflowHealth("Example", runs, config))
+}
+
+func TestHealthFailureStatusPrecedesInsufficientRevisionEvidenceInEitherOrder(t *testing.T) {
+	for _, statuses := range [][]string{
+		{"insufficient_evidence", "failures_observed"},
+		{"failures_observed", "insufficient_evidence"},
+	} {
+		current := "no_recent_runs"
+		for _, candidate := range statuses {
+			if higherPriorityHealthStatus(current, candidate) {
+				current = candidate
+			}
+		}
+		assert.Equal(t, "failures_observed", current)
+	}
+	assert.False(t, higherPriorityHealthStatus("failures_observed", "insufficient_evidence"))
+}
+
+func TestHealthStatusPrecedence(t *testing.T) {
+	priorities := []string{
+		"no_recent_runs", "healthy", "recovery_observed", "insufficient_evidence",
+		"no_current_revision_runs", "revision_unknown", "not_collected", "failures_observed",
+	}
+	for i, higher := range priorities {
+		t.Run(higher, func(t *testing.T) {
+			assert.False(t, higherPriorityHealthStatus(higher, higher))
+			for _, lower := range priorities[:i] {
+				for _, order := range [][]string{{lower, higher}, {higher, lower}} {
+					current := "no_recent_runs"
+					for _, candidate := range order {
+						if higherPriorityHealthStatus(current, candidate) {
+							current = candidate
+						}
+					}
+					assert.Equal(t, higher, current, "order: %v", order)
+				}
+			}
+		})
+	}
+}
+
+func TestHealthSupersededSourceRetainsOnlyPreviousFailureEvidence(t *testing.T) {
+	for _, currentRuns := range []int{healthMinimumRuns - 1, healthMinimumRuns} {
+		t.Run(strconv.Itoa(currentRuns), func(t *testing.T) {
+			runs, collection := healthRevisionFixture()
+			oldCommit, currentCommit := strings.Repeat("a", 40), strings.Repeat("b", 40)
+			oldSource, currentSource := strings.Repeat("c", 40), strings.Repeat("d", 40)
+			metadata := &workflow.LockMetadata{FrontmatterHash: "settings", BodyHash: "same-lock"}
+			collection.revisions = make(map[string]*workflow.LockMetadata)
+			collection.headRevisions = map[string]*workflow.LockMetadata{healthHeadRevisionKey(runs[0]): metadata}
+			collection.sourceRevisions = map[string]string{
+				healthSourceRevisionKey(runs[0], oldCommit):     oldSource,
+				healthSourceRevisionKey(runs[0], currentCommit): currentSource,
+				healthSourceRevisionKey(runs[0], "main"):        currentSource,
+			}
+			for i := range runs {
+				runs[i].HeadSha = oldCommit
+				if i >= healthMinimumRuns {
+					runs[i].HeadSha = currentCommit
+					collection.revisions[healthRevisionLookupKey(runs[i])] = metadata
+				}
+			}
+			// Retain one stale first-pass failure as the boundary, without its skipped lock metadata.
+			runs = runs[healthMinimumRuns-1 : healthMinimumRuns+currentRuns]
+			config := HealthConfig{Threshold: 80, RepoOverride: "org/repo", collection: collection}
+			health := calculateCurrentWorkflowHealth("Example", runs, config)
+			expected := "insufficient_evidence"
+			if currentRuns == healthMinimumRuns {
+				expected = "recovery_observed"
+			}
+			assert.Equal(t, expected, health.Status)
+			assert.Equal(t, currentRuns, health.TotalRuns)
+			assert.Zero(t, health.FailureCount)
+			require.Len(t, health.Revisions, 1)
+			assert.Equal(t, currentRuns, health.Revisions[0].Current.IndependentRuns)
+			require.NotNil(t, health.Revisions[0].Previous)
+			assert.Equal(t, 1, health.Revisions[0].Previous.Failures)
+			assert.Equal(t, oldSource, health.Revisions[0].Previous.SourceSHA)
+			assert.NotContains(t, health.Revisions[0].Previous.key, "unknown:")
+			clusters, plan := buildHealthFailureClusters(runs, config)
+			assert.Empty(t, clusters)
+			assert.Nil(t, plan)
+		})
+	}
 }
 
 func TestHealthIgnoresNonDispatchedConclusions(t *testing.T) {

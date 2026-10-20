@@ -34,7 +34,7 @@ async function synchronizeDeployments(options, context, pools = undefined) {
         .map(name => [pool, name])
     );
   if (!targets.length) return;
-  const provisioning = { githubClient: options.githubClient, owner: options.context.repo.owner, repo: options.context.repo.repo };
+  const provisioning = { githubClient: options.githubClient, owner: options.context.repo.owner, repo: options.context.repo.repo, sleepFn: options.sleepFn };
   const revision = await verifiedDefaultReference(provisioning);
   const updateRoute = async (pool, name, ref = undefined) => {
     const activate = ref === undefined;

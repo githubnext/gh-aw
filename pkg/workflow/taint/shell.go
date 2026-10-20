@@ -85,16 +85,7 @@ func (a *analyzer) parseShell(text string, fields map[string]any, path string, b
 			s.vars[name] = sources
 		}
 	}
-	rendered, _, err := a.interpolate(text, path, bindings, func(i int, sources value) string {
-		marker := fmt.Sprintf("GH_AW_TAINT_PLACEHOLDER_%d_", i)
-		// A unique marker remains tainted even inside a single-quoted string:
-		// Actions interpolation happens before the shell parses its quotes.
-		for suffix := 0; strings.Contains(text, marker); suffix++ {
-			marker = fmt.Sprintf("GH_AW_TAINT_PLACEHOLDER_%d_%d_", i, suffix)
-		}
-		s.markers[marker] = sources
-		return marker
-	})
+	rendered, err := s.renderActionsScript(text)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,6 +117,22 @@ func (a *analyzer) parseShell(text string, fields map[string]any, path string, b
 	}
 	s.javascriptExecutables = javascriptExecutables(tree)
 	return s, tree, nil
+}
+
+func (s *shell) renderActionsScript(text string) (string, error) {
+	if s.a.literalScript {
+		return text, nil
+	}
+	rendered, _, err := s.a.interpolate(text, s.path, s.bindings, func(i int, sources value) string {
+		marker := fmt.Sprintf("GH_AW_TAINT_PLACEHOLDER_%d_", i)
+		// Actions interpolation precedes shell quoting.
+		for suffix := 0; strings.Contains(text, marker); suffix++ {
+			marker = fmt.Sprintf("GH_AW_TAINT_PLACEHOLDER_%d_%d_", i, suffix)
+		}
+		s.markers[marker] = sources
+		return marker
+	})
+	return rendered, err
 }
 
 func (s *shell) size() int {

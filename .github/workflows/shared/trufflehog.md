@@ -3,7 +3,7 @@ jobs:
   trufflehog_scan:
     runs-on: ubuntu-latest
     needs: [agent, detection]
-    if: always() && needs.agent.result != 'skipped' && needs.detection.result != 'skipped'
+    if: always() && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     permissions:
       contents: read
     outputs:
@@ -157,8 +157,13 @@ jobs:
           path: /tmp/gh-aw/agent/trufflehog/
           if-no-files-found: ignore
 
-  conclusion:
-    pre-steps:
+  trufflehog_report:
+    runs-on: ubuntu-latest
+    needs: [agent, detection, trufflehog_scan]
+    if: always() && needs.detection.result == 'success' && needs.trufflehog_scan.result == 'failure' && needs.trufflehog_scan.outputs.secrets_found == 'true'
+    permissions:
+      issues: write
+    steps:
       - name: Report TruffleHog secret scan failure
         if: always() && needs.trufflehog_scan.result == 'failure' && needs.trufflehog_scan.outputs.secrets_found == 'true'
         continue-on-error: true
@@ -207,7 +212,7 @@ cache-memory, and repo-memory for accidentally leaked secrets (API keys, tokens,
 6. **Scan repo-memory** — scans `/tmp/gh-aw/repo-memory/`
 7. **Evaluate** — aggregates results; sets `secrets_found=true` output and fails the job if secrets detected
 8. **Upload results** — saves JSONL scan result files as `trufflehog-scan-results` artifact for review
-9. **Failure report** — a `jobs.conclusion.pre-steps` entry creates a GitHub issue with the findings
+9. **Failure report** — the separate `trufflehog_report` job creates a GitHub issue with the findings
    when secrets are detected
 
 ## Job Outputs
@@ -219,8 +224,8 @@ cache-memory, and repo-memory for accidentally leaked secrets (API keys, tokens,
 
 ## Failure Reporting
 
-When `secrets_found=true` the `trufflehog_scan` job fails. The conclusion job (which automatically
-depends on all jobs) then runs the pre-step `Report TruffleHog secret scan failure`, which creates
+When `secrets_found=true` the `trufflehog_scan` job fails. The separate `trufflehog_report`
+job runs `Report TruffleHog secret scan failure`, which creates
 a GitHub issue titled `🔐 Secrets detected in workflow run: <name> #<run>` with details about the
 finding and a link to the `trufflehog-scan-results` artifact.
 

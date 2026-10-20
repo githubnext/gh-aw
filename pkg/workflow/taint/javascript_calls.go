@@ -5,14 +5,21 @@ import (
 	"strings"
 )
 
-func (j *javascript) call(n *JavaScriptNode) jsValue { //nolint:largefunc // Built-in source, sink, and transformation semantics.
+func (j *javascript) call(n *JavaScriptNode) jsValue {
 	callee := j.eval(n.Expression)
 	args := make([]jsValue, 0, len(n.Arguments))
 	for _, arg := range n.Arguments {
 		args = append(args, j.eval(arg))
 	}
+	return j.callValue(n, callee, args)
+}
+
+func (j *javascript) callValue(n *JavaScriptNode, callee jsValue, args []jsValue) jsValue { //nolint:largefunc // Built-in source, sink, and transformation semantics.
 	if callee.fn != nil {
 		return j.invoke(n, callee.fn, args)
+	}
+	if model, ok := strings.CutPrefix(callee.ref, "gh-aw-summary:"); ok {
+		return j.callSummary(n, model, args)
 	}
 	ref := jsRefModule(callee.ref)
 	all := jsUnion(args...)

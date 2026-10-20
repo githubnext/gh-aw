@@ -43,16 +43,17 @@ func AnalyzeText(ctx context.Context, text, path string, rule Rule, bindings map
 	}
 	a := &analyzer{rule: rule}
 	var result []TextExpression
-	err := visitInterpolations(ctx, text, path, func(_, _, line int, node actionlint.ExprNode) error {
+	err := VisitInterpolations(ctx, text, path, func(_, _, line int, node actionlint.ExprNode) error {
 		result = append(result, TextExpression{Line: line, Sources: a.expression(node, path, bound)})
 		return ctx.Err()
 	})
 	return result, err
 }
 
-// Use the Actions lexer rather than delimiter matching: quoted '}}' and doubled
-// single quotes are expression data, not the end of an interpolation.
-func visitInterpolations(ctx context.Context, text, path string, visit func(start, end, line int, node actionlint.ExprNode) error) error {
+// VisitInterpolations visits parsed Actions expressions with byte offsets and
+// text-relative lines. Quoted '}}' and doubled single quotes are expression
+// data, not delimiters. Parse errors are value-free; earlier visits are retained.
+func VisitInterpolations(ctx context.Context, text, path string, visit func(start, end, line int, node actionlint.ExprNode) error) error {
 	offset, line := 0, 1
 	for {
 		if err := ctx.Err(); err != nil {

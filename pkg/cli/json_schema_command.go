@@ -18,12 +18,13 @@ func newJSONSchemaCommand(output io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "json-schema <schema>",
 		Short: "Generate JSON Schemas for structured command output",
-		Long:  "Generate the JSON Schema for audit, logs JSON output, or cached logs JSONL items.",
+		Long:  "Generate the JSON Schema for audit, logs, episode outcomes, or cached logs JSONL items.",
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` json-schema audit
   ` + string(constants.CLIExtensionPrefix) + ` json-schema logs
-  ` + string(constants.CLIExtensionPrefix) + ` json-schema logs-jsonl`,
+  ` + string(constants.CLIExtensionPrefix) + ` json-schema logs-jsonl
+  ` + string(constants.CLIExtensionPrefix) + ` json-schema outcomes-episodes`,
 		Args:      cobra.ExactArgs(1),
-		ValidArgs: []string{"audit", "logs", "logs-jsonl"},
+		ValidArgs: []string{"audit", "logs", "logs-jsonl", "outcomes-episodes"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			data, err := GenerateNamedOutputSchema(args[0])
 			if err != nil {

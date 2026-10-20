@@ -9,7 +9,8 @@ import (
 func SandboxConfigRule() Rule {
 	return Rule{
 		ID: "sandbox-config", Description: "Keep the agent sandbox enabled and avoid internal sandbox overrides",
-		Severity: Warning, Targets: AWAST, Check: checkSandboxConfig,
+		ThreatRuleID: "CTR-004",
+		Severity:     Warning, Targets: AWAST, Check: checkSandboxConfig,
 	}
 }
 

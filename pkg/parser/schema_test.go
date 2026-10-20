@@ -1637,7 +1637,7 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_OperationalValueGr
 			}
 
 			if err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/operational-value-grader-test.md"); err != nil {
-				t.Fatalf("expected operational-value evaluator to pass schema validation, got: %v", err)
+				t.Fatal(err)
 			}
 		})
 	}

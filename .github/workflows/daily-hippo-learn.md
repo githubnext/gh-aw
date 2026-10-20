@@ -17,7 +17,7 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-hippo-learn
-model: copilot/gpt-5.4
+model: copilot/gpt-5
 engine:
   id: pi
   model-provider: github

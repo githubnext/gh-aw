@@ -3,12 +3,14 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,6 +51,127 @@ func TestGooseSampleExecution(t *testing.T) {
 	assert.Contains(t, execution, "AWF_REFLECT_ENABLED: 1")
 	assert.NotContains(t, def.Behaviors.HarnessScript, "172.30.0.30")
 	assert.NotContains(t, def.Behaviors.HarnessScript, `"-t", prompt`)
+}
+
+func TestGooseReleaseDownloadNetwork(t *testing.T) {
+	def := loadGooseSample(t)
+	require.Equal(t, []string{
+		"host.docker.internal", "github.com", "raw.githubusercontent.com",
+		"api.github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com",
+	}, def.Behaviors.Network.Defaults)
+	source, err := os.ReadFile("../../.github/workflows/shared/goose.md")
+	require.NoError(t, err)
+	for _, test := range []struct{ name, network string }{
+		{"engine defaults", ""},
+		{"workflow github ecosystem", "network:\n  allowed: [defaults, github]\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "goose.md"), source, 0o600))
+			workflow := "---\non: workflow_dispatch\npermissions:\n  contents: read\n  copilot-requests: write\n" +
+				"engine:\n  id: goose\nmodel: copilot/gpt-5.4\nmax-ai-credits: 5\nimports: [goose.md]\n" +
+				test.network + "---\nRun the test.\n"
+			path := filepath.Join(dir, "test.md")
+			require.NoError(t, os.WriteFile(path, []byte(workflow), 0o600))
+			require.NoError(t, NewCompiler().CompileWorkflow(path))
+			lock, err := os.ReadFile(filepath.Join(dir, "test.lock.yml"))
+			require.NoError(t, err)
+			compiled := string(lock)
+			configPath := `> "${RUNNER_TEMP}/gh-aw/awf-config.json"`
+			configEnd := strings.Index(compiled, configPath)
+			require.NotEqual(t, -1, configEnd, "compiled execution must configure AWF")
+			printf := `printf '%s\n' "`
+			configStart := strings.LastIndex(compiled[:configEnd], printf)
+			require.NotEqual(t, -1, configStart, "compiled execution must write AWF configuration")
+			config := compiled[configStart+len(printf) : configEnd]
+			config = strings.ReplaceAll(config, `\"`, `"`)
+			config = strings.ReplaceAll(config, `\$`, `$`)
+			config = strings.TrimSuffix(strings.TrimSpace(config), `"`)
+			config = strings.ReplaceAll(config, "${GH_AW_MAX_AI_CREDITS}", "5")
+			var awf struct {
+				Network struct {
+					AllowDomains []string `json:"allowDomains"`
+				} `json:"network"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(config), &awf))
+			for _, host := range []string{"github.com", "release-assets.githubusercontent.com"} {
+				assert.Contains(t, awf.Network.AllowDomains, host, "both release URL and redirect destination must be explicitly allowed")
+			}
+			assert.NotContains(t, awf.Network.AllowDomains, "*")
+			if test.network == "" {
+				assert.NotContains(t, awf.Network.AllowDomains, "*.githubusercontent.com")
+			}
+		})
+	}
+}
+
+func TestGooseHarnessReleaseDownloadContract(t *testing.T) {
+	def := loadGooseSample(t)
+	assert.Contains(t, def.Behaviors.HarnessScript, `"1.54.0": "ab396c95aebbd28b4d38c175234be8d4a3ea0c96e7ccb24c307e4618c9be57e1"`)
+	for _, test := range []struct {
+		name    string
+		version string
+		status  string
+		message string
+	}{
+		{"download failure", def.Version, "60", "Goose download failed with exit code 60"},
+		{"redirected corrupt archive", def.Version, "0", "Goose download checksum did not match"},
+		{"unverified version", "9.9.9", "0", "No verified Goose archive for version 9.9.9"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			tracePath := filepath.Join(dir, "trace.json")
+			cmd := gooseReleaseDownloadCommand(t, dir, def.Behaviors.HarnessScript)
+			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir, "TMPDIR=" + dir,
+				"GH_AW_ENGINE_VERSION=" + test.version, "TEST_CURL_STATUS=" + test.status, "TEST_TRACE=" + tracePath}
+			output, err := cmd.CombinedOutput()
+			require.Error(t, err)
+			assert.Contains(t, string(output), test.message)
+			content, err := os.ReadFile(tracePath)
+			require.NoError(t, err)
+			var calls []struct {
+				Command string   `json:"command"`
+				Args    []string `json:"args"`
+			}
+			require.NoError(t, json.Unmarshal(content, &calls))
+			if test.version != def.Version {
+				assert.Empty(t, calls, "unverified releases must fail before downloading")
+				return
+			}
+			require.Len(t, calls, 1, "failed download or checksum must prevent extraction and execution")
+			assert.Equal(t, "curl", calls[0].Command)
+			require.Len(t, calls[0].Args, 7)
+			assert.Equal(t, []string{"--fail", "--location", "--silent", "--show-error", "--output"}, calls[0].Args[:5],
+				"follow the release redirect without disabling TLS verification")
+			assert.Equal(t, "https://github.com/aaif-goose/goose/releases/download/v"+def.Version+"/goose-x86_64-unknown-linux-gnu.tar.gz", calls[0].Args[6])
+			_, err = os.Stat(filepath.Dir(calls[0].Args[5]))
+			assert.True(t, os.IsNotExist(err), "temporary download must be cleaned up on failure")
+		})
+	}
+}
+
+func gooseReleaseDownloadCommand(t *testing.T, dir, harness string) *exec.Cmd {
+	t.Helper()
+	harnessPath := filepath.Join(dir, "goose_harness.cjs")
+	require.NoError(t, os.WriteFile(harnessPath, []byte(harness), 0o600))
+	reflect := `exports.fetchAWFReflect = async () => { throw new Error("unexpected endpoint discovery"); };`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "awf_reflect.cjs"), []byte(reflect), 0o600))
+	// Intercept the process boundary, retaining the real harness checksum and cleanup.
+	runner := `const fs = require("fs");
+const calls = [];
+require("child_process").spawnSync = (command, args) => {
+  calls.push({command, args});
+  if (command !== "curl") throw new Error("unexpected extraction or binary execution");
+  const status = Number(process.env.TEST_CURL_STATUS);
+  if (status === 0) fs.writeFileSync(args[args.indexOf("--output") + 1], "corrupt redirected archive");
+  return {status};
+};
+process.on("exit", () => fs.writeFileSync(process.env.TEST_TRACE, JSON.stringify(calls)));
+process.argv = ["node", process.argv[1], "goose"];
+require(process.argv[1]);`
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	return exec.CommandContext(ctx, "node", "-e", runner, harnessPath)
 }
 
 func TestGooseMCPAdapterUsesContainerGateway(t *testing.T) {

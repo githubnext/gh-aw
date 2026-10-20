@@ -51,7 +51,7 @@ Instead of patching the detection job, we could change the `safe_outputs` depend
 1. When the threat detection configuration specifies warn mode (`continue-on-error: true`), the compiled YAML step with `id: detection_conclusion` **MUST** include `continue-on-error: true`.
 2. The JavaScript parse script **MUST** wrap its entire execution body in a top-level `try/catch` block so that any uncaught runtime exception is routed through `setDetectionFailure()`.
 3. `setDetectionFailure()` **MUST** always call `core.setOutput` for `conclusion`, `success`, and `reason` before returning, regardless of the failure mode.
-4. In warn mode, `setDetectionFailure()` **MUST NOT** call `core.setFailed()`, except when the detection execution failed and the reason is `agent_failure` or `parse_error`. That exception **MUST** fail the step, ensuring an engine failure does not allow `safe_outputs` to proceed.
+4. In warn mode, `setDetectionFailure()` **MUST NOT** call `core.setFailed()`, including when the detection execution failed and the reason is `agent_failure` or `parse_error`. That case **MUST** conclude `warning` with `success=false` and the original reason, so that `safe_outputs` applies the warn-mode policy (WTD1a annotate, WTD2 convert, WTD3 abort) rather than publishing unrestricted. See the 2026-10-19 amendment.
 
 ### Threat Detection Parse Step — Strict Mode
 
@@ -81,5 +81,15 @@ mustFail := c.executionFailed && (reason == "agent_failure" || reason == "parse_
 i.e. even in warn mode, `threat-detect conclude` fails closed when the detection engine's own agentic execution step also failed. The inline path now implements the same rule, as covered by the `"should fail when detection execution failed in warn mode"` test in `parse_threat_detection_results.test.cjs`.
 
 **Decision**: Option 2 — the inline path adopts the external binary's `mustFail` override. When the detection engine itself failed, `agent_failure` and `parse_error` fail closed in warn mode; all other warn-mode failure handling remains unchanged. This preserves a single contract across both detector paths while preventing a failed detection engine from allowing `safe_outputs` to proceed.
+
+## Amendment (2026-10-19): warn-mode engine failures conclude `warning` (supersedes the 2026-08-06 amendment)
+
+github/gh-aw#70316 showed that the 2026-08-06 `mustFail` override did not fail closed in practice. In warn mode the `detection_conclusion` step carries step-level `continue-on-error: true` (Part 2, Warn Mode item 1), so `core.setFailed()` (inline path) or a non-zero `threat-detect conclude` exit (external path) left the detection job green. `safe_outputs` then ran with `GH_AW_DETECTION_CONCLUSION=failure`, which no handler recognised, so every output was applied unrestricted: a failed detection engine produced *less* protection than a warning.
+
+**Decision**: Option B from #70316 — in warn mode, a detection engine failure (`agent_failure` or `parse_error`, whether or not the detection execution step failed) concludes `warning` with `success=false` and the original reason. `safe_outputs` therefore applies the warn-mode policy (WTD1a annotate, WTD2 convert, WTD3 abort) exactly as for any other warning, and the engine-error marker distinguishes a tooling failure from a security finding. This supersedes the 2026-08-06 amendment; the `mustFail` override is no longer adopted on the inline path, and the external `conclude_threat_detection.sh` wrapper downgrades the same case reported by `threat-detect conclude` (<= v0.5.2) to `warning`. A `threat-detect conclude` that exits non-zero without reporting any conclusion is treated as an unavailable detector (`warning`/`agent_failure` in warn mode).
+
+As defence in depth, the safe-output handler manager never applies outputs unrestricted when `GH_AW_DETECTION_CONCLUSION` is `failure`, or is empty while detection was required (`run_detection == 'true'`).
+
+Strict mode (`continue-on-error: false`) is unchanged: every detection failure, including engine failures and a missing conclusion, fails closed and blocks `safe_outputs`.
 
 *This ADR is final.*

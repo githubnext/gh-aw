@@ -19,7 +19,7 @@ engine:
   model-provider: github
   fallback-models:
     - copilot/claude-sonnet-5
-    - copilot/claude-sonnet-4.6
+    - copilot/claude-sonnet-5.5
   bare: true
 strict: true
 imports:

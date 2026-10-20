@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -16,6 +17,9 @@ var compilerSafeOutputJobsLog = logger.New("workflow:compiler_safe_output_jobs")
 // (one per allowed worker workflow) that run after safe_outputs.
 func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPath string) error {
 	if data.SafeOutputs == nil {
+		if len(data.Graders.CustomGraderIDs()) > 0 {
+			return errors.New("custom graders require a conclusion job publishing the unified session")
+		}
 		compilerSafeOutputJobsLog.Print("No safe outputs configured, skipping safe outputs jobs")
 		return nil
 	}
@@ -208,6 +212,15 @@ func (c *Compiler) addSafeOutputConclusionJobs(data *WorkflowData, jobName strin
 		}
 		if err := c.jobManager.AddJob(conclusionJob); err != nil {
 			return fmt.Errorf("failed to add conclusion job: %w", err)
+		}
+		customGradersJob, err := c.buildCustomGradersJob(data)
+		if err != nil {
+			return err
+		}
+		if customGradersJob != nil {
+			if err := c.jobManager.AddJob(customGradersJob); err != nil {
+				return fmt.Errorf("failed to add custom graders job: %w", err)
+			}
 		}
 	}
 

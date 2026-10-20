@@ -106,11 +106,15 @@ func (b Branch) withClientLedgerSession(ctx context.Context) (Branch, *LedgerSes
 }
 
 func (b Branch) withAuthenticatedLedgerSession(ctx context.Context, role string) (Branch, Actor, *LedgerSession, error) {
+	return b.withAuthenticatedLedgerSessionAccess(ctx, role, false)
+}
+
+func (b Branch) withAuthenticatedLedgerSessionAccess(ctx context.Context, role string, allowMaintain bool) (Branch, Actor, *LedgerSession, error) {
 	b, err := b.withClient()
 	if err != nil {
 		return b, Actor{}, nil, err
 	}
-	actor, err := b.Authenticate(ctx, role)
+	actor, err := b.authenticate(ctx, role, allowMaintain)
 	if err != nil {
 		return b, Actor{}, nil, err
 	}

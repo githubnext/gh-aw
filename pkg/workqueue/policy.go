@@ -33,6 +33,11 @@ var policySchema = sync.OnceValues(func() (*jsonschema.Schema, error) {
 	return compiler.Compile("QueuePolicy.json")
 })
 
+// ValidReason reports whether reason is a bounded sanitized queue reason code.
+func ValidReason(reason string) bool {
+	return reasonPattern.MatchString(reason)
+}
+
 func DefaultPolicy(principal, repository string) Policy {
 	return Policy{
 		Mode: "weighted-priority", ClassWeights: []int{8, 4, 2, 1, 1},
@@ -296,7 +301,7 @@ func validateRequest(commit QueueCommit) error {
 		}
 		if len(reason.Reason) > 0 {
 			var code string
-			if err := json.Unmarshal(reason.Reason, &code); err != nil || !reasonPattern.MatchString(code) {
+			if err := json.Unmarshal(reason.Reason, &code); err != nil || !ValidReason(code) {
 				return queueError("reason_invalid", "reason must be a bounded sanitized code")
 			}
 		}

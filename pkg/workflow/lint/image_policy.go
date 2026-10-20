@@ -14,7 +14,8 @@ import (
 func ImageArgumentRule() Rule {
 	return Rule{
 		ID: "image-argument", Description: "Reject option-prefixed container image operands",
-		Severity: Error, Targets: ActionsAST | AWAST, Check: checkImageArguments,
+		ThreatRuleID: "CTR-013",
+		Severity:     Error, Targets: ActionsAST | AWAST, Check: checkImageArguments,
 	}
 }
 

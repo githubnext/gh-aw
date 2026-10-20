@@ -14,7 +14,7 @@ function evidence() {
   const agents = [
     ["haiku-whoami", "copilot-completions/claude-haiku-4.5", "/chat/completions"],
     ["mini-whoami", "copilot-responses/gpt-5-mini", "/responses"],
-    ["nano-whoami", "copilot-responses/gpt-5-nano", "/responses"],
+    ["mini54-whoami", "copilot-responses/gpt-5.4-mini", "/responses"],
   ];
   return {
     events: agents.flatMap(([agentName, model]) => [

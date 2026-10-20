@@ -27,6 +27,9 @@ func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue { //noli
 	if !mapped {
 		target = path.Clean(path.Join(path.Dir(j.file), name))
 	}
+	if v, ok := j.modules[target]; ok {
+		return v
+	}
 	if !fs.ValidPath(target) || j.options.Files == nil {
 		j.gap(n, "JavaScript repository module source is unavailable")
 		return jsValue{}
@@ -55,6 +58,9 @@ func (j *javascript) loadModule(n *JavaScriptNode, name string) jsValue { //noli
 	}
 	if v, ok := j.modules[target]; ok {
 		return v
+	}
+	if j.options.Mode == JavaScriptFast && mapped {
+		return j.summaryModule(n, target, source)
 	}
 	tree, err := j.parse(string(source))
 	if err != nil {

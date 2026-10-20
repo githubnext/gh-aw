@@ -31,52 +31,14 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/github/gh-aw/pkg/workflow/shellpattern"
 )
 
 var safeOutputsStepsShellExpansionLog = logger.New("workflow:safe_outputs_steps_shell_expansion_validation")
-
-// shellExpansionPattern matches dangerous bash expansion constructs inside a run: script.
-//
-// Captured groups by name:
-//   - "paramTransform":  ${var@operator} — bash 4.4+ parameter transformation
-//   - "indirectExpand":  ${!var}         — bash indirect expansion
-//   - "commandSubst":    $(...)          — command substitution (any $( sequence)
-//   - "backtick":        `...`           — backtick command substitution
-//
-// After matching, callers must exclude false-positives:
-//   - "commandSubst" matches starting with "$((" (arithmetic expansion) are ignored.
-//   - GitHub Actions expressions use "${{ ... }}", which starts with "{" not "(",
-//     so they do not match the "commandSubst" pattern (\$\() at all.
-//
-// Note: Go's regexp/RE2 does not support lookaheads, so post-match filtering is used
-// instead of inline negative lookaheads.
-var shellExpansionPattern = regexp.MustCompile(
-	// Parameter transformation: ${var@op} — the @ must follow word characters
-	`(?P<paramTransform>\$\{[A-Za-z_][A-Za-z0-9_]*@[^}]*\})` +
-		`|` +
-		// Indirect expansion: ${!var} — '!' immediately after '{'
-		`(?P<indirectExpand>\$\{![A-Za-z_])` +
-		`|` +
-		// Command substitution: any $( sequence
-		`(?P<commandSubst>\$\()` +
-		`|` +
-		// Backtick command substitution: `...`
-		"(?P<backtick>`[^`\n]+`)",
-)
-
-// dangerousPatternDescription maps a named capture group to a human-readable
-// description used in compiler error messages.
-var dangerousPatternDescription = map[string]string{
-	"paramTransform": "parameter transformation (e.g. ${var@P})",
-	"indirectExpand": "indirect expansion (e.g. ${!var})",
-	"commandSubst":   "command substitution (e.g. $(command))",
-	"backtick":       "backtick command substitution (e.g. `command`)",
-}
 
 // validateSafeOutputsStepsShellExpansion checks every run: script in the
 // safe-outputs.steps list for dangerous bash expansion patterns that would be
@@ -117,80 +79,31 @@ func validateSafeOutputsStepsShellExpansion(config *SafeOutputsConfig) error {
 // validateRunScriptForShellExpansion checks a single run: script for dangerous
 // bash expansion patterns. stepIndex is 0-based and is included in error messages.
 func validateRunScriptForShellExpansion(stepIndex int, script string) error {
-	// Fast path: no '$' or backtick character means no expansion pattern can be present.
-	if !strings.ContainsAny(script, "$`") {
+	expansion, found := shellpattern.FirstUnsafeExpansion(script)
+	if !found {
 		return nil
 	}
-
-	// Scan all matches so we can skip false positives (e.g. arithmetic $((, GitHub
-	// Actions ${{ expressions) before reporting the first true violation.
-	groupNames := shellExpansionPattern.SubexpNames()
-	allMatches := shellExpansionPattern.FindAllStringSubmatchIndex(script, -1)
-
-	for _, match := range allMatches {
-		snippet := ""
-		patternDescription := "dangerous shell expansion"
-		groupName := ""
-		matchStart := match[0]
-
-		for gi, name := range groupNames {
-			if name == "" {
-				continue
-			}
-			start, end := match[gi*2], match[gi*2+1]
-			if start < 0 {
-				continue // group did not participate in this match
-			}
-			if _, known := dangerousPatternDescription[name]; known {
-				raw := script[start:end]
-				groupName = name
-				// For short patterns like $( or ${! that don't capture the full construct,
-				// extend the snippet to include context up to the end of the line or 60 chars.
-				if len(raw) < 10 {
-					lineEnd := strings.IndexByte(script[start:], '\n')
-					if lineEnd < 0 {
-						lineEnd = len(script) - start
-					}
-					raw = script[start : start+lineEnd]
-					// Remove any trailing control characters.
-					raw = strings.TrimRight(raw, "\r\t ")
-				}
-				// Clip the snippet to 60 characters to keep the error readable.
-				raw = stringutil.Truncate(raw, 60)
-				snippet = raw
-				patternDescription = dangerousPatternDescription[name]
-				break
-			}
+	raw := script[expansion.Start:expansion.End]
+	if len(raw) < 10 {
+		lineEnd := strings.IndexByte(script[expansion.Start:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(script) - expansion.Start
 		}
-
-		if groupName == "" {
-			continue
-		}
-
-		// Skip arithmetic expansion $((: it uses $(( not $(command).
-		if groupName == "commandSubst" {
-			// Check the two characters after $( to detect $((
-			if matchStart+3 <= len(script) && script[matchStart:matchStart+3] == "$((" {
-				continue
-			}
-		}
-
-		safeOutputsStepsShellExpansionLog.Printf("Dangerous pattern found in safe-outputs step %d: %s", stepIndex, patternDescription)
-
-		return fmt.Errorf(
-			"safe-outputs.steps[%d]: run script contains %s, which is blocked by the "+
-				"safe-outputs security harness at runtime\n\n"+
-				"  Offending snippet: %s\n\n"+
-				"Avoid command substitution, backticks, indirect expansion, and parameter "+
-				"transformation in safe-outputs run scripts. Write URL values and other "+
-				"dynamic content to files in /tmp/gh-aw/agent/ during the agent turn, then "+
-				"read the file contents in the safe-outputs step (e.g. with 'cat' or by "+
-				"passing a script argument)",
-			stepIndex,
-			patternDescription,
-			snippet,
-		)
+		raw = strings.TrimRight(script[expansion.Start:expansion.Start+lineEnd], "\r\t ")
 	}
-
-	return nil
+	snippet := stringutil.Truncate(raw, 60)
+	safeOutputsStepsShellExpansionLog.Printf("Dangerous pattern found in safe-outputs step %d: %s", stepIndex, expansion.Description)
+	return fmt.Errorf(
+		"safe-outputs.steps[%d]: run script contains %s, which is blocked by the "+
+			"safe-outputs security harness at runtime\n\n"+
+			"  Offending snippet: %s\n\n"+
+			"Avoid command substitution, backticks, indirect expansion, and parameter "+
+			"transformation in safe-outputs run scripts. Write URL values and other "+
+			"dynamic content to files in /tmp/gh-aw/agent/ during the agent turn, then "+
+			"read the file contents in the safe-outputs step (e.g. with 'cat' or by "+
+			"passing a script argument)",
+		stepIndex,
+		expansion.Description,
+		snippet,
+	)
 }

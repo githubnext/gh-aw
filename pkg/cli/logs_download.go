@@ -37,14 +37,15 @@ var logsDownloadLog = logger.New("cli:logs_download")
 // verbose enables progress messages; owner, repo, hostname identify the GitHub repository;
 // artifactFilter is an optional list of artifact base names to download (nil means all).
 type downloadArtifactsOptions struct {
-	runID            int64
-	outputDir        string
-	verbose          bool
-	owner            string
-	repo             string
-	hostname         string
-	artifactFilter   []string
-	includeWorkQueue bool
+	runID               int64
+	outputDir           string
+	verbose             bool
+	owner               string
+	repo                string
+	hostname            string
+	artifactFilter      []string
+	includeWorkQueue    bool
+	failOnDownloadError bool
 }
 
 // isUsageOnlyArtifactFilter reports whether the caller requested only the compact

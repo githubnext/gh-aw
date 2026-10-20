@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { isSessionEvent } = require("./agent_session.cjs");
 const { hasCopilotConversation, deduplicateCopilotFallback, normalizeCopilotSession } = require("./copilot_session.cjs");
-const { collectAddMaskedValues, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
+const { collectAddMaskedValues, serializeSessionArtifact, writeSessionArtifact, removeFailedSessionArtifacts } = require("./session_artifact.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeUnifiedSessionEvent, normalizeModelInventoryData, evalResultRunId } = require("./unified_session_payload.cjs");
 const { ERR_SYSTEM, ERR_VALIDATION } = require("./error_codes.cjs");
@@ -156,10 +156,10 @@ function parseEngineSession(content, engine) {
 /**
  * Collect only known runtime directories; never follow artifact symlinks.
  * Replicated firewall files use logs > audit > legacy precedence, including empty files.
- * @param {{rootDir?: string, engine?: string, warn?: (message: string) => void, dailyAIC?: NodeJS.ProcessEnv, jobResults?: string, jobDurations?: Record<string, number>}} [options]
+ * @param {{rootDir?: string, engine?: string, warn?: (message: string) => void, dailyAIC?: NodeJS.ProcessEnv, admission?: NodeJS.ProcessEnv, jobResults?: string, jobDurations?: Record<string, number>}} [options]
  * @returns {{events: import("./types/unified_session").UnifiedSession, maskedValues: string[]}}
  */
-function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env, jobResults = process.env.GH_AW_JOB_RESULTS, jobDurations = {} } = {}) {
+function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message => console.warn(message), dailyAIC = process.env, admission = process.env, jobResults = process.env.GH_AW_JOB_RESULTS, jobDurations = {} } = {}) {
   let currentRunId = dailyAIC.GITHUB_RUN_ID;
   let currentRunAttempt = dailyAIC.GITHUB_RUN_ATTEMPT;
   /** @type {SessionSource[]} */
@@ -639,6 +639,32 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
         : (finalCopilotSource?.path ?? agentSources[0]?.path);
     sources.push({ component: "execution", phase: "agent", path: primary ?? executionSource?.path ?? path.relative(rootDir, exitFile), events: [execution] });
   }
+  const admissionStatus = admission.GH_AW_ADMISSION_RESULT;
+  if (admissionStatus) {
+    /** @type {Record<string, string | number>} */
+    const data = { status: admissionStatus };
+    let valid = ["admitted", "ignored", "skipped"].includes(admissionStatus);
+    if (admissionStatus === "admitted") {
+      for (const [field, name] of [
+        ["maxAiCredits", "GH_AW_ADMISSION_MAX_AI_CREDITS"],
+        ["threatDetectionMaxAiCredits", "GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION"],
+        ["evalsMaxAiCredits", "GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS"],
+      ]) {
+        const raw = admission[name];
+        if ((raw === undefined || raw === "") && field !== "maxAiCredits") continue;
+        if (typeof raw !== "string" || !/^[1-9][0-9]{0,9}$/.test(raw) || Number(raw) > 2147483647) {
+          valid = false;
+        } else {
+          data[field] = Number(raw);
+        }
+      }
+    }
+    if (valid) {
+      sources.push({ component: "guardrail", phase: "admission", path: "usage/aw_session.jsonl", events: [{ type: "guardrail.admission", data }] });
+    } else {
+      report(path.join(rootDir, "usage/aw_session.jsonl"), "invalid_admission_metadata", undefined);
+    }
+  }
   const status = dailyAIC.GH_AW_DAILY_AI_CREDITS_GUARDRAIL_STATUS;
   if (typeof status === "string" && ["disabled", "skipped", "under_budget", "exceeded", "structural_error", "transient_error"].includes(status) && !sources.some(source => source.events.some(event => event.type === "guardrail.daily_aic"))) {
     /** @type {Record<string, string | number | boolean>} */
@@ -711,27 +737,43 @@ function collectUnifiedSession({ rootDir = "/tmp/gh-aw", engine, warn = message 
 }
 
 /**
- * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, jobDurations?: Record<string, number>}} [options]
- * @returns {SessionEvent[]}
+ * @param {{rootDir?: string, engine?: string, outputPath?: string, warn?: (message: string) => void, admission?: NodeJS.ProcessEnv, jobDurations?: Record<string, number>, graders?: any[], customGraderIds?: string[]}} [options]
+ * @returns {import("./types/unified_session").UnifiedSession}
  */
 function writeUnifiedSession(options = {}) {
   const outputPath = options.outputPath ?? path.join(options.rootDir ?? "/tmp/gh-aw", "usage/aw_session.jsonl");
   try {
-    const { events, maskedValues } = collectUnifiedSession(options);
+    const collected = collectUnifiedSession(options);
+    const maskedValues = collected.maskedValues;
+    let events = collected.events;
+    if (options.graders !== undefined) {
+      // Grade the exact redacted representation that is published, without
+      // rereading the session or any of its source files.
+      const session = [];
+      for (const entry of iterateJsonlEvents(serializeSessionArtifact(events, maskedValues))) {
+        if (entry.type === "json") session.push(entry.value);
+        else if (entry.reason !== "blank") throw new Error(`${ERR_VALIDATION}: Invalid serialized unified session`);
+      }
+      events = require("./grader_artifacts.cjs").writeGraderArtifacts(session, path.dirname(outputPath), options.graders, options.customGraderIds);
+    }
     writeSessionArtifact(outputPath, events, maskedValues);
     return events;
   } catch (error) {
-    removeFailedSessionArtifacts([outputPath], error);
+    const graderFiles = options.graders === undefined ? [] : ["grader_manifest.json", "grader_results.json"].map(file => path.join(path.dirname(outputPath), "graders", file));
+    removeFailedSessionArtifacts([outputPath, ...graderFiles], error);
     throw error;
   }
 }
 
-/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>}} [options] @returns {Promise<void>} */
+/** @param {{rootDir?: string, engine?: string, outputPath?: string, jobDurations?: Record<string, number>, graders?: any[], customGraderIds?: string[]}} [options] @returns {Promise<void>} */
 async function main(options = {}) {
   const jobDurations = options.jobDurations ?? (await require("./workflow_job_durations.cjs").collectJobDurations({ warn: message => global.core.warning(message) }));
-  writeUnifiedSession({ ...options, jobDurations });
+  const { readGraderManifestEnvironment, publishGraderSummary } = require("./grader_artifacts.cjs");
+  const manifest = options.graders === undefined ? readGraderManifestEnvironment() : { graders: options.graders };
+  const events = writeUnifiedSession({ ...options, jobDurations, graders: manifest.graders, customGraderIds: options.customGraderIds ?? manifest.customGraders });
   const { publishUnifiedSessionSummary } = require("./unified_session_render.cjs");
   await publishUnifiedSessionSummary(options.outputPath ?? path.join(options.rootDir ?? "/tmp/gh-aw", "usage/aw_session.jsonl"));
+  await publishGraderSummary(events);
 }
 
 if (require.main === module) {

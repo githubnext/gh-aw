@@ -95,7 +95,11 @@ func prepareCheckpointCompaction(commits []QueueCommit, before []byte, priorGitS
 	}
 	duplicates := len(commits) - len(ordered)
 	if len(ordered) != 1 || !slices.ContainsFunc(ordered, isCheckpoint) {
-		ordered, err = CompactCheckpoint(ordered, priorGitSHA, actor, time.Now().UnixMilli())
+		state, err := Replay(ordered)
+		if err != nil {
+			return compactionCandidate{}, err
+		}
+		ordered, err = CompactCheckpoint(ordered, priorGitSHA, actor, max(time.Now().UnixMilli(), state.timeWatermark))
 		if err != nil {
 			return compactionCandidate{}, err
 		}

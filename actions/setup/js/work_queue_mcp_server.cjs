@@ -36,7 +36,7 @@ function loadWorkQueueSnapshot(snapshotPath = process.env.GH_AW_WORK_QUEUE_SNAPS
   const role = snapshotRuntimeRole({ ...snapshot, worker });
   const absent = role !== "worker" && snapshot.sha === null && snapshot.transactionLog === "";
   if (snapshot.transactionLog === "" && !absent) throw new Error("work_queue_policy_missing");
-  const projection = absent ? queue.newState() : queue.replayTransactions(queue.parseTransactionLog(snapshot.transactionLog));
+  const projection = absent ? queue.newState() : queue.replayTransactions(queue.parseTransactionLog(snapshot.transactionLog), snapshot.captured_at);
   if (!projection.policy && !absent) throw new Error("work_queue_policy_missing");
   if (snapshot.visible_work_ids !== undefined && (!Array.isArray(snapshot.visible_work_ids) || snapshot.visible_work_ids.some(id => typeof id !== "string"))) throw new TypeError("work queue snapshot visibility is invalid");
   log.debug("snapshot.load.complete", { bytes: stat.size, works: projection.works.size, worker: !!worker, absent });
@@ -128,6 +128,8 @@ function readWorkQueueState(snapshot, args = {}) {
           }
         : {}),
       enqueued: work.enqueued,
+      ...(work.expires_at === undefined ? {} : { expires_at: work.expires_at }),
+      ...(work.cancellation_reason === undefined ? {} : { cancellation_reason: work.cancellation_reason }),
       claim_id: work.claim_id ?? null,
       retry_not_before: work.retry_not_before,
     })),
@@ -252,7 +254,7 @@ function createWorkQueueSubmitTool(snapshot, options = {}) {
   return {
     name: "work_queue_submit",
     description:
-      "Stage a bounded graph of immutable Work payloads and approved worker-profile requests. Optional execution_ref pins a registered immutable worker SHA; otherwise future compatible implementations may execute it. Omitted graph/node IDs default to the canonical payload hash and root; use explicit IDs for distinct nodes. Trusted ingestion resolves metadata, dependencies and policy; staging grants no authority.",
+      "Stage a bounded graph of immutable Work payloads and approved worker-profile requests. Optional expires_at is an absolute Unix-millisecond deadline for unclaimed Work; it never revokes running Claims. Optional execution_ref pins a registered immutable worker SHA; otherwise future compatible implementations may execute it. Omitted graph/node IDs default to the canonical payload hash and root; use explicit IDs for distinct nodes. Trusted ingestion resolves metadata, dependencies and policy; staging grants no authority.",
     inputSchema: {
       type: "object",
       properties: { nodes: { type: "array", minItems: 1, maxItems: 256, items: { type: "object" } }, claim_handle: { type: "string", minLength: 1, maxLength: 256 } },
@@ -263,7 +265,13 @@ function createWorkQueueSubmitTool(snapshot, options = {}) {
       closed(args, ["nodes"], ["claim_handle"], "work_queue_submit");
       if (!Array.isArray(args.nodes) || args.nodes.length < 1 || args.nodes.length > 256) throw new TypeError("submission must contain 1 to 256 nodes");
       for (const node of args.nodes) {
-        closed(node, ["payload"], ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "depends_on", "subject", "backing_issue", "replacement_of"], "submitted Work");
+        closed(
+          node,
+          ["payload"],
+          ["graph_id", "node_key", "work_id", "pool", "priority", "fairness_key", "worker_profile", "logical_contract", "execution_ref", "expires_at", "depends_on", "subject", "backing_issue", "replacement_of"],
+          "submitted Work"
+        );
+        if (Object.hasOwn(node, "expires_at")) integer(node.expires_at, 0, Number.MAX_SAFE_INTEGER, "Work expiration timestamp");
         if (Object.hasOwn(node, "graph_id")) identity(node.graph_id, "graph ID");
         if (Object.hasOwn(node, "node_key")) identity(node.node_key, "node key");
         if (Object.hasOwn(node, "logical_contract") && !/^[a-f0-9]{64}$/.test(node.logical_contract)) throw new TypeError("logical_contract must be a compiler-derived SHA256 digest");

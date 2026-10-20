@@ -30,7 +30,8 @@ type nativeDeliveryHostKey struct{}
 // point. An embedding host supplies approved callbacks, never a CLI receipt
 // filename, verifier executable, digest, or actor/source assertion.
 func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *cobra.Command {
-	cmd := &cobra.Command{
+	var root *cobra.Command
+	root = &cobra.Command{
 		Use: "work-queue", Aliases: []string{"work"}, Short: "Inspect and publish the current fair Git-backed DAG work queue",
 		Long: "Inspect and publish the current fair Git-backed DAG work queue.\n\n" +
 			"Direct claim and operator finish are unsupported. Use dispatch-next for mandatory\n" +
@@ -47,21 +48,30 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 			if storage != "git" {
 				return errors.New("unsupported_backend: work queues require Git storage; Issues storage is not supported")
 			}
+			repo, _ := cmd.Flags().GetString("repo")
+			fileReplay := cmd.Name() == "replay" && cmd.Flags().Changed("file")
+			if repo == "" && cmd.Parent() == root && !fileReplay {
+				repo, err := getWorkQueueRepoSlug()
+				if err != nil {
+					return err
+				}
+				return cmd.Flags().Set("repo", repo)
+			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
-	cmd.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
-	cmd.PersistentFlags().String("storage", "git", "Queue storage (git only)")
-	cmd.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
-	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
-	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
+	root.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	root.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
+	root.PersistentFlags().String("storage", "git", "Queue storage (git only)")
+	root.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
+	root.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
+	root.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
-		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(),
+		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(), workClearCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
 		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
-	return cmd
+	return root
 }
 
 func workBranch(cmd *cobra.Command) workqueue.Branch {
@@ -92,7 +102,14 @@ func workRead(cmd *cobra.Command) (workqueue.Projection, error) {
 	if err != nil {
 		return workqueue.Projection{}, err
 	}
-	return workqueue.Replay(commits)
+	projection, err := workqueue.ReplayAt(commits, time.Now().UnixMilli())
+	if err != nil {
+		return projection, err
+	}
+	if projection.Repository == "" {
+		projection.Repository, _ = cmd.Flags().GetString("repo")
+	}
+	return projection, nil
 }
 
 func workReplayCommand() *cobra.Command {
@@ -150,9 +167,12 @@ func workStatsCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s := projection.Stats
-			return workPrint(cmd, s, fmt.Sprintf("Work: %d; available: %d; claimed: %d; completed: %d; cancelled: %d; Claims: %d; native reservations: %d; graph nodes: %d",
-				s.Work, s.Available, s.Claimed, s.Completed, s.Cancelled, s.Claims, s.Dispatches, s.Nodes))
+			branch, _ := cmd.Flags().GetString("branch")
+			report, err := workQueueStatsAt(projection, branch, time.Now().UnixMilli())
+			if err != nil {
+				return err
+			}
+			return workPrint(cmd, report, workQueueStatsText(report))
 		},
 	}
 }
@@ -181,11 +201,11 @@ func workExplainCommand() *cobra.Command {
 			if beforeClaim != "" || requestID != "" {
 				return workExplainCommitted(cmd, commits, beforeClaim, requestID)
 			}
-			state, err := workqueue.Replay(commits)
+			at := time.Now().UnixMilli()
+			state, err := workqueue.ReplayAt(commits, at)
 			if err != nil {
 				return err
 			}
-			at := time.Now().UnixMilli()
 			if id != "" {
 				explanation, err := workqueue.ExplainWork(state, id, at)
 				if err != nil {
@@ -210,7 +230,7 @@ func workExplainCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return workPrint(cmd, map[string]any{"tip": state.Tip, "at": at, "status": "snapshot_prediction", "selection": selection, "decision": decision},
+			return workPrint(cmd, map[string]any{"tip": state.Tip, "at": at, "status": "snapshot_prediction", "selection": selection, "decision": decision, "prediction": workQueueCompactPrediction(decision)},
 				"Snapshot prediction: "+decision.Reason+" "+selection.WorkID+" (not a grant)")
 		},
 	}
@@ -370,6 +390,7 @@ func workSubmitCommand() *cobra.Command {
 	cmd.Flags().String("fairness-key", "", "Entitled accounting key (default: one shared bucket)")
 	cmd.Flags().String("worker-profile", "", "Approved profile (default: pool default)")
 	cmd.Flags().String("execution-ref", "", "Pin this Work to an approved immutable worker SHA instead of following future compatible deployments")
+	cmd.Flags().Int64("expires-at", 0, "Immutable Unix-millisecond deadline for unclaimed Work (omitted: no expiration)")
 	return cmd
 }
 
@@ -428,6 +449,10 @@ func workRunSubmitCommand(cmd *cobra.Command, _ []string) error {
 }
 
 func workConfigureSubmission(cmd *cobra.Command, state workqueue.Projection, policy workqueue.Policy, work workqueue.WorkDefinition) (workqueue.WorkDefinition, error) {
+	work, err := workConfigureExpiration(cmd, state, work)
+	if err != nil {
+		return workqueue.WorkDefinition{}, err
+	}
 	pool := work.Pool
 	work.Priority, _ = cmd.Flags().GetInt("priority")
 	work.FairnessKey, _ = cmd.Flags().GetString("fairness-key")
@@ -461,6 +486,22 @@ func workConfigureSubmission(cmd *cobra.Command, state workqueue.Projection, pol
 			approved = revision.Profile
 		}
 		work.ExecutionRef, work.LogicalContract = pin, approved.LogicalContract
+	}
+	return work, nil
+}
+
+func workConfigureExpiration(cmd *cobra.Command, state workqueue.Projection, work workqueue.WorkDefinition) (workqueue.WorkDefinition, error) {
+	if cmd.Flags().Changed("expires-at") {
+		deadline, _ := cmd.Flags().GetInt64("expires-at")
+		if deadline < 0 || deadline > workqueue.MaxTimestamp {
+			return workqueue.WorkDefinition{}, errors.New("work_invalid: expires-at must be a nonnegative safe-integer Unix-millisecond timestamp")
+		}
+		work.ExpiresAt = &deadline
+		if existing := state.Works[work.WorkID]; existing != nil && (existing.ExpiresAt == nil || *existing.ExpiresAt != deadline) {
+			return workqueue.WorkDefinition{}, errors.New("work_conflict: an existing Work expiration is immutable; use its original deadline or a new node identity")
+		}
+	} else if existing := state.Works[work.WorkID]; existing != nil {
+		work.ExpiresAt = existing.ExpiresAt
 	}
 	return work, nil
 }

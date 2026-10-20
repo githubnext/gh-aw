@@ -14,7 +14,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
-model: copilot/mai-code-1-flash-picker
+model: copilot/mai-code-1.1-flash
 strict: true
 timeout-minutes: 60
 max-turns: 150

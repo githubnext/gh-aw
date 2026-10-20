@@ -17,6 +17,21 @@ the selected queue credential through ephemeral authentication; it does not
 reuse persisted checkout credentials. Agents and snapshot MCP servers remain
 credential-free.
 
+Queue commands infer the repository from the local `origin` remote when `--repo`
+is omitted, falling back to `gh repo view` when local information is unavailable.
+`--repo` takes precedence over `GH_REPO`, which takes precedence over local
+inference. An unresolved explicit environment selection fails rather than
+silently selecting the checkout. This local-first rule is queue-specific:
+workflow runs, secret uploads and other commands retain `gh`'s selected default.
+For fork checkouts, queues infer the fork even if `gh repo set-default` selects
+its parent. Use an explicit canonical repository after a repository rename;
+local discovery does not resolve renamed origins or relax queue identity checks.
+Offline `replay --file` does not infer a repository.
+
+Repeated runtime reads recheck
+remote access and the queue head, but reuse validated local Git history when the
+head is unchanged. Missing or invalid ancestry fails closed without an API fallback.
+
 The native queue enforces fair scheduling, immutable task dependency graphs,
 and worker effects authorized by individual Claims. Its only source of
 authority is `work-queue.jsonl`, a transaction log that records events in causal
@@ -363,6 +378,39 @@ The protocol remains version 3, but older closed-schema readers reject these
 extensions. Existing logs need no migration; no automatic reader upgrade or
 fallback to an older deployment is supported.
 
+## Work expiration
+
+Submitted Work may include `expires_at`, an absolute Unix-millisecond timestamp
+from 0 through 9007199254740991. Native `submit-work` accepts the same value as
+`--expires-at`; `submit-graph` and `work_queue_submit` accept it on each node.
+Omitting it on a new node means no expiration. The deadline is immutable:
+resubmission preserves it, and changing it requires a new node identity.
+
+At or after the deadline, unclaimed Work becomes cancelled with reason
+`work_expired` and cannot receive a Claim. Replay uses the maximum committed
+timestamp, preserved through checkpoints; live operator reads additionally
+evaluate current time, and activation reads evaluate `captured_at`. Historical
+replay does not invalidate a Claim that was valid at its original decision.
+Wall-clock-only views are not durable until queue activity advances committed
+time; no background timer is implied.
+
+Running Claims can still complete after their Work deadline. Expiration never
+releases a native reservation, refunds fairness charges, deletes history, or
+unblocks dependencies. Pending or failed delivery remains protected, including
+`keep_open` completion; verified retained delivery expires elapsed Work instead
+of re-queuing it. Claim leases and hard real-time execution deadlines are not
+supported. Upgrade all closed-schema version-3 readers before using the field;
+existing Work without it needs no migration.
+
+Historical checkpoints created before expiration support remain verifiable,
+including when their commit timestamps decrease. New compaction preserves the
+maximum committed time; compatibility verification does not rewrite old
+snapshots or relax integrity checks.
+
+Closed-Issue synchronization recognizes committed `work_expired` outcomes
+without requiring a synthetic cancellation commit ID. A wall-clock-only
+expiration view is not a committed outcome.
+
 ## Runtime debug logging
 
 The JavaScript runtime uses the shared logger framework to write opt-in,
@@ -377,7 +425,7 @@ emitted event in the same namespace within that process. The first event uses
 `+0ms`; suppressed events do not reset the interval. Always-visible queue
 diagnostics and failures use the same timing.
 
-Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`,
+Namespaces cover `store`, `replay`, `scheduler`, `native`, `dispatch`, `provisioning`,
 `reconciler`, `run`, `claims`, `delivery`, `effects`, `memory`, `intents`, and `mcp`. Events describe
 publication attempts, conflicts, recovery, capacity and packing limits,
 native launch and binding, independent verification, and durable settlement.
@@ -385,6 +433,20 @@ native launch and binding, independent verification, and durable settlement.
 staged previews, binding and job counts, release outcomes, and sanitized failure categories,
 without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+For delivery failures, use
+`DEBUG=work-queue:claims,work-queue:delivery,work-queue:native_delivery`.
+Events distinguish output cardinality, missing or untrusted receipts, independent
+content and Git ancestry mismatches, uncovered effects, control-inventory changes,
+and retry/deadline exhaustion. Exhausted delivery verification always emits a
+budget summary, even without debug logging. Expected and observed content,
+resource identities, receipt bodies, and credentials are never logged.
+Native operator recovery uses
+`DEBUG=workqueue:delivery,workqueue:native_delivery` for verifier availability,
+closed effect inventory, approved readback and credential checks, attempt budgets,
+and durable Result or DeliveryFailure publication.
+HTTP failure explanations also include a validated GitHub request ID, or
+`unknown` when unavailable. Deployment metadata diagnostics distinguish
+repository reads from default-reference reads.
 Blocked control and launch-processing failures are always visible, even without
 `DEBUG`. Diagnostics, receipts, the step summary, and the Actions failure annotation
 include a fixed human-readable explanation and recovery action alongside the
@@ -608,7 +670,8 @@ initialize Policy over an invalid log.
 
 | Command | Purpose |
 | --- | --- |
-| `replay`, `stats` | Inspect state reconstructed from the log, typed dependency nodes, individual Claims, and native reservations. `replay --run-id ID` uses an exact Actions activation snapshot; `replay --file PATH` uses a downloaded snapshot without network access. |
+| `stats` | Return compact metadata-only diagnostics: ownership, Claim outcomes, delivery, reservations, per-pool eligibility and predictions, admission age, and 24-hour ledger activity. |
+| `replay` | Inspect the full state reconstructed from the log. Live JSON includes Work payloads and request history; use `stats` for a compact metadata-only report. `replay --run-id ID` uses an exact Actions activation snapshot; `replay --file PATH` uses a downloaded snapshot without network access. |
 | `state [--graph GRAPH] [--pool POOL] [--state STATE] [--search TEXT]` | Display an ASCII tree of graphs, Work, and Claims using metadata only. `--offset` and `--limit` paginate at most 256 rows/64 KiB. |
 | `inspect --work-id ID` or `inspect --claim-id ID` | Show full copyable IDs, dependency cross-references, current and historical ownership, original assignment membership, and separate delivery and native-run barriers. |
 | `tui` (alias `interactive`) | Browse the queue with a keyboard, search, multi-select, and view details for the focused item. Review cancellation and future priority changes before publishing. |
@@ -624,6 +687,7 @@ initialize Policy over an invalid log.
 | `dispatch-next --pool POOL --max-claims N --max-dispatches N` | Commit the next assignments selected by deterministic fair scheduling and their reservations. Does not send a workflow-dispatch POST. |
 | `dispatch DISPATCHER [--wait] [--dry-run]` | Use the GitHub CLI to start one verified dispatcher at the repository's default-branch snapshot revision. Its trusted controls grant and launch eligible assignments; it does not directly assign a Claim to a worker. |
 | `control`, `cancel-work` | Apply authorized pause, cutover, or cancellation decisions without refunding accounted service or force-releasing a reservation for a possible native run. |
+| `clear --reason CODE [--dry-run] [--hard]` | Local operator only; refuses CI. Normally cancels cancellable unfinished snapshot Work atomically while preserving history and pending retained deliveries. `--hard` resets only a paused, fully settled queue and explicitly forgets identities and fairness debt. |
 | `cancel-claim --claim-id ID[,ID...] --reason CODE` | Atomically revoke the exact current Claims' authority and terminally cancel their Work. Does not retry work, impersonate a worker, or stop a native run. |
 | `reprioritize --work-id ID[,ID...] --priority 1..5 --reason CODE` | Apply an administrator-only, compare-and-set priority override to future grants of available Work. Preserves admitted definitions, FIFO positions, retry boundaries, and accumulated fairness charges. |
 | `evidence`, `reconcile --dispatch-id ID` | Inspect authenticated run evidence and reconcile exact termination. Uncertainty retains reserved capacity. |
@@ -634,6 +698,67 @@ describes validated inputs. Reservation, native launch, verified run binding,
 Completion, Result, and Release are distinct; successful `dispatch-next` is
 not proof of launch.
 
+### Structured diagnostics
+
+`stats --json` preserves the original root counters and adds snapshot identity
+(`repository`, `branch`, `tip`, `policy_epoch`, `evaluated_at`), pause controls,
+and `policy_mode`. All timestamps are Unix milliseconds.
+
+| Field | Meaning |
+| --- | --- |
+| `claims_by_state`, `claim_cancellation_reasons`, `delivery_failure_reasons` | Historical Claim outcomes and failure reasons, separate from current Work ownership. |
+| `delivery_by_state` | Completed Claims with pending, verified, or failed delivery, including historical `keep_open` Claims. A Completion is not a verified Result. |
+| `dispatches_total`, `dispatches_by_state` | All historical dispatch records, including released reservations. |
+| `native_reservations`, `reservations_by_state` | Retained native reservations only; the original `dispatches` counter is preserved as an alias. A released dispatch can still have historical state `bound`; neither field establishes live Actions status. |
+| `pools` | Sorted per-pool Work/Claim/delivery counts, capacity and retry limits, individual scheduling eligibility, ineligible reasons, and a one-Claim/one-dispatch metadata-only prediction. Eligibility does not account for native capacity; the prediction does. Predictions never grant or launch work. Retired pools remain visible with `policy_installed: false`, zeroed non-applicable limits, and prediction reason `pool_not_installed`. |
+| `pools[].oldest_available`, `available_age_unknown` | Oldest available Work's ID, trusted admission timestamp and age; missing or future admission timestamps are counted as unknown. Client-supplied enqueue timestamps are not used to calculate age. |
+| `activity` | Committed transaction and operation counts in the inclusive `since`/`until` 24-hour window, plus the latest non-future commit ID/time. Includes maintenance; not inferred from current Work states. |
+
+`state --json` rows retain their display `text` and add typed pool, node,
+worker-profile, attempts, admission/grant time, retry boundary, cancellation,
+run-binding and reservation metadata where applicable. Pagination still counts
+forest rows (including graph and Claim rows), not Work items; follow
+`next_offset` with the same filters.
+
+`inspect --json` retains `selection` and `details` and adds `work`,
+`scheduling`, `claim`, and `dispatch` objects. `work` and `scheduling` describe
+current Work; `claim` and `dispatch` describe the selected historical Claim, or
+the Work's current/last Claim. The Claim includes grant/terminal timestamps and
+delivery-failure reason; the dispatch includes the original assignment's IDs and
+handles, immutable worker target, run binding, and `reservation_retained`.
+Absent Claim/run/timestamp metadata is `null`, not fabricated evidence. A null
+Claim or dispatch does not mean the Work was never claimed: cancellation and
+verified `keep_open` delivery can clear the Work's current Claim reference.
+Use `state` or `inspect --claim-id` to find historical attempts.
+`work.max_attempts` is the current pool retry limit, or `null` for retired pools.
+Payloads, Result descriptors, request parameters, and receipt bodies are excluded.
+
+```bash
+gh aw work-queue --repo owner/repo stats --json
+gh aw work-queue --repo owner/repo state --state available --json
+gh aw work-queue --repo owner/repo inspect --claim-id CLAIM_ID --json
+```
+
+Live `explain --json` also exposes `prediction`, the same compact assignment
+shape used by pool stats and artifact replay, alongside its existing `decision`.
+These commands inspect ledger snapshots only: they do not refresh external
+dependencies, fetch live Actions status, reconcile reservations, or retry effects.
+
+Deployment repository/default-reference GETs, standalone native repository and
+workflow-run/attempt GETs, and inline termination's attempt-specific job-inventory
+GETs each allow three attempts, with a 15-second timeout per request and a
+one-second delay between attempts. Native reads inside launch-verification and
+run-discovery polling remain single-attempt; the outer loop owns the pool's
+reconciliation attempt and deadline budgets. Only HTTP 5xx, connection resets,
+socket disconnects, and transport timeouts retry, including errors wrapped by the
+fetch client. Access denials,
+rate limits, explicit retry restrictions, missing resources, transport-integrity
+failures, and identity mismatches fail closed. Deployment-read exhaustion blocks
+that intent without stopping independent later intents. Failed termination
+reads retain the reservation and independent delivery barrier for reconciliation.
+These retries never replay a batch, worker launch POST, or resource-writing
+safe output.
+
 After an accepted worker dispatch, trusted controls verify the exact first run
 attempt, retrying transient reads and pending run-title correlation within the
 pool's reconciliation attempt and deadline limits. They never repeat the dispatch
@@ -643,6 +768,116 @@ durable binding. The hint remains available after queue compaction. Unverified
 responses never become native evidence. Reconciliation must still verify the
 exact repository, workflow, revision, principal, attempt and dispatch token before
 binding; uncertainty alone never releases the reservation.
+
+### Clear unfinished Work
+
+```bash
+gh aw work-queue --repo owner/repo clear --reason operator_clear \
+  --request-id incident-clear --dry-run --json
+gh aw work-queue --repo owner/repo clear --reason operator_clear \
+  --request-id incident-clear
+```
+
+`clear` publishes existing `WorkCancellation` operations rather than deleting or
+resetting the ledger. It cancels available Work, including dependency-blocked or
+retry-delayed Work, and fences the current Claims of claimed Work. Available
+Work with pending delivery from a completed `keep_open` Claim is excluded from
+the target set, so its delivery can settle without blocking cancellation of
+unrelated backlog. Completed Work is not cancelled, including Work with pending
+or failed delivery verification or unknown effects. Delivery barriers, historical
+Claims, admission identities, provenance, and fairness charges remain intact.
+Resubmitting the same admitted identity does not create a fresh task or authorize
+duplicate effects.
+
+Both `clear` and `clear --hard`, including their `--dry-run` previews, refuse
+CI environments before authentication or queue access. Detection uses the
+repository's existing nonempty `CI`, `CONTINUOUS_INTEGRATION`, `GITHUB_ACTIONS`,
+and `COPILOT_AGENT_SESSION_ID` environment variables. There is no CI bypass flag.
+
+Both modes check the authenticated user's repository permissions and require
+**maintain** or **admin** access; write, triage, and read access are insufficient.
+The role is checked again before publication. Queue audit records retain the
+existing `administrator` actor role; other administrator-only commands do not
+gain maintainer access.
+
+Every new mutation prints a queue preview to stderr with the repository, branch,
+snapshot, Work counts and IDs, cancellation/removal targets, retained Work,
+and unreleased native reservations, then asks for explicit confirmation.
+Hard reset also warns about identity loss and repeated effects. Declining,
+prompt failure, or non-TTY stdin leaves the queue unchanged. There is no `--yes`
+or force bypass. JSON results remain on stdout. Read-only previews, no-ops, and
+recovery of accepted requests do not prompt.
+
+The command also requires a sanitized reason:
+1–128 ASCII characters, starting with a letter or digit and containing only
+letters, digits, `_`, `.`, `:`, or `-`. `--dry-run` authenticates and validates the
+snapshot through the authoritative cancellation rules but makes no writes and
+does not reserve the request ID. A preview is not a lock: the real invocation
+reads a fresh snapshot.
+
+Cancellation is all-or-nothing and must fit the installed Policy's operation
+limit, which is at most 256 targeted Work. Larger target sets fail without
+cancelling anything; use `cancel-work` with explicit IDs in bounded batches instead.
+Concurrent completion or a changed selected Claim fails the entire publication.
+A queue-incarnation replacement between selection and publication also fails,
+including during publication retries; reusing Work IDs in the replacement queue
+does not make the original selection valid there. New admissions after selection
+are not included. The command does not change admission or grant controls; pause
+them separately with `control` when an operational drain requires a stable backlog.
+
+Retrying an accepted `--request-id` with the same reason recovers its original
+target set, including after compaction, rather than cancelling newly admitted
+Work. A different reason, actor, or incompatible prior request fails explicitly.
+If no cancellable Work remains, the command is a no-op and does not record the
+request ID, including when only pending retained deliveries remain.
+JSON output reports the snapshot tip, target IDs, retained completed Work,
+`pending_deliveries_retained` and unreleased reservation counts, and the
+publication when one exists.
+
+Native runs are not stopped, and their reservations are never force-released.
+Keep using `reconcile` with definitive native evidence. Successful cancellation
+does not mean that all effects are settled or that the queue is quiescent for a
+Policy update.
+
+#### Hard reset
+
+`clear --hard --reason CODE --request-id ID` replaces the active ledger with a
+fresh queue, not a checkpoint. It requires both admission and grants to be
+paused already, every native reservation to be released, no open Claims, and
+no pending or failed delivery barriers or uncertain effects. These conditions
+are checked against the exact snapshot used for publication. A concurrent
+write, including a change while confirmation is open, fails the reset rather
+than automatically resetting a newer snapshot. Confirmation is bound to the
+exact previewed Git revision.
+`--dry-run` validates and previews the reset without publishing it.
+
+```bash
+gh aw work-queue --repo owner/repo control --name admission_paused \
+  --paused=true --reason operator_pause
+gh aw work-queue --repo owner/repo control --name grants_paused \
+  --paused=true --reason operator_pause
+gh aw work-queue --repo owner/repo clear --hard --reason operator_reset \
+  --request-id incident-reset --dry-run
+```
+
+> [!CAUTION]
+> Hard reset forgets Work, Claim and request identities, retry history,
+> observations, historical worker revisions, and accumulated fairness debt.
+> Old task identities can be submitted again and already-settled effects can
+> repeat. Use ordinary `clear` to cancel work without losing deduplication,
+> or `compact` to reduce the ledger without changing its meaning.
+
+The new queue retains the current Policy, current worker routes and their
+availability, and credential generation. Admission and grants remain paused
+until explicitly resumed. The reset is one fast-forward Git publication:
+the prior ledger remains readable at the returned `prior_git_sha` in Git
+ancestry. It is not erased from repository history. Neither mode stops native
+runs or manufactures settlement evidence.
+
+Reuse the same request ID and reason to recover an accepted hard reset, even
+after compaction or later submissions; a retry never clears those later
+submissions. The production queue's unresolved obligations are not bypassed
+by `--hard`.
 
 ### Replay an Actions snapshot
 

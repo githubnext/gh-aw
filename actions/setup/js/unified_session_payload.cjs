@@ -9,6 +9,7 @@ const { sessionContext } = require("./agent_session.cjs");
 const { normalizeMcpConfigurationData } = require("./mcp_configuration.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./mcp_rate_limit.cjs");
+const { redactWebhookPayloads } = require("./webhook_context.cjs");
 
 const SCOPED_AGENT_TYPES = new Set([
   "session.init",
@@ -132,6 +133,12 @@ const EPISODE_LINEAGE_FIELDS = {
   rootRepo: ["rootRepo", "root_repo"],
   rootWorkflowId: ["rootWorkflowId", "root_workflow_id"],
   rootRunId: ["rootRunId", "root_run_id"],
+  parentRepo: ["parentRepo", "repo"],
+  parentRunId: ["parentRunId", "run_id"],
+  parentRunAttempt: ["parentRunAttempt", "run_attempt"],
+  parentWorkflowId: ["parentWorkflowId", "workflow_id"],
+  parentWorkflowCallId: ["parentWorkflowCallId", "workflow_call_id"],
+  parentEventType: ["parentEventType", "event_type"],
 };
 /** @type {Fields} */
 const SAFE_OUTPUT_FIELDS = {
@@ -363,7 +370,7 @@ const EVENT_FIELDS = {
   "safe_output.result": SAFE_OUTPUT_FIELDS,
   "safe_output.error": SAFE_OUTPUT_FIELDS,
   "experiment.state": { runId: ["runId", "run_id"], assignments: ["assignments"], counts: ["counts"] },
-  "grader.manifest": { version: ["version"] },
+  "grader.manifest": { version: ["version"], customGraders: ["customGraders"] },
   "grader.result": GRADER_FIELDS,
   "eval.result": { id: ["id"], answer: ["answer"], model: ["model"], error: ["error"], runId: ["runId", "runid", "run_id"], assignments: ["assignments", "experiments"] },
   "github_api.rate_limit": {
@@ -388,6 +395,12 @@ const EVENT_FIELDS = {
     secretLeak: ["secretLeak", "secret_leak"],
     maliciousPatch: ["maliciousPatch", "malicious_patch"],
   },
+  "guardrail.admission": {
+    status: ["status"],
+    maxAiCredits: ["maxAiCredits"],
+    threatDetectionMaxAiCredits: ["threatDetectionMaxAiCredits"],
+    evalsMaxAiCredits: ["evalsMaxAiCredits"],
+  },
   "guardrail.daily_aic": {
     status: ["status"],
     exceeded: ["exceeded"],
@@ -408,8 +421,16 @@ const EVENT_FIELDS = {
     modelSelection: ["modelSelection", "model_selection"],
     triggerType: ["triggerType", "event_name"],
     workflow: ["workflow", "workflow_name"],
+    workflowId: ["workflowId", "workflow_id"],
+    workflowCallId: ["workflowCallId", "workflow_call_id"],
+    callerWorkflowRef: ["callerWorkflowRef", "caller_workflow_ref"],
     repository: ["repository"],
     runId: ["runId", "run_id"],
+    runAttempt: ["runAttempt", "run_attempt"],
+    ref: ["ref"],
+    sha: ["sha"],
+    actor: ["actor"],
+    targetRepo: ["targetRepo", "target_repo"],
     episode: ["episode"],
   },
   "model_routing.outcome": {
@@ -472,12 +493,17 @@ function resolveUsageAic(source, data, usage) {
 /**
  * Validate and project inventory formats together so collectors cannot accept
  * malformed snapshots that would otherwise look like genuinely empty inventories.
+ * AWF writes null model and routing collections for unconfigured endpoints and
+ * pending fetches; those stay unknown (omitted), never become empty arrays.
  * @param {any} value
  * @returns {import("./types/unified_session").ModelInventoryData | undefined}
  */
 function normalizeModelInventoryData(value) {
   const isObject = entry => entry !== null && typeof entry === "object" && !Array.isArray(entry);
-  const isIdentifier = entry => typeof entry === "string" && entry.trim().length > 0;
+  // Model IDs, providers, and endpoints only need to be nonblank strings.
+  const isNonBlank = entry => typeof entry === "string" && entry.trim().length > 0;
+  // Reasoning efforts are short identifier tokens such as "low" or "xhigh", never free-form text.
+  const isEffortToken = entry => typeof entry === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(entry);
   const firstField = (entry, names) => names.map(name => entry[name]).find(field => field !== undefined);
   const normalizeRouting = entries => {
     if (!Array.isArray(entries)) return undefined;
@@ -486,8 +512,17 @@ function normalizeModelInventoryData(value) {
       if (!isObject(entry)) return undefined;
       const modelId = firstField(entry, ["modelId", "model_id"]);
       const supportedEndpoints = firstField(entry, ["supportedEndpoints", "supported_endpoints"]);
-      if (!isIdentifier(modelId) || (supportedEndpoints !== undefined && (!Array.isArray(supportedEndpoints) || !supportedEndpoints.every(isIdentifier)))) return undefined;
-      result.push({ modelId, ...(supportedEndpoints !== undefined ? { supportedEndpoints: [...supportedEndpoints] } : {}) });
+      const efforts = firstField(entry, ["supportedReasoningEfforts", "supported_reasoning_efforts"]);
+      const contextWindow = firstField(entry, ["contextWindowTokens", "context_window_tokens"]);
+      if (!isNonBlank(modelId) || (supportedEndpoints !== undefined && (!Array.isArray(supportedEndpoints) || !supportedEndpoints.every(isNonBlank)))) return undefined;
+      if (efforts != null && (!Array.isArray(efforts) || !efforts.every(isEffortToken))) return undefined;
+      if (contextWindow != null && (!Number.isSafeInteger(contextWindow) || contextWindow <= 0)) return undefined;
+      result.push({
+        modelId,
+        ...(supportedEndpoints !== undefined ? { supportedEndpoints: [...supportedEndpoints] } : {}),
+        ...(efforts != null ? { supportedReasoningEfforts: [...efforts] } : {}),
+        ...(contextWindow != null ? { contextWindowTokens: contextWindow } : {}),
+      });
     }
     return result;
   };
@@ -509,26 +544,39 @@ function normalizeModelInventoryData(value) {
     return undefined;
   }
   const topRouting = firstField(value, ["routingModels", "routing_models"]);
-  const topRoutingModels = topRouting === undefined ? undefined : normalizeRouting(topRouting);
-  if (topRouting !== undefined && topRoutingModels === undefined) return undefined;
+  const topRoutingModels = topRouting == null ? undefined : normalizeRouting(topRouting);
+  if (topRouting != null && topRoutingModels === undefined) return undefined;
   /** @type {import("./types/unified_session").ModelInventoryData["endpoints"]} */
   const endpoints = [];
   for (const entry of entries) {
-    if (!isObject(entry) || !isIdentifier(entry.provider)) return undefined;
+    if (!isObject(entry) || !isNonBlank(entry.provider)) return undefined;
+    const configured = entry.configured;
+    if (configured !== undefined && typeof configured !== "boolean") return undefined;
     const rawModels = firstField(entry, ["models", "available_models", "detected_models", "model_ids", "availableModels"]);
-    // AWF uses null for unconfigured endpoints and pending model fetches.
-    const models = rawModels === null && typeof entry.configured === "boolean" ? [] : rawModels;
-    if (!Array.isArray(models)) return undefined;
-    const modelIds = [];
-    for (const model of models) {
-      const id = typeof model === "string" ? model : isObject(model) ? firstField(model, ["id", "name", "model"]) : undefined;
-      if (!isIdentifier(id)) return undefined;
-      modelIds.push(id);
+    /** @type {string[] | undefined} */
+    let modelIds;
+    if (rawModels == null) {
+      // Only AWF's explicit endpoint state makes a missing model list an unknown rather than malformed inventory.
+      if (configured === undefined) return undefined;
+    } else {
+      if (!Array.isArray(rawModels)) return undefined;
+      modelIds = [];
+      for (const model of rawModels) {
+        const id = typeof model === "string" ? model : isObject(model) ? firstField(model, ["id", "name", "model"]) : undefined;
+        if (!isNonBlank(id)) return undefined;
+        modelIds.push(id);
+      }
     }
     const endpointRouting = firstField(entry, ["routingModels", "routing_models"]);
-    const routingModels = endpointRouting === undefined ? topRoutingModels : normalizeRouting(endpointRouting);
-    if (endpointRouting !== undefined && routingModels === undefined) return undefined;
-    endpoints.push({ provider: entry.provider, models: modelIds, ...(routingModels !== undefined ? { routingModels: structuredClone(routingModels) } : {}) });
+    // An explicit endpoint-local null means no routing metadata; only an absent field inherits the top-level list.
+    const routingModels = endpointRouting === undefined ? topRoutingModels : endpointRouting === null ? undefined : normalizeRouting(endpointRouting);
+    if (endpointRouting != null && routingModels === undefined) return undefined;
+    endpoints.push({
+      provider: entry.provider,
+      ...(configured !== undefined ? { configured } : {}),
+      ...(modelIds !== undefined ? { models: modelIds } : {}),
+      ...(routingModels !== undefined ? { routingModels: structuredClone(routingModels) } : {}),
+    });
   }
   const modelsFetchComplete = firstField(value, ["modelsFetchComplete", "models_fetch_complete"]);
   if (modelsFetchComplete !== undefined && typeof modelsFetchComplete !== "boolean") return undefined;
@@ -585,7 +633,7 @@ function normalizeUnifiedSessionEvent(event, phase) {
   if (event.type === "workflow.info") {
     const awContext = Object.hasOwn(source, "awContext") ? source.awContext : source.context;
     if (awContext && typeof awContext === "object" && !Array.isArray(awContext)) {
-      data.awContext = structuredClone(awContext);
+      data.awContext = structuredClone(redactWebhookPayloads(awContext));
     }
     const modelRouting = source.modelRouting ?? source.model_routing;
     if (modelRouting && typeof modelRouting === "object" && !Array.isArray(modelRouting)) {
@@ -595,7 +643,7 @@ function normalizeUnifiedSessionEvent(event, phase) {
     if (modelSelection && typeof modelSelection === "object" && !Array.isArray(modelSelection)) {
       data.modelSelection = selectFields(modelSelection, MODEL_SELECTION_FIELDS);
     }
-    const episode = Object.hasOwn(source, "episode") ? source.episode : source.context;
+    const episode = Object.hasOwn(source, "episode") ? source.episode : awContext;
     if (episode && typeof episode === "object" && !Array.isArray(episode)) {
       const lineage = selectFields(episode, EPISODE_LINEAGE_FIELDS);
       if (Object.keys(lineage).length || Object.hasOwn(source, "episode")) data.episode = lineage;

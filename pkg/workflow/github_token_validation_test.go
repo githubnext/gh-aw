@@ -159,18 +159,13 @@ tools:
 }
 
 func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
-	// preSteps mints the "fetch-token" step referenced by the same-job token
-	// expression below in every job that consumes it (agent and conclusion),
-	// so the token resolves in each job that produces/consumes it.
+	// A global safe-output token is also consumed by conclusion, where
+	// user-provided token-minting steps are forbidden.
 	const preSteps = `pre-steps:
   - id: fetch-token
     run: echo "my-token=x" >> "$GITHUB_OUTPUT"
 jobs:
   safe_outputs:
-    pre-steps:
-      - id: fetch-token
-        run: echo "my-token=x" >> "$GITHUB_OUTPUT"
-  conclusion:
     pre-steps:
       - id: fetch-token
         run: echo "my-token=x" >> "$GITHUB_OUTPUT"
@@ -180,6 +175,7 @@ jobs:
 		token       string
 		preSteps    string
 		expectError bool
+		errorMsg    string
 	}{
 		{
 			name:        "valid token in safe-outputs",
@@ -192,10 +188,11 @@ jobs:
 			expectError: false,
 		},
 		{
-			name:        "valid same-job step output token in safe-outputs",
+			name:        "same-job step output token cannot be minted in conclusion",
 			token:       "${{ steps.fetch-token.outputs.my-token }}",
 			preSteps:    preSteps,
-			expectError: false,
+			expectError: true,
+			errorMsg:    "conclusion accepts compiler-generated steps only",
 		},
 		{
 			name:        "invalid token in safe-outputs",
@@ -233,6 +230,8 @@ engine: copilot
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("Expected error for token %q, but got none", tt.token)
+				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error to contain %q, got: %v", tt.errorMsg, err)
 				}
 			} else {
 				if err != nil {

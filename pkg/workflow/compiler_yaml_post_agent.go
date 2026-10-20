@@ -85,11 +85,6 @@ func (c *Compiler) collectArtifactPaths(data *WorkflowData, engine CodingAgentEn
 		paths = append(paths, constants.TmpGhAwDirSlash+constants.OtlpExportErrorsFilename.String())
 	}
 
-	// Collect grader manifest and results when graders are configured.
-	if data.Graders != nil && data.Graders.HasGraders() {
-		paths = append(paths, collectGraderArtifactPaths(data.Graders)...)
-	}
-
 	// Collect safe outputs and agent output paths for the unified artifact.
 	// These were previously uploaded as separate safe-output and agent-output artifacts.
 	if data.SafeOutputs != nil {
@@ -238,14 +233,6 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 
 	// Emit all GITHUB_STEP_SUMMARY log-parsing steps.
 	c.generateSummarySteps(yaml, data, engine)
-
-	// Run deterministic graders after trace data is available.
-	c.generateGradersStep(yaml, data)
-
-	// Re-scan grader output files for leaked secrets when custom grader scripts
-	// are present. Custom scripts evaluate trace data that may contain
-	// credential-bearing strings written after the initial workspace redaction.
-	c.generateGraderRedactionStep(yaml, yaml.String(), data)
 
 	// Write a minimal agent_output.json placeholder when the engine fails before
 	// producing any safe outputs, so downstream safe_outputs and conclusion jobs

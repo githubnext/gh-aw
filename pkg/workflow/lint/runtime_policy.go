@@ -9,7 +9,8 @@ import (
 func InstallScriptsRule() Rule {
 	return Rule{
 		ID: "install-scripts", Description: "Keep Node package install hooks disabled",
-		Severity: Warning, Targets: AWAST, Check: checkInstallScripts,
+		ThreatRuleID: "CTR-014",
+		Severity:     Warning, Targets: AWAST, Check: checkInstallScripts,
 	}
 }
 
@@ -44,7 +45,8 @@ func checkInstallScripts(ctx context.Context, input Input) ([]Diagnostic, error)
 func NetworkScopeRule() Rule {
 	return Rule{
 		ID: "network-scope", Description: "Avoid bare wildcard network allowances",
-		Severity: Warning, Targets: AWAST, Check: checkNetworkScope,
+		ThreatRuleID: "CTR-011",
+		Severity:     Warning, Targets: AWAST, Check: checkNetworkScope,
 	}
 }
 

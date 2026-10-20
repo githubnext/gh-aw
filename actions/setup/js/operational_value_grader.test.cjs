@@ -1,137 +1,128 @@
-// @ts-check
+import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { executeOperationalValueEvaluator } from "./operational_value_grader.cjs";
+import { main, runCustomGraders } from "./custom_graders.cjs";
+import { computeGraders } from "./trace_graders.cjs";
 
-const { executeOperationalValueEvaluator, buildRunSubject, safeFunctionEnv, OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT } = require("./operational_value_grader.cjs");
-
-const TEST_ENV = {
-  PATH: process.env.PATH,
-  HOME: process.env.HOME,
-  TMPDIR: process.env.TMPDIR,
-  GITHUB_RUN_ID: "12345",
-  GITHUB_RUN_ATTEMPT: "2",
-  GITHUB_REPOSITORY: "github/gh-aw",
-  GITHUB_WORKFLOW: "Example",
-  GITHUB_REF: "refs/heads/main",
-  GITHUB_SHA: "0123456789abcdef",
-  GITHUB_EVENT_NAME: "schedule",
-};
-
-/** @type {(output: unknown, expectedOutputs?: any[]) => string} */
-const operationalValueEvaluator = (output, expectedOutputs = []) => {
-  return `#!/usr/bin/env bash
-set -euo pipefail
-[[ $# -eq 0 ]]
-request=$(cat)
-printf '%s' "$request" | jq -e '
-  .schemaVersion == 1
-  and .run.id == "12345"
-  and .run.attempt == 2
-  and .run.repository == "github/gh-aw"
-  and .run.workflow == "Example"
-  and .run.ref == "refs/heads/main"
-  and .run.sha == "0123456789abcdef"
-  and .run.eventName == "schedule"
-  and .event.issue.number == 42
-  and .outputs == ${JSON.stringify(expectedOutputs)}
-  and .config.mode == "test"
-' >/dev/null
-cat <<'RESULT'
-${JSON.stringify(output)}
-RESULT
+const provenance = { component: "agent", phase: "agent", path: "session.jsonl", index: 0 };
+const session = [{ type: "tool.execution_complete", data: { success: true }, provenance }];
+const source = `#!/usr/bin/env bash
+[[ "$1" == "$GH_AW_SESSION_FILE" ]]
+jq -s --argjson config "$GH_AW_GRADER_CONFIG" '[{id: "observations", value: (length + $config.offset)}, {id: "missing", value: null}]' "$1"
 `;
-};
+const definition = (shellScript = source, extra = {}) => ({
+  id: "operational-value",
+  source: "operational-value",
+  run: ".github/graders/score.sh",
+  shellScript,
+  config: { offset: 2 },
+  ...extra,
+});
 
-describe("operational_value_grader", () => {
-  it("uses the gh-aw agent temp root and forwards the GitHub GraphQL URL", () => {
-    expect(OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT).toBe("/tmp/gh-aw/agent");
-    expect(safeFunctionEnv({ GITHUB_GRAPHQL_URL: "https://api.github.com/graphql" })).toEqual({
-      GITHUB_GRAPHQL_URL: "https://api.github.com/graphql",
-    });
-  });
-
-  it("builds a stable workflow-run subject", () => {
-    expect(buildRunSubject(TEST_ENV)).toEqual({
-      id: "12345",
-      attempt: 2,
-      repository: "github/gh-aw",
-      workflow: "Example",
-      ref: "refs/heads/main",
-      sha: "0123456789abcdef",
-      eventName: "schedule",
-    });
-  });
-
-  it("runs once without mode arguments and returns ordered metrics", () => {
-    const output = executeOperationalValueEvaluator(
-      operationalValueEvaluator(
-        [
-          { id: "goal-attained", value: 0.75 },
-          { id: "evidence-available", value: null },
-        ],
-        [{ type: "noop", message: "nothing to do" }]
-      ),
-      { digest: "abc", config: { mode: "test" } },
-      { env: TEST_ENV, event: { issue: { number: 42 } }, outputs: [{ type: "noop", message: "nothing to do" }] }
-    );
-
-    expect(output).toEqual([
-      { id: "goal-attained", value: 0.75 },
-      { id: "evidence-available", value: null },
+describe("separate-job operational-value Bash", () => {
+  it("passes a session file and config without the old request wrapper", () => {
+    expect(executeOperationalValueEvaluator(source, session, { offset: 2 })).toEqual([
+      { id: "observations", value: 3 },
+      { id: "missing", value: null },
     ]);
+    expect(session).toHaveLength(1);
   });
 
-  it("preserves operational values outside the unit interval", () => {
-    const output = executeOperationalValueEvaluator(
-      operationalValueEvaluator([
-        { id: "value-created", value: 2.5 },
-        { id: "cost", value: -3.25 },
-      ]),
-      { config: { mode: "test" } },
-      { env: TEST_ENV, event: { issue: { number: 42 } } }
-    );
+  it("keeps legacy metric arrays, using the first as the primary result", () => {
+    const { output, manifest } = runCustomGraders(session, [definition(source, { direction: "higher_is_better", threshold: 4 })]);
+    expect(output.results[0]).toMatchObject({
+      id: "operational-value",
+      source: "operational-value",
+      value: 3,
+      status: "fail",
+      diagnostics: { missing: null },
+      metrics: [
+        { id: "observations", value: 3 },
+        { id: "missing", value: null },
+      ],
+      implementation: { id: "gh-aw/operational-value", version: 2, digest: expect.stringMatching(/^[a-f0-9]{64}$/) },
+    });
+    expect(manifest.graders[0]).not.toHaveProperty("shellScript");
+    expect(manifest.graders[0]).not.toHaveProperty("script");
+  });
 
-    expect(output).toEqual([
-      { id: "value-created", value: 2.5 },
-      { id: "cost", value: -3.25 },
-    ]);
+  it("does not inherit credentials, shell startup hooks, or the working checkout", () => {
+    vi.stubEnv("GH_TOKEN", "test-credential");
+    vi.stubEnv("BASH_ENV", "/does-not-exist");
+    try {
+      const script = `#!/bin/bash
+[[ -z "\${GH_TOKEN+x}" && -z "\${GITHUB_TOKEN+x}" && -z "\${BASH_ENV+x}" && -z "\${GITHUB_WORKSPACE+x}" ]]
+[[ "$PWD" == */gh-aw-operational-value-* ]]
+printf '[{"id":"isolated-env","value":1}]'
+`;
+      expect(executeOperationalValueEvaluator(script, [], {})).toEqual([{ id: "isolated-env", value: 1 }]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it.each([
-    ["empty array", [], "non-empty array"],
-    ["extra fields", [{ id: "score", value: 1, message: "no" }], "exactly id and value"],
-    [
-      "duplicate ids",
-      [
-        { id: "score", value: 1 },
-        { id: "score", value: 0 },
-      ],
-      "non-empty and unique",
-    ],
-    ["empty id", [{ id: " ", value: 1 }], "non-empty and unique"],
-    ["string value", [{ id: "score", value: "1" }], "finite numbers"],
-  ])("rejects %s", (_name, output, message) => {
-    expect(() => executeOperationalValueEvaluator(operationalValueEvaluator(output), { config: { mode: "test" } }, { env: TEST_ENV, event: { issue: { number: 42 } } })).toThrow(message);
+    "printf not-json",
+    "printf '[]'",
+    'printf \'[{"id":"a","value":"unavailable"}]\'',
+    'printf \'[{"id":"a","value":1},{"id":"a","value":2}]\'',
+    'printf \'[{"id":"a","value":1,"extra":true}]\'',
+    "exit 4",
+    "cat /missing-grader-session",
+  ])("surfaces invalid output or execution failures: %s", script => {
+    expect(() => executeOperationalValueEvaluator(script, [], {})).toThrow(/operational-value/);
+    expect(runCustomGraders([], [definition("#!/bin/bash\n" + script)]).output.results[0]).toMatchObject({ status: "error", value: null });
   });
 
-  it("rejects invalid Bash", () => {
-    expect(() => executeOperationalValueEvaluator("#!/usr/bin/env bash\nif", {}, { env: TEST_ENV })).toThrow("invalid Bash syntax");
+  it("bounds execution and output and removes staging files on errors", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-shell-test-"));
+    try {
+      expect(() => executeOperationalValueEvaluator("while :; do :; done", [], {}, { timeout: 50, temporaryRoot: root })).toThrow(/limit/);
+      const start = Date.now();
+      expect(() => executeOperationalValueEvaluator("sleep 30 & wait", [], {}, { timeout: 50, temporaryRoot: root })).toThrow(/limit/);
+      expect(Date.now() - start).toBeLessThan(3000);
+      expect(() => executeOperationalValueEvaluator("printf '%1100000s' x", [], {}, { temporaryRoot: root })).toThrow(/limit/);
+      expect(fs.readdirSync(root)).toEqual([]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
-  it("supports a configurable evaluator timeout", () => {
-    const slowEvaluator = `#!/usr/bin/env bash
-set -euo pipefail
-cat >/dev/null
-sleep 1
-printf '%s\n' '[{"id":"score","value":1}]'
-`;
+  it("does not execute disabled shell definitions", () => {
+    expect(runCustomGraders([], [definition("#!/bin/bash\nexit 9", { enabled: false })]).output.results).toEqual([]);
+  });
 
-    expect(() =>
-      executeOperationalValueEvaluator(
-        slowEvaluator,
-        {},
-        {
-          env: { ...TEST_ENV, GH_AW_OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS: "50" },
-        }
-      )
-    ).toThrow("operational-value evaluator timed out after 50ms");
+  it.each(["#!/usr/bin/bash", "#!/usr/bin/env -S bash -eu", "#!/bin/bash -e", "#!/bin/env bash"])("accepts compiler-supported Bash shebangs: %s", shebang => {
+    const script = shebang + '\nprintf \'[{"id":"compatible","value":1}]\'\n';
+    expect(runCustomGraders([], [definition(script)]).output.results[0]).toMatchObject({ value: 1, status: "pass" });
+  });
+
+  it("publishes combined source-free artifacts and fails the job on shell errors", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-shell-artifact-test-"));
+    const previousCore = global.core;
+    global.core = { warning: vi.fn(), setFailed: vi.fn() };
+    try {
+      const builtins = computeGraders(session);
+      const input = [...session, { type: "grader.manifest", data: builtins.manifest, provenance }, { type: "grader.result", data: builtins.output, provenance }];
+      const original = input.map(event => JSON.stringify(event)).join("\n") + "\n";
+      const sessionPath = path.join(root, "aw_session.jsonl");
+      fs.writeFileSync(sessionPath, original);
+      vi.stubEnv("GH_AW_CUSTOM_GRADER_MANIFEST_CHUNKS", "1");
+      vi.stubEnv("GH_AW_CUSTOM_GRADER_MANIFEST_0", JSON.stringify({ graders: [definition("#!/bin/bash\nexit 3")] }));
+      await main({ sessionPath, outputDirectory: path.join(root, "results") });
+      const output = JSON.parse(fs.readFileSync(path.join(root, "results/grader_results.json"), "utf8"));
+      expect(output.results.slice(0, builtins.output.results.length)).toEqual(builtins.output.results);
+      expect(output.results.at(-1)).toMatchObject({ id: "operational-value", status: "error", source: "operational-value" });
+      expect(global.core.setFailed).toHaveBeenCalled();
+      expect(global.core.warning).toHaveBeenCalled();
+      expect(fs.readFileSync(path.join(root, "results/grader_manifest.json"), "utf8")).not.toContain("shellScript");
+      expect(fs.readFileSync(sessionPath, "utf8")).toBe(original);
+    } finally {
+      vi.unstubAllEnvs();
+      global.core = previousCore;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

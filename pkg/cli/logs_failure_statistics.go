@@ -16,7 +16,7 @@ func annotateFailureClusterStatistics(runs []RunData, clusters []FailureCluster)
 		false: {}, true: {},
 	}
 	for _, run := range runs {
-		if isClusterFailureConclusion(run.Conclusion) {
+		if isClusterFailureConclusion(run.Conclusion) && !isObsoletePRRun(run) {
 			populations[run.IntentionalFailure][failureRunIdentityFor(run).key()] = struct{}{}
 		}
 	}

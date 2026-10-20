@@ -3,15 +3,21 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/repoutil"
 )
 
 // evalAssignToAgent requires a post-assignment link to a visible agent-authored PR.
 func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
-	report := OutcomeReport{Type: item.Type, ObjectURL: item.URL, ObjectNumber: num, Repo: repo}
-	report.OutcomeEvaluation = outcomeEvidence(OutcomeStatusUnknown, EvidenceNone, "missing_reference")
+	report := OutcomeReport{
+		Type: item.Type, ObjectURL: item.URL, ObjectNumber: num, Repo: repo,
+		OutcomeEvaluation: outcomeEvidence(OutcomeStatusUnknown, EvidenceNone, "missing_reference"),
+	}
 	if num == 0 || repo == "" {
 		return report
 	}
@@ -43,14 +49,16 @@ func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride
 			continue
 		}
 		prNumber := metadataInt(issue, "number")
-		if prNumber <= 0 {
+		prRepo := linkedOutcomeIssueRepo(issue, repo)
+		if prNumber <= 0 || prRepo == "" {
 			continue
 		}
-		pr, err := outcomeEvidenceGHAPIGet(ctx, fmt.Sprintf("pulls/%d", prNumber), repo)
+		pr, err := outcomeEvidenceGHAPIGet(ctx, fmt.Sprintf("pulls/%d", prNumber), prRepo)
 		if err != nil {
 			outcomeAPIError(&report, err, false)
 			return report
 		}
+
 		if outcomeValue[bool](pr["merged"]) {
 			report.OutcomeEvaluation = outcomeEvidence(OutcomeStatusAccepted, EvidenceStrong, "merged")
 		} else if outcomeString(pr["state"]) == "closed" {
@@ -64,4 +72,21 @@ func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride
 	report.OutcomeEvaluation = outcomeEvidence(OutcomeStatusUnknown, EvidenceNone, "missing_execution_state")
 	report.Detail = "no attributable agent PR"
 	return report
+}
+
+func linkedOutcomeIssueRepo(issue map[string]any, sourceRepo string) string {
+	u, err := url.Parse(outcomeString(issue["repository_url"]))
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
+		return ""
+	}
+	_, repo, found := strings.Cut(u.Path, "/repos/")
+	owner, name, hasName := strings.Cut(repo, "/")
+	if !found || !hasName || owner == "" || name == "" || strings.Contains(name, "/") || owner == "." || owner == ".." || name == "." || name == ".." {
+		return ""
+	}
+	_, host := repoutil.NormalizeRepoForAPI(sourceRepo)
+	if host != "" {
+		return path.Join(host, repo)
+	}
+	return repo
 }

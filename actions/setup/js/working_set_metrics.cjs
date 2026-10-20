@@ -1,6 +1,5 @@
 // @ts-check
 
-const { iterateJsonl } = require("./jsonl_helpers.cjs");
 /**
  * @typedef {object} WorkingSetMetrics
  * @property {"measured" | "partial" | "unavailable"} measurement_state
@@ -70,6 +69,7 @@ function calculateWorkingSetFromEntries(entries, initialIgnoredRecords = 0) {
  * @returns {{ workingSet: WorkingSetMetrics, ignoredRecords: number }}
  */
 function calculateWorkingSetFromJSONL(content) {
+  const { iterateJsonl } = require("./jsonl_helpers.cjs");
   let ignoredRecords = 0;
   const entries = iterateJsonl(content, { onError: () => ignoredRecords++ });
   const result = calculateWorkingSetFromEntries(entries);

@@ -11,6 +11,7 @@
 
 const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getStalePullRequestReason } = require("./pr_lifecycle.cjs");
 const { ERR_CONFIG, ERR_PARSE, ERR_VALIDATION, SAFE_OUTPUT_E099 } = require("./error_codes.cjs");
 const { classifySafeOutputResult, computeSafeOutputsStatus, isFailedProcessingResult } = require("./safe_outputs_status.cjs");
 const { hasUnresolvedTemporaryIds, replaceTemporaryIdReferences, replaceArtifactUrlReferences, normalizeTemporaryId, extractTemporaryIdReferences, getCreatedTemporaryId } = require("./temporary_id.cjs");
@@ -32,6 +33,7 @@ const { emitSafeOutputActionOutputs } = require("./safe_outputs_action_outputs.c
 const { listCommentMemoryFiles, COMMENT_MEMORY_DIR } = require("./comment_memory_helpers.cjs");
 const { checkRateLimitHeadroom } = require("./rate_limit_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
+const { getEffectiveDetectionConclusion } = require("./threat_detection_warning.cjs");
 const nodePath = require("path");
 const fs = require("fs");
 const {
@@ -1020,7 +1022,8 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
   });
   const processingOrder = sortMessageIndicesByTemporaryIdDependencies(messages);
   const results = [];
-  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || "";
+  const detectionConclusion = getEffectiveDetectionConclusion(process.env.GH_AW_DETECTION_CONCLUSION, process.env.GH_AW_DETECTION_REASON);
+  const detectionConclusionMissing = String(process.env.GH_AW_RUN_DETECTION || "").trim() === "true" && detectionConclusion === "";
 
   // Collect missing_tool, missing_data, noop, and report_incomplete messages first
   const missings = collectMissingMessages(messages.filter(message => !currentClaimHandle() || !message._claimScopeError));
@@ -1091,6 +1094,28 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
     if (!messageType) {
       core.warning(`Skipping message ${i + 1} without type`);
+      continue;
+    }
+
+    if (detectionConclusion === "failure" || detectionConclusionMissing) {
+      // Defence in depth: a failure conclusion that is not a warn-mode tooling failure
+      // (those are normalized to "warning" above), or a missing conclusion when detection
+      // was required, never reaches safe_outputs in a valid run. Never apply outputs
+      // unrestricted when it does.
+      const errorCode = detectionConclusionMissing ? "threat_detection_conclusion_missing" : "threat_detection_failure_blocked";
+      const error = detectionConclusionMissing
+        ? `Threat detection was required but reported no conclusion; "${messageType}" was not applied.`
+        : `Threat detection concluded failure (reason: ${process.env.GH_AW_DETECTION_REASON || "unknown"}); "${messageType}" was not applied.`;
+      core.warning(`🚫 ${error}`);
+      results.push({
+        type: messageType,
+        messageIndex: i,
+        success: false,
+        cancelled: true,
+        threatDetected: true,
+        errorCode,
+        error,
+      });
       continue;
     }
 
@@ -1241,6 +1266,12 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
       // Call the message handler with the individual message and resolved temp IDs
       await assertClaimAuthorized(effectiveMessage);
+      const stalePRReason = await getStalePullRequestReason(global.github, global.context);
+      if (stalePRReason) {
+        core.info(stalePRReason);
+        results.push(buildSkippedResult(messageType, i, { skipped: true, reason: stalePRReason }));
+        continue;
+      }
       const result = await messageHandler(effectiveMessage, resolvedTemporaryIds, temporaryIdMap);
 
       // Check if the handler explicitly returned a skipped result (e.g. policy filters,
@@ -1437,7 +1468,8 @@ async function processMessages(messageHandlers, messages, onItemCreated = null) 
 
         // Call the handler again with updated temp ID map
         await assertClaimAuthorized(deferred.message);
-        const result = await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
+        const stalePRReason = await getStalePullRequestReason(global.github, global.context);
+        const result = stalePRReason ? { skipped: true, reason: stalePRReason } : await deferred.handler(deferred.message, resolvedTemporaryIds, temporaryIdMap);
 
         if (result && result.skipped === true && !result.deferred) {
           const msg = result.reason || result.warning || result.error || "Handler returned skipped: true";
@@ -1793,6 +1825,11 @@ async function processSyntheticUpdates(github, context, trackedOutputs, temporar
           core.info(`Updating ${tracked.type} ${logInfo} (${resolvedCount} temp ID(s) resolved)`);
 
           try {
+            const stalePRReason = await getStalePullRequestReason(github, context);
+            if (stalePRReason) {
+              core.info(stalePRReason);
+              continue;
+            }
             const targetRepo = parseRepoSlug(tracked.result.repo);
             const allowedAliases = targetRepo ? await resolveAllowedMentionsFromPayload(context, github, core, mentionsConfig, undefined, targetRepo) : [];
             // Replace artifact URL references first, then issue number references
@@ -2167,6 +2204,12 @@ async function main(options = {}) {
         let reviewFailureError = null;
         try {
           await assertClaimAuthorized({ type: "submit_pull_request_review", claim_handle: currentClaimHandle(), repo: reviewRepo, pull_request_number: reviewPrNum });
+          const stalePRReason = await getStalePullRequestReason(github, context);
+          if (stalePRReason) {
+            core.info(stalePRReason);
+            skipReviewResultsForPR(processingResult.results, reviewRepo, reviewPrNum, stalePRReason);
+            continue;
+          }
           const reviewResult = await reviewBuffer.submitReview();
           if (reviewResult.success && !reviewResult.skipped) {
             logCreatedItemFromResult(logCreatedItem, "submit_pull_request_review", reviewResult);

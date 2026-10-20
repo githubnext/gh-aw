@@ -140,8 +140,9 @@ function debugEnabled(namespace) {
 }
 
 /**
- * Events, field names and explanations must be developer-authored. Values are
- * counts/flags only: never pass identities, payloads, credentials or raw errors.
+ * Events and field names must be developer-authored. Values are counts/flags
+ * only; failure explanations may include a validated GitHub request ID.
+ * Never pass identities, payloads, credentials or raw errors.
  * @param {string} component
  */
 function createWorkQueueLogger(component) {
@@ -170,6 +171,9 @@ function createWorkQueueLogger(component) {
     const message = ownValue(ownValue(response, "data"), "message");
     const boundedMessage = typeof message === "string" && message.length <= 8192 ? message : "";
     const code = queueControlErrorCode(error);
+    const requestId = ownValue(ownValue(response, "headers"), "x-github-request-id");
+    const validRequestId = typeof requestId === "string" && !/\s/.test(requestId) && /^[0-9a-f]{1,16}(?::[0-9a-f]{1,16}){4}$/i.test(requestId);
+    const requestDiagnostic = Number.isInteger(status) && status >= 100 && status <= 599 ? ` GitHub request ID: ${validRequestId ? requestId : "unknown"}.` : "";
     diagnostic(
       event,
       {
@@ -184,7 +188,7 @@ function createWorkQueueLogger(component) {
           : {}),
         [code]: true,
       },
-      queueControlErrorExplanation(code)
+      queueControlErrorExplanation(code) + requestDiagnostic
     );
   }
   return { debug, diagnostic, failure };

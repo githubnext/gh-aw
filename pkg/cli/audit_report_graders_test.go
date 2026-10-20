@@ -174,15 +174,16 @@ func TestExtractGradersDataSkipsOversizedManifest(t *testing.T) {
 	}
 }
 
-func TestGradersArtifactSetResolvesToUsageAgentAndFallback(t *testing.T) {
+func TestGradersArtifactSetResolvesToUsageCustomAgentAndFallback(t *testing.T) {
 	t.Parallel()
 	filter := artifactSetArtifacts[ArtifactSetGraders]
-	if len(filter) != 3 {
-		t.Fatalf("expected graders set to resolve to 3 artifacts, got %v", filter)
+	if len(filter) != 4 {
+		t.Fatalf("expected graders set to resolve to 4 artifacts, got %v", filter)
 	}
 	if filter[0] != constants.UsageArtifactName.String() ||
-		filter[1] != constants.AgentArtifactName.String() ||
-		filter[2] != constants.AgentOutputFallbackArtifactName.String() {
+		filter[1] != constants.GradersArtifactName.String() ||
+		filter[2] != constants.AgentArtifactName.String() ||
+		filter[3] != constants.AgentOutputFallbackArtifactName.String() {
 		t.Fatalf("unexpected graders artifact set: %v", filter)
 	}
 }

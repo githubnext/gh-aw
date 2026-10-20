@@ -469,6 +469,13 @@ func TestLargeContentFieldsHaveExpectedMaxLength(t *testing.T) {
 		{tool: "report_incomplete", field: "details"},
 		{tool: "mark_pull_request_as_ready_for_review", field: "reason"},
 	}
+	expectedMaxLengths := map[string]float64{
+		"create_issue.body":                         524288,
+		"add_comment.body":                          524288,
+		"create_pull_request_review_comment.body":   524288,
+		"submit_pull_request_review.body":           524288,
+		"reply_to_pull_request_review_comment.body": 524288,
+	}
 
 	for _, tc := range fieldCases {
 		t.Run(tc.tool+"."+tc.field, func(t *testing.T) {
@@ -486,7 +493,11 @@ func TestLargeContentFieldsHaveExpectedMaxLength(t *testing.T) {
 
 			maxLength, ok := fieldValue["maxLength"].(float64)
 			require.True(t, ok, "expected maxLength for %s.%s", tc.tool, tc.field)
-			assert.InDelta(t, float64(65536), maxLength, 0, "expected maxLength=65536 for %s.%s", tc.tool, tc.field)
+			expectedMaxLength, ok := expectedMaxLengths[tc.tool+"."+tc.field]
+			if !ok {
+				expectedMaxLength = 65536
+			}
+			assert.InDelta(t, expectedMaxLength, maxLength, 0, "expected maxLength=%v for %s.%s", expectedMaxLength, tc.tool, tc.field)
 		})
 	}
 }

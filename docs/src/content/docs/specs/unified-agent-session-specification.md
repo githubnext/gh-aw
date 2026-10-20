@@ -3,7 +3,7 @@ title: Unified Agent Session Specification
 description: Draft contract for canonical engine traces and essential unified session payloads across gh-aw runtime components.
 sidebar:
   order: 1365
-version: "1.12.0"
+version: "2.0.0"
 status: Draft
 publication_date: "2026-10-18"
 editors:
@@ -13,7 +13,7 @@ editors:
 
 # Unified Agent Session Specification
 
-**Version**: 1.12.0<br>
+**Version**: 2.0.0<br>
 **Status**: Draft<br>
 **Publication Date**: 2026-10-18<br>
 **Editors**: GitHub Agentic Workflows Team (GitHub)<br>
@@ -30,7 +30,7 @@ This specification defines the session traces used by GitHub Agentic Workflows: 
 
 This is a **GitHub Agentic Workflows project specification**, written using W3C-inspired document conventions. It is **not an official W3C standard**, W3C publication, or W3C-endorsed recommendation.
 
-Version 1.12.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
+Version 2.0.0 is a draft governed by the project's normal review process. It may be updated, replaced, or superseded. The accompanying implementation and regression suites exercise this contract, including the sampled CI sessions identified in Section 9.4. This is not a blanket declaration of conformance for every engine version or source format. Section 10 records historical pre-implementation gaps, not current defects. Approval and ongoing compliance testing remain project responsibilities.
 
 The specification version belongs to this document. The unified file's leading
 `session.format` record carries an independent numeric serialization-format
@@ -89,7 +89,10 @@ and eval evidence, the conclusion job merges these observations into
 `aw-prompts/system.txt` and `aw-prompts/user.txt` files; the merger records each
 available file as an untimed `prompt.system` or `prompt.user` event with its exact
 content and source path. These prompt events are omitted from default summaries.
-Graders arrive in the agent artifact. Collection and upload
+Built-in graders compute from the redacted in-memory unified session in
+conclusion, after all sources are collected. Their manifest and result events
+are appended before the session is persisted; grader files are written into
+the `usage` artifact. Graders never reread the session or source files. Collection and upload
 run after conclusion handlers, before setup cleanup. The existing usage JSON,
 JSONL accounting, activity summary, and result files remain available.
 
@@ -248,7 +251,7 @@ opaque because its essential fields are not defined by this specification.
 | Runtime accounting | Provider, model, request ID, status, AIC, cumulative/checkpoint AIC, premium requests, duration, and normalized `usage`; overlapping reports stay separate. Detection and eval usage reports resolve per-observation AIC from known model pricing only when explicit AIC is unavailable; unknown pricing leaves AIC absent, while explicit zero and checkpoints remain authoritative. |
 | Execution, detection, workflow | Observed outcomes, exit code, duration/start/end, detection job result/conclusion/categorical reason and verdict flags, engine ID, requested model, trigger type, workflow/repository/run ID, and available gh-aw, AWF, MCPG, and agent versions. No detector transcript or free-form reasons. |
 | Model routing | `firewall.model_routing` retains its stage, purpose, provider, labels, selection, endpoint, router, request, outcome, and deviation fields, plus AWF's ranked choices, pool counts, request endpoints, telemetry availability, HTTP status, and failure phase when supplied. `workflow.info` includes the observed `model`, `requestedModel`, and a compact `modelRouting` object. `model_routing.outcome` records the harness's status, wire model, effective and selected endpoints, effort, applied effort, and failure code. |
-| Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. Text and Markdown summaries display it as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`, `rootWorkflowId`, and `rootRunId`. |
+| Caller context and episode lineage | `workflow.info.awContext` retains the supplied `aw_context` object from runner-owned `aw_info.json.context`, including original keys and nested work-queue data. For webhook batches, it retains unique affected items and delivery IDs but omits each delivery's raw `payload`; those bodies remain in runner-owned context files. Text and Markdown summaries display the log-safe context as compact JSON alongside the workflow metadata, subject to existing output-size limits. Registered secrets are redacted during artifact serialization and summary rendering. `workflow.info.episode` additionally projects supplied canonical lineage and parent repository, run, attempt, workflow, call identity, and event type. |
 | Skills | Activation inventory records installed skill name, relative source, scope, SHA-256 content digest, and declared purpose, without skill content. Exact-name and cross-scope collisions retain names, kinds, and source identifiers: current sources are workspace-relative paths, while overwritten frontmatter installations use ordinal identifiers such as `frontmatter-1`. Observed engine invocations retain the selected skill name, path, source, trigger, model, and turn when supplied; a declared or installed skill is not proof of invocation. |
 
 OpenTelemetry observations use `otel.span`, `otel.span_event`, and `otel.log`.
@@ -274,7 +277,38 @@ comes from the GitHub Actions event name; `cliVersion`, `awfVersion`,
 are not inferred. The numeric file-format version remains `1`: the
 `type`/`data`/`provenance` envelope and JSONL framing are unchanged.
 
-The optional `workflow.info.episode` object maps the seven snake_case lineage fields in `aw_info.json.context` to camelCase without inferring absent values or changing identifiers. That context describes the recorded caller: `episode.hopId` is not relabeled as the current run's hop, and `episode.parentHopId` remains that caller's recorded parent. Existing files without lineage remain valid; legacy call IDs alone do not synthesize canonical episode metadata. Only runner-owned workflow metadata supplies this projection, using the collector's existing source precedence.
+The optional `workflow.info.episode` object projects recorded lineage and parent
+identity from `aw_info.json.context` without inferring absent values or changing
+identifiers. `episodeId`, `hopId`, `parentHopId`, `originEvent`, `rootRepo`,
+`rootWorkflowId`, and `rootRunId` map the corresponding snake_case lineage fields.
+The caller's `repo`, `run_id`, `run_attempt`, `workflow_id`, `workflow_call_id`,
+and `event_type` become `parentRepo`, `parentRunId`, `parentRunAttempt`,
+`parentWorkflowId`, `parentWorkflowCallId`, and `parentEventType`, respectively.
+The current run's metadata remains separate: `workflow.info.runAttempt` and
+`workflowId` retain the recorded attempt and executing workflow's full reference
+from compiler-wired `job.workflow_ref`, including for reusable invocations.
+`workflowCallId` retains the top-level `aw_info.json.workflow_call_id`, computed
+with the existing workflow-call ID helper as `<run_id>-<run_attempt>:<workflow_id>`.
+The attempt defaults to `1`; when the executing workflow reference is unavailable,
+the ID contains only `<run_id>-<run_attempt>`. This identifies the current
+workflow, while `episode.parentWorkflowCallId` retains the caller's recorded ID.
+`callerWorkflowRef` separately retains `GITHUB_WORKFLOW_REF`, which identifies
+the top-level caller for reusable workflows (and the current workflow otherwise),
+while `ref`, `sha`, `actor`, and `targetRepo` retain the existing metadata used
+for legacy lineage matching. Both references are captured when the runner writes
+`aw_info.json`, never from the collector's environment. An unavailable executing
+reference remains empty; the caller reference is not substituted for it.
+
+That context describes the recorded caller: `episode.hopId` is not relabeled as
+the current run's hop, and `episode.parentHopId` remains that caller's recorded
+parent, not the current run's immediate parent. Parent and current run IDs may
+match for reusable workflows; workflow and call identities must remain distinct.
+Legacy context can provide parent identity without a canonical `episodeId` or
+hop ID. Existing files without lineage remain valid. Only runner-owned workflow
+metadata supplies this projection, using the collector's existing source
+precedence. Explicit normalized `episode` values take precedence over context,
+including explicit `null`; canonical `awContext` takes precedence over legacy
+`context`.
 
 **T-UAS-055 — Source provenance.** Every merged event MUST have a `provenance`
 object with `component`, `phase`, `path`, and `index`. `path` MUST be relative to
@@ -641,7 +675,7 @@ source for opaque fields.
 | `usage.report`, `execution.result`, `detection.result`, `workflow.info` | Existing accounting, execution evidence, detection verdicts, and run metadata. `workflow.info` retains available `cliVersion` (gh-aw), `awfVersion`, `mcpgVersion`, `engineId`, `agentVersion`, observed `model`, `requestedModel`, compact `modelRouting`, and `triggerType` from `aw_info.json`. `requestedModel` prefers `requested_model` and falls back to `model` for earlier metadata. Unavailable values are not inferred. |
 | `workflow.job_result` | Conclusion's GitHub Actions dependency snapshot from `needs`, passed through `GH_AW_JOB_RESULTS`. Each record contains the stable `jobId` and its observed `result`: `success`, `failure`, `cancelled`, or `skipped`. Optional `durationMs` is the completed Actions job's `completed_at - started_at` in milliseconds, excluding queue time. Outputs and other dependency fields are excluded. Records have workflow component, conclusion phase, and `usage/aw_session.jsonl` provenance, with deterministic job-ID order and no invented timestamp. |
 | `model_routing.outcome` | The harness's observed routing status, wire model, effective endpoint, selected endpoint, effort, applied effort, and failure code from `agent/awf-routing-outcome.json`; free-form detail is excluded. |
-| `model.inventory` | AWF's runtime model list from `sandbox/firewall/models.json` and persisted `/reflect` inventory, selecting the first valid copy from `agent/awf-reflect.json`, then `sandbox/firewall/awf-reflect.json`. Agent and threat-detection inventories retain their source path and phase separately. Payloads contain provider names, full model ID lists, routing model IDs and supported endpoints, and the observed `modelsFetchComplete` flag when supplied. Endpoint routing metadata takes precedence over the top-level fallback. Credentials, headers, URLs, and unrecognized fields are excluded. Missing inventory does not imply unavailable models; malformed sources emit collection warnings rather than empty inventory events. JSON parse failures produce one warning per source. |
+| `model.inventory` | AWF's runtime model list from `sandbox/firewall/models.json` and persisted `/reflect` inventory, selecting the first valid copy from `agent/awf-reflect.json`, then `sandbox/firewall/awf-reflect.json`. Agent and threat-detection inventories retain their source path and phase separately. Payloads contain provider names, AWF's endpoint `configured` state, full model ID lists, routing model IDs, supported endpoints, supported reasoning efforts, and context windows, and the observed `modelsFetchComplete` flag when supplied. Null or absent model and routing lists are unknown and omitted, never empty (T-UAS-075). Endpoint routing metadata takes precedence over the top-level fallback. Credentials, headers, URLs, and unrecognized fields are excluded. Missing inventory does not imply unavailable models; malformed sources emit collection warnings rather than empty inventory events. JSON parse failures produce one warning per source. |
 | `model_endpoint.mismatch` | A single harness JSON record from `agent/model-endpoint-mismatch.json`, with the model/API mismatch cause and corrective action. |
 | `model.resolution` | Runner-written records from `agent/model-resolution.json`, one per resolved role, with the engine, role, configured and resolved model, provider, status, and failure cause from the shared "resolve configured model" step (T-UAS-074). |
 | `guardrail.daily_aic` | Activation's daily AI Credits decision (`status`, `exceeded`, and available numeric `total`, `estimated`, `threshold`). Omitted when the guardrail has no decision; an existing event is not duplicated. |
@@ -815,6 +849,49 @@ catalogue), `exact` (an exact id passed through unchanged), or `failed`; and
 `cause` is `null` unless `status` is `failed`, when it is `model_unavailable` or
 `catalog_unavailable` and `resolved_model` is `null`. Unknown source fields are
 excluded; an absent record does not imply that a model was or was not resolved.
+
+#### Model inventory
+
+**T-UAS-075 — Model inventory endpoint state.** A `model.inventory` payload has
+an ordered `endpoints` array and an optional boolean `modelsFetchComplete`. Each
+endpoint has the following essential fields, in source order:
+
+- `provider`: required non-blank string.
+- `configured`: AWF's boolean endpoint state, `true` or `false`, when supplied.
+  The collector MUST NOT infer it from model counts or fetch completion, and MUST
+  leave it absent when the source omits it.
+- `models`: optional array of non-blank model ID strings in source order.
+- `routingModels`: optional array of entries in source order, each with a
+  required non-blank `modelId`, optional non-blank `supportedEndpoints` strings,
+  optional `supportedReasoningEfforts`, and optional `contextWindowTokens`.
+- `supportedReasoningEfforts`: identifier tokens of 1–64 characters that start
+  with a letter or digit and otherwise contain only letters, digits, `.`, `_`,
+  or `-` (for example `low` or `xhigh`).
+- `contextWindowTokens`: positive safe integer.
+
+AWF writes `null` model and routing lists for unconfigured endpoints and for
+configured endpoints whose model fetch is pending. The collector MUST omit such a
+property rather than write `null` or an empty array, and MUST still publish the
+other endpoints. Readers MUST treat an absent `models`, `routingModels`, or
+`supportedReasoningEfforts` as unknown, never as an empty list or as evidence that
+a model is unavailable. A supplied empty array MUST remain empty. An absent or
+`null` context window MUST be omitted, never written as zero or inferred from
+another model. A null model list is accepted only on an endpoint with a boolean
+`configured`. An explicit endpoint-local `null` routing list MUST NOT inherit the
+top-level routing list; only an absent endpoint-local list does. Snake_case
+source spellings (`routing_models`, `model_id`, `supported_endpoints`,
+`supported_reasoning_efforts`, `context_window_tokens`, and
+`models_fetch_complete`) normalize to these names.
+
+A source with a wrong collection type, a non-string or blank model ID, a
+non-boolean `configured`, an invalid reasoning effort, or a context window that
+is not a positive safe integer MUST produce one `invalid_model_inventory`
+collection warning and no inventory event for that source; the collector MUST NOT
+publish a partial or empty inventory in its place. Normalization MUST accept its
+own output unchanged, survive a JSON round trip, and leave the source unchanged.
+Each value comes from the recorded AWF source; credentials, headers, URLs,
+pricing, candidate-completeness flags, source labels, and other unrecognized
+endpoint or model fields MUST be excluded.
 
 ### 4.8 `agent.execution`
 
@@ -1596,6 +1673,7 @@ Recommended execution is fixture parsing, canonical structural assertions, accou
 | T-UAS-071 | Firewall token usage with supplied, absent, or malformed `steering`; AI-credit, token, and time steering event-log entries | Type and threshold survive projection, malformed notices are dropped, steering events keep threshold and request ID, and absent notices remain unrecorded rather than undelivered. |
 | T-UAS-073 | Copilot built-in and declared sub-agents with distinct display names, provider-qualified SDK model IDs, declared concrete and alias models, and sessions without `agentName` | Rows keyed by `agentName` with sorted `display_names`, one audit row per definition and one logs row per definition and effort, bare served model IDs without aliases, unchanged counts and credits, and display-name rows when `agentName` is absent. |
 | T-UAS-074 | `agent/model-resolution.json` with resolved, exact, and failed records for main and sub-agent roles; empty, non-array, malformed, and contract-violating records | One `model.resolution` event per record in array order with `model_resolution` provenance and only the contract fields; invalid sources emit collection warnings and no events. |
+| T-UAS-075 | Recorded AWF reflection from run 38995410124 with four unconfigured null endpoints; pending-fetch, legacy, and malformed-ID or capability-metadata variants | One inventory event per valid source with endpoint order, `configured`, model IDs, routing endpoints, reasoning efforts, and known context windows; null lists absent rather than empty; malformed sources warn and publish no inventory; projection is idempotent. |
 
 ### 9.3 Engine and integration fixture matrix
 
@@ -2117,6 +2195,12 @@ Malformed logs and very large records can exhaust memory or produce misleading s
 Native IDs can collide, timestamps can be out of order, and a trace can contain ambiguous concurrent calls. Exact-ID pairing avoids attributing a failure or output to the wrong tool. Cross-session concatenation requires an external boundary policy; this specification does not invent a wrapper or fabricated session IDs to resolve such ambiguity.
 
 ## 13. Change Log (Informative)
+
+### Version 2.0.0 — Draft (2026-10-18)
+
+- Incompatible: `model.inventory` endpoint `models` is now optional. AWF `null` model and routing lists are omitted as unknown instead of written as empty arrays, so readers can no longer assume every endpoint has a model list (T-UAS-075).
+- Accepted endpoint-local `null` routing lists without rejecting the rest of the inventory, and retained endpoint `configured`, routing `supportedReasoningEfforts`, and `contextWindowTokens` when supplied.
+- Retained serialization-format version 1.
 
 ### Version 1.12.0 — Draft (2026-10-18)
 

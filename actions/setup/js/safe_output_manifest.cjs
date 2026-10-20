@@ -286,6 +286,7 @@ function extractCreatedItemFromResult(type, result) {
   const labels = Array.isArray(result.labels) ? result.labels : Array.isArray(result.labelsAdded) ? result.labelsAdded.map(name => ({ name })) : undefined;
   const metadata = {
     ...(result.metadata || {}),
+    ...(type === "dispatch_workflow" && result.run_id != null ? { run_id: result.run_id } : {}),
     ...(type === "assign_milestone" && result.milestone_number != null ? { milestone_number: result.milestone_number } : {}),
     ...(type === "push_to_pull_request_branch" && result.commit_sha ? { commit_sha: result.commit_sha } : {}),
   };

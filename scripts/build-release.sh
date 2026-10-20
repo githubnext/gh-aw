@@ -29,8 +29,12 @@ platforms=(
 
 echo "Building binaries with version: $VERSION"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_TOOLCHAIN="$(bash "${SCRIPT_DIR}/check-go-toolchain.sh")"
+
 # Create dist directory if it doesn't exist
 mkdir -p dist
+printf '%s\n' "$BUILD_TOOLCHAIN" > dist/build-toolchain.txt
 
 IFS=$'\n' read -d '' -r -a supported_platforms < <(go tool dist list) || true
 
@@ -57,7 +61,12 @@ for p in "${platforms[@]}"; do
     -ldflags="-s -w -X main.version=${VERSION} -X main.isRelease=true" \
     -o "dist/${p}${ext}" \
     ./cmd/gh-aw
-  
+
+  binary_toolchain="$(go version -m "dist/${p}${ext}" | head -1)"
+  if [[ "$binary_toolchain" != *": ${BUILD_TOOLCHAIN}" ]]; then
+    echo "ERROR: Unexpected build toolchain for ${p}: ${binary_toolchain}" >&2
+    exit 1
+  fi
 done
 
 # Build WebAssembly binary

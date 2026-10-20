@@ -40,8 +40,8 @@ imports:
   - shared/reporting.md
 jobs:
   verify_credit_limit:
-    needs: agent
-    if: always() && !cancelled() && needs.agent.result != 'skipped'
+    needs: [agent, detection]
+    if: always() && !cancelled() && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:

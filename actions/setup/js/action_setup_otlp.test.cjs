@@ -28,7 +28,7 @@ const originalIsValidTraceId = sendOtlpModule.isValidTraceId;
 const originalIsValidSpanId = sendOtlpModule.isValidSpanId;
 
 // Load the module under test after patching is possible
-const { run } = req("./action_setup_otlp.cjs");
+const { run, writeEnvLine } = req("./action_setup_otlp.cjs");
 
 const mockSendJobSetupSpan = vi.fn();
 
@@ -112,6 +112,73 @@ describe("action_setup_otlp.cjs", () => {
 
   it("should export run as a function", () => {
     expect(typeof run).toBe("function");
+  });
+
+  describe("writeEnvLine", () => {
+    it.each(["\n", "\r", "\r\n"])("rejects line breaks %j in keys and values without logging them", lineBreak => {
+      const malicious = `synthetic-secret${lineBreak}INJECTED_VAR=malicious-value`;
+      writeFileSync(envFile, "EXISTING_VAR=preserved\n");
+
+      writeEnvLine(envFile, malicious, "safe", malicious, "GITHUB_ENV");
+      writeEnvLine(envFile, "SAFE_KEY", malicious, malicious, "GITHUB_ENV");
+
+      expect(readFileSync(envFile, "utf8")).toBe("EXISTING_VAR=preserved\n");
+      expect(mockCore.warning).toHaveBeenCalledTimes(2);
+      expect(mockCore.warning).toHaveBeenCalledWith("[otlp] refusing to write a key or value containing line breaks");
+      expect(mockCore.info).not.toHaveBeenCalled();
+      expect(mockCore.warning.mock.calls.flat().join("\n")).not.toContain("synthetic-secret");
+      expect(mockCore.warning.mock.calls.flat().join("\n")).not.toContain("INJECTED_VAR");
+    });
+
+    it("preserves valid single-line values", () => {
+      writeEnvLine(envFile, "SAFE_KEY", "value=with,delimiters", "SAFE_KEY", "GITHUB_ENV");
+
+      expect(readFileSync(envFile, "utf8")).toBe("SAFE_KEY=value=with,delimiters\n");
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each(["OTEL_EXPORTER_OTLP_HEADERS", "GH_AW_OTLP_ALL_HEADERS", "GH_AW_OTLP_ENDPOINTS"])("does not register plain placeholders from %s as standalone runner masks", async variable => {
+    const headers = [
+      "X-No-Auth=true",
+      "X-False=false",
+      "X-Null=null",
+      "X-Short=abcd",
+      "X-Seven=abcdefg",
+      "X-Digits=12345678",
+      "X-Encoded-Boolean=%74%72%75%65",
+      "X-Encoded-Short=%61%62%63%64",
+      "X-Encoded-Digits=%31%32%33%34%35%36%37%38",
+      "X-Key=abcdefgh",
+      "X-Encoded-Key=%61bcdefgh",
+    ].join(",");
+    process.env[variable] = variable === "GH_AW_OTLP_ENDPOINTS" ? JSON.stringify([{ url: "", headers }]) : headers;
+    mockSendJobSetupSpan.mockImplementationOnce(async () => {
+      expect(mockCore.setSecret.mock.calls.map(([value]) => value).sort()).toEqual([headers, "abcdefgh", "%61bcdefgh"].sort());
+      return { traceId: VALID_TRACE_ID, spanId: VALID_SPAN_ID };
+    });
+
+    await run();
+
+    expect(mockCore.setSecret.mock.calls.map(([value]) => value).sort()).toEqual([headers, "abcdefgh", "%61bcdefgh"].sort());
+  });
+
+  it.each(["Bearer abcd", "bearer 1234", "Bearer true", "Bearer abc", "Basic dTp0cnVl", "basic dToxMjM0"])("preserves short auth credential runner masks for %s", async authorization => {
+    const encoded = encodeURIComponent(authorization);
+    const headers = `Authorization=${encoded}`;
+    process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
+    const credential = authorization.split(" ")[1];
+    const expected = new Set([headers, encoded, authorization]);
+    if (credential.length >= 4) expected.add(credential);
+    if (authorization.toLowerCase().startsWith("basic ")) {
+      const decoded = Buffer.from(credential, "base64").toString("utf8");
+      expected.add(decoded);
+      expected.add(decoded.split(":")[1]);
+    }
+
+    await run();
+
+    expect(mockCore.setSecret.mock.calls.map(([value]) => value).sort()).toEqual([...expected].sort());
   });
 
   it("masks decoded OTLP credentials before sending spans without changing configured headers", async () => {
@@ -273,6 +340,38 @@ describe("action_setup_otlp.cjs", () => {
   });
 
   describe("OTLP OIDC token header injection", () => {
+    it.each(["\n", "\r", "\r\n"])("rejects tokens containing %j without injecting environment variables", async lineBreak => {
+      const token = `synthetic-oidc-token${lineBreak}INJECTED_VAR=malicious-value`;
+      const headers = "X-Tenant=acme";
+      const endpoints = JSON.stringify([{ url: "https://otlp.example.com", headers }]);
+      process.env.INPUT_OTLP_OIDC_TOKEN = token;
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = headers;
+      process.env.GH_AW_OTLP_ENDPOINTS = endpoints;
+
+      await run();
+
+      expect(process.env.OTEL_EXPORTER_OTLP_HEADERS).toBe(headers);
+      expect(process.env.GH_AW_OTLP_ENDPOINTS).toBe(endpoints);
+      expect(readFileSync(envFile, "utf8")).toMatch(new RegExp(`^GITHUB_AW_OTEL_TRACE_ID=${VALID_TRACE_ID}\nGITHUB_AW_OTEL_PARENT_SPAN_ID=${VALID_SPAN_ID}\nGITHUB_AW_OTEL_JOB_START_MS=\\d+\n$`));
+      expect(mockCore.warning).toHaveBeenCalledWith("[otlp] ignoring OTLP OIDC token containing line breaks");
+      const logs = [...mockCore.info.mock.calls.flat(), ...mockCore.warning.mock.calls.flat()].join("\n");
+      expect(logs).not.toContain("synthetic-oidc-token");
+      expect(logs).not.toContain("INJECTED_VAR");
+    });
+
+    it.each(["\n", "\r", "\r\n"])("does not export merged headers containing %j", async lineBreak => {
+      process.env.INPUT_OTLP_OIDC_TOKEN = "synthetic-oidc-token";
+      process.env.OTEL_EXPORTER_OTLP_HEADERS = `X-Tenant=acme${lineBreak}INJECTED_VAR=malicious-value`;
+
+      await run();
+
+      const contents = readFileSync(envFile, "utf8");
+      expect(contents).not.toContain("OTEL_EXPORTER_OTLP_HEADERS=");
+      expect(contents).not.toContain("INJECTED_VAR");
+      expect(mockCore.warning).toHaveBeenCalledWith("[otlp] refusing to write a key or value containing line breaks");
+      expect(mockCore.warning.mock.calls.flat().join("\n")).not.toContain("synthetic-oidc-token");
+    });
+
     it("injects Authorization header and exports it to GITHUB_ENV when INPUT_OTLP_OIDC_TOKEN is set", async () => {
       const minted = "oidc" + "-" + "token" + "-" + "value";
       process.env.INPUT_OTLP_OIDC_TOKEN = minted;

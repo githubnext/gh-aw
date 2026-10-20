@@ -1,19 +1,157 @@
 // @ts-check
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const { normalizeReport, normalizeReportTitle, renderReport } = require("./report_ast.cjs");
+const { normalizeReport, normalizeReportTitle, redactReportForRendering, assertRedactedReport, renderReport } = require("./report_ast.cjs");
 const { parseReportMarkdown } = require("./report_markdown.cjs");
 
 /** @param {import("./report_ast.cjs").ReportBlock[]} children */
 const report = children => ({ type: /** @type {const} */ "report", title: " [aw] Smoke:\r\nfailed ", children });
 const paragraph = value => ({ type: /** @type {const} */ "paragraph", children: [{ type: /** @type {const} */ "text", value }] });
 
+beforeEach(() => vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "github.com,example.com,example.org"));
 afterEach(() => vi.unstubAllEnvs());
 
 describe("report AST", () => {
+  it("requires a non-forgeable redaction pass before a tree can be concretized", () => {
+    const input = { ...report([paragraph("Safe agent text")]), agentTainted: false };
+    expect(() => assertRedactedReport(input)).toThrow("must pass redaction");
+    expect(() => assertRedactedReport(normalizeReport(input))).toThrow("must pass redaction");
+    const redacted = redactReportForRendering(input);
+    expect(() => assertRedactedReport(redacted)).not.toThrow();
+    expect(() => assertRedactedReport(structuredClone(redacted))).toThrow("must pass redaction");
+    expect(renderReport(input).body).toBe("Safe agent text\n");
+  });
+
+  it("redacts all string-bearing tree surfaces before serialization without changing origin", () => {
+    const secret = "tree-redaction-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    /** @type {import("./report_ast.cjs").Report} */
+    const input = {
+      type: "report",
+      title: secret,
+      agentTainted: true,
+      preamble: [paragraph(secret)],
+      children: [
+        {
+          type: "paragraph",
+          agentTainted: false,
+          children: [
+            { type: "text", value: "tree-redaction-", agentTainted: false },
+            { type: "strong", agentTainted: true, children: [{ type: "code", value: "secret-fixture", agentTainted: true }] },
+          ],
+        },
+        { type: "details", summary: secret, children: [paragraph(secret)] },
+        { type: "code_block", language: "text", value: secret },
+        { type: "list", ordered: false, items: [[{ type: "task", checked: false, children: [{ type: "text", value: secret }] }]] },
+        { type: "table", headers: [[{ type: "text", value: secret }]], rows: [[[{ type: "code", value: secret }]]] },
+        { type: "structured_data", data: { [secret]: [secret, { nested: secret }] } },
+        { type: "json_marker", name: "evidence", data: { [secret]: secret } },
+        { type: "xml_marker", name: "evidence", value: secret, fields: [{ key: "context", value: secret }] },
+      ],
+      footer: { type: "footer", children: [paragraph(secret)], markers: [{ type: "xml_marker", name: "gh-aw-agentic-workflow", value: secret, fields: [{ key: "context", value: secret }] }] },
+    };
+    const copy = structuredClone(input);
+    const redacted = redactReportForRendering(input);
+    expect(() => assertRedactedReport(redacted)).not.toThrow();
+    expect(JSON.stringify(redacted)).not.toContain(secret);
+    expect(redacted.agentTainted).toBe(true);
+    expect(redacted.children[0].agentTainted).toBe(false);
+    expect(input).toEqual(copy);
+    expect(JSON.stringify(renderReport(input))).not.toContain(secret);
+  });
+
+  it("rejects a tainted scalar added after the redaction pass without exposing it in the error", () => {
+    const secret = "mutated-tree-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    const redacted = redactReportForRendering(report([paragraph("Safe")]));
+    redacted.title = secret;
+    expect(() => assertRedactedReport(redacted)).toThrow("contains an unredacted string");
+    try {
+      assertRedactedReport(redacted);
+    } catch (error) {
+      expect(String(error)).not.toContain(secret);
+    }
+  });
+
+  it("rejects new secrets reassembled across inline formatting after the redaction pass", () => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", "mutated-run-secret-fixture");
+    const redacted = redactReportForRendering(report([paragraph("Safe")]));
+    redacted.children = [
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "mutated-run-", agentTainted: false },
+          { type: "strong", children: [{ type: "code", value: "secret-fixture", agentTainted: true }] },
+        ],
+      },
+    ];
+    expect(() => assertRedactedReport(redacted)).toThrow("unredacted inline run");
+  });
+
+  it("rejects encoded strings and nested metadata keys carrying secrets", () => {
+    const secret = "encoded-tree-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    const encoded = Array.from(secret, character => `&#${character.charCodeAt(0)};`).join("");
+    const title = redactReportForRendering(report([paragraph("Safe")]));
+    title.title = encoded;
+    expect(() => assertRedactedReport(title)).toThrow("unredacted string");
+    const metadata = redactReportForRendering(report([paragraph("Safe")]));
+    metadata.children.push({ type: "structured_data", data: { safe: [{ [encoded]: "value" }] } });
+    expect(() => assertRedactedReport(metadata)).toThrow("unredacted string");
+  });
+
+  it("keeps safe agent strings taint-checked without relabeling their origin", () => {
+    const redacted = redactReportForRendering(
+      report([
+        {
+          type: "paragraph",
+          agentTainted: false,
+          children: [
+            { type: "text", value: "Framework: ", agentTainted: false },
+            { type: "text", value: "benign agent content", agentTainted: true },
+          ],
+        },
+      ])
+    );
+    expect(() => assertRedactedReport(redacted)).not.toThrow();
+    expect(redacted.children[0]).toEqual({
+      type: "paragraph",
+      agentTainted: false,
+      children: [
+        { type: "text", value: "Framework: ", agentTainted: false },
+        { type: "text", value: "benign agent content", agentTainted: true },
+      ],
+    });
+  });
+
+  it("rechecks current masks rather than trusting a stale redaction proof", () => {
+    const secret = "newly-registered-secret-fixture";
+    const redacted = redactReportForRendering(report([paragraph(secret)]));
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", secret);
+    expect(() => assertRedactedReport(redacted)).toThrow("unredacted string");
+    expect(renderReport(redacted).body).not.toContain(secret);
+  });
+
+  it("rejects cycles added after the redaction pass", () => {
+    const redacted = redactReportForRendering(report([paragraph("Safe")]));
+    redacted.children.push({ type: "quote", children: redacted.children });
+    expect(() => assertRedactedReport(redacted)).toThrow("must not contain cycles");
+  });
+
+  it("fails closed if escaping reconstructs a secret in the concrete output", () => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "TREE_ASSERTION");
+    vi.stubEnv("SECRET_TREE_ASSERTION", "\\*literal\\*");
+    expect(() => renderReport(report([paragraph("*literal*")]))).toThrow("unredacted string");
+  });
+
   it("normalizes deterministically without mutating the input", () => {
     const input = report([
       paragraph(""),
@@ -71,6 +209,7 @@ describe("report AST", () => {
   });
 
   it("validates images and escapes alt text without introducing HTML or notifications", () => {
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "example.com");
     const input = report([{ type: "paragraph", children: [{ type: "image", url: "https://example.com/chart(a).png", alt: "Chart ] <img> @user & data" }] }]);
     const { body } = renderReport(input);
     expect(body).toBe("![Chart \\] &lt;img&gt; &#64;user &amp; data](https://example.com/chart%28a%29.png)\n");
@@ -138,6 +277,174 @@ describe("report AST", () => {
     expect(renderReport(input).body).toContain("`one two`");
   });
 
+  it.each(["text", "code"])("redacts complete %s rendering runs without changing provenance", type => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_PROVENANCE");
+    vi.stubEnv("SECRET_RENDER_PROVENANCE", "render-provenance-secret-fixture");
+    for (const values of [
+      ["render-provenance-", "se", "cret-fixture"],
+      ["render-provenance-&", "#115;", "ecret-fixture"],
+    ]) {
+      const children = values.map((value, index) => ({ type, value, ...(index === 1 ? {} : { agentTainted: index === 2 }) }));
+      const input = report([{ type: "paragraph", children }]);
+      const copy = structuredClone(input);
+      const normalized = normalizeReport(input);
+      expect(normalized.children[0].children).toEqual(children);
+      const body = renderReport(input).body;
+      expect(body).not.toContain("render-provenance-");
+      expect(body).not.toContain("secret-fixture");
+      expect(input).toEqual(copy);
+      expect(normalizeReport(normalized)).toEqual(normalized);
+    }
+  });
+
+  it("redacts registered credentials across complete rendering runs and singleton AST nodes", () => {
+    const openAISecret = `sk-proj-${"a".repeat(64)}${"b".repeat(16)}`;
+    const githubSecret = `ghs_${"A".repeat(36)}.TAIL`;
+    const crossTypeSecret = "cross-type-render-secret-fixture";
+    const crossFormatSecret = "cross-format-render-secret-fixture";
+    const strongSecret = "nested-strong-secret-fixture";
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_OPENAI_SECRET,RENDER_GITHUB_SECRET,RENDER_TEXT_CODE_SECRET,RENDER_FORMAT_SECRET,RENDER_STRONG_SECRET");
+    vi.stubEnv("SECRET_RENDER_OPENAI_SECRET", openAISecret);
+    vi.stubEnv("SECRET_RENDER_GITHUB_SECRET", githubSecret);
+    vi.stubEnv("SECRET_RENDER_TEXT_CODE_SECRET", crossTypeSecret);
+    vi.stubEnv("SECRET_RENDER_FORMAT_SECRET", crossFormatSecret);
+    vi.stubEnv("SECRET_RENDER_STRONG_SECRET", strongSecret);
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "sk-proj-", agentTainted: false },
+          { type: "text", value: "a".repeat(64), agentTainted: true },
+          { type: "text", value: "b".repeat(16), agentTainted: false },
+        ],
+      },
+      {
+        type: "paragraph",
+        children: [
+          { type: "code", value: `ghs_${"A".repeat(36)}`, agentTainted: true },
+          { type: "code", value: ".TAIL", agentTainted: true },
+        ],
+      },
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "cross-type-render-", agentTainted: false },
+          { type: "code", value: "secret-fixture", agentTainted: true },
+        ],
+      },
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "cross-format-render-secret-", agentTainted: false },
+          { type: "strong", agentTainted: true, children: [{ type: "text", value: "fixture", agentTainted: true }] },
+          { type: "strong", agentTainted: false, children: [{ type: "text", value: "Safe emphasis", agentTainted: false }] },
+          { type: "text", value: " ", agentTainted: false },
+          { type: "link", url: "https://docs.example/", agentTainted: false, children: [{ type: "text", value: "docs", agentTainted: false }] },
+        ],
+      },
+      {
+        type: "paragraph",
+        children: [
+          { type: "strong", agentTainted: true, children: [{ type: "text", value: strongSecret, agentTainted: true }] },
+          { type: "text", value: " ", agentTainted: false },
+          { type: "emphasis", agentTainted: false, children: [{ type: "text", value: "Independent emphasis", agentTainted: false }] },
+          { type: "text", value: " ", agentTainted: false },
+          { type: "link", url: "https://guide.example/", agentTainted: false, children: [{ type: "text", value: "guide", agentTainted: false }] },
+        ],
+      },
+    ]);
+    const body = renderReport(input).body;
+    expect(body).not.toContain(openAISecret);
+    expect(body).not.toContain("b".repeat(16));
+    expect(body).not.toContain(githubSecret);
+    expect(body).not.toContain(".TAIL");
+    expect(body).not.toContain(crossTypeSecret);
+    expect(body).not.toContain("cross-type-render-");
+    expect(body).not.toContain(crossFormatSecret);
+    expect(body).not.toContain("cross-format-render-secret-");
+    expect(body).not.toContain(strongSecret);
+    expect(body).toContain("**Safe emphasis** [docs](https://docs.example/)");
+    expect(body).toContain("*Independent emphasis* [guide](https://guide.example/)");
+  });
+
+  it.each(
+    ["text", "code"].flatMap(type =>
+      [
+        { origin: "trusted", provenance: [false, false, false] },
+        { origin: "tainted", provenance: [true, true, true] },
+        { origin: "unspecified", provenance: [undefined, undefined, undefined] },
+        { origin: "alternating", provenance: [false, true, false] },
+      ].map(scenario => ({ type, ...scenario }))
+    )
+  )("redacts prefix-matching credentials in complete $origin $type runs and singletons", ({ type, provenance }) => {
+    vi.stubEnv("GH_AW_SECRET_NAMES", "RENDER_PREFIX_SECRET");
+    for (const parts of [
+      ["sk-proj-", "a".repeat(64), "b".repeat(16)],
+      ["ghs_", "A".repeat(36), ".TAIL"],
+    ]) {
+      const secret = parts.join("");
+      vi.stubEnv("SECRET_RENDER_PREFIX_SECRET", secret);
+      const children = parts.map((value, index) => ({ type, value, ...(provenance[index] === undefined ? {} : { agentTainted: provenance[index] }) }));
+      const input = report([{ type: "paragraph", children }]);
+      const copy = structuredClone(input);
+      const normalized = normalizeReport(input);
+      const singleton = report([{ type: "paragraph", children: [{ type, value: secret, ...(provenance[0] === undefined ? {} : { agentTainted: provenance[0] }) }] }]);
+      for (const candidate of [input, normalized, singleton]) {
+        const body = renderReport(candidate).body;
+        expect(body).not.toContain(secret);
+        expect(body).not.toContain(parts[0]);
+        expect(body).not.toContain(parts[2]);
+      }
+      expect(input).toEqual(copy);
+      expect(normalizeReport(normalized)).toEqual(normalized);
+      if (provenance[0] !== provenance[1]) expect(normalized.children[0].children).toEqual(children);
+      else expect(normalized.children[0].children).toHaveLength(1);
+    }
+  });
+
+  it.each([
+    ["@", "octocat"],
+    ["&", "#64;octocat"],
+    ["&", "#x1b;[31m@octocat"],
+  ])("neutralizes mentions and controls split across text provenance: %s + %s", (prefix, suffix) => {
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: prefix, agentTainted: false },
+          { type: "text", value: suffix, agentTainted: true },
+        ],
+      },
+    ]);
+    expect(renderReport(input).body).toBe("`@octocat`\n");
+    expect(normalizeReport(input).children[0].children).toHaveLength(2);
+  });
+
+  it("uses one valid code span across provenance boundaries without merging AST nodes", () => {
+    const input = report([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", value: "Value: ", agentTainted: false },
+          { type: "code", value: "prefix`", agentTainted: false },
+          { type: "code", value: "`suffix", agentTainted: true },
+        ],
+      },
+    ]);
+    const copy = structuredClone(input);
+    const body = renderReport(input).body;
+    expect(body).toBe("Value: ```prefix``suffix```\n");
+    expect(parseReportMarkdown(body)[0]).toEqual({
+      type: "paragraph",
+      children: [
+        { type: "text", value: "Value: " },
+        { type: "code", value: "prefix``suffix" },
+      ],
+    });
+    expect(normalizeReport(input).children[0].children).toEqual(input.children[0].children);
+    expect(input).toEqual(copy);
+  });
+
   it("escapes ordered-list syntax in literal paragraphs and refuses nested links", () => {
     expect(renderReport(report([paragraph("1. not a list")])).body).toBe("1\\. not a list\n");
     expect(() =>
@@ -154,6 +461,14 @@ describe("report AST", () => {
 });
 
 describe("report Markdown import boundary", () => {
+  it("imports typed inline slots inside quotes without enabling scalar template substitution", () => {
+    const children = parseReportMarkdown("<details><summary>Report {unknown}</summary>\n\n> Before {unknown}\n> {claim}\n> After\n\n</details>\n\n{toString}\n\n`{unknown}`", {
+      inlineSlots: { claim: [{ type: "code", value: "`@user {unknown}`" }] },
+    });
+    expect(children[0]).toMatchObject({ type: "details", children: [{ type: "quote", children: [{ type: "paragraph" }] }] });
+    expect(renderReport(report(children)).body).toBe("<details>\n<summary>Report {unknown}</summary>\n\n> Before {unknown}\n> `` `@user {unknown}` ``\n> After\n\n</details>\n\n{toString}\n\n`{unknown}`\n");
+  });
+
   it("parses template structure before substituting hostile scalar values", () => {
     const children = parseReportMarkdown("## What happened\n\n**{workflow}** failed.\n\n**Branch:** `{branch}`\n\n[Run]({url})", {
       minimumHeadingLevel: 2,
@@ -236,10 +551,11 @@ describe("report Markdown import boundary", () => {
   });
 
   it("imports balanced and escaped URL parentheses and rejects non-HTTPS images", () => {
+    vi.stubEnv("GH_AW_ALLOWED_DOMAINS", "github.com,example.com");
     const source = "[Compare](https://github.com/o/r/compare/main...fix(parser)?expand=1&title=Fix(parser)) [Escaped](https://example.com/a\\(b\\)) ![Chart](https://example.com/chart(a).png) ![Unsafe](javascript:alert(1))";
     const { body } = renderReport(report(parseReportMarkdown(source)));
     expect(body).toBe(
-      "[Compare](https://github.com/o/r/compare/main...fix%28parser%29?expand=1&title=Fix%28parser%29) [Escaped](https://example.com/a%28b%29) ![Chart](https://example.com/chart%28a%29.png) Unsafe (link unavailable: invalid HTTPS URL)\n"
+      "[Compare](https://github.com/o/r/compare/main...fix%28parser%29?expand=1&title=Fix%28parser%29) [Escaped](https://example.com/a%28b%29) ![Chart](https://example.com/chart%28a%29.png) Unsafe (image unavailable: URL must use an allowed HTTPS domain)\n"
     );
   });
 

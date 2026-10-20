@@ -139,6 +139,29 @@ func TestCacheRecoveryError(t *testing.T) {
 	require.Error(t, errors.Unwrap(err), "cacheRecoveryError result must be unwrappable")
 }
 
+func TestPrepareAuditWorkflowRunSkipsCustomGraderRefreshWithLocalCache(t *testing.T) {
+	binDir := t.TempDir()
+	calls := filepath.Join(binDir, "calls")
+	gh := filepath.Join(binDir, "gh")
+	require.NoError(t, os.WriteFile(gh, []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_TEST_CALLS\"\necho 'permission denied' >&2\nexit 4\n"), 0o755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GH_TEST_CALLS", calls)
+
+	outputDir := t.TempDir()
+	manifestDir := filepath.Join(outputDir, "usage", "graders")
+	require.NoError(t, os.MkdirAll(manifestDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(manifestDir, "grader_manifest.json"), []byte(`{"customGraders":["custom"]}`), 0o600))
+
+	run, err := prepareAuditWorkflowRun(context.Background(), auditRunConfig{
+		runID: 123, outputDir: outputDir, owner: "owner", repo: "repo",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(123), run.DatabaseID)
+	requests, err := os.ReadFile(calls)
+	require.NoError(t, err)
+	assert.Equal(t, 1, strings.Count(string(requests), "api"))
+}
+
 func TestPrepareRunForAnalysis(t *testing.T) {
 	cfg := auditRunConfig{runID: 77, outputDir: "/tmp/run-77"}
 

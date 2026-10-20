@@ -1,16 +1,17 @@
 ---
 name: developer-internals
-description: "Internal gh-aw architecture: validation system design, safe output message patterns, schema validation, YAML compatibility notes, and MCP logs guardrail."
+description: "Internal gh-aw architecture: validation, pure session graders, safe output messages, schema validation, YAML compatibility, and MCP logs guardrail."
 ---
 
 
 # gh-aw Internal Architecture
 
-Use this reference when working on the gh-aw compiler internals, validation system, safe output processing, or MCP server features.
+Use this reference when working on the gh-aw compiler internals, validation system, session graders, safe output processing, or MCP server features.
 
 ## Table of Contents
 
 - [Validation Architecture](#validation-architecture)
+- [Session Graders](#session-graders)
 - [Safe Output Messages](#safe-output-messages)
 - [Schema Validation](#schema-validation)
 - [YAML Compatibility](#yaml-compatibility)
@@ -196,6 +197,36 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 ```
 
 
+
+## Session Graders
+
+Built-ins implement `computeGraders(session, graders = [])` over a redacted
+in-memory unified-session array. Reuse `createSessionLookups(session)` from
+`actions/setup/js/grader_session.cjs` for statistics, typed event lookups,
+correlated tool calls, scoped call indexes, and trajectory projections.
+Keep file I/O at the collection/replay boundary, never inside graders.
+Ten fast built-ins are enabled by default; expensive analyses require opt-in.
+
+Custom syntax is `graders.<distinct-id>.script`, a synchronous JavaScript body
+receiving immutable `session`, `config`, and `helpers` snapshots. Return a
+finite number, `null`, or an object with `value`. The compiler partitions custom
+source into a restricted downstream `graders` job; conclusion receives only
+custom IDs. Never import or execute user code in conclusion, permit its step
+hooks, or allow `jobs.graders` customization. Repository-owned
+`graders.operational-value.run` Bash also runs only in that separate job: freeze
+the confined `.sh` source at compilation, pass session JSONL as `$1` /
+`GH_AW_SESSION_FILE` and config JSON as `GH_AW_GRADER_CONFIG`, and preserve legacy
+metric-array output. Compilation and `grader-shell-file-write` share the Bash AST
+write checker. Shell has bounded execution and a stripped environment but is not
+a filesystem/network sandbox or microVM yet. Built-in overrides remain rejected.
+
+The separate job consumes `usage/aw_session.jsonl` and publishes combined results
+in the `graders` artifact without source. Preserve conclusion's published session.
+Audit conditionally fetches registered custom results; the logs `graders`
+artifact set includes `usage`, `graders`, and historical transports. Keep compiler,
+runtime, schema, replay, artifact maps, and these consumers consistent.
+See [operational-value-designer](../operational-value-designer/SKILL.md) for
+current authoring syntax and evidence design.
 
 ## Safe Output Messages
 
@@ -619,4 +650,3 @@ Filter output using jq syntax:
 3. Self-documenting with schema description
 4. Preserves functionality with jq filtering
 5. Transparent messaging about why guardrail triggered
-

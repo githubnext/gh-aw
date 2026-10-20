@@ -9,7 +9,8 @@ import (
 func ToolScopeRule() Rule {
 	return Rule{
 		ID: "tool-scope", Description: "Check explicit shell/proxy policy conflicts and repository-wide cache scope",
-		Severity: Warning, Targets: AWAST, Check: checkToolScopes,
+		ThreatRuleID: "CTR-003",
+		Severity:     Warning, Targets: AWAST, Check: checkToolScopes,
 	}
 }
 

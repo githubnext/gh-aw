@@ -176,6 +176,21 @@ This is equivalent to omitting the checkout step from the agent job. Custom dev-
 
 ## Disabling the PR Branch Checkout
 
+A failed PR checkout stops the agent job; it never continues on the previous
+base checkout. If an originally open PR closes and its remote ref disappears
+during checkout, the run records lifecycle invalidation separately from ordinary
+checkout errors. Authentication, permission, network, and unknown errors remain
+failures. Workflows triggered on an already closed or merged PR use the retained
+PR head ref and still require a successful checkout.
+
+For work triggered while a PR was open, the safe-output manager checks live PR
+state before each handler, deferred retry, and buffered review submission. If the
+PR has closed, remaining effects are recorded as skipped, not applied. Closed-event
+workflows and staged previews are preserved. Configured safe-output tokens need
+read access to the triggering PR; a failed state lookup is an error, not proof of
+closure. PR-branch pushes also refuse to recreate deleted target branches.
+These checks cannot make a PR-state lookup and a later GitHub write atomic.
+
 To keep the normal repository checkout but suppress the compiler-generated "Checkout PR branch" step and its associated base-config snapshot/restore steps, set `pull-request: false` under `checkout`:
 
 ```yaml wrap

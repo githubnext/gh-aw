@@ -1449,15 +1449,15 @@ A security auditing tool for GitHub Actions workflows that identifies vulnerabil
 
 ### Deterministic Lineage
 
-The causal graph of edges between workflow runs computed by `gh aw logs --json`. Each edge connects a source run to a target run and captures how one run triggered another — via `workflow_dispatch`, `workflow_call`, or `workflow_run` events — along with a confidence rating and the reasons the link was established. Available under `.edges[]` in the JSON output. Use lineage data to reconstruct orchestrator-to-worker relationships without manually correlating run IDs.
+The graph of recorded parent-child edges between selected workflow runs in `gh aw logs --json`. Each edge connects distinct GitHub run IDs with the same nonempty canonical `context.episode_id`, using the target's recorded caller run ID. Available under `.edges[]` with lineage confidence and evidence. Call IDs, matching revision metadata, and `workflow_run` events alone do not establish edges; reusable hops sharing one run do not create self-edges.
 
 ### Episode
 
-A deterministic rollup of related workflow runs that belong to a single logical execution. When an orchestrator dispatches workers, all participating runs are grouped into one episode with aggregate metrics including `total_runs`, `total_tokens`, `total_aic`, and `risky_node_count`. Available under `.episodes[]` in `gh aw logs --json` output. Episodes are more useful than per-run metrics when one logical job spans multiple workflow runs. For cost analysis, prefer `total_aic` (AI Credits).
+A rollup of selected workflow runs sharing a recorded canonical `context.episode_id`, available under `.episodes[]` in `gh aw logs --json`. Metrics such as `total_runs`, `total_tokens`, and `total_aic` cover selected canonical members only; uncorrelated runs remain in `.runs[]` and overall totals. `recorded_roots[]` preserves canonical root claims separately from `representative_run_id` and `representative_workflow`. Coverage is `unknown` or `partial`, never proof of completeness; lineage confidence is independent of coverage. For cost analysis, prefer `total_aic` (AI Credits).
 
 ```bash
-gh aw logs --start-date -30d --json | \
-  jq '.episodes[] | {id: .episode_id, workflow: .primary_workflow, aic: .total_aic}'
+gh aw logs --start-date -30d --count 1000 --json | \
+  jq '.episodes[] | {id: .episode_id, workflow: .representative_workflow, aic: .total_aic}'
 ```
 
 ### WebAssembly (Wasm)
@@ -1520,6 +1520,8 @@ An auto-generated slash command available when [centralized routing](#centralize
 ### `aw_context`
 
 A structured context payload passed by the centralized slash-command router (`agentic_commands.yml`) when dispatching target workflows via `workflow_dispatch`. Contains the original GitHub event context (issue number, repository, actor, etc.) so the dispatched workflow can act on the correct resource even though it is triggered as a `workflow_dispatch`. See [Command Triggers](/gh-aw/reference/command-triggers/).
+
+`on.gateway-dispatch` and its nested GitHub notification, Projects, security, [external issue](/gh-aw/reference/provider-issue-triggers/), and command triggers are experimental. Custom webhooks are unsupported. Optional shared `repos` selects repository-aware sources; `orgs` selects GitHub organizations with case-insensitive names or `*` patterns. Neither grants access. No other trigger can coexist with this mapping. They use `aw_context.webhook.deliveries` for same-kind minimal notifications containing only canonical resource URLs, event types, and declared matching filter literals, and `aw_context.items` for URL-derived affected references, without selecting a single implicit item. Additional resource data requires provider-authenticated workflow reads. See [Webhook Triggers](/gh-aw/reference/webhook-triggers/).
 
 ### Conclusion Job
 
@@ -1723,15 +1725,27 @@ An optional field under top-level `metadata:` frontmatter holding an absolute HT
 
 ### Graders (`graders:`)
 
-Deterministic, non-LLM checks that compute metrics from a workflow run's post-agent execution trace. Configured under the top-level `graders:` frontmatter field; an empty map (`graders: {}`) enables all built-in graders with default settings, and omitting the field disables grading entirely. Built-in graders cover tool success rate, retries, loop detection, trajectory efficiency, execution duration, and similar metrics. Custom inline graders run in a separate restricted Node.js process against the preprocessed `trace` object, without access to `process` or `require`. Graders are an experimental feature. See [Graders Reference](/gh-aw/experimental/trace-graders/).
+Non-LLM metrics over the redacted unified session. Ten fast built-ins run as pure computation in conclusion, even when `graders:` is omitted. Frontmatter can override thresholds, disable defaults, or opt into other built-ins. Custom JavaScript and repository-owned operational-value Bash run only in the separate graders job. Built-ins use the `usage` artifact; combined custom results use `graders`. See [Graders Reference](/gh-aw/experimental/trace-graders/).
 
 ### Operational Value Grader (`graders.operational-value`)
 
-A reserved grader that evaluates operational repository outcomes using inline Bash or a repository-relative Bash file, frozen at compile time with its SHA-256 digest recorded for reproducibility. It runs once with no arguments, reads the current run request from standard input, and writes an ordered array of `{id,value}` metrics. The first metric is primary and later metrics are diagnostics. Values are finite numbers or `null` and retain their native scale — gh-aw validates but does not normalize, clamp, or convert them to pass/fail; `unit` and `direction` describe each metric's meaning. The evaluator receives the workflow token via `GH_TOKEN` with the agent job's declared permissions, but not workflow secrets, and enabling the grader does not add evidence permissions to the agent job. See [Graders Reference](/gh-aw/experimental/trace-graders/#operational-value-grader) and the `operational value designer` skill (`/operational-value-designer`) for inferring operational value from an agentic workflow.
+A repository-owned Bash evaluator configured with `graders.operational-value.run`. It runs only in the separate graders job, reads session JSONL from `$1` / `GH_AW_SESSION_FILE` and config JSON from `GH_AW_GRADER_CONFIG`, and emits legacy metric arrays. Detected file writes are rejected. Shell is trusted code, not yet microVM-isolated. Execution quality metrics alone do not establish operational value.
 
 ### Recurrence Trapping Time (RQA TT) (`graders.recurrence-trapping-time`)
 
-A Recurrence Quantification Analysis (RQA) grader that measures the mean length of vertical line structures (length ≥ 2) in the state-recurrence matrix built from a run's canonical state/event sequence. A vertical line means consecutive steps all match one previously visited state, so trapping time estimates how long the agent stays stuck once it enters a stagnation episode; lower values are better. It complements `recurrence-laminarity`, which measures how much of the recurrent structure is vertical rather than how long each vertical episode lasts. It is not a built-in grader: it is an importable `graders:` fragment in the trajectory graders catalog (`.github/workflows/shared/graders/recurrence-trapping-time.md`) that a workflow opts into via `imports:`. See [Graders Reference](/gh-aw/experimental/trace-graders/) for built-in graders and grader configuration.
+A built-in Recurrence Quantification Analysis (RQA) grader measuring the mean
+length of vertical recurrence lines of at least two states. It estimates how
+long an agent remains in a stagnation episode; lower values are better. It is
+opt-in and reports `unavailable` when the unified session lacks state evidence.
+See [Graders Reference](/gh-aw/experimental/trace-graders/).
+
+### Unified Session (`usage/aw_session.jsonl`)
+
+The canonical, timestamp-ordered record of an agent run, built from Copilot-compatible event objects (`type`, `data`, and optional native metadata) produced by Claude, Copilot, Codex, Gemini, Pi, and custom engines. It begins with a numeric file-format version header, carries essential agent, MCP gateway, firewall, safe-output, experiment, grader, and eval payloads with source provenance, and is the input to [Graders](#graders-graders). See the [Unified Agent Session Specification](/gh-aw/specs/unified-agent-session-specification/).
+
+### Agent-Tainted Provenance (`agentTainted`)
+
+An optional flag on nodes of the issue publication AST indicating whether content originated from the agent (`true`) or from framework-owned structure and metadata (`false`). Missing provenance is treated as agent-tainted, only trusted builders can assign framework provenance, and secret redaction runs on complete text runs regardless of provenance. See the [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/).
 
 ### Trajectory IR
 
@@ -1739,7 +1753,7 @@ The canonical, schema-defined intermediate representation of an agent run's exec
 
 ### Trajectory Graders (importable `graders:` fragments)
 
-A catalog of non-built-in, importable grader definitions under `.github/workflows/shared/graders/` that a workflow opts into individually via `imports:`. Each fragment computes a single metric from the [Trajectory IR](#trajectory-ir) — for example `tool-output-consumption-rate` (fraction of tool outputs later referenced by an action), `exploration-error` and `exploitation-error` (complementary attributions of objective failure to insufficient search versus unused evidence), `event-entropy-rate` and `lempel-ziv-trajectory-complexity` (information-theoretic measures of event-sequence unpredictability and compressibility), `policy-near-miss` (successful runs that skipped guard-shaped objectives), the Recurrence Quantification Analysis family `recurrence-rate`, `recurrence-laminarity`, `recurrence-determinism`, and `recurrence-trapping-time`, `skill-constraint-coverage` (fraction of declared behavioral constraints exercised and satisfied), and `state-revisit-probability-rep` (fraction of visited states that are redundant revisits). See [Graders Reference](/gh-aw/experimental/trace-graders/) and `.github/workflows/shared/graders/README.md`.
+A catalog of built-in configuration fragments under `.github/workflows/shared/graders/` that a workflow opts into individually via `imports:`. Each fragment computes a single metric from the [Trajectory IR](#trajectory-ir) — for example `tool-output-consumption-rate` (fraction of tool outputs later referenced by an action), `exploration-error` and `exploitation-error` (complementary attributions of objective failure to insufficient search versus unused evidence), `event-entropy-rate` and `lempel-ziv-trajectory-complexity` (information-theoretic measures of event-sequence unpredictability and compressibility), `policy-near-miss` (successful runs that skipped guard-shaped objectives), the Recurrence Quantification Analysis family `recurrence-rate`, `recurrence-laminarity`, `recurrence-determinism`, and `recurrence-trapping-time`, `skill-constraint-coverage` (fraction of declared behavioral constraints exercised and satisfied), and `state-revisit-probability-rep` (fraction of visited states that are redundant revisits). See [Graders Reference](/gh-aw/experimental/trace-graders/) and `.github/workflows/shared/graders/README.md`.
 
 ### Work Queue (`tools.work-queue`)
 

@@ -85,6 +85,8 @@ At runtime, the activation job fetches `.github/aw/compat.json` and compares the
 
 This means that if you compiled a workflow months ago with an older version of `gh aw`, you may see a warning (or failure) asking you to recompile with a newer version. Run `gh aw upgrade` to bring all workflows up to date.
 
+Setup action dependency upgrades can also introduce runtime requirements that older generated workflows do not meet. If activation reports that a workflow is too old for safe-output publishing, update `gh-aw`, run `gh aw compile`, and commit the regenerated workflow files. Updating only the pinned setup action is not sufficient; older workflows must pass the publishing job's check-run context for execution provenance. This requirement is enforced by the newer setup runtime and does not retroactively block workflows that remain pinned to an older runtime.
+
 ## How Lock Files Are Pinned
 
 When `gh aw compile` generates a `.lock.yml`, it pins every GitHub Actions reference to a commit SHA:

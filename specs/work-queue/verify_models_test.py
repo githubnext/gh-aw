@@ -123,6 +123,25 @@ class ModelRunnerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("TLC_MODEL_FILTER must be", result.stderr)
 
+    def test_expiration_configs_require_exact_verdicts(self):
+        model = "WorkExpiration"
+        accepted = self.run_model("WorkExpiration", "Model checking completed. No error", model=model)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        for config, invariant in (
+            ("BrokenExpirationGrant", "GrantAuthority"),
+            ("BrokenExpirationRelease", "ReservationAuthority"),
+            ("BrokenExpirationClaim", "ClaimAuthority"),
+            ("BrokenExpirationWatermark", "CommittedTimeMonotonicity"),
+            ("BrokenExpirationCheckpoint", "ProjectionSoundness"),
+            ("ExpirationRunningWitness", "NoRunningPastExpiry"),
+            ("ExpirationCheckpointWitness", "NoCheckpointExpiry"),
+        ):
+            with self.subTest(config=config):
+                accepted = self.run_model(config, f"Invariant {invariant} is violated", 12, model=model)
+                self.assertEqual(accepted.returncode, 0, accepted.stderr)
+                rejected = self.run_model(config, "Invariant TypeOK is violated", 12, model=model)
+                self.assertNotEqual(rejected.returncode, 0)
+
     def test_delivery_recovery_configs_require_exact_verdicts(self):
         model = "ClaimDeliveryRecovery"
         for config in ("DeliveryRecovery", "DeliveryRecoveryProgress"):
@@ -180,6 +199,7 @@ class ModelRunnerTests(unittest.TestCase):
     def test_all_new_configs_are_registered_with_real_invariants(self):
         runner = (SPEC / "check.sh").read_text()
         for model, pattern in (("ClaimDeliveryHealth", r"(?:Delivery|BrokenDelivery).*\.cfg"),
+                               ("WorkExpiration", r"(?:WorkExpiration|BrokenExpiration.*|Expiration.*Witness)\.cfg"),
                                ("ClaimDeliveryRecovery", r"(?:DeliveryRecovery.*|BrokenRecovery.*|Recovery(?:Released|Enriched|Retained|Unavailable)Witness)\.cfg"),
                                ("QueueLifecycle", r"LifecycleReleasedPendingWitness\.cfg"),
                                ("DispatchReservationRecovery", r"(?:Reservation|BrokenReservation).*\.cfg"),

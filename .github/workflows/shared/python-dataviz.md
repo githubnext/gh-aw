@@ -8,7 +8,7 @@
 #
 # This import provides:
 # - Python environment setup with directory structure
-# - Scientific library installation (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
+# - Version-pinned scientific libraries (NumPy, Pandas, Matplotlib, Seaborn, SciPy)
 # - Automatic artifact upload for charts and source files
 # - Upload asset capability via safe-outputs (upload-asset)
 # - Instructions on data visualization best practices including artifact uploads
@@ -57,7 +57,7 @@ steps:
         uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
       fi
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
+      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy==2.5.4 pandas==3.0.6 matplotlib==3.11.2 seaborn==0.13.2 scipy==1.18.1
       
       # Verify installations
       /tmp/gh-aw/python/venv/bin/python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"

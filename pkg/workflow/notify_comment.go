@@ -114,7 +114,11 @@ func (c *Compiler) buildConclusionJobSteps(data *WorkflowData, mainJobName strin
 		})...)
 	}
 	steps = append(steps, c.buildConclusionSteeringIssueStep(data, mainJobName, steeringToken)...)
-	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin)...)
+	gradersEnv, err := graderEnvironment(data.Graders)
+	if err != nil {
+		return nil, fmt.Errorf("cannot serialize grader configuration: %w", err)
+	}
+	steps = append(steps, buildUsageArtifactPublishSteps(artifactPrefixExprForDownstreamJob(data), IsDetectionJobEnabled(data.SafeOutputs), hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin, gradersEnv)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -289,10 +293,10 @@ func buildUsageArtifactUploadSteps(prefix string, hasEvals bool, experimentArtif
 	return append(steps, buildUsageArtifactPublishSteps(prefix, hasDetection, true, false, pinAction)...)
 }
 
-func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string) []string {
+func buildUsageArtifactPublishSteps(prefix string, hasDetection, hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string, gradersEnv ...string) []string {
 	usageArtifactName := prefix + "usage"
 	steps := buildUsageArtifactCollectionStep(hasDetection)
-	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations, pinAction)...)
+	steps = append(steps, buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations, pinAction, gradersEnv...)...)
 	usageArtifactUploadAction := pinAction("actions/upload-artifact")
 	usageArtifactUploadWithLines := []string{
 		"        with:\n",
@@ -372,16 +376,21 @@ func buildUsageArtifactCollectionStep(hasDetection bool) []string {
 	return collectionStep
 }
 
-func buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string) []string {
+func buildUsageActivityGenerationStep(hasDailyAICGuardrail, reuseJobDurations bool, pinAction func(string) string, gradersEnv ...string) []string {
 	steps := []string{
 		"      - name: Generate usage activity summary and unified session\n",
 		"        if: always()\n",
 		"        continue-on-error: true\n",
 		fmt.Sprintf("        uses: %s\n", pinAction("actions/github-script")),
 	}
-	if reuseJobDurations || hasDailyAICGuardrail {
-		steps = append(steps, "        env:\n")
-	}
+	steps = append(steps,
+		"        env:\n",
+		"          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}\n",
+		"          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}\n",
+		"          GH_AW_ADMISSION_MAX_AI_CREDITS_THREAT_DETECTION: ${{ needs.activation.outputs.admission-max-ai-credits-threat-detection }}\n",
+		"          GH_AW_ADMISSION_MAX_AI_CREDITS_EVALS: ${{ needs.activation.outputs.admission-max-ai-credits-evals }}\n",
+	)
+	steps = append(steps, gradersEnv...)
 	if reuseJobDurations {
 		steps = append(steps, "          GH_AW_JOB_DURATIONS: ${{ steps.report_failed_jobs.outputs.job_durations }}\n")
 	}

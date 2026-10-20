@@ -21,6 +21,7 @@
 
 /** @type {number} Maximum comment body length (GitHub's limit) */
 const MAX_COMMENT_LENGTH = 65536;
+const MAX_COMMENT_INPUT_LENGTH = 524288;
 
 /** @type {number} Maximum number of mentions allowed per comment */
 const MAX_MENTIONS = 10;
@@ -57,13 +58,13 @@ function countMentionsOutsideCodeRegions(body) {
  * Per Safe Outputs specification requirement MR3, limits must be enforced before API calls.
  *
  * @param {string} body - Comment body to validate
- * @param {{ maxLinks?: number, linkBody?: string }} [options] - Link limit and agent content, excluding trusted generated metadata
+ * @param {{ maxLinks?: number, linkBody?: string, maxLength?: number }} [options] - Limits and agent content, excluding trusted generated metadata
  * @throws {Error} When any limit is exceeded, with error code and details
  */
-function enforceCommentLimits(body, { maxLinks = MAX_LINKS, linkBody = body } = {}) {
+function enforceCommentLimits(body, { maxLinks = MAX_LINKS, linkBody = body, maxLength = MAX_COMMENT_LENGTH } = {}) {
   // Check body length - max limit exceeded check
-  if (body.length > MAX_COMMENT_LENGTH) {
-    throw new Error(`E006: Comment body exceeds maximum length of ${MAX_COMMENT_LENGTH} characters (got ${body.length}). Reduce the comment body to ${MAX_COMMENT_LENGTH} characters or fewer.`);
+  if (body.length > maxLength) {
+    throw new Error(`E006: Comment body exceeds maximum length of ${maxLength} characters (got ${body.length}). Reduce the comment body to ${maxLength} characters or fewer.`);
   }
 
   // Count mentions (@username pattern) - max limit exceeded check
@@ -81,6 +82,7 @@ function enforceCommentLimits(body, { maxLinks = MAX_LINKS, linkBody = body } = 
 
 module.exports = {
   MAX_COMMENT_LENGTH,
+  MAX_COMMENT_INPUT_LENGTH,
   MAX_MENTIONS,
   MAX_LINKS,
   enforceCommentLimits,

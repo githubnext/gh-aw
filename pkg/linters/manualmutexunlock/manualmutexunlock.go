@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
+	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/resourcetracker"
 )
 
@@ -46,7 +47,7 @@ func mutexLockAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracker
 	if !ok {
 		return nil
 	}
-	call, ok := exprStmt.X.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(exprStmt.X).(*ast.CallExpr)
 	if !ok {
 		return nil
 	}
@@ -59,7 +60,7 @@ func mutexLockAcquisitions(pass *analysis.Pass, node ast.Node) []resourcetracker
 
 // lockCallKey returns the mutexKey for the receiver if call is like mu.Lock() or mu.RLock()
 func lockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok {
 		return mutexKey{}, false
 	}
@@ -71,7 +72,7 @@ func lockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
 
 // unlockCallKey returns the mutexKey for the receiver if call is like mu.Unlock() or mu.RUnlock()
 func unlockCallKey(pass *analysis.Pass, call *ast.CallExpr) (mutexKey, bool) {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok {
 		return mutexKey{}, false
 	}
@@ -86,7 +87,7 @@ func getMutexReceiverKey(pass *analysis.Pass, recv ast.Expr) (mutexKey, bool) {
 		return mutexKey{}, false
 	}
 
-	switch r := recv.(type) {
+	switch r := astutil.UnwrapParenExpr(recv).(type) {
 	case *ast.Ident:
 		obj := pass.TypesInfo.ObjectOf(r)
 		if obj == nil {
@@ -99,7 +100,7 @@ func getMutexReceiverKey(pass *analysis.Pass, recv ast.Expr) (mutexKey, bool) {
 			// When the base is a plain identifier (the common case: `a.mu`),
 			// build a composite key (base var, field) so that distinct
 			// instances of the same struct type are tracked independently.
-			baseIdent, ok := r.X.(*ast.Ident)
+			baseIdent, ok := astutil.UnwrapParenExpr(r.X).(*ast.Ident)
 			if !ok {
 				// Fall back for non-ident base expressions (e.g. `getGuard().mu`):
 				// use the field object alone as the key, matching prior behaviour.

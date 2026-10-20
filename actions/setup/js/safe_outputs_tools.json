@@ -121,7 +121,7 @@
         "body": {
           "type": "string",
           "minLength": 20,
-          "maxLength": 65536,
+          "maxLength": 524288,
           "description": "Detailed issue description in Markdown. Must be the final intended body \u2014 not a placeholder or test value. Do NOT repeat the title as a heading since it already appears as the issue's h1. Include context, reproduction steps, or acceptance criteria as appropriate."
         },
         "labels": {
@@ -522,15 +522,15 @@
   },
   {
     "name": "add_comment",
-    "description": "WRITE-ONCE: do NOT call this tool with empty or placeholder arguments to probe or discover its schema \u2014 the required `body` field is listed in this schema; if you are not ready to post a real comment, call `noop` instead. Adds a comment to an existing GitHub issue, pull request, or discussion. Use this to provide feedback, answer questions, or add information to an existing conversation. For creating new items, use create_issue, create_discussion, or create_pull_request instead. IMPORTANT: Comments are subject to validation constraints enforced by the MCP server - maximum 65536 characters for the complete comment (including footer which is added automatically), 10 mentions (@username), and the configured max-links URL occurrences in agent content (default: 50; generated footer and metadata links excluded). Exceeding these limits will result in an immediate error with specific guidance. NOTE: By default, this tool does not require discussions:write permission. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.",
+    "description": "WRITE-ONCE: do NOT probe this tool with empty or placeholder arguments. If not ready to post a real comment, call noop. Adds a comment to an existing GitHub issue, pull request, or discussion; use create_issue, create_discussion, or create_pull_request for new items. Input is limited to 524288 characters, 10 mentions, and configured max-links URL occurrences (default: 50). Oversized agent content is automatically replaced by notices to fit the complete 65536-character published comment. Markers and footers are preserved in full; publication fails if protected content alone cannot fit. Generated footer links do not count toward max-links. Discussion comments require safe-outputs.add-comment.discussions: true.",
     "inputSchema": {
       "type": "object",
       "required": ["body"],
       "properties": {
         "body": {
           "type": "string",
-          "maxLength": 65536,
-          "description": "The comment text in Markdown format. Must be the final intended comment \u2014 not a placeholder or test value. This is the 'body' field - do not use 'comment_body' or other variations. Provide helpful, relevant information that adds value to the conversation. CONSTRAINTS: The complete comment (your body text + automatically added footer) must not exceed 65536 characters total. Maximum 10 mentions (@username); http/https URL occurrences in your body must not exceed the configured max-links (default: 50), including repeated URLs. Generated footer and metadata links are excluded. A footer (~200-500 characters) is automatically appended with workflow attribution, so leave adequate space. If these limits are exceeded, the tool call will fail with a detailed error message indicating which constraint was violated."
+          "maxLength": 524288,
+          "description": "Final intended Markdown comment, not placeholder text. Use body, not comment_body. Maximum input: 524288 characters, 10 mentions, and configured max-links URL occurrences including repeats (default: 50). Large agent-owned text or structured-data nodes may be replaced with notices to fit 65536 published characters including attribution. Markers and footers are never shortened or omitted; protected-content overflow fails explicitly."
         },
         "item_number": {
           "type": ["number", "string"],
@@ -676,8 +676,8 @@
         },
         "body": {
           "type": "string",
-          "description": "Review comment content in Markdown. Provide specific, actionable feedback about the code at this location.",
-          "maxLength": 65536
+          "description": "Review comment content in Markdown. Provide specific, actionable feedback about the code at this location. Oversized agent content is automatically redacted to fit the published body without shortening footers or markers.",
+          "maxLength": 524288
         },
         "pull_request_number": {
           "type": ["number", "string"],
@@ -724,8 +724,8 @@
       "properties": {
         "body": {
           "type": "string",
-          "description": "Overall review summary in Markdown. Provide a high-level assessment of the changes. Required for REQUEST_CHANGES. For APPROVE or COMMENT, body is optional only when at least one create_pull_request_review_comment was called earlier in the same run; otherwise body is required.",
-          "maxLength": 65536
+          "description": "Overall review summary in Markdown. Required for REQUEST_CHANGES. For APPROVE or COMMENT, body is optional only after create_pull_request_review_comment was called in the same run. Large agent text is automatically redacted to fit the published review while reserving complete footers and markers.",
+          "maxLength": 524288
         },
         "event": {
           "type": "string",
@@ -774,8 +774,8 @@
         },
         "body": {
           "type": "string",
-          "description": "The reply text in Markdown format. Provide a clear response to the review comment.",
-          "maxLength": 65536
+          "description": "The reply text in Markdown format. Provide a clear response to the review comment. Oversized agent content is automatically redacted to fit the published body without shortening footers or markers.",
+          "maxLength": 524288
         },
         "pull_request_number": {
           "type": ["number", "string"],
@@ -1657,7 +1657,7 @@
   },
   {
     "name": "missing_tool",
-    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
+    "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this reporting tool when you cannot accomplish what was requested because the required functionality is missing or access is restricted. When a bash command is blocked by security policy, call this tool with reason set to \"security\".",
     "inputSchema": {
       "type": "object",
       "required": ["reason"],
@@ -2001,7 +2001,7 @@
   },
   {
     "name": "missing_data",
-    "description": "Report that data or information needed to complete the task is not available. Use this when you cannot accomplish what was requested because required data, context, or information is missing.",
+    "description": "Report that data or information needed to complete the task is not available. Use this reporting tool when you cannot accomplish what was requested because required data, context, or information is missing.",
     "inputSchema": {
       "type": "object",
       "required": [],

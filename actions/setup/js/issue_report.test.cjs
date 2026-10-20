@@ -13,7 +13,10 @@ const { parseReportMarkdown } = require("./report_markdown.cjs");
 const { createExpirationLine, extractExpirationDate } = require("./ephemerals.cjs");
 const { mutateIssues } = require("./work_queue_issue_api.cjs");
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 describe("issue report publication boundary", () => {
   it("normalizes titles, escapes unsupported HTML, and preserves API parameters and responses", async () => {
@@ -153,15 +156,94 @@ describe("issue report publication boundary", () => {
     expect(client.rest.issues.create.mock.calls[0][0]).toEqual({ owner: "o", repo: "r", ...renderReport(report) });
   });
 
-  it("redacts secrets and rejects oversized rendered content before any API write", async () => {
+  it("renders a prepared issue once and reuses the same payload across publication retries", async () => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const report = buildIssueReport("Retry", "## Evidence\n\nBody");
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Retry", labels: ["bug"] }, report);
+    const error = new Error("retry");
+    const response = { data: { number: 42 } };
+    const client = { rest: { issues: { create: vi.fn().mockRejectedValueOnce(error).mockResolvedValue(response) } } };
+    await expect(createReportIssue(client, parameters)).rejects.toBe(error);
+    expect(await createReportIssue(client, parameters)).toBe(response);
+    expect(render).toHaveBeenCalledExactlyOnceWith(report);
+    expect(client.rest.issues.create.mock.calls.every(([request]) => request === parameters)).toBe(true);
+  });
+
+  it.each([
+    ["owner", parameters => (parameters.owner = "other-owner")],
+    ["repo", parameters => (parameters.repo = "other-repo")],
+    ["header value", parameters => (parameters.headers.authorization = "other-token")],
+    ["added header", parameters => (parameters.headers.host = "other.example")],
+    ["replaced headers", parameters => (parameters.headers = { authorization: "other-token" })],
+    ["deleted headers", parameters => delete parameters.headers],
+  ])("rejects changed prepared issue %s before rendering or publishing stale attribution", (_name, mutate) => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const report = buildIssueReport("Report", "[Workflow run](https://github.com/o/r/actions/runs/42)\n\n<!-- gh-aw-workflow-id: o/r/workflow -->");
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report", headers: { authorization: "original-token" } }, report);
+    const client = { rest: { issues: { create: vi.fn() } } };
+    expect(parameters.body).toContain("https://github.com/o/r/actions/runs/42");
+    expect(parameters.body).toContain("<!-- gh-aw-workflow-id: o/r/workflow -->");
+    mutate(parameters);
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    parameters.body = "Changed body";
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    expect(() => createReportIssue(client, parameters, report)).toThrow("Prepared issue target or headers changed");
+    expect(render).toHaveBeenCalledExactlyOnceWith(report);
+    expect(client.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects headers added after preparation", () => {
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report" });
+    const client = { rest: { issues: { create: vi.fn() } } };
+    parameters.headers = { authorization: "new-token" };
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    expect(client.rest.issues.create).not.toHaveBeenCalled();
+  });
+
+  it("snapshots shared headers while allowing equivalent headers and issue assignment updates", async () => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const headers = { authorization: "original-token", "X-GitHub-Api-Version": "2022-11-28" };
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report", headers, labels: [], assignees: [] });
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: {} }) } } };
+    parameters.headers = { "X-GitHub-Api-Version": "2022-11-28", authorization: "original-token" };
+    parameters.labels = ["bug"];
+    parameters.assignees = ["user"];
+    await createReportIssue(client, parameters);
+    expect(client.rest.issues.create).toHaveBeenCalledExactlyOnceWith(parameters);
+    parameters.headers = headers;
+    headers.authorization = "changed-token";
+    expect(() => createReportIssue(client, parameters)).toThrow("Prepared issue target or headers changed");
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not trust modified or copied prepared content", async () => {
+    const render = vi.spyOn(require("./report_ast.cjs"), "renderReport");
+    const client = { rest: { issues: { create: vi.fn().mockResolvedValue({ data: {} }) } } };
+    const parameters = renderIssueParameters({ owner: "o", repo: "r", title: "Report", body: "Original" });
+    parameters.body = "<img src=x>";
+    await createReportIssue(client, parameters);
+    expect(client.rest.issues.create.mock.calls[0][0].body).toBe("&lt;img src=x&gt;\n");
+    await createReportIssue(client, { ...parameters });
+    expect(render).toHaveBeenCalledTimes(3);
+    parameters.body = "<x>".repeat(10000);
+    await createReportIssue(client, parameters);
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(3);
+    expect(client.rest.issues.create.mock.calls[2][0].body).toBe("Content redacted to fit size limit.\n");
+  });
+
+  it("redacts secrets and fits oversized rendered content before any API write", async () => {
     vi.stubEnv("GH_AW_SECRET_NAMES", "REPORT_FIXTURE");
     vi.stubEnv("SECRET_REPORT_FIXTURE", "issue-report-fixture");
     expect(renderIssueParameters({ title: "issue-report-fixture", body: "issue-report-fixture" }).body).not.toContain("issue-report-fixture");
     expect(renderIssueParameters({ title: "Report", body: "x".repeat(65535) }).body).toHaveLength(65536);
     const client = { rest: { issues: { create: vi.fn() } } };
-    expect(() => createReportIssue(client, { owner: "o", repo: "r", title: "Report", body: "<x>".repeat(10000) })).toThrow("maximum length");
+    await createReportIssue(client, { owner: "o", repo: "r", title: "Report", body: "<x>".repeat(10000) });
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(1);
+    expect(client.rest.issues.create.mock.calls[0][0].body).toBe("Content redacted to fit size limit.\n");
+    expect(() => createReportIssue(client, { owner: "o", repo: "r", title: "Report", body: "<!-- custom: " + "m".repeat(65536) + " -->" })).toThrow("maximum length");
     expect(() => createReportIssue(client, { owner: "o", repo: "r", title: "\u0000", body: "valid" })).toThrow("must not be empty");
-    expect(client.rest.issues.create).not.toHaveBeenCalled();
+    expect(client.rest.issues.create).toHaveBeenCalledTimes(1);
   });
 
   it("rejects malformed metadata nodes and safely encodes comment delimiters", () => {
@@ -215,5 +297,5 @@ describe("repository issue creation coverage", () => {
     };
     visit(root);
     expect(violations).toEqual([]);
-  });
+  }, 60000);
 });

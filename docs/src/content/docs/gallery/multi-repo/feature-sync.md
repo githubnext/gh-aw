@@ -5,7 +5,7 @@ sidebar:
   badge: { text: 'Multi-Repo', variant: 'note' }
 ---
 
-Feature synchronization workflows propagate changes from a main repository to related sub-repositories, ensuring downstream projects stay current with upstream improvements while maintaining proper change tracking through pull requests.
+Feature synchronization workflows propagate changes from a main repository to related sub-repositories, helping downstream projects stay current with upstream improvements while maintaining proper change tracking through pull requests.
 
 ## When to Use
 

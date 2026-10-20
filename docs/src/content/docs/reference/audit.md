@@ -86,7 +86,13 @@ The Friction section attributes execution-friction costs by driver and source. I
 
 The Gateway Steering Events section reports `token_steering` and `timeout_steering` warnings emitted when a run approaches its AI Credits or time limit. JSON output includes each event's type, message, and timestamp when available.
 
-The Work Queue section reports the activation-time queue snapshot, the assigned worker's work and claim IDs, the agent's finish intent, and timestamped queue operations from workflow job logs. In JSON, `work_queue.snapshot.transactions` contains the queue facts captured at activation, while `work_queue.operations` contains this run's publication and reconciliation diagnostics with their source files. A `finish_intent` is a request, not evidence that completion was verified. The field is omitted when no queue evidence is available.
+The Work Queue section reports the activation-time queue snapshot, the assigned worker's Work and Claim IDs, the agent's finish intent, and timestamped queue operations from workflow job logs. The section is omitted when no queue evidence is available. A finish intent is a request, not evidence of durable Completion or verified delivery.
+
+For version-3 snapshots, `work_queue.snapshot.current.diagnostics` contains the same metadata-only counters as [`work-queue stats`](/gh-aw/reference/work-queue/#structured-diagnostics): Claim outcomes and cancellation reasons, pending/verified/failed delivery and failure reasons, retained reservations versus historical dispatches, per-pool eligibility and compact predictions, trusted admission ages, and 24-hour ledger activity. Its `status` is `captured_snapshot` and `evaluated_at` equals `captured_at`; ages, activity and predictions use that captured time, never the time of the audit. `branch` is empty because activation artifacts do not record its name. No live queue or Actions state is fetched to produce these diagnostics.
+
+`diagnostics.assigned_claims` adds structured `work` and `claim` metadata for the worker's original assignment, including admission/grant/terminal timestamps, attempts, retry boundaries, and delivery-failure reason and disposition. `work` describes its state at capture; `claim` describes the original Claim, which can be historical. Payloads, Result descriptors, request parameters, receipts, and actor principals are excluded. Dispatcher and observer snapshots have aggregate diagnostics but no assigned Claims; an uninitialized observer has zero counts and no installed pools. Console output bounds pool and Claim detail rows; JSON retains the full metadata.
+
+An activation snapshot cannot prove the audited run's eventual outcome. Later finish intents and `work_queue.operations` do not advance its counters or delivery barriers. Completion is not verified delivery, released dispatch state is historical rather than live worker status, and unknown effects must not be replayed. Historical version-2 snapshots remain readable in `work_queue.snapshot.transactions`; their summaries are not inferred using version-3 rules.
 
 Operations are accepted only from the compiler-owned snapshot, finish-intent-copy, and claim-reconciliation step logs, not from agent stdout or whole-job log copies. Incomplete workflow-log downloads are retried before their operations are reported. Text reports escape control characters in stored identifiers.
 
@@ -104,7 +110,22 @@ gh aw audit 1234567890 --artifacts work-queue --json
 
 The Observability Insights section includes `skill_activations` when skill-invocation evidence is found. Each entry reports the skill name, `status` (`invoked`), the detection `source` (`agent_output` or `log_parse`), and provenance fields in JSON output. This makes it possible to distinguish skills that were merely restored or installed from skills that were actually invoked during the run.
 
-The Graders section is present when the run recorded deterministic grader results (`graders` declared in the workflow frontmatter). The `graders` object in JSON output lists each grader (`id`, `name`, `status`, `value`, `unit`, `passed`, and, when declared in the grader manifest, `direction` and `threshold`) plus aggregate counts: `total`, `passed`, `failed`, `error_count`, and `unavailable_count`. Grader results are read from the compact `usage` artifact (mirrored there by the conclusion job), the unified `agent` artifact, or the `agent-output-fallback` artifact, so they are available even when `--artifacts usage` narrows the download. The same `graders` object is included per run in `gh aw logs --json` output.
+The Graders section is present when the run recorded deterministic grader results.
+Ten fast built-ins run by default in conclusion, using the redacted in-memory
+unified session. The `graders` object in JSON output lists each grader (`id`,
+`name`, `status`, `value`, `unit`, `passed`, and, when declared in the manifest,
+`direction` and `threshold`) plus aggregate counts: `total`, `passed`, `failed`,
+`error_count`, and `unavailable_count`. Results are read from the compact `usage`
+artifact, including with `--artifacts usage`; historical agent and fallback
+artifact layouts remain readable. The same object appears per run in
+`gh aw logs --json`.
+
+When the usage manifest registers custom grader IDs, audit also downloads the
+optional standalone `graders` artifact and uses its combined built-in/custom
+results, even with `--artifacts usage`. Built-in-only runs make no extra request.
+Cached reports are refreshed when custom results become available. Missing
+optional artifacts retain built-in results; discovery/download failures are
+reported. Audit reads results as data and never executes custom graders.
 
 ### Audit finding codes
 

@@ -307,7 +307,7 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(parent, &caller))
 	binding := caller.Jobs["agy-conformance"]
 	assert.Equal(t, map[string]string{"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}"}, binding.Secrets)
-	assert.Equal(t, map[string]string{"actions": "read", "contents": "read"}, binding.Permissions)
+	assert.Equal(t, map[string]string{"actions": "read", "contents": "read", "id-token": "write", "pull-requests": "read"}, binding.Permissions)
 	assert.Equal(t, "${{ inputs['agy-conformance'] }}", binding.If)
 	assert.Equal(t, "./.github/workflows/agy-conformance-reusable.lock.yml", binding.Uses)
 	for _, entry := range []struct {
@@ -330,7 +330,11 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 				assert.Contains(t, callee.Concurrency["group"], "${{ github.run_id }}")
 			}
 			for name, config := range callee.Jobs {
-				allowedPermissions := binding.Permissions
+				allowedPermissions := map[string]string{"actions": "read", "contents": "read"}
+				if entry.id == "agy-conformance-reusable" && name == "safe_outputs" {
+					allowedPermissions["pull-requests"] = "read"
+					assert.Equal(t, map[string]string{"pull-requests": "read"}, config.Permissions)
+				}
 				if entry.id == "smoke-agy" && (name == "pre_activation" || name == "activation") {
 					allowedPermissions = map[string]string{
 						"actions": "read", "contents": "read", "issues": "read", "pull-requests": "read",
@@ -340,6 +344,8 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					switch name {
 					case "activation", "conclusion":
 						allowedPermissions = map[string]string{"actions": "read", "contents": "write", "issues": "write"}
+					case "admission":
+						allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 					case "safe_outputs":
 						allowedPermissions = map[string]string{"actions": "write", "contents": "write"}
 					}
@@ -347,6 +353,12 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 						assert.Equal(t, allowedPermissions, config.Permissions, "%s must have only its required queue permissions", name)
 						continue
 					}
+				}
+				if name == "activation" {
+					assert.NotContains(t, config.Permissions, "id-token")
+				}
+				if name == "admission" {
+					allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 				}
 				for permission, level := range config.Permissions {
 					expectedLevel, allowed := allowedPermissions[permission]
@@ -359,8 +371,9 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 			}
 			assert.Equal(t, 10, callee.Jobs["agent"].TimeoutMinutes)
 			assert.Equal(t, 2, callee.Jobs["safe_outputs"].TimeoutMinutes)
-			assert.Contains(t, string(lock), fmt.Sprintf(`"maxAiCredits":%d,`, entry.credits))
-			assert.Contains(t, string(lock), `"maxCacheMisses":12`)
+			assert.Contains(t, string(lock), fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="%d"`, entry.credits))
+			assert.Contains(t, string(lock), `GH_AW_ADMISSION_MAX_AI_CREDITS`)
+			assert.Contains(t, string(lock), `\"maxCacheMisses\":12`)
 			assert.Contains(t, string(lock), `GH_AW_SAFE_OUTPUTS_STAGED: "true"`)
 			assert.Contains(t, string(lock), `"threat_detection":{"mode":"disabled"}`)
 			assert.NotContains(t, callee.Jobs, "detection")

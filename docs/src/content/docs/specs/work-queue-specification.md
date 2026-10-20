@@ -633,6 +633,7 @@ Define one current version-3 `QueueCommit` transaction protocol with closed, typ
 | `subject` | Optional typed Issue/PR that this Work operates on, distinct from its dependency conditions |
 | `replacement_of` | Optional immutable failed-node reference with trusted remediation disposition; diagnostic lineage, not a dependency waiver |
 | `enqueued` | Required immutable nonnegative safe-integer Unix-millisecond timestamp for age diagnostics, not selection order |
+| `expires_at` | Optional immutable nonnegative safe-integer Unix-millisecond deadline for unclaimed Work; omission means no expiration |
 
 When explicit fairness grouping is configured, the accounting key SHOULD correspond to a project, authenticated tenant, or administrator-approved workflow family. It MUST NOT be generated per Work or per retry. Without that configuration or explicit trusted submission metadata, use the single default key; do not infer a group from a producer's identity.
 
@@ -650,6 +651,55 @@ Defaults apply only at new submission, not while reading an incomplete durable r
 
 ### 7.3 Scheduling eligibility and batch admissibility
 
+#### Unclaimed Work expiration
+
+At `time >= expires_at`, an available Work with no pending or failed delivery
+barrier becomes terminally cancelled with reason `work_expired`. The boundary
+is inclusive, including zero. Replay MUST preserve the Work definition, FIFO
+position, request identity, historical Claims, charges, completions and Results.
+Expiration MUST NOT fabricate a successful Result or satisfy a DAG dependency.
+Submission retries cannot extend or remove a deadline; a distinct deadline
+requires a new Work identity.
+
+Historical replay MUST NOT read the wall clock. Before and after each
+QueueCommit, replay advances a monotonic expiration watermark to the maximum
+of its previous value and `QueueCommit.at`, then applies expiration. This is a
+derived transition justified by the immutable deadline and causal committed
+time, not a synthetic `WorkCancellation` operation or a separate timer log.
+If an authorized explicit `WorkCancellation` repeats that outcome, replay MUST
+still retain the accepted operation in checkpoint state.
+The watermark MUST survive checkpoint compaction; the checkpoint envelope's
+own `at` also advances it. Backdated suffix commits cannot resurrect Work or
+grant a newly admitted node whose deadline has already elapsed at that watermark.
+Other timestamp-based rules keep their existing decision-time semantics.
+
+A live read MAY additionally apply an explicit trusted evaluation timestamp
+after validating all historical decisions. Activation snapshots use their
+immutable `captured_at`; historical request/Claim explanations use the original
+decision. Such evaluation views are disposable, not checkpoint authority or a
+durable cancellation record. A fresh historical replay without a newer commit
+need not reproduce a prior wall-clock view. Selection MUST exclude elapsed
+Work even when the caller has not materialized that view, and publication
+MUST recheck selected deadlines before writing its candidate.
+Admission checks MUST use the same trusted decision-time expiration view as
+candidate generation. Expiration-only publication retries MUST preserve the
+previously observed append-only history, just as contention retries do.
+
+Expiration applies only when Work is available. A running Claim can finish
+after its Work deadline; its authorization and native reservation are unchanged.
+A cancelled attempt returning Work to availability expires at the current
+watermark. `keep_open` Work retains its pending/failed delivery fence; after
+verified retained delivery it expires instead of receiving another Claim.
+Ordinary completed Work and verified Results remain terminal and preserved.
+Elapsed time alone MUST NOT close a Claim, refund a charge, prove quiescence,
+or release native capacity.
+
+These are trusted decision-time guarantees, not a hard UTC fence: clock skew,
+an uncommitted clock rollback, or a deadline crossed during Git publication can
+affect real-time observations. No timer publishes automatically without queue
+activity. Expiring running Claims would require a separate draining/fencing
+protocol and is not supported.
+
 Before applying shares, the scheduler MUST determine **scheduling eligibility**
 using fresh authoritative state. This defines the competition set, independently
 of the request's partially packed batch.
@@ -657,6 +707,7 @@ of the request's partially packed batch.
 A scheduling-eligible Work:
 
 - Exists and has state `available`.
+- Has no elapsed `expires_at` at the maximum of decision time and committed expiration watermark.
 - Belongs to the pool and can be executed by a compiler-allowed worker target.
 - Satisfies any trusted retry delay and admission restrictions.
 - Has an accounting key below its outstanding-Claim limit and an available logical Work slot.
@@ -1427,6 +1478,19 @@ concurrent worker commits: the trusted apply step revalidates the plan against
 the current queue and defers after bounded contention. Disposable indexes and
 bounded operation are specified in section 7.17.
 
+Checkpoint `last_at` preserves the maximum committed expiration time, not merely
+the final prefix timestamp. Compaction MUST reject a checkpoint timestamp below
+that watermark. It MUST preserve optional Work deadlines and already-derived
+expiration cancellations; it MUST NOT checkpoint a speculative live-time view.
+An omitted compaction timestamp MUST default to at least that watermark.
+
+Readers MUST continue verifying supported pre-expiration checkpoints whose
+`last_at` recorded the final prefix timestamp. The legacy derivation applies
+only to history without deadline-bearing Work and MUST preserve exact snapshot,
+digest, and Git-ancestry verification rather than rewriting published state.
+Restoration still recovers the expiration watermark from retained committed
+timestamps. New writers MUST use the monotonic watermark rule.
+
 ### 7.11 Guarantees and non-guarantees
 
 **Required guarantees and evidence boundaries**
@@ -1434,7 +1498,7 @@ bounded operation are specified in section 7.17.
 | Layer | Required contract | Present evidence / release obligation |
 |---|---|---|
 | Algorithmic fairness | Deterministic unit-grant proportional service for fixed continuously eligible weighted competitors; conditional eventual service below | Exact examples and bounded independent sibling deviation/eventual-service checks pass; complete two-level/runtime refinement remains outstanding |
-| Protocol safety | Current-only mandatory scheduling, causal replay, fresh fair-prefix grants, one charge/Claim and native reservation/group, no fork/bypass, isolated one-shot effects | Bounded successor, Claim-scope and lifecycle models cover packing, Control, binding and DeliveryFailure subsets; actual credentials, writer provenance and full runtime refinement remain separate obligations |
+| Protocol safety | Current-only mandatory scheduling, causal replay, fresh fair-prefix grants, one charge/Claim and native reservation/group, no fork/bypass, isolated one-shot effects | Bounded successor, Claim-scope and lifecycle models cover packing, Control, binding and DeliveryFailure subsets; focused `WorkExpiration` checks unclaimed expiry, committed-time rollback and abstract checkpoint equivalence. Actual credentials, writer provenance and full runtime refinement remain separate obligations |
 | Implementation conformance | Runtime/operator codecs, selector, publisher, binder, and recovery enforce the same contract on real APIs | Native implementations and source-hashed exact conformance results exist; compiler/effects integration and supported-host evidence remain incomplete as tracked in section 9.1 |
 | Operational evidence | Reproducible source/tool identities and explicit passed/violation/incomplete verdicts | Exhausted finite cases are documented separately from two unfinished searches; artifact collection is not a proof |
 
@@ -1458,6 +1522,9 @@ eventually wins under strict priority. FIFO uses committed position, so producer
 backdating cannot overtake accepted Work. A DAG node additionally requires its
 predecessors to publish Results; scheduling fairness cannot make failed effects
 or external prerequisites succeed.
+
+Finite-deadline Work may leave the eligibility set before service. Conditional
+eventual-service results do not imply a Claim or completion before expiration.
 
 Without those assumptions, “no starvation” is not an unconditional liveness theorem. In strict mode, continuous higher-class demand is a direct starvation counterexample. An individual Work can also wait behind other same-key Work; a key's share alone is not a per-item latency bound.
 

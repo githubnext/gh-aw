@@ -10,7 +10,8 @@ import (
 func AllowedLabelsRule() Rule {
 	return Rule{
 		ID: "allowed-labels", Description: "Keep safe-output label allowlists meaningfully scoped",
-		Severity: Error, Targets: AWAST, Check: checkAllowedLabels,
+		ThreatRuleID: "CTR-015",
+		Severity:     Error, Targets: AWAST, Check: checkAllowedLabels,
 	}
 }
 
@@ -56,7 +57,8 @@ func checkAllowedLabels(ctx context.Context, input Input) ([]Diagnostic, error) 
 func PushTargetRule() Rule {
 	return Rule{
 		ID: "push-target", Description: "Constrain wildcard pull-request branch push targets",
-		Severity: Warning, Targets: AWAST, Check: checkPushTarget,
+		ThreatRuleID: "CTR-012",
+		Severity:     Warning, Targets: AWAST, Check: checkPushTarget,
 	}
 }
 

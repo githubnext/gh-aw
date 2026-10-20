@@ -66,23 +66,24 @@ const (
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics
 type WorkflowRun struct {
-	DatabaseID          int64     `json:"databaseId"`
-	Number              int       `json:"number"`
-	URL                 string    `json:"url"`
-	Status              string    `json:"status"`
-	Conclusion          string    `json:"conclusion"`
-	WorkflowName        string    `json:"workflowName"`
-	WorkflowPath        string    `json:"workflowPath"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
-	CreatedAt           time.Time `json:"createdAt"`
-	StartedAt           time.Time `json:"startedAt"`
-	UpdatedAt           time.Time `json:"updatedAt"`
-	Event               string    `json:"event"`
-	HeadBranch          string    `json:"headBranch"`
-	HeadSha             string    `json:"headSha"`
-	DisplayTitle        string    `json:"displayTitle"`
-	Attempt             int       `json:"attempt,omitempty"`
-	Repository          string    `json:"repository,omitempty"`
-	Actor               string    `json:"actor,omitempty"`
+	ObsoletePR          *ObsoletePREvidence `json:"obsolete_pr,omitempty"`
+	DatabaseID          int64               `json:"databaseId"`
+	Number              int                 `json:"number"`
+	URL                 string              `json:"url"`
+	Status              string              `json:"status"`
+	Conclusion          string              `json:"conclusion"`
+	WorkflowName        string              `json:"workflowName"`
+	WorkflowPath        string              `json:"workflowPath"` // Workflow file path (e.g., .github/workflows/copilot-swe-agent.yml)
+	CreatedAt           time.Time           `json:"createdAt"`
+	StartedAt           time.Time           `json:"startedAt"`
+	UpdatedAt           time.Time           `json:"updatedAt"`
+	Event               string              `json:"event"`
+	HeadBranch          string              `json:"headBranch"`
+	HeadSha             string              `json:"headSha"`
+	DisplayTitle        string              `json:"displayTitle"`
+	Attempt             int                 `json:"attempt,omitempty"`
+	Repository          string              `json:"repository,omitempty"`
+	Actor               string              `json:"actor,omitempty"`
 	Duration            time.Duration
 	ActionMinutes       float64 // Billable Actions minutes estimated from wall-clock time
 	TokenUsage          int
@@ -117,6 +118,7 @@ type ToolCallInfo = workflow.ToolCallInfo
 type ProcessedRun struct {
 	Run                     WorkflowRun
 	AwContext               *AwContext
+	EpisodeContexts         []*AwInfo
 	TaskDomain              *TaskDomainInfo
 	BehaviorFingerprint     *BehaviorFingerprint
 	AgenticAssessments      []AgenticAssessment

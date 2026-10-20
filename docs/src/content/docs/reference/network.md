@@ -106,10 +106,11 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `bazel` | Bazel build system (`releases.bazel.build`, `bcr.bazel.build`) |
 | `clojure` | Clojure packages (`clojars.org`) |
 | `copilot-vendor` | Plan-specific Copilot API hosts (`api.business.githubcopilot.com`, `api.enterprise.githubcopilot.com`, `api.individual.githubcopilot.com`) and Copilot telemetry (`telemetry.enterprise.githubcopilot.com`) — not enabled by default, since agents route inference through the firewall gateway |
+| `codex-vendor` | Optional Codex authentication and telemetry (`auth.openai.com`, `ab.chatgpt.com`) — explicit opt-in |
 | `copilot` | Copilot engine transport (`api.githubcopilot.com`, GitHub API/web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `claude` | Claude engine gateway/GitHub transport (`api.github.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`); direct Anthropic API is added only when the effective target is Anthropic |
-| `codex` | Codex engine transport (`api.openai.com`, `chatgpt.com`, GitHub API/web, `host.docker.internal`) |
-| `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, `*.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
+| `codex` | Codex engine transport (`172.30.0.1`, `api.openai.com`, GitHub API/web, `host.docker.internal`) |
+| `gemini` | Gemini engine transport (`generativelanguage.googleapis.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi` | Pi engine transport (`api.githubcopilot.com`, GitHub web, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `pi-base` | Pi provider-independent baseline (`github.com`, `host.docker.internal`, `raw.githubusercontent.com`) |
 | `threat-detection` | Compatibility alias for Copilot threat-detection network access (`api.githubcopilot.com`, Copilot plan APIs, `api.github.com`, `github.com`, `host.docker.internal`, `registry.npmjs.org`) |
@@ -148,13 +149,18 @@ Engine domain sets are named allowlist bundles for engine CLI authentication and
 |---|---|
 | `copilot` | `api.github.com`, `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `claude` | `api.github.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; `api.anthropic.com` is added only for the default Anthropic target |
-| `codex` | `172.30.0.1`, `api.github.com`, `api.openai.com`, `chatgpt.com`, `github.com`, `host.docker.internal`, `openai.com` |
-| `gemini` | `*.googleapis.com`, `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
+| `codex` | `172.30.0.1`, `api.github.com`, `api.openai.com`, `github.com`, `host.docker.internal` |
+| `codex-vendor` | Optional authentication/telemetry: `auth.openai.com`, `ab.chatgpt.com` |
+| `gemini` | `generativelanguage.googleapis.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com` |
 | `pi` | `api.githubcopilot.com`, `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; provider-scoped models replace the API host with the selected provider endpoint |
 | `pi-base` | `github.com`, `host.docker.internal`, `raw.githubusercontent.com`; applied as the provider-independent baseline before a provider prefix is resolved |
 | `threat-detection` | Applied automatically only to Copilot threat-detection runs and available as a compatibility alias: Copilot API hosts, `api.github.com`, `github.com`, `host.docker.internal`, and `registry.npmjs.org` for read-only lockfile validation. Telemetry requires an explicit `copilot-vendor` opt-in. |
 
 The `claude` set excludes telemetry, certificate/OCSP hosts, package mirrors, container registries, and Playwright downloads. Those require explicit domains or ecosystem opt-ins such as `defaults`, `containers`, or `playwright`; configuring the Playwright tool also enables its download domains. The direct Anthropic API is included when Claude uses its default Anthropic target. `engine.api-target` configures the Copilot target and does not replace Claude's Anthropic endpoint. Use `ANTHROPIC_BASE_URL` to configure a custom Anthropic target; that does not automatically allow direct access to `api.anthropic.com`. Add `api.anthropic.com` explicitly if a workflow intentionally needs direct Anthropic access alongside a custom target. The broader `anthropic.com` suffix is never included because it would also permit `statsig.anthropic.com`. CLI installation runs outside the agent firewall and does not require adding download hosts to this set.
+
+The `codex` set excludes the broad `openai.com` and `chatgpt.com` suffixes. Optional vendor authentication/telemetry requires `network.allowed: [codex-vendor]`. External Codex detection retains its concrete API transport, uses the API proxy for authentication, and preserves that explicit vendor opt-in; GitHub-hosted detection uses Copilot transport without adding `api.openai.com`. The `gemini` set excludes `*.googleapis.com`; package downloads such as `storage.googleapis.com` require their own ecosystem opt-in.
+
+`github.com` is retained for direct repository access in the GitHub and engine bundles. AWF has no exact-host-only domain spelling: this suffix also permits GitHub Packages (`npm.pkg.github.com`, `nuget.pkg.github.com`, `maven.pkg.github.com`, and `rubygems.pkg.github.com`) without a language ecosystem opt-in. To exclude that capability while preserving repository access, set `network.blocked: [pkg.github.com]`; blocked domains take precedence over allowed domains.
 
 ### Ecosystem Identifier Validation
 
@@ -222,7 +228,7 @@ network:
     - "api.example.com"   # Custom domain
 ```
 
-Each engine has a named domain set for CLI authentication and model API transport. These sets expand only when explicitly listed in `network.allowed` and **never include the `node` or `python` ecosystem registries**. Selecting an engine does not grant access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`.
+Each engine has a named domain set for CLI authentication and model API transport. These sets expand only when explicitly listed in `network.allowed` and exclude public npm and PyPI registries. Selecting an engine does not grant access to `registry.npmjs.org`, `pypi.org`, or `files.pythonhosted.org`. GitHub Packages is the deliberate GitHub transport exception described above.
 
 That is safe because engine CLIs and SDKs are installed by workflow steps on the runner before the sandboxed agent starts, and containerized `npx`/`uvx` MCP servers are launched by the MCP gateway outside the agent firewall. Registry access inside the sandbox is therefore unnecessary for those components.
 
@@ -230,16 +236,18 @@ This guarantee is scoped to the `node` and `python` ecosystems. Engine domain se
 
 To let the agent reach engine domains or the `node`/`python` registries, opt in explicitly with the matching domain set or ecosystem identifier (`copilot`, `node`, `python`, …) in `network.allowed`, or declare the corresponding entry under `runtimes:` for language ecosystems. With `network: {}` or `network: { allowed: [defaults, github] }`, those domains remain blocked.
 
-See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists. This invariant is enforced by `TestEngineDefaultDomainsDoNotOverlapEcosystems` in [`domains_package_registry_test.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains_package_registry_test.go), which fails the build if any engine's static default domain list overlaps with the full `node` or `python` ecosystem domain sets, including registry entries added later.
+See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists. `TestEngineDefaultDomainsDoNotOverlapEcosystems` in [`domains_package_registry_test.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains_package_registry_test.go) checks suffix and wildcard overlap against package ecosystems, including Node, Python, Go, Dart, Java, .NET, and Ruby, with only the documented GitHub Packages exception.
 
 ### Firewall Log Level
 
-Control the verbosity of AWF firewall logs using `log-level`. Options: `debug` (verbose), `info` (default), `warn`, `error`.
+Control the verbosity of AWF firewall logs using `--log-level`. Options: `debug` (verbose), `info` (default), `warn`, `error`. Passing custom AWF arguments is an internal override and requires non-strict mode.
 
-```yaml wrap
+```aw wrap
+strict: false
+sandbox:
+  agent:
+    args: [--log-level, info]
 network:
-  firewall:
-    log-level: info
   allowed:
     - defaults
     - python
@@ -247,20 +255,19 @@ network:
 
 ### SSL Bump for HTTPS Inspection
 
-Enable SSL bump to filter HTTPS traffic by URL path patterns instead of only domain names. Use it when you must allow specific API endpoints while blocking others on the same domain. Specify permitted HTTPS patterns with `allow-urls`.
+SSL bump enables HTTPS inspection for URL path filtering. Advanced non-strict configurations pass `--ssl-bump` and `--allow-urls` through the internal `sandbox.agent.args` override. URL patterns form one comma-separated argument. The compiler rejects the legacy `network.firewall` block, including `network.firewall.ssl-bump`.
 
-```yaml wrap
-network:
-  firewall:
-    ssl-bump: true
-    allow-urls:
-      - "https://github.com/githubnext/*"
-      - "https://api.github.com/repos/*/issues"
-  allowed:
-    - defaults
+```aw wrap
+strict: false
+sandbox:
+  agent:
+    args:
+      - --ssl-bump
+      - --allow-urls
+      - "https://github.com/githubnext/*,https://api.github.com/repos/*/issues"
 ```
 
-**Security**: SSL bump intercepts and decrypts HTTPS as a man-in-the-middle. Enable it only when URL-level filtering is necessary, and craft `allow-urls` patterns carefully to avoid breaking legitimate connections. It requires AWF v0.9.0+ and does not apply to Sandbox Runtime (SRT). See [Sandbox Configuration](/gh-aw/reference/sandbox/) for full AWF options.
+**Security**: SSL bump intercepts and decrypts HTTPS as a man-in-the-middle. Enable it only when URL-level filtering is necessary, and craft `--allow-urls` patterns carefully to avoid breaking legitimate connections. `gh aw lint` checks the authored SSL prerequisite but does not prove runtime AWF enforcement. See [Sandbox Configuration](/gh-aw/reference/sandbox/) for sandbox options.
 
 ### Disabling the Firewall
 

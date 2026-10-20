@@ -99,6 +99,7 @@ type WorkDefinition struct {
 	Payload          json.RawMessage `json:"payload"`
 	DependsOn        []Dependency    `json:"depends_on"`
 	Enqueued         int64           `json:"enqueued"`
+	ExpiresAt        *int64          `json:"expires_at,omitempty"`
 	Subject          *Resource       `json:"subject,omitempty"`
 	BackingIssue     *Resource       `json:"backing_issue,omitempty"`
 	ReplacementOf    *Replacement    `json:"replacement_of,omitempty"`
@@ -409,6 +410,8 @@ type Stats struct {
 }
 
 type Projection struct {
+	timeWatermark        int64
+	expiringWorks        map[string]bool
 	SchedulingProfiles   []string                                `json:"-"`
 	Repository           string                                  `json:"repository"`
 	Tip                  string                                  `json:"tip"`

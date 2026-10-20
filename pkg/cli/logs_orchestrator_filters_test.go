@@ -15,10 +15,16 @@ import (
 
 func stubFetchJobStatusesForProcessedRun(t *testing.T, fn func(context.Context, int64, bool) (int, error)) {
 	t.Helper()
-	previous := fetchJobStatusesForProcessedRun
-	fetchJobStatusesForProcessedRun = fn
+	previous := fetchJobDetailsForProcessedRun
+	fetchJobDetailsForProcessedRun = func(ctx context.Context, runID int64, _ string, verbose bool, _ ...int) ([]JobInfoWithDuration, int, error) {
+		count, err := fn(ctx, runID, verbose)
+		if err != nil {
+			return nil, count, err
+		}
+		return make([]JobInfoWithDuration, count+1), count, nil
+	}
 	t.Cleanup(func() {
-		fetchJobStatusesForProcessedRun = previous
+		fetchJobDetailsForProcessedRun = previous
 	})
 }
 

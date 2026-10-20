@@ -8,34 +8,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
-	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
+	"github.com/github/gh-aw/actions/setup"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/fileutil"
-	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/parser"
-	"github.com/github/gh-aw/pkg/repoutil"
-	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
 const (
-	maxGraderPayloadBytes             = 50 * 1024 * 1024
-	maxOperationalValueEvaluatorBytes = 64 * 1024
-	maxOperationalValueOutputBytes    = 1024 * 1024
-	graderJSTimeout                   = 7 * time.Second
-	operationalValueEvaluatorTimeout  = 2 * time.Minute
-	operationalValueSyntaxTimeout     = 5 * time.Second
+	maxGraderPayloadBytes = 50 * 1024 * 1024
+	graderJSTimeout       = 7 * time.Second
 )
 
 //go:embed graders_run.cjs
@@ -48,19 +36,21 @@ type graderRunConfig struct {
 	Repo     string
 	Input    io.Reader
 	Output   io.Writer
+	Path     string
 }
 
 type graderRunDefinition struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Source    string         `json:"source"`
-	Unit      string         `json:"unit"`
-	Direction string         `json:"direction"`
-	Threshold *float64       `json:"threshold"`
-	Config    map[string]any `json:"config,omitempty"`
-	Run       string         `json:"-"`
-	Script    string         `json:"script,omitempty"`
-	Digest    string         `json:"digest,omitempty"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Source      string         `json:"source"`
+	Unit        string         `json:"unit"`
+	Direction   string         `json:"direction"`
+	Threshold   *float64       `json:"threshold"`
+	Config      map[string]any `json:"config,omitempty"`
+	Script      string         `json:"script,omitempty"`
+	Run         string         `json:"run,omitempty"`
+	ShellScript string         `json:"shellScript,omitempty"`
 }
 
 func runGrader(ctx context.Context, config graderRunConfig) error {
@@ -68,25 +58,11 @@ func runGrader(ctx context.Context, config graderRunConfig) error {
 	if err != nil {
 		return err
 	}
-	if grader.Source == "operational-value" && config.RunID != 0 {
-		return errors.New("operational-value graders require a JSON request on standard input; historical replay is not supported")
-	}
 	payload, err := loadGraderRunPayload(ctx, config)
 	if err != nil {
 		return err
 	}
-	if grader.Source == "operational-value" {
-		evaluatorHost := getGitHubHostForRepo("")
-		if config.Repo != "" {
-			ownerRepo, host := repoutil.NormalizeRepoForAPI(config.Repo)
-			evaluatorHost = getGitHubHostForRepo(ownerRepo)
-			if host != "" {
-				evaluatorHost = stringutil.NormalizeGitHubHostURL(host)
-			}
-		}
-		return runOperationalValuePayload(ctx, config.Workflow, grader, payload, config.Output, evaluatorHost)
-	}
-	return runJavaScriptGrader(ctx, grader, payload, config.Output)
+	return runSessionGrader(ctx, grader, payload, config.Output, config.Path)
 }
 
 func loadGraderRunDefinition(workflowArg, graderID string) (graderRunDefinition, error) {
@@ -94,47 +70,34 @@ func loadGraderRunDefinition(workflowArg, graderID string) (graderRunDefinition,
 	if err != nil {
 		return graderRunDefinition{}, err
 	}
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		return graderRunDefinition{}, fmt.Errorf("cannot read workflow %s: %w", workflowPath, err)
-	}
-	parsed, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return graderRunDefinition{}, fmt.Errorf("cannot parse workflow %s: %w", workflowPath, err)
-	}
-	graders, err := workflow.ParseGradersFromFrontmatter(parsed.Frontmatter)
+	data, err := workflow.NewCompiler().ParseWorkflowFile(workflowPath)
 	if err != nil {
 		return graderRunDefinition{}, fmt.Errorf("cannot parse graders in %s: %w", workflowPath, err)
 	}
-	if graders == nil || graders.Graders[graderID] == nil {
-		return graderRunDefinition{}, fmt.Errorf("workflow %s does not declare grader %q", workflowPath, graderID)
+	definition := data.Graders.Graders[graderID]
+	if definition == nil {
+		return graderRunDefinition{}, fmt.Errorf("workflow %s does not enable grader %q", workflowPath, graderID)
 	}
-	definition := graders.Graders[graderID]
 	if definition.Enabled != nil && !*definition.Enabled {
 		return graderRunDefinition{}, fmt.Errorf("grader %q is disabled in workflow %s", graderID, workflowPath)
 	}
-	source := "inline"
-	if slices.Contains(workflow.BuiltinGraderIDs, graderID) {
-		source = "builtin"
-	}
-	if graderID == "operational-value" {
+	source := "builtin"
+	if definition.Script != "" {
+		source = "inline"
+	} else if definition.Run != "" {
 		source = "operational-value"
+		if err := definition.PrepareShellScript(workflowPath); err != nil {
+			return graderRunDefinition{}, err
+		}
 	}
 	return graderRunDefinition{
-		ID:        graderID,
-		Name:      definition.Name,
-		Source:    source,
-		Unit:      definition.Unit,
-		Direction: definition.Direction,
-		Threshold: definition.Threshold,
-		Config:    definition.Config,
-		Run:       definition.Run,
-		Script:    definition.Script,
-		Digest:    definition.ScriptDigest(),
+		ID: graderID, Name: definition.Name, Description: definition.Description, Source: source, Unit: definition.Unit,
+		Direction: definition.Direction, Threshold: definition.Threshold, Config: definition.Config, Script: definition.Script,
+		Run: definition.Run, ShellScript: definition.ShellScript,
 	}, nil
 }
 
-func loadGraderRunPayload(ctx context.Context, config graderRunConfig) (json.RawMessage, error) {
+func loadGraderRunPayload(ctx context.Context, config graderRunConfig) (payload json.RawMessage, err error) {
 	if config.RunID == 0 {
 		return readGraderPayload(config.Input, "standard input")
 	}
@@ -143,114 +106,167 @@ func loadGraderRunPayload(ctx context.Context, config graderRunConfig) (json.Raw
 		return nil, fmt.Errorf("failed to create grader run directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-
 	params := buildConcurrentDownloadParams(tempDir, false, config.Repo, nil, false, nil)
 	names, err := listRunArtifactNames(ctx, config.RunID, params.dlOwner, params.dlRepo, params.dlHost, false)
 	if err != nil {
 		return nil, err
 	}
-	artifactNames := make([]string, 0, 2)
-	for _, name := range names {
-		if name == constants.AgentArtifactName.String() || name == constants.AgentOutputFallbackArtifactName.String() {
-			artifactNames = append(artifactNames, name)
-		}
-	}
-	if len(artifactNames) == 0 {
-		return nil, fmt.Errorf("run %d has no agent artifact", config.RunID)
-	}
-	if err := downloadArtifactsByName(ctx, downloadArtifactsOptions{
-		runID: config.RunID, outputDir: tempDir, owner: params.dlOwner, repo: params.dlRepo, hostname: params.dlHost,
-	}, artifactNames); err != nil {
+	name, err := sessionArtifactName(names, constants.UsageArtifactName.String(), "")
+	if err != nil {
 		return nil, err
 	}
-	if err := flattenUnifiedArtifact(tempDir, false); err != nil {
-		return nil, fmt.Errorf("failed to unpack run %d agent artifact: %w", config.RunID, err)
+	if name == "" {
+		return nil, fmt.Errorf("run %d has no usage artifact containing a unified session", config.RunID)
 	}
-	payloadPath := findGraderFile(tempDir, constants.GraderPayloadFilename.String())
-	if payloadPath == "" {
-		return nil, fmt.Errorf("run %d agent artifact does not contain %s", config.RunID, constants.GraderPayloadFilename)
+	run := &parser.GitHubURLComponents{Number: config.RunID, Owner: params.dlOwner, Repo: params.dlRepo, Host: params.dlHost}
+	if err := downloadSessionArtifact(ctx, run, params.dlHost, name, filepath.Join(tempDir, "usage"), false); err != nil {
+		return nil, err
 	}
-	file, err := os.Open(payloadPath)
+	sessionPath, err := findUnifiedSessionPath(tempDir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read grader payload for run %d: %w", config.RunID, err)
+		return nil, err
 	}
-	defer file.Close()
-	return readGraderPayload(file, "run artifact")
+	if sessionPath == "" {
+		return nil, fmt.Errorf("run %d usage artifact does not contain aw_session.jsonl", config.RunID)
+	}
+	file, err := os.Open(sessionPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read unified session for run %d: %w", config.RunID, err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("cannot close unified session for run %d: %w", config.RunID, closeErr))
+		}
+	}()
+	return readGraderPayload(file, "run usage artifact")
 }
 
 func readGraderPayload(reader io.Reader, source string) (json.RawMessage, error) {
 	if reader == nil {
-		return nil, fmt.Errorf("cannot read grader payload from %s", source)
+		return nil, fmt.Errorf("cannot read unified session from %s", source)
 	}
 	data, err := io.ReadAll(io.LimitReader(reader, maxGraderPayloadBytes+1))
 	if err != nil {
-		return nil, fmt.Errorf("cannot read grader payload from %s: %w", source, err)
+		return nil, fmt.Errorf("cannot read unified session from %s: %w", source, err)
 	}
 	if len(data) > maxGraderPayloadBytes {
-		return nil, fmt.Errorf("grader payload from %s exceeds the %d-byte limit", source, maxGraderPayloadBytes)
+		return nil, fmt.Errorf("unified session from %s exceeds the %d-byte limit", source, maxGraderPayloadBytes)
 	}
-	if len(bytes.TrimSpace(data)) == 0 {
-		return nil, fmt.Errorf("grader payload from %s is empty", source)
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 {
+		return nil, fmt.Errorf("unified session from %s is empty", source)
 	}
-	if !json.Valid(data) {
-		return nil, fmt.Errorf("grader payload from %s is not valid JSON", source)
+	var events []json.RawMessage
+	if bytes.HasPrefix(data, []byte("[")) {
+		if err := json.Unmarshal(data, &events); err != nil {
+			return nil, fmt.Errorf("unified session from %s is not a valid JSON array: %w", source, err)
+		}
+	} else {
+		for index, line := range bytes.Split(data, []byte("\n")) {
+			line = bytes.TrimSpace(line)
+			if len(line) == 0 {
+				continue
+			}
+			if !json.Valid(line) {
+				return nil, fmt.Errorf("unified session from %s has invalid JSON on line %d", source, index+1)
+			}
+			events = append(events, json.RawMessage(line))
+		}
 	}
-	return data, nil
+	for index, event := range events {
+		var entry struct {
+			Type       string          `json:"type"`
+			Data       json.RawMessage `json:"data"`
+			Provenance json.RawMessage `json:"provenance"`
+		}
+		if err := json.Unmarshal(event, &entry); err != nil || entry.Type == "" ||
+			!bytes.HasPrefix(entry.Data, []byte("{")) || !bytes.HasPrefix(entry.Provenance, []byte("{")) {
+			return nil, fmt.Errorf("unified session from %s has an invalid event at index %d; expected type, data, and provenance", source, index)
+		}
+	}
+	return json.Marshal(events)
 }
 
-func runJavaScriptGrader(ctx context.Context, grader graderRunDefinition, payload json.RawMessage, output io.Writer) error {
+func runSessionGrader(ctx context.Context, grader graderRunDefinition, payload json.RawMessage, output io.Writer, searchPath string) error {
 	nodePath, err := exec.LookPath("node")
 	if err != nil {
 		return errors.New("node is required to run graders")
 	}
-	permissionFlag, err := graderNodePermissionFlag(ctx, nodePath)
+	var permissionFlag string
+	if grader.Source != "operational-value" {
+		permissionFlag, err = graderNodePermissionFlag(ctx, nodePath)
+		if err != nil {
+			return err
+		}
+	}
+	directory, err := os.MkdirTemp("", "gh-aw-grader-runtime-*")
+	if err != nil {
+		return fmt.Errorf("failed to stage grader runtime: %w", err)
+	}
+	defer os.RemoveAll(directory)
+	directory, err = stageGraderRuntime(directory)
 	if err != nil {
 		return err
-	}
-	script, err := os.CreateTemp("", "gh-aw-grader-run-*.cjs")
-	if err != nil {
-		return fmt.Errorf("failed to stage grader runtime: %w", err)
-	}
-	scriptPath := script.Name()
-	defer os.Remove(scriptPath)
-	if err := script.Chmod(constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("failed to secure grader runtime: %w", errors.Join(err, script.Close()))
-	}
-	if _, err := script.Write(gradersRunScript); err != nil {
-		return fmt.Errorf("failed to stage grader runtime: %w", errors.Join(err, script.Close()))
-	}
-	if err := script.Close(); err != nil {
-		return fmt.Errorf("failed to stage grader runtime: %w", err)
-	}
-	scriptPath, err = filepath.EvalSymlinks(scriptPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve grader runtime path: %w", err)
 	}
 	input, err := json.Marshal(struct {
 		Grader  graderRunDefinition `json:"grader"`
 		Payload json.RawMessage     `json:"payload"`
-	}{Grader: grader, Payload: payload})
+	}{grader, payload})
 	if err != nil {
 		return fmt.Errorf("failed to encode grader input: %w", err)
 	}
-	commandCtx, cancel := context.WithTimeout(ctx, graderJSTimeout)
+	timeout := graderJSTimeout
+	if grader.Source == "operational-value" {
+		timeout = 125 * time.Second
+	}
+	commandCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(commandCtx, nodePath, permissionFlag, "--allow-fs-read="+scriptPath, scriptPath)
+	args := []string{permissionFlag, "--allow-fs-read=" + directory}
+	switch grader.Source {
+	case "inline":
+		args = append(args, "--allow-child-process")
+	case "operational-value":
+		// Node's permissions do not sandbox a spawned Bash interpreter. Shell
+		// replay has the same trusted-code boundary as the separate Actions job.
+		args = nil
+	}
+	args = append(args, filepath.Join(directory, "graders_run.cjs"))
+	cmd := exec.CommandContext(commandCtx, nodePath, args...)
 	cmd.Env = []string{}
+	if grader.Source == "operational-value" && searchPath != "" {
+		cmd.Env = []string{"PATH=" + searchPath}
+	}
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Stdout = output
-	stderr := &boundedCommandBuffer{limit: maxOperationalValueOutputBytes}
-	cmd.Stderr = stderr
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("grader timed out after %s", graderJSTimeout)
+			return fmt.Errorf("grader timed out after %s", timeout)
 		}
-		if message := bytes.TrimSpace(stderr.Bytes()); len(message) > 0 {
-			return errors.New(string(message))
-		}
-		return fmt.Errorf("grader failed: %w", err)
+		return fmt.Errorf("grader failed: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
+}
+
+func stageGraderRuntime(directory string) (string, error) {
+	for _, name := range []string{"trace_graders.cjs", "grader_session.cjs", "trajectory_graders.cjs", "builtin_graders.json", "working_set_metrics.cjs", "custom_graders.cjs", "custom_grader_worker.cjs", "operational_value_grader.cjs", "operational_value_worker.cjs"} {
+		content, err := setup.SessionParserSources.ReadFile("js/" + name)
+		if err != nil {
+			return "", fmt.Errorf("cannot load grader runtime %s: %w", name, err)
+		}
+		if err := os.WriteFile(filepath.Join(directory, name), content, constants.FilePermSensitive); err != nil {
+			return "", fmt.Errorf("failed to stage grader runtime %s: %w", name, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(directory, "graders_run.cjs"), gradersRunScript, constants.FilePermSensitive); err != nil {
+		return "", fmt.Errorf("failed to stage grader runner: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve grader runtime path: %w", err)
+	}
+	return resolved, nil
 }
 
 func graderNodePermissionFlag(ctx context.Context, nodePath string) (string, error) {
@@ -259,211 +275,15 @@ func graderNodePermissionFlag(ctx context.Context, nodePath string) (string, err
 	cmd := exec.CommandContext(probeCtx, nodePath, "--print",
 		`process.allowedNodeEnvironmentFlags.has("--permission") ? "--permission" : process.allowedNodeEnvironmentFlags.has("--experimental-permission") ? "--experimental-permission" : ""`)
 	cmd.Env = []string{}
-	stdout := &boundedCommandBuffer{limit: 1024}
-	stderr := &boundedCommandBuffer{limit: 1024}
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to detect Node.js permission support: %w: %s", err, bytes.TrimSpace(stderr.Bytes()))
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to detect Node.js permission support: %w", err)
 	}
-	flag := strings.TrimSpace(stdout.String())
-	switch flag {
-	case "--permission", "--experimental-permission":
-		return flag, nil
-	default:
+	flag := strings.TrimSpace(string(output))
+	if flag != "--permission" && flag != "--experimental-permission" {
 		return "", errors.New("node permission support is required to run graders; install Node.js 20 or newer")
 	}
-}
-
-func runOperationalValuePayload(ctx context.Context, workflowArg string, grader graderRunDefinition, payload json.RawMessage, output io.Writer, evaluatorHost string) error {
-	evaluatorContent, err := loadOperationalValueEvaluatorContent(workflowArg, grader)
-	if err != nil {
-		return err
-	}
-	tempDir, err := os.MkdirTemp("", "gh-aw-operational-value-evaluator-*")
-	if err != nil {
-		return fmt.Errorf("failed to stage operational-value evaluator: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-	evaluatorPath := filepath.Join(tempDir, "operational-value.sh")
-	if err := os.WriteFile(evaluatorPath, evaluatorContent, constants.FilePermExecutable); err != nil {
-		return fmt.Errorf("failed to stage operational-value evaluator: %w", err)
-	}
-	if _, err := runOperationalValueEvaluatorBash(ctx, evaluatorPath, []string{"-n", evaluatorPath}, nil, operationalValueSyntaxTimeout, evaluatorHost); err != nil {
-		return fmt.Errorf("operational-value evaluator has invalid Bash syntax: %w", err)
-	}
-	result, err := runOperationalValueEvaluatorBash(ctx, evaluatorPath, []string{evaluatorPath}, payload, operationalValueEvaluatorTimeout, evaluatorHost)
-	if err != nil {
-		return fmt.Errorf("operational-value evaluator failed: %w", err)
-	}
-	if err := validateOperationalValueMetrics(result); err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(output, string(result))
-	return err
-}
-
-func loadOperationalValueEvaluatorContent(workflowArg string, grader graderRunDefinition) ([]byte, error) {
-	if grader.Script != "" {
-		return validateOperationalValueEvaluatorSource([]byte(grader.Script))
-	}
-	workflowPath, err := ResolveWorkflowPath(workflowArg)
-	if err != nil {
-		return nil, err
-	}
-	repoRoot, err := gitutil.FindGitRootFrom(filepath.Dir(workflowPath))
-	if err != nil {
-		return nil, errors.New("cannot resolve operational-value evaluator outside a Git repository")
-	}
-	evaluatorPath := workflow.ResolveOperationalValueEvaluatorPath(repoRoot, workflowPath, grader.Run)
-	if err := fileutil.ValidatePathWithinBase(repoRoot, evaluatorPath); err != nil {
-		return nil, errors.New("operational-value evaluator escapes the Git repository")
-	}
-	info, err := os.Lstat(evaluatorPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot inspect operational-value evaluator: %w", err)
-	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return nil, errors.New("operational-value evaluator must be a regular file, not a symbolic link")
-	}
-	file, err := os.Open(evaluatorPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read operational-value evaluator: %w", err)
-	}
-	defer file.Close()
-	content, err := io.ReadAll(io.LimitReader(file, maxOperationalValueEvaluatorBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("cannot read operational-value evaluator: %w", err)
-	}
-	return validateOperationalValueEvaluatorSource(content)
-}
-
-func validateOperationalValueEvaluatorSource(content []byte) ([]byte, error) {
-	if len(content) > maxOperationalValueEvaluatorBytes {
-		return nil, fmt.Errorf("operational-value evaluator exceeds the %d-byte limit", maxOperationalValueEvaluatorBytes)
-	}
-	if !utf8.Valid(content) {
-		return nil, errors.New("operational-value evaluator must be valid UTF-8")
-	}
-	if !bytes.HasPrefix(content, []byte("#!/usr/bin/env bash\n")) && !bytes.HasPrefix(content, []byte("#!/bin/bash\n")) {
-		return nil, errors.New("operational-value evaluator must start with a Bash shebang")
-	}
-	return content, nil
-}
-
-func validateOperationalValueMetrics(data []byte) error {
-	var metrics []map[string]json.RawMessage
-	if err := json.Unmarshal(data, &metrics); err != nil || len(metrics) == 0 {
-		return errors.New("operational-value evaluator must return one non-empty JSON metric array")
-	}
-	ids := make(map[string]struct{}, len(metrics))
-	for _, metric := range metrics {
-		if len(metric) != 2 || metric["id"] == nil || metric["value"] == nil {
-			return errors.New("operational-value evaluator metrics must contain exactly id and value")
-		}
-		var id string
-		if err := json.Unmarshal(metric["id"], &id); err != nil || strings.TrimSpace(id) == "" {
-			return errors.New("operational-value evaluator metric ids must be non-empty strings")
-		}
-		if _, exists := ids[id]; exists {
-			return errors.New("operational-value evaluator metric ids must be unique")
-		}
-		ids[id] = struct{}{}
-		if string(metric["value"]) == "null" {
-			continue
-		}
-		var value float64
-		if err := json.Unmarshal(metric["value"], &value); err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
-			return errors.New("operational-value evaluator metric values must be null or finite numbers")
-		}
-	}
-	return nil
-}
-
-type boundedCommandBuffer struct {
-	bytes.Buffer
-	limit    int
-	exceeded bool
-}
-
-func (buffer *boundedCommandBuffer) Write(data []byte) (int, error) {
-	written := len(data)
-	remaining := buffer.limit - buffer.Len()
-	if remaining > 0 {
-		remaining = min(len(data), remaining)
-		if _, err := buffer.Buffer.Write(data[:remaining]); err != nil {
-			return 0, err
-		}
-	}
-	if written > remaining {
-		buffer.exceeded = true
-	}
-	return written, nil
-}
-
-func runOperationalValueEvaluatorBash(ctx context.Context, evaluatorPath string, args []string, input []byte, timeout time.Duration, evaluatorHost string) ([]byte, error) {
-	commandCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	cmd := exec.CommandContext(commandCtx, "/bin/bash", args...)
-	cmd.Dir = filepath.Dir(evaluatorPath)
-	cmd.Env = operationalValueEvaluatorEnvironment(os.Environ(), evaluatorHost)
-	cmd.Stdin = bytes.NewReader(input)
-	stdout := &boundedCommandBuffer{limit: maxOperationalValueOutputBytes}
-	stderr := &boundedCommandBuffer{limit: maxOperationalValueOutputBytes}
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	err := cmd.Run()
-	if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
-		return nil, fmt.Errorf("timed out after %s", timeout)
-	}
-	if stdout.exceeded || stderr.exceeded {
-		return nil, fmt.Errorf("output exceeded the %d-byte limit", maxOperationalValueOutputBytes)
-	}
-	if err != nil {
-		if message := strings.TrimSpace(stderr.String()); message != "" {
-			return nil, errors.New(message)
-		}
-		return nil, err
-	}
-	return stdout.Bytes(), nil
-}
-
-func operationalValueEvaluatorEnvironment(environ []string, evaluatorHost string) []string {
-	allowed := map[string]struct{}{
-		"PATH": {}, "HOME": {}, "TMPDIR": {}, "TEMP": {}, "TMP": {},
-		"SystemRoot": {}, "ComSpec": {}, "GH_TOKEN": {}, "GH_HOST": {},
-		"GITHUB_API_URL": {}, "GITHUB_GRAPHQL_URL": {}, "GITHUB_SERVER_URL": {},
-	}
-	values := make(map[string]string)
-	for _, entry := range environ {
-		key, value, ok := strings.Cut(entry, "=")
-		if _, allowedKey := allowed[key]; ok && allowedKey {
-			values[key] = value
-		}
-	}
-	hostURL, err := url.Parse(evaluatorHost)
-	if err == nil && hostURL.Scheme != "" && hostURL.Host != "" {
-		serverURL := strings.TrimSuffix(hostURL.String(), "/")
-		values["GH_HOST"] = hostURL.Host
-		values["GITHUB_SERVER_URL"] = serverURL
-		if strings.EqualFold(hostURL.Hostname(), "github.com") {
-			values["GITHUB_API_URL"] = "https://api.github.com"
-			values["GITHUB_GRAPHQL_URL"] = "https://api.github.com/graphql"
-		} else {
-			apiURL := *hostURL
-			apiURL.Path = path.Join(apiURL.Path, "api/v3")
-			graphqlURL := *hostURL
-			graphqlURL.Path = path.Join(graphqlURL.Path, "api/graphql")
-			values["GITHUB_API_URL"] = apiURL.String()
-			values["GITHUB_GRAPHQL_URL"] = graphqlURL.String()
-		}
-	}
-	result := make([]string, 0, len(values))
-	for key, value := range values {
-		result = append(result, key+"="+value)
-	}
-	slices.Sort(result)
-	return result
+	return flag, nil
 }
 
 func parseGraderRunID(value string) (int64, error) {

@@ -102,7 +102,7 @@ async function main(config = {}) {
 
     const sanitizedTitle = sanitizeTitle(item.title);
     if (!sanitizedTitle) throw new Error(`${ERR_VALIDATION}: linear_create_issue title is empty after sanitization`);
-    const rendered = renderIssueParameters({ title: sanitizedTitle, body: appendConfiguredBodyFooter(sanitizeContent(normalizeReportText(item.body)), config.body_footer, { maxLength: 65000 }) });
+    const rendered = renderIssueParameters({ title: sanitizedTitle, body: appendConfiguredBodyFooter(sanitizeContent(normalizeReportText(item.body, { preserveImageAttributes: true })), config.body_footer, { maxLength: 65000 }) });
     const title = rendered.title;
     const description = rendered.body.trimEnd();
     if (description.length > 65000) throw new Error(`${ERR_VALIDATION}: linear_create_issue rendered body exceeds 65000 characters`);

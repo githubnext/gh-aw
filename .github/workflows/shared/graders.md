@@ -6,7 +6,6 @@ imports:
 ---
 
 <!--
-Imports all currently implemented custom trajectory grader fragments from
-.github/workflows/shared/graders/ so workflows can opt into the complete custom
-grader set with a single shared component.
+Opts into the state-revisit, recurrence-determinism, and recurrence-laminarity
+built-ins. These analyses are not part of the fast default set.
 -->

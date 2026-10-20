@@ -11,7 +11,7 @@ permissions:
   pull-requests: read
   issues: read
   copilot-requests: write
-model: copilot/gpt-5.5
+model: copilot/gpt-5
 strict: false
 engine:
   id: pi

@@ -7,6 +7,13 @@
 
 ---
 
+> **Historical draft:** The episode-analysis and yield portions of this proposal were
+> superseded by [#34750](https://github.com/github/gh-aw/pull/34750), merged on 2026-05-25.
+> Forecast no longer constructs episodes or emits episode tables, `episode_analysis`,
+> or `yield`. The historical requirements below do not reinstate those features;
+> the [current forecast specification](../src/content/docs/specs/forecast-specification.md)
+> defines the supported output contract. This note does not change this ADR's Draft status.
+
 ## Part 1 — Narrative (Human-Friendly)
 
 ### Context

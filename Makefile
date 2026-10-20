@@ -233,6 +233,7 @@ fuzz:
 	@echo "Running fuzz tests for 30 seconds..."
 	go test -fuzz=FuzzParseFrontmatter -fuzztime=30s ./pkg/parser/
 	go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
+	go test -run='^$$' -fuzz=FuzzBashCommandParserModel -fuzztime=30s ./pkg/workflow/
 
 # Run security regression tests
 .PHONY: test-security
@@ -531,12 +532,19 @@ test-scripts: build
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
 	bash scripts/check-cgo-cjs-workflow-purity_test.sh
 	bash scripts/update-threat-detect-pins_test.sh
+	bash scripts/update-release-pins_test.sh
+	bash scripts/check-go-toolchain_test.sh
 	python3 scripts/test_super_linter_scope.py
 	python3 scripts/test_publish_safe_outputs_node.py
 	bash actions/setup/sh/collect_usage_artifact_files_test.sh
 	bash actions/setup/sh/copy_gh_aw_binary_for_mcp_test.sh
 	bash actions/setup/sh/create_gh_aw_tmp_dir_test.sh
 	bash actions/setup/sh/download_docker_images_local_test.sh
+	bash actions/setup/sh/install_awf_binary_test.sh
+	bash actions/setup/sh/install_gh_cli_test.sh
+	bash actions/setup/sh/install_threat_detect_binary_test.sh
+	bash actions/setup/sh/release_integrity_test.sh
+	bash actions/setup/sh/runtime_trust_inventory_test.sh
 	@echo "✓ All script tests passed"
 
 # Test all code and guidance (Go, JavaScript, wasm golden, shell scripts, and guidance contracts)
@@ -710,7 +718,7 @@ tools: ## Install build-time tools declared in go.mod tool directives
 .PHONY: install-golangci-lint
 install-golangci-lint:
 	@echo "Installing golangci-lint binary..."
-	@GOLANGCI_LINT_VERSION="v2.13.2"; \
+	@GOLANGCI_LINT_VERSION="v2.15.0"; \
 	GOPATH=$$(go env GOPATH); \
 	GOOS=$$(go env GOOS); \
 	GOARCH=$$(go env GOARCH); \
@@ -1316,11 +1324,11 @@ sync-install-script-hashes:
 	@bash scripts/update-install-script-hashes.sh
 	@echo "✓ Install script hashes synced successfully"
 
-# Generate audit, logs, and cached logs JSONL item schemas
+# Generate structured CLI output schemas
 .PHONY: schemas
 schemas: build
 	@set -eu; \
-	for schema in audit logs logs-jsonl; do \
+	for schema in audit logs logs-jsonl outcomes-episodes; do \
 		target="schemas/$$schema.schema.json"; \
 		tmp=$$(mktemp "$$target.tmp.XXXXXX"); \
 		trap 'rm -f "$$tmp"' EXIT HUP INT TERM; \

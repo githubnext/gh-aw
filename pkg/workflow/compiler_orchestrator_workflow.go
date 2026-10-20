@@ -376,7 +376,10 @@ func extractRawObservabilityMap(rawFrontmatter map[string]any) map[string]any {
 	if rawFrontmatter == nil {
 		return nil
 	}
-	obs, _ := rawFrontmatter["observability"].(map[string]any)
+	obs, ok := rawFrontmatter["observability"].(map[string]any)
+	if !ok {
+		return nil
+	}
 	return obs
 }
 
@@ -384,7 +387,7 @@ func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (
 	seen := make(map[string]struct {
 	})
 	for _, ep := range extractRawOTLPEndpointMaps(mainObs) {
-		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
+		if url, ok := ep["url"].(string); ok && url != "" && !setutil.Contains(seen, url) {
 			seen[url] = struct {
 			}{}
 			mergedEndpoints = append(mergedEndpoints, ep)
@@ -392,7 +395,7 @@ func mergeRawOTLPEndpoints(mainObs map[string]any, importedObs map[string]any) (
 	}
 	mainCount = len(mergedEndpoints)
 	for _, ep := range extractRawOTLPEndpointMaps(importedObs) {
-		if url, _ := ep["url"].(string); url != "" && !setutil.Contains(seen, url) {
+		if url, ok := ep["url"].(string); ok && url != "" && !setutil.Contains(seen, url) {
 			seen[url] = struct {
 			}{}
 			mergedEndpoints = append(mergedEndpoints, ep)
@@ -623,7 +626,10 @@ func (c *Compiler) extractAdditionalConfigurations( //nolint:largefunc // Existi
 	// between types the user explicitly configured and types that were auto-defaulted by
 	// extractSafeOutputsConfig. Without this, auto-defaults (e.g. threat-detection) would
 	// prevent imported configurations for those types from being merged.
-	rawSafeOutputsMap, _ := frontmatter["safe-outputs"].(map[string]any)
+	rawSafeOutputsMap, ok := frontmatter["safe-outputs"].(map[string]any)
+	if !ok {
+		rawSafeOutputsMap = nil
+	}
 	mergedSafeOutputs, err := c.MergeSafeOutputs(workflowData.SafeOutputs, allSafeOutputsConfigs, rawSafeOutputsMap)
 	if err != nil {
 		return fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
@@ -696,6 +702,20 @@ func (c *Compiler) extractAdditionalConfigurations( //nolint:largefunc // Existi
 		return fmt.Errorf("invalid graders configuration: %w", err)
 	}
 	workflowData.Graders = gradersConfig
+	for id, source := range importsResult.GraderRunSources {
+		grader := gradersConfig.Graders[id]
+		if grader == nil || grader.Run == "" {
+			continue
+		}
+		if authored, ok := frontmatter["graders"].(map[string]any); ok {
+			if definition, ok := authored[id].(map[string]any); ok {
+				if _, overridesRun := definition["run"]; overridesRun {
+					continue
+				}
+			}
+		}
+		grader.RunSourcePath = source
+	}
 	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals, workflowData.Graders); err != nil {
 		return fmt.Errorf("invalid experiments configuration: %w", err)
 	}
@@ -771,6 +791,12 @@ func (c *Compiler) processOnSectionAndFilters( //nolint:largefunc // Existing or
 ) error {
 	orchestratorWorkflowLog.Print("Processing on section and filters")
 
+	var err error
+	frontmatter, err = c.processWebhookTriggers(frontmatter, workflowData)
+	if err != nil {
+		return err
+	}
+
 	// Process stop-after configuration from the on: section
 	if err := c.processStopAfterConfiguration(frontmatter, workflowData, cleanPath); err != nil {
 		return err
@@ -828,7 +854,7 @@ func (c *Compiler) processOnSectionAndFilters( //nolint:largefunc // Existing or
 	if len(onSteps) > 0 {
 		anySteps := make([]any, len(onSteps))
 		for i, s := range onSteps {
-			anySteps[i] = s
+			anySteps[i] = s //nolint:uncheckedsliceindex // anySteps is allocated with len(onSteps).
 		}
 		typedSteps, convErr := SliceToSteps(anySteps)
 		if convErr == nil {
@@ -837,7 +863,7 @@ func (c *Compiler) processOnSectionAndFilters( //nolint:largefunc // Existing or
 				return fmt.Errorf("on.steps: %w", convErr)
 			}
 			for i, s := range typedSteps {
-				onSteps[i] = s.ToMap()
+				onSteps[i] = s.ToMap() //nolint:uncheckedsliceindex // Conversion and pinning preserve the onSteps length.
 			}
 		} else {
 			orchestratorWorkflowLog.Printf("Failed to convert on.steps to typed steps for action pinning: %v", convErr)

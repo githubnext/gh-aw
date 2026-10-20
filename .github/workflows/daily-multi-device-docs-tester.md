@@ -22,7 +22,7 @@ sandbox:
     id: awf
 tracker-id: daily-multi-device-docs-tester
 max-turns: 80  # 10 devices × ~5 turns each + setup/report overhead
-model: copilot/gpt-5.4
+model: copilot/gpt-5
 engine:
   id: pi
   model-provider: github
@@ -115,7 +115,7 @@ pre-agent-steps:
       AGENTICS_WORKFLOWS_DIR: ${{ github.workspace }}/.agentics/workflows
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
-      npm install
+      npm ci
       npm run build
 features:
   gh-aw-detection: true

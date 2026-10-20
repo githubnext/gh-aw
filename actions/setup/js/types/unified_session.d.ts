@@ -228,10 +228,23 @@ export interface ModelRoutingOutcomeData {
 export interface ModelInventoryData {
   endpoints: {
     provider: string;
-    models: string[];
+    /** AWF's endpoint configuration state; absent when the source did not supply it. */
+    configured?: boolean;
+    /** Advertised model IDs in source order; absent means unknown, not empty. */
+    models?: string[];
+    /** Routing metadata in source order; absent means unknown, not empty. */
     routingModels?: {
       modelId: string;
       supportedEndpoints?: string[];
+      /** Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty. */
+      supportedReasoningEfforts?: string[];
+      /**
+       * Positive context window size in tokens; absent means unknown.
+       * @asType integer
+       * @minimum 1
+       * @maximum 9007199254740991
+       */
+      contextWindowTokens?: number;
     }[];
   }[];
   modelsFetchComplete?: boolean;
@@ -340,6 +353,7 @@ export interface GraderData {
 export interface GraderManifestData {
   version?: JsonValue;
   graders?: GraderData[];
+  customGraders?: string[];
 }
 
 export interface GraderMeasurementData extends GraderData {
@@ -390,6 +404,23 @@ export interface WorkflowJobResultData {
   durationMs?: SessionCount;
 }
 
+/** Validated admission allowances, not spend or credentials. */
+export interface AdmissionDecisionData {
+  status: "admitted" | "ignored" | "skipped";
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  maxAiCredits?: number;
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  threatDetectionMaxAiCredits?: number;
+  /** @minimum 1
+   * @maximum 2147483647
+   * @asType integer */
+  evalsMaxAiCredits?: number;
+}
+
 export interface DailyAICDecisionData {
   status: "disabled" | "skipped" | "under_budget" | "exceeded" | "structural_error" | "transient_error";
   exceeded?: boolean;
@@ -407,6 +438,12 @@ export interface EpisodeLineageData {
   rootRepo?: JsonValue;
   rootWorkflowId?: JsonValue;
   rootRunId?: JsonValue;
+  parentRepo?: JsonValue;
+  parentRunId?: JsonValue;
+  parentRunAttempt?: JsonValue;
+  parentWorkflowId?: JsonValue;
+  parentWorkflowCallId?: JsonValue;
+  parentEventType?: JsonValue;
 }
 
 export interface ModelSelectionData {
@@ -429,8 +466,19 @@ export interface WorkflowInfoData {
   triggerType?: JsonValue;
   dryRun?: JsonValue;
   workflow?: JsonValue;
+  /** Executing workflow reference supplied by the compiler from job.workflow_ref. */
+  workflowId?: JsonValue;
+  /** Current workflow invocation ID from aw_info, separate from the caller's ID. */
+  workflowCallId?: JsonValue;
+  /** GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows. */
+  callerWorkflowRef?: JsonValue;
   repository?: JsonValue;
   runId?: JsonValue;
+  runAttempt?: JsonValue;
+  ref?: JsonValue;
+  sha?: JsonValue;
+  actor?: JsonValue;
+  targetRepo?: JsonValue;
   awContext?: Record<string, JsonValue>;
   episode?: EpisodeLineageData | null;
 }
@@ -612,6 +660,7 @@ export interface UnifiedSessionEventDataMap {
   "usage.report": UsageReportData;
   "execution.result": ExecutionResultData;
   "detection.result": DetectionResultData;
+  "guardrail.admission": AdmissionDecisionData;
   "guardrail.daily_aic": DailyAICDecisionData;
   "workflow.info": WorkflowInfoData;
   "plugin.installation": PluginInstallationData;

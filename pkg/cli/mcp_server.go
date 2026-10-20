@@ -98,6 +98,7 @@ func createMCPServer(cmdPath string, actor string, validateActor bool, allowWrit
 func registerMCPTools(server *mcp.Server, execCmd execCmdFunc, actor string, validateActor bool, manifestCacheFile string, allowWriteTools bool) error {
 	// Register read-only tools
 	registerStatusTool(server)
+	registerHealthTool(server, execCmd)
 
 	if err := registerCompileTool(server, execCmd, manifestCacheFile, allowWriteTools); err != nil {
 		return err

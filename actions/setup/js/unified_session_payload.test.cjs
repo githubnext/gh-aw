@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeUnifiedSessionEvent, normalizeModelInventoryData } from "./unified_session_payload.cjs";
-import { mergeSessionSources } from "./unified_session.cjs";
+import { collectUnifiedSession, mergeSessionSources, writeUnifiedSession } from "./unified_session.cjs";
 import { generatePlainTextSummary, generateCopilotCliStyleSummary, convertCopilotEventsToLegacyLogEntries } from "./log_parser_shared.cjs";
 import { serializeSessionArtifact } from "./session_artifact.cjs";
 import { normalizeCodexSession } from "./codex_session.cjs";
@@ -11,7 +14,7 @@ import { normalizeCopilotSession } from "./copilot_session.cjs";
 import { normalizeGeminiSession } from "./gemini_session.cjs";
 import { collapseStreamedMessages } from "./agent_session_render.cjs";
 import { reconcileSessionUsage, selectSessionResult, sessionTokenTotal } from "./agent_session.cjs";
-import { createSessionValidator } from "./scripts/validate_session.cjs";
+import { createSessionValidator, validateSession } from "./scripts/validate_session.cjs";
 import { dynamicWorkflow } from "./fixtures/claude_dynamic_workflow.cjs";
 import { DYNAMIC_WORKFLOW_EVENT_TYPES } from "./dynamic_workflow_session.cjs";
 
@@ -97,13 +100,21 @@ describe("essential unified session payloads", () => {
     [{ endpoints: [] }, { endpoints: [] }],
     [{ providers: {} }, { endpoints: [] }],
     [{ provider: "copilot", models: [] }, { endpoints: [{ provider: "copilot", models: [] }] }],
-    [{ endpoints: [{ provider: "anthropic", configured: false, models: null }] }, { endpoints: [{ provider: "anthropic", models: [] }] }],
-    [{ endpoints: [{ provider: "opencode", configured: true, models: null, models_url: null }] }, { endpoints: [{ provider: "opencode", models: [] }] }],
-  ])("accepts genuine empty inventories and AWF null model collections: %j", (source, expected) => {
+    [{ endpoints: [{ provider: "anthropic", configured: false, models: null }] }, { endpoints: [{ provider: "anthropic", configured: false }] }],
+    [{ endpoints: [{ provider: "opencode", configured: true, models: null, models_url: null }] }, { endpoints: [{ provider: "opencode", configured: true }] }],
+    [{ endpoints: [{ provider: "copilot", configured: true, models: ["a"], routing_models: null }] }, { endpoints: [{ provider: "copilot", configured: true, models: ["a"] }] }],
+    [{ routing_models: [{ model_id: "fallback" }], endpoints: [{ provider: "copilot", configured: false, models: null, routing_models: null }] }, { endpoints: [{ provider: "copilot", configured: false }] }],
+    [{ routing_models: null, endpoints: [{ provider: "copilot", models: [] }] }, { endpoints: [{ provider: "copilot", models: [] }] }],
+    [
+      { endpoints: [{ provider: "copilot", models: ["a"], routing_models: [{ model_id: "a", supported_reasoning_efforts: [], context_window_tokens: null }] }] },
+      { endpoints: [{ provider: "copilot", models: ["a"], routingModels: [{ modelId: "a", supportedReasoningEfforts: [] }] }] },
+    ],
+  ])("accepts genuine empty inventories and keeps AWF null collections unknown: %j", (source, expected) => {
     expect(normalizeModelInventoryData(source)).toEqual(expected);
     const event = normalizeUnifiedSessionEvent({ type: "model.inventory", data: source });
     expect(event.data).toEqual(expected);
     expect(normalizeUnifiedSessionEvent(event)).toEqual(event);
+    expect(normalizeModelInventoryData(JSON.parse(JSON.stringify(event.data)))).toEqual(expected);
   });
 
   it.each([
@@ -137,10 +148,31 @@ describe("essential unified session payloads", () => {
     { endpoints: [], routing_models: [{ model_id: "model", supported_endpoints: ["/responses", 42] }] },
     { provider: "copilot", models: [], routingModels: [null] },
     { provider: "copilot", models: [], routingModels: [{ modelId: "model", supportedEndpoints: null }] },
+    { endpoints: [{ provider: "copilot", configured: "true", models: ["model"] }] },
+    { endpoints: [{ provider: "copilot", configured: true, models: null, routing_models: "malformed" }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", supportedReasoningEfforts: "high" }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", supportedReasoningEfforts: ["high", 42] }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", supportedReasoningEfforts: ["very high"] }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", supportedReasoningEfforts: [""] }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", contextWindowTokens: 0 }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", contextWindowTokens: -1 }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", contextWindowTokens: 1.5 }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", contextWindowTokens: "128000" }] },
+    { provider: "copilot", models: [], routingModels: [{ modelId: "model", contextWindowTokens: Number.MAX_SAFE_INTEGER + 1 }] },
     { endpoints: [], models_fetch_complete: "true" },
   ])("rejects malformed inventory rather than producing a success-shaped empty payload: %j", source => {
     expect(normalizeModelInventoryData(source)).toBeUndefined();
     expect(() => normalizeUnifiedSessionEvent({ type: "model.inventory", data: source })).toThrow("ERR_VALIDATION: Model inventory snapshot must contain valid endpoint model collections");
+  });
+
+  it("publishes contextWindowTokens as a positive safe integer in the unified schema", () => {
+    const source = { type: "model.inventory", data: { endpoints: [{ provider: "copilot", models: ["a"], routing_models: [{ model_id: "a", context_window_tokens: 1 }] }] } };
+    const [event] = mergeSessionSources([{ component: "agent", phase: "agent", path: "awf-reflect.json", events: [source] }]);
+    const validate = createSessionValidator("unified").event;
+    expect(validate(event), JSON.stringify(validate.errors)).toBe(true);
+    const withWindow = contextWindowTokens => ({ ...event, data: { endpoints: [{ ...event.data.endpoints[0], routingModels: [{ modelId: "a", contextWindowTokens }] }] } });
+    expect(validate(withWindow(Number.MAX_SAFE_INTEGER)), JSON.stringify(validate.errors)).toBe(true);
+    for (const contextWindowTokens of [0, 1.5, Number.MAX_SAFE_INTEGER + 1]) expect(validate(withWindow(contextWindowTokens)), String(contextWindowTokens)).toBe(false);
   });
 
   it("projects canonical MCP configuration through the shared metadata allowlist", () => {
@@ -635,6 +667,15 @@ describe("essential unified session payloads", () => {
       type: "workflow.info",
       data: {
         run_id: "300",
+        run_attempt: "2",
+        workflow_id: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+        workflow_call_id: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
+        caller_workflow_ref: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+        repository: "org/repo",
+        ref: "refs/heads/main",
+        sha: "abc123",
+        actor: "octocat",
+        target_repo: "org/target",
         context: {
           episode_id: "100-1:root",
           hop_id: "200-1:caller",
@@ -644,6 +685,11 @@ describe("essential unified session payloads", () => {
           root_workflow_id: "org/repo/.github/workflows/root.yml@refs/heads/main",
           root_run_id: "100",
           workflow_call_id: "200-1:caller",
+          repo: "org/parent",
+          run_id: "200",
+          run_attempt: "1",
+          workflow_id: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+          event_type: "workflow_dispatch",
           otel_trace_id: "trace-1",
           work_queue_assignment: { payload: { enabled: false, count: 0, items: [], optional: null } },
         },
@@ -653,6 +699,15 @@ describe("essential unified session payloads", () => {
     const compact = normalizeUnifiedSessionEvent(source);
     expect(compact.data).toEqual({
       runId: "300",
+      runAttempt: "2",
+      workflowId: "org/repo/.github/workflows/worker.yml@refs/heads/main",
+      workflowCallId: "300-2:org/repo/.github/workflows/worker.yml@refs/heads/main",
+      callerWorkflowRef: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+      repository: "org/repo",
+      ref: "refs/heads/main",
+      sha: "abc123",
+      actor: "octocat",
+      targetRepo: "org/target",
       awContext: source.data.context,
       episode: {
         episodeId: "100-1:root",
@@ -662,6 +717,12 @@ describe("essential unified session payloads", () => {
         rootRepo: "org/repo",
         rootWorkflowId: "org/repo/.github/workflows/root.yml@refs/heads/main",
         rootRunId: "100",
+        parentRepo: "org/parent",
+        parentRunId: "200",
+        parentRunAttempt: "1",
+        parentWorkflowId: "org/parent/.github/workflows/caller.yml@refs/heads/main",
+        parentWorkflowCallId: "200-1:caller",
+        parentEventType: "workflow_dispatch",
       },
     });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
@@ -670,19 +731,32 @@ describe("essential unified session payloads", () => {
     expect(source).toEqual(original);
   });
 
+  it("retains webhook batch identities but omits raw payloads from session logs", () => {
+    const context = {
+      items: [{ item_type: "dependabot_alert", item_number: "1", repo: "org/repo" }],
+      webhook: { event: "dependabot_alert", deliveries: [{ delivery_id: "d1", payload: { private: "do-not-log" } }] },
+    };
+    const before = JSON.stringify(context);
+    const result = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { context } });
+    expect(result.data.awContext).toEqual({ items: context.items, webhook: { event: "dependabot_alert", deliveries: [{ delivery_id: "d1" }] } });
+    expect(JSON.stringify(result)).not.toContain("do-not-log");
+    expect(normalizeUnifiedSessionEvent(result)).toEqual(result);
+    expect(JSON.stringify(context)).toBe(before);
+  });
+
   it("preserves explicit canonical episode values and does not infer missing lineage", () => {
     const event = {
       type: "workflow.info",
       data: {
-        episode: { episodeId: "", episode_id: "wrong", parentHopId: null, parent_hop_id: "wrong", rootRunId: "00100", private: "omit" },
-        context: { episode_id: "wrong" },
+        episode: { episodeId: "", episode_id: "wrong", parentHopId: null, parent_hop_id: "wrong", rootRunId: "00100", parentRunId: "00200", run_id: "wrong", parentRepo: null, private: "omit" },
+        context: { episode_id: "wrong", run_id: "wrong", repo: "wrong" },
       },
     };
     const compact = normalizeUnifiedSessionEvent(event);
-    expect(compact.data).toEqual({ awContext: event.data.context, episode: { episodeId: "", parentHopId: null, rootRunId: "00100" } });
+    expect(compact.data).toEqual({ awContext: event.data.context, episode: { episodeId: "", parentHopId: null, rootRunId: "00100", parentRunId: "00200", parentRepo: null } });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
     expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { episode: null, context: { episode_id: "wrong" } } }).data).toEqual({ awContext: { episode_id: "wrong" }, episode: null });
-    for (const context of [undefined, null, {}, [], { workflow_call_id: "legacy", run_id: "100", workflow_id: "caller" }]) {
+    for (const context of [undefined, null, {}, []]) {
       expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { run_id: "200", context } }).data).toEqual({
         runId: "200",
         ...(context && typeof context === "object" && !Array.isArray(context) ? { awContext: context } : {}),
@@ -692,12 +766,58 @@ describe("essential unified session payloads", () => {
 
   it("prefers canonical caller context and omits absent or non-object context", () => {
     const compact = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { awContext: { run_id: "100" }, context: { run_id: "wrong" } } });
-    expect(compact.data).toEqual({ awContext: { run_id: "100" } });
+    expect(compact.data).toEqual({ awContext: { run_id: "100" }, episode: { parentRunId: "100" } });
     expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
     for (const awContext of [undefined, null, [], "", false, 0]) {
       expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: { awContext, context: { run_id: "wrong" } } }).data).not.toHaveProperty("awContext");
     }
     expect(normalizeUnifiedSessionEvent({ type: "workflow.info", data: {} }).data).not.toHaveProperty("awContext");
+  });
+
+  it("projects legacy caller identity without synthesizing canonical episode or hop IDs", () => {
+    const context = { workflow_call_id: "legacy", run_id: "00100", run_attempt: "02", workflow_id: "caller", repo: "org/repo", event_type: "issues" };
+    const compact = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { run_id: "200", context } });
+    expect(compact.data.episode).toEqual({
+      parentWorkflowCallId: "legacy",
+      parentRunId: "00100",
+      parentRunAttempt: "02",
+      parentWorkflowId: "caller",
+      parentRepo: "org/repo",
+      parentEventType: "issues",
+    });
+    expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
+  });
+
+  it("keeps a reusable workflow caller distinct even when parent and current run IDs match", () => {
+    const compact = normalizeUnifiedSessionEvent({
+      type: "workflow.info",
+      data: {
+        run_id: "300",
+        run_attempt: "2",
+        workflow_id: "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+        workflow_call_id: "300-2:org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+        caller_workflow_ref: "org/repo/.github/workflows/caller.yml@refs/heads/main",
+        context: { run_id: "300", workflow_id: "caller.yml", workflow_call_id: "300-2:caller.yml", hop_id: "300-2:caller.yml", parent_hop_id: "100-1:root" },
+      },
+    });
+    expect(compact.data).toMatchObject({
+      runId: "300",
+      runAttempt: "2",
+      workflowId: "org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+      workflowCallId: "300-2:org/platform/.github/workflows/worker.lock.yml@refs/tags/v1",
+      callerWorkflowRef: "org/repo/.github/workflows/caller.yml@refs/heads/main",
+      episode: { parentRunId: "300", parentWorkflowId: "caller.yml", parentWorkflowCallId: "300-2:caller.yml", hopId: "300-2:caller.yml", parentHopId: "100-1:root" },
+    });
+    expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
+  });
+
+  it.each(["", null, false, 0])("preserves explicit canonical workflow call ID %j over its legacy alias", workflowCallId => {
+    const compact = normalizeUnifiedSessionEvent({
+      type: "workflow.info",
+      data: { workflowCallId, workflow_call_id: "legacy" },
+    });
+    expect(compact.data).toEqual({ workflowCallId });
+    expect(normalizeUnifiedSessionEvent(compact)).toEqual(compact);
   });
 
   it("uses one accounting shape without losing zero values or adding overlapping totals", () => {
@@ -1212,6 +1332,252 @@ describe("AWF model routing candidate and request metadata", () => {
       }
       // Already-projected sessions gain nothing they did not supply.
       for (const { event } of sessions.filter(({ record }) => !Object.hasOwn(record, "_schema"))) expect(project(event).data).toEqual(event.data);
+    }
+  });
+});
+
+describe("AWF model inventories with unknown endpoints and live reasoning metadata", () => {
+  const FIXTURE_DIR = fileURLToPath(new URL("./test_data/awf_reflect/", import.meta.url));
+  const GOLDEN_DIR = fileURLToPath(new URL("../../../pkg/cli/testdata/model_routing_golden/", import.meta.url));
+  const REFLECT_PATH = "sandbox/firewall/awf-reflect.json";
+  const INVENTORY_SOURCES = ["agent/awf-reflect.json", REFLECT_PATH, "sandbox/firewall/models.json"];
+  // Recorded fixtures; see test_data/awf_reflect/README.md for run, artifact, and digest provenance.
+  const RECORDED = { file: "run-38995410124-awf-reflect.json", sha256: "9d59511015584d359b4159737d1d44ed12ad9426a1690e62148ab53b7543648a" };
+  const LEGACY = { file: "run-29812420778-legacy-awf-reflect.json", sha256: "da2570969e0d62bd10195f029b5472f750404b515784d8c68e9b267e0975b410" };
+  const ENDPOINT_KEYS = ["provider", "configured", "models", "routingModels"];
+  const ROUTING_KEYS = ["modelId", "supportedEndpoints", "supportedReasoningEfforts", "contextWindowTokens"];
+  const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
+  const readFixture = ({ file, sha256: digest }) => {
+    const bytes = fs.readFileSync(path.join(FIXTURE_DIR, file));
+    expect(sha256(bytes)).toBe(digest);
+    return bytes;
+  };
+  const classify = endpoint => (!Object.hasOwn(endpoint, "models") ? "unknown" : endpoint.models.length ? "listed" : "empty");
+  const roots = [];
+  afterEach(() => {
+    for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  // Collect and publish from a root containing only the stated inventory source.
+  function publish(files) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-model-inventory-"));
+    roots.push(root);
+    for (const [file, content] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, file), content);
+    }
+    const warn = vi.fn();
+    writeUnifiedSession({ rootDir: root, warn, dailyAIC: {}, jobResults: "" });
+    const content = fs.readFileSync(path.join(root, "usage/aw_session.jsonl"), "utf8");
+    expect(validateSession(content)).toBeGreaterThan(0);
+    const events = content
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+    return {
+      events,
+      warn,
+      inventories: events.filter(event => event.type === "model.inventory"),
+      inventoryWarnings: events.filter(event => event.type === "session.collection_warning" && event.data.code === "invalid_model_inventory"),
+    };
+  }
+
+  // Canonical projection is deterministic, idempotent, and survives JSON round trips.
+  function expectStableProjection(data) {
+    expect(normalizeModelInventoryData(data)).toEqual(data);
+    expect(normalizeModelInventoryData(JSON.parse(JSON.stringify(data)))).toEqual(data);
+    const event = normalizeUnifiedSessionEvent({ type: "model.inventory", data });
+    expect(event.data).toEqual(data);
+    expect(normalizeUnifiedSessionEvent(structuredClone(event))).toEqual(event);
+    expect(JSON.stringify(normalizeModelInventoryData(data))).toBe(JSON.stringify(data));
+  }
+
+  function expectAllowlisted(data) {
+    for (const endpoint of data.endpoints) {
+      expect(Object.keys(endpoint).every(key => ENDPOINT_KEYS.includes(key))).toBe(true);
+      for (const routing of endpoint.routingModels ?? []) expect(Object.keys(routing).every(key => ROUTING_KEYS.includes(key))).toBe(true);
+    }
+    const serialized = JSON.stringify(data);
+    for (const value of ["http", "api-proxy", "base_url", "models_url", "credential", "Bearer", "github_token", "pricing", "candidate_metadata_complete", '"source"']) expect(serialized).not.toContain(value);
+  }
+
+  it("preserves the complete recorded 38995410124 inventory with unknown unconfigured endpoints", () => {
+    const bytes = readFixture(RECORDED);
+    const source = JSON.parse(bytes.toString("utf8"));
+    const original = structuredClone(source);
+    const { inventories, inventoryWarnings, warn } = publish({ [REFLECT_PATH]: bytes });
+    expect(inventories).toHaveLength(1);
+    expect(inventoryWarnings).toHaveLength(0);
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("invalid_model_inventory"));
+    const [inventory] = inventories;
+    expect(inventory.provenance).toEqual({ component: "firewall", phase: "agent", path: REFLECT_PATH, index: 0 });
+    const { data } = inventory;
+    expect(data.modelsFetchComplete).toBe(true);
+    expect(data.endpoints.map(endpoint => endpoint.provider)).toEqual(source.endpoints.map(endpoint => endpoint.provider));
+    expect(data.endpoints).toHaveLength(5);
+    for (const [index, endpoint] of data.endpoints.entries()) {
+      const recorded = source.endpoints[index];
+      if (endpoint.provider === "copilot") continue;
+      expect(["openai", "anthropic", "gemini", "vertex"]).toContain(endpoint.provider);
+      expect(recorded.models).toBeNull();
+      expect(recorded.routing_models).toBeNull();
+      expect(endpoint).toEqual({ provider: recorded.provider, configured: false });
+      expect(Object.hasOwn(endpoint, "models")).toBe(false);
+      expect(Object.hasOwn(endpoint, "routingModels")).toBe(false);
+    }
+    const copilot = data.endpoints.find(endpoint => endpoint.provider === "copilot");
+    const recordedCopilot = source.endpoints.find(endpoint => endpoint.provider === "copilot");
+    expect(copilot.configured).toBe(true);
+    expect(copilot.models).toHaveLength(40);
+    expect(copilot.models).toEqual(recordedCopilot.models);
+    expect(copilot.routingModels).toHaveLength(40);
+    expect(copilot.routingModels.map(entry => entry.modelId)).toEqual(recordedCopilot.routing_models.map(entry => entry.model_id));
+    expect(copilot.routingModels.map(entry => entry.supportedEndpoints)).toEqual(recordedCopilot.routing_models.map(entry => entry.supported_endpoints));
+    expect(copilot.routingModels.map(entry => entry.supportedReasoningEfforts)).toEqual(recordedCopilot.routing_models.map(entry => entry.supported_reasoning_efforts));
+    expect(copilot.routingModels.some(entry => entry.supportedReasoningEfforts.length === 0)).toBe(true);
+    const known = recordedCopilot.routing_models.filter(entry => entry.context_window_tokens !== null);
+    expect(known).toHaveLength(36);
+    for (const [index, entry] of copilot.routingModels.entries()) {
+      const recordedWindow = recordedCopilot.routing_models[index].context_window_tokens;
+      if (recordedWindow === null) expect(Object.hasOwn(entry, "contextWindowTokens")).toBe(false);
+      else expect(entry.contextWindowTokens).toBe(recordedWindow);
+    }
+    expect(copilot.routingModels.filter(entry => !Object.hasOwn(entry, "contextWindowTokens"))).toHaveLength(4);
+    expectAllowlisted(data);
+    expectStableProjection(data);
+    expect(normalizeModelInventoryData(source)).toEqual(data);
+    expect(source).toEqual(original);
+    expect(sha256(fs.readFileSync(path.join(FIXTURE_DIR, RECORDED.file)))).toBe(RECORDED.sha256);
+  });
+
+  it("keeps a configured pending endpoint unknown instead of inventing an empty model list", () => {
+    // Pending-fetch variant of the recorded reflection: the recorded Copilot endpoint with null collections, fetch incomplete.
+    const recorded = JSON.parse(readFixture(RECORDED).toString("utf8"));
+    const recordedCopilot = recorded.endpoints.find(endpoint => endpoint.provider === "copilot");
+    const pending = { ...recorded, models_fetch_complete: false, endpoints: [{ ...recordedCopilot, models: null, routing_models: null }] };
+    const original = structuredClone(pending);
+    const { inventories, inventoryWarnings } = publish({ [REFLECT_PATH]: JSON.stringify(pending) });
+    expect(inventories).toHaveLength(1);
+    expect(inventoryWarnings).toHaveLength(0);
+    const { data } = inventories[0];
+    expect(data).toEqual({ endpoints: [{ provider: "copilot", configured: true }], modelsFetchComplete: false });
+    const [endpoint] = data.endpoints;
+    expect(Object.hasOwn(endpoint, "models")).toBe(false);
+    expect(Object.hasOwn(endpoint, "routingModels")).toBe(false);
+    expect(classify(endpoint)).toBe("unknown");
+    const roundTrip = JSON.parse(JSON.stringify(normalizeModelInventoryData(data)));
+    expect(roundTrip.endpoints[0]).toEqual({ provider: "copilot", configured: true });
+    expect(classify(roundTrip.endpoints[0])).toBe("unknown");
+    expectStableProjection(data);
+    expect(pending).toEqual(original);
+  });
+
+  it("preserves the existing projection of a recorded legacy golden reflection", () => {
+    // Recorded legacy reflection from run 29812420778, which predates AWF routing metadata.
+    // No golden case retains its source reflection; see test_data/awf_reflect/README.md.
+    const bytes = readFixture(LEGACY);
+    const source = JSON.parse(bytes.toString("utf8"));
+    const original = structuredClone(source);
+    expect(source.endpoints.some(endpoint => Object.hasOwn(endpoint, "routing_models"))).toBe(false);
+    expect(Object.hasOwn(source, "routing_models")).toBe(false);
+    // Output of the pre-change normalizer on this file: AWF null model lists became empty arrays and `configured` was dropped.
+    const preChange = { endpoints: source.endpoints.map(endpoint => ({ provider: endpoint.provider, models: endpoint.models ?? [] })), modelsFetchComplete: true };
+    const { inventories, inventoryWarnings } = publish({ [REFLECT_PATH]: bytes });
+    expect(inventories).toHaveLength(1);
+    expect(inventoryWarnings).toHaveLength(0);
+    const { data } = inventories[0];
+    expect(data.endpoints.map(endpoint => endpoint.provider)).toEqual(preChange.endpoints.map(endpoint => endpoint.provider));
+    expect(data.modelsFetchComplete).toBe(preChange.modelsFetchComplete);
+    for (const [index, endpoint] of data.endpoints.entries()) {
+      const recorded = source.endpoints[index];
+      expect(endpoint.configured).toBe(recorded.configured);
+      if (recorded.models === null) {
+        // Only correction: an unconfigured endpoint's unknown list is no longer reported as empty.
+        expect(endpoint).toEqual({ provider: recorded.provider, configured: recorded.configured });
+        expect(preChange.endpoints[index]).toEqual({ provider: recorded.provider, models: [] });
+      } else {
+        expect(endpoint).toEqual({ ...preChange.endpoints[index], configured: recorded.configured });
+        expect(endpoint.models).toHaveLength(36);
+      }
+      expect(Object.hasOwn(endpoint, "routingModels")).toBe(false);
+    }
+    expect(JSON.stringify(data)).not.toMatch(/supportedReasoningEfforts|contextWindowTokens|routingModels/);
+    expectAllowlisted(data);
+    expectStableProjection(data);
+    expect(source).toEqual(original);
+  });
+
+  it("warns and emits no inventory for a recorded reflection with a non-string model ID", () => {
+    // Malformed-input variant of the recorded reflection: only the first Copilot model ID is numeric.
+    const malformed = JSON.parse(readFixture(RECORDED).toString("utf8"));
+    const copilot = malformed.endpoints.find(endpoint => endpoint.provider === "copilot");
+    copilot.models[0] = 42;
+    expect(malformed.endpoints.filter(endpoint => endpoint.models === null)).toHaveLength(4);
+    expect(normalizeModelInventoryData(malformed)).toBeUndefined();
+    const { events, inventories, inventoryWarnings } = publish({ [REFLECT_PATH]: JSON.stringify(malformed) });
+    expect(inventories).toHaveLength(0);
+    expect(inventoryWarnings).toHaveLength(1);
+    expect(inventoryWarnings[0].data).toEqual({ path: REFLECT_PATH, code: "invalid_model_inventory" });
+    expect(JSON.stringify(events)).not.toContain('"endpoints"');
+  });
+
+  it.each([
+    ["non-array reasoning efforts", entry => (entry.supported_reasoning_efforts = "high")],
+    ["non-string reasoning effort", entry => (entry.supported_reasoning_efforts = ["high", 42])],
+    ["free-form reasoning effort", entry => (entry.supported_reasoning_efforts = ["<b>high</b>"])],
+    ["zero context window", entry => (entry.context_window_tokens = 0)],
+    ["fractional context window", entry => (entry.context_window_tokens = 1.5)],
+    ["string context window", entry => (entry.context_window_tokens = "200000")],
+    ["non-boolean configured", (_, endpoint) => (endpoint.configured = "true")],
+  ])("warns and emits no inventory for a recorded reflection variant with %s", (_, mutate) => {
+    // Malformed-input variant of the recorded reflection; the unconfigured endpoint nulls stay unchanged.
+    const malformed = JSON.parse(readFixture(RECORDED).toString("utf8"));
+    const copilot = malformed.endpoints.find(endpoint => endpoint.provider === "copilot");
+    mutate(copilot.routing_models[0], copilot);
+    expect(normalizeModelInventoryData(malformed)).toBeUndefined();
+    const { inventories, inventoryWarnings } = publish({ [REFLECT_PATH]: JSON.stringify(malformed) });
+    expect(inventories).toHaveLength(0);
+    expect(inventoryWarnings.map(event => event.data)).toEqual([{ path: REFLECT_PATH, code: "invalid_model_inventory" }]);
+  });
+
+  it("limits recorded model-routing golden changes to corrected inventory events", () => {
+    const cases = fs.readdirSync(GOLDEN_DIR).filter(name => fs.statSync(path.join(GOLDEN_DIR, name)).isDirectory());
+    expect(cases.length).toBeGreaterThan(0);
+    for (const name of cases) {
+      // Historical goldens never retained an inventory source, so none is synthesized for them.
+      for (const source of INVENTORY_SOURCES) expect(fs.existsSync(path.join(GOLDEN_DIR, name, source)), `${name} ${source}`).toBe(false);
+      const sessionFile = path.join(GOLDEN_DIR, name, "usage/aw_session.jsonl");
+      if (fs.existsSync(sessionFile)) {
+        const recorded = fs.readFileSync(sessionFile, "utf8");
+        expect(recorded, name).not.toContain('"model.inventory"');
+        expect(recorded, name).not.toContain("invalid_model_inventory");
+      }
+      const { events } = collectUnifiedSession({ rootDir: path.join(GOLDEN_DIR, name), warn: () => {}, dailyAIC: {}, jobResults: "" });
+      expect(
+        events.some(event => event.type === "model.inventory"),
+        name
+      ).toBe(false);
+      expect(
+        events.some(event => event.data?.code === "invalid_model_inventory"),
+        name
+      ).toBe(false);
+    }
+    // For the recorded inventory sources, the only changes a source makes are its single inventory event and its collection bookkeeping.
+    for (const fixture of [RECORDED, LEGACY]) {
+      const withSource = publish({ [REFLECT_PATH]: readFixture(fixture) });
+      const withoutSource = publish({});
+      expect(withSource.inventories).toHaveLength(1);
+      expect(withSource.inventoryWarnings).toHaveLength(0);
+      const unrelated = events => events.filter(event => event.type !== "model.inventory" && event.type !== "session.collection");
+      expect(unrelated(withSource.events)).toEqual(unrelated(withoutSource.events));
+      const collection = events => events.find(event => event.type === "session.collection").data;
+      const baseline = collection(withoutSource.events);
+      expect(collection(withSource.events)).toEqual({
+        ...baseline,
+        sources: [...baseline.sources, { component: "firewall", phase: "agent", path: REFLECT_PATH, events: 1 }],
+        untimedEvents: baseline.untimedEvents + 1,
+        absentComponents: baseline.absentComponents.filter(component => component !== "firewall"),
+      });
     }
   });
 });

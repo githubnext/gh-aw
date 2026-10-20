@@ -263,6 +263,17 @@ describe("dispatch_repository", () => {
       expect(dispatchEventCalls.length).toBe(0);
     });
 
+    it.each([false, true])("forwards unique webhook context without previewing bodies, staged=%s", async staged => {
+      const first = { delivery_id: "a", payload: { url: "https://api.github.com/orgs/org/projectsV2/1/items/1", type: ["edited"] } };
+      mockContext.payload = { client_payload: { aw_context: { webhook: { event: "projects_v2_item", deliveries: [first, first] } } } };
+      const handler = await main({ staged, tools: { deploy: { event_type: "deploy", repository: "test-owner/test-repo" } } });
+      const result = await handler({ tool_name: "deploy" }, {});
+      expect(result.success).toBe(true);
+      expect(result.client_payload.aw_context.items).toHaveLength(1);
+      expect(result.client_payload.aw_context.webhook.deliveries).toEqual([first]);
+      expect(mockCore.infos.join("\n")).not.toContain("do-not-log-webhook");
+    });
+
     it('should not treat string "false" in tool staged config as staged mode', async () => {
       const handler = await main({
         tools: { deploy: { event_type: "deploy", repository: "test-owner/test-repo", max: 5, staged: "false" } },

@@ -112,6 +112,20 @@ function resolveCopilotSDKWorkingDirectory() {
 }
 
 /**
+ * Parse GH_AW_COPILOT_SDK_SUBAGENT_MODELS: custom agent name → model resolved by the harness.
+ * @param {string | undefined} value
+ * @returns {Record<string, string>}
+ */
+function parseSubagentModelsJson(value) {
+  if (!value) return {};
+  const parsed = JSON.parse(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !Object.values(parsed).every(model => typeof model === "string")) {
+    throw new Error("GH_AW_COPILOT_SDK_SUBAGENT_MODELS must map custom agent names to models");
+  }
+  return parsed;
+}
+
+/**
  * Run a Copilot agentic session using the @github/copilot-sdk.
  *
  * Connects to the already-running headless Copilot CLI server at sdkUri, creates
@@ -369,17 +383,29 @@ async function runWithCopilotSDK({
     const providerConfig = providers && providerModels ? { providers, models: providerModels } : null;
     const sessionModel = providerConfig ? qualifyModelForMultiProvider(requestedModel, providerConfig) : requestedModel;
     if (providerConfig && !sessionModel) throw new Error(`Cannot qualify session model "${requestedModel || "(none)"}" against the configured provider models`);
+    // The harness resolves sub-agent models (aliases included) before the driver starts and
+    // stops the run when a workflow-declared sub-agent fails. A repository agent whose model
+    // the harness could not resolve is absent from the map and inherits the session model.
+    const resolvedSubagentModels = parseSubagentModelsJson(process.env.GH_AW_COPILOT_SDK_SUBAGENT_MODELS);
     const unavailableModels = [];
     const customAgents = loadCopilotSDKCustomAgents(workingDirectory, agentsBaseDir, log).map(agent => {
-      const requested = agent.model;
-      const alias = !requested || ["small", "medium", "large"].includes(requested.toLowerCase());
-      const qualified = alias ? sessionModel : providerConfig ? qualifyModelForMultiProvider(requested, providerConfig) : requested;
-      if (!alias && !qualified) {
-        log(`warning: custom agent "${agent.name}" model "${requested}" is not in the configured provider models; using session model "${sessionModel || "(none)"}"`);
-        unavailableModels.push({ agentName: agent.name, declaredModel: requested, model: sessionModel || undefined });
+      if (!agent.model || agent.model.trim().toLowerCase() === "inherited") return { ...agent, model: sessionModel || undefined };
+      if (Object.prototype.hasOwnProperty.call(resolvedSubagentModels, agent.name)) {
+        const resolved = resolvedSubagentModels[agent.name];
+        const qualified = providerConfig ? qualifyModelForMultiProvider(resolved, providerConfig) : resolved;
+        if (!qualified) throw new Error(`Cannot qualify custom agent "${agent.name}" model "${resolved}" against the configured provider models`);
+        return { ...agent, model: qualified };
       }
-      return { ...agent, model: qualified || sessionModel || undefined };
+      const qualified = providerConfig ? qualifyModelForMultiProvider(agent.model, providerConfig) : agent.model;
+      if (qualified) return { ...agent, model: qualified };
+      log(`warning: custom agent "${agent.name}" model "${agent.model}" is not in the configured provider models; using session model "${sessionModel || "(none)"}"`);
+      unavailableModels.push({ agentName: agent.name, declaredModel: agent.model, model: sessionModel || undefined });
+      return { ...agent, model: sessionModel || undefined };
     });
+    const skillsDirectory = path.resolve(agentsBaseDir, ".github", "skills");
+    const skillsStat = fs.lstatSync(skillsDirectory, { throwIfNoEntry: false });
+    if (skillsStat && !skillsStat.isDirectory()) throw new Error(`Staged Copilot skills must be a directory: ${skillsDirectory}`);
+    const skillDirectories = skillsStat ? [skillsDirectory] : [];
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {
       model: sessionModel || undefined,
@@ -389,6 +415,9 @@ async function runWithCopilotSDK({
       workingDirectory,
       skipCustomInstructions: bare,
       customAgents,
+      enableConfigDiscovery: false,
+      skillDirectories,
+      ...(skillDirectories.length ? { enableSkills: true } : {}),
       ...(mcpServers === undefined ? {} : { mcpServers }),
       onPermissionRequest,
       ...(toolCallBudget ? { hooks: { onPreToolUse: toolCallBudget.onPreToolUse } } : {}),

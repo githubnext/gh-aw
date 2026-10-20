@@ -13,6 +13,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
       discussions: write
       issues: write
       pull-requests: write

@@ -38,11 +38,24 @@ func ExecutionBlocks(ctx context.Context, document *Document) ([]ExecutionBlock,
 	root, err := executionBlock(ctx, "", document.Frontmatter)
 	blocks := []ExecutionBlock{root}
 	failures := []error{err}
-	for _, section := range []string{"jobs", "safe-jobs"} {
+	if outputs, ok := document.Frontmatter["safe-outputs"].(map[string]any); ok {
+		if outputs["steps"] != nil || outputs["post-steps"] != nil {
+			block, err := executionBlock(ctx, "safe-outputs", outputs)
+			blocks = append(blocks, block)
+			failures = append(failures, err)
+		}
+	}
+	for _, section := range []string{"jobs", "safe-jobs", "safe-outputs.jobs"} {
 		if err := ctx.Err(); err != nil {
 			return blocks, errors.Join(append(failures, err)...)
 		}
 		raw := document.Frontmatter[section]
+		if section == "safe-outputs.jobs" {
+			raw = nil
+			if outputs, ok := document.Frontmatter["safe-outputs"].(map[string]any); ok {
+				raw = outputs["jobs"]
+			}
+		}
 		if raw == nil {
 			continue
 		}

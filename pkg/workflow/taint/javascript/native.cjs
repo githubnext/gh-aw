@@ -46,14 +46,17 @@ function main() {
       .map(([name, value]) => [value, name])
   );
   const request = JSON.parse(readFileSync(0, "utf8"));
-  const filename = "/gh-aw-taint/input.cjs";
+  if (!Array.isArray(request.sources) || request.sources.length > 64 || request.sources.some(source => typeof source !== "string" || source.length > 1024 * 1024)) {
+    throw new Error("invalid JavaScript batch");
+  }
+  const filenames = request.sources.map((_, i) => `/gh-aw-taint/input_${i}.cjs`);
   const config = "/gh-aw-taint/tsconfig.json";
   const fs = createVirtualFileSystem({
     [config]: JSON.stringify({
       compilerOptions: { allowJs: true, noLib: true, noResolve: true, noEmit: true },
-      files: [filename],
+      files: filenames,
     }),
-    [filename]: request.source,
+    ...Object.fromEntries(filenames.map((name, i) => [name, request.sources[i]])),
   });
   // Missing virtual files must never fall back to a repository tsconfig,
   // plugin, package, or real filesystem.
@@ -64,13 +67,8 @@ function main() {
   const api = new API({ cwd: "/gh-aw-taint", fs, runExternalCode: false });
   try {
     const program = api.updateSnapshot({ openProject: config }).getProject(config).program;
-    if (program.getSyntacticDiagnostics().length) {
-      throw new Error("invalid JavaScript syntax");
-    }
-    const source = program.getSourceFile(filename);
-    if (!source) throw new Error("missing JavaScript AST");
-    let count = 0;
-    function project(node, depth = 0) {
+    let count;
+    function project(node, source, depth = 0) {
       if (++count > 100000 || depth > 256) throw new Error("JavaScript AST limit");
       const result = { kind: kinds.get(node.kind) ?? "Unknown", line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1 };
       if (typeof node.text === "string") result.text = node.text;
@@ -79,7 +77,7 @@ function main() {
       for (const field of fields) {
         const child = node[field];
         if (child && typeof child.kind === "number") {
-          result[field] = project(child, depth + 1);
+          result[field] = project(child, source, depth + 1);
           included.add(child);
         }
       }
@@ -87,18 +85,30 @@ function main() {
         if (node[field]) {
           result[field] = Array.from(node[field], child => {
             included.add(child);
-            return project(child, depth + 1);
+            return project(child, source, depth + 1);
           });
         }
       }
       const other = [];
       node.forEachChild(child => {
-        if (!included.has(child)) other.push(project(child, depth + 1));
+        if (!included.has(child)) other.push(project(child, source, depth + 1));
       });
       if (other.length) result.other = other;
       return result;
     }
-    process.stdout.write(JSON.stringify(project(source)));
+    const results = filenames.map(filename => {
+      try {
+        if (program.getSyntacticDiagnostics(filename).length) return { error: "syntax" };
+        const source = program.getSourceFile(filename);
+        if (!source) return { error: "missing" };
+        count = 0;
+        return { tree: project(source, source) };
+      } catch {
+        // Preserve other scripts when this file exceeds native AST limits.
+        return { error: "unavailable" };
+      }
+    });
+    process.stdout.write(JSON.stringify(results));
   } finally {
     api.close();
   }

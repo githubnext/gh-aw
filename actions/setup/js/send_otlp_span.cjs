@@ -75,6 +75,14 @@ function generateSpanId() {
   return randomBytes(8).toString("hex");
 }
 
+/** W3C version-00 propagation with locally controlled sampling; no baggage.
+ * @param {string} traceId @param {string} spanId
+ */
+function buildTraceparent(traceId, spanId) {
+  if (!isValidTraceId(traceId) || !isValidSpanId(spanId)) throw new Error("Invalid trace context");
+  return `00-${traceId}-${spanId}-01`;
+}
+
 /**
  * Convert a Unix timestamp in milliseconds to a nanosecond string suitable for
  * OTLP's `startTimeUnixNano` / `endTimeUnixNano` fields.
@@ -720,7 +728,7 @@ function buildExperimentAttributes(assignments) {
 /**
  * Build summary attributes and per-result events from valid deterministic grader output.
  * Free-form grader messages, details, and errors are intentionally excluded because
- * custom graders may derive them from trace content containing sensitive values.
+ * they may contain trace content with sensitive values.
  *
  * @param {any} graderOutput
  * @param {number} eventTimeMs
@@ -759,6 +767,18 @@ function buildGraderTelemetry(graderOutput, eventTimeMs) {
   });
 
   return { attributes, events };
+}
+
+/**
+ * @param {string} jobName
+ * @param {(path: string) => any} [readJSON]
+ */
+function selectGraderOutputForJob(jobName, readJSON = readJSONIfExists) {
+  if (jobName === "conclusion") return readJSON("/tmp/gh-aw/usage/graders/grader_results.json");
+  if (jobName !== "graders") return undefined;
+  const combinedOutput = readJSON("/tmp/gh-aw/custom-graders/grader_results.json");
+  if (!combinedOutput || !Array.isArray(combinedOutput.results)) return undefined;
+  return { ...combinedOutput, results: combinedOutput.results.filter(result => result?.source === "inline" || result?.source === "operational-value") };
 }
 
 /**
@@ -1291,7 +1311,7 @@ const TRACE_ID_RE = /^[0-9a-f]{32}$/;
  * @returns {boolean}
  */
 function isValidTraceId(id) {
-  return TRACE_ID_RE.test(id);
+  return TRACE_ID_RE.test(id) && !/^0+$/.test(id);
 }
 
 /**
@@ -1306,7 +1326,7 @@ const SPAN_ID_RE = /^[0-9a-f]{16}$/;
  * @returns {boolean}
  */
 function isValidSpanId(id) {
-  return SPAN_ID_RE.test(id);
+  return SPAN_ID_RE.test(id) && !/^0+$/.test(id);
 }
 
 /**
@@ -2103,7 +2123,7 @@ function readAgentRuntimeMetrics(engineId = "") {
  * - `/tmp/gh-aw/agent_usage.json` – per-type token breakdown written by parse_token_usage.cjs;
  *                                    provides `input_tokens`, `output_tokens`,
  *                                    `cache_read_tokens`, and `cache_write_tokens` counters
- * - `/tmp/gh-aw/agent/graders/grader_results.json` – deterministic grader
+ * - `/tmp/gh-aw/usage/graders/grader_results.json` – deterministic grader
  *                                    summary attributes and per-result span events
  *
  * @param {string} spanName - OTLP span name (e.g. `"gh-aw.job.conclusion"`)
@@ -2459,25 +2479,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // Append user-defined custom attributes from observability.otlp.attributes.
   attributes.push(...buildCustomOTLPAttributes());
 
-  // Enrich conclusion span with outcome evaluation fleet metrics when available.
-  // Written by the outcome-collector workflow's pre-agent step.
-  const outcomeSummary = readJSONIfExists("/tmp/gh-aw/outcome-summary.json");
-  if (outcomeSummary && typeof outcomeSummary.total_outcomes === "number" && outcomeSummary.total_outcomes > 0) {
-    attributes.push(buildAttr("gh-aw.outcome.total", outcomeSummary.total_outcomes));
-    attributes.push(buildAttr("gh-aw.outcome.accepted", outcomeSummary.accepted || 0));
-    attributes.push(buildAttr("gh-aw.outcome.rejected", outcomeSummary.rejected || 0));
-    attributes.push(buildAttr("gh-aw.outcome.pending", outcomeSummary.pending || 0));
-    attributes.push(buildAttr("gh-aw.outcome.ignored", outcomeSummary.ignored || 0));
-    attributes.push(buildAttr("gh-aw.outcome.runs_checked", outcomeSummary.runs_checked || 0));
-    if (typeof outcomeSummary.acceptance_rate === "number") {
-      attributes.push(buildAttr("gh-aw.outcome.acceptance_rate", outcomeSummary.acceptance_rate));
-    }
-    if (typeof outcomeSummary.waste_rate === "number") {
-      attributes.push(buildAttr("gh-aw.outcome.waste_rate", outcomeSummary.waste_rate));
-    }
-  }
-
-  const graderTelemetry = jobName === "agent" ? buildGraderTelemetry(readJSONIfExists("/tmp/gh-aw/agent/graders/grader_results.json"), endMs) : { attributes: [], events: [] };
+  const graderTelemetry = buildGraderTelemetry(selectGraderOutputForJob(jobName), endMs);
   const evalTelemetry = jobName === "evals" ? buildEvalTelemetry(readJSONLIfExists("/tmp/gh-aw/evals.jsonl"), endMs) : { attributes: [], events: [] };
 
   const resourceAttributes = buildGitHubActionsResourceAttributes({
@@ -2687,6 +2689,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 }
 
 module.exports = {
+  buildTraceparent,
   SPAN_KIND_INTERNAL,
   SPAN_KIND_SERVER,
   SPAN_KIND_CLIENT,
@@ -2724,6 +2727,7 @@ module.exports = {
   appendToOTLPJSONL,
   buildExperimentAttributes,
   buildGraderTelemetry,
+  selectGraderOutputForJob,
   buildEvalTelemetry,
   parseOTLPCustomAttributes,
   buildCustomOTLPAttributes,

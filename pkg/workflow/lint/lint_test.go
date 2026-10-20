@@ -2,6 +2,7 @@ package lint
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -19,10 +20,17 @@ func TestRuleRegistrationAndSelection(t *testing.T) {
 		ruleIDs = append(ruleIDs, rule.ID)
 	}
 	assert.ElementsMatch(t, []string{
-		"secret-leak", "action-pin", "job-timeout", "template-injection", "workflow-run-scope",
+		"secret-leak", "action-pin", "job-timeout", "needs-consistency", "template-injection", "workflow-run-scope",
 		"permission-scope", "version-check", "conditional-import", "private-to-public",
 		"install-scripts", "allowed-labels", "network-scope", "push-target",
 		"tool-scope", "sandbox-config", "image-argument", "checkout-mode", "fork-association",
+		"pull-request-target-roles", "safe-output-shell-expansion", "firewall-ssl-bump",
+		"custom-job-detection",
+		"grader-file-io",
+		"grader-shell-file-write",
+		"pull-request-target-checkout", "prompt-expression",
+		"gateway-dispatch-literals",
+		"artipacked", "cache-poisoning", "excessive-permissions", "obfuscation",
 	}, ruleIDs)
 	selected, err := runner.Select("secret-leak", "secret-leak")
 	require.NoError(t, err)
@@ -67,6 +75,45 @@ func TestIndependentRulesAndFailures(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	_, err = runner.Run(context.Background(), Input{})
 	require.Error(t, err)
+}
+
+func TestRuleThreatReference(t *testing.T) {
+	for _, tt := range []struct {
+		name, threatID string
+		invalid        bool
+	}{
+		{name: "known mapping", threatID: "CTR-017"},
+		{name: "unmapped extension"},
+		{name: "wrong prefix", threatID: "ctr-017", invalid: true},
+		{name: "wrong width", threatID: "CTR-17", invalid: true},
+		{name: "invalid characters", threatID: "CTR-ABC", invalid: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			runner, err := New(Rule{
+				ID: "extension", Description: "An optional compiler threat reference",
+				Severity: Warning, ThreatRuleID: tt.threatID,
+				Check: func(context.Context, Input) ([]Diagnostic, error) {
+					return []Diagnostic{{Path: "name", Message: "finding", ThreatRuleID: "CTR-999"}}, nil
+				},
+			})
+			if tt.invalid {
+				require.ErrorContains(t, err, "compiler threat ID in CTR-NNN form")
+				return
+			}
+			require.NoError(t, err)
+			diagnostics, err := runner.Run(context.Background(), Input{Workflow: &actions.Workflow{}})
+			require.NoError(t, err)
+			require.Len(t, diagnostics, 1)
+			assert.Equal(t, tt.threatID, diagnostics[0].ThreatRuleID, "the registry owns threat references")
+			encoded, err := json.Marshal(diagnostics)
+			require.NoError(t, err)
+			if tt.threatID == "" {
+				assert.NotContains(t, string(encoded), "threat_rule_id")
+			} else {
+				assert.Contains(t, string(encoded), `"threat_rule_id":"CTR-017"`)
+			}
+		})
+	}
 }
 
 func TestSecretRuleDiagnostics(t *testing.T) {

@@ -167,6 +167,7 @@ func (c *Compiler) buildConsolidatedSafeOutputsJob(data *WorkflowData, mainJobNa
 
 func safeOutputsJobPermissions(data *WorkflowData) (*Permissions, bool) {
 	permissions := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	addPRLifecycleReadPermission(data, permissions)
 	// OIDC auth mints the OTLP token from the safe-outputs job.
 	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
 		permissions.Set(PermissionIdToken, PermissionWrite)
@@ -183,6 +184,14 @@ func safeOutputsJobPermissions(data *WorkflowData) (*Permissions, bool) {
 		permissions.Set(PermissionContents, PermissionWrite)
 	}
 	return permissions, IsDetectionJobEnabled(data.SafeOutputs)
+}
+
+func addPRLifecycleReadPermission(data *WorkflowData, permissions *Permissions) {
+	if onSectionHasAnyTrigger(data.On, "pull_request", "pull_request_review", "pull_request_review_comment", "issue_comment", "workflow_call") {
+		if level, exists := permissions.Get(PermissionPullRequests); !exists || level == PermissionNone {
+			permissions.Set(PermissionPullRequests, PermissionRead)
+		}
+	}
 }
 
 // buildSafeOutputsSetupAndDownloadSteps builds the initial steps for the consolidated safe
@@ -853,6 +862,7 @@ func (c *Compiler) buildPreambleTokenSteps(data *WorkflowData, outputs map[strin
 			// configured or auto-copied via applyTopLevelGitHubAppFallbacks.
 			safeOutputsPermissionsLog.Print("No GitHub-backed safe output handler enabled; skipping global GitHub App token minting")
 		} else {
+			addPRLifecycleReadPermission(data, appPermissions)
 			outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
 			var appTokenFallbackRepo string
 			if hasWorkflowCallTrigger(data.On) {

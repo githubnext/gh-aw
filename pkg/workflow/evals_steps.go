@@ -224,7 +224,8 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string { //nolint
 		},
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
-				Type: SandboxTypeAWF,
+				Type:            SandboxTypeAWF,
+				ChecksumsSHA256: getAWFChecksumsSHA256(data),
 			},
 		},
 	}

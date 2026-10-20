@@ -167,6 +167,9 @@ func TestWorkQueueCurrentReport(t *testing.T) {
 	assert.Equal(t, "completed", current.Assignment.Claims[0].State)
 	assert.Equal(t, "pending", current.Assignment.Claims[0].Barrier)
 	assert.Equal(t, "cancelled", current.Assignment.Claims[1].State)
+	require.NotNil(t, current.Diagnostics)
+	assert.Equal(t, 1, current.Diagnostics.DeliveryByState["pending"], "staged finish cannot settle captured delivery")
+	assert.Zero(t, current.Diagnostics.DeliveryByState["verified"])
 	require.Len(t, report.FinishIntents, 2)
 	assert.Empty(t, report.FinishIntent)
 	var output bytes.Buffer
@@ -424,10 +427,15 @@ func TestWorkQueueCurrentSnapshotRoles(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, scenario.role, snapshot.Current.Role)
 			assert.Equal(t, !scenario.absent, snapshot.Current.PolicyInstalled)
+			require.NotNil(t, snapshot.Current.Diagnostics)
+			assert.Equal(t, "captured_snapshot", snapshot.Current.Diagnostics.Status)
+			assert.Equal(t, int64(8), snapshot.Current.Diagnostics.EvaluatedAt)
 			if scenario.assigned {
 				require.NotNil(t, snapshot.Current.Assignment)
+				assert.Len(t, snapshot.Current.Diagnostics.AssignedClaims, 2)
 			} else {
 				assert.Nil(t, snapshot.Current.Assignment)
+				assert.Empty(t, snapshot.Current.Diagnostics.AssignedClaims)
 			}
 			if scenario.role == "observer" {
 				var output bytes.Buffer
@@ -436,6 +444,8 @@ func TestWorkQueueCurrentSnapshotRoles(t *testing.T) {
 				assert.NotContains(t, output.String(), "durable=")
 				if scenario.absent {
 					assert.Contains(t, output.String(), "policy: absent (no queue initialized)")
+					assert.Zero(t, snapshot.Current.Diagnostics.Work)
+					assert.Empty(t, snapshot.Current.Diagnostics.Pools)
 				}
 			}
 		})

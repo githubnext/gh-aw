@@ -112,6 +112,7 @@ model WorkOperation {
   @maxItems(64)
   depends_on: Dependency[];
   enqueued: Timestamp;
+  expires_at?: Timestamp;
   subject?: Resource;
   backing_issue?: Resource;
   replacement_of?: Replacement;

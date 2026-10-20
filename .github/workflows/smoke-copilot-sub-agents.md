@@ -89,7 +89,7 @@ post-steps:
         const expected = [
           ["haiku-whoami", "claude-haiku-4.5", "/chat/completions"],
           ["mini-whoami", "gpt-5-mini", "/responses"],
-          ["nano-whoami", "gpt-5-nano", "/responses"],
+          ["mini54-whoami", "gpt-5.4-mini", "/responses"],
         ];
         const servedModel = model => String(model || "")
           .replace(/^copilot(?:-(?:responses|completions))?(?:-\d+)?\//, "")
@@ -131,22 +131,22 @@ post-steps:
 4. Do not use unnecessary tool calls.
 {{/if}}
 {{#if experiments.sub_agent_strategy == 'delegated_sequential' }}
-1. Call `haiku-whoami`, `mini-whoami`, and `nano-whoami` exactly once each.
+1. Call `haiku-whoami`, `mini-whoami`, and `mini54-whoami` exactly once each.
 2. Ask each sub-agent exactly this question: `who am i?`
 3. Check the exact responses:
    - `haiku-whoami` → `claude-haiku-4.5`
    - `mini-whoami` → `gpt-5-mini`
-   - `nano-whoami` → `gpt-5-nano`
+   - `mini54-whoami` → `gpt-5.4-mini`
 4. Execute and validate each sub-agent one at a time before moving to the next.
 5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
 {{#if experiments.sub_agent_strategy == 'inline_strict' }}
-1. Call `haiku-whoami`, `mini-whoami`, and `nano-whoami` exactly once each.
+1. Call `haiku-whoami`, `mini-whoami`, and `mini54-whoami` exactly once each.
 2. Ask each sub-agent exactly this question: `who am i?`
 3. Check the exact responses:
    - `haiku-whoami` → `claude-haiku-4.5`
    - `mini-whoami` → `gpt-5-mini`
-   - `nano-whoami` → `gpt-5-nano`
+   - `mini54-whoami` → `gpt-5.4-mini`
 4. Validate all three results and keep the current inline orchestration behavior.
 5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
@@ -181,13 +181,13 @@ When asked `who am i?`, reply with exactly:
 
 No extra words, punctuation, or formatting.
 
-## agent: `nano-whoami`
+## agent: `mini54-whoami`
 ---
-description: Returns the GPT-5 nano model identity for smoke testing
-model: gpt-5-nano
+description: Returns the GPT-5.4 mini model identity for smoke testing
+model: gpt-5.4-mini
 ---
 When asked `who am i?`, reply with exactly:
 
-`gpt-5-nano`
+`gpt-5.4-mini`
 
 No extra words, punctuation, or formatting.

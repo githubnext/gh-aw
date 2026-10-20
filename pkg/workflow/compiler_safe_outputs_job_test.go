@@ -17,6 +17,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSafeOutputsPRLifecyclePermissions(t *testing.T) {
+	t.Parallel()
+	for _, trigger := range []string{"pull_request", "pull_request_review", "pull_request_review_comment", "issue_comment", "workflow_call", "issues", "schedule"} {
+		t.Run(trigger, func(t *testing.T) {
+			data := &WorkflowData{
+				On:          "on:\n  " + trigger + ":",
+				SafeOutputs: &SafeOutputsConfig{CreateIssues: &CreateIssuesConfig{}},
+			}
+			permissions, _ := safeOutputsJobPermissions(data)
+			level, exists := permissions.Get(PermissionPullRequests)
+			if trigger == "issues" || trigger == "schedule" {
+				assert.False(t, exists)
+			} else {
+				assert.True(t, exists)
+				assert.Equal(t, PermissionRead, level)
+			}
+			permissions.Set(PermissionPullRequests, PermissionWrite)
+			addPRLifecycleReadPermission(data, permissions)
+			level, _ = permissions.Get(PermissionPullRequests)
+			assert.Equal(t, PermissionWrite, level)
+		})
+	}
+}
+
 // TestBuildConsolidatedSafeOutputsJob tests the main job builder function
 func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 	tests := []struct {

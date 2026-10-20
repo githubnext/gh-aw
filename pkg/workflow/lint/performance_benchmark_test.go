@@ -15,15 +15,28 @@ import (
 func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, positive bool, jobs int) Input {
 	tb.Helper()
 	source := contract.safe
+	prompt := contract.safePrompt
 	if positive {
 		source = contract.unsafe
+		prompt = contract.unsafePrompt
 	}
 	if target == ActionsAST {
 		workflow, err := actions.Parse([]byte(source))
 		require.NoError(tb, err)
 		require.NotEmpty(tb, workflow.Jobs)
 		template := *workflow.Jobs[0]
-		workflow.Jobs = nil
+		var producers []*actions.Job
+		for _, job := range workflow.Jobs {
+			if job.ID == "check" {
+				template = *job
+			} else {
+				producers = append(producers, job)
+			}
+		}
+		if template.ID != "check" {
+			producers = nil
+		}
+		workflow.Jobs = producers
 		for i := range jobs {
 			job := template
 			job.ID = actions.JobID(fmt.Sprintf("check_%d", i))
@@ -33,6 +46,9 @@ func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, p
 	}
 	document, err := aw.Parse("---\n" + source + "---\nPublic performance-test prompt.\n")
 	require.NoError(tb, err)
+	if prompt != "" {
+		document.Markdown = prompt
+	}
 	template := map[string]any{
 		"runs-on": "ubuntu-latest",
 		"steps":   []any{map[string]any{"shell": "bash", "run": "echo public"}},
@@ -43,11 +59,49 @@ func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, p
 		require.True(tb, valid, "execution contract fixtures must retain the check job")
 	}
 	expanded := make(map[string]any, jobs)
+	if existing, ok := document.Frontmatter["jobs"].(map[string]any); ok {
+		for id, job := range existing {
+			if id != "check" {
+				expanded[id] = job
+			}
+		}
+	}
 	for i := range jobs {
 		expanded[fmt.Sprintf("check_%d", i)] = template
 	}
 	document.Frontmatter["jobs"] = expanded
+	if contract.javaScript {
+		return graderJavaScriptPerformanceInput(tb, document, jobs)
+	}
+	if contract.safeShell != "" {
+		source := contract.safeShell
+		if positive {
+			source = contract.unsafeShell
+		}
+		// Set up referenced files only once. The integrated rule must reread
+		// them on each run; the I/O-free checker has its own package benchmark.
+		return prepareGraderShellFixture(tb, Input{Document: document}, source)
+	}
 	return Input{Document: document}
+}
+
+func graderJavaScriptPerformanceInput(tb testing.TB, document *aw.Document, count int) Input {
+	tb.Helper()
+	options := nativeGraderJavaScriptOptions(tb)
+	graders, ok := document.Frontmatter["graders"].(map[string]any)
+	require.True(tb, ok)
+	template, ok := graders["custom"].(map[string]any)
+	require.True(tb, ok)
+	source, ok := template["script"].(string)
+	require.True(tb, ok)
+	_, err := options.Parser.Parse(tb.Context(), source)
+	require.NoError(tb, err, "native parsing belongs outside the measured AST rule")
+	expanded := make(map[string]any, count)
+	for i := range count {
+		expanded[fmt.Sprintf("custom_%d", i)] = template
+	}
+	document.Frontmatter["graders"] = expanded
+	return Input{Document: document, JavaScript: options}
 }
 
 func forEachPerformanceCase(tb testing.TB, run func(name string, rule Rule, contract ruleContract, target ASTTargets, positive bool)) {

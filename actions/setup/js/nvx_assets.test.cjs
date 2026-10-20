@@ -9,7 +9,7 @@ import { collect, collectTree, guestEnvironment, readELFInterpreter, stage as st
 import { resolveCopilotSDKMCPConfigPath } from "./copilot_sdk_mcp_config_path.cjs";
 import { COPILOT_SDK_MCP_CONFIG_SHA256, digestCopilotSDKMCPConfig } from "./copilot_sdk_mcp_config.cjs";
 
-describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf"))("NVX compiler asset handoff (Linux requires patchelf)", () => {
+describe.skipIf(process.platform === "darwin" || (process.platform === "linux" && !fs.existsSync("/usr/bin/patchelf")))("NVX compiler asset handoff (Linux requires patchelf)", () => {
   /** @type {string} */
   let temp;
   /** @type {string} */
@@ -49,6 +49,26 @@ describe.skipIf(process.platform === "linux" && !fs.existsSync("/usr/bin/patchel
     expect(fs.existsSync(path.join(root, "gh-aw", "bin", "node"))).toBe(true);
     expect(fs.existsSync(path.join(root, "gh-aw", "provider-token"))).toBe(false);
     expect(fs.existsSync(path.join(root, "state", "gateway-secret"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "state", "github-event.json"))).toBe(false);
+  });
+
+  it("exports the unchanged inline webhook event into guest state without widening file permissions", () => {
+    const event = JSON.stringify({
+      action: "gh-aw-webhook-example",
+      client_payload: { schema_version: 1, event: "projects_v2_item", delivery_id: "delivery-example", payload: { action: "edited" } },
+    });
+    fs.writeFileSync(path.join(state, "github-event.json"), event, { mode: 0o600 });
+
+    stage(environment, state);
+
+    const staged = path.join(workspace, ".gh-aw-nvx", "state", "github-event.json");
+    expect(fs.readFileSync(staged, "utf8")).toBe(event);
+    expect(fs.statSync(staged).mode & 0o777).toBe(0o600);
+  });
+
+  it("rejects a redirected webhook event input", () => {
+    fs.symlinkSync(path.join(state, "gateway-secret"), path.join(state, "github-event.json"));
+    expect(() => stage(environment, state)).toThrow(/must not be a symlink/);
   });
 
   it("selects the separately staged guest Copilot variant", () => {

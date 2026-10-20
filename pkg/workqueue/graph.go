@@ -203,6 +203,12 @@ func (state Projection) admitWork(node WorkDefinition, commit QueueCommit, posit
 	state.Works[node.WorkID] = &WorkState{
 		WorkDefinition: node, AdmissionContract: profile.LogicalContract, State: "available", Position: position, Barrier: "none", admissionRequestID: commit.Request.ID,
 	}
+	if node.ExpiresAt != nil {
+		if state.expiringWorks == nil {
+			state.expiringWorks = map[string]bool{}
+		}
+		state.expiringWorks[node.WorkID] = true
+	}
 	return state.validateWorkAssignmentSize(node, commit, payload)
 }
 

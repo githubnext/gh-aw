@@ -97,6 +97,8 @@ gh extension install github/gh-aw
 
 ## Step 2 - Add the sample workflow and trigger a run
 
+Before enabling the workflow, review the selected [AI engine's data handling and setup requirements](/gh-aw/reference/engines/), repository sensitivity, permitted integrations, and access to logs and artifacts.
+
 From your repository root, run this command:
 
 ```text wrap
@@ -105,7 +107,7 @@ gh aw add-wizard githubnext/agentics/repo-status
 
 `add-wizard` accepts workflow references in `<owner>/<repo>/<workflow-name>` format. In this guide, `githubnext/agentics` is the public [githubnext/agentics](https://github.com/githubnext/agentics) examples repository, and `repo-status` is one of the sample workflows it publishes.
 
-`repo-status` gathers recent repository activity (issues, PRs, discussions, releases, code changes) and opens a GitHub issue summarizing productivity insights, community highlights, and recommended next steps, as described in its frontmatter:
+`repo-status` gathers recent repository activity (issues, PRs, discussions, releases and code changes) and opens a GitHub issue summarizing that activity, community highlights and suggested next steps.
 
 ```yaml
 description: |

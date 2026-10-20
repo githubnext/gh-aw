@@ -8,6 +8,7 @@ const { planDispatch } = require("./work_queue_scheduler.cjs");
 const { replayTransactions } = require("./work_queue_replay.cjs");
 const { performance } = require("node:perf_hooks");
 const { resolveDispatchCredentialPrincipal } = require("./work_queue_dispatch_credential.cjs");
+const { inspectClaimDelivery, createClaimDeliveryVerifier, verifyClaimDelivery } = require("./work_queue_delivery.cjs");
 
 describe("privacy-preserving work queue logging", () => {
   let stderr;
@@ -29,6 +30,49 @@ describe("privacy-preserving work queue logging", () => {
     logger.debug("request.publish.start", { attempts: 1 });
     logger.failure("request.publish.failed", new Error("secret"));
     expect(stderr).not.toHaveBeenCalled();
+  });
+
+  it("explains a delivery contract cardinality failure using only counts", async () => {
+    vi.stubEnv("DEBUG", "work-queue:delivery");
+    const assignment = {
+      version: 3,
+      dispatch_id: "private-dispatch",
+      request_id: "private-request",
+      commit_id: "private-commit",
+      policy_epoch: "private-policy",
+      pool: "private-pool",
+      worker_profile: "private-profile",
+      claims: [{ handle: "private-handle", claim_id: "private-claim", work_id: "private-work", result_refs: [], work: { effect_contract: { version: 1, outputs: [{ type: "private-output", min: 1, max: 2 }] } } }],
+    };
+    const member = assignment.claims[0];
+    const delivery = await inspectClaimDelivery({ assignment, claim_handle: member.handle, authorize: async () => ({ authorized: true, claim_handle: member.handle }), messages: [], results: [] });
+    expect(delivery.verification).toBe("unknown");
+    expect(output()).toContain("delivery.contract.cardinality_mismatch index=0 count=0 min=1 max=2");
+    expect(output()).not.toContain("private-");
+  });
+
+  it("distinguishes missing protected context from invalid bindings and unattested receipts", async () => {
+    vi.stubEnv("DEBUG", "work-queue:delivery");
+    expect(await verifyClaimDelivery({}, {})).toEqual({ verified: false, effects: "unknown" });
+    expect(output()).toContain("delivery.verify.trusted_context_missing");
+    const assignment = {
+      version: 3,
+      dispatch_id: "private-dispatch",
+      request_id: "private-request",
+      commit_id: "private-commit",
+      policy_epoch: "private-policy",
+      pool: "private-pool",
+      worker_profile: "private-profile",
+      claims: [{ handle: "private-handle", claim_id: "private-claim", work_id: "private-work", result_refs: [], work: { effect_contract: { kind: "none" } } }],
+    };
+    const member = assignment.claims[0];
+    const verify = createClaimDeliveryVerifier({ assignment, recheck: async () => ({ verification: "verified", private_data: "private-token" }) });
+    const verification = { assignment, contract: member.work.effect_contract, attempt: 1, run: { run_id: "42", run_attempt: 1 } };
+    expect(await verify(member, { ...verification, attempt: 0 })).toEqual({ verified: false, effects: "unknown" });
+    expect(output()).toContain("delivery.verify.binding_invalid original_claim=true contract_present=true attempt=0");
+    expect(await verify(member, verification)).toEqual({ verified: false, effects: "unknown" });
+    expect(output()).toContain("delivery.verify.receipt_rejected receipt_present=false readback_verified=true");
+    expect(output()).not.toContain("private-");
   });
 
   it.each([
@@ -142,6 +186,39 @@ describe("privacy-preserving work queue logging", () => {
   it("prints only numeric and boolean metadata in always-visible diagnostics", () => {
     createWorkQueueLogger("native").diagnostic("dispatch.post.start", { input_count: 1, named_ref: true, assignment: "private", token: "private", ref: "private" });
     expect(output()).toContain("dispatch.post.start input_count=1 named_ref=true");
+    expect(output()).not.toContain("private");
+  });
+
+  it("includes only a bounded canonical GitHub request ID from an HTTP failure", () => {
+    const requestId = "1B41:A4F74:930C3C:1DF33D1:6AD4920C";
+    createWorkQueueLogger("provisioning").failure(
+      "deployment.repository.read.failed",
+      {
+        status: 500,
+        response: { headers: { "x-github-request-id": requestId, authorization: "private-token" }, data: "private-body" },
+      },
+      true
+    );
+    expect(output()).toContain(`GitHub request ID: ${requestId}.`);
+    expect(output()).not.toContain("private");
+  });
+
+  it.each(["private-token", "1:2:3:4:5\nprivate", "1:2:3:4:5\n", "1:2:3:4:5\r", "1:2:3:4:5\u2028", "a".repeat(256), null, 123])("withholds malformed GitHub request IDs: %j", requestId => {
+    createWorkQueueLogger("provisioning").failure("deployment.reference.read.failed", { status: 503, response: { headers: { "x-github-request-id": requestId } } }, true);
+    expect(output()).toContain("GitHub request ID: unknown.");
+    expect(output()).not.toContain("private");
+    expect(output()).not.toContain("a".repeat(256));
+  });
+
+  it("does not invoke request-ID or header getters", () => {
+    const getter = vi.fn(() => {
+      throw new Error("private-token");
+    });
+    const logger = createWorkQueueLogger("provisioning");
+    logger.failure("deployment.repository.read.failed", { status: 500, response: Object.defineProperty({}, "headers", { get: getter }) }, true);
+    logger.failure("deployment.reference.read.failed", { status: 500, response: { headers: Object.defineProperty({}, "x-github-request-id", { get: getter }) } }, true);
+    expect(getter).not.toHaveBeenCalled();
+    expect(output()).toContain("GitHub request ID: unknown.");
     expect(output()).not.toContain("private");
   });
 

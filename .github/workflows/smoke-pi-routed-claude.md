@@ -63,6 +63,9 @@ post-steps:
           allowedModels: ["claude-sonnet-5"],
           mainEndpoint: "/v1/messages",
           routingMode: "robust",
+          expectModelInventory: true,
+          copilotInventory: true,
+          resolutionRoles: [],
         });
 ---
 

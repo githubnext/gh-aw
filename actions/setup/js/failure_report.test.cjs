@@ -40,7 +40,7 @@ describe("failure report structure", () => {
       normalizeReport(ast)
         .children.filter(node => node.type === "heading")
         .map(node => node.children)
-    ).toEqual([[{ type: "text", value: "What happened" }], [{ type: "text", value: "Next step" }], [{ type: "text", value: "Failure details" }]]);
+    ).toEqual([[{ type: "text", value: "What happened", agentTainted: false }], [{ type: "text", value: "Next step", agentTainted: false }], [{ type: "text", value: "Failure details", agentTainted: false }]]);
     expect(
       normalizeReport(ast)
         .children.filter(node => node.type === "heading")

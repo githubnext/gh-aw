@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -77,16 +78,22 @@ func buildCreatedFilter(startDate, endDate, beforeDate string) string {
 
 // fetchJobDetailsWithCounts fetches all job information for a workflow run in a single API
 // call and returns the full detail slice together with the count of failed jobs.
-// It is the single source of truth for the jobs endpoint; fetchJobDetails and
-// fetchJobStatuses are thin wrappers that each return only the value they need.
-func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir string, verbose bool) ([]JobInfoWithDuration, int, error) {
+// It is the single source of truth for the jobs endpoint.
+func fetchJobDetailsWithCounts(ctx context.Context, runID int64, outputDir string, verbose bool, attempts ...int) ([]JobInfoWithDuration, int, error) {
 	logsGitHubAPILog.Printf("Fetching job details: runID=%d", runID)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
 	}
 
+	endpoint := fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d", runID)
+	if len(attempts) > 0 {
+		attempt := attempts[0]
+		if attempt > 0 {
+			endpoint = path.Join(endpoint, "attempts", strconv.Itoa(attempt))
+		}
+	}
 	output, err := workflow.RunGHCombinedContext(ctx, "Fetching job details...", "api",
-		fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs?per_page=100", runID),
+		path.Join(endpoint, "jobs?per_page=100"),
 		"--paginate", "--slurp")
 	if err != nil {
 		if verbose {
@@ -120,18 +127,25 @@ func parseJobsAPIResponses(output []byte, runID int64, verbose bool) ([]JobInfoW
 
 	jobs := []JobInfoWithDuration{}
 	failedJobs := 0
+	incomplete := len(rawResponses) == 0
 	for _, rawResponse := range rawResponses {
 		var response struct {
-			Jobs []json.RawMessage `json:"jobs"`
+			Jobs       []json.RawMessage `json:"jobs"`
+			TotalCount int               `json:"total_count"`
 		}
 		if err := json.Unmarshal(rawResponse, &response); err != nil {
 			logsGitHubAPILog.Printf("Skipping malformed jobs API page for run %d: %v", runID, err)
+			incomplete = true
 			continue
+		}
+		if response.Jobs == nil || (len(response.Jobs) == 0 && response.TotalCount > 0) {
+			incomplete = true
 		}
 		for _, rawJob := range response.Jobs {
 			var job JobInfo
 			if err := json.Unmarshal(rawJob, &job); err != nil {
 				logsGitHubAPILog.Printf("Skipping malformed job in run %d: %v", runID, err)
+				incomplete = true
 				continue
 			}
 			jobWithDuration := JobInfoWithDuration{JobInfo: job}
@@ -147,6 +161,9 @@ func parseJobsAPIResponses(output []byte, runID int64, verbose bool) ([]JobInfoW
 				}
 			}
 		}
+	}
+	if incomplete && len(jobs) == 0 {
+		return nil, 0, fmt.Errorf("incomplete jobs API response for run %d: cannot establish job presence", runID)
 	}
 	return jobs, failedJobs, nil
 }
@@ -357,8 +374,8 @@ func workflowRunURLHostname(runURL string) string {
 // fetchJobDetails gets detailed job information including durations for a workflow run.
 // Errors from the underlying API call are suppressed so that callers can continue
 // processing even when job data is unavailable (e.g. missing permissions).
-func fetchJobDetails(ctx context.Context, runID int64, outputDir string, verbose bool) ([]JobInfoWithDuration, error) {
-	jobs, _, err := fetchJobDetailsWithCounts(ctx, runID, outputDir, verbose)
+func fetchJobDetails(ctx context.Context, runID int64, outputDir string, verbose bool, attempts ...int) ([]JobInfoWithDuration, error) {
+	jobs, _, err := fetchJobDetailsWithCounts(ctx, runID, outputDir, verbose, attempts...)
 	if err != nil {
 		var cacheErr *jobDetailsCacheError
 		if errors.As(err, &cacheErr) {
@@ -368,18 +385,6 @@ func fetchJobDetails(ctx context.Context, runID int64, outputDir string, verbose
 		return nil, nil
 	}
 	return jobs, nil
-}
-
-// fetchJobStatuses gets the count of failed jobs for a workflow run.
-// Errors from the underlying API call are suppressed so that callers can continue
-// processing even when job data is unavailable (e.g. missing permissions).
-func fetchJobStatuses(ctx context.Context, runID int64, verbose bool) (int, error) {
-	_, failedJobs, err := fetchJobDetailsWithCounts(ctx, runID, "", verbose)
-	if err != nil {
-		// Don't fail the entire operation if we can't get job info
-		return 0, nil
-	}
-	return failedJobs, nil
 }
 
 // ListWorkflowRunsOptions holds the options for listWorkflowRunsWithPagination

@@ -16,6 +16,7 @@ function createIndexes(state) {
   const indexes = {
     available: new Map(),
     unfinished: new Set(),
+    expiring: new Set(),
     openClaims: new Set(),
     reservations: new Set(),
     runBindings: new Map(),
@@ -43,6 +44,8 @@ function untrackState(state) {
 }
 
 function indexWork(indexes, work) {
+  if (work.expires_at !== undefined && !["completed", "cancelled"].includes(work.state)) indexes.expiring.add(work.work_id);
+  else indexes.expiring.delete(work.work_id);
   const previous = indexes.workStatus.get(work.work_id);
   if (!previous) {
     let graph = indexes.graphs.get(work.graph_id);

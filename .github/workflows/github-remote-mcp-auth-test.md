@@ -34,8 +34,8 @@ imports:
   - shared/otlp.md
 jobs:
   raw_mcp_canary:
-    needs: agent
-    if: always() && !cancelled()
+    needs: [agent, detection]
+    if: always() && !cancelled() && needs.detection.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read

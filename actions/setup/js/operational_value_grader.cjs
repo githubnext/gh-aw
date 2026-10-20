@@ -1,172 +1,75 @@
 // @ts-check
 
-const cp = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
-const { getSetupTimeoutMs } = require("./child_process_timeouts.cjs");
-const { getErrorMessage } = require("./error_helpers.cjs");
+const { spawnSync } = require("child_process");
 
-const OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS = 120000;
-const OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT = 1024 * 1024;
-const OPERATIONAL_VALUE_EVENT_MAX_SIZE = 1024 * 1024;
-const OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT = "/tmp/gh-aw/agent";
-
-/** @param {unknown} value @returns {value is Record<string, any>} */
-function isRecord(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-/** @param {NodeJS.ProcessEnv} env */
-function buildRunSubject(env) {
-  const runId = String(env.GITHUB_RUN_ID || "");
-  if (!/^\d+$/.test(runId) || runId === "0") {
-    throw new Error("GITHUB_RUN_ID must identify the workflow run");
-  }
-  return {
-    id: runId,
-    attempt: Number(env.GITHUB_RUN_ATTEMPT) || 1,
-    repository: String(env.GITHUB_REPOSITORY || ""),
-    workflow: String(env.GITHUB_WORKFLOW || ""),
-    ref: String(env.GITHUB_REF || ""),
-    sha: String(env.GITHUB_SHA || ""),
-    eventName: String(env.GITHUB_EVENT_NAME || ""),
-  };
-}
-
-/** @param {NodeJS.ProcessEnv} env */
-function readEventPayload(env) {
-  const eventPath = env.GITHUB_EVENT_PATH;
-  if (!eventPath) return null;
-  try {
-    const stat = fs.statSync(eventPath);
-    if (!stat.isFile() || stat.size > OPERATIONAL_VALUE_EVENT_MAX_SIZE) return null;
-    const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
-    return isRecord(event) ? event : null;
-  } catch {
-    return null;
-  }
-}
-
-/** @param {NodeJS.ProcessEnv} env */
-function safeFunctionEnv(env) {
-  /** @type {NodeJS.ProcessEnv} */
-  const result = {};
-  for (const key of ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec", "GH_TOKEN", "GH_HOST", "GITHUB_API_URL", "GITHUB_GRAPHQL_URL", "GITHUB_SERVER_URL"]) {
-    if (env[key]) result[key] = env[key];
-  }
-  return result;
-}
+const EVALUATOR_TIMEOUT_MS = 120000;
+const EVALUATOR_MAX_OUTPUT = 1024 * 1024;
 
 /**
- * Execute a subprocess and throw resilient action-specific errors for timeout,
- * signal termination, and non-zero exits.
- * @param {string} bashPath
- * @param {string[]} args
- * @param {{input?: string, timeout: number, maxBuffer?: number, env: NodeJS.ProcessEnv, operation: string}} options
- */
-function executeEvaluatorSubprocess(bashPath, args, options) {
-  const execution = cp.spawnSync(bashPath, args, {
-    input: options.input,
-    encoding: "utf8",
-    timeout: options.timeout,
-    maxBuffer: options.maxBuffer,
-    env: options.env,
-  });
-  if (execution.error) {
-    if (typeof execution.error === "object" && execution.error !== null && "code" in execution.error && execution.error.code === "ETIMEDOUT") {
-      throw new Error(`${options.operation} timed out after ${String(options.timeout)}ms`);
-    }
-    throw execution.error;
-  }
-  if (execution.signal) {
-    throw new Error(`${options.operation} was terminated by signal ${execution.signal}`);
-  }
-  if (execution.status !== 0) {
-    throw new Error(execution.stderr?.trim() || `${options.operation} exited with status ${String(execution.status)}`);
-  }
-  return execution;
-}
-
-/**
- * Execute and validate one trusted, frozen operational-value evaluator.
- * @param {string} evaluatorContent
- * @param {{digest?: string, config?: object}} meta
- * @param {{env?: NodeJS.ProcessEnv, event?: object|null, outputs?: any[], bashPath?: string}} [options]
+ * Repository-owned shell compatibility boundary, not a sandbox. MicroVM
+ * isolation is future work; never call this module from conclusion.
+ * @param {string} source
+ * @param {import("./types/unified_session").UnifiedSession} session
+ * @param {Record<string, any>} config
+ * @param {{timeout?: number, temporaryRoot?: string}} [options]
  * @returns {{id: string, value: number|null}[]}
  */
-function executeOperationalValueEvaluator(evaluatorContent, meta, options = {}) {
-  const env = options.env || process.env;
-  const syntaxCheckTimeoutMs = getSetupTimeoutMs("operationalValueSyntaxCheck", env);
-  const evaluatorTimeoutMs = getSetupTimeoutMs("operationalValueEvaluator", env);
-  const run = buildRunSubject(env);
-  const event = options.event === undefined ? readEventPayload(env) : options.event;
-  const request = {
-    schemaVersion: 1,
-    run,
-    event: isRecord(event) ? event : {},
-    outputs: Array.isArray(options.outputs) ? options.outputs : [],
-    config: meta.config || {},
-  };
-
-  fs.mkdirSync(OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT, { recursive: true, mode: 0o700 });
-  const tempDir = fs.mkdtempSync(path.join(OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT, "operational-value-grader-"));
-  const evaluatorPath = path.join(tempDir, "operational-value.sh");
-  const bashPath = options.bashPath || "/bin/bash";
+function executeOperationalValueEvaluator(source, session, config, options = {}) {
+  const directory = fs.mkdtempSync(path.join(options.temporaryRoot ?? os.tmpdir(), "gh-aw-operational-value-"));
   try {
-    fs.writeFileSync(evaluatorPath, evaluatorContent, { encoding: "utf8", mode: 0o700 });
-    try {
-      executeEvaluatorSubprocess(bashPath, ["-n", evaluatorPath], {
-        timeout: syntaxCheckTimeoutMs,
-        env: safeFunctionEnv(env),
-        operation: "operational-value evaluator syntax check",
-      });
-    } catch (err) {
-      throw new Error(`operational-value evaluator has invalid Bash syntax: ${getErrorMessage(err)}`, { cause: err });
-    }
-
-    const execution = executeEvaluatorSubprocess(bashPath, [evaluatorPath], {
-      input: JSON.stringify(request),
-      timeout: evaluatorTimeoutMs,
-      maxBuffer: OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
-      env: safeFunctionEnv(env),
-      operation: "operational-value evaluator",
+    const sessionPath = path.join(directory, "aw_session.jsonl");
+    const scriptPath = path.join(directory, "evaluator.sh");
+    fs.writeFileSync(sessionPath, session.map(event => JSON.stringify(event)).join("\n") + (session.length ? "\n" : ""), { mode: 0o400 });
+    fs.writeFileSync(scriptPath, source, { mode: 0o400 });
+    const timeout = options.timeout ?? EVALUATOR_TIMEOUT_MS;
+    const execution = spawnSync(process.execPath, [path.join(__dirname, "operational_value_worker.cjs"), scriptPath, sessionPath, String(timeout)], {
+      cwd: directory,
+      input: "",
+      encoding: "utf8",
+      env: {
+        PATH: process.env.PATH ?? "/usr/bin:/bin",
+        LC_ALL: "C",
+        GH_AW_SESSION_FILE: sessionPath,
+        GH_AW_GRADER_CONFIG: JSON.stringify(config),
+      },
+      timeout: timeout + 2000,
+      maxBuffer: EVALUATOR_MAX_OUTPUT,
+      killSignal: "SIGKILL",
     });
-
-    let output;
+    if (execution.error) throw new Error("operational-value evaluator failed or exceeded its time/output limit", { cause: execution.error });
+    if (execution.signal || execution.status !== 0) {
+      if (/exceeded its (?:time|output) limit/.test(execution.stderr)) throw new Error("operational-value evaluator exceeded its time/output limit");
+      throw new Error(`operational-value evaluator failed (${execution.signal ?? execution.status})`);
+    }
+    let metrics;
     try {
-      output = JSON.parse(execution.stdout || "null");
-    } catch (err) {
-      throw new Error(`operational-value evaluator returned invalid JSON: ${getErrorMessage(err)}`, { cause: err });
+      metrics = JSON.parse(execution.stdout);
+    } catch (error) {
+      throw new Error("operational-value evaluator returned invalid JSON", { cause: error });
     }
-    if (!Array.isArray(output) || output.length === 0) {
-      throw new Error("operational-value evaluator output must be a non-empty array");
-    }
+    if (!Array.isArray(metrics) || metrics.length === 0) throw new Error("operational-value evaluator must return a nonempty metric array");
     const ids = new Set();
-    for (const metric of output) {
-      if (!isRecord(metric) || Object.keys(metric).sort().join(",") !== "id,value") {
-        throw new Error("operational-value evaluator metrics must contain exactly id and value");
-      }
-      if (typeof metric.id !== "string" || metric.id.trim() === "" || ids.has(metric.id)) {
-        throw new Error("operational-value evaluator metric ids must be non-empty and unique");
-      }
-      if (metric.value !== null && (typeof metric.value !== "number" || !Number.isFinite(metric.value))) {
-        throw new Error("operational-value evaluator metric values must be null or finite numbers");
+    for (const metric of metrics) {
+      if (
+        !metric ||
+        typeof metric !== "object" ||
+        Object.keys(metric).sort().join(",") !== "id,value" ||
+        typeof metric.id !== "string" ||
+        !metric.id.trim() ||
+        ids.has(metric.id) ||
+        (metric.value !== null && (typeof metric.value !== "number" || !Number.isFinite(metric.value)))
+      ) {
+        throw new Error("operational-value metrics must contain unique nonempty ids and finite numeric or null values");
       }
       ids.add(metric.id);
     }
-    return output;
+    return metrics;
   } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 }
 
-module.exports = {
-  executeOperationalValueEvaluator,
-  buildRunSubject,
-  readEventPayload,
-  safeFunctionEnv,
-  OPERATIONAL_VALUE_EVALUATOR_TEMP_ROOT,
-  OPERATIONAL_VALUE_EVALUATOR_TIMEOUT_MS,
-  OPERATIONAL_VALUE_EVALUATOR_MAX_OUTPUT,
-  OPERATIONAL_VALUE_EVENT_MAX_SIZE,
-};
+module.exports = { executeOperationalValueEvaluator };

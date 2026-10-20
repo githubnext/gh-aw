@@ -18,7 +18,7 @@ on:
 engine:
   id: copilot
   copilot-sdk: true
-model: copilot/gpt-5.4
+model: copilot/gpt-5
 permissions:
   contents: read
   issues: read

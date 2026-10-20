@@ -14,6 +14,7 @@ type FailureInvestigation struct {
 	UniqueFailedRuns       int                          `json:"unique_failed_runs"`
 	ObservedEvidenceRuns   int                          `json:"observed_evidence_runs"`
 	MetadataOnlyRuns       int                          `json:"metadata_only_runs"`
+	NonExecutionRuns       int                          `json:"non_execution_runs"`
 	IntentionalFailureRuns int                          `json:"intentional_failure_runs"`
 	AuditBudget            int                          `json:"audit_budget"`
 	EligibleClusters       int                          `json:"eligible_clusters"`
@@ -47,7 +48,7 @@ func buildFailureInvestigation(runs []RunData, clusters []FailureCluster) *Failu
 	plan := &FailureInvestigation{AuditBudget: defaultFailureInvestigationBudget, SelectedRuns: []FailureInvestigationTarget{}}
 	eligible := make(map[string]FailureCluster)
 	for _, cluster := range clusters {
-		if !cluster.IntentionalFailure {
+		if !cluster.IntentionalFailure && cluster.Evidence != "confirmed_no_jobs" {
 			eligible[cluster.ID] = cluster
 		}
 	}
@@ -82,7 +83,7 @@ func failureInvestigationCandidates(runs []RunData, eligible map[string]FailureC
 	byID := make(map[FailureRunIdentity]*RunData)
 	for i := range runs {
 		run := &runs[i]
-		if !isClusterFailureConclusion(run.Conclusion) {
+		if !isClusterFailureConclusion(run.Conclusion) || isObsoletePRRun(*run) {
 			continue
 		}
 		identity := failureRunIdentityFor(*run)
@@ -93,6 +94,10 @@ func failureInvestigationCandidates(runs []RunData, eligible map[string]FailureC
 	candidates := make([]failureInvestigationCandidate, 0, len(byID))
 	for _, run := range byID {
 		plan.UniqueFailedRuns++
+		if run.JobCount != nil && *run.JobCount == 0 && len(run.FailureSignals) == 0 {
+			plan.NonExecutionRuns++
+			continue
+		}
 		if len(run.FailureSignals) == 0 {
 			plan.MetadataOnlyRuns++
 		} else {

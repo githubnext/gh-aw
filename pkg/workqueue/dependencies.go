@@ -206,7 +206,7 @@ func (b Branch) refreshForDispatch(ctx context.Context, state Projection, poolNa
 func refreshableWorks(state Projection, poolName string, at int64) []*WorkState {
 	works := []*WorkState{}
 	for _, work := range state.Works {
-		if work.Pool == poolName && work.State == "available" && work.RetryNotBefore <= at {
+		if work.Pool == poolName && work.State == "available" && work.RetryNotBefore <= at && !workExpired(work, max(at, state.timeWatermark)) {
 			works = append(works, work)
 		}
 	}

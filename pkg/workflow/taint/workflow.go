@@ -1,6 +1,7 @@
 package taint
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -81,14 +82,37 @@ func analyze(input *actions.Workflow, rule Rule, document *aw.Document) (Result,
 	return a.result, nil
 }
 
-// AnalyzeDocument adds the AW prompt sink to its compiled Actions graph.
+// AnalyzeDocument checks the AW prompt and script entry points alongside its
+// compiled Actions graph. Fast mode avoids generated JavaScript traversal.
 // Callers compile through workflow.Compiler.CompileDocument so imports and
 // compiler-generated steps use exactly the same execution model as gh aw.
 func AnalyzeDocument(document *aw.Document, compiled *actions.Workflow, rule Rule) (Result, error) {
 	if document == nil {
 		return Result{}, errors.New("AW document cannot be nil")
 	}
-	return analyze(compiled, rule, document)
+	ctx := context.Background()
+	if rule.JavaScript != nil && rule.JavaScript.Context != nil {
+		ctx = rule.JavaScript.Context
+	}
+	compiledRule := rule
+	fast := rule.JavaScript != nil && rule.JavaScript.Mode == JavaScriptFast
+	if fast {
+		compiledRule.JavaScript = nil
+	}
+	result, err := analyze(compiled, compiledRule, document)
+	var scripts Result
+	var scriptErr error
+	if fast {
+		scripts, scriptErr = AnalyzeAuthoredJavaScript(ctx, document, rule)
+		result.Gaps = append(result.Gaps, CoverageGap{
+			Path: "workflow", Reason: "fast JavaScript analysis checks authored scripts and reviewed API summaries; generated JavaScript and cross-job JavaScript flows require deep mode",
+		})
+	} else {
+		scripts, scriptErr = AnalyzeAuthoredScripts(ctx, document, rule)
+	}
+	result.Findings = append(result.Findings, scripts.Findings...)
+	result.Gaps = append(result.Gaps, scripts.Gaps...)
+	return result, errors.Join(err, scriptErr)
 }
 
 func (a *analyzer) expressions(values map[string]actions.Expression, path string, job actions.JobID, workflow *actions.Workflow, parent scope) (scope, error) {

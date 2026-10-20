@@ -11,15 +11,7 @@ import (
 )
 
 func (a *analyzer) javascriptInline(text, name string, bindings scope, files scope, captured bool) error {
-	markers := make(map[string][]Source)
-	rendered, _, err := a.interpolate(text, name, bindings, func(i int, sources value) string {
-		marker := fmt.Sprintf("GH_AW_JS_TAINT_%d_", i)
-		for suffix := 0; strings.Contains(text, marker); suffix++ {
-			marker = fmt.Sprintf("GH_AW_JS_TAINT_%d_%d_", i, suffix)
-		}
-		markers[marker] = sources
-		return marker
-	})
+	rendered, markers, err := a.javascriptRender(text, name, bindings)
 	if err != nil {
 		return err
 	}
@@ -36,10 +28,26 @@ func (a *analyzer) javascriptInline(text, name string, bindings scope, files sco
 	if err := j.run(); err != nil {
 		return err
 	}
+	if strings.HasSuffix(name, ".with.script") {
+		j.emit(&JavaScriptNode{Line: 1}, Output, j.returns.taint())
+	}
 	for name, sources := range j.files {
 		files[name] = union(files[name], sources)
 	}
 	return nil
+}
+
+func (a *analyzer) javascriptRender(text, name string, bindings scope) (string, map[string][]Source, error) {
+	markers := make(map[string][]Source)
+	rendered, _, err := a.interpolate(text, name, bindings, func(i int, sources value) string {
+		marker := fmt.Sprintf("GH_AW_JS_TAINT_%d_", i)
+		for suffix := 0; strings.Contains(text, marker); suffix++ {
+			marker = fmt.Sprintf("GH_AW_JS_TAINT_%d_%d_", i, suffix)
+		}
+		markers[marker] = sources
+		return marker
+	})
+	return rendered, markers, err
 }
 
 func (s *shell) javascriptCommand(cmd *syntax.CallExpr, captured bool, stdin value) (value, bool) { //nolint:largefunc // Keep entry-point resolution and stream handling together.

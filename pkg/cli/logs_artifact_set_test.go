@@ -182,9 +182,9 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"usage"},
 		},
 		{
-			name:     "graders resolves to usage agent and output fallback",
+			name:     "graders resolves to conclusion custom job and historical artifacts",
 			sets:     []string{"graders"},
-			expected: []string{constants.UsageArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
+			expected: []string{constants.UsageArtifactName.String(), constants.GradersArtifactName.String(), constants.AgentArtifactName.String(), constants.AgentOutputFallbackArtifactName.String()},
 		},
 		{
 			name:     "multiple sets are merged and deduplicated",

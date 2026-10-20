@@ -45,7 +45,9 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | `pull_request_target` checkout policy | [`PullRequestTargetCheckout.tla`](PullRequestTargetCheckout.tla) | Strict warning acknowledgment, explicit checkout disablement, trusted base checkout, exact allowlisted external checkout, and fail-closed `fetch` handling. |
 | PR checkout authorization | [`CommentTriggeredPRCheckout.tla`](CommentTriggeredPRCheckout.tla) | Same-repository Bot branch-event authorization for supported PR actions plus the stricter allow-listed comment/review exception. |
 | Patch/bundle application | [`SafeOutputTransport.tla`](SafeOutputTransport.tla) | Captured bytes, trusted transformations, private snapshots, publication retries, sticky failures, bounded local checking cost, and finally cleanup. |
+| Bundle Git operations | [`SafeOutputGit.tla`](SafeOutputGit.tla) | Explicit prerequisite recovery, offline optional discovery, bounded comparison/history work, credential roles, and separate size/protection provenance. |
 | Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
+| Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, OIDC identity, retry/outage classification, independently resolved runtime allowances, privacy, and caller-owned trace correlation. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -89,6 +91,108 @@ cannot be bypassed merely by omitting the job. Disabled/conditionally skipped
 configurations retain authorization, provenance, credential, and validation
 invariants but do not claim detector approval. The inactive detector is
 represented by a skipped state-machine slot, not a real runtime job.
+
+## Cooperative activation admission
+
+[`ActivationAdmission.tla`](ActivationAdmission.tla) formalizes the
+[admission service contract](../../docs/src/content/docs/specs/admission-service-specification.md),
+including the implemented client's daily-validation precedence, optional
+component allowances, and isolated admission-job OIDC capability. It is a bounded reference model, not a proof of the runtime
+or deployment-owned authority. Admission runs in an endpoint-gated job.
+Activation requires successful or intentionally skipped admission; a successful
+activation is required before agent execution. Independent OIDC features are
+outside this admission-only permission model.
+
+The finite model covers 2,304 combinations of effective endpoint
+(absent/valid/invalid), verified invocation identity (valid/invalid), triggering
+actor use (unused/independently verified/unverified), local cap
+(disabled/stricter/equal/looser), existing or generated caller trace context,
+independently optional threat-detection and evals allowances, resolved daily
+fallback (allow/block), and hidden spend band.
+Four checker profiles select outage `ignore`/`block` and client OTel export enabled/disabled.
+Each admission has up to three attempts, two symbolic authority replicas,
+symbolic caller trace IDs, and policy allowances of two credit units. Optional
+allowances use zero only as an internal absence marker, never a valid wire value.
+Validated primary and supplied component allowances replace their runtime limits.
+Missing optional allowances and skipped or ignored admissions retain local limits.
+Request identity and credentials are not handed off; component accounting is unchanged.
+
+| Contract | Checked invariants |
+|---|---|
+| Optional configuration, isolated OIDC capability and activation dependency | `NoEndpointNoRequest`, `InvalidConfigurationBlocks`, `AdmissionJobIsolation`, `AdmissionDependency`, `ActivationGate` |
+| OIDC-only authentication, verified claim/workflow mapping, independently checked rerun initiator, original actor privileges | `OIDCOnly`, `IdentityVerified`, `TriggeringActorVerified`, `OriginalActorPrivileges`, `InvocationBound` |
+| Lost responses, replica changes, token-renewal abstraction, bounded retries, denial/protocol errors, explicit outage policy | `StableRetryDecision`, `RetryBound`, `DenialBlocks`, `MalformedBlocks`, `FatalErrorsBlock`, `OutagePolicyHonored` |
+| Terminal deadline expiry, approved admission bypassing daily validation, daily fallback required for skip/ignored outage | `DeadlineHonored`, `DailyAdmissionPrecedence`, `DailyFallbackEnforced` |
+| Validated primary/optional allowances, runtime budget selection, fallback on omitted optional allowances or skip/outage, and no identity/credential handoff | `CeilingValidated`, `RuntimeBudgetsResolved`, `NoFabricatedAdmission` |
+| Empty durable-denial observation, spend-independent policy allowance, financially side-effect-free admission | `PrivateDenial`, `SpendPrivateCeiling`, `NoFinancialEffects` |
+| Required caller `traceparent`, preserved existing/generated context, correlated admission export without forcing export | `TraceparentRequired`, `CallerTracePreserved`, `CorrelationPreserved`, `OptionalExport` |
+
+`Termination` checks eventual completion under weak fairness of protocol
+progress. HTTP/OIDC deadlines, backoff, cancellation delivery, and agent completion
+are abstract atomic steps, not a verification of the
+60-second end-to-end deadline or minimum
+decision-retention duration. A transient result can occur on any attempt; the
+environment need not eventually return an approval. Deadline expiry may terminate the sequence before all three
+attempts and excludes late responses and further retries. Policy revocation can
+return the same uniform denial after a cached approval.
+
+The checker includes 29 synthetic single-guard faults and 18 reachability
+witnesses. Witnesses demonstrate admitted, skipped, and fail-open agent starts;
+lost-response recovery through another replica; a verified rerun initiator;
+admission with request trace context but no client export; existing and generated
+caller traces; all four optional-allowance combinations; terminal denial;
+admission despite a blocking daily result; daily blocks after skipped
+admission and ignored outages; early timeout fallback; and an admission job
+failing after approval still preventing activation.
+In particular, skipped and fail-open starts deliberately demonstrate
+why this is **cooperative admission, not unbypassable organization policy or a
+hard spending cap**. The model consumes already-resolved runtime settings;
+repository-variable shadowing and an editor removing the job remain outside
+the participating-workflow machine.
+
+Use the same checksum-pinned TLA+ Tools v1.8.0 described below:
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  python3 specs/workflow-security/check.py --model admission \
+  --results /tmp/activation-admission-results
+```
+
+The default `check.py` run also includes admission. Results retain model/config
+hashes, effective profile settings, state counts, logs, and normalized
+counterexample/witness traces. Secure profiles must exhaust without error;
+each negative control or witness must violate exactly its named invariant
+with TLC exit code 12. Tooling and parser failures never satisfy a control.
+
+This model does not prove JWT cryptography, issuer/JWKS trust, HTTP/TLS or JSON
+parsers (including integer wire spelling and Unicode scalar validity),
+URL/redirect safety, GitHub App provisioning or installation-token
+revocation, distributed cache correctness/expiry or bounded replay-state cleanup,
+randomness, logging redaction, timing noninterference, or actual engine billing
+enforcement. `identity = "valid"` assumes all required
+signed claims, executing workflow-reference bindings, unambiguous invocation
+identity, and any logical-policy mapping have been independently verified;
+`triggeringActor = "verified"` assumes the specified authoritative run-attempt
+lookup. Trace IDs are symbolic, not entropy proofs. Two hidden spend classes
+check explicit response-field constraints, not full observational
+noninterference: eligibility itself is an intentional disclosure. Allowances
+are activation metadata, not a reservation protocol or a guarantee that concurrent
+invocations cannot overshoot an organizational budget.
+The daily fallback result is explicit; other activation checks are assumed satisfied.
+Telemetry samples admission trace export without introducing a relay or downstream
+metadata handoff. Equality of actual generated agent jobs and strict HTTP response
+shapes require implementation-level tests.
+The request's compiled frontmatter/body workflow hash is a cache hint, not a new
+authorization input in this model. Hash derivation, trusted content binding,
+and isolation of authority-side content caches require implementation tests;
+matching hashes never replace the modeled invocation/identity checks.
+Retry/token renewal and replicas reuse one abstract verified invocation and
+shared decision store; actual concurrency, foreign invocation partitioning,
+retention, and revocation require implementation-level tests. Audience claim
+profiles, canonical run/attempt parsing, and completed-decision policy/usage
+revalidation are also implementation obligations, not separate model dimensions.
+Neither the compiler nor an authority implementation has been shown to refine
+this model.
 
 ## Evidence and invariants
 
@@ -152,7 +256,8 @@ reported. An already completed remote effect is not rolled back if a later
 completion check fails. Diagnostic safety and zero full-artifact hashes around
 an unrelated local command are abstract obligations, not measurements of Node.
 
-Run both baselines, all negative controls, and all reachability witnesses with
+Run both transport baselines and the Git-operation profiles below, including
+all negative controls and reachability witnesses, with
 the pinned TLA+ runtime described below. The runner rejects incorrect tooling
 status or invariant names and automatically removes temporary configurations,
 TLC states, and traces:
@@ -198,7 +303,86 @@ rollback remain implementation obligations covered by
 `transport_integrity_git.test.cjs`, `error_recovery.test.cjs`, and
 `create_or_update_pull_request.test.cjs` under `actions/setup/js/`.
 The existing `check.py` and its checked-in examples cover the job and runtime
-repository-list checkout models; `check_transport.py` checks transport separately.
+repository-list checkout models; `check_transport.py` checks transport and Git
+operations separately. Use `--model transport` or `--model git` to select one.
+
+## Safe-output bundle Git operations
+
+[`SafeOutputGit.tla`](SafeOutputGit.tla) models the unsigned push-to-PR bundle
+path in Safe Outputs
+[BGO-001–008](../../docs/src/content/docs/specs/safe-outputs-specification.md#bundle-git-operations-and-validation-baselines).
+Prerequisite recovery and optional baseline discovery are distinct stages.
+Missing prerequisites fail by default; only trusted literal opt-in permits
+recovery with the validated head-repository credential. Metadata discovery uses
+the target checkout's credential instead, and never imports remote objects.
+The recovery flag never authorizes downloads during optional discovery.
+
+An exact pinned tip merged locally bypasses REST. Otherwise, bounded parent
+discovery compares against that pinned tip. Only `behind`/`identical` establishes
+an ancestor size baseline; `ahead` and candidate-specific 404 can continue
+within the request budget. Authorization, rate-limit, service, transport, timeout,
+and unknown failures stop comparison discovery. An inconclusive exact-tip
+ancestry probe can still enter bounded parent discovery without downloading
+the tip. Missing required local data, unsupported operations, time/output
+limits, history overflow, and budget exhaustion fall back to PR-head validation
+when the remaining checks cannot establish a baseline.
+A successful validation tree is required before an exemption is used. A
+non-tip ancestor never exempts protected history, including A-add/B-remove or
+reverted changes, even when it reduces size accounting. Exact-tip exemptions
+still do not excuse agent-authored protected changes.
+
+The runner exhausts all combinations of `AllowFullHistoryFetch` and `Shallow`.
+It requires exhaustive success for these four secure profiles, then the exact
+named counterexample for each synthetic fault:
+
+| Fault | Expected invariant |
+|---|---|
+| `implicit-recovery` | `RecoveryOptIn` |
+| `optional-fetch` / `lazy-fetch` | `NoOptionalMaterialization` |
+| `wrong-recovery-token` | `RecoveryAuthentication` |
+| `wrong-metadata-token` | `MetadataAuthentication` |
+| `unbounded-local` | `BoundedLocalInspection` |
+| `unbounded-history` | `BoundedHistory` |
+| `unbounded-comparisons` | `BoundedComparisons` |
+| `retry-global-error` | `NoGlobalFailureRetry` |
+| `comparison-retry` | `NoComparisonRetries` |
+| `unbounded-request` | `BoundedRequests` |
+| `ancestor-exemption` | `ProtectionProvenance` |
+| `unsafe-diagnostics` | `SafeDiagnostics` |
+
+The wrong-recovery-token control runs with opt-in enabled; the others use the
+default-deny shallow profile. Secure profiles additionally check shallow
+preservation, exact-tip zero-comparison behavior, conservative fallback, and
+protected-change rejection before publication. With `Fault = "none"`, the runner
+appends each of `NoAncestorBaseline`, `NoExactTipBaseline`, `NoRecovery`,
+`NoConservativeFallback`, `NoSafePublication`, `NoProtectedRejection`, and
+`NoMissingParentContinuation`. These false invariants witness effective ancestor
+and exact-tip baselines, successful opted-in recovery, fallback, valid
+publication, protected-history rejection, and a request following a 404,
+respectively. They prevent success from consisting only of rejected operations.
+
+```bash
+TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
+  python3 specs/workflow-security/check_transport.py --model git
+```
+
+`SafeOutputGit.cfg` matches the implementation's four-comparison budget and
+100-record history limit. Finite boundary classes exercise both the 100th and
+101st records, and the over-budget fault attempts a fifth comparison.
+The implementation also uses a 5-second deadline per optional Git
+command/request and 1 MiB per process output stream.
+The model abstracts elapsed time/output into finite success, missing-data,
+timeout, and overflow outcomes. It checks decision boundaries, not real time,
+process termination, byte counts, Git parsing/DAG correctness, merge correctness,
+actual credential grants or restoration, signed delivery, ordinary PR-head
+fetch/push operations, or implementation refinement. Pinned refs, local ancestry
+answers, REST reachability responses, and protected-history classifications are
+assumed accurate inputs to the abstraction. The job-level model covers
+credential lifetime; runtime conformance for exact thresholds, subprocess
+termination, abort signals, and shallow/partial-clone preservation remains in
+`push_to_pull_request_branch_comparisons.test.cjs`,
+`push_to_pull_request_branch.integration.test.cjs`, and
+`bundle_transport.integration.test.cjs` under `actions/setup/js/`.
 
 ## Runtime repository-list checkout
 
@@ -345,6 +529,9 @@ parsing, symlink confinement, `.git` indirection, submodules, object graph
 ancestry, merge correctness, signed pushes, or concurrent checkout discovery.
 These require separate refinement of [`gitutil`](../../pkg/gitutil/gitutil.go)
 and [`findRepoCheckout`](../../actions/setup/js/find_repo_checkout.cjs).
+The separate [bundle Git-operation model](#safe-output-bundle-git-operations)
+specifies privileged recovery and optional validation-baseline decisions without
+adding remote access to the credential-free agent's `GitOperation` transition.
 
 ## Host-side MCP compilation
 

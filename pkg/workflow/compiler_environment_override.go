@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // ValidateEnvironmentOverride validates a literal GitHub Actions environment name.
@@ -47,6 +49,9 @@ func (c *Compiler) applyEnvironmentOverride() error {
 
 	environment := "environment: " + strconv.Quote(c.environmentOverride)
 	for _, job := range jobs {
+		if job.Name == string(constants.GradersJobName) || job.Name == string(constants.AdmissionJobName) {
+			continue
+		}
 		job.Environment = environment
 	}
 	return nil

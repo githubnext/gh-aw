@@ -26,11 +26,11 @@ const workflows = [
     name: 'CI Doctor',
     trigger: 'When CI fails',
     triggerIcon: 'zap',
-    outcome: 'Investigates failing CI and opens an issue with the likely cause.',
+    outcome: 'Investigates failing CI and opens an issue with the likely root cause.',
     detail:
-      'It reads the failed job’s logs alongside the commit and pull request that triggered it, then files one issue with the root cause and next steps. Repeat failures update that issue instead of adding noise.',
+      'It reads the failed job’s logs alongside the commit and pull request that triggered it, then files one issue with the likely root cause and next steps. Repeat failures update that issue instead of adding noise.',
     href: docs('ci-doctor'),
-    prompt: prompt('to investigate failing CI runs: read the logs, find the likely cause, and open an issue with the diagnosis and next steps.'),
+    prompt: prompt('to investigate failing CI runs: read the logs, find the likely root cause, and open an issue with the diagnosis and next steps.'),
   },
   {
     id: 'repo-status',
@@ -56,7 +56,7 @@ const workflows = [
   },
 ];
 
-const title = 'Workflows that already work';
+const title = 'Workflows that have been pre-built';
 const lede = 'Ready-made workflows, running in real repositories today. Paste one prompt into your coding agent to add it to your repo.';
 ---
 

@@ -495,11 +495,10 @@ func (c *Compiler) buildResultsParsingScriptRequire() string {
   await main();
 } catch (loadErr) {
   const continueOnError = process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR !== 'false';
-  const detectionExecutionFailed = process.env.DETECTION_AGENTIC_EXECUTION_OUTCOME === 'failure';
   const msg = 'ERR_SYSTEM: \u274C Unexpected error loading threat detection module: ' + (loadErr && loadErr.message ? loadErr.message : String(loadErr));
   core.error(msg);
   core.setOutput('reason', 'parse_error');
-  if (continueOnError && !detectionExecutionFailed) {
+  if (continueOnError) {
     core.warning('\u26A0\uFE0F ' + msg);
     core.setOutput('conclusion', 'warning');
     core.setOutput('success', 'false');

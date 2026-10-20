@@ -11,6 +11,7 @@ const { readScanCache, scanCacheEntry, AIC_SCAN_CACHE_FILE_PATH } = require("./d
 const { mainWithPaths: restore, isTrustedProducer } = require("./restore_aic_scan_cache.cjs");
 const { DefaultArtifactClient } = require("./artifact_client.cjs");
 const guardrail = require("./check_daily_aic_workflow_guardrail.cjs");
+const ledger = require("./daily_aic_repo_memory_ledger.cjs");
 
 const now = Date.parse("2025-02-03T12:00:00Z");
 const time = new Date(now - 60000).toISOString();
@@ -330,6 +331,7 @@ describe("daily AIC computation contract gaps", () => {
     vi.spyOn(guardrail, "getRunAIC").mockResolvedValue(1e308);
     const root = path.join(directory, "daily-aic-ledger");
     fs.mkdirSync(root);
+    fs.writeFileSync(ledger.ledgerCoveragePath(directory, repository, "7"), JSON.stringify({ version: 1, repository, workflow_id: "7", initialized_at: new Date(Date.now() - ledger.WINDOW_MS).toISOString() }));
     fs.writeFileSync(path.join(root, `${stamp.slice(0, 10)}.jsonl`), [1, 2].map(run_id => JSON.stringify({ version: 1, repository, workflow_id: "7", run_id, timestamp: stamp, aic: 1e308 })).join("\n"));
     await guardrail.main({ cachePath, repoMemoryDir: directory });
     expect(outputs.daily_ai_credits_guardrail_status).toBe("transient_error");

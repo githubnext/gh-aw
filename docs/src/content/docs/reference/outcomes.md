@@ -32,7 +32,7 @@ To support that measurement, every evaluated output is classified into an outcom
 | `unknown` | The action cannot be verified: required execution evidence is missing, the evaluator is unsupported, or only target existence is known. |
 | `error` | An API or evaluation failure prevented checking the action. |
 
-The CLI and scheduled collector use the same action-specific classifications,
+The CLI uses action-specific classifications,
 evidence strengths, and signals. An open issue or PR remains `pending`; approval,
 bot comments, and unrelated target state do not turn a creation into acceptance.
 Generic existence checks return weak `unknown`, never `accepted`. Unsupported
@@ -114,6 +114,13 @@ output type, and evaluate it again while results remain `pending`. A pull
 request may remain pending until review and become accepted when merged; a
 comment may need time to receive a reply or reaction.
 
+`gh aw outcomes` is the sole outcome-evaluation entry point. Workflow execution
+records safe-output evidence; it does not decide whether those outputs were
+accepted. `gh aw audit` reports execution evidence without checking live outcome
+state. There is no built-in scheduled collector or automatic reevaluation.
+Rerun `gh aw outcomes` later for unresolved items; each invocation checks current
+GitHub state rather than reusing a cached classification.
+
 Use JSON output to feed a report or inspect the summary:
 
 ```bash wrap
@@ -156,7 +163,96 @@ The basic dashboard for outcomes is therefore intentionally small: total AIC, to
 
 For simple workflows, a single run is usually the right unit for outcome measurement.
 
+`gh aw outcomes` populates `summary.cost_per_accepted_outcome` when positive AIC
+usage and at least one accepted outcome are available. This is the full
+observed run AIC, including detection usage, divided by accepted output items,
+not a per-item allocation. Cost is computed from usage artifacts independently
+of the agent-only token usage cache.
+Unavailable cost and zero accepted outcomes leave this field omitted. If usage
+cannot be read or parsed, the command warns and still returns evaluated outcomes
+and writes any requested outcome JSONL.
+
 For orchestrated workflows, multiple runs can belong to one logical execution. In that case, the more meaningful unit is the episode. Outcome and cost totals can be rolled up from runs into episodes using simple sums, and then from episodes into workflow totals and repository totals.
+
+### Episode Outcome Summaries
+
+`gh aw outcomes episodes` joins recorded outcome observations to the episode
+membership from a logs report. It is an offline report, not another evaluator:
+
+```bash wrap
+gh aw logs --verbose --json > logs.json
+gh aw outcomes 1234567890 --outcomes-dir ./outcomes
+gh aw outcomes 1234567891 --outcomes-dir ./outcomes
+gh aw outcomes episodes --logs logs.json --outcomes-dir ./outcomes --json
+```
+
+Record outcomes for each selected source run. Use `--output <directory>` on
+both commands when downloaded `run-*` artifacts are outside the default
+`.github/aw/logs` directory. The episode command reads usage artifacts directly,
+including detection usage, rather than summing agent-only cached cost.
+Accounting sources are selected separately for each execution phase before
+summing independent stream totals. Agent JSON remains a fallback when agent
+JSONL has no usable cost; an executed phase without accounting qualifies cost
+coverage as partial.
+Both compact and verbose logs JSON retain all canonical episodes, including standalone episodes.
+
+Membership can also come from [`gh aw logs episode`](/gh-aw/setup/cli/#logs-episode-run-id-or-url).
+Its bounded retrieval report uses the same episode contract. The outcome join
+reads each run's recorded `logs_path` beneath `--output`, including isolated
+repository/attempt directories; conflicting paths or paths outside that root
+are errors. Collection limits remain membership gaps and suppress efficiency
+claims; this offline join does not perform additional discovery.
+
+The command reads all `.jsonl` files directly inside `--outcomes-dir`. New
+per-item records include `item_id` (a SHA-256 digest of the source action record,
+with an occurrence number for indistinguishable records) and
+`run_item_count` (the number of evaluated actions). The join matches `run_id`
+against episode `run_ids`, selects the latest `checked_at` for each source-run
+item, and reuses CLI outcome classifications. Repeated snapshots do not add
+accepted outcomes, and a later rejection replaces a previous acceptance.
+Conflicting evaluation fields at the latest observation time, including
+evidence strength, objective value, and item count, produce an error rather
+than an arbitrary verdict. A newer observation supersedes older conflicts.
+Reordering or reserializing unchanged source records does not change action
+identities; distinct actions against the same object remain distinct items.
+
+JSON returns `episodes[]` and `unmatched_outcome_run_ids`. Each episode contains
+the selected `run_ids`, latest `items`, the existing outcome `summary`, and:
+
+| Field | Meaning |
+| --- | --- |
+| `membership_scope` | Always `selected_runs`; the logs selection does not prove full-episode membership. |
+| `membership_coverage` | Optional lineage/collection scope, status, reasons, and truncation evidence copied from the logs, separate from outcome/cost coverage. |
+| `outcome_coverage` | `complete` or `partial` for selected runs only, based on available observations, item identity, and recorded item counts. |
+| `outcome_run_ids`, `missing_outcome_run_ids` | Selected runs with and without recorded outcomes. No observations do not prove that a run produced no outputs. |
+| `observed_aic` | Sum of available selected-run usage; `null` when unavailable. An explicit recorded zero remains `0`, not unknown. |
+| `cost_coverage` | `available`, `partial`, or `unavailable` for selected runs. Usage warnings qualify cost as partial. |
+| `cost_run_ids`, `missing_cost_run_ids` | Selected runs with and without usable AIC evidence. |
+| `missing_run_ids` | Episode member IDs absent from the supplied run records. |
+| `cost_per_accepted_outcome` | Observed AIC divided by accepted items, or `null` when there are no accepted items, incomplete membership/evidence/cost, or ambiguous legacy identities. A valid zero cost yields `0`. |
+| `qualifications` | Scope and evidence limitations, including unresolved outcomes. |
+
+Pending, unknown, and error outcomes remain unresolved rather than becoming
+accepted. A ratio with unresolved items is an observed snapshot, not a final
+efficiency verdict. Partial AIC is never divided by accepted items to imply a
+complete cost result. Outcomes whose source runs are outside selected
+membership are listed separately and excluded from all episode counts.
+
+Older JSONL without `item_id` is conservatively coalesced by source run, action
+type, repository, target, and creation time only when no precise item identities
+exist for that group. Precise observations supersede matching legacy rows once
+each item's latest observation is at least as recent as the latest legacy row.
+A newer legacy row produces an error requiring reevaluation rather than
+overriding ambiguous precise items or adding an extra item.
+Indistinguishable legacy-only actions can be undercounted, so these reports are
+qualified and efficiency is unavailable; reevaluate those runs to record action
+identities and counts. Earlier positional IDs (`item-1`, `item-2`, and so on)
+also lack reorder-stable identity and disable efficiency when retained.
+Content-derived identities supersede matching positional observations under
+the same timestamp rule, rather than counting them again. The report does
+not infer missing episode members, reevaluate GitHub objects, or automatically
+schedule observations. Generate its schema with
+`gh aw json-schema outcomes-episodes`.
 
 The outcomes model is deliberately narrow. It does not try to estimate the full business value of a workflow, replace human judgment for nuanced quality questions, combine deterministic compute cost and inference cost into one synthetic score, or solve overlap and duplicate-work analysis in the first version.
 

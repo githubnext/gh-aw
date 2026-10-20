@@ -13,6 +13,7 @@
  *   COPILOT_MODEL                            — model override (optional)
  *   GH_AW_COPILOT_SDK_MULTI_PROVIDER_JSON   — JSON-encoded multi-provider config (required).
  *                                             Shape: { model, providers: NamedProviderConfig[], models: ProviderModelConfig[] }
+ *   GH_AW_COPILOT_SDK_SUBAGENT_MODELS       — JSON map of custom agent name → model resolved by the harness (optional)
  *   GH_AW_COPILOT_SDK_SERVER_ARGS           — JSON-encoded allow-tool sidecar args (set by the engine)
  *
  * The sidecar is started and stopped by the harness; the driver only opens a

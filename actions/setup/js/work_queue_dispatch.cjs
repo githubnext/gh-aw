@@ -1,5 +1,7 @@
 // @ts-check
 "use strict";
+
+const { workExpired } = require("./work_queue_expiration.cjs");
 const { SAFE_OUTPUT_E001 } = require("./error_codes.cjs");
 const log = require("./work_queue_logging.cjs").createWorkQueueLogger("dispatch");
 const { queueControlErrorCode, queueControlErrorExplanation } = require("./work_queue_logging.cjs");
@@ -95,7 +97,14 @@ function staleEdges(state, pool, at) {
   const policy = state.policy.pools[pool];
   const edges = new Map();
   for (const work of state.works.values()) {
-    if (work.pool !== pool || work.state !== "available" || work.retry_not_before > at || work.depends_on.some(edge => edge.kind === "work" && state.works.get(edge.work_id)?.barrier !== "verified")) continue;
+    if (
+      work.pool !== pool ||
+      work.state !== "available" ||
+      workExpired(work, Math.max(at, state.time_watermark ?? 0)) ||
+      work.retry_not_before > at ||
+      work.depends_on.some(edge => edge.kind === "work" && state.works.get(edge.work_id)?.barrier !== "verified")
+    )
+      continue;
     for (const edge of work.depends_on) {
       if (edge.kind === "work") continue;
       const key = gateKey(edge.resource, edge.condition);
@@ -222,7 +231,7 @@ async function verifyLaunchedRun(options, expected, policy) {
   const started = Date.now();
   for (let attempt = 1; ; attempt++) {
     try {
-      return validateNativeRun(await fetchNativeRunAttempt(options.dispatchClient || options.githubClient, expected.repository, expected.run_id, 1), expected);
+      return validateNativeRun(await fetchNativeRunAttempt(options.dispatchClient || options.githubClient, expected.repository, expected.run_id, 1, { retryMetadata: false }), expected);
     } catch (error) {
       log.failure("launch.verification.failed", error, true);
       const remaining = policy.deadline_ms - (Date.now() - started);

@@ -10,7 +10,8 @@ const validateLockdownRequirements = require("./validate_lockdown_requirements.c
 const { writeMergedModelsJSON } = require("./merge_frontmatter_models.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { ERR_CONFIG, ERR_SYSTEM } = require("./error_codes.cjs");
-const { normalizeLegacyWorkQueueContext, normalizeWorkQueueContext, resolveWorkQueueRuntime } = require("./aw_context.cjs");
+const { buildWorkflowCallId, normalizeLegacyWorkQueueContext, normalizeWorkQueueContext, resolveWorkQueueRuntime, readInboundAwContext } = require("./aw_context.cjs");
+const { normalizeWebhookContext, redactWebhookPayloads } = require("./webhook_context.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -56,6 +57,7 @@ async function main(core, ctx, githubClient) {
 
   // Build awInfo from env vars (compile-time) + context (runtime)
   const model = process.env.GH_AW_INFO_MODEL || "";
+  const workflowId = process.env.GH_AW_INFO_WORKFLOW_ID || "";
 
   // Reject model names that contain an unresolved GitHub Actions expression.
   // This can happen when a vars.* expression was used for the model in the
@@ -75,6 +77,10 @@ async function main(core, ctx, githubClient) {
     version: process.env.GH_AW_INFO_VERSION || "",
     agent_version: process.env.GH_AW_INFO_AGENT_VERSION || "",
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",
+    workflow_id: workflowId,
+    workflow_call_id: buildWorkflowCallId(ctx.runId, process.env.GITHUB_RUN_ATTEMPT, workflowId),
+    // GITHUB_WORKFLOW_REF identifies the top-level caller for reusable workflows.
+    caller_workflow_ref: process.env.GITHUB_WORKFLOW_REF || "",
     experimental: process.env.GH_AW_INFO_EXPERIMENTAL === "true",
     supports_tools_allowlist: process.env.GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST === "true",
     cache_memory: process.env.GH_AW_INFO_CACHE_MEMORY === "true",
@@ -177,11 +183,13 @@ async function main(core, ctx, githubClient) {
   // orchestration context via workflow inputs or repository_dispatch client payload.
   // Validates JSON format and structure before populating the context key in aw_info.json.
   const queueRuntime = process.env.GH_AW_WORK_QUEUE_ENABLED === "true" ? resolveWorkQueueRuntime(ctx.payload) : null;
+  const webhookContext = normalizeWebhookContext(readInboundAwContext(ctx.payload));
   const awContextRaw = ctx.payload?.inputs?.aw_context ?? ctx.payload?.client_payload?.aw_context;
   let expressionAwContext = "{}";
   if (awContextRaw != null) {
     try {
       let parsed = typeof awContextRaw === "string" ? JSON.parse(awContextRaw) : awContextRaw;
+      if (webhookContext) parsed = { ...parsed, ...webhookContext, item_type: "", item_number: "", comment_id: "", comment_node_id: "" };
 
       // Validate: must be a plain non-null object (not an array or primitive)
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -199,9 +207,9 @@ async function main(core, ctx, githubClient) {
           parsed = null;
         }
         if (parsed !== null) {
-          // Only the schema-checked queue assignment may contain nested data.
+          // Only validated batch context and queue assignments may contain nested data.
           const nestedKeys = Object.entries(parsed)
-            .filter(([k, v]) => k !== (queueRuntime ? "work_queue_assignment" : "work_queue") && v !== null && typeof v === "object")
+            .filter(([k, v]) => k !== (queueRuntime ? "work_queue_assignment" : "work_queue") && !(webhookContext && ["webhook", "items"].includes(k)) && v !== null && typeof v === "object")
             .map(([k]) => k);
           if (nestedKeys.length > 0) {
             core.warning(`aw_context contains nested objects for keys: ${nestedKeys.join(", ")}. Ignoring aw_context.`);
@@ -210,7 +218,7 @@ async function main(core, ctx, githubClient) {
             // Validate: required fields must be present
             const requiredFields = ["run_id", "repo", "workflow_id"];
             const missingFields = requiredFields.filter(f => !(f in parsed));
-            if (missingFields.length > 0) {
+            if (missingFields.length > 0 && !webhookContext) {
               core.warning(`aw_context is missing required fields: ${missingFields.join(", ")}. Ignoring aw_context.`);
             } else {
               awInfo.context = parsed;
@@ -219,7 +227,7 @@ async function main(core, ctx, githubClient) {
         }
       }
     } catch {
-      core.warning(`Failed to parse aw_context input as JSON: ${String(awContextRaw)}`);
+      core.warning("Failed to parse aw_context input as JSON.");
     }
   }
   core.setOutput("aw_context", expressionAwContext);
@@ -298,7 +306,7 @@ async function main(core, ctx, githubClient) {
   }
 
   core.info("Generated aw_info.json at: " + tmpPath);
-  core.info(JSON.stringify(awInfo, null, 2));
+  core.info(JSON.stringify({ ...awInfo, ...(awInfo.context ? { context: redactWebhookPayloads(awInfo.context) } : {}) }, null, 2));
 
   // Set model and engine_id as outputs for reuse in other steps/jobs
   core.setOutput("model", awInfo.model);

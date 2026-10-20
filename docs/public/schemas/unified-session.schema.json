@@ -94,6 +94,7 @@
       { "if": { "properties": { "type": { "const": "github_api.rate_limit" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GitHubApiRateLimitData" } } } },
       { "if": { "properties": { "type": { "const": "grader.manifest" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderManifestData" } } } },
       { "if": { "properties": { "type": { "const": "grader.result" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderResultData" } } } },
+      { "if": { "properties": { "type": { "const": "guardrail.admission" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/AdmissionDecisionData" } } } },
       { "if": { "properties": { "type": { "const": "guardrail.daily_aic" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/DailyAICDecisionData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.configuration" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpConfigurationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.difc.filtered" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
@@ -412,6 +413,18 @@
     }
   ],
   "definitions": {
+    "AdmissionDecisionData": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["admitted", "ignored", "skipped"] },
+        "maxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "threatDetectionMaxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "evalsMaxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+      },
+      "required": ["status"],
+      "additionalProperties": false,
+      "description": "Validated admission allowances, not spend or credentials."
+    },
     "AgentExecutionData": {
       "type": "object",
       "properties": {
@@ -531,7 +544,13 @@
         "originEvent": { "$ref": "#/definitions/JsonValue" },
         "rootRepo": { "$ref": "#/definitions/JsonValue" },
         "rootWorkflowId": { "$ref": "#/definitions/JsonValue" },
-        "rootRunId": { "$ref": "#/definitions/JsonValue" }
+        "rootRunId": { "$ref": "#/definitions/JsonValue" },
+        "parentRepo": { "$ref": "#/definitions/JsonValue" },
+        "parentRunId": { "$ref": "#/definitions/JsonValue" },
+        "parentRunAttempt": { "$ref": "#/definitions/JsonValue" },
+        "parentWorkflowId": { "$ref": "#/definitions/JsonValue" },
+        "parentWorkflowCallId": { "$ref": "#/definitions/JsonValue" },
+        "parentEventType": { "$ref": "#/definitions/JsonValue" }
       },
       "additionalProperties": false,
       "description": "Observed lineage from aw_info.context; hopId identifies the recorded caller."
@@ -633,7 +652,11 @@
       },
       "additionalProperties": false
     },
-    "GraderManifestData": { "type": "object", "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } } }, "additionalProperties": false },
+    "GraderManifestData": {
+      "type": "object",
+      "properties": { "version": { "$ref": "#/definitions/JsonValue" }, "graders": { "type": "array", "items": { "$ref": "#/definitions/GraderData" } }, "customGraders": { "type": "array", "items": { "type": "string" } } },
+      "additionalProperties": false
+    },
     "GraderMeasurementData": {
       "type": "object",
       "properties": {
@@ -792,13 +815,25 @@
             "type": "object",
             "properties": {
               "provider": { "type": "string" },
-              "models": { "type": "array", "items": { "type": "string" } },
+              "configured": { "type": "boolean", "description": "AWF's endpoint configuration state; absent when the source did not supply it." },
+              "models": { "type": "array", "items": { "type": "string" }, "description": "Advertised model IDs in source order; absent means unknown, not empty." },
               "routingModels": {
                 "type": "array",
-                "items": { "type": "object", "properties": { "modelId": { "type": "string" }, "supportedEndpoints": { "type": "array", "items": { "type": "string" } } }, "required": ["modelId"], "additionalProperties": false }
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "modelId": { "type": "string" },
+                    "supportedEndpoints": { "type": "array", "items": { "type": "string" } },
+                    "supportedReasoningEfforts": { "type": "array", "items": { "type": "string" }, "description": "Identifier-shaped reasoning efforts; absent means unknown; a supplied empty array stays empty." },
+                    "contextWindowTokens": { "type": "integer", "description": "Positive context window size in tokens; absent means unknown.", "minimum": 1, "maximum": 9007199254740991 }
+                  },
+                  "required": ["modelId"],
+                  "additionalProperties": false
+                },
+                "description": "Routing metadata in source order; absent means unknown, not empty."
               }
             },
-            "required": ["provider", "models"],
+            "required": ["provider"],
             "additionalProperties": false
           }
         },
@@ -1130,8 +1165,16 @@
         "triggerType": { "$ref": "#/definitions/JsonValue" },
         "dryRun": { "$ref": "#/definitions/JsonValue" },
         "workflow": { "$ref": "#/definitions/JsonValue" },
+        "workflowId": { "$ref": "#/definitions/JsonValue", "description": "Executing workflow reference supplied by the compiler from job.workflow_ref." },
+        "workflowCallId": { "$ref": "#/definitions/JsonValue", "description": "Current workflow invocation ID from aw_info, separate from the caller's ID." },
+        "callerWorkflowRef": { "$ref": "#/definitions/JsonValue", "description": "GITHUB_WORKFLOW_REF; identifies the top-level caller in reusable workflows." },
         "repository": { "$ref": "#/definitions/JsonValue" },
         "runId": { "$ref": "#/definitions/JsonValue" },
+        "runAttempt": { "$ref": "#/definitions/JsonValue" },
+        "ref": { "$ref": "#/definitions/JsonValue" },
+        "sha": { "$ref": "#/definitions/JsonValue" },
+        "actor": { "$ref": "#/definitions/JsonValue" },
+        "targetRepo": { "$ref": "#/definitions/JsonValue" },
         "awContext": { "$ref": "#/definitions/Record%3Cstring%2CJsonValue%3E" },
         "episode": { "anyOf": [{ "$ref": "#/definitions/EpisodeLineageData" }, { "type": "null" }] }
       },
