@@ -36,12 +36,7 @@ type HealthConfig struct {
 	explicitTimeWindow bool
 }
 
-// NewHealthCommand creates the health command
-func NewHealthCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "health [workflow]",
-		Short: "Display workflow health metrics and success rates",
-		Long: `Display workflow health metrics, success rates, and execution trends.
+const healthCommandDescription = `Display workflow health metrics, success rates, and execution trends.
 
 Shows health metrics for workflows including:
 - Current-revision success/failure rates from recent runs
@@ -50,6 +45,9 @@ Shows health metrics for workflows including:
 - Average execution duration
 - Warnings when success rate drops below threshold
 
+Inventories failure signals from run-list payloads, verifies one representative
+per branch/event, then samples successful and pending runs. Reuses local Git
+objects when the checkout matches the target, with GitHub API fallback.
 When called without a workflow name, displays summary for all workflows.
 When called with a specific workflow name, displays detailed metrics for that workflow.
 
@@ -57,9 +55,19 @@ Use --start-date and --end-date to bound run creation times. Accepts UTC dates,
 RFC3339 timestamps, or relative times such as -24h and -1w. An explicit start
 replaces --days; otherwise --days counts backward from --end-date (default: now).
 The report remains a bounded current-revision sample, not an exhaustive history.
+Health compares each workflow's Markdown source with its pushed branch version,
+stops at source changes, and excludes superseded failures from investigation.
+An updated source without new runs is insufficient evidence, not proof of a fix.
 Skipped/action_required runs and confirmed jobless waiting/failed attempts are ignored; job-backed waiting runs remain pending evidence.
 
-` + WorkflowIDExplanation,
+`
+
+// NewHealthCommand creates the health command
+func NewHealthCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "health [workflow]",
+		Short: "Display workflow health metrics and success rates",
+		Long:  healthCommandDescription + WorkflowIDExplanation,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` health                       # Current status of all workflows
   ` + string(constants.CLIExtensionPrefix) + ` health issue-monster         # Detailed metrics for specific workflow
   ` + string(constants.CLIExtensionPrefix) + ` health --days 30             # Look back at most 30 days
@@ -253,6 +261,8 @@ func displayDetailedHealth(runs []WorkflowRun, config HealthConfig) error {
 func displayDetailedHealthStatus(health WorkflowHealth, threshold float64) {
 	if health.SubagentFailureCount > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d sub-agent invocation(s) failed across %d run(s); Actions success rate does not establish healthy delegation", health.SubagentFailureCount, health.SubagentFailureRuns)))
+	} else if health.Status == "no_current_revision_runs" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Current workflow revision has no matching runs; awaiting new evidence instead of investigating superseded failures"))
 	} else if health.BelowThresh {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Success rate (%.1f%%) is below threshold (%.1f%%)", health.SuccessRate, threshold)))
 	} else if health.Status == "healthy" || health.Status == "recovery_observed" {
