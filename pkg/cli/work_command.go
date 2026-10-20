@@ -30,7 +30,8 @@ type nativeDeliveryHostKey struct{}
 // point. An embedding host supplies approved callbacks, never a CLI receipt
 // filename, verifier executable, digest, or actor/source assertion.
 func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *cobra.Command {
-	cmd := &cobra.Command{
+	var root *cobra.Command
+	root = &cobra.Command{
 		Use: "work-queue", Aliases: []string{"work"}, Short: "Inspect and publish the current fair Git-backed DAG work queue",
 		Long: "Inspect and publish the current fair Git-backed DAG work queue.\n\n" +
 			"Direct claim and operator finish are unsupported. Use dispatch-next for mandatory\n" +
@@ -49,7 +50,7 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 			}
 			repo, _ := cmd.Flags().GetString("repo")
 			fileReplay := cmd.Name() == "replay" && cmd.Flags().Changed("file")
-			if repo == "" && cmd.HasParent() && cmd.Parent().Name() == "work-queue" && !fileReplay {
+			if repo == "" && cmd.Parent() == root && !fileReplay {
 				repo, err := GetCurrentRepoSlug()
 				if err != nil {
 					return err
@@ -60,17 +61,17 @@ func NewWorkCommandWithNativeDeliveryHost(host *workqueue.NativeDeliveryHost) *c
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
-	cmd.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
-	cmd.PersistentFlags().String("storage", "git", "Queue storage (git only)")
-	cmd.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
-	cmd.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
-	cmd.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
+	root.PersistentFlags().StringP("repo", "r", "", "Target repository (owner/repo format)")
+	root.PersistentFlags().String("branch", workqueue.DefaultBranch, workQueueBranchDescription)
+	root.PersistentFlags().String("storage", "git", "Queue storage (git only)")
+	root.PersistentFlags().String("request-id", "", "Stable publication handle, or committed request to inspect with explain/trace")
+	root.PersistentFlags().BoolP("json", "j", false, "Output results in JSON format")
+	root.AddCommand(workReplayCommand(), workStatsCommand(), workExplainCommand(),
 		workSubmitCommand(), workSubmitGraphCommand(), workDispatchNextCommand(), workDispatchCommand(),
 		workPolicyCommand(), workDeployCommand(), workControlCommand(), workCancelCommand(), workClearCommand(),
 		workReconcileCommand(), workEvidenceCommand(), workCompactCommand(), workTraceCommand(),
 		workStateCommand(), workInspectCommand(), workCancelClaimCommand(), workPriorityCommand(), workTUICommand())
-	return cmd
+	return root
 }
 
 func workBranch(cmd *cobra.Command) workqueue.Branch {
