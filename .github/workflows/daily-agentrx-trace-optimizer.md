@@ -51,7 +51,10 @@ steps:
       # into the sandbox.
       rm -rf "$AGENTRX_HOME"
       mkdir -p "$AGENTRX_HOME"
-      git clone --depth 1 https://github.com/microsoft/AgentRx.git "$AGENTRX_HOME/src"
+      git init "$AGENTRX_HOME/src"
+      git -C "$AGENTRX_HOME/src" remote add origin https://github.com/microsoft/AgentRx.git
+      git -C "$AGENTRX_HOME/src" fetch --depth 1 origin 7a18c79708e7671be15124460f4f7296107c2a55
+      git -C "$AGENTRX_HOME/src" checkout --detach FETCH_HEAD
       uv venv --python 3.12 --python-preference only-managed "$AGENTRX_HOME/.venv"
       uv pip install --python "$AGENTRX_HOME/.venv/bin/python" "$AGENTRX_HOME/src"
       "$AGENTRX_HOME/.venv/bin/python" "$AGENTRX_HOME/src/run.py" --help >/dev/null
