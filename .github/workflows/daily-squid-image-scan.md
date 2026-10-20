@@ -41,7 +41,7 @@ safe-outputs:
     max: 25
   close-issue:
     target: "*"
-    required-title-prefix: "[container-image-scan] "
+    required-title-prefix: "[container-image-scan] Container findings for "
     required-labels: [cookie, security]
     state-reason: duplicate
     max: 25
@@ -200,10 +200,10 @@ or close legacy findings without complete scan evidence.
      the exact family title, use the matching tracker already linked in #52657;
      otherwise use the lowest issue number. Read every duplicate's body and
      comments, preserve unique unresolved findings and tracking links in the
-     canonical issue, and update that issue before closing any duplicate.
-     Close only exact-title duplicates carrying both `cookie` and `security`
-     labels, with `duplicate_of` set to the canonical issue. Never close the
-     canonical tracker, #52657, or operational-failure issues as duplicates.
+     canonical issue, and report the duplicate issue links there and in #52657
+     for maintainer review. Do not automatically close family duplicates:
+     close-issue is restricted to legacy `Container findings for ...` issues.
+     Never close the canonical tracker, #52657, or operational-failure issues.
      Never create a separate issue for an image tag, digest, component, or individual CVE.
      Assign each family issue to `pelikhan` if it is unassigned. Put the current
      scan's family summary and collapsible details in that issue, including an

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -8,10 +8,14 @@ import { join } from "node:path";
 const require = createRequire(import.meta.url);
 const { buildCopilotSDKPermissionHandler } = require("./copilot_sdk_permissions.cjs");
 const { parseCopilotSDKToolConfig } = require("./copilot_sdk_tool_config.cjs");
+const { main: createCloseIssueHandler } = require("./close_issue.cjs");
 
 const scanLog = "/tmp/gh-aw/agent/image-scan/compile-output.txt";
 const source = readFileSync(new URL("../../../.github/workflows/daily-squid-image-scan.md", import.meta.url), "utf8");
 const lock = readFileSync(new URL("../../../.github/workflows/daily-squid-image-scan.lock.yml", import.meta.url), "utf8");
+const safeOutputsConfigLine = lock.match(/^\s+GH_AW_SAFE_OUTPUTS_CONFIG: (".+")$/m);
+const handlerConfigLine = lock.match(/^\s+GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: (".+")$/m);
+const compiledCloseConfig = JSON.parse(JSON.parse(handlerConfigLine[1])).close_issue;
 const commands = [...source.matchAll(/```bash\n([\s\S]*?)\n```/g)].flatMap(match => match[1].trim().split("\n"));
 const configLine = lock.match(/^\s+GH_AW_COPILOT_SDK_TOOL_CONFIG: '(.+)'$/m);
 const config = parseCopilotSDKToolConfig(configLine?.[1]);
@@ -42,28 +46,76 @@ describe("daily container image scan analysis", () => {
     expect(source).toContain("tag/digest has been updated and rescanned");
   });
 
-  it("consolidates exact-title family duplicates without closing canonical or operational trackers", () => {
+  it("reports family duplicates for review while restricting closure to legacy findings", () => {
     const closeConfig = source.split("  close-issue:\n")[1].split("  noop:\n")[0];
-    expect(closeConfig).toContain('required-title-prefix: "[container-image-scan] "');
+    expect(closeConfig).toContain('required-title-prefix: "[container-image-scan] Container findings for "');
     expect(closeConfig).toContain("required-labels: [cookie, security]");
     expect(closeConfig).toContain("state-reason: duplicate");
     expect(source).toContain("preserve unique unresolved findings and tracking links");
-    expect(source).toContain("update that issue before closing any duplicate");
-    expect(source).toContain("Close only exact-title duplicates");
-    expect(source).toContain("`duplicate_of` set to the canonical issue");
-    expect(source).toContain("canonical tracker, #52657, or operational-failure issues");
+    expect(source).toContain("report the duplicate issue links there and in #52657");
+    expect(source).toContain("Do not automatically close family duplicates");
+    expect(source).toContain("Never close the canonical tracker, #52657, or operational-failure issues");
   });
 
   it("wires the same gates and duplicate constraints into the compiled workflow", () => {
     const compiledGate = lock.match(/name: Enforce vendored vulnerability and license gates\n\s+run: (".+")/);
     expect(compiledGate).not.toBeNull();
     expect(JSON.parse(compiledGate[1]).trim()).toBe(gate.trim());
-    const configLine = lock.match(/^\s+GH_AW_SAFE_OUTPUTS_CONFIG: (".+")$/m);
-    expect(configLine).not.toBeNull();
-    const closeConfig = JSON.parse(JSON.parse(configLine[1])).close_issue;
-    expect(closeConfig.required_title_prefix).toBe("[container-image-scan] ");
-    expect(closeConfig.required_labels).toEqual(["cookie", "security"]);
-    expect(closeConfig.state_reason).toBe("duplicate");
+    expect(compiledCloseConfig.required_title_prefix).toBe("[container-image-scan] Container findings for ");
+    expect(compiledCloseConfig.required_labels).toEqual(["cookie", "security"]);
+    expect(compiledCloseConfig.state_reason).toBe("duplicate");
+    expect(JSON.parse(JSON.parse(safeOutputsConfigLine[1])).close_issue).toEqual(compiledCloseConfig);
+  });
+
+  describe("compiled daily scan close authorization", () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it.each([
+      ["[container-image-scan] Node CVE burn-down", ["cookie", "security"], false],
+      ["[container-image-scan] Firewall CVE burn-down", ["cookie", "security"], false],
+      ["Container CVE burn-down", ["cookie", "security"], false],
+      ["[container-image-scan] Container CVE burn-down", ["cookie", "security"], false],
+      ["[container-image-scan] Container scan operational failure", ["cookie", "security"], false],
+      ["[container-image-scan] Unrelated scan issue", ["cookie", "security"], false],
+      ["[container-image-scan] Container findings for ghcr.io/github/gh-aw-node:old", ["cookie"], false],
+      ["[container-image-scan] Container findings for ghcr.io/github/gh-aw-node:old", ["security"], false],
+      ["[container-image-scan] Container findings for ghcr.io/github/gh-aw-node:old", ["cookie", "security"], true],
+    ])("enforces runtime close eligibility for %s with labels %j", async (title, labels, eligible) => {
+      const issue = {
+        number: 100,
+        title,
+        labels: labels.map(name => ({ name })),
+        state: "open",
+        node_id: "node_100",
+        html_url: "https://github.com/github/gh-aw/issues/100",
+      };
+      const issues = {
+        get: vi.fn(async ({ issue_number }) => ({
+          data: issue_number === 100 ? issue : { ...issue, number: 50, node_id: "node_50" },
+        })),
+        update: vi.fn(async () => ({ data: issue })),
+        createComment: vi.fn(async () => ({ data: { id: 1, html_url: `${issue.html_url}#issuecomment-1` } })),
+      };
+      const graphql = vi.fn(async () => ({}));
+      vi.stubGlobal("core", { info: vi.fn(), warning: vi.fn(), error: vi.fn(), debug: vi.fn() });
+      vi.stubGlobal("github", { rest: { issues }, graphql });
+      vi.stubGlobal("context", { repo: { owner: "github", repo: "gh-aw" }, payload: {} });
+
+      const handler = await createCloseIssueHandler(compiledCloseConfig);
+      const result = await handler({ issue_number: 100, body: "Superseded by the family tracker.", duplicate_of: 50 }, {});
+
+      expect(result.success).toBe(eligible);
+      if (eligible) {
+        expect(issues.update).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ issue_number: 100, state: "closed", state_reason: "duplicate" }));
+        expect(issues.createComment).toHaveBeenCalledOnce();
+        expect(graphql).toHaveBeenCalledExactlyOnceWith(expect.stringContaining("markAsDuplicate"), { duplicateId: "node_100", canonicalId: "node_50" });
+      } else {
+        expect(result.error).toContain(labels.length === 2 ? "doesn't start with" : "Missing required labels");
+        expect(issues.update).not.toHaveBeenCalled();
+        expect(issues.createComment).not.toHaveBeenCalled();
+        expect(graphql).not.toHaveBeenCalled();
+      }
+    });
   });
 
   it.each([
