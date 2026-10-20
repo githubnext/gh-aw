@@ -724,8 +724,8 @@ describe("pi_models_json.cjs", () => {
     // models including claude-haiku-4.5 and gpt-5.6-luna, but not gpt-5.4-mini.
     describe("sub-agent model availability (recorded /reflect from run 39325995892)", () => {
       const piRoutedReflect = () => JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/awf-reflect-pi-routed-39325995892.json"), "utf8"));
-      const runWithSubagents = (subagents, routing = false) => {
-        configure("copilot/gpt-5.6-luna", {});
+      const runWithSubagents = (subagents, routing = false, parentModel = "copilot/gpt-5.6-luna") => {
+        configure(parentModel, {});
         if (routing) process.env.GH_AW_MODEL_ROUTING = "1";
         const agentsDir = path.join(process.env.GH_AW_PI_STAGING_DIR, "agents");
         fs.mkdirSync(agentsDir, { recursive: true });
@@ -767,6 +767,20 @@ describe("pi_models_json.cjs", () => {
         await runWithSubagents([["haiku-whoami", "copilot/claude-haiku-4.5"]]);
         expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(true);
         expect(subagentRecords()).toEqual([exactHaiku("haiku-whoami")]);
+      });
+
+      it("keeps the configured parent model for a sub-agent with no model declaration", async () => {
+        await runWithSubagents([["inherited-whoami"]]);
+        expect(subagentRecords()).toEqual([{ engine: "pi", role: "inherited-whoami", configured_model: "github-copilot/gpt-5.6-luna", resolved_model: "gpt-5.6-luna", provider: "copilot", status: "exact", cause: null }]);
+      });
+
+      it("rejects an unavailable inherited parent model before preparing sub-agents", async () => {
+        const error = await runWithSubagents([["inherited-whoami"]], false, "copilot/gpt-5.4-mini").catch(err => err);
+        expect(error).toMatchObject({ name: "ModelAliasResolutionError", reason: "model_unavailable" });
+        expect(records()).toEqual([failedMini("main")]);
+        expect(subagentRecords()).toEqual([]);
+        expect(fs.existsSync(path.join(tmpDir, "subagents.json"))).toBe(false);
+        expect(fs.existsSync(path.join(tmpDir, "models.json"))).toBe(false);
       });
 
       it.each([

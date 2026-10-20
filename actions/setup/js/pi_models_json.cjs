@@ -537,16 +537,13 @@ async function main(options = {}) {
       if (seen.has(agent.modelId)) continue;
       seen.add(agent.modelId);
       try {
-        validatePiModelAvailability({ provider, modelId: agent.modelId, configuredModel: agent.declaredModel || agent.modelId, reflectData, logger });
+        validatePiModelAvailability({ provider, modelId: agent.modelId, configuredModel: agent.requested, reflectData, logger });
       } catch (error) {
         if (error instanceof ModelAliasResolutionError) {
           // Replace the earlier "exact"/"resolved" record for every role sharing the unavailable model.
-          // configured_model mirrors pi_subagent_config.cjs (declaredModel || parentModel). The parentModel
-          // fallback is unreachable in practice: a role without its own model shares the main model, which
-          // is validated first and skipped via `seen`.
           for (const failed of agents) {
             if (failed.modelId !== agent.modelId) continue;
-            recordModelResolution({ engine: "pi", role: failed.name, configured_model: failed.declaredModel || parentModel, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason });
+            recordModelResolution({ engine: "pi", role: failed.name, configured_model: failed.requested, resolved_model: null, provider: error.provider || null, status: "failed", cause: error.reason });
           }
         }
         throw error;
