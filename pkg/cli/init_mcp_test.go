@@ -110,7 +110,7 @@ func TestInitRepository_WithMCP(t *testing.T) {
 		if !reflect.DeepEqual(server.Args, expectedArgs) {
 			t.Errorf("Expected args to be %v, got %v", expectedArgs, server.Args)
 		}
-		expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue"}
+		expectedTools := []string{"compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue", "health"}
 		if len(server.Tools) != len(expectedTools) {
 			t.Errorf("Expected %d tools, got %d (%v)", len(expectedTools), len(server.Tools), server.Tools)
 		}
