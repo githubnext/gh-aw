@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import { createRequire } from "module";
 import * as fs from "fs";
 import * as path from "path";
@@ -31,6 +31,10 @@ describe("copilot_sdk_driver.cjs", () => {
   });
 
   describe("runWithCopilotSDK", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
     it.each([
       ["gpt-5.4", "claude-sonnet-4.6", "copilot-responses", "copilot-completions"],
       ["claude-sonnet-4.6", "gpt-5.4", "copilot-completions", "copilot-responses"],
@@ -43,9 +47,10 @@ describe("copilot_sdk_driver.cjs", () => {
         path.join(workspace, ".github/agents/researcher.agent.md"),
         `---\nname: researcher\ndescription: >-\n  Research across\n  providers\ntools:\n  - read\n  - grep\nmodel: copilot/${agentModel}\n---\nResearch carefully.\n`
       );
-      fs.writeFileSync(path.join(workflow, ".github/agents/workflow.agent.md"), "---\nname: workflow-agent\nmodel: medium\ntools: read, grep\n---\nWorkflow prompt.");
+      fs.writeFileSync(path.join(workflow, ".github/agents/workflow.agent.md"), "---\nname: workflow-agent\ntools: read, grep\n---\nWorkflow prompt.");
       for (const alias of ["small", "large"]) fs.writeFileSync(path.join(workflow, `.github/agents/${alias}.agent.md`), `---\nmodel: ${alias}\n---\nAlias prompt.`);
-      fs.writeFileSync(path.join(workflow, ".github/agents/unknown.agent.md"), "---\nname: unknown-agent\nmodel: unavailable-model\n---\nKeep this agent.");
+      // The harness resolves aliases before the driver starts; the driver uses those models, not the session model.
+      vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", JSON.stringify({ small: `${agentProvider}/${agentModel}`, large: agentModel }));
       const createSession = vi.fn().mockResolvedValue({
         sessionId: `${sessionProvider}-agent-session`,
         on: () => {},
@@ -90,21 +95,48 @@ describe("copilot_sdk_driver.cjs", () => {
           customAgents: expect.arrayContaining([
             { name: "researcher", displayName: "researcher", description: "Research across providers", tools: ["read", "grep"], prompt: "Research carefully.", model: `${agentProvider}/${agentModel}` },
             { name: "workflow-agent", displayName: "workflow-agent", tools: ["read", "grep"], prompt: "Workflow prompt.", model: `${sessionProvider}/${sessionModel}` },
-            { name: "unknown-agent", displayName: "unknown-agent", prompt: "Keep this agent.", model: `${sessionProvider}/${sessionModel}` },
-            { name: "small", displayName: "small", prompt: "Alias prompt.", model: `${sessionProvider}/${sessionModel}` },
-            { name: "large", displayName: "large", prompt: "Alias prompt.", model: `${sessionProvider}/${sessionModel}` },
+            { name: "small", displayName: "small", prompt: "Alias prompt.", model: `${agentProvider}/${agentModel}` },
+            { name: "large", displayName: "large", prompt: "Alias prompt.", model: `${agentProvider}/${agentModel}` },
           ]),
         })
       );
-      expect(logger).toHaveBeenCalledWith(expect.stringMatching(/warning:.*unknown-agent.*unavailable-model.*session model/i));
+    });
+
+    it.each(["medium", "GPT-5.4 (copilot)"])("gives a repository agent whose model %s the harness could not resolve the session model with a warning", async agentModel => {
+      const workflow = path.join(testSessionStateDir, `unresolved-${agentModel.replace(/\W+/g, "-")}-workflow`);
+      fs.mkdirSync(path.join(workflow, ".github/agents"), { recursive: true });
+      fs.writeFileSync(path.join(workflow, ".github/agents/unknown.agent.md"), `---\nname: unknown-agent\nmodel: ${agentModel}\n---\nUnknown model.`);
+      // The harness recorded the failure and left the repository agent out of the resolved map.
+      vi.stubEnv("GH_AW_COPILOT_SDK_SUBAGENT_MODELS", "{}");
+      const sessionId = `unresolved-${agentModel.replace(/\W+/g, "-")}-session`;
+      const createSession = vi.fn().mockResolvedValue({ sessionId, on: () => {}, sendAndWait: vi.fn().mockResolvedValue({ data: { content: "done" } }), disconnect: vi.fn().mockResolvedValue(undefined) });
+      class FakeCopilotClient {
+        start = vi.fn().mockResolvedValue(undefined);
+        createSession = createSession;
+        stop = vi.fn().mockResolvedValue(undefined);
+      }
+      const logger = vi.fn();
+      const result = await runWithCopilotSDK({
+        sdkUri: "http://127.0.0.1:3002",
+        prompt: "test prompt",
+        model: "copilot/gpt-5.4",
+        models: [{ id: "gpt-5.4", provider: "copilot-responses" }],
+        providers: [{ name: "copilot-responses", type: "openai", baseUrl: "http://api-proxy:10002", wireApi: "responses" }],
+        workingDirectory: workflow,
+        agentsBaseDir: workflow,
+        bare: true,
+        logger,
+        sdkModule: { CopilotClient: FakeCopilotClient, RuntimeConnection: { forUri: vi.fn(() => ({})) }, approveAll: () => "allow" },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(createSession.mock.calls[0][0].customAgents).toEqual([{ name: "unknown-agent", displayName: "unknown-agent", prompt: "Unknown model.", model: "copilot-responses/gpt-5.4" }]);
+      expect(logger).toHaveBeenCalledWith(expect.stringMatching(/warning:.*unknown-agent.*session model/i));
       const captured = fs
-        .readFileSync(path.join(testSessionStateDir, `${sessionProvider}-agent-session/events.jsonl`), "utf8")
+        .readFileSync(path.join(testSessionStateDir, `${sessionId}/events.jsonl`), "utf8")
         .trim()
         .split("\n")
         .map(JSON.parse);
-      expect(captured.filter(event => event.type === "subagent.model_unavailable")).toEqual([
-        expect.objectContaining({ data: { agentName: "unknown-agent", declaredModel: "unavailable-model", model: `${sessionProvider}/${sessionModel}` } }),
-      ]);
+      expect(captured.filter(event => event.type === "subagent.model_unavailable")).toEqual([expect.objectContaining({ data: { agentName: "unknown-agent", declaredModel: agentModel, model: "copilot-responses/gpt-5.4" } })]);
     });
 
     it("captures ephemeral selection and final model results including BYOK and subagent context", async () => {
