@@ -344,6 +344,8 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					switch name {
 					case "activation", "conclusion":
 						allowedPermissions = map[string]string{"actions": "read", "contents": "write", "issues": "write"}
+					case "admission":
+						allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 					case "safe_outputs":
 						allowedPermissions = map[string]string{"actions": "write", "contents": "write"}
 					}
@@ -353,7 +355,10 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					}
 				}
 				if name == "activation" {
-					allowedPermissions["id-token"] = "write"
+					assert.NotContains(t, config.Permissions, "id-token")
+				}
+				if name == "admission" {
+					allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
 				}
 				for permission, level := range config.Permissions {
 					expectedLevel, allowed := allowedPermissions[permission]

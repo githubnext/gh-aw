@@ -86,6 +86,7 @@ func TestGooseReleaseDownloadNetwork(t *testing.T) {
 			config := compiled[configStart+len(printf) : configEnd]
 			config = strings.ReplaceAll(config, `\"`, `"`)
 			config = strings.ReplaceAll(config, `\$`, `$`)
+			config = strings.TrimSuffix(strings.TrimSpace(config), `"`)
 			config = strings.ReplaceAll(config, "${GH_AW_MAX_AI_CREDITS}", "5")
 			var awf struct {
 				Network struct {
