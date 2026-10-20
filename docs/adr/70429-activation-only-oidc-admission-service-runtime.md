@@ -1,4 +1,4 @@
-# ADR-70429: Activation-Only OIDC Admission Service Runtime
+# ADR-70429: OIDC Activation Admission and Runtime Credit Allowances
 
 **Date**: 2026-10-20
 **Status**: Draft
@@ -8,17 +8,19 @@
 
 ### Context
 
-The admission service specification (`docs/src/content/docs/specs/admission-service-specification.md`, introduced in #70286) defines a contract for a centralized authority that participating workflows can consult before agent execution. Until now, the only pre-execution spending control in the activation job was the per-workflow daily AI-credit (AIC) guardrail, which runs locally and requires its own preparatory steps (App token mint, scan-observation restore, repo-memory ledger clone). Organizations want one authority to approve or deny runs across many repositories without changing each workflow's source, without forwarding repository credentials to a third party, and without altering downstream agent, detection, or eval jobs. The runtime must also tolerate an unreachable authority without hanging activation, and it has to fit into 344 compiled lock files and reusable `workflow_call` callers whose permission envelopes are computed statically by the compiler.
+The admission service specification (`docs/src/content/docs/specs/admission-service-specification.md`, introduced in #70286) defines a centralized authority consulted before agent execution. The existing daily AI-credit (AIC) guardrail requires preparatory token minting, observation restoration and ledger access. Organizations need centralized admission and runtime credit allowances without per-workflow source changes or forwarding repository API credentials. The runtime must tolerate authority outages, reuse existing agent/detection/evals jobs and proxy enforcement, and fit into 344 compiled workflows and statically computed reusable caller permission envelopes.
 
 ### Decision
 
 We will add a single compiler-emitted `Check workflow admission` step (`pkg/workflow/compiler_admission.go`) to the **activation job only**. It is enabled by managed Actions variables (`GH_AW_DEFAULT_ADMISSION_URL`, audience, and outage policy, settable through `gh aw env` defaults) and gated with an `if:` on the endpoint variable, so no OIDC token is requested when admission is unconfigured. The client (`actions/setup/js/check_admission.cjs` and `admission_protocol.cjs`) authenticates **only** with a GitHub Actions OIDC token, rejects redirects, strictly validates identity and JSON, makes at most three attempts within one 60-second deadline (implemented by extending the shared `withRetry` in `error_recovery.cjs` with per-attempt timeouts, an absolute deadline, and abortable sleeps), and sends a caller-owned W3C `traceparent` plus a `workflow_hash` built from the compiled frontmatter/body hashes as an untrusted cache hint. A validated approval (`steps.admission.outputs.result == 'admitted'`) **replaces** the daily-AIC check and its preparatory steps; denial or malformed approval blocks activation; disabled admission or an outage under the "ignore" policy falls back to the existing daily-AIC validation. To support this, the activation job always receives job-scoped `id-token: write`, and reusable caller permission envelopes are widened accordingly.
 
+Validated admission results and allowances propagate through activation outputs to the existing AWF budget path. A supplied allowance replaces that component's local limit, including an unlimited setting; missing optional detection/evals allowances preserve independent component policy. Skipped or ignored admission retains existing budgets. Missing required or invalid runtime allowances fail closed. Credentials and request identity stay in activation; budget handoff variables are unset before the agent container starts. Lifecycle logs and collapsed step summaries report outcomes, allowance presence and sources, not credentials, identities, amounts or service diagnostics.
+
 ### Alternatives Considered
 
 #### Alternative 1: Run admission in the agent job (or in every downstream job)
 
-Admission could be checked immediately before the agent runs, or re-checked in detection/eval jobs, giving the authority a later and more precise view. It was rejected because it would change downstream job structure, permissions, and dependencies across all 344 lock files, and because returned threat-detection/eval allowances are intended as activation-only metadata rather than as runtime reconfiguration of inference limits. Keeping the decision in activation leaves all generated agent jobs unchanged.
+Admission could be re-checked immediately before each component runs. This was rejected because it would distribute OIDC credentials and change downstream permissions and eligibility. Keeping authentication and the decision in activation allows existing runtime budget inputs to consume validated component allowances without new service calls or job dependencies.
 
 #### Alternative 2: Authenticate with a GitHub App token or forwarded repository credentials
 
@@ -38,13 +40,13 @@ Both checks could always run, with either able to block. This was rejected becau
 - Organizations can enforce centralized, cross-repository admission policy by setting Actions variables, with no per-workflow source changes and no recompilation to opt in.
 - No reusable credential leaves the runner: the authority receives only an audience-scoped OIDC token, and redirects are refused.
 - Admitted runs skip the daily-AIC guardrail and its preparatory steps (App token mint, observation restore and publish, ledger clone), which shortens activation.
-- Downstream agent, detection, and eval jobs and their dependencies are unchanged, which limits the blast radius of the change.
+- Existing agent, detection and evals jobs and dependencies are reused; only budget inputs and selection change.
 - The bounded retry/deadline support added to the shared `withRetry` helper can be reused by other callers.
 
 #### Negative
 - Every activation job now carries `id-token: write`, even when admission is disabled. The step `if:` is not a permission sandbox, so this widens the activation job's capability surface.
 - Reusable `workflow_call` callers must grant `id-token: write`. Existing caller envelopes (and the hand-authored Windows probe caller) had to change, and third-party callers that do not grant it will fail.
-- Admission is cooperative, not a hard spending cap. Its effectiveness depends on a separately deployed authority and policy/accounting backend that this repository does not provide, and returned allowances do not reconfigure inference limits.
+- Admission remains cooperative, not an unbypassable organization spending cap. Supplied allowances configure existing runtime proxy limits, but deployments still need a separately deployed authority and protected backend policy/accounting.
 - When the authority is unavailable, activation can wait up to the 60-second deadline before the outage policy applies.
 - The shared `withRetry` helper is more complex (timeouts, absolute deadlines, abortable sleeps, injectable clocks), which affects every caller.
 
