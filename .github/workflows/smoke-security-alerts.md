@@ -6,8 +6,9 @@ intent: Give maintainers confidence that security alert notifications reach the 
 on:
   gateway-dispatch:
     repos: [github/gh-aw]
-    security-alerts:
-      sources: [code-scanning, dependabot]
+    code-scanning-alert:
+      types: [created]
+    dependabot-alerts:
       types: [created]
 permissions:
   contents: read

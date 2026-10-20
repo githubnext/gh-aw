@@ -744,7 +744,7 @@
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
           "not": {
-            "enum": ["gateway-dispatch", "orgs", "projects-items", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue", "slash-command", "label-command"]
+            "enum": ["gateway-dispatch", "orgs", "projects-items", "code-scanning-alert", "dependabot-alerts", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue", "slash-command", "label-command"]
           },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
@@ -787,6 +787,8 @@
             "repos": false,
             "orgs": false,
             "projects-items": false,
+            "code-scanning-alert": false,
+            "dependabot-alerts": false,
             "security-alerts": false,
             "slash-command": false,
             "label-command": false,
@@ -796,10 +798,11 @@
             "gateway-dispatch": {
               "type": "object",
               "additionalProperties": false,
-              "description": "Experimental exclusive trigger. Every nested key and value must be literal; GitHub Actions expressions are not supported anywhere in this section. No other triggers may coexist with gateway-dispatch; non-trigger on settings such as roles and bots remain supported. Contains nested bundled gateway subscriptions with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json gateway-dispatch: true and does not grant gateway authority.",
+              "description": "Experimental exclusive trigger. Every nested key and value must be literal; GitHub Actions expressions are not supported anywhere in this section. No other triggers may coexist with gateway-dispatch; non-trigger on settings such as roles and bots remain supported. Contains independent nested gateway subscriptions with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json gateway-dispatch: true and does not grant gateway authority.",
               "anyOf": [
                 { "required": ["projects-items"] },
-                { "required": ["security-alerts"] },
+                { "required": ["code-scanning-alert"] },
+                { "required": ["dependabot-alerts"] },
                 { "required": ["jira-issue"] },
                 { "required": ["linear-issue"] },
                 { "required": ["azure-devops-issue"] },
@@ -881,9 +884,13 @@
                   },
                   "description": "Experimental. Batched Projects v2 item events under on.gateway-dispatch requiring a hosted CAO server and aw.json gateway-dispatch: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
                 },
-                "security-alerts": {
+                "code-scanning-alert": {
                   "$ref": "#/$defs/webhookSecurityAlert",
-                  "description": "Experimental. Batched security alerts under on.gateway-dispatch from optionally selected repositories. Requires a hosted CAO server and aw.json gateway-dispatch: true."
+                  "description": "Experimental. Code scanning alert events from optionally selected repositories. Independent types, severity, and filters apply only to code_scanning_alert. Requires a hosted CAO server and aw.json gateway-dispatch: true."
+                },
+                "dependabot-alerts": {
+                  "$ref": "#/$defs/webhookSecurityAlert",
+                  "description": "Experimental. Dependabot alert events from optionally selected repositories. Independent types, severity, and filters apply only to dependabot_alert. Requires a hosted CAO server and aw.json gateway-dispatch: true."
                 },
                 "jira-issue": {
                   "$ref": "#/$defs/webhookJiraIssue",
@@ -14767,18 +14774,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "sources": {
-          "oneOf": [
-            { "type": "string", "enum": ["code-scanning", "dependabot"] },
-            {
-              "type": "array",
-              "minItems": 1,
-              "uniqueItems": true,
-              "items": { "type": "string", "enum": ["code-scanning", "dependabot"] }
-            }
-          ],
-          "description": "Experimental. Security alert sources; omission selects both code-scanning and dependabot. Secret scanning and related scan/location events are unsupported."
-        },
         "severity": {
           "$ref": "#/$defs/webhookStringValues",
           "description": "Experimental. Source-specific severity string or nonempty list of severities; sibling of types."
@@ -14795,7 +14790,7 @@
           "properties": { "severity": false, "repos": false }
         }
       },
-      "description": "Experimental. Batched on.gateway-dispatch.security-alerts subscriptions requiring a hosted CAO server and aw.json gateway-dispatch: true. Shared on.gateway-dispatch.repos selects source repositories. Each dispatch contains one selected source's events, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay."
+      "description": "Experimental. Configuration for a single code-scanning-alert or dependabot-alerts subscription requiring a hosted CAO server and aw.json gateway-dispatch: true. Shared on.gateway-dispatch.repos selects source repositories. Each trigger emits only its own event family, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay. No sources selector or bundled security event is supported."
     },
     "webhookGitHubNotification": {
       "description": "Experimental. GitHub notification subscription filtered by the approved gateway before minimal canonical URL/type/matching-filter projection. A null trigger or omitted types selects every catalog action; no original bodies or native Actions listeners.",

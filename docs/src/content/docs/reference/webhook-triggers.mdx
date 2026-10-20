@@ -59,27 +59,29 @@ The generated `gateway_provenance` job verifies the actual GitHub-owned dispatch
 
 ### Experimental first-class triggers
 
-`projects-items` and `security-alerts` appear inside `on.gateway-dispatch`. Non-trigger settings such as `roles` and `bots` remain siblings of that mapping under `on`, not children of it. **Gateway dispatch is exclusive:** no other trigger can coexist with it. The nested triggers use the activity `types` and `filters` of their corresponding catalog event:
+`projects-items`, `code-scanning-alert`, and `dependabot-alerts` appear inside `on.gateway-dispatch`. Non-trigger settings such as `roles` and `bots` remain siblings of that mapping under `on`, not children of it. **Gateway dispatch is exclusive:** no other trigger can coexist with it. The nested triggers use the activity `types` and `filters` of their corresponding catalog event:
 
 | Frontmatter trigger | Original webhook event |
 | --- | --- |
 | `on.gateway-dispatch.projects-items` | `projects_v2_item` |
-| `on.gateway-dispatch.security-alerts` with `sources: [code-scanning]` | `code_scanning_alert` |
-| `on.gateway-dispatch.security-alerts` with `sources: [dependabot]` | `dependabot_alert` |
+| `on.gateway-dispatch.code-scanning-alert` | `code_scanning_alert` |
+| `on.gateway-dispatch.dependabot-alerts` | `dependabot_alert` |
 
 `projects-items` supports **Projects v2 only**, not Projects (classic). Its required `project_id`, a sibling of `types`, is the project's GraphQL node ID carried by `projects_v2_item.project_node_id`, not a project URL or project number. It accepts a nonempty string or nonempty list of node IDs. `filters.project_id` is not supported. The `field` filters describe the changed field, not the item's complete current field values.
 
-The minimal Projects declaration is `on: {gateway-dispatch: {projects-items: {project_id: PVT_kwDOExample}}}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax; string and array shorthands and singular GitHub trigger names are rejected. The compiler removes `gateway-dispatch` from generated Actions triggers and emits a restricted repository dispatch route. The required dispatch trust boundary is the approved CAO App identity, not generic `on.roles` or `on.bots` authorization.
+The minimal Projects declaration is `on: {gateway-dispatch: {projects-items: {project_id: PVT_kwDOExample}}}`. Omitting `types` selects all cataloged activity types for that project, unless `status-transitions` is present. These triggers require mapping syntax; string and array shorthands and top-level gateway trigger keys are rejected. The compiler removes `gateway-dispatch` from generated Actions triggers and emits a restricted repository dispatch route. The required dispatch trust boundary is the approved CAO App identity, not generic `on.roles` or `on.bots` authorization.
 
-`on.gateway-dispatch.security-alerts.sources` accepts one source name or a nonempty list selecting `code-scanning` and/or `dependabot`. Omitting `sources` selects both. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included. `security-alerts.type` is not supported. Optional `types` selects activities within each source; omission selects all cataloged activities for each selected event.
+`on.gateway-dispatch.code-scanning-alert` and `on.gateway-dispatch.dependabot-alerts` are independent triggers. Each emits only its own event family and accepts its own `types`, `severity`, and `filters`; declare both to receive both families. An empty object selects all cataloged activities for that trigger only. The bundled `security-alerts` trigger and `sources` selector are unsupported. Secret scanning alerts are not supported because they require administrator access. No secret scanning scans, alert locations, security advisories, or legacy vulnerability alerts are included.
 
 ```aw wrap
 ---
 on:
   bots: [cao-gateway]
   gateway-dispatch:
-    security-alerts:
-      sources: [dependabot]
+    code-scanning-alert:
+      types: [appeared_in_branch, created]
+      severity: error
+    dependabot-alerts:
       types: [created, reopened]
       severity: [high, critical]
 ---
@@ -89,7 +91,7 @@ Triage the security alert. Never print or copy secret values into logs or report
 
 Webhook payloads can contain sensitive values; do not log the entire payload or include secrets in agent outputs.
 
-`severity` is a sibling of `types`, not a field inside `filters`. It uses each source's cataloged severity values: code scanning uses `none`, `note`, `warning`, or `error`; Dependabot uses `low`, `medium`, `high`, or `critical`. Every selected source must support the supplied activities and filters; use separate workflows when source-specific selectors are incompatible.
+`severity` is a sibling of `types`, not a field inside `filters`. It uses each event's cataloged severity values: code scanning uses `none`, `note`, `warning`, or `error`; Dependabot uses `low`, `medium`, `high`, or `critical`. Activities, severities, and filters are validated independently for each trigger, so source-specific selectors can coexist in one workflow without affecting the other family.
 
 ### Source repositories
 
@@ -103,13 +105,14 @@ on:
     repos:
       - bar/baz
       - foo/*
-    security-alerts: {}
+    code-scanning-alert: {}
+    dependabot-alerts: {}
 ---
 
 Triage every unique alert in github.aw.context.items.
 ```
 
-`on.gateway-dispatch.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` selectors shared by security-alert and gateway-command subscriptions. Matching is case-insensitive; the compiler lowercases, sorts, and deduplicates the selectors. Any selector may match (**OR**), in addition to the selected source, activity, and payload conditions (**AND**). Wildcard owners, partial-name patterns, URLs, expressions, and exclusions are rejected. `repos` is a sibling of the nested triggers, not a payload filter or a property inside `security-alerts`. Projects and external-provider triggers ignore the shared selectors and retain their own required source scopes; supplying `repos` with only those triggers is allowed.
+`on.gateway-dispatch.repos` is an optional nonempty list of literal `owner/repo` or `owner/*` selectors shared by GitHub notifications, code scanning alerts, Dependabot alerts, and gateway-command subscriptions. Matching is case-insensitive; the compiler lowercases, sorts, and deduplicates the selectors. Any selector may match (**OR**), in addition to the selected event, activity, and payload conditions (**AND**). Wildcard owners, partial-name patterns, URLs, expressions, and exclusions are rejected. `repos` is a sibling of the nested triggers, not a payload filter or a property inside an individual trigger. Projects and external-provider triggers ignore the shared selectors and retain their own required source scopes; supplying `repos` with only those triggers is allowed.
 
 Selectors describe source selection, not access grants. The CAO bridge must resolve them only over fresh, reviewed private-repository enrollments and authorize each source separately. Omitted `repos` adds no selector and preserves the existing approved scope; the CAO bridge defaults to same-repository activation. Neither omission nor `owner/*` authorizes unreviewed repositories. The dispatch destination remains the repository declaring the workflow.
 
@@ -141,17 +144,18 @@ Omitting `types` with transitions selects `edited`; explicit `types` must includ
 
 ### Subscription properties
 
-Resource triggers, GitHub notifications, and gateway commands can coexist inside one `on.gateway-dispatch` mapping. Projects produces one versioned subscription; security alerts produce one per selected source, not one per repository selector. Commands use synthetic `slash_command`/`label_command` families and declare their underlying `native_events`; external issues use normalized provider families. Frontmatter does not register or authorize webhook sources. Custom webhooks are unsupported.
+Resource triggers, GitHub notifications, and gateway commands can coexist inside one `on.gateway-dispatch` mapping. Projects, code scanning, and Dependabot each produce one versioned subscription per declared trigger, not one per repository selector. Commands use synthetic `slash_command`/`label_command` families and declare their underlying `native_events`; external issues use normalized provider families. Frontmatter does not register or authorize webhook sources. Custom webhooks are unsupported.
 
 | Property | Required | Description |
 | --- | --- | --- |
 | `on.gateway-dispatch` | Yes | Exclusive experimental object containing at least one supported gateway trigger; also requires the repository opt-in. Cannot coexist with any other trigger. |
 | `on.gateway-dispatch.projects-items.project_id` | Yes, for `projects-items` | Nonempty project GraphQL node ID or nonempty list of IDs. Sibling of `types`. |
 | `on.gateway-dispatch.projects-items.status-transitions` | No | Nonempty list of paired `{from: ..., to: ...}` Status names. Any complete pair may match. |
-| `on.gateway-dispatch.security-alerts.sources` | No | Source name or nonempty list selecting `code-scanning` and/or `dependabot`. Omission selects both; secret scanning and other security webhooks are unsupported. |
+| `on.gateway-dispatch.code-scanning-alert` | No | Object selecting only code scanning alerts, with independent `types`, `severity`, and `filters`. |
+| `on.gateway-dispatch.dependabot-alerts` | No | Object selecting only Dependabot alerts, with independent `types`, `severity`, and `filters`. |
 | `on.gateway-dispatch.repos` | No | Shared nonempty list of literal `owner/repo` or `owner/*` source selectors for repository-aware subscriptions. Omission preserves CAO's existing approved source scope. |
 | `on.gateway-dispatch.orgs` | No | Shared nonempty list of GitHub organization names or `*` patterns for GitHub notifications, Projects, security, and commands. Case-insensitive; intersects `repos` and reviewed enrollment. |
-| `on.gateway-dispatch.security-alerts.severity` | No | Source-specific severity string or nonempty list of severities. Sibling of `types`. |
+| `severity` | No | Event-specific severity string or nonempty list under `code-scanning-alert` or `dependabot-alerts`. Sibling of `types`. |
 | `on.gateway-dispatch.slash-command` | No | Native `on.slash_command` configuration, matched by the server. |
 | `on.gateway-dispatch.label-command` | No | Native `on.label_command` configuration, including server-side `remove_label`. |
 | `types` | No | Nonempty list of supported activity types under a resource trigger, matched against the original action. Omission selects all cataloged types, or `edited` when `status-transitions` is present. |

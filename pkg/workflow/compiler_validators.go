@@ -549,9 +549,8 @@ func (c *Compiler) emitExperimentalFeatureWarningsTo(workflowData *WorkflowData,
 		{enabled: workflowData.RateLimit != nil, message: "Using experimental feature: rate limiting"},
 		{enabled: len(workflowData.WebhookSubscriptions) > 0, message: "Using experimental feature: on.gateway-dispatch (approved webhook bridge required)"},
 		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "projects_v2_item" }), message: "Using experimental feature: on.gateway-dispatch.projects-items (hosted CAO triggers)"},
-		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool {
-			return subscription.Event == "code_scanning_alert" || subscription.Event == "dependabot_alert"
-		}), message: "Using experimental feature: on.gateway-dispatch.security-alerts (hosted CAO triggers)"},
+		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "code_scanning_alert" }), message: "Using experimental feature: on.gateway-dispatch.code-scanning-alert (hosted CAO triggers)"},
+		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "dependabot_alert" }), message: "Using experimental feature: on.gateway-dispatch.dependabot-alerts (hosted CAO triggers)"},
 		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "jira_issue" }), message: "Using experimental feature: on.gateway-dispatch.jira-issue (approved webhook bridge required)"},
 		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "linear_issue" }), message: "Using experimental feature: on.gateway-dispatch.linear-issue (approved webhook bridge required)"},
 		{enabled: slices.ContainsFunc(workflowData.WebhookSubscriptions, func(subscription WebhookSubscription) bool { return subscription.Event == "azure_devops_issue" }), message: "Using experimental feature: on.gateway-dispatch.azure-devops-issue (approved webhook bridge required)"},

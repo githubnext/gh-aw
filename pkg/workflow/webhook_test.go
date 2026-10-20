@@ -15,11 +15,9 @@ func webhookTestOn(event string, config map[string]any) map[string]any {
 		maps.Copy(project, config)
 		return map[string]any{"gateway-dispatch": map[string]any{"projects-items": project}}
 	}
-	for kind, name := range securityAlertEvents {
+	for alias, name := range securityAlertTriggers {
 		if event == name {
-			security := map[string]any{"sources": []any{kind}}
-			maps.Copy(security, config)
-			return map[string]any{"gateway-dispatch": map[string]any{"security-alerts": security}}
+			return map[string]any{"gateway-dispatch": map[string]any{alias: maps.Clone(config)}}
 		}
 	}
 	panic("unsupported test webhook event: " + event)
@@ -67,7 +65,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 		"types":      []any{"edited", "created", "edited"},
 		"project_id": []any{"PVT_b", "PVT_a", "PVT_a"},
 	})
-	on["gateway-dispatch"].(map[string]any)["security-alerts"] = map[string]any{"sources": "dependabot"}
+	on["gateway-dispatch"].(map[string]any)["dependabot-alerts"] = map[string]any{}
 	first, err := ParseWebhookSubscriptions(on, "project-agent")
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +105,7 @@ func TestWebhookContractDeterministicAndComplete(t *testing.T) {
 func TestSecurityAlertPayloadProjection(t *testing.T) {
 	for _, event := range []string{"code_scanning_alert", "dependabot_alert"} {
 		t.Run(event, func(t *testing.T) {
-			subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": eventSourceForTest(event)}}}, "security-agent")
+			subscriptions, err := ParseWebhookSubscriptions(webhookTestOn(event, map[string]any{}), "security-agent")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -120,15 +118,6 @@ func TestSecurityAlertPayloadProjection(t *testing.T) {
 			}
 		})
 	}
-}
-
-func eventSourceForTest(event string) string {
-	for source, name := range securityAlertEvents {
-		if name == event {
-			return source
-		}
-	}
-	return ""
 }
 
 func TestWebhookCatalogIntegrity(t *testing.T) {

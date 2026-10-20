@@ -245,6 +245,17 @@ func assertGatewayManifestWireContract(t *testing.T, name string, lock, output [
 		require.NotNil(t, conditions, "conditions must serialize as an array, including when empty")
 		assertGatewayManifestDispatch(t, name, subscription["dispatch"])
 		assertGatewayManifestSourceMetadata(t, event, subscription)
+		if name == "test-gateway-resource-events" {
+			switch event {
+			case "code_scanning_alert":
+				assert.JSONEq(t, `["appeared_in_branch"]`, string(subscription["types"]))
+				assert.JSONEq(t, `[{"filter":"severity","path":["alert","rule","severity"],"operator":"equals","value_type":"string","values":["error"]}]`, string(subscription["conditions"]))
+			case "dependabot_alert":
+				assert.JSONEq(t, `["dismissed"]`, string(subscription["types"]))
+				assert.JSONEq(t, `[{"filter":"severity","path":["alert","security_advisory","severity"],"operator":"equals","value_type":"string","values":["critical"]}]`, string(subscription["conditions"]))
+			}
+		}
+		assert.NotContains(t, subscription, "sources")
 		if name == "test-gateway-github-notifications" {
 			assert.JSONEq(t, `["github/*"]`, string(subscription["repos"]))
 			assert.JSONEq(t, `["github"]`, string(subscription["orgs"]))

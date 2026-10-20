@@ -40,8 +40,8 @@ func TestGatewayDispatchRejectsExpressions(t *testing.T) {
 		{"project", `{projects-items: {project_id: "${{ vars.PROJECT }}"}}`, ".projects-items.project_id"},
 		{"project list", `{projects-items: {project_id: [PVT_example, "${{ vars.PROJECT }}"]}}`, ".projects-items.project_id[1]"},
 		{"activities", `{issue: {types: [opened, "${{ vars.ACTIVITY }}"]}}`, ".issue.types[1]"},
-		{"sources", `{security-alerts: {sources: ["${{ vars.SOURCE }}"]}}`, ".security-alerts.sources[0]"},
-		{"severity", `{security-alerts: {severity: "${{ vars.SEVERITY }}"}}`, ".security-alerts.severity"},
+		{"code severity", `{code-scanning-alert: {severity: "${{ vars.SEVERITY }}"}}`, ".code-scanning-alert.severity"},
+		{"dependabot severity", `{dependabot-alerts: {severity: "${{ vars.SEVERITY }}"}}`, ".dependabot-alerts.severity"},
 		{"filter list", `{issue: {filters: {labels: [triage, "${{ vars.LABEL }}"]}}}`, ".issue.filters.labels[1]"},
 		{"nested filter", `{projects-items: {project_id: PVT_example, filters: {field: {to: {name: "${{ vars.STATUS }}"}}}}}`, ".projects-items.filters.field.to.name"},
 		{"transitions", `{projects-items: {project_id: PVT_example, status-transitions: [{from: Todo, to: "${{ vars.STATUS }}"}]}}`, ".projects-items.status-transitions[0].to"},
@@ -110,8 +110,9 @@ func TestWebhookRequiresTriggerOptIn(t *testing.T) {
 	} {
 		for trigger, on := range map[string]string{
 			"project":    "on:\n  gateway-dispatch:\n    projects-items: {project_id: PVT_example}\n",
-			"security":   "on:\n  gateway-dispatch:\n    security-alerts: {sources: [dependabot]}\n",
-			"multi-repo": "on:\n  gateway-dispatch:\n    repos: [bar/baz, \"foo/*\"]\n    security-alerts: {}\n",
+			"code":       "on:\n  gateway-dispatch:\n    code-scanning-alert: {}\n",
+			"security":   "on:\n  gateway-dispatch:\n    dependabot-alerts: {}\n",
+			"multi-repo": "on:\n  gateway-dispatch:\n    repos: [bar/baz, \"foo/*\"]\n    dependabot-alerts: {}\n",
 		} {
 			t.Run(name+"/"+trigger, func(t *testing.T) {
 				compiler := NewCompiler()
@@ -151,9 +152,9 @@ func TestWebhookOptInCannotBeBypassedByPreparsedData(t *testing.T) {
 func TestWebhookMinimumRoles(t *testing.T) {
 	for name, trigger := range map[string]string{
 		"projects":   "projects-items: {project_id: PVT_example}",
-		"code":       "security-alerts: {sources: [code-scanning]}",
-		"dependabot": "security-alerts: {sources: [dependabot]}",
-		"multi-repo": "security-alerts: {}",
+		"code":       "code-scanning-alert: {}",
+		"dependabot": "dependabot-alerts: {}",
+		"multi-repo": "dependabot-alerts: {}",
 	} {
 		for _, tt := range []struct {
 			roles string
@@ -287,7 +288,7 @@ func TestWebhookRepoConfigValidation(t *testing.T) {
 			require.Error(t, err)
 			compiler := NewCompiler()
 			compiler.gitRoot = root
-			_, err = compiler.ParseWorkflowString(webhookWorkflow("on:\n  gateway-dispatch:\n    security-alerts: {sources: [dependabot]}\n"), "invalid-cao.md")
+			_, err = compiler.ParseWorkflowString(webhookWorkflow("on:\n  gateway-dispatch:\n    dependabot-alerts: {}\n"), "invalid-cao.md")
 			require.ErrorContains(t, err, "cannot enable hosted CAO triggers")
 		})
 	}
@@ -321,9 +322,6 @@ func TestWebhookExperimentalNotices(t *testing.T) {
 			var output bytes.Buffer
 			compiler.emitExperimentalFeatureWarningsTo(data, &output)
 			expected := len(events)
-			if name == "security" {
-				expected = 1
-			}
 			if len(events) > 0 {
 				expected++
 			}

@@ -50,6 +50,8 @@ func TestCompileWebhookTriggers(t *testing.T) {
 	assert.NotContains(t, on, "repos")
 	assert.NotContains(t, on, "projects-items")
 	assert.NotContains(t, on, "security-alerts")
+	assert.NotContains(t, on, "code-scanning-alert")
+	assert.NotContains(t, on, "dependabot-alerts")
 	assert.NotContains(t, on, "workflow_dispatch")
 	assert.NotContains(t, on, "gateway-dispatch")
 	assert.NotContains(t, on, "push")
@@ -117,8 +119,7 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
     projects-items:
       project_id: PVT_example
       types: [edited]
-    security-alerts:
-      sources: [dependabot]
+    dependabot-alerts: {}
 `), &frontmatter))
 	original, err := json.Marshal(frontmatter)
 	require.NoError(t, err)
@@ -135,6 +136,8 @@ func TestWebhookTriggerLoweringPreservesSource(t *testing.T) {
 	assert.NotContains(t, lowered["on"], "gateway-dispatch")
 	assert.NotContains(t, lowered["on"], "projects-items")
 	assert.NotContains(t, lowered["on"], "security-alerts")
+	assert.NotContains(t, lowered["on"], "code-scanning-alert")
+	assert.NotContains(t, lowered["on"], "dependabot-alerts")
 	assert.NotContains(t, lowered["on"], "projects-item")
 	assert.NotContains(t, lowered["on"], "security-alert")
 	require.Len(t, data.WebhookSubscriptions, 2)
@@ -158,9 +161,9 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 	}{
 		"projects-items":     {"  gateway-dispatch:\n    projects-items:\n      project_id: PVT_example\n", "projects_v2_item"},
 		"status-transitions": {"  gateway-dispatch:\n    projects-items:\n      project_id: PVT_example\n      status-transitions: [{from: Todo, to: Ready}]\n", "projects_v2_item"},
-		"code-scanning":      {"  gateway-dispatch:\n    security-alerts:\n      sources: [code-scanning]\n", "code_scanning_alert"},
-		"dependabot":         {"  gateway-dispatch:\n    security-alerts:\n      sources: [dependabot]\n", "dependabot_alert"},
-		"multi-repo":         {"  gateway-dispatch:\n    repos: [bar/baz, \"foo/*\"]\n    security-alerts:\n      sources: [dependabot]\n", "dependabot_alert"},
+		"code-scanning":      {"  gateway-dispatch:\n    code-scanning-alert: {}\n", "code_scanning_alert"},
+		"dependabot":         {"  gateway-dispatch:\n    dependabot-alerts: {}\n", "dependabot_alert"},
+		"multi-repo":         {"  gateway-dispatch:\n    repos: [bar/baz, \"foo/*\"]\n    dependabot-alerts: {}\n", "dependabot_alert"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			compiler := newWebhookCompiler()
@@ -175,6 +178,8 @@ func TestCompileFirstClassWebhookTriggers(t *testing.T) {
 			assert.NotContains(t, on, "projects-item")
 			assert.NotContains(t, on, "security-alert")
 			assert.NotContains(t, on, "security-alerts")
+			assert.NotContains(t, on, "code-scanning-alert")
+			assert.NotContains(t, on, "dependabot-alerts")
 			assert.NotContains(t, on, "webhook-auth")
 			assert.NotContains(t, on, "workflow_dispatch")
 			assert.NotContains(t, on, "gateway-dispatch")
@@ -210,8 +215,12 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
       filters:
         project_id: PVT_example`,
 		"removed security type": `  gateway-dispatch:
-    security-alerts:
+    dependabot-alerts:
       type: dependabot`,
+		"removed security bundle": `  gateway-dispatch:
+    security-alerts: {sources: [code-scanning, dependabot]}`,
+		"removed sources selector": `  gateway-dispatch:
+    dependabot-alerts: {sources: [dependabot]}`,
 		"removed general registration": `  webhook:
     not_a_github_event: {}`,
 		"removed auth": `  gateway-dispatch:
@@ -256,17 +265,15 @@ func TestWebhookRejectsInvalidConfiguration(t *testing.T) {
 		"security wildcard dispatch": `  repository_dispatch:
     types: ["gh-aw-*"]
   gateway-dispatch:
-    security-alerts:
-      sources: [dependabot]`,
+    dependabot-alerts: {}`,
 		"removed secret scanning": `  gateway-dispatch:
-    security-alerts:
-      sources: [secret-scanning]`,
+    secret-scanning-alert: {}`,
 		"mixed removed secret scanning": `  gateway-dispatch:
-    security-alerts:
-      sources: [code-scanning, dependabot, secret-scanning]`,
+    code-scanning-alert: {}
+    dependabot-alerts: {}
+    secret-scanning-alert: {}`,
 		"security duplicate spelling": `  gateway-dispatch:
-    security-alerts:
-      sources: [code-scanning]
+    code-scanning-alert: {}
   webhook:
     code_scanning_alert: {}`,
 		"duplicate spelling": `  gateway-dispatch:
@@ -294,12 +301,21 @@ func TestCompileWebhookNativeSelectors(t *testing.T) {
       status-transitions:
         - {from: Todo, to: Ready}
         - {from: In progress, to: Done}
-    security-alerts:
-      sources: [code-scanning, dependabot]
-      types: [created]
+    code-scanning-alert:
+      types: [appeared_in_branch]
+      severity: error
+    dependabot-alerts:
+      types: [dismissed]
+      severity: critical
 `), "native-selectors.md")
 	require.NoError(t, err)
 	require.Len(t, data.WebhookSubscriptions, 3)
+	assert.Equal(t, "code_scanning_alert", data.WebhookSubscriptions[0].Event)
+	assert.Equal(t, []string{"appeared_in_branch"}, data.WebhookSubscriptions[0].Types)
+	assert.Equal(t, []any{"error"}, data.WebhookSubscriptions[0].Conditions[0].Values)
+	assert.Equal(t, "dependabot_alert", data.WebhookSubscriptions[1].Event)
+	assert.Equal(t, []string{"dismissed"}, data.WebhookSubscriptions[1].Types)
+	assert.Equal(t, []any{"critical"}, data.WebhookSubscriptions[1].Conditions[0].Values)
 	project := data.WebhookSubscriptions[2]
 	assert.Equal(t, "projects_v2_item", project.Event)
 	assert.Equal(t, []string{"edited"}, project.Types)
@@ -403,8 +419,7 @@ func TestCompileMultipleWebhookSubscriptions(t *testing.T) {
         field:
           name: [Priority, Status]
         project_number: 7
-    security-alerts:
-      sources: [dependabot]
+    dependabot-alerts:
       types: [created]
       severity: critical
 `), "webhook-test.md")

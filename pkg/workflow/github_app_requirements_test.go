@@ -113,7 +113,7 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 	}{
 		{
 			name: "selected Projects and security events",
-			on:   map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}, "security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}}}},
+			on:   map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}, "code-scanning-alert": map[string]any{}, "dependabot-alerts": map[string]any{}}},
 			want: map[string]string{
 				"organization_projects": "read",
 				"security_events":       "read",
@@ -121,18 +121,23 @@ func TestComputeGitHubAppManifestWebhookPermissions(t *testing.T) {
 			},
 		},
 		{
-			name: "only selected security source",
-			on:   map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": []any{"dependabot"}}}},
+			name: "only Dependabot alert trigger",
+			on:   map[string]any{"gateway-dispatch": map[string]any{"dependabot-alerts": map[string]any{}}},
 			want: map[string]string{"vulnerability_alerts": "read"},
 		},
 		{
-			name: "plural multi-repository alerts default to both sources",
-			on:   map[string]any{"gateway-dispatch": map[string]any{"repos": []any{"bar/baz", "foo/*"}, "security-alerts": map[string]any{}}},
+			name: "only code scanning alert trigger",
+			on:   map[string]any{"gateway-dispatch": map[string]any{"code-scanning-alert": map[string]any{}}},
+			want: map[string]string{"security_events": "read"},
+		},
+		{
+			name: "multi-repository alerts explicitly select both triggers",
+			on:   map[string]any{"gateway-dispatch": map[string]any{"repos": []any{"bar/baz", "foo/*"}, "code-scanning-alert": map[string]any{}, "dependabot-alerts": map[string]any{}}},
 			want: map[string]string{"security_events": "read", "vulnerability_alerts": "read"},
 		},
 		{
 			name: "removed secret scanning source grants no permissions",
-			on:   map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": []any{"dependabot", "secret-scanning"}}}},
+			on:   map[string]any{"gateway-dispatch": map[string]any{"dependabot-alerts": map[string]any{}, "secret-scanning-alert": map[string]any{}}},
 			want: nil,
 		},
 		{
@@ -181,14 +186,14 @@ func TestNormalizeGitHubAppWebhookEvents(t *testing.T) {
 		},
 		{
 			name: "first-class Projects v2 and security triggers use wire event names",
-			on:   map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "types": []any{"edited"}}, "security-alerts": map[string]any{"sources": []any{"code-scanning", "dependabot"}}}},
+			on:   map[string]any{"gateway-dispatch": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example", "types": []any{"edited"}}, "code-scanning-alert": map[string]any{}, "dependabot-alerts": map[string]any{}}},
 			want: []string{
 				"code_scanning_alert", "dependabot_alert", "projects_v2_item",
 			},
 		},
 		{
 			name: "removed secret scanning source yields no webhook events",
-			on:   map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"sources": []any{"secret-scanning"}}}},
+			on:   map[string]any{"gateway-dispatch": map[string]any{"secret-scanning-alert": map[string]any{}}},
 			want: nil,
 		},
 		{

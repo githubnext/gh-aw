@@ -79,38 +79,38 @@ func TestSecurityAlertSchema(t *testing.T) {
 		config any
 		valid  bool
 	}{
-		"code-scanning":    {map[string]any{"sources": "code-scanning"}, true},
-		"dependabot":       {map[string]any{"sources": "dependabot"}, true},
-		"secret-scanning":  {map[string]any{"sources": "secret-scanning"}, false},
-		"secret list":      {map[string]any{"sources": []any{"secret-scanning"}}, false},
-		"mixed secret":     {map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}}, false},
-		"multiple sources": {map[string]any{"sources": []any{"code-scanning", "dependabot"}}, true},
+		"removed code source":       {map[string]any{"sources": "code-scanning"}, false},
+		"removed dependabot source": {map[string]any{"sources": "dependabot"}, false},
+		"secret-scanning":           {map[string]any{"sources": "secret-scanning"}, false},
+		"secret list":               {map[string]any{"sources": []any{"secret-scanning"}}, false},
+		"mixed secret":              {map[string]any{"sources": []any{"code-scanning", "dependabot", "secret-scanning"}}, false},
+		"multiple sources":          {map[string]any{"sources": []any{"code-scanning", "dependabot"}}, false},
 		"with severity": {map[string]any{
-			"sources": []any{"dependabot"}, "types": []any{"created"}, "severity": []any{"high", "critical"},
+			"types": []any{"created"}, "severity": []any{"high", "critical"},
 		}, true},
 		"with filters": {map[string]any{
-			"sources": "dependabot", "filters": map[string]any{"sender": "octocat"},
+			"filters": map[string]any{"sender": "octocat"},
 		}, true},
-		"null":             {nil, false},
-		"default sources":  {map[string]any{}, true},
-		"unknown source":   {map[string]any{"sources": "security-advisory"}, false},
-		"empty sources":    {map[string]any{"sources": []any{}}, false},
-		"mixed sources":    {map[string]any{"sources": []any{"dependabot", true}}, false},
-		"null sources":     {map[string]any{"sources": nil}, false},
-		"removed type":     {map[string]any{"sources": "dependabot", "type": "dependabot"}, false},
-		"scan":             {map[string]any{"sources": "secret-scanning-scan"}, false},
-		"location":         {map[string]any{"sources": "secret-scanning-alert-location"}, false},
-		"empty types":      {map[string]any{"sources": "dependabot", "types": []any{}}, false},
-		"unknown key":      {map[string]any{"sources": "dependabot", "typo": true}, false},
-		"empty severity":   {map[string]any{"sources": "dependabot", "severity": ""}, false},
-		"blank severity":   {map[string]any{"sources": "dependabot", "severity": " "}, false},
-		"null severity":    {map[string]any{"sources": "dependabot", "severity": nil}, false},
-		"empty severities": {map[string]any{"sources": "dependabot", "severity": []any{}}, false},
+		"null":               {nil, false},
+		"all own activities": {map[string]any{}, true},
+		"unknown source":     {map[string]any{"sources": "security-advisory"}, false},
+		"empty sources":      {map[string]any{"sources": []any{}}, false},
+		"mixed sources":      {map[string]any{"sources": []any{"dependabot", true}}, false},
+		"null sources":       {map[string]any{"sources": nil}, false},
+		"removed type":       {map[string]any{"type": "dependabot"}, false},
+		"scan":               {map[string]any{"sources": "secret-scanning-scan"}, false},
+		"location":           {map[string]any{"sources": "secret-scanning-alert-location"}, false},
+		"empty types":        {map[string]any{"types": []any{}}, false},
+		"unknown key":        {map[string]any{"typo": true}, false},
+		"empty severity":     {map[string]any{"severity": ""}, false},
+		"blank severity":     {map[string]any{"severity": " "}, false},
+		"null severity":      {map[string]any{"severity": nil}, false},
+		"empty severities":   {map[string]any{"severity": []any{}}, false},
 		"nested severity": {map[string]any{
-			"sources": "dependabot", "filters": map[string]any{"severity": "high"},
+			"filters": map[string]any{"severity": "high"},
 		}, false},
 	} {
-		for _, alias := range []string{"security-alerts"} {
+		for _, alias := range []string{"code-scanning-alert", "dependabot-alerts"} {
 			t.Run(alias+"/"+name, func(t *testing.T) {
 				err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{alias: test.config}}}, "security-alert.md")
 				if test.valid {
@@ -124,7 +124,7 @@ func TestSecurityAlertSchema(t *testing.T) {
 }
 
 func TestSecurityAlertRepositorySchema(t *testing.T) {
-	for _, alias := range []string{"security-alerts"} {
+	for _, alias := range []string{"code-scanning-alert", "dependabot-alerts"} {
 		for name, test := range map[string]struct {
 			repos any
 			valid bool
@@ -163,16 +163,16 @@ func TestSecurityAlertRepositorySchema(t *testing.T) {
 
 func TestGatewayOrganizationSchema(t *testing.T) {
 	for _, orgs := range []any{[]any{"GitHub", "my-*", "*-labs", "a*b"}, []any{"*"}} {
-		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "security-alerts": map[string]any{}}}}, "orgs.md"))
+		require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "dependabot-alerts": map[string]any{}}}}, "orgs.md"))
 	}
 	for _, orgs := range []any{nil, "github", []any{}, []any{true}, []any{""}, []any{"github/repo"}, []any{"github/*"}, []any{"foo?"}, []any{"foo.bar"}, []any{"foo_bar"}, []any{"-foo"}, []any{"foo-"}, []any{"github\n"}, []any{"${{ github.actor }}"}, []any{"github", "github"}} {
-		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "security-alerts": map[string]any{}}}}, "invalid-orgs.md"))
+		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": map[string]any{"orgs": orgs, "dependabot-alerts": map[string]any{}}}}, "invalid-orgs.md"))
 	}
 	for _, on := range []any{
 		"orgs",
 		map[string]any{"orgs": []any{"github"}},
 		map[string]any{"gateway-dispatch": map[string]any{"orgs": []any{"github"}}},
-		map[string]any{"gateway-dispatch": map[string]any{"security-alerts": map[string]any{"orgs": []any{"github"}}}},
+		map[string]any{"gateway-dispatch": map[string]any{"dependabot-alerts": map[string]any{"orgs": []any{"github"}}}},
 	} {
 		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "invalid-orgs-placement.md"))
 	}
@@ -214,7 +214,7 @@ func TestWebhookStatusTransitionsSchema(t *testing.T) {
 
 func TestRemovedFirstClassWebhookTriggers(t *testing.T) {
 	for _, trigger := range []string{
-		"projects", "projects-status-update", "code-scanning-alert", "dependabot-alert",
+		"projects", "projects-status-update", "code-scanning-alert", "dependabot-alerts", "dependabot-alert", "security-alerts",
 		"secret-scanning-alert", "secret-scanning-alert-location", "secret-scanning-scan",
 	} {
 		t.Run(trigger, func(t *testing.T) {
@@ -228,11 +228,12 @@ func TestRemovedFirstClassWebhookTriggers(t *testing.T) {
 
 func TestGatewayDispatchSchema(t *testing.T) {
 	for trigger, config := range map[string]any{
-		"projects-items":     map[string]any{"project_id": "PVT_example"},
-		"security-alerts":    map[string]any{},
-		"jira-issue":         map[string]any{"project": "APP"},
-		"linear-issue":       map[string]any{"organization-id": "org"},
-		"azure-devops-issue": map[string]any{"project_id": "project"},
+		"projects-items":      map[string]any{"project_id": "PVT_example"},
+		"code-scanning-alert": map[string]any{},
+		"dependabot-alerts":   map[string]any{},
+		"jira-issue":          map[string]any{"project": "APP"},
+		"linear-issue":        map[string]any{"organization-id": "org"},
+		"azure-devops-issue":  map[string]any{"project_id": "project"},
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			on := map[string]any{"gateway-dispatch": map[string]any{trigger: config, "repos": []any{"owner/*"}}, "roles": []any{"write"}, "bots": []any{"cao-gateway"}}
@@ -246,10 +247,34 @@ func TestGatewayDispatchSchema(t *testing.T) {
 			}
 		})
 	}
-	for _, value := range []any{nil, true, false, "projects-items", []any{"security-alerts"}, map[string]any{}, map[string]any{"repos": []any{"owner/repo"}}, map[string]any{"typo": true}, map[string]any{"security-alerts": map[string]any{}, "roles": "write"}} {
+	for _, value := range []any{nil, true, false, "projects-items", []any{"dependabot-alerts"}, map[string]any{}, map[string]any{"repos": []any{"owner/repo"}}, map[string]any{"typo": true}, map[string]any{"dependabot-alerts": map[string]any{}, "roles": "write"}} {
 		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": value}}, "invalid-gateway.md"))
 	}
+
 	for _, on := range []any{"gateway-dispatch", []any{"push", "gateway-dispatch"}} {
 		require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "shorthand-gateway.md"))
 	}
+}
+
+func TestGatewaySecuritySchemaRejectsBundledAndUnsupportedTriggers(t *testing.T) {
+	for _, trigger := range []string{"security-alert", "security-alerts", "dependabot-alert", "code-scanning-alerts", "secret-scanning-alert", "secret-scanning-scan", "secret-scanning-alert-location"} {
+		for _, config := range []any{map[string]any{}, map[string]any{"sources": []any{"code-scanning", "dependabot"}}} {
+			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+				"on": map[string]any{"gateway-dispatch": map[string]any{
+					"dependabot-alerts": map[string]any{}, trigger: config,
+				}},
+			}, "removed-security.md"))
+		}
+	}
+	for _, trigger := range []string{"code-scanning-alert", "dependabot-alerts"} {
+		for _, on := range []any{trigger, []any{"push", trigger}} {
+			require.Error(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": on}, "flat-security.md"))
+		}
+	}
+	require.NoError(t, ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{
+		"on": map[string]any{"gateway-dispatch": map[string]any{
+			"code-scanning-alert": map[string]any{"types": []any{"appeared_in_branch"}, "severity": "error"},
+			"dependabot-alerts":   map[string]any{"types": []any{"dismissed"}, "severity": "critical"},
+		}},
+	}, "independent-security.md"))
 }

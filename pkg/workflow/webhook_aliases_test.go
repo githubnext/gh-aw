@@ -136,9 +136,9 @@ func TestWebhookGatewayRejectsInvalidNamespace(t *testing.T) {
 		"native event": map[string]any{"issues": nil},
 		"unknown":      map[string]any{"typo": map[string]any{}},
 		"custom":       map[string]any{"webhooks": []any{map[string]any{"type": "example.event"}}},
-		"mixed custom": map[string]any{"security-alerts": map[string]any{}, "webhooks": []any{map[string]any{"type": "example.event"}}},
+		"mixed custom": map[string]any{"dependabot-alerts": map[string]any{}, "webhooks": []any{map[string]any{"type": "example.event"}}},
 		"nested roles": map[string]any{"projects-items": map[string]any{"project_id": "PVT_example"}, "roles": "all"},
-		"nested bots":  map[string]any{"security-alerts": map[string]any{}, "bots": []any{"cao-gateway"}},
+		"nested bots":  map[string]any{"dependabot-alerts": map[string]any{}, "bots": []any{"cao-gateway"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			subscriptions, err := ParseWebhookSubscriptions(map[string]any{"gateway-dispatch": gateway}, "gateway")

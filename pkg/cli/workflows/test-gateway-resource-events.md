@@ -6,9 +6,12 @@ on:
       types: [edited]
       status-transitions:
         - {from: Todo, to: Ready}
-    security-alerts:
-      sources: [code-scanning, dependabot]
-      types: [created]
+    code-scanning-alert:
+      types: [appeared_in_branch]
+      severity: error
+    dependabot-alerts:
+      types: [dismissed]
+      severity: critical
     jira-issue:
       project: APP
       types: [opened, closed]

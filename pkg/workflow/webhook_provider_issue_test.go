@@ -75,7 +75,7 @@ func TestProviderIssueMixedGatewayRequirements(t *testing.T) {
 	gateway["linear-issue"] = map[string]any{"organization-id": "organization-uuid"}
 	gateway["azure-devops-issue"] = map[string]any{"project_id": "project-uuid"}
 	gateway["issue"] = map[string]any{"types": []any{"opened"}}
-	gateway["security-alerts"] = map[string]any{"sources": "dependabot"}
+	gateway["dependabot-alerts"] = map[string]any{}
 	gateway["projects-items"] = map[string]any{"project_id": "PVT_example"}
 	assert.Equal(t, []string{"dependabot_alert", "issues", "projects_v2_item"}, NormalizeGitHubAppWebhookEvents(on))
 	assert.Equal(t, map[string]string{"issues": "read", "organization_projects": "read", "vulnerability_alerts": "read"}, ComputeGitHubAppManifestWebhookPermissions(on))
@@ -92,7 +92,8 @@ func TestProviderIssueExperimentalNotice(t *testing.T) {
 			var output bytes.Buffer
 			NewCompiler().emitExperimentalFeatureWarningsTo(&WorkflowData{WebhookSubscriptions: subscriptions}, &output)
 			assert.Contains(t, output.String(), "Using experimental feature: on.gateway-dispatch."+alias+" (approved webhook bridge required)")
-			assert.NotContains(t, output.String(), "on.gateway-dispatch.security-alerts")
+			assert.NotContains(t, output.String(), "on.gateway-dispatch.code-scanning-alert")
+			assert.NotContains(t, output.String(), "on.gateway-dispatch.dependabot-alerts")
 			assert.Equal(t, event, subscriptions[0].Event)
 		})
 	}

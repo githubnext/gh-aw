@@ -15,7 +15,7 @@ func TestCustomWebhookSchemaRejected(t *testing.T) {
 		for _, mixed := range []bool{false, true} {
 			gateway := map[string]any{"webhooks": custom}
 			if mixed {
-				gateway["security-alerts"] = map[string]any{}
+				gateway["dependabot-alerts"] = map[string]any{}
 			}
 			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(map[string]any{"on": map[string]any{"gateway-dispatch": gateway}}, "custom.md")
 			require.Error(t, err, "custom webhooks must reject even alongside supported triggers")

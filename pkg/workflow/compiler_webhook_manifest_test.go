@@ -25,24 +25,27 @@ func TestWebhookManifestCompilation(t *testing.T) {
         - {from: In progress, to: Done}
 `,
 		"security": `  gateway-dispatch:
-    security-alerts:
-      sources: [code-scanning, dependabot]
+    code-scanning-alert:
+      types: [appeared_in_branch]
+      severity: error
+    dependabot-alerts:
       types: [created]
+      severity: critical
       filters:
         alert_number: 42
 `,
 		"multi-repo": `  gateway-dispatch:
     repos: [bar/baz, "foo/*"]
     orgs: [BAR, "foo*"]
-    security-alerts: {}
+    code-scanning-alert: {}
+    dependabot-alerts: {}
 `,
 		"combined": `  gateway-dispatch:
     projects-items:
       project_id: PVT_one
       types: [edited]
       status-transitions: [{from: Todo, to: "Ready\nfor review"}]
-    security-alerts:
-      sources: [dependabot]
+    dependabot-alerts:
       types: [created, reopened]
       severity: [high, critical]
 `,

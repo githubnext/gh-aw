@@ -29,11 +29,12 @@ func TestCompileWebhookRequiresOptIn(t *testing.T) {
 	for _, enabled := range []string{"", `{"gateway-dispatch":false}`} {
 		for _, trigger := range []string{
 			"projects-items: {project_id: PVT_example}",
-			"security-alerts: {sources: [dependabot]}",
+			"code-scanning-alert: {}",
+			"dependabot-alerts: {}",
 			"slash-command: review",
 			"label-command: review",
-			"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
-			"orgs: [github, \"my-*\"]\n  security-alerts: {}",
+			"repos: [bar/baz, \"foo/*\"]\n  dependabot-alerts: {}",
+			"orgs: [github, \"my-*\"]\n  dependabot-alerts: {}",
 		} {
 			t.Run(enabled+"/"+trigger, func(t *testing.T) {
 				root := t.TempDir()
@@ -166,20 +167,25 @@ Notifications: ${{ toJSON(gateway.events) }}
 	assert.Contains(t, string(lock), "toJSON(fromJSON(steps.generate_aw_info.outputs.aw_context || '{}').webhook.deliveries)")
 }
 
-func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
-	for _, sources := range []string{"secret-scanning", "[secret-scanning]", "[code-scanning, dependabot, secret-scanning]"} {
-		t.Run(sources, func(t *testing.T) {
+func TestCompileWebhookRejectsBundledAndUnsupportedSecurity(t *testing.T) {
+	for _, trigger := range []string{
+		"secret-scanning-alert: {}", "secret-scanning-alerts: {}", "secret-scanning-scan: {}", "secret-scanning-alert-location: {}",
+		"security-alerts: {}", "security-alerts: {sources: [code-scanning, dependabot]}",
+		"code-scanning-alert: {sources: [code-scanning]}", "dependabot-alerts: {sources: [dependabot]}",
+		"dependabot-alert: {}", "code-scanning-alerts: {}",
+	} {
+		t.Run(trigger, func(t *testing.T) {
 			dir := t.TempDir()
 			enableWebhookTriggers(t, dir)
 			path := filepath.Join(dir, "unsupported-secret.md")
-			source := fmt.Sprintf("---\non:\n  gateway-dispatch:\n    security-alerts:\n      sources: %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the alert.\n", sources)
+			source := fmt.Sprintf("---\non:\n  gateway-dispatch:\n    %s\npermissions:\n  contents: read\nengine: copilot\n---\nTriage the alert.\n", trigger)
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.False(t, result.success)
-			assert.Contains(t, fmt.Sprint(result.validationResult.Errors), "value must be one of 'code-scanning', 'dependabot'")
+			assert.NotEmpty(t, result.validationResult.Errors)
 			assert.Empty(t, result.validationResult.WebhookSubscriptions)
 			_, err := os.Stat(filepath.Join(dir, "unsupported-secret.lock.yml"))
-			require.True(t, os.IsNotExist(err), "invalid sources must not produce a lock file")
+			require.True(t, os.IsNotExist(err), "invalid security declarations must not produce a lock file")
 		})
 	}
 }
@@ -187,9 +193,10 @@ func TestCompileWebhookRejectsSecretScanning(t *testing.T) {
 func TestCompileWebhookRejectsWeakerRoles(t *testing.T) {
 	for _, trigger := range []string{
 		"projects-items: {project_id: PVT_example}",
-		"security-alerts: {sources: [code-scanning, dependabot]}",
-		"repos: [bar/baz, \"foo/*\"]\n  security-alerts: {}",
-		"orgs: [github, \"my-*\"]\n  security-alerts: {}",
+		"code-scanning-alert: {}",
+		"dependabot-alerts: {}",
+		"repos: [bar/baz, \"foo/*\"]\n  dependabot-alerts: {}",
+		"orgs: [github, \"my-*\"]\n  dependabot-alerts: {}",
 	} {
 		for _, roles := range []string{"all", "read", "triage", "[admin, write, read]"} {
 			t.Run(trigger+"/"+roles, func(t *testing.T) {
@@ -217,8 +224,8 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 		path   []string
 		value  string
 	}{
-		{"code-scanning", "code_scanning_alert", "severity", []string{"alert", "rule", "severity"}, "error"},
-		{"dependabot", "dependabot_alert", "severity", []string{"alert", "security_advisory", "severity"}, "critical"},
+		{"code-scanning-alert", "code_scanning_alert", "severity", []string{"alert", "rule", "severity"}, "error"},
+		{"dependabot-alerts", "dependabot_alert", "severity", []string{"alert", "security_advisory", "severity"}, "critical"},
 	} {
 		t.Run(tt.kind, func(t *testing.T) {
 			dir := testutil.TempDir(t, "security-webhook-compile-*")
@@ -232,8 +239,7 @@ func TestCompileSecurityWebhookJSONContract(t *testing.T) {
 			require.NoError(t, os.WriteFile(path, []byte(fmt.Sprintf(`---
 on:
   gateway-dispatch:
-    security-alerts:
-      sources: [%s]
+    %s:
       types: [created]
 %s
 permissions:
@@ -257,6 +263,7 @@ Triage the alert without logging secret values.
 			assert.Equal(t, tt.path, sub.Conditions[0].Path)
 			assert.Equal(t, []any{tt.value}, sub.Conditions[0].Values)
 			assert.NotContains(t, result.workflowData.On, "security-alert")
+			assert.NotContains(t, result.workflowData.On, tt.kind)
 			assert.NotContains(t, result.workflowData.On, "gateway")
 			assert.Equal(t, []string{"admin", "maintainer", "write"}, result.workflowData.Roles)
 		})
@@ -264,7 +271,7 @@ Triage the alert without logging secret values.
 }
 
 func TestCompileSecurityAlertRepositories(t *testing.T) {
-	for _, alias := range []string{"security-alerts"} {
+	for alias, event := range map[string]string{"code-scanning-alert": "code_scanning_alert", "dependabot-alerts": "dependabot_alert"} {
 		t.Run(alias, func(t *testing.T) {
 			root := t.TempDir()
 			enableWebhookTriggers(t, root)
@@ -274,7 +281,8 @@ func TestCompileSecurityAlertRepositories(t *testing.T) {
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.True(t, result.success, "%+v", result.validationResult.Errors)
 			subscriptions := result.validationResult.WebhookSubscriptions
-			require.Len(t, subscriptions, 2)
+			require.Len(t, subscriptions, 1)
+			assert.Equal(t, event, subscriptions[0].Event)
 			for _, sub := range subscriptions {
 				assert.Equal(t, []string{"bar/baz", "foo/*"}, sub.Repos)
 				assert.Equal(t, "${{ github.repository }}", sub.Dispatch.Repository)
@@ -297,15 +305,15 @@ func TestCompileSecurityAlertRejectsInvalidRepositories(t *testing.T) {
 	for _, trigger := range []string{
 		`gateway-dispatch:
   repos: []
-  security-alerts: {}`, `gateway-dispatch:
+  dependabot-alerts: {}`, `gateway-dispatch:
   repos: ["*/*"]
-  security-alerts: {}`, `gateway-dispatch:
+  dependabot-alerts: {}`, `gateway-dispatch:
   repos: ["foo/prefix*"]
-  security-alerts: {}`, `gateway-dispatch:
+  dependabot-alerts: {}`, `gateway-dispatch:
   repos: [bar/baz]
-  security-alerts: {sources: [secret-scanning]}`, `gateway-dispatch:
-  security-alerts: {repos: [bar/baz]}`, `gateway-dispatch:
-security-alert: {sources: [dependabot]}`, `gateway-dispatch:
+  secret-scanning-alert: {}`, `gateway-dispatch:
+  dependabot-alerts: {repos: [bar/baz]}`, `gateway-dispatch:
+dependabot-alerts: {}`, `gateway-dispatch:
   projects-items: {project_id: PVT_example, repos: [bar/baz]}`} {
 		t.Run(trigger, func(t *testing.T) {
 			root := t.TempDir()
@@ -326,7 +334,8 @@ security-alert: {sources: [dependabot]}`, `gateway-dispatch:
 func TestCompileWebhookRejectsFlatTriggers(t *testing.T) {
 	for _, trigger := range []string{
 		"projects-items: {project_id: PVT_example}",
-		"security-alerts: {}",
+		"code-scanning-alert: {}",
+		"dependabot-alerts: {}",
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			root := t.TempDir()
@@ -356,7 +365,7 @@ func TestCompileGatewayDispatchRejectsOtherTriggers(t *testing.T) {
 			root := t.TempDir()
 			enableWebhookTriggers(t, root)
 			path := filepath.Join(root, "mixed-dispatch.md")
-			source := "---\nstrict: false\non:\n  " + trigger + "\n  gateway-dispatch:\n    security-alerts: {}\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
+			source := "---\nstrict: false\non:\n  " + trigger + "\n  gateway-dispatch:\n    dependabot-alerts: {}\npermissions:\n  contents: read\nengine: copilot\n---\nTriage.\n"
 			require.NoError(t, os.WriteFile(path, []byte(source), 0o600))
 			result := compileWorkflowFile(context.Background(), workflow.NewCompiler(), path, compileWorkflowFileOptions{jsonOutput: true})
 			require.False(t, result.success)
@@ -372,7 +381,7 @@ func TestCompileGatewayDispatchRejectsOtherTriggers(t *testing.T) {
 func TestCompileWebhookRejectsCustomSubscriptions(t *testing.T) {
 	for _, trigger := range []string{
 		"webhooks: [{type: example.event}]",
-		"security-alerts: {}\nwebhooks: [{type: example.event}]",
+		"dependabot-alerts: {}\nwebhooks: [{type: example.event}]",
 	} {
 		t.Run(trigger, func(t *testing.T) {
 			root := t.TempDir()

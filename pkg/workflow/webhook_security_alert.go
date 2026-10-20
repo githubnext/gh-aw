@@ -33,52 +33,28 @@ func parseWebhookOrganizations(config map[string]any, path string) ([]string, er
 }
 
 func addSecurityAlertConfigs(on, events map[string]any, paths map[string]string) error {
-	raw, exists := on["security-alerts"]
-	if !exists {
-		return nil
-	}
-	const path = "on.gateway-dispatch.security-alerts"
-	config, ok := raw.(map[string]any)
-	if !ok {
-		return fmt.Errorf("%s must be an object with optional sources, types, severity, and filters", path)
-	}
-	if _, exists := config["repos"]; exists {
-		return errors.New("on.gateway-dispatch.security-alerts.repos is not supported; use shared on.gateway-dispatch.repos")
-	}
-	selected, err := securityAlertSourceEvents(config, path)
-	if err != nil {
-		return err
-	}
-	config, err = promoteWebhookFilters(config, path, "severity")
-	if err != nil {
-		return err
-	}
-	delete(config, "sources")
-	for _, event := range selected {
+	for _, alias := range sortedWebhookKeys(securityAlertTriggers) {
+		raw, exists := on[alias]
+		if !exists {
+			continue
+		}
+		path := "on.gateway-dispatch." + alias
+		config, ok := raw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s must be an object with optional types, severity, and filters", path)
+		}
+		if _, exists := config["repos"]; exists {
+			return fmt.Errorf("%s.repos is not supported; use shared on.gateway-dispatch.repos", path)
+		}
+		config, err := promoteWebhookFilters(config, path, "severity")
+		if err != nil {
+			return err
+		}
+		event := securityAlertTriggers[alias]
 		events[event] = config
 		paths[event] = path
 	}
 	return nil
-}
-
-func securityAlertSourceEvents(config map[string]any, path string) ([]string, error) {
-	raw, specified := config["sources"]
-	if !specified {
-		raw = sortedWebhookKeys(securityAlertEvents)
-	}
-	sources, err := webhookStringValues(raw, path+".sources")
-	if err != nil {
-		return nil, err
-	}
-	events := make([]string, 0, len(sources))
-	for _, source := range sources {
-		event, supported := securityAlertEvents[source]
-		if !supported {
-			return nil, fmt.Errorf("%s.sources must select only code-scanning or dependabot", path)
-		}
-		events = append(events, event)
-	}
-	return events, nil
 }
 
 func parseWebhookRepositories(config map[string]any, path string) ([]string, error) {

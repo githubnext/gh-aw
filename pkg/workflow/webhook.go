@@ -26,9 +26,9 @@ var webhookTriggerAliases = map[string]string{
 	"projects-items": "projects_v2_item",
 }
 
-var securityAlertEvents = map[string]string{
-	"code-scanning": "code_scanning_alert",
-	"dependabot":    "dependabot_alert",
+var securityAlertTriggers = map[string]string{
+	"code-scanning-alert": "code_scanning_alert",
+	"dependabot-alerts":   "dependabot_alert",
 }
 
 // WebhookFilter describes an allowlisted path in the original webhook payload.
