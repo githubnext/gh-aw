@@ -17,6 +17,7 @@ import { bindWorkerAssignment } from "./work_queue_binding.cjs";
 import { authorizeWorkerClaim, reconcileWorkerClaim } from "./finish_work_queue_claim.cjs";
 import { reconcileDispatch } from "./work_queue_reconciler.cjs";
 import { compiledFactoryPolicyEnvironments, installFactoryNativeAPI } from "./eslint_factory_native.test_helpers.cjs";
+import { checkFileProtection, checkFileProtectionPostApply } from "./manifest_file_helpers.cjs";
 
 const repository = "owner/repo";
 const planOptions = { date: "2026-10-08", repository, repositoryId: "7" };
@@ -58,6 +59,30 @@ describe("ESLint factory producer and dispatcher", () => {
     expect(plan.nodes.every(node => node.payload.plan.includes("cancel the Claim"))).toBe(true);
     expect(plan.nodes[1].payload.effect_contract.outputs).toContainEqual({ type: "persist_eslint_memory", min: 1, max: 1 });
     expect(plan.nodes[2].payload.effect_contract.outputs).toContainEqual({ type: "assign_to_agent", min: 0, max: 3 });
+  });
+
+  it("allows the miner's rule README without bypassing other file protections", () => {
+    const compiled = fs.readFileSync(new URL("../../../.github/workflows/eslint-miner.lock.yml", import.meta.url), "utf8");
+    const configs = [...compiled.matchAll(/GH_AW_SAFE_OUTPUTS_(?:HANDLER_)?CONFIG: ("[^\n]+")/g)].map(([, value]) => JSON.parse(JSON.parse(value)).create_pull_request);
+    expect(configs).toHaveLength(2);
+    for (const config of configs) {
+      expect(config.allowed_files).toEqual(["eslint-factory/**"]);
+      expect(config.protected_files_policy).toBe("fallback-to-issue");
+      expect(config.protected_files_path_exclude).toEqual(["eslint-factory/README.md"]);
+      expect(config.protected_files).toContain("README.md");
+      for (const [file, action] of [
+        ["eslint-factory/README.md", "allow"],
+        ["eslint-factory/src/rules/new-rule.ts", "allow"],
+        ["eslint-factory/docs/README.md", "fallback"],
+        ["eslint-factory/package.json", "fallback"],
+        ["README.md", "deny"],
+        [".github/workflows/ci.yml", "deny"],
+      ]) {
+        const patch = `diff --git a/${file} b/${file}\n`;
+        expect(checkFileProtection(patch, config).action, file).toBe(action);
+        expect(checkFileProtectionPostApply([file], config).action, file).toBe(action);
+      }
+    }
   });
 
   it.each(["2026-02-29", "2026-02-30", "2026-13-01", "1969-12-31", "2026-1-01", "tomorrow"])("rejects invalid dates: %s", date => {

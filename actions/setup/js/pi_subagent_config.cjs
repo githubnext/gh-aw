@@ -85,7 +85,7 @@ function preparePiSubagents(options) {
     verifyPiThinkingEffort(effort);
     logger(`sub-agent ${agent.name}: requested=${requested} resolved=${provider}/${modelId}`);
     recordModelResolution({ engine: "pi", role: agent.name, configured_model: requested, resolved_model: modelId, provider: resolution.provider || null, status: resolution.status, cause: null }, env);
-    return { ...agent, modelId, model: `${gateway ? "aw-gateway" : provider}/${modelId}`, ...(effort ? { thinking: effort === "none" ? "off" : effort } : {}) };
+    return { ...agent, requested, modelId, model: `${gateway ? "aw-gateway" : provider}/${modelId}`, ...(effort ? { thinking: effort === "none" ? "off" : effort } : {}) };
   });
   writeSecureOutput(path.join(agentDir, "subagents.json"), JSON.stringify(agents, null, 2));
   return agents;
