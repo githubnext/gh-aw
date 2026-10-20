@@ -110,7 +110,7 @@ describe("splitOnPipelineOperators", () => {
     expect(segments).toEqual(["pwd", "ls -la", "safeoutputs --help"]);
   });
 
-  it.each(["\n", "\r\n", "\r"])("ignores standalone comments with %j line endings", newline => {
+  it.each(["\n", "\r\n"])("ignores standalone comments with %j line endings", newline => {
     const command = `# Check attribution data${newline}  # Ignore "quotes, && operators; and $(subshells)${newline}cat data.json${newline}# Done`;
     expect(splitOnPipelineOperators(command)).toEqual(["cat data.json"]);
   });

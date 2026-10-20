@@ -12,7 +12,6 @@ const checkPermission = buildCopilotSDKPermissionHandler({ allowedTools: ["shell
 const lineEndings = [
   { name: "LF", value: "\n" },
   { name: "CRLF", value: "\r\n" },
-  { name: "CR", value: "\r" },
 ];
 
 const commentBodies = [
@@ -276,5 +275,52 @@ describe.each(lineEndings)("comment placement with $name line endings", ({ value
     const script = `${prefix}python3 -c 'print(1)' # Final comment`.replace(/\n/g, newline);
     expect(extractCommandNamesFromPipeline(script)).toContain("python3");
     expect(checkPermission({ kind: "shell", fullCommandText: script }).kind).toBe("reject");
+  });
+});
+
+describe("comment parser security boundaries", () => {
+  it.each([
+    'echo ok "${value:-"x #"}"; forbidden_probe',
+    'echo ok "${value:+"x #"}"; forbidden_probe',
+    'echo ok "${outer:-${inner:-"x #"}}"; forbidden_probe',
+    'echo ok "$(printf "x #")"; forbidden_probe',
+    'echo ok "`printf "x #"`"; forbidden_probe',
+    "echo ok $(printf ')x #'); forbidden_probe",
+    "echo ok $'x \\' #'; forbidden_probe",
+  ])("cannot hide a following command using nested shell quoting: %s", fullCommandText => {
+    for (const grant of ["shell(echo)", "shell(echo ok:*)"]) {
+      const handler = buildCopilotSDKPermissionHandler({ allowedTools: [grant] }, () => ({ kind: "approve-once" }));
+      expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+    }
+    const segments = splitOnPipelineOperators(fullCommandText);
+    if (segments.length > 0) expect(extractCommandNamesFromPipeline(fullCommandText)).toContain("forbidden_probe");
+  });
+
+  it.each(['#\recho ok "\nforbidden_probe\n#"', '# ignored\recho ok "\nforbidden_probe\n#"', 'echo ok # ignored\recho ok "\nforbidden_probe\n#"', '# ignored\r\r\recho ok "\nforbidden_probe\n#"'])(
+    "does not let carriage returns terminate a Bash comment: %j",
+    fullCommandText => {
+      const handler = buildCopilotSDKPermissionHandler({ allowedTools: ["shell(echo ok:*)"] }, () => ({ kind: "approve-once" }));
+      expect(extractCommandNamesFromPipeline(fullCommandText)).toContain("forbidden_probe");
+      expect(handler({ kind: "shell", fullCommandText }).kind).toBe("reject");
+    }
+  );
+
+  it.each(["# Header\rcat data.json", "# Header\r  # Another comment\rcat data.json", '# Header\r"unclosed quote'])("keeps carriage returns inside comment text: %j", script => {
+    expect(splitOnPipelineOperators(script)).toEqual([]);
+    expect(extractCommandNamesFromPipeline(script)).toEqual([]);
+    expect(checkPermission({ kind: "shell", fullCommandText: script }).kind).toBe("reject");
+  });
+
+  it.each(['echo "${value:-#literal}" # Actual comment\ncat data.json', 'echo "${outer:-${inner:-#literal}}" # Actual comment\ncat data.json', "echo $(printf ${value:-fallback}) # Actual comment\ncat data.json"])(
+    "preserves simple parameter expansions: %s",
+    script => {
+      expect(extractCommandNamesFromPipeline(script)).toEqual(["echo", "cat"]);
+      expect(checkPermission({ kind: "shell", fullCommandText: script }).kind).toBe("approve-once");
+    }
+  );
+
+  it.each(["echo ok 'unclosed #", 'echo ok "unclosed #', "echo ok ${value:- #", "echo ok $(printf value"])("rejects unclosed contexts instead of approving a partial parse: %s", fullCommandText => {
+    expect(splitOnPipelineOperators(fullCommandText)).toEqual([]);
+    expect(checkPermission({ kind: "shell", fullCommandText }).kind).toBe("reject");
   });
 });

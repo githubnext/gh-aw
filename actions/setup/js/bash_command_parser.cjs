@@ -25,16 +25,52 @@
  */
 
 /**
+ * Find the end of a quoted word, rejecting nested syntax this parser cannot
+ * safely distinguish from the surrounding quote.
+ *
+ * @param {string} commandText
+ * @param {number} start
+ * @returns {number} Exclusive end offset, or -1 for unsupported/unclosed quoting.
+ */
+function findShellQuoteEnd(commandText, start) {
+  const quote = commandText[start];
+  let parameterDepth = 0;
+  for (let i = start + 1; i < commandText.length; i++) {
+    const ch = commandText[i];
+    if (quote === '"') {
+      if (ch === "\\") {
+        i++;
+        continue;
+      }
+      if (ch === "`" || (ch === "$" && commandText[i + 1] === "(")) return -1;
+      if (ch === "$" && commandText[i + 1] === "{") {
+        parameterDepth++;
+        i++;
+        continue;
+      }
+      if (ch === "}" && parameterDepth > 0) {
+        parameterDepth--;
+        continue;
+      }
+      if (parameterDepth > 0 && (ch === "'" || ch === '"')) return -1;
+    }
+    if (ch === quote) return i + 1;
+  }
+  return -1;
+}
+
+/**
  * Split a shell command text into individual pipeline segments.
  * Splits on the following shell operators: &&, ||, |, ; and newlines.
  *
  * The split respects:
  *   - Single-quoted strings (no escaping inside)
  *   - Double-quoted strings (backslash-escape aware)
- *   - Unquoted backslash escapes and shell comments
+ *   - Unquoted backslash escapes and shell comments (terminated by LF, not bare CR)
  *   - $(...) subshell expressions (balanced parentheses)
  *
  * Operators embedded inside any of these constructs are not treated as separators.
+ * Unsupported nested quoting and unclosed constructs fail closed.
  *
  * @param {string} commandText - Raw bash command text that may contain pipeline operators
  * @returns {string[]} Non-empty trimmed segments (operators removed)
@@ -53,9 +89,11 @@ function splitOnPipelineOperators(commandText) {
     const ch = commandText[i];
 
     if (ch === "#" && atWordStart && parameterDepth === 0) {
-      while (i < len && commandText[i] !== "\n" && commandText[i] !== "\r") i++;
+      while (i < len && commandText[i] !== "\n") i++;
       continue;
     }
+
+    if (ch === "`" || (ch === "$" && commandText[i + 1] === "'")) return [];
 
     if (ch === "\\" && i + 1 < len) {
       current += ch;
@@ -77,40 +115,12 @@ function splitOnPipelineOperators(commandText) {
     }
     if (ch === "}" && parameterDepth > 0) parameterDepth--;
 
-    // ── Single-quoted string: no escape sequences, copy verbatim until closing ' ──
-    if (ch === "'") {
+    if (ch === "'" || ch === '"') {
+      const end = findShellQuoteEnd(commandText, i);
+      if (end < 0) return [];
       atWordStart = false;
-      current += ch;
-      i++;
-      while (i < len && commandText[i] !== "'") {
-        current += commandText[i];
-        i++;
-      }
-      if (i < len) {
-        current += commandText[i]; // closing '
-        i++;
-      }
-      continue;
-    }
-
-    // ── Double-quoted string: backslash escapes are recognised ──
-    if (ch === '"') {
-      atWordStart = false;
-      current += ch;
-      i++;
-      while (i < len && commandText[i] !== '"') {
-        if (commandText[i] === "\\" && i + 1 < len) {
-          current += commandText[i] + commandText[i + 1];
-          i += 2;
-        } else {
-          current += commandText[i];
-          i++;
-        }
-      }
-      if (i < len) {
-        current += commandText[i]; // closing "
-        i++;
-      }
+      current += commandText.slice(i, end);
+      i = end;
       continue;
     }
 
@@ -122,6 +132,19 @@ function splitOnPipelineOperators(commandText) {
       let depth = 0;
       while (i < len) {
         const sc = commandText[i];
+        if (sc === "#" || sc === "`" || (sc === "$" && commandText[i + 1] === "'")) return [];
+        if (sc === "\\" && i + 1 < len) {
+          current += sc + commandText[i + 1];
+          i += 2;
+          continue;
+        }
+        if (sc === "'" || sc === '"') {
+          const end = findShellQuoteEnd(commandText, i);
+          if (end < 0) return [];
+          current += commandText.slice(i, end);
+          i = end;
+          continue;
+        }
         if (sc === "(") depth++;
         else if (sc === ")") {
           depth--;
@@ -133,6 +156,7 @@ function splitOnPipelineOperators(commandText) {
         current += sc;
         i++;
       }
+      if (depth !== 0) return [];
       continue;
     }
 
@@ -218,6 +242,7 @@ function splitOnPipelineOperators(commandText) {
   }
 
   // Push the final segment
+  if (parameterDepth !== 0) return [];
   if (current.trim()) {
     segments.push(current);
   }
