@@ -58,3 +58,6 @@ metrics/latest.json now fresh (2026-10-18) but partial: 0 workflows with execute
 
 ## Run 2026-10-19T12:57Z
 metrics/latest.json (2026-10-19) is a partial snapshot (4.12h coverage, all per-workflow values null). Ranking deferred; no discussion/issue filed.
+
+## Run 2026-10-20T12:56Z
+metrics/latest.json (2026-10-20) partial: 8.06h coverage, 0/344 workflows with executed-run counts. Ranking deferred; no discussion/issue filed.
