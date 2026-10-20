@@ -8,11 +8,61 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFirewallComplianceWorkflowPolicy(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "firewall-escape.md"))
+	require.NoError(t, err)
+	document, err := parser.ExtractFrontmatterFromContent(string(source))
+	require.NoError(t, err)
+
+	assert.Equal(t, true, document.Frontmatter["strict"])
+	assert.NotEmpty(t, document.Frontmatter["intent"])
+	assert.NotContains(t, document.Frontmatter, "jobs", "runtime failures must use framework reporting")
+	engine, ok := document.Frontmatter["engine"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "copilot", engine["id"])
+	assert.Equal(t, true, engine["copilot-sdk"])
+	sandbox, ok := document.Frontmatter["sandbox"].(map[string]any)
+	require.True(t, ok)
+	agent, ok := sandbox["agent"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "awf", agent["id"])
+	tools, ok := document.Frontmatter["tools"].(map[string]any)
+	require.True(t, ok)
+	assert.NotContains(t, tools, "repo-memory")
+	assert.NotContains(t, tools, "cache-memory")
+
+	compiler := NewCompiler()
+	network := compiler.extractNetworkPermissions(document.Frontmatter)
+	require.NotNil(t, network)
+	assert.Equal(t, []string{"defaults", "node"}, network.Allowed)
+	allowed := GetAllowedDomains(network)
+	assert.Contains(t, allowed, "registry.npmjs.org")
+	assert.Contains(t, allowed, "nodejs.org")
+	assert.NotContains(t, allowed, "example.com")
+
+	assert.Equal(t, 8, strings.Count(document.Markdown, "## Test "))
+	for _, instruction := range []string{
+		"Do not attempt to bypass the firewall",
+		"do not retry or work around",
+		"**INCONCLUSIVE**, not proof",
+		"Only eight conclusive passing checks justify an overall PASS",
+		"`report_incomplete`",
+		"Never count an unexecuted check as passed",
+		"as a firewall defect",
+	} {
+		assert.Contains(t, document.Markdown, instruction)
+	}
+	assert.NotContains(t, document.Markdown, "ADVANCED SANDBOX ESCAPE TESTING")
+	assert.NotContains(t, document.Markdown, "80%")
+	assert.NotContains(t, document.Markdown, "escape-attempts.json")
+}
 
 // TestFirewallWorkflowNetworkConfiguration verifies that the firewall workflow
 // is properly configured to block access to example.com
