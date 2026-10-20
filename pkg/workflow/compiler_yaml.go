@@ -48,6 +48,10 @@ func (c *Compiler) buildJobsAndValidate(data *WorkflowData, markdownPath string)
 	}
 	c.ensureAdmissionSkipSafeConditions()
 
+	if err := c.guardGatewayProvenanceJobs(data); err != nil {
+		return err
+	}
+
 	// Validate no duplicate steps within jobs (compiler bug detection)
 	if err := c.jobManager.ValidateDuplicateSteps(); err != nil {
 		return fmt.Errorf("duplicate step validation found repeated step names within a job; ensure each step name is unique per job: %w", err)

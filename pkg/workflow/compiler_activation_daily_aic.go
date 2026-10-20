@@ -43,6 +43,7 @@ func (c *Compiler) buildDailyAICAppTokenMintStep(app *GitHubAppConfig) []string 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, fmt.Sprintf("          client-id: %s\n", app.AppID))
 	steps = append(steps, fmt.Sprintf("          private-key: %s\n", app.PrivateKey))
+	steps = append(steps, "          skip-token-revoke: false\n")
 	owner := app.Owner
 	if owner == "" {
 		owner = "${{ github.repository_owner }}"

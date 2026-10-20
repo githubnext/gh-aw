@@ -23,7 +23,7 @@ The protocol uses REST POST with a JSON body, authenticated exclusively by a Git
 
 ### Managed Environment Variables
 
-Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
+Admission configuration MUST come exclusively from managed GitHub Actions variables, resolved at workflow runtime and passed to the admission job's step as environment variables. Repository JSON files and workflow/frontmatter configuration MUST NOT define or override admission settings. The compiler MUST register these variables with the existing `gh aw env get/update` mechanism:
 
 | Actions variable | Managed YAML field | Built-in fallback |
 |------------------|--------------------|-------------------|

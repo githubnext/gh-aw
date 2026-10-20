@@ -8,7 +8,7 @@
 
 ### Context
 
-The admission service specification (`docs/src/content/docs/specs/admission-service-specification.md`, introduced in #70286) defines a centralized authority consulted before agent execution. The existing daily AI-credit (AIC) guardrail requires preparatory token minting, observation restoration and ledger access. Organizations need centralized admission and runtime credit allowances without per-workflow source changes or forwarding repository API credentials. The runtime must tolerate authority outages, reuse existing agent/detection/evals jobs and proxy enforcement, and fit into 344 compiled workflows and statically computed reusable caller permission envelopes.
+The admission service specification (`docs/src/content/docs/specs/admission-service-specification.md`, introduced in #70286) defines a centralized authority consulted before agent execution. The existing daily AI-credit (AIC) guardrail requires preparatory token minting, observation restoration and ledger access. Organizations need centralized admission and runtime credit allowances without per-workflow source changes or forwarding repository API credentials. The runtime must tolerate authority outages, reuse existing agent/detection/evals jobs and proxy enforcement, and fit into compiled workflows and statically computed reusable caller permission envelopes.
 
 ### Decision
 
@@ -56,7 +56,7 @@ Both checks could always run, with either able to block. This was rejected becau
 #### Neutral
 - `workflow_hash` (frontmatter hash + body hash) is sent as an untrusted cache hint only. The authority must not treat it as authorization.
 - The response contract has no trace or correlation ID. Tracing relies on the caller-provided W3C `traceparent`.
-- Most of the diff is regenerated lock files, and the TLA+ model (`specs/workflow-security/ActivationAdmission.tla`) and its checker were revised to match the new contract.
+- Most of the original diff is regenerated lock files, and the TLA+ model (`specs/workflow-security/ActivationAdmission.tla`) and its checker were revised to match the admission contract.
 - `gh aw env` defaults gain three new keys (`default_admission_url`, `default_admission_audience`, `default_admission_on_outage`), with validation.
 
 ---

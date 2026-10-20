@@ -132,6 +132,10 @@ describe("setup.sh MCP_SCRIPTS_FILES", () => {
             const summary = require("./work_queue_summary_renderer.cjs");
             const native = require("./work_queue_native.cjs");
             const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
             assert.equal(typeof summary.renderWorkQueue, "function");
             assert.equal(typeof native.authenticatePublisher, "function");
             assert.equal(typeof provisioning.verifiedDefaultReference, "function");
@@ -190,6 +194,10 @@ describe("setup.sh SAFE_OUTPUTS_FILES", () => {
             const { withClaimExecution } = require("./work_queue_claim_scope.cjs");
             const native = require("./work_queue_native.cjs");
             const provisioning = require("./work_queue_provisioning.cjs");
+            const { normalizeWebhookContext } = require("./webhook_context.cjs");
+            const payload = { url: "https://api.github.com/orgs/org/projectsV2/1/items/123", type: ["edited"] };
+            assert.equal(normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload }] } }).items[0].item_number, "123");
+            assert.throws(() => normalizeWebhookContext({ webhook: { event: "projects_v2_item", deliveries: [{ delivery_id: "d", payload: { ...payload, body: "private" } }] } }), /accepts only/);
             assert.equal(typeof native.authenticatePublisher, "function");
             assert.equal(typeof provisioning.verifiedDefaultReference, "function");
             const assignment = {

@@ -258,6 +258,17 @@ func TestAdmissionSkipSafeDownstreamConditions(t *testing.T) {
 	assert.Equal(t, agentCondition, compiler.jobManager.jobs["agent"].If)
 }
 
+func TestAdmissionRejectsFrontmatterHooks(t *testing.T) {
+	for _, hook := range []string{"setup-steps", "pre-steps", "steps"} {
+		t.Run(hook, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "workflow.md")
+			source := "---\non: workflow_dispatch\njobs:\n  admission:\n    " + hook + ":\n      - run: echo author-hook\n---\nTest\n"
+			require.NoError(t, os.WriteFile(file, []byte(source), 0o644))
+			require.ErrorContains(t, NewCompiler().CompileWorkflow(file), "jobs.admission is compiler-owned")
+		})
+	}
+}
+
 func TestAdmissionRejectsCodeGenerationSwitch(t *testing.T) {
 	file := filepath.Join(testutil.TempDir(t, "admission-unsupported-gate-*"), "workflow.md")
 	for _, value := range []string{"false", "true"} {

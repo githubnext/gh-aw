@@ -3,6 +3,7 @@
 package workflow
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,12 +75,55 @@ func TestAppTokenPermissionsCheckAllCompiledJobs(t *testing.T) {
 			map[string]any{"uses": "actions/create-github-app-token@sha", "with": map[string]any{"private-key": "secret"}},
 		}},
 	}}
-	err := compiler.validateAppTokenPermissions(workflow, true)
+	err := compiler.validateAppTokenPermissions(workflow, true, false)
 	if err == nil || !strings.Contains(err.Error(), `job "custom"`) {
 		t.Fatalf("expected custom job permission error, got %v", err)
 	}
 	if !strings.Contains(err.Error(), "repositories: ${{ github.repository }}") {
 		t.Fatalf("expected missing-repositories error to recommend the trusted repository context, got %v", err)
+	}
+}
+
+func TestGatewayAppTokenRevocation(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		inputs  map[string]any
+		allowed bool
+	}{
+		{"default", nil, true},
+		{"explicit false", map[string]any{"skip-token-revoke": false}, true},
+		{"string false", map[string]any{"skip-token-revoke": "false"}, true},
+		{"case variant false", map[string]any{"Skip-Token-Revoke": "FALSE"}, true},
+		{"true", map[string]any{"skip-token-revoke": true}, false},
+		{"string true", map[string]any{"skip-token-revoke": "true"}, false},
+		{"case variant true", map[string]any{"Skip-Token-Revoke": "TRUE"}, false},
+		{"expression", map[string]any{"skip-token-revoke": "${{ inputs.skip_revoke }}"}, false},
+		{"constant expression", map[string]any{"skip-token-revoke": "${{ false }}"}, false},
+		{"empty", map[string]any{"skip-token-revoke": ""}, false},
+		{"null", map[string]any{"skip-token-revoke": nil}, false},
+		{"number", map[string]any{"skip-token-revoke": 0}, false},
+		{"conflicting aliases", map[string]any{"skip-token-revoke": false, "Skip-Token-Revoke": true}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			with := map[string]any{"repositories": "${{ github.repository }}", "permission-contents": "read"}
+			maps.Copy(with, tc.inputs)
+			workflow := map[string]any{"jobs": map[string]any{"custom": map[string]any{"steps": []any{
+				map[string]any{"uses": "Actions/create-github-app-token@sha", "with": with},
+			}}}}
+			for _, strict := range []bool{false, true} {
+				compiler := NewCompiler()
+				err := compiler.validateAppTokenPermissions(workflow, strict, true)
+				if tc.allowed && err != nil {
+					t.Fatalf("revocation-enabled step must compile: %v", err)
+				}
+				if !tc.allowed && (err == nil || !strings.Contains(err.Error(), "revoke its token")) {
+					t.Fatalf("gateway token cleanup must be mandatory even outside strict mode: %v", err)
+				}
+				if err := compiler.validateAppTokenPermissions(workflow, strict, false); err != nil {
+					t.Fatalf("gateway cleanup enforcement must not change native workflow policy: %v", err)
+				}
+			}
+		})
 	}
 }
 
@@ -152,11 +196,11 @@ func TestAppTokenPermissionsWildcardStillChecksPermissionsAndOtherSteps(t *testi
 		"with": map[string]any{"client-id": "app-id", "private-key": "private-key"},
 	}
 	workflow := map[string]any{"jobs": map[string]any{"agent": map[string]any{"steps": []any{generated}}}}
-	if err := compiler.validateAppTokenPermissions(workflow, true); err == nil || !strings.Contains(err.Error(), "permission-*") {
+	if err := compiler.validateAppTokenPermissions(workflow, true, false); err == nil || !strings.Contains(err.Error(), "permission-*") {
 		t.Fatalf("wildcard must not bypass permission checks, got %v", err)
 	}
 	generated["with"].(map[string]any)["permission-contents"] = "read"
-	if err := compiler.validateAppTokenPermissions(workflow, true); err != nil {
+	if err := compiler.validateAppTokenPermissions(workflow, true, false); err != nil {
 		t.Fatalf("generated wildcard should pass with explicit permissions: %v", err)
 	}
 	workflow["jobs"].(map[string]any)["agent"].(map[string]any)["steps"] = append(
@@ -168,7 +212,7 @@ func TestAppTokenPermissionsWildcardStillChecksPermissionsAndOtherSteps(t *testi
 			},
 		},
 	)
-	if err := compiler.validateAppTokenPermissions(workflow, true); err == nil || !strings.Contains(err.Error(), "repositories input") {
+	if err := compiler.validateAppTokenPermissions(workflow, true, false); err == nil || !strings.Contains(err.Error(), "repositories input") {
 		t.Fatalf("duplicate matching step in the generated job must still require repository scoping, got %v", err)
 	}
 	workflow["jobs"].(map[string]any)["custom"] = map[string]any{"steps": []any{
@@ -179,7 +223,7 @@ func TestAppTokenPermissionsWildcardStillChecksPermissionsAndOtherSteps(t *testi
 			},
 		},
 	}}
-	if err := compiler.validateAppTokenPermissions(workflow, true); err == nil || !strings.Contains(err.Error(), "repositories input") {
+	if err := compiler.validateAppTokenPermissions(workflow, true, false); err == nil || !strings.Contains(err.Error(), "repositories input") {
 		t.Fatalf("matching steps in another job must still require repository scoping, got %v", err)
 	}
 }
@@ -198,7 +242,7 @@ func TestAppTokenPermissionsUntrackedWildcardHelperDoesNotExemptSteps(t *testing
 			},
 		},
 	}}}}
-	if err := compiler.validateAppTokenPermissions(workflow, true); err == nil || !strings.Contains(err.Error(), "repositories input") {
+	if err := compiler.validateAppTokenPermissions(workflow, true, false); err == nil || !strings.Contains(err.Error(), "repositories input") {
 		t.Fatalf("building an untracked YAML fragment must not exempt a step, got %v", err)
 	}
 }

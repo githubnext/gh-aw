@@ -69,7 +69,7 @@ const {
 } = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
-const { runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs } = require("./harness_retry_runner.cjs");
+const { captureExecutionEvidenceConfiguration, runHarnessRetryLoop, shouldSkipForNoopSafeOutputs, shouldStopForNoopSafeOutputs, stripExecutionEvidenceEnv } = require("./harness_retry_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -1138,6 +1138,15 @@ function buildCopilotSDKChildEnv({ sdkEnv, copilotSDKMode, copilotConnectionToke
 }
 
 /**
+ * @param {NodeJS.ProcessEnv} baseEnv
+ * @param {NodeJS.ProcessEnv} sdkEnv
+ * @returns {NodeJS.ProcessEnv}
+ */
+function buildCopilotEngineChildEnv(baseEnv, sdkEnv) {
+  return stripExecutionEvidenceEnv({ ...baseEnv, ...sdkEnv });
+}
+
+/**
  * Write Copilot detection outputs to $GITHUB_OUTPUT.
  * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean }} results
  */
@@ -1353,6 +1362,8 @@ function resolvePromptFileInput(args) {
  * Main entry point: run copilot with retry logic for partially-executed sessions.
  */
 async function main() {
+  const executionEvidence = captureExecutionEvidenceConfiguration(process.env);
+  stripExecutionEvidenceEnv(process.env);
   const [, , command, ...args] = process.argv;
   const retryConfig = resolveRetryConfig(process.env, log);
   const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = retryConfig;
@@ -1475,7 +1486,7 @@ async function main() {
   // legitimate noop exit is never turned into an infrastructure-incomplete failure by an
   // unrelated listener being unavailable.
   const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS || "";
-  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log })) {
+  if (shouldSkipForNoopSafeOutputs({ safeOutputsPath, hasNoopInSafeOutputs, log, executionEvidence })) {
     process.exit(0);
   }
 
@@ -1581,7 +1592,7 @@ async function main() {
     routingEffort: modelRoutingSelection?.effort ?? null,
     multiProviderJson,
   });
-  const childEnv = Object.keys(sdkChildEnv).length > 0 ? { ...process.env, ...sdkChildEnv } : undefined;
+  const childEnv = Object.keys(sdkChildEnv).length > 0 ? buildCopilotEngineChildEnv(process.env, sdkChildEnv) : undefined;
 
   let delay = initialDelayMs;
   let lastExitCode = 1;
@@ -2113,6 +2124,7 @@ if (typeof module !== "undefined" && module.exports) {
     fetchModelsFromUrl,
     buildCopilotProxyAuthFailureDiagnostic,
     buildCopilotSDKChildEnv,
+    buildCopilotEngineChildEnv,
     envFlagEnabled,
     generateCopilotConnectionToken,
     buildCopilotSDKServerArgs,

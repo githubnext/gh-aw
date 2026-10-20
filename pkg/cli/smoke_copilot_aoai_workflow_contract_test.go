@@ -74,6 +74,6 @@ func TestSmokeCopilotAOAIApiKeyPricing(t *testing.T) {
 
 	compiled, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "smoke-copilot-aoai-apikey.lock.yml"))
 	require.NoError(t, err)
-	assert.Contains(t, string(compiled), `"defaultAiCreditsPricing":{"input":5,"output":25}`,
+	assert.Contains(t, string(compiled), `\"defaultAiCreditsPricing\":{\"input\":5,\"output\":25}`,
 		"Compiled AWF API proxy must include fallback pricing for the custom Azure deployment")
 }

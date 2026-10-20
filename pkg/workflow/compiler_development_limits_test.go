@@ -79,14 +79,14 @@ func TestDryRunCompiledCreditLimits(t *testing.T) {
 		name, config, expected string
 	}{
 		{name: "defaults", expected: "GH_AW_DEFAULT_MAX_AI_CREDITS"},
-		{name: "daily", config: "max-daily-ai-credits: 25\n", expected: `"maxAiCredits":25`},
-		{name: "daily-suffix", config: "max-daily-ai-credits: 1k\n", expected: `"maxAiCredits":1000`},
-		{name: "both", config: "max-daily-ai-credits: 25\nmax-ai-credits: 10\n", expected: `"maxAiCredits":10`},
-		{name: "disabled-per-run", config: "max-daily-ai-credits: 25\nmax-ai-credits: -1\n", expected: `"maxAiCredits":25`},
+		{name: "daily", config: "max-daily-ai-credits: 25\n", expected: `GH_AW_MAX_AI_CREDITS: "25"`},
+		{name: "daily-suffix", config: "max-daily-ai-credits: 1k\n", expected: `GH_AW_MAX_AI_CREDITS: "1000"`},
+		{name: "both", config: "max-daily-ai-credits: 25\nmax-ai-credits: 10\n", expected: `GH_AW_MAX_AI_CREDITS: "10"`},
+		{name: "disabled-per-run", config: "max-daily-ai-credits: 25\nmax-ai-credits: -1\n", expected: `GH_AW_MAX_AI_CREDITS: "25"`},
 		{name: "expression", config: "max-daily-ai-credits: ${{ vars.DAILY_BUDGET }}\n", expected: "GH_AW_MAX_AI_CREDITS: ${{ vars.DAILY_BUDGET }}"},
-		{name: "imported", config: "imports: [shared.md]\n", expected: `"maxAiCredits":25`},
-		{name: "github-app", config: "max-daily-ai-credits:\n  value: 25\n  github-app:\n    client-id: ${{ vars.DAILY_APP_ID }}\n    private-key: ${{ secrets.DAILY_ONLY_KEY }}\n", expected: `"maxAiCredits":25`},
-		{name: "repo-memory", config: "max-daily-ai-credits:\n  value: 25\n  backend: repo-memory\ntools:\n  repo-memory: true\n", expected: `"maxAiCredits":25`},
+		{name: "imported", config: "imports: [shared.md]\n", expected: `GH_AW_MAX_AI_CREDITS: "25"`},
+		{name: "github-app", config: "max-daily-ai-credits:\n  value: 25\n  github-app:\n    client-id: ${{ vars.DAILY_APP_ID }}\n    private-key: ${{ secrets.DAILY_ONLY_KEY }}\n", expected: `GH_AW_MAX_AI_CREDITS: "25"`},
+		{name: "repo-memory", config: "max-daily-ai-credits:\n  value: 25\n  backend: repo-memory\ntools:\n  repo-memory: true\n", expected: `GH_AW_MAX_AI_CREDITS: "25"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

@@ -743,12 +743,169 @@
           "type": "string",
           "minLength": 1,
           "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call'), schedule shorthand (e.g., 'daily', 'weekly'), or slash command shorthand (e.g., '/my-bot' expands to slash_command + workflow_dispatch)",
+          "not": {
+            "enum": ["gateway-dispatch", "orgs", "projects-items", "code-scanning-alert", "dependabot-alerts", "security-alerts", "jira-issue", "linear-issue", "azure-devops-issue", "slash-command", "label-command"]
+          },
           "examples": ["push", "issues", "workflow_dispatch", "daily", "/my-bot"]
         },
         {
           "type": "object",
           "description": "Complex trigger configuration with event-specific filters and options",
+          "dependencies": {
+            "gateway-dispatch": {
+              "propertyNames": {
+                "enum": [
+                  "gateway-dispatch",
+                  "allow-bot-authored-trigger-comment",
+                  "bots",
+                  "cooldown",
+                  "github-app",
+                  "github-token",
+                  "labels",
+                  "manual-approval",
+                  "needs",
+                  "permissions",
+                  "reaction",
+                  "report-blocked-version",
+                  "restore-memory",
+                  "roles",
+                  "skip-author-associations",
+                  "skip-bots",
+                  "skip-if-check-failing",
+                  "skip-if-match",
+                  "skip-if-no-match",
+                  "skip-roles",
+                  "stale-check",
+                  "status-comment",
+                  "steps",
+                  "stop-after"
+                ]
+              }
+            }
+          },
           "properties": {
+            "repos": false,
+            "orgs": false,
+            "projects-items": false,
+            "code-scanning-alert": false,
+            "dependabot-alerts": false,
+            "security-alerts": false,
+            "slash-command": false,
+            "label-command": false,
+            "jira-issue": false,
+            "linear-issue": false,
+            "azure-devops-issue": false,
+            "gateway-dispatch": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Experimental exclusive trigger. Every nested key and value must be literal; GitHub Actions expressions are not supported anywhere in this section. No other triggers may coexist with gateway-dispatch; non-trigger on settings such as roles and bots remain supported. Contains independent nested gateway subscriptions with shared repository and organization selection. Forward only canonical resource URIs, event types, and declared matching filter literals; resolve all other data through provider-authenticated access. Requires aw.json gateway-dispatch: true and does not grant gateway authority.",
+              "anyOf": [
+                { "required": ["projects-items"] },
+                { "required": ["code-scanning-alert"] },
+                { "required": ["dependabot-alerts"] },
+                { "required": ["jira-issue"] },
+                { "required": ["linear-issue"] },
+                { "required": ["azure-devops-issue"] },
+                { "required": ["slash-command"] },
+                { "required": ["label-command"] },
+                { "required": ["issue"] },
+                { "required": ["pull-request"] },
+                { "required": ["discussion"] },
+                { "required": ["issue-comment"] },
+                { "required": ["pull-request-comment"] },
+                { "required": ["pull-request-review"] },
+                { "required": ["pull-request-review-comment"] },
+                { "required": ["pull-request-review-thread"] },
+                { "required": ["discussion-comment"] },
+                { "required": ["commit-comment"] }
+              ],
+              "properties": {
+                "issue": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "discussion": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "issue-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-review": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-review-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "pull-request-review-thread": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "discussion-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "commit-comment": { "$ref": "#/$defs/webhookGitHubNotification" },
+                "slash-command": {
+                  "$ref": "#/properties/on/oneOf/1/properties/slash_command",
+                  "description": "Experimental. Native slash_command configuration with matching performed by the approved gateway server, not native Actions listeners."
+                },
+                "label-command": {
+                  "allOf": [{ "$ref": "#/properties/on/oneOf/1/properties/label_command" }, { "properties": { "remove_label": { "const": true } } }],
+                  "description": "Experimental. Native label_command configuration with matching and mandatory label consumption performed by the approved gateway server. remove_label: false is unsupported."
+                },
+                "repos": {
+                  "$ref": "#/$defs/webhookRepositoryValues",
+                  "description": "Experimental. Shared source repository selectors for all repository-aware gateway subscriptions; exact owner/repo or owner/* only. Ignored by non-repository event families. Selectors do not grant access."
+                },
+                "orgs": {
+                  "$ref": "#/$defs/webhookOrganizationValues",
+                  "description": "Experimental. Optional shared source GitHub organization selectors for repository notifications, Projects, security alerts, and commands. Case-insensitive organization names or '*' wildcard patterns, matched only over approved sources. Ignored by external providers; does not grant access."
+                },
+                "projects-items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["project_id"],
+                  "properties": {
+                    "project_id": {
+                      "$ref": "#/$defs/webhookStringValues",
+                      "description": "Experimental. Required Projects v2 GraphQL node ID or nonempty list of IDs; sibling of types."
+                    },
+                    "types": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": { "type": "string", "minLength": 1 }
+                    },
+                    "status-transitions": {
+                      "description": "Experimental. Paired from/to Status changes compiled to CAO-side predicates over the delivered payload. Each complete pair is an alternative; no runner admission step is added.",
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["from", "to"],
+                        "properties": {
+                          "from": { "type": "string", "minLength": 1, "pattern": "\\S" },
+                          "to": { "type": "string", "minLength": 1, "pattern": "\\S" }
+                        }
+                      }
+                    },
+                    "filters": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "properties": { "project_id": false }
+                    }
+                  },
+                  "description": "Experimental. Batched Projects v2 item events under on.gateway-dispatch requiring a hosted CAO server and aw.json gateway-dispatch: true. aw_context.items lists unique affected items. Scoped to required project_id node IDs; optional status-transitions adds CAO-side predicates. Projects (classic) is not supported."
+                },
+                "code-scanning-alert": {
+                  "$ref": "#/$defs/webhookSecurityAlert",
+                  "description": "Experimental. Code scanning alert events from optionally selected repositories. Independent types, severity, and filters apply only to code_scanning_alert. Requires a hosted CAO server and aw.json gateway-dispatch: true."
+                },
+                "dependabot-alerts": {
+                  "$ref": "#/$defs/webhookSecurityAlert",
+                  "description": "Experimental. Dependabot alert events from optionally selected repositories. Independent types, severity, and filters apply only to dependabot_alert. Requires a hosted CAO server and aw.json gateway-dispatch: true."
+                },
+                "jira-issue": {
+                  "$ref": "#/$defs/webhookJiraIssue",
+                  "description": "Experimental. Jira Cloud issue lifecycle and label activities normalized from native issue webhooks. Requires nested on.gateway-dispatch, the repository gateway-dispatch opt-in, and an approved provider bridge; does not register webhooks or grant source access."
+                },
+                "linear-issue": {
+                  "$ref": "#/$defs/webhookLinearIssue",
+                  "description": "Experimental. Linear Issue create/update/remove webhooks with payload-derived lifecycle and label activities. Requires nested on.gateway-dispatch, the repository gateway-dispatch opt-in, and an approved provider bridge; does not register webhooks or grant source access."
+                },
+                "azure-devops-issue": {
+                  "$ref": "#/$defs/webhookAzureDevOpsIssue",
+                  "description": "Experimental. Azure DevOps work item webhooks with payload-derived lifecycle and tag activities. Closed/reopened require explicit closed-states. Requires nested on.gateway-dispatch, the repository gateway-dispatch opt-in, and an approved provider bridge."
+                }
+              }
+            },
             "slash_command": {
               "description": "Special slash command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically. Note: Can be combined with issues/pull_request events if those events only use 'labeled' or 'unlabeled' types.",
               "oneOf": [
@@ -2296,7 +2453,7 @@
               }
             },
             "roles": {
-              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. Use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
+              "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer', 'write'] for security. All on.gateway-dispatch subscriptions require write access or higher; only admin, maintainer, maintain, and write are allowed. For other triggers, use 'all' to allow any authenticated user (\u26a0\ufe0f security consideration).",
               "oneOf": [
                 {
                   "type": "string",
@@ -14517,6 +14674,196 @@
     }
   ],
   "$defs": {
+    "webhookProviderIssueTypes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted"] },
+      "description": "Experimental. GitHub-style normalized activities, not provider-native action names. Missing transition evidence never matches lifecycle or label activities."
+    },
+    "webhookProviderSelectorValues": {
+      "oneOf": [{ "type": "string" }, { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }]
+    },
+    "webhookJiraIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project"],
+      "properties": {
+        "types": { "$ref": "#/$defs/webhookProviderIssueTypes" },
+        "project": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Required Jira project key or nonempty list of keys; sibling of types."
+        },
+        "issue_id": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "issue_key": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "labels": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "status": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "resolution": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "sender": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+      }
+    },
+    "webhookLinearIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["organization-id"],
+      "properties": {
+        "types": { "$ref": "#/$defs/webhookProviderIssueTypes" },
+        "organization-id": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Required literal Linear organization ID or nonempty list of IDs; sibling of types."
+        },
+        "team-id": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Optional literal Linear team model ID or nonempty list of IDs. Matches delivered data.teamId without API resolution."
+        },
+        "issue_id": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "labels": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "sender": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+      }
+    },
+    "webhookAzureDevOpsIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id"],
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Required Azure DevOps project ID or nonempty list of IDs; sibling of types."
+        },
+        "collection_id": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["opened", "edited", "closed", "reopened", "labeled", "unlabeled", "deleted", "restored"] }
+        },
+        "closed-states": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Literal terminal state name or nonempty list from the project's work item process. Required for closed/reopened; no state names are assumed."
+        },
+        "state": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "from": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+            "to": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+          }
+        },
+        "tags": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "from": { "$ref": "#/$defs/webhookProviderSelectorValues" },
+            "to": { "$ref": "#/$defs/webhookProviderSelectorValues" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["types"],
+            "properties": { "types": { "contains": { "enum": ["closed", "reopened"] } } }
+          },
+          "then": { "required": ["closed-states"] }
+        }
+      ]
+    },
+    "webhookSecurityAlert": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "$ref": "#/$defs/webhookStringValues",
+          "description": "Experimental. Source-specific severity string or nonempty list of severities; sibling of types."
+        },
+        "types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "filters": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": { "severity": false, "repos": false }
+        }
+      },
+      "description": "Experimental. Configuration for a single code-scanning-alert or dependabot-alerts subscription requiring a hosted CAO server and aw.json gateway-dispatch: true. Shared on.gateway-dispatch.repos selects source repositories. Each trigger emits only its own event family, with unique affected alerts in aw_context.items, through a trusted repository_dispatch relay. No sources selector or bundled security event is supported."
+    },
+    "webhookGitHubNotification": {
+      "description": "Experimental. GitHub notification subscription filtered by the approved gateway before minimal canonical URL/type/matching-filter projection. A null trigger or omitted types selects every catalog action; no original bodies or native Actions listeners.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "types": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "filters": { "$ref": "#/$defs/webhookNotificationFilters" }
+          }
+        }
+      ]
+    },
+    "webhookNotificationFilters": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^([A-Za-z_][A-Za-z0-9_-]*|\\*)$",
+        "not": { "enum": ["__proto__", "prototype", "constructor"] }
+      },
+      "additionalProperties": { "$ref": "#/$defs/webhookNotificationFilterValue" }
+    },
+    "webhookNotificationFilterValue": {
+      "oneOf": [
+        { "type": "string", "not": { "pattern": "\\$\\{\\{" } },
+        { "type": "boolean" },
+        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "oneOf": [{ "items": { "type": "string", "not": { "pattern": "\\$\\{\\{" } } }, { "items": { "type": "boolean" } }, { "items": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 } }]
+        },
+        { "$ref": "#/$defs/webhookNotificationFilters" }
+      ]
+    },
+    "webhookStringValues": {
+      "oneOf": [
+        { "type": "string", "minLength": 1, "pattern": "\\S" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "pattern": "\\S" }
+        }
+      ]
+    },
+    "webhookOrganizationValues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9*]([a-zA-Z0-9*-]{0,37}[a-zA-Z0-9*])?$",
+        "not": { "pattern": "\\s" }
+      }
+    },
+    "webhookRepositoryValues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]+/([a-zA-Z0-9._-]+|\\*)$",
+        "not": { "anyOf": [{ "pattern": "/\\.{1,2}$" }, { "pattern": "\\s" }] }
+      }
+    },
     "work_queue_worker_profile": {
       "type": "object",
       "additionalProperties": false,
