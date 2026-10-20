@@ -70,6 +70,10 @@ jobs:
           $size = (Get-Item $env:BINARY).Length
           Add-Content $env:GITHUB_STEP_SUMMARY "✅ Binary found ($size bytes)"
 
+      - name: Validate scenario coverage and timeout regressions
+        shell: pwsh
+        run: ./scripts/windows-cli-matrix.test.ps1
+
       - name: Windows CLI scenario matrix (shell × launch-mode × env-shape × path-style)
         shell: pwsh
         run: |
@@ -88,6 +92,7 @@ jobs:
               [switch] $MinimalEnvironment,
               [switch] $CloseStandardInput,
               [switch] $ExpectFailure,
+              [switch] $AllowFailure,
               [string] $ExpectedErrorPattern = "",
               [switch] $AssertNoAnsi
             )
@@ -99,6 +104,8 @@ jobs:
             $psi.RedirectStandardInput = $CloseStandardInput
             $psi.RedirectStandardOutput = $true
             $psi.RedirectStandardError = $true
+            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
 
             if ($RawArguments) {
               $psi.Arguments = $RawArguments
@@ -110,7 +117,7 @@ jobs:
 
             if ($MinimalEnvironment) {
               $psi.Environment.Clear()
-              foreach ($key in @("PATH", "TEMP", "TMP", "SystemRoot")) {
+              foreach ($key in @("TEMP", "TMP", "SystemRoot")) {
                 $value = [System.Environment]::GetEnvironmentVariable($key)
                 if ($null -ne $value -and $value -ne "") {
                   $psi.Environment[$key] = $value
@@ -165,8 +172,11 @@ jobs:
               if ($ExpectedErrorPattern -and $output -notmatch $ExpectedErrorPattern) {
                 throw "Expected error pattern '$ExpectedErrorPattern' not found for '$FilePath $displayArgs' (exit $($proc.ExitCode), elapsed $($stopwatch.ElapsedMilliseconds)ms)`nCaptured output:`n$output"
               }
-            } elseif ($proc.ExitCode -ne 0) {
+            } elseif ($proc.ExitCode -ne 0 -and -not $AllowFailure) {
               throw "Exit code $($proc.ExitCode) for '$FilePath $displayArgs' after $($stopwatch.ElapsedMilliseconds)ms`nCaptured output:`n$output"
+            }
+            if ($AllowFailure -and $proc.ExitCode -ne 0 -and $output -notmatch $ExpectedErrorPattern) {
+              throw "Unexpected failure for '$FilePath $displayArgs' (exit $($proc.ExitCode))`nCaptured output:`n$output"
             }
 
             return @{
@@ -179,6 +189,12 @@ jobs:
           $workspace = $env:GITHUB_WORKSPACE
           $binary = $env:BINARY
           $originalPath = $env:PATH
+          $originalPathExt = $env:PATHEXT
+          $shellExecutables = @{
+            pwsh = (Get-Command pwsh.exe).Source
+            powershell = (Get-Command powershell.exe).Source
+            cmd = (Get-Command cmd.exe).Source
+          }
           $toolcacheDir = Join-Path $env:RUNNER_TEMP "toolcache-like"
           $spaceDir = Join-Path $env:RUNNER_TEMP "path with spaces"
           $parenDir = Join-Path $env:RUNNER_TEMP "Program Files (x86)"
@@ -189,121 +205,115 @@ jobs:
           Copy-Item -Path $binary -Destination (Join-Path $spaceDir "gh-aw.exe") -Force
           Copy-Item -Path $binary -Destination (Join-Path $parenDir "gh-aw.exe") -Force
           Copy-Item -Path $binary -Destination (Join-Path $toolcacheDir "gh-aw.exe") -Force
+          Copy-Item -Path $binary -Destination (Join-Path $unicodeDir "gh-aw.exe") -Force
 
-          # Declared coverage dimensions. The matrix below is generated from these
-          # arrays (not hand-picked) so every shell is exercised directly and via
-          # PATH resolution, and every env-shape/path-style pair is exercised at
-          # least once. A full cross product (shells x launch x env x path) would
-          # be 240+ scenarios and risk the integration job's timeout, so growth is
-          # additive across dimension pairs rather than multiplicative across all
-          # four: shell coverage is paired with launch-mode, and env-shape coverage
-          # is paired with path-style via one representative shell/launch.
-          $shells = @("pwsh-default", "pwsh-noprofile", "powershell-default", "powershell-noprofile", "cmd")
-          $launchModes = @("direct", "path")
-          $envShapes = @("default", "no-color", "term-dumb", "term-unset", "ci-true", "ci-unset")
-          $pathStyles = @("default", "workspace-first", "toolcache-first", "duplicate-workspace")
-          $representativeShell = "pwsh-noprofile"
-
-          $scenarioMatrix = [System.Collections.Generic.List[hashtable]]::new()
-
-          # Dimension pair 1: shell x launch-mode, every shell exercised both as a
-          # direct invocation and resolved via PATH.
-          foreach ($shell in $shells) {
-            foreach ($launch in $launchModes) {
-              $path = if ($launch -eq "path") { "workspace-first" } else { "default" }
-              $scenarioMatrix.Add(@{ name = "$shell/$launch/default/$path"; shell = $shell; launch = $launch; env = "default"; path = $path })
-            }
-          }
-
-          # Dimension pair 2: env-shape x path-style, every environment variant
-          # exercised across every PATH arrangement via a fixed representative
-          # shell. The "default" path style means "do not resolve via PATH at
-          # all", so it is paired with direct invocation (matching dimension
-          # pair 1's own default/default direct scenario); every other path
-          # style is paired with PATH-based launch, since rearranging PATH has
-          # no effect on a direct invocation. Dimension pair 1 already
-          # generates $representativeShell/direct/default/default and
-          # $representativeShell/path/default/workspace-first, so both are
-          # skipped here to avoid duplicates.
-          foreach ($env in $envShapes) {
-            foreach ($path in $pathStyles) {
-              if ($env -eq "default" -and ($path -eq "default" -or $path -eq "workspace-first")) { continue }
-              $launch = if ($path -eq "default") { "direct" } else { "path" }
-              $scenarioMatrix.Add(@{ name = "$representativeShell/$launch/$env/$path"; shell = $representativeShell; launch = $launch; env = $env; path = $path })
-            }
-          }
-
-          Add-Content $env:GITHUB_STEP_SUMMARY "Generated $($scenarioMatrix.Count) scenarios from $($shells.Count) shells x $($launchModes.Count) launch modes x $($envShapes.Count) env shapes x $($pathStyles.Count) path styles"
+          . ./scripts/windows-cli-matrix.ps1
+          $dimensions = Get-CliScenarioDimensions
+          $scenarioMatrix = @(New-CliScenarioMatrix)
+          $pairCount = Assert-CliScenarioCoverage -Scenarios $scenarioMatrix
+          $dimensionSummary = ($dimensions.Keys | ForEach-Object { "$_=$($dimensions[$_] -join '/')" }) -join "; "
+          Add-Content $env:GITHUB_STEP_SUMMARY "Pairwise matrix: $($scenarioMatrix.Count) scenarios, all $pairCount value pairs covered. $dimensionSummary"
 
           foreach ($scenario in $scenarioMatrix) {
-            $env:PATH = $originalPath
-            switch ($scenario.path) {
-              "workspace-first" { $env:PATH = "$workspace;$originalPath" }
-              "toolcache-first" { $env:PATH = "$toolcacheDir;$workspace;$originalPath" }
-              "duplicate-workspace" { $env:PATH = "$workspace;$workspace;$originalPath" }
-              default {}
+            $pathDirectory = switch ($scenario.path) {
+              "spaces" { $spaceDir }
+              "parentheses" { $parenDir }
+              "mixed-slashes" { $spaceDir -replace "\\", "/" }
+              "unicode" { $unicodeDir }
+              default { $workspace }
             }
-
-            $envOverrides = @{}
+            $scenarioBinary = Join-Path $pathDirectory "gh-aw.exe"
+            $basePath = if ($scenario.env -eq "minimal") { "$env:SystemRoot\System32;$env:SystemRoot" } else { $originalPath }
+            $scenarioPath = "$pathDirectory;$basePath"
+            $expectedExecutable = $scenarioBinary
+            switch ($scenario.order) {
+              "toolcache-first" {
+                $scenarioPath = "$toolcacheDir;$pathDirectory;$basePath"
+                $expectedExecutable = Join-Path $toolcacheDir "gh-aw.exe"
+              }
+              "duplicate-workspace" { $scenarioPath = "$pathDirectory;$pathDirectory;$basePath" }
+              "shadow" { $scenarioPath = "$pathDirectory;$toolcacheDir;$basePath" }
+            }
+            $pathExt = switch ($scenario.pathext) {
+              "exe-first" { ".EXE;.CMD;.BAT;.COM" }
+              "duplicate-exe" { ".CMD;.EXE;.BAT;.EXE" }
+              "missing-exe" { ".CMD;.BAT;.COM" }
+              default { $originalPathExt }
+            }
+            $envOverrides = @{ PATH = $scenarioPath; PATHEXT = $pathExt }
             $unsetVars = @()
             $assertNoAnsi = $false
+            $environmentChecks = @{}
             switch ($scenario.env) {
-              "no-color" { $envOverrides["NO_COLOR"] = "1" }
-              "term-dumb" { $envOverrides["TERM"] = "dumb"; $assertNoAnsi = $true }
-              "term-unset" { $unsetVars += "TERM" }
-              "ci-true" { $envOverrides["CI"] = "true" }
-              "ci-unset" { $unsetVars += "CI" }
-              default {}
+              "minimal" { $environmentChecks = @{ CI = ""; TERM = ""; NO_COLOR = "" } }
+              "no-color" { $envOverrides["NO_COLOR"] = "1"; $environmentChecks.NO_COLOR = "1"; $assertNoAnsi = $true }
+              "term-dumb" { $envOverrides["TERM"] = "dumb"; $environmentChecks.TERM = "dumb"; $assertNoAnsi = $true }
+              "term-unset" { $unsetVars += "TERM"; $environmentChecks.TERM = "" }
+              "ci-true" { $envOverrides["CI"] = "true"; $environmentChecks.CI = "true" }
+              "ci-unset" { $unsetVars += "CI"; $environmentChecks.CI = "" }
             }
-
+            $invokeOptions = @{
+              EnvironmentOverrides = $envOverrides
+              UnsetEnvironment = $unsetVars
+              MinimalEnvironment = ($scenario.env -eq "minimal")
+              AssertNoAnsi = $assertNoAnsi
+              # cmd searches its working directory before PATH, unlike PowerShell.
+              WorkingDirectory = $env:RUNNER_TEMP
+            }
+            $target = if ($scenario.launch -eq "path") { "gh-aw" } else { $scenarioBinary }
+            # Shells may differ when PATHEXT omits .EXE: accept only verified
+            # resolution or a bounded, explicit command-not-found diagnostic.
+            $missingExtension = $scenario.launch -eq "path" -and $scenario.pathext -eq "missing-exe"
+            if ($missingExtension) {
+              $invokeOptions.AllowFailure = $true
+              $invokeOptions.ExpectedErrorPattern = "gh-aw.*(not recognized|not found)|not recognized.*gh-aw"
+            }
             try {
-              if ($scenario.launch -eq "path") {
-                $whereResult = Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", "where gh-aw") -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars
-                $firstResolved = ($whereResult.Output -split "`r?`n" | Where-Object { $_ -match "gh-aw\.exe$" } | Select-Object -First 1)
-                $expectedPathDirectory = if ($scenario.path -eq "toolcache-first") { $toolcacheDir } else { $workspace }
-                $expectedExecutable = Join-Path $expectedPathDirectory "gh-aw.exe"
-                if (-not [System.String]::Equals($firstResolved, $expectedExecutable, [System.StringComparison]::OrdinalIgnoreCase)) {
-                  throw "PATH resolution mismatch: $firstResolved"
+              if ($scenario.shell -eq "cmd") {
+                $resolution = if ($scenario.launch -eq "path") {
+                  'for %I in (gh-aw.exe) do @echo RESOLVED=%~$PATH:I'
+                } else { "echo RESOLVED=$scenarioBinary" }
+                $environmentProbe = ($environmentChecks.Keys | ForEach-Object { "if defined $_ (echo ENV-$_=%$_%) else (echo ENV-$_=) & " }) -join ""
+                $command = "chcp 65001 >nul & $environmentProbe$resolution & `"$target`" --help"
+                $result = Invoke-CliProcess -FilePath $shellExecutables.cmd -RawArguments "/d /s /c `"$command`"" @invokeOptions
+              } else {
+                $shellName = if ($scenario.shell.StartsWith("pwsh")) { "pwsh" } else { "powershell" }
+                $escapedTarget = $target.Replace("'", "''")
+                $resolution = if ($scenario.launch -eq "path") {
+                  "[string](Get-Command '$escapedTarget' -CommandType Application -ErrorAction SilentlyContinue).Source"
+                } else { "'$($scenarioBinary.Replace("'", "''"))'" }
+                $environmentProbe = ($environmentChecks.Keys | ForEach-Object { "Write-Output ('ENV-$_=' + [Environment]::GetEnvironmentVariable('$_')); " }) -join ""
+                $command = "`$ErrorActionPreference = 'Stop'; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(`$false); $environmentProbe Write-Output ('RESOLVED=' + $resolution); & '$escapedTarget' --help; exit `$LASTEXITCODE"
+                $shellArgs = @("-NonInteractive")
+                if ($scenario.shell.EndsWith("noprofile")) { $shellArgs += "-NoProfile" }
+                $shellArgs += @("-Command", $command)
+                $result = Invoke-CliProcess -FilePath $shellExecutables[$shellName] -ArgumentList $shellArgs @invokeOptions
+              }
+              foreach ($key in $environmentChecks.Keys) {
+                if (($result.Output -split "`r?`n").Trim() -cnotcontains "ENV-$key=$($environmentChecks[$key])") {
+                  throw "Environment assertion failed for $key`nCaptured output:`n$($result.Output)"
                 }
               }
-
-              switch ($scenario.shell) {
-                "pwsh-default" {
-                  $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
-                  Invoke-CliProcess -FilePath "pwsh" -ArgumentList @("-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
+              if ($result.ExitCode -eq 0) {
+                if ($scenario.launch -eq "direct") { $expectedExecutable = $scenarioBinary }
+                $resolved = [string]($result.Output -split "`r?`n" | Where-Object { $_.StartsWith("RESOLVED=") } | Select-Object -First 1)
+                $resolved = $resolved.Trim() -replace "^RESOLVED=", ""
+                if (-not [string]::Equals(($resolved -replace "/", "\"), ($expectedExecutable -replace "/", "\"), [StringComparison]::OrdinalIgnoreCase)) {
+                  throw "Expected executable '$expectedExecutable', got '$resolved'`nCaptured output:`n$($result.Output)"
                 }
-                "pwsh-noprofile" {
-                  $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
-                  Invoke-CliProcess -FilePath "pwsh" -ArgumentList @("-NoProfile", "-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
-                }
-                "powershell-default" {
-                  $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
-                  Invoke-CliProcess -FilePath "powershell" -ArgumentList @("-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
-                }
-                "powershell-noprofile" {
-                  $cmd = if ($scenario.launch -eq "path") { "& gh-aw --help" } else { "& '$binary' --help" }
-                  Invoke-CliProcess -FilePath "powershell" -ArgumentList @("-NoProfile", "-Command", $cmd) -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
-                }
-                "cmd" {
-                  if ($scenario.launch -eq "path") {
-                    Invoke-CliProcess -FilePath "cmd" -ArgumentList @("/d", "/s", "/c", "gh-aw --help") -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
-                  } else {
-                    # Use RawArguments to bypass .NET's \"..\" quoting which conflicts with cmd.exe's ""..""
-                    # syntax. The outer "" pair is stripped by cmd /s, leaving "path\exe.exe" --help.
-                    Invoke-CliProcess -FilePath "cmd" -RawArguments "/d /s /c `"`"$binary`" --help`"" -EnvironmentOverrides $envOverrides -UnsetEnvironment $unsetVars -AssertNoAnsi:$assertNoAnsi | Out-Null
-                  }
-                }
-                default {
-                  throw "Unknown shell scenario: $($scenario.shell)"
+                if ($result.Output -notmatch "GitHub Agentic Workflows") {
+                  throw "CLI help missing`nCaptured output:`n$($result.Output)"
                 }
               }
             } catch {
+              Add-Content $env:GITHUB_STEP_SUMMARY "FAILED: $($scenario.name)`n`n$($_.Exception.Message)"
               throw "Scenario '$($scenario.name)' failed: $($_.Exception.Message)"
             }
-
-            Add-Content $env:GITHUB_STEP_SUMMARY "✅ Matrix scenario passed: $($scenario.name)"
+            Add-Content $env:GITHUB_STEP_SUMMARY "✅ Matrix scenario passed: $($scenario.name) (exit=$($result.ExitCode), $($result.ElapsedMilliseconds)ms)"
           }
 
+          $env:PATH = "$workspace;$originalPath"
+          $env:PATHEXT = $originalPathExt
           if ($env:PATHEXT -notmatch "(?i)\.EXE") {
             throw "PATHEXT missing .EXE"
           }
@@ -486,6 +496,27 @@ jobs:
                   throw new Win32Exception(err, $"{operation}: {sysMsg}");
               }
 
+              public static string DrainOutput(Task closeTask, Task readTask, StringBuilder captured, int drainTimeoutMs, string childTimeout)
+              {
+                  string drainError = null;
+                  try
+                  {
+                      if (!Task.WhenAll(closeTask, readTask).Wait(drainTimeoutMs))
+                          drainError = $"ConPTY output drain/close timed out after {drainTimeoutMs}ms";
+                  }
+                  catch (AggregateException ex)
+                  {
+                      drainError = $"ConPTY output drain/close failed: {ex.GetBaseException().Message}";
+                  }
+                  string output;
+                  lock (captured) output = captured.ToString();
+                  if (!string.IsNullOrEmpty(childTimeout))
+                      throw new TimeoutException($"{childTimeout}\n{drainError}\nCaptured output:\n{output}");
+                  if (drainError != null)
+                      throw new TimeoutException($"{drainError}\nCaptured output:\n{output}");
+                  return output;
+              }
+
               public static string Run(string fileName, string arguments, int timeoutMs)
               {
                   IntPtr stdinRead = IntPtr.Zero;
@@ -568,35 +599,47 @@ jobs:
                       CloseHandle(stdinWrite);
                       stdinWrite = IntPtr.Zero;
 
-                      using FileStream outputStream = new FileStream(new SafeFileHandle(stdoutRead, ownsHandle: true), FileAccess.Read);
+                      FileStream outputStream = new FileStream(new SafeFileHandle(stdoutRead, ownsHandle: true), FileAccess.Read);
                       stdoutRead = IntPtr.Zero;
-                      using StreamReader reader = new StreamReader(outputStream, Encoding.UTF8);
-                      Task<string> readTask = reader.ReadToEndAsync();
+                      StreamReader reader = new StreamReader(outputStream, Encoding.UTF8);
+                      StringBuilder captured = new StringBuilder();
+                      Task readTask = Task.Run(async () =>
+                      {
+                          char[] buffer = new char[4096];
+                          try
+                          {
+                              int count;
+                              while ((count = await reader.ReadAsync(buffer, 0, buffer.Length)) != 0)
+                                  lock (captured) captured.Append(buffer, 0, count);
+                          }
+                          finally
+                          {
+                              reader.Dispose();
+                          }
+                      });
 
                       uint waitResult = WaitForSingleObject(processInfo.hProcess, unchecked((uint)timeoutMs));
+                      string childTimeout = null;
                       if (waitResult == WAIT_TIMEOUT)
                       {
+                          childTimeout = $"ConPTY child timed out after {timeoutMs}ms for: {commandLine}";
                           if (!TerminateProcess(processInfo.hProcess, 1))
                           {
                               int err = Marshal.GetLastWin32Error();
-                              if (err != 5) ThrowLastWin32("TerminateProcess");
+                              childTimeout += $"; TerminateProcess: {new Win32Exception(err).Message} ({err})";
                           }
-                          ClosePseudoConsole(pseudoConsole);
-                          pseudoConsole = IntPtr.Zero;
-                          try { readTask.GetAwaiter().GetResult(); } catch { }
-                          throw new TimeoutException($"ConPTY child timed out after {timeoutMs}ms for: {commandLine}");
                       }
-                      if (waitResult != 0)
+                      else if (waitResult != 0)
                       {
                           ThrowLastWin32("WaitForSingleObject");
                       }
 
-                      ClosePseudoConsole(pseudoConsole);
+                      // ClosePseudoConsole can itself wait for the output pipe.
+                      // Keep the reader alive while closing, but bound both waits.
+                      IntPtr consoleToClose = pseudoConsole;
                       pseudoConsole = IntPtr.Zero;
-
-                      if (!readTask.Wait(timeoutMs))
-                          throw new TimeoutException($"ConPTY output drain timed out after {timeoutMs}ms");
-                      string output = readTask.GetAwaiter().GetResult();
+                      Task closeTask = Task.Run(() => ClosePseudoConsole(consoleToClose));
+                      string output = DrainOutput(closeTask, readTask, captured, 2000, childTimeout);
                       if (!GetExitCodeProcess(processInfo.hProcess, out int exitCode))
                       {
                           ThrowLastWin32("GetExitCodeProcess");
@@ -612,7 +655,11 @@ jobs:
                   {
                       if (processInfo.hThread != IntPtr.Zero) CloseHandle(processInfo.hThread);
                       if (processInfo.hProcess != IntPtr.Zero) CloseHandle(processInfo.hProcess);
-                      if (pseudoConsole != IntPtr.Zero) ClosePseudoConsole(pseudoConsole);
+                      if (pseudoConsole != IntPtr.Zero)
+                      {
+                          IntPtr consoleToClose = pseudoConsole;
+                          Task.Run(() => ClosePseudoConsole(consoleToClose));
+                      }
                       if (attributeList != IntPtr.Zero)
                       {
                           if (attributeListInitialized) DeleteProcThreadAttributeList(attributeList);
@@ -702,7 +749,7 @@ jobs:
             {
               echo "❌ Failed jobs: $FAILED"
               echo ""
-              echo "Run: [${GITHUB_RUN_ID}](${RUN_URL})"
+              echo "Run: [§${GITHUB_RUN_ID}](${RUN_URL})"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "failed=false" >> "$GITHUB_OUTPUT"
@@ -722,11 +769,11 @@ jobs:
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           TITLE="❌ Windows CLI integration failing"
           BODY=$(cat <<EOF
-          ## Windows CLI Integration Failure
+          ### Windows CLI Integration Failure
 
           **Failed jobs:** ${FAILED_JOBS}
 
-          **Run:** [${GITHUB_RUN_ID}](${RUN_URL})
+          **Run:** [§${GITHUB_RUN_ID}](${RUN_URL})
 
           **Date:** $(date -u '+%Y-%m-%d %H:%M UTC')
 

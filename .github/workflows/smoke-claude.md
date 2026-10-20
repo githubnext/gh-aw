@@ -74,7 +74,7 @@ tools:
     - "*"
 runtimes:
   go:
-    version: "1.26"
+    version: "1.27.3"
 checkout:
   fetch: ["*"]
   fetch-depth: 0

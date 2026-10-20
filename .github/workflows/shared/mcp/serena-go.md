@@ -28,7 +28,8 @@ pre-agent-steps:
   - name: Expose Go to Serena container
     run: |
       set -euo pipefail
-      go_root="$(go env GOROOT)"
+      unset GOROOT
+      go_root="$(GOTOOLCHAIN=local go env GOROOT)"
       case "$go_root" in
         "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"/go/*) ;;
         *)
@@ -40,6 +41,7 @@ pre-agent-steps:
         echo "Serena Go runtime has no executable bin/go in the mounted toolchain." >&2
         exit 1
       fi
+      export GOROOT="$go_root"
       gopls_bin="$RUNNER_TOOL_CACHE/gopls/0.22.0/bin"
       if ! CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN="$gopls_bin" "$go_root/bin/go" install golang.org/x/tools/gopls@v0.22.0; then
         echo "Serena Go preflight failed: could not install gopls v0.22.0 with the selected Go toolchain." >&2
@@ -49,6 +51,7 @@ pre-agent-steps:
         echo "Serena Go preflight failed: installed gopls cannot start." >&2
         exit 1
       fi
+      printf 'GOROOT=%s\n' "$go_root" >> "$GITHUB_ENV"
       printf 'GH_AW_SERENA_GO_PATH=%s/bin:%s:%s\n' "$go_root" "$gopls_bin" "$PATH" >> "$GITHUB_ENV"
       "$go_root/bin/go" version
   - name: Check Serena Go semantic analysis
@@ -85,6 +88,8 @@ gateway or agent starts, Serena's project health check runs in the same image
 with the same workspace and tool-cache mounts, exercising symbol overview and
 symbol lookup through the language server. A failed or timed-out check fails
 preflight rather than leaving the agent to report a missing tool.
+Root discovery clears any earlier `GOROOT`, disables automatic toolchain selection,
+and refreshes the host `GOROOT` so later builds use the same selected toolchain.
 If Serena initialization later fails, report the language-server error and stop
 tasks that require semantic analysis; do not substitute text-only analysis or
 install tools ad hoc.

@@ -1,5 +1,5 @@
 ---
-# Trending Charts (Simple) - Python environment with NumPy, Pandas, Matplotlib, Seaborn, SciPy
+# Trending Charts (Simple) - Version-pinned NumPy, Pandas, Matplotlib, Seaborn, SciPy
 # Cache-memory integration for persistent trending data, automatic artifact upload
 
 runtimes:
@@ -39,7 +39,7 @@ steps:
       if [ ! -d /tmp/gh-aw/python/venv ]; then
         uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
       fi
-      uv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy pandas matplotlib seaborn scipy
+      uv pip install --quiet --python /tmp/gh-aw/python/venv/bin/python numpy==2.5.4 pandas==3.0.6 matplotlib==3.11.2 seaborn==0.13.2 scipy==1.18.1
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
       /tmp/gh-aw/python/venv/bin/python -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
 
