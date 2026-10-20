@@ -25,6 +25,8 @@ func (c *Compiler) buildConclusionAdmissionStep(data *WorkflowData) []string {
 		"          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}\n",
 		"          GITHUB_ACTOR: ${{ github.actor }}\n",
 		"          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}\n",
+		"          GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}\n",
+		"          GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}\n",
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'setup_globals.cjs'));\n",

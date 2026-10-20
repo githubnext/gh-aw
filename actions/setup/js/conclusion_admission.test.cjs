@@ -16,11 +16,13 @@ const base = {
   GITHUB_EVENT_NAME: "workflow_dispatch",
   GITHUB_ACTOR: "original",
   GITHUB_TRIGGERING_ACTOR: "rerunner",
+  GH_AW_USAGE_ARTIFACT_ID: "12345",
 };
 const jwt = () => `synthetic.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 300 })).toString("base64url")}.signature`;
 const oidc = () => Response.json({ value: jwt() });
 const accepted = () => new Response(null, { status: 202 });
-const session = '{"type":"session.start","id":"synthetic"}\n{"type":"assistant.message","content":"done\\nwith Unicode: 🦊"}\n';
+const compactSession = '{"type":"session.format","data":{"version":1}}\n{"type":"usage.report","data":{"aic":2,"usage":{"inputTokens":10,"outputTokens":3}}}\n';
+const session = compactSession + '{"type":"assistant.message","data":{"content":"done\\nwith Unicode: 🦊"}}\n';
 
 describe("admission conclusion notification", () => {
   let directory;
@@ -48,7 +50,7 @@ describe("admission conclusion notification", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it.each([202, 204])("posts the complete unified JSONL and invocation identity, accepting %i", async status => {
+  it.each([202, 204])("posts compact unified JSONL, artifact IDs and invocation identity, accepting %i", async status => {
     const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockResolvedValueOnce(new Response(null, { status }));
     const mask = vi.fn();
     options.env.GITHUB_TOKEN = "never-forward";
@@ -79,7 +81,9 @@ describe("admission conclusion notification", () => {
       event_type: base.GITHUB_EVENT_NAME,
       actor: "original",
       triggering_actor: "rerunner",
-      session,
+      session: compactSession,
+      session_compaction: { version: 1, included_events: 2, omitted_events: 1, oversized_lines: 0, scan_truncated: false, truncated: false },
+      usage_artifact_ids: ["12345"],
     });
     expect(request.body).not.toContain("never-forward");
     expect(mask).toHaveBeenCalledExactlyOnceWith(jwt());
@@ -92,7 +96,7 @@ describe("admission conclusion notification", () => {
     expect(fetchImpl.mock.calls[0][0].searchParams.get("audience")).toBe("authority-deployment");
   });
 
-  it("delivers the actual generated and redacted unified-session file unchanged", async () => {
+  it("compacts the actual generated session without modifying the full artifact", async () => {
     const { writeUnifiedSession } = require("./unified_session.cjs");
     const { validateSession } = require("./scripts/validate_session.cjs");
     fs.writeFileSync(path.join(directory, "aw_info.json"), JSON.stringify({ engine_id: "copilot", run_id: base.GITHUB_RUN_ID, run_attempt: 2 }));
@@ -104,15 +108,19 @@ describe("admission conclusion notification", () => {
     expect(generated).not.toContain("synthetic-private-value");
     const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
     await sendConclusion({ ...options, fetchImpl });
-    expect(JSON.parse(fetchImpl.mock.calls[1][1].body).session).toBe(generated);
+    const body = JSON.parse(fetchImpl.mock.calls[1][1].body);
+    expect(body.session).not.toBe(generated);
+    expect(body.session).not.toContain("assistant.message");
+    expect(body.session).not.toContain("synthetic-private-value");
+    expect(body.usage_artifact_ids).toEqual(["12345"]);
+    expect(fs.readFileSync(sessionFile, "utf8")).toBe(generated);
   });
 
-  it.each(["missing", "empty", "invalid UTF-8", "oversized", "encoded body oversized", "symlink"])("rejects %s session files before requesting OIDC", async kind => {
+  it.each(["missing", "empty", "invalid UTF-8", "invalid JSON", "symlink"])("rejects %s session files before requesting OIDC", async kind => {
     if (kind === "missing") fs.unlinkSync(sessionFile);
     if (kind === "empty") fs.writeFileSync(sessionFile, "");
     if (kind === "invalid UTF-8") fs.writeFileSync(sessionFile, Buffer.from([0xff]));
-    if (kind === "oversized") fs.truncateSync(sessionFile, MAX_REQUEST_BYTES + 1);
-    if (kind === "encoded body oversized") fs.writeFileSync(sessionFile, '"'.repeat(MAX_REQUEST_BYTES / 2));
+    if (kind === "invalid JSON") fs.writeFileSync(sessionFile, "{");
     if (kind === "symlink") {
       const target = path.join(directory, "target.jsonl");
       fs.renameSync(sessionFile, target);
@@ -121,6 +129,44 @@ describe("admission conclusion notification", () => {
     const fetchImpl = vi.fn();
     await expect(sendConclusion({ ...options, fetchImpl })).rejects.toThrow();
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["12345", "", ["12345"]],
+    ["", "23456", ["23456"]],
+    ["12345", "23456", ["23456", "12345"]],
+    ["12345", "12345", ["12345"]],
+    ["", "", []],
+    ["90071992547409931234", "", ["90071992547409931234"]],
+  ])("includes available upload artifact IDs without losing precision (%s, %s)", async (initial, retry, expected) => {
+    options.env.GH_AW_USAGE_ARTIFACT_ID = initial;
+    options.env.GH_AW_USAGE_ARTIFACT_RETRY_ID = retry;
+    const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
+    await sendConclusion({ ...options, fetchImpl });
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body).usage_artifact_ids).toEqual(expected);
+  });
+
+  it.each(["0", "-1", "1e2", " 1", "1/2", "123\n", "1".repeat(21)])("rejects malformed artifact IDs %j before OIDC", async id => {
+    options.env.GH_AW_USAGE_ARTIFACT_ID = id;
+    const fetchImpl = vi.fn();
+    await expect(sendConclusion({ ...options, fetchImpl })).rejects.toThrow();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("bounds the entire request at 64 KiB after JSON escaping and large source messages", async () => {
+    const metadata = JSON.stringify({ type: "workflow.info", data: { model: "\\".repeat(256), engineId: '"'.repeat(256), cliVersion: "\u0000".repeat(256) } }) + "\n";
+    fs.writeFileSync(sessionFile, session + JSON.stringify({ type: "assistant.message", data: { content: "private-unbounded".repeat(100000) } }) + "\n" + metadata.repeat(1000));
+    options.env.GITHUB_REF = "x".repeat(4000);
+    const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
+    expect(await sendConclusion({ ...options, fetchImpl })).toEqual({ result: "delivered" });
+    const request = fetchImpl.mock.calls[1][1].body;
+    expect(MAX_REQUEST_BYTES).toBe(64 * 1024);
+    expect(Buffer.byteLength(request)).toBeLessThanOrEqual(MAX_REQUEST_BYTES);
+    const body = JSON.parse(request);
+    expect(body.session_compaction.truncated).toBe(true);
+    expect(body.session_compaction.oversized_lines).toBe(1);
+    expect(body.session).not.toContain("private-unbounded");
+    expect(body.session).not.toContain("assistant.message");
   });
 
   it.each(["GH_AW_ADMISSION_WORKFLOW_HASH", "GH_AW_INFO_WORKFLOW_ID", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"])("rejects missing %s without credential fallback", async key => {
@@ -143,6 +189,7 @@ describe("admission conclusion notification", () => {
       .mockImplementationOnce(() => {
         fs.writeFileSync(sessionFile, "changed");
         options.env.GITHUB_ACTOR = "changed";
+        options.env.GH_AW_USAGE_ARTIFACT_ID = "99999";
         return new Response(null, { status: 503 });
       })
       .mockImplementationOnce(accepted);
@@ -152,7 +199,8 @@ describe("admission conclusion notification", () => {
     const first = fetchImpl.mock.calls[1][1];
     const second = fetchImpl.mock.calls[2][1];
     expect(first.body).toBe(second.body);
-    expect(JSON.parse(first.body).session).toBe(session);
+    expect(JSON.parse(first.body).session).toBe(compactSession);
+    expect(JSON.parse(first.body).usage_artifact_ids).toEqual(["12345"]);
     expect(JSON.parse(first.body).actor).toBe("original");
     expect(first.headers.traceparent.slice(0, 35)).toBe(second.headers.traceparent.slice(0, 35));
     expect(first.headers.traceparent).not.toBe(second.headers.traceparent);

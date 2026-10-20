@@ -48,7 +48,7 @@ sandboxed agent principal, even when GitHub Actions runs both in the same job.
 | Bundle Git operations | [`SafeOutputGit.tla`](SafeOutputGit.tla) | Explicit prerequisite recovery, offline optional discovery, bounded comparison/history work, credential roles, and separate size/protection provenance. |
 | Host-side MCP compilation | [`MCPCompile.tla`](MCPCompile.tla) | Startup write capability, actor authorization, early option rejection, filesystem isolation, cached-only imports, repository-root cache selection, validation, and write-enabled emission. |
 | Cooperative activation admission | [`ActivationAdmission.tla`](ActivationAdmission.tla) | Optional endpoint, isolated admission/conclusion OIDC capabilities, verified identity, retry/outage classification, independently resolved runtime allowances, privacy, and caller-owned trace correlation. |
-| Admission conclusion delivery | [`AdmissionConclusion.tla`](AdmissionConclusion.tla) | Artifact-first completion delivery, fresh OIDC, stable full-session retries, outcome-preserving warnings, and durable deduplicated acceptance. |
+| Admission conclusion delivery | [`AdmissionConclusion.tla`](AdmissionConclusion.tla) | Artifact-first compact delivery, hard payload bounds, upload-bound artifact references, full-artifact preservation, fresh OIDC, stable retries, outcome-preserving warnings, and durable deduplicated acceptance. |
 
 The `issue` effect creates at most one validated issue in the main public
 repository. The `pull-request` effect prepares a full checkout in the privileged
@@ -206,7 +206,7 @@ no upload or authority request.
 
 For an eligible job, generation precedes the first artifact upload. A failed
 upload receives one retry, and both attempts must settle before callback
-preparation, credential acquisition or POST. Direct session delivery remains
+preparation, credential acquisition or POST. Compact metadata delivery remains
 reachable even when both artifact attempts fail. The model includes absent,
 valid and invalid endpoints; valid/invalid independently verified identity;
 admitted and ignored admission results; and success, failure and cancellation.
@@ -216,12 +216,13 @@ to change the captured outcome.
 | Contract | Checked invariants |
 |---|---|
 | Artifact-first order, existing job eligibility, absent endpoint and invalid session/configuration | `ArtifactBeforeConclusion`, `JobEligibility`, `NoEndpointNoRequest`, `InvalidInputNoRequest` |
-| Fresh conclusion-owned OIDC, independently verified identity, complete redacted snapshot and unchanged retries | `ConclusionOIDCOnly`, `InvocationVerified`, `CompleteSession`, `StablePayload` |
+| Fresh conclusion-owned OIDC, independently verified identity, compact metadata, hard request bounds and unchanged retries | `ConclusionOIDCOnly`, `InvocationVerified`, `CompactProjection`, `BoundedPayload`, `StablePayload` |
+| Upload-bound artifact locators and unchanged full session evidence | `ArtifactReferences`, `FullArtifactPreserved` |
 | Three-attempt maximum, terminal deadline, preserved workflow outcome and caller trace | `RetryBound`, `DeadlineHonored`, `BestEffort`, `TraceCorrelation` |
 | Durable acceptance before acknowledgement, deduplicated processing, immutable accepted payload and no billing mutation | `DurableAcceptance`, `SingleProcessing`, `AcceptedSessionImmutable`, `NoFinancialEffects` |
 
-The checker runs two secure profiles, fifteen single-guard negative controls
-and seven reachability witnesses. Witnesses cover acceptance, lost-acknowledgement
+The checker runs two secure profiles, nineteen single-guard negative controls
+and eight reachability witnesses. Witnesses cover acceptance, lost-acknowledgement
 recovery through another replica, successful delivery after failed artifact
 publication, delivery after agent failure or ignored admission, rejected
 conflicting replay, and a warning after deadline expiry.
@@ -236,6 +237,16 @@ TLA2TOOLS_JAR=/path/to/tla2tools.jar JAVA_BIN=/path/to/java \
   python3 specs/workflow-security/check.py --model conclusion \
   --results /tmp/admission-conclusion-results
 ```
+
+The compact snapshot is a symbolic metadata-only projection with a bounded byte
+count (one unit represents one KiB); size 65 is an explicit over-limit fault.
+Successful uploads supply symbolic artifact IDs; a failed step may also retain
+an observed ID if it failed after publication. The callback must snapshot exactly
+the available IDs, never foreign or omitted IDs. The
+full artifact remains `full-redacted` while only `compact-redacted` metadata may
+enter the callback. A witness verifies successful delivery with artifact locators;
+delivery without any observed upload IDs instead carries an empty locator set.
+These abstractions specify the boundary, not a proof of UTF-8 byte arithmetic.
 
 Session bytes, schema validation, issuer/audience verification, redirect handling,
 redaction and tenant partitioning are implementation obligations, not proven by

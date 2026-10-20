@@ -5,9 +5,12 @@ CONSTANTS Fault, OutagePolicy
 VARIABLE s
 
 MaxAttempts == 3
-NoPayload == [invocation |-> "none", content |-> "none"]
-FullSession == [invocation |-> "current", content |-> "full-redacted"]
-Payloads == [invocation : {"none", "current"}, content : {"none", "full-redacted", "partial", "changed"}]
+NoPayload == [invocation |-> "none", content |-> "none", bytes |-> 0, artifacts |-> {}]
+CompactSession(artifacts) ==
+    [invocation |-> "current", content |-> "compact-redacted", bytes |-> 1, artifacts |-> artifacts]
+Payloads == [invocation : {"none", "current"},
+             content : {"none", "compact-redacted", "agent-content", "changed"},
+             bytes : 0..65, artifacts : SUBSET {"initial", "retry", "foreign"}]
 Contexts ==
     [endpoint : {"absent", "valid", "invalid"},
      session : {"valid", "invalid"},
@@ -23,6 +26,7 @@ Init ==
     \E context \in Contexts :
         s = [context |-> context, phase |-> "generate", eligible |-> FALSE,
              generated |-> FALSE, uploadAttempts |-> 0, uploadResult |-> "pending",
+             uploadedArtifacts |-> {}, artifactContent |-> "full-redacted",
              snapshot |-> NoPayload, sentPayload |-> NoPayload, stored |-> NoPayload,
              attempts |-> 0, credential |-> "none", traceId |-> "none",
              processing |-> 0, financialEffects |-> 0,
@@ -41,11 +45,15 @@ GenerateSession ==
 
 UploadArtifact ==
     /\ s.phase \in {"upload", "upload-retry"}
-    /\ \E success \in BOOLEAN :
-        s' = [s EXCEPT
+    /\ \E success \in BOOLEAN, hasID \in BOOLEAN :
+        /\ success => hasID
+        /\ s' = [s EXCEPT
             !.uploadAttempts = @ + 1,
             !.uploadResult = IF success THEN "success"
                              ELSE IF s.phase = "upload-retry" THEN "failure" ELSE "pending",
+            !.uploadedArtifacts = IF hasID
+                                  THEN @ \cup {IF s.phase = "upload" THEN "initial" ELSE "retry"} ELSE @,
+            !.artifactContent = IF Fault = "compact-replaces-artifact" THEN "compact-redacted" ELSE @,
             !.phase = IF success \/ s.phase = "upload-retry" THEN "prepare" ELSE "upload-retry",
             !.lastEvent = IF s.phase = "upload" THEN "UploadUsageArtifact" ELSE "RetryUsageArtifact"]
 
@@ -57,8 +65,11 @@ PrepareConclusion ==
        IN s' = [s EXCEPT
             !.phase = IF enabled /\ valid THEN "request" ELSE "done",
             !.snapshot = IF enabled /\ valid
-                         THEN IF Fault = "partial-session"
-                              THEN [FullSession EXCEPT !.content = "partial"] ELSE FullSession
+                         THEN [CompactSession(s.uploadedArtifacts) EXCEPT
+                               !.content = IF Fault = "unfiltered-session" THEN "agent-content" ELSE @,
+                               !.bytes = IF Fault = "oversized-payload" THEN 65 ELSE @,
+                               !.artifacts = IF Fault = "artifact-id-spoof" THEN {"foreign"}
+                                             ELSE IF Fault = "artifact-ids-omitted" THEN {} ELSE @]
                          ELSE @,
             !.result = IF enabled /\ valid THEN @
                        ELSE IF s.context.endpoint = "absent" THEN "skipped" ELSE "warning",
@@ -139,6 +150,8 @@ TypeOK ==
     /\ s.context \in Contexts
     /\ s.phase \in {"generate", "upload", "upload-retry", "prepare", "request", "response", "evaluate", "done"}
     /\ s.uploadAttempts \in 0..2 /\ s.uploadResult \in {"pending", "success", "failure"}
+    /\ s.uploadedArtifacts \subseteq {"initial", "retry"}
+    /\ s.artifactContent \in {"full-redacted", "compact-redacted"}
     /\ s.snapshot \in Payloads /\ s.sentPayload \in Payloads /\ s.stored \in Payloads
     /\ s.attempts \in 0..4 /\ s.processing \in 0..4 /\ s.financialEffects \in 0..4
     /\ s.credential \in {"none", "admission-oidc", "conclusion-oidc"}
@@ -157,7 +170,10 @@ InvalidInputNoRequest ==
     s.context.endpoint = "invalid" \/ s.context.session = "invalid" => s.attempts = 0
 ConclusionOIDCOnly == s.credential \in {"none", "conclusion-oidc"}
 InvocationVerified == s.stored # NoPayload => s.context.identity = "valid"
-CompleteSession == s.snapshot # NoPayload => s.snapshot = FullSession
+CompactProjection == s.snapshot # NoPayload => s.snapshot.content = "compact-redacted"
+BoundedPayload == s.snapshot.bytes <= 64
+ArtifactReferences == s.snapshot # NoPayload => s.snapshot.artifacts = s.uploadedArtifacts
+FullArtifactPreserved == s.artifactContent = "full-redacted"
 StablePayload == s.attempts > 0 => s.sentPayload = s.snapshot
 RetryBound == s.attempts <= MaxAttempts
 DeadlineHonored == s.timedOut => s.phase \notin {"request", "response", "evaluate"}
@@ -177,4 +193,5 @@ NoAgentFailureDelivery == ~(s.result = "delivered" /\ s.context.outcome = "failu
 NoIgnoredAdmissionDelivery == ~(s.result = "delivered" /\ s.context.admission = "ignored")
 NoRejectedConflict == ~(s.conflictSeen /\ s.stored = s.snapshot /\ s.processing = 1)
 NoDeadlineWarning == ~(s.phase = "done" /\ s.timedOut /\ s.warning)
+NoArtifactReferenceDelivery == ~(s.result = "delivered" /\ s.snapshot.artifacts # {})
 =============================================================================

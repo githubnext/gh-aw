@@ -177,6 +177,8 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	conclusionSteps := strings.Join(conclusion.Steps, "")
 	assert.Contains(t, conclusionSteps, "if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
 	assert.Contains(t, conclusionSteps, "conclusion_admission.cjs")
+	assert.Contains(t, conclusionSteps, "GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}")
+	assert.Contains(t, conclusionSteps, "GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}")
 	assert.Contains(t, conclusionSteps, "GH_AW_ADMISSION_WORKFLOW_HASH: \""+hashes[1]+":"+hashes[2]+"\"")
 	assert.Less(t, strings.Index(conclusionSteps, "Generate usage activity summary and unified session"), strings.Index(conclusionSteps, "Report admission conclusion"))
 	assert.Less(t, strings.Index(conclusionSteps, "Upload usage artifact"), strings.Index(conclusionSteps, "Report admission conclusion"))
@@ -249,6 +251,8 @@ func TestAdmissionConclusionUploadOrdering(t *testing.T) {
 			previous = index
 		}
 		assert.Contains(t, steps[previous:], "if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
+		assert.Contains(t, steps[previous:], "GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}")
+		assert.Contains(t, steps[previous:], "GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}")
 	}
 }
 

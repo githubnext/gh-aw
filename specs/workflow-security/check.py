@@ -184,7 +184,11 @@ CONCLUSION_MUTATIONS = {
     "invalid-session": "InvalidInputNoRequest",
     "token-handoff": "ConclusionOIDCOnly",
     "identity-bypass": "InvocationVerified",
-    "partial-session": "CompleteSession",
+    "unfiltered-session": "CompactProjection",
+    "oversized-payload": "BoundedPayload",
+    "artifact-id-spoof": "ArtifactReferences",
+    "artifact-ids-omitted": "ArtifactReferences",
+    "compact-replaces-artifact": "FullArtifactPreserved",
     "retry-payload": "StablePayload",
     "retry-overflow": "RetryBound",
     "deadline-retry": "DeadlineHonored",
@@ -203,6 +207,7 @@ CONCLUSION_WITNESSES = {
     "ignored-admission-delivery": "NoIgnoredAdmissionDelivery",
     "rejected-conflict": "NoRejectedConflict",
     "deadline-warning": "NoDeadlineWarning",
+    "artifact-reference-delivery": "NoArtifactReferenceDelivery",
 }
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",
