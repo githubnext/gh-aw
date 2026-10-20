@@ -33,6 +33,9 @@ import "embed"
 //go:embed js/work_queue_claim_scope.cjs js/work_queue_codec.cjs js/work_queue_resource_scope.cjs
 //go:embed js/work_queue_host.cjs
 //go:embed js/aw_context.cjs js/experiment_helpers.cjs js/finish_work_queue_claim.cjs
+//go:embed js/webhook_context.cjs js/provider_issue_webhook.cjs js/webhook_resource.cjs
+//go:embed js/gateway_command_webhook.cjs js/slash_command_matcher.cjs
+//go:embed js/github_notification_webhook.cjs js/github_notification_webhooks.json
 //go:embed js/messages_core.cjs
 //go:embed js/work_queue_mcp_server.cjs js/work_queue_replay.cjs js/work_queue_intents.cjs
 //go:embed js/work_queue_issue_contract.cjs
@@ -67,3 +70,8 @@ import "embed"
 //go:embed js/parse_deepseek_log.cjs
 //go:embed js/parse_pydantic_log.cjs
 var SessionParserSources embed.FS
+
+// GitHubNotificationWebhooks is the source catalog shared by compiler and runtime.
+//
+//go:embed js/github_notification_webhooks.json
+var GitHubNotificationWebhooks []byte

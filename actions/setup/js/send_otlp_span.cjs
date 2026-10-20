@@ -75,6 +75,14 @@ function generateSpanId() {
   return randomBytes(8).toString("hex");
 }
 
+/** W3C version-00 propagation with locally controlled sampling; no baggage.
+ * @param {string} traceId @param {string} spanId
+ */
+function buildTraceparent(traceId, spanId) {
+  if (!isValidTraceId(traceId) || !isValidSpanId(spanId)) throw new Error("Invalid trace context");
+  return `00-${traceId}-${spanId}-01`;
+}
+
 /**
  * Convert a Unix timestamp in milliseconds to a nanosecond string suitable for
  * OTLP's `startTimeUnixNano` / `endTimeUnixNano` fields.
@@ -1303,7 +1311,7 @@ const TRACE_ID_RE = /^[0-9a-f]{32}$/;
  * @returns {boolean}
  */
 function isValidTraceId(id) {
-  return TRACE_ID_RE.test(id);
+  return TRACE_ID_RE.test(id) && !/^0+$/.test(id);
 }
 
 /**
@@ -1318,7 +1326,7 @@ const SPAN_ID_RE = /^[0-9a-f]{16}$/;
  * @returns {boolean}
  */
 function isValidSpanId(id) {
-  return SPAN_ID_RE.test(id);
+  return SPAN_ID_RE.test(id) && !/^0+$/.test(id);
 }
 
 /**
@@ -2681,6 +2689,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
 }
 
 module.exports = {
+  buildTraceparent,
   SPAN_KIND_INTERNAL,
   SPAN_KIND_SERVER,
   SPAN_KIND_CLIENT,

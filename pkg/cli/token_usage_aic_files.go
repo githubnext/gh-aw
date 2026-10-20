@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-func sumAICFromUsageJSONLFilesWithWarnings(filePaths []string) (float64, bool, []string, error) {
-	return sumAICFromUsageJSONLFilesWithSeen(filePaths, make(map[string]struct{}))
-}
-
 func sumAICFromUsageJSONLFilesWithSeen(filePaths []string, seenAWFRequestIDs map[string]struct{}) (float64, bool, []string, error) {
 	summary, _, err := summarizeUsageJSONLFilesWithSeen(filePaths, seenAWFRequestIDs)
 	if err != nil {

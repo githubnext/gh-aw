@@ -178,6 +178,98 @@ func TestInferBootstrapGitHubAppRequirements_SingleWorkflow(t *testing.T) {
 	}
 }
 
+func TestInferBootstrapGitHubAppRequirements_WebhookPermissionsReachManifest(t *testing.T) {
+	tests := []struct {
+		name            string
+		triggers        string
+		wantPermissions map[string]string
+		wantEvents      []string
+	}{
+		{
+			name: "projects and selected security alerts",
+			triggers: `on:
+  gateway-dispatch:
+    projects-items:
+      project_id: PVT_example
+    code-scanning-alert: {}
+    dependabot-alerts: {}
+`, wantPermissions: map[string]string{
+				"contents":              "read",
+				"organization_projects": "read",
+				"security_events":       "read",
+				"vulnerability_alerts":  "read",
+			},
+			wantEvents: []string{"code_scanning_alert", "dependabot_alert", "projects_v2_item"},
+		},
+		{
+			name: "Dependabot only",
+			triggers: `on:
+  gateway-dispatch:
+    dependabot-alerts: {}
+`, wantPermissions: map[string]string{
+				"contents":             "read",
+				"vulnerability_alerts": "read",
+			},
+			wantEvents: []string{"dependabot_alert"},
+		},
+		{
+			name: "code scanning only",
+			triggers: `on:
+  gateway-dispatch:
+    code-scanning-alert: {}
+`, wantPermissions: map[string]string{
+				"contents":        "read",
+				"security_events": "read",
+			},
+			wantEvents: []string{"code_scanning_alert"},
+		},
+		{
+			name: "plural multi-repository security alerts",
+			triggers: `on:
+  gateway-dispatch:
+    repos: [bar/baz, "foo/*"]
+    code-scanning-alert: {}
+    dependabot-alerts: {}
+`, wantPermissions: map[string]string{
+				"contents": "read", "security_events": "read", "vulnerability_alerts": "read",
+			},
+			wantEvents: []string{"code_scanning_alert", "dependabot_alert"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "webhook.md")
+			content := "---\n" + tt.triggers + "permissions:\n  contents: read\n---\n\n# Webhook\n"
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+				t.Fatalf("failed to write workflow: %v", err)
+			}
+
+			permissions, events, err := inferBootstrapGitHubAppRequirements(context.Background(), []string{path})
+			if err != nil {
+				t.Fatalf("inferBootstrapGitHubAppRequirements returned error: %v", err)
+			}
+			if !reflect.DeepEqual(permissions, tt.wantPermissions) {
+				t.Fatalf("inferred permissions = %v, want %v", permissions, tt.wantPermissions)
+			}
+			if !reflect.DeepEqual(events, tt.wantEvents) {
+				t.Fatalf("inferred events = %v, want %v", events, tt.wantEvents)
+			}
+
+			manifest := buildBootstrapGitHubAppManifest(repositoryPackageBootstrapAction{
+				Permissions: permissions,
+				Events:      events,
+			}, "webhook-app", "https://github.com/octo/platform-ops", "http://127.0.0.1/callback", "Webhook app")
+			if got := manifest["default_permissions"]; !reflect.DeepEqual(got, tt.wantPermissions) {
+				t.Fatalf("manifest default_permissions = %v, want %v", got, tt.wantPermissions)
+			}
+			if got := manifest["default_events"]; !reflect.DeepEqual(got, tt.wantEvents) {
+				t.Fatalf("manifest default_events = %v, want %v", got, tt.wantEvents)
+			}
+		})
+	}
+}
+
 // TestInferBootstrapGitHubAppRequirements_NoPermissionsOrEvents covers a workflow that
 // declares neither a "permissions" block nor an "on" trigger recognized as a webhook
 // event; both inferred maps/slices must come back nil rather than empty.

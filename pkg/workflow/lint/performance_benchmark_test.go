@@ -25,7 +25,18 @@ func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, p
 		require.NoError(tb, err)
 		require.NotEmpty(tb, workflow.Jobs)
 		template := *workflow.Jobs[0]
-		workflow.Jobs = nil
+		var producers []*actions.Job
+		for _, job := range workflow.Jobs {
+			if job.ID == "check" {
+				template = *job
+			} else {
+				producers = append(producers, job)
+			}
+		}
+		if template.ID != "check" {
+			producers = nil
+		}
+		workflow.Jobs = producers
 		for i := range jobs {
 			job := template
 			job.ID = actions.JobID(fmt.Sprintf("check_%d", i))
@@ -48,6 +59,13 @@ func performanceInput(tb testing.TB, contract ruleContract, target ASTTargets, p
 		require.True(tb, valid, "execution contract fixtures must retain the check job")
 	}
 	expanded := make(map[string]any, jobs)
+	if existing, ok := document.Frontmatter["jobs"].(map[string]any); ok {
+		for id, job := range existing {
+			if id != "check" {
+				expanded[id] = job
+			}
+		}
+	}
 	for i := range jobs {
 		expanded[fmt.Sprintf("check_%d", i)] = template
 	}

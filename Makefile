@@ -233,6 +233,7 @@ fuzz:
 	@echo "Running fuzz tests for 30 seconds..."
 	go test -fuzz=FuzzParseFrontmatter -fuzztime=30s ./pkg/parser/
 	go test -fuzz=FuzzExpressionParser -fuzztime=30s ./pkg/workflow/
+	go test -run='^$$' -fuzz=FuzzBashCommandParserModel -fuzztime=30s ./pkg/workflow/
 
 # Run security regression tests
 .PHONY: test-security

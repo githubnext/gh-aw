@@ -124,6 +124,8 @@ MCP_COMPILE_WITNESSES = {
     "trusted-no-emit-import-refresh": "NoTrustedNoEmitImportRefresh",
 }
 ADMISSION_MUTATIONS = {
+    "shared-activation-oidc": "AdmissionJobIsolation",
+    "admission-dependency-bypass": "AdmissionDependency",
     "endpoint-bypass": "NoEndpointNoRequest",
     "credential-delegation": "OIDCOnly",
     "identity-bypass": "IdentityVerified",
@@ -136,28 +138,45 @@ ADMISSION_MUTATIONS = {
     "malformed-as-outage": "MalformedBlocks",
     "fatal-as-outage": "FatalErrorsBlock",
     "ignore-block": "OutagePolicyHonored",
-    "cap-not-applied": "CeilingApplied",
-    "reset-budget": "SharedBudget",
+    "cap-not-validated": "CeilingValidated",
+    "optional-cap-ignored": "CeilingValidated",
+    "agent-cap-mutation": "RuntimeBudgetsResolved",
+    "admission-context-forwarded": "RuntimeBudgetsResolved",
+    "daily-after-admission": "DailyAdmissionPrecedence",
+    "daily-fallback-bypass": "DailyFallbackEnforced",
+    "deadline-retry": "DeadlineHonored",
     "denial-leak": "PrivateDenial",
     "spend-ceiling": "SpendPrivateCeiling",
     "admission-charge": "NoFinancialEffects",
     "correlation-drop": "CorrelationPreserved",
-    "force-tracing": "OptionalTracing",
+    "traceparent-omitted": "TraceparentRequired",
+    "server-trace-override": "CallerTracePreserved",
+    "force-export": "OptionalExport",
     "activation-bypass": "ActivationGate",
 }
 ADMISSION_MUTATION_SETTINGS = {
     "ignore-block": {"outage_policy": "block"},
-    "force-tracing": {"otel_enabled": False},
+    "force-export": {"otel_enabled": False},
 }
 ADMISSION_WITNESSES = {
+    "failed-admission-job-block": "NoFailedAdmissionJobBlock",
     "admitted-start": "NoAdmittedStart",
     "skipped-start": "NoSkippedStart",
     "outage-start": "NoOutageStart",
     "retry-recovery": "NoRetryRecovery",
     "verified-rerun": "NoVerifiedRerun",
-    "untraced-admission": "NoUntracedAdmission",
-    "shared-continuation": "NoSharedContinuation",
+    "unexported-admission": "NoUnexportedAdmission",
+    "existing-trace": "NoExistingTraceAdmission",
+    "generated-trace": "NoGeneratedTraceAdmission",
+    "primary-only-allowance": "NoPrimaryOnlyAllowance",
+    "detection-only-allowance": "NoDetectionOnlyAllowance",
+    "evals-only-allowance": "NoEvalsOnlyAllowance",
+    "combined-allowances": "NoCombinedAllowances",
     "completed-denial": "NoCompletedDenial",
+    "admitted-daily-bypass": "NoAdmittedDailyBypass",
+    "skipped-daily-block": "NoSkippedDailyBlock",
+    "outage-daily-block": "NoOutageDailyBlock",
+    "early-timeout": "NoEarlyTimeout",
 }
 DELTAS = {
     "agent-write": "Agent permissions include contents: write (strict compiler rejection expected).",
@@ -373,7 +392,7 @@ def check_activation_admission(java, jar, results):
     cases = []
     for policy in ["ignore", "block"]:
         for otel in [True, False]:
-            name = f"admission-secure-{policy}-{'otel' if otel else 'untraced'}"
+            name = f"admission-secure-{policy}-{'otel' if otel else 'unexported'}"
             cases.append(run_case(java, jar, results, name, model="ActivationAdmission",
                                   outage_policy=policy, otel_enabled=otel))
     for fault, invariant in ADMISSION_MUTATIONS.items():
@@ -383,7 +402,7 @@ def check_activation_admission(java, jar, results):
     for name, invariant in ADMISSION_WITNESSES.items():
         cases.append(run_case(java, jar, results, f"admission-{name}",
                               invariant=invariant, witness=True, model="ActivationAdmission",
-                              otel_enabled=name != "untraced-admission"))
+                              otel_enabled=name != "unexported-admission"))
     return cases
 
 

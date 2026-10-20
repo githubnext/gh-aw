@@ -90,6 +90,9 @@ const { readExperimentAssignments, EXPERIMENT_ASSIGNMENTS_PATH } = await import(
 // ---------------------------------------------------------------------------
 
 describe("isValidTraceId", () => {
+  it("rejects the W3C-invalid all-zero trace ID", () => {
+    expect(isValidTraceId("0".repeat(32))).toBe(false);
+  });
   it("accepts a valid 32-character lowercase hex trace ID", () => {
     expect(isValidTraceId("a".repeat(32))).toBe(true);
     expect(isValidTraceId("0123456789abcdef0123456789abcdef")).toBe(true);
@@ -118,6 +121,9 @@ describe("isValidTraceId", () => {
 // ---------------------------------------------------------------------------
 
 describe("isValidSpanId", () => {
+  it("rejects the W3C-invalid all-zero span ID", () => {
+    expect(isValidSpanId("0".repeat(16))).toBe(false);
+  });
   it("accepts a valid 16-character lowercase hex span ID", () => {
     expect(isValidSpanId("b".repeat(16))).toBe(true);
     expect(isValidSpanId("0123456789abcdef")).toBe(true);
