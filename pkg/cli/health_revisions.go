@@ -15,6 +15,7 @@ type HealthRevisionCohort struct {
 	FrontmatterHash  string    `json:"frontmatter_hash,omitempty"`
 	BodyHash         string    `json:"body_hash,omitempty"`
 	CompilerVersion  string    `json:"compiler_version,omitempty"`
+	SourceSHA        string    `json:"source_sha,omitempty"`
 	RunIDs           []int64   `json:"run_ids"`
 	Successes        int       `json:"successes"`
 	Failures         int       `json:"failures"`
@@ -25,6 +26,7 @@ type HealthRevisionCohort struct {
 	LastSeen         time.Time `json:"last_seen"`
 	lastCompleted    time.Time
 	key              string
+	revisionUnknown  bool
 }
 
 type HealthRevisionStatus struct {
@@ -38,8 +40,15 @@ type HealthRevisionStatus struct {
 
 func healthRunRevision(run WorkflowRun, collection *HealthCollection) (*workflow.LockMetadata, string) {
 	if collection != nil {
+		source, checked := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)]
+		if checked && source == "" {
+			return nil, "unknown:" + run.HeadSha
+		}
+		if checked && healthSourceChanged(run, collection) {
+			return nil, healthContentRevisionKey(nil, source)
+		}
 		if metadata := collection.revisions[healthRevisionLookupKey(run)]; metadata != nil {
-			return metadata, failureClusterKey(metadata.FrontmatterHash, metadata.BodyHash, metadata.CompilerVersion)
+			return metadata, healthContentRevisionKey(metadata, source)
 		}
 	}
 	return nil, "unknown:" + run.HeadSha
@@ -73,13 +82,23 @@ func healthRevisionStatuses(runs []WorkflowRun, collection *HealthCollection) []
 		if status.Current == nil && collection != nil {
 			if head, checked := collection.headRevisions[healthHeadRevisionKey(run)]; checked {
 				headKey := "unknown:current"
-				if head != nil {
-					headKey = failureClusterKey(head.FrontmatterHash, head.BodyHash, head.CompilerVersion)
+				source, sourceChecked := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadBranch)]
+				if head != nil && (!sourceChecked || source != "") {
+					headKey = healthContentRevisionKey(head, source)
 				}
 				status.Current = newHealthRevisionCohort(head, headKey)
+				status.Current.SourceSHA = source
 			}
 		}
 		appendHealthRevisionRun(status, run, metadata, key)
+		if collection != nil {
+			source := collection.sourceRevisions[healthSourceRevisionKey(run, run.HeadSha)]
+			if status.Current.key == key && source != "" {
+				status.Current.SourceSHA = source
+			} else if status.Previous != nil && status.Previous.key == key && source != "" {
+				status.Previous.SourceSHA = source
+			}
+		}
 	}
 	for i := range statuses {
 		statuses[i].Status = classifyHealthRevision(statuses[i])
@@ -90,6 +109,11 @@ func healthRevisionStatuses(runs []WorkflowRun, collection *HealthCollection) []
 func appendHealthRevisionRun(status *HealthRevisionStatus, run WorkflowRun, metadata *workflow.LockMetadata, key string) {
 	if status.Current == nil {
 		status.Current = newHealthRevisionCohort(metadata, key)
+	}
+	unknownCurrent := status.Previous == nil && strings.HasPrefix(key, "unknown:")
+	if unknownCurrent {
+		// A failed lookup does not establish a revision boundary or remove current evidence.
+		key = status.Current.key
 	}
 	cohort := status.Current
 	if status.Previous != nil {
@@ -103,6 +127,7 @@ func appendHealthRevisionRun(status *HealthRevisionStatus, run WorkflowRun, meta
 	if cohort.key != key || cohort.IndependentRuns >= healthMinimumRuns {
 		return
 	}
+	cohort.revisionUnknown = cohort.revisionUnknown || unknownCurrent
 	cohort.RunIDs = append(cohort.RunIDs, run.DatabaseID)
 	cohort.FirstSeen = run.CreatedAt
 	if cohort.LastSeen.IsZero() {
@@ -134,7 +159,7 @@ func newHealthRevisionCohort(metadata *workflow.LockMetadata, key string) *Healt
 
 func classifyHealthRevision(status HealthRevisionStatus) string {
 	current := status.Current
-	if strings.HasPrefix(current.key, "unknown:") {
+	if current.revisionUnknown || strings.HasPrefix(current.key, "unknown:") {
 		return "revision_unknown"
 	}
 	if len(current.RunIDs) == 0 {
@@ -152,6 +177,33 @@ func classifyHealthRevision(status HealthRevisionStatus) string {
 		return "recovery_observed"
 	}
 	return "healthy"
+}
+
+func higherPriorityHealthStatus(current, candidate string) bool {
+	return healthStatusPriority(candidate) > healthStatusPriority(current)
+}
+
+func healthStatusPriority(status string) int {
+	switch status {
+	case "failures_observed":
+		return 7
+	case "not_collected":
+		return 6
+	case "revision_unknown":
+		return 5
+	case "no_current_revision_runs":
+		return 4
+	case "insufficient_evidence":
+		return 3
+	case "recovery_observed":
+		return 2
+	case "healthy":
+		return 1
+	case "no_recent_runs":
+		return 0
+	default:
+		return -1
+	}
 }
 
 func healthWorkflowEvidenceEnough(runs []WorkflowRun, collection *HealthCollection) bool {
@@ -181,7 +233,7 @@ func calculateCurrentWorkflowHealth(name string, runs []WorkflowRun, config Heal
 		health.Status = "not_collected"
 	}
 	for _, revision := range revisions {
-		if health.Status == "no_recent_runs" || health.Status == "healthy" || health.Status == "recovery_observed" {
+		if higherPriorityHealthStatus(health.Status, revision.Status) {
 			health.Status = revision.Status
 		}
 	}
@@ -263,12 +315,12 @@ func renderHealthRevisions(w io.Writer, statuses []HealthRevisionStatus) error {
 	out.printf("\n[health_revisions] minimum_completed_runs=%d; recovery is observed evidence, not proof of causation\n", healthMinimumRuns)
 	for _, status := range statuses {
 		current := status.Current
-		out.printf("workflow=%q branch=%q event=%q status=%s frontmatter_hash=%q body_hash=%q successes=%d failures=%d subagent_failures=%d pending=%d runs=%s\n",
-			status.WorkflowPath, status.Branch, status.Event, status.Status, current.FrontmatterHash,
+		out.printf("workflow=%q branch=%q event=%q status=%s source_sha=%q frontmatter_hash=%q body_hash=%q successes=%d failures=%d subagent_failures=%d pending=%d runs=%s\n",
+			status.WorkflowPath, status.Branch, status.Event, status.Status, current.SourceSHA, current.FrontmatterHash,
 			current.BodyHash, current.Successes, current.Failures, current.SubagentFailures, current.Pending, failureRunIDsDisplay(current.RunIDs))
 		if previous := status.Previous; previous != nil {
-			out.printf("  previous frontmatter_hash=%q body_hash=%q successes=%d failures=%d runs=%s\n",
-				previous.FrontmatterHash, previous.BodyHash, previous.Successes, previous.Failures, failureRunIDsDisplay(previous.RunIDs))
+			out.printf("  previous source_sha=%q frontmatter_hash=%q body_hash=%q successes=%d failures=%d runs=%s\n",
+				previous.SourceSHA, previous.FrontmatterHash, previous.BodyHash, previous.Successes, previous.Failures, failureRunIDsDisplay(previous.RunIDs))
 		}
 	}
 	return out.err

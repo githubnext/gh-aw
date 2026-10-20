@@ -68,6 +68,9 @@ func TestHealthSamplingRollsSearchWindowWithoutSkippingTimestampTies(t *testing.
 		endpoint := args[3]
 		if strings.Contains(endpoint, "/contents/") {
 			assert.NotContains(t, endpoint, "unapproved")
+			if strings.Contains(endpoint, ".md?") {
+				return []byte(strings.Repeat("c", 40)), nil
+			}
 			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 		}
 		parsed, err := url.Parse(endpoint)
@@ -163,6 +166,9 @@ func TestHealthSamplingReusesJobProbesAcrossOverlappingWindows(t *testing.T) {
 			}
 			return []byte(`{"jobs":[]}`), nil
 		case strings.Contains(endpoint, "/contents/"):
+			if strings.Contains(endpoint, ".md?") {
+				return []byte(strings.Repeat("c", 40)), nil
+			}
 			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 		}
 		parsed, err := url.Parse(endpoint)
@@ -207,7 +213,7 @@ func TestHealthSamplingReusesJobProbesAcrossOverlappingWindows(t *testing.T) {
 		assert.Equal(t, 1, checks, "overlap must reuse both empty and nonempty jobs responses: %s", endpoint)
 	}
 	assert.False(t, collection.Partial)
-	assert.Equal(t, 114, collection.APIRequests, "102 run pages, 10 jobs probes, 2 revision lookups")
+	assert.Equal(t, 116, collection.APIRequests, "102 run pages, 10 jobs probes, 4 revision lookups")
 }
 
 func TestHealthFilteredPagesStillRespectRequestBudget(t *testing.T) {
