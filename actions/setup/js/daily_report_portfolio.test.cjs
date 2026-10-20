@@ -7,6 +7,7 @@ import { newState, newRequest, generateRequestOperations, replayTransactions } f
 import { validatePolicy } from "./work_queue_policy.cjs";
 import { frozenResourceScope } from "./work_queue_resource_scope.cjs";
 import { validateDeliveryContract } from "./work_queue_delivery.cjs";
+import { parseDocument } from "./work_queue_yaml.cjs";
 
 const repository = "owner/repo";
 const settings = JSON.parse(fs.readFileSync(new URL("../../../.github/workflows/aw.json", import.meta.url), "utf8")).work_queue;
@@ -172,7 +173,12 @@ describe("bounded daily and weekly discussion-report portfolio", () => {
     expect(dispatcher).not.toMatch(/^\s+workflow_dispatch:/m);
     expect(dispatcher).toContain("    max: 3");
     const lock = fs.readFileSync(new URL("../../../.github/workflows/daily-report-dispatcher.lock.yml", import.meta.url), "utf8");
-    expect(lock).toMatch(/github\.run_attempt == 1/);
+    const document = parseDocument(lock, { version: "1.2", uniqueKeys: true });
+    expect(document.errors).toEqual([]);
+    const activation = document.toJS().jobs.activation;
+    expect(activation.if).toContain("github.run_attempt == 1");
+    expect(activation.if).toContain("needs.admission.result == 'success' || needs.admission.result == 'skipped'");
+    expect(activation.needs).toBe("admission");
     expect(lock).toContain("daily_report_portfolio.cjs");
     for (const profile of REPORT_PROFILES) {
       const worker = source(profile);
