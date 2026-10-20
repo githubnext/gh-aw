@@ -22,6 +22,27 @@ describe("admission configuration and identity", () => {
     expect(readAdmissionConfig(identityEnv)).toEqual({ endpoint: identityEnv.GH_AW_DEFAULT_ADMISSION_URL, audience: identityEnv.GH_AW_DEFAULT_ADMISSION_URL, onOutage: "ignore" });
   });
 
+  it("accepts uppercase identity values and rejects C0/C1 control characters", () => {
+    const uppercase = {
+      ...identityEnv,
+      GH_AW_DEFAULT_ADMISSION_URL: "https://ADMISSION.EXAMPLE.ORG/api/admission",
+      GH_AW_DEFAULT_ADMISSION_AUDIENCE: "AUDIENCE/TEAM",
+      GITHUB_REPOSITORY: "Acme/Project",
+      GH_AW_INFO_WORKFLOW_ID: "Platform/Ops/.github/workflows/Triage.lock.yml@refs/heads/Main",
+      GITHUB_ACTOR: "OriginalActor",
+      GITHUB_TRIGGERING_ACTOR: "Rerunner",
+    };
+    expect(readAdmissionConfig(uppercase).audience).toBe("AUDIENCE/TEAM");
+    expect(JSON.parse(buildAdmissionIdentity(uppercase))).toMatchObject({
+      repo: "Acme/Project",
+      actor: "OriginalActor",
+      triggering_actor: "Rerunner",
+    });
+    for (const value of ["\u0007", "\u0085"]) {
+      expect(() => readAdmissionConfig({ ...identityEnv, GH_AW_DEFAULT_ADMISSION_AUDIENCE: value })).toThrow(FAILURE);
+    }
+  });
+
   it.each([
     "http://example.org/api/admission",
     "https://user:password@example.org/api/admission",

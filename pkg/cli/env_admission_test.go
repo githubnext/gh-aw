@@ -35,7 +35,7 @@ func TestAdmissionDefaultsValidation(t *testing.T) {
 	for _, endpoint := range []string{"http://admission.example.org/api/admission", "https://user@admission.example.org/api/admission", "https://admission.example.org/other", "https://admission.example.org/api/admission?", "https://admission.example.org/api/admission#", "${{ vars.ENDPOINT }}", " https://admission.example.org/api/admission", "https://admission.example.org/api/%61dmission"} {
 		require.ErrorContains(t, defaultsValidateFile(&defaultsFile{DefaultAdmissionURL: &endpoint}), "default_admission_url")
 	}
-	for _, endpoint := range []string{"https://admission.example.org:99999/api/admission", "https://[invalid]/api/admission", "https://[fe80::1%25eth0]/api/admission"} {
+	for _, endpoint := range []string{"https://admission.example.org:99999/api/admission", "https://[invalid]/api/admission", "https://[fe80::1%25eth0]/api/admission", "https://2001:db8::1/api/admission"} {
 		require.ErrorContains(t, defaultsValidateFile(&defaultsFile{DefaultAdmissionURL: &endpoint}), "default_admission_url")
 	}
 	for _, endpoint := range []string{"https://admission.example.org:8443/api/admission", "https://[2001:db8::1]/api/admission"} {

@@ -185,6 +185,7 @@ func extractPermissionsFromMDFile(mdPath string) (*Permissions, error) {
 	if permsValue, hasPerms := result.Frontmatter["permissions"]; hasPerms {
 		perms.Merge(NewPermissionsParserFromValue(permsValue).ToPermissions())
 	}
+	// Admission can be enabled at runtime, so reusable caller permissions must allow OIDC even if frontmatter says otherwise.
 	perms.Set(PermissionIdToken, PermissionWrite)
 	callWorkflowPermissionsLog.Printf("Extracted permissions from .md source %s", mdPath)
 	return perms, nil

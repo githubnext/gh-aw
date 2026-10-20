@@ -274,7 +274,7 @@ An enterprise-wide default can be set with the compiler process environment vari
 
 Use `max-daily-ai-credits` to set a 24-hour AI Credits cap for one workflow. The guardrail sums runs from the past 24 hours of the same workflow across the repository, regardless of who triggered them.
 
-When a configured [admission service](/gh-aw/specs/admission-service-specification/) returns a valid approval, that decision supersedes daily validation for the current activation. The daily scan and its preparatory API work are skipped, but usage collection and historical ledger publication continue. Admission-disabled runs and ignored admission outages still use the daily guardrail below; denial or invalid approval blocks activation. Primary and optional threat-detection/evals policy allowances remain activation-scoped; existing downstream jobs and runtime credit limits are unchanged.
+When a configured [admission service](/gh-aw/specs/admission-service-specification/) returns a valid approval, that decision supersedes daily validation for the current activation. The daily scan and its preparatory API work are skipped, but usage collection and historical ledger publication continue. Admission-disabled runs and ignored admission outages still use the daily guardrail below; denial or invalid approval blocks activation. The primary and optional threat-detection/evals allowances are passed to existing jobs and replace their respective runtime credit limits; omitted optional allowances retain the configured component limits.
 
 ```aw wrap
 max-daily-ai-credits: 15M

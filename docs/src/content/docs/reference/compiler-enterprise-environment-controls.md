@@ -44,7 +44,20 @@ variables in batch. These commands operate on GitHub Actions variables and suppo
 
 Admission defaults use `default_admission_url`, `default_admission_audience`, and `default_admission_on_outage` in managed YAML. Provision organization variables in each enrolled organization for enterprise-wide rollout; do not assume an enterprise Actions-variable scope for admission. Repository variables override organization values, so admission is cooperative rather than locked policy. Existing compiled workflows need one recompilation with a feature-capable compiler; subsequent variable changes are runtime-only.
 
-A valid approval supersedes daily-AIC validation. An empty endpoint skips token generation and admission through the step's `if`; an ignored outage retains daily validation as fallback. Denial and malformed responses block activation. Admission data stays within activation; downstream jobs and runtime budgets remain unchanged. The activation job has job-scoped `id-token: write`, including when the endpoint is empty. Review trusted activation hooks and existing OIDC relying-party policies accordingly. See the [admission contract](/gh-aw/specs/admission-service-specification/) for protocol and deployment requirements.
+A valid approval supersedes daily-AIC validation. Its primary and optional detection/evals allowances set the corresponding existing runtime credit limits; omitted optional allowances retain their existing component limits. An empty endpoint skips token generation and admission through the step's `if`; an ignored outage retains daily validation and existing limits. Denial and malformed responses block activation. Admission identity and credentials stay within activation, while downstream jobs consume only the validated allowance outputs. The activation job has job-scoped `id-token: write`, including when the endpoint is empty, because GitHub Actions permissions cannot depend on runtime variables. Review trusted activation hooks and existing OIDC relying-party policies accordingly.
+
+When calling a compiled workflow through `workflow_call`, add `id-token: write` to the caller job's permission envelope and preserve any other permissions required by the reusable workflow. The callee's admission endpoint is evaluated at runtime, so the caller must grant this scope even when admission is currently disabled:
+
+```yaml
+jobs:
+  call-worker:
+    uses: ./.github/workflows/worker.lock.yml
+    permissions:
+      contents: read
+      id-token: write
+```
+
+See the [admission contract](/gh-aw/specs/admission-service-specification/) for protocol and deployment requirements.
 
 ```yaml title="Required compile check"
 jobs:

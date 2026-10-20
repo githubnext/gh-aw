@@ -411,6 +411,7 @@ describe("error_recovery", () => {
       it("should not invoke operations after an expired deadline or zero timeout", async () => {
         const operation = vi.fn();
         await expect(withRetry(operation, { deadline: Date.now(), now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
+        await expect(withRetry(operation, { deadline: -1, now: () => 0 })).rejects.toThrow("Operation timeout exceeded");
         await expect(withRetry(operation, { maxRetries: 0, timeoutMs: 0, now: () => Date.now() })).rejects.toThrow("Operation timeout exceeded");
         expect(operation).not.toHaveBeenCalled();
         expect(vi.getTimerCount()).toBe(0);
