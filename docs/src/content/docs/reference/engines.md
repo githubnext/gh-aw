@@ -571,6 +571,8 @@ Threat detection runs default `max-retries` to **0** instead of inheriting the h
 
 The harness logs the configured and resolved model and records them as a `model.resolution` event in `usage/aw_session.jsonl`, so audits show when an alias moved to a different model. Gemini and declarative engines do not resolve aliases yet: they receive the configured model unchanged, and the compiler warns when one of them is given an alias. Built-in aliases are listed in [Model Aliases](/gh-aw/reference/model-tables/).
 
+If Pi rejects a sub-agent's model during its startup availability check, the resolution record for every sub-agent using that model reports `status: failed`, `cause: model_unavailable`, and `resolved_model: null`. This replaces the earlier successful resolution record in both routed and unrouted runs; startup stops before the sub-agent executes.
+
 ### Ordered model fallback (`fallback-models`)
 
 All built-in engines accept an ordered list of alternative models. With AWF v0.28.31 or newer and a compatible API-proxy image, concrete same-provider chains compile to `apiProxy.fallbackModels`. AWF retries the failed inference request with the next model without restarting the agent or replaying its task, and applies the same model-policy and budget guards to each alternative. An explicit chain disables AWF's automatic middle-power model substitution so only configured alternatives are tried.
