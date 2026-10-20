@@ -731,6 +731,19 @@ describe("essential unified session payloads", () => {
     expect(source).toEqual(original);
   });
 
+  it("retains webhook batch identities but omits raw payloads from session logs", () => {
+    const context = {
+      items: [{ item_type: "dependabot_alert", item_number: "1", repo: "org/repo" }],
+      webhook: { event: "dependabot_alert", deliveries: [{ delivery_id: "d1", payload: { private: "do-not-log" } }] },
+    };
+    const before = JSON.stringify(context);
+    const result = normalizeUnifiedSessionEvent({ type: "workflow.info", data: { context } });
+    expect(result.data.awContext).toEqual({ items: context.items, webhook: { event: "dependabot_alert", deliveries: [{ delivery_id: "d1" }] } });
+    expect(JSON.stringify(result)).not.toContain("do-not-log");
+    expect(normalizeUnifiedSessionEvent(result)).toEqual(result);
+    expect(JSON.stringify(context)).toBe(before);
+  });
+
   it("preserves explicit canonical episode values and does not infer missing lineage", () => {
     const event = {
       type: "workflow.info",

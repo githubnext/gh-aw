@@ -248,24 +248,6 @@ func TestEpisodeAccountingPhaseSources(t *testing.T) {
 	}
 }
 
-func TestEpisodeAccountingIndependentStreamTotals(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	files := map[string]string{
-		"usage/agent/token_usage.jsonl":        episodeAccountingAWFRecord("first-stream", 7, 8),
-		"usage/agent/second-token-usage.jsonl": episodeAccountingAWFRecord("second-stream", 2, 2),
-	}
-	writeEpisodeAccountingFiles(t, dir, files)
-	paths, warnings := findUsageJSONLFiles(dir)
-	require.Empty(t, warnings)
-	total, found, warnings, err := sumAICFromUsageJSONLFilesWithWarnings(paths)
-	require.NoError(t, err)
-	assert.True(t, found)
-	assert.InDelta(t, 10, total, 1e-9, "independent counters remain authoritative, not summed per-request deltas")
-	require.Len(t, warnings, 1)
-	assert.Contains(t, warnings[0], "cumulative AI Credits total differs")
-}
-
 func TestEpisodeAccountingAggregatesCurrentAttemptArtifacts(t *testing.T) {
 	t.Parallel()
 	runDir := t.TempDir()

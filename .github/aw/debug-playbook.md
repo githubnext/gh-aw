@@ -172,7 +172,7 @@ Registration/nonempty `safeoutputs.jsonl` does not prove publication.
 | `E006` | Body/string length. | Shorten; retain required content. |
 | `E008` | URL count/limit. | Reduce links; no concealment. |
 | `ERR_API`, `E007` | GitHub status; operation guard. | Resolve API/target cause; policy skip != failed mutation. |
-| `ERR_CONFIG` | Variable names, handler/tool config, schema. | Fix source/config; recompile; never dump environment. |
+| `ERR_CONFIG`, `ERR_ADMISSION` | Config/schema, OIDC permissions, admission decision. | Fix config/service; honor denials/outage policy; recompile; withhold credentials/environment. |
 | `ERR_NOT_FOUND`, `TARGET_NOT_FOUND` | Target/repository; visibility. | Correct target/access; 404 may conceal inaccessible resources. |
 | `ERR_PARSE` | JSON/NDJSON framing/schema/producer. | Fix producer/format; retain private evidence. |
 | `ERR_SYSTEM`, `E099` | First file/git/process failure. | Fix I/O/runtime/checkout; wrapper is not cause. |

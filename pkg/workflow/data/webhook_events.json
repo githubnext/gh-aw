@@ -1,0 +1,749 @@
+{
+  "branch_protection_configuration": {
+    "actions": ["disabled", "enabled"],
+    "description": "Branch protection enforcement was enabled or disabled. Common repository filters identify the affected repository.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#branch_protection_configuration",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login; GitHub may use the ghost placeholder for events without a resolvable actor." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included in the delivery." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included in the delivery." }
+    }
+  },
+  "code_scanning_alert": {
+    "actions": ["appeared_in_branch", "closed_by_user", "created", "fixed", "reopened", "reopened_by_user", "updated_assignment"],
+    "description": "A code scanning alert changed, appeared in a branch, or changed assignment.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#code_scanning_alert",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login, including the ghost placeholder when no actor can be resolved." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "alert_number": { "path": ["alert", "number"], "type": "integer", "description": "Repository-scoped alert number." },
+      "state": { "path": ["alert", "state"], "type": "string", "description": "Current alert state.", "enum": ["open", "dismissed", "fixed"] },
+      "ref": { "path": ["ref"], "type": "string", "description": "Full Git ref associated with the alert." },
+      "commit_oid": { "path": ["commit_oid"], "type": "string", "description": "Commit associated with the alert." },
+      "rule_id": { "path": ["alert", "rule", "id"], "type": "string", "description": "Analysis rule identifier." },
+      "severity": { "path": ["alert", "rule", "severity"], "type": "string", "description": "Rule severity.", "enum": ["none", "note", "warning", "error"] },
+      "tool": { "path": ["alert", "tool", "name"], "type": "string", "description": "Code scanning tool name." },
+      "assignee": { "path": ["alert", "assignees", "*", "login"], "type": "string", "description": "Login of an alert assignee." }
+    }
+  },
+  "custom_property": {
+    "actions": ["created", "deleted", "promote_to_enterprise", "updated"],
+    "description": "An organization or enterprise custom property definition changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#custom_property",
+    "availability": ["business", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "property_name": { "path": ["definition", "property_name"], "type": "string", "description": "Custom property name." },
+      "value_type": { "path": ["definition", "value_type"], "type": "string", "description": "Property value type.", "enum": ["string", "single_select", "multi_select", "true_false", "url"] },
+      "source_type": { "path": ["definition", "source_type"], "type": "string", "description": "Property definition scope.", "enum": ["organization", "enterprise"] },
+      "required": { "path": ["definition", "required"], "type": "boolean", "description": "Whether the property is required." },
+      "values_editable_by": { "path": ["definition", "values_editable_by"], "type": "string", "description": "Actors permitted to edit values.", "enum": ["org_actors", "org_and_repo_actors"] }
+    }
+  },
+  "custom_property_values": {
+    "actions": ["updated"],
+    "description": "A repository's custom property values changed. Values may be scalar or array-valued; only property names are exposed as typed filters.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#custom_property_values",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "property_name": { "path": ["new_property_values", "*", "property_name"], "type": "string", "description": "Property name in the new values." },
+      "previous_property_name": { "path": ["old_property_values", "*", "property_name"], "type": "string", "description": "Property name in the previous values." }
+    }
+  },
+  "dependabot_alert": {
+    "actions": ["assignees_changed", "auto_dismissed", "auto_reopened", "created", "dismissed", "fixed", "reintroduced", "reopened", "withdrawn"],
+    "description": "A Dependabot vulnerability alert changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#dependabot_alert",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "alert_number": { "path": ["alert", "number"], "type": "integer", "description": "Repository-scoped alert number." },
+      "state": { "path": ["alert", "state"], "type": "string", "description": "Current alert state.", "enum": ["auto_dismissed", "dismissed", "fixed", "open", "withdrawn"] },
+      "severity": { "path": ["alert", "security_advisory", "severity"], "type": "string", "description": "Advisory severity.", "enum": ["low", "medium", "high", "critical"] },
+      "ecosystem": { "path": ["alert", "dependency", "package", "ecosystem"], "type": "string", "description": "Dependency package ecosystem." },
+      "package": { "path": ["alert", "dependency", "package", "name"], "type": "string", "description": "Dependency package name." },
+      "manifest_path": { "path": ["alert", "dependency", "manifest_path"], "type": "string", "description": "Dependency manifest path." },
+      "scope": { "path": ["alert", "dependency", "scope"], "type": "string", "description": "Dependency scope.", "enum": ["development", "runtime"] },
+      "ghsa_id": { "path": ["alert", "security_advisory", "ghsa_id"], "type": "string", "description": "GitHub security advisory identifier." },
+      "assignee": { "path": ["alert", "assignees", "*", "login"], "type": "string", "description": "Login of an alert assignee." },
+      "dismissed_reason": { "path": ["alert", "dismissed_reason"], "type": "string", "description": "Reason the alert was dismissed.", "enum": ["fix_started", "inaccurate", "no_bandwidth", "not_used", "tolerable_risk"] }
+    }
+  },
+  "deploy_key": {
+    "actions": ["created", "deleted"],
+    "description": "A repository deploy key was created or deleted.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#deploy_key",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "key_id": { "path": ["key", "id"], "type": "integer", "description": "Deploy key database ID." },
+      "title": { "path": ["key", "title"], "type": "string", "description": "Deploy key title." },
+      "read_only": { "path": ["key", "read_only"], "type": "boolean", "description": "Whether the deploy key is read-only." }
+    }
+  },
+  "deployment_protection_rule": {
+    "actions": ["requested"],
+    "description": "A deployment requested evaluation by a custom deployment protection rule.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#deployment_protection_rule",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "environment": { "path": ["environment"], "type": "string", "description": "Protected environment name." },
+      "event": { "path": ["event"], "type": "string", "description": "Event that triggered the deployment workflow." },
+      "ref": { "path": ["ref"], "type": "string", "description": "Deployment Git ref." },
+      "sha": { "path": ["sha"], "type": "string", "description": "Deployment commit SHA." },
+      "deployment_id": { "path": ["deployment", "id"], "type": "integer", "description": "Deployment database ID." }
+    }
+  },
+  "deployment_review": {
+    "actions": ["approved", "rejected", "requested"],
+    "description": "A deployment review was requested, approved, or rejected.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#deployment_review",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "environment": { "path": ["environment"], "type": "string", "description": "Environment awaiting review.", "actions": ["requested"] },
+      "approver": { "path": ["approver", "login"], "type": "string", "description": "Login of the reviewing actor.", "actions": ["approved", "rejected"] },
+      "workflow_run_id": { "path": ["workflow_run", "id"], "type": "integer", "description": "Reviewed workflow run ID." },
+      "workflow_id": { "path": ["workflow_run", "workflow_id"], "type": "integer", "description": "Reviewed workflow ID." },
+      "branch": { "path": ["workflow_run", "head_branch"], "type": "string", "description": "Reviewed workflow branch." },
+      "job_environment": { "path": ["workflow_job_run", "environment"], "type": "string", "description": "Environment associated with the reviewed job." }
+    }
+  },
+  "github_app_authorization": {
+    "actions": ["revoked"],
+    "description": "A user's authorization of a GitHub App was revoked; the common sender identifies the user.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#github_app_authorization",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Login of the user whose GitHub App authorization was revoked." }
+    }
+  },
+  "installation": {
+    "actions": ["created", "deleted", "new_permissions_accepted", "suspend", "unsuspend"],
+    "description": "A GitHub App installation was created, deleted, suspended, restored, or granted new permissions.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#installation",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "installation_id": { "path": ["installation", "id"], "type": "integer", "description": "GitHub App installation ID." },
+      "app_id": { "path": ["installation", "app_id"], "type": "integer", "description": "Installed GitHub App ID." },
+      "account": { "path": ["installation", "account", "login"], "type": "string", "description": "Installation account login." },
+      "repository_selection": { "path": ["installation", "repository_selection"], "type": "string", "description": "Installation repository selection.", "enum": ["all", "selected"] },
+      "repository_name": { "path": ["repositories", "*", "full_name"], "type": "string", "description": "Full name of a repository included in the installation payload." }
+    }
+  },
+  "installation_repositories": {
+    "actions": ["added", "removed"],
+    "description": "Repositories were added to or removed from a GitHub App installation.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#installation_repositories",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "installation_id": { "path": ["installation", "id"], "type": "integer", "description": "GitHub App installation ID." },
+      "repository_selection": { "path": ["repository_selection"], "type": "string", "description": "Installation repository selection.", "enum": ["all", "selected"] },
+      "added_repository": { "path": ["repositories_added", "*", "full_name"], "type": "string", "description": "Full name of an added repository." },
+      "removed_repository": { "path": ["repositories_removed", "*", "full_name"], "type": "string", "description": "Full name of a removed repository." },
+      "account": { "path": ["installation", "account", "login"], "type": "string", "description": "Installation account login." }
+    }
+  },
+  "installation_target": {
+    "actions": ["renamed"],
+    "description": "The account targeted by a GitHub App installation was renamed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#installation_target",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "installation_id": { "path": ["installation", "id"], "type": "integer", "description": "GitHub App installation ID." },
+      "account": { "path": ["account", "login"], "type": "string", "description": "Current account login." },
+      "account.from": { "path": ["changes", "login", "from"], "type": "string", "description": "Previous account login.", "actions": ["renamed"] },
+      "target_type": { "path": ["target_type"], "type": "string", "description": "Type of installation target." }
+    }
+  },
+  "issue_dependencies": {
+    "actions": ["blocked_by_added", "blocked_by_removed", "blocking_added", "blocking_removed"],
+    "description": "An issue blocking relationship changed. Cross-repository deliveries can omit the other issue and its repository.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#issue_dependencies",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository receiving this relationship delivery." },
+      "blocked_issue_id": { "path": ["blocked_issue_id"], "type": "integer", "description": "Blocked issue database ID." },
+      "blocking_issue_id": { "path": ["blocking_issue_id"], "type": "integer", "description": "Blocking issue database ID." },
+      "blocked_issue.number": { "path": ["blocked_issue", "number"], "type": "integer", "description": "Blocked issue number." },
+      "blocking_issue.number": { "path": ["blocking_issue", "number"], "type": "integer", "description": "Blocking issue number." },
+      "blocked_issue.state": { "path": ["blocked_issue", "state"], "type": "string", "description": "Blocked issue state.", "enum": ["open", "closed"] },
+      "blocking_issue.state": { "path": ["blocking_issue", "state"], "type": "string", "description": "Blocking issue state.", "enum": ["open", "closed"] },
+      "blocked_issue.labels": { "path": ["blocked_issue", "labels", "*", "name"], "type": "string", "description": "Label name on the embedded blocked issue." },
+      "blocking_issue.labels": { "path": ["blocking_issue", "labels", "*", "name"], "type": "string", "description": "Label name on the embedded blocking issue." },
+      "blocked_issue.repository": { "path": ["blocked_issue_repo", "full_name"], "type": "string", "description": "Blocked issue repository, when supplied." },
+      "blocking_issue.repository": { "path": ["blocking_issue_repo", "full_name"], "type": "string", "description": "Blocking issue repository, when supplied." }
+    }
+  },
+  "issue_relates_to": {
+    "actions": ["relates_to_added", "relates_to_removed"],
+    "description": "An issue relates-to relationship changed. Cross-repository deliveries omit the related issue and its ID; filters for absent related fields do not match.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#issue_relates_to",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository receiving this relationship delivery." },
+      "issue_id": { "path": ["issue_id"], "type": "integer", "description": "Issue database ID." },
+      "related_issue_id": { "path": ["related_issue_id"], "type": "integer", "description": "Related issue database ID; same-repository relationships only." },
+      "issue.number": { "path": ["issue", "number"], "type": "integer", "description": "Issue number." },
+      "related_issue.number": { "path": ["related_issue", "number"], "type": "integer", "description": "Related issue number." },
+      "issue.state": { "path": ["issue", "state"], "type": "string", "description": "Issue state.", "enum": ["open", "closed"] },
+      "related_issue.state": { "path": ["related_issue", "state"], "type": "string", "description": "Related issue state.", "enum": ["open", "closed"] },
+      "issue.labels": { "path": ["issue", "labels", "*", "name"], "type": "string", "description": "Label name on the embedded issue." },
+      "related_issue.labels": { "path": ["related_issue", "labels", "*", "name"], "type": "string", "description": "Label name on the related issue, when embedded." }
+    }
+  },
+  "marketplace_purchase": {
+    "actions": ["cancelled", "changed", "pending_change", "pending_change_cancelled", "purchased"],
+    "description": "A GitHub Marketplace subscription changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#marketplace_purchase",
+    "availability": ["marketplace"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "account": { "path": ["marketplace_purchase", "account", "login"], "type": "string", "description": "Purchasing account login." },
+      "plan_id": { "path": ["marketplace_purchase", "plan", "id"], "type": "integer", "description": "Purchased plan ID." },
+      "plan": { "path": ["marketplace_purchase", "plan", "name"], "type": "string", "description": "Purchased plan name." },
+      "billing_cycle": { "path": ["marketplace_purchase", "billing_cycle"], "type": "string", "description": "Purchase billing cycle." },
+      "on_free_trial": { "path": ["marketplace_purchase", "on_free_trial"], "type": "boolean", "description": "Whether the purchase is in a free trial." },
+      "previous_plan_id": { "path": ["previous_marketplace_purchase", "plan", "id"], "type": "integer", "description": "Previous plan ID, when supplied." }
+    }
+  },
+  "member": {
+    "actions": ["added", "edited", "removed"],
+    "description": "A repository collaborator was added, removed, or had permissions changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#member",
+    "availability": ["business", "repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "member": { "path": ["member", "login"], "type": "string", "description": "Collaborator login." },
+      "member_id": { "path": ["member", "id"], "type": "integer", "description": "Collaborator database ID." },
+      "permission.from": { "path": ["changes", "permission", "from"], "type": "string", "description": "Previous collaborator permission.", "actions": ["edited"] }
+    }
+  },
+  "membership": {
+    "actions": ["added", "removed"],
+    "description": "A user was added to or removed from a team.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#membership",
+    "availability": ["organization", "business", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "member": { "path": ["member", "login"], "type": "string", "description": "Team member login." },
+      "team": { "path": ["team", "slug"], "type": "string", "description": "Team slug." },
+      "team_id": { "path": ["team", "id"], "type": "integer", "description": "Team database ID." },
+      "scope": { "path": ["scope"], "type": "string", "description": "Membership scope.", "enum": ["team", "organization"] }
+    }
+  },
+  "meta": {
+    "actions": ["deleted"],
+    "description": "A webhook was deleted.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#meta",
+    "availability": ["marketplace", "business", "repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "hook_id": { "path": ["hook_id"], "type": "integer", "description": "Deleted webhook ID." }
+    }
+  },
+  "org_block": {
+    "actions": ["blocked", "unblocked"],
+    "description": "An organization blocked or unblocked a user.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#org_block",
+    "availability": ["organization", "business", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "blocked_user": { "path": ["blocked_user", "login"], "type": "string", "description": "Blocked or unblocked user's login." },
+      "blocked_user_id": { "path": ["blocked_user", "id"], "type": "integer", "description": "Blocked or unblocked user's database ID." }
+    }
+  },
+  "organization": {
+    "actions": ["deleted", "member_added", "member_invited", "member_removed", "renamed"],
+    "description": "Organization membership, invitations, name, or existence changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#organization",
+    "availability": ["organization", "business", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Affected organization's login." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "member": { "path": ["membership", "user", "login"], "type": "string", "description": "Affected organization member login.", "actions": ["member_added", "member_removed"] },
+      "role": { "path": ["membership", "role"], "type": "string", "description": "Affected member's organization role.", "actions": ["member_added", "member_removed"] },
+      "invitee": { "path": ["invitation", "login"], "type": "string", "description": "Invited account login, if known.", "actions": ["member_invited"] },
+      "name.from": { "path": ["changes", "login", "from"], "type": "string", "description": "Previous organization login.", "actions": ["renamed"] }
+    }
+  },
+  "package": {
+    "actions": ["published", "updated"],
+    "description": "A package was published or updated. This is the package webhook, distinct from the native registry_package trigger.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#package",
+    "availability": ["repository", "organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "package_id": { "path": ["package", "id"], "type": "integer", "description": "Package database ID." },
+      "name": { "path": ["package", "name"], "type": "string", "description": "Package name." },
+      "package_type": { "path": ["package", "package_type"], "type": "string", "description": "Package type." },
+      "ecosystem": { "path": ["package", "ecosystem"], "type": "string", "description": "Package ecosystem." },
+      "namespace": { "path": ["package", "namespace"], "type": "string", "description": "Package namespace." },
+      "version": { "path": ["package", "package_version", "version"], "type": "string", "description": "Published package version." }
+    }
+  },
+  "personal_access_token_request": {
+    "actions": ["approved", "cancelled", "created", "denied"],
+    "description": "A fine-grained personal access token organization access request changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#personal_access_token_request",
+    "availability": ["app", "organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization receiving the token access request." },
+      "request_id": { "path": ["personal_access_token_request", "id"], "type": "integer", "description": "Access request database ID." },
+      "owner": { "path": ["personal_access_token_request", "owner", "login"], "type": "string", "description": "Token owner's login." },
+      "token_name": { "path": ["personal_access_token_request", "token_name"], "type": "string", "description": "Requested token name; never the token credential." },
+      "token_expired": { "path": ["personal_access_token_request", "token_expired"], "type": "boolean", "description": "Whether the requested token has expired." },
+      "repository_selection": { "path": ["personal_access_token_request", "repository_selection"], "type": "string", "description": "Requested repository selection.", "enum": ["none", "all", "subset"] },
+      "repository_count": { "path": ["personal_access_token_request", "repository_count"], "type": "integer", "description": "Number of repositories requested." }
+    }
+  },
+  "ping": {
+    "actions": [],
+    "description": "A webhook delivery test was sent. This payload has no action property.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#ping",
+    "availability": ["repository", "organization", "app", "business", "marketplace"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login, when included." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "hook_id": { "path": ["hook_id"], "type": "integer", "description": "Webhook ID being tested." },
+      "zen": { "path": ["zen"], "type": "string", "description": "GitHub zen message." }
+    }
+  },
+  "project": {
+    "actions": ["closed", "created", "deleted", "edited", "reopened"],
+    "description": "A Projects (classic) project changed. Legacy event retained because current webhook documentation lists it; current native Actions documentation does not. Use projects_v2 for modern Projects.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#project",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "project_id": { "path": ["project", "id"], "type": "integer", "description": "Classic project database ID." },
+      "name": { "path": ["project", "name"], "type": "string", "description": "Classic project name." },
+      "number": { "path": ["project", "number"], "type": "integer", "description": "Classic project number." },
+      "state": { "path": ["project", "state"], "type": "string", "description": "Classic project state.", "enum": ["open", "closed"] },
+      "name.from": { "path": ["changes", "name", "from"], "type": "string", "description": "Previous project name.", "actions": ["edited"] }
+    }
+  },
+  "project_card": {
+    "actions": ["converted", "created", "deleted", "edited", "moved"],
+    "description": "A Projects (classic) card changed. Legacy webhook still documented but not a current native Actions trigger; use projects_v2_item for modern Projects.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#project_card",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "card_id": { "path": ["project_card", "id"], "type": "integer", "description": "Classic card database ID." },
+      "column_id": { "path": ["project_card", "column_id"], "type": "integer", "description": "Classic column database ID." },
+      "project_url": { "path": ["project_card", "project_url"], "type": "string", "description": "API URL identifying the classic project." },
+      "archived": { "path": ["project_card", "archived"], "type": "boolean", "description": "Whether the card is archived." },
+      "content_url": { "path": ["project_card", "content_url"], "type": "string", "description": "API URL of the issue or pull request represented by the card." },
+      "column_id.from": { "path": ["changes", "column_id", "from"], "type": "integer", "description": "Previous classic column ID.", "actions": ["moved"] }
+    }
+  },
+  "project_column": {
+    "actions": ["created", "deleted", "edited", "moved"],
+    "description": "A Projects (classic) column changed. Legacy webhook still documented but not a current native Actions trigger.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#project_column",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "column_id": { "path": ["project_column", "id"], "type": "integer", "description": "Classic column database ID." },
+      "name": { "path": ["project_column", "name"], "type": "string", "description": "Classic column name." },
+      "project_url": { "path": ["project_column", "project_url"], "type": "string", "description": "API URL identifying the classic project." },
+      "name.from": { "path": ["changes", "name", "from"], "type": "string", "description": "Previous column name.", "actions": ["edited"] }
+    }
+  },
+  "projects_v2": {
+    "actions": ["closed", "created", "deleted", "edited", "reopened"],
+    "description": "An organization-level Project changed. Project payloads do not embed issue labels; label filters are unavailable without a separate lookup.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#projects_v2",
+    "availability": ["organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Project owner's organization login." },
+      "project_id": { "path": ["projects_v2", "node_id"], "type": "string", "description": "Project GraphQL node ID." },
+      "project_database_id": { "path": ["projects_v2", "id"], "type": "integer", "description": "Project numeric database ID." },
+      "number": { "path": ["projects_v2", "number"], "type": "integer", "description": "Organization-scoped project number." },
+      "title": { "path": ["projects_v2", "title"], "type": "string", "description": "Current project title." },
+      "state": { "path": ["projects_v2", "state"], "type": "string", "description": "Current project state.", "enum": ["open", "closed"] },
+      "public": { "path": ["projects_v2", "public"], "type": "boolean", "description": "Whether the project is public." },
+      "is_template": { "path": ["projects_v2", "is_template"], "type": "boolean", "description": "Whether the project is a template." },
+      "owner": { "path": ["projects_v2", "owner", "login"], "type": "string", "description": "Project owner's login." },
+      "creator": { "path": ["projects_v2", "creator", "login"], "type": "string", "description": "Project creator's login." },
+      "status": { "path": ["projects_v2", "latest_status_update", "status"], "type": "string", "description": "Latest project status, when present.", "enum": ["INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"] },
+      "title.from": { "path": ["changes", "title", "from"], "type": "string", "description": "Previous project title.", "actions": ["edited"] },
+      "public.from": { "path": ["changes", "public", "from"], "type": "boolean", "description": "Previous project visibility.", "actions": ["edited"] }
+    }
+  },
+  "projects_v2_item": {
+    "actions": ["archived", "converted", "created", "deleted", "edited", "reordered", "restored"],
+    "description": "An organization-level Project item changed. The payload contains content IDs, not an embedded issue or its labels; label filters are unavailable without a separate lookup. Field transitions can be null or typed values; select names and text/integer transitions have separate filters.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#projects_v2_item",
+    "availability": ["organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Project owner's organization login." },
+      "project_id": { "path": ["projects_v2_item", "project_node_id"], "type": "string", "description": "Containing project's GraphQL node ID." },
+      "item_id": { "path": ["projects_v2_item", "node_id"], "type": "string", "description": "Project item's GraphQL node ID." },
+      "item_database_id": { "path": ["projects_v2_item", "id"], "type": "integer", "description": "Project item's numeric database ID." },
+      "item_type": { "path": ["projects_v2_item", "content_type"], "type": "string", "description": "Content represented by the item.", "enum": ["Issue", "PullRequest", "DraftIssue"] },
+      "content_id": { "path": ["projects_v2_item", "content_node_id"], "type": "string", "description": "Issue, pull request, or draft issue GraphQL node ID." },
+      "creator": { "path": ["projects_v2_item", "creator", "login"], "type": "string", "description": "Item creator's login." },
+      "field.name": { "path": ["changes", "field_value", "field_name"], "type": "string", "description": "Changed project field name, such as Status or Priority.", "actions": ["edited"] },
+      "field.id": { "path": ["changes", "field_value", "field_node_id"], "type": "string", "description": "Changed field's GraphQL node ID.", "actions": ["edited"] },
+      "field.type": { "path": ["changes", "field_value", "field_type"], "type": "string", "description": "Changed project field type.", "actions": ["edited"] },
+      "project_number": { "path": ["changes", "field_value", "project_number"], "type": "integer", "description": "Project number supplied with a field change.", "actions": ["edited"] },
+      "field.to.name": { "path": ["changes", "field_value", "to", "name"], "type": "string", "description": "New single-select option name, including Status or Priority.", "actions": ["edited"] },
+      "field.from.name": { "path": ["changes", "field_value", "from", "name"], "type": "string", "description": "Previous single-select option name.", "actions": ["edited"] },
+      "field.value": { "path": ["changes", "field_value", "to", "name"], "type": "string", "description": "Alias for the new single-select option name; not a raw field value.", "actions": ["edited"] },
+      "field.to.text": { "path": ["changes", "field_value", "to"], "type": "string", "description": "New string value for a text or date field; object and numeric values do not match.", "actions": ["edited"] },
+      "field.from.text": { "path": ["changes", "field_value", "from"], "type": "string", "description": "Previous string value for a text or date field.", "actions": ["edited"] },
+      "field.to.number": { "path": ["changes", "field_value", "to"], "type": "integer", "description": "New integer value for a number field, as documented in the webhook schema.", "actions": ["edited"] },
+      "field.from.number": { "path": ["changes", "field_value", "from"], "type": "integer", "description": "Previous integer value for a number field.", "actions": ["edited"] },
+      "body.from": { "path": ["changes", "body", "from"], "type": "string", "description": "Previous draft issue body.", "actions": ["edited"] },
+      "body.to": { "path": ["changes", "body", "to"], "type": "string", "description": "New draft issue body.", "actions": ["edited"] }
+    }
+  },
+  "projects_v2_status_update": {
+    "actions": ["created", "deleted", "edited"],
+    "description": "An organization-level Project status update changed. No embedded issue labels are supplied.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#projects_v2_status_update",
+    "availability": ["organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Project owner's organization login." },
+      "project_id": { "path": ["projects_v2_status_update", "project_node_id"], "type": "string", "description": "Project GraphQL node ID." },
+      "status_update_id": { "path": ["projects_v2_status_update", "node_id"], "type": "string", "description": "Status update GraphQL node ID." },
+      "status_update_database_id": { "path": ["projects_v2_status_update", "id"], "type": "integer", "description": "Status update numeric database ID." },
+      "status": { "path": ["projects_v2_status_update", "status"], "type": "string", "description": "Current project status.", "enum": ["INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"] },
+      "status.from": { "path": ["changes", "status", "from"], "type": "string", "description": "Previous project status.", "actions": ["edited"], "enum": ["INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"] },
+      "status.to": { "path": ["changes", "status", "to"], "type": "string", "description": "New project status.", "actions": ["edited"], "enum": ["INACTIVE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETE"] },
+      "creator": { "path": ["projects_v2_status_update", "creator", "login"], "type": "string", "description": "Status update creator's login." },
+      "start_date": { "path": ["projects_v2_status_update", "start_date"], "type": "string", "description": "Status update period start date." },
+      "target_date": { "path": ["projects_v2_status_update", "target_date"], "type": "string", "description": "Status update target date." },
+      "body": { "path": ["projects_v2_status_update", "body"], "type": "string", "description": "Current status update body." },
+      "body.from": { "path": ["changes", "body", "from"], "type": "string", "description": "Previous status update body.", "actions": ["edited"] },
+      "body.to": { "path": ["changes", "body", "to"], "type": "string", "description": "New status update body.", "actions": ["edited"] }
+    }
+  },
+  "repository": {
+    "actions": ["archived", "created", "deleted", "edited", "privatized", "publicized", "renamed", "transferred", "unarchived"],
+    "description": "Repository settings, visibility, ownership, name, or existence changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#repository",
+    "availability": ["business", "repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Affected repository owner/name." },
+      "private": { "path": ["repository", "private"], "type": "boolean", "description": "Current repository privacy." },
+      "archived": { "path": ["repository", "archived"], "type": "boolean", "description": "Whether the repository is archived." },
+      "visibility": { "path": ["repository", "visibility"], "type": "string", "description": "Current repository visibility.", "enum": ["public", "private", "internal"] },
+      "default_branch": { "path": ["repository", "default_branch"], "type": "string", "description": "Current default branch." },
+      "name.from": { "path": ["changes", "repository", "name", "from"], "type": "string", "description": "Previous repository name.", "actions": ["renamed"] }
+    }
+  },
+  "repository_advisory": {
+    "actions": ["published", "reported"],
+    "description": "A repository security advisory was published or privately reported.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#repository_advisory",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "ghsa_id": { "path": ["repository_advisory", "ghsa_id"], "type": "string", "description": "GitHub security advisory identifier." },
+      "cve_id": { "path": ["repository_advisory", "cve_id"], "type": "string", "description": "CVE identifier, when assigned." },
+      "severity": { "path": ["repository_advisory", "severity"], "type": "string", "description": "Advisory severity.", "enum": ["critical", "high", "medium", "low"] },
+      "state": { "path": ["repository_advisory", "state"], "type": "string", "description": "Advisory publication state.", "enum": ["published", "closed", "withdrawn", "draft", "triage"] },
+      "author": { "path": ["repository_advisory", "author", "login"], "type": "string", "description": "Advisory author's login." }
+    }
+  },
+  "repository_import": {
+    "actions": [],
+    "description": "A repository import changed status. This payload has no action property.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#repository_import",
+    "availability": ["repository", "organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Imported repository owner/name." },
+      "status": { "path": ["status"], "type": "string", "description": "Repository import status.", "enum": ["success", "failure", "cancelled"] }
+    }
+  },
+  "repository_ruleset": {
+    "actions": ["created", "deleted", "edited"],
+    "description": "A repository ruleset was created, deleted, or edited.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#repository_ruleset",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "ruleset_id": { "path": ["repository_ruleset", "id"], "type": "integer", "description": "Ruleset database ID." },
+      "name": { "path": ["repository_ruleset", "name"], "type": "string", "description": "Ruleset name." },
+      "target": { "path": ["repository_ruleset", "target"], "type": "string", "description": "Ruleset target.", "enum": ["branch", "tag", "push", "repository"] },
+      "enforcement": { "path": ["repository_ruleset", "enforcement"], "type": "string", "description": "Ruleset enforcement mode.", "enum": ["disabled", "active", "evaluate"] },
+      "source_type": { "path": ["repository_ruleset", "source_type"], "type": "string", "description": "Ruleset source type.", "enum": ["Repository", "Organization", "Enterprise"] },
+      "source_name": { "path": ["repository_ruleset", "source"], "type": "string", "description": "Ruleset source repository or organization." },
+      "name.from": { "path": ["changes", "name", "from"], "type": "string", "description": "Previous ruleset name.", "actions": ["edited"] },
+      "enforcement.from": { "path": ["changes", "enforcement", "from"], "type": "string", "description": "Previous enforcement mode.", "actions": ["edited"], "enum": ["disabled", "active", "evaluate"] }
+    }
+  },
+  "repository_vulnerability_alert": {
+    "actions": ["create", "dismiss", "reopen", "resolve"],
+    "description": "A legacy repository vulnerability alert changed; prefer dependabot_alert for modern Dependabot alerts.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#repository_vulnerability_alert",
+    "availability": ["repository", "organization"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "alert_id": { "path": ["alert", "id"], "type": "integer", "description": "Vulnerability alert database ID." },
+      "alert_number": { "path": ["alert", "number"], "type": "integer", "description": "Vulnerability alert number." },
+      "package": { "path": ["alert", "affected_package_name"], "type": "string", "description": "Affected package name." },
+      "severity": { "path": ["alert", "severity"], "type": "string", "description": "Vulnerability severity." },
+      "ghsa_id": { "path": ["alert", "ghsa_id"], "type": "string", "description": "GitHub security advisory identifier." }
+    }
+  },
+  "secret_scanning_alert_location": {
+    "actions": ["created"],
+    "description": "A new location was detected for a secret scanning alert. Filters exclude secret material.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#secret_scanning_alert_location",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "alert_number": { "path": ["alert", "number"], "type": "integer", "description": "Repository-scoped alert number." },
+      "secret_type": { "path": ["alert", "secret_type"], "type": "string", "description": "Secret detector identifier." },
+      "location_type": {
+        "path": ["location", "type"],
+        "type": "string",
+        "description": "Type of newly detected secret location.",
+        "enum": [
+          "commit",
+          "wiki_commit",
+          "issue_title",
+          "issue_body",
+          "issue_comment",
+          "discussion_title",
+          "discussion_body",
+          "discussion_comment",
+          "pull_request_title",
+          "pull_request_body",
+          "pull_request_comment",
+          "pull_request_review",
+          "pull_request_review_comment"
+        ]
+      }
+    }
+  },
+  "secret_scanning_scan": {
+    "actions": ["completed"],
+    "description": "A secret scanning backfill scan completed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#secret_scanning_scan",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "type": { "path": ["type"], "type": "string", "description": "Backfill scan type.", "enum": ["backfill", "custom-pattern-backfill", "pattern-version-backfill"] },
+      "source": { "path": ["source"], "type": "string", "description": "Scanned content source.", "enum": ["git", "issues", "pull-requests", "discussions", "wiki"] },
+      "secret_type": { "path": ["secret_types", "*"], "type": "string", "description": "A secret detector included in the scan." },
+      "custom_pattern_name": { "path": ["custom_pattern_name"], "type": "string", "description": "Custom pattern name, when applicable." },
+      "custom_pattern_scope": { "path": ["custom_pattern_scope"], "type": "string", "description": "Custom pattern scope.", "enum": ["repository", "organization", "enterprise"] }
+    }
+  },
+  "security_advisory": {
+    "actions": ["published", "updated", "withdrawn"],
+    "description": "A GitHub-reviewed global security advisory changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#security_advisory",
+    "availability": ["app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "ghsa_id": { "path": ["security_advisory", "ghsa_id"], "type": "string", "description": "GitHub security advisory identifier." },
+      "severity": { "path": ["security_advisory", "severity"], "type": "string", "description": "Security advisory severity." },
+      "ecosystem": { "path": ["security_advisory", "vulnerabilities", "*", "package", "ecosystem"], "type": "string", "description": "An affected package ecosystem." },
+      "package": { "path": ["security_advisory", "vulnerabilities", "*", "package", "name"], "type": "string", "description": "An affected package name." }
+    }
+  },
+  "security_and_analysis": {
+    "actions": [],
+    "description": "Repository security and analysis settings changed. This payload has no action property.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#security_and_analysis",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "advanced_security": { "path": ["repository", "security_and_analysis", "advanced_security", "status"], "type": "string", "description": "Current advanced security status.", "enum": ["enabled", "disabled"] },
+      "secret_scanning": { "path": ["repository", "security_and_analysis", "secret_scanning", "status"], "type": "string", "description": "Current secret scanning status.", "enum": ["enabled", "disabled"] },
+      "secret_scanning_push_protection": {
+        "path": ["repository", "security_and_analysis", "secret_scanning_push_protection", "status"],
+        "type": "string",
+        "description": "Current secret scanning push protection status.",
+        "enum": ["enabled", "disabled"]
+      },
+      "advanced_security.from": { "path": ["changes", "from", "security_and_analysis", "advanced_security", "status"], "type": "string", "description": "Previous advanced security status.", "enum": ["enabled", "disabled"] },
+      "secret_scanning.from": { "path": ["changes", "from", "security_and_analysis", "secret_scanning", "status"], "type": "string", "description": "Previous secret scanning status.", "enum": ["enabled", "disabled"] }
+    }
+  },
+  "sponsorship": {
+    "actions": ["cancelled", "created", "edited", "pending_cancellation", "pending_tier_change", "tier_changed"],
+    "description": "A GitHub Sponsors sponsorship changed.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#sponsorship",
+    "availability": ["sponsors_listing"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "sponsor": { "path": ["sponsorship", "sponsor", "login"], "type": "string", "description": "Sponsor's login." },
+      "sponsorable": { "path": ["sponsorship", "sponsorable", "login"], "type": "string", "description": "Sponsored account login." },
+      "tier": { "path": ["sponsorship", "tier", "name"], "type": "string", "description": "Sponsorship tier name." },
+      "monthly_price_in_cents": { "path": ["sponsorship", "tier", "monthly_price_in_cents"], "type": "integer", "description": "Tier monthly price in cents." },
+      "is_one_time": { "path": ["sponsorship", "tier", "is_one_time"], "type": "boolean", "description": "Whether this is a one-time sponsorship." },
+      "privacy_level": { "path": ["sponsorship", "privacy_level"], "type": "string", "description": "Sponsorship privacy level." }
+    }
+  },
+  "star": {
+    "actions": ["created", "deleted"],
+    "description": "A repository star was added or removed; unlike the native watch trigger, this includes unstars.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#star",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Login of the user who starred or unstarred the repository." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "starred_at": { "path": ["starred_at"], "type": "string", "description": "Star creation timestamp; absent or null when deleted.", "actions": ["created"] }
+    }
+  },
+  "sub_issues": {
+    "actions": ["parent_issue_added", "parent_issue_removed", "sub_issue_added", "sub_issue_removed"],
+    "description": "An issue parent/sub-issue relationship changed. Embedded objects are parent_issue and sub_issue, not issue; cross-repository deliveries may omit the other issue.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#sub_issues",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository receiving this relationship delivery." },
+      "parent_issue_id": { "path": ["parent_issue_id"], "type": "integer", "description": "Parent issue database ID." },
+      "sub_issue_id": { "path": ["sub_issue_id"], "type": "integer", "description": "Sub-issue database ID." },
+      "parent_issue.number": { "path": ["parent_issue", "number"], "type": "integer", "description": "Parent issue number." },
+      "sub_issue.number": { "path": ["sub_issue", "number"], "type": "integer", "description": "Sub-issue number." },
+      "parent_issue.state": { "path": ["parent_issue", "state"], "type": "string", "description": "Parent issue state.", "enum": ["open", "closed"] },
+      "sub_issue.state": { "path": ["sub_issue", "state"], "type": "string", "description": "Sub-issue state.", "enum": ["open", "closed"] },
+      "parent_issue.labels": { "path": ["parent_issue", "labels", "*", "name"], "type": "string", "description": "Label name on the embedded parent issue." },
+      "sub_issue.labels": { "path": ["sub_issue", "labels", "*", "name"], "type": "string", "description": "Label name on the embedded sub-issue." },
+      "parent_issue.repository": { "path": ["parent_issue_repo", "full_name"], "type": "string", "description": "Parent issue repository, when supplied." },
+      "sub_issue.repository": { "path": ["sub_issue_repo", "full_name"], "type": "string", "description": "Sub-issue repository, when supplied." }
+    }
+  },
+  "team": {
+    "actions": ["added_to_repository", "created", "deleted", "edited", "removed_from_repository"],
+    "description": "A team changed or gained or lost access to a repository.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#team",
+    "availability": ["organization", "business", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name, when included." },
+      "team": { "path": ["team", "slug"], "type": "string", "description": "Team slug." },
+      "team_id": { "path": ["team", "id"], "type": "integer", "description": "Team database ID." },
+      "name": { "path": ["team", "name"], "type": "string", "description": "Team display name." },
+      "privacy": { "path": ["team", "privacy"], "type": "string", "description": "Team visibility.", "enum": ["open", "closed", "secret"] },
+      "permission": { "path": ["team", "permission"], "type": "string", "description": "Team permission on the repository." },
+      "name.from": { "path": ["changes", "name", "from"], "type": "string", "description": "Previous team name.", "actions": ["edited"] }
+    }
+  },
+  "team_add": {
+    "actions": [],
+    "description": "A team was added to a repository. This payload has no action property; team.added_to_repository is a related but distinct webhook.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#team_add",
+    "availability": ["repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "team": { "path": ["team", "slug"], "type": "string", "description": "Added team slug." },
+      "team_id": { "path": ["team", "id"], "type": "integer", "description": "Added team database ID." },
+      "permission": { "path": ["team", "permission"], "type": "string", "description": "Team permission on the repository." }
+    }
+  },
+  "workflow_job": {
+    "actions": ["completed", "in_progress", "queued", "waiting"],
+    "description": "A GitHub Actions workflow job changed state; this webhook is distinct from the native workflow_run trigger.",
+    "source": "https://docs.github.com/en/webhooks/webhook-events-and-payloads#workflow_job",
+    "availability": ["business", "repository", "organization", "app"],
+    "filters": {
+      "sender": { "path": ["sender", "login"], "type": "string", "description": "Actor login, including the ghost placeholder when no actor can be resolved." },
+      "organization": { "path": ["organization", "login"], "type": "string", "description": "Organization login, when included." },
+      "repository": { "path": ["repository", "full_name"], "type": "string", "description": "Repository owner/name." },
+      "job_id": { "path": ["workflow_job", "id"], "type": "integer", "description": "Workflow job ID." },
+      "run_id": { "path": ["workflow_job", "run_id"], "type": "integer", "description": "Containing workflow run ID." },
+      "name": { "path": ["workflow_job", "name"], "type": "string", "description": "Workflow job name." },
+      "status": { "path": ["workflow_job", "status"], "type": "string", "description": "Current job status.", "enum": ["queued", "in_progress", "completed", "waiting"] },
+      "conclusion": {
+        "path": ["workflow_job", "conclusion"],
+        "type": "string",
+        "description": "Completed job conclusion.",
+        "enum": ["success", "failure", "neutral", "cancelled", "timed_out", "action_required", "skipped"],
+        "actions": ["completed"]
+      },
+      "branch": { "path": ["workflow_job", "head_branch"], "type": "string", "description": "Workflow job head branch." },
+      "sha": { "path": ["workflow_job", "head_sha"], "type": "string", "description": "Workflow job head commit SHA." },
+      "runner": { "path": ["workflow_job", "runner_name"], "type": "string", "description": "Runner name, when assigned." },
+      "runner_group": { "path": ["workflow_job", "runner_group_name"], "type": "string", "description": "Runner group name, when assigned." },
+      "runner_labels": { "path": ["workflow_job", "labels", "*"], "type": "string", "description": "Runner scheduling label, not an issue label." }
+    }
+  }
+}

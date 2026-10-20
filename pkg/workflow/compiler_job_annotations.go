@@ -8,6 +8,7 @@ import (
 )
 
 var generatedJobNames = map[string]string{
+	string(constants.AdmissionJobName):          "Admission",
 	string(constants.PreActivationJobName):      "Pre-activation",
 	string(constants.ActivationJobName):         "Activation",
 	string(constants.AgentJobName):              "Agent",

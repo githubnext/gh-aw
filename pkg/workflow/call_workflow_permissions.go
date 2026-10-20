@@ -81,6 +81,11 @@ func extractCallWorkflowPermissionImport(workflowName, markdownPath string) (*ca
 		if err != nil {
 			return nil, err
 		}
+		// A same-batch Markdown target gains isolated admission OIDC even when its
+		// existing lock file predates admission support.
+		if fileResult.mdExists {
+			perms.Set(PermissionIdToken, PermissionWrite)
+		}
 		return &callWorkflowPermissionImport{
 			permissions: perms,
 			sourcePath:  fileResult.lockPath,
@@ -160,8 +165,8 @@ func extractPermissionsFromYAMLFile(filePath string) (*Permissions, error) {
 }
 
 // extractPermissionsFromMDFile reads a .md workflow source and uses the frontmatter-level
-// permissions field as a proxy for the job permissions that will be generated when the
-// worker is compiled.
+// permissions field plus mandatory activation permissions as a proxy for the job
+// permissions that will be generated when the worker is compiled.
 func extractPermissionsFromMDFile(mdPath string) (*Permissions, error) {
 	// mdPath originates from findWorkflowFile(), which validates paths via
 	// isPathWithinDir() to prevent directory traversal before returning them.
@@ -176,13 +181,12 @@ func extractPermissionsFromMDFile(mdPath string) (*Permissions, error) {
 		return nil, nil
 	}
 
-	permsValue, hasPerms := result.Frontmatter["permissions"]
-	if !hasPerms {
-		callWorkflowPermissionsLog.Printf("No permissions in frontmatter of %s", mdPath)
-		return nil, nil
+	perms := NewPermissionsContentsRead()
+	if permsValue, hasPerms := result.Frontmatter["permissions"]; hasPerms {
+		perms.Merge(NewPermissionsParserFromValue(permsValue).ToPermissions())
 	}
-
-	perms := NewPermissionsParserFromValue(permsValue).ToPermissions()
+	// Admission can be enabled at runtime, so reusable caller permissions must allow OIDC even if frontmatter says otherwise.
+	perms.Set(PermissionIdToken, PermissionWrite)
 	callWorkflowPermissionsLog.Printf("Extracted permissions from .md source %s", mdPath)
 	return perms, nil
 }

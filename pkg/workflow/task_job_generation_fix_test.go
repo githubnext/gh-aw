@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
+	"github.com/goccy/go-yaml"
 )
 
 // TestTaskJobGenerationFix tests that task job is only generated when required
@@ -164,9 +165,20 @@ Do conditional work.`
 			t.Error("Expected activation job for workflow with if condition")
 		}
 
-		// Verify activation job has the if condition (without ${{ }} wrapper, as per lock file format)
-		if !strings.Contains(lockContentStr, "if: github.ref == 'refs/heads/main'") {
+		var compiled struct {
+			Jobs map[string]struct {
+				If string `yaml:"if"`
+			} `yaml:"jobs"`
+		}
+		if err := yaml.Unmarshal(lockContent, &compiled); err != nil {
+			t.Fatalf("Failed to parse compiled workflow: %v", err)
+		}
+		activationCondition := compiled.Jobs["activation"].If
+		if !strings.Contains(activationCondition, "github.ref == 'refs/heads/main'") {
 			t.Error("Expected activation job to have the if condition")
+		}
+		if !strings.Contains(activationCondition, admissionJobResultCondition) {
+			t.Error("Expected activation job to preserve the admission result condition")
 		}
 
 		// Verify main job depends on activation
