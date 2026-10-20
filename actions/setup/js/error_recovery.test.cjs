@@ -212,6 +212,27 @@ describe("error_recovery", () => {
       expect(shouldRetry).toHaveBeenCalled();
     });
 
+    it("should use a custom sleep for each calculated retry delay", async () => {
+      const sleep = vi.fn().mockResolvedValue(undefined);
+      const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
+
+      await expect(withRetry(operation, { maxRetries: 2, initialDelayMs: 125, jitterMs: 0, sleep }, "test-operation")).resolves.toBe("success");
+
+      expect(sleep.mock.calls).toEqual([[250], [500]]);
+      expect(operation).toHaveBeenCalledTimes(3);
+    });
+
+    it("should stop before the next operation when a custom wait is cancelled", async () => {
+      const cancelled = new Error("Retry deadline exceeded");
+      const sleep = vi.fn().mockRejectedValue(cancelled);
+      const operation = vi.fn().mockRejectedValue(new Error("Network timeout"));
+
+      await expect(withRetry(operation, { maxRetries: 2, sleep, shouldRetry: error => error !== cancelled }, "test-operation")).rejects.toHaveProperty("originalError", cancelled);
+
+      expect(sleep).toHaveBeenCalledOnce();
+      expect(operation).toHaveBeenCalledOnce();
+    });
+
     it("should add random jitter to delay when jitterMs is configured", async () => {
       const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
       const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
@@ -284,6 +305,12 @@ describe("error_recovery", () => {
     it("should reject a non-function retry predicate", async () => {
       // @ts-expect-error Deliberately exercise runtime input validation.
       await expect(withRetry(vi.fn(), { shouldRetry: true }, "test-operation")).rejects.toThrow("Retry configuration shouldRetry must be a function");
+    });
+    it("should reject a non-function sleep before executing the operation", async () => {
+      const operation = vi.fn();
+      // @ts-expect-error Deliberately exercise runtime input validation.
+      await expect(withRetry(operation, { sleep: true }, "test-operation")).rejects.toThrow("Retry configuration sleep must be a function");
+      expect(operation).not.toHaveBeenCalled();
     });
   });
 

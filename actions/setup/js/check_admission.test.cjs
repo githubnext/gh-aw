@@ -18,7 +18,7 @@ const base = {
 const jwt = () => `synthetic.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 300 })).toString("base64url")}.signature`;
 const oidcResponse = () => Response.json({ value: jwt() });
 const success = () => Response.json({ max_ai_credits: 1000 });
-const options = env => ({ env: { ...base, ...env }, now: () => Date.now(), jitter: () => 0 });
+const options = env => ({ env: { ...base, ...env }, now: () => Date.now() });
 async function settle(promise) {
   await vi.runAllTimersAsync();
   return promise;
@@ -27,10 +27,12 @@ async function settle(promise) {
 describe("bounded OIDC-only admission client", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
     vi.stubEnv("GH_AW_OTLP_ENDPOINTS", "");
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -89,7 +91,7 @@ describe("bounded OIDC-only admission client", () => {
         return new Response(null, { status });
       })
       .mockImplementationOnce(success);
-    const decision = await settle(checkAdmission({ env, fetchImpl, jitter: () => 0 }));
+    const decision = await settle(checkAdmission({ env, fetchImpl }));
     expect(decision.result).toBe("admitted");
     expect(fetchImpl.mock.calls[1][1].body).toBe(fetchImpl.mock.calls[2][1].body);
     expect(fetchImpl.mock.calls[1][1].headers.authorization).toBe(fetchImpl.mock.calls[2][1].headers.authorization);
@@ -116,6 +118,40 @@ describe("bounded OIDC-only admission client", () => {
     await settle(assertion);
     expect(fetchImpl).toHaveBeenCalledTimes(4);
   });
+  it.each([0, 0.999])("retains 250/500ms exponential backoff with bounded jitter (%s)", async random => {
+    vi.spyOn(Math, "random").mockReturnValue(random);
+    const start = Date.now();
+    const attempts = [];
+    const fetchImpl = vi
+      .fn()
+      .mockImplementationOnce(oidcResponse)
+      .mockImplementation(() => {
+        attempts.push(Date.now() - start);
+        return new Response(null, { status: 503 });
+      });
+    expect(await settle(checkAdmission({ ...options(), fetchImpl }))).toMatchObject({ result: "ignored" });
+    const jitter = Math.floor(random * 250);
+    expect(attempts).toEqual([0, 250 + jitter, 750 + 2 * jitter]);
+  });
+  it.each(["ignore", "block"])("cancels backoff at the overall deadline without late requests (%s)", async policy => {
+    const start = Date.now();
+    let offset = 0;
+    const fetchImpl = vi
+      .fn()
+      .mockImplementationOnce(oidcResponse)
+      .mockImplementation(() => {
+        offset = 59900;
+        return new Response(null, { status: 503 });
+      });
+    const promise = checkAdmission({ ...options({ GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: policy }), now: () => Date.now() + offset, fetchImpl });
+    const assertion = policy === "ignore" ? expect(promise).resolves.toMatchObject({ result: "ignored" }) : expect(promise).rejects.toThrow(FAILURE);
+    await vi.advanceTimersByTimeAsync(100);
+    await assertion;
+    expect(Date.now() - start).toBe(100);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
   it("retries network and interrupted-body transport failures", async () => {
     const brokenBody = new ReadableStream({
       start(controller) {
@@ -130,6 +166,21 @@ describe("bounded OIDC-only admission client", () => {
       .mockImplementationOnce(success);
     expect((await settle(checkAdmission({ ...options(), fetchImpl }))).result).toBe("admitted");
     expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+  it("sanitizes transport errors before the shared retry helper logs them", async () => {
+    const core = { info: vi.fn(), warning: vi.fn(), debug: vi.fn() };
+    vi.stubGlobal("core", core);
+    const error = Object.assign(new Error(`private transport ${base.ACTIONS_ID_TOKEN_REQUEST_TOKEN} ${jwt()}`), {
+      response: { status: 403, headers: { "retry-after": "600", "x-ratelimit-resource": "private-header" } },
+    });
+    const fetchImpl = vi.fn().mockImplementationOnce(oidcResponse).mockRejectedValue(error);
+    expect(await settle(checkAdmission({ ...options(), fetchImpl }))).toMatchObject({ result: "ignored" });
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    const diagnostics = JSON.stringify(Object.values(core).flatMap(log => log.mock.calls));
+    expect(diagnostics).toContain(FAILURE);
+    for (const privateValue of ["private transport", base.ACTIONS_ID_TOKEN_REQUEST_TOKEN, jwt(), "private-header", "Retry-After"]) {
+      expect(diagnostics).not.toContain(privateValue);
+    }
   });
   it.each([
     Response.json({ max_ai_credits: 1, correlation_id: "8e53c1f4a62049b5b382704fe9d61a0c" }),

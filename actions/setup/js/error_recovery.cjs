@@ -19,6 +19,7 @@ const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
  * @property {number} backoffMultiplier - Backoff multiplier for exponential backoff (default: 2)
  * @property {number} jitterMs - Maximum random jitter in milliseconds added to each retry delay (default: 100)
  * @property {(error: any) => boolean} shouldRetry - Function to determine if error is retryable
+ * @property {(ms: number) => Promise<void>} [sleep] - Override retry waits to support operation-specific deadlines or cancellation
  */
 
 /**
@@ -268,7 +269,7 @@ async function withRetry(operation, config = {}, operationName = "operation") {
         const delayWithJitter = Math.min(delay + jitter, fullConfig.maxDelayMs);
         core.info(`Retry attempt ${attempt}/${fullConfig.maxRetries} for ${operationName} after ${delayWithJitter}ms delay`);
         logRetryEvent(lastError, operationName, attempt, delayWithJitter);
-        await sleep(delayWithJitter);
+        await (fullConfig.sleep || sleep)(delayWithJitter);
       }
 
       const result = await operation();
@@ -368,6 +369,9 @@ function validateRetryConfig(operation, config) {
   }
   if (typeof config.shouldRetry !== "function") {
     throw new TypeError("Retry configuration shouldRetry must be a function");
+  }
+  if (config.sleep !== undefined && typeof config.sleep !== "function") {
+    throw new TypeError("Retry configuration sleep must be a function");
   }
 }
 

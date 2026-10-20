@@ -2,8 +2,8 @@
 "use strict";
 
 const { performance } = require("node:perf_hooks");
-const { randomInt } = require("node:crypto");
 const { AdmissionError, FAILURE, readAdmissionConfig, buildAdmissionIdentity, parseAdmissionDecision, readBoundedBody } = require("./admission_protocol.cjs");
+const { withRetry } = require("./error_recovery.cjs");
 
 const OUTAGE = "ERR_ADMISSION: Admission service unavailable; continuing without a service decision.";
 
@@ -57,10 +57,10 @@ function isTransient(status) {
  */
 
 /**
- * @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, jitter?: () => number, mask?: (token: string) => void}} [options]
+ * @param {{env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, now?: () => number, mask?: (token: string) => void}} [options]
  * @returns {Promise<AdmissionResult>}
  */
-async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () => performance.now(), jitter = () => randomInt(250), mask = () => {} } = {}) {
+async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () => performance.now(), mask = () => {} } = {}) {
   const config = readAdmissionConfig(env);
   if (!config) return { result: "skipped" };
   const body = buildAdmissionIdentity(env);
@@ -91,13 +91,85 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
   /** @type {{maxAiCredits: number, threatDetectionMaxAiCredits?: number, evalsMaxAiCredits?: number} | undefined} */
   let decision;
   try {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        if (attempt > 0) {
-          await bounded(
+    decision = await withRetry(
+      async () => {
+        try {
+          if (!token || expiresAt <= Date.now() + 10000) {
+            token = await bounded(
+              async signal => {
+                const response = await fetchImpl(oidcUrl, { headers: { authorization: `bearer ${bootstrapToken}`, accept: "application/json" }, redirect: "manual", signal });
+                if (response.status !== 200) {
+                  discard(response);
+                  throw new AdmissionError(isTransient(response.status));
+                }
+                let result;
+                try {
+                  result = JSON.parse(await readBoundedBody(response, 65536));
+                } catch (error) {
+                  if (error instanceof AdmissionError) throw error;
+                  if (error instanceof SyntaxError) throw new AdmissionError();
+                  throw new AdmissionError(true);
+                }
+                if (typeof result?.value !== "string" || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(result.value)) throw new AdmissionError();
+                try {
+                  mask(result.value);
+                } catch {
+                  throw new AdmissionError();
+                }
+                try {
+                  const payload = JSON.parse(Buffer.from(result.value.split(".")[1], "base64url").toString("utf8"));
+                  if (!Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()) throw new AdmissionError();
+                  expiresAt = payload.exp * 1000;
+                } catch {
+                  throw new AdmissionError();
+                }
+                return result.value;
+              },
+              deadline,
+              now
+            );
+          }
+          const spanId = generateSpanId();
+          const attemptStartMs = Date.now();
+          try {
+            return await bounded(
+              async signal => {
+                /** @type {Record<string, string>} */
+                const headers = { authorization: `bearer ${token}`, "content-type": "application/json", "cache-control": "no-store" };
+                headers.traceparent = buildTraceparent(traceId, spanId);
+                const response = await fetchImpl(config.endpoint, { method: "POST", headers, body, redirect: "manual", signal });
+                if (response.status !== 200) {
+                  discard(response);
+                  throw new AdmissionError(isTransient(response.status));
+                }
+                if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:"utf-8"|utf-8))?\s*$/i.test(response.headers.get("content-type") || "")) {
+                  discard(response);
+                  throw new AdmissionError();
+                }
+                return parseAdmissionDecision(await readBoundedBody(response, 4096));
+              },
+              deadline,
+              now
+            );
+          } finally {
+            attempts.push({ spanId, startMs: attemptStartMs, endMs: Date.now() });
+          }
+        } catch (error) {
+          throw error instanceof AdmissionError ? error : new AdmissionError(true);
+        }
+      },
+      {
+        maxRetries: 2,
+        initialDelayMs: 125,
+        backoffMultiplier: 2,
+        maxDelayMs: 1000,
+        jitterMs: 250,
+        shouldRetry: error => error instanceof AdmissionError && error.transient && now() < deadline,
+        sleep: delay =>
+          bounded(
             signal =>
               new Promise((resolve, reject) => {
-                const timer = setTimeout(resolve, 250 * 2 ** (attempt - 1) + jitter());
+                const timer = setTimeout(resolve, delay);
                 signal.addEventListener(
                   "abort",
                   () => {
@@ -109,74 +181,13 @@ async function checkAdmission({ env = process.env, fetchImpl = fetch, now = () =
               }),
             deadline,
             now
-          );
-        }
-        if (!token || expiresAt <= Date.now() + 10000) {
-          token = await bounded(
-            async signal => {
-              const response = await fetchImpl(oidcUrl, { headers: { authorization: `bearer ${bootstrapToken}`, accept: "application/json" }, redirect: "manual", signal });
-              if (response.status !== 200) {
-                discard(response);
-                throw new AdmissionError(isTransient(response.status));
-              }
-              let result;
-              try {
-                result = JSON.parse(await readBoundedBody(response, 65536));
-              } catch (error) {
-                if (error instanceof AdmissionError) throw error;
-                if (error instanceof SyntaxError) throw new AdmissionError();
-                throw new AdmissionError(true);
-              }
-              if (typeof result?.value !== "string" || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(result.value)) throw new AdmissionError();
-              try {
-                mask(result.value);
-              } catch {
-                throw new AdmissionError();
-              }
-              try {
-                const payload = JSON.parse(Buffer.from(result.value.split(".")[1], "base64url").toString("utf8"));
-                if (!Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()) throw new AdmissionError();
-                expiresAt = payload.exp * 1000;
-              } catch {
-                throw new AdmissionError();
-              }
-              return result.value;
-            },
-            deadline,
-            now
-          );
-        }
-        const spanId = generateSpanId();
-        const attemptStartMs = Date.now();
-        try {
-          decision = await bounded(
-            async signal => {
-              /** @type {Record<string, string>} */
-              const headers = { authorization: `bearer ${token}`, "content-type": "application/json", "cache-control": "no-store" };
-              headers.traceparent = buildTraceparent(traceId, spanId);
-              const response = await fetchImpl(config.endpoint, { method: "POST", headers, body, redirect: "manual", signal });
-              if (response.status !== 200) {
-                discard(response);
-                throw new AdmissionError(isTransient(response.status));
-              }
-              if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:"utf-8"|utf-8))?\s*$/i.test(response.headers.get("content-type") || "")) {
-                discard(response);
-                throw new AdmissionError();
-              }
-              return parseAdmissionDecision(await readBoundedBody(response, 4096));
-            },
-            deadline,
-            now
-          );
-        } finally {
-          attempts.push({ spanId, startMs: attemptStartMs, endMs: Date.now() });
-        }
-        break;
-      } catch (error) {
-        if (error instanceof AdmissionError && !error.transient) throw error;
-        if (attempt === 2 || now() >= deadline) break;
-      }
-    }
+          ),
+      },
+      "workflow admission"
+    );
+  } catch (error) {
+    const original = error instanceof Error && "originalError" in error ? error.originalError : error;
+    if (!(original instanceof AdmissionError) || !original.transient) throw new AdmissionError();
   } finally {
     token = "";
   }
