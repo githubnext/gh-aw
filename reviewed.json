@@ -94,13 +94,12 @@
  },
  "Hack23/European-Parliament-MCP-Server": {
   "kind": "mcp-server",
-  "reviewed": "2026-10-01",
-  "score": 6,
-  "summary": "Well-documented TypeScript MCP server for EP open data with 15 OSINT tools and SLSA L3 provenance; gh-aw usage is secondary.",
+  "reviewed": "2026-10-20",
+  "score": 4,
+  "summary": "General-purpose EU Parliament MCP server tagged gh-aw; only standard CI workflows seen, no gh-aw-specific components verified.",
   "highlights": [
-   "Published on npm with SLSA Level 3",
-   "Powers EU Parliament Monitor AI newsroom",
-   "Active (pushed 2026-10-01)"
+   "Topic gh-aw on repo",
+   "Active (updated 2026-10-20), 28 stars"
   ],
   "blogged": false
  },
