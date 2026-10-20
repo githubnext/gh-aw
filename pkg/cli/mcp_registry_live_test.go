@@ -4,13 +4,84 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
+
+func isMCPRegistryNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var networkError net.Error
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &networkError) && networkError.Timeout()) {
+		return true
+	}
+
+	for _, pattern := range []string{"network", "firewall", "403", "connection"} {
+		if strings.Contains(err.Error(), pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestMCPRegistryClient_NetworkErrorClassification(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "no error"},
+		{name: "context deadline", err: context.DeadlineExceeded, want: true},
+		{
+			name: "timeout awaiting headers",
+			err: fmt.Errorf("failed to search MCP registry: %w", &url.Error{
+				Op:  "Get",
+				URL: "https://api.mcp.github.com/v0.1/servers",
+				Err: context.DeadlineExceeded,
+			}),
+			want: true,
+		},
+		{
+			name: "timeout reading body",
+			err:  fmt.Errorf("failed to read registry response: %w", context.DeadlineExceeded),
+			want: true,
+		},
+		{
+			name: "DNS timeout",
+			err:  fmt.Errorf("failed to search MCP registry: %w", &net.DNSError{Err: "lookup timed out", IsTimeout: true}),
+			want: true,
+		},
+		{name: "network restriction", err: errors.New("network unavailable"), want: true},
+		{name: "firewall restriction", err: errors.New("firewall denied access"), want: true},
+		{name: "forbidden", err: errors.New("MCP registry access forbidden (403)"), want: true},
+		{name: "connection refused", err: errors.New("connection refused"), want: true},
+		{name: "canceled context", err: context.Canceled},
+		{name: "invalid response", err: errors.New("failed to parse registry response: unexpected end of JSON input")},
+		{name: "validation failure", err: errors.New("registry validation failed: expected at least 10 servers")},
+		{name: "unauthorized", err: errors.New("MCP registry access unauthorized (401)")},
+		{name: "missing endpoint", err: errors.New("MCP registry endpoint not found (404)")},
+		{name: "timeout text without typed error", err: errors.New("invalid timeout field")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := isMCPRegistryNetworkError(tt.err); got != tt.want {
+				t.Errorf("isMCPRegistryNetworkError(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
+	}
+}
 
 // TestMCPRegistryClient_LiveSearchServers tests SearchServers against the live GitHub MCP registry
 func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
@@ -21,9 +92,7 @@ func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
 	t.Run("search_all_servers", func(t *testing.T) {
 		servers, err := client.SearchServers(context.Background(), "")
 		if err != nil {
-			// Check if it's a network/firewall issue
-			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
-				strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") {
+			if isMCPRegistryNetworkError(err) {
 				t.Skipf("Skipping due to network restrictions: %v", err)
 				return
 			}
@@ -59,8 +128,7 @@ func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
 		// Search for GitHub-related servers
 		servers, err := client.SearchServers(context.Background(), "github")
 		if err != nil {
-			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
-				strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") {
+			if isMCPRegistryNetworkError(err) {
 				t.Skipf("Skipping due to network restrictions: %v", err)
 				return
 			}
@@ -86,8 +154,7 @@ func TestMCPRegistryClient_LiveSearchServers(t *testing.T) {
 	t.Run("verify_transport_types", func(t *testing.T) {
 		servers, err := client.SearchServers(context.Background(), "")
 		if err != nil {
-			if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
-				strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") {
+			if isMCPRegistryNetworkError(err) {
 				t.Skipf("Skipping due to network restrictions: %v", err)
 				return
 			}
@@ -115,8 +182,7 @@ func TestMCPRegistryClient_LiveResponseStructure(t *testing.T) {
 
 	servers, err := client.SearchServers(context.Background(), "")
 	if err != nil {
-		if strings.Contains(err.Error(), "network") || strings.Contains(err.Error(), "firewall") ||
-			strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "connection") ||
+		if isMCPRegistryNetworkError(err) ||
 			strings.Contains(err.Error(), "stream") || strings.Contains(err.Error(), "CANCEL") {
 			t.Skipf("Skipping due to network restrictions: %v", err)
 			return
