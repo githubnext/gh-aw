@@ -265,6 +265,10 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	if digest, ok := agentObj["checksums-sha256"].(string); ok {
+		agentConfig.ChecksumsSHA256 = digest
+	}
+
 	// Extract platform (AWF platform.type override)
 	if platformVal, hasPlatform := agentObj["platform"]; hasPlatform {
 		if platformStr, ok := platformVal.(string); ok {

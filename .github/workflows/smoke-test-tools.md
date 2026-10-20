@@ -28,7 +28,7 @@ runtimes:
   python:
     version: "3.11"
   go:
-    version: "1.24"
+    version: "1.27.3"
   java:
     version: "21"
   dotnet:

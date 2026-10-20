@@ -1,6 +1,6 @@
 ---
 # Python NLP Environment - scikit-learn, NLTK, TextBlob, WordCloud
-# Provides TF-IDF vectorization, K-means clustering, sentiment analysis, and NLP utilities
+# Version-pinned libraries for TF-IDF vectorization, clustering, sentiment analysis, and NLP
 
 tools:
   bash:
@@ -24,7 +24,7 @@ steps:
         uv venv --python 3.12 --python-preference only-managed --seed /tmp/gh-aw/python/venv
       fi
       echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/python/venv/bin/pip install --quiet nltk scikit-learn textblob wordcloud
+      /tmp/gh-aw/python/venv/bin/pip install --quiet nltk==3.10.3 scikit-learn==1.9.1 textblob==0.20.1 wordcloud==1.9.6
 
       # Download required NLTK corpora
       /tmp/gh-aw/python/venv/bin/python3 -c "

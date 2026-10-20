@@ -28,7 +28,8 @@ pre-agent-steps:
   - name: Expose Go to Serena container
     run: |
       set -euo pipefail
-      go_root="$(go env GOROOT)"
+      unset GOROOT
+      go_root="$(GOTOOLCHAIN=local go env GOROOT)"
       case "$go_root" in
         "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"/go/*) ;;
         *)
@@ -40,6 +41,8 @@ pre-agent-steps:
         echo "Serena Go runtime has no executable bin/go in the mounted toolchain." >&2
         exit 1
       fi
+      export GOROOT="$go_root"
+      printf 'GOROOT=%s\n' "$go_root" >> "$GITHUB_ENV"
       printf 'GH_AW_SERENA_GO_PATH=%s/bin:%s\n' "$go_root" "$PATH" >> "$GITHUB_ENV"
       "$go_root/bin/go" version
 ---
@@ -57,6 +60,8 @@ and appending the gateway's existing PATH. No additional host paths are mounted.
 The existing runner tool-cache mount remains read-only. The
 setup check verifies the runner toolchain and mount boundary, not language-server
 readiness: a healthy MCP transport alone does not prove Go semantic analysis works.
+Root discovery clears any earlier `GOROOT`, disables automatic toolchain selection,
+and refreshes the host `GOROOT` so later builds use the same selected toolchain.
 If Serena initialization fails, report the language-server error and stop tasks
 that require semantic analysis; do not substitute text-only analysis or install
 tools ad hoc.
