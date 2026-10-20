@@ -124,6 +124,20 @@ describe("claude_harness.cjs", () => {
       expect(env.ANTHROPIC_MODEL).toBe("copilot/claude-haiku-4.5");
     });
 
+    it("does not pass execution evidence metadata to the engine child", async () => {
+      const child = await buildClaudeChildEnv(
+        null,
+        {
+          GH_AW_AWF_EXECUTION_COMPONENT: "agent",
+          GH_AW_AWF_EXECUTION_EVIDENCE_FILE: "/tmp/evidence.json",
+        },
+        () => {}
+      );
+
+      expect(child).not.toHaveProperty("GH_AW_AWF_EXECUTION_COMPONENT");
+      expect(child).not.toHaveProperty("GH_AW_AWF_EXECUTION_EVIDENCE_FILE");
+    });
+
     it.each(["auto", "copilot/auto"])("resolves the %s environment model before native Messages inference", async model => {
       const env = { GH_AW_LLM_PROVIDER: "github", ANTHROPIC_MODEL: model, ANTHROPIC_API_KEY: "sandbox-placeholder" };
       const reflect = { endpoints: [{ ...reflectData.endpoints[1], models: ["gpt-6.1-sol", "claude-sonnet-5", "claude-sonnet-4.6"] }] };
