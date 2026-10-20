@@ -47,6 +47,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/nilctxpassed"
 	"github.com/github/gh-aw/pkg/linters/osexitinlibrary"
 	"github.com/github/gh-aw/pkg/linters/osgetenvlibrary"
+	"github.com/github/gh-aw/pkg/linters/osisnotexist"
 	"github.com/github/gh-aw/pkg/linters/ossetenvlibrary"
 	"github.com/github/gh-aw/pkg/linters/packagelevelmutableslicemap"
 	panicinlibrarycode "github.com/github/gh-aw/pkg/linters/panic-in-library-code"
@@ -139,6 +140,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	osexitinlibrary.Analyzer,
 	osgetenvlibrary.Analyzer,
 	ossetenvlibrary.Analyzer,
+	osisnotexist.Analyzer,
 	packagelevelmutableslicemap.Analyzer,
 	panicinlibrarycode.Analyzer,
 	rawloginlib.Analyzer,
