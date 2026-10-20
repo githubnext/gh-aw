@@ -149,9 +149,6 @@ func cleanupFollows(pass *analysis.Pass, statements []ast.Stmt, resource receive
 		if matches(stmt) {
 			return true
 		}
-		if key, _, ok := mutexLockAcquisition(pass, stmt); ok && key == resource {
-			return false
-		}
 		unsafe := false
 		ast.Inspect(stmt, func(n ast.Node) bool {
 			switch n := n.(type) {
@@ -159,6 +156,13 @@ func cleanupFollows(pass *analysis.Pass, statements []ast.Stmt, resource receive
 				return false
 			case *ast.ReturnStmt, *ast.BranchStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SelectStmt:
 				unsafe = true
+			case *ast.ExprStmt:
+				if key, _, ok := mutexLockAcquisition(pass, n); ok && key == resource {
+					unsafe = true
+				}
+				if call, ok := astutil.UnwrapParenExpr(n.X).(*ast.CallExpr); ok && calledBuiltin(pass, call) == "panic" {
+					unsafe = true
+				}
 			case *ast.AssignStmt:
 				for _, lhs := range n.Lhs {
 					key, ok := getReceiverKey(pass, lhs)
@@ -240,51 +244,66 @@ func markChannelUsage(pass *analysis.Pass, body *ast.BlockStmt, channels map[typ
 			return false
 		}
 		if sendStmt, ok := n.(*ast.SendStmt); ok {
-			if ident, ok := astutil.UnwrapParenExpr(sendStmt.Chan).(*ast.Ident); ok {
-				if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
-					usage.sent = true
-				}
+			if usage := channelReference(pass, sendStmt.Chan, channels); usage != nil {
+				usage.sent = true
 			}
 		}
 		if callExpr, ok := n.(*ast.CallExpr); ok {
 			builtin := calledBuiltin(pass, callExpr)
 			if builtin == "close" {
 				for _, arg := range callExpr.Args {
-					if argIdent, ok := astutil.UnwrapParenExpr(arg).(*ast.Ident); ok {
-						if usage := channels[pass.TypesInfo.ObjectOf(argIdent)]; usage != nil {
-							usage.closed = true
-						}
-						break
+					if usage := channelReference(pass, arg, channels); usage != nil {
+						usage.closed = true
 					}
 				}
-			} else if builtin == "" {
+			} else if builtin != "len" && builtin != "cap" && !pass.TypesInfo.Types[callExpr.Fun].IsType() {
 				for _, arg := range callExpr.Args {
 					markChannelEscape(pass, arg, channels)
 				}
 			}
 		}
 		switch n := n.(type) {
-		case *ast.CompositeLit, *ast.ReturnStmt:
+		case *ast.CompositeLit:
 			markChannelEscape(pass, n, channels)
 		case *ast.AssignStmt:
-			for _, lhs := range n.Lhs {
-				switch astutil.UnwrapParenExpr(lhs).(type) {
+			for i, lhs := range n.Lhs {
+				switch lhs := astutil.UnwrapParenExpr(lhs).(type) {
+				case *ast.Ident:
+					if lhs.Name != "_" && len(n.Lhs) == len(n.Rhs) {
+						// Aliases transfer usage beyond this syntactic check.
+						markChannelEscape(pass, n.Rhs[i], channels) //nolint:uncheckedsliceindex // i ranges over n.Lhs and lengths are equal
+					}
 				case *ast.SelectorExpr, *ast.IndexExpr:
 					for _, rhs := range n.Rhs {
 						markChannelEscape(pass, rhs, channels)
 					}
 				}
 			}
+		case *ast.ValueSpec:
+			for i, name := range n.Names {
+				if name.Name != "_" && len(n.Names) == len(n.Values) {
+					markChannelEscape(pass, n.Values[i], channels) //nolint:uncheckedsliceindex // i ranges over n.Names and lengths are equal
+				}
+			}
 		}
 		if unaryExpr, ok := n.(*ast.UnaryExpr); ok && unaryExpr.Op == token.ARROW {
-			if ident, ok := astutil.UnwrapParenExpr(unaryExpr.X).(*ast.Ident); ok {
-				if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
-					usage.received = true
-				}
+			if usage := channelReference(pass, unaryExpr.X, channels); usage != nil {
+				usage.received = true
 			}
 		}
 		return true
 	})
+}
+
+func channelReference(pass *analysis.Pass, expr ast.Expr, channels map[types.Object]*channelUsage) *channelUsage {
+	expr = astutil.UnwrapParenExpr(expr)
+	if call, ok := expr.(*ast.CallExpr); ok && pass.TypesInfo.Types[call.Fun].IsType() && len(call.Args) == 1 {
+		return channelReference(pass, call.Args[0], channels) //nolint:uncheckedsliceindex // len(call.Args) is checked above
+	}
+	if ident, ok := expr.(*ast.Ident); ok {
+		return channels[pass.TypesInfo.ObjectOf(ident)]
+	}
+	return nil
 }
 
 // An opaque handoff prevents this local syntactic check from proving a leak.
@@ -295,8 +314,16 @@ func markChannelEscape(pass *analysis.Pass, node ast.Node, channels map[types.Ob
 			if unary, ok := n.(*ast.UnaryExpr); ok && unary.Op == token.ARROW {
 				return false
 			}
-			if call, ok := n.(*ast.CallExpr); ok && calledBuiltin(pass, call) != "" {
-				return false
+			if binary, ok := n.(*ast.BinaryExpr); ok {
+				switch binary.Op {
+				case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+					return false
+				}
+			}
+			if call, ok := n.(*ast.CallExpr); ok {
+				if builtin := calledBuiltin(pass, call); builtin == "len" || builtin == "cap" {
+					return false
+				}
 			}
 		}
 		if ident, ok := n.(*ast.Ident); ok {

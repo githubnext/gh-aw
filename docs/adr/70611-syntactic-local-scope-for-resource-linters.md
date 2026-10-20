@@ -1,8 +1,8 @@
 # ADR-70611: Keep Custom Resource Linters Syntactic and Locally Scoped, with Single Diagnostic Ownership
 
 **Date**: 2026-10-20
-**Status**: Draft
-**Deciders**: pelikhan (PR author) [TODO: verify reviewers]
+**Status**: Proposed
+**Deciders**: PR author; repository maintainers review acceptance through PR #70611.
 
 ---
 
@@ -15,20 +15,21 @@
 We will keep these analyzers syntactic and limited to one function. We will document that limit in the code and in `pkg/linters/README.md`, instead of trying to infer what helpers do:
 
 - Only directly matched cleanup calls count as cleanup. Passing a resource to a helper (for example, `closeFile(f)`) does not prove cleanup. Acquisitions with no matched cleanup are not reported, because ownership may move to the caller.
-- In `goroutineresourceleak`, bookkeeping may appear between an acquisition and its `defer` in the same block. The scan stops at possible exits, loops, or reassignment of the resource. A channel passed to an opaque call, stored, returned, or captured by a closure is treated as outside the local check. These handoffs are not treated as proof of safety. Built-in `len` and `cap` calls do not count as handoffs.
-- `slicemakezerolength` scans past adjacent statements and stops when the target or range inputs are referenced or changed.
+- In `goroutineresourceleak`, bookkeeping may appear between an acquisition and its `defer` in the same block. The scan stops at possible exits (including synchronous builtin `panic`), loops, repeated acquisition of the same lock, or reassignment of the resource. Nested statements are inspected, but function literals are not executed as part of this scan.
+- A channel passed to an opaque call, assigned to a local alias, stored (including through `append`), or captured by a closure is treated as outside the local channel check. These handoffs are not proof of safety. Built-in `len` and `cap`, comparisons, receives, and type conversions do not themselves hand off a channel. Returning a channel from the launched goroutine does not transfer ownership, because Go discards the return values.
+- `slicemakezerolength` scans past unrelated statements and range loops, but stops when the target or range inputs are referenced or changed, or an intervening exit path makes evaluating the capacity expression earlier unsafe.
 - Each pattern has one diagnostic owner. Direct zero-argument deferred `Close()` calls belong only to `unchecked_deferredclose`, and `deferrerrorunchecked` skips them. This keeps existing `nolint:unchecked_deferredclose` suppressions meaningful.
 - All matching code uses the shared `astutil.UnwrapParenExpr` helper.
 
 ### Alternatives Considered
 
-#### Alternative 1: Interprocedural / alias-aware analysis (e.g., SSA-based)
+#### Alternative 1: Interprocedural / alias-aware analysis (for example, SSA-based)
 
-Build on `go/ssa` or analysis facts to follow resources into helpers and through aliases. That would prove cleanup instead of skipping these cases. We did not choose it because it adds a lot of complexity and runtime cost to a set of lightweight, mostly independent analyzers. It is also a much larger change than closing the gaps in #69881.
+Build on `go/ssa` or analysis facts to follow resources into helpers and through aliases. This could establish more precise cleanup and ownership facts, but would require control-flow and escape modeling rather than merely matching call shapes. It is not selected because it expands the scope and runtime cost of lightweight analyzers beyond closing the gaps in #69881. Local channel aliases are instead conservatively excluded without attempting to prove subsequent cleanup.
 
 #### Alternative 2: Treat any helper handoff as a leak (conservative reporting)
 
-Keep reporting channels and resources passed to opaque helpers, and require `nolint` at each call site. This gives the strongest guarantees. We did not choose it because it creates false positives that teach developers to suppress the analyzers, which hurts their value in CI.
+Report channels and resources passed to opaque helpers, and require `nolint` at each call site. This catches more potential leaks but still does not guarantee safety without control-flow analysis. It is not selected because ordinary ownership transfers would create false positives and suppression churn in CI.
 
 #### Alternative 3: Let both deferred-error analyzers report `Close()`
 
@@ -53,4 +54,4 @@ Keep the overlap between `deferrerrorunchecked` and `unchecked_deferredclose`. T
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+Acceptance remains part of maintainer review of PR #70611; this proposed record does not assert approval.

@@ -120,7 +120,7 @@ func builtinLenIsNotHandoff() {
 }
 
 func channelReturned() {
-	go func() chan int {
+	go func() chan int { // want "goroutine creates channel without safe buffered send/receive pairing or close"
 		ch := make(chan int)
 		return ch
 	}()

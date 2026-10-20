@@ -58,14 +58,30 @@ func analyzeBlock(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Gene
 				if hasKnownRangeSize(pass, rangeStmt.X) && !containsReference(pass, rangeStmt.X, target) &&
 					appendsOneElement(pass, rangeStmt, target) && rangeAvailableBefore(pass, rangeStmt.X, block.List[i+1:j]) {
 					reportDiagnostic(pass, call, sliceType, rangeStmt.X, generatedFiles, noLintIndex)
+					break
 				}
-				break
 			}
-			if containsReference(pass, stmt, target) {
+			if containsReference(pass, stmt, target) || containsEarlyExit(stmt) {
 				break
 			}
 		}
 	}
+}
+
+// Moving the range expression before an early exit may evaluate it on a path
+// that previously never reached the loop.
+func containsEarlyExit(stmt ast.Stmt) bool {
+	found := false
+	ast.Inspect(stmt, func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.FuncLit:
+			return false
+		case *ast.ReturnStmt, *ast.BranchStmt:
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // Moving len(rangeExpr) to the allocation must not cross a definition or use of

@@ -132,11 +132,15 @@ direct manual cleanup. Ownership transfers without locally matched cleanup remai
 unreported.
 
 `goroutineresourceleak` permits bookkeeping between an acquisition and its defer
-in the same block, but stops at possible exits, loops, or resource reassignment.
+in the same block, but stops at possible exits (including synchronous builtin
+`panic`), loops, repeated locking, or resource reassignment.
 Its channel check conservatively stops diagnosing a channel handed to an opaque
-call, stored in a composite or field, returned, or captured by a closure. Those
+call, assigned to a local alias, stored (including through `append`), or captured
+by a closure. Those
 handoffs are not proof of safety; their behavior is outside the local check.
-Built-in `len` and `cap` calls are not handoffs.
+Built-in `len` and `cap` calls, comparisons, receives, and type conversions are
+not themselves handoffs. A launched goroutine's return values are discarded, so
+returning a channel does not transfer ownership.
 
 ## Coverage-aware perf gating
 
