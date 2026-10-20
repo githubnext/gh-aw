@@ -3,11 +3,67 @@ package workqueue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestDeliveryVerificationLogsAreDiagnosticAndPrivate(t *testing.T) {
+	if os.Getenv("GH_AW_DELIVERY_LOG_TEST") != "1" {
+		command := exec.Command(os.Args[0], "-test.run=^TestDeliveryVerificationLogsAreDiagnosticAndPrivate$")
+		command.Env = append(os.Environ(), "GH_AW_DELIVERY_LOG_TEST=1", "DEBUG=workqueue:delivery,workqueue:native_delivery", "DEBUG_COLORS=0")
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("delivery logging subprocess failed: %v\n%s", err, output)
+		}
+		for _, event := range []string{
+			"delivery.verifier.budget max_attempts=1",
+			"delivery.verifier.checked attempt=1 failed=true",
+			"delivery.verifier.exhausted attempts=1 max_attempts=1",
+			"delivery.inventory.rejected failed=false closed=false outputs=0",
+			"delivery.failure.persisted",
+		} {
+			if !strings.Contains(string(output), event) {
+				t.Errorf("missing diagnostic %q in:\n%s", event, output)
+			}
+		}
+		for _, secret := range []string{"private-verifier-error", "private-receipt", testRepository} {
+			if strings.Contains(string(output), secret) {
+				t.Errorf("delivery logs exposed private data %q", secret)
+			}
+		}
+		return
+	}
+	for _, inventory := range []bool{false, true} {
+		branch, mock := newQueueAPI(t)
+		commits, assignment := boundDeliveryAssignment(t, func(policy *Policy) {
+			pool := policy.Pools["default"]
+			pool.Reconciliation.MaxAttempts = 1
+			policy.Pools["default"] = pool
+		})
+		commits = finishMember(t, commits, assignment, 0, "completed", time.Now().UnixMilli())
+		installMockLog(t, mock, commits)
+		configureNativeRun(mock, assignment)
+		branch.DeliveryVerifier = func(context.Context, Projection, ClaimState) (DeliveryVerification, error) {
+			return DeliveryVerification{Receipt: "private-receipt"}, errors.New("private-verifier-error")
+		}
+		if inventory {
+			branch.DeliveryVerifier = NewNativeDeliveryHost(NativeDeliveryHostOptions{
+				Inventory: func(context.Context, NativeDeliveryScope) (NativeDeliveryInventory, error) {
+					return NativeDeliveryInventory{Closed: false}, nil
+				},
+			}).Verifier(branch)
+		}
+		recovery, err := branch.RecoverDelivery(context.Background(), assignment.Claims[0].WorkID, "logging-failure")
+		if err != nil || recovery.Reason != "delivery_failed_unknown" {
+			t.Fatalf("unexpected delivery settlement: %s %v", recovery.Reason, err)
+		}
+	}
+}
 
 func configureNativeRun(mock *queueAPI, assignment Assignment) {
 	run := &NativeRun{

@@ -424,6 +424,17 @@ native launch and binding, independent verification, and durable settlement.
 staged previews, binding and job counts, release outcomes, and sanitized failure categories,
 without logging event payloads, task content, native identities, or raw errors.
 Metadata contains only counts, flags, retry delays, and HTTP status codes.
+For delivery failures, use
+`DEBUG=work-queue:claims,work-queue:delivery,work-queue:native_delivery`.
+Events distinguish output cardinality, missing or untrusted receipts, independent
+content and Git ancestry mismatches, uncovered effects, control-inventory changes,
+and retry/deadline exhaustion. Exhausted delivery verification always emits a
+budget summary, even without debug logging. Expected and observed content,
+resource identities, receipt bodies, and credentials are never logged.
+Native operator recovery uses
+`DEBUG=workqueue:delivery,workqueue:native_delivery` for verifier availability,
+closed effect inventory, approved readback and credential checks, attempt budgets,
+and durable Result or DeliveryFailure publication.
 HTTP failure explanations also include a validated GitHub request ID, or
 `unknown` when unavailable. Deployment metadata diagnostics distinguish
 repository reads from default-reference reads.

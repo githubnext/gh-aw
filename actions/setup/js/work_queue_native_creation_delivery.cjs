@@ -41,14 +41,26 @@ async function readCode(github, receipt, pinnedCommit) {
   const [owner, repo] = receipt.headRepository.split("/");
   const { data: ref } = await github.rest.git.getRef({ owner, repo, ref: `heads/${receipt.branch}` });
   const sha = ref?.object?.sha;
-  if (ref?.ref !== `refs/heads/${receipt.branch}` || ref.object.type !== "commit" || !REVISION.test(sha) || (pinnedCommit !== undefined && sha !== pinnedCommit)) return null;
+  if (ref?.ref !== `refs/heads/${receipt.branch}` || ref.object.type !== "commit" || !REVISION.test(sha) || (pinnedCommit !== undefined && sha !== pinnedCommit)) {
+    log.debug("creation.code.ref_mismatch", { ref_matches: ref?.ref === `refs/heads/${receipt.branch}`, commit_type: ref?.object?.type === "commit", pinned_commit_matches: pinnedCommit === undefined || sha === pinnedCommit });
+    return null;
+  }
   const { data: commit } = await github.rest.git.getCommit({ owner, repo, commit_sha: sha });
-  if (commit?.sha !== sha || commit.tree?.sha !== receipt.tree || !Array.isArray(commit.parents) || !commit.parents.length || commit.parents.some(parent => !REVISION.test(parent.sha))) return null;
+  if (commit?.sha !== sha || commit.tree?.sha !== receipt.tree || !Array.isArray(commit.parents) || !commit.parents.length || commit.parents.some(parent => !REVISION.test(parent.sha))) {
+    log.debug("creation.code.commit_mismatch", { commit_matches: commit?.sha === sha, tree_matches: commit?.tree?.sha === receipt.tree, parents_present: Array.isArray(commit?.parents) && commit.parents.length > 0 });
+    return null;
+  }
   const { data: tree } = await github.rest.git.getTree({ owner, repo, tree_sha: receipt.tree });
-  if (tree?.sha !== receipt.tree || tree.truncated !== false || !Array.isArray(tree.tree)) return null;
+  if (tree?.sha !== receipt.tree || tree.truncated !== false || !Array.isArray(tree.tree)) {
+    log.debug("creation.code.tree_invalid", { tree_matches: tree?.sha === receipt.tree, complete: tree?.truncated === false, entries_present: Array.isArray(tree?.tree) });
+    return null;
+  }
   // Cross-repository PR comparisons are read from the base repository using a qualified head.
   const head = receipt.headRepository === receipt.repository ? sha : `${owner}:${sha}`;
-  if (!(await readAncestry(github, receipt.repository, receipt.base, head))) return null;
+  if (!(await readAncestry(github, receipt.repository, receipt.base, head))) {
+    log.debug("creation.code.ancestry_mismatch");
+    return null;
+  }
   return sha;
 }
 
@@ -61,6 +73,7 @@ async function capturePullRequestDelivery(result, message, expected, github) {
     const repository = await resolveRepositoryTarget(github, { repository: receipt.repository });
     const headRepository = await resolveRepositoryTarget(github, { repository: receipt.headRepository });
     if (commit && repository.repository_id && headRepository.repository_id) receipts.set(result, { ...receipt, commit, repositoryId: repository.repository_id, headRepositoryId: headRepository.repository_id });
+    else log.debug("creation.capture.receipt_missing", { code_verified: !!commit, repository_verified: !!repository.repository_id, head_repository_verified: !!headRepository.repository_id });
   } catch (error) {
     log.failure("creation.capture.unverified", error);
     // An unavailable readback must leave the successful write unverified, not create a fallback resource.
@@ -103,8 +116,18 @@ async function verifyDiscussion(options, receipt) {
     node.labels?.pageInfo?.hasNextPage !== false ||
     !Array.isArray(node.labels.nodes) ||
     canonical(names(node.labels.nodes)) !== canonical(names(receipt.labels))
-  )
+  ) {
+    log.debug("discussion.readback.mismatch", {
+      discussion_present: node?.__typename === "Discussion",
+      identity_matches: node?.id === receipt.id && node?.number === receipt.number,
+      repository_matches: node?.repository?.id === receipt.repositoryNodeId && node?.repository?.nameWithOwner === receipt.repository,
+      category_matches: node?.category?.id === receipt.category,
+      title_matches: node?.title === receipt.title,
+      body_matches: node?.body === receipt.body,
+      labels_complete: node?.labels?.pageInfo?.hasNextPage === false,
+    });
     return { verified: false };
+  }
   const authority = await resolveRepositoryTarget(github, { repository: receipt.repository, repository_id: nativeDecimalIdentity(node.repository.databaseId), number: node.number });
   return createClaimResourceVerification({
     verified: true,
@@ -147,8 +170,19 @@ async function verifyPullRequest(options, receipt) {
     nativeDecimalIdentity(data.head.repo.id) !== receipt.headRepositoryId ||
     canonical(names(data.labels || [])) !== canonical(names(receipt.labels)) ||
     canonical(names(data.assignees || [])) !== canonical(names(receipt.assignees))
-  )
+  ) {
+    log.debug("pull_request.readback.mismatch", {
+      resource_present: !!data,
+      identity_matches: !!data && nativeDecimalIdentity(data.id) === receipt.id && data.number === receipt.number,
+      title_matches: data?.title === receipt.title,
+      body_matches: data?.body === receipt.body,
+      open: data?.state === "open",
+      draft_matches: data?.draft === receipt.draft,
+      head_matches: data?.head?.sha === receipt.commit && data?.head?.ref === receipt.branch && data?.head?.repo?.full_name === receipt.headRepository,
+      base_matches: data?.base?.sha === receipt.base && data?.base?.ref === receipt.baseBranch && data?.base?.repo?.full_name === receipt.repository,
+    });
     return { verified: false };
+  }
   const authority = await resolveParentResourceTarget(github, { repository: receipt.repository, kind: "pull_request", number: receipt.number }, data);
   const head = await resolveRepositoryTarget(github, { repository: receipt.headRepository, repository_id: nativeDecimalIdentity(data.head.repo.id), ref: `refs/heads/${receipt.branch}` });
   const effects = [];
@@ -187,7 +221,7 @@ async function verifyNativeCreationDelivery(options) {
     (options.message.repo !== undefined && options.message.repo !== receipt.repository) ||
     receipt.message !== canonical({ ...options.message, repo: receipt.repository })
   ) {
-    log.debug("creation.receipt.unverified", { receipt: !!receipt });
+    log.debug("creation.receipt.unverified", { receipt: !!receipt, claim_matches: receiptMatchesClaim(receipt, options.claim), type_matches: receipt?.type === options.message.type });
     return { verified: false };
   }
   const fields = new Set([
@@ -202,9 +236,14 @@ async function verifyNativeCreationDelivery(options) {
     "labels",
     ...(receipt.type === "create_discussion" ? ["category"] : ["branch", "base", "draft", "head_repo", "base_branch", "base_commit"]),
   ]);
-  if (Object.keys(options.message).some(field => !fields.has(field)) || options.result.staged || options.result.fallback_used) return { verified: false };
+  if (Object.keys(options.message).some(field => !fields.has(field)) || options.result.staged || options.result.fallback_used) {
+    log.debug("creation.receipt.unsupported", { staged: !!options.result.staged, fallback_used: !!options.result.fallback_used, undeclared_fields: Object.keys(options.message).some(field => !fields.has(field)) });
+    return { verified: false };
+  }
   try {
-    return receipt.type === "create_discussion" ? await verifyDiscussion(options, receipt) : await verifyPullRequest(options, receipt);
+    const proof = receipt.type === "create_discussion" ? await verifyDiscussion(options, receipt) : await verifyPullRequest(options, receipt);
+    log.debug("creation.readback.complete", { verified: proof.verified === true, discussion: receipt.type === "create_discussion" });
+    return proof;
   } catch (error) {
     log.failure("creation.readback.unverified", error);
     return { verified: false };

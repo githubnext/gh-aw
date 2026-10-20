@@ -34,6 +34,7 @@ afterEach(() => {
   for (const key of Object.keys(process.env)) if (!Object.hasOwn(oldEnv, key)) delete process.env[key];
   Object.assign(process.env, oldEnv);
   global.core = oldCore;
+  vi.restoreAllMocks();
 });
 
 function fixture(type) {
@@ -149,6 +150,62 @@ function fixture(type) {
 }
 
 describe("native creation Claim delivery", () => {
+  it.each(["create_discussion", "create_pull_request"])("diagnoses %s content mismatches without logging identities or content", async type => {
+    const f = fixture(type);
+    process.env.DEBUG = "work-queue:delivery,work-queue:native_delivery";
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const secret = "private-delivery-content-and-token";
+    await f.execute(async () => {
+      await f.capture();
+      if (type === "create_discussion") f.discussion.body = secret;
+      else f.pull.body = secret;
+      const delivery = await f.settle();
+      expect(delivery.verification).toBe("unknown");
+      expect(delivery.disposition).not.toBe("none");
+    });
+    const output = stderr.mock.calls.map(call => call[0]).join("");
+    expect(output).toContain(type === "create_discussion" ? "discussion.readback.mismatch" : "pull_request.readback.mismatch");
+    expect(output).toContain("body_matches=false");
+    expect(output).toContain("delivery.output.proof_invalid index=0");
+    for (const value of [secret, REPOSITORY, f.member.claim_id, f.member.work_id, f.assignment.dispatch_id, COMMIT, TREE, "Final body", "Requested body"]) expect(output).not.toContain(value);
+  });
+
+  it("logs sanitized readback HTTP failures without provider bodies", async () => {
+    const f = fixture("create_pull_request");
+    process.env.DEBUG = "work-queue:native_delivery";
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const secret = "private-provider-body-and-credentials";
+    await f.execute(async () => {
+      await f.capture();
+      f.client.rest.git.getCommit.mockRejectedValue(Object.assign(new Error(secret), { status: 403, response: { data: { message: secret }, headers: { authorization: secret } } }));
+      expect((await f.settle()).verification).toBe("unknown");
+    });
+    const output = stderr.mock.calls.map(call => call[0]).join("");
+    expect(output).toContain("creation.readback.unverified failed=true http_status=403");
+    expect(output).not.toContain(secret);
+  });
+
+  it("always reports exhausted verification budgets without exposing receipts or replaying effects", async () => {
+    const f = fixture("create_pull_request");
+    process.env.DEBUG = "";
+    process.env.ACTIONS_RUNNER_DEBUG = "";
+    process.env.RUNNER_DEBUG = "";
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    await f.execute(async () => {
+      await f.capture();
+      f.pull.body = "private-changed-body";
+    });
+    f.client.rest.actions.getWorkflowRun = async () => ({ status: 200, data: { ...f.queue.nativeRun(), status: "completed", conclusion: "success" } });
+    const finalized = await f.finalize();
+    expect(finalized.claims.h1.state).toBe("delivery_failed");
+    expect(f.client.rest.pulls.create).toHaveBeenCalledTimes(1);
+    const output = stderr.mock.calls.map(call => call[0]).join("");
+    expect(output).toContain("delivery.failure.persisted attempts=");
+    expect(output).toContain("contract_supported=true receipt_present=false");
+    expect(output).toContain("DEBUG=work-queue:claims,work-queue:delivery,work-queue:native_delivery");
+    for (const value of ["private-changed-body", REPOSITORY, f.member.claim_id, f.assignment.dispatch_id, COMMIT, TREE]) expect(output).not.toContain(value);
+  });
+
   it("pins the committed nonempty patch tree at the real PR handler preparation boundary", async () => {
     const root = fs.mkdtempSync(path.join(process.cwd(), ".native-pr-boundary-"));
     const checkout = path.join(root, "checkout");
