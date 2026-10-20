@@ -141,6 +141,11 @@ func cacheActivationPreStepPermissions(ctx *activationJobBuildContext) error {
 func (c *Compiler) addActivationSetupAndWorkflowCallSteps(ctx *activationJobBuildContext, setupActionRef string) {
 	ctx.steps = append(ctx.steps, c.generateCheckoutActionsFolder(ctx.data)...)
 	activationSetupTraceID, activationSetupParentSpanID := buildActivationSetupParentSpans(ctx.preActivationJob)
+	if activationSetupTraceID == "" {
+		activationSetupTraceID = "${{ needs.admission.outputs.trace-id }}"
+	} else {
+		activationSetupTraceID = "${{ needs.admission.outputs.trace-id || " + stripExpressionWrapper(activationSetupTraceID) + " }}"
+	}
 	enableArtifactClient := hasMaxDailyAICGuardrail(ctx.data)
 	artifactClientCondition := ""
 	if enableArtifactClient {

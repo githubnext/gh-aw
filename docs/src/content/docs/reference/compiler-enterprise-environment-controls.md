@@ -18,6 +18,9 @@ In this enterprise controls reference, OTLP defaults are the scope-sensitive exc
 | `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` | Compiler process environment | Default AWF `apiProxy.maxCacheMisses` guardrail | `max-turn-cache-misses` is not set in frontmatter or any imported workflow |
 | `GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default threat-detection AWF `apiProxy.maxAiCredits` budget | `safe-outputs.threat-detection.max-ai-credits` is not set |
 | `GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS` | GitHub Actions `vars.*` at runtime | Default `max-daily-ai-credits` guardrail threshold | `max-daily-ai-credits` is not set in frontmatter or any imported workflow |
+| `GH_AW_DEFAULT_ADMISSION_URL` | GitHub Actions repository/organization `vars.*` at runtime | HTTPS `/api/admission` endpoint; empty disables admission | Always emitted; a configured endpoint enables admission automatically |
+| `GH_AW_DEFAULT_ADMISSION_AUDIENCE` | GitHub Actions repository/organization `vars.*` at runtime | Admission OIDC audience | Defaults to the effective admission endpoint |
+| `GH_AW_DEFAULT_ADMISSION_ON_OUTAGE` | GitHub Actions repository/organization `vars.*` at runtime | Admission outage policy, `ignore` or `block` | Defaults to `ignore`; only transient failures can fail open |
 | `GH_AW_DEFAULT_MAX_TURNS` | Compiler process environment | Default top-level `max-turns` | `max-turns` is not set in frontmatter and the selected engine supports max-turns |
 | `GH_AW_DEFAULT_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default `agentic_execution` step `timeout-minutes` (20 minutes) | `timeout-minutes` is not set in frontmatter |
 | `GH_AW_DEFAULT_AGENT_JOB_TIMEOUT_MINUTES` | GitHub Actions `vars.*` at runtime | Default generated `agent` job `timeout-minutes` (60 minutes) | `jobs.agent.timeout-minutes` is not set in frontmatter |
@@ -38,6 +41,23 @@ variables in batch. These commands operate on GitHub Actions variables and suppo
 `gh secret set` at repository or organization scope instead. `GH_AW_DEFAULT_OTLP_HEADERS` is always a secret and must also be set with `gh secret set` at repository or organization scope. If both endpoint values exist, clearing only one leaves the other effective through the fallback expression; clear both the endpoint secret and variable to disable OTLP export.
 
 `GH_AW_REQUIRE_SELF_HOSTED_RUNNERS` is a compile-time enforcement setting, not a `GH_AW_DEFAULT_*` default, and is not managed by `gh aw env`. The same policy can be enabled persistently with `require_self_hosted_runners: true` in `.github/workflows/aw.json`, or for a single invocation with `gh aw compile --require-self-hosted-runners`.
+
+Admission defaults use `default_admission_url`, `default_admission_audience`, and `default_admission_on_outage` in managed YAML. Provision organization variables in each enrolled organization for enterprise-wide rollout; do not assume an enterprise Actions-variable scope for admission. Repository variables override organization values, so admission is cooperative rather than locked policy. Existing compiled workflows need one recompilation with a feature-capable compiler; subsequent variable changes are runtime-only.
+
+A valid approval supersedes daily-AIC validation. Its primary and optional detection/evals allowances set the corresponding existing runtime credit limits; omitted optional allowances retain their existing component limits. An empty endpoint skips token generation and admission through the step's `if`; an ignored outage retains daily validation and existing limits. Denial and malformed responses block activation. Admission identity and credentials stay within activation, while downstream jobs consume only the validated allowance outputs. The activation job has job-scoped `id-token: write`, including when the endpoint is empty, because GitHub Actions permissions cannot depend on runtime variables. Review trusted activation hooks and existing OIDC relying-party policies accordingly.
+
+When calling a compiled workflow through `workflow_call`, add `id-token: write` to the caller job's permission envelope and preserve any other permissions required by the reusable workflow. The callee's admission endpoint is evaluated at runtime, so the caller must grant this scope even when admission is currently disabled:
+
+```yaml
+jobs:
+  call-worker:
+    uses: ./.github/workflows/worker.lock.yml
+    permissions:
+      contents: read
+      id-token: write
+```
+
+See the [admission contract](/gh-aw/specs/admission-service-specification/) for protocol and deployment requirements.
 
 ```yaml title="Required compile check"
 jobs:

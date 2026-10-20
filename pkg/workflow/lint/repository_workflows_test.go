@@ -35,6 +35,7 @@ func TestRepositoryAgenticWorkflows(t *testing.T) {
 			diagnostics, err := runner.Run(context.Background(), Input{Workflow: workflow, Document: document})
 			require.NoError(t, err)
 			for _, diagnostic := range diagnostics {
+				assert.NotEqual(t, "needs-consistency", diagnostic.RuleID, "%s: %s", diagnostic.Path, diagnostic.Message)
 				assert.NotEqual(t, Error, diagnostic.Severity, "%s: %s", diagnostic.Path, diagnostic.Message)
 				if diagnostic.Severity == Warning {
 					warnings++

@@ -395,6 +395,12 @@ const EVENT_FIELDS = {
     secretLeak: ["secretLeak", "secret_leak"],
     maliciousPatch: ["maliciousPatch", "malicious_patch"],
   },
+  "guardrail.admission": {
+    status: ["status"],
+    maxAiCredits: ["maxAiCredits"],
+    threatDetectionMaxAiCredits: ["threatDetectionMaxAiCredits"],
+    evalsMaxAiCredits: ["evalsMaxAiCredits"],
+  },
   "guardrail.daily_aic": {
     status: ["status"],
     exceeded: ["exceeded"],

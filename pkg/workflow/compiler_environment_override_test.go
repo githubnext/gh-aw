@@ -106,6 +106,10 @@ Test environment overrides.
 		require.Contains(t, compiled.Jobs, name)
 	}
 	for name, job := range compiled.Jobs {
+		if name == "admission" {
+			assert.NotContains(t, job, "environment")
+			continue
+		}
 		assert.Equal(t, "debug", job["environment"], "job %s must use the override", name)
 	}
 

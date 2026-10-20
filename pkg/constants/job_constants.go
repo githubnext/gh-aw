@@ -57,6 +57,7 @@ func (m MCPServerID) String() string {
 
 // Job name constants for GitHub Actions workflow jobs
 const AgentJobName JobName = "agent"
+const AdmissionJobName JobName = "admission"
 const ActivationJobName JobName = "activation"
 const PreActivationJobName JobName = "pre_activation"
 const PreActivationHyphenJobName JobName = "pre-activation"
@@ -80,6 +81,7 @@ const AgentFailureStepName = "Handle agent failure"
 // can check this map before treating a frontmatter jobs.<name> entry as a custom job.
 var KnownBuiltInJobNames = map[string]struct{}{
 	string(AgentJobName):               {},
+	string(AdmissionJobName):           {},
 	string(ActivationJobName):          {},
 	string(PreActivationJobName):       {},
 	string(PreActivationHyphenJobName): {},

@@ -94,6 +94,7 @@
       { "if": { "properties": { "type": { "const": "github_api.rate_limit" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GitHubApiRateLimitData" } } } },
       { "if": { "properties": { "type": { "const": "grader.manifest" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderManifestData" } } } },
       { "if": { "properties": { "type": { "const": "grader.result" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/GraderResultData" } } } },
+      { "if": { "properties": { "type": { "const": "guardrail.admission" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/AdmissionDecisionData" } } } },
       { "if": { "properties": { "type": { "const": "guardrail.daily_aic" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/DailyAICDecisionData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.configuration" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpConfigurationData" } } } },
       { "if": { "properties": { "type": { "const": "mcp.difc.filtered" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/definitions/McpObservationData" } } } },
@@ -412,6 +413,18 @@
     }
   ],
   "definitions": {
+    "AdmissionDecisionData": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["admitted", "ignored", "skipped"] },
+        "maxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "threatDetectionMaxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+        "evalsMaxAiCredits": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+      },
+      "required": ["status"],
+      "additionalProperties": false,
+      "description": "Validated admission allowances, not spend or credentials."
+    },
     "AgentExecutionData": {
       "type": "object",
       "properties": {
