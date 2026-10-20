@@ -173,16 +173,29 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, strings.Join(activation.Steps, ""), "daily-ai-credits-workflow-guardrail")
 	conclusion, exists := compiler.jobManager.GetJob("conclusion")
 	require.True(t, exists)
-	assert.Contains(t, conclusion.Permissions, "id-token: write")
+	assert.NotContains(t, conclusion.Permissions, "id-token: write")
 	conclusionSteps := strings.Join(conclusion.Steps, "")
-	assert.Contains(t, conclusionSteps, "if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
-	assert.Contains(t, conclusionSteps, "conclusion_admission.cjs")
-	assert.Contains(t, conclusionSteps, "GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}")
-	assert.Contains(t, conclusionSteps, "GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}")
-	assert.Contains(t, conclusionSteps, "GH_AW_ADMISSION_WORKFLOW_HASH: \""+hashes[1]+":"+hashes[2]+"\"")
-	assert.Less(t, strings.Index(conclusionSteps, "Generate usage activity summary and unified session"), strings.Index(conclusionSteps, "Report admission conclusion"))
-	assert.Less(t, strings.Index(conclusionSteps, "Upload usage artifact"), strings.Index(conclusionSteps, "Report admission conclusion"))
-	assert.Less(t, strings.Index(conclusionSteps, "Retry upload usage artifact"), strings.Index(conclusionSteps, "Report admission conclusion"))
+	assert.NotContains(t, conclusionSteps, "conclusion_admission.cjs")
+	assert.Contains(t, conclusionSteps, "Prepare admission conclusion metadata")
+	assert.Equal(t, "${{ steps.admission-conclusion-metadata.outputs.compact_session }}", conclusion.Outputs["admission_compact_session"])
+	assert.Equal(t, "${{ steps.upload-usage-artifact.outputs.artifact-id }}", conclusion.Outputs["usage_artifact_id"])
+	assert.Equal(t, "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}", conclusion.Outputs["usage_artifact_retry_id"])
+	assert.Less(t, strings.Index(conclusionSteps, "Generate usage activity summary and unified session"), strings.Index(conclusionSteps, "Prepare admission conclusion metadata"))
+	assert.Less(t, strings.Index(conclusionSteps, "Prepare admission conclusion metadata"), strings.Index(conclusionSteps, "Upload usage artifact"))
+	assert.Greater(t, strings.Index(conclusionSteps, "Retry upload usage artifact"), strings.Index(conclusionSteps, "Upload usage artifact"))
+	conclusionAdmission, exists := compiler.jobManager.GetJob(string(constants.ConclusionAdmissionJobName))
+	require.True(t, exists)
+	assert.Equal(t, []string{"conclusion"}, conclusionAdmission.Needs)
+	assert.Equal(t, "always() && needs.conclusion.result != 'skipped' && vars.GH_AW_DEFAULT_ADMISSION_URL != ''", conclusionAdmission.If)
+	assert.Contains(t, conclusionAdmission.Permissions, "id-token: write")
+	assert.Contains(t, conclusionAdmission.Permissions, "contents: read")
+	conclusionAdmissionSteps := strings.Join(conclusionAdmission.Steps, "")
+	assert.Contains(t, conclusionAdmissionSteps, "conclusion_admission.cjs")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_ADMISSION_COMPACT_SESSION: ${{ needs.conclusion.outputs.admission_compact_session }}")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_USAGE_ARTIFACT_ID: ${{ needs.conclusion.outputs.usage_artifact_id }}")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ needs.conclusion.outputs.usage_artifact_retry_id }}")
+	assert.Contains(t, conclusionAdmissionSteps, "GH_AW_ADMISSION_WORKFLOW_HASH: \""+hashes[1]+":"+hashes[2]+"\"")
+	assert.NotContains(t, conclusionAdmissionSteps, "safe_outputs")
 	for name, job := range compiler.jobManager.jobs {
 		if name == "admission" {
 			continue
@@ -192,10 +205,10 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 		}
 		encoded, err := json.Marshal(job)
 		require.NoError(t, err)
-		for _, fragment := range []string{"steps.admission", "admission-aic", "admission_budget.cjs"} {
+		for _, fragment := range []string{"steps.admission.outputs", "admission-aic", "admission_budget.cjs"} {
 			assert.NotContains(t, string(encoded), fragment, "job %s", name)
 		}
-		if name != "conclusion" {
+		if name != string(constants.ConclusionAdmissionJobName) {
 			assert.NotContains(t, string(encoded), "GH_AW_ADMISSION_WORKFLOW_HASH", "job %s", name)
 		}
 	}
@@ -218,14 +231,15 @@ func TestAdmissionConclusionWorkQueueParticipant(t *testing.T) {
 	job, err := NewCompiler().buildConclusionJob(data, "agent", []string{"safe_outputs"})
 	require.NoError(t, err)
 	require.NotNil(t, job)
-	assert.Contains(t, job.Permissions, "id-token: write")
+	assert.NotContains(t, job.Permissions, "id-token: write")
 	steps := strings.Join(job.Steps, "")
-	for _, name := range []string{"Generate usage activity summary and unified session", "Report admission conclusion", "Upload usage artifact"} {
+	for _, name := range []string{"Generate usage activity summary and unified session", "Prepare admission conclusion metadata", "Upload usage artifact"} {
 		assert.Equal(t, 1, strings.Count(steps, "name: "+name+"\n"))
 	}
-	assert.Less(t, strings.Index(steps, "reconcile_work_queue_run.cjs"), strings.Index(steps, "Report admission conclusion"))
-	assert.Less(t, strings.Index(steps, "Generate usage activity summary and unified session"), strings.Index(steps, "Report admission conclusion"))
-	assert.Less(t, strings.Index(steps, "Retry upload usage artifact"), strings.Index(steps, "Report admission conclusion"))
+	assert.NotContains(t, steps, "Report admission conclusion")
+	assert.Less(t, strings.Index(steps, "reconcile_work_queue_run.cjs"), strings.Index(steps, "Generate usage activity summary and unified session"))
+	assert.Less(t, strings.Index(steps, "Generate usage activity summary and unified session"), strings.Index(steps, "Prepare admission conclusion metadata"))
+	assert.Greater(t, strings.Index(steps, "Retry upload usage artifact"), strings.Index(steps, "Upload usage artifact"))
 }
 
 func TestAdmissionConclusionUploadOrdering(t *testing.T) {
@@ -244,15 +258,33 @@ func TestAdmissionConclusionUploadOrdering(t *testing.T) {
 			"Upload usage artifact",
 			"Wait before retrying usage artifact upload",
 			"Retry upload usage artifact",
-			"Report admission conclusion",
 		} {
 			index := strings.Index(steps, "      - name: "+name+"\n")
 			require.Greater(t, index, previous, "%s must follow preceding publication steps", name)
 			previous = index
 		}
-		assert.Contains(t, steps[previous:], "if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''")
-		assert.Contains(t, steps[previous:], "GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}")
-		assert.Contains(t, steps[previous:], "GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}")
+		assert.NotContains(t, steps, "Report admission conclusion")
+	}
+}
+
+func TestConclusionAdmissionRequiresValidWorkflowHashes(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		frontmatterHash string
+		bodyHash        string
+	}{
+		{name: "missing frontmatter hash", bodyHash: strings.Repeat("b", 64)},
+		{name: "short body hash", frontmatterHash: strings.Repeat("a", 64), bodyHash: strings.Repeat("b", 63)},
+		{name: "uppercase hash", frontmatterHash: strings.Repeat("A", 64), bodyHash: strings.Repeat("b", 64)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewCompiler().buildConclusionAdmissionJob(&WorkflowData{
+				Name:            "test",
+				FrontmatterHash: tc.frontmatterHash,
+				BodyHash:        tc.bodyHash,
+			})
+			require.EqualError(t, err, "admission requires 64-character lowercase SHA-256 workflow hashes")
+		})
 	}
 }
 

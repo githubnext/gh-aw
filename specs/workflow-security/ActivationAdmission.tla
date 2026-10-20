@@ -47,7 +47,7 @@ Init ==
     \E context \in Contexts :
         s = [context |-> context, phase |-> "configure", activation |-> "pending",
              admissionJobResult |-> "pending",
-             oidcJobs |-> {"admission", "conclusion"},
+             oidcJobs |-> {"admission", "conclusion_admission"},
              admission |-> "none", attempts |-> 0, credential |-> "none",
              cached |-> NoDecision, firstDecision |-> NoDecision, reply |-> EmptyReply,
              firstReplica |-> 0, replica |-> 0, recovered |-> FALSE,
@@ -65,7 +65,7 @@ Init ==
 Configure ==
     /\ s.phase = "configure"
     /\ s' = [s EXCEPT
-        !.oidcJobs = IF Fault = "shared-activation-oidc" THEN {"admission", "conclusion", "activation"} ELSE @,
+        !.oidcJobs = IF Fault = "shared-activation-oidc" THEN {"admission", "conclusion_admission", "activation"} ELSE @,
         !.phase = IF s.context.endpoint = "valid"
                      \/ (s.context.endpoint = "absent" /\ Fault = "endpoint-bypass")
                   THEN "request"
@@ -257,7 +257,7 @@ TypeOK ==
                    "running", "finalize", "done"}
     /\ s.activation \in {"pending", "success", "failed"}
     /\ s.admissionJobResult \in {"pending", "success", "failure", "skipped"}
-    /\ s.oidcJobs \subseteq {"admission", "conclusion", "activation"}
+    /\ s.oidcJobs \subseteq {"admission", "conclusion_admission", "activation"}
     /\ s.admission \in {"none", "skipped", "admitted", "blocked", "outage"}
     /\ s.attempts \in 0..4 /\ s.denialAt \in 0..4
     /\ s.credential \in {"none", "oidc", "github-api"}
@@ -280,7 +280,7 @@ TypeOK ==
                     s.started, s.traceExported, s.traceSent, s.timedOut} : value \in BOOLEAN
 
 ActivationGate == s.started => s.activation = "success"
-AdmissionJobIsolation == s.oidcJobs = {"admission", "conclusion"}
+AdmissionJobIsolation == s.oidcJobs = {"admission", "conclusion_admission"}
 AdmissionDependency == s.activation = "success" => s.admissionJobResult \in {"success", "skipped"}
 NoEndpointNoRequest == s.context.endpoint = "absent" => s.attempts = 0 /\ s.credential = "none"
 InvalidConfigurationBlocks == s.context.endpoint = "invalid" => s.activation # "success" /\ s.attempts = 0

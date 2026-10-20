@@ -331,6 +331,9 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 			}
 			for name, config := range callee.Jobs {
 				allowedPermissions := map[string]string{"actions": "read", "contents": "read"}
+				if name == string(constants.ConclusionAdmissionJobName) {
+					allowedPermissions = map[string]string{"contents": "read", "id-token": "write"}
+				}
 				if entry.id == "agy-conformance-reusable" && name == "safe_outputs" {
 					allowedPermissions["pull-requests"] = "read"
 					assert.Equal(t, map[string]string{"pull-requests": "read"}, config.Permissions)
@@ -364,8 +367,15 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 					if entry.id != "engine-conformance-agy" {
 						allowedPermissions = map[string]string{"actions": "read"}
 					}
-					allowedPermissions["id-token"] = "write"
-					assert.Equal(t, allowedPermissions, config.Permissions, "conclusion must have only its required reporting and admission permissions")
+					for _, step := range config.Steps {
+						if step["id"] == "mint-otlp-oidc-token" {
+							allowedPermissions["id-token"] = "write"
+						}
+					}
+					assert.Equal(t, allowedPermissions, config.Permissions, "conclusion must have only its required reporting permissions")
+				}
+				if name == string(constants.ConclusionAdmissionJobName) {
+					assert.Equal(t, allowedPermissions, config.Permissions, "conclusion admission must have only callback permissions")
 				}
 				for permission, level := range config.Permissions {
 					expectedLevel, allowed := allowedPermissions[permission]
@@ -385,8 +395,8 @@ func TestAgyProductionConformancePermissionsAreBoundedAndScoped(t *testing.T) {
 			assert.Contains(t, callbackWith["script"], "conclusion_admission.cjs")
 			callbackEnv, ok := callback["env"].(map[string]any)
 			require.True(t, ok)
-			assert.Equal(t, "${{ steps.upload-usage-artifact.outputs.artifact-id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_ID"])
-			assert.Equal(t, "${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_RETRY_ID"])
+			assert.Equal(t, "${{ needs.conclusion.outputs.usage_artifact_id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_ID"])
+			assert.Equal(t, "${{ needs.conclusion.outputs.usage_artifact_retry_id }}", callbackEnv["GH_AW_USAGE_ARTIFACT_RETRY_ID"])
 			assert.Equal(t, 10, callee.Jobs["agent"].TimeoutMinutes)
 			assert.Equal(t, 2, callee.Jobs["safe_outputs"].TimeoutMinutes)
 			assert.Contains(t, string(lock), fmt.Sprintf(`GH_AW_MAX_AI_CREDITS="%d"`, entry.credits))

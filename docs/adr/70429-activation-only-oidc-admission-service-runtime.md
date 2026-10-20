@@ -14,7 +14,7 @@ The admission service specification (`docs/src/content/docs/specs/admission-serv
 
 Generate a separate compiler-owned `admission` job (`pkg/workflow/compiler_admission.go`), gated at job level by the managed `GH_AW_DEFAULT_ADMISSION_URL` Actions variable. This job gains `id-token: write` for the start-time admission check; activation retains permissions required by its independent features. The admission job runs trusted setup and the OIDC client, without author hooks or workflow-specific authentication. Activation depends on admission and explicitly accepts success or skip, but not failure or cancellation. Existing prechecks remain prerequisites.
 
-The completion counterpart also grants `id-token: write` to the compiler-owned `conclusion` job. Its trusted, endpoint-gated step posts a compact unified session and usage artifact IDs to the same authority's `/api/conclusion` route, with a fresh token for the same audience and independently reconstructed invocation identity. The shared compact-session helper retains bounded allowlisted metadata, excluding agent messages and unbounded nested payloads: at most 128 records/16 KiB JSONL and 64 KiB for the complete request. The full redacted artifact remains unchanged and can be retrieved through independently verified artifact IDs. No token or request identity crosses jobs through outputs. Artifact upload and any upload retry finish before callback execution, so callback failures cannot delay publication. Failed artifact publication does not suppress compact delivery, but full-session availability remains explicitly unknown. Delivery remains best-effort under either admission outage policy; failures warn without changing completed execution results. Activation and agent do not gain OIDC permission for this callback. The companion `AdmissionConclusion.tla` model checks ordering, bounded metadata, artifact references, full-artifact preservation, fresh credentials, stable retries and durable deduplicated acceptance.
+The completion counterpart uses a separate compiler-owned `conclusion_admission` job, granting it `id-token: write` only for the callback. The ordinary `conclusion` job retains its reporting and artifact-publication work without gaining admission OIDC access; it passes only the bounded compact unified session and usage artifact IDs to the callback job. The callback posts these values to the same authority's `/api/conclusion` route with a fresh token for the same audience and independently reconstructed invocation identity. The shared compact-session helper retains allowlisted metadata, excluding agent messages and unbounded nested payloads: at most 128 records/16 KiB JSONL and 64 KiB for the complete request. The full redacted artifact remains unchanged and can be retrieved through independently verified artifact IDs. No token or request identity crosses jobs through outputs. Artifact upload and any upload retry finish before callback execution, so callback failures cannot delay publication. Failed artifact publication does not suppress compact delivery, but full-session availability remains explicitly unknown. Delivery remains best-effort under either admission outage policy; failures warn without changing completed execution results. Activation and agent do not gain OIDC permission for this callback. The companion `AdmissionConclusion.tla` model checks ordering, bounded metadata, artifact references, full-artifact preservation, fresh credentials, stable retries and durable deduplicated acceptance.
 
 The client (`actions/setup/js/check_admission.cjs` and `admission_protocol.cjs`) authenticates only with GitHub Actions OIDC, rejects redirects, strictly validates identity and JSON, and makes at most three attempts within one 60-second deadline using shared `withRetry` cancellation and timeout support. It sends caller-owned W3C `traceparent` and compiler-generated `workflow_hash` as an untrusted cache hint. Valid approval replaces daily-AIC validation and its preparatory steps; denial or malformed approval prevents activation. Unconfigured admission and ignored outages retain daily validation. Reusable callers must grant the callee's admission OIDC permission.
 
@@ -32,9 +32,13 @@ The client could reuse the existing App-token mint pattern (as the daily-AIC gua
 
 #### Alternative 3: Grant `id-token: write` only when admission is configured
 
-The compiler cannot conditionally generate permissions from runtime Actions variables. Instead, it always generates the isolated job and gates the whole job on the endpoint variable. A skipped job starts no runner and gives activation no additional OIDC capability.
+The compiler cannot conditionally generate permissions from runtime Actions variables. Instead, it always generates the isolated jobs and gates them on the endpoint variable. A skipped job starts no runner and gives activation no additional OIDC capability.
 
-#### Alternative 4: Run admission alongside the daily-AIC guardrail instead of replacing it
+#### Alternative 4: Keep the completion callback in the ordinary conclusion job
+
+This was rejected because the conclusion job performs safe-output and reporting actions unrelated to admission. Granting that job OIDC would expose token-minting capability to those steps even when admission is disabled. A separate compiler-owned callback job receives only the compact session and artifact locators after publication.
+
+#### Alternative 5: Run admission alongside the daily-AIC guardrail instead of replacing it
 
 Both checks could always run, with either able to block. This was rejected because it duplicates accounting that the central authority is meant to own, and it keeps the cost of the App-token mint, cache restore, and ledger clone on every admitted run. Keeping daily-AIC as the fallback preserves protection when admission is disabled or ignored during an outage.
 
@@ -46,10 +50,12 @@ Both checks could always run, with either able to block. This was rejected becau
 - Admitted runs skip the daily-AIC guardrail and its preparatory steps (App token mint, observation restore and publish, ledger clone), which shortens activation.
 - Existing agent, detection and evals jobs and dependencies are reused; only budget inputs and selection change.
 - Admission OIDC is no longer shared with activation hooks; compiler-owned admission rejects author customization.
+- The completion callback's OIDC permission is confined to a compiler-owned job with only trusted setup and callback steps.
 - The bounded retry/deadline support added to the shared `withRetry` helper can be reused by other callers.
 
 #### Negative
 - Configured admission adds a runner/job boundary before activation. Its explicit success-or-skip dependency condition must preserve other prerequisite checks.
+- Conclusion delivery adds a small callback job and passes its bounded preview and artifact locators through conclusion outputs.
 - Reusable `workflow_call` callers must grant `id-token: write`. Existing caller envelopes (and the hand-authored Windows probe caller) had to change, and third-party callers that do not grant it will fail.
 - Admission remains cooperative, not an unbypassable organization spending cap. Supplied allowances configure existing runtime proxy limits, but deployments still need a separately deployed authority and protected backend policy/accounting.
 - When the authority is unavailable, activation can wait up to the 60-second deadline before the outage policy applies.

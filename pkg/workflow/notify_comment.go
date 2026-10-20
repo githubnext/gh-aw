@@ -125,8 +125,8 @@ func (c *Compiler) appendConclusionUsageSteps(steps []string, data *WorkflowData
 	}
 	steps = append(steps, buildUsageArtifactCollectionStep(IsDetectionJobEnabled(data.SafeOutputs))...)
 	steps = append(steps, buildUsageActivityGenerationStep(hasMaxDailyAICGuardrail(data), conclusionReportFailedJobsEnabled(data), c.getActionPin, gradersEnv)...)
+	steps = append(steps, c.buildConclusionAdmissionMetadataStep(data)...)
 	steps = append(steps, buildUsageArtifactUploadStep(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
-	steps = append(steps, c.buildConclusionAdmissionStep(data)...)
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
@@ -134,10 +134,13 @@ func (c *Compiler) appendConclusionUsageSteps(steps []string, data *WorkflowData
 }
 
 // computeConclusionJobPermissions resolves the GITHUB_TOKEN permissions for the conclusion
-// job: safe-outputs permissions plus the scopes required by admission/OTLP OIDC,
+// job: safe-outputs permissions plus the scopes required by configured OTLP OIDC,
 // session job-duration collection, and any issue-creating conclusion mechanism.
 func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 	conclusionPerms := ComputePermissionsForSafeOutputs(data.SafeOutputs)
+	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
+		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
+	}
 	// Session job-duration collection is always enabled, independently of failure
 	// reporting, and reads the current run attempt's Actions jobs.
 	if level, ok := conclusionPerms.Get(PermissionActions); !ok || level == PermissionNone {
@@ -154,7 +157,6 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 			conclusionPerms.Set(PermissionContents, PermissionWrite)
 			conclusionPerms.Set(PermissionIssues, PermissionWrite)
 		}
-		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 		return conclusionPerms
 	}
 	if isWorkQueueEnabled(data) {
@@ -162,8 +164,6 @@ func computeConclusionJobPermissions(data *WorkflowData) *Permissions {
 			conclusionPerms.Set(PermissionContents, PermissionRead)
 		}
 	}
-	// Managed admission settings can enable the conclusion callback without recompilation.
-	conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 	// The agent-failure handler checks the PR state and agent job steps before
 	// reporting a failed PR merge-ref checkout; Actions access is already granted above.
 	if conclusionReportFailureAsIssueEnabled(data) {

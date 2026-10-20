@@ -25,14 +25,84 @@ func (c *Compiler) buildConclusionAdmissionStep(data *WorkflowData) []string {
 		"          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}\n",
 		"          GITHUB_ACTOR: ${{ github.actor }}\n",
 		"          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}\n",
-		"          GH_AW_USAGE_ARTIFACT_ID: ${{ steps.upload-usage-artifact.outputs.artifact-id }}\n",
-		"          GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ steps.upload-usage-artifact-retry.outputs.artifact-id }}\n",
+		"          GH_AW_ADMISSION_COMPACT_SESSION: ${{ needs.conclusion.outputs.admission_compact_session }}\n",
+		"          GH_AW_USAGE_ARTIFACT_ID: ${{ needs.conclusion.outputs.usage_artifact_id }}\n",
+		"          GH_AW_USAGE_ARTIFACT_RETRY_ID: ${{ needs.conclusion.outputs.usage_artifact_retry_id }}\n",
 		"        with:\n",
 		"          script: |\n",
 		"            const { setupGlobals } = require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'setup_globals.cjs'));\n",
 		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
 		"            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'conclusion_admission.cjs')).main(core);\n",
 	}
+}
+
+func (c *Compiler) buildConclusionAdmissionMetadataStep(data *WorkflowData) []string {
+	return []string{
+		"      - name: Prepare admission conclusion metadata\n",
+		"        id: admission-conclusion-metadata\n",
+		"        if: always() && vars.GH_AW_DEFAULT_ADMISSION_URL != ''\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        with:\n",
+		"          script: |\n",
+		"            const path = require('node:path');\n",
+		"            const { readCompactUnifiedSession } = require(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'compact_unified_session.cjs'));\n",
+		"            const compact = readCompactUnifiedSession(path.join(process.env.RUNNER_TEMP, 'gh-aw', 'usage', 'aw_session.jsonl'));\n",
+		"            core.setOutput('compact_session', JSON.stringify({ version: compact.version, session: compact.session, included_events: compact.includedEvents, omitted_events: compact.omittedEvents, oversized_lines: compact.oversizedLines, scan_truncated: compact.scanTruncated, truncated: compact.truncated }));\n",
+	}
+}
+
+func validateAdmissionWorkflowHashes(data *WorkflowData) error {
+	if data == nil || !isSHA256Hex(data.FrontmatterHash) || !isSHA256Hex(data.BodyHash) {
+		return errors.New("admission requires 64-character lowercase SHA-256 workflow hashes")
+	}
+	return nil
+}
+
+func isSHA256Hex(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, char := range value {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Compiler) buildConclusionAdmissionJob(data *WorkflowData) (*Job, error) {
+	if err := validateAdmissionWorkflowHashes(data); err != nil {
+		return nil, err
+	}
+	setupRef := c.resolveActionReference("./actions/setup", data)
+	if setupRef == "" {
+		return nil, errors.New("admission conclusion setup action reference could not be resolved")
+	}
+	steps := c.generateCheckoutActionsFolder(data)
+	steps = append(steps, c.generateSetupStepForJob(
+		string(constants.ConclusionAdmissionJobName),
+		&WorkflowData{Name: data.Name},
+		setupRef,
+		SetupActionDestination,
+		false,
+		"",
+		"",
+		"",
+	)...)
+	steps = append(steps, c.buildConclusionAdmissionStep(data)...)
+	return &Job{
+		Name:   string(constants.ConclusionAdmissionJobName),
+		If:     "always() && needs.conclusion.result != 'skipped' && vars.GH_AW_DEFAULT_ADMISSION_URL != ''",
+		RunsOn: c.formatFrameworkJobRunsOn(data),
+		Permissions: NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+			PermissionContents: PermissionRead,
+			PermissionIdToken:  PermissionWrite,
+		}).RenderToYAML(),
+		TimeoutMinutes: 5,
+		Needs:          []string{string(constants.ConclusionJobName)},
+		Steps:          steps,
+	}, nil
 }
 
 func addActivationAdmissionOutputs(ctx *activationJobBuildContext) {
@@ -42,6 +112,9 @@ func addActivationAdmissionOutputs(ctx *activationJobBuildContext) {
 }
 
 func (c *Compiler) buildAdmissionJob(data *WorkflowData, activation *Job) (*Job, error) {
+	if err := validateAdmissionWorkflowHashes(data); err != nil {
+		return nil, err
+	}
 	setupRef := c.resolveActionReference("./actions/setup", data)
 	if setupRef == "" {
 		return nil, errors.New("admission setup action reference could not be resolved")

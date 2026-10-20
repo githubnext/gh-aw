@@ -18,6 +18,7 @@ func TestConclusionJobDurationPermissions(t *testing.T) {
 						ReportFailureAsIssue: &failureIssue,
 					},
 				}
+
 				perms := computeConclusionJobPermissions(data)
 				actions, ok := perms.Get(PermissionActions)
 				require.True(t, ok)
@@ -32,4 +33,21 @@ func TestConclusionJobDurationPermissions(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestConclusionJobOIDCIsLimitedToConfiguredOTLP(t *testing.T) {
+	data := &WorkflowData{SafeOutputs: &SafeOutputsConfig{}}
+	_, ok := computeConclusionJobPermissions(data).Get(PermissionIdToken)
+	require.False(t, ok, "admission callback OIDC must not be granted to unrelated conclusion steps")
+
+	data.RawFrontmatter = map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"github-app": map[string]any{"audience": "https://otel.example.com"},
+			},
+		},
+	}
+	level, ok := computeConclusionJobPermissions(data).Get(PermissionIdToken)
+	require.True(t, ok)
+	require.Equal(t, PermissionWrite, level)
 }

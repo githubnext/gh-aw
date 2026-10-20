@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { sendConclusion, main, MAX_REQUEST_BYTES, FAILURE } = require("./conclusion_admission.cjs");
+const { sendConclusion, main, readUsageArtifactIds, MAX_REQUEST_BYTES, FAILURE } = require("./conclusion_admission.cjs");
 const base = {
   GH_AW_DEFAULT_ADMISSION_URL: "https://admission.example.org/api/admission",
   ACTIONS_ID_TOKEN_REQUEST_URL: "https://oidc.example.test/token?job=synthetic",
@@ -116,6 +116,45 @@ describe("admission conclusion notification", () => {
     expect(fs.readFileSync(sessionFile, "utf8")).toBe(generated);
   });
 
+  it("uses validated compact metadata passed from the artifact-publishing conclusion job", async () => {
+    options.env.GH_AW_ADMISSION_COMPACT_SESSION = JSON.stringify({
+      version: 1,
+      session: compactSession,
+      included_events: 2,
+      omitted_events: 1,
+      oversized_lines: 0,
+      scan_truncated: false,
+      truncated: false,
+    });
+    const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
+    await sendConclusion({ ...options, sessionFile: "/missing", fetchImpl });
+    const body = JSON.parse(fetchImpl.mock.calls[1][1].body);
+    expect(body.session).toBe(compactSession);
+    expect(body.session_compaction).toEqual({
+      version: 1,
+      included_events: 2,
+      omitted_events: 1,
+      oversized_lines: 0,
+      scan_truncated: false,
+      truncated: false,
+    });
+  });
+
+  it("rejects malformed compact metadata passed through job outputs before requesting OIDC", async () => {
+    options.env.GH_AW_ADMISSION_COMPACT_SESSION = JSON.stringify({
+      version: 1,
+      session: "not JSONL",
+      included_events: 1,
+      omitted_events: 0,
+      oversized_lines: 0,
+      scan_truncated: false,
+      truncated: false,
+    });
+    const fetchImpl = vi.fn();
+    await expect(sendConclusion({ ...options, fetchImpl })).rejects.toThrow();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it.each(["missing", "empty", "invalid UTF-8", "invalid JSON", "symlink"])("rejects %s session files before requesting OIDC", async kind => {
     if (kind === "missing") fs.unlinkSync(sessionFile);
     if (kind === "empty") fs.writeFileSync(sessionFile, "");
@@ -144,6 +183,16 @@ describe("admission conclusion notification", () => {
     const fetchImpl = vi.fn().mockImplementationOnce(oidc).mockImplementationOnce(accepted);
     await sendConclusion({ ...options, fetchImpl });
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body).usage_artifact_ids).toEqual(expected);
+  });
+
+  it.each([
+    [{ GH_AW_USAGE_ARTIFACT_ID: "12345", GH_AW_USAGE_ARTIFACT_RETRY_ID: "23456" }, ["23456", "12345"]],
+    [{ GH_AW_USAGE_ARTIFACT_ID: "12345", GH_AW_USAGE_ARTIFACT_RETRY_ID: "12345" }, ["12345"]],
+    [{ GH_AW_USAGE_ARTIFACT_ID: "12345" }, ["12345"]],
+    [{ GH_AW_USAGE_ARTIFACT_RETRY_ID: "23456" }, ["23456"]],
+    [{}, []],
+  ])("preserves retry-first artifact ordering in the ID reader (%j)", (env, expected) => {
+    expect(readUsageArtifactIds(env)).toEqual(expected);
   });
 
   it.each(["0", "-1", "1e2", " 1", "1/2", "123\n", "1".repeat(21)])("rejects malformed artifact IDs %j before OIDC", async id => {

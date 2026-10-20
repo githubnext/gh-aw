@@ -201,8 +201,9 @@ this model.
 [`AdmissionConclusion.cfg`](AdmissionConclusion.cfg) model completion independently
 of start-time admission, avoiding a product of unrelated protocol states.
 The eligible conclusion job consumes a symbolic completed agent outcome and a
-valid or invalid redacted unified-session file. A skipped conclusion job makes
-no upload or authority request.
+valid or invalid redacted unified-session file; an isolated callback job handles
+authority delivery after it finishes. A skipped conclusion job makes no upload
+or authority request.
 
 For an eligible job, generation precedes the first artifact upload. A failed
 upload receives one retry, and both attempts must settle before callback
@@ -216,7 +217,7 @@ to change the captured outcome.
 | Contract | Checked invariants |
 |---|---|
 | Artifact-first order, existing job eligibility, absent endpoint and invalid session/configuration | `ArtifactBeforeConclusion`, `JobEligibility`, `NoEndpointNoRequest`, `InvalidInputNoRequest` |
-| Fresh conclusion-owned OIDC, independently verified identity, compact metadata, hard request bounds and unchanged retries | `ConclusionOIDCOnly`, `InvocationVerified`, `CompactProjection`, `BoundedPayload`, `StablePayload` |
+| Fresh isolated callback-job OIDC, independently verified identity, compact metadata, hard request bounds and unchanged retries | `ConclusionOIDCOnly`, `InvocationVerified`, `CompactProjection`, `BoundedPayload`, `StablePayload` |
 | Upload-bound artifact locators and unchanged full session evidence | `ArtifactReferences`, `FullArtifactPreserved` |
 | Three-attempt maximum, terminal deadline, preserved workflow outcome and caller trace | `RetryBound`, `DeadlineHonored`, `BestEffort`, `TraceCorrelation` |
 | Durable acceptance before acknowledgement, deduplicated processing, immutable accepted payload and no billing mutation | `DurableAcceptance`, `SingleProcessing`, `AcceptedSessionImmutable`, `NoFinancialEffects` |
