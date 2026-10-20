@@ -96,7 +96,7 @@ Alternatively, create `.github/mcp.json` manually:
       "type": "local",
       "command": "gh",
       "args": ["aw", "mcp-server"],
-      "tools": ["compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue"]
+      "tools": ["compile", "audit", "logs", "inspect", "status", "audit-diff", "work-queue", "health"]
     }
   }
 }
@@ -130,6 +130,7 @@ The MCP server exposes these workflow-management tools:
 | Tool | Purpose | Key options | Returns |
 | --- | --- | --- | --- |
 | `status` | Show workflow and compiled-file status. | `pattern`, `jq` | JSON array with `workflow`, `agent`, `compiled`, `status`, `time_remaining`. |
+| `health` | Read workflow health, success rates, execution trends, and revision-aware recovery evidence. | `workflow_name`, `days`, `start_date`, `end_date`, `threshold`, `repo`, `logs_dir` | JSON summary for all workflows or a detailed report for one workflow. |
 | `compile` | Compile Markdown workflows to GitHub Actions YAML with optional static analysis. | `workflows`, `strict`, `fix`, `zizmor`, `poutine`, `actionlint`, `grant`, `jq` | JSON array with `workflow`, `valid`, `errors`, `warnings`, `compiled_file`. |
 | `logs` | Download and analyze workflow logs with timeout and token guardrails. | `workflow_name`, `count`, `start_date`, `end_date`, `engine`, `firewall`, `no_firewall`, `branch`, `after_run_id`, `before_run_id`, `artifacts`, `timeout`, `max_tokens`, `jq` | JSON run data and metrics; the response sets `partial: true` and includes continuation parameters when results are incomplete. |
 | `audit` | Audit one or more workflow runs; with multiple runs, compare each run to the first. | `run_ids_or_urls` (preferred), `run_id`, deprecated `run_id_or_url`, plus `artifacts`, `experiment`, `variant`, `jq` | Single-run JSON audit or multi-run diff JSON. |
@@ -141,6 +142,8 @@ The MCP server exposes these workflow-management tools:
 | `fix` | Apply automatic codemod-style fixes. | `workflows`, `write`, `list_codemods` | Dry-run or written fixes. |
 
 Workflow and run positional parameters must not start with `-`; use the tool's named parameters for options. For a local workflow filename beginning with `-`, supply a path prefixed with `./`. The `add` tool's `name` is a filename without an extension, not a path: `/`, `\`, and `..` are rejected. Workflow destinations must remain within the selected workflow directory, including when existing files are symlinks.
+
+The read-only `health` tool is available without `--allow-write-tools` or actor validation. It uses the server's GitHub credentials to read a bounded current-revision sample. `days` accepts 7, 30, or 90 (default 7) and is mutually exclusive with `start_date`. Date parameters accept UTC dates, RFC3339 timestamps, or relative times such as `-24h`. `threshold` defaults to 80 percent. Failure clusters and sub-agent failures use the existing `logs_dir` cache only; the tool does not download artifacts or modify cached logs.
 
 > [!NOTE]
 > The `actionlint`, `zizmor`, and `poutine` scanners used by `compile` prefer compatible local binaries on `PATH` (actionlint ≥ 1.7.12, zizmor ≥ 1.30.1, poutine ≥ 1.1.6), falling back to Docker otherwise. Docker-based scanners, including `grant`, pull images on first use. If you see a "Docker images are being downloaded" message, wait 15–30 seconds and retry.

@@ -28,6 +28,7 @@ secrets are not shared with the MCP server process itself.
 
 The server provides the following tools:
   - status      - Show status of agentic workflow files
+  - health      - Read workflow health metrics, success rates, and execution trends
   - compile     - Compile Markdown workflows to GitHub Actions YAML
   - logs        - Download and analyze workflow logs (requires write access or higher)
   - audit       - Investigate a workflow run, job, or step and generate a report (requires write access or higher)
