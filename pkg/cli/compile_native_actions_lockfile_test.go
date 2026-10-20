@@ -21,10 +21,12 @@ func TestGenerateNativeActionsLockfileIncludesTransitiveDependencies(t *testing.
 	reusableSHA := strings.Repeat("b", 40)
 	workflowContent := `# gh-aw-manifest: {"version":1,"actions":[{"repo":"actions/checkout","sha":"` + checkoutSHA + `","version":"v6.0.2"}]}
 name: Agent
+on: push
 jobs:
   test:
     uses: org/reusable/.github/workflows/test.yml@` + reusableSHA + `
   build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@` + checkoutSHA + `
       - uses: ./local-action
@@ -106,11 +108,19 @@ dependencies:
 }
 
 func TestParseNativeWorkflowUsesSkipsLocalAndContainerRefs(t *testing.T) {
-	content := []byte(`jobs:
-  build:
+	content := []byte(`on: push
+jobs:
+  reusable:
     uses: org/workflows/.github/workflows/reusable.yml@main
+  build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          uses: org/not-an-action@v2
+      - run: echo "not an action reference"
+        env:
+          USES: org/not-an-action@v2
       - uses: ./local
       - uses: docker://alpine:3.20
 `)
@@ -131,6 +141,8 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v4
+      with:
+        uses: org/not-an-action@v2
     - uses: ./local
 `)
 	uses, err := parseNativeActionUses(content)
@@ -138,8 +150,30 @@ runs:
 	require.Equal(t, []nativeDependencyUse{{repository: "actions/checkout", ref: "v4"}}, uses)
 }
 
+func TestParseNativeWorkflowUsesReportsActionlintParseErrors(t *testing.T) {
+	_, err := parseNativeWorkflowUses([]byte("jobs: ["))
+	require.ErrorContains(t, err, "failed to parse GitHub Actions workflow")
+}
+
+func TestParseNativeWorkflowUsesCollectsReferencesWithUnknownActionlintFields(t *testing.T) {
+	content := []byte(`on: push
+concurrency:
+  group: lock
+  queue:
+    max: 1
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+`)
+	uses, err := parseNativeWorkflowUses(content)
+	require.NoError(t, err)
+	require.Equal(t, []nativeDependencyUse{{repository: "actions/checkout", ref: "v4"}}, uses)
+}
+
 func TestParseNativeWorkflowUsesRejectsUnsafeRef(t *testing.T) {
-	content := []byte("jobs:\n  build:\n    steps:\n      - uses: org/action@main?query=value\n")
+	content := []byte("on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: org/action@main?query=value\n")
 	_, err := parseNativeWorkflowUses(content)
 	require.ErrorContains(t, err, "unsupported GitHub dependency reference")
 }
@@ -148,7 +182,7 @@ func TestGenerateNativeActionsLockfileLeavesExistingFileOnResolutionFailure(t *t
 	repoRoot := t.TempDir()
 	workflowPath := filepath.Join(repoRoot, ".github", "workflows", "agent.lock.yml")
 	require.NoError(t, os.MkdirAll(filepath.Dir(workflowPath), 0o755))
-	require.NoError(t, os.WriteFile(workflowPath, []byte("jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n"), 0o644))
+	require.NoError(t, os.WriteFile(workflowPath, []byte("on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"), 0o644))
 
 	lockPath := filepath.Join(repoRoot, filepath.FromSlash(nativeActionsLockfilePath))
 	existing := []byte("version: v0.0.3\nworkflows: {}\ndependencies: {}\n")

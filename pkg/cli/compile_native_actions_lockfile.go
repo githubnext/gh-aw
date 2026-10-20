@@ -20,6 +20,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow"
+	"github.com/rhysd/actionlint"
 	"gopkg.in/yaml.v3"
 )
 
@@ -217,63 +218,80 @@ func collectNativeLockFilesForDirectory(workflowsDir string) ([]string, error) {
 }
 
 func parseNativeWorkflowUses(content []byte) ([]nativeDependencyUse, error) {
-	var root any
-	if err := yaml.Unmarshal(content, &root); err != nil {
-		return nil, err
-	}
-	rootMap, ok := root.(map[string]any)
-	if !ok {
+	ast, parseErrors := actionlint.Parse(content)
+	if ast == nil {
+		if len(parseErrors) > 0 {
+			return nil, fmt.Errorf("failed to parse GitHub Actions workflow: %w", parseErrors[0])
+		}
 		return nil, errors.New("workflow must be a YAML mapping")
 	}
 	var values []string
-	jobs, ok := rootMap["jobs"].(map[string]any)
-	if !ok {
-		return nil, nil
-	}
-	for _, value := range jobs {
-		job, ok := value.(map[string]any)
-		if !ok {
-			continue
+	for _, job := range ast.Jobs {
+		if job.WorkflowCall != nil && job.WorkflowCall.Uses != nil {
+			values = append(values, job.WorkflowCall.Uses.Value)
 		}
-		if use, ok := job["uses"].(string); ok {
-			values = append(values, use)
+		for _, step := range job.Steps {
+			if action, ok := step.Exec.(*actionlint.ExecAction); ok && action.Uses != nil {
+				values = append(values, action.Uses.Value)
+			}
 		}
-		values = appendNativeStepUses(values, job["steps"])
 	}
 	return normalizeNativeUses(values)
 }
 
 func parseNativeActionUses(content []byte) ([]nativeDependencyUse, error) {
-	var root any
-	if err := yaml.Unmarshal(content, &root); err != nil {
+	var document yaml.Node
+	if err := yaml.Unmarshal(content, &document); err != nil {
 		return nil, err
 	}
-	rootMap, ok := root.(map[string]any)
-	if !ok {
+	root := unwrapNativeYAMLNode(&document)
+	if root == nil || root.Kind != yaml.MappingNode {
 		return nil, errors.New("action metadata must be a YAML mapping")
 	}
-	runs, ok := rootMap["runs"].(map[string]any)
-	if !ok {
+	runs := unwrapNativeYAMLNode(nativeYAMLMapValue(root, "runs"))
+	if runs == nil || runs.Kind != yaml.MappingNode {
 		return nil, nil
 	}
-	return normalizeNativeUses(appendNativeStepUses(nil, runs["steps"]))
-}
-
-func appendNativeStepUses(values []string, steps any) []string {
-	stepList, ok := steps.([]any)
-	if !ok {
-		return values
+	steps := unwrapNativeYAMLNode(nativeYAMLMapValue(runs, "steps"))
+	if steps == nil || steps.Kind != yaml.SequenceNode {
+		return nil, nil
 	}
-	for _, value := range stepList {
-		step, ok := value.(map[string]any)
-		if !ok {
+	var values []string
+	for _, step := range steps.Content {
+		step = unwrapNativeYAMLNode(step)
+		if step == nil || step.Kind != yaml.MappingNode {
 			continue
 		}
-		if use, ok := step["uses"].(string); ok {
-			values = append(values, use)
+		if uses := unwrapNativeYAMLNode(nativeYAMLMapValue(step, "uses")); uses != nil && uses.Kind == yaml.ScalarNode {
+			values = append(values, uses.Value)
 		}
 	}
-	return values
+	return normalizeNativeUses(values)
+}
+
+func nativeYAMLMapValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	matchedKey := false
+	for i, child := range node.Content {
+		if i%2 == 0 {
+			matchedKey = child.Value == key
+		} else if matchedKey {
+			return child
+		}
+	}
+	return nil
+}
+
+func unwrapNativeYAMLNode(node *yaml.Node) *yaml.Node {
+	for node != nil && node.Kind == yaml.AliasNode {
+		node = node.Alias
+	}
+	if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		return unwrapNativeYAMLNode(node.Content[0])
+	}
+	return node
 }
 
 func normalizeNativeUses(values []string) ([]nativeDependencyUse, error) {
