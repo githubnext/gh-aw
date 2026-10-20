@@ -108,16 +108,15 @@ func checkCancelLeak(
 	}
 
 	return anyBlock(body, func(block *ast.BlockStmt) bool {
-		var pending types.Object
-		hasPending := false
-		for _, stmt := range block.List {
-			if hasPending && !isDeferredCancel(pass, stmt, pending) {
+		for i, stmt := range block.List {
+			cancel, ok := contextCancelAcquisition(pass, stmt)
+			if ok && !cleanupFollows(pass, block.List[i+1:], receiverKey{base: cancel}, func(stmt ast.Stmt) bool {
+				return isDeferredCancel(pass, stmt, cancel)
+			}) {
 				return true
 			}
-			cancel, ok := contextCancelAcquisition(pass, stmt)
-			pending, hasPending = cancel, ok
 		}
-		return hasPending
+		return false
 	})
 }
 
@@ -132,18 +131,49 @@ func checkMutexLeak(
 	}
 
 	return anyBlock(body, func(block *ast.BlockStmt) bool {
-		var pending receiverKey
-		var pendingUnlock string
-		hasPending := false
-		for _, stmt := range block.List {
-			if hasPending && !isDeferredUnlock(pass, stmt, pending, pendingUnlock) {
+		for i, stmt := range block.List {
+			key, unlock, ok := mutexLockAcquisition(pass, stmt)
+			if ok && !cleanupFollows(pass, block.List[i+1:], key, func(stmt ast.Stmt) bool {
+				return isDeferredUnlock(pass, stmt, key, unlock)
+			}) {
 				return true
 			}
-			key, unlock, ok := mutexLockAcquisition(pass, stmt)
-			pending, pendingUnlock, hasPending = key, unlock, ok
 		}
-		return hasPending
+		return false
 	})
+}
+
+// Only scan past statements that cannot bypass cleanup or rebind the resource.
+func cleanupFollows(pass *analysis.Pass, statements []ast.Stmt, resource receiverKey, matches func(ast.Stmt) bool) bool {
+	for _, stmt := range statements {
+		if matches(stmt) {
+			return true
+		}
+		if key, _, ok := mutexLockAcquisition(pass, stmt); ok && key == resource {
+			return false
+		}
+		unsafe := false
+		ast.Inspect(stmt, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.FuncLit:
+				return false
+			case *ast.ReturnStmt, *ast.BranchStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SelectStmt:
+				unsafe = true
+			case *ast.AssignStmt:
+				for _, lhs := range n.Lhs {
+					key, ok := getReceiverKey(pass, lhs)
+					if ok && (key == resource || key == (receiverKey{base: resource.base})) {
+						unsafe = true
+					}
+				}
+			}
+			return !unsafe
+		})
+		if unsafe {
+			return false
+		}
+	}
+	return false
 }
 
 // checkChannelLeak reports channels without a safe buffered send/receive pair
@@ -159,6 +189,9 @@ func checkChannelLeak(
 	channels := createdChannels(pass, body)
 	markChannelUsage(pass, body, channels)
 	for _, usage := range channels {
+		if usage.escaped {
+			continue
+		}
 		if usage.buffered && usage.sent && usage.received {
 			continue
 		}
@@ -203,29 +236,48 @@ func createdChannels(pass *analysis.Pass, body *ast.BlockStmt) map[types.Object]
 func markChannelUsage(pass *analysis.Pass, body *ast.BlockStmt, channels map[types.Object]*channelUsage) {
 	ast.Inspect(body, func(n ast.Node) bool {
 		if _, ok := n.(*ast.FuncLit); ok {
+			markChannelEscape(pass, n, channels)
 			return false
 		}
 		if sendStmt, ok := n.(*ast.SendStmt); ok {
-			if ident, ok := sendStmt.Chan.(*ast.Ident); ok {
+			if ident, ok := astutil.UnwrapParenExpr(sendStmt.Chan).(*ast.Ident); ok {
 				if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
 					usage.sent = true
 				}
 			}
 		}
 		if callExpr, ok := n.(*ast.CallExpr); ok {
-			if ident, ok := callExpr.Fun.(*ast.Ident); ok && ident.Name == "close" {
+			builtin := calledBuiltin(pass, callExpr)
+			if builtin == "close" {
 				for _, arg := range callExpr.Args {
-					if argIdent, ok := arg.(*ast.Ident); ok {
+					if argIdent, ok := astutil.UnwrapParenExpr(arg).(*ast.Ident); ok {
 						if usage := channels[pass.TypesInfo.ObjectOf(argIdent)]; usage != nil {
 							usage.closed = true
 						}
 						break
 					}
 				}
+			} else if builtin == "" {
+				for _, arg := range callExpr.Args {
+					markChannelEscape(pass, arg, channels)
+				}
+			}
+		}
+		switch n := n.(type) {
+		case *ast.CompositeLit, *ast.ReturnStmt:
+			markChannelEscape(pass, n, channels)
+		case *ast.AssignStmt:
+			for _, lhs := range n.Lhs {
+				switch astutil.UnwrapParenExpr(lhs).(type) {
+				case *ast.SelectorExpr, *ast.IndexExpr:
+					for _, rhs := range n.Rhs {
+						markChannelEscape(pass, rhs, channels)
+					}
+				}
 			}
 		}
 		if unaryExpr, ok := n.(*ast.UnaryExpr); ok && unaryExpr.Op == token.ARROW {
-			if ident, ok := unaryExpr.X.(*ast.Ident); ok {
+			if ident, ok := astutil.UnwrapParenExpr(unaryExpr.X).(*ast.Ident); ok {
 				if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
 					usage.received = true
 				}
@@ -235,17 +287,51 @@ func markChannelUsage(pass *analysis.Pass, body *ast.BlockStmt, channels map[typ
 	})
 }
 
+// An opaque handoff prevents this local syntactic check from proving a leak.
+func markChannelEscape(pass *analysis.Pass, node ast.Node, channels map[types.Object]*channelUsage) {
+	_, capturing := node.(*ast.FuncLit)
+	ast.Inspect(node, func(n ast.Node) bool {
+		if !capturing {
+			if unary, ok := n.(*ast.UnaryExpr); ok && unary.Op == token.ARROW {
+				return false
+			}
+			if call, ok := n.(*ast.CallExpr); ok && calledBuiltin(pass, call) != "" {
+				return false
+			}
+		}
+		if ident, ok := n.(*ast.Ident); ok {
+			if usage := channels[pass.TypesInfo.ObjectOf(ident)]; usage != nil {
+				usage.escaped = true
+			}
+		}
+		return true
+	})
+}
+
+func calledBuiltin(pass *analysis.Pass, call *ast.CallExpr) string {
+	ident, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.Ident)
+	if !ok {
+		return ""
+	}
+	builtin, ok := pass.TypesInfo.ObjectOf(ident).(*types.Builtin)
+	if !ok {
+		return ""
+	}
+	return builtin.Name()
+}
+
 type channelUsage struct {
 	sent     bool
 	received bool
 	closed   bool
 	buffered bool
+	escaped  bool
 }
 
 // isContextWithCancelCall reports whether call is context.WithCancel,
 // context.WithTimeout, or context.WithDeadline.
 func isContextWithCancelCall(pass *analysis.Pass, call *ast.CallExpr) bool {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
@@ -319,7 +405,7 @@ func contextCancelAcquisition(pass *analysis.Pass, stmt ast.Stmt) (types.Object,
 		rhs = value
 		break
 	}
-	call, ok := rhs.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(rhs).(*ast.CallExpr)
 	if !ok || !isContextWithCancelCall(pass, call) {
 		return nil, false
 	}
@@ -343,7 +429,7 @@ func isDeferredCancel(pass *analysis.Pass, stmt ast.Stmt, cancel types.Object) b
 	if !ok || deferStmt.Call == nil {
 		return false
 	}
-	ident, ok := deferStmt.Call.Fun.(*ast.Ident)
+	ident, ok := astutil.UnwrapParenExpr(deferStmt.Call.Fun).(*ast.Ident)
 	return ok && pass.TypesInfo.ObjectOf(ident) == cancel
 }
 
@@ -352,11 +438,11 @@ func mutexLockAcquisition(pass *analysis.Pass, stmt ast.Stmt) (receiverKey, stri
 	if !ok {
 		return receiverKey{}, "", false
 	}
-	call, ok := exprStmt.X.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(exprStmt.X).(*ast.CallExpr)
 	if !ok {
 		return receiverKey{}, "", false
 	}
-	sel, ok := call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.SelectorExpr)
 	if !ok || (sel.Sel.Name != "Lock" && sel.Sel.Name != "RLock") {
 		return receiverKey{}, "", false
 	}
@@ -376,7 +462,7 @@ func isDeferredUnlock(pass *analysis.Pass, stmt ast.Stmt, key receiverKey, unloc
 	if !ok || deferStmt.Call == nil {
 		return false
 	}
-	sel, ok := deferStmt.Call.Fun.(*ast.SelectorExpr)
+	sel, ok := astutil.UnwrapParenExpr(deferStmt.Call.Fun).(*ast.SelectorExpr)
 	if !ok || sel.Sel.Name != unlock {
 		return false
 	}
@@ -392,7 +478,7 @@ func mutexReceiverKey(pass *analysis.Pass, receiver ast.Expr) (receiverKey, bool
 }
 
 func getReceiverKey(pass *analysis.Pass, receiver ast.Expr) (receiverKey, bool) {
-	switch expr := receiver.(type) {
+	switch expr := astutil.UnwrapParenExpr(receiver).(type) {
 	case *ast.Ident:
 		object := pass.TypesInfo.ObjectOf(expr)
 		if object != nil {
@@ -401,7 +487,7 @@ func getReceiverKey(pass *analysis.Pass, receiver ast.Expr) (receiverKey, bool) 
 	case *ast.SelectorExpr:
 		if selection := pass.TypesInfo.Selections[expr]; selection != nil {
 			field := selection.Obj()
-			if base, ok := expr.X.(*ast.Ident); ok {
+			if base, ok := astutil.UnwrapParenExpr(expr.X).(*ast.Ident); ok {
 				if object := pass.TypesInfo.ObjectOf(base); object != nil {
 					return receiverKey{base: object, field: field}, true
 				}
@@ -413,11 +499,11 @@ func getReceiverKey(pass *analysis.Pass, receiver ast.Expr) (receiverKey, bool) 
 }
 
 func channelMake(pass *analysis.Pass, expr ast.Expr) (bool, bool) {
-	call, ok := expr.(*ast.CallExpr)
+	call, ok := astutil.UnwrapParenExpr(expr).(*ast.CallExpr)
 	if !ok {
 		return false, false
 	}
-	ident, ok := call.Fun.(*ast.Ident)
+	ident, ok := astutil.UnwrapParenExpr(call.Fun).(*ast.Ident)
 	if !ok {
 		return false, false
 	}

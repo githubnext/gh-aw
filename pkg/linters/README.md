@@ -18,7 +18,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `contextcancelnotdeferred` — reports context cancel functions that are called directly instead of deferred.
 - `ctxbackground` — reports `context.Background()` calls inside functions that already receive a `context.Context` parameter.
 - `deferinloop` — reports `defer` statements placed directly inside `for`/`range` loop bodies, which execute when the enclosing function returns rather than each iteration and can cause resource leaks.
-- `deferrerrorunchecked` — reports deferred calls that discard an error return value. The analyzer lives in `deferred-error-unchecked`.
+- `deferrerrorunchecked` — reports deferred calls that discard an error return value, excluding direct zero-argument `Close()` methods owned by `unchecked_deferredclose`. The analyzer lives in `deferred-error-unchecked`.
 - `errorfwrapv` — reports `fmt.Errorf` calls that pass error arguments without `%w` wrapping.
 - `excessivefuncparams` — reports function declarations that exceed a configurable parameter-count threshold.
 - `errormessage` — reports non-actionable error-message patterns in changed files; pass `-errormessage.full-repo` (or `-errormessage.changed-files=all`) to audit the whole repository.
@@ -32,10 +32,10 @@ This package currently provides custom Go analyzers in the following subpackages
 - `generatedyamlheredoc` — reports shell heredocs embedded in generated workflow YAML and recommends passing plain environment-variable content to a JavaScript renderer. Run `make golint-custom` to verify that an unsuppressed heredoc in `pkg/workflow` is reported.
 - `globwalkignorederror` — reports `filepath.Glob` and `os.ReadDir` calls where the error return is discarded with `_`.
 - `goroutinemissingrecover` — reports goroutines started via a function literal whose body does not install a top-level `defer func() { recover() }()` guard.
-- `goroutineresourceleak` — reports goroutine resource acquisitions without an immediately deferred cleanup, channels without a close or safely buffered send/receive pair, and loop-launched goroutines without matching `WaitGroup` synchronization.
+- `goroutineresourceleak` — reports goroutine resource acquisitions without deferred cleanup before a possible exit, channels without a close or safely buffered send/receive pair, and loop-launched goroutines without matching `WaitGroup` synchronization.
 - `hardcodedfilepath` — reports hard-coded file path string literals that match known path constants or should be extracted into named constants; also annotates paths that appear in log/print calls.
 - `httpnoctx` — reports HTTP client and package-level HTTP calls that do not accept a `context.Context`.
-- `httprespbodyclose` — reports HTTP responses whose `Body.Close()` call is missing or not deferred.
+- `httprespbodyclose` — reports directly matched HTTP response `Body.Close()` calls that are not deferred.
 - `httpstatuscode` — reports raw HTTP status-code integer literals that should use `net/http` named constants.
 - `ioutildeprecated` — reports uses of deprecated `io/ioutil` functions (deprecated since Go 1.16) and suggests their replacements in the `io` and `os` packages.
 - `jsonmarshalignoredeerror` — reports `json.Marshal` and `json.Unmarshal` calls where the error return is discarded.
@@ -114,6 +114,30 @@ analyzer proves that resources are closed or that an assigned error is eventuall
 handled. Their separate CI rollout exclusions remain unchanged pending remediation
 of existing findings.
 
+`deferrerrorunchecked` excludes direct zero-argument `Close()` methods so that
+`unchecked_deferredclose` remains their sole diagnostic owner. Existing
+`nolint:unchecked_deferredclose` directives keep their meaning; other deferred
+error-returning calls remain covered by `deferrerrorunchecked`.
+
+## Resource analysis boundaries
+
+`manualmutexunlock`, `fileclosenotdeferred`, `contextcancelnotdeferred`, and
+`httprespbodyclose` match acquisition and cleanup calls syntactically within a
+function. They report matched manual cleanup without a matching defer, not every
+acquisition lacking cleanup. Calls such as `releaseLock(mu)`, `closeFile(f)`,
+`cancelContext(cancel)`, and `closeBody(resp)` are outside their scope, whether
+manual or deferred: these analyzers do not infer helper behavior or follow aliases.
+Passing a resource to a read-only helper does not count as cleanup or hide a
+direct manual cleanup. Ownership transfers without locally matched cleanup remain
+unreported.
+
+`goroutineresourceleak` permits bookkeeping between an acquisition and its defer
+in the same block, but stops at possible exits, loops, or resource reassignment.
+Its channel check conservatively stops diagnosing a channel handed to an opaque
+call, stored in a composite or field, returned, or captured by a closure. Those
+handoffs are not proof of safety; their behavior is outside the local check.
+Built-in `len` and `cap` calls are not handoffs.
+
 ## Coverage-aware perf gating
 
 Micro-optimizations flagged by allocation/perf linters (e.g. `stringsconcatloop`, `appendoneelement`,
@@ -153,7 +177,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `contextcancelnotdeferred` | Custom `go/analysis` analyzer that flags context cancel functions called directly instead of deferred |
 | `ctxbackground` | Custom `go/analysis` analyzer that flags `context.Background()` calls inside functions that already receive a context parameter |
 | `deferinloop` | Custom `go/analysis` analyzer that flags `defer` statements inside `for`/`range` loop bodies that execute when the enclosing function returns rather than each iteration |
-| `deferrerrorunchecked` | Custom `go/analysis` analyzer that flags deferred calls that discard an error return value |
+| `deferrerrorunchecked` | Custom `go/analysis` analyzer that flags deferred calls discarding errors, except zero-argument `Close()` methods |
 | `errorfwrapv` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls that pass error arguments without `%w` wrapping |
 | `excessivefuncparams` | Custom `go/analysis` analyzer that flags function declarations with too many positional parameters |
 | `errormessage` | Custom `go/analysis` analyzer that flags non-actionable error message patterns in changed files (or all files with `-errormessage.full-repo`) |
@@ -170,7 +194,7 @@ environment variable and gates findings on the recorded execution hit count for 
 | `goroutineresourceleak` | Custom `go/analysis` analyzer that flags goroutine resource acquisitions without immediate deferred cleanup, channels without a close or safely buffered send/receive pair, and loop-launched goroutines without matching `WaitGroup` synchronization |
 | `hardcodedfilepath` | Custom `go/analysis` analyzer that flags hard-coded file path string literals that match known path constants or should be extracted as named constants; annotates paths in log/print calls |
 | `httpnoctx` | Custom `go/analysis` analyzer that flags HTTP calls that do not accept a `context.Context` |
-| `httprespbodyclose` | Custom `go/analysis` analyzer that flags HTTP response bodies that are not closed (or not deferred) |
+| `httprespbodyclose` | Custom `go/analysis` analyzer that flags directly matched HTTP response `Body.Close()` calls that are not deferred |
 | `httpstatuscode` | Custom `go/analysis` analyzer that flags raw HTTP status-code integer literals that should use `net/http` named constants |
 | `ioutildeprecated` | Custom `go/analysis` analyzer that flags deprecated `io/ioutil` function calls (deprecated since Go 1.16) and suggests replacements in the `io` and `os` packages |
 | `jsonmarshalignoredeerror` | Custom `go/analysis` analyzer that flags `json.Marshal`/`json.Unmarshal` calls where the error return is discarded |
