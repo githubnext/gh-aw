@@ -17,8 +17,10 @@ Copilot CLI v1.0.98, and the legacy Copilot v1.0.21 manifest. Obtain other
 manifest digests through an independently trusted channel and update/recompile
 workflows to consume the new setup action. Explicit Copilot pins bypass
 toolcache selection; without a supplied pin, trusted toolcache behavior is
-unchanged. Go release builds require
-1.26.10, 1.27.3, or a newer supported stable toolchain.
+unchanged. Repository Go tooling, module requirements and generated runtime
+defaults now use Go 1.27.3; release builds reject older toolchains. Go root
+capture and Serena setup clear stale GOROOT values before discovering the
+selected toolchain, preventing mixed-version compiler/standard-library failures.
 
 Logs episode rollups now require a recorded nonempty `context.episode_id`.
 Call-ID grouping, synthetic episode IDs, metadata-inferred lineage, and bridges
