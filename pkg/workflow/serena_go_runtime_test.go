@@ -78,7 +78,7 @@ func testSerenaGoExposureScript(t *testing.T, script, serverPath string) {
 		t.Run(scenario, func(t *testing.T) {
 			dir := t.TempDir()
 			cache := filepath.Join(dir, "tool cache")
-			root := filepath.Join(cache, "go", "1.26.9", "x64")
+			root := filepath.Join(cache, "go", "1.27.3", "x64")
 			if scenario == "outside-mount" {
 				root = filepath.Join(dir, "outside")
 			}
@@ -87,7 +87,7 @@ func testSerenaGoExposureScript(t *testing.T, script, serverPath string) {
 			require.NoError(t, os.MkdirAll(mockBin, 0o700))
 			require.NoError(t, os.MkdirAll(nodeBin, 0o700))
 			require.NoError(t, os.MkdirAll(filepath.Join(root, "bin"), 0o700))
-			mock := "#!/bin/sh\nif [ \"$1\" = env ] && [ \"$2\" = GOROOT ]; then printf '%s\\n' \"$TEST_GO_ROOT\"; else printf 'go version mocked\\n'; fi\n"
+			mock := "#!/bin/sh\nif [ \"$1\" = env ] && [ \"$2\" = GOROOT ]; then\n  [ -z \"${GOROOT:-}\" ] && [ \"$GOTOOLCHAIN\" = local ] || exit 1\n  printf '%s\\n' \"$TEST_GO_ROOT\"\nelse\n  [ \"$GOROOT\" = \"$TEST_GO_ROOT\" ] || exit 1\n  printf 'go version mocked\\n'\nfi\n"
 			require.NoError(t, os.WriteFile(filepath.Join(mockBin, "go"), []byte(mock), 0o700))
 			require.NoError(t, os.WriteFile(filepath.Join(nodeBin, "node"), []byte("#!/bin/sh\nprintf 'node mocked\\n'\n"), 0o700))
 			if scenario != "missing-binary" {
@@ -97,15 +97,15 @@ func testSerenaGoExposureScript(t *testing.T, script, serverPath string) {
 			require.NoError(t, os.WriteFile(envFile, nil, 0o600))
 			cmd := exec.Command("bash", "-c", script)
 			runnerPath := mockBin + ":" + nodeBin + ":/usr/bin:/bin"
-			cmd.Env = []string{"PATH=" + runnerPath, "TEST_GO_ROOT=" + root, "RUNNER_TOOL_CACHE=" + cache, "GITHUB_ENV=" + envFile}
+			cmd.Env = []string{"PATH=" + runnerPath, "TEST_GO_ROOT=" + root, "RUNNER_TOOL_CACHE=" + cache, "GITHUB_ENV=" + envFile, "GOROOT=" + filepath.Join(cache, "go", "1.26.9", "x64")}
 			output, err := cmd.CombinedOutput()
 			exported, readErr := os.ReadFile(envFile)
 			require.NoError(t, readErr)
 			if scenario == "mounted" {
 				require.NoError(t, err, "%s", output)
-				require.Equal(t, "GH_AW_SERENA_GO_PATH="+root+"/bin:"+runnerPath+"\n", string(exported))
+				require.Equal(t, "GOROOT="+root+"\nGH_AW_SERENA_GO_PATH="+root+"/bin:"+runnerPath+"\n", string(exported))
 				// Model the gateway's variable expansion with its own PATH, not the runner's.
-				exposedPath := strings.TrimSuffix(strings.TrimPrefix(string(exported), "GH_AW_SERENA_GO_PATH="), "\n")
+				exposedPath := strings.TrimSuffix(strings.TrimPrefix(strings.SplitN(string(exported), "\n", 2)[1], "GH_AW_SERENA_GO_PATH="), "\n")
 				resolvedPath := os.Expand(strings.ReplaceAll(serverPath, `\$`, `$`), func(name string) string {
 					switch name {
 					case "GH_AW_SERENA_GO_PATH":

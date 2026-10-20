@@ -3,11 +3,55 @@
 package workflow
 
 import (
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
+
+func TestBootstrapReleasePinsMatchCompilerDefaults(t *testing.T) {
+	t.Parallel()
+	helper, err := filepath.Abs(filepath.Join("..", "..", "actions", "setup", "sh", "release_integrity.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, release := range []struct {
+		repository, version, manifest string
+	}{
+		{"github/gh-aw-firewall", string(constants.DefaultFirewallVersion), "checksums.txt"},
+		{"github/copilot-cli", string(constants.DefaultCopilotVersion), "SHA256SUMS.txt"},
+	} {
+		cmd := exec.Command("bash", "-c", `source "$1"; release_artifact_sha256 "$2" "$3" "$4"`,
+			"--", helper, release.repository, release.version, release.manifest)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("compiler default must have a reviewed bootstrap pin: %v: %s", err, output)
+		}
+	}
+}
+
+func TestDockerComposeBootstrapIntegrity(t *testing.T) {
+	t.Parallel()
+	step := strings.Join(generateDockerComposeInstallStep(), "\n")
+	for _, expected := range []string{
+		"        shell: bash\n        run: |",
+		`--proto '=https' --proto-redir '=https'`,
+		`if [[ "${actual%% *}" != "$digest" ]]; then`,
+		"9040bd35b2cc0783ce6c5de491de7e52e24d4137dbfc5de8a524f718fc23556c",
+		"d1148609319706a57b755ff0f61d604a63a8cf57adb24c17535baa766ff14b4f",
+	} {
+		if !strings.Contains(step, expected) {
+			t.Errorf("Compose install is missing %q", expected)
+		}
+	}
+	if strings.Index(step, `if [[ "${actual%% *}" != "$digest" ]]; then`) > strings.Index(step, "install -m 0755") {
+		t.Error("Compose digest verification must precede installation")
+	}
+	if strings.Contains(step, "release_integrity.sh") {
+		t.Error("generated Compose install must not source a job-writable verifier")
+	}
+}
 
 // TestAWFInstallationStepDefaultVersion verifies that AWF installation uses the default version when not specified
 func TestAWFInstallationStepDefaultVersion(t *testing.T) {

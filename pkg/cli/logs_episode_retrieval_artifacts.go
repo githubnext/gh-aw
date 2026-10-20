@@ -301,8 +301,7 @@ func selectEpisodeInfo(infos []*AwInfo) (*AwInfo, error) {
 }
 
 func processEpisodeArtifacts(run WorkflowRun, runDir string, info *AwInfo) (ProcessedRun, error) {
-	result := DownloadResult{}
-	result.Run = run
+	result := DownloadResult{Run: run}
 	result.Run.LogsPath = runDir
 	metrics := extractRunMetricsAndMetadata(&result, runDir, false)
 	usage, err := analyzeTokenUsage(runDir, false)
