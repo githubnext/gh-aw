@@ -90,7 +90,7 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	require.NoError(t, err)
 	yaml := string(content)
 	for _, fragment := range []string{
-		"id: admission", "id-token: write", "check_admission.cjs",
+		"id: admission", "id-token: write", "activation_admission.cjs",
 		"if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}",
 		"GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}",
 		"GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}",
@@ -108,12 +108,7 @@ func TestAdmissionRuntimeWiring(t *testing.T) {
 	assert.Contains(t, yaml, `"frontmatter_hash":"`+hashes[1]+`"`)
 	assert.Contains(t, yaml, `"body_hash":"`+hashes[2]+`"`)
 	assert.Contains(t, yaml, strings.Join([]string{
-		"            const path = require('node:path');",
-		"            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');",
-		"            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));",
-		"            setupGlobals(core, github, context, exec, io, getOctokit);",
-		"            const { main } = require(path.join(actionsDir, 'check_admission.cjs'));",
-		"            await main(core);",
+		"            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);",
 	}, "\n"))
 	assert.Less(t, strings.Index(yaml, "id: admission"), strings.Index(yaml, "id: daily-ai-credits-workflow-guardrail"))
 	assert.Contains(t, yaml, admissionDailyAICFallbackIfExpr)

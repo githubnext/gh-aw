@@ -181,12 +181,7 @@ jobs:
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
         with:
           script: |
-            const path = require('node:path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'check_admission.cjs'));
-            await main(core);
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);
       - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret
         id: validate-secret
         run: bash "${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh" CODEX_API_KEY OPENAI_API_KEY Codex https://github.github.com/gh-aw/reference/engines/#openai-codex

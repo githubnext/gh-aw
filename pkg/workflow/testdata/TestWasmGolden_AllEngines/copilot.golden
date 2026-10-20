@@ -33,10 +33,15 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
     env:
       GH_AW_MAX_DAILY_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
     outputs:
+      admission-max-ai-credits: ${{ steps.admission.outputs.max-ai-credits }}
+      admission-max-ai-credits-evals: ${{ steps.admission.outputs.max-ai-credits-evals }}
+      admission-max-ai-credits-threat-detection: ${{ steps.admission.outputs.max-ai-credits-threat-detection }}
+      admission-result: ${{ steps.admission.outputs.result }}
       aw_context: ${{ steps.generate_aw_info.outputs.aw_context }}
       comment_id: ""
       comment_repo: ""
@@ -110,9 +115,24 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require(path.join(actionsDir, 'generate_aw_info.cjs'));
             await main(core, context);
+      - name: Check workflow admission
+        id: admission
+        if: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL != '' }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_AW_DEFAULT_ADMISSION_URL: ${{ vars.GH_AW_DEFAULT_ADMISSION_URL }}
+          GH_AW_DEFAULT_ADMISSION_AUDIENCE: ${{ vars.GH_AW_DEFAULT_ADMISSION_AUDIENCE }}
+          GH_AW_DEFAULT_ADMISSION_ON_OUTAGE: ${{ vars.GH_AW_DEFAULT_ADMISSION_ON_OUTAGE }}
+          GH_AW_ADMISSION_WORKFLOW_HASH: "f64d45623222432f05232cab1409280f2ad6bd1d381c7a812182687fea988db9:62cebd9f73a631138abb5d9674807e5fd5cc437df706431179e5d79e534ac2a7"
+          GH_AW_INFO_WORKFLOW_ID: ${{ job.workflow_ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);
       - name: Restore daily AIC scan observations
         id: restore-daily-aic-cache-fallback
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_HAS_SLASH_COMMAND: "false"
@@ -128,7 +148,7 @@ jobs:
             await main();
       - name: Check daily workflow token guardrail
         id: daily-ai-credits-workflow-guardrail
-        if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
+        if: ${{ steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_WORKFLOW_NAME: "engine-copilot-test"
@@ -150,7 +170,7 @@ jobs:
             const { main } = require(path.join(actionsDir, 'check_daily_aic_workflow_guardrail.cjs'));
             await main();
       - name: Publish daily AIC scan observations
-        if: always() && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
+        if: always() && steps.admission.outputs.result != 'admitted' && env.GH_AW_MAX_DAILY_AI_CREDITS != ''
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -792,6 +812,22 @@ jobs:
           if [[ ! "$GH_AW_MAX_AI_CREDITS" =~ ^[0-9]+$ ]]; then
             GH_AW_MAX_AI_CREDITS="1000"
           fi
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -z "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            echo "ERR_ADMISSION: Missing required runtime admission allowance." >&2
+            exit 1
+          fi
+
+          if [[ "${GH_AW_ADMISSION_RESULT:-}" == "admitted" && -n "${GH_AW_ADMISSION_MAX_AI_CREDITS:-}" ]]; then
+            if [[ ! "$GH_AW_ADMISSION_MAX_AI_CREDITS" =~ ^[1-9][0-9]{0,9}$ ]] || (( GH_AW_ADMISSION_MAX_AI_CREDITS > 2147483647 )); then
+              echo "ERR_ADMISSION: Invalid runtime admission allowance." >&2
+              exit 1
+            fi
+            GH_AW_MAX_AI_CREDITS="$GH_AW_ADMISSION_MAX_AI_CREDITS"
+            echo "Admission allowance applied (value withheld)."
+          else
+            echo "No component admission allowance; retaining existing budget policy (value withheld)."
+          fi
+          unset GH_AW_ADMISSION_RESULT GH_AW_ADMISSION_MAX_AI_CREDITS
           printf '%s\n' "AWF_CONFIG_PAYLOAD" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
@@ -829,6 +865,8 @@ jobs:
           COPILOT_DUMMY_BYOK: dummy-byok-key-for-offline-mode
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           COPILOT_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'default' }}
+          GH_AW_ADMISSION_MAX_AI_CREDITS: ${{ needs.activation.outputs.admission-max-ai-credits }}
+          GH_AW_ADMISSION_RESULT: ${{ needs.activation.outputs.admission-result }}
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}

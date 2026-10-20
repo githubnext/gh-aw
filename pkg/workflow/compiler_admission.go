@@ -25,11 +25,6 @@ func (c *Compiler) addActivationAdmissionStep(ctx *activationJobBuildContext) {
 		"          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}\n",
 		"        with:\n",
 		"          script: |\n",
-		"            const path = require('node:path');\n",
-		"            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');\n",
-		"            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));\n",
-		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
-		"            const { main } = require(path.join(actionsDir, 'check_admission.cjs'));\n",
-		"            await main(core);\n",
+		"            await require(require('node:path').join(process.env.RUNNER_TEMP, 'gh-aw', 'actions', 'activation_admission.cjs')).main(core, github, context, exec, io, getOctokit);\n",
 	)
 }
