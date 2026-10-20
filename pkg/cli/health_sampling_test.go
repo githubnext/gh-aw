@@ -53,6 +53,9 @@ func TestHealthSamplingContinuesPastRunsAwaitingApproval(t *testing.T) {
 		}
 		if strings.Contains(endpoint, "/contents/") {
 			assert.NotContains(t, endpoint, "unapproved", "ignored runs need no revision lookups")
+			if strings.Contains(endpoint, ".md?") {
+				return []byte(strings.Repeat("c", 40)), nil
+			}
 			return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"settings","body_hash":"prompt"}`), nil
 		}
 		pages++
@@ -122,6 +125,9 @@ func TestHealthAPIQuotaAndRevisionLookupReuse(t *testing.T) {
 	healthRunGH = func(ctx context.Context, message string, args ...string) ([]byte, error) {
 		calls++
 		assert.Contains(t, args, "github.example.com")
+		if strings.Contains(args[3], ".md?") {
+			return []byte(strings.Repeat("c", 40)), nil
+		}
 		return []byte(`# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"config","body_hash":"prompt"}`), nil
 	}
 	collection := &HealthCollection{Host: "github.example.com", repoOverride: "github.example.com/org/repo"}
@@ -130,18 +136,18 @@ func TestHealthAPIQuotaAndRevisionLookupReuse(t *testing.T) {
 	resolveHealthRevision(run, collection)
 	run.DatabaseID = 2
 	resolveHealthRevision(run, collection)
-	assert.Equal(t, 1, calls, "identical immutable workflow revisions should be read once")
+	assert.Equal(t, 2, calls, "identical immutable source and workflow revisions should be read once")
 	assert.Equal(t, 1, probes)
 	require.NotNil(t, collection.revisions[healthRevisionLookupKey(run)])
 	run.Event, run.HeadSha = "workflow_run", strings.Repeat("b", 40)
 	resolveHealthRevision(run, collection)
-	assert.Equal(t, 1, calls, "ambiguous head SHA must not be used as executing workflow revision")
+	assert.Equal(t, 2, calls, "ambiguous head SHA must not be used as executing workflow revision")
 	collection.APIRequests = healthMaximumAPIRequests
 	_, err := healthAPI(collection, "repos/org/repo/actions/runs")
 	require.ErrorIs(t, err, errHealthAPIBudget)
 	assert.True(t, collection.Partial)
 	assert.Equal(t, "request_budget", collection.Reason)
-	assert.Equal(t, 1, calls)
+	assert.Equal(t, 2, calls)
 }
 
 func TestHealthLowQuotaAndSecondaryLimitProducePartialJSON(t *testing.T) {
@@ -216,6 +222,9 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 				case strings.HasSuffix(endpoint, "/jobs?per_page=1"):
 					return []byte(`{"jobs":[{"id":42}]}`), nil
 				case strings.Contains(endpoint, "/contents/"):
+					if strings.Contains(endpoint, ".md?") {
+						return []byte(strings.Repeat("c", 40)), nil
+					}
 					body := "fixed-prompt"
 					if strings.Contains(endpoint, "ref="+strings.Repeat("b", 40)) {
 						body = "old-prompt"
@@ -246,7 +255,7 @@ func TestHealthCurrentSnapshotFromGitHubMetadata(t *testing.T) {
 			}
 			assert.Empty(t, report.FailureClusters)
 			assert.False(t, report.Collection.Partial)
-			assert.Equal(t, 10, requests)
+			assert.Equal(t, 13, requests)
 		})
 	}
 }

@@ -28,6 +28,7 @@ type HealthCollection struct {
 	workflows       []GitHubWorkflow
 	revisions       map[string]*workflow.LockMetadata
 	headRevisions   map[string]*workflow.LockMetadata
+	sourceRevisions map[string]string
 	checkedRequests int
 	repoOverride    string
 	stopped         bool

@@ -200,6 +200,7 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 		RepoOverride: repoOverride, Verbose: verbose, OldestFetchedCreatedAt: &oldest}
 	var sample []WorkflowRun
 	seen := make(map[int64]struct{})
+	sourceBoundaries := make(map[string]struct{})
 	for page := 1; ; page++ {
 		batch, total, err := healthListWorkflowRuns(opts, page, collection)
 		if err != nil {
@@ -220,6 +221,10 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 			if run.WorkflowName == "" {
 				run.WorkflowName = target.Name
 			}
+			scope := failureClusterKey(run.Repository, run.WorkflowPath, run.HeadBranch, run.Event)
+			if _, stopped := sourceBoundaries[scope]; stopped {
+				continue
+			}
 			if !run.StartedAt.IsZero() && !run.UpdatedAt.IsZero() {
 				run.Duration = run.UpdatedAt.Sub(run.StartedAt)
 			}
@@ -227,6 +232,10 @@ func sampleHealthWorkflow(target GitHubWorkflow, startDate, repoOverride string,
 				resolveHealthRevision(run, collection)
 			}
 			sample = append(sample, run)
+			if healthSourceChanged(run, collection) {
+				healthLog.Printf("Stopping health history for %s: workflow source changed on %s after run %d", run.WorkflowPath, run.HeadBranch, run.DatabaseID)
+				sourceBoundaries[scope] = struct{}{}
+			}
 		}
 		if collection.stopped {
 			return sample, errHealthAPIBudget

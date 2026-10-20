@@ -24,6 +24,13 @@ For "healthy now" or fix-verification questions, use `gh aw health --json`.
 It samples backward per AW toward five completed first-attempt runs, bounded by
 `--days` and API quota. Read `collection` and `workflows[].revisions`: compare
 `gh-aw-metadata` frontmatter/body hashes, not repository commits alone.
+Health also compares the workflow Markdown source's blob SHA at each supported run
+with the pushed branch source, even when the lock file has not been recompiled.
+It stops collecting older revisions of that branch/event when the source differs
+and excludes those superseded failures from investigation. `source_sha` identifies
+the pushed source and the previous source in revision cohorts. Wait for evidence
+from the updated source instead of auditing failures it supersedes; a source edit
+alone does not prove a fix. Unrelated repository changes do not stop sampling.
 `recovery_observed` is evidence, not causation. A pushed revision without runs,
 missing hashes, or a sparse/quota-truncated sample is not healthy. Health clusters
 cover current-revision failures; use `logs` below for historical failures.
