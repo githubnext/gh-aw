@@ -43,6 +43,11 @@ func buildMaintenanceWorkflowYAML(
 	opts buildMaintenanceWorkflowYAMLOptions,
 ) (string, error) {
 	maintenanceWorkflowYAMLLog.Printf("Building maintenance workflow YAML: actionMode=%s minExpiresDays=%d cronSchedule=%q defaultBranch=%q disableLabelTrigger=%v createCompilePR=%v copilotOrgBilling=%v", opts.actionMode, opts.minExpiresDays, opts.cronSchedule, opts.defaultBranch, opts.disableLabelTrigger, opts.createCompilePR, opts.copilotOrgBilling)
+	var pinValidator *maintenanceActionPinValidator
+	if opts.resolver != nil {
+		pinValidator = &maintenanceActionPinValidator{resolver: opts.resolver}
+		opts.resolver = pinValidator
+	}
 	labelDisableJobEnabled := !opts.disableLabelTrigger && !opts.maintenanceConfig.IsJobDisabled("label_disable_agentic_workflow")
 	labelApplySafeOutputsJobEnabled := !opts.disableLabelTrigger && !opts.maintenanceConfig.IsJobDisabled("label_apply_safe_outputs")
 	appliedRunURLValue, appliedRunURLDescription := buildMaintenanceAppliedRunURLOutput(opts)
@@ -79,6 +84,9 @@ func buildMaintenanceWorkflowYAML(
 	yaml.WriteString(ledgerJobs)
 	if opts.hasWorkQueue {
 		yaml.WriteString(buildMaintenanceWorkQueueCompactionJobs(opts, setupActionRef))
+	}
+	if pinValidator != nil && pinValidator.err != nil {
+		return "", pinValidator.err
 	}
 	finalYAML, err := finalizeRunnerTempSafety(yaml.String())
 	if err != nil {

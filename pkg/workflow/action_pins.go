@@ -16,6 +16,7 @@ import (
 
 var actionPinsLog = logger.New("workflow:action_pins")
 var pinnedUsesLine = regexp.MustCompile(`(?m)^( {8}uses: | {6}- uses: )(['"]?)([A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@[a-fA-F0-9]{40})(['"]?)([ \t]*#[ \t]*[^\r\n]*)?$`)
+var plainActionPinReference = regexp.MustCompile(`^[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@[a-fA-F0-9]{40}$`)
 
 // Keep exact mappings distinct from ordinary uses of the same target until prefix rewriting finishes.
 const exactPinMappingMarker = "__gh_aw_exact_pin__"
@@ -221,15 +222,14 @@ func mapPinnedUsesLine(line string, ctx *actionpins.PinContext) (string, error) 
 		} else {
 			reference = actionpins.ApplyResolvedActionPinPrefix(repo, captures[3], ctx)
 		}
-		if captures[2] != "" {
-			if err := validateYAMLActionPin(comment); err != nil {
-				return line, fmt.Errorf("invalid action pin comment for %s@%s: %w", repo, version, err)
-			}
-			quotedReference, err := quoteYAMLActionPin(reference)
-			if err != nil {
-				return line, fmt.Errorf("unable to quote action pin for %s@%s: %w", repo, version, err)
-			}
-			return indentation + quotedReference + comment, nil
+		if err := validateYAMLActionPin(reference); err != nil {
+			return line, fmt.Errorf("invalid action pin reference for %s@%s: %w", repo, version, err)
+		}
+		if err := validateYAMLActionPin(comment); err != nil {
+			return line, fmt.Errorf("invalid action pin comment for %s@%s: %w", repo, version, err)
+		}
+		if captures[2] != "" || !plainActionPinReference.MatchString(reference) {
+			return indentation + "'" + escapeYAMLSingleQuoted(reference) + "'" + comment, nil
 		}
 		return indentation + reference + comment, nil
 	}

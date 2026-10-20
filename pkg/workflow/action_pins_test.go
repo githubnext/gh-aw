@@ -2078,17 +2078,46 @@ func TestMapPinnedUsesQuotedScalars(t *testing.T) {
 	}
 }
 
-func TestMapPinnedUsesRejectsUnsafeQuotedPins(t *testing.T) {
+func TestMapPinnedUsesRejectsUnsafePins(t *testing.T) {
 	const sha = "0123456789012345678901234567890123456789"
-	input := "        uses: 'actions/upload-artifact@" + sha + "' # v7\n"
-	for _, prefix := range []string{"mirror/\nrun: injected\n", "${{ github.token }}/"} {
-		_, err := mapPinnedUsesInYAML(input, nil, map[string]string{"actions/": prefix}, nil, nil)
-		require.ErrorContains(t, err, "invalid action pin")
+	for _, quote := range []string{"", "'", `"`} {
+		for _, indentation := range []string{"        uses: ", "      - uses: "} {
+			t.Run(quote+indentation, func(t *testing.T) {
+				input := indentation + quote + "actions/upload-artifact@" + sha + quote + " # v7\n"
+				for _, prefix := range []string{"mirror/\nrun: injected\n", "${{ github.token }}/"} {
+					mapped, err := mapPinnedUsesInYAML(input, nil, map[string]string{"actions/": prefix}, nil, nil)
+					require.ErrorContains(t, err, "invalid action pin")
+					require.Equal(t, input, mapped)
+				}
+				for _, resolvedPin := range []string{
+					"sha\nrun: injected",
+					"${{ github.token }}",
+					"sha # v1\nrun: injected",
+					"sha # ${{ github.token }}",
+				} {
+					mapped, err := mapPinnedUsesInYAML(input,
+						map[string]string{"actions/upload-artifact@v7": "internal/artifacts@v1"}, nil,
+						nil, unsafeActionPinResolver(resolvedPin))
+					require.ErrorContains(t, err, "invalid action pin")
+					require.Equal(t, input, mapped)
+				}
+			})
+		}
 	}
-	_, err := mapPinnedUsesInYAML(input,
-		map[string]string{"actions/upload-artifact@v7": "internal/artifacts@v1"}, nil,
-		nil, unsafeActionPinResolver("sha # v1\nrun: injected"))
-	require.ErrorContains(t, err, "invalid action pin")
+}
+
+func TestMapPinnedUsesQuotesMappedYAMLSyntax(t *testing.T) {
+	const sha = "0123456789012345678901234567890123456789"
+	for _, quote := range []string{"", "'", `"`} {
+		for _, prefix := range []string{"mirror: injected/", "mirror # injected/", "mirror'quoted/"} {
+			t.Run(quote+prefix, func(t *testing.T) {
+				input := "        uses: " + quote + "actions/upload-artifact@" + sha + quote + " # v7\n"
+				mapped, err := mapPinnedUsesInYAML(input, nil, map[string]string{"actions/": prefix}, nil, nil)
+				require.NoError(t, err)
+				require.Equal(t, "        uses: '"+strings.ReplaceAll(prefix, "'", "''")+"upload-artifact@"+sha+"' # v7\n", mapped)
+			})
+		}
+	}
 }
 
 func TestMapPinnedUsesMatchesExactMappingSourceVersion(t *testing.T) {

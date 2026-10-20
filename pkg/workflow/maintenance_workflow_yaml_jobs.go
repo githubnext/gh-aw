@@ -71,6 +71,23 @@ func writeMaintenanceAdminPermissionsStep(b *strings.Builder, opts buildMaintena
 `)
 }
 
+// maintenanceActionPinValidator records invalid pins while jobs are built so that
+// resolver fallback behavior cannot hide validation errors at the YAML boundary.
+type maintenanceActionPinValidator struct {
+	resolver SHAResolver
+	err      error
+}
+
+func (v *maintenanceActionPinValidator) ResolveSHA(ctx context.Context, repo, version string) (string, error) {
+	sha, err := v.resolver.ResolveSHA(ctx, repo, version)
+	if err == nil && v.err == nil {
+		if validationErr := validateYAMLActionPin(sha); validationErr != nil {
+			v.err = fmt.Errorf("maintenance action %s: %w", repo, validationErr)
+		}
+	}
+	return sha, err
+}
+
 func validateYAMLActionPin(actionPin string) error {
 	if strings.IndexFunc(actionPin, func(r rune) bool {
 		return (unicode.IsControl(r) && r != '\t') || r == '\u2028' || r == '\u2029'
