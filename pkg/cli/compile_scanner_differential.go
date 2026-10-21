@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -16,9 +15,6 @@ import (
 	"github.com/github/gh-aw/pkg/scanfindings"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/github/gh-aw/pkg/workflow"
-	"github.com/goccy/go-yaml"
-	"github.com/goccy/go-yaml/ast"
-	"github.com/goccy/go-yaml/parser"
 )
 
 type scannerDiagnostic struct {
@@ -40,9 +36,10 @@ func withScannerFindings(err error, findings []scanfindings.Finding) error {
 		return err
 	}
 	diagnostics := make([]scannerDiagnostic, 0, len(findings))
+	sources := make(scannerSources)
 	for _, finding := range findings {
 		diagnostics = append(diagnostics, scannerDiagnostic{
-			Finding: finding, Identity: scannerFindingIdentity(finding),
+			Finding: finding, Identity: sources.findingIdentity(finding),
 		})
 	}
 	return &scannerFindingsError{err: err, diagnostics: diagnostics}
@@ -201,12 +198,11 @@ func collectDryRunBaselineInputs(files []string, config *CompileConfig, compiler
 	return lockFiles, resources, nil
 }
 
-var scannerStepIndexPattern = regexp.MustCompile(`\.steps\[(\d+)\]`)
 var scannerShellcheckRulePattern = regexp.MustCompile(`^SC\d+$`)
 
 func normalizeScannerFile(file string) string {
 	file = filepath.Clean(file)
-	if strings.HasSuffix(strings.ToLower(file), ".yml") || strings.HasSuffix(strings.ToLower(file), ".yaml") {
+	if isScannerWorkflowFile(file) {
 		if !filepath.IsAbs(file) {
 			if gitRoot, err := gitutil.FindGitRoot(); err == nil {
 				file = filepath.Join(gitRoot, file)
@@ -215,75 +211,50 @@ func normalizeScannerFile(file string) string {
 		if abs, err := filepath.Abs(file); err == nil {
 			file = abs
 		}
+		if resolved, err := filepath.EvalSymlinks(file); err == nil {
+			file = resolved
+		}
 	}
 	return file
 }
 
 func scannerFindingIdentity(finding scanfindings.Finding) string {
+	return make(scannerSources).findingIdentity(finding)
+}
+
+func (sources scannerSources) findingIdentity(finding scanfindings.Finding) string {
 	file := normalizeScannerFile(finding.File)
 	anchor := strconv.Itoa(finding.Line) + ":" + strconv.Itoa(finding.Column)
-	content, err := os.ReadFile(file)
-	if err == nil && (strings.HasSuffix(file, ".yml") || strings.HasSuffix(file, ".yaml")) {
-		if parsed, err := parser.ParseBytes(content, 0); err == nil {
-			visitor := &scannerLocationVisitor{line: finding.Line}
-			for _, doc := range parsed.Docs {
-				ast.Walk(visitor, doc.Body)
-			}
-			lines := strings.Split(string(content), "\n")
-			lineIndex := finding.Line - 1
-			if visitor.path != "" && lineIndex >= 0 && lineIndex < len(lines) {
-				path := scannerStepPathIdentity(visitor.path, content)
-				anchor = path + "\x00" + strings.TrimSpace(lines[lineIndex])
-			}
+	if source := sources.load(file); source != nil {
+		if location := source.locate(finding.Line, finding.Column); location != nil {
+			anchor = source.identity(location, finding.Line)
+		} else {
+			anchor += "\x00" + source.digest
 		}
 	}
 	return strings.Join([]string{file, finding.RuleID, finding.Severity.String(), finding.Message, anchor}, "\x00")
 }
 
-func scannerStepPathIdentity(path string, content []byte) string {
-	return scannerStepIndexPattern.ReplaceAllStringFunc(path, func(match string) string {
-		prefix := path[:strings.Index(path, match)] + match
-		for _, field := range []string{"id", "name", "uses", "run"} {
-			p, err := yaml.PathString(prefix + "." + field)
-			if err != nil {
-				continue
-			}
-			var value string
-			if p.Read(strings.NewReader(string(content)), &value) == nil && value != "" {
-				return fmt.Sprintf(".steps[%s:%x]", field, sha256.Sum256([]byte(value)))
-			}
-		}
-		return match
-	})
+func actionlintShellcheckIdentity(issue actionlintError) (string, bool) {
+	return make(scannerSources).shellcheckIdentity(issue)
 }
 
-func actionlintShellcheckIdentity(issue actionlintError) (string, bool) {
+func (sources scannerSources) shellcheckIdentity(issue actionlintError) (string, bool) {
 	rule, severity, line, column, ok := parseActionlintShellcheckMessage(issue.Message)
 	if !ok {
 		return "", false
 	}
 	file := normalizeScannerFile(issue.Filepath)
-	content, err := os.ReadFile(file)
-	if err != nil {
+	source := sources.load(file)
+	if source == nil {
 		return "", false
 	}
-	parsed, err := parser.ParseBytes(content, 0)
-	if err != nil {
+	location := source.locate(issue.Line, issue.Column)
+	if location == nil || !location.run {
 		return "", false
 	}
-	visitor := &scannerLocationVisitor{line: issue.Line}
-	for _, doc := range parsed.Docs {
-		ast.Walk(visitor, doc.Body)
-	}
-	if visitor.path == "" {
-		return "", false
-	}
-	runPath, err := yaml.PathString(visitor.path)
-	if err != nil {
-		return "", false
-	}
-	var script string
-	if err := runPath.Read(strings.NewReader(string(content)), &script); err != nil {
+	script, ok := location.value.(string)
+	if !ok {
 		return "", false
 	}
 	scriptLine, err := strconv.Atoi(line)
@@ -303,9 +274,13 @@ func actionlintShellcheckIdentity(issue actionlintError) (string, bool) {
 	if !found {
 		return "", false
 	}
+	message := issue.Message
+	for range 4 {
+		_, message, _ = strings.Cut(message, ":")
+	}
 	identity := strings.Join([]string{
-		file, "shellcheck", rule, severity, column,
-		scannerStepPathIdentity(visitor.path, content), affectedLine,
+		file, "shellcheck", rule, severity, column, message,
+		source.pathIdentity(location.path), affectedLine,
 	}, "\x00")
 	return identity, true
 }
@@ -327,29 +302,11 @@ func parseActionlintShellcheckMessage(message string) (rule, severity, line, col
 	if !ok {
 		return "", "", "", "", false
 	}
-	if _, err := strconv.Atoi(line); err != nil {
+	if value, err := strconv.Atoi(line); err != nil || value < 1 {
 		return "", "", "", "", false
 	}
-	if _, err := strconv.Atoi(column); err != nil {
+	if value, err := strconv.Atoi(column); err != nil || value < 1 {
 		return "", "", "", "", false
 	}
 	return rule, severity, line, column, true
-}
-
-type scannerLocationVisitor struct {
-	line int
-	path string
-	row  int
-}
-
-func (v *scannerLocationVisitor) Visit(node ast.Node) ast.Visitor {
-	if node == nil || node.GetToken() == nil {
-		return v
-	}
-	row := node.GetToken().Position.Line
-	if row <= v.line && (row > v.row || row == v.row && len(node.GetPath()) > len(v.path)) {
-		v.row = row
-		v.path = node.GetPath()
-	}
-	return v
 }

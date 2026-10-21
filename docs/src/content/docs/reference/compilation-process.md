@@ -309,7 +309,12 @@ Enabled scanners first scan the existing lock files before compilation, then sca
 the emitted diagnostic locks with the same scanner configuration and result filters.
 Only added medium-or-higher findings, or added findings with unknown severity,
 fail the scanner gate. Matching uses finding identity and occurrence counts, not
-aggregate totals, and tolerates shifted YAML lines and steps with stable IDs/names.
+aggregate totals. Actions and AW ASTs anchor findings to field values and logical
+steps, tolerating line shifts, YAML quoting and comments, and reordered steps
+with stable IDs or unique names. Steps without an ID or unique name use a
+content fingerprint, so repeated names or action references do not conflate
+different steps. Ambiguous locations and unparseable workflows retain
+coordinates and a file fingerprint rather than guessing a matching field.
 Low-severity and informational findings remain visible but do not fail the gate.
 Zizmor's `secrets-outside-env` rule is excluded in dry-run mode because repository
 and organization secrets are common in agentic workflows; ordinary compilation
