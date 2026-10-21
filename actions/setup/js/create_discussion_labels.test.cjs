@@ -154,7 +154,26 @@ describe("create_discussion with labels", () => {
     vi.clearAllMocks();
   });
 
-  it.each(["aw_discuss", "#aw_Discuss"])("registers discussion ID %s for dependent safe outputs", async temporaryId => {
+  it.each([
+    { temporaryId: "aw_discuss", failureAt: null },
+    { temporaryId: "#aw_Discuss", failureAt: null },
+    { temporaryId: "aw_discuss", failureAt: "discussionCategories" },
+    { temporaryId: "#aw_Discuss", failureAt: "discussionCategories" },
+    { temporaryId: "aw_discuss", failureAt: "createDiscussion" },
+    { temporaryId: "#aw_Discuss", failureAt: "createDiscussion" },
+  ])("registers discussion ID $temporaryId for dependent safe outputs (permissions failure at $failureAt)", async ({ temporaryId, failureAt }) => {
+    if (failureAt) {
+      const originalGraphql = mockGithub.graphql.getMockImplementation();
+      mockGithub.graphql.mockImplementation(async (query, variables) => {
+        if (query.includes(failureAt)) {
+          throw new Error("Resource not accessible by personal access token");
+        }
+        return originalGraphql(query, variables);
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 42, html_url: "https://github.com/test-owner/test-repo/issues/42" },
+      });
+    }
     const handler = await createDiscussionMain({
       allowed_repos: ["test-owner/test-repo"],
       target_repo: "test-owner/test-repo",
@@ -162,9 +181,11 @@ describe("create_discussion with labels", () => {
     });
     const consumer = vi.fn(async (message, resolvedIds) => {
       const map = new Map(Object.entries(resolvedIds));
-      expect(resolveIssueNumber(message.item_number, map).resolved).toBe(42);
-      expect(replaceTemporaryIdReferences(message.body, map, "test-owner/test-repo")).toBe("See #42");
-      return { success: true };
+      const target = resolveIssueNumber(message.item_number, map);
+      if (!target.resolved) {
+        return { success: false, deferred: true };
+      }
+      return { success: true, target: target.resolved, body: replaceTemporaryIdReferences(message.body, map, "test-owner/test-repo") };
     });
     const result = await processMessages(
       new Map([
@@ -178,7 +199,27 @@ describe("create_discussion with labels", () => {
     );
     expect(result.success).toBe(true);
     expect(result.temporaryIdMap.aw_discuss).toEqual({ repo: "test-owner/test-repo", number: 42 });
-    expect(consumer).toHaveBeenCalledOnce();
+    expect(consumer).toHaveBeenCalledTimes(2);
+    expect(consumer.mock.calls[0][1]).toEqual({});
+    expect(await consumer.mock.results[0].value).toEqual({ success: false, deferred: true });
+    expect(consumer.mock.calls[1][1]).toEqual({ aw_discuss: { repo: "test-owner/test-repo", number: 42 } });
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0]).toMatchObject({
+      type: "add_comment",
+      success: true,
+      deferred: false,
+      result: { success: true, target: { repo: "test-owner/test-repo", number: 42 }, body: "See #42" },
+    });
+    expect(result.results[1]).toMatchObject({
+      type: "create_discussion",
+      success: true,
+      result: { success: true, temporaryId: "aw_discuss", ...(failureAt ? { fallback: "issue" } : {}) },
+    });
+    if (failureAt) {
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledOnce();
+    } else {
+      expect(mockGithub.rest.issues.create).not.toHaveBeenCalled();
+    }
   });
 
   it("preserves the discussion ID when GitHub reports a partial creation success", async () => {

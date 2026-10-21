@@ -269,6 +269,7 @@ async function handleFallbackToIssue(createIssueHandler, item, qualifiedItemRepo
         repo: issueResult.repo,
         number: issueResult.number,
         url: issueResult.url,
+        temporaryId: issueResult.temporaryId,
         body: issueResult.body,
         fallback: "issue", // Indicate this was a fallback
       };

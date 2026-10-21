@@ -83,7 +83,7 @@ the reflection budget, report the blocker rather than claiming the files were cr
 If any stubs were created, run these commands (one per line):
 
 ```bash
-make fmt && GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs report_incomplete --reason "Could not format, build, commit, or submit the generated test stubs — no pull request confirmed."
+GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod make fmt-go && GOCACHE=/tmp/go-cache GOMODCACHE=/tmp/go-mod go build ./... && git checkout -b add-test-stubs-$GITHUB_RUN_ID && git add -A && git commit -m "Add test stubs for uncovered packages" && safeoutputs create_pull_request --title "Add test stubs for uncovered packages" --body "Automatically generated test stubs for packages with zero test coverage. Stubs use t.Skip and are ready to be filled in." --branch "add-test-stubs-$GITHUB_RUN_ID" || safeoutputs report_incomplete --reason "Could not format, build, commit, or submit the generated test stubs — no pull request confirmed."
 ```
 
 If no packages needed stubs (all packages already had tests), run instead:
