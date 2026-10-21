@@ -168,6 +168,8 @@ Each comment must contain one visible sentence stating the issue and its impact,
 
 Keep publication commands stdout-only: construct JSON inline with `printf '%s'` and pipe it directly to `safeoutputs`. Do not write temporary payload files, use shell redirection or heredocs, or invoke `jq`, `python`, or `node`; they are not authorized by this workflow. JSON-escape content and shell-quote it correctly without shell expansion. Send each safe-output command separately from analysis commands. Invoke the documented pipeline directly; do not prepend availability probes or other commands.
 
+For every publication payload, JSON-escape double quotes, backslashes, and control characters, then encode every literal apostrophe in JSON string values as `\u0027` before enclosing the JSON in shell single quotes. For example, the body `The caller's input` must appear as `"body":"The caller\u0027s input"` inside the single-quoted payload. Never put a literal apostrophe inside that shell-quoted JSON or switch to shell double quotes: review text containing backticks, `$()`, or redirection characters must remain inert data. If a publication command is denied, check its JSON and shell quoting before the single corrected attempt described below; do not widen permissions.
+
 **Prioritization** (use your 10-comment budget aggressively):
 1. Correctness, concurrency, and security-adjacent bugs (highest priority, up to 6 comments)
 2. Significant maintainability/testability concerns (medium priority, up to 3 comments)
