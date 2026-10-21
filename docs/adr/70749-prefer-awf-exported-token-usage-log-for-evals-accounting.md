@@ -1,49 +1,41 @@
 # ADR-70749: Prefer AWF-Exported Token Usage Log for Evals Accounting
 
 **Date**: 2026-10-21
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, Copilot (PR #70749)
 
 ---
 
-### Context
+## Context
 
-The daily AI-credits budget relies on per-component accounting files, including `evals/token_usage.jsonl` produced by the compiled "Collect evals token usage" step. That step searched only fixed firewall directories (`<auditDir>/api-proxy-logs/token-usage.jsonl` and `<proxyLogsDir>/api-proxy-logs/token-usage.jsonl`). AWF (pinned v0.28.70) writes token usage to a per-run temporary path (for example `/tmp/api-proxy-logs-<random>/token-usage.jsonl`) and exports that path to downstream steps through `GITHUB_ENV` as `AWF_TOKEN_USAGE_LOG`. Because the collector never consulted this path, successful evals jobs uploaded no accounting. The scanner then counted each affected run at the conservative 1,000-AIC maximum. Eight of 13 historical runs in Smoke Copilot run 39522345151 were affected.
+The daily AI-credits budget relies on per-component accounting files, including `evals/token_usage.jsonl` produced by the compiled "Collect evals token usage" step. That step searched only fixed firewall directories (`<auditDir>/api-proxy-logs/token-usage.jsonl` and `<proxyLogsDir>/api-proxy-logs/token-usage.jsonl`). AWF (pinned v0.28.70) writes token usage to a per-run temporary path and exports that runner-visible path to downstream steps through `GITHUB_ENV` as `AWF_TOKEN_USAGE_LOG`. For example, [run 39510857197](https://github.com/github/gh-aw/actions/runs/39510857197) exported `/tmp/api-proxy-logs-asbSi6/token-usage.jsonl`, but the collector ignored the variable.
 
-### Decision
+Of 13 historical runs examined in [Smoke Copilot run 39522345151](https://github.com/github/gh-aw/actions/runs/39522345151), five had measured usage totaling 112.612865 AIC. Eight had missing evals token logs despite successful evals and received conservative 1,000-AIC estimates each. Successful execution alone does not establish complete accounting.
 
-We will make the AWF-exported `AWF_TOKEN_USAGE_LOG` environment variable the primary source for evals token-usage collection. If that variable names an existing file, the collector copies it even when it is empty. Only when the exported file is unavailable does the collector fall back to the legacy fixed directories, and that fallback still copies only non-empty files. A missing log never produces a zero-usage placeholder. This is the main reason for the change: AWF already publishes the exact runner-visible path, so consuming it removes guesswork about directory layout across default and ARC/DinD topologies.
+## Decision
 
-### Alternatives Considered
+Use the AWF-exported `AWF_TOKEN_USAGE_LOG` environment variable as the primary source for evals token-usage collection. If that variable names an existing file, the collector copies it even when it is empty. Only when the exported file is unavailable does the collector fall back to the legacy fixed directories, and that fallback still copies only non-empty files. A missing log never produces a zero-usage placeholder. AWF already publishes the exact runner-visible path, so consuming it removes guesswork about directory layout across default and ARC/DinD topologies.
 
-#### Alternative 1: Extend the fixed-directory search (glob `/tmp/api-proxy-logs-*`)
+An empty exported file takes precedence over a non-empty legacy log, preventing stale fallback data from being substituted. Preserving an empty file is not proof of zero usage: downstream component coverage and zero-accounting evidence rules still apply.
 
-Add more candidate directories or a glob for AWF's randomized temporary directory. This would work without depending on the environment variable. We rejected it because it couples the compiler to AWF's internal naming scheme, could match stale or unrelated logs on shared/self-hosted runners, and duplicates information AWF already exports explicitly.
+## Alternatives Considered
 
-#### Alternative 2: Configure AWF to write to a fixed, compiler-chosen path
+### Extend the fixed-directory search or glob `/tmp/api-proxy-logs-*`
 
-Pass a deterministic log location to AWF so the old collector paths stay valid. This keeps the collector simple. However, it requires changing how AWF is invoked across topologies and depends on AWF honoring that override. The exported-variable contract already exists in the pinned version, so this alternative adds more change for the same result.
+Additional candidate paths would retain dependence on AWF's internal directory layout. A glob could also select stale or unrelated logs on shared/self-hosted runners. Neither is preferable to the exact exported path.
 
-#### Alternative 3: Rely solely on `AWF_TOKEN_USAGE_LOG` with no fallback
+### Require a fixed, compiler-chosen AWF log path
 
-Dropping the legacy directory search would simplify the script. We rejected it because older AWF versions or topologies that do not export the variable would regress to no accounting at all.
+A deterministic producer path would preserve the old collector model, but would require a supported override and changes to AWF invocation across topologies. This change does not establish such override support; it uses the existing exported-variable contract instead.
 
-### Consequences
+### Rely solely on `AWF_TOKEN_USAGE_LOG` with no fallback
 
-#### Positive
-- Evals jobs record actual token usage instead of falling back to the conservative 1,000-AIC estimate, so daily-limit accounting becomes more accurate.
-- Empty exported logs are kept, which keeps "the producer ran and logged nothing" separate from "no accounting was collected".
-- The transport contract is documented in the AI-credits specification (`docs/src/content/docs/specs/ai-credits-specification.md`).
+Removing the legacy search would simplify the collector, but would lose existing accounting when the export is unavailable and a non-empty legacy log is present. Retaining that fallback limits the compatibility impact.
 
-#### Negative
-- The compiler now depends on an AWF-defined environment variable contract. If AWF renames or removes `AWF_TOKEN_USAGE_LOG`, the collector silently falls back to the legacy paths.
-- An empty exported file now overrides a non-empty legacy-directory log. This is intended, but it could hide usage if AWF ever exports a path it did not write to.
-- The change regenerates 168 workflow lock files, which makes the diff large and harder to review.
+## Consequences
 
-#### Neutral
-- The fix only affects future runs. Missing historical files cannot be recovered, and unresolved estimates still expire through the existing rolling 24-hour window.
-- Component coverage rules, conservative estimates, and daily limits do not change. Only the producer's choice of source file changes.
+Future evals jobs can upload the producer's actual usage log, reducing estimates caused by this collection defect without weakening conservative accounting. The transport and empty-file semantics are documented in the [AI-credits specification](../src/content/docs/specs/ai-credits-specification.md).
 
----
+The compiler depends on AWF's exported-variable contract. If it changes, legacy lookup remains available, but missing or unusable accounting still stays unresolved. An empty exported log intentionally suppresses legacy data even if the export is incomplete; it cannot independently authorize zero usage. Generated workflow lock files must be refreshed, increasing review noise.
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+The fix is prospective only: historical missing usage remains conservative and prior results are not rewritten. Daily limits, component coverage, estimate retry behavior, and rolling 24-hour expiry remain unchanged.
