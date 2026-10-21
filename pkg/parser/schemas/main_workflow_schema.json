@@ -4650,6 +4650,17 @@
                   "description": "Keepalive ping interval in seconds for HTTP MCP backends. Sends periodic pings to prevent session expiry during long-running agent tasks. Set to -1 to disable keepalive pings. Unset or 0 uses the gateway default (1500 seconds = 25 minutes).",
                   "minimum": -1,
                   "examples": [-1, 300, 600, 1500]
+                },
+                "trusted-bots": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]+(\\[bot\\])?$"
+                  },
+                  "description": "Additional GitHub bot identities merged with the MCP gateway's built-in trusted identities. Use only ASCII letters, digits, hyphens, or underscores, optionally followed by [bot]. Cannot remove or override built-in identities. Compiled to gateway.trustedBots in the gateway JSON configuration.",
+                  "examples": [["github-actions[bot]", "copilot-swe-agent[bot]"]]
                 }
               },
               "additionalProperties": false
