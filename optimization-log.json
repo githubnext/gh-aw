@@ -1,14 +1,5 @@
 [
   {
-    "date": "2026-07-01",
-    "workflow_name": "CLI Consistency Checker",
-    "workflow_file": "cli-consistency-checker",
-    "total_aic_analyzed": 527.182,
-    "runs_audited": 10,
-    "recommendations_count": 5,
-    "estimated_aic_savings_per_run": 80
-  },
-  {
     "date": "2026-07-02",
     "workflow_name": "Impeccable Skills Reviewer",
     "workflow_file": "impeccable-skills-reviewer",
@@ -294,5 +285,15 @@
     "recommendations_count": 4,
     "subagent_candidates": 0,
     "estimated_aic_savings_per_run": 60
+  },
+  {
+    "date": "2026-10-21",
+    "workflow_name": "Design Decision Gate 🏗️",
+    "workflow_file": "design-decision-gate",
+    "total_aic_analyzed": 121.7,
+    "runs_audited": 5,
+    "recommendations_count": 4,
+    "subagent_candidates": 0,
+    "estimated_aic_savings_per_run": 20
   }
 ]
