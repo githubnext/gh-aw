@@ -47,54 +47,100 @@ type MCPLogsGuardrailResponse struct {
 
 func extractLogsCollectionState(outputStr string) MCPLogsGuardrailResponse {
 	var parsed struct {
-		Continuation     *ContinuationData      `json:"continuation"`
-		Continuations    []WorkflowContinuation `json:"continuations"`
-		EpisodeRetrieval *struct {
-			StopReasons []string `json:"stop_reasons"`
-			Issues      []struct {
-				Reason string `json:"reason"`
-			} `json:"issues"`
-		} `json:"episode_retrieval"`
-		Episodes []struct {
-			Coverage EpisodeCoverage `json:"coverage"`
-		} `json:"episodes"`
+		Continuation     json.RawMessage `json:"continuation"`
+		Continuations    json.RawMessage `json:"continuations"`
+		EpisodeRetrieval json.RawMessage `json:"episode_retrieval"`
+		Episodes         json.RawMessage `json:"episodes"`
 	}
 	if err := json.Unmarshal([]byte(outputStr), &parsed); err != nil {
 		mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse output JSON: %v", err)
-		return MCPLogsGuardrailResponse{}
+		return MCPLogsGuardrailResponse{Partial: true, CoverageStatus: "unknown"}
 	}
-	response := MCPLogsGuardrailResponse{
-		Continuation:  parsed.Continuation,
-		Continuations: parsed.Continuations,
-		Partial:       parsed.Continuation != nil || len(parsed.Continuations) > 0,
-	}
-	if parsed.EpisodeRetrieval != nil || len(parsed.Episodes) > 0 {
-		// Selected-run coverage cannot establish complete episode membership.
-		response.CoverageStatus = "unknown"
-	}
-	for _, episode := range parsed.Episodes {
-		if episode.Coverage.Status == "partial" || episode.Coverage.CollectionTruncated {
-			response.CoverageStatus = "partial"
-		}
-		response.CoverageReasons = append(response.CoverageReasons, episode.Coverage.Reasons...)
-	}
-	if retrieval := parsed.EpisodeRetrieval; retrieval != nil {
-		for _, reason := range retrieval.StopReasons {
-			response.CoverageReasons = append(response.CoverageReasons, "retrieval_"+reason)
-		}
-		for _, issue := range retrieval.Issues {
-			response.CoverageReasons = append(response.CoverageReasons, "retrieval_"+issue.Reason)
-		}
-		if len(retrieval.StopReasons) > 0 || len(retrieval.Issues) > 0 {
-			response.CoverageStatus = "partial"
-		}
-	}
+	response := MCPLogsGuardrailResponse{}
+	extractLogsCursors(parsed.Continuation, parsed.Continuations, &response)
+	extractLogsEpisodeRetrieval(parsed.EpisodeRetrieval, &response)
+	extractLogsEpisodeCoverage(parsed.Episodes, &response)
 	if response.CoverageStatus == "partial" {
 		response.Partial = true
 	}
 	slices.Sort(response.CoverageReasons)
 	response.CoverageReasons = slices.Compact(response.CoverageReasons)
 	return response
+}
+
+func extractLogsCursors(continuationRaw, continuationsRaw json.RawMessage, response *MCPLogsGuardrailResponse) {
+	if len(continuationRaw) > 0 && string(continuationRaw) != "null" {
+		var continuation ContinuationData
+		if err := json.Unmarshal(continuationRaw, &continuation); err != nil {
+			mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse continuation: %v", err)
+			response.Partial = true
+			response.CoverageStatus = "unknown"
+		} else {
+			response.Continuation = &continuation
+		}
+	}
+	if len(continuationsRaw) > 0 && string(continuationsRaw) != "null" {
+		if err := json.Unmarshal(continuationsRaw, &response.Continuations); err != nil {
+			mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse continuations: %v", err)
+			response.Partial = true
+			response.CoverageStatus = "unknown"
+		}
+	}
+	response.Partial = response.Partial || response.Continuation != nil || len(response.Continuations) > 0
+}
+
+func extractLogsEpisodeRetrieval(retrievalRaw json.RawMessage, response *MCPLogsGuardrailResponse) {
+	if len(retrievalRaw) > 0 && string(retrievalRaw) != "null" {
+		// Selected-run coverage cannot establish complete episode membership.
+		response.CoverageStatus = "unknown"
+		var retrieval EpisodeRetrieval
+		if err := json.Unmarshal(retrievalRaw, &retrieval); err != nil {
+			mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse episode retrieval: %v", err)
+			response.Partial = true
+		} else {
+			for _, reason := range retrieval.StopReasons {
+				response.CoverageReasons = append(response.CoverageReasons, retrievalCoverageReason(reason))
+			}
+			for _, issue := range retrieval.Issues {
+				response.CoverageReasons = append(response.CoverageReasons, retrievalCoverageReason(issue.Reason))
+			}
+			if len(retrieval.StopReasons) > 0 || len(retrieval.Issues) > 0 {
+				response.CoverageStatus = "partial"
+			}
+		}
+	}
+}
+
+func extractLogsEpisodeCoverage(episodesRaw json.RawMessage, response *MCPLogsGuardrailResponse) {
+	if len(episodesRaw) > 0 && string(episodesRaw) != "null" {
+		var episodes []json.RawMessage
+		if err := json.Unmarshal(episodesRaw, &episodes); err != nil {
+			mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse episodes: %v", err)
+			response.Partial = true
+			if response.CoverageStatus == "" {
+				response.CoverageStatus = "unknown"
+			}
+		} else if len(episodes) > 0 {
+			// Selected-run coverage cannot establish complete episode membership.
+			if response.CoverageStatus == "" {
+				response.CoverageStatus = "unknown"
+			}
+			for _, rawEpisode := range episodes {
+				var episode struct {
+					Coverage EpisodeCoverage `json:"coverage"`
+				}
+				if err := json.Unmarshal(rawEpisode, &episode); err != nil {
+					mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse episode coverage: %v", err)
+					response.Partial = true
+					continue
+				}
+				if episode.Coverage.Status == "partial" || episode.Coverage.CollectionTruncated {
+					response.CoverageStatus = "partial"
+				}
+				response.CoverageReasons = append(response.CoverageReasons, episode.Coverage.Reasons...)
+			}
+		}
+	}
 }
 
 // extractLogsStaleWarning returns the top-level "stale_warning" field embedded
@@ -205,6 +251,8 @@ func buildLogsFileResponse(outputStr string) string { //nolint:largefunc // Keep
 		if response.Continuation != nil {
 			msgs = append(msgs, response.Continuation.Message)
 		}
+	} else if response.CoverageStatus == "unknown" {
+		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: collection state could not be fully interpreted. Collected logs data has been written to '%s'. Read file_path for the collected report.", filePath))
 	} else if response.Partial {
 		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: episode collection or evidence has known gaps. Collected logs data has been written to '%s'. Read file_path for episode coverage and episode_retrieval bounds, counters, stop reasons and issues; no resumable cursor is available.", filePath))
 	} else {

@@ -229,8 +229,8 @@ func TestBuildLogsFileResponse_CollectionCoverage(t *testing.T) {
 			]}`,
 			partial: true,
 			continuations: []WorkflowContinuation{
-				{Repository: "github/gh-aw", ContinuationData: ContinuationData{WorkflowName: "audit", Message: "Count limit reached.", Count: 100, EndDate: "2026-10-18T16:49:00Z", BeforeRunID: 42}},
-				{Repository: "example/other", ContinuationData: ContinuationData{WorkflowName: "monitor", Message: "Timeout reached.", StartDate: "2026-10-12", BeforeRunID: 17}},
+				{"github/gh-aw", ContinuationData{WorkflowName: "audit", Message: "Count limit reached.", Count: 100, EndDate: "2026-10-18T16:49:00Z", BeforeRunID: 42}},
+				{"example/other", ContinuationData{WorkflowName: "monitor", Message: "Timeout reached.", StartDate: "2026-10-12", BeforeRunID: 17}},
 			},
 			message: "every per-target entry in continuations",
 		},
@@ -321,6 +321,25 @@ func TestExtractLogsCollectionState_PreservesBothCursorShapes(t *testing.T) {
 	assert.Equal(t, int64(17), response.Continuations[0].BeforeRunID)
 	assert.True(t, response.Partial)
 	assert.Empty(t, response.CoverageStatus)
+}
+
+func TestExtractLogsCollectionState_MalformedOutputIsUnknown(t *testing.T) {
+	response := extractLogsCollectionState(`{"continuations":[`)
+	assert.True(t, response.Partial)
+	assert.Equal(t, "unknown", response.CoverageStatus)
+}
+
+func TestExtractLogsCollectionState_MalformedEpisodeCoveragePreservesCursors(t *testing.T) {
+	output := `{"continuation":{"message":"Timeout reached.","before_run_id":42},"continuations":[{"repository":"github/gh-aw","before_run_id":17}],"episodes":[{"coverage":"invalid"}]}`
+
+	response := extractLogsCollectionState(output)
+
+	require.NotNil(t, response.Continuation)
+	assert.Equal(t, int64(42), response.Continuation.BeforeRunID)
+	require.Len(t, response.Continuations, 1)
+	assert.Equal(t, int64(17), response.Continuations[0].BeforeRunID)
+	assert.True(t, response.Partial)
+	assert.Equal(t, "unknown", response.CoverageStatus)
 }
 
 func TestBuildLogsFileResponse_SurfacesStaleDataWarning(t *testing.T) {
