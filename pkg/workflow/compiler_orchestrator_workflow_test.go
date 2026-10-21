@@ -409,6 +409,49 @@ func TestMergeImportedObservability_MergesResourceAttributesWithMainPrecedence(t
 	}, otlp["resource-attributes"])
 }
 
+func TestMergeImportedObservabilityResolvesRootMetadataReferences(t *testing.T) {
+	importedObsJSON, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{"version": "import-version"},
+		"otlp": map[string]any{
+			"attributes": map[string]any{
+				"catalogue.version": "${{ github.aw.metadata.version }}",
+			},
+			"resource-attributes": map[string]any{
+				"catalogue.category": "${{ github.aw.metadata.category }}",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	workflowData := &WorkflowData{
+		RawFrontmatter: map[string]any{
+			"metadata": map[string]any{
+				"version":  "root-version",
+				"category": "automation",
+			},
+		},
+	}
+
+	ctx := &workflowBuildContext{
+		cleanPath:   "workflow.md",
+		frontmatter: &parser.FrontmatterResult{Frontmatter: workflowData.RawFrontmatter},
+		engineSetup: &engineSetupResult{
+			importsResult: &parser.ImportsResult{MergedObservability: string(importedObsJSON)},
+		},
+		workflowData: workflowData,
+	}
+	require.NoError(t, NewCompiler().mergeImportedWorkflowConfiguration(ctx))
+
+	obs := workflowData.RawFrontmatter["observability"].(map[string]any)
+	otlp := obs["otlp"].(map[string]any)
+	assert.Equal(t, map[string]any{"catalogue.version": "root-version"}, otlp["attributes"])
+	assert.Equal(t, map[string]any{"catalogue.category": "automation"}, otlp["resource-attributes"])
+	assert.Equal(t, map[string]string{"catalogue.version": "root-version"}, collectOTLPCustomAttributes(workflowData.RawFrontmatter))
+	assert.Equal(t, map[string]string{"catalogue.category": "automation"}, collectOTLPResourceAttributes(workflowData.RawFrontmatter))
+	assert.Contains(t, workflowData.Env, `"catalogue.version":"root-version"`)
+	assert.Contains(t, workflowData.Env, "catalogue.category=automation")
+}
+
 func TestBuildMergedEnvSources_MainWorkflowWins(t *testing.T) {
 	mergedEnv := map[string]any{
 		"MAIN_ONLY":   "1",
