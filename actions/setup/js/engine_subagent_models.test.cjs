@@ -4,6 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { parse as parseToml } from "smol-toml";
 
 const require = createRequire(import.meta.url);
 global.core = { info: () => {}, warning: () => {}, error: () => {}, setFailed: () => {} };
@@ -339,16 +340,8 @@ describe("Claude sub-agent models (Typist run 39415087125)", () => {
   });
 });
 
-/** Parse a generated Codex role file: top-level `key = "basic string"` lines only. */
-function parseRoleToml(content) {
-  const role = {};
-  for (const line of content.split("\n").filter(Boolean)) {
-    const match = line.match(/^([a-z_]+) = (".*")$/);
-    if (!match) throw new Error(`unexpected role file line: ${line}`);
-    role[match[1]] = JSON.parse(match[2]);
-  }
-  return role;
-}
+/** Parse a generated Codex role file with a TOML 1.0 parser. */
+const parseRoleToml = content => parseToml(content);
 
 describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () => {
   const codexLayout = () => {
@@ -411,6 +404,31 @@ describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () =
       expect(fs.readFileSync(path.join(run.agentsBaseDir, ".codex/agents", `${name}.md`), "utf8")).toBe(expected);
       expect(fs.readFileSync(path.join(run.workspaceDir, ".codex/agents", `${name}.md`), "utf8")).toBe(expected);
     }
+  });
+
+  it.each([
+    ["triple quotes", "Write \"\"\"docstrings\"\"\" and '''literals''' verbatim."],
+    ["control characters", "Tab\there, bell \u0007, escape \u001b[0m, backspace \b, form feed \f, DEL \u007f and NUL-adjacent \u0001 stay."],
+    ["non-ASCII text", "Résumé naïve café — 日本語のテキスト, emoji 🚀 and Ω≈ç√."],
+    ["CRLF line endings", "First line.\r\nSecond line.\r\n\r\nThird paragraph."],
+    ["lines starting with # or [", "# Not a comment\n[not.a.table]\n[[not.an.array]]\nkey = \"not a key\"\n#also = 'not a comment'"],
+  ])("round-trips %s in developer_instructions through a TOML parser", async (_label, extra) => {
+    const run = codexLayout();
+    // Fixture mutation: the recorded relevance-ranker with extra instruction text, staged
+    // directly so the activation writer cannot normalize it.
+    const agent = `${arxivAgents()["relevance-ranker"].trimEnd()}\n\n${extra}\n`;
+    const stagedDir = path.join(run.agentsBaseDir, ".codex/agents");
+    fs.mkdirSync(stagedDir, { recursive: true });
+    fs.writeFileSync(path.join(stagedDir, "relevance-ranker.md"), agent);
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
+    const role = readRole(run, "relevance-ranker");
+    expect(Object.keys(role).sort()).toEqual(["description", "developer_instructions", "model", "name"]);
+    expect(role.developer_instructions).toBe(bodyOf(agent));
+    expect(role.developer_instructions.endsWith(extra)).toBe(true);
+    expect(role).toMatchObject({ name: "relevance-ranker", description: frontmatterOf(agent).description, model: "gpt-5.4-mini" });
   });
 
   it("round-trips quotes, backslashes, multi-line instructions and a declared effort", async () => {
@@ -515,6 +533,79 @@ describe("Codex sub-agent models (daily-arxiv-researcher run 39394965127)", () =
     expect(run.logs).toEqual([]);
     expect(run.records()).toEqual([]);
     expect(fs.existsSync(run.codexHome)).toBe(false);
+  });
+});
+
+describe("Codex sub-agent endpoint compatibility (purelock run 39601756922)", () => {
+  const purelockAgent = () => fs.readFileSync(path.join(runs.purelockAgentsDir, "test-writer.md"), "utf8");
+  const codexLayout = () => {
+    const run = layout();
+    return { ...run, codexHome: path.join(run.dir, "codex-home") };
+  };
+  // GH_AW_LLM_PROVIDER is `github` for purelock (engine.model-provider: github).
+  const apply = (run, options = {}) => applyCodexSubagentModels({ reflectData: runs.purelockReflect(), provider: "github", codexHome: run.codexHome, agentsBaseDir: run.agentsBaseDir, env: run.env, logger: run.logger, ...options });
+  const roleFiles = run => (fs.existsSync(path.join(run.codexHome, "agents")) ? fs.readdirSync(path.join(run.codexHome, "agents")).sort() : []);
+  const endpointsOf = model =>
+    runs
+      .purelockReflect()
+      .endpoints.flatMap(endpoint => (endpoint.configured ? endpoint.routing_models || [] : []))
+      .find(candidate => candidate.model_id === model)?.supported_endpoints;
+
+  it("codex_alias_resolves_among_responses_capable_models", async () => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "test-writer": purelockAgent() });
+
+    const outcome = await apply(run);
+
+    // The recorded run resolved `large` to claude-sonnet-5.5, which lists only /v1/messages and
+    // /chat/completions; for Codex the alias resolves among /responses models instead.
+    expect(endpointsOf("claude-sonnet-5.5")).not.toContain("/responses");
+    expect(outcome.ok).toBe(true);
+    expect(outcome.resolutions).toEqual([{ name: "test-writer", configuredModel: "large", model: "gpt-6.1-sol", status: "resolved" }]);
+    expect(endpointsOf("gpt-6.1-sol")).toContain("/responses");
+    expect(parseRoleToml(fs.readFileSync(path.join(run.codexHome, "agents", "test-writer.toml"), "utf8")).model).toBe("gpt-6.1-sol");
+    expect(run.records()).toEqual([{ engine: "codex", role: "test-writer", configured_model: "large", resolved_model: "gpt-6.1-sol", provider: "copilot", status: "resolved", cause: null }]);
+  });
+
+  it("codex_exact_model_without_responses_fails_before_spawn", async () => {
+    const run = codexLayout();
+    // Fixture mutation: the recorded test-writer with the model the run resolved `large` to.
+    stageInline(run, "codex", { "test-writer": purelockAgent().replace("model: large", "model: claude-sonnet-5.5") });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.resolutions).toEqual([]);
+    expect(run.records()).toEqual([{ engine: "codex", role: "test-writer", configured_model: "claude-sonnet-5.5", resolved_model: null, provider: "copilot", status: "failed", cause: "unsupported_endpoint" }]);
+    expect(run.logs).toContainEqual(expect.stringMatching(/codex sub-agent 'test-writer': .*does not list \/responses in its supported_endpoints.*Refusing to start Codex/));
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("codex_alias_matching_only_models_without_responses_fails_before_spawn", async () => {
+    const run = codexLayout();
+    // Fixture mutation: `small` (-> mini -> haiku); the catalogue's only match is claude-haiku-5.5.
+    stageInline(run, "codex", { "test-writer": purelockAgent().replace("model: large", "model: small") });
+    let refreshes = 0;
+
+    const outcome = await apply(run, { refetchReflectData: async () => (refreshes++, runs.purelockReflect()) });
+
+    expect(outcome.ok).toBe(false);
+    expect(refreshes).toBe(0);
+    expect(run.records()).toEqual([{ engine: "codex", role: "test-writer", configured_model: "small", resolved_model: null, provider: "copilot", status: "failed", cause: "unsupported_endpoint" }]);
+    expect(run.logs).toContainEqual(expect.stringContaining("(resolved to 'claude-haiku-5.5') does not list /responses"));
+    expect(run.logs.join("\n")).not.toMatch(/The requested model is not supported/);
+    expect(roleFiles(run)).toEqual([]);
+  });
+
+  it("keeps an exact /responses model", async () => {
+    const run = codexLayout();
+    stageInline(run, "codex", { "test-writer": purelockAgent().replace("model: large", "model: copilot/gpt-5.6-terra") });
+
+    const outcome = await apply(run);
+
+    expect(outcome.ok).toBe(true);
+    expect(run.records()).toEqual([{ engine: "codex", role: "test-writer", configured_model: "copilot/gpt-5.6-terra", resolved_model: "gpt-5.6-terra", provider: "copilot", status: "exact", cause: null }]);
+    expect(roleFiles(run)).toEqual(["test-writer.toml"]);
   });
 });
 

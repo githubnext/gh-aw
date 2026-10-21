@@ -33,7 +33,7 @@ const { isModelAvailableInReflectData } = require("./awf_model_routing.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN } = require("./detect_agent_errors.cjs");
 const { inlineArtifactTarget } = require("./inline_artifact_target.cjs");
 const { getEngineSubAgentTarget } = require("./extract_inline_sub_agents.cjs");
-const { loadModelAliasMap, ModelAliasResolutionError, recordModelResolution, resolveEngineModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
+const { loadModelAliasMap, ModelAliasResolutionError, recordModelResolution, resolveConfiguredModel, resolveEngineModel, splitModelIdentifier } = require("./resolve_model_alias.cjs");
 
 /** The `model.resolution` role of the engine's main model; no sub-agent may use it. */
 const RESERVED_SUBAGENT_NAME = "main";
@@ -173,6 +173,61 @@ function classifyUnlistedModel(reflectData, providers) {
 }
 
 /**
+ * The per-model endpoint metadata (`routing_models`) published by the configured `/reflect`
+ * endpoints of the engine's providers, or null when none of them publishes it.
+ * @param {any} reflectData
+ * @param {Set<string>} providers
+ * @returns {any[] | null}
+ */
+function routingModelsFor(reflectData, providers) {
+  const endpoints = (Array.isArray(reflectData?.endpoints) ? reflectData.endpoints : []).filter(
+    endpoint => endpoint?.configured === true && providers.has(normalizeReflectProviderName(endpoint.provider)) && Array.isArray(endpoint.routing_models)
+  );
+  return endpoints.length > 0 ? endpoints.flatMap(endpoint => endpoint.routing_models) : null;
+}
+
+/**
+ * Whether `/reflect` lists `wireApi` in the `supported_endpoints` of `model` on the engine's
+ * providers. Null when those providers publish no per-model endpoint metadata.
+ * @param {string} model
+ * @param {any} reflectData
+ * @param {Set<string>} providers
+ * @param {string} wireApi
+ * @returns {boolean | null}
+ */
+function modelSupportsEndpoint(model, reflectData, providers, wireApi) {
+  const routingModels = routingModelsFor(reflectData, providers);
+  if (!routingModels) return null;
+  const id = String(model || "").toLowerCase();
+  return routingModels.some(candidate => typeof candidate?.model_id === "string" && candidate.model_id.toLowerCase() === id && Array.isArray(candidate.supported_endpoints) && candidate.supported_endpoints.includes(wireApi));
+}
+
+/**
+ * A copy of `/reflect` data whose model lists, on the engine's providers that publish
+ * per-model endpoint metadata, keep only models that support `wireApi`, so aliases resolve
+ * among models the engine can call.
+ * @param {any} reflectData
+ * @param {Set<string>} providers
+ * @param {string} wireApi
+ * @returns {any}
+ */
+function restrictReflectToEndpoint(reflectData, providers, wireApi) {
+  if (!reflectData || !Array.isArray(reflectData.endpoints)) return reflectData;
+  return {
+    ...reflectData,
+    endpoints: reflectData.endpoints.map(endpoint => {
+      if (endpoint?.configured !== true || !providers.has(normalizeReflectProviderName(endpoint.provider)) || !Array.isArray(endpoint.routing_models) || !Array.isArray(endpoint.models)) return endpoint;
+      const supported = new Set(
+        endpoint.routing_models
+          .filter(/** @param {any} candidate */ candidate => typeof candidate?.model_id === "string" && Array.isArray(candidate.supported_endpoints) && candidate.supported_endpoints.includes(wireApi))
+          .map(/** @param {any} candidate */ candidate => candidate.model_id.toLowerCase())
+      );
+      return { ...endpoint, models: endpoint.models.filter(/** @param {any} model */ model => supported.has(String(model).toLowerCase())) };
+    }),
+  };
+}
+
+/**
  * Resolve the models of Claude or Codex sub-agents in one batch. Agents without a model or
  * with `inherit` are skipped without a record. A `<provider>/` prefix must name the engine's
  * provider; another credential route is never opened. The returned `model` is the bare,
@@ -182,6 +237,12 @@ function classifyUnlistedModel(reflectData, providers) {
  * ModelAliasResolutionError diagnostic; other agents get a warning without it, so a failure
  * that does not stop the run is not classified as an unsupported-model run failure.
  *
+ * With `wireApi`, the engine calls sub-agent models only through that endpoint (Codex:
+ * `/responses`). Where the provider's `/reflect` endpoint publishes per-model
+ * `supported_endpoints`, aliases resolve only among models that list `wireApi`, and a model
+ * that does not list it fails with cause `unsupported_endpoint`, also when an alias would
+ * resolve only to such models. Providers without per-model endpoint metadata are not filtered.
+ *
  * @param {{
  *   engine: "claude" | "codex",
  *   agents: Array<{ name: string, model?: string, path?: string, fatal: boolean, origin: string }>,
@@ -190,6 +251,7 @@ function classifyUnlistedModel(reflectData, providers) {
  *   reflectData: any,
  *   refetchReflectData?: () => Promise<any>,
  *   aliasMap?: Record<string, string[]> | null,
+ *   wireApi?: string,
  *   nonFatalOutcome: string,
  *   env?: NodeJS.ProcessEnv,
  *   logger: (msg: string) => void,
@@ -229,6 +291,16 @@ async function resolveEngineSubagentModels(options) {
     return refresh;
   };
   const liveCheck = env.AWF_REFLECT_ENABLED === "1" || Boolean(options.reflectData);
+  const wireApi = options.wireApi || "";
+  const constrain = (/** @type {any} */ data) => (wireApi ? restrictReflectToEndpoint(data, providers, wireApi) : data);
+  // The engine id an alias resolves to without the endpoint constraint, or null; never recorded.
+  const resolveUnconstrained = (/** @type {string} */ configuredModel, /** @type {any} */ data, /** @type {(resolution: { resolvedModel: string }) => string} */ engineId) => {
+    try {
+      return engineId(resolveConfiguredModel({ configuredModel, aliasMap, reflectData: data, provider: options.provider }));
+    } catch {
+      return null;
+    }
+  };
   const stripProvider = (/** @type {string} */ model) => {
     const { base } = splitModelIdentifier(model);
     const slash = base.indexOf("/");
@@ -256,6 +328,25 @@ async function resolveEngineSubagentModels(options) {
       continue;
     }
 
+    const engineId = (/** @type {{ resolvedModel: string }} */ resolution) => stripProvider(options.normalize(resolution.resolvedModel));
+    const failEndpoint = (/** @type {string} */ model) =>
+      fail(
+        new ModelAliasResolutionError(configuredModel, "unsupported_endpoint", { provider: options.provider }),
+        `Sub-agent model '${configuredModel}'${model !== configuredModel ? ` (resolved to '${model}')` : ""} does not list ${wireApi} in its supported_endpoints on the configured awf-reflect endpoints, and ${engine === "claude" ? "Claude" : "Codex"} sub-agents call models only through ${wireApi}.`
+      );
+    // The model an alias resolves to only without the endpoint constraint, when that model
+    // lacks the endpoint: the alias then fails with unsupported_endpoint, not model_unavailable.
+    const endpointOnlyMatch = () => {
+      if (!wireApi || resolveUnconstrained(configuredModel, constrain(reflectData), engineId)) return null;
+      const unconstrained = resolveUnconstrained(configuredModel, reflectData, engineId);
+      return unconstrained && modelSupportsEndpoint(unconstrained, reflectData, providers, wireApi) === false ? unconstrained : null;
+    };
+    const blocked = endpointOnlyMatch();
+    if (blocked) {
+      failEndpoint(blocked);
+      continue;
+    }
+
     let result;
     try {
       result = await resolveEngineModel({
@@ -263,16 +354,22 @@ async function resolveEngineSubagentModels(options) {
         role: agent.name,
         configuredModel,
         aliasMap,
-        reflectData,
+        reflectData: constrain(reflectData),
         provider: options.provider,
-        refetchReflectData: refreshOnce,
+        refetchReflectData: async () => constrain(await refreshOnce()),
         logPrefix: `${engine} sub-agent '${agent.name}' model alias resolution`,
-        normalize: resolution => stripProvider(options.normalize(resolution.resolvedModel)),
+        normalize: engineId,
         env,
         logger: agentLogger,
       });
     } catch (error) {
       if (error instanceof ModelAliasResolutionError) {
+        // The refreshed catalogue may show that the alias matches only models without the endpoint.
+        const refreshedBlocked = endpointOnlyMatch();
+        if (refreshedBlocked) {
+          failEndpoint(refreshedBlocked);
+          continue;
+        }
         fail(error, "");
         continue;
       }
@@ -291,6 +388,10 @@ async function resolveEngineSubagentModels(options) {
         fail(new ModelAliasResolutionError(configuredModel, reason, { provider: result.provider || options.provider }), `Sub-agent model '${configuredModel}'${resolvedNote} is not listed on the configured awf-reflect endpoints.`);
         continue;
       }
+    }
+    if (wireApi && modelSupportsEndpoint(model, reflectData, providers, wireApi) === false) {
+      failEndpoint(model);
+      continue;
     }
     const { params } = splitModelIdentifier(configuredModel);
     if ([...params.keys()].length > 0) logger(`${engine} sub-agent '${agent.name}': model parameters in '${configuredModel}' are not applied to the agent definition`);
@@ -504,7 +605,7 @@ async function applyCodexSubagentModels(options) {
   const { normalizeCodexModel } = require("./model_fallback.cjs");
   const { extractFrontmatterAndBody } = require("./frontmatter_hash_pure.cjs");
   const { serializeConfig } = require("./codex_config.cjs");
-  const { mapAWFRoutingEffort } = require("./awf_model_routing.cjs");
+  const { getAWFModelRoutingPolicy, mapAWFRoutingEffort } = require("./awf_model_routing.cjs");
   const agentsBaseDir = options.agentsBaseDir || path.join(os.tmpdir(), "gh-aw");
   const directory = path.resolve(agentsBaseDir, inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget("codex")).dir);
   /** @type {string[]} */
@@ -566,6 +667,7 @@ async function applyCodexSubagentModels(options) {
     reflectData: options.reflectData,
     refetchReflectData: options.refetchReflectData,
     aliasMap: options.aliasMap,
+    wireApi: getAWFModelRoutingPolicy("codex").endpoints[0],
     nonFatalOutcome: "Codex does not start",
     env,
     logger,

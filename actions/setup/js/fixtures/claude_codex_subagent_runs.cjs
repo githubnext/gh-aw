@@ -19,6 +19,15 @@
  *   four staged agents, unchanged.
  * - awf-reflect-codex-arxiv-39394965127.json is reduced the same way.
  * - The run's only model.resolution record (role `main`) is below; it has no subagent records.
+ *
+ * purelock, https://github.com/github/gh-aw/actions/runs/39601756922 (Codex, provider github):
+ * - claude-codex-sub-agents/purelock-39601756922/.codex/agents/test-writer.md is the
+ *   activation artifact's staged agent, unchanged (`model: large`).
+ * - awf-reflect-codex-purelock-39601756922.json is reduced the same way, keeping each
+ *   endpoint's `routing_models` reduced to model_id/supported_endpoints/
+ *   candidate_metadata_complete (Claude models list only /v1/messages and /chat/completions).
+ * - agent-stdio.log line 115 recorded `codex sub-agent 'test-writer': model 'large' ->
+ *   'claude-sonnet-5.5'` before endpoint compatibility was checked.
  */
 
 const path = require("path");
@@ -27,6 +36,8 @@ const TYPIST_RUN_ID = "39415087125";
 const ARXIV_RUN_ID = "39394965127";
 const typistAgentsDir = path.join(__dirname, "claude-codex-sub-agents", `typist-${TYPIST_RUN_ID}`, ".claude", "agents");
 const arxivAgentsDir = path.join(__dirname, "claude-codex-sub-agents", `arxiv-${ARXIV_RUN_ID}`, ".codex", "agents");
+const PURELOCK_RUN_ID = "39601756922";
+const purelockAgentsDir = path.join(__dirname, "claude-codex-sub-agents", `purelock-${PURELOCK_RUN_ID}`, ".codex", "agents");
 
 /** agent-stdio.log line 123: native initialization, custom agents not registered. */
 const typistInit = {
@@ -83,11 +94,19 @@ function arxivReflect() {
   return structuredClone(require("./awf-reflect-codex-arxiv-39394965127.json"));
 }
 
+/** @returns {any} A fresh copy of the reduced purelock /reflect (Copilot endpoint with routing_models). */
+function purelockReflect() {
+  return structuredClone(require("./awf-reflect-codex-purelock-39601756922.json"));
+}
+
 module.exports = {
   ARXIV_RUN_ID,
   arxivAgentsDir,
   arxivMainModelResolution,
   arxivReflect,
+  PURELOCK_RUN_ID,
+  purelockAgentsDir,
+  purelockReflect,
   TYPIST_RUN_ID,
   typistAgentsDir,
   typistAgentToolResult,
