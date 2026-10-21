@@ -13,12 +13,11 @@ const jobs = [
   { name: 'Agent', icon: 'copilot', detail: 'Reason & act', agent: true },
   { name: 'Your jobs', icon: 'check-circle', detail: 'Build & verify', agent: false },
 ] as const;
-const spans = [
-  { name: 'workflow', start: 0, width: 100 },
-  { name: 'agent', start: 16, width: 70 },
-  { name: 'MCP tools', start: 30, width: 38 },
-  { name: 'safe outputs', start: 75, width: 25 },
-];
+const actions = [
+  { name: 'actions/setup-node', detail: 'Keep your toolchain', icon: 'code' },
+  { name: 'actions/cache', detail: 'Keep your dependency cache', icon: 'database' },
+  { name: 'actions/upload-artifact', detail: 'Keep your build artifacts', icon: 'package' },
+] as const;
 ---
 
 <LandingSection id="enterprise" title="Enterprise ready" lede="Your infrastructure. Your trust policies. Agents that fit both.">
@@ -28,7 +27,7 @@ const spans = [
     <p>Monitor runs, costs and outcomes across repositories from one control repository with <a href="https://github.com/githubnext/gh-cao">Central Agentic Ops</a>, a research prototype.</p>
     <a class="aw-link" href={`${base}/reference/agent-runtimes/`}>Explore agent runtimes <span aria-hidden="true">→</span></a>
   </div>
-  <figure slot="aside" class="aw-infra" aria-label="Central Agentic Ops control plane, runner and isolation options, and integrity filtering">
+  <figure slot="aside" class="aw-infra" aria-label="Central Agentic Ops control plane, runners, firewall-protected isolation and integrity filtering, and OpenTelemetry export">
     <a class="aw-cao aw-card" href="https://github.com/githubnext/gh-cao">
       <div class="aw-panel-heading">
         <Octicon name="organization" size={22} />
@@ -50,33 +49,50 @@ const spans = [
         <span>GitHub-hosted</span><span>Self-hosted</span><span>ARC DinD</span>
       </div>
     </div>
-    <div class="aw-flow" aria-hidden="true"><span>Choose your isolation</span></div>
-    <div class="aw-runtime-grid">
-      {runtimes.map((runtime) => (
-        <a class="aw-runtime aw-card" href={`${base}/reference/agent-runtimes/`}>
-          <Octicon name={runtime.icon} size={28} class="aw-runtime-icon" />
-          <span class="aw-runtime-name">{runtime.name}</span>
-          <span class="aw-badge">{runtime.badge}</span>
-          <span class="aw-host">{runtime.host}</span>
-        </a>
-      ))}
+    <div class="aw-flow aw-flow-short" aria-hidden="true" />
+    <div class="aw-firewall">
+      <a class="aw-firewall-heading" href={`${base}/introduction/architecture/#agent-workflow-firewall-awf`}>
+        <Octicon name="shield-lock" size={22} />
+        <span><strong>Agent Workflow Firewall</strong><span class="aw-host">Controlled egress · Isolated credentials</span></span>
+        <Octicon name="arrow-up-right" />
+      </a>
+      <div class="aw-flow" aria-hidden="true"><span>Choose your isolation</span></div>
+      <div class="aw-runtime-grid">
+        {runtimes.map((runtime) => (
+          <a class="aw-runtime aw-card" href={`${base}/reference/agent-runtimes/`}>
+            <Octicon name={runtime.icon} size={28} class="aw-runtime-icon" />
+            <span class="aw-runtime-name">{runtime.name}</span>
+            <span class="aw-badge">{runtime.badge}</span>
+            <span class="aw-host">{runtime.host}</span>
+          </a>
+        ))}
+      </div>
+      <div class="aw-flow aw-flow-short" aria-hidden="true" />
+      <a class="aw-trust aw-card" href={`${base}/reference/integrity/`}>
+        <span class="aw-trust-icon"><Octicon name="filter" size={22} /></span>
+        <span><strong>Integrity filtering</strong><span class="aw-host">Your trust policy, before inference</span></span>
+        <Octicon name="shield-check" size={24} class="aw-trust-check" />
+      </a>
     </div>
     <div class="aw-flow aw-flow-short" aria-hidden="true" />
-    <a class="aw-trust aw-card" href={`${base}/reference/integrity/`}>
-      <span class="aw-trust-icon"><Octicon name="filter" size={22} /></span>
-      <span><strong>Integrity filtering</strong><span class="aw-host">Your trust policy, before inference</span></span>
-      <Octicon name="shield-check" size={24} class="aw-trust-check" />
+    <a class="aw-otel aw-card" href={`${base}/reference/open-telemetry/`}>
+      <div class="aw-panel-heading">
+        <Octicon name="pulse" size={22} />
+        <span><strong>OpenTelemetry</strong><span class="aw-host">Workflow, agent and tool-call spans</span></span>
+        <span class="aw-badge">OTLP</span>
+      </div>
+      <div class="aw-export"><span class="aw-export-line" aria-hidden="true" /><Octicon name="graph" size={20} /><strong>Your monitoring stack</strong></div>
     </a>
     <figcaption>Runtime eligibility varies by host. Cloud Hypervisor and NVX are preview runtimes; ARC DinD uses Docker.</figcaption>
   </figure>
 </LandingSection>
-<LandingSection id="integrations" title="Fits your existing stack" lede="Add agents without leaving your actions or observability behind.">
+<LandingSection id="integrations" title="Fits your existing stack" lede="Keep your GitHub Actions. Add agentic steps.">
   <div slot="intro" class="aw-copy">
-    <p><strong>GitHub Actions compatibility, built in.</strong> Reuse existing actions, scripts and custom jobs alongside agents. Compiled workflows run as standard GitHub Actions YAML.</p>
-    <p>Follow each run with <a href={`${base}/reference/open-telemetry/`}>OpenTelemetry</a>: workflow traces, agent execution and tool-call spans, sent to your OTLP-compatible monitoring backend.</p>
+    <p><strong>Backward compatible with your existing actions.</strong> Reuse the actions and shell scripts you already rely on before and after agent execution. Keep your toolchain setup, dependency caches and artifact uploads.</p>
+    <p>Compiled workflows run as standard GitHub Actions YAML, with familiar events and runners. Add custom steps and jobs alongside agents without replacing your existing automation.</p>
     <a class="aw-link" href={`${base}/reference/steps-jobs/`}>Keep your actions. Add an agent. <span aria-hidden="true">→</span></a>
   </div>
-  <figure slot="aside" class="aw-integration aw-card" aria-label="Illustrative GitHub Actions pipeline and OpenTelemetry trace">
+  <figure slot="aside" class="aw-integration aw-card" aria-label="Existing GitHub Actions reused before and after agent execution">
     <div class="aw-panel-heading"><Octicon name="file-code" /><span class="aw-mono">workflow.md → workflow.lock.yml</span></div>
     <div class="aw-pipeline">
       {jobs.map((job) => (
@@ -87,21 +103,20 @@ const spans = [
         </div>
       ))}
     </div>
-    <div class="aw-traces">
-      <div class="aw-trace-heading"><span class="aw-live" aria-hidden="true" /><strong>One run. A connected trace.</strong><span class="aw-badge">OpenTelemetry</span></div>
-      <div class="aw-span-list">
-        {spans.map((span, i) => (
-          <div class="aw-span-row">
-            <span class="aw-mono">{span.name}</span>
-            <div class="aw-span-track" aria-hidden="true">
-              <span class="aw-span" style={`--start: ${span.start}%; --width: ${span.width}%; --delay: ${i * 250}ms`} />
-            </div>
+    <div class="aw-reuse">
+      <div class="aw-reuse-heading"><Octicon name="check-circle" size={20} /><strong>The actions you already use</strong><span class="aw-badge">Reusable</span></div>
+      <div class="aw-action-list">
+        {actions.map((action) => (
+          <div class="aw-action">
+            <Octicon name={action.icon} size={22} />
+            <span><strong class="aw-mono">{action.name}</strong><span class="aw-host">{action.detail}</span></span>
+            <Octicon name="check" class="aw-action-check" />
           </div>
         ))}
       </div>
-      <div class="aw-export"><Octicon name="pulse" size={20} /><span>OTLP</span><span class="aw-export-line" aria-hidden="true" /><Octicon name="graph" size={20} /><strong>Your monitoring stack</strong></div>
+      <div class="aw-existing"><span><Octicon name="workflow" />Same events</span><span><Octicon name="server" />Same runners</span><span><Octicon name="code" />Standard YAML</span></div>
     </div>
-    <figcaption>Illustrative pipeline and trace. Configure steps, jobs and telemetry for your workflow.</figcaption>
+    <figcaption>Illustrative pipeline. Reuse actions through custom steps and jobs, with your existing versions and configuration.</figcaption>
   </figure>
 </LandingSection>
 
@@ -150,6 +165,37 @@ const spans = [
   }
   .aw-runner-deck {
     border-radius: var(--aw-radius-lg);
+  }
+  .aw-firewall {
+    padding: 1rem;
+    border: 1px dashed var(--aw-color-accent);
+    border-radius: var(--aw-radius-lg);
+  }
+  .aw-firewall-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--aw-color-accent-text);
+    text-decoration: none;
+  }
+  .aw-firewall-heading > :last-child {
+    margin-left: auto;
+  }
+  .aw-otel {
+    display: block;
+    border-radius: var(--aw-radius-lg);
+    color: var(--aw-color-text);
+    text-decoration: none;
+  }
+  .aw-otel:hover,
+  .aw-otel:focus-visible {
+    border-color: var(--aw-color-accent);
+  }
+  .aw-otel .aw-badge {
+    margin-left: auto;
+  }
+  .aw-otel .aw-export {
+    padding: 0 1.25rem 1.25rem;
   }
   .aw-cao {
     display: block;
@@ -339,45 +385,53 @@ const spans = [
     background: var(--aw-color-accent-low);
     box-shadow: 0 0 2rem color-mix(in oklab, var(--aw-color-accent) 12%, transparent);
   }
-  .aw-traces {
+  .aw-reuse {
     border-top: 1px solid var(--aw-color-border);
     padding: 1.25rem;
   }
-  .aw-trace-heading {
+  .aw-reuse-heading {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
     color: var(--aw-color-text-secondary);
   }
-  .aw-trace-heading .aw-badge {
+  .aw-reuse-heading .aw-badge {
     margin-left: auto;
   }
-  .aw-span-list {
+  .aw-action-list {
     display: grid;
     gap: 0.875rem;
     margin-block: 1.5rem;
   }
-  .aw-span-row {
-    display: grid;
-    grid-template-columns: 7rem minmax(0, 1fr);
+  .aw-action {
+    display: flex;
     align-items: center;
-    gap: 0.75rem;
-    color: var(--aw-color-text-muted);
-  }
-  .aw-span-track {
-    height: 0.75rem;
+    gap: 0.875rem;
+    padding: 0.875rem;
+    border: 1px solid var(--aw-color-border);
     background: var(--aw-color-bg-subtle);
-    border-radius: var(--aw-radius-xs);
+    border-radius: var(--aw-radius-md);
+    color: var(--aw-color-text-secondary);
   }
-  .aw-span {
-    display: block;
-    margin-left: var(--start);
-    width: var(--width);
-    height: 100%;
-    border-radius: var(--aw-radius-xs);
-    background: var(--aw-color-accent);
-    transform-origin: left;
+  .aw-action > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .aw-action-check {
+    margin-left: auto;
+    color: var(--aw-color-success);
+  }
+  .aw-existing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    color: var(--aw-color-text-secondary);
+  }
+  .aw-existing > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
   }
   .aw-export {
     display: flex;
@@ -421,9 +475,6 @@ const spans = [
     .aw-flow::after {
       animation: aw-packet 3s ease-in-out infinite;
     }
-    .aw-span {
-      animation: aw-trace 5s var(--aw-ease-out) var(--delay) infinite;
-    }
   }
   @media (prefers-reduced-motion: reduce) {
     .aw-runtime {
@@ -434,10 +485,5 @@ const spans = [
     from { transform: translateY(-2rem); opacity: 0; }
     25%, 75% { opacity: 1; }
     to { transform: translateY(3rem); opacity: 0; }
-  }
-  @keyframes aw-trace {
-    0% { transform: scaleX(0); opacity: 0.4; }
-    30%, 85% { transform: scaleX(1); opacity: 1; }
-    100% { transform: scaleX(1); opacity: 0.4; }
   }
 </style>
