@@ -190,10 +190,14 @@ issue locking. Authored custom jobs and custom safe-output jobs become disabled,
 credential-free placeholders; neither step-level staging overrides nor
 `secrets: inherit` can reactivate them. Their declared output names remain
 available, but their outputs are empty and dependent jobs may be skipped.
+Reusable output bindings and self-hosted runner policy remain valid without
+retaining original executable targets or matrix-dependent runner expressions.
 Host steps (`steps`, `pre-steps`, `pre-agent-steps`, `post-steps`, `on.steps`,
-and built-in job step/permission overrides), custom MCP servers, `mcp-scripts`,
-custom safe-output scripts, enabled Bash graders, and authored OIDC permissions
-are rejected, including declarations from imports. Remove those declarations
+safe-output/threat-detection/secret-masking steps, and unsafe built-in job
+overrides), custom MCP servers, `mcp-scripts`, custom safe-output scripts/actions,
+enabled Bash graders, and authored OIDC permissions (including safe-output
+permissions) are rejected, including declarations from imports. Compiler-owned
+pull-request stack gates remain enabled. Remove those declarations
 from a separate diagnostic workflow; there is no unsafe dry-run override.
 Diagnostics, summaries, and run artifacts remain available;
 `OTEL_*`, `GH_AW_OTLP_*`, `GITHUB_AW_OTEL_*`, `TRACEPARENT`, `TRACESTATE`,

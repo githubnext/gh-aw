@@ -427,11 +427,15 @@ Authored custom jobs, including reusable calls and custom safe-output jobs, beco
 disabled placeholders with no original steps, permissions, environment, or inherited
 secrets. Output names are retained with empty values; dependent jobs may be skipped.
 Staging overrides in custom publishing steps cannot reactivate these jobs.
+Reusable output contracts and required self-hosted runner policies are preserved
+without retaining the original executable target or matrix-dependent runner.
 
 Dry-run rejects authored host steps (`steps`, `pre-steps`, `pre-agent-steps`,
-`post-steps`, `on.steps`, and built-in job step/permission overrides), custom MCP
-servers, `mcp-scripts`, custom safe-output scripts, enabled Bash graders, and authored
-`id-token: write` permissions, including imported declarations. Remove unsupported
+`post-steps`, `on.steps`, safe-output and threat-detection steps, secret-masking
+steps, and unsafe built-in job overrides), custom MCP servers, `mcp-scripts`,
+custom safe-output scripts/actions, enabled Bash graders, and authored
+`id-token: write` permissions, including safe-output and imported declarations.
+Compiler-generated pull-request stack gates remain available. Remove unsupported
 declarations in a separate diagnostic workflow; there is no unsafe override.
 
 Agent shell commands, custom engine execution, custom credentials, and

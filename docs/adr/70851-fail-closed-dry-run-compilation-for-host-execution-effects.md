@@ -1,50 +1,63 @@
 # ADR-70851: Fail Closed in Dry-Run Compilation for Host Execution Effects
 
 **Date**: 2026-10-21
-**Status**: Draft
-**Deciders**: pelikhan, Unknown (review pending)
+**Status**: Accepted
+**Deciders**: pelikhan, Copilot (PR #70851)
 
 ---
 
-### Context
+## Context
 
-`gh aw compile --dry-run` produces diagnostic lock files intended for live testing with compiler-managed mutations staged rather than applied. A hosted-readiness audit found that staging the built-in safe outputs did not neutralize other execution surfaces: authored custom jobs, custom safe-output jobs, reusable workflow calls, host steps (`steps`, `pre-steps`, `pre-agent-steps`, `post-steps`, `on.steps`), custom MCP servers and `mcp-scripts`, custom safe-output scripts, Bash graders, and `id-token: write` permissions could all still run with real credentials. Built-in job names could also be overridden with `uses`/`secrets`/`steps`, bypassing the staging. As a result, a successful dry-run compile was not a trustworthy signal that unattended hosted execution was side-effect-free. Separately, the dry-run scanner gate only failed on findings *added* relative to a baseline, so pre-existing medium-or-higher findings passed silently.
+`gh aw compile --dry-run` emits diagnostic lock files with compiler-managed mutations staged rather than applied; compilation does not execute the workflow. Staging built-in safe outputs alone does not neutralize authored host steps, custom jobs, reusable workflow calls, external MCP servers, custom scripts, Bash graders, or cloud credentials. Overrides on built-in job names can also introduce executable code or secrets outside the staged handlers.
 
-### Decision
+A hosted diagnostic run therefore needs a compile-time admission policy for these effects, not just staged safe outputs. The compiler cannot establish that arbitrary authored code or external services are read-only. Separately, accepting scanner findings merely because they already occur in a baseline confuses regression tracking with admission: a known actionable finding remains actionable.
 
-We will make dry-run compilation fail closed for execution effects that staging cannot isolate. Concretely: (1) a new `validateDryRunEffects` check in `pkg/workflow/compiler_development_safety.go` rejects compilation when authored host steps, custom MCP servers/scripts, custom safe-output scripts, enabled Bash graders, authored OIDC write permissions (including imports), or execution/secret overrides on built-in job names are present; (2) custom jobs, custom safe-output jobs, and managed reusable calls are rewritten into inert placeholders (`if: ${{ !always() }}`, `permissions: {}`, an echo step, outputs preserved by name but emptied) so the job graph remains valid without retaining executable targets or credentials; and (3) the dry-run scanner gate fails on any medium-or-higher or unclassified finding, existing or added, while still reporting differential counts and canonicalizing file identities via `filepath.EvalSymlinks`. The primary driver is that dry-run output must be a safe signal for hosted execution; rejecting is preferred over silently allowing unverified effects.
+## Decision
 
-### Alternatives Considered
+Apply a fail-closed policy to dry-run compilation while leaving ordinary compilation unchanged.
 
-#### Alternative 1: Keep staging only built-in safe outputs and document the gaps
+### Reject effects that cannot be represented safely
 
-Leave custom jobs, host steps, and custom MCP/scripts executing normally in dry-run and document that dry-run only protects compiler-managed safe outputs. This is non-breaking and simplest, but it leaves the audit finding unresolved: a passing dry-run compile would continue to imply safety it does not provide, and the built-in-job-name override bypass would remain.
+Reject authored `steps`, `pre-steps`, `pre-agent-steps`, `post-steps`, and `on.steps`; custom MCP servers and `mcp-scripts`; `secret-masking.steps`; `safe-outputs.scripts`, `safe-outputs.steps`, and `safe-outputs.actions`; threat-detection `steps` and `post-steps`; and enabled Bash `graders.<id>.run` declarations. Reject authored `id-token: write` permissions at workflow, activation, and safe-output scope. Built-in job augmentation permits only `needs`, `if`, `timeout-minutes`, and `continue-on-error`; all other non-null fields are rejected, including execution, runner, environment, permission, and secret overrides.
 
-#### Alternative 2: Attempt to sandbox or stage every authored effect
+Validation checks resolved workflow data, including imported declarations that participate in merging. It does not expand import semantics to activate previously ignored fields.
 
-Rewrite custom steps, MCP servers, and scripts into staged or mocked equivalents so diagnostic workflows still compile and partially run. This would preserve more workflow coverage, but arbitrary host scripts, external MCP effects, and cloud credentials cannot be reliably intercepted by the compiler; claiming isolation would be unsound. The PR explicitly avoids "claiming that dry-run is a general execution sandbox."
+These declarations alter setup, tools, or host execution in ways that cannot be faithfully staged. Compilation reports the unsupported declarations instead of silently removing them. Diagnostic workflows must remove them and any imports that supply them.
 
-#### Alternative 3: Strip unsupported declarations silently instead of rejecting
+### Preserve job topology with disabled placeholders
 
-Remove host steps, custom MCP servers, and OIDC permissions from the emitted lock without failing compilation (as is done for custom jobs). This keeps more workflows compiling, but silently changes agent behavior (e.g., missing tools or setup) so the diagnostic run would no longer represent the real workflow, and authors would not learn that those effects went unverified. Disabling is used only for jobs, where dependency/output names can be preserved structurally.
+Replace custom jobs, custom safe-output jobs, and compiler-managed reusable workflow calls with disabled regular jobs. Each placeholder uses `if: ${{ !always() }}`, `permissions: {}`, a static policy-compatible runner, and an inert echo step. It retains job identity, dependencies, and declared or referenced output names, with output expressions replaced by empty strings. It does not retain authored steps, reusable targets, inputs, secrets, environments, or matrix-dependent runner configuration.
 
-### Consequences
+Disabling rather than deleting preserves dependency and output references in the emitted graph. The placeholder is not a simulation of the original job: skipped jobs do not execute or produce real outputs, and downstream behavior can differ.
 
-#### Positive
-- A successful `--dry-run` compile becomes a meaningful precondition for unattended hosted testing: unsupported effects are either rejected or rendered inert and credential-free.
-- Closes the bypass where built-in job names could be overridden with `uses`, `secrets`, `steps`, or `permissions`.
-- Scanner gate no longer accepts known medium-or-higher or unclassified findings merely because they are in the baseline; symlinked paths no longer produce mismatched identities.
+### Separate scanner identity from admission
 
-#### Negative
-- Breaking change (major changeset): diagnostic workflows with unsupported declarations now fail compilation; per the PR, 208 of 346 fleet workflows are rejected under hardened dry-run.
-- Disabled custom jobs emit empty outputs, so dependent jobs may skip and dry-run coverage of downstream logic is reduced.
-- Existing scanner findings (e.g., a pre-existing poutine runner finding) now block fleet admission until resolved; no waiver mechanism is introduced.
+Fail the dry-run scanner gate on every medium-or-higher or unclassified finding, whether existing or added. Low and informational findings remain non-blocking. Retain baseline, existing, added, and ignored counts to explain changes, but do not treat baseline membership as a waiver. Scanner execution, extraction, and parsing failures remain blocking rather than being interpreted as clean results.
 
-#### Neutral
-- Ordinary (non-dry-run) compilation is unchanged.
-- Agent shell execution, custom engines, custom credentials, and hosted identity/runner behavior remain outside dry-run guarantees and still require independent review.
-- Trigger rewriting moved from `map[string]any` to `yaml.Node` to preserve comments when adding `workflow_dispatch`.
+Canonicalize workflow file identities, including symlink resolution, and use stable script locations to avoid reporting unchanged findings as additions after generated lines move. Trigger normalization operates on YAML nodes so existing comments, including zizmor suppressions, survive adding `workflow_dispatch`; the admission policy does not require discarding authored scanner annotations.
 
----
+## Alternatives Considered
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+### Stage built-in safe outputs only
+
+This preserves compatibility and maximizes execution coverage, but leaves unrelated host effects and built-in job overrides active. Documentation alone cannot provide the fail-closed admission needed for unattended diagnostics.
+
+### Sandbox or mock every authored effect
+
+This could preserve more workflow behavior, but would require isolation and service emulation beyond a compiler rewrite. Arbitrary scripts, external MCP effects, and cloud credentials cannot be reliably intercepted by staging safe outputs. No general execution sandbox is claimed.
+
+### Silently strip unsupported declarations or delete jobs
+
+Silently removing setup or tools makes a diagnostic workflow misleading and hides unverified behavior from authors. Deleting jobs also breaks dependency and output references. Explicit rejection is preferable for unsupported declarations; disabled placeholders are a narrower structural compromise for jobs.
+
+### Admit unchanged scanner findings
+
+A differential-only gate reduces migration friction, but permits known actionable findings indefinitely. Differential counts remain useful diagnostics, not evidence that a finding is safe.
+
+## Consequences
+
+Dry-run compilation now rejects workflows that previously compiled with unsupported declarations. Authors must create reduced diagnostic workflows, and existing actionable findings must be resolved before admission. This is an intentional compatibility change to dry-run behavior, not a change to ordinary compilation.
+
+Disabled jobs preserve graph references but reduce coverage: dependent jobs can skip, and empty or absent outputs do not exercise production data flow. A successful diagnostic run cannot validate the disabled jobs or reusable workflow bodies. The explicit policy and tests must also evolve when new execution surfaces are added.
+
+A successful dry-run compile is only one precondition for hosted execution, not proof of a side-effect-free workflow. Agent shell execution, custom engines, supplied credentials, runner identity, and external services still require independent review. Dispatch must use the exact reviewed source and compiled lock revision under the [active debugging gates](../../.github/aw/debug-agentic-workflow.md); `--dry-run` compilation alone neither starts a run nor authorizes one.

@@ -120,6 +120,8 @@ func prepareDryRunWorkflowDispatch(data *WorkflowData) error {
 	return nil
 }
 
+// normalizeDryRunTriggers operates on YAML nodes to preserve trigger comments,
+// including zizmor suppressions that a map round trip would discard.
 func normalizeDryRunTriggers(on *yaml.Node) error {
 	switch on.Kind {
 	case yaml.MappingNode:

@@ -412,8 +412,9 @@ Check the workflow.
 		runStepInfo{Source: resource.Source, Name: resource.Name, Script: resource.Script},
 		"script:1:6: warning: quote this [SC2086]\n")
 	diff, err := config.dryRunBaseline.filter("shellcheck", current)
-	require.NoError(t, err)
-	assert.Equal(t, 1, diff.Existing)
+	require.ErrorContains(t, err, "1 existing, 0 added")
+	assert.Equal(t, &DryRunScannerDifferential{Baseline: 1, Existing: 1}, diff,
+		"resource findings must retain their baseline identity without waiving existing findings")
 }
 
 func TestPrepareDryRunScannerBaselineKeepsDirectoryScopeWithoutTargetLock(t *testing.T) {

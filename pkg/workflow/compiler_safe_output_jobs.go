@@ -314,7 +314,11 @@ func (c *Compiler) buildCallWorkflowJob(data *WorkflowData, workflowName, markdo
 	}
 	if c.dryRun {
 		callJob.Needs = []string{"safe_outputs"}
-		makeDryRunJobInert(callJob)
+		// Preserve dependency/output metadata before stripping the call. An inert
+		// job invokes no worker, so importing its secrets or permissions is unsafe
+		// and unnecessary; placeholders need neither credential postprocessing.
+		callJob.Outputs = dryRunReferencedOutputs(data.On, data.Jobs, c.jobManager.GetAllJobs())[jobName]
+		makeDryRunJobInert(callJob, c.dryRunPlaceholderRunsOn(data, callJob))
 		return callJob
 	}
 	addCallWorkflowSecrets(callJob, workflowName, markdownPath)
