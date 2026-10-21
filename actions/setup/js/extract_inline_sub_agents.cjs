@@ -132,6 +132,40 @@ function resolveSubAgentExperimentReferences(agentName, content, env = process.e
 }
 
 /**
+ * Claude Code skips a project agent file without a frontmatter `name`, so the
+ * generated Claude copy gets the declared block name when the author omitted it.
+ * An authored `name` (detected by the YAML parser, so quoted keys count) is kept.
+ * A flow mapping gets the key inside its braces, so mapping styles are never mixed.
+ * Frontmatter that does not parse as a mapping is left unchanged; the model
+ * resolution step then rejects it before Claude starts.
+ *
+ * @param {string} agentName - Declared sub-agent name from the `## agent:` marker.
+ * @param {string} content - Agent block content (frontmatter + prompt).
+ * @returns {string} Content with a top-level `name:` in its frontmatter.
+ */
+function ensureClaudeSubAgentName(agentName, content) {
+  const { parseDocument } = require("./work_queue_yaml.cjs");
+  const nameEntry = `name: ${JSON.stringify(agentName)}`;
+  const match = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*\r?(?=\n|$)/.exec(content);
+  if (!match) return `---\n${nameEntry}\n---\n${content}`;
+  const frontmatter = match[1] ?? "";
+  const start = content.indexOf("\n") + 1;
+  /** @type {any} */
+  const document = parseDocument(frontmatter);
+  if (!document || document.errors.length) return content;
+  const map = document.contents;
+  if (map === null || map === undefined) return content.slice(0, start) + nameEntry + "\n" + content.slice(start);
+  if (!Array.isArray(map.items) || !Array.isArray(map.range)) return content;
+  if (map.items.some((/** @type {any} */ pair) => pair?.key?.value === "name")) return content;
+  const position = start + map.range[0];
+  if (map.flow) {
+    return content.slice(0, position + 1) + nameEntry + (map.items.length > 0 ? ", " : "") + content.slice(position + 1);
+  }
+  const indent = content.slice(content.lastIndexOf("\n", position - 1) + 1, position);
+  return content.slice(0, position) + nameEntry + "\n" + indent + content.slice(position);
+}
+
+/**
  * Extracts inline sub-agents from markdown content.
  *
  * Returns the reassembled main content (with agent blocks removed) and an
@@ -371,7 +405,10 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
   }
 
   const baseDir = agentsBaseDir || workspaceDir;
-  const { dir, ext } = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget(engineId));
+  // Normalise once so the target directory and the Claude `name:` injection always agree:
+  // every id that stages into .claude/agents also gets the name Claude Code registers by.
+  const normalizedEngineId = (engineId || "").trim().toLowerCase();
+  const { dir, ext } = inlineArtifactTarget("SUB_AGENT", getEngineSubAgentTarget(normalizedEngineId));
   const agentsDir = path.join(baseDir, dir);
   core.info(`[extractInlineSubAgents] Engine: "${engineId || "(default)"}" → dir="${dir}" ext="${ext}"`);
   core.info(`[extractInlineSubAgents] Writing ${agents.length} sub-agent(s) to: ${agentsDir}`);
@@ -383,7 +420,8 @@ function writeInlineSubAgents(content, workspaceDir, agentsBaseDir, engineId) {
 
   for (const agent of agents) {
     const agentPath = path.join(agentsDir, agent.name + ext);
-    const filteredContent = resolveSubAgentExperimentReferences(agent.name, preserveSubAgentFrontmatter(agent.content));
+    let filteredContent = resolveSubAgentExperimentReferences(agent.name, preserveSubAgentFrontmatter(agent.content));
+    if (normalizedEngineId === "claude") filteredContent = ensureClaudeSubAgentName(agent.name, filteredContent);
     const agentContent = filteredContent.endsWith("\n") ? filteredContent : filteredContent + "\n";
     try {
       fs.writeFileSync(agentPath, agentContent, "utf8");
@@ -461,6 +499,7 @@ module.exports = {
   getEngineSubAgentTarget,
   preserveSubAgentFrontmatter,
   resolveSubAgentExperimentReferences,
+  ensureClaudeSubAgentName,
   closeUnterminatedSubAgentMarkers,
   loadCopilotSDKCustomAgents,
 };

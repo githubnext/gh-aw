@@ -186,6 +186,7 @@ jobs:
           GH_AW_INFO_FRONTMATTER_EMOJI: "📊"
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_FEATURES: '{"gh-aw-detection":true}'
+          GH_AW_INFO_SUB_AGENT_MODELS: "[{\"model\":\"small\",\"name\":\"metrics-aggregator\",\"patterns\":[\"github-copilot/*haiku*\",\"github-copilot/gpt-5*mini*\",\"github-copilot/gpt-5*nano*\",\"github-copilot/gemini-*flash*lite*\"]},{\"model\":\"small\",\"name\":\"history-appender\",\"patterns\":[\"github-copilot/*haiku*\",\"github-copilot/gpt-5*mini*\",\"github-copilot/gpt-5*nano*\",\"github-copilot/gemini-*flash*lite*\"]},{\"model\":\"small\",\"name\":\"chart-script-writer\",\"patterns\":[\"github-copilot/*haiku*\",\"github-copilot/gpt-5*mini*\",\"github-copilot/gpt-5*nano*\",\"github-copilot/gemini-*flash*lite*\"]}]"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

@@ -10,16 +10,22 @@ import (
 // audit metadata and request admission. These are possible models, not proof that
 // the selected variant was honored.
 func expandSubagentModelPatterns(request string, data *WorkflowData, provider string) []string {
+	return expandSubagentModelPatternsWith(request, data, provider, func(model string) string { return model })
+}
+
+// expandSubagentModelPatternsWith expands like expandSubagentModelPatterns after applying
+// normalize to the literal request or to each experiment candidate.
+func expandSubagentModelPatternsWith(request string, data *WorkflowData, provider string, normalize func(string) string) []string {
 	model, _, _ := strings.Cut(request, "?")
 	if !isExpression(model) {
-		return expandModelPatterns(request, data.ModelMappings, provider)
+		return expandModelPatterns(normalize(request), data.ModelMappings, provider)
 	}
 	value := stripExpressionWrapper(model)
 	var patterns []string
 	for _, prefix := range []string{"experiments.", activationOutputsPrefix, pickExperimentOutputsPrefix} {
 		if name, ok := strings.CutPrefix(value, prefix); ok {
 			for _, candidate := range data.Experiments[name] {
-				for _, pattern := range expandModelPatterns(candidate, data.ModelMappings, provider) {
+				for _, pattern := range expandModelPatterns(normalize(candidate), data.ModelMappings, provider) {
 					if !slices.Contains(patterns, pattern) {
 						patterns = append(patterns, pattern)
 					}
