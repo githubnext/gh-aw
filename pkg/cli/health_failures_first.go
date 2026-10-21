@@ -141,6 +141,9 @@ func appendHealthFailureCandidates(batch []workflowRunAPIResponse, targets map[s
 		if candidatesByWorkflow[run.WorkflowPath] >= healthMinimumRuns {
 			continue
 		}
+		if filterHealthPRLifecycleRun(run, collection) {
+			continue
+		}
 		candidatesByWorkflow[run.WorkflowPath]++
 		if run.WorkflowName == "" {
 			run.WorkflowName = target.Name

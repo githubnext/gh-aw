@@ -59,6 +59,12 @@ Health compares each workflow's Markdown source with its pushed branch version,
 stops at source changes, and excludes superseded failures from investigation.
 An updated source without new runs is insufficient evidence, not proof of a fix.
 Skipped/action_required runs and confirmed jobless waiting/failed attempts are ignored; job-backed waiting runs remain pending evidence.
+PR cancellations are ignored only with merge/closure or head-deletion evidence
+during the attempt and complete jobs without genuine failures. Failed PR checkouts
+require an explicit closed-PR diagnostic and matching closure evidence. Ignored
+runs are not successes. Unavailable lifecycle evidence remains explicit and the
+run is retained. Lifecycle requests are cached and capped at 40 per collection,
+including targeted failed-checkout job logs; no artifacts are downloaded.
 Job-presence checks do not decode job/step details. Optional representative Jobs
 enrichment is best-effort: incomplete inventories warn and remain metadata-only
 unless compatible cached evidence is available. API quota and request limits
@@ -143,7 +149,7 @@ func RunHealth(config HealthConfig) error {
 		ProducerVersion:     GetVersion(),
 		ReportSchemaVersion: 1,
 		ObservedAt:          time.Now().UTC(),
-		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs"},
+		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs", "pr_lifecycle_filtering"},
 		Host:                normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
 		StartDate:           config.StartDate,
 		EndDate:             config.EndDate,
