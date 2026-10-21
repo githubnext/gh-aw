@@ -213,6 +213,7 @@ func sortDiagnostics(diagnostics []Diagnostic) {
 func Default() *Runner {
 	return &Runner{rules: []Rule{
 		SecretLeakRule(),
+		OTLPSecretLeakRule(),
 		ActionPinRule(),
 		JobTimeoutRule(),
 		NeedsConsistencyRule(),

@@ -322,6 +322,9 @@ func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext)
 		ctx.workflowData.ConcurrencyJobDiscriminator = ctx.engineSetup.importsResult.MergedJobDiscriminator
 	}
 	c.mergeImportedObservability(ctx.workflowData, ctx.engineSetup.importsResult.MergedObservability)
+	if err := resolveOTLPMetadataReferences(ctx.workflowData); err != nil {
+		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
+	}
 	if err := c.mergeWorkflowEnv(ctx.frontmatter.Frontmatter, ctx.workflowData, ctx.engineSetup.importsResult); err != nil {
 		return formatCompilerError(ctx.cleanPath, "error", err.Error(), err)
 	}

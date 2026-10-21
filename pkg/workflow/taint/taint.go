@@ -22,6 +22,7 @@ const (
 	WorkflowInput Kind = "workflow-input"
 	Artifact      Kind = "artifact"
 	Network       Kind = "network"
+	OTLPAttribute Kind = "otlp-attribute"
 	Prompt        Kind = "prompt"
 )
 
