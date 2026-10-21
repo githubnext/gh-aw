@@ -40,7 +40,7 @@ const healthCommandDescription = `Display workflow health metrics, success rates
 
 Shows health metrics for workflows including:
 - Current-revision success/failure rates from recent runs
-- Revision-aware recovery evidence, shared failure clusters, and cached sub-agent failures
+- Revision-aware recovery evidence, shared job/step failure clusters, and cached sub-agent failures
 - Trend indicators (↑ improving, → stable, ↓ degrading)
 - Average execution duration
 - Warnings when success rate drops below threshold
@@ -59,6 +59,10 @@ Health compares each workflow's Markdown source with its pushed branch version,
 stops at source changes, and excludes superseded failures from investigation.
 An updated source without new runs is insufficient evidence, not proof of a fix.
 Skipped/action_required runs and confirmed jobless waiting/failed attempts are ignored; job-backed waiting runs remain pending evidence.
+Job-presence checks do not decode job/step details. Optional representative Jobs
+enrichment is best-effort: incomplete inventories warn and remain metadata-only
+unless compatible cached evidence is available. API quota and request limits
+still stop collection; primary inventory and presence errors remain errors.
 
 `
 
@@ -114,7 +118,7 @@ func addHealthFlags(cmd *cobra.Command) {
 	cmd.Flags().String("end-date", "", "Include runs created at or before this UTC date, RFC3339 timestamp, or relative time (default: now)")
 	cmd.MarkFlagsMutuallyExclusive("days", "start-date")
 	cmd.Flags().Float64("threshold", 80.0, "Success rate threshold for warnings (percentage)")
-	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering and sub-agent failures (no artifact downloads)")
+	cmd.Flags().String("logs-dir", defaultLogsOutputDir, "Existing logs cache for failure clustering and sub-agent failures (reports cache compatibility; no artifact downloads)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 }
@@ -136,10 +140,14 @@ func RunHealth(config HealthConfig) error {
 
 	// Fetch workflow runs from GitHub
 	config.collection = &HealthCollection{
-		Host:        normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
-		StartDate:   config.StartDate,
-		EndDate:     config.EndDate,
-		MaximumDays: max(1, int(math.Ceil(end.Sub(start).Hours()/24))),
+		ProducerVersion:     GetVersion(),
+		ReportSchemaVersion: 1,
+		ObservedAt:          time.Now().UTC(),
+		Capabilities:        []string{"failure_inventory", "source_revisions", "typed_job_steps", "cache_diagnostics", "cross_version_raw_jobs"},
+		Host:                normalizedGitHubAPIHost(logsRateLimitHost(config.RepoOverride)),
+		StartDate:           config.StartDate,
+		EndDate:             config.EndDate,
+		MaximumDays:         max(1, int(math.Ceil(end.Sub(start).Hours()/24))),
 	}
 	if err := discoverHealthWorkflows(&config); err != nil {
 		return err
@@ -292,13 +300,18 @@ func outputHealthTable(summary HealthSummary, threshold float64) error {
 	fmt.Fprintln(os.Stderr, "")
 
 	// Display summary message
+	fmt.Fprintf(os.Stderr, "[health_population] workflows=%d healthy=%d observed_failure_workflows=%d subagent_degraded_workflows=%d statuses=%v\n",
+		summary.TotalWorkflows, summary.HealthyWorkflows, summary.ObservedFailureWorkflows, summary.DegradedWorkflows, summary.StatusCounts)
+	if summary.ObservedFailureWorkflows > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) have sampled current-revision Actions failures", summary.ObservedFailureWorkflows)))
+	}
 	if summary.DegradedWorkflows > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) have failed sub-agent invocations across %d run(s)", summary.DegradedWorkflows, summary.SubagentFailureRuns)))
 	}
 	if summary.BelowThreshold > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) below %.0f%% success threshold", summary.BelowThreshold, threshold)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run '%s health <workflow-name>' for details", string(constants.CLIExtensionPrefix))))
-	} else if summary.DegradedWorkflows == 0 && summary.InsufficientWorkflows == 0 && (summary.Collection == nil || !summary.Collection.Partial) {
+	} else if summary.ObservedFailureWorkflows == 0 && summary.DegradedWorkflows == 0 && summary.InsufficientWorkflows == 0 && (summary.Collection == nil || !summary.Collection.Partial) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All evaluated workflows above %.0f%% success threshold", threshold)))
 	} else if summary.InsufficientWorkflows > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflows have insufficient current-revision evidence", summary.InsufficientWorkflows)))

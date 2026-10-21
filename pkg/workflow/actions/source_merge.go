@@ -41,6 +41,15 @@ func sourceMappingEntries(node ast.Node) []*ast.MappingValueNode {
 	}
 }
 
+func sourceNodeColumn(node ast.Node) int {
+	column := node.GetToken().Position.Column
+	// Block mapping tokens point at a colon, not the first key.
+	for _, field := range sourceMappingEntries(node) {
+		column = min(column, field.Key.GetToken().Position.Column)
+	}
+	return column
+}
+
 func mergeSourceNode(source, before, after ast.Node) (ast.Node, error) {
 	if sameSourceValue(before, after) {
 		return source, nil
@@ -78,7 +87,7 @@ func replaceSourceNode(source, replacement ast.Node) (ast.Node, error) {
 	if err := replacement.SetComment(comment); err != nil {
 		return nil, fmt.Errorf("preserving workflow value comment: %w", err)
 	}
-	shiftSourceNode(replacement, source.GetToken().Position.Column-replacement.GetToken().Position.Column)
+	shiftSourceNode(replacement, sourceNodeColumn(source)-sourceNodeColumn(replacement))
 	return replacement, nil
 }
 
@@ -149,7 +158,7 @@ func mergeSourceExistingFields(entries []*ast.MappingValueNode, original, before
 			if err != nil {
 				return nil, err
 			}
-			shiftSourceNode(value, field.Value.GetToken().Position.Column-value.GetToken().Position.Column)
+			shiftSourceNode(value, sourceNodeColumn(field.Value)-sourceNodeColumn(value))
 			field.Value = value
 		}
 		fields = append(fields, field)
@@ -163,10 +172,7 @@ func mergeSourceMapping(source, before, after ast.Node) (ast.Node, error) {
 	if len(entries) == 0 {
 		return nil, errors.New("cannot merge a workflow mapping without source entries")
 	}
-	column := source.GetToken().Position.Column
-	for _, field := range entries {
-		column = min(column, field.Key.GetToken().Position.Column)
-	}
+	column := sourceNodeColumn(source)
 	oldFields, newFields := sourceMapping(before), sourceMapping(after)
 	fields, err := mergeSourceExistingFields(entries, original, oldFields, newFields)
 	if err != nil {

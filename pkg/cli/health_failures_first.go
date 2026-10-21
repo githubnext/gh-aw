@@ -67,6 +67,9 @@ func collectHealthFailures(startDate, repoOverride string, collection *HealthCol
 		}
 		collection.failureScopes[run.WorkflowPath][healthFailureSampleScope(run)] = struct{}{}
 		runs = append(runs, run)
+		if err := collectHealthRepresentativeJobs(run, collection); err != nil && collection.stopped {
+			return runs, err
+		}
 		if collection.APIRequests >= healthMaximumAPIRequests && !collection.stopped {
 			stopHealthCollection(collection, errHealthAPIBudget)
 		}

@@ -61,6 +61,11 @@ type FailureClusterTarget struct {
 	URL          string    `json:"url,omitempty"`
 	LogsPath     string    `json:"logs_path,omitempty"`
 	AuditPath    string    `json:"audit_path,omitempty"`
+	Branch       string    `json:"branch,omitempty"`
+	Event        string    `json:"event,omitempty"`
+	HeadSHA      string    `json:"head_sha,omitempty"`
+	Attempt      string    `json:"attempt,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitzero"`
 }
 
 func failureRunIdentityFor(run RunData) FailureRunIdentity {

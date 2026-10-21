@@ -1,6 +1,16 @@
-import { ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { ASTUtils, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
+
+function resolveCallback(callback: TSESTree.Node, sourceCode: TSESLint.SourceCode): TSESTree.Node | null {
+  if (callback.type !== "Identifier") return callback;
+  const variable = ASTUtils.findVariable(sourceCode.getScope(callback), callback);
+  if (!variable || variable.defs.length !== 1 || variable.references.some(ref => ref.isWrite() && !ref.init)) return null;
+  const definition = variable.defs[0];
+  if (definition.type === "FunctionName" && definition.node.type === "FunctionDeclaration") return definition.node;
+  if (definition.type === "Variable" && definition.parent.kind === "const" && definition.node.id.type === "Identifier") return definition.node.init;
+  return null;
+}
 
 export const noAsyncForEachCallbackRule = createRule({
   name: "no-async-foreach-callback",
@@ -19,11 +29,18 @@ export const noAsyncForEachCallbackRule = createRule({
     return {
       CallExpression(node: TSESTree.CallExpression) {
         const callee = node.callee;
-        if (callee.type !== "MemberExpression" || callee.computed || callee.property.type !== "Identifier" || callee.property.name !== "forEach") {
+        if (callee.type !== "MemberExpression") {
           return;
         }
+        const property = callee.property;
+        const isForEach = callee.computed
+          ? (property.type === "Literal" && property.value === "forEach") || (property.type === "TemplateLiteral" && property.expressions.length === 0 && property.quasis[0].value.cooked === "forEach")
+          : property.type === "Identifier" && property.name === "forEach";
+        if (!isForEach) return;
         const callback = node.arguments[0];
-        if (!callback || (callback.type !== "ArrowFunctionExpression" && callback.type !== "FunctionExpression") || !callback.async) {
+        if (!callback) return;
+        const resolved = resolveCallback(callback, context.sourceCode);
+        if (!resolved || (resolved.type !== "ArrowFunctionExpression" && resolved.type !== "FunctionExpression" && resolved.type !== "FunctionDeclaration") || !resolved.async) {
           return;
         }
         context.report({ node: callback, messageId: "asyncForEach" });

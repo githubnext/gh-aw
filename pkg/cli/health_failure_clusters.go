@@ -20,6 +20,8 @@ func buildHealthFailureClusters(runs []WorkflowRun, config HealthConfig) ([]Fail
 			RunID: run.DatabaseID, Repository: run.Repository, URL: run.URL,
 			WorkflowName: run.WorkflowName, WorkflowPath: run.WorkflowPath,
 			Conclusion: run.Conclusion, CreatedAt: run.CreatedAt,
+			Branch: run.HeadBranch, Event: run.Event, HeadSHA: run.HeadSha,
+			RunAttempt: strconv.Itoa(run.Attempt), UpdatedAt: run.UpdatedAt,
 		}
 		if config.RepoOverride == "" {
 			value, known := intentional[run.WorkflowPath]
@@ -30,6 +32,12 @@ func buildHealthFailureClusters(runs []WorkflowRun, config HealthConfig) ([]Fail
 			data.IntentionalFailure = value
 		}
 		enrichHealthFailureFromCache(&data, run, config)
+		if config.collection != nil {
+			if jobs := config.collection.jobs[healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}]; jobs != nil && jobs.complete {
+				pr := ProcessedRun{Run: run, JobDetails: jobs.details}
+				data.FailureSignals = append(data.FailureSignals, failureSignalsForRun(pr)...)
+			}
+		}
 		failures = append(failures, data)
 	}
 	clusters := annotateFailureClusters(failures)
@@ -57,8 +65,18 @@ func loadHealthRunSummary(run WorkflowRun, config HealthConfig) (*RunSummary, st
 		root = defaultLogsOutputDir
 	}
 	dir := filepath.Join(root, "run-"+strconv.FormatInt(run.DatabaseID, 10))
-	summary, ok := loadRunSummary(dir, config.Verbose)
-	if !ok {
+	key := healthRunAttempt{id: run.DatabaseID, attempt: run.Attempt}
+	if config.collection != nil {
+		if summary, checked := config.collection.cacheSummaries[key]; checked {
+			return summary, dir
+		}
+	}
+	summary, reason := readHealthCache(dir)
+	if reason != "" {
+		recordHealthCacheEvidence(run, nil, reason, config.collection)
+		if config.collection != nil {
+			config.collection.cacheSummaries[key] = nil
+		}
 		return nil, dir // Cache loader logs missing or invalid evidence.
 	}
 	cached := summary.Run
@@ -67,7 +85,25 @@ func loadHealthRunSummary(run WorkflowRun, config HealthConfig) (*RunSummary, st
 		cached.HeadSha != run.HeadSha || cached.WorkflowPath != run.WorkflowPath ||
 		cached.Repository != run.Repository || cached.Attempt != run.Attempt || !cached.UpdatedAt.Equal(run.UpdatedAt) {
 		healthLog.Printf("Ignoring stale health evidence for run %d", run.DatabaseID)
+		recordHealthCacheEvidence(run, summary, "stale", config.collection)
+		if config.collection != nil {
+			config.collection.cacheSummaries[key] = nil
+		}
 		return nil, dir
+	}
+	status := "compatible"
+	producer := summary
+	if summary.CLIVersion != GetVersion() {
+		// Jobs are raw API observations. Never reuse version-dependent derived
+		// usage, classification, or sub-agent metrics from another producer.
+		status = "version_mismatch_raw_jobs_only"
+		summary = &RunSummary{CLIVersion: summary.CLIVersion, RunID: summary.RunID,
+			Run: run, JobDetails: summary.JobDetails}
+		healthLog.Printf("Health run %d reuses raw jobs only: cached=%s current=%s", run.DatabaseID, summary.CLIVersion, GetVersion())
+	}
+	recordHealthCacheEvidence(run, producer, status, config.collection)
+	if config.collection != nil {
+		config.collection.cacheSummaries[key] = summary
 	}
 	return summary, dir
 }

@@ -282,10 +282,6 @@ func collectSafeJobArtifactPaths(jobs map[string]*SafeJobConfig) []string {
 	return paths
 }
 
-func hasSafeJobArtifactPaths(data *WorkflowData) bool {
-	return data != nil && data.SafeOutputs != nil && len(collectSafeJobArtifactPaths(data.SafeOutputs.Jobs)) > 0
-}
-
 func isEmptySafeJobRunsOn(value any) bool {
 	if _, isObject := value.(map[string]any); isObject {
 		return false

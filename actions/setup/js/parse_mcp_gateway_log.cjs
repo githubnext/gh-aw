@@ -7,7 +7,7 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { displayDirectories } = require("./display_file_helpers.cjs");
 const { ERR_PARSE, ERR_SYSTEM } = require("./error_codes.cjs");
 const { formatModelEmojiAlias } = require("./model_aliases.cjs");
-const { computeInferenceAIC, formatAIC } = require("./model_costs.cjs");
+const { computeInferenceAIC, findModelPricing, formatAIC } = require("./model_costs.cjs");
 const { parseUnknownModelAICreditsFromAuditLog } = require("./ai_credits_context.cjs");
 const { getMcpRateLimitHint, getRpcRateLimitHint } = require("./mcp_rate_limit.cjs");
 const { MAX_STEP_SUMMARY_SIZE } = require("./log_parser_shared.cjs");
@@ -116,7 +116,7 @@ function formatAICForTable(value, source) {
  * aborts, retries, authentication, and safe outputs use separate paths.
  *
  * @param {string} jsonlContent - The token-usage.jsonl file content
- * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalAIC: number, aiCreditsSource: "awf_reported"|"recomputed", aiCreditsWarnings: string[], ambientContextTokens: number|undefined, byModel: Record<string, any>, entries: Array} | null}
+ * @returns {{totalInputTokens: number, totalOutputTokens: number, totalCacheReadTokens: number, totalCacheWriteTokens: number, totalRequests: number, totalDurationMs: number, totalAIC: number, aiCreditsAvailable: boolean, aiCreditsSource: "awf_reported"|"recomputed", aiCreditsWarnings: string[], ambientContextTokens: number|undefined, byModel: Record<string, any>, entries: Array} | null}
  * ambientContextTokens records first-request context size as:
  * input_tokens + ((cache_read_tokens + cache_write_tokens) / 10).
  */
@@ -131,6 +131,7 @@ function parseTokenUsageJsonl(jsonlContent) {
     totalRequests: 0,
     totalDurationMs: 0,
     totalAIC: 0,
+    aiCreditsAvailable: true,
     /** @type {"awf_reported"|"recomputed"} */
     aiCreditsSource: "recomputed",
     /** @type {string[]} */
@@ -242,6 +243,7 @@ function parseTokenUsageJsonl(jsonlContent) {
     // AWF added reported AIC and explicit cache-semantics fields.
     let totalAIC = 0;
     for (const [model, usage] of Object.entries(summary.byModel)) {
+      if (!findModelPricing(usage.provider || "", model)) summary.aiCreditsAvailable = false;
       const aic = computeInferenceAIC({
         provider: usage.provider || "",
         model,
@@ -294,6 +296,7 @@ function parseTokenUsageJsonl(jsonlContent) {
       if (entry.reportedDeltaAIC !== null) {
         entry.deltaAIC = entry.reportedDeltaAIC;
       } else {
+        if (!findModelPricing(entry.provider || "", entry.model)) summary.aiCreditsAvailable = false;
         if (entry.hasInputTokensIncludeCacheField && typeof entry.inputTokensIncludeCache !== "boolean") {
           invalidCacheSemanticsCount++;
         }
@@ -310,6 +313,8 @@ function parseTokenUsageJsonl(jsonlContent) {
       }
       summary.byModel[entry.model].aic += entry.deltaAIC;
       runningAIC = entry.reportedTotalAIC ?? runningAIC + entry.deltaAIC;
+      // A reported cumulative total covers earlier requests with unknown pricing.
+      if (entry.reportedTotalAIC !== null) summary.aiCreditsAvailable = true;
       entry.runningAIC = runningAIC;
     }
 
@@ -442,7 +447,7 @@ async function writeStepSummaryWithTokenUsage(coreObj, sections = []) {
       for (const warning of parsedSummary?.aiCreditsWarnings || []) {
         coreObj.warning?.(`[ai-credits] ${warning}`);
       }
-      if (parsedSummary && (parsedSummary.aiCreditsSource === "awf_reported" || parsedSummary.totalAIC > 0)) {
+      if (parsedSummary?.aiCreditsAvailable && (parsedSummary.aiCreditsSource === "awf_reported" || parsedSummary.totalAIC > 0)) {
         const aic = formatAICForOutput(parsedSummary.totalAIC, parsedSummary.aiCreditsSource);
         coreObj.exportVariable("GH_AW_AIC", aic);
         coreObj.setOutput("aic", aic);

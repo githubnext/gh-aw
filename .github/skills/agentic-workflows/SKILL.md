@@ -40,6 +40,7 @@ If GitHub API, `gh api`, or GitHub MCP downloads return HTTP 403 (including a to
 - `.github/aw/deployment-status.md`
 - `.github/aw/designer-mappings.md`
 - `.github/aw/designer.md`
+- `.github/aw/documentation-workflows.md`
 - `.github/aw/drive-memory.md`
 - `.github/aw/enclaves.md`
 - `.github/aw/evals.md`
@@ -106,7 +107,7 @@ After loading the matching workflow prompt or skill, follow it directly:
 - Update existing workflows: `.github/aw/update-agentic-workflow.md`
 - Diagnose, patch, audit, or actively debug workflows: `.github/aw/debug-agentic-workflow.md` (local-first strategy, evidence triage and live gates)
 - Analyze existing runs, logs, or recurring failures: `.github/aw/analyzing-runs.md`. General repository-wide debugging or optimization requests start here with failure clustering before selecting a workflow.
-- AWF model/endpoint 400s, silent cross-family sub-agent failures, `model: auto` failures, install-step 404s after a version pin, or questions about version fields: go directly to [Model and engine misconfiguration](https://github.com/github/gh-aw/blob/main/.github/aw/debug-agentic-workflow.md#model-and-engine-misconfiguration) before suggesting model changes.
+- AWF model/endpoint 400s, silent cross-family sub-agent failures, `model: auto` failures, install-step 404s after a version pin, or questions about version fields: go directly to `.github/aw/debug-agentic-workflow.md#model-and-engine-misconfiguration` before suggesting model changes.
 - Upgrade workflows and fix deprecations: `.github/aw/upgrade-agentic-workflows.md`
 - Create shared components or MCP wrappers: `.github/aw/create-shared-agentic-workflow.md`
 - Create report-generating workflows: `.github/aw/report.md`

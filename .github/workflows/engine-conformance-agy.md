@@ -26,7 +26,6 @@ tools:
     worker: true
     require-assignment: true
 safe-outputs:
-  staged: true
   threat-detection: false
   activation-comments: false
   report-failure-as-issue: false

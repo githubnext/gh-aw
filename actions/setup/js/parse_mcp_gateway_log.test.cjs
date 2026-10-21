@@ -2161,6 +2161,43 @@ Some content here.`;
   });
 
   describe("parseTokenUsageJsonl", () => {
+    test.each([
+      [{}, false],
+      [{ input_tokens_include_cache: true }, false],
+      [{ ai_credits_this_response: 0 }, true],
+      [{ ai_credits_total: 0 }, true],
+    ])("tracks pricing availability for an unpriced model: %j", (reported, available) => {
+      const summary = parseTokenUsageJsonl(JSON.stringify({ model: "unpriced-regression-model", input_tokens: 1000, ...reported }));
+      expect(summary.aiCreditsAvailable).toBe(available);
+      expect(summary.totalAIC).toBe(0);
+    });
+
+    test("does not publish a partial cost when an unpriced request follows a priced one", () => {
+      const summary = parseTokenUsageJsonl(
+        [
+          { model: "gpt-4o", provider: "openai", input_tokens: 1000 },
+          { model: "unpriced-regression-model", input_tokens: 1000 },
+        ]
+          .map(entry => JSON.stringify(entry))
+          .join("\n")
+      );
+      expect(summary.totalAIC).toBeGreaterThan(0);
+      expect(summary.aiCreditsAvailable).toBe(false);
+    });
+
+    test("restores cost availability when a cumulative total covers earlier unpriced requests", () => {
+      const summary = parseTokenUsageJsonl(
+        [
+          { model: "unpriced-regression-model", input_tokens: 1000 },
+          { model: "unpriced-regression-model", ai_credits_total: 0.5 },
+        ]
+          .map(entry => JSON.stringify(entry))
+          .join("\n")
+      );
+      expect(summary.totalAIC).toBe(0.5);
+      expect(summary.aiCreditsAvailable).toBe(true);
+    });
+
     test("returns null for empty content", () => {
       expect(parseTokenUsageJsonl("")).toBeNull();
       expect(parseTokenUsageJsonl("   \n  ")).toBeNull();

@@ -524,24 +524,24 @@ func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {
 func TestExtractMCPGatewayConfigTrustedBots(t *testing.T) {
 	compiler := &Compiler{}
 
-	t.Run("extracts trustedBots using camelCase key", func(t *testing.T) {
+	t.Run("does not extract gateway JSON camelCase key", func(t *testing.T) {
 		mcpObj := map[string]any{
 			"container":   "ghcr.io/github/gh-aw-mcpg",
 			"trustedBots": []any{"github-actions[bot]", "copilot-swe-agent[bot]"},
 		}
 		config := compiler.extractMCPGatewayConfig(mcpObj)
 		require.NotNil(t, config, "Should extract MCP gateway config")
-		assert.Equal(t, []string{"github-actions[bot]", "copilot-swe-agent[bot]"}, config.TrustedBots, "Should extract trustedBots")
+		assert.Nil(t, config.TrustedBots, "trustedBots is not a frontmatter field")
 	})
 
 	t.Run("extracts trustedBots using kebab-case key", func(t *testing.T) {
 		mcpObj := map[string]any{
 			"container":    "ghcr.io/github/gh-aw-mcpg",
-			"trusted-bots": []any{"github-actions[bot]"},
+			"trusted-bots": []any{"github-actions[bot]", "copilot-swe-agent[bot]", "my-bot"},
 		}
 		config := compiler.extractMCPGatewayConfig(mcpObj)
 		require.NotNil(t, config, "Should extract MCP gateway config")
-		assert.Equal(t, []string{"github-actions[bot]"}, config.TrustedBots, "Should extract trusted-bots")
+		assert.Equal(t, []string{"github-actions[bot]", "copilot-swe-agent[bot]", "my-bot"}, config.TrustedBots, "Should extract trusted-bots")
 	})
 
 	t.Run("leaves trustedBots nil when not specified", func(t *testing.T) {
