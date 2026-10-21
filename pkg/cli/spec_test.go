@@ -5,6 +5,7 @@ package cli_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -202,6 +203,53 @@ func TestSpec_Constants_TimelineEvents(t *testing.T) {
 	assert.Equal(t, cli.TimelineKindAgentTurn, cli.TimelineEventKind("agent_turn"), "agent-turn kind should match the README specification")
 	assert.Equal(t, cli.TimelineKindAgentToolStart, cli.TimelineEventKind("agent_tool_start"), "agent tool-start kind should match the README specification")
 	assert.Equal(t, cli.TimelineKindAgentToolDone, cli.TimelineEventKind("agent_tool_done"), "agent tool-done kind should match the README specification")
+}
+
+// TestSpec_Constants_ArtifactSets validates the documented artifact-set values.
+func TestSpec_Constants_ArtifactSets(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		actual   cli.ArtifactSet
+		expected cli.ArtifactSet
+	}{
+		{name: "activation", actual: cli.ArtifactSetActivation, expected: "activation"},
+		{name: "agent", actual: cli.ArtifactSetAgent, expected: "agent"},
+		{name: "all", actual: cli.ArtifactSetAll, expected: "all"},
+		{name: "detection", actual: cli.ArtifactSetDetection, expected: "detection"},
+		{name: "evals", actual: cli.ArtifactSetEvals, expected: "evals"},
+		{name: "experiment", actual: cli.ArtifactSetExperiment, expected: "experiment"},
+		{name: "firewall", actual: cli.ArtifactSetFirewall, expected: "firewall"},
+		{name: "github api", actual: cli.ArtifactSetGitHubAPI, expected: "github-api"},
+		{name: "mcp", actual: cli.ArtifactSetMCP, expected: "mcp"},
+		{name: "usage", actual: cli.ArtifactSetUsage, expected: "usage"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, tt.actual, "ArtifactSet constant %q should match the README specification", tt.name)
+		})
+	}
+}
+
+// TestSpec_Constants_LogFetchingLimits validates the documented batching,
+// concurrency, retention, and cooldown values.
+func TestSpec_Constants_LogFetchingLimits(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 100, cli.BatchSize, "BatchSize should match the README specification")
+	// SPEC_MISMATCH: README.md documents 250, while the current exported constant is 100.
+	assert.Equal(t, 250, cli.BatchSizeForAllWorkflows, "BatchSizeForAllWorkflows should match the README specification")
+	assert.Equal(t, 90, cli.GitHubActionsRetentionDays, "GitHubActionsRetentionDays should match the README specification")
+	assert.Equal(t, 10, cli.MaxConcurrentDownloads, "MaxConcurrentDownloads should match the README specification")
+	assert.Equal(t, 500*time.Millisecond, cli.APICallCooldown, "APICallCooldown should match the README specification")
+}
+
+// TestSpec_Errors_SentinelsExist validates the two documented sentinel errors.
+func TestSpec_Errors_SentinelsExist(t *testing.T) {
+	t.Parallel()
+	assert.Error(t, cli.ErrInterrupted, "ErrInterrupted should be an exported sentinel error")
+	assert.Error(t, cli.ErrNoArtifacts, "ErrNoArtifacts should be an exported sentinel error")
 }
 
 // TestSpec_Constants_WorkflowIDExplanation validates the documented workflow-ID explanation.
