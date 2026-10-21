@@ -97,6 +97,7 @@ var ghAwOnSectionKeys = map[string]bool{
 	"skip-if-no-match":                   true,
 	"slash_command":                      true,
 	"stale-check":                        true,
+	"admission":                          true,
 	"status-comment":                     true,
 	"steps":                              true,
 	"stop-after":                         true,

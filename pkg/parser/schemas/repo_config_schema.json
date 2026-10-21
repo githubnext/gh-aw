@@ -17,6 +17,11 @@
     }
   },
   "properties": {
+    "admission": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable admission and conclusion_admission jobs for all workflows. Admission is also enabled by on.admission: true in an individual workflow."
+    },
     "gateway-dispatch": {
       "type": "boolean",
       "default": false,
