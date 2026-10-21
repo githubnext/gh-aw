@@ -95,6 +95,7 @@ safe-outputs:
       skip-archive: true
     add-comment:
       allowed-repos: ["github/gh-aw"]
+      target: "*"
       hide-older-comments: true
       max: 2
       discussions: true

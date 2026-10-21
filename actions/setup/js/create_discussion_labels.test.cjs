@@ -7,6 +7,8 @@ useExecutionProvenanceFixture();
 
 const require = createRequire(import.meta.url);
 const { main: createDiscussionMain } = require("./create_discussion.cjs");
+const { processMessages } = require("./safe_output_handler_manager.cjs");
+const { replaceTemporaryIdReferences, resolveIssueNumber } = require("./temporary_id.cjs");
 
 describe("create_discussion with labels", () => {
   let mockGithub;
@@ -150,6 +152,48 @@ describe("create_discussion with labels", () => {
 
     // Clear mocks
     vi.clearAllMocks();
+  });
+
+  it.each(["aw_discuss", "#aw_Discuss"])("registers discussion ID %s for dependent safe outputs", async temporaryId => {
+    const handler = await createDiscussionMain({
+      allowed_repos: ["test-owner/test-repo"],
+      target_repo: "test-owner/test-repo",
+      category: "general",
+    });
+    const consumer = vi.fn(async (message, resolvedIds) => {
+      const map = new Map(Object.entries(resolvedIds));
+      expect(resolveIssueNumber(message.item_number, map).resolved).toBe(42);
+      expect(replaceTemporaryIdReferences(message.body, map, "test-owner/test-repo")).toBe("See #42");
+      return { success: true };
+    });
+    const result = await processMessages(
+      new Map([
+        ["create_discussion", handler],
+        ["add_comment", consumer],
+      ]),
+      [
+        { type: "add_comment", item_number: "#aw_discuss", body: "See #aw_discuss" },
+        { type: "create_discussion", title: "Report", body: "Discussion body", temporary_id: temporaryId },
+      ]
+    );
+    expect(result.success).toBe(true);
+    expect(result.temporaryIdMap.aw_discuss).toEqual({ repo: "test-owner/test-repo", number: 42 });
+    expect(consumer).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the discussion ID when GitHub reports a partial creation success", async () => {
+    const originalGraphql = mockGithub.graphql.getMockImplementation();
+    mockGithub.graphql.mockImplementation(async (query, variables) => {
+      if (query.includes("createDiscussion")) {
+        throw Object.assign(new Error("Partial GraphQL error"), {
+          data: { createDiscussion: { discussion: { id: "D_partial", number: 42, url: "https://github.com/test-owner/test-repo/discussions/42" } } },
+        });
+      }
+      return originalGraphql(query, variables);
+    });
+    const handler = await createDiscussionMain({ target_repo: "test-owner/test-repo", category: "general" });
+    const result = await handler({ title: "Report", body: "Discussion body", temporary_id: "#aw_Discuss" }, {});
+    expect(result).toMatchObject({ success: true, number: 42, temporaryId: "aw_discuss" });
   });
 
   it("should apply labels from config to created discussion", async () => {

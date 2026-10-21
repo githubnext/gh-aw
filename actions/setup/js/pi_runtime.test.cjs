@@ -252,6 +252,19 @@ describe("Pi runtime configuration", () => {
     expect(fs.statSync(path.join(dir, "agent/mcp.json")).mode & 0o777).toBe(0o600);
   });
 
+  it("exposes smoke-test MCP tools directly without changing gateway authorization", () => {
+    const servers = {
+      safeoutputs: { url: "http://gateway/mcp/safeoutputs", headers: { Authorization: "scoped-test-token" } },
+      web_fetch: { url: "http://gateway/mcp/web_fetch", headers: { Authorization: "web-test-token" } },
+    };
+    fs.mkdirSync(path.join(dir, "gh-aw/mcp-config"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "gh-aw/mcp-config/mcp-servers.json"), JSON.stringify({ mcpServers: servers }));
+    preparePiRuntime({ mcp: { exposure: "direct" } });
+    const mcp = JSON.parse(fs.readFileSync(path.join(dir, "agent/mcp.json"), "utf8"));
+    expect(mcp.mcpServers).toEqual(Object.fromEntries(Object.entries(servers).map(([name, server]) => [name, { ...server, exposure: "direct" }])));
+    expect(fs.statSync(path.join(dir, "agent/mcp.json")).mode & 0o777).toBe(0o600);
+  });
+
   it("reports malformed settings instead of discarding installed packages", () => {
     fs.mkdirSync(path.join(dir, "agent"));
     fs.writeFileSync(path.join(dir, "agent/settings.json"), "invalid");
