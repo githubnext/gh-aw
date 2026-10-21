@@ -35,17 +35,18 @@ Use same-run artifacts, never baseline evidence.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
-| `workflow_failed` | First failed step; native error. | Route specific cause; conclusion is not root cause. |
+| `workflow_failed` | First failed step; native error. | Route specific cause; conclusion isn't root cause. |
 | `workflow_timeout` | Timed-out step, budget, terminal result. | Remove blocking work/narrow scope; justify timeout changes. |
 | `multiple_errors` | First distinct error versus cascades. | Fix first cause, not repeats. |
 | `mcp_server_failures`, `tools_not_available` | MCP startup, registration, failed calls. | Fix tool/server/config/auth; no blind permission expansion. |
-| `model_unavailable` | Complete same-run matching provider inventory excludes exact model ID. | Follow [model availability](#model-availability); verify advertised candidate/API, edit pin, recompile. |
-| `model_availability_unknown` | Missing, incomplete, malformed, ambiguous, or contradictory reflection. | Inspect discovery/auth; do not declare removal or switch models on missing evidence. |
-| `subagent_model_not_observed` | Spawn, child usage, evidence coverage. | Missing observations do not prove nonexecution. |
+| `model_unavailable` | Complete same-run provider inventory excludes exact model. | [Model availability](#model-availability); verify candidate/API, edit pin, recompile. |
+| `model_availability_unknown` | Missing/incomplete/malformed/ambiguous/contradictory reflection. | Inspect discovery/auth; do not declare removal/switch models without evidence. |
+| `model_resolution_failed` | Failed `model.resolution` lacking same-role startup-stop evidence. | Advisory: verify listed pins; not a proven failure cause. |
+| `subagent_model_not_observed` | Spawn, child usage, evidence coverage. | Missing observations don't prove nonexecution. |
 | `subagent_model_unavailable` | Child model, request, provider policy/catalog. | Verify child separately; follow [model/engine guide](debug-model-engine-misconfiguration.md). |
-| `subagent_failed` | Child native error; parent dispatch. | Fix child cause; parent success does not prove child success. |
+| `subagent_failed` | Child native error; parent dispatch. | Fix child cause; parent success doesn't prove child success. |
 | `blocked_network_requests` | Destination, caller, denial, necessity. | Fix URL/tool or authorize narrow destination; retain firewall. |
-| `threat_detection_job_failed` | Detector startup/runtime versus verdict. | Repair detector; failure is not a clean verdict. |
+| `threat_detection_job_failed` | Detector startup/runtime versus verdict. | Repair detector; failure isn't a clean verdict. |
 | `threat_detected` | Private structured verdict/artifact. | Stop unsafe effects; follow [security guidance](debug-security-review.md). Never publish payloads. |
 | `high_token_usage`, `many_iterations` | Tokens/cache/turns, repeated calls. | [Optimize](optimize-agentic-workflow.md) scope/context/loops before raising caps. |
 | `agentic_resource_heavy_for_domain`, `agentic_overkill_for_agentic` | Assessment, deterministic alternatives, judgment needed. | Script mechanical work; retain necessary LLM judgment. |
@@ -62,10 +63,10 @@ Inventory: [Model availability](#model-availability).
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
-| `inference_access_error`, `inference_access_denied`, `authentication_failed` | Native 401/403, credential names, permissions/policy, proxy guards. | Fix access/config; budget/policy denial does not warrant credential rotation. |
+| `inference_access_error`, `inference_access_denied`, `authentication_failed` | Native 401/403, credential names, permissions/policy, proxy guards. | Fix access/config; budget/policy denial doesn't warrant credential rotation. |
 | `mcp_policy_error` | Blocked MCP server; organization policy. | Use approved tool/authorized policy correction; no bypass. |
-| `model_not_supported_error`, `model_endpoint_mismatch_error`, `model_endpoint_mismatch` | Model, API, tool protocol, same-run inventory/routes. | Follow [model/engine guide](debug-model-engine-misconfiguration.md); endpoint change does not establish availability. |
-| `http_400_response_error` | Provider diagnostic, endpoint, feature/schema. | Fix unsupported request; 400 alone does not prove model removal. |
+| `model_not_supported_error`, `model_endpoint_mismatch_error`, `model_endpoint_mismatch` | Model, API, tool protocol, same-run inventory/routes. | Follow [model/engine guide](debug-model-engine-misconfiguration.md); endpoint change doesn't establish availability. |
+| `http_400_response_error` | Provider diagnostic, endpoint, feature/schema. | Fix unsupported request; 400 alone doesn't prove model removal. |
 | `unsupported_endpoint`, `invalid_selection`, `uncorroborated_endpoint`, `uncorroborated_selection`, `harness_selection_mismatch` | Selection versus harness model/API and metadata. | Align selection/API; retain verification; never invent evidence. |
 | `unsupported_effort` | Effort versus engine/model support. | Use supported effort/mapping; no silent discard. |
 | `missing_model_pricing_error`, `unknown_model_ai_credits` | Proxy pricing table and `missing_model_pricing_model_name`. | Correct supported pricing/version/config; never disable credit accounting. |
@@ -75,10 +76,10 @@ Inventory: [Model availability](#model-availability).
 | `effective_tokens_limit_exceeded` | Effective tokens; prompt/turn growth. | Reduce context/iterations; retain guard. |
 | `permission_denied_limit_exceeded` | Denied calls; allowed tools. | Stop denied calls; use allowed tools, not larger denial budget. |
 | `model_policy_violation`, `content_filter` | Provider/proxy reason; endpoint mismatch separately. | Correct request within policy; no credential swap/bypass. |
-| `awf_api_proxy_blocking_requests` | Specific budget/policy/filter guard. | Address guard; blocking alone does not establish authentication failure. |
+| `awf_api_proxy_blocking_requests` | Specific budget/policy/filter guard. | Address guard; blocking alone doesn't establish authentication failure. |
 | `capi_quota_exceeded_error` | Native 429; exhausted retries. | Respect quota/reset; no retry storm. |
 | `capi_server_error`, `engine_outage`, `infrastructure_error` | Retry-exhausted native 5xx/infrastructure timeline. | Report transient cause; bounded backoff, no unapproved redispatch. |
-| `agentic_engine_timeout` | Step/SDK budget versus post-result `watchdogFired=true`. | Fix genuine stall; post-result watchdog alone does not establish timeout. |
+| `agentic_engine_timeout` | Step/SDK budget versus post-result `watchdogFired=true`. | Fix genuine stall; post-result watchdog alone doesn't establish timeout. |
 | `sandbox_runtime_crash` | Exit/signal, resources, runtime revision. | Fix crash/resources; retain redacted diagnostic/version. |
 | `goal_already_active` | Unfinished goal. | Update/complete existing goal; no duplicate. |
 | `shell_expansion_guard_rejected` | Private denied command; allowed syntax. | Use allowed tools without dangerous expansion; no obfuscation/bypass. |

@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/constants"
 )
 
 // Model resolution records are runner-written before the engine starts (T-UAS-074).
@@ -19,7 +21,7 @@ import (
 var (
 	modelResolutionEnginePattern   = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 	modelResolutionRolePattern     = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9 ._:@/-]{0,127}$`)
-	modelResolutionModelPattern    = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/?=+:@-]{0,199}$`)
+	modelResolutionModelPattern    = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/?=&+:@-]{0,199}$`)
 	modelResolutionProviderPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 	modelResolutionCausePattern    = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 )
@@ -42,25 +44,19 @@ type sessionAgentExecutionSummary struct {
 	ExitCode   *int     `json:"exitCode"`
 }
 
+// maxModelResolutionSessionBytes bounds the unified session read for model resolution evidence.
+const maxModelResolutionSessionBytes int64 = 256 << 20
+
 // sessionModelResolutionEvidence holds failed resolution records plus the startup
 // and continuation evidence needed to decide whether they explain the run outcome.
 type sessionModelResolutionEvidence struct {
 	Failures []sessionModelResolutionFailure
 	// NativeAgentActivity is true when the unified session contains native agent
-	// session.start, assistant, or tool events. Wrapper state, router traffic, and
-	// harness-written agent records are not native activity.
+	// session.start, session.init, assistant, or tool events. Wrapper state, router
+	// traffic, and harness-written agent records are not native activity.
 	NativeAgentActivity bool
 	AgentExecution      *sessionAgentExecutionSummary
-}
-
-type sessionModelResolutionEvent struct {
-	Type       string          `json:"type"`
-	Data       json.RawMessage `json:"data"`
-	Provenance struct {
-		Component string `json:"component"`
-		Phase     string `json:"phase"`
-		Path      string `json:"path"`
-	} `json:"provenance"`
+	agentExecutionSeen  bool
 }
 
 type sessionModelResolutionPayload struct {
@@ -77,28 +73,29 @@ func readSessionModelResolutionEvidence(runDir string) (*sessionModelResolutionE
 	if runDir == "" {
 		return nil, nil
 	}
-	for _, relative := range []string{"usage/aw_session.jsonl", "aw_session.jsonl"} {
-		path := filepath.Join(runDir, filepath.FromSlash(relative))
-		info, err := os.Lstat(path)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", relative, err)
-		}
-		if err := validateSubagentSessionSource(path); err != nil {
-			return nil, fmt.Errorf("%s: %w", relative, err)
-		}
-		if !info.Mode().IsRegular() {
-			return nil, fmt.Errorf("%s: unified session is not a regular file", relative)
-		}
-		evidence, err := parseSessionModelResolutionFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", relative, err)
-		}
-		return evidence, nil
+	const relative = "usage/aw_session.jsonl"
+	path := filepath.Join(runDir, constants.UsageArtifactName.String(), "aw_session.jsonl")
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
 	}
-	return nil, nil
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", relative, err)
+	}
+	if err := validateSubagentSessionSource(path); err != nil {
+		return nil, fmt.Errorf("%s: %w", relative, err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s: unified session is not a regular file", relative)
+	}
+	if info.Size() > maxModelResolutionSessionBytes {
+		return nil, fmt.Errorf("%s: unified session exceeds the %d-byte audit input limit", relative, maxModelResolutionSessionBytes)
+	}
+	evidence, err := parseSessionModelResolutionFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", relative, err)
+	}
+	return evidence, nil
 }
 
 func parseSessionModelResolutionFile(path string) (evidence *sessionModelResolutionEvidence, err error) {
@@ -111,16 +108,22 @@ func parseSessionModelResolutionFile(path string) (evidence *sessionModelResolut
 			evidence, err = nil, closeErr
 		}
 	}()
-	return parseSessionModelResolutionEvidence(file)
+	return parseSessionModelResolutionEvidence(file, maxModelResolutionSessionBytes)
 }
 
-func parseSessionModelResolutionEvidence(input io.Reader) (*sessionModelResolutionEvidence, error) {
-	reader := bufio.NewReader(input)
+// parseSessionModelResolutionEvidence reads at most maxBytes of the unified session.
+// A larger session is rejected as invalid rather than partially attributed.
+func parseSessionModelResolutionEvidence(input io.Reader, maxBytes int64) (*sessionModelResolutionEvidence, error) {
+	limited := &io.LimitedReader{R: input, N: maxBytes + 1}
+	reader := bufio.NewReader(limited)
 	evidence := &sessionModelResolutionEvidence{}
 	seen := make(map[sessionModelResolutionFailure]struct{})
 	headerSeen := false
 	for lineNumber := 1; ; lineNumber++ {
 		line, oversized, readErr := readUnifiedSessionLine(reader)
+		if limited.N == 0 {
+			return nil, fmt.Errorf("unified session exceeds the %d-byte audit input limit", maxBytes)
+		}
 		if oversized {
 			if !headerSeen {
 				return nil, fmt.Errorf("oversized unified session header on line %d", lineNumber)
@@ -136,8 +139,8 @@ func parseSessionModelResolutionEvidence(input io.Reader) (*sessionModelResoluti
 					return nil, err
 				}
 				headerSeen = true
-			} else {
-				evidence.observe(line, lineNumber, seen)
+			} else if err := evidence.observe(line, lineNumber, seen); err != nil {
+				return nil, err
 			}
 		}
 		if readErr != nil {
@@ -153,40 +156,48 @@ func parseSessionModelResolutionEvidence(input io.Reader) (*sessionModelResoluti
 	return evidence, nil
 }
 
-func (evidence *sessionModelResolutionEvidence) observe(line []byte, lineNumber int, seen map[sessionModelResolutionFailure]struct{}) {
-	var event sessionModelResolutionEvent
+func (evidence *sessionModelResolutionEvidence) observe(line []byte, lineNumber int, seen map[sessionModelResolutionFailure]struct{}) error {
+	var event unifiedDetectionEvent
 	if err := json.Unmarshal(line, &event); err != nil {
 		auditReportLog.Printf("Skipping malformed unified session event on line %d", lineNumber)
-		return
+		return nil
 	}
 	provenance := event.Provenance
 	switch {
 	case event.Type == "model.resolution":
 		if provenance.Component != "model_resolution" || provenance.Phase != "agent" || provenance.Path != "agent/model-resolution.json" {
-			return
+			return nil
 		}
 		failure, failed, valid := decodeFailedModelResolution(event.Data)
 		if !valid {
 			auditReportLog.Printf("Ignoring invalid model.resolution on line %d", lineNumber)
-			return
+			return nil
 		}
 		if !failed {
-			return
+			return nil
 		}
 		if _, duplicate := seen[failure]; duplicate {
-			return
+			return nil
 		}
 		seen[failure] = struct{}{}
 		evidence.Failures = append(evidence.Failures, failure)
 	case event.Type == "agent.execution" && provenance.Component == "execution" && provenance.Phase == "agent":
+		// The unified-session contract allows one agent.execution summary; a duplicate
+		// would make attribution order-dependent, so the session is rejected.
+		if evidence.agentExecutionSeen {
+			return fmt.Errorf("unified session contains multiple agent.execution records (line %d)", lineNumber)
+		}
+		evidence.agentExecutionSeen = true
 		var summary sessionAgentExecutionSummary
 		if json.Unmarshal(event.Data, &summary) == nil && summary.ExitCode != nil {
 			evidence.AgentExecution = &summary
 		}
 	case provenance.Component == "agent" && provenance.Phase == "agent" &&
-		(event.Type == "session.start" || strings.HasPrefix(event.Type, "assistant.") || strings.HasPrefix(event.Type, "tool.")):
+		(event.Type == "session.start" || event.Type == "session.init" ||
+			strings.HasPrefix(event.Type, "assistant.") || strings.HasPrefix(event.Type, "tool.")):
 		evidence.NativeAgentActivity = true
 	}
+	return nil
 }
 
 // decodeFailedModelResolution validates a model.resolution payload against the
@@ -280,21 +291,10 @@ func describeModelResolutionGroups(groups []modelResolutionFailureGroup) string 
 	return strings.Join(descriptions, "; ")
 }
 
-func countModelResolutionRoles(groups []modelResolutionFailureGroup) int {
-	var roles []string
-	for _, group := range groups {
-		for _, role := range group.Roles {
-			if !slices.Contains(roles, role) {
-				roles = append(roles, role)
-			}
-		}
-	}
-	return len(roles)
-}
-
 // modelResolutionContinuationReason explains why failed records are not attributed
-// as the run's failure cause. It returns "" only when startup evidence supports a
-// fatal startup stop: a failed run, a failed agent execution, and no native agent activity.
+// as the run's failure cause. It returns "" only when the run-level startup evidence
+// permits a fatal startup stop: a failed run, a failed agent execution, and no native
+// agent activity. Each role still needs its own stop evidence (modelResolutionStopEvidence).
 func modelResolutionContinuationReason(run WorkflowRun, evidence *sessionModelResolutionEvidence) string {
 	switch {
 	case run.Conclusion != "failure":
@@ -304,7 +304,7 @@ func modelResolutionContinuationReason(run WorkflowRun, evidence *sessionModelRe
 		}
 		return fmt.Sprintf("The run conclusion is %q, so these records are not treated as a failure cause.", conclusion)
 	case evidence.NativeAgentActivity:
-		return "The unified session contains native agent session activity (session.start, assistant, or tool events), so the run continued past model resolution and these records are not treated as its failure cause."
+		return "The unified session contains native agent session activity (session.start, session.init, assistant, or tool events), so the run continued past model resolution and these records are not treated as its failure cause."
 	case evidence.AgentExecution == nil:
 		return "The unified session has no agent execution record, so a startup stop caused by these records cannot be established."
 	case *evidence.AgentExecution.ExitCode == 0:
@@ -314,7 +314,50 @@ func modelResolutionContinuationReason(run WorkflowRun, evidence *sessionModelRe
 	}
 }
 
-func modelResolutionStartupEvidence(evidence *sessionModelResolutionEvidence, roleCount int) string {
+const modelResolutionNoStopEvidenceReason = "agent-stdio.log contains no harness refusal or model-specific execution error for these roles, so the nonzero agent exit is not treated as caused by their resolution."
+
+// partitionModelResolutionStopEvidence splits failures into those with affirmative
+// startup-stop evidence in the same run's agent-stdio.log and those without.
+func partitionModelResolutionStopEvidence(runDir string, failures []sessionModelResolutionFailure) (stopped, unproven []sessionModelResolutionFailure) {
+	logData, err := readModelAvailabilityArtifact(runDir, "agent-stdio.log", 32<<20)
+	if err != nil && !os.IsNotExist(err) {
+		auditReportLog.Printf("Could not read model resolution startup log: %v", err)
+	}
+	for _, failure := range failures {
+		if err == nil && modelResolutionStopEvidence(logData, failure) {
+			stopped = append(stopped, failure)
+		} else {
+			unproven = append(unproven, failure)
+		}
+	}
+	return stopped, unproven
+}
+
+// modelResolutionStopEvidence reports whether the startup log affirmatively links this
+// failed role to the startup stop: a harness refusal naming the role (or, for the main
+// role, its configured model), or the role's model-specific resolution error. Optional
+// repository agents log only a warning and suppress model-not-supported errors, so
+// neither form is produced for them.
+func modelResolutionStopEvidence(logData []byte, failure sessionModelResolutionFailure) bool {
+	subagentRefusal := "sub-agent '" + failure.Role + "'"
+	mainRefusal := "'" + failure.ConfiguredModel + "'"
+	resolutionError := fmt.Sprintf("model resolution: engine=%s role=%s configured=%s failed cause=%s:",
+		failure.Engine, failure.Role, failure.ConfiguredModel, failure.Cause)
+	for line := range bytes.Lines(logData) {
+		text := string(line)
+		if strings.Contains(strings.ToLower(text), "refusing to start") &&
+			(strings.Contains(text, subagentRefusal) || (failure.Role == "main" && strings.Contains(text, mainRefusal))) {
+			return true
+		}
+		if strings.Contains(text, resolutionError) &&
+			(failure.Role == "main" || strings.Contains(text, "The requested model is not supported")) {
+			return true
+		}
+	}
+	return false
+}
+
+func modelResolutionStartupEvidence(evidence *sessionModelResolutionEvidence) string {
 	var categories []string
 	for _, category := range evidence.AgentExecution.Categories {
 		if modelResolutionCausePattern.MatchString(category) && !slices.Contains(categories, category) {
@@ -325,51 +368,54 @@ func modelResolutionStartupEvidence(evidence *sessionModelResolutionEvidence, ro
 	if len(categories) > 0 {
 		text += " (categories: " + strings.Join(categories, ", ") + ")"
 	}
-	text += " and the unified session contains no native agent session activity."
-	if !slices.Contains(categories, "model_not_supported_error") {
-		text += " The agent error summary does not report model_not_supported_error, so attribution relies on the absence of native agent activity."
-	}
-	if roleCount > 1 {
-		text += fmt.Sprintf(" Resolution records do not persist whether a role is a workflow-declared sub-agent (fatal) or an optional repository agent (warning only), so the session cannot identify which of these %d failed roles stopped startup.", roleCount)
-	}
+	text += ", the unified session contains no native agent session activity, and agent-stdio.log records a harness refusal or model-specific resolution error for each listed role."
 	return text
 }
 
+func modelResolutionAdvisory(groups []modelResolutionFailureGroup, reason string) AuditFinding {
+	return AuditFinding{
+		Code:        AuditFindingModelResolutionFailed,
+		Category:    "configuration",
+		Severity:    "low",
+		Title:       "Model Resolution Failure Recorded",
+		Description: "The unified session records failed model resolution: " + describeModelResolutionGroups(groups) + ". " + reason + " A failed record can come from an optional repository agent, whose unresolved model is only a warning.",
+		Impact:      "Advisory: verify the listed model pins. This record alone does not establish that model resolution stopped the run.",
+	}
+}
+
 func generateSessionModelResolutionFindings(run WorkflowRun, evidence *sessionModelResolutionEvidence) []AuditFinding {
-	groups := groupModelResolutionFailures(evidence.Failures)
 	if reason := modelResolutionContinuationReason(run, evidence); reason != "" {
-		return []AuditFinding{{
-			Code:        AuditFindingModelResolutionFailed,
-			Category:    "configuration",
-			Severity:    "low",
-			Title:       "Model Resolution Failure Recorded",
-			Description: "The unified session records failed model resolution: " + describeModelResolutionGroups(groups) + ". " + reason + " A failed record can come from an optional repository agent, whose unresolved model is only a warning.",
-			Impact:      "Advisory: verify the listed model pins. This record alone does not establish that model resolution stopped the run.",
-		}}
+		return []AuditFinding{modelResolutionAdvisory(groupModelResolutionFailures(evidence.Failures), reason)}
 	}
 
-	confirmed, unverified := classifyModelResolutionGroups(run, groups)
-	startup := modelResolutionStartupEvidence(evidence, countModelResolutionRoles(groups))
+	stopped, unproven := partitionModelResolutionStopEvidence(run.LogsPath, evidence.Failures)
 	var findings []AuditFinding
-	if len(confirmed) > 0 {
-		findings = append(findings, AuditFinding{
-			Code:        AuditFindingModelUnavailable,
-			Category:    "configuration",
-			Severity:    "high",
-			Title:       "Model Unavailable",
-			Description: "Startup model resolution failed before the agent started inference. " + strings.Join(confirmed, " ") + startup,
-			Impact:      "The agent could not start inference. This evidence does not establish global model retirement or why provider availability changed.",
-		})
+	if len(stopped) > 0 {
+		confirmed, unverified := classifyModelResolutionGroups(run, groupModelResolutionFailures(stopped))
+		startup := modelResolutionStartupEvidence(evidence)
+		if len(confirmed) > 0 {
+			findings = append(findings, AuditFinding{
+				Code:        AuditFindingModelUnavailable,
+				Category:    "configuration",
+				Severity:    "high",
+				Title:       "Model Unavailable",
+				Description: "Startup model resolution failed before the agent started inference. " + strings.Join(confirmed, " ") + startup,
+				Impact:      "The agent could not start inference. This evidence does not establish global model retirement or why provider availability changed.",
+			})
+		}
+		if len(unverified) > 0 {
+			findings = append(findings, AuditFinding{
+				Code:        AuditFindingModelAvailabilityUnknown,
+				Category:    "configuration",
+				Severity:    "high",
+				Title:       "Model Availability Unverified",
+				Description: "Startup model resolution failed before the agent started inference. " + strings.Join(unverified, " ") + startup,
+				Impact:      "Inspect model discovery and authentication evidence before changing the model or runtime.",
+			})
+		}
 	}
-	if len(unverified) > 0 {
-		findings = append(findings, AuditFinding{
-			Code:        AuditFindingModelAvailabilityUnknown,
-			Category:    "configuration",
-			Severity:    "high",
-			Title:       "Model Availability Unverified",
-			Description: "Startup model resolution failed before the agent started inference. " + strings.Join(unverified, " ") + startup,
-			Impact:      "Inspect model discovery and authentication evidence before changing the model or runtime.",
-		})
+	if len(unproven) > 0 {
+		findings = append(findings, modelResolutionAdvisory(groupModelResolutionFailures(unproven), modelResolutionNoStopEvidenceReason))
 	}
 	return findings
 }

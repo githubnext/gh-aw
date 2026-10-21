@@ -27,8 +27,10 @@ import (
 //
 // Each failing run keeps its session.format header, model.resolution, agent.execution,
 // execution.result, and session.collection events, its wrapper agent_execution.json and
-// error-summary-only agent-session.jsonl, and its awf-reflect.json reduced to provider,
-// configured state, model IDs, and routing endpoints. Native events from 39508154330
+// error-summary-only agent-session.jsonl, its awf-reflect.json reduced to provider,
+// configured state, model IDs, and routing endpoints, and its agent-stdio.log reduced to
+// the harness model-resolution and sub-agent lines copied from the agent job log with
+// timestamps removed. Native events from 39508154330
 // keep their envelopes with data reduced to identifiers.
 var modelResolutionReplayDir = filepath.Join("testdata", "model_resolution_startup")
 
@@ -48,6 +50,7 @@ func writeModelResolutionReplayRun(t *testing.T, runDir, run string, overrides m
 		"sandbox/firewall/awf-reflect.json": readModelResolutionReplayFile(t, run, "awf-reflect.json"),
 		"agent-session.jsonl":               readModelResolutionReplayFile(t, run, "agent-session.jsonl"),
 		"agent_execution.json":              readModelResolutionReplayFile(t, run, "agent_execution.json"),
+		"agent-stdio.log":                   readModelResolutionReplayFile(t, run, "agent-stdio.log"),
 	}
 	maps.Copy(files, overrides)
 	for relative, content := range files {
@@ -84,6 +87,7 @@ func assertTwoRoleConfirmedFinding(t *testing.T, findings []AuditFinding) {
 		"advertises 36 model(s), but not \"gpt-5.4-mini\"",
 		"categories: model_not_supported_error",
 		"no native agent session activity",
+		"agent-stdio.log records a harness refusal or model-specific resolution error for each listed role",
 	} {
 		assert.Contains(t, finding.Description, text)
 	}
@@ -115,7 +119,6 @@ func TestAuditModelAvailabilityRoutedCopilotSDKWithoutMainRecord(t *testing.T) {
 	assert.Contains(t, findings[0].Description, `engine copilot role(s) "mini-whoami" configured model "gpt-5.4-mini" (provider copilot, recorded cause model_unavailable)`)
 	assert.Contains(t, findings[0].Description, `but not "gpt-5.4-mini"`)
 	assert.NotContains(t, findings[0].Description, "main")
-	assert.NotContains(t, findings[0].Description, "failed roles stopped startup", "a single failed role has no role ambiguity")
 }
 
 func TestAuditModelAvailabilityCopilotSubagentsAfter70389(t *testing.T) {
@@ -127,9 +130,10 @@ func TestAuditModelAvailabilityCopilotSubagentsAfter70389(t *testing.T) {
 	require.Equal(t, "started", wrapper.State)
 	require.Contains(t, readModelResolutionReplayFile(t, "39508150750", "agent-session.jsonl"), `"type":"agent.execution"`)
 
+	require.Contains(t, readModelResolutionReplayFile(t, "39508150750", "agent-stdio.log"), "copilot sub-agent 'mini54-whoami': ")
+
 	findings := generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir})
 	assertTwoRoleConfirmedFinding(t, findings)
-	assert.Contains(t, findings[0].Description, "cannot identify which of these 2 failed roles stopped startup")
 }
 
 // TestAuditModelAvailabilityRepositoryAgentFailureOnSuccessIsAdvisory is a deliberate
@@ -220,13 +224,14 @@ func TestAuditModelAvailabilityGroupsRolesSharingModel(t *testing.T) {
 func TestAuditModelAvailabilityPreservesOtherResolutionCauses(t *testing.T) {
 	// Derived from run 39499464895: the recorded mini-whoami failure with its cause
 	// changed to the contract-valid catalog_unavailable. A legacy Pi startup line is
-	// present and must not override the recorded cause.
+	// appended to the run's startup log and must not override the recorded cause.
 	session := readModelResolutionReplayFile(t, "39499464895", "aw_session.jsonl")
 	require.Contains(t, session, `"status":"failed","cause":"model_unavailable"`)
 	session = strings.Replace(session, `"status":"failed","cause":"model_unavailable"`, `"status":"failed","cause":"catalog_unavailable"`, 1)
 	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499464895", map[string]string{
 		"usage/aw_session.jsonl": session,
-		"agent-stdio.log":        `[gh-aw/pi-models-json] fatal: Pi model "gpt-5.4-mini" is not advertised by the configured copilot proxy endpoint; choose a model listed by AWF /reflect` + "\n",
+		"agent-stdio.log": readModelResolutionReplayFile(t, "39499464895", "agent-stdio.log") +
+			`[gh-aw/pi-models-json] fatal: Pi model "gpt-5.4-mini" is not advertised by the configured copilot proxy endpoint; choose a model listed by AWF /reflect` + "\n",
 	})
 
 	findings := generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir})
@@ -269,6 +274,122 @@ func TestAuditModelAvailabilityIgnoresInvalidResolutionSessions(t *testing.T) {
 			assert.Empty(t, generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir}))
 		})
 	}
+}
+
+// TestAuditModelAvailabilityRepositoryAgentWarningThenUnrelatedStartupFailure is derived
+// from run 39499464895: its recorded mini-whoami failure is kept, but the startup log is
+// replaced with the harness's optional repository-agent warning followed by an unrelated
+// provider-listener readiness failure, and the agent error categories are cleared because
+// the harness suppresses model-not-supported errors for repository agents.
+func TestAuditModelAvailabilityRepositoryAgentWarningThenUnrelatedStartupFailure(t *testing.T) {
+	session := readModelResolutionReplayFile(t, "39499464895", "aw_session.jsonl")
+	require.Contains(t, session, `"categories":["model_not_supported_error"]`)
+	session = strings.Replace(session, `"categories":["model_not_supported_error"]`, `"categories":[]`, 1)
+	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499464895", map[string]string{
+		"usage/aw_session.jsonl": session,
+		"agent-stdio.log": "[copilot-harness] warning: repository agent 'mini-whoami' (.github/agents/mini-whoami.agent.md) declares model 'gpt-5.4-mini', which could not be resolved (cause: model_unavailable); the SDK session gives it the session model.\n" +
+			"[copilot-harness] copilot-sdk driver mode: provider listener readiness probe failed for http://api-proxy:10002: connect ECONNREFUSED\n",
+	})
+
+	findings := generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir})
+	require.Len(t, findings, 1)
+	assert.Equal(t, AuditFindingModelResolutionFailed, findings[0].Code)
+	assert.EqualValues(t, "low", findings[0].Severity)
+	assert.Contains(t, findings[0].Description, `role(s) "mini-whoami" configured model "gpt-5.4-mini"`)
+	assert.Contains(t, findings[0].Description, "no harness refusal or model-specific execution error")
+
+	data, _ := buildLocalAuditData(ProcessedRun{Run: WorkflowRun{Conclusion: "failure", Status: "completed", LogsPath: runDir}}, LogMetrics{}, nil)
+	for _, recommendation := range data.Recommendations {
+		assert.NotContains(t, recommendation.Action, "Replace the unavailable model pin")
+	}
+}
+
+func TestAuditModelAvailabilityOnlyRolesWithStopEvidenceAreAttributed(t *testing.T) {
+	// Derived from run 39499460077 by removing mini54-whoami's harness refusal line.
+	var lines []string
+	for line := range strings.SplitSeq(readModelResolutionReplayFile(t, "39499460077", "agent-stdio.log"), "\n") {
+		if !strings.Contains(line, "sub-agent 'mini54-whoami': ") {
+			lines = append(lines, line)
+		}
+	}
+	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499460077", map[string]string{"agent-stdio.log": strings.Join(lines, "\n")})
+
+	byCode := modelAvailabilityFindingsByCode(generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir}))
+	require.Len(t, byCode[AuditFindingModelUnavailable], 1)
+	assert.Contains(t, byCode[AuditFindingModelUnavailable][0].Description, `role(s) "mini-whoami"`)
+	assert.NotContains(t, byCode[AuditFindingModelUnavailable][0].Description, "mini54-whoami")
+	require.Len(t, byCode[AuditFindingModelResolutionFailed], 1)
+	assert.Contains(t, byCode[AuditFindingModelResolutionFailed][0].Description, `role(s) "mini54-whoami"`)
+	assert.NotContains(t, byCode[AuditFindingModelResolutionFailed][0].Description, `"mini-whoami"`)
+}
+
+func TestAuditModelAvailabilitySessionInitCountsAsNativeActivity(t *testing.T) {
+	// Derived from run 39499460077 by adding an initialization-only native trace, as
+	// Claude and Codex emit before failing ahead of their first assistant or tool event.
+	session := readModelResolutionReplayFile(t, "39499460077", "aw_session.jsonl") +
+		`{"type":"session.init","data":{"model":"gpt-5.3-codex"},"provenance":{"component":"agent","phase":"agent","path":"agent-session.jsonl","index":0}}` + "\n"
+	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499460077", map[string]string{"usage/aw_session.jsonl": session})
+
+	findings := generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir})
+	require.Len(t, findings, 1)
+	assert.Equal(t, AuditFindingModelResolutionFailed, findings[0].Code)
+	assert.Contains(t, findings[0].Description, "session.init")
+}
+
+func TestAuditModelAvailabilityAcceptsMultiParameterModelSelectors(t *testing.T) {
+	// Derived from run 39499460077 with mini-whoami's configured model replaced by a
+	// supported multi-parameter selector in both the record and the startup log.
+	const model = "openai/gpt-6.1-sol?effort=high&temperature=0.2"
+	session := strings.Replace(readModelResolutionReplayFile(t, "39499460077", "aw_session.jsonl"),
+		`"role":"mini-whoami","configured_model":"gpt-5-mini"`, `"role":"mini-whoami","configured_model":"`+model+`"`, 1)
+	stdio := readModelResolutionReplayFile(t, "39499460077", "agent-stdio.log")
+	stdio = strings.ReplaceAll(stdio, "gpt-5-mini", model)
+	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499460077", map[string]string{
+		"usage/aw_session.jsonl": session,
+		"agent-stdio.log":        stdio,
+	})
+
+	evidence, err := readSessionModelResolutionEvidence(runDir)
+	require.NoError(t, err)
+	require.Len(t, evidence.Failures, 2)
+	assert.Equal(t, model, evidence.Failures[0].ConfiguredModel)
+
+	findings := generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir})
+	var descriptions []string
+	for _, finding := range findings {
+		assert.NotEqual(t, AuditFindingModelResolutionFailed, finding.Code, "both roles have harness refusals")
+		descriptions = append(descriptions, finding.Description)
+	}
+	assert.Contains(t, strings.Join(descriptions, "\n"), `role(s) "mini-whoami" configured model "`+model+`"`)
+}
+
+func TestAuditModelAvailabilityRejectsDuplicateAgentExecution(t *testing.T) {
+	// Derived from run 39499460077 by appending a replayed exit-0 agent.execution record.
+	session := readModelResolutionReplayFile(t, "39499460077", "aw_session.jsonl") +
+		`{"type":"agent.execution","data":{"categories":[],"errorCodes":[],"errorTypes":[],"exitCode":0},"provenance":{"component":"execution","phase":"agent","path":"agent-errors.jsonl","index":1}}` + "\n"
+	runDir := writeModelResolutionReplayRun(t, t.TempDir(), "39499460077", map[string]string{"usage/aw_session.jsonl": session})
+
+	_, err := readSessionModelResolutionEvidence(runDir)
+	require.ErrorContains(t, err, "multiple agent.execution records")
+	assert.Empty(t, generateModelAvailabilityFindings(WorkflowRun{Conclusion: "failure", LogsPath: runDir}))
+}
+
+func TestAuditModelAvailabilityBoundsUnifiedSessionSize(t *testing.T) {
+	session := readModelResolutionReplayFile(t, "39499460077", "aw_session.jsonl")
+	evidence, err := parseSessionModelResolutionEvidence(strings.NewReader(session), int64(len(session)))
+	require.NoError(t, err)
+	assert.Len(t, evidence.Failures, 2)
+
+	_, err = parseSessionModelResolutionEvidence(strings.NewReader(session), int64(len(session)-1))
+	require.ErrorContains(t, err, "exceeds the")
+}
+
+func TestAuditModelAvailabilityReadsOnlyCanonicalSessionPath(t *testing.T) {
+	runDir := t.TempDir()
+	writeModelAvailabilityEvidence(t, runDir, "aw_session.jsonl", readModelResolutionReplayFile(t, "39499460077", "aw_session.jsonl"))
+	evidence, err := readSessionModelResolutionEvidence(runDir)
+	require.NoError(t, err)
+	assert.Nil(t, evidence, "a root-level aw_session.jsonl is not the canonical usage artifact")
 }
 
 func installModelResolutionAuditFakeGH(t *testing.T, runID int64) {
@@ -336,4 +457,69 @@ func TestAuditModelAvailabilityRun39499460077EndToEnd(t *testing.T) {
 	assert.Contains(t, output, "Model Unavailable")
 	assert.Contains(t, output, "mini54-whoami")
 	assert.Contains(t, output, "debug-playbook.md#model-availability")
+}
+
+// TestAuditModelAvailabilityUpgradeRegeneratesOlderCachedAudit seeds run 39499460077's
+// output directory with a schema 9 audit.json written before unified-session model
+// resolution analysis existed. The upgraded audit must regenerate it, while a report
+// at the current schema is still reused as-is.
+func TestAuditModelAvailabilityUpgradeRegeneratesOlderCachedAudit(t *testing.T) {
+	const runID int64 = 39499460077
+	installModelResolutionAuditFakeGH(t, runID)
+
+	for _, tc := range []struct {
+		name          string
+		schemaVersion int
+		regenerated   bool
+	}{
+		{name: "schema 9 report", schemaVersion: 9, regenerated: true},
+		{name: "current schema report", schemaVersion: auditSchemaVersion, regenerated: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			outputDir := t.TempDir()
+			runDir := writeModelResolutionReplayRun(t, filepath.Join(outputDir, fmt.Sprintf("run-%d", runID)), "39499460077", nil)
+			audit := func() AuditData {
+				t.Helper()
+				stdout, _ := captureOutput(t, func() error {
+					_, err := AuditWorkflowRun(context.Background(), runID, AuditOptions{
+						Hostname: "github.com", Owner: "github", Repo: "gh-aw", OutputDir: outputDir, JSONOutput: true,
+					})
+					require.NoError(t, err)
+					return nil
+				})
+				var data AuditData
+				require.NoError(t, json.Unmarshal([]byte(stdout), &data), stdout)
+				return data
+			}
+
+			// Build a matching report, then replace it with an older-shaped one that has
+			// no model resolution findings.
+			old := audit()
+			old.SchemaVersion = tc.schemaVersion
+			old.KeyFindings = []AuditFinding{{Title: "stale cached finding"}}
+			old.Recommendations = nil
+			encoded, err := json.Marshal(old)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(auditPath(runDir), encoded, 0o600))
+
+			upgraded := audit()
+			byCode := modelAvailabilityFindingsByCode(upgraded.KeyFindings)
+			if tc.regenerated {
+				assertTwoRoleConfirmedFinding(t, byCode[AuditFindingModelUnavailable])
+				for _, finding := range upgraded.KeyFindings {
+					assert.NotEqual(t, "stale cached finding", finding.Title)
+				}
+				written, err := os.ReadFile(auditPath(runDir))
+				require.NoError(t, err)
+				var cached AuditData
+				require.NoError(t, json.Unmarshal(written, &cached))
+				assert.Equal(t, auditSchemaVersion, cached.SchemaVersion)
+				assert.Len(t, modelAvailabilityFindingsByCode(cached.KeyFindings)[AuditFindingModelUnavailable], 1)
+			} else {
+				assert.Empty(t, byCode[AuditFindingModelUnavailable])
+				require.Len(t, upgraded.KeyFindings, 1)
+				assert.Equal(t, "stale cached finding", upgraded.KeyFindings[0].Title)
+			}
+		})
+	}
 }

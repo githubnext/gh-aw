@@ -12,7 +12,7 @@
 
 ### Decision
 
-We will read failed `model.resolution` events from the unified session as the primary evidence for model-resolution findings, and keep the Pi `agent-stdio.log` match only as a fallback when the session has no failed resolution events. Resolution records are accepted only with the recorded provenance (`model_resolution` / `agent` / `agent/model-resolution.json`) and fields that satisfy the T-UAS-074 contract. Session files must be regular files (no symlinks) with a `session.format` v1 header and are read through the existing bounded line reader. A failure is attributed as the startup cause only when three conditions hold: the run failed, `agent.execution` exited non-zero, and there is no native agent activity (`session.start`, `assistant.*`, `tool.*` from component `agent`). Otherwise audit emits a single low-severity advisory (`model_resolution_failed`). Failures are grouped by engine, provider, model and cause, and each group is classified only against the same run's `awf-reflect.json`. A run therefore gets at most one `model_unavailable` (high) finding and at most one `model_availability_unknown` finding. Recorded causes other than `model_unavailable` are reported as recorded and never confirmed as unavailability.
+We will read failed `model.resolution` events from the unified session as the primary evidence for model-resolution findings, and keep the Pi `agent-stdio.log` match only as a fallback when the session has no failed resolution events. Resolution records are accepted only with the recorded provenance (`model_resolution` / `agent` / `agent/model-resolution.json`) and fields that satisfy the T-UAS-074 contract. Only the canonical `usage/aw_session.jsonl` is read. It must be a regular file (no symlinks) of at most 256 MiB with a `session.format` v1 header and exactly one `agent.execution` record; anything else is an invalid session. A role's failure is attributed as the startup cause only when the run failed, the single `agent.execution` exited non-zero, there is no native agent activity (`session.start`, `session.init`, `assistant.*`, `tool.*` from component `agent`), and the same run's `agent-stdio.log` affirmatively links that role to the stop: a harness `Refusing to start` line naming the role, or that role's model-specific resolution error. Roles without that evidence get a single low-severity advisory (`model_resolution_failed`). Failures are grouped by engine, provider, model and cause, and each group is classified only against the same run's `awf-reflect.json`. A run therefore gets at most one `model_unavailable` (high) finding and at most one `model_availability_unknown` finding. Recorded causes other than `model_unavailable` are reported as recorded and never confirmed as unavailability.
 
 ### Alternatives Considered
 
@@ -32,15 +32,16 @@ Add a field to `model.resolution` so audit can attribute failures directly. This
 
 #### Positive
 - Audit diagnoses model-resolution startup failures for all harnesses that write the unified session, not only Pi.
-- Attribution uses a conservative three-condition rule and reports a low-severity advisory in every other case, which avoids false "model unavailable" root causes on successful or continuing runs.
+- Attribution requires run-level startup evidence plus per-role harness stop evidence and reports a low-severity advisory in every other case, which avoids false "model unavailable" root causes on successful or continuing runs.
 - Classification uses only the same run's reflection inventory, and recorded causes such as `catalog_unavailable` are preserved, so audit does not invent unavailability.
-- Strict provenance, schema and file-type validation (no symlinks, bounded reads, v1 header) limits trust in artifact contents.
+- Strict provenance, schema and file-type validation (no symlinks, bounded total size and line length, v1 header, a single `agent.execution`) limits trust in artifact contents.
 
 #### Negative
 - Audit now depends on the T-UAS-074 record schema and the provenance constants. Producer changes must be coordinated or records will be silently ignored.
-- When several roles fail, audit cannot identify which role stopped startup. It can only say so in the finding text.
+- Per-role attribution depends on harness `agent-stdio.log` wording; a harness that stops without such a line yields only the advisory.
 - There are two detection paths (session-first, legacy Pi log fallback) to maintain until the legacy path can be removed.
-- A new finding code (`model_resolution_failed`) adds to the audit surface. The reference docs (`audit.md`, debug playbook) still describe these findings as Pi-only and must be updated separately.
+- A new finding code (`model_resolution_failed`) adds to the audit surface; the debug playbook has a row for it, but `audit.md` still describes these findings as Pi-only.
+- The audit cache schema moves to 10 so reports cached before this analysis are regenerated.
 
 #### Neutral
 - `checkModelAvailability` was extracted from the Pi path and is now shared by both paths, with its messages unchanged.
