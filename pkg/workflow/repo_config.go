@@ -156,6 +156,9 @@ func (m *MaintenanceConfig) IsJobDisabled(jobName string) bool {
 
 // RepoConfig is the parsed representation of aw.json.
 type RepoConfig struct {
+	// Admission enables admission and conclusion_admission jobs for all workflows.
+	Admission bool
+
 	// GatewayDispatch enables experimental on.gateway-dispatch triggers requiring an approved server.
 	GatewayDispatch bool
 
@@ -276,6 +279,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
+		Admission                bool                          `json:"admission,omitempty"`
 		GatewayDispatch          bool                          `json:"gateway-dispatch,omitempty"`
 		Strict                   bool                          `json:"strict,omitempty"`
 		GHES                     bool                          `json:"ghes,omitempty"`
@@ -299,6 +303,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error { //nolint:largefunc // Po
 	}
 
 	r.GatewayDispatch = raw.GatewayDispatch
+	r.Admission = raw.Admission
 	r.Strict = raw.Strict
 	r.GHES = raw.GHES
 	r.RequireSelfHostedRunners = raw.RequireSelfHostedRunners

@@ -88,6 +88,7 @@ type GHAWManifest struct {
 	MCPServers                  []GHAWManifestMCPServer              `json:"mcp_servers"`                         // MCP servers/tools exposed to the agent, independent of engine-specific allowlist syntax
 	ThreatDetectionSuppressions []ThreatDetectionSuppression         `json:"threat_detection_suppressions,omitempty"`
 	ThreatDetection             *GHAWManifestDetectionPolicy         `json:"threat_detection,omitempty"`
+	Admission                   bool                                 `json:"admission"`
 	WebhookSubscriptions        []WebhookSubscription                `json:"webhook_subscriptions,omitempty"`
 }
 

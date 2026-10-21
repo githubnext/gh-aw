@@ -3779,6 +3779,8 @@ process.exit(1);`,
       const callsPath = path.join(tempDir, "spawned");
       const preloadPath = path.join(tempDir, "reflect.cjs");
       const stubPath = path.join(tempDir, "stub.cjs");
+      const configPath = path.join(tempDir, "awf-config.json");
+      fs.writeFileSync(configPath, JSON.stringify({ network: { allowDomains: [] } }));
       fs.writeFileSync(
         preloadPath,
         `const reflect = require(${JSON.stringify(require.resolve("./awf_reflect.cjs"))});
@@ -3787,7 +3789,7 @@ reflect.fetchAWFReflect = async () => ({ok: true, reflectData: {endpoints: [{pro
       fs.writeFileSync(stubPath, `require("fs").writeFileSync(${JSON.stringify(callsPath)}, "spawned");`);
       const result = spawnSync(process.execPath, ["--require", preloadPath, "copilot_harness.cjs", process.execPath, stubPath], {
         cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
-        env: { ...harnessChildEnv, GH_AW_TMP_DIR: tempDir, AWF_REFLECT_ENABLED: "1", GH_AW_MODEL_ROUTING: "0", COPILOT_MODEL: "gpt-5.6-luna", COPILOT_PROVIDER_WIRE_API: "completions" },
+        env: { ...harnessChildEnv, GH_AW_TMP_DIR: tempDir, GH_AW_AWF_CONFIG_PATH: configPath, AWF_REFLECT_ENABLED: "1", GH_AW_MODEL_ROUTING: "0", COPILOT_MODEL: "gpt-5.6-luna", COPILOT_PROVIDER_WIRE_API: "completions" },
         encoding: "utf8",
         timeout: 15000,
       });
@@ -4314,6 +4316,8 @@ describe("Copilot CLI model-selection evidence through harness startup", () => {
     const preloadPath = path.join(tmpDir, "reflect-preload.cjs");
     const stubPath = path.join(tmpDir, "copilot-stub.cjs");
     const argsPath = path.join(tmpDir, "stub-args.json");
+    const configPath = path.join(tmpDir, "awf-config.json");
+    fs.writeFileSync(configPath, JSON.stringify({ network: { allowDomains: [] } }));
     const reflect = JSON.parse(fs.readFileSync(path.join(fixtureDir, "awf-reflect.json"), "utf8"));
     if (!routed) delete reflect.routing;
     if (providerPort) Object.assign(reflect.endpoints[0], { base_url: `http://127.0.0.1:${providerPort}`, models_url: `http://127.0.0.1:${providerPort}/models` });
@@ -4341,7 +4345,15 @@ process.stdout.write("done\\n");`
     // SDK sidecar double: listens on the requested --port until the harness stops it.
     const sidecarPath = path.join(tmpDir, "copilot-sidecar.cjs");
     fs.writeFileSync(sidecarPath, `#!/usr/bin/env node\nconst args = process.argv.slice(2);\nrequire("net").createServer(socket => socket.end()).listen(Number(args[args.indexOf("--port") + 1]), "127.0.0.1");\n`, { mode: 0o755 });
-    const env = { ...harnessChildEnv, GH_AW_TMP_DIR: tmpDir, COPILOT_HOME: path.join(tmpDir, "copilot-home"), GH_AW_HARNESS_MAX_RETRIES: "0", GH_AW_HARNESS_STALL_WARNING_MS: "0", NODE_OPTIONS: `--require ${preloadPath}` };
+    const env = {
+      ...harnessChildEnv,
+      GH_AW_TMP_DIR: tmpDir,
+      GH_AW_AWF_CONFIG_PATH: configPath,
+      COPILOT_HOME: path.join(tmpDir, "copilot-home"),
+      GH_AW_HARNESS_MAX_RETRIES: "0",
+      GH_AW_HARNESS_STALL_WARNING_MS: "0",
+      NODE_OPTIONS: `--require ${preloadPath}`,
+    };
     for (const key of ["COPILOT_MODEL", "GH_AW_MODEL_FALLBACK", "GH_AW_MODEL_ROUTING", "AWF_REFLECT_ENABLED", "GH_AW_SKIP_REFLECT", "COPILOT_SDK_URI", "GH_AW_PHASE", "GH_AW_SAFE_OUTPUTS", "COPILOT_PROVIDER_WIRE_API", "GH_AW_MODEL_ALIASES"])
       delete env[key];
     Object.assign(env, envOverrides);

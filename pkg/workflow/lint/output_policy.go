@@ -27,6 +27,10 @@ func checkAllowedLabels(ctx context.Context, input Input) ([]Diagnostic, error) 
 			return diagnostics, errors.Join(append(failures, err)...)
 		}
 		path := "safe-outputs." + handler
+		// `handler: true` or `false` only enables or disables the handler; it has no allowed-labels.
+		if _, isBool := outputs[handler].(bool); isBool {
+			continue
+		}
 		config, err := policyMapping(outputs[handler], path)
 		if err != nil {
 			failures = append(failures, err)

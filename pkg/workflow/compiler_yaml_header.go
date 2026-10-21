@@ -100,6 +100,7 @@ func (c *Compiler) generateManifestHeader(yaml *strings.Builder, data *WorkflowD
 	manifest.MemoryValidationScripts = collectMemoryValidationScripts(data)
 	manifest.MCPServers = collectMCPServersForManifest(data)
 	manifest.ThreatDetection = collectDetectionPolicyForManifest(data)
+	manifest.Admission = data.AdmissionEnabled
 	manifest.WebhookSubscriptions = data.WebhookSubscriptions
 	manifestJSON, err := manifest.ToJSON()
 	if err != nil {

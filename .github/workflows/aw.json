@@ -1,4 +1,5 @@
 {
+  "admission": true,
   "gateway-dispatch": true,
   "auto_upgrade": { "cron": "0 9 * * 1", "options": ["--pre-releases"] },
   "maintenance": {
