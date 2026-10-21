@@ -2064,6 +2064,181 @@
       "published": "2026-10-19",
       "relevant": true,
       "analyzed_at": "2026-10-20-08-44-51"
+    },
+    {
+      "id": "2610.28629v1",
+      "title": "GBClaw: An agentic AI framework for atomistic grain boundary research and mechanistic discovery",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28624v1",
+      "title": "Industrial ReMEmbR: Scaling Spatiotemporal Memory to Robot Fleets",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28612v1",
+      "title": "TraceLite: Efficient Trace Reduction for SWE Agents via Optical Compression and Redundancy Removal",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28611v1",
+      "title": "Semantic Observability for Autonomous Systems Diagnostics",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28610v1",
+      "title": "InterWebCoder: Learning Interactive Webpage Generation from Executable Tests via Reinforcement Learning",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28601v1",
+      "title": "Evolving Agent Interfaces",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28586v1",
+      "title": "Capable Teacher, Myopic Scorer: Reward-Free Teacher Repair for Agentic On-Policy Distillation",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28585v1",
+      "title": "SceneRig: An Agentic System for Simulation-Ready 3D Scene Reconstruction from Single Images",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28578v1",
+      "title": "Sage-A1.5: From Long-Horizon Execution to Scientific Exploration with Capability Composition",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28562v1",
+      "title": "OptScientist: Automated Discovery of Optimization Laws",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28560v1",
+      "title": "Agentic Ensemble with Vision-Language Models for Visual Anomaly Detection",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28484v1",
+      "title": "Proof-Carrying Contracts: Commitments AI Agents Cannot Break",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28479v1",
+      "title": "Claims of emergence in AI should be grounded in information decomposition",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28467v1",
+      "title": "Beyond Trajectory Statistics: Community-Consistent Human Mobility Generation via Evolving User-Location Graphs",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28454v1",
+      "title": "Toolflation: Seller Agents Distort Tool Markets Through Spontaneous Generative Engine Optimization",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28425v1",
+      "title": "After the Attacker Leaves: Benchmarking Carryover Attacks on LLM Agents",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28409v1",
+      "title": "Rewards for Budget-Aware Multi-Turn Agents That Adapt to Arbitrary Test-Time Constraints",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28397v1",
+      "title": "MAS-Guard: Unified Guardrails from Individual Agents to Multi-Agent LLM Systems",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28388v1",
+      "title": "Self-Credit: Credit Assignment for Long-Horizon Agentic RL via Intra-group Rescaling",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28380v1",
+      "title": "Object-Oriented Harness: Evolving Agent Harnesses through Object-Oriented Design",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28361v1",
+      "title": "FALCA: Falsification-Aware Reinforcement Learning with Hierarchical Credit Assignment for Long-Horizon Deep Search Agents",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28354v1",
+      "title": "S-Agent 2.0: Spatial Reasoning with a General Coding Agent",
+      "published": "2026-10-20",
+      "relevant": false,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28315v1",
+      "title": "Disclosure Begets Disclosure: A Self-Reinforcing Privacy Loop in LLM Agents with Persistent Memory",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28286v1",
+      "title": "Local Work, Global Progress: A Convergence Theory of AI Agent Collaboration",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
+    },
+    {
+      "id": "2610.28282v1",
+      "title": "ChartEvo: Self-Evolving Agent Harnesses for Long-Tail Chart Reasoning",
+      "published": "2026-10-20",
+      "relevant": true,
+      "analyzed_at": "2026-10-21-08-43-32"
     }
   ]
 }

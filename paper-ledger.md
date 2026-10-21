@@ -1274,3 +1274,189 @@ Papers investigated for GitHub Agentic Workflows improvement opportunities. Full
 - **Relevant**: Yes
 - **Opportunity**: Use typed source-linked memory writes with verification and replay-gated policy changes.
 - **Area**: persistent memory reliability
+
+### [GBClaw: An agentic AI framework for atomistic grain boundary research and mechanistic discovery](https://arxiv.org/abs/2610.28629v1)
+- **ID**: 2610.28629v1
+- **Published**: 2026-10-20
+- **Categories**: cond-mat.mtrl-sci, cond-mat.mes-hall, cs.AI
+- **Relevant**: No
+
+### [Industrial ReMEmbR: Scaling Spatiotemporal Memory to Robot Fleets](https://arxiv.org/abs/2610.28624v1)
+- **ID**: 2610.28624v1
+- **Published**: 2026-10-20
+- **Categories**: cs.RO, cs.AI, cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [TraceLite: Efficient Trace Reduction for SWE Agents via Optical Compression and Redundancy Removal](https://arxiv.org/abs/2610.28612v1)
+- **ID**: 2610.28612v1
+- **Published**: 2026-10-20
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Add engine-aware trace deduplication and phase-based payload expiration, with optical history as an experimental multimodal option.
+- **Area**: Token optimization and agent trace lifecycle
+
+### [Semantic Observability for Autonomous Systems Diagnostics](https://arxiv.org/abs/2610.28611v1)
+- **ID**: 2610.28611v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [InterWebCoder: Learning Interactive Webpage Generation from Executable Tests via Reinforcement Learning](https://arxiv.org/abs/2610.28610v1)
+- **ID**: 2610.28610v1
+- **Published**: 2026-10-20
+- **Categories**: cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Evolving Agent Interfaces](https://arxiv.org/abs/2610.28601v1)
+- **ID**: 2610.28601v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Capable Teacher, Myopic Scorer: Reward-Free Teacher Repair for Agentic On-Policy Distillation](https://arxiv.org/abs/2610.28586v1)
+- **ID**: 2610.28586v1
+- **Published**: 2026-10-20
+- **Categories**: cs.CL, cs.AI
+- **Relevant**: No
+
+### [SceneRig: An Agentic System for Simulation-Ready 3D Scene Reconstruction from Single Images](https://arxiv.org/abs/2610.28585v1)
+- **ID**: 2610.28585v1
+- **Published**: 2026-10-20
+- **Categories**: cs.RO, cs.AI, cs.CV
+- **Relevant**: No
+
+### [Sage-A1.5: From Long-Horizon Execution to Scientific Exploration with Capability Composition](https://arxiv.org/abs/2610.28578v1)
+- **ID**: 2610.28578v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [OptScientist: Automated Discovery of Optimization Laws](https://arxiv.org/abs/2610.28562v1)
+- **ID**: 2610.28562v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI, cs.LG, cs.SC
+- **Relevant**: No
+
+### [Agentic Ensemble with Vision-Language Models for Visual Anomaly Detection](https://arxiv.org/abs/2610.28560v1)
+- **ID**: 2610.28560v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Proof-Carrying Contracts: Commitments AI Agents Cannot Break](https://arxiv.org/abs/2610.28484v1)
+- **ID**: 2610.28484v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI, cs.CR, cs.LO
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Claims of emergence in AI should be grounded in information decomposition](https://arxiv.org/abs/2610.28479v1)
+- **ID**: 2610.28479v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI, cs.HC, cs.IT
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Beyond Trajectory Statistics: Community-Consistent Human Mobility Generation via Evolving User-Location Graphs](https://arxiv.org/abs/2610.28467v1)
+- **ID**: 2610.28467v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI
+- **Relevant**: No
+
+### [Toolflation: Seller Agents Distort Tool Markets Through Spontaneous Generative Engine Optimization](https://arxiv.org/abs/2610.28454v1)
+- **ID**: 2610.28454v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI, cs.CL, cs.MA
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [After the Attacker Leaves: Benchmarking Carryover Attacks on LLM Agents](https://arxiv.org/abs/2610.28425v1)
+- **ID**: 2610.28425v1
+- **Published**: 2026-10-20
+- **Categories**: cs.CR, cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Add provenance-aware quarantine and re-entry validation for persistent agent-written memory.
+- **Area**: Persistent-memory security
+
+### [Rewards for Budget-Aware Multi-Turn Agents That Adapt to Arbitrary Test-Time Constraints](https://arxiv.org/abs/2610.28409v1)
+- **ID**: 2610.28409v1
+- **Published**: 2026-10-20
+- **Categories**: cs.LG, cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [MAS-Guard: Unified Guardrails from Individual Agents to Multi-Agent LLM Systems](https://arxiv.org/abs/2610.28397v1)
+- **ID**: 2610.28397v1
+- **Published**: 2026-10-20
+- **Categories**: cs.CR, cs.AI, cs.CL
+- **Relevant**: Yes
+- **Opportunity**: Add compiler-validated Agent Charters with deterministic checks at agent and sub-agent boundaries.
+- **Area**: Multi-agent security and policy enforcement
+
+### [Self-Credit: Credit Assignment for Long-Horizon Agentic RL via Intra-group Rescaling](https://arxiv.org/abs/2610.28388v1)
+- **ID**: 2610.28388v1
+- **Published**: 2026-10-20
+- **Categories**: cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Object-Oriented Harness: Evolving Agent Harnesses through Object-Oriented Design](https://arxiv.org/abs/2610.28380v1)
+- **ID**: 2610.28380v1
+- **Published**: 2026-10-20
+- **Categories**: cs.CL, cs.SE
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [FALCA: Falsification-Aware Reinforcement Learning with Hierarchical Credit Assignment for Long-Horizon Deep Search Agents](https://arxiv.org/abs/2610.28361v1)
+- **ID**: 2610.28361v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [S-Agent 2.0: Spatial Reasoning with a General Coding Agent](https://arxiv.org/abs/2610.28354v1)
+- **ID**: 2610.28354v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI, cs.CV
+- **Relevant**: No
+
+### [Disclosure Begets Disclosure: A Self-Reinforcing Privacy Loop in LLM Agents with Persistent Memory](https://arxiv.org/abs/2610.28315v1)
+- **ID**: 2610.28315v1
+- **Published**: 2026-10-20
+- **Categories**: cs.CR, cs.CL, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [Local Work, Global Progress: A Convergence Theory of AI Agent Collaboration](https://arxiv.org/abs/2610.28286v1)
+- **ID**: 2610.28286v1
+- **Published**: 2026-10-20
+- **Categories**: cs.MA, cs.AI, cs.LG
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
+
+### [ChartEvo: Self-Evolving Agent Harnesses for Long-Tail Chart Reasoning](https://arxiv.org/abs/2610.28282v1)
+- **ID**: 2610.28282v1
+- **Published**: 2026-10-20
+- **Categories**: cs.AI, cs.CV
+- **Relevant**: Yes
+- **Opportunity**: Relevant mechanism identified for further gh-aw evaluation.
+- **Area**: Agentic workflows
