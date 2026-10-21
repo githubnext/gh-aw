@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -41,6 +42,21 @@ func TestAdmissionOptIn(t *testing.T) {
 				require.Equal(t, enabled, data.AdmissionEnabled)
 				output, err := compiler.CompileToYAML(data, filepath.Join(root, "workflow.md"))
 				require.NoError(t, err)
+				var header strings.Builder
+				require.NoError(t, compiler.generateManifestHeader(&header, data, nil, nil))
+				manifest, err := ExtractGHAWManifestFromLockFile(header.String())
+				require.NoError(t, err)
+				require.NotNil(t, manifest)
+				assert.Equal(t, enabled, manifest.Admission)
+				manifestJSON, err := manifest.ToJSON()
+				require.NoError(t, err)
+				var manifestFields map[string]json.RawMessage
+				require.NoError(t, json.Unmarshal([]byte(manifestJSON), &manifestFields))
+				assert.Equal(t, strconv.FormatBool(enabled), string(manifestFields["admission"]))
+				assert.Contains(t, manifestFields, "admission", "disabled admission must be recorded explicitly")
+				roundtrip, err := ExtractGHAWManifestFromLockFile("# gh-aw-manifest: " + manifestJSON + "\n")
+				require.NoError(t, err)
+				assert.Equal(t, manifest, roundtrip)
 				for _, name := range []string{"admission", "conclusion_admission"} {
 					_, exists := compiler.jobManager.GetJob(name)
 					assert.Equal(t, enabled, exists, name)
