@@ -232,7 +232,7 @@ Test that the GitHub remote MCP server can authenticate and access GitHub API wi
    - This is a simple, read-only operation that should work if MCP tools are properly loaded
    - **If this fails with errors like "tool not found", "unknown tool", or "capability not available":**
      - The MCP toolsets are NOT loaded in the runner
-     - Report this using the `missing_tool` safe output with:
+     - Report this using the `report_missing_tool` safe output with:
        - Tool: "GitHub MCP tool (list_issues)"
        - Reason: "MCP toolsets unavailable in runner - tools not loaded"
        - Alternatives: "Check MCP configuration, verify remote mode is accessible, or use local mode fallback"
@@ -261,7 +261,7 @@ If the test succeeds (issues are retrieved successfully):
 If the test fails, create a discussion using safe-outputs based on the failure type:
 
 **For Missing Tools (tool not found/not loaded):**
-- Use the `missing_tool` safe output first, then create a discussion
+- Use the `report_missing_tool` safe output first, then create a discussion
 - **Title**: "GitHub Remote MCP Tools Not Available"
 - **Body**:
   ```markdown
@@ -353,7 +353,7 @@ If the test fails, create a discussion using safe-outputs based on the failure t
 - **Distinguish failure types**: 
   - Missing tools = Configuration/infrastructure issue
   - Auth errors = Token/permissions issue
-- **Use missing_tool safe output**: When tools aren't available, report it properly before creating a discussion
+- **Use report_missing_tool safe output**: When tools aren't available, report it properly before creating a discussion
 - **Check for MCP tools FIRST**: Start with a simple `list_issues` call to verify tools are loaded
 - **Include error details**: If authentication fails, include the exact error message from the MCP tool
 - **Provide actionable remediation**: Include specific steps to resolve the detected issue type

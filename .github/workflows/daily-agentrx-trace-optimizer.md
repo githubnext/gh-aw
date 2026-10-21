@@ -106,7 +106,7 @@ Focus on:
      **`logs` precondition rules (follow strictly):**
      - Always include `workflow_name` — never call `logs` without it; an unfiltered scan will time out.
      - Query at most **3 workflows**, with `count: 10` and `start_date: "-1d"` for each. Cap retries at **2 attempts** per workflow; if both return empty or time out, stop retrying and fall back to `audit` using any known `run_id` (from `status` or prior context). Never widen the time window or run count.
-     - If `logs` returns `total_runs=0` for a workflow with confirmed completed runs, treat this as a tool-health failure. Surface it via `missing_tool` and proceed with `audit`-only data; do not vary parameters and retry further.
+     - If `logs` returns `total_runs=0` for a workflow with confirmed completed runs, treat this as a tool-health failure. Surface it via `report_missing_tool` and proceed with `audit`-only data; do not vary parameters and retry further.
      ```json
      {
        "workflow_name": "<workflow-id>",
@@ -121,7 +121,7 @@ Focus on:
 4. AgentRx is already installed by a setup step; do not install it yourself.
    - Interpreter: `/tmp/gh-aw/python/agentrx/.venv/bin/python`
    - AgentRx checkout (contains `run.py`): `/tmp/gh-aw/python/agentrx/src`
-   - **Do NOT run `pip install`, `python -m venv`, or any other AgentRx installation command.** The sandbox has no compatible CPython for building those dependencies. If the interpreter is missing, report it with `missing_tool` and continue with the available evidence.
+   - **Do NOT run `pip install`, `python -m venv`, or any other AgentRx installation command.** The sandbox has no compatible CPython for building those dependencies. If the interpreter is missing, report it with `report_missing_tool` and continue with the available evidence.
 
 ## Analysis Procedure
 
