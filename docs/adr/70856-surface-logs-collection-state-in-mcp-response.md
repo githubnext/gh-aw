@@ -1,8 +1,7 @@
 # ADR-70856: Surface Logs Collection State (Cursors and Episode Coverage) in the MCP Logs Response
 
 **Date**: 2026-10-21
-**Status**: Draft
-**Deciders**: pelikhan, Unknown
+**Status**: Proposed
 
 ---
 
@@ -12,38 +11,43 @@ The `gh aw` MCP server exposes a `logs` tool. The tool does not return the full 
 
 ### Decision
 
-We will make the MCP logs envelope a faithful summary of the collection state the CLI already recorded. This is done by parsing the report JSON in a single `extractLogsCollectionState` function. The envelope will keep every per-target `continuations` entry exactly as recorded, including the repository and all cursor parameters. It will set `partial: true` whenever any cursor exists or any known episode evidence gap exists. For episode reports, it will add `coverage_status` (`partial` or `unknown`, never `complete`) and a sorted, deduplicated `coverage_reasons` list. Retrieval stop reasons and issues will be namespaced with a `retrieval_` prefix. Evidence gaps that cannot be resumed will be reported as partial with no made-up cursor. The cached report file stays byte-for-byte unchanged, so the envelope adds information and never replaces the report.
+The MCP logs envelope summarizes the collection state the CLI already recorded. It preserves the singular `continuation` and every per-target `continuations` entry, including the repository and all cursor parameters. It sets `partial: true` whenever a cursor or a known episode evidence gap exists. For episode reports, it adds `coverage_status` (`partial` or `unknown`, never `complete`) and a sorted, deduplicated `coverage_reasons` list. Evidence gaps that cannot be resumed are reported as partial without an invented cursor.
+
+Cursor fields and optional episode coverage sections are decoded independently. Malformed episode data must not discard valid cursors or other known partial evidence. An unreadable or malformed report produces an explicit unknown collection state rather than an empty state that could be mistaken for successful collection. When usable evidence already establishes partial collection, that evidence remains partial even if another section cannot be decoded. Unknown state alone does not establish either completeness or a resumable gap.
+
+This best-effort envelope preserves actionable recovery information without requiring callers to parse the entire report or treating optional metadata failures as loss of all collection evidence. The cached report stays byte-for-byte unchanged and remains the detailed source of evidence. Artifact selection, filtering, cache access controls, and actor validation are unchanged.
 
 ### Alternatives Considered
 
 #### Alternative 1: Keep only the singular `continuation` and tell callers to read the file
 
-We could leave the envelope minimal and rely on callers to open `file_path` to find `continuations` and coverage data. This is the smallest change. We rejected it because this behavior is exactly the defect being fixed. The envelope would keep saying results were complete (or "full") when they were not, and callers that trust the envelope would quietly drop targets.
+Leaving the envelope minimal and relying on callers to open `file_path` is the smallest change, but leaves collection limits invisible to callers that act on the envelope. Describing the file as "full data" also risks implying completeness that the report does not establish.
 
 #### Alternative 2: Collapse multi-target cursors into one merged continuation
 
-We could combine per-target cursors into one `continuation` so callers only handle a single shape. We rejected this because each target has its own repository, `end_date`, and `before_run_id`. Merging them loses information and makes it impossible to resume each target correctly.
+Combining per-target cursors into one `continuation` would give callers a single shape, but each target has its own repository, `end_date`, and `before_run_id`. Merging them loses information needed to resume each target correctly.
 
 #### Alternative 3: Change the CLI report format or report `complete` coverage
 
-We could reshape the report itself, or have the adapter declare episodes `complete` when no gaps were found. We rejected both. The PR explicitly avoids changing report contents, artifact selection, and filtering. Coverage based on selected runs also cannot prove that episode membership is complete, so `unknown` is the honest default.
+Reshaping the report would change the contract for existing file consumers without being necessary to expose collection state. Declaring episodes `complete` when no gaps are found is also unsupported: coverage based on selected runs cannot prove that episode membership is complete, so the default is `unknown`.
+
+#### Alternative 4: Decode all metadata together and discard state on any error
+
+A single typed decode is simpler, but malformed optional coverage data can then hide valid continuation cursors. Returning an empty state on failure also hides uncertainty. Independent decoding preserves usable evidence while explicitly reporting what cannot be established.
 
 ### Consequences
 
 #### Positive
 - MCP callers can resume every truncated target using its own repository and cursor parameters.
-- Episode evidence gaps, such as budget stops and unavailable recorded runs, are visible as `partial` along with stable, deduplicated reasons, and no cursor is invented for them.
+- Episode evidence gaps, such as budget stops and unavailable recorded runs, are visible as `partial` along with deduplicated reasons, and no cursor is invented for them.
+- Malformed optional metadata does not suppress valid cursors or known partial evidence; unparseable reports expose uncertainty.
 - Cached report bytes are unchanged, so existing consumers of the file are not affected.
 
 #### Negative
 - The envelope schema grows (`continuations`, `coverage_status`, `coverage_reasons`), which makes the contract MCP clients and docs have to follow larger.
 - The adapter now depends on internal report field names (`episode_retrieval`, `episodes[].coverage`), which ties the MCP layer more closely to the CLI report schema.
-- `coverage_status` can never be `complete`, so callers always see `unknown` even for runs that are in fact fully covered.
+- Even when collection is in fact complete, the envelope cannot certify complete episode membership; callers must distinguish `unknown` from known `partial` evidence.
 
 #### Neutral
 - Response messages now say "collected report" instead of "full data", and tool guidance and reference docs (`gh-aw-as-mcp-server.md`) were updated to match.
-- The parse failure path returns an empty state and logs at debug level. It does not error, which matches the previous best-effort behavior.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+- Collection-state reporting does not change cached report bytes, artifact selection, filtering, or access controls.

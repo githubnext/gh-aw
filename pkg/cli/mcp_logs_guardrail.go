@@ -45,53 +45,79 @@ type MCPLogsGuardrailResponse struct {
 	CoverageReasons []string               `json:"coverage_reasons,omitempty"`
 }
 
+func (response *MCPLogsGuardrailResponse) markCollectionStateUnknown(reason string) {
+	response.CoverageStatus = "unknown"
+	response.CoverageReasons = append(response.CoverageReasons, reason)
+	response.Message = "Collection state could not be fully decoded; unknown fields do not establish collection completeness."
+}
+
+func (response *MCPLogsGuardrailResponse) decodeCollectionSection(raw json.RawMessage, target any, reason string) bool {
+	if len(raw) == 0 {
+		return true
+	}
+	if err := json.Unmarshal(raw, target); err != nil {
+		response.markCollectionStateUnknown(reason)
+		return false
+	}
+	return true
+}
+
 func extractLogsCollectionState(outputStr string) MCPLogsGuardrailResponse {
-	var parsed struct {
-		Continuation     *ContinuationData      `json:"continuation"`
-		Continuations    []WorkflowContinuation `json:"continuations"`
-		EpisodeRetrieval *struct {
-			StopReasons []string `json:"stop_reasons"`
-			Issues      []struct {
-				Reason string `json:"reason"`
-			} `json:"issues"`
-		} `json:"episode_retrieval"`
-		Episodes []struct {
-			Coverage EpisodeCoverage `json:"coverage"`
-		} `json:"episodes"`
+	response := MCPLogsGuardrailResponse{}
+	var parsed map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(outputStr), &parsed); err != nil || parsed == nil {
+		response.markCollectionStateUnknown("invalid_report_json")
+		return response
 	}
-	if err := json.Unmarshal([]byte(outputStr), &parsed); err != nil {
-		mcpLogsGuardrailLog.Printf("extractLogsCollectionState: failed to parse output JSON: %v", err)
-		return MCPLogsGuardrailResponse{}
+	decode := response.decodeCollectionSection
+	if !decode(parsed["continuation"], &response.Continuation, "invalid_continuation") {
+		response.Continuation = nil
 	}
-	response := MCPLogsGuardrailResponse{
-		Continuation:  parsed.Continuation,
-		Continuations: parsed.Continuations,
-		Partial:       parsed.Continuation != nil || len(parsed.Continuations) > 0,
+	if !decode(parsed["continuations"], &response.Continuations, "invalid_continuations") {
+		response.Continuations = nil
 	}
-	if parsed.EpisodeRetrieval != nil || len(parsed.Episodes) > 0 {
+	response.Partial = response.Continuation != nil || len(response.Continuations) > 0
+
+	var episodes []json.RawMessage
+	decode(parsed["episodes"], &episodes, "invalid_episode_coverage")
+	var retrievalFields map[string]json.RawMessage
+	decode(parsed["episode_retrieval"], &retrievalFields, "invalid_episode_retrieval")
+	if retrievalFields != nil || len(episodes) > 0 {
 		// Selected-run coverage cannot establish complete episode membership.
 		response.CoverageStatus = "unknown"
 	}
-	for _, episode := range parsed.Episodes {
+	knownPartial := false
+	for _, raw := range episodes {
+		var episode struct {
+			Coverage EpisodeCoverage `json:"coverage"`
+		}
+		// Type errors leave independently decoded fields available as evidence.
+		decode(raw, &episode, "invalid_episode_coverage")
 		if episode.Coverage.Status == "partial" || episode.Coverage.CollectionTruncated {
-			response.CoverageStatus = "partial"
+			knownPartial = true
 		}
 		response.CoverageReasons = append(response.CoverageReasons, episode.Coverage.Reasons...)
 	}
-	if retrieval := parsed.EpisodeRetrieval; retrieval != nil {
-		for _, reason := range retrieval.StopReasons {
-			response.CoverageReasons = append(response.CoverageReasons, "retrieval_"+reason)
-		}
-		for _, issue := range retrieval.Issues {
-			response.CoverageReasons = append(response.CoverageReasons, "retrieval_"+issue.Reason)
-		}
-		if len(retrieval.StopReasons) > 0 || len(retrieval.Issues) > 0 {
-			response.CoverageStatus = "partial"
+	var retrieval EpisodeRetrieval
+	decode(retrievalFields["stop_reasons"], &retrieval.StopReasons, "invalid_episode_retrieval")
+	decode(retrievalFields["issues"], &retrieval.Issues, "invalid_episode_retrieval")
+	for _, reason := range retrieval.StopReasons {
+		if reason != "" {
+			response.CoverageReasons = append(response.CoverageReasons, episodeRetrievalCoverageReason(reason))
+			knownPartial = true
 		}
 	}
-	if response.CoverageStatus == "partial" {
+	for _, issue := range retrieval.Issues {
+		if issue.Reason != "" {
+			response.CoverageReasons = append(response.CoverageReasons, episodeRetrievalCoverageReason(issue.Reason))
+			knownPartial = true
+		}
+	}
+	if knownPartial {
+		response.CoverageStatus = "partial"
 		response.Partial = true
 	}
+	response.CoverageReasons = slices.DeleteFunc(response.CoverageReasons, func(reason string) bool { return reason == "" })
 	slices.Sort(response.CoverageReasons)
 	response.CoverageReasons = slices.Compact(response.CoverageReasons)
 	return response
@@ -200,6 +226,9 @@ func buildLogsFileResponse(outputStr string) string { //nolint:largefunc // Keep
 	response.FilePath = filePath
 
 	var msgs []string
+	if response.Message != "" {
+		msgs = append(msgs, response.Message)
+	}
 	if response.Continuation != nil || len(response.Continuations) > 0 {
 		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: the download stopped before all matching runs were collected. Collected logs data has been written to '%s'. Read file_path and resume using continuation or every per-target entry in continuations, preserving its repository and all cursor parameters.", filePath))
 		if response.Continuation != nil {
@@ -207,6 +236,8 @@ func buildLogsFileResponse(outputStr string) string { //nolint:largefunc // Keep
 		}
 	} else if response.Partial {
 		msgs = append(msgs, fmt.Sprintf("PARTIAL RESULTS: episode collection or evidence has known gaps. Collected logs data has been written to '%s'. Read file_path for episode coverage and episode_retrieval bounds, counters, stop reasons and issues; no resumable cursor is available.", filePath))
+	} else if response.Message != "" {
+		msgs = append(msgs, fmt.Sprintf("Collection state is unknown. Original output has been written to '%s'; use file_path to inspect it.", filePath))
 	} else {
 		msgs = append(msgs, fmt.Sprintf("Logs data has been written to '%s'. Use file_path to read the collected report.", filePath))
 	}
