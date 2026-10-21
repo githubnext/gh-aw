@@ -10,6 +10,19 @@ const cjsRuleTester = new RuleTester({
 });
 
 describe("require-error-code-for-github-api-throw", () => {
+  it("checks top-level const messages without trusting mutable bindings", () => {
+    cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
+      valid: ['const { ERR_API } = require("./error_codes.cjs"); const msg = `${ERR_API}: failed`; async function run(githubClient) { await githubClient.rest.pulls.get({}); throw new Error(msg); }'],
+      invalid: [
+        { code: 'const { ERR_API } = require("./error_codes.cjs"); const msg = "failed"; async function run(githubClient) { await githubClient.rest.pulls.get({}); throw new Error(msg); }', errors: [{ messageId: "missingErrorCode" }] },
+        {
+          code: 'const { ERR_API } = require("./error_codes.cjs"); let msg = `${ERR_API}: failed`; async function run(githubClient) { await githubClient.rest.pulls.get({}); throw new Error(msg); }',
+          errors: [{ messageId: "missingErrorCode" }],
+        },
+      ],
+    });
+  });
+
   it("valid: files without error_codes.cjs import are ignored", () => {
     cjsRuleTester.run("require-error-code-for-github-api-throw", requireErrorCodeForGithubApiThrowRule, {
       valid: [`async function f(githubClient) { await githubClient.rest.pulls.get({}); throw new Error("failed"); }`],

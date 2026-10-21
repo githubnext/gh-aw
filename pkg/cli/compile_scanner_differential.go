@@ -80,7 +80,7 @@ func (b *dryRunScannerBaseline) filter(tool string, err error) (*DryRunScannerDi
 			counts[diagnostic.Identity]++
 		}
 	}
-	var added []scanfindings.Finding
+	var actionable []scanfindings.Finding
 	if current != nil {
 		for _, diagnostic := range current.diagnostics {
 			finding := diagnostic.Finding
@@ -89,14 +89,15 @@ func (b *dryRunScannerBaseline) filter(tool string, err error) (*DryRunScannerDi
 			} else if counts[diagnostic.Identity] > 0 {
 				counts[diagnostic.Identity]--
 				diff.Existing++
+				actionable = append(actionable, finding)
 			} else {
 				diff.Added++
-				added = append(added, finding)
+				actionable = append(actionable, finding)
 			}
 		}
 	}
-	if len(added) > 0 {
-		return diff, withScannerFindings(fmt.Errorf("%s found %d added medium-or-higher or unclassified finding(s)", tool, len(added)), added)
+	if len(actionable) > 0 {
+		return diff, withScannerFindings(fmt.Errorf("%s found %d medium-or-higher or unclassified finding(s) (%d existing, %d added)", tool, len(actionable), diff.Existing, diff.Added), actionable)
 	}
 	return diff, nil
 }
@@ -214,6 +215,9 @@ func normalizeScannerFile(file string) string {
 		}
 		if abs, err := filepath.Abs(file); err == nil {
 			file = abs
+		}
+		if resolved, err := filepath.EvalSymlinks(file); err == nil {
+			file = resolved
 		}
 	}
 	return file
