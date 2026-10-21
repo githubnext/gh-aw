@@ -20,18 +20,18 @@ gh aw audit "$RUN_ID" --repo "$REPO" --no-baseline --timeout 2m \
 ```
 
 Read completeness, `overview`, `key_findings`, `recommendations`, `errors`.
-Timeout: incomplete JSON report possible. Reuse cache; fetch missing evidence only.
-Read only the linked `key_findings[].playbook_url` section or exact-code row.
-Trace causes, not cascades; compare one relevant success if needed.
+Timeout: incomplete JSON report possible. Fetch only missing evidence.
+Read only the linked `key_findings[].playbook_url` or exact-code row.
+Trace causes, not cascades; compare one success.
 Fleet: [cluster first](analyzing-runs.md).
 
 Preserve code case/punctuation/namespace; emitter determines severity.
-Success, advisory, pending, skipped and policy-denied outcomes need not be bugs.
+Success/advisory/pending/skipped/policy-denied outcomes need not be bugs.
 Unknown codes: [unmapped codes](#unmapped-codes).
 
 ## Audit findings
 
-Use same-run artifacts, never baseline evidence.
+Use same-run artifacts, not baselines.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
@@ -86,11 +86,11 @@ Inventory: [Model availability](#model-availability).
 
 ## Model availability
 
-Use [Start here](#start-here); read `engine_config`. Pi `not advertised`:
+Read `engine_config` ([Start here](#start-here)). Pi `not advertised`:
 confirmed absence → `model_unavailable`; missing/incomplete/malformed/ambiguous/
 contradictory evidence → `model_availability_unknown`.
 Candidates/endpoints never authorize auto-substitution.
-Audit quoted job/step URLs; inspect referenced lines separately.
+Audit quoted job/step URLs and referenced lines.
 Missing context: `gh run view --log`.
 
 ### Inspect cached models
@@ -101,8 +101,8 @@ gh aw models --json --refresh-observed=false --logs-dir "$EVIDENCE"
 gh aw models --repo "$REPO" --logs-dir "$EVIDENCE" --refresh-count 5
 ```
 
-Keep `catalog`, `aliases`, `observed` distinct; aggregates do not prove same-run access.
-Default refresh downloads artifacts; prefer cached evidence.
+Keep `catalog`, `aliases`, `observed` distinct; aggregates cannot prove same-run access.
+Refresh downloads artifacts; prefer cache.
 
 ### Verify exact same-run inventory
 
@@ -146,12 +146,12 @@ gh aw audit "$BASE_RUN_ID" "$RUN_ID" --repo "$REPO" \
 First run = reference. Compare model/provider, credential source (names only),
 revision, runtimes, inventory; success doesn't establish model identity.
 Different inventories with same AWF version: catalog/access difference, not proof
-of regression/retirement. Removal time/cause stays unknown without evidence.
+of regression/retirement. Removal time/cause requires evidence.
 Trace pins: `git log -S 'model: PROVIDER/MODEL' -- WORKFLOW.md`.
 
-Confirmed absent pin: verify same-provider candidate API/capabilities/policy.
-Authorized patch: edit source, recompile lock; compilation does not test inference.
-Runtime defect: follow [model/engine guide](debug-model-engine-misconfiguration.md).
+Absent pin: verify same-provider API/capabilities/policy.
+Authorized patch: edit source, recompile lock; compilation cannot test inference.
+Runtime defect: [model/engine guide](debug-model-engine-misconfiguration.md).
 
 ## Completion and safe-output errors
 
@@ -161,7 +161,8 @@ Registration/nonempty `safeoutputs.jsonl` does not prove publication.
 | Codes | Check | Remedy |
 | --- | --- | --- |
 | `agent_startup_failure` | First setup/engine error. | Fix startup; missing output need not be agent choice. |
-| `engine_driver_failure` | Driver exit; final native event. | Fix driver before output instructions. |
+| `engine_driver_failure`, `driver_crash` | Driver exit/signal; final native error. | Fix driver first; nonzero exit alone doesn't establish outage. |
+| `secret_redaction_failure` | Redaction status; sanitized diagnostic. | Repair redaction before publication; never expose raw logs/disable masking. |
 | `safeoutputs_cli_error` | Arguments, registration, denial. | Fix supported invocation/allowlist; no unauthorized `gh` writes. |
 | `invalid_safe_outputs` | Record errors; generated schema. | Fix emitted type/fields; retain validation. |
 | `missing_terminal_safe_output` | Expected terminal tool, denied calls, last session event. | Repair publication path or prompt completion contract; silence is not an intentional noop. |
@@ -190,7 +191,7 @@ Registration/nonempty `safeoutputs.jsonl` does not prove publication.
 
 ## Merge guard codes
 
-Check current PR head/base/checks/reviews/guards. Diagnosis never authorizes merge.
+Check current PR head/base/checks/reviews/guards. Diagnosis cannot authorize merge.
 
 | Codes | Check | Remedy |
 | --- | --- | --- |
