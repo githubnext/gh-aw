@@ -31,6 +31,8 @@ Identify outdated setup steps, missing option descriptions, and examples that no
 
 `create-pull-request` matters for security because the agent does not push directly to the default branch. gh-aw validates the proposed changes and opens a pull request for human review, which keeps documentation updates reviewable before merge.
 
+For deliberate PR-by-PR invocation instead of scheduled updates, see [How to gate PR documentation and rebuild indexes after merge](/gh-aw/guides/pr-documentation/). It separates the docs agent from a required check and post-merge index generation, including token event behavior and recursion prevention.
+
 ## Learn More
 
 - [Run Claude Code in GitHub Actions with gh-aw](/gh-aw/engines/claude/)
